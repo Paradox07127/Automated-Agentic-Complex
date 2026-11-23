@@ -1,4 +1,4 @@
-// The fake bridge's `GET /characters/:character_id/motion-groups`: two pools of the mock graph's `si` with proposals and refusals.
+// The fake bridge's `GET /characters/:character_id/motion-groups`: three pools of the mock graph's `si` with proposals and refusals.
 import { CHARACTERS } from '../../mock/fixtures';
 import type { MockRoute } from '../../mock/types';
 import type { MotionGroups } from '../motionGroups';
@@ -24,6 +24,16 @@ const POOLS: MotionGroups['pools'] = {
     ],
     proposal: [{ clip: `${P}dialog_single_think`, weight: 1, why: 'token:dialog_single' }],
     rejected: [{ clip: `${P}dialog_state_think_fall`, reason: 'no_return' }],
+  },
+  // An event pool the pack has no member for; no clip of the mock graph uses it.
+  'click.cheek': {
+    posture: 'stand',
+    pack: [],
+    proposal: [
+      { clip: `${P}customized_single_headpat`, weight: 1, why: 'meaning:touch_face' },
+      { clip: `${P}dialog_single_wave`, weight: 1, why: 'meaning:touch_face' },
+    ],
+    rejected: [],
   },
 };
 

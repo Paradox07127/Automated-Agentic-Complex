@@ -87,7 +87,7 @@ function Settings({ id, offline, toast }: MotionSettingsProps & { id: string }) 
   const g = graph.data;
   const ix = useMemo(() => (g ? indexGraph(g) : null), [g]);
   const rows = useMemo(() => (g ? chainGroups(g).flatMap((x) => x.rows) : []), [g]);
-  const pools = useMemo(() => (g ? poolsOf(g).filter((p) => !p.locked) : []), [g]);
+  const pools = useMemo(() => (g ? poolsOf(g, groups.data).filter((p) => !p.locked) : []), [g, groups.data]);
   const joints = useMemo(() => new Map(g && ix ? Object.keys(g.chains).map((k) => [k, junctions(g, ix, k, [])]) : []), [g, ix]);
 
   if (graph.isError) return <ErrBar message={`读取动作图失败：${failure(graph.error).text}`} onRetry={() => void graph.refetch()} />;

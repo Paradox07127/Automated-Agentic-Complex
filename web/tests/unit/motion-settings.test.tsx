@@ -73,7 +73,7 @@ describe('编排', () => {
     await mount(toast);
     await toEvent('session.thinking');
     const grid = screen.getByRole('radiogroup', { name: '事件池' });
-    expect([...grid.querySelectorAll<HTMLElement>('[data-pool-cell]')].map((c) => c.dataset.poolCell)).toEqual(['session.thinking', 'click.head']);
+    expect([...grid.querySelectorAll<HTMLElement>('[data-pool-cell]')].map((c) => c.dataset.poolCell)).toEqual(['session.thinking', 'click.cheek', 'click.head']);
     expect(grid.textContent).toContain('思考');
     expect(grid.textContent).toContain('点击与进场');
     expect(rows()).toEqual([THINK, PONDER]);

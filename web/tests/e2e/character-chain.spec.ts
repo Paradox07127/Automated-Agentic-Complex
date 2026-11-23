@@ -51,6 +51,18 @@ test('a chain of five segments scrolls sideways in its strip to the stance it co
   expect(back.back).toBeLessThanOrEqual(back.strip + 1);
 });
 
+test('事件反应 has a cell for an event pool the pack has no member for, with her proposals under it', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('main.html#/character?still=1&pane=chain');
+  await page.getByRole('radio', { name: /^事件反应/ }).click();
+  const cell = page.locator('[data-pool-cell="click.cheek"]');
+  await expect(cell).toContainText('0 条');
+  await cell.click();
+  const pool = page.locator('[data-pool="click.cheek"]');
+  await expect(pool.locator('[data-proposal]')).toHaveCount(2);
+  await page.screenshot({ path: '../.local/output/empty-pools/click-cheek-1440x900.png' });
+});
+
 test('at compact sizes the inspector keeps 桌面播一次, 备注, 从这个池去掉 and the blend', async ({ page }) => {
   await page.setViewportSize({ width: 960, height: 760 });
   const d = await openPonder(page);

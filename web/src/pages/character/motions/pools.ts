@@ -1,5 +1,6 @@
 // The pools the runtime draws chain starts from, read off the graph's clip uses. Only event pools and idle tiers can be overridden (C3 v27 rule 51).
 import type { MotionPoolEntry } from '../../../bridge';
+import type { MotionGroups } from '../../../bridge/motionGroups';
 import type { MotionGraph } from './graph';
 
 export type PoolKind = 'event' | 'tier' | 'activity' | 'intent' | 'speech';
@@ -31,8 +32,8 @@ const LOCKED: Record<string, string> = {
 export const editable = (kind: PoolKind, key: string) => kind === 'event' || (kind === 'tier' && /^idle\.t\d+$/.test(key));
 export const asWeight = (w: number | null | undefined) => Math.min(100000, Math.max(1, Math.round(w ?? 1)));
 
-/** Every pool with a clip the runtime draws, overridable ones first, in group order. */
-export function poolsOf(g: MotionGraph): Pool[] {
+/** Every pool with a clip the runtime draws, overridable ones first, in group order; with `mg`, also its empty-pack event pools. */
+export function poolsOf(g: MotionGraph, mg?: MotionGroups): Pool[] {
   const pools = new Map<string, Pool>();
   for (const c of g.clips) {
     for (const u of c.uses) {
@@ -53,7 +54,22 @@ export function poolsOf(g: MotionGraph): Pool[] {
   }
   const order = g.groups.map((x) => x.id);
   const rank = (p: Pool) => (order.includes(p.group) ? order.indexOf(p.group) : order.length);
-  return [...pools.values()].sort((a, b) => Number(!!a.locked) - Number(!!b.locked) || rank(a) - rank(b) || a.key.localeCompare(b.key));
+  const sorted = (list: Pool[]) => list.sort((a, b) => Number(!!a.locked) - Number(!!b.locked) || rank(a) - rank(b) || a.key.localeCompare(b.key));
+  const found = sorted([...pools.values()]);
+  return mg ? sorted([...found, ...emptyPools(mg, g, found)]) : found;
+}
+
+/** agentd's event pools no clip of the graph uses that it proposes or refuses clips for, each in the group of its relatives. */
+export function emptyPools(mg: MotionGroups, g: MotionGraph, have: Pool[] = poolsOf(g)): Pool[] {
+  const out: Pool[] = [];
+  for (const [key, x] of Object.entries(mg.pools)) {
+    if (editable('tier', key) || have.some((p) => p.key === key) || x.pack.length > 0 || x.proposal.length + x.rejected.length === 0) continue;
+    const base = key.split('@')[0]!;
+    const prefix = key.split('.')[0];
+    const group = g.groups.some((y) => y.id === base) ? base : (have.find((p) => p.key.split('.')[0] === prefix)?.group ?? 'idle');
+    out.push({ key, kind: 'event', group, posture: x.posture, locked: null, entries: [] });
+  }
+  return out;
 }
 
 /** The pack's pool as an override starts it: integer weights 1–100000. */
