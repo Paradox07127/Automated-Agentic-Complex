@@ -2,6 +2,7 @@
 import base64
 import contextlib
 import http.client
+import io
 import json
 import os
 from pathlib import Path
@@ -74,6 +75,34 @@ class ModelsTest(unittest.TestCase):
 
     def config(self, provider="openai", **values):
         return self.settings.save({"provider": provider, "model": "test-model", "api_key": "secret-key", **values})
+
+    def test_a_moved_llm_endpoint_clears_only_the_compatible_key(self):
+        from daemon.main import clear_moved_credentials
+        tunnel = {"url": "http://127.0.0.1:11434/v1", "ssh_host": "gpu"}
+        other_host = {**tunnel, "ssh_host": "gpu2"}
+        direct = {"url": "https://llm.example/v1", "ssh_host": ""}
+        off = {"url": "", "ssh_host": ""}
+        endpoints = Path(self.tmp.name) / "service-endpoints.json"
+        clear = lambda: self.settings.clear_key("compatible")  # noqa: E731
+        # (endpoint at the last start or None for a first start, endpoint now, whether the key stays)
+        for last, now, kept in ((None, tunnel, True), (tunnel, tunnel, True), (tunnel, other_host, False),
+                                (tunnel, direct, False), (tunnel, off, False)):
+            with self.subTest(last=last, now=now):
+                endpoints.unlink(missing_ok=True)
+                self.config("compatible", api_key="compatible-key")
+                self.config("openai")
+                ref = self.settings.data["backends"]["compatible"]["key_refs"]["compatible"]
+                if last is not None:
+                    clear_moved_credentials(self.tmp.name, {"llm": (last, clear)})
+                with contextlib.redirect_stderr(io.StringIO()) as stderr:
+                    clear_moved_credentials(self.tmp.name, {"llm": (now, clear)})
+                loaded = ModelSettings(self.tmp.name, self.settings.secrets)
+                self.assertEqual(loaded.public()["backends"]["compatible"]["has_key"], kept)
+                self.assertEqual(self.settings.secrets.get(ref) is not None, kept)
+                provider, _, key = loaded.connection()
+                self.assertEqual((provider, key), ("openai", "secret-key"))
+                self.assertEqual(stderr.getvalue(), "" if kept else "agentd: llm endpoint changed; credential cleared\n")
+                self.assertEqual(json.loads(endpoints.read_text(encoding="utf-8"))["llm"], now)
 
     def test_deepseek_fixed_endpoint(self):
         self.settings.save({"provider": "deepseek", "api_key": "secret-key", "base_url": "https://evil.example"})
@@ -249,12 +278,12 @@ class ModelsTest(unittest.TestCase):
                 with patch("httpx.get", side_effect=lambda *a, **k: calls.append("get") or httpx.Response(200, json={"data": []})):
                     if ready:
                         self.assertEqual(self.settings.catalog(self.no_pi)["models"], [])
-                        self.assertEqual(calls, ["request", 200.0, "get"])
+                        self.assertEqual(calls, ["request", 0.1, "get"])
                     else:
                         calls.clear()
                         with self.assertRaisesRegex(ModelError, "llm_ensure_failed"):
                             self.settings.catalog(self.no_pi)
-                        self.assertEqual(calls, ["request", 200.0])
+                        self.assertEqual(calls, ["request", 0.1])
 
     def test_chatgpt_models_are_account_catalog_and_oauth_required(self):
         self.config("chatgpt")

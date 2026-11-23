@@ -77,7 +77,7 @@ agentd 是角色一侧的后台服务，Python 3.12 实现，只监听 127.0.0.1
 
 ## 模型与凭据
 
-- `model-settings.json` 保存各后端连接和凭据引用。`chatgpt-auth.json` 保存安装标识、账号注册、授权范围和过期时间。API Key、OAuth 令牌、动作和 TTS 服务令牌在 macOS 上保存在登录钥匙串中，在 Windows 上由当前用户的 DPAPI 加密。两份 JSON 文件都在 `--state-dir` 下，以 0600 原子写入。HTTP 读端点和 UI 不返回凭据。
+- `model-settings.json` 保存各后端连接和凭据引用。`chatgpt-auth.json` 保存安装标识、账号注册、授权范围和过期时间。API Key、OAuth 令牌、动作和 TTS 服务令牌在 macOS 上保存在登录钥匙串中，在 Windows 上由当前用户的 DPAPI 加密。两份 JSON 文件都在 `--state-dir` 下，以 0600 原子写入。HTTP 读端点和 UI 不返回凭据。动作服务令牌和兼容 API 的 Key 只属于启动时的端点（`--motion-url`、`--llm-url` 加 `--motion-ssh-host`、`--llm-ssh-host`）：端点和上次启动不同，agentd 先删掉对应凭据。
 - 没保存过设置时 provider 为 `chatgpt`。保存后只影响后续请求。
 - ChatGPT 订阅：在系统浏览器登录，回调校验 state、PKCE（S256）、ID token 和 nonce；只有授权里有 `chatgpt.tokens.use.direct` 才允许推理。刷新按连接串行，并加文件锁。订阅令牌只发往 `https://api.openai.com/v1`，不读取或复用 Codex 应用的登录文件。退出时尝试撤销远端刷新令牌。
 - OpenAI 与兼容 API：Base URL 只收 https，或本机（localhost、127.0.0.1、::1）的 http。输出上限默认 4096 token，可设 128–32768。DeepSeek 固定官方地址 `https://api.deepseek.com`，必须有 Key。

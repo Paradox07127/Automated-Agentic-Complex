@@ -51,3 +51,7 @@ class MotionSettings:
                 atomic_write_json(self.path, saved)
             self.backend, self.token_ref = saved["backend"], ref
         return 200, self.public()
+
+    def clear_token(self):
+        """Remove the saved token."""
+        self.update({"backend": self.backend, "token": ""})

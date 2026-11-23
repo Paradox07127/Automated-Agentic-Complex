@@ -2,6 +2,7 @@
 import copy
 from pathlib import Path
 import threading
+import time
 from urllib.parse import urlparse
 
 import httpx
@@ -188,6 +189,17 @@ class ModelSettings:
             self.error = None
         return self.public()
 
+    def clear_key(self, slot):
+        """Remove the key saved in slot, a provider id of DEFAULTS."""
+        with self.lock:
+            updated = copy.deepcopy(self.data)
+            refs = updated["backends"][slot].get("key_refs", {})
+            if slot not in refs:
+                return
+            with setting_secret(self.secrets, refs.pop(slot), "provider-", b""):
+                atomic_write_json(self.path, updated, ensure_ascii=False)
+            self.data = updated
+
     def connection(self):
         """(provider, config, key) of the saved provider."""
         self._recover()
@@ -204,13 +216,23 @@ class ModelSettings:
             raise ModelError("missing_api_key")
         return provider, config, key
 
-    def llm_ready(self):
+    def llm_ready(self, cancelled=lambda: False, timeout=None):
         """Whether the compatible API can take a request: True without an ensurer, else once its ensure answered
-        ready."""
+        ready within timeout seconds (None: the ensure's own limit). False soon after cancelled() turns true."""
         if self.llm_ensurer is None:
             return True
         self.llm_ensurer.request()
-        return self.llm_ensurer.wait_ready(service_ensure.TIMEOUT)
+        deadline = time.monotonic() + (service_ensure.TIMEOUT if timeout is None else min(timeout, service_ensure.TIMEOUT))
+        while not cancelled():
+            step = min(0.1, max(0.0, deadline - time.monotonic()))
+            waited = time.monotonic()
+            if self.llm_ensurer.wait_ready(step):
+                return True
+            # wait_ready answers False before its timeout only once the ensure ended without ready; half a step
+            # leaves room for timer slack.
+            if time.monotonic() >= deadline or time.monotonic() - waited < step / 2:
+                return False
+        return False
 
     def catalog(self, pi_models):
         """{providers, models} of the saved service. Pi's providers: `pi_models(Pi provider id or None)`, the SDK's

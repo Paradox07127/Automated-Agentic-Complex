@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -317,17 +319,47 @@ class SessionTests(PiConnectionCase):
                     results.append(error.code)
         finally:
             session.close()
-        frames = [json.loads(line)["frame"] for line in (self.controller.state_dir / "character-agent/runner/pi/frames.jsonl")
-                  .read_text(encoding="utf-8").splitlines()]
+        log = self.controller.state_dir / "character-agent/runner/pi/frames.jsonl"
+        frames = [json.loads(line)["frame"] for line in log.read_text(encoding="utf-8").splitlines()] if log.exists() else []
         return calls, results, [f for f in frames if f["type"] == "query"]
 
     def test_the_llm_ensurer_starts_the_compatible_api_before_every_query(self):
         calls, results, queries = self.compatible_queries(True)
-        self.assertEqual((calls, results, len(queries)), (["request", 200.0] * 2, [True, True], 2))
+        self.assertEqual((calls, results, len(queries)), (["request", 0.1] * 2, [True, True], 2))
 
     def test_a_failed_llm_ensure_sends_no_query(self):
         calls, results, queries = self.compatible_queries(False)
-        self.assertEqual((calls, results, queries), (["request", 200.0] * 2, ["llm_ensure_failed"] * 2, []))
+        self.assertEqual((calls, results, queries), (["request", 0.1] * 2, ["llm_ensure_failed"] * 2, []))
+
+    def test_a_cancel_ends_the_llm_ensure_wait_without_a_query(self):
+        self.use("compatible", api_key="fake-compatible-key", model="local-model")
+        waiting, release = threading.Event(), threading.Event()
+        def wait_ready(timeout):
+            waiting.set()
+            release.wait(timeout)
+            return False
+        self.models.llm_ensurer = SimpleNamespace(request=lambda: None, wait_ready=wait_ready)
+        self.addCleanup(release.set)
+        runner = self.root / "fake_runner.py"; runner.write_text(FAKE_RUNNER, encoding="utf-8")
+        session = self.controller._session_factory([], self.config(runtime_source="local", executable=sys.executable))
+        session.runner_path = runner
+        self.addCleanup(session.close)
+        cancel, results = threading.Event(), []
+        def run():
+            try:
+                results.append(list(session.stream("hi", system_prompt="You are Mira.", run_id="run-1", cancelled=cancel)))
+            except HarnessError as error:
+                results.append(error.code)
+        thread = threading.Thread(target=run, daemon=True)
+        thread.start()
+        self.assertTrue(waiting.wait(5))
+        cancel.set()
+        thread.join(1)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(results[0][-1], {"type": "result", "success": False, "subtype": "cancelled", "run_id": "run-1"})
+        log = self.controller.state_dir / "character-agent/runner/pi/frames.jsonl"
+        frames = [json.loads(line)["frame"] for line in log.read_text(encoding="utf-8").splitlines()] if log.exists() else []
+        self.assertEqual([f for f in frames if f["type"] == "query"], [])
 
     def test_catalog_provider_reaches_the_runner_without_an_endpoint_api(self):
         self.use("deepseek", api_key="fake-deepseek-key")

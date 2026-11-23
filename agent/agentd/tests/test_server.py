@@ -919,6 +919,19 @@ class ArgsTest(unittest.TestCase):
         self.assertEqual((motion.service, motion.host, motion.script), ("motion", "ws", "/srv/motion.sh"))
         self.assertIsNone(agentd_main.ensurer("llm", "ws", None))
 
+    def test_an_ssh_host_comes_with_its_url_and_joins_the_endpoint(self):
+        import daemon.main as agentd_main
+        args = parse_args(["--tts-url", "http://127.0.0.1:19888", "--tts-ssh-host", "tts",
+                           "--motion-url", "http://127.0.0.1:48830/", "--motion-ssh-host", "ws",
+                           "--llm-url", "http://127.0.0.1:11434/v1", "--llm-ssh-host", "gpu"])
+        self.assertEqual((args.tts_ssh_host, args.motion_ssh_host, args.llm_ssh_host), ("tts", "ws", "gpu"))
+        self.assertEqual(agentd_main.service_endpoint(args, "motion"), {"url": "http://127.0.0.1:48830", "ssh_host": "ws"})
+        self.assertEqual(agentd_main.service_endpoint(parse_args([]), "llm"), {"url": "", "ssh_host": ""})
+        for argv in (["--motion-ssh-host", "ws"], ["--llm-url", "http://127.0.0.1:11434/v1", "--llm-ssh-host", ""],
+                     ["--tts-url", "http://127.0.0.1:19888", "--tts-ssh-host", "a b"]):
+            with self.subTest(argv=argv), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                parse_args(argv)
+
     def test_mute_is_off_by_default(self):
         # Settings 只出字、不出声 reaches agentd as --mute at start.
         self.assertFalse(parse_args([]).mute)

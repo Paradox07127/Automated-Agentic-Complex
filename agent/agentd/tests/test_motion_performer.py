@@ -1,6 +1,8 @@
 """The generated motion backend: settings, the performer with a fake service and retarget, its routes and turns."""
+import contextlib
 import hashlib
 import http.client
+import io
 import json
 from pathlib import Path
 import sys
@@ -464,6 +466,29 @@ class SettingsRouteTest(MotionCase):
         status, saved = self.request("PUT", "/motion/settings", {"backend": "game", "token": ""})
         self.assertEqual((status, saved["token_set"]), (200, False))
         self.assertEqual(MotionSettings(self.state, MemorySecrets()).backend, "game")
+
+    def test_a_moved_endpoint_clears_the_saved_token(self):
+        from daemon.main import clear_moved_credentials
+        tunnel = {"url": "http://127.0.0.1:48830", "ssh_host": "ws"}
+        other_host = {**tunnel, "ssh_host": "ws2"}
+        direct = {"url": "http://10.0.0.3:48830", "ssh_host": ""}
+        off = {"url": "", "ssh_host": ""}
+        # (endpoint at the last start or None for a first start, endpoint now, whether the token stays)
+        for last, now, kept in ((None, tunnel, True), (tunnel, tunnel, True), (tunnel, other_host, False),
+                                (tunnel, direct, False), (tunnel, off, False)):
+            with self.subTest(last=last, now=now):
+                (self.state / "service-endpoints.json").unlink(missing_ok=True)
+                self.settings.update(SERVICE)
+                ref = self.settings.token_ref
+                if last is not None:
+                    clear_moved_credentials(self.state, {"motion": (last, self.settings.clear_token)})
+                with contextlib.redirect_stderr(io.StringIO()) as stderr:
+                    clear_moved_credentials(self.state, {"motion": (now, self.settings.clear_token)})
+                self.assertEqual(MotionSettings(self.state, self.settings.secrets).token(), "service-secret" if kept else None)
+                self.assertEqual(self.settings.secrets.get(ref) is not None, kept)
+                self.assertEqual(stderr.getvalue(), "" if kept else "agentd: motion endpoint changed; credential cleared\n")
+                recorded = json.loads((self.state / "service-endpoints.json").read_text(encoding="utf-8"))
+                self.assertEqual(recorded["motion"], now)
 
     def test_a_backend_change_rerenders_the_mouth_prompt_once(self):
         self.server.mouth = test_server.FakeMouth([])

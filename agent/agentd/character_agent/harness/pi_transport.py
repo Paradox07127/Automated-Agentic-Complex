@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import queue
 import re
+import secrets
 import subprocess
 import threading
 import time
@@ -63,7 +64,8 @@ class ManagedPiSession(ManagedClaudeSession):
         self.credential = credential
         # (ready frame) -> None, each time a runner starts.
         self.on_ready = on_ready
-        # () -> whether the compatible API can take a query, asked before each one (it may start the API).
+        # (cancelled=, timeout=) -> whether the compatible API can take a query, asked before each one (it may start
+        # the API).
         self.service_ready = service_ready
 
     def prewarm(self):
@@ -87,9 +89,22 @@ class ManagedPiSession(ManagedClaudeSession):
                     event.get("subtype"), errors=[text], status=int(status.group(1)) if status else None))
         super()._queue(event, generation)
 
+    def stream(self, prompt, *, cancelled=None, run_id=None, timeout=None, **options):
+        run_id = run_id or secrets.token_hex(12)
+        if self.service_ready is not None:
+            # Before the stream lock: a start can take minutes, and a cancel or the caller's timeout ends the wait.
+            started = time.monotonic()
+            ready = self.service_ready(cancelled=lambda: cancelled_now(cancelled), timeout=timeout)
+            if cancelled_now(cancelled):
+                yield {"type": "result", "success": False, "subtype": "cancelled", "run_id": run_id}
+                return
+            if timeout is not None:
+                timeout -= time.monotonic() - started
+            if not ready:
+                raise HarnessError("run_timeout" if timeout is not None and timeout <= 0 else "llm_ensure_failed")
+        yield from super().stream(prompt, cancelled=cancelled, run_id=run_id, timeout=timeout, **options)
+
     def _write(self, message, proc=None):
-        if message["type"] == "query" and self.service_ready is not None and not self.service_ready():
-            raise HarnessError("llm_ensure_failed")
         if message["type"] == "query" and self.credential is not None:
             try:
                 message = {**message, "api_key": self.credential()}

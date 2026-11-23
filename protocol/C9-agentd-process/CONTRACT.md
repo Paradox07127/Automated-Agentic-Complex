@@ -46,6 +46,7 @@ agentd 的参数（`--` 之后）。宿主必传的只有 `--port` 和 `--state-
 | `--motion-ensure-host HOST` 和 `--motion-ensure-script PATH` | 动作服务走 SSH 并且有启动脚本时，两个一起传 | 无，不按需启动动作服务 |
 | `--llm-url URL` | 兼容 OpenAI 的模型 API 不是关时，地址同上；https，或 localhost / 127.0.0.1 / ::1 的 http，不带用户名、密码、query、fragment（不合是参数错误） | 无，兼容 API 关（`llm_service_off`，C6） |
 | `--llm-ensure-host HOST` 和 `--llm-ensure-script PATH` | 模型 API 走 SSH 并且有启动脚本时，两个一起传 | 无，不按需启动模型 API |
+| `--tts-ssh-host HOST`、`--motion-ssh-host HOST`、`--llm-ssh-host HOST` | 该服务 mode 为 `ssh` 时一律传（不论有没有启动脚本），和它的 `--<id>-url` 一起；HOST 非空、不含空白（不合或缺 url 是参数错误）。motion 和 llm 的 url 加这个主机是凭据所属的端点：和上次启动记下的（`<state-dir>/service-endpoints.json`）不同时，agentd 删掉动作服务令牌或兼容 API 的 Key | 无 |
 | `--tts-token-file PATH` | 总传，`<support>/tts-token`，文件不在也传（C10） | 凭据引用的基础路径取 `$AAC_TTS_TOKEN_FILE`，缺省取 `<state-dir>/tts-token` |
 
 agentd 还认 `--hook-timeout`、`--margin`、`--ritual-report-time`、`--ledger-root`、`--exit-with-parent/--no-exit-with-parent`、`--describe`；Companion 不传。含义见 `python3 agent/agentd/server.py --help`。

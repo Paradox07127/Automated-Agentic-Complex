@@ -11,6 +11,7 @@ import threading
 import traceback
 from urllib.parse import urlsplit
 
+from fsutil import atomic_write_json
 from api.handler import C6_CONTRACT
 from character_agent.harness.transport import PROTOCOL_VERSION as C8_PROTOCOL
 from sessions.agent_meta import AgentMeta
@@ -101,17 +102,22 @@ def parse_args(argv=None):
     parser.add_argument("--harness-site", dest="harness_sites", action="append", default=[], metavar="ID=DIR",
                         help="component site directory for harness.pi (node/bin/node and pi-runtime/)")
     parser.add_argument("--tts-url", help="remote TTS service base URL, e.g. http://127.0.0.1:9888 over ssh -L")
+    parser.add_argument("--tts-ssh-host", help="ssh host of the remote TTS whenever --tts-url is its tunnel")
     parser.add_argument("--tts-ensure-host",
                         help="ssh host that runs --tts-ensure-script to start the remote TTS host's service on demand")
     parser.add_argument("--tts-ensure-script", default=None,
                         help="script on the remote TTS host whose `ensure` starts the TTS and answers ready or fail")
     parser.add_argument("--motion-url", help="Kimodo motion service base URL; no generated motion without it")
+    parser.add_argument("--motion-ssh-host",
+                        help="ssh host of the motion service whenever --motion-url is its tunnel; part of its endpoint")
     parser.add_argument("--motion-ensure-host",
                         help="ssh host that runs --motion-ensure-script to start the motion service on demand")
     parser.add_argument("--motion-ensure-script",
                         help="script on the motion host whose `ensure` starts the service and answers ready or fail")
     parser.add_argument("--llm-url", help="OpenAI-compatible model API base URL, e.g. http://127.0.0.1:11434/v1; "
                         "the compatible provider is off without it")
+    parser.add_argument("--llm-ssh-host",
+                        help="ssh host of the model API whenever --llm-url is its tunnel; part of its endpoint")
     parser.add_argument("--llm-ensure-host",
                         help="ssh host that runs --llm-ensure-script to start the model API on demand")
     parser.add_argument("--llm-ensure-script",
@@ -166,6 +172,10 @@ def parse_args(argv=None):
         if flag == "llm_url" and parts.scheme == "http" and parts.hostname not in ("localhost", "127.0.0.1", "::1"):
             parser.error("--llm-url: http:// only to localhost; use https://")  # a model API key travels in the clear
         setattr(args, flag, getattr(args, flag).rstrip("/"))
+    for service in ("tts", "motion", "llm"):
+        host = getattr(args, f"{service}_ssh_host")
+        if host is not None and (not host or any(c.isspace() for c in host) or getattr(args, f"{service}_url") is None):
+            parser.error(f"--{service}-ssh-host: expected a host name, given with --{service}-url")
     if args.describe:
         print(json.dumps(DESCRIBE, sort_keys=True, separators=(",", ":")))
         sys.exit(0)
@@ -180,6 +190,27 @@ def ensurer(service, host, script):
     """The ServiceEnsurer of --<service>-ensure-host and --<service>-ensure-script, or None without both."""
     from infra.service_ensure import ServiceEnsurer
     return ServiceEnsurer(service, host, script) if host and script else None
+
+
+def service_endpoint(args, service):
+    """The endpoint a service's credential belongs to: its --<service>-url and --<service>-ssh-host, "" when absent."""
+    return {"url": getattr(args, f"{service}_url") or "", "ssh_host": getattr(args, f"{service}_ssh_host") or ""}
+
+
+def clear_moved_credentials(state_dir, services):
+    """services: {id: (endpoint, clear)}. Runs clear for each service whose endpoint differs from the one recorded at
+    the last start, then records this start's endpoints; a service without a record is only recorded."""
+    path = Path(state_dir) / "service-endpoints.json"
+    try:
+        recorded = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        recorded = {}
+    for service, (endpoint, clear) in services.items():
+        if service in recorded and recorded[service] != endpoint:
+            clear()
+            print(f"agentd: {service} endpoint changed; credential cleared", file=sys.stderr)
+        recorded[service] = endpoint
+    atomic_write_json(path, recorded)
 
 
 def watch_parent(server, parent, interval=1.0):
@@ -298,6 +329,12 @@ def main(secret_store=None):
     from brain.provider import Mouth
     models = ModelSettings(state_dir, secret_store, llm_url=args.llm_url,
                            llm_ensurer=ensurer("llm", args.llm_ensure_host, args.llm_ensure_script)) if needs_runtime else None
+    from motion.settings import MotionSettings
+    motion_settings = MotionSettings(state_dir, secret_store)
+    moved = {"motion": (service_endpoint(args, "motion"), motion_settings.clear_token)}
+    if models is not None:
+        moved["llm"] = (service_endpoint(args, "llm"), lambda: models.clear_key("compatible"))
+    clear_moved_credentials(state_dir, moved)
     guard = OutboundGuard(resolve_windows(state_dir), paths.outbound_guard_log(state_dir))
     from brain.egress import EgressPolicy
     # One policy for every model call, so the diagnostics see one set of mask counts.
@@ -361,8 +398,7 @@ def main(secret_store=None):
     server.desk = DeskLog(open_store(db), retention=server.history_retention)
     server.spatial.parked = lambda on: server.desk.span("edge", on)
     from motion.performer import Performer
-    from motion.settings import MotionSettings
-    server.motion = Performer(MotionSettings(state_dir, secret_store), server.registry.publish_event,
+    server.motion = Performer(motion_settings, server.registry.publish_event,
                               lambda: server.characters.package(server.character).root, state_dir / "motion-cache",
                               offer=server.spatial.offer, trace=server._trace, service_url=args.motion_url,
                               ensurer=ensurer("motion", args.motion_ensure_host, args.motion_ensure_script))
