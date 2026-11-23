@@ -49,9 +49,10 @@ test('每日简报 900×600: the date pager in the command bar is not cut', asyn
 
 test('每日简报 › 时间 1280: a focused timeline entry draws its ring inside its own box', async ({ page }) => {
   await open(page, 1280, 800, 'overview?plugins=daily_brief&tab=tm');
-  // From the keyboard, so the entry's focus is drawn as a keyboard ring.
-  await page.keyboard.press('Tab');
   const entry = page.locator('button[data-entry]').first();
+  // The app mounts after it starts listening for keys, so this Tab is seen and the entry's focus draws a keyboard ring.
+  await expect(entry).toBeVisible();
+  await page.keyboard.press('Tab');
   await entry.focus();
   const ring = await entry.evaluate((e) => {
     const s = getComputedStyle(e);
