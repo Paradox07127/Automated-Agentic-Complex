@@ -39,7 +39,7 @@ const LEFT: readonly string[] = ['character', 'chat', 'memory', 'tasks'];
 /** The watch's CharInfo, Activity, Gacha and Purchase keys, top to bottom. */
 const LEFT_G = ['charInfo', 'activity', 'gacha', 'purchase'] as const;
 /** Developer pages, last in the grid. */
-const DEV: readonly string[] = ['diag', 'pipeline'];
+const DEV: readonly string[] = ['diag'];
 
 /** An action key: shown while the page it lands on is offered; off, with its 已关闭 reason, while its plug-in is off. */
 interface Act<Id extends string> {

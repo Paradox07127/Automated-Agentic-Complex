@@ -66,7 +66,7 @@ describe('home tiles', () => {
     setDevMode(true);
     mount();
     expect(names(await screen.findByRole('group', { name: '主要页面' }))).toEqual(LEFT('character', 'chat', 'memory', 'tasks'));
-    expect(names(screen.getByRole('group', { name: '工具' }))).toEqual([...ACTIONS, ...['diag', 'pipeline'].map(title)]);
+    expect(names(screen.getByRole('group', { name: '工具' }))).toEqual([...ACTIONS, title('diag')]);
     // Key hints stay in the DOM; html[data-keys] only shows them.
     expect(within(screen.getByRole('group', { name: '主要页面' })).getByRole('button', { name: '对话' }).textContent).toContain('⌘2');
     cleanup();

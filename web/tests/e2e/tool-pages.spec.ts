@@ -41,9 +41,9 @@ for (const theme of ['dark', 'light'] as const) {
 
 test('tool pages do not scroll sideways at 900×600', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 600 });
-  for (const id of ['diag', 'pipeline'] as const) {
+  for (const id of ['diag?', 'memory?view=pipeline&'] as const) {
     await page.goto('about:blank');
-    await page.goto(`main.html#/${id}?still=1`);
+    await page.goto(`main.html#/${id}still=1`);
     await expect(page.locator('[data-page]').first()).toBeVisible();
     const over = await page.evaluate(() =>
       [document.documentElement, ...document.querySelectorAll('main, [data-shell="content"], [data-page], [data-page] table')]

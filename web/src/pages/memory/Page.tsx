@@ -6,27 +6,30 @@ import type { MemoryTasksResponse } from '../../bridge/agentd-routes.generated';
 import type { BridgeError } from '../../bridge/protocol';
 import type { Fact, FactKind } from '../../domain';
 import { useDemo } from '../../shell/demo';
+import { useDevMode } from '../../shell/devMode';
 import { PageHeaderSlot } from '../../shell/headerSlot';
 import { usePlugins } from '../../shell/plugins';
 import { toast } from '../../shell/toast';
 import { Btn, Menu, Tabs } from '../../ui';
+import { PipelineView } from '../pipeline/Page';
 import { pageNow, useGo, usePageParams } from './api';
 import { Archive } from './Archive';
 import { RUNS_KEY, useLastConsolidation } from './data';
 import { errorText } from './errors';
 import { factText, hm, isCandidate, SRC, SRC_ORDER } from './model';
 import { ClearCard } from './Papers';
+import { Off, Unlinked } from './Power';
 import { Projects } from './Projects';
 import { Review } from './Review';
 import { FACTS_KEY, factsKey, readMemory, useFacts, type MemoryView, type WriteResult } from './useFacts';
 import styles from './Page.module.css';
 
-type View = 'about' | 'projects' | 'activity';
+type View = 'about' | 'projects' | 'activity' | 'pipeline';
 
 /** `?view=`; a fact selection or a source opens 档案, otherwise 档案 unless asked for. */
 function viewParam(p: URLSearchParams): View | null {
   const v = p.get('view');
-  return v === 'about' || v === 'projects' || v === 'activity' ? v : null;
+  return v === 'about' || v === 'projects' || v === 'activity' || v === 'pipeline' ? v : null;
 }
 
 /** `?src=` (agentd's source name or its short key) lands as a search for that source's name. */
@@ -38,7 +41,10 @@ function srcQuery(v: string | null): string | null {
 /** An agentd without the work-memory routes: the bridge refuses the path, or agentd answers 404. */
 const noRoute = (e: unknown) => e instanceof AgentdCallError && (e.status === 404 || e.code === 'unclassified_route');
 
-/** 记忆：档案（默认），插件开着时加页签 项目 / 回顾，只有档案时不画页签；顶栏是记录状态和暂停，底栏是键位说明、整理记录、导出和清空。 */
+/**
+ * 记忆：页签 档案（默认）/ 项目 / 回顾，开发者模式里加 管线；插件关着的页签照常在，选中后整页已关闭。
+ * 顶栏是记录状态和暂停（管线换上它自己的读数），底栏是各页签自己的键位说明和操作。
+ */
 export function MemoryPage() {
   const { state, demo, still } = useDemo();
   const params = usePageParams();
@@ -60,8 +66,7 @@ export function MemoryPage() {
     enabled: state !== 'loading' && !empty && plugins.daily_brief,
     retry: false,
   });
-  const hasProjects = plugins.daily_brief && !noRoute(work.error);
-  const hasReview = plugins.screen_awareness;
+  const dev = useDevMode();
   const facts = useMemo(() => (empty ? [] : mem.data?.facts), [empty, mem.data]);
   const model = useFacts(facts ?? [], owner);
   const [pausedDemo, setPausedDemo] = useState(demo === 'paused');
@@ -71,7 +76,7 @@ export function MemoryPage() {
   const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set());
   const [clearing, setClearing] = useState(false);
   const [exportOff, setExportOff] = useState<string | null>(null);
-  const view: View = (picked === 'projects' && !hasProjects) || (picked === 'activity' && !hasReview) ? 'about' : (picked ?? 'about');
+  const view: View = picked === 'pipeline' && !dev ? 'about' : (picked ?? 'about');
   const sel = params.get('sel');
   const q = params.get('q') ?? srcQuery(params.get('src')) ?? '';
 
@@ -148,15 +153,19 @@ export function MemoryPage() {
       .finally(() => void qc.invalidateQueries({ queryKey: ['memory'] }));
   };
 
-  const memError = state === 'error' ? '记忆库正在被另一个进程写入' : mem.isError && !mem.data ? errorText(mem.error) : null;
+  // `?demo=disconnected`: agentd is gone while the page keeps the facts it read.
+  const offline = demo === 'disconnected' || (mem.error instanceof AgentdCallError && mem.error.code === 'offline');
+  const memError = state === 'error' ? '记忆库正在被另一个进程写入' : mem.isError && !mem.data && !offline ? errorText(mem.error) : null;
   const asks = facts?.filter(isCandidate).length ?? 0;
   const lastRun = empty ? null : runs.pending ? undefined : runs.lastAt;
   const any = (facts?.length ?? 0) > 0;
   const actions = (
     <>
-      <Btn size="sm" variant="text" onClick={() => go({ page: 'pipeline', station: 'mem' })}>
-        整理记录 ›
-      </Btn>
+      {dev && (
+        <Btn size="sm" variant="text" onClick={() => go({ page: 'memory', view: 'pipeline', station: 'mem' })}>
+          整理记录 ›
+        </Btn>
+      )}
       <Menu
         label="管理"
         align="right"
@@ -169,32 +178,60 @@ export function MemoryPage() {
   );
   const tabs = [
     { id: 'about', label: '档案', icon: 'file' as const, ...(asks > 0 && view !== 'about' ? { mark: '有待确认' } : {}) },
-    ...(hasProjects ? [{ id: 'projects', label: '项目', icon: 'folder' as const }] : []),
-    ...(hasReview ? [{ id: 'activity', label: '回顾', icon: 'history' as const }] : []),
+    { id: 'projects', label: '项目', icon: 'folder' as const },
+    { id: 'activity', label: '回顾', icon: 'history' as const },
+    ...(dev ? [{ id: 'pipeline', label: '管线', icon: 'hub' as const }] : []),
   ];
+  const projects = (
+    <Projects
+      tasks={empty || !plugins.daily_brief || noRoute(work.error) ? [] : work.data}
+      error={work.isError && !noRoute(work.error) ? errorText(work.error) : null}
+      onRetry={() => void work.refetch()}
+      initialQ={q}
+      onSession={(id) => go({ page: 'overview', sel: id })}
+    />
+  );
+  const archive = (
+    <Archive
+      key={sel ?? ''}
+      facts={facts}
+      error={memError}
+      onRetry={() => void mem.refetch()}
+      now={now}
+      still={still}
+      fresh={fresh}
+      initial={{ sel, q }}
+      write={write}
+      onJump={jump}
+      onChat={() => go({ page: 'chat' })}
+      tabbed={tabs.length > 1}
+      actions={actions}
+    />
+  );
+  const rec = (
+    <span className={styles.rec} role="status" data-off={!recording || undefined}>
+      <i aria-hidden="true" />
+      {recording ? '记录中' : '已暂停记忆'}
+      {lastRun !== undefined && (
+        <small data-fold="1">
+          {lastRun != null ? (
+            <>
+              上次整理 <span className="num">{hm(lastRun)}</span>
+            </>
+          ) : (
+            '还没有整理'
+          )}
+        </small>
+      )}
+    </span>
+  );
 
   return (
     <div className={styles.page} data-page="memory">
       <PageHeaderSlot
         sub={roster.data?.find((c) => c.id === owner)?.name}
         tabs={tabs.length > 1 && <Tabs label="记忆视图" keys={false} value={view} onChange={(id) => setPicked(id as View)} tabs={tabs} />}
-        right={
-          <span className={styles.rec} role="status" data-off={!recording || undefined}>
-            <i aria-hidden="true" />
-            {recording ? '记录中' : '已暂停记忆'}
-            {lastRun !== undefined && (
-              <small data-fold="1">
-                {lastRun != null ? (
-                  <>
-                    上次整理 <span className="num">{hm(lastRun)}</span>
-                  </>
-                ) : (
-                  '还没有整理'
-                )}
-              </small>
-            )}
-          </span>
-        }
+        right={view !== 'pipeline' && rec}
         action={
           recording ? (
             <Btn size="sm" variant="secondary" onClick={() => void onRecording(false)}>
@@ -207,32 +244,34 @@ export function MemoryPage() {
           )
         }
       />
-      {view === 'projects' ? (
-        <Projects
-          tasks={empty ? [] : work.data}
-          error={work.isError && !noRoute(work.error) ? errorText(work.error) : null}
-          onRetry={() => void work.refetch()}
-          initialQ={q}
-          onSession={(id) => go({ page: 'overview', sel: id })}
-        />
+      {view === 'pipeline' ? (
+        <PipelineView />
+      ) : view === 'projects' ? (
+        !plugins.daily_brief ? (
+          <Off plugin="daily_brief" title="每日简报" reason="隐私设置里关掉了「每日简报」，她不整理你的工作项目。">
+            {projects}
+          </Off>
+        ) : noRoute(work.error) ? (
+          <Unlinked title="工作项目" reason="后台没有工作项目的接口，重启后台后再读。">
+            {projects}
+          </Unlinked>
+        ) : (
+          projects
+        )
       ) : view === 'activity' ? (
-        <Review />
+        plugins.screen_awareness ? (
+          <Review />
+        ) : (
+          <Off plugin="screen_awareness" title="屏幕感知" reason="隐私设置里关掉了「屏幕感知」，她不看屏幕，也不整理工作片段。">
+            <Review reads={false} />
+          </Off>
+        )
+      ) : offline ? (
+        <Unlinked title="后台服务" reason="后台已断开，记忆读不到也存不进；重启后台后恢复。">
+          {archive}
+        </Unlinked>
       ) : (
-        <Archive
-          key={sel ?? ''}
-          facts={facts}
-          error={memError}
-          onRetry={() => void mem.refetch()}
-          now={now}
-          still={still}
-          fresh={fresh}
-          initial={{ sel, q }}
-          write={write}
-          onJump={jump}
-          onChat={() => go({ page: 'chat' })}
-          tabbed={tabs.length > 1}
-          actions={actions}
-        />
+        archive
       )}
       {clearing && <ClearCard count={facts?.filter((f) => f.kind !== 'name' && f.kind !== 'birthday').length ?? 0} onCancel={() => setClearing(false)} onConfirm={onClear} />}
     </div>

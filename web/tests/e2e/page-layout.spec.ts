@@ -113,7 +113,7 @@ test('任务「定时」: the selected schedule has 编辑 and 立即运行 are 
 
 test('the 记忆管线 14 天新增 curve sits inside its plate, below the head bar', async ({ page }) => {
   for (const q of ['', '&theme=light']) {
-    await open(page, `/pipeline?station=store${q}`);
+    await open(page, `/memory?view=pipeline&station=store${q}`);
     const frame = page.getByRole('region', { name: '14 天新增' });
     const trend = await box(frame.getByRole('img', { name: /^14 天新增/ }));
     const hd = await box(frame.locator('> div').first());

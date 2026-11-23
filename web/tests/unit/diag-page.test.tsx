@@ -97,7 +97,7 @@ describe('diag page', () => {
     await waitFor(() => expect(node('观察')).not.toBeNull());
     expect(node('观察')!.textContent).toContain('记忆管线');
     fireEvent.click(node('记忆提取')!);
-    expect(window.location.hash).toContain('/pipeline?station=mem');
+    expect(window.location.hash).toContain('/memory?view=pipeline&station=mem');
   });
 
   it('the 7 天 range re-reads /trace/turns a week back', async () => {

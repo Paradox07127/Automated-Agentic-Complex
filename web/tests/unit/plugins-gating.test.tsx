@@ -55,11 +55,11 @@ describe('pages a user is offered', () => {
   it('keep 每日简报 and 任务 with their plug-ins off and leave out the developer pages', () => {
     const shown = ids();
     for (const id of ['home', 'chat', 'memory', 'character', 'settings', 'overview', 'tasks']) expect(shown).toContain(id);
-    for (const id of ['diag', 'pipeline']) expect(shown).not.toContain(id);
+    expect(shown).not.toContain('diag');
   });
 
   it('bring the developer pages with 开发者模式', () => {
-    for (const id of ['diag', 'pipeline']) expect(ids(true)).toContain(id);
+    expect(ids(true)).toContain('diag');
   });
 
   it('match web.pages of protocol/plugins/plugins.json', () => {
@@ -156,7 +156,7 @@ describe('core pages with the plug-ins at their defaults', () => {
   }
   const OFF_READS = /^\/(agent\/(tasks|runs|interactions)|tasks|schedules|observation|memory\/tasks)(\/|$)/;
 
-  it('read nothing of 个人代理, 屏幕感知 or 日报与简报 on 对话 and 记忆, and 记忆 opens on 档案 without 回顾', async () => {
+  it('read nothing of 个人代理, 屏幕感知 or 日报与简报 on 对话 and 记忆, and 记忆 opens on 档案 with 项目 and 回顾 已关闭', async () => {
     const paths = spyPaths();
     for (const Page of [ChatPage, MemoryPage]) {
       const root = createRootRoute({ component: Page });
@@ -167,10 +167,12 @@ describe('core pages with the plug-ins at their defaults', () => {
         </QueryClientProvider>,
       );
       if (Page === MemoryPage) {
-        // 档案 is the only view, so the page draws no tabs.
         await screen.findByRole('button', { name: /^用户档案/ }, { timeout: 3000 });
-        expect(screen.queryByRole('tablist', { name: '记忆视图' })).toBeNull();
-        expect(screen.queryByRole('tab')).toBeNull();
+        expect(screen.getByRole('tab', { name: /^档案/ }).getAttribute('aria-selected')).toBe('true');
+        for (const [name, off] of [['项目', '每日简报'], ['回顾', '屏幕感知']] as const) {
+          fireEvent.click(screen.getByRole('tab', { name }));
+          expect(within(await screen.findByRole('status', { name: off })).getByText('已关闭')).toBeTruthy();
+        }
       } else await screen.findByRole('region', { name: '消息' }, { timeout: 3000 });
       // The reads a page starts on mount have gone out.
       await act(async () => new Promise((r) => setTimeout(r, 300)));

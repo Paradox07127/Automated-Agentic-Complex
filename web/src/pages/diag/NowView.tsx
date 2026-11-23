@@ -343,7 +343,7 @@ export function NowView({ tab, item, onTab, tabs }: NowViewProps) {
             sel={node}
             onPick={(id) => setNode((x) => (x === id ? null : id))}
             onClear={() => setNode(null)}
-            onStation={(station) => go({ page: 'pipeline', station })}
+            onStation={(station) => go({ page: 'memory', view: 'pipeline', station })}
             failsOf={(id) => failRows.filter((f) => f.node === id)}
             approvals={approvals}
             onTasks={() => go({ page: 'tasks' })}

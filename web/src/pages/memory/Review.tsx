@@ -72,8 +72,8 @@ function eventOf(text: string): { title?: string; summary?: string; evidence?: R
   }
 }
 
-/** 回顾：她看到过的原始记录，左栏工作片段 / 原始观察，中栏按 10 分钟分段的行（回车搜索），右栏原文或证据。 */
-export function Review() {
+/** 回顾：她看到过的原始记录，左栏工作片段 / 原始观察，中栏按 10 分钟分段的行（回车搜索），右栏原文或证据；`reads` 为假时（屏幕感知关着）不读。 */
+export function Review({ reads = true }: { reads?: boolean }) {
   const narrow = useNarrow();
   const [kind, setKind] = useState<SourceKind>('work_events');
   const [draft, setDraft] = useState('');
@@ -91,6 +91,7 @@ export function Review() {
       return get<ActivityPage>(`/observation/sources?${params}`);
     },
     getNextPageParam: (last) => last.next_cursor ?? undefined,
+    enabled: reads,
     retry: false,
   });
 

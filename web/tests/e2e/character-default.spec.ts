@@ -79,7 +79,7 @@ test('diag 行为决策: plate numbers are Title Case and no SVG text is under 1
 });
 
 test('pipeline: the sources carry no how-to line; memory-empty: 回顾 shows its empty state', async ({ page }) => {
-  await page.goto('main.html#/pipeline?still=1&station=store');
+  await page.goto('main.html#/memory?still=1&view=pipeline&station=store');
   await expect(page.getByRole('region', { name: '按来源' })).toBeVisible();
   await expect(page.locator('main')).not.toContainText('点一行去记忆页看这一类');
   await page.goto('about:blank');

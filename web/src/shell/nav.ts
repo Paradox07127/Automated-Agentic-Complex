@@ -23,7 +23,8 @@ export type NavTarget =
   | { page: 'chat'; conv?: string; turn?: string; focus?: string }
   | {
       page: 'memory';
-      view?: 'projects' | 'about';
+      /** `pipeline` is the 管线 tab, there only in 开发者模式. */
+      view?: 'about' | 'projects' | 'activity' | 'pipeline';
       ep?: string;
       /** Fact id; opens 用户档案 (`view: 'about'`). */
       sel?: string;
@@ -31,10 +32,13 @@ export type NavTarget =
       src?: string;
       /** Character id: 用户档案 shows only her own facts (`GET /memory?owner=`). */
       owner?: string;
+      /** 管线: the station to open. */
+      station?: 'obs' | 'interp' | 'mem' | 'store';
+      /** 管线: a consolidation batch id; opens 整理 and that batch's record. */
+      run?: string;
       focus?: string;
     }
   | { page: 'home'; focus?: string }
-  | { page: 'pipeline'; run?: string; station?: 'obs' | 'interp' | 'mem' | 'store'; focus?: string }
   | { page: 'character'; tab?: 'profile' | 'motion' | 'behavior' | 'render' | 'scene'; view?: 'photo' | 'mmd'; pane?: 'motion' | 'chain' | 'look' | 'import'; row?: string; focus?: string }
   | {
       page: 'diag';

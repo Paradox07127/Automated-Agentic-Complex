@@ -1,4 +1,4 @@
-// 记忆页的三个页签：档案（默认）、项目、回顾（屏幕感知开着才有）；来源占比和整理批次去了管线。
+// 记忆页的页签：档案（默认）、项目、回顾，开发者模式里还有管线；来源占比和整理批次去了管线。
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getBridge } from '../../src/bridge';
 import type { MemoryTasksResponse } from '../../src/bridge/agentd-routes.generated';
 import { MemoryPage } from '../../src/pages/memory/Page';
+import { setDevMode } from '../../src/shell/devMode';
 import { ToastHost } from '../../src/shell/toast';
 import { pluginsOn, pluginsReset } from './plugins';
 
@@ -16,6 +17,7 @@ afterEach(() => pluginsReset());
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  localStorage.clear();
   window.location.hash = '';
 });
 
@@ -50,10 +52,11 @@ describe('记忆页', () => {
     expect(screen.queryByText(/整理批次/)).toBeNull();
   });
 
-  it('opens on 档案; the tabs are 档案, 项目 and 回顾', async () => {
+  it('opens on 档案; the tabs are 档案, 项目 and 回顾, and 管线 in 开发者模式', async () => {
+    setDevMode(true);
     mount();
     expect((await tab('档案')).getAttribute('aria-selected')).toBe('true');
-    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['档案', '项目', '回顾']);
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['档案', '项目', '回顾', '管线']);
     expect((await screen.findAllByRole('region', { name: /^待确认：/ }, { timeout: 3000 })).length).toBeGreaterThan(0);
   });
 
@@ -134,9 +137,28 @@ describe('记忆页', () => {
     await waitFor(() => expect(projects()).toEqual(['task-hostlink']));
   });
 
-  it('hides 项目 when /memory/tasks is not there', async () => {
+  it('keeps 项目 when /memory/tasks is not there; it reads 未接入 and offers 重启后台', async () => {
     mount('&view=projects&demo=absent');
-    await waitFor(async () => expect((await tab('档案')).getAttribute('aria-selected')).toBe('true'), { timeout: 3000 });
-    expect(screen.queryByRole('tab', { name: '项目' })).toBeNull();
+    expect((await tab('项目')).getAttribute('aria-selected')).toBe('true');
+    const status = await screen.findByRole('status', { name: '工作项目' }, { timeout: 3000 });
+    expect(within(status).getByText('未接入')).toBeTruthy();
+    expect(within(status).getByRole('button', { name: /重启后台/ })).toBeTruthy();
+  });
+
+  it('has no 管线 tab with 开发者模式 off, and ?view=pipeline opens 档案', async () => {
+    setDevMode(false);
+    mount('&view=pipeline');
+    expect((await tab('档案')).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['档案', '项目', '回顾']);
+    expect(screen.queryByRole('tablist', { name: '工位' })).toBeNull();
+  });
+
+  it('?view=pipeline&station= opens 管线 at that station in 开发者模式', async () => {
+    setDevMode(true);
+    mount('&view=pipeline&station=store');
+    expect((await tab('管线')).getAttribute('aria-selected')).toBe('true');
+    const line = await screen.findByRole('tablist', { name: '工位' }, { timeout: 3000 });
+    expect(within(line).getByRole('tab', { selected: true }).getAttribute('aria-label')).toMatch(/^记忆库：/);
+    expect(await screen.findByRole('group', { name: '按来源' }, { timeout: 3000 })).toBeTruthy();
   });
 });

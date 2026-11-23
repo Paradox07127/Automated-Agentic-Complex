@@ -53,8 +53,8 @@ function ObsDots({ recent }: { recent: ReadonlyArray<{ request_id: string; state
   );
 }
 
-/** 记忆管线（开发者）：观察 → 理解 → 整理 → 记忆库四个工位排成一条线，选中一个看它的详情。 */
-export function PipelinePage() {
+/** 记忆页的管线页签（开发者）：观察 → 理解 → 整理 → 记忆库四个工位排成一条线，选中一个看它的详情；Q / E 留给记忆页的页签。 */
+export function PipelineView() {
   const { state } = useDemo();
   const params = usePageParams();
   const go = useGo();
@@ -226,7 +226,7 @@ export function PipelinePage() {
       if (document.querySelector('[role="dialog"], [aria-modal="true"], [role="menu"]')) return;
       const l = latest.current;
       const k = e.key;
-      const step = k === 'q' || k === 'Q' || k === 'ArrowLeft' ? -1 : k === 'e' || k === 'E' || k === 'ArrowRight' ? 1 : 0;
+      const step = k === 'ArrowLeft' ? -1 : k === 'ArrowRight' ? 1 : 0;
       if (step) {
         e.preventDefault();
         pick(STATIONS[(STATIONS.indexOf(l.sel) + step + STATIONS.length) % STATIONS.length] ?? 'mem');
@@ -305,13 +305,13 @@ export function PipelinePage() {
         去确认 {candidates} 条
       </Btn>
     ) : sel === 'mem' || sel === 'store' ? (
-      <Btn variant="secondary" onClick={() => go({ page: 'memory' })}>
-        去记忆页
+      <Btn variant="secondary" onClick={() => go({ page: 'memory', view: 'about' })}>
+        去档案
       </Btn>
     ) : null;
 
   return (
-    <div className={styles.page} data-page="pipeline" data-state={state ?? 'ok'}>
+    <div className={styles.page} data-view="pipeline" data-state={state ?? 'ok'}>
       <PageHeaderSlot
         right={
           <span className={styles.reads}>
@@ -332,9 +332,10 @@ export function PipelinePage() {
       <BottomBarSlot
         lead={
           <span className={styles.keys} aria-hidden="true">
-            {key(['Q', 'E'], '换工位')}
+            {key(['←', '→'], '换工位')}
             {key(['↑', '↓'], '选行')}
             {key(['↵'], '展开 / 打开', true)}
+            {key(['Q', 'E'], '切页签', true)}
             {key(['esc'], '回主页')}
           </span>
         }
