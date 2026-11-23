@@ -35,7 +35,7 @@ test('avatar_click: a hot choice of 角色互动 and 打开快速输入 on the c
 
 test('喝水提醒 is a row of its own: agentd\'s 90 minutes by default, 0 for off, and a stored number reads as its choice', () => {
   const row = rowById('water')!;
-  assert.deepEqual([row.group, row.item.key, row.item.restart], ['speak', 'water_reminder_minutes', 'backend']);
+  assert.deepEqual([row.group, row.item.key, row.item.restart], ['speak', 'water_reminder_minutes', 'none']);
   assert.equal(current({}, null).values.water_reminder_minutes, '90');
   assert.equal(current({ water_reminder_minutes: 0 }, null).values.water_reminder_minutes, '0');
   assert.equal(current({ water_reminder_minutes: 120 }, null).values.water_reminder_minutes, '120');
@@ -44,9 +44,9 @@ test('喝水提醒 is a row of its own: agentd\'s 90 minutes by default, 0 for o
   assert.equal(current({ water_reminder_minutes: '120' }, null).values.water_reminder_minutes, '90');
 });
 
-test('收工时间 is agentd\'s --ritual-report-time: 17:30 by default, half hours from 12:00, a restart of the backend', () => {
+test('收工时间 is agentd\'s --ritual-report-time: 17:30 by default, half hours from 12:00, taken live', () => {
   const row = rowById('reportTime')!;
-  assert.deepEqual([row.group, row.item.key, row.item.restart], ['speak', 'ritual_report_time', 'backend']);
+  assert.deepEqual([row.group, row.item.key, row.item.restart], ['speak', 'ritual_report_time', 'none']);
   assert.ok(row.item.control.kind === 'dropdown');
   const times = row.item.control.options.map(([v]) => v);
   assert.equal(times[0], '12:00');
@@ -55,7 +55,8 @@ test('收工时间 is agentd\'s --ritual-report-time: 17:30 by default, half hou
   assert.equal(current({}, null).values.ritual_report_time, '17:30');
   assert.equal(current({ ritual_report_time: '19:00' }, null).values.ritual_report_time, '19:00');
   assert.equal(current({ ritual_report_time: '19:05' }, null).values.ritual_report_time, '17:30');
-  assert.deepEqual(planSave({}, null, { ritual_report_time: '18:30' }), { write: { ritual_report_time: '18:30' }, effects: [], restart: 'backend' });
+  assert.deepEqual(planSave({}, null, { ritual_report_time: '18:30' }),
+    { write: { ritual_report_time: '18:30' }, effects: [{ kind: 'agentdLive', keys: ['ritual_report_time'] }], restart: 'none' });
 });
 
 test('代理 is a text row of 服务 that restarts the backend: empty, or an http(s) address with no path, query or fragment', () => {

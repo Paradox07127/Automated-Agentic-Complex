@@ -9,7 +9,7 @@
         "label": "Mute",
         "kind": "toggle",
         "default": false,
-        "restart": "backend"
+        "restart": "none"
       }
     ]
   },

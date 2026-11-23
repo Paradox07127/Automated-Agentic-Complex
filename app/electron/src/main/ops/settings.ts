@@ -10,7 +10,7 @@ import {
   allowsRightOption, behaviorSwitches, idsOfKeys, isHotkeyRow, parseChanges, planSave, Rejection, REVOKE_KINDS, rowById, schema, type SettingValue,
   settingValues, snapshot, validateHotkey, webHotkey, withSettings,
 } from '../../common/settings.ts';
-import { webLogsDir } from '../../common/config.ts';
+import { agentdLive, webLogsDir } from '../../common/config.ts';
 import { DEFAULT_SUPPORT_DIR, DEFAULT_WEB_LOGS_DIR, loadConfig } from '../config.ts';
 import type { Ops, OpsContext } from './context.ts';
 import { watch } from './events.ts';
@@ -106,6 +106,17 @@ export function settingsOps(ctx: OpsContext): Ops {
       } else if (effect.kind === 'restartAvatar' || effect.kind === 'fps' || effect.kind === 'hotkeys' || effect.kind === 'renderLive'
         || effect.kind === 'touch' || effect.kind === 'actionSwitch' || effect.kind === 'appearance') {
         continue;
+      } else if (effect.kind === 'agentdLive') {
+        let s = 0;
+        try {
+          s = await status('PUT', '/settings/live', agentdLive(readObject(path)));
+        } catch (e) {
+          ctx.log(`settings live: ${e instanceof Error ? e.message : String(e)}`);
+        }
+        if (s !== 200) {
+          ctx.log(`settings live put status=${s}`);
+          failed.push(...effect.keys);
+        }
       } else if (effect.kind === 'stateAffectsBehavior') {
         const s = await status('PUT', '/character/state/switch', { affects_behavior: effect.on });
         if (s !== 200) {

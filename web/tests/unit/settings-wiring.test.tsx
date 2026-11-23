@@ -143,10 +143,10 @@ describe('native rows (settings.schema / read / save)', () => {
   });
 
   it('marks a restart from the schema flag only (backend yes, notification routing no)', async () => {
-    render(<Harness d={d}><SpeakGroup /><ApplyBar /></Harness>);
+    render(<Harness d={d}><SpeakGroup /><ActGroup /><ApplyBar /></Harness>);
     await click(within(screen.getByRole('radiogroup', { name: '完成' })).getByRole('radio', { name: '不提示' }));
     expect(screen.queryByRole('region', { name: '未应用的改动' })).toBeNull();
-    await click(within(screen.getByRole('radiogroup', { name: '出声' })).getByRole('radio', { name: '只显示文字' }));
+    await click(screen.getByRole('switch', { name: '外部智能体接入' }));
     expect(screen.getByRole('region', { name: '未应用的改动' }).textContent).toContain('1 项重启后台服务后生效');
   });
 

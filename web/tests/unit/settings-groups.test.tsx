@@ -97,7 +97,7 @@ describe('settings › 隐私', () => {
     );
     const toggle = screen.getByRole('switch', { name: '读会话里的工具输入输出' });
     expect(toggle.getAttribute('aria-checked')).toBe('true');
-    expect(native.rows.agent_sessions).toMatchObject({ default: true, restart: 'backend', destructive: true });
+    expect(native.rows.agent_sessions).toMatchObject({ default: true, restart: 'none', destructive: true });
     await act(async () => fireEvent.click(toggle));
     expect(screen.getByRole('dialog', { name: '关闭「读会话里的工具输入输出」并删除已收集的内容？' })).toBeTruthy();
     expect(save).not.toHaveBeenCalled();

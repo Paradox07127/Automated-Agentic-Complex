@@ -322,22 +322,23 @@ export function parseConfig(text: string, ctx: ConfigContext): Config {
   const agentdPort = required(o, 'agentd_port', int);
   const gpuHoldFiles = required(o, 'gpu_hold_files', strings);
   const supportDir = optional(o, 'support_dir', str) ?? ctx.supportDir;
-  const interactionPreset = oneOf(optional(o, 'interaction_preset', str) ?? 'balanced', ['quiet', 'balanced', 'active'], 'balanced');
+  const live = agentdLive(o);
+  const interactionPreset = live.interaction_preset;
   const pluginsOn = optional(o, 'plugins', plugins) ?? DEFAULT_PLUGINS;
-  const sharePageText = optional(o, 'share_page_text', bool) ?? false;
-  const shareWindowText = optional(o, 'share_window_text', bool) ?? false;
-  const shareTypedText = optional(o, 'share_typed_text', bool) ?? false;
+  const sharePageText = live.share_page_text;
+  const shareWindowText = live.share_window_text;
+  const shareTypedText = live.share_typed_text;
   const shareActions = optional(o, 'share_actions', bool) ?? false;
-  const shareAgentSessions = optional(o, 'share_agent_sessions', bool) ?? true;
-  const shareScreenshots = optional(o, 'share_screenshots', bool) ?? false;
-  const redactSensitive = optional(o, 'redact_sensitive', bool) ?? true;
-  const proactiveSpeech = optional(o, 'proactive_speech', bool) ?? true;
-  const breakReminderMinutes = optional(o, 'break_reminder_minutes', int) ?? 0;
-  const waterReminderMinutes = optional(o, 'water_reminder_minutes', int) ?? 90;
-  const ritualReportTime = oneOf(optional(o, 'ritual_report_time', str) ?? '17:30', REPORT_TIMES, '17:30');
+  const shareAgentSessions = live.share_agent_sessions;
+  const shareScreenshots = live.share_screenshots;
+  const redactSensitive = live.redact_sensitive;
+  const proactiveSpeech = live.proactive_speech;
+  const breakReminderMinutes = live.break_reminder_minutes;
+  const waterReminderMinutes = live.water_reminder_minutes;
+  const ritualReportTime = live.ritual_report_time;
   const proxy = optional(o, 'proxy_url', str) ?? '';
   const proxyUrl = validProxyUrl(proxy) ? proxy : '';
-  const mute = optional(o, 'mute', bool) ?? false;
+  const mute = live.mute;
   const agentdStateDir = optional(o, 'agentd_state_dir', str) ?? ctx.agentdStateDir;
   const servicesOn = optional(o, 'services', services) ?? SERVICE_DEFAULTS;
   const devResources = optional(o, 'dev_resources', str) ?? null;
@@ -346,6 +347,25 @@ export function parseConfig(text: string, ctx: ConfigContext): Config {
     missingComponents, characterLibraryMissing, agentdPort, gpuHoldFiles, supportDir, interactionPreset, plugins: pluginsOn,
     sharePageText, shareWindowText, shareTypedText, shareActions, shareAgentSessions, shareScreenshots, redactSensitive, proactiveSpeech,
     breakReminderMinutes, waterReminderMinutes, ritualReportTime, proxyUrl, mute, agentdStateDir, services: servicesOn, devResources,
+  };
+}
+
+/** The agentd settings it launches with (agentd.ts agentdArguments) and takes live (`PUT /settings/live`), from config.json's
+ *  top level; throws ConfigError on a wrong type. */
+export function agentdLive(o: JsonObject) {
+  return {
+    mute: optional(o, 'mute', bool) ?? false,
+    proactive_speech: optional(o, 'proactive_speech', bool) ?? true,
+    interaction_preset: oneOf(optional(o, 'interaction_preset', str) ?? 'balanced', ['quiet', 'balanced', 'active'], 'balanced'),
+    break_reminder_minutes: Math.max(0, optional(o, 'break_reminder_minutes', int) ?? 0),
+    water_reminder_minutes: Math.max(0, optional(o, 'water_reminder_minutes', int) ?? 90),
+    ritual_report_time: oneOf(optional(o, 'ritual_report_time', str) ?? '17:30', REPORT_TIMES, '17:30'),
+    redact_sensitive: optional(o, 'redact_sensitive', bool) ?? true,
+    share_page_text: optional(o, 'share_page_text', bool) ?? false,
+    share_window_text: optional(o, 'share_window_text', bool) ?? false,
+    share_typed_text: optional(o, 'share_typed_text', bool) ?? false,
+    share_agent_sessions: optional(o, 'share_agent_sessions', bool) ?? true,
+    share_screenshots: optional(o, 'share_screenshots', bool) ?? false,
   };
 }
 

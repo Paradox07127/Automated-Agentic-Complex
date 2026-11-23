@@ -58,7 +58,7 @@ export function deleteConfirm(id: string, onConfirm: ConfirmSpec['onConfirm'], c
     title: `关闭「${labelOf(id)}」并删除已收集的内容？`,
     danger: true,
     warning: '删除后不能恢复',
-    note: `${gone}停止采集要重启后台服务后才生效。`,
+    note: `${gone}采集立即停止。`,
     confirmLabel: '关闭并删除',
     onConfirm,
   };

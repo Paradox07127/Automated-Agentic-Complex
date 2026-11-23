@@ -61,7 +61,7 @@ describe('观察 › 每日简报 › 简报时间', () => {
 });
 
 describe('说话 › 主动开口 › 收工时间', () => {
-  it('saves the time as a backend setting with the restart mark', async () => {
+  it('saves the time, which agentd takes live, without a restart mark', async () => {
     await mount('&group=speak');
     const time = await screen.findByRole('button', { name: '收工时间' });
     expect(time.textContent).toContain('17:30');
@@ -69,7 +69,7 @@ describe('说话 › 主动开口 › 收工时间', () => {
     await click(time);
     await click(within(screen.getByRole('listbox', { name: '收工时间' })).getByRole('option', { name: '19:00' }));
     await waitFor(() => expect(save).toHaveBeenCalledWith({ reportTime: '19:00' }));
-    await waitFor(() => expect(row('reportTime').textContent).toContain('重启后台后生效'));
+    expect(row('reportTime').textContent).not.toContain('重启后台后生效');
   });
 
   it('has an ⓘ and is found by search', async () => {

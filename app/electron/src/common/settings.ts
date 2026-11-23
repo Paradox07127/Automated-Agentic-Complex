@@ -86,7 +86,7 @@ const ITEMS: Item[] = [
   toggle('scene_parallax', '背景视差', true, 'avatar'),
   toggle('hide_on_screen_capture', '录屏时隐藏角色', true),
   toggle('switch_title', '切换角色时的雷霆大字', true),
-  dropdown('interaction_preset', '交互档位', [['quiet', '安静'], ['balanced', '均衡'], ['active', '主动']], 'balanced', 'backend'),
+  dropdown('interaction_preset', '交互档位', [['quiet', '安静'], ['balanced', '均衡'], ['active', '主动']], 'balanced'),
   toggle('render_ssaa', '2× SSAA', true, 'avatar'),
   dropdown('render_resolution', '渲染尺寸', [['authored', '原始尺寸'], ['display', '跟随显示像素（试验）']], 'authored', 'avatar'),
   dropdown('render_shadow', '自阴影精度', [['1024', '高 · 1024'], ['512', '中 · 512'], ['256', '低 · 256']], '1024', 'avatar'),
@@ -119,21 +119,21 @@ const ITEMS: Item[] = [
   toggle('desktop_hover_hints', '悬浮快捷键提示', true),
   hotkey('voice_hotkey', '按住说话', 'right_option'),
   choice('asr_locale', '识别语言', [['auto', '跟随系统'], ['zh-CN', '中文'], ['en-US', 'English']], 'auto'),
-  toggle('mute', '只出字、不出声', false, 'backend'),
-  toggle('proactive_speech', '主动说话', true, 'backend'),
-  choice('break_reminder_minutes', '连续使用提醒', [['0', '关'], ['45', '45 分钟'], ['60', '60 分钟'], ['90', '90 分钟']], '0', 'backend'),
-  choice('water_reminder_minutes', '喝水提醒', [['0', '关'], ['60', '60 分钟'], ['90', '90 分钟'], ['120', '120 分钟']], '90', 'backend'),
-  dropdown('ritual_report_time', '收工时间', REPORT_TIMES.map((t) => [t, t]), '17:30', 'backend'),
+  toggle('mute', '只出字、不出声', false),
+  toggle('proactive_speech', '主动说话', true),
+  choice('break_reminder_minutes', '连续使用提醒', [['0', '关'], ['45', '45 分钟'], ['60', '60 分钟'], ['90', '90 分钟']], '0'),
+  choice('water_reminder_minutes', '喝水提醒', [['0', '关'], ['60', '60 分钟'], ['90', '90 分钟'], ['120', '120 分钟']], '90'),
+  dropdown('ritual_report_time', '收工时间', REPORT_TIMES.map((t) => [t, t]), '17:30'),
   text('proxy_url', '代理', ''),
-  dropdown('screen_context_level', '屏幕理解粒度', [['status', '仅读状态'], ['focused', '焦点语义'], ['window', '窗口摘要']], 'focused', 'backend'),
-  toggle('share_page_text', '读取网页正文', false, 'backend'),
-  toggle('share_window_text', '读取窗口文字', false, 'backend'),
-  toggle('share_typed_text', '读取输入的文字', false, 'backend'),
+  dropdown('screen_context_level', '屏幕理解粒度', [['status', '仅读状态'], ['focused', '焦点语义'], ['window', '窗口摘要']], 'focused'),
+  toggle('share_page_text', '读取网页正文', false),
+  toggle('share_window_text', '读取窗口文字', false),
+  toggle('share_typed_text', '读取输入的文字', false),
   toggle('share_actions', '记录操作时间线', false, 'none'),
-  toggle('share_agent_sessions', '读取编码会话', true, 'backend'),
-  toggle('share_screenshots', '屏幕识读时附上截图', false, 'backend'),
-  toggle('sense_input_counts', '键鼠计数', true, 'backend'),
-  toggle('redact_sensitive', '发出前遮蔽敏感内容', true, 'backend'),
+  toggle('share_agent_sessions', '读取编码会话', true),
+  toggle('share_screenshots', '屏幕识读时附上截图', false),
+  toggle('sense_input_counts', '键鼠计数', true),
+  toggle('redact_sensitive', '发出前遮蔽敏感内容', true),
   toggle('system_notifications', '改走 macOS 系统通知', true),
   choice('notify_done', '完成', NOTIFY, 'card'),
   choice('notify_approval', '待批准', NOTIFY, 'sound'),
@@ -489,12 +489,17 @@ export type SaveEffect =
   | { kind: 'hotkeys'; saved: [string, string][] }
   /** The changed ones of LIVE_RENDER_KEYS in that order, then `stay_mode` into or out of `bust`; only without `restartAvatar`. */
   | { kind: 'renderLive'; keys: string[] }
+  /** The changed ones of AGENTD_LIVE_KEYS: agentd takes them all again (`PUT /settings/live`). */
+  | { kind: 'agentdLive'; keys: string[] }
   /** `touch_regions`, `head_pat`, `cheek_pinch` or `greet_on_resume` changed. */
   | { kind: 'touch' }
   /** One of APPEARANCE_KEYS changed. */
   | { kind: 'appearance' };
 
 /** What the running renderer takes in a `set_render`. */
+/** The keys config.ts agentdLive sends to a running agentd. */
+const AGENTD_LIVE_KEYS = ['mute', 'proactive_speech', 'interaction_preset', 'break_reminder_minutes', 'water_reminder_minutes', 'ritual_report_time',
+  'redact_sensitive', 'share_page_text', 'share_window_text', 'share_typed_text', 'share_agent_sessions', 'share_screenshots'];
 const LIVE_RENDER_KEYS = ['render_outline', 'render_light_yaw', 'render_light_pitch', 'render_light_strength', 'render_camera_mode',
   'render_camera_yaw', 'render_camera_pitch', 'render_facing_mode', 'render_ground_shadow', 'render_ambient', 'render_light_wrap',
   'render_camera_zoom', 'render_camera_sway', 'render_camera_track', 'render_filter', 'render_dof'];
@@ -565,6 +570,8 @@ export function planSave(saved: Record<string, SettingValue>, login: boolean | n
   // 半身固定 frames her from the waist up (C3 v27 rule 49 (i)).
   if ((old.stay_mode === 'bust') !== (next.stay_mode === 'bust')) live.push('stay_mode');
   if (live.length > 0 && !restartAvatar) effects.push({ kind: 'renderLive', keys: live });
+  const agentdLive = AGENTD_LIVE_KEYS.filter((k) => changed.includes(k));
+  if (agentdLive.length > 0) effects.push({ kind: 'agentdLive', keys: agentdLive });
   if (['touch_regions', 'head_pat', 'cheek_pinch', 'greet_on_resume'].some((k) => changed.includes(k))) effects.push({ kind: 'touch' });
   if (APPEARANCE_KEYS.some((k) => changed.includes(k))) effects.push({ kind: 'appearance' });
   const backend = changed.some((k) => rowByKey(k)?.item.restart === 'backend');

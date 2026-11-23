@@ -215,16 +215,16 @@ describe('mute row', () => {
 
 describe('restart notice', () => {
   it('keeps the restart notice after leaving the page', async () => {
-    const first = render(<Harness d={d}><SpeakGroup /><ApplyBar /></Harness>);
-    await click(within(screen.getByRole('radiogroup', { name: '出声' })).getByRole('radio', { name: '只显示文字' }));
+    const first = render(<Harness d={d}><ActGroup /><ApplyBar /></Harness>);
+    await click(screen.getByRole('switch', { name: '外部智能体接入' }));
     first.unmount();
     render(<Harness d={d}><ApplyBar /></Harness>);
     expect(screen.getByRole('region', { name: '未应用的改动' }).textContent).toContain('1 项重启后台服务后生效');
   });
 
   it('drops the notice once agentd started after the change', async () => {
-    const first = render(<Harness d={d}><SpeakGroup /></Harness>);
-    await click(within(screen.getByRole('radiogroup', { name: '出声' })).getByRole('radio', { name: '只显示文字' }));
+    const first = render(<Harness d={d}><ActGroup /></Harness>);
+    await click(screen.getByRole('switch', { name: '外部智能体接入' }));
     first.unmount();
     const later = { ...DIAG, connections: { ...WIRE_DIAG_CONNECTIONS, agentd: { ...WIRE_DIAG_CONNECTIONS.agentd, started_at: '2099-01-01T00:00:00Z' } } };
     render(<Harness d={{ ...d, diag: later }}><ApplyBar /></Harness>);

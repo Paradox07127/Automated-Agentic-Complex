@@ -1,7 +1,7 @@
 // Leaving 设置 with changes not yet in effect asks to restart the backend; 不重启 puts them back.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from '@tanstack/react-router';
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getBridge } from '../../src/bridge';
 import { SettingsPage } from '../../src/pages/settings/Page';
@@ -21,19 +21,19 @@ afterEach(() => {
 async function mount() {
   await pluginsSaved();
   const bridge = getBridge();
-  // The fake bridge's config.json outlives a test.
-  await bridge.settings.save({ mute: false });
   const root = createRootRoute({ component: Outlet });
   const settings = createRoute({ getParentRoute: () => root, path: '/settings', component: SettingsPage });
   const chat = createRoute({ getParentRoute: () => root, path: '/chat', component: () => <p>对话页</p> });
-  const router = createRouter({ routeTree: root.addChildren([settings, chat]), history: createMemoryHistory({ initialEntries: ['/settings?still=1&group=speak'] }) });
+  const router = createRouter({ routeTree: root.addChildren([settings, chat]), history: createMemoryHistory({ initialEntries: ['/settings?still=1&group=perm'] }) });
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  const mute = within(await screen.findByRole('radiogroup', { name: '出声' }));
-  await act(async () => fireEvent.click(mute.getByRole('radio', { name: '只显示文字' })));
+  // Plug-ins still take a backend restart; every one is on here (pluginsOn), once config.json is read.
+  const plugin = await screen.findByRole('switch', { name: '外部智能体接入' });
+  await waitFor(() => expect(plugin.getAttribute('aria-checked')).toBe('true'));
+  await act(async () => fireEvent.click(plugin));
   return { bridge, router, leave: () => act(async () => void router.navigate({ to: '/chat' })) };
 }
 
@@ -44,7 +44,7 @@ describe('leaving 设置 with a change that waits for a backend restart', () => 
     const m = await mount();
     const restart = vi.spyOn(m.bridge.supervisor, 'restart');
     await m.leave();
-    expect(dialog()?.textContent).toContain('出声');
+    expect(dialog()?.textContent).toContain('外部智能体接入');
     expect(m.router.state.location.pathname).toBe('/settings');
     await act(async () => fireEvent.click(within(dialog()!).getByRole('button', { name: '重启后台' })));
     expect(restart).toHaveBeenCalledWith('agentd');
@@ -57,18 +57,17 @@ describe('leaving 设置 with a change that waits for a backend restart', () => 
     const restart = vi.spyOn(m.bridge.supervisor, 'restart');
     await m.leave();
     await act(async () => fireEvent.click(within(dialog()!).getByRole('button', { name: /不重启/ })));
-    expect(save).toHaveBeenLastCalledWith({ mute: false });
+    expect(save).toHaveBeenLastCalledWith({ 'plugins.external_access': true });
     expect(restart).not.toHaveBeenCalled();
     await screen.findByText('对话页');
-    await act(async () => void m.router.navigate({ to: '/settings', search: { still: '1', group: 'speak' } as never }));
+    await act(async () => void m.router.navigate({ to: '/settings', search: { still: '1', group: 'perm' } as never }));
     await m.leave();
     expect(dialog()).toBeNull();
   });
 
   it('does not ask once the value is back where the backend runs', async () => {
     const m = await mount();
-    const mute = within(screen.getByRole('radiogroup', { name: '出声' }));
-    await act(async () => fireEvent.click(mute.getByRole('radio', { name: '念出来' })));
+    await act(async () => fireEvent.click(screen.getByRole('switch', { name: '外部智能体接入' })));
     await m.leave();
     expect(dialog()).toBeNull();
     await screen.findByText('对话页');
