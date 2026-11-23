@@ -193,8 +193,7 @@ export interface AvatarStats {
 
 export type ActionSpeed = 0.5 | 1 | 2;
 
-/** C3 rule 58: where the desktop play `playAction` started last stands: `tS` of `durationS` seconds into the clip playing now. */
-export interface ActionProgress { id: string; tS: number; durationS: number; paused: boolean }
+/** C3 rule 58: where the desktop play `playAction` started last stands: `tS` of `durationS` seconds into the clip playing now. */ export interface ActionProgress { id: string; tS: number; durationS: number; paused: boolean }
 
 /** A rect of the page's viewport in CSS px, and the action to play there (`loop`: over and over); absent plays the current character's idle. */
 export type PreviewPlacement = { x: number; y: number; w: number; h: number; action?: string; loop?: boolean; request?: number };
