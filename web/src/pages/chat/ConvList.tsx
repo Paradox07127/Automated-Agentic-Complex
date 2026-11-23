@@ -1,6 +1,6 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { formatClock, type Conversation } from '../../domain';
-import { ContextMenu, Icon, SearchField, type IconName, type MenuItem } from '../../ui';
+import { ContextMenu, Icon, IconBtn, SearchField, type IconName, type MenuItem } from '../../ui';
 import { CellsIn } from './motion';
 import styles from './ConvList.module.css';
 
@@ -162,13 +162,9 @@ export function ConvList(p: ConvListProps) {
   return (
     <nav ref={root} className={styles.root} aria-label="话题" data-fold={folded || undefined}>
       <div className={styles.head}>
-        <button type="button" className={styles.orb} aria-label={folded ? '展开左栏' : '折叠左栏'} aria-expanded={!folded} title={folded ? '展开左栏' : '折叠左栏'} onClick={p.onFold}>
-          <Icon name="g-fold" size={14} />
-        </button>
+        <IconBtn icon="g-fold" size="sm" label={folded ? '展开左栏' : '折叠左栏'} onClick={p.onFold} />
         {!folded && <SearchField value={q} label="搜索话题" placeholder="搜索话题" onChange={setQ} />}
-        <button type="button" className={styles.orb} aria-label={newLabel} title={newLabel} disabled={busy} onClick={p.onNew}>
-          <Icon name="g-plus" size={14} />
-        </button>
+        <IconBtn icon="g-plus" size="sm" label={newLabel} disabled={busy} onClick={p.onNew} />
       </div>
       {!folded && (
         <div className={styles.scroll}>

@@ -120,7 +120,7 @@
   width: min(620px, 100%);
   border-left: 3px solid var(--ef-mission-accent);
   background: linear-gradient(180deg, var(--b-plate-hi), var(--b-plate));
-  box-shadow: inset 0 1px 0 var(--b-edge), 0 0 0 1px rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 1px 0 var(--b-edge), 0 0 0 1px color-mix(in srgb, var(--ef-popup-text) 30%, transparent);
   color: var(--b-t1);
 }
 
@@ -282,7 +282,7 @@ button.toolrow {
   z-index: var(--ef-z-modal);
   display: grid;
   place-items: center;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--ef-scrim);
   -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
   animation: cell-fade 0.2s var(--g-fade) both;
@@ -355,7 +355,7 @@ button.toolrow {
   display: grid;
   place-items: center;
   padding: 32px;
-  background: rgba(0, 0, 0, 0.78);
+  background: color-mix(in srgb, var(--ef-popup-text) 78%, transparent);
   cursor: zoom-out;
   animation: cell-fade 0.2s var(--g-fade) both;
 }

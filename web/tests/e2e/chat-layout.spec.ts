@@ -27,13 +27,13 @@ test('chat default: the command bar is visible, no right column, and the reading
   expect(errors).toEqual([]);
 });
 
-test('chat default: the inline task opens the 任务 tab in the right column, 收起右栏 closes it', async ({ page }) => {
+test('chat default: the inline task opens the 任务 tab in the right column, its 关闭 key closes it', async ({ page }) => {
   await page.goto('main.html#/chat?plugins=all&still=1');
   await page.getByRole('button', { name: /^任务 整理本周提交周报/ }).click();
   const col = page.getByRole('complementary', { name: '任务', exact: true });
   await expect(col).toBeVisible();
   await expect(col.getByRole('heading', { name: '整理本周提交周报' })).toHaveCount(1);
-  await col.getByRole('button', { name: '收起右栏' }).click();
+  await col.getByRole('button', { name: '关闭', exact: true }).click();
   await expect(col).toHaveCount(0);
 });
 

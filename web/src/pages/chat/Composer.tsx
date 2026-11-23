@@ -331,18 +331,9 @@ export function Composer(p: ComposerProps) {
             aria-label="消息"
           />
         </label>
-        <button
-          type="button"
-          className={styles.send}
-          data-quiet={p.quietSend || undefined}
-          aria-disabled={inactive || undefined}
-          aria-busy={p.sending || undefined}
-          title={said === '' ? '先输入消息' : undefined}
-          onClick={() => void send()}
-        >
-          <Icon name="g-send" size={16} />
-          <span>发送</span>
-        </button>
+        <Btn variant={p.quietSend ? 'secondary' : 'primary'} tail="g-send" disabled={inactive} {...(said === '' ? { disabledReason: '先输入消息' } : {})} loading={p.sending} onClick={() => void send()}>
+          发送
+        </Btn>
       </div>
     </div>
   );

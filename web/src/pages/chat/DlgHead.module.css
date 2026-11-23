@@ -22,7 +22,7 @@
 .bars > i {
   display: block;
   width: 7px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--theme) 100%, #fff 30%), var(--theme));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--theme) 100%, var(--ef-popup-band) 30%), var(--theme));
 }
 
 .bars > i + i {
@@ -61,7 +61,7 @@
   content: '';
   position: absolute;
   inset: 0 20% 0 0;
-  background: linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, 0.35) 48%, transparent 60%);
+  background: linear-gradient(100deg, transparent 35%, color-mix(in srgb, var(--ef-popup-band) 35%, transparent) 48%, transparent 60%);
   mix-blend-mode: overlay;
   transform: translateX(-110%);
   animation: band 5s var(--g-fade) 1s infinite;

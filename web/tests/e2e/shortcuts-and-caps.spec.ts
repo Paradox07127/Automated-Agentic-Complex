@@ -29,7 +29,7 @@ for (const from of ['chat', 'memory', 'settings', 'diag']) {
   });
 }
 
-// The chat task is a right column, not a Sheet, so ⌘N still goes to 派发任务.
+// At this width the chat task Sheet is docked as a column, not a modal, so ⌘N still goes to 派发任务.
 test('⌘N works beside the chat task column', async ({ page }) => {
   await page.goto('main.html#/chat?plugins=all&demo=plan-snapshot&still=1');
   await expect(page.getByRole('complementary', { name: '任务', exact: true })).toBeVisible();

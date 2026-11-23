@@ -3,32 +3,12 @@
   --msg-pad: 24px;
   /* LeftArea 600 g scaled into the window: 260-300 px. */
   --list-width: clamp(260px, 22vw, 300px);
-  /* Dialog plate #343434@0.4 with a 1 px #CACACA frame; header #3A3A3A, its bottom line #1C1C1C. */
-  --sns-plate: rgba(52, 52, 52, 0.4);
-  --sns-frame: #cacaca;
-  --sns-head: #3a3a3a;
-  --sns-head-line: #1c1c1c;
-  --sns-head-text: #ffffff;
-  --sns-head-sub: #a7a7a7;
-  /* Tri-colour line (not the popup colours). */
-  --sns-tri-m: #ff01ff;
-  --sns-tri-y: #ffff00;
-  --sns-tri-c: #01ffff;
   position: relative;
   display: grid;
   grid-template-columns: var(--list-width) minmax(0, 1fr);
   height: 100%;
   min-height: 0;
   overflow: hidden;
-}
-
-:global([data-theme='light']) .root {
-  --sns-plate: var(--ef-raised);
-  --sns-frame: var(--ef-rule);
-  --sns-head: var(--ef-surface-2);
-  --sns-head-line: var(--ef-rule);
-  --sns-head-text: var(--ef-text-1);
-  --sns-head-sub: var(--ef-text-2);
 }
 
 .root[data-fold] {
@@ -54,9 +34,13 @@
   min-height: 0;
   min-width: 0;
   margin: 1px 30px 12px 5px;
-  border: 1px solid var(--sns-frame);
+  border: 1px solid var(--ef-ink-s1);
   border-radius: 10px 10px 0 0;
-  background: var(--sns-plate);
+  background: var(--ef-raised);
+}
+
+:global([data-theme='light']) .thread {
+  border-color: var(--ef-rule);
 }
 
 .banner {
@@ -88,10 +72,6 @@
   font: var(--ef-t-meta);
   color: var(--ef-text-2);
   white-space: nowrap;
-}
-
-.sp {
-  flex: 1;
 }
 
 .msgs {
@@ -152,17 +132,15 @@
   position: relative;
 }
 
-/* Tinted #373737; the clip fades it to 0.698. */
 .emptyMask {
   position: absolute;
   inset: 0;
-  background: linear-gradient(200deg, #373737 25%, transparent 65%);
-  opacity: 0.698;
+  background: linear-gradient(200deg, var(--ef-g-sns-empty) 25%, transparent 65%);
   pointer-events: none;
 }
 
 :global(html[data-art]) .emptyMask {
-  background: #373737;
+  background: var(--ef-g-sns-empty);
   -webkit-mask: url('/art/pages/chat/sns-empty-mask.png') 0 0 / 100% 100% no-repeat;
   mask: url('/art/pages/chat/sns-empty-mask.png') 0 0 / 100% 100% no-repeat;
 }
@@ -171,72 +149,14 @@
   display: none;
 }
 
-/* 右栏 */
-.rp {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  min-width: 0;
-  border-left: 1px solid var(--ef-line);
-  background: var(--ef-bg-base);
-  animation: rp-in var(--ef-dur-panel-in) var(--ef-ease-snap);
-}
-
-@keyframes rp-in {
-  from {
-    opacity: 0;
-  }
-}
-
-.rpH {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 6px;
-  height: 48px;
-  padding: 0 8px 0 4px;
-  border-bottom: 1px solid var(--ef-line-subtle);
-}
-
-.rpB {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 0 16px 20px;
-}
-
-/* The column body pads the drawer already. */
+/* 右栏: the Sheet body pads the drawer already. */
 .rpB > [data-stub='TaskDrawer'] {
-  padding: 12px 0 0;
-}
-
-.scrim {
-  display: none;
+  padding: 0;
 }
 
 @media (max-width: 1099px) {
   .root[data-rp] {
     grid-template-columns: var(--list-width) minmax(0, 1fr);
-  }
-
-  .rp {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 20;
-    width: min(420px, calc(100% - 56px));
-  }
-
-  .scrim {
-    position: absolute;
-    inset: 0;
-    z-index: 19;
-    display: block;
-    padding: 0;
-    border: 0;
-    background: var(--ef-scrim);
-    cursor: default;
   }
 }
 

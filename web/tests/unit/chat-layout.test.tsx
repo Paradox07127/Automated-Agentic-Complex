@@ -86,13 +86,13 @@ describe('chat: run state', () => {
 });
 
 describe('chat: the task opens in the right column', () => {
-  it('is closed by default and opens from the inline task, closing with 收起右栏', async () => {
+  it('is closed by default and opens from the inline task, closing with its 关闭 key', async () => {
     await mountDefault();
     expect(screen.queryByRole('complementary', { name: '任务' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /^任务 整理本周提交周报/ }));
     const col = screen.getByRole('complementary', { name: '任务' });
     expect(within(col).getByRole('heading', { name: '整理本周提交周报' })).toBeTruthy();
-    fireEvent.click(within(col).getByRole('button', { name: '收起右栏' }));
+    fireEvent.click(within(col).getByRole('button', { name: '关闭' }));
     expect(screen.queryByRole('complementary', { name: '任务' })).toBeNull();
   });
 

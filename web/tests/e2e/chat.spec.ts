@@ -126,10 +126,10 @@ for (const [w, h] of [
       await page.waitForTimeout(300);
       expect(await sideways(page), q).toEqual({ doc: false, els: [] });
       if (q.includes('demo=reject')) {
-        // Below 1100 the task column floats over the stream with a scrim; from 1100 it is the third column.
+        // Below 1100 the task column is a Sheet drawer over the page (its scrim is absolute); from 1100 it is the third column.
         const col = page.getByRole(w < 1100 ? 'dialog' : 'complementary', { name: '任务', exact: true });
         await expect(col).toBeVisible();
-        expect(await col.evaluate((el) => getComputedStyle(el).position)).toBe(w < 1100 ? 'absolute' : 'static');
+        expect(await col.evaluate((el) => getComputedStyle(el.getAttribute('role') === 'dialog' ? el.parentElement! : el).position)).toBe(w < 1100 ? 'absolute' : 'static');
       }
     }
     expect(errors).toEqual([]);

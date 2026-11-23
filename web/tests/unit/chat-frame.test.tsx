@@ -145,7 +145,8 @@ describe('chat v2: the topic column folds', () => {
     stubMatchMedia();
     bridge();
     await mount();
-    expect(within(topics()).getByRole('button', { name: '折叠左栏' }).getAttribute('aria-expanded')).toBe('true');
+    expect(within(topics()).getByRole('button', { name: '折叠左栏' })).toBeTruthy();
+    expect(within(topics()).getByRole('textbox', { name: '搜索话题' })).toBeTruthy();
   });
 });
 

@@ -109,85 +109,14 @@
   cursor: not-allowed;
 }
 
-/* 发送: a yellow capsule with a dark ring; quiet, it takes the plate colour. */
-.send {
-  --cf: var(--b-sel);
-  position: relative;
-  isolation: isolate;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 40px;
-  padding: 0 20px 2px;
-  border: 0;
-  background: none;
-  color: var(--b-ink);
-  font: 500 14px/1 var(--ef-font-sans);
-  white-space: nowrap;
-  cursor: pointer;
-  transition: transform 0.1s var(--g-fade);
-}
-
-.send[data-quiet] {
-  --cf: var(--b-plate-hi);
-  color: var(--b-t1);
-}
-
-.send::before,
-.send::after {
-  content: '';
-  position: absolute;
-  inset: 4.5px 5.5px 6.5px;
-  z-index: -1;
-  border-radius: 999px;
-  pointer-events: none;
-}
-
-.send::before {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--cf) 70%, var(--b-plate-hi)), var(--cf) 55%, color-mix(in srgb, var(--cf) 88%, var(--b-ink)));
-  outline: 1.5px solid var(--cf);
-  outline-offset: 1px;
-  box-shadow:
-    0 0 0 3.5px color-mix(in srgb, var(--b-ink) 80%, transparent),
-    var(--ef-shadow-btn);
-}
-
-.send::after {
-  background: color-mix(in srgb, var(--b-plate-hi) 18%, transparent);
-  opacity: 0;
-  transition: opacity 0.083s var(--g-fade);
-}
-
-.send:hover:not([aria-disabled='true'])::after {
-  opacity: 1;
-}
-
-.send:active:not([aria-disabled='true']) {
-  transform: translateY(1px);
-}
-
-.send[aria-disabled='true'] {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.send:focus-visible {
-  outline: 2px solid var(--b-t1);
-  outline-offset: 2px;
-  border-radius: 999px;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .send,
-  .send::after,
   .inp,
   .plus button[aria-haspopup] {
     transition: none;
   }
 }
 
-:global([data-reduce-motion]) :is(.send, .send::after, .inp, .plus button[aria-haspopup]) {
+:global([data-reduce-motion]) :is(.inp, .plus button[aria-haspopup]) {
   transition: none;
 }
 
