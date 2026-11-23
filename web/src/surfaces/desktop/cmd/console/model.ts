@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { getBridge, type ProcessState, type RecentAnnouncement } from '../../../../bridge';
 import type { RuntimeChildState, RuntimeSnapshot } from '../../../../bridge/runtimeSnapshot';
-import type { PipProps } from '../../../../pages/overview/Pip';
 import { pendingCount } from '../actions';
 
 type Obj = Record<string, unknown>;
@@ -63,7 +62,8 @@ export function useRecent(): RecentAnnouncement[] {
   return rows;
 }
 
-type Tone = PipProps['tone'];
+/** StatusLamp's state for a cell; a failed cell draws as the panels' unplugged mark instead. */
+type Tone = 'ok' | 'paused' | 'failed' | 'idle';
 
 const PROCESS: Record<RuntimeChildState, [Tone, string]> = {
   running: ['ok', '运行中'],

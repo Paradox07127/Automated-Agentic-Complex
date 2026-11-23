@@ -23,27 +23,9 @@
   font: var(--ef-t-meta);
 }
 
-.reject textarea {
-  width: 100%;
-  min-height: 48px;
-  padding: var(--ef-sp-8);
-  border: var(--ef-lw-hair) solid var(--ef-line-strong);
-  border-radius: var(--ef-r-btn);
-  background: transparent;
-  color: var(--ef-raised-fg);
-  font: var(--ef-t-text);
-  resize: vertical;
-}
-
 .row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--ef-sp-8);
-}
-
-.receipt {
-  margin: 0;
-  color: var(--ef-raised-fg);
-  font-weight: var(--ef-fw-semibold);
 }

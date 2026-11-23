@@ -1,6 +1,6 @@
 import { useContext, useState } from 'react';
 import { InSession, QuestionBox } from '../../../features/approval';
-import { Btn } from '../../../ui';
+import { Btn, Receipt } from '../../../ui';
 import { CANCEL_RECEIPT, UNDO_S, type Act } from '../actions';
 import { CardFrame } from '../CardFrame';
 import { LifeLine } from '../LifeLine';
@@ -25,15 +25,13 @@ export function QuestionStackCard({ card, top, now, highlight, act }: QuestionSt
   const body = card.receipt ? (
     <>
       <h3 className={styles.title}>{card.item.title}</h3>
-      <p className={styles.receipt} role="status">
-        ✓ {card.receipt}
-      </p>
+      <Receipt>{card.receipt}</Receipt>
     </>
   ) : cancelling ? (
     <>
       <h3 className={styles.title}>{card.item.title}</h3>
-      <div className={styles.row} role="status">
-        <span className={styles.receipt}>✓ {CANCEL_RECEIPT}</span>
+      <div className={styles.row}>
+        <Receipt tone="neutral">{CANCEL_RECEIPT}</Receipt>
         <Btn variant="ghost" size="sm" onClick={() => setCancelling(false)}>
           撤销
         </Btn>

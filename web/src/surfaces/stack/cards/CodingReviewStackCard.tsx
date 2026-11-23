@@ -1,5 +1,6 @@
 import { DecisionBar } from '../../../features/approval';
 import type { Act, DeliveryRef } from '../actions';
+import { Receipt } from '../../../ui';
 import { Fold } from '../../../ui/Fold';
 import { CardFrame } from '../CardFrame';
 import type { StackCard } from '../model';
@@ -37,9 +38,7 @@ export function CodingReviewStackCard({ card, top, highlight, act }: CodingRevie
           </p>
         </Fold>
         {card.receipt ? (
-          <p className={paper.receipt} role="status">
-            ✓ {card.receipt}
-          </p>
+          <Receipt>{card.receipt}</Receipt>
         ) : (
           <DecisionBar
             inset

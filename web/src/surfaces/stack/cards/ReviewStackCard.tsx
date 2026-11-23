@@ -3,6 +3,7 @@ import { getBridge } from '../../../bridge';
 import { DecisionBar } from '../../../features/approval';
 import { ArtifactList, DeliveryChain } from '../../../features/delivery';
 import type { Act } from '../actions';
+import { Receipt, TextArea } from '../../../ui';
 import { Fold } from '../../../ui/Fold';
 import { CardFrame } from '../CardFrame';
 import { LifeLine } from '../LifeLine';
@@ -66,13 +67,11 @@ function DeliveryReviewCard({ card, now, highlight, act }: ReviewStackCardProps 
         {rejecting && !card.receipt && (
           <label className={paper.reject}>
             <span>补充要求</span>
-            <textarea value={note} placeholder="例如：按项目分组，不要按日期" onChange={(e) => setNote(e.target.value)} />
+            <TextArea label="补充要求" rows={2} value={note} placeholder="例如：按项目分组，不要按日期" onChange={setNote} />
           </label>
         )}
         {card.receipt ? (
-          <p className={paper.receipt} role="status">
-            ✓ {card.receipt}
-          </p>
+          <Receipt>{card.receipt}</Receipt>
         ) : (
           <DecisionBar
             inset

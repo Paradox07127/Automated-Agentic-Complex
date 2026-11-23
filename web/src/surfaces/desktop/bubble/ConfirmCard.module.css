@@ -38,7 +38,7 @@
   gap: var(--ef-sp-6);
   align-items: center;
   margin: 0;
-  color: var(--ef-power-low);
+  color: var(--ef-warn-text);
   font: var(--ef-fw-semibold) 13px / 18px var(--ef-font-sans);
 }
 

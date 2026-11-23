@@ -2,10 +2,9 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getBridge, type DesktopState } from '../../../../bridge';
 import { keyText } from '../../../../bridge/platformText';
-import { Pip } from '../../../../pages/overview/Pip';
 import { navRoute, type NavTarget } from '../../../../shell/nav';
 import { ErrBar, Icon } from '../../../../ui';
-import { CharCard, CloseKey, DarkRow, MicroLabel, NewsBanner, PowerMark, PowerState, StatusRow, TopIcon, WhiteCapsule, YellowKey } from '../../../../ui/game';
+import { CharCard, CloseKey, DarkRow, MicroLabel, NewsBanner, PowerMark, PowerState, StatusLamp, StatusRow, TopIcon, WhiteCapsule, YellowKey } from '../../../../ui/game';
 import { consoleDemo } from './demos';
 import { doingOf, statusCells, useRecent, useRuntime, waitingOf } from './model';
 import { Foot, Plate } from './Parts';
@@ -106,7 +105,7 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
           <div className={styles.status}>
             {/* A failed cell is a link that is down: the same plug and 未接入 as the panels, its own word as the tip. */}
             <StatusRow items={cells.map((c) => ({ name: c.name, failed: c.tone === 'failed',
-              state: c.tone === 'failed' ? <PowerMark state="unlinked" reason={c.label} /> : <Pip tone={c.tone} label={c.label} /> }))} />
+              state: c.tone === 'failed' ? <PowerMark state="unlinked" reason={c.label} /> : <StatusLamp size="sm" state={c.tone} label={c.label} /> }))} />
           </div>
         )}
         {configError != null ? (
