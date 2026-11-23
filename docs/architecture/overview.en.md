@@ -27,7 +27,8 @@ Git excludes these generated or machine-local directories.
 | Directory | Contents |
 |---|---|
 | `.local/inputs/` | Local inputs used by external tools to generate character packages. Override the location with `AAC_INPUTS`. |
-| `.local/output/` | Generated character libraries, candidate packages, and runtime outputs. The private profile's `character_catalog` can point here. |
+| `.local/library/` | The one local character library. New and rebuilt packages are published into it in place, and the private profile's `character_catalog` names its `current.json`. |
+| `.local/output/` | Generated candidate packages and runtime outputs. |
 | `.local/cache/` | Temporary gate files, GPU locks from `tools/platform/gpu-lock.sh`, and `personal-agent-runtime/` prepared for release builds by `tools/release/release.py`. |
 | `.local/dev-runtime/` | The web UI and agentd code deployed to the installed app by `tools/release/dev_deploy.py`. `current` points to the active deployment. |
 | `.local/pi-runtime/` | Node dependencies for the Pi SDK. In a source checkout, `agent/agentd/character_agent/harness/pi_config.py` resolves them. |

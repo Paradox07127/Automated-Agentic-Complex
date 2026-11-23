@@ -27,7 +27,8 @@
 | 目录 | 内容 |
 |---|---|
 | `.local/inputs/` | 外部工具生成角色包所用的本地输入（位置可用 `AAC_INPUTS` 覆盖） |
-| `.local/output/` | 本地生成的角色库、候选包和运行产物；本地发行配置的 `character_catalog` 可指向这里 |
+| `.local/library/` | 本地角色库，只有这一个；新包和重建的包原地发布进来，本地发行配置的 `character_catalog` 指向它的 `current.json` |
+| `.local/output/` | 本地生成的候选包和运行产物 |
 | `.local/cache/` | 门禁临时目录、GPU 锁文件（`tools/platform/gpu-lock.sh`）、发行构建准备的 `personal-agent-runtime/`（`tools/release/release.py`） |
 | `.local/dev-runtime/` | `tools/release/dev_deploy.py` 部署给已安装 app 的网页 UI 和 agentd，`current` 指向当前一份 |
 | `.local/pi-runtime/` | Pi SDK 的 Node 依赖；源码检出里运行时由 `agent/agentd/character_agent/harness/pi_config.py` 找到它 |
