@@ -32,6 +32,7 @@ import { DEFAULT_GROUP, GROUP_IDS, GROUP_MOVED, groupOf, isGroup, NATIVE_GROUPS,
 import { SearchResults } from './SearchResults';
 import { SetNav, SetSearch } from './SetNav';
 import { SettingsOverlays } from './SettingsOverlays';
+import { LeaveGuard } from './LeaveGuard';
 import { useSettingsData } from './useSettingsData';
 import { DEV_ONLY_ROWS, PHOTO_ONLY_ROWS, tabOf } from '../character/sections';
 import styles from './Page.module.css';
@@ -303,6 +304,7 @@ function SettingsBody() {
         <ApplyBar />
       </div>
       <SettingsOverlays />
+      <LeaveGuard />
     </SettingsCtx.Provider>
   );
 }

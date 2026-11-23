@@ -66,13 +66,20 @@ export function deleteConfirm(id: string, onConfirm: ConfirmSpec['onConfirm'], c
 
 const NO_READ: Record<Target, string> = { runtime: '还没读到角色内核设置', models: '还没读到模型设置' };
 
-/** Rows saved but waiting for a backend restart, with when each was saved; kept across pages and reloads. */
+/** A row saved but waiting for a backend restart: when it was last saved, and the value the running backend has (`old`). */
+export interface Pending {
+  at: number;
+  old: SettingValue;
+}
+
+/** The rows waiting for a backend restart; kept across pages and reloads. */
 const PENDING_KEY = 'ef.settings.pendingRestart';
 
-function loadPending(): Record<string, number> {
+function loadPending(): Record<string, Pending> {
   try {
     const v: unknown = JSON.parse(localStorage.getItem(PENDING_KEY) ?? '{}');
-    return v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).filter((e): e is [string, number] => typeof e[1] === 'number')) : {};
+    if (!v || typeof v !== 'object') return {};
+    return Object.fromEntries(Object.entries(v).filter((e): e is [string, Pending] => typeof e[1]?.at === 'number' && e[1].old != null));
   } catch {
     return {};
   }
@@ -84,7 +91,8 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
   const [draft, setDraft] = useState<Vals>(() => ({ ...init.draft }));
   // A demo's own pending rows are not stored.
   const stored = useRef(init.pending === undefined);
-  const [pending, setPending] = useState<Record<string, number>>(() => (init.pending ? Object.fromEntries(init.pending.map((id) => [id, clock()])) : loadPending()));
+  const [pending, setPending] = useState<Record<string, Pending>>(() =>
+    init.pending ? Object.fromEntries(init.pending.map((id) => [id, { at: clock(), old: false }])) : loadPending());
   const [ok, setOk] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(init.confirm ?? null);
   const [toast, setToast] = useState<ToastSpec | null>(null);
@@ -95,6 +103,8 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
   const handles = useRef<Handles>({});
   const s = useRef(src);
   s.current = src;
+  const now = useRef(vals);
+  now.current = vals;
 
   useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
   useEffect(() => void (src.native && setVals((v) => ({ ...v, ...src.native?.saved }))), [src.native]);
@@ -103,7 +113,7 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
   useEffect(() => {
     const started = src.agentdStartedAt;
     if (started == null) return;
-    setPending((p) => (Object.values(p).some((at) => at < started) ? Object.fromEntries(Object.entries(p).filter(([, at]) => at >= started)) : p));
+    setPending((p) => (Object.values(p).some((e) => e.at < started) ? Object.fromEntries(Object.entries(p).filter(([, e]) => e.at >= started)) : p));
   }, [src.agentdStartedAt]);
   useEffect(() => {
     if (!stored.current) return;
@@ -124,6 +134,10 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
   /** config.json through the shell. Only a row whose own schema says `restart: backend` waits for a backend restart. */
   const saveNative = useCallback(
     async (changes: Vals, what: string): Promise<boolean> => {
+      const rows = s.current.native?.rows ?? {};
+      const restart = Object.keys(changes).filter((id) => rows[id]?.restart === 'backend');
+      // Read before the save: config.json's change notice may refresh `vals` while it is out.
+      const before = Object.fromEntries(restart.map((id) => [id, now.current[id] ?? rows[id]!.default]));
       let res;
       try {
         res = await bridge.settings.save(changes);
@@ -138,9 +152,17 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
         return false;
       }
       setVals((v) => ({ ...v, ...changes }));
-      const rows = s.current.native?.rows ?? {};
-      const restart = Object.keys(changes).filter((id) => rows[id]?.restart === 'backend');
-      if (restart.length) setPending((p) => ({ ...p, ...Object.fromEntries(restart.map((id) => [id, clock()])) }));
+      if (restart.length)
+        setPending((p) => {
+          const next = { ...p };
+          for (const id of restart) {
+            const old = p[id]?.old ?? before[id]!;
+            // Back to the value the backend runs with: nothing waits.
+            if (changes[id] === old) delete next[id];
+            else next[id] = { at: clock(), old };
+          }
+          return next;
+        });
       if (res.notApplied.length) setToast({ message: `已保存，${res.notApplied.map(labelOf).join('、')}要重启 Agentic Complex 后生效`, severity: 'warning', persistent: true });
       return true;
     },
@@ -232,12 +254,13 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
     [set],
   );
 
-  /** Saves every draft at once (the bottom「未应用 N 项」bar): agentd's first, then each service card's; a failed target keeps its drafts. */
-  const applyAll = useCallback(async () => {
+  /** Saves every draft at once (the bottom「未应用 N 项」bar): agentd's first, then each service card's; a failed target keeps its
+   *  drafts. True when none is left. */
+  const applyAll = useCallback(async (): Promise<boolean> => {
     const n = Object.keys(draft).length;
-    if (n === 0) return;
+    if (n === 0) return true;
     const agentd = Object.fromEntries(Object.entries(draft).filter(([id]) => !serviceOf(id)));
-    if (Object.keys(agentd).length && !(await saveAgentd(agentd, `${n} 项改动`))) return;
+    if (Object.keys(agentd).length && !(await saveAgentd(agentd, `${n} 项改动`))) return false;
     handles.current = {};
     const left: Vals = {};
     const refused: Record<string, ServiceRejected> = {};
@@ -259,6 +282,7 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
     setDraft(left);
     const done = n - Object.keys(left).length;
     setToast(note ?? (done ? { message: `已应用 ${done} 项`, severity: 'success' } : null));
+    return Object.keys(left).length === 0;
   }, [saveAgentd, draft]);
 
   const revertAll = useCallback(() => {
@@ -267,19 +291,35 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
     setRejected({});
   }, []);
 
-  const restartBackend = useCallback(async () => {
+  /** True once the shell restarts it. */
+  const restartBackend = useCallback(async (): Promise<boolean> => {
     setRestarting(true);
     try {
       await bridge.supervisor.restart('agentd');
     } catch {
       setToast({ message: '没能重启后台服务：桌面端没有响应', severity: 'danger', persistent: true });
-      return;
+      return false;
     } finally {
       setRestarting(false);
     }
     setPending({});
     setToast({ message: '后台服务正在重启，完成后改动生效', severity: 'success' });
+    return true;
   }, [bridge]);
+
+  /** 不重启: the rows waiting for a restart go back to the values the backend runs with. True once saved. */
+  const discardPending = useCallback(async (): Promise<boolean> => {
+    const back = Object.fromEntries(Object.entries(pending).map(([id, e]) => [id, e.old]));
+    if (Object.keys(back).length === 0) return true;
+    const res = await bridge.settings.save(back).catch(() => ({ error: 'no reply' }));
+    if (res.error) {
+      setToast({ message: '没能撤销等重启的改动：桌面端没有接受', severity: 'danger', persistent: true });
+      return false;
+    }
+    setVals((v) => ({ ...v, ...back }));
+    setPending({});
+    return true;
+  }, [bridge, pending]);
 
   /** 恢复默认: the schema defaults of these rows, consent logged for each destructive one that goes off. */
   const resetTo = useCallback(
@@ -309,6 +349,7 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
     applyAll,
     revertAll,
     restartBackend,
+    discardPending,
     resetTo,
     setVals,
     setDraft,
