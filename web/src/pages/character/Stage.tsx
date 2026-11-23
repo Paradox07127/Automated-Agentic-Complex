@@ -6,6 +6,7 @@ import { Diamond, LoadBar, PowerState } from '../../ui/game';
 import { NameBlock, OfflineRow, SwitchRow, type VoiceBinding } from './NameBlock';
 import { useInspect } from './useInspect';
 import { useLivePreview } from './usePreview';
+import { ViewCube } from './ViewCube';
 import type { SwitchState } from './useSwitch';
 import styles from './Stage.module.css';
 
@@ -26,6 +27,8 @@ export interface StageProps {
   voice?: VoiceBinding | null | undefined;
   /** Where the stage stands: right of the name on 总览, left of the panel on a detail page, beside the 拍照 panel; absent is a detail page. */
   mode?: StageMode;
+  /** Draws the 视角方块 at the top right. */
+  cube?: boolean;
   activity: string | null;
   offline: boolean;
   /** supervisor.state backoff seconds. */
@@ -66,13 +69,14 @@ export function StageSkel() {
 export function Stage(p: StageProps) {
   const [el, setEl] = useState<HTMLDivElement | null>(null);
   const [grip, setGrip] = useState<HTMLDivElement | null>(null);
+  const blocked = p.offline || p.sw.phase !== 'idle' || p.switching === true;
   const preview = useLivePreview(p.characterId ? el : null, {
     character: p.characterId ?? '',
     action: p.previewAction,
     appearance: p.previewAppearance,
     request: p.previewRequest,
     loop: p.loop,
-    blocked: p.offline || p.sw.phase !== 'idle' || p.switching === true,
+    blocked,
   });
   const inspect = useInspect(p.characterId ? grip : null, el, p.characterId ?? '');
   const mode = p.mode ?? 'detail';
@@ -124,6 +128,7 @@ export function Stage(p: StageProps) {
           </div>
         )}
         {!overview && p.sw.phase !== 'idle' && <SwitchOverlay sw={p.sw} currentName={p.currentName} onRetry={p.onRetry} onDismiss={p.onDismiss} />}
+        {p.cube && p.characterId && !blocked && <ViewCube inspect={inspect} />}
         {p.characterId && <ResetKey hidden={!inspect.moved} onClick={inspect.reset} />}
       </div>
       {mode === 'detail' ? (

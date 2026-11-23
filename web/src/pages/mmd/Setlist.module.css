@@ -45,11 +45,10 @@
 }
 
 .who {
-  overflow: hidden;
+  min-width: 0;
   color: var(--ef-hud-text-2);
   font-size: 12px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .micro {

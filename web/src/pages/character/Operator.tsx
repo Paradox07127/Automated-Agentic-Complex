@@ -337,6 +337,7 @@ export function Operator(p: OperatorProps) {
       <div ref={midRef} className={styles.mid} data-character-preview="">
         <Stage
           mode={s.mode}
+          cube={side?.of !== 'mmd'}
           status={s.status}
           deck={s.deck}
           name={s.mode === 'overview' && view.parts ? (ch?.name ?? '') : ''}

@@ -4,7 +4,9 @@
   --nb-desk: rgb(61 136 205);
   --nb-emb: 98px;
   --nb-name: 56px;
-  --nb-name-long: 38px;
+  /* The smallest size a long name takes before it wraps. */
+  --nb-name-min: 26px;
+  --nb-row: 30px;
 
   position: relative;
   display: flex;
@@ -29,9 +31,10 @@
 .plate {
   position: relative;
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: 18px;
-  max-width: 100%;
+  width: 100%;
 }
 
 /* The emblem: a white square tilted 1°, its offset shadow, a thin frame 6 px out and a yellow diamond on the corner. */
@@ -92,35 +95,50 @@
   display: flex;
 }
 
+/* Beside the emblem while the name fits there at the smallest size, else under it across the block. */
 .names {
   display: flex;
+  flex: 1 1 min(100%, var(--nb-len) * var(--nb-name-min));
   flex-direction: column;
   min-width: 0;
   padding-top: 4px;
+  container-type: inline-size;
 }
 
 .name {
-  overflow: hidden;
   color: #fff;
-  font: 700 var(--nb-name) / 1.05 var(--ef-font-sans);
+  /* --nb-len (NameBlock.tsx) is the name's width in ems: the size that fits it on one line, within the two sizes. */
+  font: 700 clamp(var(--nb-name-min), 100cqi / var(--nb-len), var(--nb-name)) / 1.05 var(--ef-font-sans);
   letter-spacing: 0.02em;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
   text-shadow:
     0.25px 5.5px 0 rgb(0 0 0 / 34%),
     0 0 1px rgb(0 0 0 / 25%);
 }
 
-.block[data-long] .name {
-  font-size: var(--nb-name-long);
-}
-
 .row {
   display: flex;
   align-items: center;
-  height: 30px;
+  min-height: var(--nb-row);
   margin-top: 8px;
   min-width: 0;
+}
+
+/* A long Latin name on its own line under 在桌面. */
+.row[data-wrap] {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
+.row[data-wrap] .rule {
+  display: none;
+}
+
+.row[data-wrap] .en {
+  flex-basis: 100%;
+  line-height: 1.25;
+  letter-spacing: 0.12em;
 }
 
 .desk {
@@ -128,7 +146,7 @@
   flex: none;
   align-items: center;
   gap: 6px;
-  height: 100%;
+  height: var(--nb-row);
   padding: 0 10px 0 6px;
   background: var(--nb-desk);
   color: #fff;
@@ -144,12 +162,11 @@
 }
 
 .en {
-  overflow: hidden;
+  min-width: 0;
   color: #fff;
   font: 600 18px / 1 var(--ef-font-num);
   letter-spacing: 0.24em;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
   text-shadow: 0 2px 0 rgb(0 0 0 / 25%);
 }
 
@@ -232,7 +249,8 @@
   .block {
     --nb-emb: 58px;
     --nb-name: 34px;
-    --nb-name-long: 26px;
+    --nb-name-min: 20px;
+    --nb-row: 22px;
   }
 
   .band {
@@ -257,7 +275,6 @@
   }
 
   .row {
-    height: 22px;
     margin-top: 4px;
   }
 
@@ -301,7 +318,8 @@
   .block {
     --nb-emb: 58px;
     --nb-name: 34px;
-    --nb-name-long: 26px;
+    --nb-name-min: 20px;
+    --nb-row: 22px;
   }
 
   .band {
@@ -309,7 +327,6 @@
   }
 
   .row {
-    height: 22px;
     margin-top: 4px;
   }
 

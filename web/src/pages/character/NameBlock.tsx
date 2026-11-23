@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { readVoiceBinding } from '../../bridge/agentd';
 import { Barcode, Diamond, WhiteCapsule } from '../../ui/game';
 import { Emblem } from './Figure';
@@ -51,13 +51,15 @@ export interface NameBlockProps {
   offline: boolean;
 }
 
-/** A name wider than about three CJK characters takes the smaller size, as the game's auto-size does. */
-const isLong = (name: string) => [...name].reduce((w, c) => w + (/[㐀-鿿]/.test(c) ? 1 : 0.55), 0) > 3.2;
+/** A text's width in ems of the bold face: a CJK or full-width character one, a space 0.3, anything else 0.62, each with the 0.02 em letter spacing. */
+const ems = (text: string) => [...text].reduce((w, c) => w + 0.02 + (/[⺀-鿿豈-﫿＀-￯]/.test(c) ? 1 : c === ' ' ? 0.3 : 0.62), 0);
+/** A Latin name longer than this many characters goes on its own line under 在桌面. */
+const EN_INLINE = 12;
 
-/** 名字块（游戏 CharInfo 名字栏）：白方徽记、白色大名字、「在桌面」蓝标和拉丁名；下面是语音绑定和「在做」标签板。 */
+/** 名字块（游戏 CharInfo 名字栏）：白方徽记、白色大名字、「在桌面」蓝标和拉丁名；下面是语音绑定和「在做」标签板。名字按长度缩到一行放下，最小一档时换行，从不截断。 */
 export function NameBlock(p: NameBlockProps) {
   return (
-    <div className={styles.block} data-nameplate="" data-g="root" data-long={isLong(p.name) || undefined}>
+    <div className={styles.block} data-nameplate="" data-g="root" style={{ '--nb-len': ems(p.name).toFixed(2) } as CSSProperties}>
       <span className={styles.band} aria-hidden="true" />
       <div className={styles.plate} data-g="nameplate">
         <span className={styles.emb} aria-hidden="true">
@@ -72,7 +74,7 @@ export function NameBlock(p: NameBlockProps) {
         <span className={styles.names}>
           <b className={styles.name}>{p.name}</b>
           {(p.active || p.en) && (
-            <span className={styles.row}>
+            <span className={styles.row} data-wrap={(p.en && p.en.length > EN_INLINE) || undefined}>
               {p.active && (
                 <span className={styles.desk} title="桌面上的是这个角色">
                   <DeskGlyph />

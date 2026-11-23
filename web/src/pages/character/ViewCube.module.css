@@ -1,0 +1,221 @@
+/* 视角方块 at the stage's top-right corner: the cube turned with the camera (--turn, --tilt on .box), a key on each face, the X, Y, Z axes from its left-bottom-back corner. */
+.cube {
+  --vc: 36px;
+  --vc-h: calc(var(--vc) / 2);
+  --vc-axis: calc(var(--vc) + 14px);
+
+  position: absolute;
+  top: 20px;
+  right: 16px;
+  z-index: 3;
+  width: 88px;
+  height: 88px;
+  perspective: 320px;
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  filter: drop-shadow(2px 4px 3px color-mix(in srgb, var(--ef-popup-text) 30%, transparent));
+}
+
+.cube[data-turning] {
+  cursor: grabbing;
+}
+
+.box {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: rotateX(calc(var(--tilt) * -1)) rotateY(var(--turn));
+  transform-style: preserve-3d;
+}
+
+.box,
+.letter {
+  transition: transform 160ms var(--ef-ease-g-enter);
+}
+
+.cube[data-turning] :is(.box, .letter),
+:global([data-grabbing]) ~ * :is(.box, .letter) {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .box,
+  .letter {
+    transition: none;
+  }
+}
+
+:global([data-reduce-motion]) :is(.box, .letter),
+:global(.still) :is(.box, .letter) {
+  transition: none;
+}
+
+.face {
+  position: absolute;
+  top: calc(var(--vc-h) * -1);
+  left: calc(var(--vc-h) * -1);
+  width: var(--vc);
+  height: var(--vc);
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--ef-paper-text) 45%, transparent);
+  background: var(--ef-surface-2);
+  cursor: pointer;
+  backface-visibility: hidden;
+}
+
+.face[data-face='front'] {
+  background: var(--ef-paper);
+  transform: translateZ(var(--vc-h));
+}
+
+.face[data-face='right'] {
+  transform: rotateY(90deg) translateZ(var(--vc-h));
+}
+
+.face[data-face='back'] {
+  transform: rotateY(180deg) translateZ(var(--vc-h));
+}
+
+.face[data-face='left'] {
+  transform: rotateY(-90deg) translateZ(var(--vc-h));
+}
+
+.face[data-face='top'] {
+  background: var(--ef-surface-1);
+  transform: rotateX(90deg) translateZ(var(--vc-h));
+}
+
+.face[data-face='bottom'] {
+  background: var(--ef-surface-3);
+  transform: rotateX(-90deg) translateZ(var(--vc-h));
+}
+
+/* The front face's yellow corner: which way she faces. */
+.face[data-face='front']::after {
+  content: '';
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 9px;
+  height: 9px;
+  background: var(--ef-accent);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+.face:hover {
+  background: color-mix(in srgb, var(--ef-accent) 55%, var(--ef-paper));
+}
+
+.face:active {
+  background: var(--ef-accent);
+}
+
+.face:focus-visible {
+  outline: 2px solid var(--ef-paper-text);
+  outline-offset: -4px;
+}
+
+.axis,
+.letter {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.axis[data-axis='x'],
+.letter[data-axis='x'] {
+  --axis: rgb(226 52 52);
+}
+
+.axis[data-axis='y'],
+.letter[data-axis='y'] {
+  --axis: rgb(40 160 70);
+}
+
+.axis[data-axis='z'],
+.letter[data-axis='z'] {
+  --axis: rgb(40 100 230);
+}
+
+/* An axis: two crossed bars, so it shows from any side. */
+.axis {
+  width: var(--vc-axis);
+  height: 0;
+  transform-origin: 0 0;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.axis[data-axis='x'] {
+  transform: translate3d(calc(var(--vc-h) * -1), var(--vc-h), calc(var(--vc-h) * -1));
+}
+
+.axis[data-axis='y'] {
+  transform: translate3d(calc(var(--vc-h) * -1), var(--vc-h), calc(var(--vc-h) * -1)) rotateZ(-90deg);
+}
+
+.axis[data-axis='z'] {
+  transform: translate3d(calc(var(--vc-h) * -1), var(--vc-h), calc(var(--vc-h) * -1)) rotateY(-90deg);
+}
+
+.axis i {
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--axis);
+}
+
+.axis i + i {
+  transform: rotateX(90deg);
+}
+
+/* Each letter past its axis's end, turned back to face the screen. */
+.letter {
+  display: grid;
+  place-items: center;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  color: var(--axis);
+  font: 700 12px / 1 var(--ef-font-num);
+  pointer-events: none;
+  transform: translate3d(var(--at)) rotateY(calc(var(--turn) * -1)) rotateX(var(--tilt));
+}
+
+.letter[data-axis='x'] {
+  --at: calc(var(--vc-axis) - var(--vc-h) + 7px), var(--vc-h), calc(var(--vc-h) * -1);
+}
+
+.letter[data-axis='y'] {
+  --at: calc(var(--vc-h) * -1), calc(var(--vc-h) - var(--vc-axis) - 7px), calc(var(--vc-h) * -1);
+}
+
+.letter[data-axis='z'] {
+  --at: calc(var(--vc-h) * -1), var(--vc-h), calc(var(--vc-axis) - var(--vc-h) + 7px);
+}
+
+@container op (max-width: 1100px) {
+  .cube {
+    --vc: 26px;
+
+    top: 14px;
+    right: 10px;
+    width: 66px;
+    height: 66px;
+  }
+}
+
+@container op (max-height: 560px) {
+  .cube {
+    --vc: 26px;
+
+    top: 14px;
+    right: 10px;
+    width: 66px;
+    height: 66px;
+  }
+}

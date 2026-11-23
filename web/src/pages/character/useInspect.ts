@@ -6,7 +6,7 @@ import { PREVIEW_LAYER } from './usePreview';
 
 /** Degrees per device pixel of drag, on her yaw and on her pitch. */
 const TURN_PER_PX = 0.5;
-const TILT_MAX = 80;
+export const TILT_MAX = 80;
 /** A wheel scales the zoom by exp(deltaY × this); a pinch (Chromium's wheel with `ctrlKey`) by exp(deltaY × PINCH_PER_PX). */
 const ZOOM_PER_PX = 0.0015;
 const PINCH_PER_PX = 0.01;
@@ -27,6 +27,23 @@ interface Camera {
 const home = (): Camera => ({ turn: 0, tilt: 0, zoom: 1, pan: [0, 0] });
 const atHome = (c: Camera) => c.turn === 0 && c.tilt === 0 && c.zoom === 1 && c.pan[0] === 0 && c.pan[1] === 0;
 const send = (v: PreviewView) => void getBridge().avatar.preview.view(v).catch(() => {});
+/** A drag of (dx, dy) CSS px on her: dragging down raises the camera. */
+const spun = (c: Camera, dx: number, dy: number) => {
+  c.turn += TURN_PER_PX * dx * devicePixelRatio;
+  c.tilt = clamp(c.tilt + TURN_PER_PX * dy * devicePixelRatio, -TILT_MAX, TILT_MAX);
+};
+
+export interface Inspect {
+  moved: boolean;
+  reset: () => void;
+  /** The camera's turn and tilt now, in degrees. */
+  turn: number;
+  tilt: number;
+  /** Puts the camera at `turn` and `tilt`, keeping its zoom and pan. */
+  aim: (turn: number, tilt: number) => void;
+  /** Turns the camera as a drag of (dx, dy) px on the grip does. */
+  spin: (dx: number, dy: number) => void;
+}
 
 /** Where `stage` sits in the page's preview layer, as x, y, w, h shares of it inside 0–1; the whole rect without a layer. */
 export function stageFrame(stage: Element): [number, number, number, number] {
@@ -45,10 +62,12 @@ export function stageFrame(stage: Element): [number, number, number, number] {
  * frame of the stage's own transitions too. A new `character` and unmounting send the default view. `moved` is true while the
  * view is not the default one; `reset` returns it there.
  */
-export function useInspect(grip: HTMLElement | null, stage: HTMLElement | null, character: string): { moved: boolean; reset: () => void } {
+export function useInspect(grip: HTMLElement | null, stage: HTMLElement | null, character: string): Inspect {
   const [moved, setMoved] = useState(false);
+  const [look, setLook] = useState({ turn: 0, tilt: 0 });
   const camera = useRef(home());
   const reset = useRef(() => {});
+  const update = useRef(() => {});
   useEffect(() => reset.current(), [character]);
   useEffect(() => {
     if (!grip || !stage) return;
@@ -71,13 +90,16 @@ export function useInspect(grip: HTMLElement | null, stage: HTMLElement | null, 
     };
     const changed = () => {
       setMoved(!atHome(camera.current));
+      setLook({ turn: camera.current.turn, tilt: camera.current.tilt });
       schedule();
     };
+    update.current = changed;
     reset.current = () => {
       cancelAnimationFrame(frame);
       frame = 0;
       camera.current = home();
       setMoved(false);
+      setLook({ turn: 0, tilt: 0 });
       flush();
     };
     // The first pointer down drags until it is released, on the grip or past it; another finger meanwhile does nothing.
@@ -102,9 +124,7 @@ export function useInspect(grip: HTMLElement | null, stage: HTMLElement | null, 
         if (s.width <= 0 || s.height <= 0) return;
         c.pan = [c.pan[0] - (dx / s.width) * c.zoom, c.pan[1] - (dy / s.height) * c.zoom];
       } else {
-        // Dragging down raises the camera.
-        c.turn += TURN_PER_PX * dx * devicePixelRatio;
-        c.tilt = clamp(c.tilt + TURN_PER_PX * dy * devicePixelRatio, -TILT_MAX, TILT_MAX);
+        spun(c, dx, dy);
       }
       changed();
     };
@@ -167,9 +187,23 @@ export function useInspect(grip: HTMLElement | null, stage: HTMLElement | null, 
       ro?.disconnect();
       cancelAnimationFrame(frame);
       reset.current = () => {};
+      update.current = () => {};
       delete grip.dataset.grabbing;
       send(home());
     };
   }, [grip, stage]);
-  return { moved, reset: () => reset.current() };
+  return {
+    moved,
+    reset: () => reset.current(),
+    ...look,
+    aim: (turn, tilt) => {
+      camera.current.turn = turn;
+      camera.current.tilt = clamp(tilt, -TILT_MAX, TILT_MAX);
+      update.current();
+    },
+    spin: (dx, dy) => {
+      spun(camera.current, dx, dy);
+      update.current();
+    },
+  };
 }

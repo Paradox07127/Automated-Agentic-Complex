@@ -57,21 +57,28 @@
 
 .others ul {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 6px 12px;
   min-width: 0;
   margin: 0;
   padding: 0;
-  overflow: hidden;
   list-style: none;
 }
 
 .ch {
   display: inline-flex;
-  flex: none;
+  flex: 0 1 auto;
   align-items: center;
   gap: 6px;
   min-width: 0;
   white-space: nowrap;
+}
+
+/* The whole name, on more lines when it is long. */
+.chn {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .ch[data-state='failed'] {

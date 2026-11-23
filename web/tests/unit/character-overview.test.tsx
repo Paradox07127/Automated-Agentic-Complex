@@ -50,12 +50,12 @@ describe('角色页 · 总览', () => {
     }
   });
 
-  it('keeps the live preview stage element, with no control inside it', async () => {
+  it('keeps the live preview stage element, with no control inside it but the view cube', async () => {
     await mount();
     const stage = document.querySelector('[data-preview-stage]') as HTMLElement;
     expect(stage).not.toBeNull();
     expect(stage.closest('[data-character-preview]')).not.toBeNull();
-    expect(within(stage).queryAllByRole('button')).toEqual([]);
+    expect(within(stage).queryAllByRole('button').filter((b) => !b.closest('[aria-label="视角方块"]'))).toEqual([]);
     expect(document.querySelector('[data-stage]')?.textContent).toContain('示例乙');
   });
 
