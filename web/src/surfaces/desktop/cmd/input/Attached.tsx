@@ -15,7 +15,7 @@ export interface AttachedProps {
   onSend: (r: SayRequest) => void;
 }
 
-const SOURCE = { selection: '选中文字', clipboard: '剪贴板', region: '框选' } as const;
+const SOURCE = { selection: '选中文字', clipboard: '剪贴板' } as const;
 
 function Chip({ pressed, disabled, onClick, children }: { pressed?: boolean; disabled: boolean; onClick: () => void; children: ReactNode }) {
   return (

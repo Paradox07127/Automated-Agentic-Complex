@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:net';
 import { test } from 'node:test';
 import {
-  agentdArguments, agentdMenuLine, Backoff, type ChildState, controlEndpoint, crashState, HealthWatch, launchFailure, parseHealth,
+  agentdArguments, Backoff, type ChildState, controlEndpoint, crashState, HealthWatch, launchFailure, parseHealth,
   preflightFailure, stateText,
 } from '../src/common/agentd.ts';
 import { parseConfig } from '../src/common/config.ts';
 import { PLUGIN_IDS } from '../src/common/plugins.ts';
 import { portOwners } from '../src/main/agentd/supervisor.ts';
+import { processState } from '../src/main/ops/supervisor.ts';
 import { lsofPids, netstatListeners, portOwnersCommand, pythonFlags } from '../src/main/platform/index.ts';
 
 const config = (o: Record<string, unknown> = {}) => parseConfig(JSON.stringify({
@@ -25,7 +26,7 @@ test('backoff waits 1, 2, 4, 8 s and fails at the fifth crash within 300 s', () 
     states.push(crashState(b.recordCrash()));
   }
   assert.deepEqual(states.map(stateText), ['backoff(1)', 'backoff(2)', 'backoff(4)', 'backoff(8)', 'failed(300 秒内崩溃 5 次)']);
-  assert.equal(agentdMenuLine(states[4]!), '后台 · 失败：300 秒内崩溃 5 次');
+  assert.equal(processState(states[4]!, undefined).state, 'failed(300 秒内崩溃 5 次)');
   assert.deepEqual([1, 2, 3, 4, 5, 6, 9].map(Backoff.delay), [1, 2, 4, 8, 16, 30, 30]);
 });
 
@@ -69,10 +70,11 @@ test('the health watch: ready ends it, a new stage is reported once, 15 s silent
   assert.deepEqual(new HealthWatch(0).observe({ kind: 'ready', degraded: [] }, 100), { action: 'ready' });
 });
 
-test('menu lines use the tray menu wording', () => {
-  const lines = ([{ kind: 'stopped' }, { kind: 'starting' }, { kind: 'running' }, { kind: 'backoff', seconds: 4 }, { kind: 'portInUse' },
-    { kind: 'failed', reason: '缺 agentd 组件' }] as ChildState[]).map(agentdMenuLine);
-  assert.deepEqual(lines, ['后台 · 未启动', '后台 · 启动中', '后台 · 运行中', '后台 · 重连中 4 s', '后台 · 端口被占用', '后台 · 失败：缺 agentd 组件']);
+test('desktop.onState\'s agentd pip carries each state and the backoff seconds', () => {
+  const pips = ([{ kind: 'stopped' }, { kind: 'starting' }, { kind: 'running' }, { kind: 'backoff', seconds: 4 }, { kind: 'portInUse' },
+    { kind: 'failed', reason: '缺 agentd 组件' }] as ChildState[]).map((s) => processState(s, undefined));
+  assert.deepEqual(pips.map((p) => p.state), ['stopped', 'starting', 'running', 'backoff(4)', 'portInUse', 'failed(缺 agentd 组件)']);
+  assert.deepEqual(pips.map((p) => p.backoff), [null, null, null, 4, null, null]);
 });
 
 test('missing components and a missing library fail before launch', () => {

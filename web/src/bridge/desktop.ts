@@ -42,7 +42,7 @@ export type DesktopCommand =
   | { kind: 'focusTop' }
   | { kind: 'expandStack' }
   /** The selection hot key's one read, sent just before the `open` of 快速输入 it belongs to. */
-  | { kind: 'selection'; source: 'selection' | 'clipboard' | 'region'; text: string; app: string | null; truncated: boolean }
+  | { kind: 'selection'; source: 'selection' | 'clipboard'; text: string; app: string | null; truncated: boolean }
   /** The selection hot key read nothing; `message` says why. Sent like `selection`. */
   | { kind: 'selectionRefused'; message: string }
   /** 快速输入 opens with a drop scope of `files` files; what is sent from it carries `scopeId`. Sent like `selection`. */

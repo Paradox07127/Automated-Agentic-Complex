@@ -42,7 +42,7 @@ const std::vector<OpSpec>& op_specs() {
         {"ax.overlays", true, {}, {}, {}},
         {"ax.hit_chain", true, {{"point", "point"}}, {{"exclude_pids", "arr<int+>"}}, {}},
         {"ax.window_text", true, {{"pid", "int+"}, {"level", "enum(focused|window)"}},
-         {{"window_bounds", "rect"}, {"clip", "rect"}, {"cursor", "str"}, {"max_nodes", "int+"},
+         {{"window_bounds", "rect"}, {"cursor", "str"}, {"max_nodes", "int+"},
           {"max_scalars", "int+"}}, {}},
         {"ax.window_tree", true, {{"pid", "int+"}},
          {{"window_bounds", "rect"}, {"previous", "str+"}, {"max_lines", "int+"}, {"max_scalars", "int+"}}, {}},

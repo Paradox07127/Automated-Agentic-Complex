@@ -71,11 +71,6 @@ describe('selection actions', () => {
     expect(dialog.textContent).toContain('只取了前 2000 字');
   });
 
-  it('a region read is labeled 框选', async () => {
-    const { dialog } = await openInput({ ...SELECTION, source: 'region', app: 'Safari' });
-    expect(dialog.textContent).toContain('框选 │ Safari');
-  });
-
   it('翻译 previews the line and sends exactly it without memory', async () => {
     const { say, dialog } = await openInput(SELECTION);
     fireEvent.click(within(dialog).getByRole('button', { name: '翻译' }));

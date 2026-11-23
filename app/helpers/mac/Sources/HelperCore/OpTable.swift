@@ -50,7 +50,7 @@ enum OpTable {
         OpSpec("ax.overlays"),
         OpSpec("ax.hit_chain", [Field("point", "point")], [Field("exclude_pids", "arr<int+>")]),
         OpSpec("ax.window_text", [Field("pid", "int+"), Field("level", "enum(focused|window)")],
-               [Field("window_bounds", "rect"), Field("clip", "rect"), Field("cursor", "str"), Field("max_nodes", "int+"),
+               [Field("window_bounds", "rect"), Field("cursor", "str"), Field("max_nodes", "int+"),
                 Field("max_scalars", "int+")]),
         OpSpec("ax.window_tree", [Field("pid", "int+")],
                [Field("window_bounds", "rect"), Field("previous", "str+"), Field("max_lines", "int+"), Field("max_scalars", "int+")]),

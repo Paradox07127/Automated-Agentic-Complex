@@ -123,7 +123,7 @@ const RAW: Raw[] = [
   ['typing', 'privacy', '屏幕感知', '你输入的文字', '键盘 打字 输入'],
   ['actions', 'privacy', '屏幕感知', '操作时间线', '时间线 操作 点击 窗口'],
   ['keys', 'privacy', '屏幕感知', '键鼠计数', '键盘 鼠标'],
-  ['plugins.screen_reading', 'privacy', '屏幕识读', '屏幕识读', '识读 截图 框选 剪贴板 选中文字'],
+  ['plugins.screen_reading', 'privacy', '屏幕识读', '屏幕识读', '识读 截图 剪贴板 选中文字'],
   ['shot', 'privacy', '屏幕识读', '识读时附上截图', '截图 识读 额度'],
   ['plugins.coding_sessions', 'privacy', '编码会话', '编码会话', 'Claude Code Codex hook 会话 审批'],
   ['agent_sessions', 'privacy', '编码会话', '读会话里的工具输入输出', 'Claude Code Codex 工具 输入 输出 结果'],

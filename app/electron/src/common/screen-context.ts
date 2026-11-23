@@ -453,7 +453,7 @@ export const SELECTION_LIMIT = SAY_LIMIT - 100;
 /** nspasteboard.org markers of a password or a one-off item. */
 const SKIPPED_TYPES = ['org.nspasteboard.ConcealedType', 'org.nspasteboard.TransientType'];
 
-export interface SelectionRead { source: 'selection' | 'clipboard' | 'region'; text: string; truncated: boolean }
+export interface SelectionRead { source: 'selection' | 'clipboard'; text: string; truncated: boolean }
 
 /** `refused` says why nothing was read; `empty`: no selected text and no usable clipboard text. */
 export type SelectionDecision = { kind: 'read'; read: SelectionRead } | { kind: 'refused'; message: string } | { kind: 'empty' };

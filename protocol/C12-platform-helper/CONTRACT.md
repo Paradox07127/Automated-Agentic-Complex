@@ -158,7 +158,7 @@
 | `ax.dialog_buttons` | 两者 | `pid` | `buttons`：`rect` 数组 | `permission_denied`、`ax_timeout`、`process_gone` |
 | `ax.overlays` | 两者 | — | `banners`、`ime`：`rect` 数组 | `permission_denied`、`ax_timeout` |
 | `ax.hit_chain` | 两者 | `point`；选填 `exclude_pids` | `pid`（或 null）、`chain`：`ax_hit` 数组 | `permission_denied`、`ax_timeout` |
-| `ax.window_text` | 两者 | `pid`、`level`（`focused`/`window`）；选填 `window_bounds`、`clip`、`cursor`、`max_nodes`、`max_scalars` | `snapshot_id`、`matched`、`text`、`nodes`：`ax_node` 数组、`coverage` | `permission_denied`、`ax_timeout`、`ax_unavailable`、`process_gone` |
+| `ax.window_text` | 两者 | `pid`、`level`（`focused`/`window`）；选填 `window_bounds`、`cursor`、`max_nodes`、`max_scalars` | `snapshot_id`、`matched`、`text`、`nodes`：`ax_node` 数组、`coverage` | `permission_denied`、`ax_timeout`、`ax_unavailable`、`process_gone` |
 | `ax.window_tree` | 两者 | `pid`；选填 `window_bounds`、`previous`、`max_lines`、`max_scalars` | `matched`、`tree_id`、`mode`（`full`/`diff`/`no_change`）、`text`、`lines`、`truncated`、`secure` | `permission_denied`、`ax_timeout`、`ax_unavailable`、`process_gone` |
 | `ax.selected_text` | 两者 | `pid` | `text`，没有时 null | `permission_denied`、`ax_timeout` |
 | `ax.video_rect` | 仅 Mac | `pid` | `rect`，没有时 null | `permission_denied`、`ax_timeout`、`process_gone` |
@@ -170,7 +170,7 @@
 - `ax.dialog_buttons`：焦点窗口是对话框或带 sheet 时，默认和取消按钮的框。Windows 取 `WindowPattern.IsModal` 的窗口里 AutomationId 为 `1`、`2` 的按钮，要实测。
 - `ax.overlays`：`banners` 是系统通知横幅，`ime` 是输入法候选窗。Windows 的候选窗按 AutomationId `IME_Candidate_Window`、`IME_Prediction_Window` 找，第三方输入法是否遵守要实测。
 - `ax.hit_chain`：`point` 下的元素加最多 3 层祖先。只问 `point` 下那个窗口所属的 app，不用系统级元素（她挡在上面时系统级元素回的是她自己）。
-- `ax.window_text`：有上限的投影，不是整棵树。`level: window` 读整个窗口，`focused` 只读焦点控件一带；`window_bounds` 给出时只读框对得上的那个窗口，`matched` 表示找到了；`clip` 只留和它相交的节点；节点数和字数默认最多 2048 个、6000 个字（`focused` 时 2000）。读不完时 `coverage.status` 为 `partial`，`next_cursor` 交给下一次的 `cursor` 接着读。文字原样返回，脱敏由主进程做。
+- `ax.window_text`：有上限的投影，不是整棵树。`level: window` 读整个窗口，`focused` 只读焦点控件一带；`window_bounds` 给出时只读框对得上的那个窗口，`matched` 表示找到了；节点数和字数默认最多 2048 个、6000 个字（`focused` 时 2000）。读不完时 `coverage.status` 为 `partial`，`next_cursor` 交给下一次的 `cursor` 接着读。文字原样返回，脱敏由主进程做。
 - `ax.window_tree`：一个窗口的控件树的文字版，`window_bounds` 和 `matched` 同 `ax.window_text`。整棵树（`mode: full`）先序遍历，每个控件一行：`<深度个 tab><编号> <角色>[ <标题>][, Value: <值>][, Description: <说明>]`，再按需加 ` (selected)`、` (disabled)`、` (collapsed)` 或 ` (expanded)`、` (showing a-b of n items)`。
   - 编号从 0 起按先序递增，只在这一版里有意义。角色去掉 `AX` 前缀、按词拆开并小写（`AXStaticText` 写 `static text`）。标题取 `AXTitle`，没有时取 `AXDescription`，这时不再写 Description。值只写文本类和可选中类控件的（静态文字、文本框、文本区、组合框、复选框、单选按钮、弹出按钮），每个最多 500 个字；值和标题里的换行写成 `\n`，tab 写成空格。
   - 有 `AXVisibleRows`（或 `AXVisibleChildren`）且比 `AXRows`（或 `AXChildren`）少的容器写 ` (showing a-b of n items)`，只往下走可见的那些。没有标题、值、说明、状态，只有一个子控件的纯容器（`AXGroup`、`AXUnknown`、`AXLayoutArea`、`AXLayoutItem`、`AXSplitGroup`）不占行，子控件接到它的位置上。
@@ -403,7 +403,6 @@ Windows 窗口属主的要求：UWP 和打包应用的顶层窗口属于 `Applic
 | 看一眼、显隐角色、点穿、轮盘菜单、选区的全局热键 | `globalShortcut.register`；注册失败（被占用）时报给设置页 |
 | 快速输入热键 | `globalShortcut.register` |
 | 目录选择 | `dialog.showOpenDialog` |
-| 拖框选区面板 | 透明全屏 `BrowserWindow`；读框内文字用 `windows.list`、`ax.window_text`、`ocr.recognize` |
 | 系统通知和点击回调 | `Notification`（Windows 要 AppUserModelID） |
 | 面板层级、所有桌面空间、全屏之上 | `setAlwaysOnTop('screen-saver')`、`setVisibleOnAllWorkspaces` |
 | 菜单栏图标、菜单、头像右键菜单 | `Tray`、`Menu.buildFromTemplate`、`menu.popup` |

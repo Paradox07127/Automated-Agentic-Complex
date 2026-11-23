@@ -39,7 +39,7 @@
   3. 其余窗口：bundle id 等于 `allow.bundle_ids` 的一项，或应用名不分大小写等于 `allow.app_names` 的一项，才不排除。
   4. 无痕窗口和标签页、安全输入照样不读。
   5. 白名单为空时什么都排除。
-- 「排除」在两种模式下的后果相同：注意力心跳只发 `{"app": "<hidden>"}`，不读窗口文字、不截图、不 OCR，浏览器扩展不转发这个标签页。用户主动的划词、框选也按同一个判断；用户拖给她的文件不按名单判断。
+- 「排除」在两种模式下的后果相同：注意力心跳只发 `{"app": "<hidden>"}`，不读窗口文字、不截图、不 OCR，浏览器扩展不转发这个标签页。用户主动的划词（选中文字，没有时退到剪贴板）也按同一个判断；用户拖给她的文件不按名单判断。
 - 不管文件写了什么，两端都排除 Companion 自己（bundle id `local.agenticcomplex.companion`、`local.agenticcomplex.development`）。
 - 文件不在：agentd 写默认内容；Companion 按空白名单处理，什么都排除；native host 不创建文件。native host 在文件缺失、不可读、JSON 损坏或不是 JSON 对象时不转发任何消息，下次 `config()` 时再读。Companion 读到半截或不是 JSON 对象的文件时沿用上一次的规则，下次再读。
 - 默认内容是 `blacklist.py` 的 `DEFAULTS`：`mode` 为 `"allow"`、`allow` 三个数组都空（新装时什么都不读，直到用户加应用或网站）；黑名单数组是密码管理器、聊天软件、银行和支付网站、游戏本身，`incognito` 为真。

@@ -17,23 +17,6 @@ export function stateText(s: ChildState): string {
   }
 }
 
-/** The service detail of the tray's agentd row. */
-export function menuDetail(s: ChildState): string {
-  switch (s.kind) {
-    case 'stopped': return '未启动';
-    case 'starting': return '启动中';
-    case 'running': return '运行中';
-    case 'backoff': return `重连中 ${s.seconds} s`;
-    case 'portInUse': return '端口被占用';
-    case 'failed': return `失败：${s.reason}`;
-  }
-}
-
-/** The tray's agentd row, `<service> · <detail>`. */
-export function agentdMenuLine(s: ChildState): string {
-  return `后台 · ${menuDetail(s)}`;
-}
-
 export function sameState(a: ChildState, b: ChildState): boolean {
   return stateText(a) === stateText(b);
 }

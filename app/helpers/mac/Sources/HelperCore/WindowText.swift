@@ -189,8 +189,7 @@ enum WindowText {
                 return .success(["snapshot_id": nextId(), "matched": false, "text": "", "nodes": [],
                                  "coverage": ["status": "empty", "scope": scope, "reasons": reasons, "captured_nodes": 0, "captured_chars": 0]])
             }
-            walk = TextWalk(id: nextId(), pid: pid, window: window, focusedLevel: focusedLevel, pinned: params["window_bounds"] != nil,
-                            clip: rectParam(params["clip"]))
+            walk = TextWalk(id: nextId(), pid: pid, window: window, focusedLevel: focusedLevel, pinned: params["window_bounds"] != nil)
         }
         let w = walk!
         let page = w.next(maxNodes: maxNodes, maxScalars: maxScalars, cancelled: cancelled)
@@ -260,8 +259,6 @@ final class TextWalk {
     let frame: CGRect?
     private let window: AXUIElement
     private let pinned: Bool
-    /// `frame` cut to the caller's clip; nodes outside it are dropped.
-    private let keep: CGRect?
     private let identity: String
     private var focused: TextNode?
     private var queue: [Entry] = []
@@ -275,7 +272,7 @@ final class TextWalk {
 
     var complete: Bool { head >= queue.count && rest == nil }
 
-    init(id: String, pid: Int32, window: AXUIElement, focusedLevel: Bool, pinned: Bool, clip: CGRect?) {
+    init(id: String, pid: Int32, window: AXUIElement, focusedLevel: Bool, pinned: Bool) {
         self.id = id
         self.pid = pid
         self.window = window
@@ -284,12 +281,11 @@ final class TextWalk {
         let reader = AXReader(pid: pid, limit: AX.text)
         let frame = reader.frame(window)
         self.frame = frame
-        keep = clip.map { frame?.intersection($0) ?? $0 } ?? frame
         identity = Self.identity(window, reader)
         let app = reader.app()
         if let element = reader.element(app, kAXFocusedUIElementAttribute),
            let owner = reader.element(element, kAXWindowAttribute), CFEqual(owner, window) {
-            focused = Self.node(element, focused: true, keep: keep, reader: reader).node
+            focused = Self.node(element, focused: true, keep: frame, reader: reader).node
         }
         if !focusedLevel { queue = [.node(window, parent: -1)] }
     }
@@ -331,7 +327,7 @@ final class TextWalk {
             switch entry {
             case let .node(element, parent):
                 if visited.contains(CFHash(element)) { continue }
-                let read = Self.node(element, focused: false, keep: keep, reader: reader)
+                let read = Self.node(element, focused: false, keep: frame, reader: reader)
                 if reader.expired {
                     head -= 1
                     break

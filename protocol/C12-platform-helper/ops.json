@@ -196,7 +196,7 @@
     "ax.window_text": {
       "group": "ax", "platforms": ["macos", "windows"], "timeout_ms": 3000,
       "params": {"pid": "int+", "level": "enum(focused|window)"},
-      "params_optional": {"window_bounds": "rect", "clip": "rect", "cursor": "str", "max_nodes": "int+", "max_scalars": "int+"},
+      "params_optional": {"window_bounds": "rect", "cursor": "str", "max_nodes": "int+", "max_scalars": "int+"},
       "result": {"snapshot_id": "str+", "matched": "bool", "text": "str", "nodes": "arr<ax_node>", "coverage": "coverage"},
       "errors": ["permission_denied", "ax_timeout", "ax_unavailable", "process_gone"]
     },

@@ -148,7 +148,7 @@ export function recordedHotkey(input: KeyInput): string | null {
 
 /** DesktopCommand's `selection` and `selectionRefused`, sent just before the 快速输入 open. */
 export type SelectionCommand =
-  | { kind: 'selection'; source: 'selection' | 'clipboard' | 'region'; text: string; app: string | null; truncated: boolean }
+  | { kind: 'selection'; source: 'selection' | 'clipboard'; text: string; app: string | null; truncated: boolean }
   | { kind: 'selectionRefused'; message: string };
 
 /** What 快速输入 opens with after a `hotkey_selection` read; nothing for an empty read. */

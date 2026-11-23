@@ -212,7 +212,7 @@ struct Node {
 struct TextParams {
     DWORD pid = 0;
     bool focused_level = false;
-    std::optional<RECT> bounds, clip;
+    std::optional<RECT> bounds;
     std::optional<std::string> cursor;
     size_t max_nodes = 0, max_scalars = 0;
 };
@@ -223,7 +223,7 @@ struct Walk {
     DWORD pid = 0;
     HWND hwnd = nullptr;
     bool focused_level = false, pinned = false, first = true, has_keep = false;
-    RECT keep{};  // the window cut to the clip; nodes outside it are left out
+    RECT keep{};  // the window's bounds; nodes outside it are left out
     std::optional<Node> focused, rest;  // rest: the texts of a node the scalar budget cut, sent first on the next page
     std::deque<std::pair<ComPtr<IUIAutomationElement>, int>> queue;  // elements to write, with their parent's id
     int made = 0;
@@ -372,10 +372,8 @@ std::shared_ptr<Walk> begin_walk(IUIAutomation* automation, IUIAutomationElement
     walk->pinned = p.bounds.has_value();
     walk->title = uia::window_title(hwnd);
     Info w = uia::info(window);
-    walk->has_keep = w.has_bounds || p.clip;
+    walk->has_keep = w.has_bounds;
     if (w.has_bounds) walk->keep = w.bounds;
-    if (p.clip && w.has_bounds) IntersectRect(&walk->keep, &w.bounds, &*p.clip);  // empty when they do not meet
-    else if (p.clip) walk->keep = *p.clip;
     // The focused control is in this window only while the window has the foreground.
     HWND front = GetForegroundWindow();
     ComPtr<IUIAutomationElement> element;
@@ -1170,7 +1168,6 @@ Outcome ax_window_text(const json::Value& params) {
     if (uia::skipped(p.pid)) return uia::timeout();
     p.focused_level = params.get("level")->s == "focused";
     if (const json::Value* bounds = params.get("window_bounds")) p.bounds = rect_param(*bounds);
-    if (const json::Value* clip = params.get("clip")) p.clip = rect_param(*clip);
     if (const json::Value* cursor = params.get("cursor")) p.cursor = cursor->s;
     const json::Value* nodes = params.get("max_nodes");
     const json::Value* chars = params.get("max_scalars");
