@@ -122,7 +122,7 @@ describe('her hover buttons', () => {
     render(<DockRoot />);
     await flush(async () => {});
     for (const name of [/^对话$/, /^说话$/, /^给她看$/]) expect(row(name).getAttribute('aria-disabled')).toBe('true');
-    expect(row(/^说话$/).getAttribute('title')).toBe('连不上后台');
+    expect(row(/^说话$/).getAttribute('title')).toBe('未接入：连不上后台');
     await flush(async () => fireEvent.pointerDown(row(/^说话$/), { button: 0, pointerId: 1 }));
     expect(action).not.toHaveBeenCalled();
   });

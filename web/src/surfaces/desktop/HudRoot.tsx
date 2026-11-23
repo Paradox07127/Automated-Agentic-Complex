@@ -3,6 +3,7 @@ import { getBridge } from '../../bridge';
 import { approvalView, InSession } from '../../features/approval';
 import { useSystemTheme } from '../../shell/useSystemTheme';
 import { Toast } from '../../ui';
+import { PowerState } from '../../ui/game';
 import { stackQuery } from '../stack/demos';
 import { ELSEWHERE_RECEIPT_MS, isStackApproval } from '../stack/model';
 import { StackCardView } from '../stack/StackCardView';
@@ -228,6 +229,17 @@ export function HudRoot() {
       </>
     );
   }
+
+  // agentd gone: the last lines stay greyed under 未接入, whose button restarts it.
+  if (offline && body)
+    body = (
+      <div className={styles.power} data-region="">
+        <PowerState hud state="unlinked" mode="block" title="后台没有响应" reason="下面是断开前的状态"
+          action={{ label: '重启后台', onClick: () => void getBridge().supervisor.restart('agentd').catch(() => {}) }}>
+          {body}
+        </PowerState>
+      </div>
+    );
 
   return (
     <div ref={rootRef} className={styles.root} data-surface-root="hud" data-offline={offline || undefined} data-expanded={expanded && !!top} data-docked={anchor?.docked ?? undefined} {...handlers}>

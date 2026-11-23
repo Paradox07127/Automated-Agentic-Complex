@@ -5,7 +5,7 @@ import { keyText } from '../../../../bridge/platformText';
 import { Pip } from '../../../../pages/overview/Pip';
 import { navRoute, type NavTarget } from '../../../../shell/nav';
 import { ErrBar, Icon } from '../../../../ui';
-import { CharCard, CloseKey, DarkRow, MicroLabel, NewsBanner, StatusRow, TopIcon, WhiteCapsule, YellowKey } from '../../../../ui/game';
+import { CharCard, CloseKey, DarkRow, MicroLabel, NewsBanner, PowerMark, PowerState, StatusRow, TopIcon, WhiteCapsule, YellowKey } from '../../../../ui/game';
 import { consoleDemo } from './demos';
 import { doingOf, statusCells, useRecent, useRuntime, waitingOf } from './model';
 import { Foot, Plate } from './Parts';
@@ -63,6 +63,7 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
     }
   };
   const restart = async () => {
+    if (working === 'restart') return;
     setNote(null);
     setWorking('restart');
     try {
@@ -82,6 +83,11 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
   };
 
   const cells = statusCells(runtime, state?.pips.helper, offline);
+  // Its name, Operator and doing lines need the full height in the short form too.
+  const card = (
+    <CharCard box={{ width: INNER, height: 66 }} compact name={character?.name ?? '她'} head={head} id={character?.id ?? null}
+      doing={offline ? '—' : (doingOf(presence) ?? '—')} onClick={() => go({ page: 'character' })} />
+  );
   return (
     <section className={styles.card} style={maxHeight === undefined ? undefined : { maxHeight }} data-slot="console" data-region="" data-tight={tight || undefined}
       role="dialog" aria-label="Agentic Complex 菜单">
@@ -98,7 +104,9 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
       <div className={styles.body}>
         {cells.length > 0 && (
           <div className={styles.status}>
-            <StatusRow items={cells.map((c) => ({ name: c.name, failed: c.tone === 'failed', state: <Pip tone={c.tone} label={c.label} /> }))} />
+            {/* A failed cell is a link that is down: the same plug and 未接入 as the panels, its own word as the tip. */}
+            <StatusRow items={cells.map((c) => ({ name: c.name, failed: c.tone === 'failed',
+              state: c.tone === 'failed' ? <PowerMark state="unlinked" reason={c.label} /> : <Pip tone={c.tone} label={c.label} /> }))} />
           </div>
         )}
         {configError != null ? (
@@ -113,24 +121,21 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
           </div>
         ) : (
           <>
-            {offline && (
+            {offline && starting && (
               <div data-fix="后台" role="group" aria-label="后台出错">
-              <ErrBar tone={starting ? 'warning' : 'danger'} message={starting ? '后台正在启动，好了会自动接上' : '后台没有响应，她听不到你'}
-                detail={starting && backoff != null ? `${backoff} 秒后自动重试` : undefined}
-                actions={
-                  starting ? undefined : (
-                    <>
-                      <WhiteCapsule label="重启后台" icon="refresh" tone="accent" size="sm" disabled={working === 'restart'} disabledReason="正在重启"
-                        onClick={() => void restart()} />
-                      <WhiteCapsule label="查看诊断" icon="radio" size="sm" onClick={() => go({ page: 'diag', item: 'agentd' })} />
-                    </>
-                  )
-                } />
+              <ErrBar tone="warning" message="后台正在启动，好了会自动接上" detail={backoff != null ? `${backoff} 秒后自动重试` : undefined} />
               </div>
             )}
-            {/* Its name, Operator and doing lines need the full height in the short form too. */}
-            <CharCard box={{ width: INNER, height: 66 }} compact name={character?.name ?? '她'} head={head} id={character?.id ?? null}
-              doing={offline ? '—' : (doingOf(presence) ?? '—')} onClick={() => go({ page: 'character' })} />
+            {offline && !starting ? (
+              <div data-fix="后台" role="group" aria-label="后台出错">
+                <PowerState hud state="unlinked" mode="block" title="后台没有响应" reason="她听不到你，也不会回消息"
+                  action={{ label: '重启后台', onClick: () => void restart() }}>
+                  {card}
+                </PowerState>
+              </div>
+            ) : (
+              card
+            )}
             <YellowKey label="打开主窗口" icon="side" micro="Home" block hint={keyText('⌘0')} autoFocus onClick={() => go({ page: 'home' })} />
             {waiting && (
               <div data-sec="waiting">

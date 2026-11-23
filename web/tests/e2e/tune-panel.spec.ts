@@ -189,8 +189,8 @@ test('menu bar: offline hides stale pending, offers recovery and leaves window a
   await expect(role).toHaveAttribute('aria-pressed', 'true');
   await role.click();
   await expect.poll(() => calls('desktop.action')).toEqual([['show']]);
-  await menu.getByRole('button', { name: '查看诊断' }).click();
-  await expect.poll(() => calls('window.openMain')).toEqual([['/diag?item=agentd&focus=proc-agentd&still=1']]);
+  // 诊断 is a developer page: 未接入 offers only 重启后台.
+  await expect(menu.locator('[data-fix="后台"]').getByRole('button', { name: '查看诊断' })).toHaveCount(0);
 });
 
 test('menu bar: quick input hands off only on success, and its X closes on the first click', async ({ page }) => {

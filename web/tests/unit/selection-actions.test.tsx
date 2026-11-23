@@ -62,7 +62,8 @@ describe('selection actions', () => {
     expect(dialog.textContent).toContain(`${[...SELECTION.text].length} 字`);
     for (const name of ['解释', '翻译', '改错', '问角色', '记住', '提醒']) within(dialog).getByRole('button', { name });
     expect(say).not.toHaveBeenCalled();
-    expect(request).not.toHaveBeenCalled();
+    // Only 快速输入's own readiness read: whether a model can answer.
+    expect(request.mock.calls.filter(([, path]) => path !== '/character/runtime')).toEqual([]);
   });
 
   it('a cut clipboard read says so', async () => {
@@ -134,7 +135,7 @@ describe('selection actions', () => {
     expect(attached(dialog)).toBeNull();
     expect(within(dialog).queryByRole('button', { name: '翻译' })).toBeNull();
     expect(say).not.toHaveBeenCalled();
-    expect(request).not.toHaveBeenCalled();
+    expect(request.mock.calls.filter(([, path]) => path !== '/character/runtime')).toEqual([]);
   });
 
   it('an open with nothing before it carries no attachment', async () => {

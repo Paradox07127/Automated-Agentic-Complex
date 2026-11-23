@@ -19,26 +19,26 @@ export type DockId = 'chat' | 'talk' | 'look' | 'hide';
 /** 说话's recording: `hold` ends at the release, `tap` at the next click. */
 export type Talk = 'hold' | 'tap' | null;
 
-/** The rows in order: 给她看 only with 屏幕识读 on; 对话, 说话 and 给她看 need agentd. While she records only 说话 is left. */
+/** The rows in order; 对话, 说话 and 给她看 need agentd, 给她看 also 屏幕识读, and say 已关闭 / 未接入 when they cannot. While she
+ *  records only 说话 is left. */
 export function dockItems(s: DesktopState | null, presence: unknown, talk: Talk): OptionStackItem[] {
   const keys = s?.hotkeys ?? {};
   const p = readPresence(presence);
-  const away = p.offline ? '连不上后台' : undefined;
+  const away = p.offline ? '未接入：连不上后台' : undefined;
   const voice: OptionStackItem = {
     id: 'talk',
     label: talk === 'hold' ? '在听…松开发送' : talk === 'tap' ? '在听…再点一下发送' : s?.pips.voice === 'off' ? '说话（只出字）' : '说话',
     icon: 'mic',
     hotkey: talk ? undefined : keys.hk_ptt,
     live: talk != null,
-    off: talk ? undefined : (away ?? (s?.pips.voice === 'denied' ? '没有麦克风权限' : undefined)),
+    off: talk ? undefined : (away ?? (s?.pips.voice === 'denied' ? '未接入：没有麦克风权限，前往设置 › 能做 › 系统权限里允许' : undefined)),
   };
   if (talk) return [voice];
+  const lookOff = s?.plugins.includes('screen_reading') ? (p.observation.paused ? '观察已暂停' : undefined) : '已关闭：设置 › 观察里关着「屏幕识读」';
   return [
     { id: 'chat', label: '对话', icon: 'g-chat', hotkey: keys.hk_quick, off: away },
     voice,
-    ...(s?.plugins.includes('screen_reading')
-      ? [{ id: 'look', label: '给她看', icon: 'look', hotkey: keys.hk_look, off: away ?? (p.observation.paused ? '观察已暂停' : undefined) } as const]
-      : []),
+    { id: 'look', label: '给她看', icon: 'look', hotkey: keys.hk_look, off: away ?? lookOff },
     { id: 'hide', label: '隐藏', icon: 'eye', hotkey: keys.hk_hide },
   ];
 }

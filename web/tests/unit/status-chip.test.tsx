@@ -1,5 +1,6 @@
 import { act as flush, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { getBridge } from '../../src/bridge';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { DesktopAnchor, DesktopCommand, DesktopState, AgenticComplexBridge, StackPayload, StreamEvent } from '../../src/bridge/protocol';
 import { BubbleRoot } from '../../src/surfaces/desktop/BubbleRoot';
@@ -211,8 +212,9 @@ describe('the status chip page', () => {
     expect(screen.getByRole('tooltip').textContent).toBe('在跑 swift test');
   });
 
-  it('unfolds the bubble for a wait or an error; busy opens 任务, unplugged 诊断', async () => {
+  it('unfolds the bubble for a wait or an error; busy opens 任务, unplugged restarts agentd', async () => {
     const c = mountChip();
+    const restart = vi.spyOn(getBridge().supervisor, 'restart').mockResolvedValue();
     await c.push(presenceOf({ role: role('awaiting_approval') }));
     expect(chip()?.textContent).toBe('待批准1');
     press();
@@ -223,7 +225,8 @@ describe('the status chip page', () => {
     await c.push({ offline: true });
     expect(chip()?.dataset.chip).toBe('offline');
     press();
-    expect(c.openMain).toHaveBeenLastCalledWith('/diag');
+    expect(restart).toHaveBeenCalledWith('agentd');
+    expect(c.openMain).toHaveBeenCalledTimes(1);
   });
 
   it('unplugged draws the plug; on her left the capsule turns outward', async () => {

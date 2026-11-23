@@ -136,9 +136,9 @@ describe('控制台 card parts', () => {
 
   it('the error bars carry their buttons and the second line themselves', () => {
     open(820, 'console-offline');
-    const down = screen.getByRole('alert');
-    expect(down.textContent).toContain('后台没有响应');
-    expect(within(down.querySelector('[data-part="actions"]') as HTMLElement).getAllByRole('button').map((b) => b.textContent)).toEqual(['重启后台', '查看诊断']);
+    const down = screen.getByRole('status', { name: '后台没有响应' });
+    expect(down.textContent).toContain('未接入');
+    expect(within(down).getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent)).toEqual([expect.stringMatching(/^重启后台/)]);
     cleanup();
     open(820, 'console-config');
     const config = screen.getByRole('alert');

@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { getBridge, type SayReplyTo, type SayRequest, type SayResult, type SaySurface } from '../../../../bridge';
-import { failureText } from '../../../../domain/errorText';
-import { navRoute } from '../../../../shell/nav';
+import { get } from '../../../../bridge/agentd';
+import type { WireRuntimePublic } from '../../../../domain';
+import { codeText, failureText } from '../../../../domain/errorText';
+import { navRoute, type NavTarget } from '../../../../shell/nav';
+import { usePresence } from '../../hooks/usePresence';
+import { fakeDemo, readPresence } from '../../tags/presence';
 import { Attached } from './Attached';
 import { QuickInputBox, type SayFailure } from './QuickInputBox';
 import { dropSay, type Attachment } from './selection';
@@ -13,6 +17,25 @@ export const ECHO_MS = 2000;
 /** The unsent text, kept in the page while native closes and reopens the panel; only a sent line clears it. */
 let draft = '';
 
+/** Why no model can answer (`GET /character/runtime` not ready), read once at open; null while one can or nothing was read. */
+function useNoModel(): string | null {
+  const [why, setWhy] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    const demo = fakeDemo();
+    get<WireRuntimePublic>(`/character/runtime${demo ? `?demo=${demo}` : ''}`).then(
+      (r) => {
+        if (live && !r.ready && r.error && !r.error.endsWith('_pending')) setWhy(codeText(r.error) ?? '登录 Claude Code 或 Codex，或在设置里给 pi 填一个 API key');
+      },
+      () => {},
+    );
+    return () => {
+      live = false;
+    };
+  }, []);
+  return why;
+}
+
 export interface QuickInputProps {
   /** Character name. */
   role: string;
@@ -20,7 +43,7 @@ export interface QuickInputProps {
   /** The push-to-talk key's label; none hides 按住…说话. */
   talkKey?: string;
   autoFocus: boolean;
-  /** 屏幕识读 is on: 附上当前窗口 shows. */
+  /** 屏幕识读 is on: 附上当前窗口 works; off, it shows as 已关闭 and opens its switch. */
   look: boolean;
   /** Preview preset: the text and error a demo starts with. */
   initial?: { text: string; error: SayFailure };
@@ -36,7 +59,8 @@ export interface QuickInputProps {
   onClose: (sent: boolean) => void;
 }
 
-/** 快速输入 through `desktop.say`: a sent line echoes in place for 2 s; a failed one stays with its reason and a fix. */
+/** 快速输入 through `desktop.say`: a sent line echoes in place for 2 s; a failed one stays with its reason and a fix. Without
+ *  agentd or a model it opens as 未接入, before anything is sent. */
 export function QuickInput({ role, prefill, talkKey, autoFocus, look, initial, attachment, surface, replyTo, onDrop, onClose }: QuickInputProps) {
   const bridge = getBridge();
   const [text, setText] = useState(initial?.text ?? prefill ?? draft);
@@ -50,6 +74,8 @@ export function QuickInput({ role, prefill, talkKey, autoFocus, look, initial, a
   const inFlight = useRef(false);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  const offline = readPresence(usePresence()).offline;
+  const noModel = useNoModel();
 
   useEffect(() => {
     if (echo == null) return;
@@ -82,6 +108,21 @@ export function QuickInput({ role, prefill, talkKey, autoFocus, look, initial, a
     } else setError(res);
   };
 
+  const restartBackend = () =>
+    void bridge.supervisor.restart('agentd').then(
+      () => setError(null),
+      () => setError({ ok: false, reason: 'agentd' }),
+    );
+  const settings = (target: NavTarget) => {
+    bridge.window.openMain(navRoute(target));
+    onClose(false);
+  };
+  const unlinked = offline
+    ? { title: '后台没有响应', reason: '这句发不出去，写好的话会留着', action: { label: '重启后台', onClick: restartBackend } }
+    : noModel != null
+      ? { title: '没有可用的模型', reason: noModel, action: { label: '前往设置连接', onClick: () => settings({ page: 'settings', group: 'model', item: 'svc' }) } }
+      : undefined;
+
   if (echo != null)
     return (
       <p className={styles.echo} role="status" data-region="">
@@ -112,18 +153,15 @@ export function QuickInput({ role, prefill, talkKey, autoFocus, look, initial, a
       attachDisabled={attachment?.kind === 'window'}
       noMemory={noMemory}
       onAttach={look ? setAttach : undefined}
+      onLookOff={look ? undefined : () => settings({ page: 'settings', group: 'privacy', item: 'plugins.screen_reading' })}
+      unlinked={unlinked}
       onNoMemory={setNoMemory}
       error={error}
       sending={sending}
       autoFocus={autoFocus}
       onSend={(r) => void send(typed(r))}
       onClose={() => onClose(false)}
-      onRestartBackend={() =>
-        void bridge.supervisor.restart('agentd').then(
-          () => setError(null),
-          () => setError({ ok: false, reason: 'agentd' }),
-        )
-      }
+      onRestartBackend={restartBackend}
       onRecheck={() => void send(last.current ?? typed({ text: text.trim(), attachWindow: attach, noMemory }))}
       onOpenChat={() => {
         bridge.window.openMain(navRoute({ page: 'chat' }));

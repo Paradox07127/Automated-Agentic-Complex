@@ -52,17 +52,18 @@ export function Keys({ state, offline, noAvatar, tight, quickInput, quickBusy, s
   const pass = state?.clickThroughAll ?? false;
   const box: Box = { width: 72, height: tight ? 58 : 66 };
   const off = (reason: string | null) => (reason ?? (state ? undefined : '还没连上桌面层'));
-  const agentdOff = offline ? '后台未连接' : null;
-  const avatarOff = noAvatar ? '角色没在运行' : null;
+  const agentdOff = offline ? '未接入：连不上后台' : null;
+  const avatarOff = noAvatar ? '未接入：角色没在运行' : null;
+  const unlinked = (reason: string | null) => (reason ? '未接入' : null);
   return (
     <div className={styles.keys} role="group" aria-label="快捷开关">
-      <WatchKey box={box} compact icon="send" title="快速输入" sub={agentdOff ?? state?.hotkeys.hk_quick} off={off(agentdOff) ?? (quickBusy ? '正在打开' : undefined)}
+      <WatchKey box={box} compact icon="send" title="快速输入" sub={unlinked(agentdOff) ?? state?.hotkeys.hk_quick} off={off(agentdOff) ?? (quickBusy ? '正在打开' : undefined)}
         onClick={quickInput} />
-      <WatchKey box={box} compact icon="moonz" title="免打扰" pressed={quiet != null} sub={agentdOff ?? (quiet != null ? `到 ${formatClock(quiet)}` : '30 分钟')}
+      <WatchKey box={box} compact icon="moonz" title="免打扰" pressed={quiet != null} sub={unlinked(agentdOff) ?? (quiet != null ? `到 ${formatClock(quiet)}` : '30 分钟')}
         off={off(agentdOff) ?? (working ? '正在切换' : undefined)} onClick={() => void run(quiet == null ? 'quiet' : 'quietEnd')} />
-      <WatchKey box={box} compact icon="eye" title="隐藏她" pressed={hidden} sub={avatarOff ?? (hidden ? (hiddenUntil != null ? `到 ${formatClock(hiddenUntil)}` : '已隐藏') : '30 分钟')}
+      <WatchKey box={box} compact icon="eye" title="隐藏她" pressed={hidden} sub={unlinked(avatarOff) ?? (hidden ? (hiddenUntil != null ? `到 ${formatClock(hiddenUntil)}` : '已隐藏') : '30 分钟')}
         off={off(avatarOff) ?? (working ? '正在切换' : undefined)} onClick={() => void run(hidden ? 'show' : 'hide')} />
-      <WatchKey box={box} compact icon="hand" title="全部点穿" pressed={pass} sub={avatarOff ?? (pass ? '点穿中' : state?.hotkeys.hk_pass)}
+      <WatchKey box={box} compact icon="hand" title="全部点穿" pressed={pass} sub={unlinked(avatarOff) ?? (pass ? '点穿中' : state?.hotkeys.hk_pass)}
         off={off(avatarOff) ?? (working ? '正在切换' : undefined)} onClick={() => void run('pass')} />
     </div>
   );

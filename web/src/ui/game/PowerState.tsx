@@ -21,6 +21,8 @@ export interface PowerStateProps {
   more?: ReactNode;
   /** 照常渲染的内容 */
   children: ReactNode;
+  /** 在桌面浮层上：HUD 底色，字不小于 13 px，按钮用中号；内容只去色、不降透明度，浮层上的字照样读得清 */
+  hud?: boolean;
 }
 
 const WORD = { off: '已关闭', unlinked: '未接入' } as const;
@@ -59,16 +61,16 @@ function Word({ state }: { state: PowerStateProps['state'] }) {
   );
 }
 
-export function PowerState({ state, mode, title, reason, action, more, children }: PowerStateProps) {
+export function PowerState({ state, mode, title, reason, action, more, children, hud }: PowerStateProps) {
   const id = useId();
   const go = (
-    <Btn variant="ghost" size={mode === 'page' ? 'md' : 'sm'} go onClick={action.onClick}>
+    <Btn variant="ghost" size={mode === 'page' || hud ? 'md' : 'sm'} go onClick={action.onClick}>
       {action.label}
     </Btn>
   );
   if (mode === 'block')
     return (
-      <div className={styles.block} data-stub="PowerState" data-state={state} data-mode="block">
+      <div className={styles.block} data-stub="PowerState" data-state={state} data-mode="block" data-hud={hud || undefined}>
         <div className={styles.strip} role="status" aria-labelledby={id}>
           <span className={styles.mark}>{glyph(state, 20)}</span>
           <Word state={state} />
@@ -87,7 +89,7 @@ export function PowerState({ state, mode, title, reason, action, more, children 
       </div>
     );
   return (
-    <div className={styles.page} data-stub="PowerState" data-state={state} data-mode="page">
+    <div className={styles.page} data-stub="PowerState" data-state={state} data-mode="page" data-hud={hud || undefined}>
       <div className={styles.content} data-dim="" inert>
         {children}
       </div>
@@ -119,6 +121,36 @@ export function PowerState({ state, mode, title, reason, action, more, children 
     </div>
   );
 }
+
+/** 放不下状态条的地方（状态格、小标签）：同一个图标加「已关闭 / 未接入」。 */
+export interface PowerMarkProps {
+  state: PowerStateProps['state'];
+  /** 悬停提示（「无响应」） */
+  reason?: string;
+  /** 只画图标（挤在小按钮里）：状态词进读屏名和悬停提示 */
+  compact?: boolean;
+}
+
+export function PowerMark({ state, reason, compact }: PowerMarkProps) {
+  if (compact)
+    return (
+      <span className={styles.tag} data-stub="PowerMark" data-state={state} role="img" aria-label={WORD[state]} title={reason ?? WORD[state]}>
+        {glyph(state, 16)}
+      </span>
+    );
+  return (
+    <span className={styles.tag} data-stub="PowerMark" data-state={state} title={reason}>
+      {glyph(state, 16)}
+      {WORD[state]}
+    </span>
+  );
+}
+
+export const PowerMarkDemos: Array<{ name: string; props: PowerMarkProps }> = [
+  { name: 'unlinked', props: { state: 'unlinked', reason: '无响应' } },
+  { name: 'off', props: { state: 'off' } },
+  { name: 'off-compact', props: { state: 'off', compact: true } },
+];
 
 const THREAD = (
   <div style={{ display: 'grid', alignContent: 'start', gap: 12, height: 360, padding: 16, background: 'var(--ef-raised)' }}>
@@ -157,6 +189,18 @@ export const PowerStateDemos: Array<{ name: string; props: PowerStateProps }> = 
       reason: '登录 Claude Code 或 Codex，或在设置里给 pi 填一个 API key',
       action: { label: '前往设置连接', onClick: () => {} },
       more: <Btn size="sm" variant="ghost" icon="refresh">重新检测</Btn>,
+      children: INPUT,
+    },
+  },
+  {
+    name: 'unlinked-block-hud',
+    props: {
+      state: 'unlinked',
+      mode: 'block',
+      hud: true,
+      title: '后台没有响应',
+      reason: '她听不到你，也不会回消息',
+      action: { label: '重启后台', onClick: () => {} },
       children: INPUT,
     },
   },

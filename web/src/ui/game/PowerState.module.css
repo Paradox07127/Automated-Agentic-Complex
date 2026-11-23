@@ -1,11 +1,12 @@
 /* 通电状态：已关闭取 BuildingStateStopped 的中灰，未接入取 NoPower / NotLinked 的橙红；色块上一律深色字。 */
 .block,
-.page {
+.page,
+.tag {
   --ps-c: var(--ef-g-state-closed);
   --ps-hatch: repeating-linear-gradient(45deg, var(--ef-g-state-hatch) 0 6px, transparent 6px 14px);
 }
 
-:is(.block, .page)[data-state='unlinked'] {
+:is(.block, .page, .tag)[data-state='unlinked'] {
   --ps-c: var(--ef-danger-g-power-save);
   --ps-hatch: linear-gradient(transparent, transparent);
 }
@@ -92,6 +93,37 @@
   margin-left: -4px;
   background: color-mix(in srgb, var(--ps-c) 60%, transparent);
   clip-path: polygon(0 0, 8px 0, 100% 50%, 8px 100%, 0 100%, 6px 50%);
+}
+
+/* 桌面浮层：HUD 底和字，字不小于 13 px；内容只去色，浮层上的字透明度要够。 */
+.block[data-hud] > .strip {
+  background: var(--ps-hatch), var(--ef-hud-plate);
+  box-shadow: inset 0 0 0 1px var(--ef-hud-ink-rule);
+  color: var(--ef-hud-bubble-text);
+}
+
+.block[data-hud] .why {
+  font-size: var(--ef-fs-body);
+  color: var(--ef-hud-bubble-text-2);
+}
+
+[data-hud] .word > b {
+  font-size: var(--ef-fs-body);
+}
+
+[data-hud] > .content[data-dim] {
+  opacity: 1;
+}
+
+/* ---- 小标：图标 + 状态词，放进状态格 ---- */
+.tag {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ef-sp-4);
+  color: var(--ps-c);
+  font: var(--ef-fw-semibold) var(--ef-fs-body) / 1 var(--ef-font-sans);
+  white-space: nowrap;
 }
 
 /* ---- 整页：内容在下，状态板在上 ---- */

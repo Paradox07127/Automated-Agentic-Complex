@@ -1,4 +1,4 @@
-// Screenshot states of the status bar under the fake bridge: `#/hud?hud=three|standalone`, plus `expand=1`.
+// Screenshot states of the status bar under the fake bridge: `#/hud?hud=three|standalone`, plus `expand=1` and `offline=1`.
 // The data is built here so the fake bridge's own presence and cards stay as they are.
 import type { StackPayload } from '../../../bridge/protocol';
 import type { StackCard } from '../../stack/model';
@@ -63,7 +63,7 @@ export function hudDemo(q: URLSearchParams): HudDemo | null {
   const cards: StackCard[] = [approval(now, 'hud-a1', 'hud-s2', '删除构建目录', 'rm -rf build/')];
   if (name === 'standalone') cards.push(approval(now, 'hud-a2', 'hud-none', '推送发布分支', 'git push origin release'));
   return {
-    presence: { sampled_at: now / 1000, sessions, additional_sessions: 0, thought: null },
+    presence: { sampled_at: now / 1000, sessions, additional_sessions: 0, thought: null, offline: q.get('offline') === '1' },
     payload: { now, cards, history: [] },
     expanded: q.get('expand') === '1',
   };

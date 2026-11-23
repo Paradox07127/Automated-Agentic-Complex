@@ -31,7 +31,7 @@ const MARK: Record<ChipKind, { state: VisualStateKey; label: string; cap?: strin
   error: { state: 'error', label: '出错了', cap: '出错了' },
   running: { state: 'running', label: '在忙' },
   done: { state: 'done', label: '做完了' },
-  offline: { state: 'unreachable', label: '连不上后台', cap: '连不上后台' },
+  offline: { state: 'unreachable', label: '未接入：连不上后台，点按重启后台', cap: '未接入' },
 };
 
 /** Her main line, as the bubble picks it; an error line counts once the bubble has put it away, and stays until it is seen. */
@@ -49,7 +49,7 @@ function useLine(still: boolean): Bar | null {
 /**
  * `stack.html#/chip`, the status mark beside her head for what has no bubble of its own, one at a time: waiting (with
  * 待批准 n), failed, busy, done or unplugged, the panel's only region. Hovered it shows the 正在做 line; clicked, what waits
- * on the user or failed unfolds in the bubble, busy and done open 任务, unplugged opens 诊断. Hidden while she is docked
+ * on the user or failed unfolds in the bubble, busy and done open 任务, unplugged restarts agentd. Hidden while she is docked
  * or her hover buttons are open.
  */
 export function ChipRoot() {
@@ -98,7 +98,8 @@ export function ChipRoot() {
     const bridge = getBridge();
     if (shown.kind === 'error') setSeen((s) => new Set([...s, ...shown.errors]));
     if (shown.kind === 'waiting' || shown.kind === 'error') void bridge.desktop.action('openStack').catch(() => {});
-    else bridge.window.openMain(shown.kind === 'offline' ? '/diag' : '/overview');
+    else if (shown.kind === 'offline') void bridge.supervisor.restart('agentd').catch(() => {});
+    else bridge.window.openMain('/overview');
   };
   const mark = shown ? MARK[shown.kind] : null;
   const tip = shown?.kind === 'running' ? doingOf(presence).text : null;

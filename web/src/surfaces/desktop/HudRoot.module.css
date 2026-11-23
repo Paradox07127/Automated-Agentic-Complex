@@ -65,6 +65,14 @@
   --ef-danger-text: var(--ef-text-disabled);
 }
 
+/* 未接入 over the greyed lines, which keep the root's column. */
+.power [data-dim] {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ef-sp-4);
+}
+
 /* The task-track band: no card, the band behind the rows, its fade outside the box on the right. */
 .band {
   position: relative;
