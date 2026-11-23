@@ -68,7 +68,7 @@
   width: min(480px, 100%);
 }
 
-/* Docked (dockFrom): the same column in the page's flow, no scrim, no slide; it fills the height its grid cell gives. */
+/* Docked (dockFrom): the same column in the page's flow, no scrim, no slide but a fade in; it fills the height its grid cell gives. */
 .dock {
   display: flex;
   flex-direction: column;
@@ -78,6 +78,7 @@
   background-color: var(--ef-raised);
   color: var(--ef-text-1);
   font: var(--ef-t-text);
+  animation: fade var(--ef-dur-panel-in) var(--ef-ease-standard);
 }
 
 .panel:focus {
@@ -155,14 +156,17 @@
 
 @media (prefers-reduced-motion: reduce) {
   .scrim,
-  .panel {
+  .panel,
+  .dock {
     animation: none;
   }
 }
 
 :global([data-reduce-motion]) .scrim,
 :global([data-reduce-motion]) .panel,
+:global([data-reduce-motion]) .dock,
 :global(.still) .scrim,
-:global(.still) .panel {
+:global(.still) .panel,
+:global(.still) .dock {
   animation: none;
 }

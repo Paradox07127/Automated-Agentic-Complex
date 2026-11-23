@@ -9,7 +9,7 @@ export interface SheetProps {
   /** 是否打开 */
   open: boolean;
   /** 标题；head 不是 title 时只给读屏 */
-  title: string;
+  title: ReactNode;
   /** 宽度，默认 360 */
   width?: 360 | 420 | 480;
   /** 内容，过长时在抽屉内滚动 */
@@ -20,6 +20,14 @@ export interface SheetProps {
   head?: 'title' | 'close' | 'none';
   /** 窗口至少这么宽（px）时，在原处常驻成右栏：不遮罩、不抢焦点，不看 open */
   dockFrom?: number;
+  /** 关闭键的读屏名称和 tooltip，默认「关闭」 */
+  closeLabel?: string;
+}
+
+/** A string title names the drawer directly; a node names it through the element that shows it. */
+function named(title: ReactNode, id: string, shown: boolean) {
+  if (typeof title === 'string') return { label: { 'aria-label': title }, hidden: null };
+  return { label: { 'aria-labelledby': id }, hidden: shown ? null : <span id={id} hidden>{title}</span> };
 }
 
 function useMinWidth(px: number | undefined): boolean {
@@ -38,13 +46,17 @@ function useMinWidth(px: number | undefined): boolean {
 
 export function Sheet(props: SheetProps) {
   const docked = useMinWidth(props.dockFrom);
-  if (docked)
+  const titleId = useId();
+  if (docked) {
+    const { label, hidden } = named(props.title, titleId, (props.head ?? 'title') === 'title');
     return (
-      <aside className={styles.dock} data-stub="Sheet" data-docked="" data-width={props.width ?? 360} aria-label={props.title}>
-        <Head {...props} />
+      <aside className={styles.dock} data-stub="Sheet" data-docked="" data-width={props.width ?? 360} {...label}>
+        <Head {...props} titleId={titleId} />
+        {hidden}
         <div className={styles.body}>{props.children}</div>
       </aside>
     );
+  }
   return props.open ? (
     <OverlayPortal>
       <SheetBody {...props} />
@@ -52,7 +64,7 @@ export function Sheet(props: SheetProps) {
   ) : null;
 }
 
-function Head({ title, head = 'title', onClose, titleId }: SheetProps & { titleId?: string }) {
+function Head({ title, head = 'title', onClose, titleId, closeLabel = '关闭' }: SheetProps & { titleId?: string }) {
   if (head === 'none') return null;
   return (
     <header className={styles.head} data-part="head" data-head={head}>
@@ -61,7 +73,7 @@ function Head({ title, head = 'title', onClose, titleId }: SheetProps & { titleI
           {title}
         </h2>
       )}
-      <IconBtn icon="close" label="关闭" size="sm" onClick={onClose} />
+      <IconBtn icon="close" label={closeLabel} size="sm" onClick={onClose} />
     </header>
   );
 }
@@ -71,6 +83,7 @@ function SheetBody(props: SheetProps) {
   const panel = useRef<HTMLElement>(null);
   const titleId = useId();
   const trap = useOverlayFocus(panel, onClose);
+  const { label, hidden } = head === 'title' ? { label: { 'aria-labelledby': titleId }, hidden: null } : named(title, titleId, false);
   return (
     <div
       className={styles.scrim}
@@ -83,13 +96,14 @@ function SheetBody(props: SheetProps) {
         ref={panel}
         role="dialog"
         aria-modal="true"
-        {...(head === 'title' ? { 'aria-labelledby': titleId } : { 'aria-label': title })}
+        {...label}
         tabIndex={-1}
         className={styles.panel}
         data-width={width}
         onKeyDown={trap}
       >
         <Head {...props} titleId={titleId} />
+        {hidden}
         <div className={styles.body}>{children}</div>
       </aside>
     </div>
@@ -112,5 +126,6 @@ export const SheetDemos: Array<{ name: string; props: SheetProps }> = [
   { name: 'narrow', props: { open: true, title: '汇总 10 月开销表', children: task } },
   { name: 'wide', props: { open: true, title: '汇总 10 月开销表', width: 480, children: task } },
   { name: 'close-only', props: { open: true, title: '任务', width: 420, head: 'close', children: task } },
+  { name: 'close-label', props: { open: true, title: <>生成记录 <b className="num">12</b></>, closeLabel: '收起生成记录', children: task } },
   { name: 'docked', props: { open: false, title: '详情', width: 420, head: 'none', dockFrom: 0, children: task } },
 ];

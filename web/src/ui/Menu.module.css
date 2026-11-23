@@ -3,58 +3,25 @@
   display: inline-flex;
 }
 
-.trigger {
-  --bg: var(--ef-chip);
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ef-sp-6);
-  height: var(--ef-h-md);
-  padding: 0 calc(10px + var(--ef-cut-btn)) 0 12px;
-  border: 0;
-  border-radius: 0;
-  background: var(--bg);
-  /* the cut is a mask so background-color carries the hover and press steps */
-  mask: linear-gradient(-45deg, transparent calc(var(--ef-cut-btn) - 0.5px), #000 var(--ef-cut-btn));
-  box-shadow: none;
-  color: var(--ef-text-1);
-  font-weight: var(--ef-fw-medium);
-  white-space: nowrap;
-  cursor: pointer;
+/* Narrowed (a filter off its default): a small yellow block on the trigger's top-right corner, the chips' selected colour. */
+.wrap[data-narrowed]::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--ef-text-1);
+  background: var(--ef-accent);
+  pointer-events: none;
 }
 
-.iconTrigger {
-  --bg: var(--ef-chip);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: var(--bg);
-  mask: linear-gradient(-45deg, transparent calc(var(--ef-cut) - 0.5px), #000 var(--ef-cut));
-  box-shadow: none;
-  color: var(--ef-text-1);
-  cursor: pointer;
-}
-
-.trigger:hover,
-.iconTrigger:hover,
-.wrap[data-open] > .trigger,
-.wrap[data-open] > .iconTrigger {
-  --bg: var(--ef-surface-3);
-}
-
-.trigger:active,
-.iconTrigger:active {
-  --bg: var(--ef-line-strong);
-}
-
-.trigger:focus-visible,
-.iconTrigger:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
-  outline-offset: -3px;
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
 
 /* Portalled to body and placed by Menu.tsx; above a Modal or drawer the trigger may sit in. */

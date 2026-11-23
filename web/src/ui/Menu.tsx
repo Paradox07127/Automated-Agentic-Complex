@@ -1,12 +1,24 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
+import { Btn } from './Btn';
 import { Icon, type IconName } from './Icon';
+import { IconBtn } from './IconBtn';
 import { placePopup, usePopupLayer } from './popup';
 import styles from './Menu.module.css';
 
-/** One menu entry. */
+/** Modifier keys held when an item was chosen (⌥ for an item's alternate action). */
+export interface MenuMods {
+  altKey: boolean;
+  shiftKey: boolean;
+  metaKey: boolean;
+  ctrlKey: boolean;
+}
+
+const modsOf = (e: MenuMods): MenuMods => ({ altKey: e.altKey, shiftKey: e.shiftKey, metaKey: e.metaKey, ctrlKey: e.ctrlKey });
+
+/** One menu entry; radio (with checked) is one choice of several and closes the menu, checked alone toggles and keeps it open. */
 export type MenuItem =
-  | { kind: 'item'; label: string; hint?: string; danger?: boolean; checked?: boolean; disabled?: boolean; reason?: string; onSelect?: () => void }
+  | { kind: 'item'; label: string; hint?: string; danger?: boolean; checked?: boolean; radio?: boolean; disabled?: boolean; reason?: string; onSelect?: (mods: MenuMods) => void }
   | { kind: 'sep' }
   | { kind: 'head'; label: string };
 
@@ -22,21 +34,23 @@ export interface MenuProps {
   open?: boolean;
   /** 对齐，默认 left */
   align?: 'left' | 'right';
+  /** 有非默认的筛选：触发键带黄色小块 */
+  narrowed?: boolean;
 }
 
-export function Menu({ label, items, icon, open: forced, align = 'left' }: MenuProps) {
+export function Menu({ label, items, icon, open: forced, align = 'left', narrowed }: MenuProps) {
   const [openState, setOpen] = useState(false);
   const open = !!forced || openState;
   const root = useRef<HTMLDivElement>(null);
-  const trigger = useRef<HTMLButtonElement>(null);
   const pop = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [focusOn, setFocusOn] = useState<number | null>(null);
   const id = useId();
   const actionable = items.map((it, i) => (it.kind === 'item' ? i : -1)).filter((i) => i >= 0);
+  const trigger = () => root.current?.querySelector<HTMLButtonElement>(':scope > button') ?? null;
 
   const place = useCallback(() => {
-    const t = trigger.current;
+    const t = trigger();
     const m = pop.current;
     return t && m ? placePopup(t.getBoundingClientRect(), m.offsetWidth, m.scrollHeight, align) : null;
   }, [align]);
@@ -56,7 +70,7 @@ export function Menu({ label, items, icon, open: forced, align = 'left' }: MenuP
       e.stopPropagation();
       setOpen(false);
       setFocusOn(null);
-      trigger.current?.focus();
+      trigger()?.focus();
     };
     document.addEventListener('mousedown', away);
     document.addEventListener('keydown', esc, true);
@@ -65,6 +79,16 @@ export function Menu({ label, items, icon, open: forced, align = 'left' }: MenuP
       document.removeEventListener('keydown', esc, true);
     };
   }, [openState, forced]);
+
+  // Btn and IconBtn take no aria props, so the menu button's state is written onto the button they render.
+  useLayoutEffect(() => {
+    const t = trigger();
+    if (!t) return;
+    t.setAttribute('aria-haspopup', 'menu');
+    t.setAttribute('aria-expanded', String(open));
+    if (open) t.setAttribute('aria-controls', `${id}-menu`);
+    else t.removeAttribute('aria-controls');
+  });
 
   useEffect(() => {
     const el = focusOn != null && open && ready ? itemRefs.current[focusOn] : null;
@@ -82,17 +106,20 @@ export function Menu({ label, items, icon, open: forced, align = 'left' }: MenuP
   const close = () => {
     setOpen(false);
     setFocusOn(null);
-    trigger.current?.focus();
+    trigger()?.focus();
   };
 
-  const select = (i: number) => {
+  const toggle = () => (openState ? close() : (setOpen(true), setFocusOn(null)));
+
+  const select = (i: number, mods: MenuMods) => {
     const it = items[i];
     if (!it || it.kind !== 'item' || it.disabled) return;
-    it.onSelect?.();
-    if (it.checked === undefined) close();
+    it.onSelect?.(mods);
+    if (it.checked === undefined || it.radio) close();
   };
 
-  const onTriggerKey = (e: KeyboardEvent<HTMLButtonElement>) => {
+  const onTriggerKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.target !== trigger()) return;
     if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       show('first');
@@ -120,7 +147,7 @@ export function Menu({ label, items, icon, open: forced, align = 'left' }: MenuP
       close();
     } else if (e.key === 'Tab') {
       // The popup sits at the end of body: Tab goes on from the trigger, Shift+Tab lands on it.
-      trigger.current?.focus();
+      trigger()?.focus();
       if (e.shiftKey) e.preventDefault();
       setOpen(false);
       setFocusOn(null);
@@ -128,29 +155,16 @@ export function Menu({ label, items, icon, open: forced, align = 'left' }: MenuP
   };
 
   return (
-    <div ref={root} className={styles.wrap} data-stub="Menu" data-align={align} data-open={open || undefined}>
-      <button
-        ref={trigger}
-        type="button"
-        className={icon ? styles.iconTrigger : styles.trigger}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-controls={open ? `${id}-menu` : undefined}
-        aria-label={icon ? label : undefined}
-        title={icon ? label : undefined}
-        data-icon={icon}
-        onClick={() => (openState ? close() : (setOpen(true), setFocusOn(null)))}
-        onKeyDown={onTriggerKey}
-      >
-        {icon ? (
-          <Icon name={icon} size={16} />
-        ) : (
-          <>
-            {label}
-            <Icon name="chevd" size={14} />
-          </>
-        )}
-      </button>
+    <div ref={root} className={styles.wrap} data-stub="Menu" data-align={align} data-open={open || undefined} data-narrowed={narrowed || undefined} onKeyDown={onTriggerKey}>
+      {icon ? (
+        <IconBtn icon={icon} label={narrowed ? `${label}（已收窄）` : label} size="sm" onClick={toggle} />
+      ) : (
+        <Btn variant="ghost" onClick={toggle}>
+          {label}
+          {narrowed && <span className={styles.vh}>（已收窄）</span>}
+          <Icon name="chevd" size={14} />
+        </Btn>
+      )}
       {open && inline !== undefined && portal(
         <div
           ref={pop}
@@ -177,18 +191,18 @@ export function Menu({ label, items, icon, open: forced, align = 'left' }: MenuP
                   itemRefs.current[i] = el;
                 }}
                 type="button"
-                role={it.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
-                aria-checked={it.checked}
+                role={it.radio ? 'menuitemradio' : it.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+                aria-checked={it.radio ? !!it.checked : it.checked}
                 aria-disabled={it.disabled || undefined}
                 tabIndex={focusOn === i ? 0 : -1}
                 className={styles.item}
                 data-danger={it.danger || undefined}
-                data-check={it.checked === undefined ? undefined : String(it.checked)}
+                data-check={it.checked === undefined && !it.radio ? undefined : String(!!it.checked)}
                 title={it.disabled ? it.reason : undefined}
-                onClick={() => select(i)}
+                onClick={(e) => select(i, modsOf(e))}
                 onMouseEnter={() => setFocusOn(i)}
               >
-                {it.checked !== undefined && <span className={styles.box} aria-hidden="true" />}
+                {(it.checked !== undefined || it.radio) && <span className={styles.box} aria-hidden="true" />}
                 <span className={styles.text}>
                   {it.label}
                   {it.disabled && it.reason && <span className={styles.reason}>{it.reason}</span>}
@@ -215,6 +229,7 @@ const MANAGE: MenuItem[] = [
 export const MenuDemos: Array<{ name: string; props: MenuProps }> = [
   { name: 'closed', props: { label: '管理', items: MANAGE } },
   { name: 'open', props: { label: '管理', open: true, items: MANAGE } },
+  { name: 'narrowed', props: { label: '排序', narrowed: true, open: true, items: [{ kind: 'item', label: '按时间', radio: true, checked: false }, { kind: 'item', label: '按名称', radio: true, checked: true }] } },
   { name: 'icon', props: { label: '更多操作', icon: 'more', align: 'right', open: true, items: [{ kind: 'item', label: '复制路径' }, { kind: 'item', label: '在 Finder 中显示' }] } },
 ];
 
@@ -322,9 +337,9 @@ export function ContextMenu({ label, items, at, onClose }: ContextMenuProps) {
             className={styles.item}
             data-danger={it.danger || undefined}
             title={it.disabled ? it.reason : undefined}
-            onClick={() => {
+            onClick={(e) => {
               if (it.disabled) return;
-              it.onSelect?.();
+              it.onSelect?.(modsOf(e));
               onClose();
             }}
             onMouseEnter={() => setFocusOn(i)}

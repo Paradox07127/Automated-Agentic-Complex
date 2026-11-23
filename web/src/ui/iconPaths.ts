@@ -86,4 +86,10 @@ export const ICON_PATHS: Record<IconName, string> = {
   'g-copy': 'M8 7h13v15H8zM11 10v9h7v-9z M3 2h13v3H6v12H3z',
   'g-quote': 'M3 5h8v8l-4 6H4l3-6H3zM13 5h8v8l-4 6h-3l3-6h-4z',
   'g-trace': 'M2 3h3v15h17v3H2z M7 15l4-6 3.5 3.5L19 5l2.5 1.7-6.6 9.7-3.5-3.5-2 3z',
+  // Diagnostics tabs, in the chat set's manner: 总览, 进程, 渲染, 管道, 状态.
+  'd-overview': 'M2 2h9v12H2z M13 2h9v6h-9z M13 10h9v12h-9zM15 13h5v2h-5zM15 17h3v2h-3z M2 16h9v6H2z',
+  'd-proc': 'M2 3h20v5H2zM4 4.5h2v2H4z M2 9.5h20v5H2zM4 11h2v2H4z M2 16h14v5H2zM4 17.5h2v2H4z M18 16h4v5h-4z',
+  'd-render': 'M12 2l8.5 4.7L12 11.4 3.5 6.7z M2.5 8.4l8.5 4.7v9.4l-8.5-4.7z M21.5 8.4v9.4L13 22.5v-9.4z',
+  'd-flow': 'M2 3h7v7H2zM4.5 5.5h2v2h-2z M9 5.5h6v2H9z M15 3h7v7h-7z M17.5 10h2v4h-2z M15 14h7v7h-7z M9 16.5h6v2H9z M2 14h7v7H2zM4.5 16.5h2v2h-2z',
+  'd-state': 'M2 3h20v8H2zM14 5h6v4h-6z M2 13h20v8H2zM4 15h6v4H4z',
 };

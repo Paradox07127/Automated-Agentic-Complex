@@ -79,7 +79,12 @@ export type IconName =
   | 'g-link'
   | 'g-copy'
   | 'g-quote'
-  | 'g-trace';
+  | 'g-trace'
+  | 'd-overview'
+  | 'd-proc'
+  | 'd-render'
+  | 'd-flow'
+  | 'd-state';
 
 /** 图标：Material Symbols Sharp 实心；装饰时 aria-hidden，独立表意时给 label。 */
 export interface IconProps {
@@ -116,4 +121,5 @@ export const IconDemos: Array<{ name: string; props: IconProps }> = [
   { name: 'default', props: { name: 'check' } },
   { name: 'labelled', props: { name: 'warn', size: 20, label: '警告' } },
   { name: 'large', props: { name: 'kernel', size: 32, label: '角色内核' } },
+  { name: 'diag-tab', props: { name: 'd-flow', size: 24, label: '管道' } },
 ];

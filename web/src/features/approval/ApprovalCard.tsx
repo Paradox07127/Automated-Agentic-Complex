@@ -60,6 +60,8 @@ export interface ApprovalCardProps {
   compact?: boolean;
   /** 危险批准点两次：第一次变「确认批准」，CONFIRM_MS 内再点才决定；白纸卡默认开 */
   confirmDanger?: boolean;
+  /** 主窗口卡的规则、目录和链接：inline 摊开（默认）；fold 收进带计数的「详情」折叠 */
+  details?: 'inline' | 'fold';
 }
 
 /** How long a dangerous 批准 stays 确认批准 waiting for the second click. */
@@ -92,7 +94,7 @@ const fieldsOf = (v: ApprovalView): Fields => ({
   seconds_left: v.secondsLeft,
 });
 
-export function ApprovalCard({ approval: given, view, onExtra, surface = 'main', position, queue, previewOpen, outcome = null, timelineReason, sessionReason, onDecide, onOpenSession, onOpenTimeline, paper, compact, confirmDanger = paper != null }: ApprovalCardProps) {
+export function ApprovalCard({ approval: given, view, onExtra, surface = 'main', position, queue, previewOpen, outcome = null, timelineReason, sessionReason, onDecide, onOpenSession, onOpenTimeline, paper, compact, confirmDanger = paper != null, details = 'inline' }: ApprovalCardProps) {
   const approval: Fields = given ?? fieldsOf(view!);
   const inSession = useContext(InSession);
   const left = useCountdown(approval.seconds_left, outcome == null);
@@ -224,6 +226,8 @@ export function ApprovalCard({ approval: given, view, onExtra, surface = 'main',
       {ruleLine(approval.danger_rule)}
     </p>
   );
+
+  const minor = details === 'fold' && (rule || links) ? <Fold id={`approval-details-${approval.id}`} label="详情" count={(rule ? 1 : 0) + (links ? (approval.cwd ? 3 : 2) : 0)}>{rule}{links}</Fold> : null;
 
   // Enter or Space on a dangerous 批准 shows the same hint as Enter on the card.
   const onPaperKey = (e: KeyboardEvent<HTMLElement>) => {
@@ -360,20 +364,16 @@ export function ApprovalCard({ approval: given, view, onExtra, surface = 'main',
       >
         <header className={styles.head}>
           <h3 className={styles.title}>{title}</h3>
-          {position && (
-            <span className={`${styles.count} num`}>
-              {position.index}/{position.total}
-            </span>
-          )}
+          {position && <span className={`${styles.count} num`}>{position.index}/{position.total}</span>}
         </header>
         <p className={styles.src}>
           <code>{approval.tool}</code>
           <span className={styles.source} title={sourceTip}>{approval.source}</span>
         </p>
-        {rule}
+        {!minor && rule}
         {body}
         {preview}
-        {links}
+        {minor ?? links}
         {scopeBox}
         {receipt}
         {live && (

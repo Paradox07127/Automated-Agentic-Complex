@@ -42,6 +42,16 @@
   color: var(--ef-text-3);
 }
 
+.keys {
+  display: inline-flex;
+  flex: none;
+}
+
+/* Key hints show only while ⌘ or Ctrl is held (Layout sets html[data-keys]). */
+:global(html:not([data-keys])) .keys {
+  display: none;
+}
+
 .clear {
   display: inline-flex;
   flex: none;
