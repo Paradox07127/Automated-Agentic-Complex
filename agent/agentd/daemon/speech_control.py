@@ -389,6 +389,11 @@ class SpeechControlMixin:
             self.feed.publish("speech_failed", {"speech_id": speech_id, **attrs})
             self._speech_failed = {"speech_id": speech_id, "reason": attrs.get("reason"), "at": now}
             self._tts_last = {"result": attrs.get("reason"), "at": now}
+            turn = self.speech and self.speech.turn_of(speech_id)  # None: a relay agentd does not speak through
+            if turn is None or turn not in self._speech_failed_turns:  # each clause of a turn fails alike
+                self._speech_failed_turns.append(turn)
+                host = self.speech.host if self.speech is not None else "unknown"
+                self.errors.record("speech_failed", f"{attrs.get('reason')} from {host}", turn_id=turn)
             kind, attrs = "speech.finished", {"total_samples": 0, "failed": True, **attrs}
         elif kind == "speech.finished":
             self._tts_last = {"result": "cancelled" if attrs.get("cancelled") else "complete", "at": now}

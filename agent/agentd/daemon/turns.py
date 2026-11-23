@@ -9,6 +9,7 @@ import threading
 import time
 
 from voice.clauses import MIN_CLAUSE, ClauseSplitter
+from daemon.error_record import failure
 from infra import plugins
 from brain.language import mismatch
 from brain.markers import MarkerStream
@@ -399,7 +400,7 @@ class TurnsMixin:
             if not side and not self._stale(cancel, generation):
                 self.character_agent.delivered(self.mouth.history)
         except Exception as error:
-            code = getattr(error, "code", None) or "character_agent_failed"
+            code, trace["line_message"] = failure(error)
             trace["line_state"], trace["line_error"] = "failed", code
             trace['final_item_id'] = None
             self._record(trace, source, text, "", "failed", time.time())
@@ -410,7 +411,8 @@ class TurnsMixin:
                 state = "waiting_user"
             if trace.get("quick_admitted"):
                 self.character_agent.settle_quick(line_id, state, trace.get("line_error"))
-            self._turn_settled(trace, state, started, trace.get("line_error"), trace.get("outcome"))
+            self._turn_settled(trace, state, started, trace.get("line_error"), trace.get("outcome"),
+                               trace.get("line_message"))
             trace["done"] = True
             self._live_lines.discard(cancel)
             self._line_consent.pop(cancel, None)

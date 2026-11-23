@@ -478,6 +478,13 @@ class HarnessTurnTest(test_character_agent_integration.IntegrationFixture):
         for key in ("context_build_ms", "lock_wait_ms", "look_wait_ms"):
             self.assertIsInstance(running.get(key), int, key)
 
+    def test_a_turn_on_the_harness_default_model_keeps_its_model_span(self):
+        self.controller.configure({"provider": "deepseek", "model": ""})
+        self.line("帮我查一下天气")
+        events = self.stored()
+        self.assertEqual([e["attrs"]["model"] for e in events if e["kind"] == "model.started"], ["default"])
+        self.assertEqual(self.server.trace_errors, 0)
+
     def test_token_details_the_harness_did_not_give_stay_out(self):
         self.line("帮我查一下天气")
         [finished] = [e for e in self.stored() if e["kind"] == "model.finished"]

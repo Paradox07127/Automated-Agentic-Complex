@@ -79,6 +79,59 @@ class BriefDayTest(unittest.TestCase):
         self.history.record(turn_id=str(at), source=source, character_id='aster', persona_revision=None,
                             user_text='Hi', reply=reply, state='completed', started_at=at)
 
+    def failed_turn(self, turn_id, at, source='text', code='timeout'):
+        self.at = at
+        trace_id = new_trace_id()
+        self.trace.emit('input.received', trace_id, turn_id=turn_id, turn_generation=1, attrs={'source': source, 'text': None})
+        self.trace.emit('turn.settled', trace_id, turn_id=turn_id, turn_generation=1, status='failed', duration_ms=5,
+                        attrs={'state': 'failed', 'error_code': code, 'outcome': None})
+        return trace_id
+
+    def test_errors_list_exactly_what_err_counts_with_the_ids_to_open_each(self):
+        from character_agent.services.interactions import InteractionService
+        from character_agent.services.store import RunStore
+        from sessions.events import normalize_claude
+        plugins.resolved.update(personal_agent=True, coding_sessions=True)
+        self.permissions['agent_sessions'] = True
+        store = RunStore(Path(self.tmp_root) / 'runs.sqlite')
+        self.addCleanup(store.close)
+        InteractionService(store)
+        self.server.character_agent = SimpleNamespace(store=store, workspace=None)
+        at = self.clock(1)
+        self.db.execute("INSERT INTO tasks(task_id,target,cwd,title,mode,state,created_at,updated_at,result_json)"
+                        " VALUES('t1','character','/w','整理报告','work','failed',?,?,?)",
+                        (at, at, json.dumps({'reason': 'verify_failed', 'run_id': 'job-run'})))
+        self.db.execute("INSERT INTO task_events VALUES('t1',1,'failed',?,NULL)", (at,))
+        for run_id, task_id, ended in (('job-run', 't1', at + 60), ('turn-run', None, at + 120)):
+            store.db.execute("INSERT INTO character_runs(run_id,conversation_id,character_id,generation,state,task_id,"
+                             "result,started_at,ended_at) VALUES(?,'c','aster',1,'failed',?,?,?,?)",
+                             (run_id, task_id, json.dumps({'error': 'timeout'}), ended - 30, ended))
+        job_trace = self.failed_turn('job-run', at + 61, 'background')
+        turn_trace = self.failed_turn('turn-run', at + 121)
+        quick_trace = self.failed_turn('quick-turn', self.clock(2), 'voice', 'select_model')
+        self.failed_turn('old-turn', self.clock(2, -1))
+        self.server.registry.ingest(normalize_claude({'session_id': 's1', 'hook_event_name': 'StopFailure'}, now=self.now))
+        body = self.brief()
+        self.assertTrue(body['items']['err']['enabled'])
+        self.assertEqual(body['items']['err']['today'], len(body['errors']))
+        self.assertEqual(body['items']['err']['yesterday'], 1)
+        self.assertEqual(body['errors'], [
+            {'kind': 'task', 'id': 't1', 'at': at, 'title': '整理报告', 'reason': 'verify_failed', 'task_id': 't1',
+             'run_id': 'job-run', 'turn_id': None, 'trace_id': None, 'session_id': None},
+            {'kind': 'run', 'id': 'job-run', 'at': at + 60, 'title': '整理报告', 'reason': 'timeout', 'task_id': 't1',
+             'run_id': 'job-run', 'turn_id': None, 'trace_id': job_trace, 'session_id': None},
+            {'kind': 'turn', 'id': 'turn-run', 'at': at + 121, 'title': None, 'reason': 'timeout', 'task_id': None,
+             'run_id': 'turn-run', 'turn_id': 'turn-run', 'trace_id': turn_trace, 'session_id': None},
+            {'kind': 'turn', 'id': 'quick-turn', 'at': self.clock(2), 'title': None, 'reason': 'select_model',
+             'task_id': None, 'run_id': None, 'turn_id': 'quick-turn', 'trace_id': quick_trace, 'session_id': None},
+            {'kind': 'session', 'id': 'claude:s1', 'at': self.now, 'title': None, 'reason': 'error', 'task_id': None,
+             'run_id': None, 'turn_id': None, 'trace_id': None, 'session_id': 'claude:s1'}])
+
+    def test_a_failed_turn_counts_with_every_plugin_off(self):
+        trace_id = self.failed_turn('t', self.clock(3))
+        body = self.brief()
+        self.assertEqual((body['items']['err']['today'], [e['trace_id'] for e in body['errors']]), (1, [trace_id]))
+
     def test_invalid_date(self):
         for query in ('', 'date=', 'date=20261120', 'date=2026-02-30', 'date=2026-1-20'):
             with self.subTest(query=query):
@@ -164,7 +217,7 @@ class BriefDayTest(unittest.TestCase):
         contract = (Path(__file__).resolve().parents[3] / 'web/src/pages/overview/briefDay.ts').read_text(encoding='utf-8')
         keys = re.search(r'export const ITEM_ORDER: BriefItemId\[\] = \[(.*?)\]', contract)[1]
         self.assertEqual(list(body['items']), re.findall(r"'(\w+)'", keys))
-        self.assertEqual(set(body), {'date', 'partial', 'switches', 'items', 'focus', 'her'})
+        self.assertEqual(set(body), {'date', 'partial', 'switches', 'items', 'focus', 'her', 'errors'})
         self.assertEqual(set(body['focus']), {'enabled', 'away_min', 'longest', 'pauses', 'apps', 'sites'})
         self.assertEqual(set(body['her']), {'said', 'lines', 'touch', 'why', 'motions', 'desk', 'tools', 'mood', 'on_desk_min'})
         self.assertEqual(set(body['switches']), {'scr', 'read', 'shot', 'code', 'agent', 'voice'})

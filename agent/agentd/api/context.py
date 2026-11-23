@@ -220,6 +220,11 @@ class ContextInputMixin:
         if not fields:  # the Companion could not take the image
             if body.get("error") not in TEXT_FAILURES:
                 return self._json(400, {"error": "invalid_payload"})
+            if body["error"] == "permission_denied":
+                record = self.server.capture.observations.get(body["request_id"]) or {}
+                grant, what = ("accessibility", "window text") if record.get("mode") == "text" \
+                    else ("screen_recording", "window capture")
+                self.server.errors.record("permission_denied", f"{grant} denied: {what}")
             return self._json(*self.server.capture.failure(body["request_id"], body["window_id"], body["error"]))
         if len(fields) > 1 or not isinstance(body[fields[0]], str):
             return self._json(400, {"error": "invalid_payload"})

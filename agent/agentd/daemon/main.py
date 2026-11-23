@@ -2,6 +2,7 @@
 import argparse
 import datetime
 import json
+import logging
 import os
 from pathlib import Path
 import secrets
@@ -28,6 +29,7 @@ from character.desk_log import DeskLog
 from personal.commitments import Commitments
 from tool_gateway.computer_use import ComputerControlConfig, endpoint_path
 from daemon.agentd_server import AgentdServer
+from daemon.error_record import FILE as ERROR_FILE, WINDOW_S, ErrorLog, appender
 from traces.trace_store import TURN_TRACE
 from personal.episodes import Episodes
 from character.focus import Focus
@@ -222,6 +224,12 @@ def watch_parent(server, parent, interval=1.0):
             return
 
 
+def flush_errors(server):
+    """Writes the error counts whose minute is over, until agentd stops."""
+    while not server._stopped.wait(WINDOW_S):
+        server.errors.flush()
+
+
 def startup_privacy(server):
     """What a switch that is off covers goes at startup: turning it off restarts agentd, and agentd may have been
     stopped then, so the first snapshot never sees the revocation. Only summaries that depend on a switch now off go,
@@ -302,6 +310,9 @@ def main(secret_store=None):
             return getattr(self.stream, name)
 
     sys.stderr = TimestampedStderr(sys.stderr)
+    # The stream stamps each line with its time and pid; INFO and above, so logger.info lines reach agentd.log.
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)  # one INFO line per request, with its URL
     parent = os.getppid()
     args = parse_args()
     plugins.resolve(args.plugin_on, args.plugin_off)
@@ -369,6 +380,10 @@ def main(secret_store=None):
                           interaction_preset=interaction.name, repository=repository)
     # The socket is bound: /health answers from here while the rest starts; daemon, so a fatal init error still exits.
     server.state_dir = state_dir
+    # The shell passes <support>/tts-token, so its logs folder is beside it (C9, C10).
+    logs = Path(args.tts_token_file).parent / "logs" if args.tts_token_file else state_dir / "logs"
+    server.errors = ErrorLog(appender(logs / ERROR_FILE))
+    threading.Thread(target=flush_errors, args=(server,), daemon=True).start()
     server.startup_stage, server.degraded = "init", []
     serving = threading.Thread(target=server.serve_forever, daemon=True)
     serving.start()
@@ -479,6 +494,8 @@ def main(secret_store=None):
             server.voice = NoVoice(str(error))
             server.degraded.append("speech")
             return
+        if args.tts_url and token is None:
+            server.errors.record("tts_token_missing", "no TTS token saved; set it in 设置 or run tools/tts_token.py ensure")
         server.voice = make_provider(args, server.bindings, server.registry.epoch, token)
         if server.voice.relay() is not None:
             server.voice.relay().on_event = server.on_speech_event
@@ -599,4 +616,5 @@ def main(secret_store=None):
             models.auth.cancel()
         server.shutdown_cleanly()
         server.server_close()
+        server.errors.flush(everything=True)
     print("agentd: shut down cleanly", file=sys.stderr, flush=True)

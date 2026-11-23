@@ -5,6 +5,7 @@ import sys
 import time
 
 from character.proactive import WANT_COMMENT
+from daemon.error_record import failure
 from traces.trace_format import ENDS, HEAD_MAX
 from traces.trace_store import DECISION_KINDS, DECISION_PREFIXES, new_span_id, new_trace_id
 from api.views import _ms_since, _iso
@@ -134,12 +135,20 @@ class TracingMixin:
             self._step(trace, "tool.settled", span, duration_ms=_ms_since(started),
                        attrs={**attrs, "outcome": outcome, "error_code": trace_error(error)})
 
-    def _turn_settled(self, trace, state, started, error=None, outcome=None):
+    def _turn_settled(self, trace, state, started, error=None, outcome=None, message=None):
+        """error: the exception or code the turn failed with (see error_record.failure); message: what it was, when
+        error is already a code."""
         status = "failed" if state == "failed" else "cancelled" if state in ("cancelled", "interrupted") else "ok"
+        code, text = failure(error) if error is not None else (None, None)
+        message = message or text
         for ident, (span, called, name) in trace.pop("tools", {}).items():
             self._step(trace, "tool.settled", span, duration_ms=_ms_since(called),
                        attrs={"tool": name, "call_id": ident[:128], "outcome": "waiting_user" if state == "waiting_user" else "failed",
-                              "error_code": trace_error(error) or (None if state == "waiting_user" else "tool_unfinished")})
+                              "error_code": trace_error(code) or (None if state == "waiting_user" else "tool_unfinished")})
         self._step(trace, "turn.settled", new_span_id(), status=status, duration_ms=_ms_since(started),
-                   attrs={"state": state, "error_code": trace_error(error), "outcome": trace_error(outcome),
+                   attrs={"state": state, "error_code": trace_error(code), "outcome": trace_error(outcome),
+                          **({"error_message": message} if status == "failed" and message else {}),
                           **({"route": trace["route"]} if "route" in trace else {})})
+        if status == "failed":
+            self.errors.record(code or "unknown", f"{trace['source']} turn failed: {message or 'unknown'}",
+                               turn_id=trace["turn_id"], trace_id=trace["trace_id"])

@@ -1,5 +1,6 @@
 // GET /brief/day?date=YYYY-MM-DD：今天按假数据钟点截断，前 6 天按日期种子缩放同一模板；请求或页面地址里的 sw=scr,voice 只开列出的开关（演示用）。
 import { appNow } from '../bridge/clock';
+import type { WireBriefError } from '../domain/wire';
 import { ITEM_ORDER, ITEMS, type BriefDay, type BriefItemId, type BriefSwitch } from '../pages/overview/briefDay';
 import type { MockRoute } from './types';
 
@@ -23,6 +24,12 @@ const SHAPE: Record<BriefItemId, number[]> = {
   mask: [...z(9), 2, 3, 1, 0, 2, 3, 1, 1, 0, 0, 1, 0, 0, 0, 0],
   rem: [...z(15), 1, ...z(5), 1, 0, 0],
 };
+// `errors` takes these in turn, one per error `items.err` counts.
+const FAILED: Array<Omit<WireBriefError, 'at'>> = [
+  { kind: 'turn', id: 'line-mock-err1', title: null, reason: 'timeout', task_id: null, run_id: 'line-mock-err1', turn_id: 'line-mock-err1', trace_id: '5f1c0e7a-2b3d-4c8e-9a10-0d4e6b7c8a91', session_id: null },
+  { kind: 'task', id: 'task-mock-err1', title: '整理 11 月发票', reason: 'verify_failed', task_id: 'task-mock-err1', run_id: 'run-mock-err1', turn_id: null, trace_id: null, session_id: null },
+  { kind: 'session', id: 'claude:mock-session', title: null, reason: 'error', task_id: null, run_id: null, turn_id: null, trace_id: null, session_id: 'claude:mock-session' },
+];
 const AVG: Record<BriefItemId, number> = { done: 5.1, err: 0.6, turn: 18, line: 27, fg: 340, say: 7, motion: 52, touch: 6, voice: 300, mem: 3.4, cost: 1.12, code: 4.3, shot: 41, mask: 9, rem: 1.6 };
 
 const APPS: Array<[string, number]> = [['Visual Studio Code', 150], ['Terminal', 80], ['Chrome', 70], ['飞书', 40], ['Finder', 20], ['其他', 20]];
@@ -36,7 +43,7 @@ const dayOf = (ms: number) => {
 };
 const seeded = (s: number) => () => ((s = (s * 9301 + 49297) % 233280), s / 233280);
 
-function build(date: string, on: Record<BriefSwitch, boolean>): BriefDay {
+function build(date: string, on: Record<BriefSwitch, boolean>): BriefDay & { errors: WireBriefError[] } {
   const now = appNow();
   const today = dayOf(now) === date;
   const nowHour = new Date(now).getHours() + new Date(now).getMinutes() / 60;
@@ -114,6 +121,7 @@ function build(date: string, on: Record<BriefSwitch, boolean>): BriefDay {
       }),
       on_desk_min: 448,
     },
+    errors: (items.err.hours ?? []).flatMap((count, h) => Array.from({ length: count }, () => h)).map((h, i) => ({ ...FAILED[i % FAILED.length]!, at: day0 + h * 3600 + 17 * 60 })),
   };
 }
 

@@ -34,6 +34,7 @@ from infra.secrets import ModelError
 from infra.store import checkpoint
 from tools import install_hooks
 from api.views import _fact_text, _midnight, _iso
+from daemon.error_record import SLUG
 
 NORMALIZERS = {"/hook/claude": normalize_claude, "/hook/codex": normalize_codex}
 MAX_BODY = 32 * 1024 * 1024
@@ -93,10 +94,14 @@ def _answers_500(method):
             return self._json(503, {"error": "starting"})
         try:
             return method(self)
-        except Exception:
+        except Exception as error:
             if self._replied:
                 raise
             self.server.handle_error(self.request, self.client_address)
+            route = self._route_name()
+            first = str(error).splitlines()[0] if str(error) else ""
+            self.server.errors.record("internal_error", f"{route}: {type(error).__name__}: {first}", req=route)
+            self._error_recorded = True
             self._json(500, {"error": "internal_error", "route": f"{self.command} {urlparse(self.path).path}"})
     return handle
 
@@ -106,6 +111,7 @@ class Handler(BaseHTTPRequestHandler, HooksMixin, SessionsMixin, MemoryMixin, Ep
     # True while the request carries a body that no handler has read yet; set per request in parse_request.
     _unread_body = False
     _replied = False
+    _error_recorded = False  # _answers_500 recorded this request's error itself
 
     def log_message(self, *_args):
         pass  # Hook bodies carry prompts and tool input; never log them.
@@ -145,7 +151,18 @@ class Handler(BaseHTTPRequestHandler, HooksMixin, SessionsMixin, MemoryMixin, Ep
         self._json(code, {"error": error})
         return False
 
+    def _route_name(self):
+        """`<method> <registry path>`, a pattern's ":param" form; `-` for no route: never a query or an id."""
+        route = getattr(self, "route", None)
+        path = "-" if route is None else route.path if isinstance(route.path, str) \
+            else route.templates[0] if route.templates else "-"
+        return f"{self.command} {path}"
+
     def _json(self, code, data):
+        if code >= 400 and not self._error_recorded:
+            route, reply = self._route_name(), data.get("error") if isinstance(data, dict) else None
+            error = reply if isinstance(reply, str) and SLUG.fullmatch(reply) else f"http_{code // 100}xx"
+            self.server.errors.record(error, f"{route} {code}", req=route)
         raw = json.dumps(data, ensure_ascii=False).encode()
         if self._unread_body:
             self.close_connection = True  # leftover body bytes would be parsed as the next request

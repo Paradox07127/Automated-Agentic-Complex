@@ -2173,6 +2173,11 @@ class ChooserTest(SpatialCase):
                                  spatial.LOOP_TTL - spatial.LOOP_RENEW + spatial.MOTION_WAKE + 1e-6)
         self.assertValid()
 
+    def test_a_perform_the_renderer_rejects_unsupported_is_not_sent_again_until_its_time_is_over(self):
+        self.unsupported = {"perform"}
+        self.run_clock(60)
+        self.assertEqual(len(self.performs()), 1, [m["clip"] for m in self.performs()])
+
     def test_a_new_chooser_s_first_loop_takes_up_the_phase_the_renderer_plays(self):
         self.run_clock(120)
         first, *rest = self.performs()
@@ -2391,6 +2396,7 @@ class ChooserTest(SpatialCase):
                             variant="tea")
         for stepped in (False, True):  # the rejection comes before the next motion step, or after it
             with self.subTest(stepped=stepped):
+                self.spatial._unsupported.clear()  # the first pass's rejection has run out
                 self.assertEqual(self.spatial.offer(sit), (True, None))
                 self.assertEqual(self.registry.intents[-1]["replaces"], loop["behavior_id"])
                 if stepped:

@@ -15,6 +15,7 @@ from daemon.character_switch import CharacterSwitchMixin
 from daemon.constants import SPEECH_TRACES
 from daemon.context import ContextMixin
 from daemon.diagnostics import DiagnosticsMixin
+from daemon.error_record import ErrorLog
 from daemon.ingest import IngestMixin
 from daemon.lifecycle import LifecycleMixin
 from daemon.memory_sync import MemorySyncMixin
@@ -292,6 +293,8 @@ class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, 
         self.trace = None  # TraceStore (T1); None emits nothing and answers /trace/* with 503
         self.desk = None  # DeskLog; None records no touches or desk spans and answers /interaction/record with 503
         self.trace_errors = 0  # events the store refused; a line never stops for its trace
+        self.errors = ErrorLog(lambda line: None)  # main writes it to <support>/logs/agentd-error.jsonl
+        self._speech_failed_turns = deque(maxlen=SPEECH_TRACES)  # turn_ids with a speech_failed record
         self.stage_times = StageTimes()  # the traced spans /diag/state `stages` takes its medians from
         self._turn_trace = None  # the current turn's trace (see _open_trace); a cancel lands in it
         self._speech_traces = OrderedDict()  # speech_id -> the trace of the line it voices

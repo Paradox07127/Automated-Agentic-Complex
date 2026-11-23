@@ -42,7 +42,7 @@
 | `model.finished` | `model`、`input_tokens`、`output_tokens`、`stop_reason`；可选 `cached_tokens`、`reasoning_tokens`（整数）、`cost_usd`（≥ 0 的数，harness 估的这次运行花费），harness 报了才带，没报不带 | 是 |
 | `tool.started` | `tool`（工具名）、`call_id`（本轮不透明标识）。仅 agentd 发出 | |
 | `tool.settled` | `tool`、`call_id`、`outcome`：completed / failed / waiting_user，`error_code`（可为 null）。参数、结果正文不进入 trace。仅 agentd 发出 | 是 |
-| `turn.settled` | `state`：completed / failed / cancelled / interrupted / waiting_user，`error_code` 和 `outcome`（均可为 null）。这是本轮处理终态，播放是否完成仍由宿主回执决定。仅 agentd 发出 | 是 |
+| `turn.settled` | `state`：completed / failed / cancelled / interrupted / waiting_user，`error_code` 和 `outcome`（均可为 null）。`error_code` 是 agentd 或 harness 自己的错误码；异常归为 `timeout`、`auth_expired`、`rate_limited`、`network`、`cli_exit_<n>` 或 `unknown`（`agent/agentd/daemon/error_record.py`）。`failed` 时另带 `error_message`：异常类名或原错误码，不含正文。这是本轮处理终态，播放是否完成仍由宿主回执决定。仅 agentd 发出 | 是 |
 | `line.parsed` | `line_id`、`intents`（列表）、`target`（null 可）、`first_sentence_only`（布尔）、`text`（文本值） | |
 | `motion.published` | `motion_id`、`behavior_id`、`total_ms`（从动作标记到发出 `perform` 的毫秒数；另有 `generate_ms`、`retarget_ms`）；由 `[motion:]` 标记来的另带 `prompt`（文本值，标记里的英文文字；「这一轮不记」时不带） | |
 | `motion.fallback` | `reason`：no_service / ensure_failed（按需启动没起来）/ timeout / replaced / 服务的错误名 / `<阶段>_failed`；生成后端没发出 `perform`，这句台词只用角色包动作；由 `[motion:]` 标记来的另带 `prompt`（文本值，同上）；几何请求（`POST /motions/generate`）的步骤用由 request_id 派生的 UUID 作 trace_id，没有 `prompt`，失败时另发 `ok:false` 的 `event: motion` | |

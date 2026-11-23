@@ -361,3 +361,17 @@ export interface WireDiagState {
   rituals: Stamped<WireDiagRituals>;
   stages: Stamped<WireDiagStages>;
 }
+
+/** personal/brief_day.py `_error`; GET /brief/day `errors`: each item `items.err` counts today, by time. */
+export interface WireBriefError {
+  kind: 'task' | 'run' | 'turn' | 'session';
+  id: string;
+  at: number;
+  title: string | null;
+  reason: string | null;
+  task_id: string | null;
+  run_id: string | null;
+  turn_id: string | null;
+  trace_id: string | null;
+  session_id: string | null;
+}

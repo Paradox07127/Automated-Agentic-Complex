@@ -631,6 +631,8 @@ class Spatial:
                 return False, "stale"
             if not self._capable(kind, target):
                 return False, "unsupported"
+            if self._unsupported.get(_unsupported_key(kind, target, spec.get("variant")), 0) > now:
+                return False, "unsupported"
             if self._forbidden(kind, target, False):
                 return False, "switch_off"
             if kind in SEATED and self.chooser is not None and self.chooser.holds_lifted:

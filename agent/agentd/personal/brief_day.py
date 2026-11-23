@@ -15,7 +15,7 @@ from personal.history import HEARD
 from voice.speech import SAMPLE_RATE
 
 
-NEED = {'done': ('agent', 'code'), 'err': ('agent', 'code'), 'turn': (), 'line': (), 'fg': ('scr',),
+NEED = {'done': ('agent', 'code'), 'err': (), 'turn': (), 'line': (), 'fg': ('scr',),
         'say': (), 'motion': (), 'touch': (), 'voice': ('voice',), 'mem': (), 'cost': (),
         'code': ('code',), 'shot': ('shot',), 'mask': ('scr', 'shot'), 'rem': ()}
 # proactive_log triggers of channel 'line': Proactive's reason kinds and dispatch_report's announcement and job states
@@ -23,6 +23,12 @@ TRIGGERS = {'comment': '主动搭话', 'back': '你回来了', 'break': '提醒�
             'stuck': '你卡住了，问要不要帮忙', 'dispatch_done': '派的任务做完了',
             'dispatch_review': '派的任务待复核', 'dispatch_failed': '派的任务没做成',
             'succeeded': '后台的活做完了', 'needs_review': '后台的活待复核', 'failed': '后台的活没做成'}
+
+
+def _error(kind, ident, at, title=None, reason=None, **ids):
+    """One row of `errors`: what failed, when, and the ids a page opens it by."""
+    return {'kind': kind, 'id': ident, 'at': at, 'title': title, 'reason': reason,
+            **{key: ids.get(key) for key in ('task_id', 'run_id', 'turn_id', 'trace_id', 'session_id')}}
 
 
 def _counts(counts, limit=None, labels={}):
@@ -115,17 +121,20 @@ def _focus(server, enabled, sites_allowed, since, start, end, add):
     return focus
 
 
-def _agent_tools(agent, enabled, since, start, stop, end, add):
+def _agent_tools(agent, enabled, since, start, stop, end, add, failed):
+    """failed: gets run_id -> its `errors` row for each run that failed before stop."""
     tools = {'enabled': enabled, 'by_name': [], 'files_changed': 0, 'run_minutes': 0, 'asked': 0}
     if not enabled or agent is None:
         return tools
     store = agent.store
     with store.lock:
-        for began, ended, state in store.db.execute(
-                'SELECT started_at,ended_at,state FROM character_runs WHERE started_at<? AND (ended_at>=? OR ended_at IS NULL)',
-                (stop, since)):
-            if ended is not None and ended < stop and state in ('completed', 'failed'):
-                add('done' if state == 'completed' else 'err', ended)
+        for run_id, task_id, error, began, ended, state in store.db.execute(
+                "SELECT run_id,task_id,json_extract(result,'$.error'),started_at,ended_at,state FROM character_runs"
+                ' WHERE started_at<? AND (ended_at>=? OR ended_at IS NULL)', (stop, since)):
+            if ended is not None and ended < stop and state == 'completed':
+                add('done', ended)
+            elif ended is not None and ended < stop and state == 'failed':
+                failed[run_id] = _error('run', run_id, ended, reason=error, task_id=task_id, run_id=run_id)
             tools['run_minutes'] += max(0, min(ended if ended is not None else end, end) - max(began, start)) / 60
         names = Counter(dict(store.db.execute(
             "SELECT json_extract(metadata,'$.tool') AS tool,COUNT(*) FROM character_run_events"
@@ -152,7 +161,8 @@ def _agent_tools(agent, enabled, since, start, stop, end, add):
     return tools
 
 
-def _coding_sessions(server, rows, since, stop, add):
+def _coding_sessions(server, rows, since, stop, add, errors):
+    """errors: gets the `errors` row of each session that ended in error."""
     first = {}
 
     def activity(source, ident, at):
@@ -162,13 +172,13 @@ def _coding_sessions(server, rows, since, stop, add):
 
     terminals = set()
     own_ends = []
-    for source, ident, began, updated, state in rows(
-            'SELECT target,COALESCE(native_id,session_id),started_at,updated_at,state FROM own_sessions'
+    for source, ident, title, began, updated, state in rows(
+            'SELECT target,COALESCE(native_id,session_id),title,started_at,updated_at,state FROM own_sessions'
             ' WHERE updated_at>=? AND started_at<?', (since, stop)):
         activity(source, ident, began)
         activity(source, ident, updated)
         if since <= updated < stop and state in ('done', 'error'):
-            own_ends.append((source, ident, updated, state))
+            own_ends.append((source, ident, updated, state, title))
     for source, ident, at in rows(
             'SELECT s.target,COALESCE(s.native_id,s.session_id),MIN(l.ts) FROM own_session_lines l'
             " JOIN own_sessions s USING(session_id) WHERE l.ts>=? AND l.ts<? GROUP BY l.session_id,date(l.ts,'unixepoch','localtime')",
@@ -208,14 +218,41 @@ def _coding_sessions(server, rows, since, stop, add):
                     state = 'err' if kind in ('error', 'tool_failure') else 'done'
                     terminals.add((source, ident, at, state, outcome.get('agent_id')))
     seen_ends = {(source, ident, date.fromtimestamp(at), state) for source, ident, at, state, _ in terminals}
-    for _, _, at, state, _ in terminals:
-        add(state, at)
-    for source, ident, at, kind in own_ends:
+    for source, ident, at, state, _ in terminals:
+        if state == 'err':
+            errors.append(_error('session', f'{source}:{ident}', at, reason='error', session_id=f'{source}:{ident}'))
+        else:
+            add(state, at)
+    for source, ident, at, kind, title in own_ends:
         state = 'err' if kind == 'error' else 'done'
-        if (source, ident, date.fromtimestamp(at), state) not in seen_ends:
+        if (source, ident, date.fromtimestamp(at), state) in seen_ends:
+            continue
+        if state == 'err':
+            errors.append(_error('session', f'{source}:{ident}', at, title, 'error', session_id=f'{source}:{ident}'))
+        else:
             add(state, at)
     for at in first.values():
         add('code', at)
+
+
+def _failed_turns(rows, since, stop, runs, errors):
+    """Each turn whose turn.settled failed before stop. A conversation turn is a `turn` row that takes the place of
+    its failed run's row; a background job's adds its trace to its run's row, or is a `turn` row without one."""
+    for turn_id, trace_id, wall, code, source in rows(
+            "SELECT s.turn_id,s.trace_id,s.t_wall,json_extract(s.event,'$.attrs.error_code'),"
+            "(SELECT json_extract(i.event,'$.attrs.source') FROM trace_events i"
+            "  WHERE i.trace_id=s.trace_id AND i.kind='input.received' LIMIT 1)"
+            " FROM trace_events s WHERE s.kind='turn.settled' AND s.status='failed'"
+            " AND julianday(s.t_wall)>=julianday(?,'unixepoch') AND julianday(s.t_wall)<julianday(?,'unixepoch')",
+            (since, stop)):
+        run = runs.get(turn_id)
+        if source == 'background' and run is not None:
+            run['trace_id'] = trace_id
+            continue
+        if run is not None:
+            del runs[turn_id]
+        errors.append(_error('turn', turn_id, datetime.fromisoformat(wall).timestamp(), reason=code,
+                             task_id=run and run['task_id'], run_id=run and turn_id, turn_id=turn_id, trace_id=trace_id))
 
 
 def _traces(rows, switches, spatial, since, start, stop, now, add):
@@ -360,13 +397,27 @@ def brief_day(server, day: date, now: float):
     for stored_day, cost in rows('SELECT day,SUM(cost_usd) FROM model_usage WHERE day BETWEEN ? AND ? GROUP BY day',
                                  (date.fromtimestamp(since).isoformat(), day.isoformat())):
         add('cost', datetime.fromisoformat(stored_day).timestamp(), cost)
+    errors, runs = [], {}
     if switches['agent']:
-        for at, state in rows("SELECT at,kind FROM task_events WHERE kind IN ('succeeded','failed') AND at>=? AND at<?",
-                              (since, stop)):
-            add('done' if state == 'succeeded' else 'err', at)
-    tools = _agent_tools(server.character_agent, switches['agent'], since, start, stop, end, add)
+        for at, state, task_id, title, reason, run_id in rows(
+                "SELECT e.at,e.kind,e.task_id,t.title,json_extract(t.result_json,'$.reason'),"
+                "json_extract(t.result_json,'$.run_id') FROM task_events e LEFT JOIN tasks t USING(task_id)"
+                " WHERE e.kind IN ('succeeded','failed') AND e.at>=? AND e.at<?", (since, stop)):
+            if state == 'succeeded':
+                add('done', at)
+            else:
+                errors.append(_error('task', task_id, at, title, reason, task_id=task_id, run_id=run_id))
+    tools = _agent_tools(server.character_agent, switches['agent'], since, start, stop, end, add, runs)
     if switches['code']:
-        _coding_sessions(server, rows, since, stop, add)
+        _coding_sessions(server, rows, since, stop, add, errors)
+    _failed_turns(rows, since, stop, runs, errors)
+    titles = dict(rows(f"SELECT task_id,title FROM tasks WHERE task_id IN ({','.join('?' * len(runs))})",
+                       [run['task_id'] for run in runs.values()])) if runs else {}
+    for run in runs.values():
+        run['title'] = titles.get(run['task_id'])
+    errors = sorted(errors + list(runs.values()), key=lambda e: e['at'])
+    for error in errors:
+        add('err', error['at'])
     focus = _focus(server, switches['scr'], switches['read'] and consent['page_text'], since, start, end, add)
     motions, desk = _traces(rows, switches, server.spatial, since, start, stop, now, add)
     touch, logged, on_desk = _desk_log(rows, server.desk.running() if server.desk is not None else set(),
@@ -384,4 +435,4 @@ def brief_day(server, day: date, now: float):
            'desk': [desk[key] for key in ('window_top', 'edge', 'give_way', 'greet') if key in desk], 'tools': tools,
            'mood': [list(row) for row in mood], 'on_desk_min': on_desk}
     return {'date': day.isoformat(), 'partial': day == date.fromtimestamp(now), 'switches': switches,
-            'items': items, 'focus': focus, 'her': her}
+            'items': items, 'focus': focus, 'her': her, 'errors': [e for e in errors if e['at'] >= start]}

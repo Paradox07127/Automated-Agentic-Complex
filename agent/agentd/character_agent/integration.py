@@ -89,6 +89,8 @@ LORE_LABELS = {"official": "Lore (game canon: your own life and world, not the u
 
 # Failure codes a failed job reports as its readable reason.
 JOB_FAILURE_REASONS = frozenset({'auth_expired', 'rate_limited', 'quota_exhausted', 'native_login_required'})
+# A model span's model while the harness runs its own default: the trace format refuses an empty one.
+DEFAULT_MODEL = "default"
 RELATED_FACTS = 4  # confirmed memory facts a turn's context carries beside the profile, matched on the user's words
 RELATED_FACTS_CHARS = 1200  # characters of those facts' JSON (summed per item), the introducing sentence excluded
 _INFER_CONVERSATION = object()
@@ -340,7 +342,7 @@ class CharacterAgentController:
             error = result.get('error')
             return result
         except Exception as exc:
-            error = type(exc).__name__
+            error = exc
             raise
         finally:
             run = self.store.get(job['run_id'])
@@ -392,7 +394,7 @@ class CharacterAgentController:
             run_store=self.store, tools=self.tools, effort=config['_turn_effort'])
         with self._lock: self._background_runtimes[job['run_id']] = (job['job_id'], runtime)
         span, started = new_span_id(), time.monotonic()
-        s._step(trace, "model.started", span, attrs={"model": runtime.model, "call": "character_agent"})
+        s._step(trace, "model.started", span, attrs={"model": runtime.model or DEFAULT_MODEL, "call": "character_agent"})
         try:
             resume_id = job['previous_run_id']
             if not resume_id or not self.store.load_checkpoint(run_id=resume_id):
@@ -409,7 +411,7 @@ class CharacterAgentController:
             adapter = harness(runtime.backend)
             s._step(trace, "model.finished", span, status="failed" if answer.error else "ok",
                     duration_ms=round((time.monotonic() - started) * 1000), attrs={
-                        "model": answer.model, "provider": adapter.provider or config.get('provider') or 'unknown',
+                        "model": answer.model or DEFAULT_MODEL, "provider": adapter.provider or config.get('provider') or 'unknown',
                         "account_label": runtime.backend + "_" + config["auth_source"],
                         "input_tokens": answer.usage.get("input_tokens") or 0,
                         "output_tokens": answer.usage.get("output_tokens") or 0, "stop_reason": answer.error or "end_turn",
@@ -1877,7 +1879,7 @@ class CharacterAgentController:
                 if pending and pending['name'] == 'ask_user' and pending.get('result') else ()
             session = self.quick_session() if quick else None
             span, started = new_span_id(), time.monotonic()
-            server._step(trace, "model.started", span, attrs={"model": runtime.model, "call": "character_agent"})
+            server._step(trace, "model.started", span, attrs={"model": runtime.model or DEFAULT_MODEL, "call": "character_agent"})
             # Side and unremembered runs get their own session; the harness's own file and shell tools stay off there.
             self._turn.native_tools = self.jobs is not None and main_session and trace.get("remember", True)
             try:
@@ -1923,7 +1925,7 @@ class CharacterAgentController:
             channel = runtime.backend + "_" + route_config["auth_source"]
             trace["model_route"] = {"provider": provider, "account_label": channel, "model": answer.model}
             server._step(trace, "model.finished", span, status="failed" if answer.error else "ok",
-                duration_ms=int((time.monotonic() - started) * 1000), attrs={"model": answer.model,
+                duration_ms=int((time.monotonic() - started) * 1000), attrs={"model": answer.model or DEFAULT_MODEL,
                 "provider": provider, "account_label": channel,
                 "input_tokens": answer.usage.get("input_tokens", 0) or 0, "output_tokens": answer.usage.get("output_tokens", 0) or 0,
                 "stop_reason": answer.error or "end_turn", **finished_usage(answer)})
