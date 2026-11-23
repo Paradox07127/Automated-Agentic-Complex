@@ -40,8 +40,8 @@ agentd 的参数（`--` 之后）。宿主必传的只有 `--port` 和 `--state-
 | `--no-redact` | 设置「脱敏」关掉时 | 脱敏开 |
 | `--no-proactive` | 设置「主动说话」关掉时 | 开 |
 | `--mute` | 静音时 | 关 |
-| `--tts-url URL` | config `tts_url` 非空时 | 无，只出字 |
-| `--tts-ensure-host HOST` 和 `--tts-ensure-script PATH` | `tts_url`、`tts_tunnel_host`、`tts_ensure_script` 都非空时，两个一起传 | 无，不按需启动 TTS |
+| `--tts-url URL` | config `services.tts` 不是 `off` 时：直连地址，或外壳开的 SSH 转发、本机进程的地址 | 无，只出字 |
+| `--tts-ensure-host HOST` 和 `--tts-ensure-script PATH` | TTS 走 SSH 并且有 `start_script` 时，两个一起传 | 无，不按需启动 TTS |
 | `--motion-url URL` | 动作服务（Kimodo）不是关时：直连地址，或 Companion 开的 SSH 隧道、本机进程的地址；http 或 https，不带用户名、密码、query、fragment（不合是参数错误） | 无，不生成动作（`POST /motions/generate` 回 409 `no_service`） |
 | `--motion-ensure-host HOST` 和 `--motion-ensure-script PATH` | 动作服务走 SSH 并且有启动脚本时，两个一起传 | 无，不按需启动动作服务 |
 | `--llm-url URL` | 兼容 OpenAI 的模型 API 不是关时，地址同上；https，或 localhost / 127.0.0.1 / ::1 的 http，不带用户名、密码、query、fragment（不合是参数错误） | 无，兼容 API 关（`llm_service_off`，C6） |

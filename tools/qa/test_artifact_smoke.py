@@ -326,7 +326,7 @@ class ArtifactSmokeTests(unittest.TestCase):
                 self.assertEqual((resources / 'composition.lock.json').exists(), layout == 'portable')
                 self.assertEqual((config['agentd_port'], config['support_dir'], config['agentd_state_dir']),
                     (48811, str(support), str(support / 'agentd')))
-                self.assertEqual((config['tts_url'], config['tts_tunnel_host']), ('', ''))
+                self.assertNotIn('services', config)
                 self.assertFalse(any(v for k, v in config.items() if k.startswith('share_')))
                 self.assertNotIn('dev_resources', config)
 

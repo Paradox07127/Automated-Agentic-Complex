@@ -132,7 +132,7 @@ def build_config(app, support, port=PORT):
         hotkey_toggle_avatar='', hotkey_click_through='', hotkey_radial_menu='', hotkey_selection='', viewport='fullscreen',
         plugins=dict(screen_awareness=False, computer_use=False), sense_input_counts=False,
         share_page_text=False, share_window_text=False, share_typed_text=False, share_screenshots=False,
-        proactive_speech=False, mute=True, tts_url='', tts_tunnel_host='',
+        proactive_speech=False, mute=True,
         system_notifications=False)
 
 

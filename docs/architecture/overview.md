@@ -47,14 +47,14 @@ flowchart LR
   C <-->|C3 宿主 IPC| H[metal-avatar-host]
   C <-->|PreviewTransport 预览帧| P[预览 XPC 服务]
   A -->|C1 表演意图| H
-  C -->|parent_watch.py 启动 ssh -N -L| S[ssh 隧道]
+  C -->|parent_watch.py 启动 ssh -N -L| S[ssh 转发]
   A <-->|C2 语音流，127.0.0.1:9888| S
   S <--> T[TTS 服务（TTS 主机）]
 ```
 
 - 网页 UI 经 preload 装的 `window.agenticComplex` 调主进程的 op，直接请求 agentd 路由只能走 `agentd.request`，按 `protocol/ui-bridge/routes.json` 放行。
 - agentd 由 Electron 外壳经 `agentd_launcher.py` 启动；`metal-avatar-host` 和预览 XPC 服务是同一个宿主可执行文件。
-- TTS 不在 app 里。Electron 外壳按配置 `tts_url`（新装的发行版写空值，只显示文字，不朗读；config.json 里没有这个键时取 `http://127.0.0.1:9888`）和 `tts_tunnel_host`（默认空，即不开隧道）用 `parent_watch.py` 拉起 `ssh -N -L 127.0.0.1:<端口>:127.0.0.1:<端口> <主机>`，应用退出时隧道一起退出（`app/electron/src/main/tunnel/supervisor.ts`）。再设了 `tts_ensure_script`（该主机上按需启动 TTS 的脚本，默认空）时，agentd 在 TTS 没起来时经 ssh 在这台主机上运行它。
+- TTS、动作服务和兼容 OpenAI 的模型 API 不在 app 里，config.json 的 `services.<id>`（`tts`、`motion`、`llm`）各描述一个，设置的「服务」组改写它。每个服务有四种接法：关闭、直连地址、SSH、本机命令。SSH 下 Electron 外壳用 `parent_watch.py` 拉起 `ssh -N -L 127.0.0.1:<端口>:127.0.0.1:<端口> <主机>`；本机命令下由它运行 `command`；应用退出时这些进程一起退出。`ssh_host` 加 `start_script` 时，agentd 在服务没起来时经 ssh 在这台主机上运行脚本。新装的发行版里 TTS 是关闭的，回复只显示文字。字段、校验和脚本协议见[外壳](shell.md#外置服务)。
 
 协议全文在 `protocol/`，索引见 [protocol/README.md](../../protocol/README.md)。
 

@@ -4,7 +4,7 @@
 
 ## Overview
 
-The GPT-SoVITS voice service is an optional service, separate from Agentic Complex.app. The app stores only the service address and the token; it ships no image or weights. For the service's structure, see [Speech synthesis service](../architecture/voice.en.md).
+The GPT-SoVITS voice service is an optional service, separate from Agentic Complex.app. The app stores only the service connection, address and token; it ships no image or weights. For the service's structure, see [Speech synthesis service](../architecture/voice.en.md).
 
 By default the port is published only on the service machine's loopback address, and only a loopback `Host` is accepted (`voice/tts-service/auth.py`). Add `--bind` at deployment to open it to other machines; see "Connecting from Agentic Complex". In the container the runtime root is `/srv/tts` (`AAC_VOICE_ROOT`) and the upstream code is in `/opt/GPT-SoVITS` (`AAC_GPT_SOVITS`); `voice/tts-service/deploy/compose.yaml` sets both.
 
@@ -43,17 +43,44 @@ When no token exists, the script creates `<root>/state/tts-token` with `secrets.
 
 ## Connecting from Agentic Complex
 
-In Settings › 说话与通知 (Speech and notifications), fill in 服务地址 (Service address) and 令牌 (Token), click 保存 (Save), then click 测试连接 (Test connection). `GET /health` needs no token; synthesis requests carry `Authorization: Bearer <token>`.
+In Settings › 服务 (Services), set how TTS connects; then, in Settings › 说话与通知 (Speech and notifications), fill in 令牌 (Token) and click 测试连接 (Test connection). `GET /health` needs no token; synthesis requests carry `Authorization: Bearer <token>`. There are four connections: off, address, SSH, local. For the fields and validation, see the [shell](../architecture/shell.en.md#external-services).
 
-### Same machine or SSH forwarding (default)
+### Same machine: local or address
 
-When the service and Agentic Complex are on the same machine, set the service address to `http://127.0.0.1:<port>`. When they are on different machines, keep this command running on the Mac:
+When the service and Agentic Complex are on the same machine, choose Address and enter `http://127.0.0.1:<port>`. You can also choose Local, where Agentic Complex runs the start command, with the same loopback address.
+
+### SSH
+
+When the service is on another machine, choose SSH and enter the SSH host and `http://127.0.0.1:<port>`. Agentic Complex runs `ssh -N -L <port>:127.0.0.1:<port> <host>`, so the local and remote ports are the same; the service's remote port must equal this `<port>`. The host must allow login without a password (`BatchMode`).
+
+### On-demand start script
+
+Under SSH you can also enter the path of a start script on the remote host. When TTS is not up, Agentic Complex and agentd run:
 
 ```sh
-ssh -N -L 19888:127.0.0.1:9888 user@host
+ssh -o BatchMode=yes -o ConnectTimeout=5 -- <host> <script> ensure
 ```
 
-Replace the remote `9888` with the host port used at deployment, and set Agentic Complex's service address to `http://127.0.0.1:19888`.
+The script does one thing by its first argument and answers on standard output:
+
+| Argument | What it does | First reply line |
+|---|---|---|
+| `ensure` | Starts the service if it is not up and waits until it is usable | `ready <seconds>` or `fail <reason>` |
+| `stop` | Stops the service | `stopped` or `fail <reason>` |
+| `status` | Only looks | `running …` or `stopped` |
+
+A minimal example (it shows only the input and output; you write `start_service`, `stop_service` and `service_up`):
+
+```sh
+case "$1" in
+  ensure) service_up || start_service
+          service_up && echo "ready 20" || echo "fail start_timeout" ;;
+  stop)   stop_service && echo stopped || echo "fail stop_error" ;;
+  status) service_up && echo "running pid=1234" || echo stopped ;;
+esac
+```
+
+When you save a record with a script, Agentic Complex first asks for confirmation, naming the host the script will run on.
 
 ### Direct LAN connection
 
@@ -63,7 +90,7 @@ Add `--bind 0.0.0.0` (or the IPv4 address of one of the machine's interfaces) at
 bash voice/tts-service/deploy/deploy.sh --root /srv/agentic-complex-tts --port 9888 --bind 0.0.0.0
 ```
 
-The script then makes the service accept any `Host`. Set Agentic Complex's service address to `http://<service machine address>:<port>`; the token is still required.
+The script then makes the service accept any `Host`. In Settings › 服务 (Services), choose Address and enter `http://<service machine address>:<port>`; the token is still required.
 
 ## Manual deployment
 

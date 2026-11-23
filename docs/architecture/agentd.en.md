@@ -18,12 +18,12 @@ A new module goes into the domain package it belongs to; the root holds only fil
 |---|---|
 | `api/` | The HTTP `Handler` (`api/handler.py`: the `parse_request` checks, and `_dispatch`, which hands a request to the owner of its route in `route_registry.py`); mixins split by URL prefix: `hooks`, `sessions`, `memory`, `episodes`, `observation`, `context`, `speech`, `diag`, `character`, `settings`; `views.py` holds the views and field checks shared by `api/` and `daemon/`; `integration.py` holds the `/integration/*` routes for outside agents ([INTEGRATION.md](../../protocol/C6-agentd-api/INTEGRATION.md)) |
 | `daemon/` | `main.py` (arguments, startup order, serve loop); `AgentdServer` and `StateView` in `agentd_server.py`; mixins split by concern: `announce`, `turns`, `speech_control`, `context`, `switches`, `ingest`, `character_switch`, `rituals_glue`, `memory_sync`, `tracing`, `diagnostics`, `lifecycle`; shared constants in `constants.py` |
-| `infra/` | SQLite storage and schemas (`store`, `store_schemas`, `data_lifecycle`), private IPC token files (`tokens`), OS credential storage (`secrets`), state paths (`paths`), local time in prompts (`localtime`), platform differences (`platform/`) |
+| `infra/` | SQLite storage and schemas (`store`, `store_schemas`, `data_lifecycle`), private IPC token files (`tokens`), OS credential storage (`secrets`), state paths (`paths`), on-demand start of external services (`service_ensure`), local time in prompts (`localtime`), platform differences (`platform/`) |
 | `sessions/` | Event normalization, the session registry, approvals and danger rules (`approvals`, `danger`), own sessions and dispatch (`own`, `lifecycle`, `dispatch`, `tasks`), session digests, the harness ledger and day summaries |
 | `observation/` | The attention timeline and blacklist, capture and image description (`capture`), privacy and consent (`privacy`), activity judgement and user state, the one in-memory snapshot of the user's presence and the character's stage (`user_now`), the desktop timeline (`timeline`), desktop presence, spatial behavior and facing |
 | `personal/` | Fact memory, personal episodes, chat history and conversations, reminders, schedules, tap rituals, work memory |
 | `character/` | Her own state (`character_state`), the behavior tick (`behavior`), the proactive speech gate and judges (`gate`, `judge`, `proactive`), thoughts (`thoughts`), interaction presets (`interactions`), numbered events for the shell (`feed`), character bindings, the motion graph, and mod-settings routes |
-| `voice/` | C2 speech relay (`speech`), clause splitting (`clauses`), on-demand TTS start (`tts_ensure`), voice source, voice test |
+| `voice/` | C2 speech relay (`speech`), clause splitting (`clauses`), voice source, voice test |
 | `models/` | ChatGPT sign-in (`model_auth`), model settings (`model_backends`), usage and cost (`usage`), the capability snapshot (`capabilities`) |
 | `motion/` | Motion catalog, generation and import (including ZIP import), motion settings, the `/motion*` routes, and the clip chooser (`chooser.py`) |
 | `traces/` | T1 trace format checks (`trace_format`) and storage (`trace_store`) |
@@ -111,7 +111,7 @@ The amounts estimate what agentd can verify; they are not provider bills. Extern
 
 ## Voice
 
-- Voice is on only when agentd starts with `--tts-url`. For TTS on a remote host, for example, run `ssh -N -L 19888:127.0.0.1:9888 <host>` and pass `--tts-url http://127.0.0.1:19888`.
+- Voice is on only when agentd starts with `--tts-url`. For TTS on a remote host, the shell forwards the port according to `services.tts` (SSH) in config.json and passes the forwarded address (for example `http://127.0.0.1:19888`) as `--tts-url`. With `--tts-ensure-host` and `--tts-ensure-script`, agentd first runs the script's `ensure` on that host over ssh when TTS is not up (protocol in the [shell](shell.en.md#external-services)).
 - Requests carry `Authorization: Bearer <token>`. The `.ref` file beside the basename selected by `--tts-token-file` or `$AAC_TTS_TOKEN_FILE` identifies the OS-stored credential (C10). Run `agent/agentd/tools/tts_token.py push --ssh user@host --remote /srv/agentic-complex-tts/state/tts-token` with the same signed Python runtime as agentd to copy the token to the TTS host, then restart TTS and agentd.
 - TTS URLs may be `http` or `https`. HTTPS uses port 443 by default and verifies the certificate and host name on the first connection and on reconnects; user information in the URL and other schemes are rejected. Plain HTTP is accepted for any host and sends the token and text unencrypted.
 - The relay rules (the `/speech` relay, the `cancelled` line on truncation, `speech_failed` on failure) are in C6 §4.7.

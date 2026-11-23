@@ -103,13 +103,13 @@ python3 -I tools/release/compare_layouts.py --portable "$portable_dir" --split "
 
 原因的取值：`componentMissing`、`manifestInvalid`、`manifestMismatch`、`entrypointMissing`、`requirementUnmet`。依赖没满足的组件也记为缺：缺 `runtime.python` 时，`agentd` 记为 `requirementUnmet`。拆分版导入时没通过的组件，导入原因（例如 `treeMismatch`）只记在日志里；它没装进支持目录，所以在 `missing_components` 里记为 `componentMissing`。
 
-状态栏菜单里每个子进程一行：「角色」是 renderer，「后台」是 agentd，「语音隧道」只在配置了 TTS 隧道时出现。
+状态栏菜单里每个子进程一行：「角色」是 renderer，「后台」是 agentd。
 
 | 缺的组件 | 状态栏菜单 | 照常工作的 |
 |---|---|---|
 | `renderer` | 「角色」：失败：缺 renderer 组件 | 后台、网页面板 |
 | `agentd` | 「后台」：失败：缺 agentd 组件。导入角色包、导入动作时提示「缺 agentd 组件」 | 角色照常显示 |
-| `runtime.python` | 「后台」：失败：缺 agentd 组件。「语音隧道」：失败：缺 runtime.python 组件 | 角色照常显示 |
+| `runtime.python` | 「后台」：失败：缺 agentd 组件 | 角色照常显示 |
 | 某个 `characters.<id>`，已有角色库 | 无 | 全部。宿主继续用已有的角色库，日志记 `seed migration deferred` |
 | `agentd`、`runtime.python` 或某个 `characters.<id>`，首次启动、还没有角色库 | 「角色」「后台」：失败：没有角色库：缺 `<ID>` 组件 | 状态栏菜单。补上组件后，下次启动自动建角色库 |
 | `web-ui` | 主窗口打开后备页：读不到网页接口表 routes.json：<路径> | 角色、后台 |

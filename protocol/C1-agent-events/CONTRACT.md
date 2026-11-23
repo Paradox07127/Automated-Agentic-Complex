@@ -261,10 +261,9 @@ agentd 的行为 tick 或事件触发选出一个活动时发一条。角色进�
     照上面生成。宁可漏配不误配。
   - 标记的文字是可打印 ASCII，3–160 个字符；秒数是 1–6 的数；整个标记最长 200 个字符。标记总是从说出的文字里去掉；
     动作后端为 `game` 时什么也不做，提示词里也没有这条标记的说明。
-  - `GET /motion/settings`（ui 令牌）回 `{backend, service_url, token_set}`，从不回令牌。`PUT /motion/settings`（ui 令牌）
-    收 `{backend, service_url, token?}`：`backend` 是 `game`（默认）或 `generated`，`service_url` 是 `http://` 或 `https://`
-    地址或 null，`token` 是动作服务的 bearer 令牌（地址不变时缺省保留，换地址时缺省删除，`""` 删掉）。键不对 400 `invalid_payload`，后端不认识 400
-    `invalid_backend`，地址不对 400 `invalid_service_url`，令牌不是字符串 400 `invalid_token`；200 回存下的设置（同 GET）。
+  - `GET /motion/settings`（ui 令牌）回 `{backend, token_set}`，从不回令牌。`PUT /motion/settings`（ui 令牌）
+    收 `{backend, token?}`：`backend` 是 `game`（默认）或 `generated`，`token` 是动作服务的 bearer 令牌（缺省保留，`""` 删掉）。键不对 400 `invalid_payload`，后端不认识 400
+    `invalid_backend`，令牌不是字符串 400 `invalid_token`；200 回存下的设置（同 GET）。动作服务的地址是 agentd 的 `--motion-url`（C9）。
     设置存在状态目录的 `motion-settings.json`，令牌保存在系统凭据存储中，设置文件只记录引用。
 
 ### 1.5 宿主请求的生成动作：`event: motion`（v2.5）

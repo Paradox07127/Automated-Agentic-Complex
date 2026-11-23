@@ -73,7 +73,7 @@ Renderable character packages supply models and assets; text-only packages (such
 ## Voice
 
 - **Push-to-talk (macOS)**: hold the right `Option` key to speak and release to send; select recognition language in Settings › 说话与通知. Push-to-talk is not yet implemented on Windows.
-- **Speech synthesis**: replies are read aloud in the character's voice when an external TTS service is configured. **Without an external TTS service configured, replies are shown as text only (no speech).** See [deploying the voice service](guides/tts-deploy.en.md).
+- **Speech synthesis**: replies are read aloud in the character's voice when an external TTS service is configured. **Without an external TTS service configured, replies are shown as text only (no speech).** Choose the connection in Settings › 服务 (Services); see [deploying the voice service](guides/tts-deploy.en.md).
 
 ## Privacy and data
 

@@ -2,7 +2,7 @@
 
 [简体中文](shell.md) · [Documentation index](../README.en.md)
 
-`app/electron` is the product's only shell. It reads the config.json that `--config` names, supervises agentd, the renderer, the platform helper and the voice tunnel, and hosts the `web/` UI in its windows. See [repository and runtime architecture](overview.en.md) for how the processes talk, and [web UI](web-ui.en.md) for the page side.
+`app/electron` is the product's only shell. It reads the config.json that `--config` names, supervises agentd, the renderer, the platform helper and the external services, and hosts the `web/` UI in its windows. See [repository and runtime architecture](overview.en.md) for how the processes talk, and [web UI](web-ui.en.md) for the page side.
 
 ## What the shell does
 
@@ -155,13 +155,21 @@ An empty value registers nothing. Names that fail to register (taken by another 
 - Starting first interrupts her: a C3 `stop_speech`, then `POST /turn/cancel` (`reason: "barge_in"`). With the microphone granted it records; when undecided it shows the system prompt first and does not record this time.
 - On release, a hold under 0.3 s or no recognized text sends nothing; otherwise it sends `POST /say` (`source: "voice"`). Each send carries a new `Idempotency-Key`, and a dropped connection is retried once with the same key.
 
-## Voice tunnel
+## External services
 
-`src/main/tunnel/supervisor.ts`: when config.json has a non-empty `tts_tunnel_host` and a port in `tts_url`, the shell runs `app/Resources/parent_watch.py` with runtime.python, which starts `ssh -N -L 127.0.0.1:<port>:127.0.0.1:<port> <host>`; the tunnel exits with the shell. Output goes to `logs/tunnel.log`.
+TTS (`tts`), the motion service Kimodo (`motion`) and the OpenAI-compatible model API (`llm`) run outside the agent. Each service is described by `services.<id>` in config.json, which the 服务 (Services) group in Settings edits.
 
-- A host that starts with `-` or holds whitespace or control characters starts no ssh; the state is SSH 转发主机无效 (invalid SSH forwarding host).
-- When the port is taken and every holder is this user's ssh, the state is `external` (reuse the existing connection), checked again after 60 s; otherwise it is 端口 <port> 被占用 (port in use).
+- Fields: `mode`, `url`, `ssh_host`, `start_script`, `command` (an argv array), `cwd`. A missing field takes its default; an unknown field or a field of the wrong type makes config.json fail validation (`serviceRecord` in `src/common/config.ts`).
+- `mode` picks one of four ways to connect: `off` disables the service; `url` connects straight to `url` and the shell starts no process; `ssh` forwards the port of `url` over SSH; `local` has the shell run `command` on this machine.
+- Validation: `url` is an http, https, ws or wss address. Under `ssh` and `local`, `url` must be a loopback address with a port. Under `ssh`, `ssh_host` must not be empty, start with `-`, or hold whitespace or control characters. Under `local`, `command` must not be empty. For `llm` over http, only a loopback address is allowed; another host needs https.
+- Process management (`ServiceSupervisor` in `src/main/services/supervisor.ts`, one per service): under `ssh`, the shell runs `app/Resources/parent_watch.py` with runtime.python, which starts `ssh -N -L 127.0.0.1:<port>:127.0.0.1:<port> <host>`; under `local`, it runs `command` in `cwd`, and the service counts as running once its port listens. The process exits with the shell.
+- When the port is taken: under `ssh`, if every holder is this user's ssh, the shell reuses it, the state is `external`, and it checks again after 60 s; otherwise the state is 端口 <port> 被占用 (port in use). Under `local`, the state is always 端口 <port> 被占用. A missing `cwd` gives the state 工作目录不存在 <cwd> (working directory missing).
 - After a crash it restarts with agentd's backoff. Stopping sends SIGTERM, then SIGKILL after 4 s.
+- The output of all three services goes to `logs/services.log`.
+- Remote script: under `ssh` with a non-empty `start_script`, both the shell and agentd call `ssh -o BatchMode=yes -o ConnectTimeout=5 -- <host> <script> ensure|stop|status`. `ensure` answers `ready <seconds>` or `fail <reason>` on its first line; `stop` answers `stopped` or `fail <reason>`; `status` answers `running …` or `stopped`.
+- When a save of an `ssh` record changes `start_script` or `ssh_host`, the shell first asks for confirmation, naming the host the script will run on.
+- Bridge ops (`protocol/ui-bridge/ops.json`, implemented in `src/main/ops/services.ts`): `services.read` reads the three records in config.json; `services.save` stores one record and restarts that service and agentd; `services.start`, `services.stop` and `services.restart` control one service, and under `ssh` with a script they also run the remote `ensure` or `stop`. `services` in `app.runtime` reports each service's state.
+- agentd arguments: `--<id>-url` when the service is not `off`; under `ssh` with a `start_script`, also `--<id>-ensure-host` and `--<id>-ensure-script` (C9).
 
 ## Single instance and page guard
 

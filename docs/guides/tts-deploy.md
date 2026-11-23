@@ -4,7 +4,7 @@
 
 ## 概述
 
-GPT-SoVITS 语音服务是独立于 Agentic Complex.app 的可选服务。应用只保存服务地址和令牌，不携带镜像或权重。服务的结构见[语音合成服务](../architecture/voice.md)。
+GPT-SoVITS 语音服务是独立于 Agentic Complex.app 的可选服务。应用只保存服务的接法、地址和令牌，不携带镜像或权重。服务的结构见[语音合成服务](../architecture/voice.md)。
 
 默认只在服务机器的回环地址上发布端口，并且只接受回环 `Host`（`voice/tts-service/auth.py`）。部署时加 `--bind` 才对别的机器开放，见「从 Agentic Complex 连接」。容器里的运行时根目录是 `/srv/tts`（`AAC_VOICE_ROOT`），上游代码在 `/opt/GPT-SoVITS`（`AAC_GPT_SOVITS`），`voice/tts-service/deploy/compose.yaml` 已设好。
 
@@ -43,17 +43,44 @@ bash voice/tts-service/deploy/deploy.sh --root /srv/agentic-complex-tts --port 9
 
 ## 从 Agentic Complex 连接
 
-在「设置 › 说话与通知」填「服务地址」和「令牌」，点「保存」，再点「测试连接」。`GET /health` 不需要令牌；合成请求带 `Authorization: Bearer <token>`。
+在「设置 › 服务」组里设置 TTS 的接法，再在「设置 › 说话与通知」填「令牌」，点「测试连接」。`GET /health` 不需要令牌；合成请求带 `Authorization: Bearer <token>`。接法有四种：关、地址、SSH、本机。字段和校验见[外壳](../architecture/shell.md#外置服务)。
 
-### 同一台机器或 SSH 转发（默认）
+### 同一台机器：本机或地址
 
-服务和 Agentic Complex 在同一台机器上时，服务地址填 `http://127.0.0.1:<port>`。在不同机器上时，在 Mac 上保持这个命令运行：
+服务和 Agentic Complex 在同一台机器上时，选「地址」，填 `http://127.0.0.1:<port>`。也可以选「本机」，由 Agentic Complex 运行启动命令，填同样的回环地址。
+
+### SSH
+
+服务在另一台机器上时，选「SSH」，填 SSH 主机和 `http://127.0.0.1:<port>`。Agentic Complex 开 `ssh -N -L <port>:127.0.0.1:<port> <主机>`，本机端口和远端端口相同；服务的远端端口要和这个 `<port>` 一致。主机要能免密码登录（`BatchMode`）。
+
+### 按需启动脚本
+
+SSH 下可以再填远端的启动脚本路径。Agentic Complex 和 agentd 在 TTS 没起来时执行：
 
 ```sh
-ssh -N -L 19888:127.0.0.1:9888 user@host
+ssh -o BatchMode=yes -o ConnectTimeout=5 -- <主机> <脚本> ensure
 ```
 
-远端的 `9888` 换成部署时的主机端口；Agentic Complex 的服务地址填 `http://127.0.0.1:19888`。
+脚本按第一个参数做一件事，从标准输出回复：
+
+| 参数 | 做什么 | 第一行回复 |
+|---|---|---|
+| `ensure` | 服务没起来就启动，等它可用 | `ready <秒>` 或 `fail <原因>` |
+| `stop` | 停掉服务 | `stopped` 或 `fail <原因>` |
+| `status` | 只查看 | `running …` 或 `stopped` |
+
+最小示例（只示范输入输出，`start_service`、`stop_service`、`service_up` 由你实现）：
+
+```sh
+case "$1" in
+  ensure) service_up || start_service
+          service_up && echo "ready 20" || echo "fail start_timeout" ;;
+  stop)   stop_service && echo stopped || echo "fail stop_error" ;;
+  status) service_up && echo "running pid=1234" || echo stopped ;;
+esac
+```
+
+保存带脚本的记录时，Agentic Complex 先弹确认框，说明脚本将在哪台主机上执行。
 
 ### 局域网直连
 
@@ -63,7 +90,7 @@ ssh -N -L 19888:127.0.0.1:9888 user@host
 bash voice/tts-service/deploy/deploy.sh --root /srv/agentic-complex-tts --port 9888 --bind 0.0.0.0
 ```
 
-脚本因此让服务接受任意 `Host`。Agentic Complex 的服务地址填 `http://<服务机器地址>:<port>`，令牌仍然必须填。
+脚本因此让服务接受任意 `Host`。在「设置 › 服务」选「地址」，填 `http://<服务机器地址>:<port>`，令牌仍然必须填。
 
 ## 手动部署
 

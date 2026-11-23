@@ -47,14 +47,14 @@ flowchart LR
   C <-->|C3 host IPC| H[metal-avatar-host]
   C <-->|PreviewTransport frames| P[Preview XPC service]
   A -->|C1 performance intents| H
-  C -->|parent_watch.py starts ssh -N -L| S[SSH tunnel]
+  C -->|parent_watch.py starts ssh -N -L| S[SSH forwarding]
   A <-->|C2 speech stream, 127.0.0.1:9888| S
   S <--> T["TTS service (TTS host)"]
 ```
 
 - The web UI calls the main process's operations through `window.agenticComplex`, installed by the preload. Web UI requests to agentd use `agentd.request`, gated by `protocol/ui-bridge/routes.json`.
 - The Electron shell starts agentd through `agentd_launcher.py`. `metal-avatar-host` and the preview XPC service use the same executable.
-- External TTS runs outside the app. The Electron shell uses `parent_watch.py` to start `ssh -N -L 127.0.0.1:<port>:127.0.0.1:<port> <host>` based on `tts_url` (a new release install writes it empty, and replies are shown as text only; when config.json has no such key it is `http://127.0.0.1:9888`) and `tts_tunnel_host` (blank by default, which disables forwarding). The tunnel closes when the app exits. See `app/electron/src/main/tunnel/supervisor.ts`. With `tts_ensure_script` set, agentd can run that script over SSH on the same host to start TTS on demand. The script setting is blank by default.
+- TTS, the motion service and the OpenAI-compatible model API run outside the app. Each is described by one `services.<id>` in config.json (`tts`, `motion`, `llm`), which the 服务 (Services) group in Settings edits. A service connects in one of four ways: off, a direct address, SSH, or a local command. Under SSH the Electron shell uses `parent_watch.py` to start `ssh -N -L 127.0.0.1:<port>:127.0.0.1:<port> <host>`; under a local command it runs `command`; these processes exit with the app. With `ssh_host` and `start_script`, agentd runs the script on that host over SSH when the service is not up. TTS is off in a new release install, and replies are shown as text only. Fields, validation and the script protocol are in the [shell](shell.en.md#external-services).
 
 The [protocol index](../../protocol/README.md) links to the contracts in `protocol/`.
 

@@ -2,7 +2,7 @@
 
 [English](shell.en.md) · [文档索引](../README.md)
 
-`app/electron` 是产品唯一的外壳。它读 `--config` 指的 config.json，监督 agentd、渲染器、平台 helper 和语音隧道，在自己的窗口里承载 `web/` 的网页 UI。进程之间怎么通信见[仓库与运行架构](overview.md)，网页一侧见[网页 UI](web-ui.md)。
+`app/electron` 是产品唯一的外壳。它读 `--config` 指的 config.json，监督 agentd、渲染器、平台 helper 和外置服务，在自己的窗口里承载 `web/` 的网页 UI。进程之间怎么通信见[仓库与运行架构](overview.md)，网页一侧见[网页 UI](web-ui.md)。
 
 ## 外壳做什么
 
@@ -155,13 +155,21 @@ attention 采样（每秒一拍，读前台窗口、标题和输入计数）：
 - 开始时先打断她：发 C3 `stop_speech`，再 `POST /turn/cancel`（`reason: "barge_in"`）。麦克风已允许就开始录音，没决定时先弹系统框、这次不录。
 - 松开后按住不到 0.3 s 或没有识别出文字就不发，否则 `POST /say`（`source: "voice"`）。每次发送带一个新的 `Idempotency-Key`，连接断了用同一个键再发一次。
 
-## 语音隧道
+## 外置服务
 
-`src/main/tunnel/supervisor.ts`：config.json 的 `tts_tunnel_host` 非空、`tts_url` 写了端口时，外壳用 runtime.python 跑 `app/Resources/parent_watch.py`，由它拉起 `ssh -N -L 127.0.0.1:<端口>:127.0.0.1:<端口> <主机>`，外壳退出时隧道一起退出。输出写进 `logs/tunnel.log`。
+TTS（`tts`）、动作服务 Kimodo（`motion`）和兼容 OpenAI 的模型 API（`llm`）在 agent 之外运行。config.json 的 `services.<id>` 描述每个服务，设置页的「服务」组改写它。
 
-- 主机名以 `-` 开头或含空白、控制字符时不起 ssh，状态是「SSH 转发主机无效」。
-- 端口已被占用且占着的全是本用户的 ssh 时，状态是 `external`（沿用已有连接），60 s 后再查；否则是「端口 <端口> 被占用」。
+- 字段：`mode`、`url`、`ssh_host`、`start_script`、`command`（argv 数组）、`cwd`。没写的字段取默认值，未知字段和类型不对的字段使 config.json 不通过校验（`src/common/config.ts` 的 `serviceRecord`）。
+- 四种接法由 `mode` 决定：`off` 关闭；`url` 直连 `url`，外壳不起进程；`ssh` 经 SSH 转发 `url` 的端口；`local` 由外壳在本机运行 `command`。
+- 校验：`url` 是 http、https、ws 或 wss 地址。`ssh` 和 `local` 下 `url` 必须是回环地址并写端口。`ssh` 下 `ssh_host` 不能为空、不能以 `-` 开头、不能有空白和控制字符。`local` 下 `command` 不能为空。`llm` 走 http 时只许回环地址，别的主机要用 https。
+- 进程管理（`src/main/services/supervisor.ts` 的 `ServiceSupervisor`，每个服务一个）：`ssh` 下用 runtime.python 跑 `app/Resources/parent_watch.py`，由它拉起 `ssh -N -L 127.0.0.1:<端口>:127.0.0.1:<端口> <主机>`；`local` 下由它在 `cwd` 里运行 `command`，端口开始监听才算在运行。外壳退出时进程一起退出。
+- 端口已被占用时：`ssh` 下占着的全是本用户的 ssh 就沿用，状态是 `external`，60 s 后再查；否则状态是「端口 <端口> 被占用」。`local` 下一律是「端口 <端口> 被占用」。`cwd` 不存在时状态是「工作目录不存在 <cwd>」。
 - 崩溃后按 agentd 的退避重启。停止时先 SIGTERM，4 s 后 SIGKILL。
+- 三个服务的输出都写进 `logs/services.log`。
+- 远端脚本：`ssh` 下 `start_script` 非空时，外壳和 agentd 都经 `ssh -o BatchMode=yes -o ConnectTimeout=5 -- <主机> <脚本> ensure|stop|status` 调它。`ensure` 的第一行回 `ready <秒>` 或 `fail <原因>`；`stop` 回 `stopped` 或 `fail <原因>`；`status` 回 `running …` 或 `stopped`。
+- 保存 `ssh` 记录时，`start_script` 或 `ssh_host` 有变，外壳先弹确认框，说明脚本将在哪台主机上执行。
+- bridge op（`protocol/ui-bridge/ops.json`，实现在 `src/main/ops/services.ts`）：`services.read` 读 config.json 里的三个记录；`services.save` 存一个记录，并重启这个服务和 agentd；`services.start`、`services.stop`、`services.restart` 启停一个服务，`ssh` 下有脚本时再跑远端的 `ensure` 或 `stop`。`app.runtime` 的 `services` 给出各服务的状态。
+- agentd 的参数：服务不是 `off` 时传 `--<id>-url`；`ssh` 下有 `start_script` 时再传 `--<id>-ensure-host` 和 `--<id>-ensure-script`（C9）。
 
 ## 单实例与页面守卫
 

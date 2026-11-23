@@ -101,13 +101,13 @@ On launch, the host reads the composition lock and checks every component's mani
 
 Reasons include `componentMissing`, `manifestInvalid`, `manifestMismatch`, `entrypointMissing`, and `requirementUnmet`. An unmet dependency also marks a component as missing. For example, missing `runtime.python` marks `agentd` with `requirementUnmet`. In the split layout, a failed import logs the import reason, such as `treeMismatch`. For a rejected external component, `missing_components` records it as `componentMissing`.
 
-The menu bar shows one row per subprocess. The renderer is labeled 「角色」, agentd is labeled 「后台」, and 「语音隧道」 appears when a TTS tunnel is configured.
+The menu bar shows one row per subprocess. The renderer is labeled 「角色」, and agentd is labeled 「后台」.
 
 | Missing component | Menu bar or window feedback | What still works |
 |---|---|---|
 | `renderer` | 「角色」 reports a missing renderer component. | Background service and web panels |
 | `agentd` | 「后台」 reports a missing agentd component. Character and animation imports report the same missing component. | Character display |
-| `runtime.python` | 「后台」 reports missing agentd. 「语音隧道」 reports missing runtime.python. | Character display |
+| `runtime.python` | 「后台」 reports missing agentd. | Character display |
 | A `characters.<id>` component, with an existing character library | — | The host continues with the existing library and logs `seed migration deferred`. |
 | `agentd`, `runtime.python`, or a `characters.<id>` component on first launch without a character library | 「角色」 and 「后台」 report that the missing `<ID>` component prevents character library setup. | Menu bar. Supply the component and relaunch to build the library. |
 | `web-ui` | The main window opens a fallback page showing the unreadable `routes.json` path. | Character and background service |

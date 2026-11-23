@@ -18,12 +18,12 @@ agentd 是角色一侧的后台服务，Python 3.12 实现，只监听 127.0.0.1
 |---|---|
 | `api/` | HTTP `Handler`（`api/handler.py`：`parse_request` 的关卡、`_dispatch` 把请求交给 `route_registry.py` 里这条路由的 owner）；按 URL 前缀分开的 mixin：`hooks`、`sessions`、`memory`、`episodes`、`observation`、`context`、`speech`、`diag`、`character`、`settings`；`views.py` 是 `api/` 和 `daemon/` 共用的视图与字段检查；`integration.py` 是外部 agent 接入的 `/integration/*` 路由（[INTEGRATION.md](../../protocol/C6-agentd-api/INTEGRATION.md)） |
 | `daemon/` | `main.py`（参数、启动顺序、服务循环）；`agentd_server.py` 的 `AgentdServer` 和 `StateView`；按关注点分开的 mixin：`announce`、`turns`、`speech_control`、`context`、`switches`、`ingest`、`character_switch`、`rituals_glue`、`memory_sync`、`tracing`、`diagnostics`、`lifecycle`；共用常量 `constants.py` |
-| `infra/` | SQLite 存储与表结构（`store`、`store_schemas`、`data_lifecycle`）、0600 令牌文件（`tokens`）、状态路径（`paths`）、提示里的本地时间（`localtime`）、平台差异（`platform/`） |
+| `infra/` | SQLite 存储与表结构（`store`、`store_schemas`、`data_lifecycle`）、0600 令牌文件（`tokens`）、状态路径（`paths`）、按需启动外置服务（`service_ensure`）、提示里的本地时间（`localtime`）、平台差异（`platform/`） |
 | `sessions/` | 事件归一化、会话登记、审批与危险判定（`approvals`、`danger`）、自有会话与派活（`own`、`lifecycle`、`dispatch`、`tasks`）、会话摘要、harness 账本与日报 |
 | `observation/` | 注意力时间线与黑名单、截图与看图（`capture`）、隐私与授权（`privacy`）、现场判断与用户状态、桌面时间线（`timeline`）、桌面呈现、空间行为与朝向 |
 | `personal/` | 事实记忆、个人时段、聊天记录与对话、提醒、定时任务、点按仪式、工作记忆 |
 | `character/` | 她自己的状态（`character_state`）、行为 tick（`behavior`）、主动说话的闸门与判断（`gate`、`judge`、`proactive`）、想法（`thoughts`）、互动档位（`interactions`）、给外壳的编号事件（`feed`）、角色绑定和动作图、mod 设置路由 |
-| `voice/` | C2 语音转发（`speech`）、按分句切回复（`clauses`）、按需启动 TTS（`tts_ensure`）、声音来源、语音测试 |
+| `voice/` | C2 语音转发（`speech`）、按分句切回复（`clauses`）、声音来源、语音测试 |
 | `models/` | ChatGPT 登录（`model_auth`）、模型设置（`model_backends`）、用量与费用（`usage`）、能力快照（`capabilities`） |
 | `motion/` | 动作目录、生成与导入（含 ZIP 导入）、动作设置和 `/motion*` 路由 |
 | `traces/` | T1 trace 格式校验（`trace_format`）和存储（`trace_store`） |
@@ -111,7 +111,7 @@ agentd 是角色一侧的后台服务，Python 3.12 实现，只监听 127.0.0.1
 
 ## 语音
 
-- 启动时给 `--tts-url` 才有语音。例如 TTS 在远端主机时用 `ssh -N -L 19888:127.0.0.1:9888 <主机>`，再给 `--tts-url http://127.0.0.1:19888`。
+- 启动时给 `--tts-url` 才有语音。TTS 在远端主机时，外壳按 config.json 的 `services.tts`（SSH）转发端口，并把转发后的地址（例如 `http://127.0.0.1:19888`）传给 `--tts-url`。有 `--tts-ensure-host` 和 `--tts-ensure-script` 时，TTS 没起来，agentd 先经 ssh 在这台主机上运行脚本的 `ensure`（协议见[外壳](shell.md#外置服务)）。
 - 请求带 `Authorization: Bearer <令牌>`。`--tts-token-file` 或 `$AAC_TTS_TOKEN_FILE` 指定凭据引用的基础路径，对应的 `.ref` 文件记录系统凭据标识（C10）。使用与 agentd 相同的签名 Python 运行 `agent/agentd/tools/tts_token.py push --ssh user@host --remote /srv/agentic-complex-tts/state/tts-token` 生成令牌并复制到 TTS 主机，随后重启 TTS 和 agentd。
 - TTS 地址收 `http` 和 `https`。HTTPS 默认 443 端口，初次连接和重连都校验证书和主机名；URL 里的用户信息和其他协议拒收。明文 HTTP 对任何主机都收，令牌和文本不加密。
 - 转发规则（`/speech` 中继、截断补 `cancelled`、失败时 `speech_failed`）见 C6 §4.7。
