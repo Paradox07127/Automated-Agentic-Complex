@@ -309,6 +309,14 @@ class SelectTest(unittest.TestCase):
         self.memory.record_uses([(fact_id, 1)], f"line-{fact_id}-{mode}-{ago}", mode)
         self.now = at
 
+    def test_similar_keeps_recency_order_at_the_cutoff(self):
+        ids = [self.add(text) for text in ("团子甲", "团子乙", "团子丙")]
+        def similar(k):
+            return [f["fact_id"] for f in self.memory.similar("团子", "fact", k)]
+        self.assertEqual(similar(2), ids[:0:-1])
+        self.assertEqual(similar(0), [])
+        self.assertEqual(similar(-1), ids[:0:-1])
+
     def test_ranks_by_bigram_overlap_times_evidence_and_keeps_k(self):
         cat = self.add("我养的猫叫团子")
         food = self.add("团子爱吃鸡胸肉")

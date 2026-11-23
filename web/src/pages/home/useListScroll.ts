@@ -79,8 +79,9 @@ export function useListScroll(max: number, view: number, scale: number) {
         const end = clamp(s.pos);
         if (end !== s.pos) {
           const [p, v] = smoothDamp(s.pos, end, s.speed, ELASTICITY, dt);
-          s.speed = Math.abs(v) < STOP ? 0 : v;
-          put(Math.abs(p - end) < 0.1 ? end : p);
+          const settled = Math.abs(p - end) < 0.1;
+          s.speed = settled || Math.abs(v) < STOP ? 0 : v;
+          put(settled ? end : p);
         } else if (s.speed !== 0) {
           s.speed *= DECELERATION ** dt;
           if (Math.abs(s.speed) < STOP) s.speed = 0;

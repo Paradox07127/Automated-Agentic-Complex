@@ -103,6 +103,8 @@ class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, 
                    LifecycleMixin, ThreadingHTTPServer):
     state_dir = None
     daemon_threads = True
+    # A page opens several independent reads at once. Buffer that burst until accept() catches up.
+    request_queue_size = max(32, ThreadingHTTPServer.request_queue_size)
     no_character = False  # main(): the library has no character; api.handler.CHARACTER_ROUTES answer 409 no_character
 
     @property

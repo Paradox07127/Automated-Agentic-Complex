@@ -77,7 +77,7 @@ export function loadConfig(path: string, platform: ShellPlatform = shellPlatform
     throw new ConfigError(`找不到配置文件 ${path}`);
   }
   try {
-    return parseConfig(text, { supportDir: supportDirOf(path, DEFAULT_SUPPORT_DIR), agentdStateDir: DEFAULT_AGENTD_STATE_DIR,
+    return parseConfig(text, { supportDir: DEFAULT_SUPPORT_DIR, agentdStateDir: DEFAULT_AGENTD_STATE_DIR,
       catalog: (p) => readCatalog(p, platform), platform });
   } catch (e) {
     // A library file that cannot be read.

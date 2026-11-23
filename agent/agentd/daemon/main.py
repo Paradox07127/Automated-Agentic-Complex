@@ -184,8 +184,9 @@ def parse_args(argv=None):
         sys.exit(0)
     if bool(args.computer_control_socket) != bool(args.computer_control_token_file):
         parser.error("--computer-control-socket and --computer-control-token-file must be given together")
+    args.repository = characters.Repository(args.character_catalog)
     if args.character is None:
-        args.character = characters.Repository(args.character_catalog).default()
+        args.character = args.repository.default()
     return args
 
 
@@ -335,7 +336,7 @@ def main(secret_store=None):
     ui_token = secrets.token_urlsafe(24)
     events_token = secrets.token_urlsafe(24)
     integration_token = secrets.token_urlsafe(24) if plugins.on("external_access") else None
-    repository = characters.Repository(args.character_catalog)
+    repository = args.repository
     if args.character is not None:
         repository.load_card(args.character)
     db = paths.agentd_db(state_dir)

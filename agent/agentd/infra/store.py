@@ -67,6 +67,7 @@ SCHEMA = (
     "CREATE TABLE IF NOT EXISTS fact_uses (fact_id TEXT NOT NULL, version INTEGER NOT NULL, line_id TEXT NOT NULL,"
     " used_at REAL NOT NULL, mode TEXT NOT NULL)",
     "CREATE INDEX IF NOT EXISTS fact_uses_fact ON fact_uses (fact_id, used_at)",
+    "CREATE INDEX IF NOT EXISTS fact_uses_recent ON fact_uses (mode, used_at, fact_id)",
     "CREATE TABLE IF NOT EXISTS capture_budget (id INTEGER PRIMARY KEY, request_id TEXT UNIQUE NOT NULL,"
     " state TEXT NOT NULL, look INTEGER NOT NULL, reserved_at REAL NOT NULL, settled_at REAL)",
     "CREATE TABLE IF NOT EXISTS model_usage (id INTEGER PRIMARY KEY, day TEXT NOT NULL, model TEXT NOT NULL,"

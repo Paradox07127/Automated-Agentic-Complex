@@ -146,10 +146,17 @@ describe('home right list in motion', () => {
     const list = await mount();
     const first = within(list).getAllByRole('button')[0]!;
     const rest = top(first);
-    fireEvent.wheel(first, { deltaY: -100 });
-    expect(top(first)).toBeGreaterThan(rest);
-    expect(top(first)).toBeLessThan(rest + 22.5);
-    await vi.waitFor(() => expect(top(first)).toBe(rest), { timeout: 1500 });
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'performance'] });
+    try {
+      fireEvent.wheel(first, { deltaY: -100 });
+      expect(top(first)).toBeGreaterThan(rest);
+      expect(top(first)).toBeLessThan(rest + 22.5);
+      // Check the final position, including the frames after the spring first snaps to the edge.
+      await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+      expect(top(first)).toBe(rest);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('coasts on after a fling and slows to a stop', async () => {

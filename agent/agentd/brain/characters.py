@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import threading
 
 from brain.language import SUPPORTED
 from infra.platform import long_path
@@ -61,31 +62,41 @@ class Repository:
     def __init__(self, catalog=None):
         # The one conversion: every library and package path below derives from it.
         self.catalog = Path(long_path(Path(catalog or DEV_CATALOG).resolve()))
+        self._refresh_lock = threading.Lock()
         self._revision = None
         self._packages = {}
         self._verified = None  # (paths, stamps): the catalog, native bundle and definitions the last refresh hashed
         self._cards = {}  # card path -> (st_mtime_ns, parsed card)
 
     def _refresh(self):
-        if self._verified is not None and _stamps(self._verified[0]) == self._verified[1]:
+        verified = self._verified
+        if verified is not None and _stamps(verified[0]) == verified[1]:
             return
+        with self._refresh_lock:
+            verified = self._verified
+            if verified is None or _stamps(verified[0]) != verified[1]:
+                self._reload()
+
+    def _reload(self):
         from character_library import Library, PackageError, contained, digest
         paths = [self.catalog]
         stamps = _stamps(paths)
         library = Library(self.catalog.parent, catalog_name=self.catalog.name)
         snapshot = library.snapshot()
+        packages = self._packages
         if snapshot["revision"] != self._revision:
-            self._packages = {p.id: p for p in library.packages()}
-            self._default = snapshot.get("default_character")  # a missing current.json has no characters
-            self._revision = snapshot["revision"]
+            packages = {entry["id"]: library.load_entry(entry) for entry in snapshot["characters"]}
         if "native_bundle" in snapshot:
             paths.append(contained(library.root, snapshot["native_bundle"]["file"]))
             stamps += _stamps(paths[-1:])
-        for p in self._packages.values():
+        for p in packages.values():
             paths.append(p.root / "character.json")
             stamps += _stamps(paths[-1:])
             if digest(paths[-1]) != p.sha256:
                 raise PackageError("definition_sha_mismatch")
+        self._packages = packages
+        self._default = snapshot.get("default_character")
+        self._revision = snapshot["revision"]
         self._verified = (paths, stamps)
 
     def ids(self):
@@ -96,14 +107,17 @@ class Repository:
 
     def package(self, cid):
         self._refresh()
-        if cid not in self._packages: raise ValueError(f"unknown character {cid!r}")
-        return self._packages[cid]
+        package = self._packages.get(cid)
+        if package is None: raise ValueError(f"unknown character {cid!r}")
+        return package
 
     def card_path(self, cid):
-        return self.package(cid).resolve(self.package(cid).card_ref)
+        package = self.package(cid)
+        return package.resolve(package.card_ref)
 
     def lore_path(self, cid):
-        return self.package(cid).resolve(self.package(cid).lore_ref)
+        package = self.package(cid)
+        return package.resolve(package.lore_ref)
 
     def load_card(self, cid):
         """A copy of the parsed card, parsed again (and its sha256 checked again) only when its file changed."""

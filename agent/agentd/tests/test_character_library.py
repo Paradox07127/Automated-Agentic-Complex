@@ -232,6 +232,26 @@ class CharacterLibraryTests(unittest.TestCase):
         self.assertIsNone(repository.voice("three"))
         self.assertEqual(parse_command("three，停下", names=repository.names()), {"action": "stop"})
 
+    def test_concurrent_first_read_verifies_one_catalog_and_package(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier
+        from unittest.mock import patch
+        from brain.characters import Repository
+
+        library = Library(self.root / "library")
+        src = self.root / "one"; fixture(src, "one"); library.install(src)
+        repository = Repository(library.root / "current.json")
+        barrier = Barrier(4)
+        def load(_):
+            barrier.wait(timeout=5)
+            return repository.package("one")
+
+        with patch.object(Library, "snapshot", autospec=True, side_effect=Library.snapshot) as snapshot:
+            with ThreadPoolExecutor(4) as workers:
+                packages = list(workers.map(load, range(4)))
+        self.assertEqual(snapshot.call_count, 1)
+        self.assertTrue(all(p is packages[0] for p in packages))
+
     def test_an_unchanged_catalog_is_not_hashed_or_parsed_again(self):
         from unittest.mock import patch
         from brain.characters import Repository

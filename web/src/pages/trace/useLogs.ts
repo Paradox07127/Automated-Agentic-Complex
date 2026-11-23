@@ -41,6 +41,7 @@ export function useLogs(enabled: boolean, poll: boolean): Logs {
     if (!enabled) return;
     let live = true;
     const bridge = getBridge();
+    cursor.current = null;
     const fail = (e: unknown) => live && setState((s) => ({ ...s, status: codeOf(e) === 'not_implemented' ? 'missing' : 'error', error: e instanceof Error ? e.message : String(e) }));
     void Promise.all([bridge.logs.sources(), ...LOG_IDS.map((id) => bridge.logs.read({ sources: [id] }))])
       .then(([info, ...reads]) => {
@@ -60,16 +61,21 @@ export function useLogs(enabled: boolean, poll: boolean): Logs {
     if (!enabled || !poll || state.status !== 'ok') return;
     let live = true;
     const bridge = getBridge();
+    let pending = false;
     const tick = async () => {
-      if (!cursor.current) return;
+      if (pending || !cursor.current) return;
+      pending = true;
       try {
-        const [info, r] = await Promise.all([bridge.logs.sources(), bridge.logs.read({ sources: LOG_IDS, after: cursor.current })]);
-        if (!live) return;
+        const [sources, read] = await Promise.allSettled([bridge.logs.sources(), bridge.logs.read({ sources: LOG_IDS, after: cursor.current })]);
+        if (!live || sources.status !== 'fulfilled' || read.status !== 'fulfilled') return;
+        const info = sources.value, r = read.value;
         cursor.current = { ...cursor.current, ...r.cursor };
         const fresh = add(r.lines);
         setState((s) => ({ ...s, sources: info.sources, lines: fresh.length ? [...s.lines, ...fresh].slice(-KEEP) : s.lines, last: seq.current }));
       } catch {
         // The next tick asks again; a shell that went away shows in the top bar's lamp.
+      } finally {
+        pending = false;
       }
     };
     const id = setInterval(() => void tick(), POLL_MS);

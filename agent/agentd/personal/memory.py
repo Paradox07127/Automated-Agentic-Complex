@@ -1,6 +1,7 @@
 """User fact memory:small, editable, versioned facts in the shared store, split by trust for injection."""
 import datetime
 import hashlib
+import heapq
 import json
 import re
 import threading
@@ -49,7 +50,10 @@ def normalized_text(text):
 
 def overlap(a, b):
     """Shared bigrams over the bigrams of the shorter text: a short query or fact can match in full."""
-    x, y = bigrams(a), bigrams(b)
+    return _overlap(bigrams(a), bigrams(b))
+
+
+def _overlap(x, y):
     return len(x & y) / min(len(x), len(y)) if x and y else 0.0
 
 
@@ -353,8 +357,14 @@ class Memory:
         with self.lock:
             rows = self.db.execute("SELECT fact_id,text FROM facts WHERE kind=? AND state IN ('active','candidate')"
                                    " AND (owner IS NULL OR owner=?) ORDER BY recorded_at DESC,id DESC", (kind, character_id)).fetchall()
-        facts = [dict(zip(('fact_id','text'), row)) for row in rows]
-        return sorted(facts, key=lambda fact: overlap(text, fact['text']), reverse=True)[:k]
+        query_grams = bigrams(text)
+        def score(row):
+            return _overlap(query_grams, bigrams(row[1]))
+        if k is None or k < 0:
+            matches = sorted(rows, key=score, reverse=True)[:k]
+        else:
+            matches = heapq.nlargest(k, rows, key=score)
+        return [{"fact_id": fact_id, "text": value} for fact_id, value in matches]
 
     def _records(self, state, sources=None, *, owner=None, where="", args=()):
         if sources is not None:
@@ -406,18 +416,19 @@ class Memory:
         if not derived:
             facts = [f for f in facts if f["source"] not in OBSERVED]
         with self.lock:
-            last = {(fact_id, mode): at for fact_id, mode, at in self.db.execute(
-                "SELECT fact_id, mode, MAX(used_at) FROM fact_uses GROUP BY fact_id, mode")}
+            recent_uses = set(self.db.execute(
+                "SELECT DISTINCT fact_id, mode FROM fact_uses WHERE (mode='injected' AND used_at>?)"
+                " OR (mode='mentioned' AND used_at>?)", (now - INJECTED_WITHIN, now - MENTIONED_WITHIN)))
+
+        query_grams = bigrams(query)
 
         def score(fact):
-            related = overlap(query, fact["text"])
+            related = _overlap(query_grams, bigrams(fact["text"]))
             if fact["source"] not in TRUSTED and related < LOW_TRUST_RELEVANT:
                 return 0.0
             weight = 1 + fact["score"]  # a fact never said again has evidence score 0
-            for mode, within, factor in (("injected", INJECTED_WITHIN, INJECTED_WEIGHT),
-                                         ("mentioned", MENTIONED_WITHIN, MENTIONED_WEIGHT)):
-                at = last.get((fact["fact_id"], mode))
-                if at is not None and now - at < within:
+            for mode, factor in (("injected", INJECTED_WEIGHT), ("mentioned", MENTIONED_WEIGHT)):
+                if (fact["fact_id"], mode) in recent_uses:
                     weight *= factor
             return related * weight
 

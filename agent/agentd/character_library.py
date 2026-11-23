@@ -464,14 +464,15 @@ class Library:
         need(digest(contained(self.root, ref["file"])) == ref["sha256"], "native_catalog_sha_mismatch")
         return doc
 
-    def packages(self): return [self._load(entry) for entry in self.snapshot()["characters"]]
+    def packages(self): return [self.load_entry(entry) for entry in self.snapshot()["characters"]]
 
     def package(self, character):
         """The installed package of character, or None; no other character's package is loaded."""
         entry = next((e for e in self.snapshot()["characters"] if e["id"] == character), None)
-        return None if entry is None else self._load(entry)
+        return None if entry is None else self.load_entry(entry)
 
-    def _load(self, entry):
+    def load_entry(self, entry):
+        """Load and verify one definition referenced by a catalog snapshot."""
         ref = entry["definition"]; validate_ref(ref); path = contained(self.root, ref["file"])
         need(digest(path) == ref["sha256"] and path.stat().st_size == ref["byte_count"], "definition_sha_mismatch")
         package = Package(path.parent, deep=False)
