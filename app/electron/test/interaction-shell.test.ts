@@ -5,8 +5,13 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import routes from '../../../protocol/ui-bridge/routes.json' with { type: 'json' };
 import type { ActionRow, Actions } from '../src/common/c3.ts';
+import { silentSource } from '../src/common/feed.ts';
+import { PageSession } from '../src/common/page.ts';
 import { interactionShell } from '../src/main/interaction/shell.ts';
+import type { OpsContext } from '../src/main/ops/context.ts';
+import { settingsOps } from '../src/main/ops/settings.ts';
 
 const settle = async () => { for (let i = 0; i < 20; i += 1) await new Promise((r) => setImmediate(r)); };
 const row = (id: string, o: Partial<ActionRow> = {}): ActionRow => ({ id, name: id, section: 'interact', duration: null, trigger: '',
@@ -24,13 +29,32 @@ function harness(o: { status?: number; body?: unknown; offline?: boolean; settin
     playAction: async (character: string, id: string, speed: number, loop: boolean) => { calls.push(`play ${character} ${id} ${speed} ${loop}`); } };
   const desktop = { quickInputOpen: o.quickInputOpen ?? false, openQuickInput: () => calls.push('quickInput'),
     notice: (text: string) => calls.push(`notice ${text}`), pushState: () => calls.push('pushState') };
+  const request = async (method: string, path: string, json: unknown) => {
+    requests.push({ method, path, json });
+    if (o.offline) throw new Error('ECONNREFUSED');
+    return { status: o.status ?? 202, body: JSON.stringify(o.body ?? {}) };
+  };
+  // The main window's settings ops over this config.json, as index.ts gives free roam.
+  const ctx: OpsContext = {
+    surface: 'main', routes, config: { path: configPath, supportDir: dir, devResources: null },
+    agentd: { request: async (method: string, path: string, json: unknown) => {
+      const r = await request(method, path, json);
+      return { status: r.status, body: Buffer.from(r.body) };
+    } } as unknown as OpsContext['agentd'],
+    store: null, diag: null, supervisor: null, library: null, confirm: async () => true,
+    shell: { openExternal: async () => {}, openPath: async () => '', showItemInFolder: () => {} },
+    clipboard: { writeText: () => {} },
+    dialog: { pickFile: async () => null, pickFolder: async () => null, pickPackage: async () => null, saveFile: async () => false },
+    app: { version: '0', os: 'test' }, loginItem: { enabled: () => null, set: () => {} }, settingsChanges: silentSource,
+    saved: { fps: () => {}, hotkey: () => {}, renderLive: (keys) => calls.push(`renderLive ${keys.join(',')}`) },
+    log: (line) => lines.push(line),
+  };
+  const save = settingsOps(ctx)['settings.save']!;
   const shell = interactionShell({
-    request: async (method, path, json) => {
-      requests.push({ method, path, json });
-      if (o.offline) throw new Error('ECONNREFUSED');
-      return { status: o.status ?? 202, body: JSON.stringify(o.body ?? {}) };
-    },
-    settings: () => o.settings ?? {}, configPath,
+    request,
+    settings: () => { try { return JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>; } catch { return o.settings ?? {}; } },
+    saveSettings: async (changes) => (await save([changes], new PageSession(() => {}))) as { error?: string },
+    settingsChanged: (keys) => calls.push(`settingsChanged ${keys.join(',')}`),
     link: o.noLink ? null : link,
     desktop: () => (o.noDesktop ? null : desktop),
     openSessions: () => calls.push('sessions'),
@@ -190,13 +214,13 @@ test('the gift plays her gift action at speed 1, then tells agentd; a missing on
   gone.done();
 });
 
-test('free roam flips stay_mode between stay and roam, keeps the other keys, pushes the state and PUTs the switches', async () => {
+test('free roam flips stay_mode between stay and roam through the settings save: out of 半身固定 she is framed whole again', async () => {
   const h = harness({ status: 503 });
   writeFileSync(h.configPath, JSON.stringify({ stay_mode: 'bust', sit_on_windows: false, character: 'aster' }));
   h.shell.actions.freeRoam();
   await settle();
   assert.deepEqual(JSON.parse(readFileSync(h.configPath, 'utf8')), { character: 'aster', sit_on_windows: false, stay_mode: 'roam' });
-  assert.deepEqual(h.calls, ['pushState']);
+  assert.deepEqual(h.calls, ['renderLive stay_mode', 'pushState', 'settingsChanged stay_mode']);
   assert.deepEqual(h.requests.map((r) => [r.method, r.path, r.json]), [['PUT', '/behavior/switches',
     { stay_in_place: false, sit_window_top: false, hold_window_edge: true, fullscreen_give_way: true }]]);
   assert.deepEqual(h.lines, ['behavior switches put status=503']);
@@ -204,10 +228,13 @@ test('free roam flips stay_mode between stay and roam, keeps the other keys, pus
   await settle();
   assert.equal(JSON.parse(readFileSync(h.configPath, 'utf8')).stay_mode, 'stay');
   assert.equal((h.requests[1]!.json as Record<string, unknown>).stay_in_place, true);
+  assert.equal(h.calls.filter((c) => c.startsWith('renderLive')).length, 1, 'roam to stay keeps her framing');
   // A config.json that does not read is not written over.
   writeFileSync(h.configPath, '[1]');
-  assert.throws(() => h.shell.actions.freeRoam());
+  h.shell.actions.freeRoam();
+  await settle();
   assert.equal(readFileSync(h.configPath, 'utf8'), '[1]');
+  assert.match(h.lines.at(-1)!, /^free roam not saved: /);
   h.done();
 });
 

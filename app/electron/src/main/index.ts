@@ -83,7 +83,7 @@ import { watch } from './ops/events.ts';
 import { type OpsContext, registry } from './ops/index.ts';
 import { ObservationControl } from './ops/observation.ts';
 import { sessionsRoute } from './ops/open.ts';
-import { saveSettings } from './ops/settings.ts';
+import { saveSettings, settingsOps } from './ops/settings.ts';
 import { processState } from './ops/supervisor.ts';
 import { runAgentdTool, validationHost } from './ops/tools.ts';
 import { HelperSupervisor } from './helper/supervisor.ts';
@@ -688,7 +688,9 @@ const interaction = config && runtimePath !== null ? (() => {
       const reply = await client.request(method, path, json);
       return { status: reply.status, body: reply.body.toString('utf8') };
     },
-    settings: () => readObject(configPath), configPath, link: hostLink, desktop: () => desktop,
+    settings: () => readObject(configPath), link: hostLink, desktop: () => desktop,
+    saveSettings: async (changes) => (await settingsOps(opsContext('main'))['settings.save']!([changes], new PageSession(() => {}))) as { error?: string },
+    settingsChanged: (keys) => settingsChanges.changed(keys),
     openSessions: () => openMainAt(sessionsRoute()),
     // The wheel opens with its centre at the click.
     onContextMenu: (at, held) => {

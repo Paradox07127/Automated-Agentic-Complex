@@ -3,9 +3,7 @@
 // character menu and is recorded for the daily brief; 送礼物, 自由活动 and 临时全部点穿 from the desktop.
 import { type DesktopActionPorts, giftAction, localIso, opensQuickInput, RitualTap, RITUAL, ritualFailure } from '../../common/desktop-action.ts';
 import type { Actions } from '../../common/c3.ts';
-import { behaviorSwitches } from '../../common/settings.ts';
 import type { Request } from '../../common/stack-source.ts';
-import { readObject, writeObject } from '../ops/settings.ts';
 import type { ClickEvent, RightDragEvent } from '../renderer/link.ts';
 
 export interface InteractionOptions {
@@ -13,8 +11,10 @@ export interface InteractionOptions {
   request: Request;
   /** config.json as saved now; `{}` when it cannot be read. */
   settings(): Record<string, unknown>;
-  /** config.json's path; free roam writes its `stay_mode` there. */
-  configPath: string;
+  /** `settings.save` of the main window: free roam saves `beh.stay` as the settings page does, with its effects. */
+  saveSettings(changes: Record<string, string>): Promise<{ error?: string }>;
+  /** Tells open settings pages which config.json keys changed. */
+  settingsChanged(keys: string[]): void;
   /** The renderer link; null without one. */
   link: {
     clickThroughAll: boolean;
@@ -130,14 +130,11 @@ export function interactionShell(o: InteractionOptions): Interaction {
         });
       },
       freeRoam: () => {
-        // Throws for a config.json that exists but does not read: writing over it would drop every other key.
-        const before = readObject(o.configPath);
-        const stay = !['stay', 'bust'].includes(before.stay_mode as string);
-        const saved = { ...before, stay_mode: stay ? 'stay' : 'roam' };
-        writeObject(o.configPath, saved);
-        o.desktop()?.pushState();
-        void o.request('PUT', '/behavior/switches', behaviorSwitches(saved)).then((r) => r.status, () => 0).then((status) => {
-          if (status !== 200) o.log(`behavior switches put status=${status}`);
+        const stay = !['stay', 'bust'].includes(o.settings().stay_mode as string);
+        void o.saveSettings({ 'beh.stay': stay ? 'stay' : 'roam' }).then((r) => {
+          if (r.error !== undefined) return o.log(`free roam not saved: ${r.error}`);
+          o.desktop()?.pushState();
+          o.settingsChanged(['stay_mode']);
         });
       },
       clickThroughAll: () => {
