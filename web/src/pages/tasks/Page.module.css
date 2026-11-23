@@ -132,25 +132,8 @@
 
 .search {
   display: flex;
-  align-items: center;
-  gap: 6px;
   width: 150px;
   flex: none;
-}
-
-.search input {
-  all: unset;
-  flex: 1;
-  min-width: 0;
-  font-size: 12px;
-}
-
-.search input::placeholder {
-  color: var(--ef-paper-text-2);
-}
-
-.search:focus-within {
-  box-shadow: 0 0 0 2px var(--ef-accent);
 }
 
 .scroll {
@@ -220,7 +203,7 @@
   }
 
   .search {
-    width: 120px;
+    width: 136px;
   }
 }
 

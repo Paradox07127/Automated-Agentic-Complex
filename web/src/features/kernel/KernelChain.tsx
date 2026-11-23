@@ -40,7 +40,7 @@ export function kernelNodes(r: RuntimeInfo): ChainNode[] {
   });
 }
 
-const REASON = ['本机没有发现可执行文件，安装后重新检测', '角色入口不可用，刷新或更新工具后重新检测'];
+const REASON = ['本机没有发现可执行文件，安装后重新检测', '角色入口不可用，请更新 CLI 后重新检测'];
 
 export function KernelChain({ runtime, alternative = null, surface = 'main', onCopy, onRunInTerminal, onSwitch, onRecheck }: KernelChainProps) {
   const bi = kernelBreak(runtime);

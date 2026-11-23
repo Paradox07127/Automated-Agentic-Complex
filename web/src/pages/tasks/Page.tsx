@@ -9,7 +9,7 @@ import { PageHeaderSlot } from '../../shell/headerSlot';
 import { useGo } from '../../shell/nav';
 import { isPluginOff, usePlugins } from '../../shell/plugins';
 import { useToast } from '../../shell/toast';
-import { Btn, Empty, Icon, Modal, Skel, Tabs } from '../../ui';
+import { Btn, Empty, Modal, SearchField, Skel, Tabs } from '../../ui';
 import { PowerState } from '../../ui/game';
 import { TasksLoadError } from '../../data/tasksBase';
 import { useCharacters } from '../chat/useChatData';
@@ -25,7 +25,6 @@ import { ScheduleDetail } from './ScheduleDetail';
 import { useContextOptions, useSchedules, useScheduleWrites } from './schedules';
 import { TaskDetail } from './TaskDetail';
 import { useTaskDesk } from './useTaskDesk';
-import detail from './Detail.module.css';
 import blank from './Empty.module.css';
 import styles from './Page.module.css';
 
@@ -322,10 +321,10 @@ export function TasksPage() {
               count={count}
               extra={
                 tab === 'done' && (
-                  <label className={`${detail.field} ${styles.search}`} data-search="">
-                    <Icon name="search" size={14} />
-                    <input aria-label="搜索已完成的任务" placeholder="搜标题和结果" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && q && (e.stopPropagation(), e.preventDefault(), setQ(''))} />
-                  </label>
+                  // Esc that clears the search stops here, so it does not also leave the editor or the note.
+                  <span className={styles.search} onKeyDown={(e) => e.key === 'Escape' && q && e.stopPropagation()}>
+                    <SearchField value={q} label="搜索已完成的任务" placeholder="搜标题和结果" onChange={setQ} />
+                  </span>
                 )
               }
             />

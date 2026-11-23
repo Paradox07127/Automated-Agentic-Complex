@@ -87,7 +87,7 @@
 }
 
 .box .warning text.limT {
-  fill: var(--ef-power-low);
+  fill: var(--ef-warn-text);
 }
 
 .danger .lim {

@@ -3,7 +3,7 @@ import { getBridge, type BridgeError, type HotkeyCheck } from '../../../bridge';
 import { hotkeyText, keyText } from '../../../bridge/platformText';
 import { useSettings } from '../ctx';
 import { groupDesc } from '../groups';
-import { Btn } from '../../../ui';
+import { Btn, Kbd } from '../../../ui';
 import { KeyCell } from '../kit';
 import { labelOf, useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
@@ -143,15 +143,11 @@ export function KeysGroup() {
             {fixed
               .filter(([id]) => shown(id))
               .map(([id, title, key]) => (
-                <span key={id} id={`set-${id}`} data-row={id} className={styles.fixedKey}>
-                  <span>{title}</span>
-                  <kbd>{keyText(key)}</kbd>
+                <span key={id} id={`set-${id}`} data-row={id}>
+                  <Kbd variant="bar" items={[{ keys: capsOf(keyText(key)), label: title }]} />
                 </span>
               ))}
-            <span className={styles.fixedKey}>
-              <span>切换分组</span>
-              <kbd>Q / E</kbd>
-            </span>
+            <Kbd variant="bar" items={[{ keys: ['Q', 'E'], label: '切换分组' }]} />
           </div>
         </Slab>
       </SetSection>

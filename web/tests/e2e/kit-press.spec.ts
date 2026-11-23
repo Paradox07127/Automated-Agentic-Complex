@@ -24,6 +24,25 @@ const moves = (loc: Locator) =>
   );
 
 const num = (loc: Locator, read: (el: Element) => string) => loc.evaluate(read).then(Number);
+/** `rgb(a)(r, g, b[, a])`, `color(srgb r g b[ / a])` or `oklab(L a b[ / a])` as sRGB [r, g, b, a] in 0–1. */
+function srgb(css: string): number[] {
+  const rgb = /^rgba?\(([^)]*)\)$/.exec(css);
+  const fn = /^(color\(srgb|oklab\() ?([^)/]*)(?:\/([^)]*))?\)$/.exec(css);
+  if (rgb) {
+    const [r = NaN, g = NaN, b = NaN, a = 1] = rgb[1]!.split(',').map(Number);
+    return [r / 255, g / 255, b / 255, a];
+  }
+  if (!fn) throw new Error(`not an sRGB or Oklab colour: ${css}`);
+  const [x = NaN, y = NaN, z = NaN] = fn[2]!.trim().split(/\s+/).map(Number);
+  const alpha = fn[3] ? Number(fn[3]) : 1;
+  if (fn[1] === 'color(srgb') return [x, y, z, alpha];
+  // Oklab to linear sRGB (Ottosson's matrices), then the sRGB transfer curve.
+  const l = (x + 0.3963377774 * y + 0.2158037573 * z) ** 3;
+  const m = (x - 0.1055613458 * y - 0.0638541728 * z) ** 3;
+  const s = (x - 0.0894841775 * y - 1.291485548 * z) ** 3;
+  const lin = [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s, -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s];
+  return [...lin.map((v) => (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055)), alpha];
+}
 /** Names of the CSS animations running on el (pseudo-elements included), as one string: CSS modules hash the keyframe names. */
 const running = (loc: Locator) =>
   loc.evaluate((el) =>
@@ -175,16 +194,20 @@ test('DarkRow: the row plate lightens on hover and once more while pressed', asy
   const row = page.locator('[data-stub="DarkRow"]:not([data-selected]):has(> button)').first();
   const hit = row.locator(':scope > button').last();
   await quiet(hit);
-  const bg = () => row.evaluate((el) => getComputedStyle(el).backgroundColor);
+  // The plate is mixed in CSS, so the computed value may come back as color(srgb …) or oklab(…) rather than rgba(…).
+  const off = (want: string) => async () => {
+    const got = srgb(await row.evaluate((el) => getComputedStyle(el).backgroundColor));
+    return Math.max(...srgb(want).map((v, i) => Math.abs(v - (got[i] ?? NaN))));
+  };
   const rest = await moves(row);
-  expect(await bg()).toBe('rgba(70, 70, 70, 0.88)');
+  expect(await off('rgba(70, 70, 70, 0.88)')()).toBeLessThanOrEqual(1 / 255);
   await hit.hover();
-  await expect.poll(bg).toBe('rgba(84, 84, 84, 0.92)');
+  await expect.poll(off('rgba(84, 84, 84, 0.92)')).toBeLessThanOrEqual(1 / 255);
   await page.mouse.down();
-  await expect.poll(bg).toBe('rgba(96, 96, 96, 0.94)');
+  await expect.poll(off('rgba(96, 96, 96, 0.94)')).toBeLessThanOrEqual(1 / 255);
   expect(await moves(row)).toBe(rest);
   await page.mouse.up();
-  await expect.poll(bg).toBe('rgba(84, 84, 84, 0.92)');
+  await expect.poll(off('rgba(84, 84, 84, 0.92)')).toBeLessThanOrEqual(1 / 255);
 });
 
 test('Stepper: the arrow cells take the ColorTint light of the game\'s small buttons', async ({ page }) => {

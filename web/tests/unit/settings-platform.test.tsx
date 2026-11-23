@@ -85,8 +85,8 @@ describe('settings on the Windows shell', () => {
     await mount('&group=keys');
     // A combo is a cap per key, split where the Windows text has a +.
     await waitFor(() => expect([...row('hk_quick')!.querySelectorAll('kbd')].map((k) => k.textContent)).toEqual(['Ctrl', 'Space']));
-    expect(row('hk_cmdk')?.textContent).toContain('Ctrl+K');
-    expect(row('hk_page_chat')?.textContent).toContain('Ctrl+2');
+    expect([...row('hk_cmdk')!.querySelectorAll('kbd')].map((k) => k.textContent)).toEqual(['Ctrl', 'K']);
+    expect([...row('hk_page_chat')!.querySelectorAll('kbd')].map((k) => k.textContent)).toEqual(['Ctrl', '2']);
     expect(document.body.textContent).not.toMatch(/[⌘⌃⌥⇧]/);
     cleanup();
     await mount('&group=speak');

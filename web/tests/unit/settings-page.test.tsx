@@ -156,7 +156,7 @@ describe(' 快捷键', () => {
     await mount('&group=keys');
     expect(await screen.findByText('屏幕识读')).toBeTruthy();
     expect(screen.getByText('快速输入')).toBeTruthy();
-    expect(document.querySelector('#set-hk_page_overview')?.textContent).toBe('每日简报⌘1');
+    expect(document.querySelector('#set-hk_page_overview')?.textContent).toBe('⌘1每日简报');
     expect(document.querySelector('#set-hk_page_memory')?.textContent).toContain('⌘3');
   });
 

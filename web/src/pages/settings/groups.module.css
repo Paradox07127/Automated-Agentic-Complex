@@ -201,29 +201,11 @@
   gap: 8px;
 }
 
-/* Fixed in-window keys: label left, key right, as many columns as fit. */
+/* Fixed in-window keys: one key legend each, as many columns as fit. */
 .fixedKeys {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: 8px 18px;
-  font-size: 13px;
-}
-
-.fixedKey {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  color: var(--ef-text-2);
-}
-
-.fixedKey kbd {
-  display: inline-flex;
-  align-items: center;
-  height: 26px;
-  padding: 0 6px;
-  color: var(--ef-text-1);
-  font: 600 12px var(--ef-font-num);
 }
 
 /* Outbound plate: one line of what leaves the computer and where it goes. */

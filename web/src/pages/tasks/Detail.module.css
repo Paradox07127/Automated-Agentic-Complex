@@ -161,28 +161,6 @@
   gap: 8px;
 }
 
-/* White capsule input (chat v2 .field) */
-.field {
-  height: 34px;
-  min-width: 0;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 999px;
-  font-size: 13px;
-  color: var(--ef-field-text);
-  background: var(--ef-field);
-  box-shadow: 0 0 0 1px var(--ef-field-border);
-}
-
-.field::placeholder {
-  color: var(--ef-paper-text-2);
-}
-
-.field:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--ef-accent);
-}
-
 .kv {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
