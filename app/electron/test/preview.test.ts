@@ -62,10 +62,10 @@ class FakePresenter {
 const selection = (o: Partial<PreviewSelection> = {}): PreviewSelection => ({ bundle: '/lib/si/runtime/bundle.json', sha256: 'a'.repeat(64),
   character: 'si', clip: null, facial: null, rate: 1, appearance: null, request: 0, modSettings: null, loop: false, ...o });
 
-function session(firstFrameTimeout = 5000) {
+function session(firstFrameTimeout = 5000, releaseAfter = 5000) {
   const transport = new FakeTransport(), presenter = new FakePresenter(), logs: string[] = [], progress: (number | null)[] = [];
   const s = new PreviewSession<string>({ transport, service: 'test.preview', presenter,
-    log: (l) => logs.push(l), firstFrameTimeout, progress: (f) => progress.push(f) });
+    log: (l) => logs.push(l), firstFrameTimeout, releaseAfter, progress: (f) => progress.push(f) });
   return { s, transport, presenter, logs, progress };
 }
 
@@ -119,6 +119,47 @@ test('off screen it pauses the service and acks frames undrawn; back on screen i
   presenter.active = false;
   s.syncPlayback();
   assert.deepEqual(transport.sent.at(-1), { op: 'pause' });
+  s.disconnect();
+});
+
+test('off screen past releaseAfter it ends the connection; the next load connects anew and does not replay a drawn one-shot', async () => {
+  const { s, transport, presenter } = session(5000, 20);
+  const loaded = s.load(selection({ clip: 'wave' }));
+  transport.emit({ event: 'frame', load_id: 1 }, 'surface-a', 1);
+  presenter.finish();
+  await loaded;
+  presenter.active = false;
+  s.syncPlayback();
+  assert.deepEqual(transport.sent.at(-1), { op: 'pause' });
+  await new Promise((r) => setTimeout(r, 60));
+  assert.equal(transport.stops, 1, 'the service process can exit');
+  presenter.active = true;
+  s.syncPlayback();
+  assert.deepEqual(transport.sent.at(-1), { op: 'pause' }, 'nothing to resume on an ended connection');
+  const again = s.load(selection({ clip: 'wave' }));
+  assert.equal(transport.connections.length, 2);
+  assert.deepEqual(transport.sent.at(-1), { op: 'load', bundle: '/lib/si/runtime/bundle.json', sha256: 'a'.repeat(64), character: 'si',
+    rate: 1, load_id: 2 }, 'her idle, not the drawn one-shot');
+  transport.emit({ event: 'frame', load_id: 2 }, 'surface-b', 1);
+  presenter.finish();
+  await again;
+  s.disconnect();
+});
+
+test('back on screen before releaseAfter it resumes on the same connection', async () => {
+  const { s, transport, presenter } = session(5000, 40);
+  const loaded = s.load(selection());
+  transport.emit({ event: 'frame', load_id: 1 }, 'surface-a', 1);
+  presenter.finish();
+  await loaded;
+  presenter.active = false;
+  s.syncPlayback();
+  await new Promise((r) => setTimeout(r, 10));
+  presenter.active = true;
+  s.syncPlayback();
+  await new Promise((r) => setTimeout(r, 60));
+  assert.equal(transport.stops, 0);
+  assert.deepEqual(transport.sent.at(-1), { op: 'resume' });
   s.disconnect();
 });
 

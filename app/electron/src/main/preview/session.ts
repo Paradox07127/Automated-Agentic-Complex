@@ -1,5 +1,5 @@
 // The character page's live preview over the preview XPC service (C3 CONTRACT 「附录：预览 XPC」):
-// one connection while the window lives, `pause` while the preview is not on screen and
+// one connection while the window lives and the preview was on screen within `releaseAfter`, `pause` while it is not on screen and
 // `resume` after, `ack` once the GPU is through with a frame, frames of an older `load_id` dropped (and acked).
 
 /** A frame's `surface` as the addon (native/mac/preview.m) hands it over. */
@@ -87,6 +87,8 @@ export interface SessionOptions<S> {
   log(line: string): void;
   /** ms to wait for a load's first frame. */
   firstFrameTimeout?: number;
+  /** ms off screen before the connection ends, so the service process exits and frees its GPU memory. */
+  releaseAfter?: number;
   /** A load that builds anew: its share done (the service's `progress`, 0.95 at `loaded`); null once it is drawn, fails or is replaced. */
   progress?(fraction: number | null): void;
 }
@@ -112,6 +114,7 @@ export class PreviewSession<S> {
   private servicePaused = false;
   private loadID = 0;
   private timeout: ReturnType<typeof setTimeout> | null = null;
+  private releaseTimer: ReturnType<typeof setTimeout> | null = null;
   private loadStarted = 0;
   private framesReported = 0;
   /** When the last `stats` line went to the log (performance.now ms). */
@@ -127,7 +130,7 @@ export class PreviewSession<S> {
 
   /** Plays `value`; resolves once a frame of it is drawn, rejects when the service reports an error or goes away. */
   load(value: PreviewSelection): Promise<void> {
-    if (!sameSelection(value, this.selection)) {
+    if (!this.connected || !sameSelection(value, this.selection)) {
       // The service keeps a view across loads and connections (a reload can reuse it), so a new connection sets this session's
       // first; a service that starts with it applies it to the actor its load builds.
       if (this.connect()) this.send({ op: 'view', ...(this.lastView ?? DEFAULT_VIEW) });
@@ -187,6 +190,10 @@ export class PreviewSession<S> {
   /** The presenter's `active` changed: `pause` or `resume` to match it. */
   syncPlayback(): void {
     const active = this.options.presenter.active;
+    if (active || !this.connected) {
+      if (this.releaseTimer !== null) clearTimeout(this.releaseTimer);
+      this.releaseTimer = null;
+    } else this.releaseTimer ??= setTimeout(() => this.release(), this.options.releaseAfter ?? 20_000);
     if (!this.connected || this.selection === null || this.servicePaused !== active) return;
     this.servicePaused = !active;
     this.send({ op: this.servicePaused ? 'pause' : 'resume' });
@@ -195,10 +202,28 @@ export class PreviewSession<S> {
 
   /** The window is gone: ends the connection; nothing of it is handled after. */
   disconnect(): void {
+    this.endConnection();
+    this.fail('预览已关闭', false);
+  }
+
+  /** Off screen for `releaseAfter`: ends the connection but keeps the selection, so the next load of it does not replay a drawn one-shot. */
+  private release(): void {
+    this.endConnection();
+    if (this.timeout !== null) clearTimeout(this.timeout);
+    this.timeout = null;
+    this.endProgress();
+    this.phase = { kind: 'idle' };
+    const ended = this.waiters;
+    this.waiters = [];
+    for (const w of ended) w.reject(new PreviewFailure('预览已关闭'));
+  }
+
+  private endConnection(): void {
+    if (this.releaseTimer !== null) clearTimeout(this.releaseTimer);
+    this.releaseTimer = null;
     if (this.connected) this.options.transport.stop();
     this.connected = false;
     this.connectionID += 1;
-    this.fail('预览已关闭', false);
   }
 
   private settled(): Promise<void> {
