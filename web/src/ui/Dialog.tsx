@@ -37,10 +37,12 @@ if (typeof document !== 'undefined') {
 const openStack: object[] = [];
 
 /**
- * Shared by Dialog and Sheet: focuses the first control outside `[data-part="head"]` and InfoTips on mount, closes on Esc
- * (only the topmost overlay, unless a child already handled it), returns focus on unmount. The returned handler keeps Tab inside `panel`.
+ * Shared by Dialog, Sheet and Modal: focuses `initial`'s pick, else the first control outside `[data-part="head"]` and InfoTips, on
+ * mount, closes on Esc (only the topmost overlay, unless a child already handled it), returns focus on unmount. The returned handler
+ * keeps Tab inside `panel`.
  */
-export function useOverlayFocus(panel: RefObject<HTMLElement | null>, onClose: (() => void) | undefined) {
+export function useOverlayFocus(panel: RefObject<HTMLElement | null>, onClose: (() => void) | undefined,
+  initial?: (panel: HTMLElement) => HTMLElement | null) {
   const latest = useRef(onClose);
   latest.current = onClose;
 
@@ -48,7 +50,8 @@ export function useOverlayFocus(panel: RefObject<HTMLElement | null>, onClose: (
     const active = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
     const prev = active ?? lastPressed;
     const el = panel.current;
-    const first = Array.from(el?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []).find((n) => !n.closest('[data-part="head"], [data-stub="InfoTip"]'));
+    const first = (el && initial?.(el))
+      ?? Array.from(el?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []).find((n) => !n.closest('[data-part="head"], [data-stub="InfoTip"]'));
     (first ?? el)?.focus({ preventScroll: true });
     const self = {};
     openStack.push(self);

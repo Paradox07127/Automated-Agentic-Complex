@@ -1,7 +1,8 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
+import { useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { gameClips, type GameClip } from '../design/gameClips.generated';
 import { Btn } from './Btn';
+import { useOverlayFocus } from './Dialog';
 import { Frosted, useGameClip } from './fx';
 import styles from './Modal.module.css';
 import { runsEnd, startClip } from './ToggleClip';
@@ -30,20 +31,6 @@ export interface ModalProps {
   onConfirm?: () => void;
   /** 取消 / esc */
   onCancel?: () => void;
-}
-
-const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
-// WebKit does not focus a clicked button, so activeElement at open time can be <body>; remember the pressed control instead.
-let lastPressed: HTMLElement | null = null;
-if (typeof document !== 'undefined') {
-  document.addEventListener(
-    'pointerdown',
-    (e) => {
-      lastPressed = e.target instanceof Element ? e.target.closest<HTMLElement>(`${FOCUSABLE}, a[href], [role="switch"]`) : null;
-    },
-    true,
-  );
 }
 
 /** Element the main-window shell provides so a dialog covers the whole window, sidebar included. */
@@ -105,40 +92,9 @@ function ModalBody({ title, note, children, warning, danger, confirmLabel, cance
   useExitFade(scrim, gameClips.popupOut);
   useGameClip(gameClips.popupIn, scrim, { autoplay: true });
   const ok = !confirmWord || word.trim() === confirmWord;
-  const latest = useRef(onCancel);
-  latest.current = onCancel;
-
-  useEffect(() => {
-    const active = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
-    const prev = active ?? lastPressed;
-    const el = panel.current;
-    // Dangerous or irreversible: start on the safe choice / the confirm word; otherwise on confirm.
-    const first = confirmWord ? el?.querySelector<HTMLElement>('input') : el?.querySelector<HTMLElement>(danger ? '[data-role="cancel"] button' : '[data-role="confirm"] button');
-    first?.focus({ preventScroll: true });
-    const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        latest.current?.();
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      if (prev?.isConnected) prev.focus();
-    };
-    // Mount-only: focus once when the dialog opens.
-  }, []);
-
-  const trap = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key !== 'Tab' || !panel.current) return;
-    const list = Array.from(panel.current.querySelectorAll<HTMLElement>(FOCUSABLE));
-    if (list.length === 0) return;
-    // Move focus ourselves on every Tab: WebKit's default order skips buttons and would leave the dialog.
-    e.preventDefault();
-    const at = list.indexOf(document.activeElement as HTMLElement);
-    const next = e.shiftKey ? (at <= 0 ? list.length - 1 : at - 1) : (at + 1) % list.length;
-    list[next]?.focus({ preventScroll: true });
-  };
+  // Dangerous or irreversible: start on the safe choice / the confirm word; otherwise on confirm.
+  const trap = useOverlayFocus(panel, onCancel, (el) => (confirmWord ? el.querySelector<HTMLElement>('input')
+    : el.querySelector<HTMLElement>(danger ? '[data-role="cancel"] button' : '[data-role="confirm"] button')));
 
   const confirmVariant = danger ? 'danger' : 'primary';
 
