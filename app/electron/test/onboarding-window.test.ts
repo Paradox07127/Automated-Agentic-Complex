@@ -13,6 +13,7 @@ import routes from '../../../protocol/ui-bridge/routes.json' with { type: 'json'
 import { type Handler, handle } from '../src/common/bridge.ts';
 import { silentSource } from '../src/common/feed.ts';
 import { PageSession } from '../src/common/page.ts';
+import type { ServiceView } from '../src/common/runtime.ts';
 import { type HelperAnswer, PushToTalk, type VoiceTrial } from '../src/common/push-to-talk.ts';
 import { ORIGIN } from '../src/common/ui.ts';
 import { onboardingWindow, type OnboardingDestination, windowOptions } from '../src/main/onboarding/window.ts';
@@ -526,15 +527,18 @@ test('复制诊断 lists the renderer\'s real state beside agentd\'s', async () 
       supervisor: { state: () => ({ kind: 'running' }), pid: () => 1, restart: () => {}, avatar: () => ({ kind: 'failed', reason: 'exit 3' }) },
     }));
     assert.ok((await call(ops, 'app.action', ['copy_diagnostics'], undefined, 'main')).ok);
-    assert.deepEqual(copied.split('\n').slice(2, 7), ['子进程', 'agentd: running', 'avatar: failed(exit 3)', 'tunnel: stopped', '']);
+    assert.deepEqual(copied.split('\n').slice(2, 6), ['子进程', 'agentd: running', 'avatar: failed(exit 3)', '']);
     assert.equal(copied.split('\n')[0], 'Agentic Complex 0 (?)');
+    const view = (id: string): ServiceView => (id === 'tts' ? { mode: 'ssh', state: { kind: 'external' }, pid: null, detail: null }
+      : { mode: 'url', state: null, pid: null, detail: null });
     const tunneled = registry(context(dir, {
       surface: 'main', clipboard: { writeText: (text) => { copied = text; } },
-      supervisor: { state: () => ({ kind: 'running' }), pid: () => 1, restart: () => {}, avatar: () => ({ kind: 'running' }),
-        tunnel: () => ({ kind: 'external' }) },
+      supervisor: { state: () => ({ kind: 'running' }), pid: () => 1, restart: () => {}, avatar: () => ({ kind: 'running' }) },
+      services: { view, start: async () => ({ ok: true, line: null }), stop: async () => ({ ok: true, line: null }),
+        restart: async () => ({ ok: true, line: null }), saved: () => {} },
     }));
     assert.ok((await call(tunneled, 'app.action', ['copy_diagnostics'], undefined, 'main')).ok);
-    assert.equal(copied.split('\n')[5], 'tunnel: external');
+    assert.deepEqual(copied.split('\n').slice(5, 7), ['tts: external', '']);
     const built = registry(context(dir, { surface: 'main', clipboard: { writeText: (text) => { copied = text; } }, app: { version: '1.2', os: 'test', build: '77' } }));
     assert.ok((await call(built, 'app.action', ['copy_diagnostics'], undefined, 'main')).ok);
     assert.equal(copied.split('\n')[0], 'Agentic Complex 1.2 (77)');

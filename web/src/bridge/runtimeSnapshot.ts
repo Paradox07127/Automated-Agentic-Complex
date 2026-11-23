@@ -1,6 +1,7 @@
 // app.runtime / app.onRuntime payload.
+import type { ServiceId, ServiceMode } from './services';
 
-export type RuntimeProcessName = 'agentd' | 'avatar' | 'tunnel';
+export type RuntimeProcessName = 'agentd' | 'avatar';
 
 export type RuntimeChildState =
   | 'stopped' | 'starting' | 'running' | 'backoff' | 'port_in_use' | 'gpu_hold' | 'external' | 'failed';
@@ -14,6 +15,24 @@ export interface RuntimeProcess {
   reason: string | null;
   /** agentd's /health stage or the avatar's loading stage. */
   stage: string | null;
+}
+
+/** The process the shell runs for an `ssh` (the tunnel) or `local` service. */
+export interface RuntimeServiceState {
+  kind: RuntimeChildState;
+  /** Only in `backoff`. */
+  seconds?: number;
+  /** Only in `failed`. */
+  reason?: string;
+}
+
+export interface RuntimeService {
+  mode: ServiceMode;
+  /** null under `url` and `off`. */
+  state: RuntimeServiceState | null;
+  pid: number | null;
+  /** The last failure's text. */
+  detail: string | null;
 }
 
 /** Ids only; names come from `character.list`. */
@@ -38,9 +57,9 @@ export interface RuntimeSnapshot {
     reason: string | null;
     retry_after_s: number | null;
     muted: boolean;
-    /** null when no tunnel host is configured. */
-    tunnel: RuntimeChildState | null;
   };
+  services: Record<ServiceId, RuntimeService>;
   voice_input: 'on' | 'off' | 'denied';
-  degraded: { source: 'agentd' | 'config' | 'tunnel' | 'voice' | 'avatar'; code: string; detail: string | null }[];
+  /** A `service` entry's `detail` is the service id. */
+  degraded: { source: 'agentd' | 'config' | 'service' | 'voice' | 'avatar'; code: string; detail: string | null }[];
 }

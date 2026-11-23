@@ -8,7 +8,7 @@ import type { LogLevel, LogLine, LogsOps, LogSourceId, LogSourceInfo } from '../
 
 const SIZES: Record<LogSourceId, [string, number]> = {
   agentd: ['agentd.log', 1_240_000], companion: ['companion.log', 78_300], avatar: ['avatar.log', 529_400], helper: ['helper.log', 0],
-  tunnel: ['tunnel.log', 3_100], ui: ['ui.log', 5_000], motion: ['motion.jsonl', 214_400],
+  services: ['services.log', 3_100], ui: ['ui.log', 5_000], motion: ['motion.jsonl', 214_400],
 };
 const ORDER = Object.keys(SIZES) as LogSourceId[];
 
@@ -21,9 +21,9 @@ function seed(): Row[] {
     L('companion', ago(4170), 'info', 'supervisor: STATUS agentd=running'),
     L('agentd', ago(4168), 'info', 'agentd: listening on 127.0.0.1:48800'),
     L('avatar', ago(4167), 'info', 'AAC_HOSTLINK connected protocol=3'),
-    L('tunnel', ago(4161), 'err', 'ssh: connect to host tts-box port 22: Connection refused'),
-    L('companion', ago(4160), 'err', 'supervisor: STATUS tunnel=backoff(5)'),
-    L('tunnel', ago(4155), 'info', 'ssh: tunnel up 127.0.0.1:50021 -> tts-box:50021'),
+    L('services', ago(4161), 'err', 'tts: ssh: connect to host tts-box port 22: Connection refused'),
+    L('companion', ago(4160), 'err', 'supervisor: STATUS tts=backoff(5)'),
+    L('services', ago(4155), 'info', 'tts: ssh: tunnel up 127.0.0.1:50021 -> tts-box:50021'),
     L('motion', ago(4090), 'dbg', 'think · relax_loop → idle · 0.72 s'),
     L('avatar', ago(3600), 'dbg', 'AAC_HOSTLINK fps=60 p95=15.6ms gpu=6.1ms'),
     L('companion', ago(3118), 'warn', 'permissions: automation not granted; browser url and terminal jump disabled'),

@@ -1,6 +1,6 @@
 // agentd's supervision:
 // the states, the restart backoff, the health deadlines and the C9 command line. Processes and timers are src/main's.
-import { type Config, firstMissingComponent, launchAgentdDir, type ShellPlatform } from './config.ts';
+import { type Config, firstMissingComponent, launchAgentdDir, SERVICE_IDS, type ShellPlatform } from './config.ts';
 import { PLUGIN_IDS } from './plugins.ts';
 
 export type ChildState =
@@ -210,12 +210,14 @@ export function agentdArguments(config: Config, ctx: LaunchContext): string[] {
   args.push('--break-reminder-minutes', String(Math.max(0, config.breakReminderMinutes)));
   args.push('--water-reminder-minutes', String(Math.max(0, config.waterReminderMinutes)));
   if (config.mute) args.push('--mute');
-  if (config.ttsURL !== '') args.push('--tts-url', config.ttsURL);
+  for (const id of SERVICE_IDS) {
+    const s = config.services[id];
+    if (s.mode === 'off') continue;
+    args.push(`--${id}-url`, s.url);
+    if (s.mode === 'ssh' && s.start_script !== '') args.push(`--${id}-ensure-host`, s.ssh_host, `--${id}-ensure-script`, s.start_script);
+  }
   // Pass the reference basename even before a credential is configured (C10).
   args.push('--tts-token-file', ttsTokenFile(config.supportDir));
-  if (config.ttsTunnelHost !== '' && config.ttsURL !== '' && config.ttsEnsureScript !== '') {
-    args.push('--tts-ensure-host', config.ttsTunnelHost, '--tts-ensure-script', config.ttsEnsureScript);
-  }
   return args;
 }
 

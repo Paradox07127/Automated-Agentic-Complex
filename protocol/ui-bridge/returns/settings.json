@@ -64,11 +64,7 @@
         "rnd.wrap": false,
         "scn.parallax": false,
         "rnd.sway": false,
-        "tts": "value",
         "asr": "value",
-        "ttsUrl": "value",
-        "ttsTunnelHost": "value",
-        "ttsEnsureScript": "value",
         "proactive": "value",
         "rest": "value",
         "water": "value",
@@ -124,20 +120,6 @@
     "value": {
       "restart": "none",
       "notApplied": []
-    }
-  },
-  {
-    "op": "settings.save",
-    "surface": "main",
-    "args": [
-      {
-        "ttsUrl": "http://gpu-box:19888"
-      }
-    ],
-    "value": {
-      "restart": "backend",
-      "notApplied": [],
-      "ttsTokenCleared": true
     }
   },
   {

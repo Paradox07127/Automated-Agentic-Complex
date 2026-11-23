@@ -46,28 +46,32 @@ const wrapperOf = (client: QueryClient) =>
   };
 
 
-describe('diag tunnel rows', () => {
-  it('shows the voice and decision tunnels supervisor.state reports, without a restart', () => {
+describe('diag service rows', () => {
+  it('shows the ssh and local services supervisor.state reports by name, without a restart', () => {
     const rows = processesOf(
       {
         agentd: { state: 'running', pid: 1 },
         avatar: { state: 'running', pid: 2 },
-        tunnel: { state: 'running', pid: 3 },
+        llm: { state: 'backoff(4)', pid: null, backoff: 4 },
+        tts: { state: 'running', pid: 3 },
       },
       'connected',
     );
-    const tunnel = rows.find((r) => r.key === 'tunnel');
-    expect([tunnel?.name, tunnel?.status_text, tunnel?.restartable, tunnel?.pid]).toEqual(['语音隧道', '运行中', false, 3]);
+    expect(rows.map((r) => r.key)).toEqual(['agentd', 'avatar', 'tts', 'llm']);
+    const tts = rows.find((r) => r.key === 'tts');
+    expect([tts?.name, tts?.status_text, tts?.restartable, tts?.pid]).toEqual(['语音服务', '运行中', false, 3]);
+    const llm = rows.find((r) => r.key === 'llm');
+    expect([llm?.name, llm?.status_text, llm?.backoff_s]).toEqual(['模型服务', '重启中', 4]);
     const { container } = render(
       <Processes rows={rows} error={null} onRetry={() => {}} samples={[]} now={0} metric="cpu" onMetric={() => {}} uptime={{}} agentdGone={false} actions={{}} highlight={null} onRestart={() => {}} onLogs={() => {}} />,
     );
     const restartIn = (key: string) => container.querySelector(`[data-nav-target="proc-${key}"]`)?.textContent?.includes('重启');
-    expect(restartIn('tunnel')).toBe(false);
+    expect(restartIn('tts')).toBe(false);
     expect(restartIn('avatar')).toBe(true);
   });
 
   // The voice is not a process: it is a 总览 row read from /diag/state.
-  it('lists no tunnel row when none is configured, and no voice row', () => {
+  it('lists no service row when none runs under ssh or local, and no voice row', () => {
     const rows = processesOf({ agentd: { state: 'running', pid: 1 }, avatar: { state: 'running', pid: 2 } }, 'connected');
     expect(rows.map((r) => r.key)).toEqual(['agentd', 'avatar']);
   });

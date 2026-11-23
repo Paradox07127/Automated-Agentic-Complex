@@ -2,7 +2,7 @@
 // level, text and continuation lines. The page names a source by id, never by path.
 import { isAgentdError, isCompanionError } from './diagnostics.ts';
 
-export type LogSourceId = 'agentd' | 'companion' | 'avatar' | 'helper' | 'tunnel' | 'ui' | 'motion';
+export type LogSourceId = 'agentd' | 'companion' | 'avatar' | 'helper' | 'services' | 'ui' | 'motion';
 export type LogLevel = 'err' | 'warn' | 'info' | 'dbg';
 
 /** `dir`: `support` is `<support dir>/logs`, `web` the pages' logs dir (config.ts `webLogsDir`). */
@@ -11,7 +11,7 @@ export const LOG_SOURCES: ReadonlyArray<{ id: LogSourceId; file: string; dir: 's
   { id: 'companion', file: 'companion.log', dir: 'support' },
   { id: 'avatar', file: 'avatar.log', dir: 'support' },
   { id: 'helper', file: 'helper.log', dir: 'support' },
-  { id: 'tunnel', file: 'tunnel.log', dir: 'support' },
+  { id: 'services', file: 'services.log', dir: 'support' },
   { id: 'ui', file: 'ui.log', dir: 'web' },
   { id: 'motion', file: 'motion.jsonl', dir: 'support' },
 ];

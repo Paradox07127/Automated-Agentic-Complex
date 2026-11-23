@@ -169,9 +169,9 @@ test('settings.save writes the changed keys and refuses launch keys and bad valu
     const refused = await call('settings.save', { python: '/x' });
     assert.ok(refused.ok);
     assert.match((refused.value as { error: string }).error, /启动参数/);
-    const bad = await call('settings.save', { tts: 'nope' });
+    const bad = await call('settings.save', { asr: 'nope' });
     assert.ok(bad.ok);
-    assert.match((bad.value as { error: string }).error, /可选 remote（远端）/);
+    assert.match((bad.value as { error: string }).error, /可选 auto（跟随系统）/);
     assert.deepEqual(await call('settings.save', { hk_quick: '⌃⌥H' }),
       { ok: true, value: { restart: 'none', notApplied: [], error: '⌃⌥H 已被「显示 / 隐藏角色」占用' } });
     assert.deepEqual(await call('settings.validateHotkey', 'hk_quick', '⌘K'), { ok: true, value: { ok: false, conflictWith: '命令面板' } });
@@ -204,19 +204,66 @@ test('a save of the behavior switches puts them with her hover buttons as they a
   }
 });
 
-test('settings.save refuses an SSH 转发主机 that ssh would read as an option, or with a space or control character', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'settings-'));
+test('services.save refuses an id or record that does not hold, with its code and field, and writes nothing', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'services-'));
   try {
-    writeFileSync(join(dir, 'config.json'), '{}');
-    const ops = registry(context(dir)), page = new PageSession(() => {});
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({ mute: true }));
+    const saved: string[] = [];
+    const ops = registry({ ...context(dir), services: { view: () => ({ mode: 'off', state: null, pid: null, detail: null }),
+      start: async () => ({ ok: true, line: null }), stop: async () => ({ ok: true, line: null }), restart: async () => ({ ok: true, line: null }),
+      saved: (id) => { saved.push(id); } } });
+    const page = new PageSession(() => {});
     const call = (op: string, ...args: unknown[]) => handle('main', page0, { op, args }, ops, page);
-    for (const host of ['-oProxyCommand=touch x', 'gpu box', 'gpu\tbox', 'gpu\u0000box']) {
-      const reply = await call('settings.save', { ttsTunnelHost: host });
-      assert.ok(reply.ok);
-      assert.match((reply.value as { error?: string }).error ?? '', /SSH 转发主机/, JSON.stringify(host));
+    assert.deepEqual(await call('services.save', 'voice', { mode: 'off' }), { ok: true, value: { ok: false, error: 'unknown_service' } });
+    const ssh = { mode: 'ssh', url: 'http://127.0.0.1:9880', ssh_host: 'gpu-box' };
+    const bad: [unknown, string][] = [
+      [null, ''], ['ssh', ''], [{ ...ssh, mode: 'tunnel' }, 'mode'], [{ ...ssh, extra: 1 }, 'extra'], [{ ...ssh, url: 'not a url' }, 'url'],
+      [{ ...ssh, url: 'http://gpu-box:9880' }, 'url'], [{ ...ssh, url: 'http://127.0.0.1/tts' }, 'url'], [{ ...ssh, ssh_host: '' }, 'ssh_host'],
+      ...['-oProxyCommand=touch x', 'gpu box', 'gpu\tbox', 'gpu\u0000box'].map((h): [unknown, string] => [{ ...ssh, ssh_host: h }, 'ssh_host']),
+      [{ mode: 'local', url: 'http://127.0.0.1:11434/v1' }, 'command'], [{ mode: 'local', url: 'http://127.0.0.1:11434/v1', command: [''] }, 'command'],
+      [{ mode: 'local', url: 'http://127.0.0.1:11434/v1', command: 'ollama serve' }, 'command'], [{ ...ssh, cwd: 3 }, 'cwd'],
+    ];
+    for (const [record, field] of bad) {
+      const reply = await call('services.save', 'tts', record);
+      assert.ok(reply.ok, JSON.stringify(record));
+      const value = reply.value as { ok: boolean; error: string; field: string; message: string };
+      assert.deepEqual([value.ok, value.error, value.field], [false, 'invalid_record', field], JSON.stringify(record));
+      assert.match(value.message, /^服务 tts /);
     }
-    assert.deepEqual(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')), {});
-    assert.deepEqual(await call('settings.save', { ttsTunnelHost: 'me@gpu-box' }), { ok: true, value: { restart: 'backend', notApplied: [] } });
+    assert.deepEqual(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')), { mute: true });
+    assert.deepEqual(saved, []);
+    for (const op of ['services.start', 'services.stop', 'services.restart']) {
+      assert.deepEqual(await call(op, 'voice'), { ok: true, value: { ok: false, error: 'unknown_service', line: null } }, op);
+    }
+    writeFileSync(join(dir, 'config.json'), 'not json');
+    assert.deepEqual(await call('services.save', 'tts', ssh), { ok: true, value: { ok: false, error: 'config_unreadable' } });
+    assert.equal(readFileSync(join(dir, 'config.json'), 'utf8'), 'not json');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('services.save writes the record whole, keeps the other keys and services, and restarts the service', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'services-'));
+  try {
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({ mute: true, voice_service: 'remote',
+      services: { motion: { mode: 'url', url: 'http://gpu:48830' } } }));
+    const saved: string[] = [];
+    const ops = registry({ ...context(dir), services: { view: () => ({ mode: 'off', state: null, pid: null, detail: null }),
+      start: async () => ({ ok: true, line: null }), stop: async () => ({ ok: true, line: null }), restart: async () => ({ ok: true, line: null }),
+      saved: (id) => { saved.push(id); } } });
+    const call = (op: string, ...args: unknown[]) => handle('main', page0, { op, args }, ops, new PageSession(() => {}));
+    const local = { mode: 'local', url: 'http://127.0.0.1:11434/v1', command: ['ollama', 'serve'] };
+    assert.deepEqual(await call('services.save', 'llm', local), { ok: true, value: { ok: true } });
+    const file = JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')) as Record<string, unknown>;
+    assert.deepEqual(file, { mute: true, voice_service: 'remote', services: { motion: { mode: 'url', url: 'http://gpu:48830' },
+      llm: { mode: 'local', url: 'http://127.0.0.1:11434/v1', ssh_host: '', start_script: '', command: ['ollama', 'serve'], cwd: '' } } });
+    assert.deepEqual(saved, ['llm']);
+    const read = await call('services.read');
+    assert.ok(read.ok);
+    const all = read.value as Record<string, Record<string, unknown>>;
+    assert.deepEqual([Object.keys(all), all.motion!.url, all.llm!.command, all.tts!.mode], [['tts', 'motion', 'llm'], 'http://gpu:48830',
+      ['ollama', 'serve'], 'off']);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -323,26 +370,23 @@ test('a scope reads only what the shell issued: a picked handle or the handle on
   });
 
 test('a TTS address saved with another origin deletes the token installed for the old service, and the reply says so', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'settings-'));
+  const dir = mkdtempSync(join(tmpdir(), 'services-'));
   try {
     const token = join(dir, 'tts-token.ref');
-    writeFileSync(join(dir, 'config.json'), JSON.stringify({ tts_url: 'http://127.0.0.1:19888' }));
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({ services: { tts: { mode: 'url', url: 'http://127.0.0.1:19888' } } }));
     writeFileSync(token, 'first-reference\n', { mode: 0o600 });
     const ops = registry(context(dir)), page = new PageSession(() => {});
-    const save = (changes: Record<string, unknown>) => handle('main', page0, { op: 'settings.save', args: [changes] }, ops, page);
-    assert.deepEqual(await save({ ttsUrl: 'http://127.0.0.1:19888/v2' }), { ok: true, value: { restart: 'backend', notApplied: [] } });
+    const save = (url: string, mode = 'url') => handle('main', page0, { op: 'services.save', args: ['tts', { mode, url }] }, ops, page);
+    assert.deepEqual(await save('http://127.0.0.1:19888/v2'), { ok: true, value: { ok: true } });
     assert.ok(existsSync(token), 'the same service');
-    assert.deepEqual(await save({ ttsUrl: 'http://gpu-box:19888' }),
-      { ok: true, value: { restart: 'backend', notApplied: [], ttsTokenCleared: true } });
+    assert.deepEqual(await save('http://gpu-box:19888'), { ok: true, value: { ok: true, ttsTokenCleared: true } });
     assert.equal(readFileSync(join(dir, 'tts-token.revoked'), 'utf8').trim(), 'first-reference');
     assert.ok(!existsSync(token), 'the next start sends the first service\'s token to no one');
-    assert.equal(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')).tts_url, 'http://gpu-box:19888');
+    assert.equal(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')).services.tts.url, 'http://gpu-box:19888');
     writeFileSync(token, 'second-reference\n', { mode: 0o600 });
-    assert.deepEqual(await save({ ttsUrl: 'https://gpu-box:19888' }),
-      { ok: true, value: { restart: 'backend', notApplied: [], ttsTokenCleared: true } }, 'another scheme');
+    assert.deepEqual(await save('https://gpu-box:19888'), { ok: true, value: { ok: true, ttsTokenCleared: true } }, 'another scheme');
     assert.ok(!existsSync(token));
-    assert.deepEqual(await save({ ttsUrl: 'https://gpu-box:19889' }),
-      { ok: true, value: { restart: 'backend', notApplied: [], ttsTokenCleared: true } }, 'another port, with no token left');
+    assert.deepEqual(await save('https://gpu-box:19888', 'off'), { ok: true, value: { ok: true, ttsTokenCleared: true } }, 'off');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -514,7 +558,7 @@ test('settings.wipeLocalData empties the web log and keeps config.json', async (
   }
 });
 
-test('settings.save asks before a new 按需启动脚本, and a no writes nothing; an unchanged or cleared script is not asked', async () => {
+test('services.save asks before a new start script, and a no writes nothing; an unchanged or cleared script is not asked', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'ensure-'));
   try {
     writeFileSync(join(dir, 'config.json'), '{}');
@@ -522,17 +566,17 @@ test('settings.save asks before a new 按需启动脚本, and a no writes nothin
     let answer = false;
     const ops = registry({ ...context(dir), confirm: async (text: string) => { asked.push(text); return answer; } });
     const call = (op: string, ...args: unknown[]) => handle('main', page0, { op, args }, ops, new PageSession(() => {}));
-    assert.deepEqual(await call('settings.save', { ttsEnsureScript: '/opt/tts/ensure.sh', mute: true }),
-      { ok: false, error: { code: 'declined', detail: 'settings.save' } });
+    const ssh = { mode: 'ssh', url: 'http://127.0.0.1:9880', ssh_host: 'gpu-box', start_script: '/opt/tts/ensure.sh' };
+    assert.deepEqual(await call('services.save', 'tts', ssh), { ok: true, value: { ok: false, error: 'declined' } });
     assert.equal(asked.length, 1);
-    assert.match(asked[0]!, /\/opt\/tts\/ensure\.sh/);
+    assert.match(asked[0]!, /\/opt\/tts\/ensure\.sh .*gpu-box/);
     assert.equal(readFileSync(join(dir, 'config.json'), 'utf8'), '{}');
     answer = true;
-    assert.equal((await call('settings.save', { ttsEnsureScript: '/opt/tts/ensure.sh' })).ok, true);
-    assert.equal(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')).tts_ensure_script, '/opt/tts/ensure.sh');
+    assert.deepEqual(await call('services.save', 'tts', ssh), { ok: true, value: { ok: true } });
+    assert.equal(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')).services.tts.start_script, '/opt/tts/ensure.sh');
     asked.length = 0;
-    assert.equal((await call('settings.save', { ttsEnsureScript: '/opt/tts/ensure.sh', mute: true })).ok, true);
-    assert.equal((await call('settings.save', { ttsEnsureScript: '' })).ok, true);
+    assert.deepEqual(await call('services.save', 'tts', ssh), { ok: true, value: { ok: true } });
+    assert.deepEqual(await call('services.save', 'tts', { ...ssh, start_script: '' }), { ok: true, value: { ok: true } });
     assert.deepEqual(asked, []);
   } finally {
     rmSync(dir, { recursive: true, force: true });

@@ -154,7 +154,7 @@ function AccountRows() {
         desc="Pi 用它；Codex 和 Claude Code 用自己的登录"
         control={<Select label={labelOf('svc')} value={svc} options={GUIDE_SVC} disabled={ro} onChange={(v) => model.set('svc', v)} />}
       />
-      {(svc === 'anthropic' || svc === 'openai' || svc === 'compatible') && <SetRow id="apiBase" title={labelOf('apiBase')} control={c.text('apiBase', labelOf('apiBase'), 'https://…', ro)} />}
+      {(svc === 'anthropic' || svc === 'openai') && <SetRow id="apiBase" title={labelOf('apiBase')} control={c.text('apiBase', labelOf('apiBase'), 'https://…', ro)} />}
       {svc === 'chatgpt' ? (
         <ChatgptRow />
       ) : (
@@ -269,7 +269,7 @@ export function StepDone({ o, g, missing, goto }: { o: Onboarding; g: GuideSetti
     ],
     [
       '她的声音',
-      her && !her.voice ? <St tone="off">没有声线，只显示文字</St> : g.talks && model.value('tts') === 'remote' ? <St tone="ok">外部服务</St> : <St tone="off">只显示文字</St>,
+      her && !her.voice ? <St tone="off">没有声线，只显示文字</St> : g.talks && g.ctx.diag.voice != null && !g.ctx.diag.voiceNone ? <St tone="ok">外部服务</St> : <St tone="off">只显示文字</St>,
       null,
     ],
     [

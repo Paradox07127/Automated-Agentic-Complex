@@ -83,10 +83,7 @@ type Raw = [id: string, group: RegEntry['group'], section: string, label: string
 
 const RAW: Raw[] = [
   ['mute', 'speak', '声音', '出声', '静音 只显示文字 念出来 语音'],
-  ['tts', 'speak', '声音', '语音服务', 'tts 远端 外部 地址 令牌 测试 连不上 重新连接'],
-  ['ttsUrl', 'speak', '声音', '服务地址', 'tts 外部 地址 https'],
-  ['ttsTunnelHost', 'speak', '声音', 'SSH 转发主机', 'tts ssh 隧道 转发 主机'],
-  ['ttsEnsureScript', 'speak', '声音', '按需启动脚本', 'tts ssh 脚本 按需 启动'],
+  ['tts', 'speak', '声音', '语音', 'tts 外部 令牌 测试 连不上 重新连接'],
   ['asr', 'speak', '声音', '听写语言', '语音识别 识别语言 中文 英文 English 按住说话'],
   ['replyLang', 'speak', '声音', '回复语言', '回答 语言 中文 英文 日文 English 日本語 reply_language 内核'],
   ['speakWhen', 'speak', '主动开口', '她会不会主动找你', '主动发言 主动开口 主动提示 只在我问时 想法'],
@@ -110,7 +107,6 @@ const RAW: Raw[] = [
   ['scope', 'perm', '能力', '她能读的文件夹', '资料范围 文件夹 授权 撤销授权'],
   ['plugins.external_access', 'perm', '能力', '外部智能体接入', 'MCP CLI 接入 外部 agent'],
   ['plugins.motion_generation', 'perm', '能力', '生成新动作', 'Kimodo 动作 生成 GPU'],
-  ['motionUrl', 'perm', '能力', '动作服务地址', 'Kimodo 动作 生成 GPU 地址'],
   ['motionToken', 'perm', '能力', '动作服务令牌', 'Kimodo 动作 令牌 token'],
   ['perms', 'perm', '系统权限', '系统权限', '权限 TCC 屏幕录制 辅助功能 麦克风 输入监控 自动化 通知'],
   ['screenRecording', 'perm', '系统权限', '屏幕录制', 'TCC 截图'],
@@ -184,7 +180,7 @@ const RAW: Raw[] = [
   ['fonts', 'about', '排障', '字体许可', '许可 字体', true],
   ['dev', 'about', '排障', '开发者模式', '诊断 调试 开发'],
   ['agentd', 'about', '排障', '后台服务', 'agentd 重启'],
-  ['devparams', 'about', '排障', '启动参数', 'agentd_port tts_url 配置文件 开发者参数'],
+  ['devparams', 'about', '排障', '启动参数', 'agentd_port 配置文件 开发者参数'],
   ['pause', '@overview', '每日简报 › 暂停', '暂停观察 1 小时', '暂停 观察 截图', true],
   ['dnd_quiet', '@overview', '每日简报 › 免打扰', '免打扰（30 分钟 / 1 小时 / 到明早 / 开会）', '免打扰 开会 会议 共享屏幕 勿扰 静音', true],
   ['beh.stay', '@character', '角色 › 行为', '待在原地 / 自由活动', '行为 半身固定 半身 上半身 机位'],
@@ -235,7 +231,6 @@ const DELETES = new Set(['wintext', 'web', 'typing', 'agent_sessions', 'delrecen
 
 /** Rows nested in a capability's band that protocol/plugins/plugins.json does not list by row. */
 const BAND_ROWS: Readonly<Record<string, PluginId>> = {
-  motionUrl: 'motion_generation',
   motionToken: 'motion_generation',
   hooks2: 'coding_sessions',
   ...Object.fromEntries(
@@ -250,7 +245,7 @@ const ROW_PLUGIN: Readonly<Record<string, PluginId>> = {
 };
 
 /** Rows only a developer needs. */
-const DEV_ROWS: ReadonlySet<string> = new Set(['ttsTunnelHost', 'ttsEnsureScript', 'testcard', 'exe', 'provider', 'mainModel', 'routes', 'runsrc', 'piTools', 'agentd', 'devparams']);
+const DEV_ROWS: ReadonlySet<string> = new Set(['testcard', 'exe', 'provider', 'mainModel', 'routes', 'runsrc', 'piTools', 'agentd', 'devparams']);
 
 export const REGISTRY: RegEntry[] = RAW.map(([id, group, section, label, keywords = '', action]) => {
   const plugin = ROW_PLUGIN[id];

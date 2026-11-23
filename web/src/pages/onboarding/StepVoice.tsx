@@ -4,7 +4,6 @@ import { AgentdCallError, saveVoiceToken, testVoice } from '../../bridge/agentd'
 import { hotkeyText } from '../../bridge/platformText';
 import { voiceText, type VoiceState } from '../../domain/voiceState';
 import { failure } from '../settings/api';
-import { useControls } from '../settings/controls';
 import { useSettings } from '../settings/ctx';
 import { capsOf } from '../settings/groups/Keys';
 import { Btn } from '../../ui';
@@ -29,17 +28,17 @@ function voiceTestFailure(reason: string | null): string {
   return text[reason ?? ''] ?? '没有通过';
 }
 
-/** 她的声音: 出声 and the self-hosted service with its address, token and test; a character without a voice says so instead. */
+/** 她的声音: 出声 and the self-hosted service's state, token and test; a character without a voice says so instead. Its address is
+ *  in the settings' 服务. */
 function HerVoice({ her }: { her: CharacterEntry | null }) {
   const { model, agentdOff, diag } = useSettings();
-  const c = useControls();
   const [token, setToken] = useState('');
   const [saved, setSaved] = useState('');
   const [test, setTest] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
   if (her && !her.voice)
     return <SetRow id="tts" title="她念出回答" desc="没有声线的角色不出声，也不换成系统朗读" control={<Dis>{`${her.name}没有声线，只显示文字`}</Dis>} />;
-  const remote = model.value('tts') === 'remote';
+  const remote = !diag.voiceNone;
   const voice = diag.voice;
   const saveToken = () =>
     void saveVoiceToken(token.trim()).then(
@@ -53,9 +52,8 @@ function HerVoice({ her }: { her: CharacterEntry | null }) {
   const runTest = async () => {
     setTesting(true);
     const t = token.trim() || saved;
-    const url = String(model.value('ttsUrl') ?? '').trim();
     try {
-      const r = await testVoice({ ...(url ? { url } : {}), ...(t ? { token: t } : {}) });
+      const r = await testVoice(t ? { token: t } : {});
       setTest({ ok: r.ok, text: r.ok ? `通过 │ 首声 ${r.first_audio_ms} ms` : voiceTestFailure(r.reason) });
     } catch (e) {
       setTest({ ok: false, text: e instanceof AgentdCallError && e.code === 'no_tts' ? '语音没有启用' : failure(e).text });
@@ -93,22 +91,11 @@ function HerVoice({ her }: { her: CharacterEntry | null }) {
             '不发声，只显示文字'
           )
         }
-        info="把台词合成语音。要你自己部署的语音服务地址和令牌；app 不打包模型，只用你的服务。"
-        control={
-          <GameSeg variant="setting"
-            label={labelOf('tts')}
-            value={String(model.value('tts') ?? '')}
-            options={[
-              { value: 'remote', label: '外部服务' },
-              { value: 'local', label: '关闭' },
-            ]}
-            onChange={(v) => model.set('tts', v)}
-          />
-        }
+        info="把台词合成语音。要你自己部署的语音服务，地址在设置的「服务」里；app 不打包模型，只用你的服务。"
+        control={null}
       />
       {remote && (
         <>
-          <SetRow id="ttsUrl" title={labelOf('ttsUrl')} indent control={c.text('ttsUrl', labelOf('ttsUrl'), 'http://主机:端口')} />
           <SetRow
             id="ttsToken"
             title="令牌"

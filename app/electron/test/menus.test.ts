@@ -111,10 +111,10 @@ test('menus: on Windows the tray icon\'s menu is the Mac\'s without its Command+
 
 test('menus: a config error keeps only the error, 打开主页, 诊断, a grey 重启后台和角色 and 退出', () => {
   const h = ports();
-  const menu = trayMenu({ ...SAMPLE, configError: 'tts_url 不是有效地址' }, h.ports);
-  assert.deepEqual(titles(menu), ['配置错误：tts_url 不是有效地址', '打开主页', '诊断', '重启后台和角色', '退出 Agentic Complex']);
+  const menu = trayMenu({ ...SAMPLE, configError: '服务 tts 的地址无效' }, h.ports);
+  assert.deepEqual(titles(menu), ['配置错误：服务 tts 的地址无效', '打开主页', '诊断', '重启后台和角色', '退出 Agentic Complex']);
   assert.equal(menu.filter((i) => i.type === 'separator').length, 2);
-  assert.equal(find(menu, '配置错误：tts_url 不是有效地址').enabled, false);
+  assert.equal(find(menu, '配置错误：服务 tts 的地址无效').enabled, false);
   assert.equal(find(menu, '重启后台和角色').enabled, false);
   for (const label of ['打开主页', '诊断', '退出 Agentic Complex']) click(find(menu, label));
   assert.deepEqual(h.calls, ['openMain "/home"', 'openMain "/diag"', 'quit']);

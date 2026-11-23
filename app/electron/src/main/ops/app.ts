@@ -4,7 +4,7 @@ import { availableParallelism, loadavg } from 'node:os';
 import { dirname, join } from 'node:path';
 import { stateText } from '../../common/agentd.ts';
 import { BridgeFailure } from '../../common/bridge.ts';
-import type { ShellPlatform } from '../../common/config.ts';
+import { SERVICE_IDS, type ShellPlatform } from '../../common/config.ts';
 import { diagnosticsText, errorLines } from '../../common/diagnostics.ts';
 import { supportDirOf } from '../config.ts';
 import type { Ops, OpsContext } from './context.ts';
@@ -105,8 +105,11 @@ export function appOps(ctx: OpsContext): Ops {
           const logs = join(ctx.config.supportDir ?? supportDirOf(ctx.config.path, dirname(ctx.config.path)), 'logs');
           const agentd = stateText(ctx.supervisor?.state() ?? { kind: 'stopped' });
           const avatar = stateText(ctx.supervisor?.avatar() ?? { kind: 'stopped' });
-          const tunnel = slotText(ctx.supervisor?.tunnel?.() ?? { kind: 'stopped' });
-          ctx.clipboard.writeText(diagnosticsText(ctx.app.version, ctx.app.build ?? '?', [['agentd', agentd], ['avatar', avatar], ['tunnel', tunnel]],
+          const services = SERVICE_IDS.flatMap((id): [string, string][] => {
+            const state = ctx.services?.view(id).state ?? null;
+            return state === null ? [] : [[id, slotText(state)]];
+          });
+          ctx.clipboard.writeText(diagnosticsText(ctx.app.version, ctx.app.build ?? '?', [['agentd', agentd], ['avatar', avatar], ...services],
             errorLines(readText(join(logs, 'companion.log')), readText(join(logs, 'agentd.log')))));
           return null;
         }

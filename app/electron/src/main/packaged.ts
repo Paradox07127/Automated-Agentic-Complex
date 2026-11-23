@@ -180,7 +180,7 @@ export function preparePackaged(options: { resources: string; supportBase: strin
       sense_input_counts: false,
       share_page_text: false, share_window_text: false, share_typed_text: false, share_actions: false, share_agent_sessions: true,
       share_screenshots: false,
-      proactive_speech: false, mute: false, voice_service: 'local', tts_url: '', tts_tunnel_host: '',
+      proactive_speech: false, mute: false,
       system_notifications: false, hide_on_screen_capture: platform !== 'windows',
     };
   }

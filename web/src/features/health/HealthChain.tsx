@@ -20,6 +20,8 @@ export interface HealthChainProps {
   onNode?: (node: 'agentd' | 'runtime' | 'avatar' | 'voice') => void;
   /** The voice's「重新连接」; without it that button goes to the node like the others. */
   onVoiceReset?: () => void;
+  /** The `ssh` and `local` services by name, with their state's text; none shows nothing. */
+  services?: { name: string; text: string }[];
 }
 
 interface ChainNode {
@@ -50,7 +52,7 @@ function nodesOf(h: Health, now: number, wide: boolean, retryLeft: number | null
   return [root, up ? branches : branches.map((b) => ({ ...b, st: 'unreachable' as const, sub: '不可达', backoff: undefined }))];
 }
 
-export function HealthChain({ health, now, layout = 'card', onNode, onVoiceReset }: HealthChainProps) {
+export function HealthChain({ health, now, layout = 'card', onNode, onVoiceReset, services = [] }: HealthChainProps) {
   const wide = layout === 'wide';
   const retryLeft = useCountdown(health.voice.retryAfterS);
   const [root, branches] = nodesOf(health, now, wide, retryLeft);
@@ -112,7 +114,7 @@ export function HealthChain({ health, now, layout = 'card', onNode, onVoiceReset
               </span>
             ))
           )}
-          <span className={styles.tunnel}>隧道 │ 未配置</span>
+          {services.length > 0 && <span className={styles.services}>{services.map((s) => `${s.name} │ ${s.text}`).join('  ')}</span>}
         </div>
       )}
     </div>

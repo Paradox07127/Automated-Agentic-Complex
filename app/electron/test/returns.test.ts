@@ -50,6 +50,7 @@ const IMPLEMENTED = [
   'app.openQuickInput',
   'settings.recordHotkey',
   'logs.sources', 'logs.read',
+  'services.read', 'services.save', 'services.start', 'services.stop', 'services.restart',
 ];
 
 /** A platform helper that has every grant, finds the fixtures' app and session, and activates what it is asked to. */

@@ -10,7 +10,7 @@ const LAST = STEPS.length;
 export type StepResult = 'done' | 'skipped' | 'todo';
 
 /** The setting ids the guide's rows save through `settings.save`; it refuses the others. */
-export const GUIDE_SETTINGS: ReadonlySet<string> = new Set(['plugins.light_ai', 'mute', 'tts', 'ttsUrl', 'hk_ptt']);
+export const GUIDE_SETTINGS: ReadonlySet<string> = new Set(['plugins.light_ai', 'mute', 'hk_ptt']);
 
 const WINDOWS_HOOK = 'agentic-complex-hook.cmd';
 

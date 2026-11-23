@@ -118,10 +118,6 @@ const ITEMS: Item[] = [
   hotkey('voice_hotkey', '按住说话', 'right_option'),
   choice('asr_locale', '识别语言', [['auto', '跟随系统'], ['zh-CN', '中文'], ['en-US', 'English']], 'auto'),
   toggle('mute', '只出字、不出声', false, 'backend'),
-  choice('voice_service', '语音服务', [['remote', '远端'], ['local', '关闭（无语音）']], 'remote', 'backend'),
-  text('tts_url', '服务地址', 'http://127.0.0.1:9888'),
-  text('tts_tunnel_host', 'SSH 转发主机', ''),
-  text('tts_ensure_script', '按需启动脚本', ''),
   toggle('proactive_speech', '主动说话', true, 'backend'),
   choice('break_reminder_minutes', '连续使用提醒', [['0', '关'], ['45', '45 分钟'], ['60', '60 分钟'], ['90', '90 分钟']], '0', 'backend'),
   choice('water_reminder_minutes', '喝水提醒', [['0', '关'], ['60', '60 分钟'], ['90', '90 分钟'], ['120', '120 分钟']], '90', 'backend'),
@@ -147,8 +143,7 @@ const ITEMS: Item[] = [
 ];
 
 const REGISTRY_ROWS: [string, string, string][] = [
-  ['mute', 'speak', 'mute'], ['tts', 'speak', 'voice_service'], ['asr', 'speak', 'asr_locale'], ['ttsUrl', 'speak', 'tts_url'],
-  ['ttsTunnelHost', 'speak', 'tts_tunnel_host'], ['ttsEnsureScript', 'speak', 'tts_ensure_script'],
+  ['mute', 'speak', 'mute'], ['asr', 'speak', 'asr_locale'],
   ['proactive', 'speak', 'interaction_preset'],
   ['speakUp', 'speak', 'proactive_speech'], ['rest', 'speak', 'break_reminder_minutes'], ['water', 'speak', 'water_reminder_minutes'],
   ['n_done', 'speak', 'notify_done'],
@@ -374,7 +369,7 @@ function describe(raw: unknown): string {
   return JSON.stringify(raw) ?? String(raw);
 }
 
-/** A `tts_tunnel_host` ssh would read as an option, or one with a space or control character. */
+/** A `services` `ssh_host` ssh would read as an option, or one with a space or control character. */
 export const unsafeSshHost = (host: string) => /^-|[\s\p{Cc}]/u.test(host);
 
 /** A refused save batch; `message` is the page's `error`. */
@@ -409,13 +404,12 @@ function parseValue(raw: unknown, row: Row, platform: ShellPlatform): SettingVal
         const name = value === '' ? '' : hotkeyName(value, allowsRightOption(row));
         if (name !== null) return name;
       }
-    } else if (accepts(row.item, value) && !(row.item.key === 'tts_tunnel_host' && unsafeSshHost(value as string))) {
+    } else if (accepts(row.item, value)) {
       return value;
     }
   }
   let allowed: string;
-  if (row.item.key === 'tts_tunnel_host') allowed = '不能以 - 开头，不能有空白或控制字符';
-  else if (c.kind === 'choice' || c.kind === 'dropdown') allowed = '可选 ' + c.options.map(([k, l]) => `${k}（${l}）`).join(' / ');
+  if (c.kind === 'choice' || c.kind === 'dropdown') allowed = '可选 ' + c.options.map(([k, l]) => `${k}（${l}）`).join(' / ');
   else if (c.kind === 'hotkey') allowed = '要用带 ⌃、⌥ 或 ⌘ 的组合键，或 F1–F12' + (allowsRightOption(row) ? '，或 右⌥' : '');
   else if (c.kind === 'slider') allowed = `范围 ${c.min.toFixed(1)}…${c.max.toFixed(1)}`;
   else allowed = '可选 true / false';
@@ -460,18 +454,7 @@ export type SaveEffect =
   /** The changed ones of LIVE_RENDER_KEYS in that order, then `stay_mode` into or out of `bust`; only without `restartAvatar`. */
   | { kind: 'renderLive'; keys: string[] }
   /** `touch_regions`, `head_pat`, `cheek_pinch` or `greet_on_resume` changed. */
-  | { kind: 'touch' }
-  /** `tts_url` moved to another scheme, host or port: the token installed for the old service is deleted before the save. */
-  | { kind: 'ttsToken' };
-
-/** A TTS address's scheme, host and port; the address itself when it does not parse. */
-function serviceOrigin(url: SettingValue | undefined): string {
-  try {
-    return new URL(String(url)).origin;
-  } catch {
-    return String(url);
-  }
-}
+  | { kind: 'touch' };
 
 /** What the running renderer takes in a `set_render`. */
 const LIVE_RENDER_KEYS = ['render_outline', 'render_light_yaw', 'render_light_pitch', 'render_light_strength', 'render_camera_mode',
@@ -545,7 +528,6 @@ export function planSave(saved: Record<string, SettingValue>, login: boolean | n
   if ((old.stay_mode === 'bust') !== (next.stay_mode === 'bust')) live.push('stay_mode');
   if (live.length > 0 && !restartAvatar) effects.push({ kind: 'renderLive', keys: live });
   if (['touch_regions', 'head_pat', 'cheek_pinch', 'greet_on_resume'].some((k) => changed.includes(k))) effects.push({ kind: 'touch' });
-  if (changed.includes('tts_url') && serviceOrigin(old.tts_url) !== serviceOrigin(next.tts_url)) effects.push({ kind: 'ttsToken' });
   const backend = changed.some((k) => rowByKey(k)?.item.restart === 'backend');
   return { write, effects, restart: backend ? 'backend' : restartAvatar ? 'avatar' : 'none' };
 }

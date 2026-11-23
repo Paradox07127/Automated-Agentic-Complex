@@ -13,8 +13,8 @@ export type RowAction = { kind: 'restart'; phase: 'busy' | 'done'; at: number; t
 
 const NAME: Record<'agentd' | 'avatar', string> = { agentd: '后台服务', avatar: '角色' };
 
-/** The 运行记录 log source of a process row; voice runs inside agentd. */
-const LOG_OF: Record<ProcessKey, string> = { agentd: 'agentd', avatar: 'avatar', voice: 'agentd', tunnel: 'tunnel' };
+/** The 运行记录 log source of a process row; voice runs inside agentd, the services share one log. */
+const LOG_OF: Record<ProcessKey, string> = { agentd: 'agentd', avatar: 'avatar', voice: 'agentd', tts: 'services', motion: 'services', llm: 'services' };
 
 /** 查看日志 opens that process's log on the 运行记录 page. */
 export const viewLogs = (key: ProcessKey) => navigate({ page: 'trace', tab: 'logs', src: LOG_OF[key] });

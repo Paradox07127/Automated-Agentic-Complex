@@ -38,10 +38,15 @@ function snapshot(current: string | null, agentd: RuntimeProcess, avatar: Runtim
     revision: 3,
     phase: 'degraded',
     config_error: null,
-    processes: { agentd, avatar, tunnel: proc('stopped') },
+    processes: { agentd, avatar },
     character: { current, shown: current, agentd: current, pending: null, switching: false, failure: null },
     visibility: { hidden: false, reason: null, fullscreen_hidden: false, click_through_all: false },
-    tts: { provider: 'none', state: 'off', reason: null, retry_after_s: null, muted: false, tunnel: null },
+    tts: { provider: 'none', state: 'off', reason: null, retry_after_s: null, muted: false },
+    services: {
+      tts: { mode: 'off', state: null, pid: null, detail: null },
+      motion: { mode: 'off', state: null, pid: null, detail: null },
+      llm: { mode: 'off', state: null, pid: null, detail: null },
+    },
     voice_input: 'on',
     degraded: [],
   };

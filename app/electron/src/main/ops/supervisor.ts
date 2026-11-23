@@ -1,7 +1,9 @@
-// `supervisor.*`: the supervised processes' states and restarts: agentd and the avatar renderer.
+// `supervisor.*`: the supervised processes' states and restarts: agentd and the avatar renderer; the states also of the
+// `ssh` and `local` services.
 import { execFileSync } from 'node:child_process';
 import { stateText } from '../../common/agentd.ts';
 import { BridgeFailure } from '../../common/bridge.ts';
+import { SERVICE_IDS, type ServiceId } from '../../common/config.ts';
 import type { SlotState } from '../../common/runtime.ts';
 import { CpuSampler } from './avatar.ts';
 import type { Ops, OpsContext } from './context.ts';
@@ -30,8 +32,8 @@ export function psResidentMB(pid: number): number | null {
 
 export function supervisorOps(ctx: OpsContext): Ops {
   // One sampler per process across this surface's reads.
-  const samplers = { agentd: new CpuSampler(), avatar: new CpuSampler(), tunnel: new CpuSampler() };
-  const usage = (child: 'agentd' | 'avatar' | 'tunnel', pid: number | undefined) => {
+  const samplers = { agentd: new CpuSampler(), avatar: new CpuSampler(), tts: new CpuSampler(), motion: new CpuSampler(), llm: new CpuSampler() };
+  const usage = (child: 'agentd' | 'avatar' | ServiceId, pid: number | undefined) => {
     const share = samplers[child].sample(pid, pid === undefined || !ctx.cpuSeconds ? null : ctx.cpuSeconds(pid), performance.now() / 1000);
     return { cpuPercent: share === null ? null : share * 100,
       memoryMB: pid === undefined || (ctx.platform ?? 'mac') !== 'mac' ? null : psResidentMB(pid) };
@@ -39,11 +41,16 @@ export function supervisorOps(ctx: OpsContext): Ops {
   return {
     'supervisor.state': () => {
       const agentd = ctx.supervisor?.pid(), avatar = ctx.supervisor?.avatarPid?.();
-      const tunnel = ctx.supervisor?.tunnel?.() ?? null, tunnelPid = tunnel ? ctx.supervisor?.tunnelPid?.() : undefined;
+      const services = SERVICE_IDS.flatMap((id) => {
+        const v = ctx.services?.view(id);
+        if (!v || v.state === null) return [];
+        const pid = v.pid ?? undefined;
+        return [[id, processState(v.state, pid, usage(id, pid))]];
+      });
       return {
         agentd: processState(ctx.supervisor?.state() ?? { kind: 'stopped' }, agentd, usage('agentd', agentd)),
         avatar: processState(ctx.supervisor?.avatar() ?? { kind: 'stopped' }, avatar, usage('avatar', avatar)),
-        ...(tunnel && { tunnel: processState(tunnel, tunnelPid, usage('tunnel', tunnelPid)) }),
+        ...Object.fromEntries(services),
       };
     },
     'supervisor.restart': ([target]) => {

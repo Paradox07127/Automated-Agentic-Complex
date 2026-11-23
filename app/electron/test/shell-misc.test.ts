@@ -5,6 +5,7 @@ import { a11ySource } from '../src/common/a11y.ts';
 import { currentScreen } from '../src/common/current-screen.ts';
 import { desktopScreens } from '../src/common/desktop-screens.ts';
 import type { StreamEvent } from '../src/common/page.ts';
+import type { ServiceView } from '../src/common/runtime.ts';
 import { AvatarVisibility, HIDE_EXPIRY_MS } from '../src/common/visibility-reason.ts';
 import type { HelperReply } from '../src/main/helper/client.ts';
 import { cpuSecondsReader, psCpuSeconds } from '../src/main/ops/avatar.ts';
@@ -83,14 +84,19 @@ test('the helper CPU reader forgets a pid the helper no longer lists or fails fo
   assert.equal(cpuSeconds(7), null);
 });
 
-test('supervisor.state lists the tunnel only with tts_tunnel_host, external as external', () => {
+test('supervisor.state lists the ssh and local services by id, external as external', () => {
   assert.deepEqual(Object.keys(state({})()), ['agentd', 'avatar']);
-  const base = { state: () => ({ kind: 'running' }) as const, pid: () => undefined, restart() {}, avatar: () => ({ kind: 'running' }) as const };
-  assert.deepEqual(Object.keys(state({ supervisor: { ...base, tunnel: () => null } })()), ['agentd', 'avatar']);
-  const external = state({ supervisor: { ...base, tunnel: () => ({ kind: 'external' }), tunnelPid: () => undefined } })();
-  assert.deepEqual(external.tunnel, { state: 'external', pid: null, backoff: null, cpuPercent: null, memoryMB: null });
-  const backoff = state({ supervisor: { ...base, tunnel: () => ({ kind: 'backoff', seconds: 4 }) } })();
-  assert.deepEqual([backoff.tunnel!.state, backoff.tunnel!.backoff], ['backoff(4)', 4]);
+  const views: Record<string, ServiceView> = {
+    tts: { mode: 'ssh', state: { kind: 'external' }, pid: null, detail: null },
+    motion: { mode: 'url', state: null, pid: null, detail: null },
+    llm: { mode: 'local', state: { kind: 'backoff', seconds: 4 }, pid: null, detail: 'exit 1' },
+  };
+  const services = { view: (id: string) => views[id]!, start: async () => ({ ok: true, line: null }) as const,
+    stop: async () => ({ ok: true, line: null }) as const, restart: async () => ({ ok: true, line: null }) as const, saved() {} };
+  const listed = state({ services })();
+  assert.deepEqual(Object.keys(listed), ['agentd', 'avatar', 'tts', 'llm']);
+  assert.deepEqual(listed.tts, { state: 'external', pid: null, backoff: null, cpuPercent: null, memoryMB: null });
+  assert.deepEqual([listed.llm!.state, listed.llm!.backoff], ['backoff(4)', 4]);
 });
 
 test('psResidentMB reads a process\'s resident memory in MB; a gone process is null', { skip: PS }, () => {

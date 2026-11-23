@@ -38,13 +38,13 @@ function timestamp(d: Date): string {
     + `.${p(d.getMilliseconds(), 3)}${sign}${p(Math.floor(abs / 60))}:${p(abs % 60)}`;
 }
 
-/** Appends timestamped lines to `<supportDir>/logs/companion.log`. */
-export function appendLog(supportDir: string, component: string, line: string): void {
+/** Appends timestamped lines to `<supportDir>/logs/<file>`. */
+export function appendLog(supportDir: string, component: string, line: string, file = 'companion.log'): void {
   prepareLogs(supportDir);
   const prefix = `${timestamp(new Date())} pid=${process.pid} ${component}: `;
   let fd: number;
   try {
-    fd = openSync(join(supportDir, 'logs', 'companion.log'), 'a', 0o600);
+    fd = openSync(join(supportDir, 'logs', file), 'a', 0o600);
   } catch {
     return;
   }

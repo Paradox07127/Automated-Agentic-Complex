@@ -62,18 +62,13 @@ export function SpeakGroup() {
       },
     );
   };
-  const local = model.value('tts') === 'local';
-  const remote = model.value('tts') === 'remote';
-  const down = !local && voice?.state === 'unreachable';
-  const ttsOpts = optionsOf(native?.rows.tts).map((o) => ({ ...o, label: o.value === 'local' ? '关闭' : o.value === 'remote' ? '外部服务' : o.label }));
+  const down = voice?.state === 'unreachable';
   const levels = optionsOf(native?.rows.proactive).filter((o) => o.value !== SILENT_LEVEL);
   // agentd mutes live on a spoken「静音」; this row is config.json, which it reads at start.
   const muteNote = diag.muted == null || diag.muted === (model.value('mute') === true) ? null : diag.muted ? '重启后台服务后按这里的设置出声' : '后台现在仍会出声；重启后台服务后生效';
   const mute = model.value('mute');
 
-  const voiceDesc = local ? (
-    '不发声，只显示文字'
-  ) : (
+  const voiceDesc = (
     <>
       {voice && <St tone={VOICE_TONE[voice.state]}>{voiceText(voice.state, retryLeft)}</St>} <span>{down ? '这段时间只显示文字' : `${sourceLabel ? `${sourceLabel} │ ` : ''}自己部署的语音服务，app 只连接`}</span>
     </>
@@ -104,28 +99,27 @@ export function SpeakGroup() {
             </>
           }
         />
-        {diag.voiceNone && !local ? (
+        {diag.voiceNone ? (
           <SetRow id="tts" title="语音不可用" desc="台词只显示文字" control={null} />
         ) : (
-          <SetRow
-            id="tts"
-            title={labelOf('tts')}
-            desc={voiceDesc}
-            descTone={down ? 'bad' : undefined}
-            info="把台词合成语音。要你自己部署的语音服务地址和令牌；app 不打包模型，只用你的服务。"
-            control={
-              <>
-                {(voice?.state === 'unreachable' || voice?.state === 'cold') && (
+          <>
+            <SetRow
+              id="tts"
+              title={labelOf('tts')}
+              desc={voiceDesc}
+              descTone={down ? 'bad' : undefined}
+              info="把台词合成语音。要你自己部署的语音服务，地址在「服务」里；app 不打包模型，只用你的服务。"
+              control={
+                (voice?.state === 'unreachable' || voice?.state === 'cold') && (
                   <Btn disabled={agentdOff} disabledReason="后台服务没有运行" onClick={reconnect}>
                     重新连接
                   </Btn>
-                )}
-                <GameSeg variant="setting" label={labelOf('tts')} value={String(model.value('tts') ?? '')} options={ttsOpts} disabled={groupRo} onChange={(v) => model.set('tts', v)} />
-              </>
-            }
-          />
+                )
+              }
+            />
+            <VoiceService down={down} />
+          </>
         )}
-        <VoiceService remote={remote} down={down} />
         <SetRow id="asr" title={labelOf('asr')} desc="按住说话时用" control={c.seg('asr')} />
         <SetRow id="replyLang" title={labelOf('replyLang')} control={c.select('replyLang', REPLY_LANGUAGE)} />
       </SetSection>

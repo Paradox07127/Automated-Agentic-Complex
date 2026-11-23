@@ -149,7 +149,7 @@ function PermSection({ open: linked }: { open: boolean }) {
   );
 }
 
-/** The self-hosted motion service (GET/PUT /motion/settings): its address, and a token sent once and never read back. */
+/** The self-hosted motion service's token (GET/PUT /motion/settings), sent once and never read back; its address is in 服务. */
 function MotionRows() {
   const { model, agentdOff } = useSettings();
   const [src, setSrc] = useState<MotionSource | null>(null);
@@ -175,32 +175,12 @@ function MotionRows() {
       (e) => model.notify({ message: `${what}：${failure(e).text}`, severity: 'danger', persistent: true }),
     );
   const off = agentdOff || src == null;
-  const url = src?.service_url ?? '';
   return (
     <>
       <SetRow
-        id="motionUrl"
-        title="动作服务地址"
-        desc={src == null ? '还没读到后台的设置' : undefined}
-        indent
-        control={
-          <Field
-            key={url}
-            aria-label="动作服务地址"
-            placeholder="http://主机:端口"
-            defaultValue={url}
-            disabled={off}
-            onBlur={(e) => {
-              const v = e.currentTarget.value.trim();
-              if (v !== url) save({ service_url: v || null }, '已保存动作服务地址', '没有保存动作服务地址');
-            }}
-            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-          />
-        }
-      />
-      <SetRow
         id="motionToken"
         title="令牌"
+        desc={src == null ? '还没读到后台的设置' : undefined}
         indent
         control={
           <>

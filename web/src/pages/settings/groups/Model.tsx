@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Btn, Select } from '../../../ui';
 import { usePlugins } from '../../../shell/plugins';
-import { failure, readCatalog, saveModels, testModels } from '../api';
+import { failure, readCatalog, readServices, saveModels, testModels } from '../api';
 import { Band } from '../Band';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
@@ -34,6 +34,18 @@ export function ModelGroup() {
   const [testing, setTesting] = useState(false);
   const [key, setKey] = useState('');
   const [replacing, setReplacing] = useState(false);
+  // The compatible service's address is the shell's `services.llm`.
+  const [llmUrl, setLlmUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    readServices().then(
+      (s) => live && setLlmUrl(s.llm.url),
+      () => {},
+    );
+    return () => {
+      live = false;
+    };
+  }, []);
   const svc = String(model.value('svc') ?? models?.provider ?? 'chatgpt') as ModelProvider;
   const cfg = models?.backends[svc];
   const drafted = MODEL_DRAFTS.some((id) => id in model.draft);
@@ -45,7 +57,7 @@ export function ModelGroup() {
   const piProvider = String(model.value('piProvider') ?? '');
   const keySlot = svc !== 'pi_catalog' || !!piProvider;
   // Pi takes a compatible API on this machine without a key.
-  const keyless = svc === 'compatible' && model.value('kernel') === 'pi' && isLoopback(String(model.value('apiBase') ?? ''));
+  const keyless = svc === 'compatible' && model.value('kernel') === 'pi' && llmUrl !== null && isLoopback(llmUrl);
   const noKey = keyless && model.value('acct') === 'local_no_auth';
   const fail = (what: string) => (e: unknown) => model.notify({ message: `${what}：${failure(e).text}`, severity: 'danger', persistent: true });
 
@@ -131,7 +143,7 @@ export function ModelGroup() {
             desc="Pi 用它；Codex 和 Claude Code 用自己的登录"
             control={<Select label={labelOf('svc')} value={svcValue} options={svcOpts} disabled={ro || agentdOff} onChange={pickSvc} />}
           />
-          {svc !== 'chatgpt' && svc !== 'deepseek' && svc !== 'xai' && svc !== 'pi_catalog' && <SetRow id="apiBase" title={labelOf('apiBase')} control={c.text('apiBase', labelOf('apiBase'), 'https://…')} />}
+          {svc !== 'chatgpt' && svc !== 'deepseek' && svc !== 'xai' && svc !== 'pi_catalog' && svc !== 'compatible' && <SetRow id="apiBase" title={labelOf('apiBase')} control={c.text('apiBase', labelOf('apiBase'), 'https://…')} />}
           {svc !== 'chatgpt' && (
             <SetRow
               id="apikey"

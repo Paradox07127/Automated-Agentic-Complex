@@ -46,7 +46,13 @@
 
 `ops.json` 的 `internal` 是只由注入脚本发的 op：`feed.unsubscribe`、`diag.unsubscribe` 退订对应流；`events.unsubscribe(id)` 退订 `avatar.onState`、`avatar.onStats`、`computerUse.onState`、`voice.onPushToTalk`、`settings.onChange` 这类 `on<Name>(cb)` 订阅，事件的 `data` 是交给 `cb` 的 JSON。
 
-`app.runtime()` 返回 Companion 的运行状态快照（`app/electron/src/common/runtime.ts` 的 `runtimeJson`，snake_case），`app.onRuntime(cb)` 订阅后先收到当前快照、此后每次变化收到一份；main 和 stack 放行。
+`app.runtime()` 返回 Companion 的运行状态快照（`app/electron/src/common/runtime.ts` 的 `runtimeJson`，snake_case），`app.onRuntime(cb)` 订阅后先收到当前快照、此后每次变化收到一份；main 和 stack 放行。快照的 `services.<id>`（`tts`、`motion`、`llm`）是 `{mode, state, pid, detail}`：`state` 是外壳为 `ssh`（隧道）或 `local`（本机进程）跑的进程的状态 `{kind, seconds?, reason?}`（`kind` 同 `processes.*.state`，另有 `external`：端口上已是本用户的 ssh），`url`、`off` 下为 null；`detail` 是最近一次失败的原因或 null。失败的服务在 `degraded` 里记一条 `{source: "service", code: "service_failed", detail: <id>}`。
+
+`services.*` 管 config.json 的 `services`，只放行 main：
+
+- `services.read()` → `{tts, motion, llm}`，每个是 `{mode, url, ssh_host, start_script, command, cwd}`，config.json 没写的取缺省（`mode: "off"`）。
+- `services.save(id, record)` 校验后整条写入 config.json（缺的字段写缺省），再按新记录重启这个服务的进程和 agentd。回 `{ok: true}`；`tts` 的地址换了协议、主机或端口（或改成 `off`）时删掉旧服务的令牌，回包多 `ttsTokenCleared: true`。不成时 `{ok: false, error}`：`unknown_service`、`invalid_record`（带 `field`、`message`）、`config_unreadable`、`declined`（用户没确认新的 `start_script`）、`token_not_cleared`、`write_failed`（后两个带 `message`）。
+- `services.start(id)`、`services.stop(id)`、`services.restart(id)` → `{ok, line, error?}`：`ssh` 下起停隧道，有 `start_script` 时再经 ssh 跑远端 `ensure` / `stop`，`line` 是它回的第一行（没有脚本时为 null），失败时 `error` 为 `ensure_failed` / `stop_failed`；`local` 下起停本机进程；`url`、`off` 下回 `{ok: false, error: "not_supervised", line: null}`，不认识的 id 回 `unknown_service`。
 
 `computerUse.onPanel(cb)` 推电脑操作授权小窗的整份状态（`web/src/bridge/computerUse.ts` 的 `ComputerUsePanel`），订阅时先推当前的；`computerUse.grant(scopes)`、`revoke(scopes)`、`resume()`、`dismiss()` 是小窗的按钮。这五个只放行 stack，宿主只给小窗那一页（`stack.html#/computer`）处理函数。
 

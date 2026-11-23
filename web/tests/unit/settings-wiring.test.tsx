@@ -122,23 +122,23 @@ describe('native rows (settings.schema / read / save)', () => {
   it('shows the schema options and saves the option value, not the label', async () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     render(<Harness d={d}><SpeakGroup /></Harness>);
-    const tts = screen.getByRole('radiogroup', { name: '语音服务' });
-    expect(within(tts).getAllByRole('radio').map((r) => r.textContent)).toEqual(['外部服务', '关闭']);
-    await click(within(tts).getByRole('radio', { name: '关闭' }));
-    expect(save).toHaveBeenCalledWith({ tts: 'local' });
+    const asr = screen.getByRole('radiogroup', { name: '听写语言' });
+    expect(within(asr).getAllByRole('radio').map((r) => r.textContent)).toEqual(['跟随系统', '中文', 'English']);
+    await click(within(asr).getByRole('radio', { name: '中文' }));
+    expect(save).toHaveBeenCalledWith({ asr: 'zh-CN' });
   });
 
   it('picking the option already chosen sends nothing (Seg fires onChange for it too)', async () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     render(<Harness d={d}><SpeakGroup /></Harness>);
-    const tts = screen.getByRole('radiogroup', { name: '语音服务' });
-    const chosen = within(tts).getAllByRole('radio').find((r) => r.getAttribute('aria-checked') === 'true');
-    expect(chosen?.textContent).toBe('外部服务');
+    const asr = screen.getByRole('radiogroup', { name: '听写语言' });
+    const chosen = within(asr).getAllByRole('radio').find((r) => r.getAttribute('aria-checked') === 'true');
+    expect(chosen?.textContent).toBe('跟随系统');
     await click(chosen!);
     expect(save).not.toHaveBeenCalled();
     expect(screen.queryByTestId('toast')).toBeNull();
-    await click(within(tts).getByRole('radio', { name: '关闭' }));
-    expect(save).toHaveBeenCalledWith({ tts: 'local' });
+    await click(within(asr).getByRole('radio', { name: '中文' }));
+    expect(save).toHaveBeenCalledWith({ asr: 'zh-CN' });
   });
 
   it('marks a restart from the schema flag only (backend yes, notification routing no)', async () => {
@@ -150,12 +150,12 @@ describe('native rows (settings.schema / read / save)', () => {
   });
 
   it('a refused save shows a fixed reason instead of a fake saved toast; the shell text goes to the console', async () => {
-    vi.spyOn(window.agenticComplex!.settings, 'save').mockResolvedValue({ restart: 'none', notApplied: [], error: 'voice_service: remote' });
+    vi.spyOn(window.agenticComplex!.settings, 'save').mockResolvedValue({ restart: 'none', notApplied: [], error: 'asr_locale: zh-CN' });
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(<Harness d={d}><SpeakGroup /></Harness>);
-    await click(within(screen.getByRole('radiogroup', { name: '语音服务' })).getByRole('radio', { name: '关闭' }));
-    expect(screen.getByTestId('toast').textContent).toBe('没有保存「语音服务」：桌面端没有接受这次修改');
-    expect(warn).toHaveBeenCalledWith('settings.save refused', 'voice_service: remote');
+    await click(within(screen.getByRole('radiogroup', { name: '听写语言' })).getByRole('radio', { name: '中文' }));
+    expect(screen.getByTestId('toast').textContent).toBe('没有保存「听写语言」：桌面端没有接受这次修改');
+    expect(warn).toHaveBeenCalledWith('settings.save refused', 'asr_locale: zh-CN');
   });
 
   it('asks before a destructive switch goes off, logs consent, then saves', async () => {
@@ -501,11 +501,10 @@ describe('语音状态', () => {
     expect(sourceSeg()).toBeNull();
   });
 
-  it('keeps the voice service row for voice_service local, with local named as no voice', () => {
-    render(<Harness d={withTts(WIRE_TTS.off, { tts: 'local' })}><SpeakGroup /></Harness>);
+  it('has no 语音服务 choice: the service is set in 服务, the row only shows its state', () => {
+    render(<Harness d={withTts(WIRE_TTS.ready)}><SpeakGroup /></Harness>);
     expect(row()?.textContent).not.toContain('语音不可用');
-    expect(within(sourceSeg()!).getByRole('radio', { name: '关闭' }).getAttribute('aria-checked')).toBe('true');
-    expect(row()?.textContent).toContain('不发声，只显示文字');
+    expect(sourceSeg()).toBeNull();
   });
 
   it.each([
@@ -527,7 +526,6 @@ describe('语音状态', () => {
 
   it('labels the external source', () => {
     render(<Harness d={withTts({ ...WIRE_TTS.unreachable, provider: 'remote-ws' })}><SpeakGroup /></Harness>);
-    expect(within(row() as HTMLElement).getByText('外部服务')).toBeTruthy();
     expect(row()?.textContent).toContain('远端不通');
   });
 
@@ -584,82 +582,41 @@ describe('回复语言', () => {
 });
 
 describe('外部语音服务', () => {
-  const local = (): Loaded => ({ ...d, native: { ...d.native, saved: { ...d.native.saved, tts: 'local' } } });
   const testRow = () => document.querySelector('[data-row="ttsTest"]');
 
-  it('shows the address, token and test rows once the external source is picked', async () => {
-    render(<Harness d={local()}><SpeakGroup /></Harness>);
-    expect(screen.queryByRole('textbox', { name: '服务地址' })).toBeNull();
-    expect(screen.queryByRole('button', { name: '测试' })).toBeNull();
-    await click(within(screen.getByRole('radiogroup', { name: '语音服务' })).getByRole('radio', { name: '外部服务' }));
-    expect(screen.getByRole('textbox', { name: '服务地址' })).toBeTruthy();
-    expect(screen.getByRole('textbox', { name: '服务地址' }).getAttribute('placeholder')).toBe('http://主机:端口');
+  it('has no address, tunnel or script rows: those are in 服务', () => {
+    render(<Harness d={d}><SpeakGroup /></Harness>);
+    for (const name of ['服务地址', 'SSH 转发主机', '按需启动脚本']) expect(screen.queryByRole('textbox', { name })).toBeNull();
     expect(screen.getByLabelText('令牌', { selector: 'input' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '测试' })).toBeTruthy();
   });
 
   const voice = (state: 'ready' | 'unreachable'): Loaded => ({ ...d, diag: { ...DIAG, connections: { ...WIRE_DIAG_CONNECTIONS, tts: WIRE_TTS[state] } } });
-  const serviceRow = () => screen.getByRole('button', { name: /^服务地址、令牌和测试/ });
+  const serviceRow = () => screen.getByRole('button', { name: /^令牌和测试/ });
 
-  it('folds the address, token and test into one row while the service answers, the address in its summary', async () => {
+  it('folds the token and test into one row while the service answers', async () => {
     render(<Harness d={voice('ready')}><SpeakGroup /></Harness>);
     expect(serviceRow().getAttribute('aria-expanded')).toBe('false');
-    expect(serviceRow().textContent).toContain(String(d.native.saved.ttsUrl));
-    expect(screen.queryByRole('textbox', { name: '服务地址' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '测试' })).toBeNull();
     await click(serviceRow());
-    expect(screen.getByRole('textbox', { name: '服务地址' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '测试' })).toBeTruthy();
   });
 
   it('opens the service row by itself while the voice is down', () => {
     render(<Harness d={voice('unreachable')}><SpeakGroup /></Harness>);
     expect(serviceRow().getAttribute('aria-expanded')).toBe('true');
-    expect(screen.getByRole('textbox', { name: '服务地址' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '测试' })).toBeTruthy();
   });
 
-  it('shows the tunnel host and ensure script only for the external source, folded in 高级, and saves them under their ids', async () => {
-    const { unmount } = render(<Harness d={local()}><SpeakGroup /></Harness>);
-    expect(screen.queryByRole('textbox', { name: 'SSH 转发主机' })).toBeNull();
-    expect(screen.queryByRole('textbox', { name: '按需启动脚本' })).toBeNull();
-    unmount();
-    const save = vi.spyOn(window.agenticComplex!.settings, 'save');
+  it('tests the token on screen against the voice in use and shows the first audio time', async () => {
     render(<Harness d={d}><SpeakGroup /></Harness>);
-    // The two developer rows sit in the shut 高级 fold under the service's other rows.
-    expect(screen.queryByRole('textbox', { name: 'SSH 转发主机' })).toBeNull();
-    await click(screen.getByRole('button', { name: /^高级/ }));
-    const host = screen.getByRole('textbox', { name: 'SSH 转发主机' });
-    const script = screen.getByRole('textbox', { name: '按需启动脚本' });
-    expect(host.getAttribute('placeholder')).toBe('ssh 主机名（可留空）');
-    expect(script.getAttribute('placeholder')).toBe('远程主机上的绝对路径（可留空）');
-    expect(document.querySelector('[data-row="ttsTunnelHost"]')?.textContent).toContain('留空就不建隧道');
-    expect(document.querySelector('[data-row="ttsEnsureScript"]')?.textContent).toContain('留空就不按需启动');
-    fireEvent.change(host, { target: { value: ' voice-box ' } });
-    await act(async () => void fireEvent.blur(host));
-    expect(save).toHaveBeenCalledWith({ ttsTunnelHost: 'voice-box' });
-    fireEvent.change(script, { target: { value: '/srv/tts/ensure.sh' } });
-    await act(async () => void fireEvent.blur(script));
-    expect(save).toHaveBeenCalledWith({ ttsEnsureScript: '/srv/tts/ensure.sh' });
-  });
-
-  it('tests the address and token on screen and shows the first audio time', async () => {
-    render(<Harness d={d}><SpeakGroup /></Harness>);
-    const url = screen.getByRole('textbox', { name: '服务地址' });
-    fireEvent.change(url, { target: { value: 'https://tts.example:8443' } });
-    await act(async () => void fireEvent.blur(url));
     fireEvent.change(screen.getByLabelText('令牌', { selector: 'input' }), { target: { value: ' secret ' } });
     await click(screen.getByRole('button', { name: '测试' }));
-    expect(sent('POST', '/voice/test')).toEqual({ url: 'https://tts.example:8443', token: 'secret' });
+    expect(sent('POST', '/voice/test')).toEqual({ token: 'secret' });
     expect(testRow()?.textContent).toContain('通过 │ 首声 320 ms');
   });
 
   it('leaves an empty token out of the test', async () => {
     render(<Harness d={d}><SpeakGroup /></Harness>);
-    await click(screen.getByRole('button', { name: '测试' }));
-    expect(Object.keys(sent('POST', '/voice/test') as object)).toEqual(['url']);
-  });
-
-  it('leaves an empty address out of the test, so agentd tests the voice in use', async () => {
-    render(<Harness d={{ ...d, native: { ...d.native, saved: { ...d.native.saved, ttsUrl: '' } } }}><SpeakGroup /></Harness>);
     await click(screen.getByRole('button', { name: '测试' }));
     expect(sent('POST', '/voice/test')).toEqual({});
   });
@@ -670,22 +627,6 @@ describe('外部语音服务', () => {
     await click(screen.getByRole('button', { name: '保存' }));
     await click(screen.getByRole('button', { name: '测试' }));
     expect((sent('POST', '/voice/test') as { token?: string }).token).toBe('secret');
-  });
-
-  it('drops the saved token once an address for another service is saved: the row says none is set and the test sends none', async () => {
-    render(<Harness d={d}><SpeakGroup /></Harness>);
-    fireEvent.change(screen.getByLabelText('令牌', { selector: 'input' }), { target: { value: 'DUMMY-first-service' } });
-    await click(screen.getByRole('button', { name: '保存' }));
-    expect(document.querySelector('[data-row="ttsToken"]')?.textContent).not.toContain('未设置');
-    const url = screen.getByRole('textbox', { name: '服务地址' });
-    fireEvent.change(url, { target: { value: 'https://other.example:8443' } });
-    await act(async () => void fireEvent.blur(url));
-    expect(document.querySelector('[data-row="ttsToken"]')?.textContent).toContain('未设置：服务地址换了，旧服务的令牌已删除');
-    await click(screen.getByRole('button', { name: '测试' }));
-    expect(sent('POST', '/voice/test')).toEqual({ url: 'https://other.example:8443' });
-    fireEvent.change(screen.getByLabelText('令牌', { selector: 'input' }), { target: { value: 'DUMMY-second-service' } });
-    await click(screen.getByRole('button', { name: '保存' }));
-    expect(document.querySelector('[data-row="ttsToken"]')?.textContent).not.toContain('未设置');
   });
 
   it.each([

@@ -1,6 +1,6 @@
 // `logs.*` types: the shell's log files, read for the 运行记录 page's 日志 tab (app/electron/src/common/log-line.ts), re-exported by protocol.ts.
 
-export type LogSourceId = 'agentd' | 'companion' | 'avatar' | 'helper' | 'tunnel' | 'ui' | 'motion';
+export type LogSourceId = 'agentd' | 'companion' | 'avatar' | 'helper' | 'services' | 'ui' | 'motion';
 export type LogLevel = 'err' | 'warn' | 'info' | 'dbg';
 
 export interface LogSourceInfo {

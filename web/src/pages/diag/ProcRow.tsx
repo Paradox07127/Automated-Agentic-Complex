@@ -8,7 +8,7 @@ import type { RowAction } from './useDiagActions';
 import type { ProcSample } from './useProcSamples';
 import styles from './Proc.module.css';
 
-const GLYPH: Record<ProcKey, IconName> = { agentd: 'data', avatar: 'user', tunnel: 'sync' };
+const GLYPH: Record<ProcKey, IconName> = { agentd: 'data', avatar: 'user', tts: 'sync', motion: 'sync', llm: 'sync' };
 const MIN = 60_000;
 /** Fits the row's shortest height. */
 const CHART_H = 96;

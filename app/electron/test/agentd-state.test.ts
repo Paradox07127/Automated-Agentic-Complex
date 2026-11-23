@@ -96,13 +96,16 @@ test('the agentd command line follows C9 in a fixed order', () => {
     '--privacy-config', '/s/config.json', ...PLUGIN_IDS.flatMap((id) => [id === 'light_ai' ? '--plugin-on' : '--plugin-off', id]),
     '--share-agent-sessions', '--break-reminder-minutes', '0',
     '--water-reminder-minutes', '90',
-    '--tts-url', 'http://127.0.0.1:9888', '--tts-token-file', '/s/tts-token',
+    '--tts-token-file', '/s/tts-token',
   ]);
   const all = agentdArguments(config({
     character_catalog: null, harness_sites: { 'harness.pi': '/pi' }, plugins: { computer_use: true }, share_page_text: true,
     share_window_text: true, share_typed_text: true, share_agent_sessions: false, share_screenshots: true,
-    redact_sensitive: false, proactive_speech: false, break_reminder_minutes: -3, water_reminder_minutes: 0, mute: true, tts_url: 'http://127.0.0.1:9888',
-    tts_tunnel_host: 'gpu', tts_ensure_script: '/e.sh', interaction_preset: 'quiet', dev_resources: '/dev',
+    redact_sensitive: false, proactive_speech: false, break_reminder_minutes: -3, water_reminder_minutes: 0, mute: true,
+    services: { tts: { mode: 'ssh', url: 'http://127.0.0.1:9888', ssh_host: 'gpu', start_script: '/e.sh' },
+      motion: { mode: 'url', url: 'http://gpu:48830', ssh_host: 'gpu', start_script: '/m.sh' },
+      llm: { mode: 'local', url: 'http://127.0.0.1:11434/v1', command: ['ollama', 'serve'], start_script: '/l.sh' } },
+    interaction_preset: 'quiet', dev_resources: '/dev',
   }), { ...ctx, character: '', privacyConfigPath: undefined });
   assert.deepEqual(all, [
     '/r/agentd_launcher.py', '--agentd-dir', '/dev/runtime/agentd', '--parent-pid', '42', '--',
@@ -110,9 +113,13 @@ test('the agentd command line follows C9 in a fixed order', () => {
     ...PLUGIN_IDS.flatMap((id) => [['light_ai', 'computer_use'].includes(id) ? '--plugin-on' : '--plugin-off', id]),
     '--computer-control-socket', '/s/run/computer-control.sock', '--computer-control-token-file', '/s/run/computer-control.token',
     '--share-page-text', '--share-window-text', '--share-typed-text', '--share-screenshots', '--no-redact',
-    '--no-proactive', '--break-reminder-minutes', '0', '--water-reminder-minutes', '0', '--mute', '--tts-url', 'http://127.0.0.1:9888', '--tts-token-file', '/s/tts-token',
-    '--tts-ensure-host', 'gpu', '--tts-ensure-script', '/e.sh',
+    '--no-proactive', '--break-reminder-minutes', '0', '--water-reminder-minutes', '0', '--mute',
+    '--tts-url', 'http://127.0.0.1:9888', '--tts-ensure-host', 'gpu', '--tts-ensure-script', '/e.sh',
+    '--motion-url', 'http://gpu:48830', '--llm-url', 'http://127.0.0.1:11434/v1', '--tts-token-file', '/s/tts-token',
   ]);
+  const ssh = { mode: 'ssh', url: 'http://127.0.0.1:48830', ssh_host: 'gpu' };
+  assert.deepEqual(agentdArguments(config({ services: { motion: ssh } }), ctx).slice(-4),
+    ['--motion-url', 'http://127.0.0.1:48830', '--tts-token-file', '/s/tts-token']);
 });
 
 test("the helper's control.listen and agentd get one endpoint: a socket in <support>/run on macOS, a pipe per support dir on Windows", () => {

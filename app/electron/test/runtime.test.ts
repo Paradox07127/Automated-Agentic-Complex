@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { ChildState } from '../src/common/agentd.ts';
 import {
-  agentdTts, initialRuntime, reduced, type Runtime, RuntimeCoordinator, type RuntimeEvent, runtimeJson, runtimePhase,
+  agentdTts, initialRuntime, reduced, type Runtime, RuntimeCoordinator, type RuntimeEvent, runtimeJson, runtimePhase, type SlotState,
 } from '../src/common/runtime.ts';
 
 const t0 = 1_000_000, t1 = 2_000_000;
@@ -15,17 +15,16 @@ function wire(s: Runtime): string {
     ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) : v));
 }
 
-function snapshot(o: { agentd?: ChildState; avatar?: ChildState; tunnel?: ChildState; ready?: boolean; shown?: string | null;
+function snapshot(o: { agentd?: ChildState; avatar?: ChildState; tts?: SlotState; ready?: boolean; shown?: string | null;
   degraded?: Runtime['degraded']; configError?: string | null } = {}): Runtime {
   const s = initialRuntime(t0);
   s.processes.agentd = { state: o.agentd ?? { kind: 'running' }, pid: null, stage: null, since: t0 };
   s.processes.avatar = { state: o.avatar ?? { kind: 'running' }, pid: null, stage: null, since: t0 };
-  s.processes.tunnel = { state: o.tunnel ?? { kind: 'stopped' }, pid: null, stage: null, since: t0 };
   s.agentdReady = o.ready ?? true;
   s.character.shown = o.shown === undefined ? 'aster' : o.shown;
   s.degraded = o.degraded ?? [];
   s.configError = o.configError ?? null;
-  return s;
+  return o.tts ? reduced(s, { kind: 'service', id: 'tts', view: { mode: 'ssh', state: o.tts, pid: null, detail: null } }, t0) : s;
 }
 
 test('the golden JSON', () => {
@@ -33,21 +32,21 @@ test('the golden JSON', () => {
   s.revision = 12;
   s.processes.agentd = { state: { kind: 'running' }, pid: 123, stage: 'ready', since: t0 };
   s.processes.avatar = { state: { kind: 'running' }, pid: 456, stage: null, since: t0 };
-  s.processes.tunnel = { state: { kind: 'backoff', seconds: 4 }, pid: null, stage: null, since: t0 };
+  s.services.tts = { mode: 'ssh', state: { kind: 'backoff', seconds: 4 }, pid: null, detail: 'ssh 255' };
+  s.services.llm = { mode: 'url', state: null, pid: null, detail: null };
   s.character = { current: 'aster', shown: 'aster', agentd: 'aster', pending: null, switching: false,
     failure: { target: 'birch', stage: 'commit', reason: 'timeout' } };
   s.visibility = { hidden: true, reason: 'fullscreen', fullscreenHidden: true, clickThroughAll: false };
-  s.tts = { provider: 'remote-ws', phase: 'unreachable', reason: 'http_502', retryAfterS: 2.5, muted: false,
-    tunnel: { kind: 'backoff', seconds: 4 } };
+  s.tts = { provider: 'remote-ws', phase: 'unreachable', reason: 'http_502', retryAfterS: 2.5, muted: false };
   s.voiceInput = 'on';
   s.degraded = [{ source: 'agentd', code: 'observations', detail: null }];
   s.agentdReady = true;
-  const golden = '{"character":{"agentd":"aster","current":"aster","failure":{"reason":"timeout","stage":"commit","target":"birch"},"pending":null,"shown":"aster","switching":false},"config_error":null,"degraded":[{"code":"observations","detail":null,"source":"agentd"}],"phase":"degraded","processes":{"agentd":{"backoff":null,"pid":123,"reason":null,"stage":"ready","state":"running"},"avatar":{"backoff":null,"pid":456,"reason":null,"stage":null,"state":"running"},"tunnel":{"backoff":4,"pid":null,"reason":null,"stage":null,"state":"backoff"}},"revision":12,"tts":{"muted":false,"provider":"remote-ws","reason":"http_502","retry_after_s":2.5,"state":"unreachable","tunnel":"backoff"},"visibility":{"click_through_all":false,"fullscreen_hidden":true,"hidden":true,"reason":"fullscreen"},"voice_input":"on"}';
+  const golden = '{"character":{"agentd":"aster","current":"aster","failure":{"reason":"timeout","stage":"commit","target":"birch"},"pending":null,"shown":"aster","switching":false},"config_error":null,"degraded":[{"code":"observations","detail":null,"source":"agentd"}],"phase":"degraded","processes":{"agentd":{"backoff":null,"pid":123,"reason":null,"stage":"ready","state":"running"},"avatar":{"backoff":null,"pid":456,"reason":null,"stage":null,"state":"running"}},"revision":12,"services":{"llm":{"detail":null,"mode":"url","pid":null,"state":null},"motion":{"detail":null,"mode":"off","pid":null,"state":null},"tts":{"detail":"ssh 255","mode":"ssh","pid":null,"state":{"kind":"backoff","seconds":4}}},"tts":{"muted":false,"provider":"remote-ws","reason":"http_502","retry_after_s":2.5,"state":"unreachable"},"visibility":{"click_through_all":false,"fullscreen_hidden":true,"hidden":true,"reason":"fullscreen"},"voice_input":"on"}';
   assert.equal(wire(s), golden);
 });
 
 test('the initial JSON has every process and the nulls', () => {
-  const golden = '{"character":{"agentd":null,"current":null,"failure":null,"pending":null,"shown":null,"switching":false},"config_error":null,"degraded":[],"phase":"starting","processes":{"agentd":{"backoff":null,"pid":null,"reason":null,"stage":null,"state":"stopped"},"avatar":{"backoff":null,"pid":null,"reason":null,"stage":null,"state":"stopped"},"tunnel":{"backoff":null,"pid":null,"reason":null,"stage":null,"state":"stopped"}},"revision":0,"tts":{"muted":false,"provider":"none","reason":null,"retry_after_s":null,"state":"unknown","tunnel":null},"visibility":{"click_through_all":false,"fullscreen_hidden":false,"hidden":false,"reason":null},"voice_input":"off"}';
+  const golden = '{"character":{"agentd":null,"current":null,"failure":null,"pending":null,"shown":null,"switching":false},"config_error":null,"degraded":[],"phase":"starting","processes":{"agentd":{"backoff":null,"pid":null,"reason":null,"stage":null,"state":"stopped"},"avatar":{"backoff":null,"pid":null,"reason":null,"stage":null,"state":"stopped"}},"revision":0,"services":{"llm":{"detail":null,"mode":"off","pid":null,"state":null},"motion":{"detail":null,"mode":"off","pid":null,"state":null},"tts":{"detail":null,"mode":"off","pid":null,"state":null}},"tts":{"muted":false,"provider":"none","reason":null,"retry_after_s":null,"state":"unknown"},"visibility":{"click_through_all":false,"fullscreen_hidden":false,"hidden":false,"reason":null},"voice_input":"off"}';
   assert.equal(wire(initialRuntime(t0)), golden);
 });
 
@@ -79,8 +78,9 @@ test('the phase table', () => {
     [snapshot({ shown: null }), 'starting'],
     [snapshot(), 'interactive'],
     [snapshot({ degraded: observations }), 'degraded'],
-    [snapshot({ tunnel: { kind: 'failed', reason: 'ssh 255' } }), 'degraded'],
-    [snapshot({ tunnel: { kind: 'backoff', seconds: 4 } }), 'interactive'],
+    [snapshot({ tts: { kind: 'failed', reason: 'ssh 255' } }), 'degraded'],
+    [snapshot({ tts: { kind: 'backoff', seconds: 4 } }), 'interactive'],
+    [snapshot({ tts: { kind: 'external' } }), 'interactive'],
   ];
   rows.forEach(([s, phase], i) => {
     assert.equal(runtimePhase(s), phase, `row ${i}`);
@@ -92,7 +92,8 @@ test('the revision bumps only on a change', () => {
   let s = initialRuntime(t0);
   const visibility = { hidden: true, reason: 'user', fullscreenHidden: false, clickThroughAll: false };
   const character = { current: null, shown: null, agentd: null, pending: null, switching: false, failure: null };
-  const tts = { provider: 'none', phase: 'unknown' as const, reason: null, retryAfterS: null, muted: false, tunnel: null };
+  const tts = { provider: 'none', phase: 'unknown' as const, reason: null, retryAfterS: null, muted: false };
+  const service = { mode: 'ssh' as const, state: { kind: 'running' } as SlotState, pid: 3, detail: null };
   const events: [RuntimeEvent, number][] = [
     [{ kind: 'child', name: 'agentd', state: { kind: 'starting' }, pid: 7 }, 1],
     [{ kind: 'child', name: 'agentd', state: { kind: 'starting' }, pid: 7 }, 1],
@@ -110,6 +111,8 @@ test('the revision bumps only on a change', () => {
     [{ kind: 'avatarStage', stage: 'load' }, 6],
     [{ kind: 'character', view: { ...character, failure: { target: 'si', stage: 'avatar', reason: 'timeout' } } }, 7],
     [{ kind: 'character', view: { ...character, failure: { target: 'si', stage: 'avatar', reason: 'timeout' } } }, 7],
+    [{ kind: 'service', id: 'motion', view: service }, 8],
+    [{ kind: 'service', id: 'motion', view: { ...service } }, 8],
   ];
   events.forEach(([e, revision], i) => {
     s = reduced(s, e, t1);
@@ -164,14 +167,13 @@ test('the visibility replaces the whole view and leaves the phase', () => {
   assert.ok(wire(s).includes('"visibility":{"click_through_all":false,"fullscreen_hidden":false,"hidden":false,"reason":"fullscreen_exit"}'));
 });
 
-test('agentd\'s voice_state keeps the local mute and tunnel', () => {
-  const local = { provider: 'none', phase: 'unknown' as const, reason: null, retryAfterS: null, muted: true,
-    tunnel: { kind: 'running' } as ChildState };
+test('agentd\'s voice_state keeps the local mute', () => {
+  const local = { provider: 'none', phase: 'unknown' as const, reason: null, retryAfterS: null, muted: true };
   assert.deepEqual(agentdTts(local, JSON.stringify({ provider: 'remote-ws', state: 'unreachable', reason: 'http_502', retry_after_s: 2.5 })),
-    { provider: 'remote-ws', phase: 'unreachable', reason: 'http_502', retryAfterS: 2.5, muted: true, tunnel: { kind: 'running' } });
+    { provider: 'remote-ws', phase: 'unreachable', reason: 'http_502', retryAfterS: 2.5, muted: true });
   assert.equal(agentdTts(local, JSON.stringify({ provider: 'remote-ws', state: 'later' }))?.phase, 'unknown');
   assert.deepEqual(agentdTts(local, JSON.stringify({ provider: 'none', state: 'off', reason: null, retry_after_s: null })),
-    { provider: 'none', phase: 'off', reason: null, retryAfterS: null, muted: true, tunnel: { kind: 'running' } });
+    { provider: 'none', phase: 'off', reason: null, retryAfterS: null, muted: true });
   // AgentdVoiceState does not decode: no event.
   assert.equal(agentdTts(local, JSON.stringify({ state: 'ready' })), null);
   assert.equal(agentdTts(local, JSON.stringify({ provider: 'none', state: 'off', reason: 3 })), null);
@@ -229,7 +231,7 @@ test('events use the injected clock', () => {
   let now = t0;
   const c = new RuntimeCoordinator(() => now);
   now = 5_000_000;
-  c.send({ kind: 'child', name: 'tunnel', state: { kind: 'failed', reason: 'ssh' }, pid: null });
-  assert.equal(c.snapshot.processes.tunnel.since, now);
+  c.send({ kind: 'child', name: 'avatar', state: { kind: 'failed', reason: 'exit 3' }, pid: null });
+  assert.equal(c.snapshot.processes.avatar.since, now);
   assert.equal(c.snapshot.processes.agentd.since, t0);
 });

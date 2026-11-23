@@ -88,8 +88,6 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(init.confirm ?? null);
   const [toast, setToast] = useState<ToastSpec | null>(null);
   const [restarting, setRestarting] = useState(false);
-  /** How many saves deleted the stored TTS token (`ttsTokenCleared`). */
-  const [ttsTokenClears, setTtsTokenClears] = useState(0);
   const timers = useRef<number[]>([]);
   const handles = useRef<Handles>({});
   const s = useRef(src);
@@ -137,7 +135,6 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
         return false;
       }
       setVals((v) => ({ ...v, ...changes }));
-      if (res.ttsTokenCleared) setTtsTokenClears((n) => n + 1);
       const rows = s.current.native?.rows ?? {};
       const restart = Object.keys(changes).filter((id) => rows[id]?.restart === 'backend');
       if (restart.length) setPending((p) => ({ ...p, ...Object.fromEntries(restart.map((id) => [id, clock()])) }));
@@ -281,7 +278,6 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
     confirm,
     toast,
     restarting,
-    ttsTokenClears,
     value,
     set,
     setHandle,

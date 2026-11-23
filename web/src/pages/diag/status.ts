@@ -1,17 +1,23 @@
 // Diag view model: supervisor state, /diag/state blocks and /capabilities → process rows, link health and issues.
-import type { AgentdConnection, ProcessState, SupervisorTarget } from '../../bridge/protocol';
+import type { AgentdConnection, ProcessState, ServiceId, SupervisorTarget } from '../../bridge/protocol';
 import type { Health, VisualStateKey, WireRuntimePublic } from '../../domain';
 import { composeHealth } from '../../domain/adapt';
 import type { NavTarget } from '../overview/nav';
 import type { WireDiagState } from '../../domain/wire';
 import type { WireCapabilities } from './wire';
 
-/** Tunnels supervisor.state reports only when their host is configured; supervisor.restart takes neither. */
-type Tunnel = 'tunnel';
-export type ProcessKey = 'agentd' | 'avatar' | 'voice' | Tunnel;
+/** supervisor.state reports a service only under `ssh` or `local`; supervisor.restart takes none. */
+export type ProcessKey = 'agentd' | 'avatar' | 'voice' | ServiceId;
 /** The processes supervisor.state reports. */
-export type ProcKey = SupervisorTarget | Tunnel;
-type Supervised = Partial<Record<SupervisorTarget | Tunnel, ProcessState>>;
+export type ProcKey = SupervisorTarget | ServiceId;
+type Supervised = Partial<Record<ProcKey, ProcessState>>;
+
+/** The services' rows: name and what the shell's process is for. */
+export const SERVICE_ROWS: readonly [ServiceId, string, string][] = [
+  ['tts', '语音服务', '连语音'],
+  ['motion', '动作服务', '连动作生成'],
+  ['llm', '模型服务', '连兼容模型'],
+];
 
 /** One supervised child. */
 export interface Child {
@@ -71,7 +77,7 @@ const TTS_RESULT: Readonly<Record<string, string>> = {
 /** speech.py also reports `http_<status>` when the TTS answers with an error. */
 export const ttsText = (code: string): string => TTS_RESULT[code] ?? (/^http_\d+$/.test(code) ? `服务返回错误 ${code.slice(5)}` : '其他原因');
 
-/** 后台服务, 角色 and the configured tunnels from supervisor.state; agentd also from the bridge connection. */
+/** 后台服务, 角色 and the `ssh` and `local` services from supervisor.state; agentd also from the bridge connection. */
 export function processesOf(sup: Supervised | null, connection: AgentdConnection | null): DiagProcess[] {
   const row = (key: ProcKey, name: string, sub: string): DiagProcess => {
     const c = parseChild(sup?.[key]?.state);
@@ -92,15 +98,17 @@ export function processesOf(sup: Supervised | null, connection: AgentdConnection
       restartable: key === 'agentd' || key === 'avatar',
     };
   };
-  const tunnels = (['tunnel'] as const).filter((k) => sup?.[k]).map((k) => row(k, '语音隧道', '连远端语音'));
-  return [row('agentd', '后台服务', 'agentd'), row('avatar', '角色', '渲染宿主'), ...tunnels];
+  const services = SERVICE_ROWS.filter(([k]) => sup?.[k]).map(([k, name, sub]) => row(k, name, sub));
+  return [row('agentd', '后台服务', 'agentd'), row('avatar', '角色', '渲染宿主'), ...services];
 }
 
 /** Attention and too-high lines per process: CPU as a share of one core in percent, memory in MB. */
 export const LIMITS: Readonly<Record<ProcKey, { cpu: [number, number]; mem: [number, number] }>> = {
   agentd: { cpu: [50, 100], mem: [600, 1024] },
   avatar: { cpu: [120, 250], mem: [1536, 3072] },
-  tunnel: { cpu: [20, 50], mem: [64, 128] },
+  tts: { cpu: [20, 50], mem: [64, 128] },
+  motion: { cpu: [20, 50], mem: [64, 128] },
+  llm: { cpu: [20, 50], mem: [64, 128] },
 };
 
 /** Past the attention line → warn, past the too-high line → bad. */

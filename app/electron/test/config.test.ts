@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { agentdArguments } from '../src/common/agentd.ts';
-import { type Catalog, CatalogError, type ConfigContext, configLogLine, launchCharacter, parseConfig } from '../src/common/config.ts';
+import { type Catalog, CatalogError, type ConfigContext, configLogLine, launchCharacter, parseConfig, SERVICE_DEFAULTS } from '../src/common/config.ts';
 import {
   configPathFromArgs, DEFAULT_AGENTD_STATE_DIR, DEFAULT_SUPPORT_DIR, DEFAULT_WEB_LOGS_DIR, loadConfig, quitAfterFromArgs, supportDirOf,
 } from '../src/main/config.ts';
@@ -163,7 +163,7 @@ test('defaults of Config', () => {
   assert.equal(c.supportDir, '/support');
   assert.equal(c.agentdStateDir, '/state');
   assert.equal(c.interactionPreset, 'balanced');
-  assert.equal(c.ttsURL, 'http://127.0.0.1:9888');
+  assert.deepEqual(c.services, SERVICE_DEFAULTS);
   assert.deepEqual([c.shareAgentSessions, c.redactSensitive, c.proactiveSpeech], [true, true, true]);
   assert.deepEqual([c.sharePageText, c.shareTypedText, c.shareActions, c.mute], [false, false, false, false]);
   assert.equal(parse({ ...ASTER, share_actions: true }).shareActions, true);
@@ -171,14 +171,41 @@ test('defaults of Config', () => {
   // agentd's own default, so a config.json without the key keeps today's reminders.
   assert.equal(c.waterReminderMinutes, 90);
   assert.equal(c.agentdLauncher, null);
-  const d = parse({ ...ASTER, interaction_preset: 'loud', break_reminder_minutes: 25, water_reminder_minutes: 120,
-    voice_service: 'local', tts_url: 'http://h:1', tts_tunnel_host: 'h' });
+  const d = parse({ ...ASTER, interaction_preset: 'loud', break_reminder_minutes: 25, water_reminder_minutes: 120 });
   assert.equal(d.interactionPreset, 'balanced');
   assert.equal(d.breakReminderMinutes, 25);
   assert.equal(d.waterReminderMinutes, 120);
   assert.equal(parse({ ...ASTER, water_reminder_minutes: 0 }).waterReminderMinutes, 0);
-  assert.deepEqual([d.ttsURL, d.ttsTunnelHost], ['', '']);
-  assert.equal(parse({ ...ASTER, voice_service: 'system', tts_url: 'http://h:1' }).ttsURL, 'http://h:1');
+});
+
+test('services: an absent id or field is its default, the old TTS keys are ignored', () => {
+  const c = parse({ ...ASTER, voice_service: 'remote', tts_url: 'http://h:1', tts_tunnel_host: 'h', tts_ensure_script: '/e.sh',
+    services: { motion: { mode: 'url', url: 'http://gpu:48830' } } });
+  assert.deepEqual(c.services, { ...SERVICE_DEFAULTS, motion: { ...SERVICE_DEFAULTS.motion, mode: 'url', url: 'http://gpu:48830' } });
+  const ssh = { mode: 'ssh', url: 'http://127.0.0.1:9880', ssh_host: 'me@gpu-box', start_script: '/opt/tts/ensure.sh', command: [], cwd: '' };
+  const local = { mode: 'local', url: 'http://localhost:11434/v1', ssh_host: '', start_script: '', command: ['ollama', 'serve'], cwd: '/srv' };
+  assert.deepEqual(parse({ ...ASTER, services: { tts: ssh, llm: local } }).services, { ...SERVICE_DEFAULTS, tts: ssh, llm: local });
+});
+
+test('services: a record that does not hold fails the config with its text', () => {
+  const bad: [unknown, string][] = [
+    [{ voice: {} }, '未知服务 voice'],
+    [{ tts: 'ssh' }, '服务 tts 不是对象'],
+    [{ tts: { mode: 'tunnel' } }, '服务 tts 的 mode 类型错误'],
+    [{ tts: { mode: 'url', host: 'x' } }, '服务 tts 没有字段 host'],
+    [{ tts: { mode: 'url', url: 'not a url' } }, '服务 tts 的地址无效'],
+    [{ tts: { mode: 'url', url: 'file:///x' } }, '服务 tts 的地址无效'],
+    [{ tts: { mode: 'ssh', url: 'http://gpu:9880', ssh_host: 'gpu' } }, '服务 tts 的地址要是本机地址并写端口'],
+    [{ tts: { mode: 'ssh', url: 'http://127.0.0.1/tts', ssh_host: 'gpu' } }, '服务 tts 的地址要是本机地址并写端口'],
+    [{ tts: { mode: 'ssh', url: 'http://127.0.0.1:9880', ssh_host: '-oProxyCommand=x' } },
+      '服务 tts 的 SSH 主机无效：不能为空、不能以 - 开头，不能有空白或控制字符'],
+    [{ tts: { mode: 'ssh', url: 'http://127.0.0.1:9880' } }, '服务 tts 的 SSH 主机无效：不能为空、不能以 - 开头，不能有空白或控制字符'],
+    [{ llm: { mode: 'local', url: 'http://127.0.0.1:11434/v1' } }, '服务 llm 没有命令'],
+    [{ llm: { mode: 'local', url: 'http://127.0.0.1:11434/v1', command: ['ollama', 1] } }, '服务 llm 的 command 类型错误'],
+  ];
+  for (const [services, message] of bad) assert.throws(() => parse({ ...ASTER, services }), { message }, JSON.stringify(services));
+  // Off checks only the field types.
+  assert.equal(parse({ ...ASTER, services: { tts: { mode: 'off', url: '' } } }).services.tts.url, '');
 });
 
 test('the config path comes from --config, else the installed support dir; support_dir falls back to the installed one or the given one', () => {

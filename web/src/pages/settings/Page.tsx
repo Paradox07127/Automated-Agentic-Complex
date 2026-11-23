@@ -192,7 +192,7 @@ function SettingsBody() {
   }, [group, goGroup]);
 
   const marks: Partial<Record<GroupId, string>> = {};
-  if (data.view.voice?.state === 'unreachable' && model.value('tts') === 'remote') marks.speak = '语音服务连不上';
+  if (data.view.voice?.state === 'unreachable') marks.speak = '语音服务连不上';
   const missing = perms.filter((p) => p.state === 'denied' || p.state === 'notDetermined');
   if (missing.length) marks.perm = `${missing.map((p) => p.label).join('、')}没开`;
   if (runtime && !runtime.ready) marks.kernel = '内核没就绪';

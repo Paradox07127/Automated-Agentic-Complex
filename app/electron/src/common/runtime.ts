@@ -2,12 +2,13 @@
 // parts send events, each effective change bumps `revision` and goes to the observers; `runtimeJson` is the `app.runtime`
 // wire (web/src/bridge/runtimeSnapshot.ts).
 import type { ChildState } from './agentd.ts';
+import { SERVICE_IDS, type ServiceId, type ServiceMode } from './config.ts';
 import type { Cancel } from './page.ts';
 import type { SwitchFailure } from './switch.ts';
 
-export type RuntimeChild = 'agentd' | 'avatar' | 'tunnel';
+export type RuntimeChild = 'agentd' | 'avatar';
 
-/** A slot's state: a child's, or `external`, which only the tunnel reaches (its port already had this
+/** A slot's state: a child's, or `external`, which only an ssh service reaches (its port already had this
  *  user's ssh listener). */
 export type SlotState = ChildState | { kind: 'external' };
 
@@ -42,15 +43,23 @@ export interface TtsView {
   reason: string | null;
   retryAfterS: number | null;
   muted: boolean;
-  /** null when no tunnel host is configured. */
-  tunnel: ChildState | null;
+}
+
+/** One of `services` as the shell runs it. */
+export interface ServiceView {
+  mode: ServiceMode;
+  /** The tunnel's or the local process's; null under `url` and `off`. */
+  state: SlotState | null;
+  pid: number | null;
+  /** The last failure's text. */
+  detail: string | null;
 }
 
 /** Push-to-talk microphone state (voice input, not TTS). */
 export type VoiceInput = 'on' | 'off' | 'denied';
 
 export interface DegradedReason {
-  /** agentd, config, tunnel, voice or avatar. */
+  /** agentd, config, service, voice or avatar; a service's `detail` is its id. */
   source: string;
   code: string;
   detail: string | null;
@@ -64,6 +73,7 @@ export interface Runtime {
   character: CharacterView;
   visibility: VisibilityView;
   tts: TtsView;
+  services: Record<ServiceId, ServiceView>;
   voiceInput: VoiceInput;
   degraded: DegradedReason[];
   /** The ready plan finished for the current agentd run. */
@@ -78,6 +88,7 @@ export type RuntimeEvent =
   | { kind: 'character'; view: CharacterView }
   | { kind: 'visibility'; view: VisibilityView }
   | { kind: 'tts'; view: TtsView }
+  | { kind: 'service'; id: ServiceId; view: ServiceView }
   | { kind: 'voiceInput'; value: VoiceInput }
   | { kind: 'configError'; error: string | null };
 
@@ -86,10 +97,11 @@ export type RuntimePhase = 'config_failed' | 'starting' | 'avatar_only' | 'agent
 export function initialRuntime(since: number): Runtime {
   const stopped = (): ProcessStage => ({ state: { kind: 'stopped' }, pid: null, stage: null, since });
   return {
-    revision: 0, configError: null, processes: { agentd: stopped(), avatar: stopped(), tunnel: stopped() },
+    revision: 0, configError: null, processes: { agentd: stopped(), avatar: stopped() },
     character: { current: null, shown: null, agentd: null, pending: null, switching: false, failure: null },
     visibility: { hidden: false, reason: null, fullscreenHidden: false, clickThroughAll: false },
-    tts: { provider: 'none', phase: 'unknown', reason: null, retryAfterS: null, muted: false, tunnel: null },
+    tts: { provider: 'none', phase: 'unknown', reason: null, retryAfterS: null, muted: false },
+    services: Object.fromEntries(SERVICE_IDS.map((id) => [id, { mode: 'off', state: null, pid: null, detail: null }])) as Record<ServiceId, ServiceView>,
     voiceInput: 'off', degraded: [], agentdReady: false,
   };
 }
@@ -139,6 +151,13 @@ export function reduced(s: Runtime, e: RuntimeEvent, now: number): Runtime {
     case 'tts':
       next.tts = e.view;
       break;
+    case 'service': {
+      next.services = { ...s.services, [e.id]: e.view };
+      const failed = SERVICE_IDS.filter((id) => next.services[id].state?.kind === 'failed');
+      next.degraded = [...s.degraded.filter((d) => d.source !== 'service'),
+        ...failed.map((id) => ({ source: 'service', code: 'service_failed', detail: id }))];
+      break;
+    }
     case 'voiceInput':
       next.voiceInput = e.value;
       break;
@@ -158,11 +177,11 @@ export function runtimePhase(s: Runtime): RuntimePhase {
   if (!agentd) return avatar ? 'avatar_only' : 'starting';
   if (!avatar) return 'agentd_only';
   if (s.character.shown === null) return 'starting';
-  if (s.degraded.length > 0 || s.processes.tunnel.state.kind === 'failed') return 'degraded';
+  if (s.degraded.length > 0) return 'degraded';
   return 'interactive';
 }
 
-/** agentd's `voice_state` event over `tts` (TtsView.agentd); `muted` and `tunnel` are the shell's own. null when `data` is
+/** agentd's `voice_state` event over `tts` (TtsView.agentd); `muted` is the shell's own. null when `data` is
  *  not a voice state agentd reports. An unknown `state` reads `unknown`. */
 export function agentdTts(tts: TtsView, data: string): TtsView | null {
   let v: unknown;
@@ -178,13 +197,19 @@ export function agentdTts(tts: TtsView, data: string): TtsView | null {
   if (o.retry_after_s != null && typeof o.retry_after_s !== 'number') return null;
   return { provider: o.provider, phase: TTS_PHASES.includes(o.state) ? o.state as TtsPhase : 'unknown',
     reason: (o.reason as string | undefined) ?? null, retryAfterS: (o.retry_after_s as number | undefined) ?? null,
-    muted: tts.muted, tunnel: tts.tunnel };
+    muted: tts.muted };
 }
 
 const WIRE_STATE: Record<SlotState['kind'], string> = {
   stopped: 'stopped', starting: 'starting', running: 'running', backoff: 'backoff', portInUse: 'port_in_use', failed: 'failed',
   external: 'external',
 };
+
+/** A slot's state on the wire: `kind` snake_case, with `seconds` in backoff and `reason` when failed. */
+export function wireState(state: SlotState): { kind: string; seconds?: number; reason?: string } {
+  return { kind: WIRE_STATE[state.kind], ...(state.kind === 'backoff' && { seconds: state.seconds }),
+    ...(state.kind === 'failed' && { reason: state.reason }) };
+}
 
 /** The `app.runtime` wire: snake_case keys, every optional present as null so the web sees a fixed shape. */
 export function runtimeJson(s: Runtime) {
@@ -197,12 +222,15 @@ export function runtimeJson(s: Runtime) {
     revision: s.revision,
     phase: runtimePhase(s),
     config_error: s.configError,
-    processes: { agentd: process(s.processes.agentd), avatar: process(s.processes.avatar), tunnel: process(s.processes.tunnel) },
+    processes: { agentd: process(s.processes.agentd), avatar: process(s.processes.avatar) },
     character: { current: c.current, shown: c.shown, agentd: c.agentd, pending: c.pending, switching: c.switching,
       failure: c.failure && { target: c.failure.target, stage: c.failure.stage, reason: c.failure.reason } },
     visibility: { hidden: v.hidden, reason: v.reason, fullscreen_hidden: v.fullscreenHidden, click_through_all: v.clickThroughAll },
-    tts: { provider: t.provider, state: t.phase, reason: t.reason, retry_after_s: t.retryAfterS, muted: t.muted,
-      tunnel: t.tunnel && WIRE_STATE[t.tunnel.kind] },
+    tts: { provider: t.provider, state: t.phase, reason: t.reason, retry_after_s: t.retryAfterS, muted: t.muted },
+    services: Object.fromEntries(SERVICE_IDS.map((id) => {
+      const v = s.services[id];
+      return [id, { mode: v.mode, state: v.state && wireState(v.state), pid: v.pid, detail: v.detail }];
+    })) as Record<ServiceId, { mode: ServiceMode; state: ReturnType<typeof wireState> | null; pid: number | null; detail: string | null }>,
     voice_input: s.voiceInput,
     degraded: s.degraded.map((d) => ({ source: d.source, code: d.code, detail: d.detail })),
   };

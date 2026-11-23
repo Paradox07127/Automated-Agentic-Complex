@@ -1,4 +1,4 @@
-// The tunnel's Windows branch against the host itself: its OpenSSH, netstat and tasklist in the host's display language, and
+// The services' Windows branch against the host itself: its OpenSSH, netstat and tasklist in the host's display language, and
 // parent_watch.py's Job Object. ssh only prints its version; no host is reached.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -6,7 +6,7 @@ import { existsSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { basename, join } from 'node:path';
 import { test } from 'node:test';
-import { ownSshListeners, portListeners, tunnelArguments } from '../src/main/tunnel/supervisor.ts';
+import { ownSshListeners, portListeners, tunnelArguments } from '../src/main/services/supervisor.ts';
 
 const WINDOWS_ONLY = process.platform === 'win32' ? false : 'reads the Windows host\'s own OpenSSH, netstat, tasklist and Job Objects';
 const REPO = join(import.meta.dirname, '../../..');

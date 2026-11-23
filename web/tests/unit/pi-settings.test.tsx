@@ -236,7 +236,8 @@ describe('其他（Pi 目录）', () => {
 describe('compatible API on this machine', () => {
   it('offers API Key or no key, and no key writes Pi auth_source local_no_auth', async () => {
     render(<Harness d={{ ...pi(), models: compatible('http://127.0.0.1:11434/v1') }}><ModelGroup /><ApplyBar /></Harness>);
-    const seg = within(row('apikey')!).getByRole('radiogroup');
+    // The address is the shell's services.llm, a loopback one by default.
+    const seg = await within(row('apikey')!).findByRole('radiogroup');
     expect(within(seg).getAllByRole('radio').map((r) => r.textContent)).toEqual(['API Key', '无需密钥']);
     expect(within(seg).getByRole('radio', { name: 'API Key' }).getAttribute('aria-checked')).toBe('true');
     await click(within(seg).getByRole('radio', { name: '无需密钥' }));
@@ -245,8 +246,11 @@ describe('compatible API on this machine', () => {
     expect(sent('PUT', '/character/runtime')).toEqual({ auth_source: 'local_no_auth' });
   });
 
-  it('keeps the plain key row on a remote address or off Pi', () => {
+  it('keeps the plain key row on a remote address or off Pi', async () => {
+    const llm = { mode: 'url' as const, url: 'https://llm.example.com/v1', ssh_host: '', start_script: '', command: [], cwd: '' };
+    await window.agenticComplex!.services.save('llm', llm);
     render(<Harness d={{ ...pi(), models: compatible('https://llm.example.com/v1') }}><ModelGroup /></Harness>);
+    await act(async () => {});
     expect(within(row('apikey')!).queryByRole('radiogroup')).toBeNull();
     cleanup();
     render(<Harness d={{ ...d, models: compatible('http://localhost:11434/v1') }}><ModelGroup /></Harness>);

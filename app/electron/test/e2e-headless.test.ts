@@ -131,7 +131,7 @@ class Stack {
       avatar_app: join(this.dir, 'Avatar.app'), characters: [{ id: 'aster', name: '示例甲', avatar_app: join(this.dir, 'Avatar.app') }],
       avatar_executable: this.mockHost, agentd_dir: join(REPO, 'agent/agentd'),
       python: this.python, agentd_port: this.port, gpu_hold_files: [], support_dir: this.support, agentd_state_dir: this.stateDir,
-      voice_service: 'remote', tts_url: `http://127.0.0.1:${readFileSync(portFile, 'utf8').trim()}`, tts_tunnel_host: '',
+      services: { tts: { mode: 'url', url: `http://127.0.0.1:${readFileSync(portFile, 'utf8').trim()}` } },
       share_page_text: false, share_window_text: false, share_screenshots: false, voice_hotkey: '', hotkey_quick_input: '',
       onboarding_done: true, viewport: 'window', plugins: { screen_awareness: false },
       ...(options.missing ? { missing_components: options.missing } : {}),
@@ -718,7 +718,7 @@ const gone = (pid: number) => {
 
 const SRC = (path: string) => JSON.stringify(pathToFileURL(join(REPO, 'app/electron/src', path)).href);
 
-/** A shell for the cascade scenario: agentd and the renderer as index.ts wires them, and parent_watch.py as the tunnel runs it
+/** A shell for the cascade scenario: agentd and the renderer as index.ts wires them, and parent_watch.py as an ssh service runs it
  *  with a sleeper that writes its pid to argv[3] for ssh; writes the pids it has to argv[4]. */
 const SHELL = `
 import { spawn } from 'node:child_process';

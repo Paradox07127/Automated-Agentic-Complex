@@ -19,7 +19,7 @@ import { AVATAR_STAGE_TITLES } from '../common/stack-source.ts';
 import { shownFrame } from '../common/keepclear.ts';
 import type { Rect } from '../common/placement.ts';
 import { rendererPreflight } from '../common/components.ts';
-import { type Config, configLogLine, launchCharacter, statusTitle, webLogsDir } from '../common/config.ts';
+import { type Config, configLogLine, launchCharacter, SERVICE_IDS, type ServiceId, statusTitle, webLogsDir } from '../common/config.ts';
 import { FeedSource, SharedSource } from '../common/feed.ts';
 import { processStatus } from '../common/menus.ts';
 import { hookCommand } from '../common/onboarding.ts';
@@ -33,7 +33,7 @@ import { PushToTalk, pushToTalkState, speechLocale } from '../common/push-to-tal
 import { startupWindow } from '../common/startup.ts';
 import { trayTitle } from '../common/tray-title.ts';
 import { TurnMarks } from '../common/turn-marks.ts';
-import { agentdTts, RuntimeCoordinator, runtimeJson, type SlotState } from '../common/runtime.ts';
+import { agentdTts, RuntimeCoordinator, runtimeJson } from '../common/runtime.ts';
 import { desktopHotkeys } from '../common/settings.ts';
 import { CharacterSwitch } from '../common/switch.ts';
 import { ORIGIN, SCHEME } from '../common/ui.ts';
@@ -107,7 +107,7 @@ import { liveSaved } from './renderer/saved.ts';
 import { type Loading, lookArguments, RendererSupervisor } from './renderer/supervisor.ts';
 import { singleInstance } from './single-instance.ts';
 import { TitleOverlay, titleNames, titleScreen } from './title/overlay.ts';
-import { TunnelSupervisor } from './tunnel/supervisor.ts';
+import { ServiceSupervisor } from './services/supervisor.ts';
 import { uiServer, type UiResponse } from './ui-scheme.ts';
 import { guardWebContents, type WebGuardPorts } from './web-guard.ts';
 import { c3Cursor, currentCharacterOf, handleNudge, helloBuild, notifySettings, pagesRoot, refreshRoster } from './wiring.ts';
@@ -182,7 +182,6 @@ try {
   runtime.send({ kind: 'configError', error: e instanceof Error ? e.message : String(e) });
 }
 let agentdState: ChildState = { kind: 'stopped' };
-let tunnelState: SlotState = { kind: 'stopped' };
 let helperState: ChildState = { kind: 'stopped' };
 let rendererState: ChildState = (config && rendererPreflight(config)) ?? { kind: 'stopped' };
 const launched = config ? launchCharacter(config, lastCharacter(config.supportDir)) : '';
@@ -327,17 +326,14 @@ const renderer = config && new RendererSupervisor({
 });
 // Rule 17: the watchdog's kill goes to the process whose hello it watched.
 hostLink?.on((e) => { if (e.kind === 'watchdog' && e.pid === renderer?.pid) renderer.kill(e.reason); });
-/** The TTS tunnel; it starts nothing without `tts_tunnel_host`. */
-const tunnel = config && new TunnelSupervisor({
-  config, watcherScript: WATCHER,
-  onStatus: (state) => {
-    tunnelState = state;
-    runtimeChanged();
-  },
-});
-/** 重启后台 and 重启子进程 start the tunnel again with config.json read again. */
-function restartTunnel(what: string): void {
-  if (!tunnel) return;
+/** The `services` the shell runs a process for (`ssh`, `local`); the others start nothing. */
+const services = config && new Map(SERVICE_IDS.map((id) => [id, new ServiceSupervisor({
+  id, config, watcherScript: WATCHER,
+  onStatus: () => runtimeChanged(),
+})]));
+/** 重启后台, 重启子进程 and a saved record start the services (all, or `only`) again with config.json read again. */
+function restartServices(what: string, only?: ServiceId): void {
+  if (!services) return;
   let fresh: Config;
   try {
     fresh = loadConfig(configPath);
@@ -345,7 +341,7 @@ function restartTunnel(what: string): void {
     appendLog(supportDir, 'companion', `restart ${what}: config.json unreadable: ${e instanceof Error ? e.message : String(e)}`);
     return;
   }
-  void tunnel.restart(fresh);
+  for (const [id, service] of services) if (only === undefined || id === only) void service.restart(fresh);
 }
 const supervisor = config && new AgentdSupervisor({
   config, reload: () => loadConfig(configPath), launcherScript: config.agentdLauncher ?? LAUNCHER, pythonFlags: PYTHON_FLAGS,
@@ -800,9 +796,16 @@ function opsContext(surface: Surface): OpsContext {
     diag: diagStream && new SharedSource((emit) => diagStream.start((e) => emit({ event: e.event, id: e.id ?? null, data: e.data })),
       () => diagStream.stop()),
     supervisor: supervisor && {
-      state: () => supervisor.state, pid: () => supervisor.pid, restart: () => { void supervisor.restart(); restartTunnel('backend'); }, avatar: () => rendererState,
+      state: () => supervisor.state, pid: () => supervisor.pid, restart: () => { void supervisor.restart(); restartServices('backend'); }, avatar: () => rendererState,
       restartAvatar: renderer ? restartAfterPackageChange : undefined, avatarPid: () => renderer?.pid,
-      tunnel: () => (tunnel && tunnel.config.ttsTunnelHost !== '' ? tunnelState : null), tunnelPid: () => tunnel?.pid,
+    },
+    services: services && {
+      view: (id) => services.get(id)!.view, start: (id) => services.get(id)!.begin(), stop: (id) => services.get(id)!.end(),
+      restart: (id) => services.get(id)!.again(),
+      saved: (id) => {
+        restartServices('services save', id);
+        void supervisor?.restart();
+      },
     },
     avatar: hostLink && linkAvatarHost(hostLink, (hidden) => setAvatarHidden(hidden), {
       captureDir: CAPTURE_DIR,
@@ -947,11 +950,11 @@ function desktopState(): Record<string, unknown> {
 }
 
 /** The processes and her visibility as this shell reads them; the character comes from the switch's `onChange`, agentd's stage and degraded from `onHealth`. This shell
- *  has no tunnel, no visibility reason or click-through-all. */
+ *  has no visibility reason or click-through-all. */
 function runtimeChanged(): void {
   runtime.send({ kind: 'child', name: 'agentd', state: agentdState, pid: supervisor?.pid ?? null });
   runtime.send({ kind: 'child', name: 'avatar', state: rendererState, pid: renderer?.pid ?? null });
-  runtime.send({ kind: 'child', name: 'tunnel', state: tunnelState, pid: tunnel?.pid ?? null });
+  for (const service of services?.values() ?? []) runtime.send({ kind: 'service', id: service.id, view: service.view });
   runtime.send({ kind: 'visibility', view: { hidden: hostLink?.hidden ?? false, reason: visibility.reason,
     fullscreenHidden: watchers?.fullscreenHidden ?? false, clickThroughAll: hostLink?.clickThroughAll ?? false } });
   menus.refreshIcon();
@@ -1001,12 +1004,12 @@ const menus = shellMenus({
   characters: () => config && config.characters.map((c) => ({ id: c.id, name: c.name })),
   launched,
   processes: () => processStatus(config === null, agentdState, rendererState, [rendererState, agentdState,
-    ...(tunnel && tunnel.config.ttsTunnelHost !== '' ? [tunnelState.kind === 'external' ? { kind: 'running' } as const : tunnelState] : [])]),
+    ...[...services?.values() ?? []].flatMap((s) => (s.supervised ? [s.state.kind === 'external' ? { kind: 'running' } as const : s.state] : []))]),
   link: hostLink, looks, switcher, observation, pushToTalk, interaction,
   desktop: () => desktop, placer: () => placer,
   restartChildren: () => {
     void supervisor?.restart();
-    restartTunnel('children');
+    restartServices('children');
     void renderer?.restart();
   },
   openMain: openMainAt, quit: () => app.quit(), settingsChanged: (keys) => settingsChanges.changed(keys),
@@ -1189,13 +1192,13 @@ app.on('will-quit', (e) => {
   controlPanel?.stop();
   looks?.stop();
   devReloader?.stop();
-  if (childrenStopped || (!supervisor && !renderer && !helper && !tunnel)) return;
+  if (childrenStopped || (!supervisor && !renderer && !helper && !services)) return;
   e.preventDefault();
   void (async () => {
     await renderer?.stop();
     hostLink?.stop();
     await supervisor?.stop();
-    await tunnel?.stop();
+    await Promise.all([...services?.values() ?? []].map((s) => s.stop()));
     await helper?.stop();
     childrenStopped = true;
     app.quit();
@@ -1210,7 +1213,7 @@ void app.whenReady().then(async () => {
   quitOnSignals({ on: (signal, listener) => { process.on(signal, listener); }, quit: () => app.quit() });
   setAppMenu();
   runtimeChanged();
-  tunnel?.start();
+  for (const service of services?.values() ?? []) service.start();
   supervisor?.start();
   helper?.start();
   if (config && hostLink) {

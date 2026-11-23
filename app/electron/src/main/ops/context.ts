@@ -1,15 +1,16 @@
 // What the op handlers reach outside themselves. index.ts fills it from Electron; the tests from fakes.
 import type { ChildState } from '../../common/agentd.ts';
 import type { Handler, Surface } from '../../common/bridge.ts';
-import type { ShellPlatform } from '../../common/config.ts';
+import type { ServiceId, ShellPlatform } from '../../common/config.ts';
 import type { EventSource, PageSession } from '../../common/page.ts';
 import type { ImportProgress } from '../../common/import-state.ts';
 import type { MmdSync } from '../../common/mmd-sync.ts';
 import type { Route } from '../../common/routes.ts';
-import type { SlotState } from '../../common/runtime.ts';
+import type { ServiceView } from '../../common/runtime.ts';
 import type { LookResult } from '../../common/screen-context.ts';
 import type { AgentdClient } from '../agentd/client.ts';
 import type { AgentStore } from '../agentd/store.ts';
+import type { ServiceActionResult } from '../services/supervisor.ts';
 import type { HelperReply } from '../helper/client.ts';
 import type { SwitchOutcome } from '../../common/switch.ts';
 import type { TurnMarks } from '../../common/turn-marks.ts';
@@ -41,11 +42,19 @@ export interface OpsContext {
   store: AgentStore | null;
   /** `GET /diag/stream`, connected while a page subscribes. */
   diag: EventSource | null;
-  /** `avatar` is the renderer's state; `restartAvatar` and `avatarPid` are there once the renderer is supervised. `tunnel` is
-   *  the TTS tunnel's, null without `tts_tunnel_host`; absent is null. */
+  /** `avatar` is the renderer's state; `restartAvatar` and `avatarPid` are there once the renderer is supervised. */
   supervisor: {
     state(): ChildState; pid(): number | undefined; restart(): void; avatar(): ChildState; restartAvatar?(): void;
-    avatarPid?(): number | undefined; tunnel?(): SlotState | null; tunnelPid?(): number | undefined;
+    avatarPid?(): number | undefined;
+  } | null;
+  /** The `services` supervisors (services/supervisor.ts); null or absent when config.json did not load. */
+  services?: {
+    view(id: ServiceId): ServiceView;
+    start(id: ServiceId): Promise<ServiceActionResult>;
+    stop(id: ServiceId): Promise<ServiceActionResult>;
+    restart(id: ServiceId): Promise<ServiceActionResult>;
+    /** config.json has a new record for `id`: its process and agentd restart with config.json read again. */
+    saved(id: ServiceId): void;
   } | null;
   /** The renderer over C3; null or absent without one. */
   avatar?: AvatarHost | null;

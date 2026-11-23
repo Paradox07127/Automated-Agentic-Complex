@@ -304,7 +304,7 @@ export function DiagPage() {
             uptime={health?.agentd.up && health.agentd.started_at ? { agentd: formatDuration(now - health.agentd.started_at) } : {}}
             agentdGone={staleAt != null}
             actions={act.actions}
-            highlight={highlight === 'agentd' || highlight === 'avatar' || highlight === 'tunnel' ? highlight : null}
+            highlight={highlight === 'agentd' || highlight === 'avatar' || highlight === 'tts' || highlight === 'motion' || highlight === 'llm' ? highlight : null}
             onRestart={setConfirm}
             onLogs={viewLogs}
           />

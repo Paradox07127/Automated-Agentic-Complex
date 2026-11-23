@@ -104,7 +104,7 @@ test('logs.sources lists the seven fixed files, ui.log in a test support dir’s
   writeFileSync(join(logs, 'agentd.log'), '');
   writeFileSync(join(logs, 'ui.log'), `${iso(0)}\tmain\t#/x\tboom\t\n`);
   const got = ops['logs.sources']!([], null as never) as { dirs: { support: string; web: string }; sources: Array<{ id: string; file: string; bytes: number; exists: boolean }> };
-  assert.deepEqual(got.sources.map((s) => s.file), ['agentd.log', 'companion.log', 'avatar.log', 'helper.log', 'tunnel.log', 'ui.log', 'motion.jsonl']);
+  assert.deepEqual(got.sources.map((s) => s.file), ['agentd.log', 'companion.log', 'avatar.log', 'helper.log', 'services.log', 'ui.log', 'motion.jsonl']);
   assert.equal(got.dirs.web, `${dir}/logs`);
   assert.deepEqual(got.sources.filter((s) => s.exists).map((s) => s.id), ['agentd', 'ui']);
   assert.ok(got.sources.find((s) => s.id === 'ui')!.bytes > 0);

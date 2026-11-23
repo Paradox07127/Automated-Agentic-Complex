@@ -46,7 +46,9 @@
       "visibility.reason",
       "tts.reason",
       "tts.retry_after_s",
-      "tts.tunnel"
+      "services.*.state",
+      "services.*.pid",
+      "services.*.detail"
     ],
     "value": {
       "revision": 1,
@@ -61,13 +63,6 @@
           "stage": null
         },
         "avatar": {
-          "state": "running",
-          "pid": 1,
-          "backoff": null,
-          "reason": null,
-          "stage": null
-        },
-        "tunnel": {
           "state": "running",
           "pid": 1,
           "backoff": null,
@@ -94,8 +89,27 @@
         "state": "off",
         "reason": "not_configured",
         "retry_after_s": null,
-        "muted": false,
-        "tunnel": null
+        "muted": false
+      },
+      "services": {
+        "tts": {
+          "mode": "off",
+          "state": null,
+          "pid": null,
+          "detail": null
+        },
+        "motion": {
+          "mode": "off",
+          "state": null,
+          "pid": null,
+          "detail": null
+        },
+        "llm": {
+          "mode": "off",
+          "state": null,
+          "pid": null,
+          "detail": null
+        }
       },
       "voice_input": "off",
       "degraded": []

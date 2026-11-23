@@ -2,7 +2,7 @@
 import { AgentdCallError, CONFLICT_CODES, del, get, post, put, seg } from '../../bridge/agentd';
 import { appNow } from '../../bridge/clock';
 import { codeText, serverFaultText } from '../../domain/errorText';
-import type { PickedHandle } from '../../bridge';
+import { getBridge, type PickedHandle } from '../../bridge';
 import type { ObservationBriefsSettingsResponse } from '../../bridge/agentd-routes.generated';
 import type { WireRuntimePublic, WireRuntimeSettings } from '../../domain/wire';
 import type {
@@ -36,6 +36,8 @@ export const readMotion = () => get<MotionSource>('/motion/settings');
 /** A token `''` removes the saved one; no `token` key keeps it. */
 export const saveMotion = (body: { backend: MotionSource['backend']; service_url: string | null; token?: string }) => put<MotionSource>('/motion/settings', body);
 export const readCatalog = () => post<WireCatalog>('/model/catalog', {});
+/** config.json's `services`, read through the shell. */
+export const readServices = () => getBridge().services.read();
 /** agentd opens the sign-in page in the browser itself and answers with the account state; a saved account's id signs that one in again, none adds one. */
 export const chatgptStart = (profile_id?: string) => post<WireChatgpt>('/model/chatgpt/start', profile_id ? { profile_id } : {});
 export const chatgptCancel = () => post<WireChatgpt>('/model/chatgpt/cancel', {});

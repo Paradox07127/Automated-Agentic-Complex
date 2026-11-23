@@ -8,7 +8,7 @@ import { Barcode, DeviceRow, ReadTick, type DeviceRowProps } from '../../ui/game
 import type { NavTarget } from '../overview/nav';
 import { gateHolds } from './GatePanel';
 import { cpuParts, memParts } from './procText';
-import { CAP_REASON, LIMITS, lampOf, levelOf, ttsText, type DiagIssue, type DiagProcess } from './status';
+import { CAP_REASON, LIMITS, lampOf, levelOf, SERVICE_ROWS, ttsText, type DiagIssue, type DiagProcess } from './status';
 import styles from './Diag.module.css';
 
 export type DiagTab = 'overview' | 'proc' | 'render' | 'flow' | 'state';
@@ -133,7 +133,7 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
   const proc = (k: string) => p.procs?.find((x) => x.key === k) ?? null;
   const agentd = proc('agentd');
   const avatar = proc('avatar');
-  const tunnel = proc('tunnel');
+  const services = SERVICE_ROWS.flatMap(([k]) => proc(k) ?? []);
   const h = p.health;
   const caps = (ids: (id: string) => boolean) => p.issues.filter((i) => ids(i.id));
 
@@ -213,7 +213,7 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
     icon: 'voice',
     name: '语音',
     sub: [tts ? (voiceSource(tts.provider) ?? 'TTS') : 'TTS', p.d?.mouth_voice.muted ? '已静音' : null].filter(Boolean).join(' │ '),
-    child: tunnel ? 'mid' : 'last',
+    child: services.length > 0 ? 'mid' : 'last',
     micro: 'TTS',
     go: { label: '设置 › 说话', external: true, onClick: () => p.go({ page: 'settings', group: 'speak', item: 'tts' }) },
     ...(gone
@@ -232,20 +232,18 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
         : { state: (v === 'ready' ? 'ok' : v === 'probing' ? 'waiting' : 'idle') as VisualStateKey, stateLabel: v === 'ready' ? '就绪' : voiceText(v, null), why: v === 'off' ? CAP_REASON.no_tts : tts?.at ? `上一句 ${formatClock(Date.parse(tts.at))}` : voiceText(v, null) }),
   };
 
-  const tunnelRow: Row | null = tunnel
-    ? {
-        key: 'tunnel',
-        icon: 'sync',
-        name: '语音隧道',
-        sub: tunnel.pid != null ? `ssh │ pid ${tunnel.pid}` : 'ssh',
-        child: 'last',
-        state: lampOf(tunnel),
-        stateLabel: tunnel.status_text,
-        why: tunnel.backoff_s != null ? `${tunnel.backoff_s} 秒后自动重启` : '转发到远端语音服务',
-        micro: 'TUNNEL',
-        go: { label: '去进程', onClick: () => p.onTab('proc') },
-      }
-    : null;
+  const serviceRows: Row[] = services.map((s, i) => ({
+    key: s.key,
+    icon: 'sync',
+    name: s.name,
+    sub: s.pid != null ? `${s.sub} │ pid ${s.pid}` : s.sub,
+    child: i === services.length - 1 ? 'last' : 'mid',
+    state: lampOf(s),
+    stateLabel: s.status_text,
+    why: s.backoff_s != null ? `${s.backoff_s} 秒后自动重启` : '外壳替它起的隧道或本机进程',
+    micro: s.key.toUpperCase(),
+    go: { label: '去进程', onClick: () => p.onTab('proc') },
+  }));
 
   const f = p.flow;
   const flowRow: Row = {
@@ -285,7 +283,7 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
         }),
   };
 
-  return { link: [agentdRow, runtimeRow, avatarRow, voiceRow, ...(tunnelRow ? [tunnelRow] : [])], run: [flowRow, gateRow] };
+  return { link: [agentdRow, runtimeRow, avatarRow, voiceRow, ...serviceRows], run: [flowRow, gateRow] };
 }
 
 /** 运行来源: the packaged app, or a dev deployment marked in the warning colour so a test does not run the wrong build. */

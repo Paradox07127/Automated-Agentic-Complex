@@ -1,0 +1,95 @@
+[
+  {
+    "op": "services.read",
+    "surface": "main",
+    "value": {
+      "tts": {
+        "mode": "off",
+        "url": "http://127.0.0.1:9888",
+        "ssh_host": "",
+        "start_script": "",
+        "command": [],
+        "cwd": ""
+      },
+      "motion": {
+        "mode": "off",
+        "url": "http://127.0.0.1:48830",
+        "ssh_host": "",
+        "start_script": "",
+        "command": [],
+        "cwd": ""
+      },
+      "llm": {
+        "mode": "off",
+        "url": "http://127.0.0.1:11434/v1",
+        "ssh_host": "",
+        "start_script": "",
+        "command": [],
+        "cwd": ""
+      }
+    }
+  },
+  {
+    "op": "services.save",
+    "surface": "main",
+    "args": [
+      "motion",
+      {
+        "mode": "off",
+        "url": "http://127.0.0.1:48830",
+        "ssh_host": "",
+        "start_script": "",
+        "command": [],
+        "cwd": ""
+      }
+    ],
+    "value": {
+      "ok": true
+    }
+  },
+  {
+    "op": "services.start",
+    "surface": "main",
+    "args": [
+      "motion"
+    ],
+    "nullable": [
+      "line"
+    ],
+    "value": {
+      "ok": false,
+      "error": "not_supervised",
+      "line": null
+    }
+  },
+  {
+    "op": "services.stop",
+    "surface": "main",
+    "args": [
+      "motion"
+    ],
+    "nullable": [
+      "line"
+    ],
+    "value": {
+      "ok": false,
+      "error": "not_supervised",
+      "line": null
+    }
+  },
+  {
+    "op": "services.restart",
+    "surface": "main",
+    "args": [
+      "motion"
+    ],
+    "nullable": [
+      "line"
+    ],
+    "value": {
+      "ok": false,
+      "error": "not_supervised",
+      "line": null
+    }
+  }
+]

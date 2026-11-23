@@ -24,23 +24,35 @@
       "reason": null,
       "stage": null,
       "state": "stopped"
-    },
-    "tunnel": {
-      "backoff": null,
-      "pid": null,
-      "reason": null,
-      "stage": null,
-      "state": "stopped"
     }
   },
   "revision": 0,
+  "services": {
+    "llm": {
+      "detail": null,
+      "mode": "off",
+      "pid": null,
+      "state": null
+    },
+    "motion": {
+      "detail": null,
+      "mode": "off",
+      "pid": null,
+      "state": null
+    },
+    "tts": {
+      "detail": null,
+      "mode": "off",
+      "pid": null,
+      "state": null
+    }
+  },
   "tts": {
     "muted": false,
     "provider": "none",
     "reason": null,
     "retry_after_s": null,
-    "state": "unknown",
-    "tunnel": null
+    "state": "unknown"
   },
   "visibility": {
     "click_through_all": false,

@@ -1,15 +1,107 @@
 // config.json decoded: the keys the main process uses, with their defaults and error texts. Reading files is the caller's: `src/main/config.ts`.
 import { DEFAULT_PLUGINS, isPluginId, type Plugins } from './plugins.ts';
+import { unsafeSshHost } from './settings.ts';
 
-/** Paths under the home directory, and the default TTS address. */
+/** Paths under the home directory. */
 export const IDS = {
   /** The bundle id, and on Windows the AppUserModelID. */
   appId: 'local.agenticcomplex.companion',
   companionSupportDir: 'Library/Application Support/local.agenticcomplex.companion',
   agentdStateDir: 'Library/Application Support/AgenticComplex/agentd',
   webLogsDir: 'Library/Logs/AgenticComplex',
-  ttsURL: 'http://127.0.0.1:9888',
 } as const;
+
+/** The external services config.json's `services` connects. */
+export const SERVICE_IDS = ['tts', 'motion', 'llm'] as const;
+export type ServiceId = typeof SERVICE_IDS[number];
+export const SERVICE_MODES = ['off', 'url', 'ssh', 'local'] as const;
+export type ServiceMode = typeof SERVICE_MODES[number];
+
+/** One entry of `services`, as config.json keeps it. */
+export interface ServiceRecord {
+  mode: ServiceMode;
+  url: string;
+  ssh_host: string;
+  /** Run over ssh on `ssh_host` with `ensure`, `stop` or `status`; only under `ssh`. */
+  start_script: string;
+  /** argv run on this machine under `local`. */
+  command: string[];
+  /** `command`'s working directory; empty leaves it unset. */
+  cwd: string;
+}
+
+const service = (url: string): ServiceRecord => ({ mode: 'off', url, ssh_host: '', start_script: '', command: [], cwd: '' });
+export const SERVICE_DEFAULTS: Readonly<Record<ServiceId, ServiceRecord>> = {
+  tts: service('http://127.0.0.1:9888'),
+  motion: service('http://127.0.0.1:48830'),
+  llm: service('http://127.0.0.1:11434/v1'),
+};
+
+export const isServiceId = (v: unknown): v is ServiceId => SERVICE_IDS.includes(v as ServiceId);
+
+/** The port written in `url`; null when there is none or it does not parse. */
+export function servicePort(url: string): number | null {
+  const port = URL.parse(url)?.port ?? '';
+  return port === '' ? null : Number(port);
+}
+
+/** Whether `url` names this machine. */
+export function loopbackURL(url: string): boolean {
+  const host = URL.parse(url)?.hostname;
+  return host === '127.0.0.1' || host === 'localhost' || host === '[::1]';
+}
+
+/** A `services` record that does not hold: `field` is the record key at fault, `message` the text shown. */
+export class ServiceRecordError extends Error {
+  readonly field: string;
+
+  constructor(field: string, message: string) {
+    super(message);
+    this.field = field;
+  }
+}
+
+/** `v` as a record of service `id`; an absent field is its default. Throws `ServiceRecordError`. */
+export function serviceRecord(id: ServiceId, v: unknown): ServiceRecord {
+  if (!isObject(v)) throw new ServiceRecordError('', `服务 ${id} 不是对象`);
+  const unknown = Object.keys(v).find((k) => !Object.hasOwn(SERVICE_DEFAULTS[id], k));
+  if (unknown !== undefined) throw new ServiceRecordError(unknown, `服务 ${id} 没有字段 ${unknown}`);
+  const field = <T>(key: keyof ServiceRecord, ok: (x: unknown) => x is T): T => {
+    if (!Object.hasOwn(v, key)) return SERVICE_DEFAULTS[id][key] as T;
+    if (!ok(v[key])) throw new ServiceRecordError(key, `服务 ${id} 的 ${key} 类型错误`);
+    return v[key];
+  };
+  const isString = (x: unknown): x is string => typeof x === 'string';
+  const r: ServiceRecord = {
+    mode: field('mode', (x): x is ServiceMode => SERVICE_MODES.includes(x as ServiceMode)),
+    url: field('url', isString), ssh_host: field('ssh_host', isString), start_script: field('start_script', isString),
+    command: field('command', (x): x is string[] => Array.isArray(x) && x.every(isString)), cwd: field('cwd', isString),
+  };
+  if (r.mode === 'off') return r;
+  const url = URL.parse(r.url);
+  if (url === null || !['http:', 'https:', 'ws:', 'wss:'].includes(url.protocol)) throw new ServiceRecordError('url', `服务 ${id} 的地址无效`);
+  if (r.mode === 'url') return r;
+  if (!loopbackURL(r.url) || servicePort(r.url) === null) throw new ServiceRecordError('url', `服务 ${id} 的地址要是本机地址并写端口`);
+  if (r.mode === 'ssh' && (r.ssh_host === '' || unsafeSshHost(r.ssh_host))) {
+    throw new ServiceRecordError('ssh_host', `服务 ${id} 的 SSH 主机无效：不能为空、不能以 - 开头，不能有空白或控制字符`);
+  }
+  if (r.mode === 'local' && (r.command.length === 0 || r.command[0] === '')) throw new ServiceRecordError('command', `服务 ${id} 没有命令`);
+  return r;
+}
+
+const services: Check<Record<ServiceId, ServiceRecord>> = (v, path) => {
+  if (!isObject(v)) throw typeError(path);
+  const unknown = Object.keys(v).find((id) => !isServiceId(id));
+  if (unknown !== undefined) throw new ConfigError(`未知服务 ${unknown}`);
+  return Object.fromEntries(SERVICE_IDS.map((id) => {
+    if (!Object.hasOwn(v, id)) return [id, SERVICE_DEFAULTS[id]];
+    try {
+      return [id, serviceRecord(id, v[id])];
+    } catch (e) {
+      throw new ConfigError((e as Error).message);
+    }
+  })) as Record<ServiceId, ServiceRecord>;
+};
 
 /** The platform a caller passes in. */
 export type ShellPlatform = 'mac' | 'windows';
@@ -96,9 +188,8 @@ export interface Config {
   waterReminderMinutes: number;
   mute: boolean;
   agentdStateDir: string;
-  ttsURL: string;
-  ttsTunnelHost: string;
-  ttsEnsureScript: string;
+  /** `services`, each id it leaves out at its default. */
+  services: Record<ServiceId, ServiceRecord>;
   devResources: string | null;
 }
 
@@ -235,22 +326,13 @@ export function parseConfig(text: string, ctx: ConfigContext): Config {
   const waterReminderMinutes = optional(o, 'water_reminder_minutes', int) ?? 90;
   const mute = optional(o, 'mute', bool) ?? false;
   const agentdStateDir = optional(o, 'agentd_state_dir', str) ?? ctx.agentdStateDir;
-  let ttsURL = optional(o, 'tts_url', str) ?? IDS.ttsURL;
-  let ttsTunnelHost = optional(o, 'tts_tunnel_host', str) ?? '';
-  let ttsEnsureScript = optional(o, 'tts_ensure_script', str) ?? '';
-  // "remote" keeps a hand-edited tts_url / tts_tunnel_host; without an address it is text only.
-  const service = optional(o, 'voice_service', str);
-  if (service === 'local' || ttsURL === '') {
-    ttsURL = '';
-    ttsTunnelHost = '';
-    ttsEnsureScript = '';
-  }
+  const servicesOn = optional(o, 'services', services) ?? SERVICE_DEFAULTS;
   const devResources = optional(o, 'dev_resources', str) ?? null;
   return {
     characters, characterCatalog, character, avatarApp, avatarExecutable, agentdDir, python, agentdLauncher, harnessSites,
     missingComponents, characterLibraryMissing, agentdPort, gpuHoldFiles, supportDir, interactionPreset, plugins: pluginsOn,
     sharePageText, shareWindowText, shareTypedText, shareActions, shareAgentSessions, shareScreenshots, redactSensitive, proactiveSpeech,
-    breakReminderMinutes, waterReminderMinutes, mute, agentdStateDir, ttsURL, ttsTunnelHost, ttsEnsureScript, devResources,
+    breakReminderMinutes, waterReminderMinutes, mute, agentdStateDir, services: servicesOn, devResources,
   };
 }
 

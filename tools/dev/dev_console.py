@@ -77,12 +77,11 @@ CREATE_NEW_PROCESS_GROUP = 0x200
 # Hosts a request may name (DNS rebinding).
 HOSTS = {f'{h}:{PORT}' for h in ('127.0.0.1', 'localhost')}
 ORIGINS = {'http://' + h for h in HOSTS}
-# What config.json takes for each key it does not have: packaged.ts's defaults for what the shell may sense and share,
-# and voice off (without voice_service the shell asks the TTS tunnel at 127.0.0.1:9888).
+# What config.json takes for each key it does not have: packaged.ts's defaults for what the shell may sense and share.
+# Without `services` every service is off.
 DEFAULTS = {'plugins': {'screen_awareness': False, 'computer_use': False}, 'sense_input_counts': False, 
             'share_page_text': False, 'share_window_text': False, 'share_typed_text': False, 'share_screenshots': False,
-            'proactive_speech': False, 'system_notifications': False, 'voice_service': 'local', 'tts_url': '',
-            'tts_tunnel_host': ''}
+            'proactive_speech': False, 'system_notifications': False}
 # The checkouts of the parts the shell runs; changing one restarts the shell.
 PARTS = {'agentd': str(ROOT), 'renderer': str(ROOT)}
 

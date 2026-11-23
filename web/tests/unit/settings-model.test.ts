@@ -32,7 +32,7 @@ describe('settings: registry and search', () => {
     for (const id of destructive) expect(REGISTRY.find((r) => r.id === id)?.deletesData, id).toBe(true);
     expect(REGISTRY.filter((r) => r.effect === 'restartBackend')).toEqual([]);
     expect(DEMO_SCHEMA.filter((r) => r.restart === 'backend').map((r) => r.id)).toEqual(
-      expect.arrayContaining(['mute', 'tts', 'wintext', 'web', 'typing', 'mask', ...PLUGINS.map((p) => `plugins.${p.id}`)]),
+      expect.arrayContaining(['mute', 'wintext', 'web', 'typing', 'mask', ...PLUGINS.map((p) => `plugins.${p.id}`)]),
     );
     expect(REGISTRY.find((r) => r.id === 'hk_focus')).toBeUndefined();
   });

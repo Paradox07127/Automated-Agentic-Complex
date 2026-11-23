@@ -40,6 +40,7 @@ import { fakeLogs } from './logs';
 import { fakeMotion, fakePreviewSequence, fakePreviewView, motionGroupRoutes, traceEventRoutes } from './motion';
 import { createFakeOnboarding } from './onboarding';
 import { fakeOutfit } from './outfit';
+import { fakeServices } from './services';
 
 pinClock(NOW);
 // Page demo fillers: each file in ./demos sets up its page's demo data when the fake bridge loads.
@@ -140,6 +141,7 @@ function runtimeSnapshot(
   processes: Record<SupervisorTarget, ProcessState>,
   avatar: AvatarState,
   character: string,
+  services: RuntimeSnapshot['services'],
 ): RuntimeSnapshot {
   const process = (p: ProcessState | null) => ({
     state: p ? 'running' as const : 'stopped' as const, pid: p?.pid ?? null, backoff: null, reason: null, stage: null,
@@ -148,11 +150,11 @@ function runtimeSnapshot(
     revision: 1,
     phase: 'interactive',
     config_error: null,
-    processes: { agentd: process(processes.agentd), avatar: process(processes.avatar), tunnel: process(null) },
+    processes: { agentd: process(processes.agentd), avatar: process(processes.avatar) },
     character: { current: character, shown: character, agentd: character, pending: null, switching: false, failure: null },
     visibility: { hidden: !avatar.visible, reason: null, fullscreen_hidden: false, click_through_all: avatar.clickThroughAll },
-    tts: { provider: 'none', state: 'off', reason: 'not_configured', retry_after_s: null, muted: false, tunnel: null },
-    voice_input: 'off',
+    tts: { provider: 'none', state: 'off', reason: 'not_configured', retry_after_s: null, muted: false },
+    services, voice_input: 'off',
     degraded: [],
   };
 }
@@ -197,6 +199,7 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
   // The hidden outfit layers last set by `avatar.setLayers`.
   let hiddenLayers: string[] = [];
   const saved: Record<SettingId, SettingValue> = {};
+  const services = fakeServices();
   // The plug-ins of the URL the app opened on stay on while it navigates.
   const plugins = demoPlugins(hashQuery().get('plugins'));
   const permissions: Record<PermissionKind, PermissionState> = {
@@ -220,7 +223,7 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
       action: done,
       look: async () => ({ requestId: 'fake-look' }),
       openQuickInput: done,
-      runtime: async () => runtimeSnapshot(processes, avatar, character),
+      runtime: async () => runtimeSnapshot(processes, avatar, character, services.runtime()),
       onRuntime: () => none,
     },
     agentd: {
@@ -249,11 +252,7 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
       // The demo copy of the native schema; `demo=configerr` rejects like an unreadable config.json, `demo=pending` reads web off, `plugins=` turns plug-ins on.
       schema: async () => Object.values((await demoNative(hashQuery().get('demo'))).rows),
       read: async () => ({ saved: { ...(await demoNative(hashQuery().get('demo'))).saved, ...plugins, ...demoPlugins(hashQuery().get('plugins')), ...saved }, statuses: {} }),
-      save: async (changes) => {
-        Object.assign(saved, changes);
-        // Any new address counts as another service here.
-        return { restart: 'none', notApplied: [], ...('ttsUrl' in changes && { ttsTokenCleared: true as const }) };
-      },
+      save: async (changes) => (Object.assign(saved, changes), { restart: 'none', notApplied: [] }),
       confirmDestructive: async () => true,
       previewDestructive: async () => ({
         total: 188,
@@ -264,6 +263,7 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
       wipeLocalData: done,
       onChange: () => none,
     },
+    services: services.ops,
     permissions: {
       status: async () => ({ ...permissions }),
       request: async (kind) => permissions[kind],
