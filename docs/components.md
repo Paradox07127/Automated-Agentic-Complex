@@ -14,7 +14,7 @@ Agentic Complex 由 7 种组件组成（`characters.<id>` 每个角色一个）�
 | ID | 内容 | 依赖 | portable 版的位置 | 拆分版的位置 |
 |---|---|---|---|---|
 | `host` | Electron 外壳 `MacOS/AgenticComplex` 和它的 `Resources/app/`、平台 helper `MacOS/ac-helper`；解析和导入组件，监督子进程 | 接口 C6、C9（由 agentd 提供） | app 内固定位置 | 同左 |
-| `renderer` | Metal 渲染器 `MacOS/AgenticComplexMetalAvatar`、预览 XPC | — | app 内固定位置 | 同左 |
+| `renderer` | Metal 渲染器 `MacOS/AgenticComplexMetalAvatar`（也提供角色页预览） | — | app 内固定位置 | 同左 |
 | `web-ui` | 网页 UI `ui/` 和桥路由表 `ui-bridge/` | — | `Contents/Resources/components/web-ui/` | 同左 |
 | `runtime.python` | CPython 和 agentd 用的 Python 依赖；入口 `bin/agentic-complex-python` | — | `Contents/Resources/components/<ID>/` | `components/<ID>/` |
 | `agentd` | agentd 代码、`content/`、`agentd_launcher.py`、`character_tool.py` 等工具 | `runtime.python` | 同上 | 同上 |

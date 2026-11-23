@@ -33,7 +33,13 @@ const finish = (extra: Record<string, unknown>) => {
 setTimeout(() => finish({ error: 'harness timeout' }), 90_000);
 
 const raw = createRequire(import.meta.url)(addonPath) as PreviewAddon;
-const host = spawn(hostPath, ['--agentic-complex-preview-rendezvous', raw.rendezvous()], { stdio: ['ignore', 'ignore', 'inherit'] });
+// The real renderer serves the preview beside its desktop character, so it starts as the desktop renderer does.
+const desktop = real ? (() => {
+  const library = loadMotionLibrary(catalog!, character!)!;
+  return ['--bundle', library.bundle, '--bundle-sha256', library.sha256, '--default-character', character!,
+    '--agentic-complex-character', character!, '--agentic-complex-parent-pid', String(process.pid), '--resident'];
+})() : [];
+const host = spawn(hostPath, [...desktop, '--agentic-complex-preview-rendezvous', raw.rendezvous()], { stdio: ['ignore', 'ignore', 'inherit'] });
 host.on('exit', (code, signal) => events.push(`${ms()} host exit ${code ?? signal}`));
 let frames = 0;
 const sizes = new Set<string>();

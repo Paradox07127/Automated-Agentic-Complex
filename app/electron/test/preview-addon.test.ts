@@ -96,10 +96,15 @@ let got: Got[] = [];
 
 test('a start before the hello sends connected after it; the hello reaches nothing, the event and the frame reach JS', { skip: !mac }, async () => {
   addon.start(addon.rendezvous(), listen(got));
+  // The page sends at once while the renderer is still starting: up to 16 are kept and follow `connected`.
+  for (let i = 0; i < 16; i++) assert.equal(addon.send(`{"op":"view","i":${i}}`), true);
+  assert.equal(addon.send('{"op":"view","i":16}'), false, 'past 16 before the hello');
   host = await spawnHost();
-  await connectedTo(got);
+  await spin(3000, () => got.length >= 19);
   await spin(200);
-  assert.equal(got.length, 3);
+  const kept = got.splice(3);
+  assert.deepEqual(kept.map((g) => (JSON.parse(g.json) as { of: { i: number } }).of.i), [...Array(16).keys()]);
+  await connectedTo(got);
 });
 
 test('send reaches the host up to 8192 bytes; over that it returns false and sends nothing', { skip: !mac }, async () => {

@@ -1,4 +1,4 @@
-// The character page's live preview over the preview XPC service (C3 CONTRACT 「附录：预览 XPC」):
+// The character page's live preview from the desktop renderer over the Mach rendezvous (C3 CONTRACT 「附录：预览 XPC」):
 // one connection while the window lives and the preview was on screen within `releaseAfter`, `pause` while it is not on screen and
 // `resume` after, `ack` once the GPU is through with a frame, frames of an older `load_id` dropped (and acked).
 

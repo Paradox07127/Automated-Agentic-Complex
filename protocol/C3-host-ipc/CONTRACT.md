@@ -831,7 +831,7 @@ App 角色页里的预览（`app/electron/src/main/preview/`）不走上面的 s
   - `error`：`reason`。
   - `stats`：每 30 帧一条，`sequence`、`prepare_ms`、`gpu_ms`（可为 null）、`allocated_bytes`、`footprint`。
   - `completed`：`scope`，只用于角色包 CG 检查片段播完。
-- 连接：App 开始预览时发 `{"event":"connected"}`（还没收到 `hello` 时等收到后再发），停止预览时发 `{"event":"disconnected"}`；预览不在屏上满 20 s 时 App 也停止预览。渲染器收到 `connected` 时清掉上一次连接的播放状态，收到 `disconnected` 时停播并释放预览的渲染器、actor 和表面，下一条 `load` 重新建。渲染器的端口在 App 开着预览时失效（渲染器退出或重启）时，App 的传输层交给本方 `{"event":"disconnected"}` 一次。之后旧连接的消息都丢弃。`hello` 不交给 App 的页面。
+- 连接：App 开始预览时发 `{"event":"connected"}`（还没收到 `hello` 时等收到后再发），停止预览时发 `{"event":"disconnected"}`；预览不在屏上满 20 s 时 App 也停止预览。渲染器收到 `connected` 时清掉上一次连接的播放状态，收到 `disconnected` 时停播并释放预览的渲染器、actor 和表面，下一条 `load` 重新建。渲染器的端口在 App 开着预览时失效（渲染器退出或重启），或这时来了新渲染器的 `hello`，App 的传输层交给本方 `{"event":"disconnected"}` 一次，之后要页面再开始预览才发 `connected`。之后旧连接的消息都丢弃。`hello` 不交给 App 的页面。
 
 ## 附录：Windows（v27 追加）
 

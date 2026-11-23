@@ -40,6 +40,11 @@ static dispatch_source_t source;
 /** Queue only: the host's port from its last `hello`, and the JS connection as the queue sees it. */
 static mach_port_t host = MACH_PORT_NULL;
 static bool started, connectPending;
+/** Sends of a started connection before any host said hello, in order; flushed after `connected`. The renderer takes seconds to
+ *  start, and the page sends `view` and `load` at once. */
+#define MAX_PENDING 16
+static char *pending[MAX_PENDING];
+static size_t pendingLength[MAX_PENDING], pendingCount;
 static uint64_t startedToken;
 /** Made once and kept: an old connection's events can still be in flight when start replaces the receiver. */
 static napi_threadsafe_function tsfn;
@@ -148,12 +153,19 @@ static void ForgetHost(void) {
   host = MACH_PORT_NULL;
 }
 
+/** Queue only. */
+static void DropPending(void) {
+  for (size_t i = 0; i < pendingCount; i++) free(pending[i]);
+  pendingCount = 0;
+}
+
 /** Queue only: the JS connection ends with one `disconnected`. */
 static void EndStarted(void) {
   if (!started) return;
   Deliver(DISCONNECTED, strlen(DISCONNECTED), NULL, 0);
   started = false;
   connectPending = false;
+  DropPending();
 }
 
 /** Queue only. `port` is the hello's send right. */
@@ -174,7 +186,9 @@ static void Hello(mach_port_t port) {
   if (started && connectPending) {
     connectPending = false;
     SendText(host, "{\"event\":\"connected\"}");
+    for (size_t i = 0; i < pendingCount; i++) SendWire(host, pending[i], pendingLength[i]);
   }
+  DropPending();
 }
 
 /** Queue only: the kernel's dead-name notification carries one more reference to the name. */
@@ -248,6 +262,9 @@ static const char *Rendezvous(void) {
     // A failed check-in leaves the preview without a host: every send is false.
     if (bootstrap_check_in(bootstrap_port, rendezvousName, &port) != KERN_SUCCESS) return rendezvousName;
     rendezvousPort = port;
+    // The default queue of 5 would make a burst (the kept sends, frames with stats) time out on both sides.
+    mach_port_limits_t limits = {.mpl_qlimit = MACH_PORT_QLIMIT_LARGE};
+    mach_port_set_attributes(mach_task_self(), rendezvousPort, MACH_PORT_LIMITS_INFO, (mach_port_info_t)&limits, MACH_PORT_LIMITS_INFO_COUNT);
     source = dispatch_source_create(DISPATCH_SOURCE_TYPE_MACH_RECV, rendezvousPort, 0, queue);
     dispatch_source_set_event_handler(source, ^{ Drain(); });
     dispatch_resume(source);
@@ -298,13 +315,15 @@ static napi_value Start(napi_env env, napi_callback_info info) {
   dispatch_sync(queue, ^{
     started = true;
     startedToken = token;
+    DropPending();
     connectPending = host == MACH_PORT_NULL;
     if (!connectPending) SendText(host, "{\"event\":\"connected\"}");
   });
   return NULL;
 }
 
-// send(json: string): boolean. False when not started, without a host, over 8192 bytes, or when the send fails.
+// send(json: string): boolean. Before the first host's hello it is kept (at most 16) and sent after `connected`. False when not
+// started, over 8192 bytes, past those 16, or when the send fails.
 static napi_value Send(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value argv[1], result;
@@ -316,7 +335,15 @@ static napi_value Send(napi_env env, napi_callback_info info) {
     return NULL;
   }
   __block bool sent = false;
-  if (queue && length <= MAX_JSON) dispatch_sync(queue, ^{ sent = started && SendWire(host, json, length); });
+  if (queue && length <= MAX_JSON) dispatch_sync(queue, ^{
+    if (!started) return;
+    if (!connectPending) { sent = SendWire(host, json, length); return; }
+    if (pendingCount == MAX_PENDING) return;
+    pending[pendingCount] = malloc(length);
+    memcpy(pending[pendingCount], json, length);
+    pendingLength[pendingCount++] = length;
+    sent = true;
+  });
   napi_get_boolean(env, sent, &result);
   return result;
 }
@@ -329,6 +356,7 @@ static napi_value Stop(napi_env env, napi_callback_info info) {
       if (started) SendText(host, DISCONNECTED);
       started = false;
       connectPending = false;
+      DropPending();
     });
   }
   return NULL;

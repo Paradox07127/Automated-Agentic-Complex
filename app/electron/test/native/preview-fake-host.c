@@ -50,6 +50,9 @@ static IOSurfaceRef Surface(void) {
 int main(int argc, char **argv) {
   if (argc < 2 || bootstrap_look_up(bootstrap_port, argv[1], &server) != KERN_SUCCESS) return 2;
   mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &own);
+  // As PreviewTransport.m does for the real host's port.
+  mach_port_limits_t limits = {.mpl_qlimit = MACH_PORT_QLIMIT_LARGE};
+  mach_port_set_attributes(mach_task_self(), own, MACH_PORT_LIMITS_INFO, (mach_port_info_t)&limits, MACH_PORT_LIMITS_INFO_COUNT);
   if (Send("{\"event\":\"hello\"}", own, MACH_MSG_TYPE_MAKE_SEND, 0) != KERN_SUCCESS) return 2;
   printf("hello\n");
   fflush(stdout);

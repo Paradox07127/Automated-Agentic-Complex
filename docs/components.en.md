@@ -14,7 +14,7 @@ The same component has the same contents in both layouts. C11 manifests and comp
 | ID | Contents | Dependencies | Portable location | Split location |
 |---|---|---|---|---|
 | `host` | The Electron shell `MacOS/AgenticComplex` with its `Resources/app/`, and the platform helper `MacOS/ac-helper`. Resolves and imports components and supervises subprocesses. | C6 and C9 interfaces provided by agentd | Fixed paths in the app | Same |
-| `renderer` | Metal renderer `MacOS/AgenticComplexMetalAvatar` and preview XPC service | — | Fixed paths in the app | Same |
+| `renderer` | Metal renderer `MacOS/AgenticComplexMetalAvatar` (also serves the character page preview) | — | Fixed paths in the app | Same |
 | `web-ui` | Web UI in `ui/` and bridge routing table in `ui-bridge/` | — | `Contents/Resources/components/web-ui/` | Same |
 | `runtime.python` | CPython and agentd's Python dependencies. Entrypoint `bin/agentic-complex-python`. | — | `Contents/Resources/components/<ID>/` | `components/<ID>/` |
 | `agentd` | agentd code, `content/`, `agentd_launcher.py`, and tools such as `character_tool.py` | `runtime.python` | As above | As above |
