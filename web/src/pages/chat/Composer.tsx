@@ -4,7 +4,7 @@ import type { DroppedHandle } from '../../bridge/adopt';
 import { post } from '../../bridge/agentd';
 import type { RuntimeInfo } from '../../domain';
 import { usePlugins } from '../../shell/plugins';
-import { Btn, Icon, Menu, type MenuItem } from '../../ui';
+import { Btn, Icon, IconBtn, Menu, type MenuItem } from '../../ui';
 import { AttachTray, type TrayItem } from './AttachTray';
 import { reasonOf } from './reasons';
 import styles from './Composer.module.css';
@@ -304,16 +304,12 @@ export function Composer(p: ComposerProps) {
         <div className={styles.quote}>
           <Icon name="g-quote" size={14} />
           <span className={styles.quoteText}>{p.quote.text}</span>
-          <button type="button" className={styles.x} aria-label="不引用" onClick={p.onClearQuote}>
-            <Icon name="g-close" size={12} />
-          </button>
+          <IconBtn icon="close" size="sm" label="不引用" onClick={p.onClearQuote} />
         </div>
       )}
       <AttachTray items={tray} />
       <div className={styles.cbar}>
-        <span className={styles.plus}>
-          <Menu label="附加" icon="g-plus" items={plus} />
-        </span>
+        <Menu label="附加" icon="g-plus" items={plus} />
         <label className={styles.inp}>
           <textarea
             rows={1}

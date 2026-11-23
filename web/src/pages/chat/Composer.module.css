@@ -10,11 +10,11 @@
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: var(--b-plate);
-  outline: 1px dashed var(--b-edge-lo);
+  background: var(--ef-fold);
+  outline: 1px dashed var(--ef-plate-rim);
   outline-offset: -1px;
   font-size: 13px;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
 }
 
 .sp {
@@ -23,7 +23,7 @@
 
 .cap {
   font-size: 12px;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
 }
 
 .busy {
@@ -41,35 +41,6 @@
   align-items: center;
 }
 
-/* The Menu trigger drawn as the round plate button. */
-.plus button[aria-haspopup] {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 50% 35%, var(--b-plate-hi), var(--b-plate-lo));
-  color: var(--b-t1);
-  mask: none;
-  box-shadow:
-    0 0 0 1.5px var(--b-t1),
-    0 0 0 3px var(--b-edge-lo),
-    var(--ef-shadow-btn);
-  transition:
-    transform 0.1s var(--g-fade),
-    box-shadow 0.083s var(--g-fade);
-}
-
-.plus button[aria-haspopup]:hover,
-.plus [data-open] > button[aria-haspopup] {
-  box-shadow:
-    0 0 0 1.5px var(--b-t1),
-    0 0 0 3px var(--b-edge-lo),
-    var(--ef-shadow-btn);
-}
-
-.plus button[aria-haspopup]:active {
-  transform: scale(0.94);
-}
-
 /* The field stays light in both themes, so its text is ink. */
 .inp {
   display: flex;
@@ -77,13 +48,13 @@
   min-height: 42px;
   padding: 0 18px;
   border-radius: 21px;
-  background: var(--b-field);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--b-ink) 30%, transparent);
-  transition: box-shadow 0.15s var(--g-fade);
+  background: var(--ef-field);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ef-popup-text) 30%, transparent);
+  transition: box-shadow 0.15s var(--ef-ease-g-fade);
 }
 
 .inp:focus-within {
-  box-shadow: 0 0 0 2px var(--b-sel);
+  box-shadow: 0 0 0 2px var(--ef-accent);
 }
 
 /* One line high, growing with Shift+Enter lines up to five. */
@@ -97,12 +68,12 @@
   resize: none;
   field-sizing: content;
   background: none;
-  color: var(--b-ink);
+  color: var(--ef-paper-text);
   font: 400 14px/1.5 var(--ef-font-sans);
 }
 
 .inp textarea::placeholder {
-  color: color-mix(in srgb, var(--b-ink) 58%, var(--b-field));
+  color: var(--ef-paper-text-2);
 }
 
 .inp textarea:disabled {
@@ -110,13 +81,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .inp,
-  .plus button[aria-haspopup] {
+  .inp {
     transition: none;
   }
 }
 
-:global([data-reduce-motion]) :is(.inp, .plus button[aria-haspopup]) {
+:global([data-reduce-motion]) .inp {
   transition: none;
 }
 
@@ -135,18 +105,18 @@
   gap: 8px;
   max-width: 240px;
   height: 44px;
-  padding: 0 30px 0 4px;
-  background: linear-gradient(180deg, var(--b-plate-hi), var(--b-plate));
+  padding: 0 4px;
+  background: linear-gradient(180deg, var(--ef-plate-top), var(--ef-fold));
   box-shadow:
-    inset 0 1px 0 var(--b-edge),
-    0 0 0 1px var(--b-edge-lo);
+    inset 0 1px 0 var(--ef-plate-top),
+    0 0 0 1px var(--ef-plate-rim);
   font-size: 12px;
-  color: var(--b-t1);
+  color: var(--ef-text-1);
 }
 
 .att[data-flag] {
   padding-left: 12px;
-  box-shadow: inset 0 0 0 1.5px var(--b-sel);
+  box-shadow: inset 0 0 0 1.5px var(--ef-accent);
 }
 
 .th {
@@ -155,9 +125,9 @@
   place-items: center;
   width: 52px;
   height: 36px;
-  background: var(--b-plate-lo);
-  box-shadow: inset 0 0 0 1px var(--b-edge-lo);
-  color: var(--b-t2);
+  background: var(--ef-rowplate);
+  box-shadow: inset 0 0 0 1px var(--ef-plate-rim);
+  color: var(--ef-text-2);
 }
 
 .att b {
@@ -168,32 +138,6 @@
   font-weight: 500;
 }
 
-.x {
-  position: absolute;
-  top: 50%;
-  right: 6px;
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  margin-top: -9px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: none;
-  color: var(--b-t2);
-  cursor: pointer;
-}
-
-.x:hover {
-  background: var(--b-plate-lo);
-  color: var(--b-t1);
-}
-
-.x:focus-visible {
-  outline: 2px solid var(--b-t1);
-}
-
 /* Quote: one clipped line with a yellow bar on its left. */
 .quote {
   position: relative;
@@ -202,15 +146,16 @@
   gap: 8px;
   min-width: 0;
   height: 32px;
-  padding: 0 30px 0 12px;
-  border-left: 3px solid var(--b-sel);
-  background: var(--b-plate);
-  box-shadow: inset 0 0 0 1px var(--b-edge-lo);
+  padding: 0 2px 0 12px;
+  border-left: 3px solid var(--ef-accent);
+  background: var(--ef-fold);
+  box-shadow: inset 0 0 0 1px var(--ef-plate-rim);
   font-size: 13px;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
 }
 
 .quoteText {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -224,20 +169,20 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px solid var(--b-edge-lo);
-  background: var(--b-plate);
+  border: 1px solid var(--ef-plate-rim);
+  background: var(--ef-fold);
   font-size: 13px;
-  color: var(--b-t1);
+  color: var(--ef-text-1);
 }
 
 .kernel a {
-  color: var(--b-t1);
+  color: var(--ef-text-1);
 }
 
 .flagMark {
   padding: 1px 4px;
-  background: var(--b-sel);
-  color: var(--b-ink);
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
   font-size: 11px;
 }
 
@@ -247,24 +192,24 @@
   align-items: center;
   gap: 4px 10px;
   padding: 6px 10px;
-  border: 1px solid var(--b-edge-lo);
-  background: var(--b-plate);
+  border: 1px solid var(--ef-plate-rim);
+  background: var(--ef-fold);
 }
 
 .failedText {
   flex: 1 1 100%;
   font-size: 13px;
-  color: var(--b-t1);
+  color: var(--ef-text-1);
   opacity: 0.85;
 }
 
 .err {
   flex: 1;
   font-size: 12px;
-  color: var(--b-t1);
+  color: var(--ef-text-1);
 }
 
 .notice {
   font-size: 12px;
-  color: var(--b-t1);
+  color: var(--ef-text-1);
 }

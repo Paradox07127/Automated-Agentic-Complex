@@ -1,4 +1,4 @@
-import { Icon, type IconName } from '../../ui';
+import { Icon, IconBtn, type IconName } from '../../ui';
 import styles from './Composer.module.css';
 
 /** One chip above the input: a file goes with a thumbnail slot; a flag (看一眼屏幕, 这句不记) is framed instead. */
@@ -26,9 +26,7 @@ export function AttachTray({ items }: { items: TrayItem[] }) {
             </span>
           )}
           <b title={it.name}>{it.name}</b>
-          <button type="button" className={styles.x} aria-label={it.removeLabel} onClick={it.onRemove}>
-            <Icon name="g-close" size={12} />
-          </button>
+          <IconBtn icon="close" size="sm" label={it.removeLabel} onClick={it.onRemove} />
         </div>
       ))}
     </div>

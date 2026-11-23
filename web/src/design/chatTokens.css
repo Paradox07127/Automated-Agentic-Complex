@@ -1,15 +1,2 @@
-/* Chat page palette (--b-*), measured from the game's SNS window; the app always sets <html data-theme>. */
-:root{
-  --b-bg0:#d5d4cf;--b-bg1:#ecebe6;--b-plate:#f6f6f3;--b-plate-hi:#ffffff;--b-plate-lo:#e6e6e2;
-  --b-edge:rgba(255,255,255,.95);--b-edge-lo:rgba(0,0,0,.10);--b-frame:rgba(40,40,40,.55);--b-frame-glow:rgba(0,0,0,0);
-  --b-t1:#1a1a1a;--b-t2:#5c5c5c;--b-t3:#8a8a86;--b-bub:#ffffff;--b-bub-hi:#ffffff;--b-bub-t:#1a1a1a;
-  --b-self:#3d3d3d;--b-self-lo:#2f2f2f;--b-self-t:#f2f2f2;--b-field:#ffffff;
-  --b-sel:#fff100;--b-sel-2:#f2d900;--b-ink:#161616;--b-noise:.05;--b-danger:#b3261e;
-  --theme:#1ec8f5;
-  --g-fade:cubic-bezier(.333,0,.667,1);--g-enter:cubic-bezier(.333,0,0,1);--g-exit:cubic-bezier(1,0,.667,1);
-}
-:root[data-theme="dark"]{
-  --b-bg0:#121314;--b-bg1:#2a2621;--b-plate:#2e2f31;--b-plate-hi:#3b3c3e;--b-plate-lo:#232426;
-  --b-edge:rgba(255,255,255,.09);--b-edge-lo:rgba(0,0,0,.55);--b-frame:rgba(236,236,234,.86);--b-frame-glow:rgba(255,255,255,.08);
-  --b-t1:#f0f0ee;--b-t2:#a8a8a6;--b-t3:#727270;--b-bub:#444546;--b-bub-hi:#4f5051;--b-bub-t:#eeeeee;
-  --b-self:#f2f1ef;--b-self-lo:#dedcd8;--b-self-t:#1f1f1f;--b-field:#efeeec;--b-noise:.07;--b-danger:#ff8a7a}
+/* Still read by pages/trace/Detail.module.css; goes once that page uses a token. */
+:root{--theme:#1ec8f5}

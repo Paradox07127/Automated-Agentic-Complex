@@ -24,48 +24,12 @@
   gap: 6px;
 }
 
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 24px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 999px;
-  background: none;
-  box-shadow: inset 0 0 0 1px var(--b-t3);
-  color: var(--b-t2);
-  font: 400 12px/1 var(--ef-font-sans);
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.chip:hover {
-  box-shadow: inset 0 0 0 1px var(--b-t1);
-  color: var(--b-t1);
-}
-
-.chip[data-new] {
-  box-shadow: inset 0 0 0 1px var(--ef-mission-accent);
-  color: var(--b-t1);
-}
-
-.chip:focus-visible {
-  outline: 2px solid var(--b-sel);
-  outline-offset: 2px;
-}
-
-.chip :global(.num) {
-  font-family: var(--ef-font-ui);
-  font-variant-numeric: tabular-nums;
-}
-
 /* 旁路: the tag and 只读 over the bubble, the link up to the task, 派发任务. */
 .sideHead {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font: 400 12px/18px var(--ef-font-sans);
 }
 
@@ -84,9 +48,9 @@
   padding: 0 0 2px;
   overflow: hidden;
   border: 0;
-  border-bottom: 1px dashed var(--b-t3);
+  border-bottom: 1px dashed var(--ef-line-strong);
   background: none;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font: 400 12px/18px var(--ef-font-sans);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -94,7 +58,7 @@
 }
 
 .up:hover {
-  color: var(--b-t1);
+  color: var(--ef-text-1);
 }
 
 .actions {
@@ -105,7 +69,7 @@
 }
 
 .cap {
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font: 400 12px/18px var(--ef-font-sans);
 }
 
@@ -119,9 +83,9 @@
   display: grid;
   width: min(620px, 100%);
   border-left: 3px solid var(--ef-mission-accent);
-  background: linear-gradient(180deg, var(--b-plate-hi), var(--b-plate));
-  box-shadow: inset 0 1px 0 var(--b-edge), 0 0 0 1px color-mix(in srgb, var(--ef-popup-text) 30%, transparent);
-  color: var(--b-t1);
+  background: linear-gradient(180deg, var(--ef-plate-top), var(--ef-fold));
+  box-shadow: inset 0 1px 0 var(--ef-plate-top), 0 0 0 1px color-mix(in srgb, var(--ef-popup-text) 30%, transparent);
+  color: var(--ef-text-1);
 }
 
 .toolrow {
@@ -143,13 +107,13 @@ button.toolrow {
 }
 
 .toolrow:focus-visible {
-  outline: 2px solid var(--b-sel);
+  outline: 2px solid var(--ef-accent);
   outline-offset: -2px;
 }
 
 .toolrow > svg {
   flex: none;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
 }
 
 .tl {
@@ -161,7 +125,7 @@ button.toolrow {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -172,7 +136,7 @@ button.toolrow {
 
 .tnote {
   margin: 0 12px 8px;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font: 400 12px/18px var(--ef-font-sans);
 }
 
@@ -182,7 +146,7 @@ button.toolrow {
   flex: none;
   width: 40px;
   height: 4px;
-  background: var(--b-plate-lo);
+  background: var(--ef-rowplate);
 }
 
 .f09 i {
@@ -190,7 +154,7 @@ button.toolrow {
   top: 0;
   bottom: 0;
   left: 0;
-  background: var(--b-t2);
+  background: var(--ef-text-2);
 }
 
 .f09v {
@@ -204,8 +168,8 @@ button.toolrow {
   margin: 0 12px 12px;
   padding: 8px 12px;
   overflow: auto;
-  background: var(--b-plate-lo);
-  color: var(--b-t1);
+  background: var(--ef-rowplate);
+  color: var(--ef-text-1);
   font: 400 12px/1.6 var(--ef-font-mono);
   white-space: pre;
 }
@@ -219,10 +183,10 @@ button.toolrow {
   gap: 4px 25px;
   margin: 0;
   padding: 12px 25px 4px;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font: 400 12px/18px var(--ef-font-sans);
   text-align: center;
-  animation: cell-fade 167ms var(--g-fade) 83ms both;
+  animation: cell-fade 167ms var(--ef-ease-g-fade) 83ms both;
 }
 
 .note::before,
@@ -230,7 +194,7 @@ button.toolrow {
   content: '';
   flex: 1 1 24px;
   height: 1px;
-  background: var(--b-t3);
+  background: var(--ef-line-strong);
 }
 
 .note::before {
@@ -246,7 +210,7 @@ button.toolrow {
   position: relative;
   margin: 0;
   padding: 30px 25px 0;
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font: 400 12px/18px var(--ef-font-sans);
   text-align: right;
 }
@@ -256,7 +220,7 @@ button.toolrow {
   display: block;
   height: 2px;
   margin-bottom: 8px;
-  background: var(--b-t3);
+  background: var(--ef-line-strong);
   animation: end-flicker calc(var(--ef-dur-g-flicker-step) * 6) steps(1, end) both;
 }
 
@@ -266,7 +230,7 @@ button.toolrow {
   right: 25px;
   width: 89.5px;
   height: 6px;
-  background: repeating-linear-gradient(90deg, var(--b-t3) 0 1px, transparent 1px 5px);
+  background: repeating-linear-gradient(90deg, var(--ef-line-strong) 0 1px, transparent 1px 5px);
   animation: end-flicker calc(var(--ef-dur-g-flicker-step) * 6) steps(1, end) calc(var(--ef-dur-g-flicker-step) * 5) both;
 }
 
@@ -285,7 +249,7 @@ button.toolrow {
   background: var(--ef-scrim);
   -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
-  animation: cell-fade 0.2s var(--g-fade) both;
+  animation: cell-fade 0.2s var(--ef-ease-g-fade) both;
 }
 
 .swap {
@@ -297,7 +261,7 @@ button.toolrow {
   background: var(--ef-paper);
   box-shadow: var(--ef-shadow-card);
   color: var(--ef-paper-text);
-  animation: swap-in 0.3s var(--g-enter) both;
+  animation: swap-in 0.3s var(--ef-ease-g-enter) both;
 }
 
 .swap::before {
@@ -307,7 +271,7 @@ button.toolrow {
   right: 0;
   left: 0;
   height: 4px;
-  background: repeating-linear-gradient(115deg, var(--b-ink) 0 6px, var(--b-sel) 6px 12px);
+  background: repeating-linear-gradient(115deg, var(--ef-on-accent) 0 6px, var(--ef-accent) 6px 12px);
 }
 
 .swap:focus-visible {
@@ -322,7 +286,7 @@ button.toolrow {
 .url {
   margin: 0;
   padding: 8px 10px;
-  border-left: 3px solid var(--b-ink);
+  border-left: 3px solid var(--ef-paper-text);
   background: color-mix(in srgb, var(--ef-paper-text) 5%, transparent);
   font: 13px/20px var(--ef-font-mono);
   word-break: break-all;
@@ -330,8 +294,8 @@ button.toolrow {
 
 .url b {
   padding: 0 2px;
-  background: var(--b-sel);
-  color: var(--b-ink);
+  background: var(--ef-accent);
+  color: var(--ef-on-accent);
   font-weight: 600;
 }
 
@@ -357,7 +321,7 @@ button.toolrow {
   padding: 32px;
   background: color-mix(in srgb, var(--ef-popup-text) 78%, transparent);
   cursor: zoom-out;
-  animation: cell-fade 0.2s var(--g-fade) both;
+  animation: cell-fade 0.2s var(--ef-ease-g-fade) both;
 }
 
 .lightbox:focus-visible {

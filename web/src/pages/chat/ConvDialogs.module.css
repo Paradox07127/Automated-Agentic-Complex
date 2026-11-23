@@ -8,7 +8,7 @@
   background: var(--ef-scrim);
   -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
-  animation: fade 0.2s var(--g-fade) both;
+  animation: fade 0.2s var(--ef-ease-g-fade) both;
 }
 
 .card {
@@ -23,7 +23,7 @@
   background: var(--ef-raised);
   box-shadow: var(--ef-shadow-card);
   color: var(--ef-raised-fg);
-  animation: pop 0.3s var(--g-enter) both;
+  animation: pop 0.3s var(--ef-ease-g-enter) both;
 }
 
 .card:focus {
@@ -37,11 +37,11 @@
   right: 0;
   left: 0;
   height: 4px;
-  background: repeating-linear-gradient(115deg, var(--b-ink) 0 6px, var(--b-sel) 6px 12px);
+  background: repeating-linear-gradient(115deg, var(--ef-on-accent) 0 6px, var(--ef-accent) 6px 12px);
 }
 
 .card[data-warn]::before {
-  background: repeating-linear-gradient(115deg, var(--b-ink) 0 6px, var(--ef-danger) 6px 12px);
+  background: repeating-linear-gradient(115deg, var(--ef-on-accent) 0 6px, var(--ef-danger) 6px 12px);
 }
 
 .h {
@@ -65,7 +65,7 @@
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   padding: 9px 12px;
-  border-left: 3px solid var(--b-ink);
+  border-left: 3px solid var(--ef-paper-text);
   background: color-mix(in srgb, var(--ef-popup-text) 5%, transparent);
   font-size: 14px;
   quotes: none;

@@ -43,8 +43,8 @@
 /* sns_friendcell_in (snsCellIn): opacity over 416.7 ms on the fade curve, an 11 px slide on the enter curve. */
 .msg[data-new] {
   animation:
-    cell-fade 416.7ms var(--g-fade) both,
-    cell-in 416.7ms var(--g-enter) both;
+    cell-fade 416.7ms var(--ef-ease-g-fade) both,
+    cell-in 416.7ms var(--ef-ease-g-enter) both;
 }
 
 .msg[data-new][data-kind='me'] {
@@ -65,7 +65,7 @@
   position: absolute;
   inset: -2px;
   border-radius: 50%;
-  background: radial-gradient(circle, var(--b-t2) 1px, transparent 1.5px) 0 0 / 4px 4px;
+  background: radial-gradient(circle, var(--ef-text-2) 1px, transparent 1.5px) 0 0 / 4px 4px;
   -webkit-mask: radial-gradient(circle, #000 34%, transparent 72%);
   mask: radial-gradient(circle, #000 34%, transparent 72%);
   opacity: 0.55;
@@ -76,8 +76,8 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  color: var(--b-t1);
-  transition: transform 0.4s var(--g-enter);
+  color: var(--ef-text-1);
+  transition: transform 0.4s var(--ef-ease-g-enter);
 }
 
 .ring path {
@@ -100,7 +100,7 @@
   height: 72%;
   overflow: hidden;
   border-radius: 50%;
-  background: var(--b-plate-lo);
+  background: var(--ef-rowplate);
   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--ef-popup-text) 50%, transparent);
 }
 
@@ -116,8 +116,8 @@
   place-items: center;
   width: 100%;
   height: 100%;
-  background: radial-gradient(circle at 50% 30%, var(--b-plate-hi), var(--b-plate-lo));
-  color: var(--b-t1);
+  background: radial-gradient(circle at 50% 30%, var(--ef-plate-top), var(--ef-rowplate));
+  color: var(--ef-text-1);
   font: 600 20px/1 var(--ef-font-sans);
 }
 
@@ -127,9 +127,9 @@
   width: 100%;
   height: 100%;
   background:
-    radial-gradient(circle at 50% 42%, var(--b-ink) 0 20%, transparent 21%),
-    radial-gradient(ellipse 36% 30% at 50% 100%, var(--b-ink) 0 96%, transparent 100%),
-    radial-gradient(circle at 50% 30%, var(--b-t3), var(--b-t2) 80%);
+    radial-gradient(circle at 50% 42%, var(--ef-paper-text) 0 20%, transparent 21%),
+    radial-gradient(ellipse 36% 30% at 50% 100%, var(--ef-paper-text) 0 96%, transparent 100%),
+    radial-gradient(circle at 50% 30%, var(--ef-line-strong), var(--ef-text-2) 80%);
 }
 
 /* Bubble: corner by the head turned out 6 px, other corners r14; hers with a top light, the user's dark with dots. */
@@ -140,14 +140,14 @@
   margin: 0;
   padding: 10px 16px 11px;
   border-radius: 2px 14px 14px;
-  background: linear-gradient(180deg, var(--b-bub-hi), var(--b-bub) 40%);
+  background: var(--ef-plate-top);
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ef-popup-band) 6%, transparent), 0 0 0 1px color-mix(in srgb, var(--ef-popup-text) 22%, transparent);
-  color: var(--b-bub-t);
+  color: var(--ef-text-1);
   font: 400 15px/24px var(--ef-font-sans);
 }
 
 .bub:focus-visible {
-  outline: 2px solid var(--b-sel);
+  outline: 2px solid var(--ef-accent);
   outline-offset: 2px;
 }
 
@@ -158,28 +158,29 @@
   left: -7px;
   width: 12px;
   height: 14px;
-  background: var(--b-bub-hi);
-  clip-path: polygon(0 0, 100% 0, 100% 100%);
+  background: var(--ef-plate-top);
+  /* Only the part outside the bubble: the fill is see-through in the dark theme and would double where they overlap. */
+  clip-path: polygon(0 0, 7px 0, 7px 8.2px);
 }
 
 .msg[data-kind='me'] .bub {
   border-radius: 14px 2px 14px 14px;
   background:
     radial-gradient(circle, color-mix(in srgb, var(--ef-popup-text) 6%, transparent) 0.8px, transparent 1.2px) 0 0 / 3px 3px,
-    linear-gradient(180deg, var(--b-self), var(--b-self-lo));
-  color: var(--b-self-t);
+    linear-gradient(180deg, var(--ef-row-sel-bg), color-mix(in srgb, var(--ef-row-sel-bg) 90%, var(--ef-popup-text)));
+  color: var(--ef-row-sel-fg);
 }
 
 .msg[data-kind='me'] .bub[data-first]::before {
   right: -7px;
   left: auto;
-  background: var(--b-self);
+  background: var(--ef-row-sel-bg);
   clip-path: polygon(0 0, 100% 0, 0 100%);
 }
 
 /* The turn open in 轮次详情. */
 .msg[data-sel] .bub {
-  box-shadow: 0 0 0 1.5px var(--b-sel);
+  box-shadow: 0 0 0 1.5px var(--ef-accent);
 }
 
 /* Time line between messages after a long quiet. */
@@ -189,7 +190,7 @@
   justify-content: center;
   gap: 10px;
   margin: 18px 0 0;
-  color: var(--b-t3);
+  color: var(--ef-text-3);
   font: 400 12px/18px var(--ef-font-ui);
   letter-spacing: 0.04em;
 }
@@ -199,7 +200,7 @@
   content: '';
   width: 48px;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--b-t3));
+  background: linear-gradient(90deg, transparent, var(--ef-line-strong));
 }
 
 .day::after {
@@ -217,9 +218,9 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--b-bub-t);
+  background: var(--ef-text-1);
   opacity: 0.3;
-  animation: typing-dot 1s var(--g-fade) infinite;
+  animation: typing-dot 1s var(--ef-ease-g-fade) infinite;
 }
 
 .typing > i:nth-child(2) {
@@ -302,10 +303,10 @@ code.kw {
   padding: 4px;
   border: 0;
   border-radius: 2px 10px 10px;
-  background: linear-gradient(180deg, var(--b-bub-hi), var(--b-bub));
+  background: var(--ef-plate-top);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--ef-popup-text) 25%, transparent);
   cursor: zoom-in;
-  transition: transform 0.15s var(--g-enter);
+  transition: transform 0.15s var(--ef-ease-g-enter);
 }
 
 .pic:hover {
@@ -326,8 +327,8 @@ code.kw {
   right: 10px;
   width: 14px;
   height: 14px;
-  border-top: 2px solid var(--b-plate-hi);
-  border-right: 2px solid var(--b-plate-hi);
+  border-top: 2px solid var(--ef-plate-top);
+  border-right: 2px solid var(--ef-plate-top);
   opacity: 0.8;
 }
 
@@ -345,12 +346,12 @@ code.kw {
   width: min(380px, 100%);
   padding: 10px 12px;
   border-left: 3px solid var(--ef-mission-accent);
-  background: linear-gradient(180deg, var(--b-plate-hi), var(--b-plate));
-  box-shadow: inset 0 1px 0 var(--b-edge), 0 0 0 1px color-mix(in srgb, var(--ef-popup-text) 30%, transparent);
-  color: var(--b-t1);
+  background: linear-gradient(180deg, var(--ef-plate-top), var(--ef-fold));
+  box-shadow: inset 0 1px 0 var(--ef-plate-top), 0 0 0 1px color-mix(in srgb, var(--ef-popup-text) 30%, transparent);
+  color: var(--ef-text-1);
   text-decoration: none;
   white-space: normal;
-  transition: filter 0.083s var(--g-fade);
+  transition: filter 0.083s var(--ef-ease-g-fade);
 }
 
 .lnk:hover {
@@ -362,8 +363,8 @@ code.kw {
   place-items: center;
   width: 44px;
   height: 44px;
-  background: var(--b-plate-lo);
-  box-shadow: inset 0 0 0 1px var(--b-edge-lo);
+  background: var(--ef-rowplate);
+  box-shadow: inset 0 0 0 1px var(--ef-plate-rim);
   color: var(--ef-mission-accent);
   font: 600 16px/1 var(--ef-font-ui);
 }
@@ -387,6 +388,6 @@ code.kw {
 }
 
 .lnkText > small {
-  color: var(--b-t2);
+  color: var(--ef-text-2);
   font: 12px/18px var(--ef-font-ui);
 }

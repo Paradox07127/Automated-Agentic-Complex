@@ -23,7 +23,7 @@ export function DlgHead({ title }: { title: string }) {
           </defs>
           <path d="M0 0h340v58H0z" fill="currentColor" />
           <path d="M0 0h340v58H0z" fill={`url(#${grad})`} />
-          <g fill="var(--b-plate)">
+          <g fill="var(--ef-fold)">
             <rect x="0" y="0" width="14" height="14" />
             <rect x="14" y="14" width="14" height="14" />
             <rect x="0" y="28" width="14" height="14" />
@@ -61,13 +61,13 @@ export function DlgHead({ title }: { title: string }) {
             <rect x="302" y="5" width="5" height="48" />
             <rect x="311" y="5" width="2" height="48" />
           </g>
-          <path d="M340 0h80v58h-80z" fill="var(--b-plate-hi)" />
-          <g stroke="var(--b-t2)" strokeWidth="1.5">
+          <path d="M340 0h80v58h-80z" fill="var(--ef-plate-top)" />
+          <g stroke="var(--ef-text-2)" strokeWidth="1.5">
             <path d="M352 6v8M348 10h8M352 44v8M348 48h8" />
             <path d="M388 14h16M390 20h12M388 26h16M390 32h12M388 38h16" />
           </g>
           <rect x="232" y="55" width="36" height="3" fill="var(--ef-tri-a)" />
-          <rect x="272" y="55" width="36" height="3" fill="var(--b-sel)" />
+          <rect x="272" y="55" width="36" height="3" fill="var(--ef-accent)" />
           <rect x="312" y="55" width="28" height="3" fill="var(--ef-popup-band)" />
         </svg>
       </span>

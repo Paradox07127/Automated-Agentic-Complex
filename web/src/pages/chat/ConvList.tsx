@@ -1,11 +1,13 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { formatClock, type Conversation } from '../../domain';
-import { ContextMenu, Icon, IconBtn, SearchField, type IconName, type MenuItem } from '../../ui';
+import { Btn, ContextMenu, Icon, IconBtn, SearchField, type IconName, type MenuItem } from '../../ui';
 import { CellsIn } from './motion';
 import styles from './ConvList.module.css';
 
 /** agentd takes a title of 1–80 characters (conversations.py title()). */
 const MAX_TITLE = 80;
+
+const BUSY_NEW = '角色执行中，结束后可新建';
 
 export interface ConvListProps {
   /** Her name: the topics' group label. */
@@ -130,7 +132,7 @@ export function ConvList(p: ConvListProps) {
   // The row whose title box opens must be on screen: a search that hides it is cleared.
   const editing = all.find((c) => c.id === p.renaming);
   if (editing && q !== '' && !hit(editing)) setQ('');
-  const newLabel = busy ? '角色执行中，结束后可新建' : '新话题';
+  const newLabel = busy ? BUSY_NEW : '新话题';
   const row = (c: Conversation) => (
     <Row
       key={c.id}
@@ -172,18 +174,20 @@ export function ConvList(p: ConvListProps) {
             <div className={styles.topics} role="group" aria-label={`${p.who}的话题`}>
               {live.map(row)}
               {needle === '' && (
-                <button type="button" className={`${styles.row} ${styles.add}`} aria-label={newLabel} disabled={busy} onClick={p.onNew}>
-                  <Icon name="g-new" size={20} />
-                  <span className={styles.title}>新话题</span>
-                </button>
+                <span className={styles.add}>
+                  <Btn variant="secondary" size="sm" icon="g-new" label={newLabel} disabled={busy} disabledReason={BUSY_NEW} onClick={p.onNew}>
+                    新话题
+                  </Btn>
+                </span>
               )}
               {arch.length > 0 && needle !== '' && arch.map(row)}
               {arch.length > 0 && needle === '' && (
                 <>
-                  <button type="button" className={`${styles.row} ${styles.archRow}`} aria-expanded={openArch} onClick={() => setOpenArch(!openArch)}>
-                    <span className={styles.chev} aria-hidden="true" />
-                    <span className={styles.title}>{`已归档 ${arch.length}`}</span>
-                  </button>
+                  <span className={styles.archRow}>
+                    <Btn variant="text" size="sm" icon="chev" aria-expanded={openArch} onClick={() => setOpenArch(!openArch)}>
+                      {`已归档 ${arch.length}`}
+                    </Btn>
+                  </span>
                   {openArch && arch.map(row)}
                 </>
               )}

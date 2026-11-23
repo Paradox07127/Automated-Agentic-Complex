@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { formatClock } from '../../domain';
 import { navigate } from '../../shell/nav';
+import { Btn } from '../../ui';
 import { MessageText } from './MessageText';
 import { useMessageMenu, type MessageMenuProps } from './MessageMenu';
 import { TURN_SOURCE, TURN_STATE } from './stream';
@@ -77,14 +78,14 @@ export function MemTags({ mems = [], learned = [] }: { mems?: TiMem[]; learned?:
   return (
     <>
       {learned.length > 0 && (
-        <button type="button" className={styles.chip} data-new="" onClick={() => navigate({ page: 'memory', view: 'about', sel: learned[0]?.id ?? '' })}>
+        <Btn variant="secondary" size="sm" go onClick={() => navigate({ page: 'memory', view: 'about', sel: learned[0]?.id ?? '' })}>
           + 新增记忆 <span className="num">{learned.length}</span> 条
-        </button>
+        </Btn>
       )}
       {mems.length > 0 && (
-        <button type="button" className={styles.chip} onClick={() => navigate({ page: 'memory', view: 'about', sel: mems[0]?.id ?? '' })}>
+        <Btn variant="secondary" size="sm" go onClick={() => navigate({ page: 'memory', view: 'about', sel: mems[0]?.id ?? '' })}>
           引用记忆 <span className="num">{mems.length}</span> 条
-        </button>
+        </Btn>
       )}
     </>
   );

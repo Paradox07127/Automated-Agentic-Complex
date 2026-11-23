@@ -12,7 +12,7 @@
   height: 26px;
   overflow: hidden;
   border-radius: 50%;
-  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 1.5px var(--ef-scrim-popup);
 }
 
 .face img {
@@ -28,9 +28,9 @@
   width: 100%;
   height: 100%;
   background:
-    radial-gradient(circle at 50% 40%, #20242a 0 22%, transparent 23%),
-    radial-gradient(ellipse 38% 30% at 50% 100%, #20242a 0 96%, transparent 100%),
-    radial-gradient(circle at 50% 30%, #8a8f96, #3b3f45 80%);
+    radial-gradient(circle at 50% 40%, var(--ef-paper-text) 0 22%, transparent 23%),
+    radial-gradient(ellipse 38% 30% at 50% 100%, var(--ef-paper-text) 0 96%, transparent 100%),
+    radial-gradient(circle at 50% 30%, var(--ef-g-btn-light-off), var(--ef-btn-dark) 80%);
 }
 
 .desk {
