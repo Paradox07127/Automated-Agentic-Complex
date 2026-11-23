@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { DevMark, InfoTip, ModLine } from '../../ui';
+import { DevMark, InfoTip, ModLine, Receipt } from '../../ui';
 import { PowerState } from '../../ui/game';
 import { useSettings } from './ctx';
 import { REGISTRY, useHelperLacks, useRowShown } from './registry';
@@ -103,11 +103,7 @@ function Row({ id, title, desc, descTone, info, control, indent, tall, wrap, dis
         )}
       </div>
       <div className={styles.ctl} data-wrap={wrap || undefined} inert={off || undefined}>
-        {model.ok === id && (
-          <span className={styles.ok} aria-live="polite">
-            ✓ 已保存
-          </span>
-        )}
+        {model.ok === id && <Receipt>已保存</Receipt>}
         {control}
       </div>
       {children != null && <div className={styles.extra}>{children}</div>}

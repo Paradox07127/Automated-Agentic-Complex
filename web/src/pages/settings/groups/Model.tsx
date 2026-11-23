@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Btn, Select } from '../../../ui';
+import { Btn, Field, Select } from '../../../ui';
+import { StatusLamp, Stepper } from '../../../ui/game';
 import { usePlugins } from '../../../shell/plugins';
 import { failure, readCatalog, readServices, saveModels, testModels } from '../api';
 import { Band } from '../Band';
@@ -7,11 +8,10 @@ import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { COMPATIBLE_THINKING, isLoopback, keyOptions, listsOwnModels, modelCaps, modelTestText, SVC, thinkOptions, tokens, type Opt } from '../fields';
 import { groupDesc } from '../groups';
-import { Field, Masked, St } from '../kit';
+import { Masked } from '../kit';
 import { labelOf } from '../registry';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
-import { Stepper } from '../Stepper';
 import type { ModelProvider, WireCatalog } from '../wire';
 import { ChatgptRow } from './ModelChatgpt';
 
@@ -166,7 +166,7 @@ export function ModelGroup() {
                       </>
                     ) : (
                       <>
-                        <Field type="password" aria-label="API Key" placeholder={cfg?.has_key ? '输入新 Key 替换' : '粘贴 API Key'} value={key} disabled={ro || !keySlot} onChange={(e) => setKey(e.currentTarget.value)} />
+                        <Field type="password" label="API Key" placeholder={cfg?.has_key ? '输入新 Key 替换' : '粘贴 API Key'} value={key} disabled={ro || !keySlot} onChange={setKey} />
                         <Btn disabled={ro || !key} onClick={saveKey}>
                           保存
                         </Btn>
@@ -209,7 +209,7 @@ export function ModelGroup() {
                   title={labelOf(id)}
                   indent
                   control={
-                    <Stepper label={labelOf(id)} value={Number(model.value(id) ?? min)} min={min} max={max} step={step} format={tokens} disabled={ro || agentdOff || svcDraft} disabledReason="先应用模型服务的改动" onChange={(n) => model.set(id, n)} />
+                    <Stepper label={labelOf(id)} value={Number(model.value(id) ?? min)} min={min} max={max} step={step} format={tokens} solid disabled={ro || agentdOff || svcDraft} disabledReason="先应用模型服务的改动" onChange={(n) => model.set(id, n)} />
                   }
                 />
               ))}
@@ -224,7 +224,7 @@ export function ModelGroup() {
             desc={drafted ? '先应用上面的改动再测' : undefined}
             control={
               <>
-                {test && <St tone={test.ok ? 'ok' : 'bad'}>{test.text}</St>}
+                {test && <StatusLamp size="sm" state={test.ok ? 'ok' : 'broken'} label={test.text} />}
                 <Btn loading={testing} disabled={ro || drafted} disabledReason="先应用上面的改动" onClick={() => void runTest()}>
                   测试
                 </Btn>

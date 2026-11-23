@@ -5,7 +5,7 @@ import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { groupDesc } from '../groups';
 import { Btn, Switch } from '../../../ui';
-import { St } from '../kit';
+import { StatusLamp } from '../../../ui/game';
 import { labelOf, useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
@@ -121,7 +121,7 @@ export function AboutGroup() {
             title={labelOf('agentd')}
             control={
               <>
-                <St tone={running ? 'ok' : 'bad'}>{running ? `运行中${agentd?.pid ? ` │ 进程 ${agentd.pid}` : ''}` : '没有运行'}</St>
+                <StatusLamp size="sm" state={running ? 'ok' : 'broken'} label={running ? `运行中${agentd?.pid ? ` │ 进程 ${agentd.pid}` : ''}` : '没有运行'} />
                 {running ? (
                   <Btn go onClick={() => goPage({ page: 'diag' })}>
                     去诊断

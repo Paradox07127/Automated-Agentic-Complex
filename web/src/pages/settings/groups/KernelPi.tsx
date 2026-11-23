@@ -1,10 +1,10 @@
 import { getBridge } from '../../../bridge';
 import { Btn, Missing, Table, TableCell, TableHead, TableRow } from '../../../ui';
+import { StatusLamp } from '../../../ui/game';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { RUNSRC } from '../fields';
 import { groupDesc } from '../groups';
-import { St } from '../kit';
 import { labelOf, useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
@@ -75,7 +75,7 @@ export function KernelPi() {
         id="maxCost"
         title={labelOf('maxCost')}
         desc={unpriced ? '这个模型没有目录价格，上限不起作用' : '超过就停下这次运行；模型没有目录价格时不起作用'}
-        control={c.stepper('maxCost', 0.5, 20, 0.5, (n) => `$${n.toFixed(2)}`, unpriced, '这个模型没有目录价格')}
+        control={c.stepper('maxCost', 0.5, 20, 0.5, 2, (n) => `$${n.toFixed(2)}`, unpriced, '这个模型没有目录价格')}
       />
       <WorkspaceRow />
       <SetRow id="runsrc" title={labelOf('runsrc')} control={c.seg('runsrc', RUNSRC)} />
@@ -98,7 +98,7 @@ export function KernelPi() {
                 return (
                   <TableRow key={name} id={name}>
                     <TableCell mono>{name}</TableCell>
-                    <TableCell>{why ? <St tone="bad">{PI_TOOL_MISSING[why] ?? why}</St> : <St tone="ok">可用</St>}</TableCell>
+                    <TableCell>{why ? <StatusLamp size="sm" state="broken" label={PI_TOOL_MISSING[why] ?? why} /> : <StatusLamp size="sm" state="ok" label="可用" />}</TableCell>
                     <TableCell mono>{shell ?? <Missing why="na" />}</TableCell>
                     <TableCell>{!why && piApproval && PI_APPROVED.has(name) ? '要批准' : <Missing why="na" />}</TableCell>
                   </TableRow>

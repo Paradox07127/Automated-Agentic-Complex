@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Btn, Fold, IconBtn, Select, Switch } from '../../ui';
+import { Btn, Field, Fold, IconBtn, Select, Switch } from '../../ui';
 import { GameSeg } from '../../ui/game';
-import { Field } from './kit';
 import { AllowList } from './AllowList';
 import { addBlacklist, failure, removeBlacklist, restoreBlacklist, setBlacklistMode } from './api';
 import { useSettings } from './ctx';
@@ -102,11 +101,11 @@ export function ExcludeList() {
       <div className={styles.chips}>
         <Select label="排除类型" value={field} width={120} options={FIELD.map((f) => ({ value: f.value, label: f.label }))} disabled={ro} onChange={(v) => setField(v as BlacklistField)} />
         <Field
-          aria-label="要排除的内容"
+          label="要排除的内容"
           placeholder={FIELD.find((f) => f.value === field)?.hint}
           value={value}
           disabled={ro}
-          onChange={(e) => setValue(e.currentTarget.value)}
+          onChange={setValue}
           onKeyDown={(e) => e.key === 'Enter' && add()}
         />
         <span className={styles.t2}>顺手删掉已记下的</span>

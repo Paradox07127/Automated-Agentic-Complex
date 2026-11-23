@@ -14,7 +14,10 @@ let asked: string[];
 /** Every `settings.save` the guide makes. */
 let saves: Array<Record<string, unknown>>;
 
-function install(over: Partial<OnboardingOps> = {}, opts: { testOk?: boolean } = {}) {
+/** `tokenSet` is what /diag/state's connections.tts.token_set says; `diagReads` counts its reads. */
+let diagReads: number;
+
+function install(over: Partial<OnboardingOps> = {}, opts: { testOk?: boolean; tokenSet?: boolean } = {}) {
   const fake = createFakeBridge({ surface: 'onboarding', still: true });
   const log = <K extends keyof OnboardingOps>(k: K) =>
     ((...a: unknown[]) => {
@@ -28,10 +31,17 @@ function install(over: Partial<OnboardingOps> = {}, opts: { testOk?: boolean } =
   const settings = { ...fake.settings, save: (c: Record<string, never>) => (saves.push(c), fake.settings.save(c)) };
   const agentd = {
     ...fake.agentd,
-    request: ((method, path, body) =>
-      path === '/model/test' && opts.testOk === false
-        ? Promise.resolve({ status: 200, body: { ok: false, kernel: 'pi', provider: null, model: '', elapsed_ms: 0, tokens: null, cost_usd: null } })
-        : fake.agentd.request(method, path, body)) as AgenticComplexBridge['agentd']['request'],
+    request: ((method, path, body) => {
+      if (path === '/model/test' && opts.testOk === false)
+        return Promise.resolve({ status: 200, body: { ok: false, kernel: 'pi', provider: null, model: '', elapsed_ms: 0, tokens: null, cost_usd: null } });
+      if (path !== '/diag/state') return fake.agentd.request(method, path, body);
+      diagReads += 1;
+      return fake.agentd.request(method, path, body).then((r) => {
+        const d = r.body as { connections?: { tts?: Record<string, unknown> } };
+        if (opts.tokenSet === undefined || !d.connections?.tts) return r;
+        return { ...r, body: { ...d, connections: { ...d.connections, tts: { ...d.connections.tts, token_set: opts.tokenSet } } } };
+      });
+    }) as AgenticComplexBridge['agentd']['request'],
   };
   window.agenticComplex = { ...fake, onboarding, permissions, settings, agentd };
 }
@@ -57,6 +67,7 @@ async function toStep(n: number) {
 }
 
 beforeEach(() => {
+  diagReads = 0;
   calls = [];
   asked = [];
   saves = [];
@@ -147,6 +158,30 @@ describe('onboarding page', () => {
     const before = asked.filter((k) => k === 'status').length;
     act(() => void window.dispatchEvent(new Event('focus')));
     await waitFor(() => expect(asked.filter((k) => k === 'status').length).toBeGreaterThan(before));
+  });
+
+  it.each([
+    [true, '已保存'],
+    [false, '还没有保存'],
+  ])('reads the voice token as saved from /diag/state token_set %s', async (tokenSet, note) => {
+    install({}, { tokenSet });
+    mount();
+    await roster();
+    await toStep(3);
+    const row = await screen.findByRole('group', { name: '令牌' });
+    await waitFor(() => expect(row.textContent).toContain(note));
+  });
+
+  it('reads /diag/state again after saving the voice token', async () => {
+    install({}, { tokenSet: false });
+    mount();
+    await roster();
+    await toStep(3);
+    const row = await screen.findByRole('group', { name: '令牌' });
+    fireEvent.change(within(row).getByLabelText('令牌', { selector: 'input' }), { target: { value: 'secret' } });
+    const before = diagReads;
+    fireEvent.click(within(row).getByRole('button', { name: '保存' }));
+    await waitFor(() => expect(diagReads).toBeGreaterThan(before));
   });
 
   it('跳过引导 asks on white paper, then ends the guide', async () => {

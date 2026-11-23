@@ -2,8 +2,7 @@ import { getBridge } from '../../bridge';
 import { formatDuration, secToMs } from '../../domain';
 import { clock, createScope, failure, revokeScope } from './api';
 import { useSettings } from './ctx';
-import { Btn } from '../../ui';
-import { Chip } from './kit';
+import { Btn, Pill } from '../../ui';
 import { labelOf } from './registry';
 import { Slab } from './Slab';
 import type { WireScope } from './wire';
@@ -62,7 +61,7 @@ export function ScopeList() {
         {scopes == null && <li className={styles.t3}>—</li>}
         {live.map((s) => (
           <li key={s.scope_id}>
-            <Chip tone="off">夹</Chip>
+            <Pill>夹</Pill>
             <code className={styles.grow} title={`产物保存到 ${s.output.path}`}>
               {s.roots.map((r) => r.path).join('、')} → {s.output.path}
             </code>

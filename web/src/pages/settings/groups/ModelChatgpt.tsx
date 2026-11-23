@@ -1,7 +1,7 @@
 import { chatgptCancel, chatgptLogout, chatgptSelect, chatgptStart, failure } from '../api';
 import { useSettings } from '../ctx';
 import { Btn } from '../../../ui';
-import { St } from '../kit';
+import { StatusLamp } from '../../../ui/game';
 import { SetRow } from '../SetRow';
 import type { WireChatgpt } from '../wire';
 import styles from '../groups.module.css';
@@ -9,9 +9,9 @@ import styles from '../groups.module.css';
 type Profile = WireChatgpt['profiles'][number];
 
 function stateOf(p: Profile, active: boolean) {
-  if (!p.connected) return <St tone="off">已断开</St>;
-  if (active) return <St tone="ok">{p.sharing ? '使用中 │ 已授权订阅额度' : '使用中'}</St>;
-  return <St tone="off">已连接</St>;
+  if (!p.connected) return <StatusLamp size="sm" state="stopped" label="已断开" />;
+  if (active) return <StatusLamp size="sm" state="ok" label={p.sharing ? '使用中 │ 已授权订阅额度' : '使用中'} />;
+  return <StatusLamp size="sm" state="idle" label="已连接" />;
 }
 
 /** ChatGPT 订阅: every saved account with 使用 / 重新连接 / 退出; 添加账号 signs a new one in. */

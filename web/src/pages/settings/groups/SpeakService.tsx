@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { AgentdCallError, saveVoiceToken, testVoice } from '../../../bridge/agentd';
-import { Btn } from '../../../ui';
-import { ExpandRow } from '../../../ui/game';
+import { Btn, Field } from '../../../ui';
+import { ExpandRow, StatusLamp } from '../../../ui/game';
 import { failure } from '../api';
 import { useSettings } from '../ctx';
-import { Field, St } from '../kit';
 import { SetRow } from '../SetRow';
 import styles from '../groups.module.css';
 
@@ -68,7 +67,7 @@ export function VoiceService({ down }: { down: boolean }) {
         info="令牌只送给后台，不回显；换服务地址会删掉旧令牌。"
         control={
           <>
-            <Field type="password" aria-label="令牌" placeholder="粘贴令牌" value={token} disabled={agentdOff} onChange={(e) => setToken(e.currentTarget.value)} />
+            <Field type="password" label="令牌" placeholder="粘贴令牌" value={token} disabled={agentdOff} onChange={setToken} />
             <Btn disabled={agentdOff || !token.trim()} onClick={saveToken}>
               保存
             </Btn>
@@ -80,7 +79,7 @@ export function VoiceService({ down }: { down: boolean }) {
         title="测试连接"
         control={
           <>
-            {test && <St tone={test.ok ? 'ok' : 'bad'}>{test.text}</St>}
+            {test && <StatusLamp size="sm" state={test.ok ? 'ok' : 'broken'} label={test.text} />}
             <Btn loading={testing} disabled={agentdOff} disabledReason="后台服务没有运行" onClick={() => void runTest()}>
               测试
             </Btn>

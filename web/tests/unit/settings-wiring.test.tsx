@@ -340,8 +340,8 @@ describe('角色内核 → PUT /character/runtime patches', () => {
     render(<Harness d={d} init={{ draft: { kernel: 'pi' } }}><KernelGroup /></Harness>);
     const row = document.querySelector('[data-row="maxCost"]') as HTMLElement;
     expect(row).not.toBeNull();
-    await click(within(row).getByRole('button', { name: '单次运行费用上限 增加' }));
-    expect(within(row).getByRole('button', { name: '单次运行费用上限 减少' }).hasAttribute('disabled')).toBe(false);
+    await click(within(row).getByRole('button', { name: '单次运行费用上限：增加' }));
+    expect(within(row).getByRole('button', { name: '单次运行费用上限：减少' }).hasAttribute('disabled')).toBe(false);
     cleanup();
     render(<Harness d={d} init={{ draft: { kernel: 'codex' } }}><KernelGroup /></Harness>);
     expect(document.querySelector('[data-row="maxCost"]')).toBeNull();

@@ -6,7 +6,7 @@ import { clock, disconnectHooks, failure } from '../api';
 import { useSettings } from '../ctx';
 import type { Hook } from '../diag';
 import { Btn } from '../../../ui';
-import { St } from '../kit';
+import { StatusLamp } from '../../../ui/game';
 import { SetRow } from '../SetRow';
 import { runInTerminal } from '../terminal';
 import styles from '../groups.module.css';
@@ -46,9 +46,9 @@ function HookChain({ name, h }: { name: string; h: Hook }) {
 }
 
 function tag(h: Hook) {
-  if (h.installed == null) return <St tone="off">无法检查</St>;
-  if (!h.installed) return <St tone="off">未接入</St>;
-  return h.last_at ? <St tone="ok">{`已接入 │ ${formatAgo(clock() - h.last_at)}收到事件`}</St> : <St tone="warn">已安装，没收到事件</St>;
+  if (h.installed == null) return <StatusLamp size="sm" state="idle" label="无法检查" />;
+  if (!h.installed) return <StatusLamp size="sm" state="idle" label="未接入" />;
+  return h.last_at ? <StatusLamp size="sm" state="ok" label={`已接入 │ ${formatAgo(clock() - h.last_at)}收到事件`} /> : <StatusLamp size="sm" state="waiting" label="已安装，没收到事件" />;
 }
 
 /** Claude Code and Codex hooks under 编码会话: state from `/diag/state`, the install steps while one is not hooked up, unbinding through agentd. */

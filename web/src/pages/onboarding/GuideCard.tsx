@@ -1,3 +1,4 @@
+import { Pill } from '../../ui';
 import { MicroLabel } from '../../ui/game';
 import { pad2 } from './copy';
 import styles from './GuideCard.module.css';
@@ -35,8 +36,10 @@ export function GuideCard({ n, en, title, lead, tag }: GuideCardProps) {
       </span>
       {lead && <p className={styles.lead}>{lead}</p>}
       {tag && (
-        <span className={styles.tag} data-k={tag}>
-          {tag === 'must' ? '必做' : '可跳过'}
+        <span className={styles.tag}>
+          <Pill tone={tag === 'must' ? 'success' : 'paper'} size="lg">
+            {tag === 'must' ? '必做' : '可跳过'}
+          </Pill>
         </span>
       )}
     </aside>

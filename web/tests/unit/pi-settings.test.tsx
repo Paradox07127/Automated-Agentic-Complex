@@ -176,11 +176,11 @@ describe('the model of a compatible API', () => {
 
   it('has a 模型能力 group whose rows write the compatible connection', async () => {
     render(<Harness d={caps({})}><ModelGroup /></Harness>);
-    expect(row('ctxWindow')!.querySelector('output')?.textContent).toBe('128k');
-    await click(screen.getByRole('button', { name: '上下文长度 增加' }));
+    expect((row('ctxWindow')!.querySelector('input') as HTMLInputElement).value).toBe('128k');
+    await click(screen.getByRole('button', { name: '上下文长度：增加' }));
     expect(sent('POST', '/model/settings')).toEqual({ provider: 'compatible', context_window: 144000 });
     request.mockClear();
-    await click(screen.getByRole('button', { name: '最大输出 增加' }));
+    await click(screen.getByRole('button', { name: '最大输出：增加' }));
     expect(sent('POST', '/model/settings')).toEqual({ provider: 'compatible', max_output_tokens: 5120 });
     request.mockClear();
     await click(screen.getByRole('switch', { name: '图像输入' }));
@@ -332,7 +332,7 @@ describe("Pi's own section of 角色内核", () => {
   });
 
   it('keeps the cost cap editable unless a saved, ready Pi runs a model without a catalog price', () => {
-    const more = () => within(row('maxCost')!).getByRole('button', { name: '单次运行费用上限 增加' });
+    const more = () => within(row('maxCost')!).getByRole('button', { name: '单次运行费用上限：增加' });
     render(<Harness d={pi({ capability_flags: flags(true) })}><KernelGroup /></Harness>);
     expect(more().hasAttribute('disabled')).toBe(false);
     cleanup();

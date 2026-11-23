@@ -1,8 +1,8 @@
 import { BottomBar } from '../../shell/BottomBar';
 import { BottomBarSlot } from '../../shell/headerSlot';
 import { Btn } from '../../ui';
+import { StatusLamp } from '../../ui/game';
 import { useSettings } from './ctx';
-import { St } from './kit';
 import { labelOf } from './registry';
 import styles from './ApplyBar.module.css';
 
@@ -19,19 +19,19 @@ export function ApplyBar() {
     <>
       {pending.length > 0 && (
         <span className={styles.tip}>
-          <St tone="warn" />
+          <StatusLamp state="waiting" size="sm" label="" />
           <span className="num">{pending.length}</span> 项重启后台服务后生效：{pending.map(labelOf).join('、')}
         </span>
       )}
       {drafts > 0 && (
         <span className={styles.tip}>
-          <St tone="warn" />
+          <StatusLamp state="waiting" size="sm" label="" />
           未应用 <span className="num">{drafts}</span> 项 │ 要一起生效，点「应用」后保存
         </span>
       )}
       {!waits && agentdOff && (
         <span className={styles.tip}>
-          <St tone="bad">后台已断开</St> 内核、账号暂时只读
+          <StatusLamp state="broken" size="sm" label="后台已断开" /> 内核、账号暂时只读
         </span>
       )}
       {!waits && !agentdOff && '改动立即生效 │ 每次改动后几秒内可在提示里撤销'}

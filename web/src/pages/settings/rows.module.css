@@ -205,12 +205,6 @@
   color: var(--ef-attention-text);
 }
 
-.ok {
-  color: var(--ef-state-ok);
-  font-size: 12px;
-  white-space: nowrap;
-}
-
 .hl {
   animation: flash 1.6s var(--ef-ease-g-fade) both;
 }

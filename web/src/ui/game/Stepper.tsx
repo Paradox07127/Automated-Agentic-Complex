@@ -42,7 +42,13 @@ export interface StepperNumberProps {
   /** 和包里的不一样：黄框黄字 */
   changed?: boolean;
   disabled?: boolean;
+  /** 禁用时悬停说的原因 */
+  disabledReason?: string;
   compact?: boolean;
+  /** 实心深底：放在浅色页面的行里也够对比度 */
+  solid?: boolean;
+  /** 不在输入时怎么写这个数（「128k」「$2.50」）；输入时写原数 */
+  format?: (value: number) => string;
   onChange?: (value: number) => void;
 }
 
@@ -60,7 +66,7 @@ export function Stepper(p: StepperProps): ReactElement {
   return 'min' in p ? <NumberStepper {...p} /> : <ListStepper {...p} />;
 }
 
-function NumberStepper({ label, value, min, max, step, big = step, digits, changed, disabled, compact, onChange }: StepperNumberProps) {
+function NumberStepper({ label, value, min, max, step, big = step, digits, changed, disabled, disabledReason, compact, solid, format, onChange }: StepperNumberProps) {
   const [text, setText] = useState<string | null>(null);
   const put = (v: number) => {
     const next = Number(Math.min(max, Math.max(min, Math.round(v / step) * step)).toFixed(digits ?? 0));
@@ -82,21 +88,22 @@ function NumberStepper({ label, value, min, max, step, big = step, digits, chang
     }
   };
   return (
-    <div className={styles.wrap} data-stub="Stepper" data-size={compact ? 'compact' : undefined} data-changed={changed || undefined}>
-      <div className={styles.step} data-num="" aria-disabled={disabled || undefined}>
+    <div className={styles.wrap} data-stub="Stepper" data-size={compact ? 'compact' : undefined} data-changed={changed || undefined} data-solid={solid || undefined}>
+      <div className={styles.step} data-num="" aria-disabled={disabled || undefined} title={disabled ? disabledReason : undefined}>
         <button type="button" className={styles.ar} tabIndex={-1} aria-label={`${label}：减少`} disabled={disabled || value <= min} onClick={by(-1)}>
           <Chev left />
         </button>
         <input
           className={styles.num}
-          type="number"
+          type={format ? 'text' : 'number'}
           inputMode="decimal"
           min={min}
           max={max}
           step={step}
           aria-label={label}
-          value={text ?? (digits ? value.toFixed(digits) : String(value))}
+          value={text ?? (format ? format(value) : digits ? value.toFixed(digits) : String(value))}
           disabled={disabled}
+          onFocus={format ? () => setText(String(value)) : undefined}
           onChange={(e) => setText(e.currentTarget.value)}
           onBlur={commit}
           onKeyDown={onKey}
@@ -287,4 +294,7 @@ export const StepperDemos: Array<{ name: string; props: StepperProps }> = [
   { name: 'compact', props: { label: '裙摆', options: LENGTH, value: 'short', defaultValue: 'long', compact: true } },
   { name: 'number', props: { label: '权重', value: 12, min: 1, max: 100000, step: 1, big: 10, changed: true } },
   { name: 'number-compact', props: { label: '保持秒数', value: 1.5, min: 0, max: 600, step: 0.5, big: 2, digits: 1, compact: true } },
+  { name: 'number-format', props: { label: '上下文长度', value: 128000, min: 16000, max: 2000000, step: 16000, format: (n) => `${Math.round(n / 1000)}k` } },
+  { name: 'number-disabled', props: { label: '费用上限', value: 2.5, min: 0.5, max: 20, step: 0.5, digits: 2, format: (n) => `$${n.toFixed(2)}`, disabled: true, disabledReason: '这个模型没有目录价格' } },
+  { name: 'number-solid', props: { label: '最大输出', value: 4096, min: 1024, max: 32768, step: 1024, solid: true } },
 ];

@@ -1,8 +1,9 @@
 import { useState, type ReactNode } from 'react';
 import { getBridge, type OnboardingStep } from '../../bridge';
 import { hotkeyText } from '../../bridge/platformText';
-import { Btn, CharacterArt, ErrBar, Select } from '../../ui';
-import { GameFrame, MicroLabel } from '../../ui/game';
+import type { VisualStateKey } from '../../domain/states';
+import { Btn, CharacterArt, ErrBar, Field, Select } from '../../ui';
+import { GameFrame, MicroLabel, StatusLamp } from '../../ui/game';
 import { failure, saveModels } from '../settings/api';
 import { Band } from '../settings/Band';
 import { useControls } from '../settings/controls';
@@ -10,7 +11,7 @@ import { SettingsCtx, useSettings } from '../settings/ctx';
 import { SVC } from '../settings/fields';
 import { capsOf } from '../settings/groups/Keys';
 import { ChatgptRow } from '../settings/groups/ModelChatgpt';
-import { Field, KeyCell, Masked, St, type StTone } from '../settings/kit';
+import { KeyCell, Masked } from '../settings/kit';
 import type { PermRow } from '../settings/perms';
 import { labelOf } from '../settings/registry';
 import { SetRow } from '../settings/SetRow';
@@ -62,11 +63,11 @@ function DrawnHead({ id }: { id: string }) {
   );
 }
 
-const DESK: Record<Desk, [StTone, string]> = {
-  unread: ['off', '没读到桌面状态'],
-  appearing: ['warn', '正在出现…'],
+const DESK: Record<Desk, [VisualStateKey, string]> = {
+  unread: ['idle', '没读到桌面状态'],
+  appearing: ['waiting', '正在出现…'],
   here: ['ok', '在桌面上'],
-  hidden: ['off', '隐藏着'],
+  hidden: ['stopped', '隐藏着'],
 };
 
 /** 01 角色: the roster (a cell switches her), 导入 as the last cell, and whether she is on the desktop. */
@@ -116,7 +117,7 @@ export function StepChar({ o }: { o: Onboarding }) {
           id="onDesk"
           title={`${c.name} 在桌面上`}
           desc={c.voice ? '有声线：连上语音服务后能念出来' : '没有声线：只显示文字，不会出声'}
-          control={<St tone={DESK[o.desk][0]}>{DESK[o.desk][1]}</St>}
+          control={<StatusLamp size="sm" state={DESK[o.desk][0]} label={DESK[o.desk][1]} />}
         />
       )}
     </Frame>
@@ -173,7 +174,7 @@ function AccountRows() {
               </>
             ) : (
               <>
-                <Field type="password" aria-label="API Key" placeholder={cfg?.has_key ? '输入新 Key 替换' : '粘贴 API Key'} value={key} disabled={ro} onChange={(e) => setKey(e.currentTarget.value)} />
+                <Field type="password" label="API Key" placeholder={cfg?.has_key ? '输入新 Key 替换' : '粘贴 API Key'} value={key} disabled={ro} onChange={setKey} />
                 <Btn disabled={ro || !key} onClick={saveKey}>
                   保存
                 </Btn>
@@ -190,7 +191,7 @@ function AccountRows() {
 export function StepChat({ g }: { g: GuideSettings }) {
   const { ctx, restarting, agentdOff, connected, test, runTest } = g;
   const ro = agentdOff || restarting;
-  const testTone: StTone = test.state === 'ok' ? 'ok' : test.state === 'bad' ? 'bad' : test.state === 'testing' ? 'warn' : 'off';
+  const testTone: VisualStateKey = test.state === 'ok' ? 'ok' : test.state === 'bad' ? 'broken' : test.state === 'testing' ? 'waiting' : 'idle';
   const testText = test.state === 'testing' ? '连接中…' : test.state === 'idle' ? '没连上' : test.text;
   return (
     <Frame n={2}>
@@ -212,7 +213,7 @@ export function StepChat({ g }: { g: GuideSettings }) {
             descTone={test.state === 'ok' ? 'ok' : undefined}
             control={
               <>
-                <St tone={testTone}>{testText}</St>
+                <StatusLamp size="sm" state={testTone} label={testText} />
                 <Btn loading={test.state === 'testing'} disabled={ro || !connected} disabledReason="先连上账号" onClick={runTest}>
                   测试
                 </Btn>
@@ -261,20 +262,20 @@ export function StepDone({ o, g, missing, goto }: { o: Onboarding; g: GuideSetti
   const copy = doneCopy(her?.name ?? null, ready);
   const quick = o.hotkeys.hk_quick ?? String(model.value('hk_quick') ?? '');
   const lines: Array<[string, ReactNode, ReactNode]> = [
-    ['角色', her ? <St tone="ok">{`${her.name} 在桌面上`}</St> : <St tone="off">还没有角色</St>, !her && <Btn variant="link" onClick={() => goto(1)}>导入</Btn>],
+    ['角色', her ? <StatusLamp size="sm" state="ok" label={`${her.name} 在桌面上`} /> : <StatusLamp size="sm" state="idle" label="还没有角色" />, !her && <Btn variant="link" onClick={() => goto(1)}>导入</Btn>],
     [
       '对话',
-      !g.talks ? <St tone="off">关着，只陪伴</St> : ready ? <St tone="ok">{`已连上 │ ${g.service ?? ''}`}</St> : <St tone="warn">没连上账号</St>,
+      !g.talks ? <StatusLamp size="sm" state="stopped" label="关着，只陪伴" /> : ready ? <StatusLamp size="sm" state="ok" label={`已连上 │ ${g.service ?? ''}`} /> : <StatusLamp size="sm" state="waiting" label="没连上账号" />,
       g.talks && !ready && <Btn variant="link" onClick={() => goto(2)}>去连</Btn>,
     ],
     [
       '她的声音',
-      her && !her.voice ? <St tone="off">没有声线，只显示文字</St> : g.talks && g.ctx.diag.voice != null && !g.ctx.diag.voiceNone ? <St tone="ok">外部服务</St> : <St tone="off">只显示文字</St>,
+      her && !her.voice ? <StatusLamp size="sm" state="idle" label="没有声线，只显示文字" /> : g.talks && g.ctx.diag.voice != null && !g.ctx.diag.voiceNone ? <StatusLamp size="sm" state="ok" label="外部服务" /> : <StatusLamp size="sm" state="idle" label="只显示文字" />,
       null,
     ],
     [
       '按住说话',
-      !g.talks ? <St tone="off">对话关着</St> : missing.length ? <St tone="warn">{`${missing.map((p) => p.label).join('、')}没开`}</St> : <St tone="ok">可以用</St>,
+      !g.talks ? <StatusLamp size="sm" state="stopped" label="对话关着" /> : missing.length ? <StatusLamp size="sm" state="waiting" label={`${missing.map((p) => p.label).join('、')}没开`} /> : <StatusLamp size="sm" state="ok" label="可以用" />,
       g.talks && missing.length > 0 && <Btn variant="link" onClick={() => goto(3)}>去开</Btn>,
     ],
   ];
@@ -289,7 +290,7 @@ export function StepDone({ o, g, missing, goto }: { o: Onboarding; g: GuideSetti
         )}
         <span className={styles.line} />
         <span className={styles.here}>
-          {her ? <St tone={DESK[o.desk][0]}>{DESK[o.desk][1]}</St> : <St tone="off">桌面上还没有角色</St>}
+          {her ? <StatusLamp size="sm" state={DESK[o.desk][0]} label={DESK[o.desk][1]} /> : <StatusLamp size="sm" state="idle" label="桌面上还没有角色" />}
           <MicroLabel>Desk / Live</MicroLabel>
         </span>
       </div>

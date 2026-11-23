@@ -4,13 +4,13 @@ import { type RuntimeInfo } from '../../../domain';
 import { codeText } from '../../../domain/errorText';
 import { KernelChain, kernelBreak } from '../../../features/kernel';
 import { Fold } from '../../../ui/Fold';
-import { Btn, Missing, Select, Skel, Table, TableCell, TableHead, TableRow } from '../../../ui';
+import { Btn, Missing, Pill, Select, Skel, Table, TableCell, TableHead, TableRow } from '../../../ui';
+import { StatusLamp } from '../../../ui/game';
 import { Band } from '../Band';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { failure, installAcpAgent, readAcpAgents, type AcpAgent, type AcpAgents, type AcpInstall } from '../api';
 import { acctOptions, providerOptions, RUNSRC, RUNTIME_ERROR, RUNTIME_ERROR_UNKNOWN, type ProviderProfile, type RuntimeError } from '../fields';
-import { Chip, St } from '../kit';
 import { labelOf, useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
 import { Slab } from '../Slab';
@@ -181,7 +181,7 @@ export function KernelGroup() {
             <TableCell>
               {a.native_backend ? (
                 <span className={styles.cellActs} onClick={(e) => e.stopPropagation()}>
-                  <St tone="off">用直连</St>
+                  <StatusLamp size="sm" state="idle" label="用直连" />
                   <Btn disabled={ro || !native || !usable(native)} disabledReason={`本机没有 ${nativeName}`} onClick={() => switchTo(a.native_backend!)}>{`改用 ${nativeName}`}</Btn>
                 </span>
               ) : a.source !== 'local' ? (
@@ -194,11 +194,11 @@ export function KernelGroup() {
                   </Btn>
                 </span>
               ) : !a.probe ? (
-                <St tone="off">未检测</St>
+                <StatusLamp size="sm" state="idle" label="未检测" />
               ) : a.probe.ok ? (
-                <St tone="ok">可用</St>
+                <StatusLamp size="sm" state="ok" label="可用" />
               ) : (
-                <St tone="bad">{names ? `要登录：${names}` : '检测失败'}</St>
+                <StatusLamp size="sm" state="broken" label={names ? `要登录：${names}` : '检测失败'} />
               )}
               {on && ('acpAgent' in model.draft || 'acpLauncher' in model.draft) && <span className={styles.att}> │ 未应用</span>}
             </TableCell>
@@ -219,16 +219,16 @@ export function KernelGroup() {
             </span>
             <span className={styles.meta}>
               {'kernel' in model.draft ? (
-                <St tone="warn">未应用 │ 点底部「应用」后切换</St>
+                <StatusLamp size="sm" state="waiting" label="未应用 │ 点底部「应用」后切换" />
               ) : reason == null ? (
-                <St tone="ok">{cur.authenticated ? '已就绪 │ 已登录' : '已就绪'}</St>
+                <StatusLamp size="sm" state="ok" label={cur.authenticated ? '已就绪 │ 已登录' : '已就绪'} />
               ) : (
                 <span title={(code && !RUNTIME_ERROR[code] && codeText(code)) || undefined}>
-                  <St tone="bad">{`未就绪：${reason.label}`}</St>
+                  <StatusLamp size="sm" state="broken" label={`未就绪：${reason.label}`} />
                 </span>
               )}
               {reason?.fix && <Btn variant="link" onClick={() => goRow(reason.fix!.row)}>{reason.fix.action}</Btn>}
-              {runtime.wire.auto_selected && <Chip>自动选择</Chip>}
+              {runtime.wire.auto_selected && <Pill>自动选择</Pill>}
               <span>所有角色共用</span>
             </span>
             <Btn loading={runtimeChecking} disabled={agentdOff} disabledReason="后台服务没有运行" onClick={() => void k.recheck(cur.name, cur.id)}>
@@ -238,15 +238,15 @@ export function KernelGroup() {
               <span className={styles.canLbl}>她用 {cur.name} 能：</span>
               {FEATURE.filter(([key]) => features[key]?.implemented).map(([key, label]) => (
                 <span key={key} role="listitem">
-                  <Chip tone={features[key]?.enabled === false ? 'off' : 'on'}>{label}</Chip>
+                  <Pill dashed={features[key]?.enabled === false}>{label}</Pill>
                 </span>
               ))}
               {Object.keys(features).length === 0 && <span className={styles.t3}>保存并刷新后显示这个内核接通的能力</span>}
               <span role="listitem">
-                <Chip tone={computerUse ? 'on' : 'off'}>
+                <Pill size="lg" dashed={!computerUse}>
                   {labelOf('plugins.computer_use')}
                   {!computerUse && <Btn variant="link" onClick={() => goRow('plugins.computer_use', 'perm')}>去打开</Btn>}
-                </Chip>
+                </Pill>
               </span>
             </div>
             {chain && (
@@ -301,7 +301,7 @@ export function KernelGroup() {
                   </TableCell>
                   <TableCell>{r.id === 'acp' ? <Missing why="na" /> : r.authenticated == null ? '不需要' : r.path ? (r.authenticated ? '已登录' : '未登录') : <Missing why="na" />}</TableCell>
                   <TableCell>
-                    <St tone={usable(r) && bi < 0 ? 'ok' : 'bad'}>{status}</St>
+                    <StatusLamp size="sm" state={usable(r) && bi < 0 ? 'ok' : 'broken'} label={status} />
                     {model.draft.kernel === r.id && <span className={styles.att}> │ 未应用</span>}
                   </TableCell>
                 </TableRow>

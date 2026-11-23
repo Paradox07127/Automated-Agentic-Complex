@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { getBridge } from '../../../bridge';
 import { resetVoice } from '../../../bridge/agentd';
 import { hotkeyText } from '../../../bridge/platformText';
+import type { VisualStateKey } from '../../../domain/states';
 import { voiceSource, voiceState, voiceText, type Voice, type VoiceState } from '../../../domain/voiceState';
 import { useCountdown } from '../../../features/approval/useCountdown';
 import { failure, readMutes, saveMutes } from '../api';
@@ -10,9 +11,9 @@ import { useSettings } from '../ctx';
 import type { DiagView } from '../diag';
 import { REPLY_LANGUAGE } from '../fields';
 import { groupDesc } from '../groups';
-import { Btn } from '../../../ui';
-import { GameSeg, PowerState } from '../../../ui/game';
-import { Chip, Dis, St, type StTone } from '../kit';
+import { Btn, Pill } from '../../../ui';
+import { GameSeg, PowerState, StatusLamp } from '../../../ui/game';
+import { Dis } from '../kit';
 import { optionsOf } from '../native';
 import { labelOf, useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
@@ -32,7 +33,7 @@ const NOTIFY: Array<[id: string, label: string, note: string]> = [
   ['n_remind', '提醒', '你设的提醒'],
 ];
 
-const VOICE_TONE: Record<VoiceState, StTone> = { ready: 'ok', unknown: 'off', probing: 'warn', cold: 'warn', unreachable: 'bad', off: 'off' };
+const VOICE_TONE: Record<VoiceState, VisualStateKey> = { ready: 'ok', unknown: 'idle', probing: 'waiting', cold: 'waiting', unreachable: 'broken', off: 'stopped' };
 
 /** 说话: voice and its self-hosted service, when she speaks up, how things reach you. */
 export function SpeakGroup() {
@@ -71,7 +72,7 @@ export function SpeakGroup() {
 
   const voiceDesc = (
     <>
-      {voice && <St tone={VOICE_TONE[voice.state]}>{voiceText(voice.state, retryLeft)}</St>} <span>{down ? '这段时间只显示文字' : `${sourceLabel ? `${sourceLabel} │ ` : ''}自己部署的语音服务，app 只连接`}</span>
+      {voice && <StatusLamp size="sm" state={VOICE_TONE[voice.state]} label={voiceText(voice.state, retryLeft)} />} <span>{down ? '这段时间只显示文字' : `${sourceLabel ? `${sourceLabel} │ ` : ''}自己部署的语音服务，app 只连接`}</span>
     </>
   );
 
@@ -86,7 +87,7 @@ export function SpeakGroup() {
           info="把她的回答和主动发言念出来，要下面的语音服务在线。"
           control={
             <>
-              {diag.muted && <St tone="warn">后台现在静音</St>}
+              {diag.muted && <StatusLamp size="sm" state="waiting" label="后台现在静音" />}
               <GameSeg variant="setting"
                 label={labelOf('mute')}
                 value={typeof mute === 'boolean' ? String(mute) : ''}
@@ -239,10 +240,10 @@ function MutedRow({ disabled }: { disabled: boolean }) {
             const label = MUTED_KIND[kind] ?? kind;
             return (
               <span key={kind} role="group" aria-label={label}>
-                <Chip>
+                <Pill size="lg">
                   {label}
                   {!disabled && <Btn variant="link" onClick={() => restore(kind, label)}>恢复</Btn>}
-                </Chip>
+                </Pill>
               </span>
             );
           })

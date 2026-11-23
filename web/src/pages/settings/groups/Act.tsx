@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { getBridge, type PermissionKind } from '../../../bridge';
+import type { VisualStateKey } from '../../../domain/states';
 import { failure, readMotion, saveMotion, type MotionSource } from '../api';
 import { Band } from '../Band';
 import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import { groupDesc } from '../groups';
-import { Btn, Fold } from '../../../ui';
-import { Field, Masked, St, type StTone } from '../kit';
+import { Btn, Field, Fold } from '../../../ui';
+import { StatusLamp } from '../../../ui/game';
+import { Masked } from '../kit';
 import type { PermRow } from '../perms';
 import { labelOf } from '../registry';
 import { ScopeList } from '../ScopeList';
@@ -14,13 +16,13 @@ import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
 import styles from '../groups.module.css';
 
-const STATE: Record<PermRow['state'], [StTone, string]> = {
+const STATE: Record<PermRow['state'], [VisualStateKey, string]> = {
   granted: ['ok', '已允许'],
-  denied: ['bad', '没允许'],
-  notDetermined: ['warn', '还没问过'],
-  unsupported: ['off', '这个平台没有'],
-  loading: ['off', '读取中'],
-  unread: ['off', '未读到'],
+  denied: ['broken', '没允许'],
+  notDetermined: ['waiting', '还没问过'],
+  unsupported: ['stopped', '这个平台没有'],
+  loading: ['idle', '读取中'],
+  unread: ['idle', '未读到'],
 };
 
 /** Kinds whose system prompt only shows on request; 去系统设置 stays beside 允许, since a request can come back unanswered or be ignored after a refusal. */
@@ -96,13 +98,13 @@ function PermSection({ open: linked }: { open: boolean }) {
   };
 
   const summary = reading ? (
-    <St tone="off">读取中</St>
+    <StatusLamp size="sm" state="idle" label="读取中" />
   ) : unread ? (
-    <St tone="off">未读到</St>
+    <StatusLamp size="sm" state="idle" label="未读到" />
   ) : missing.length ? (
-    <St tone="warn">{`${known.length - missing.length} 项已允许 │ ${missing.length} 项没开`}</St>
+    <StatusLamp size="sm" state="waiting" label={`${known.length - missing.length} 项已允许 │ ${missing.length} 项没开`} />
   ) : (
-    <St tone="ok">全部已允许</St>
+    <StatusLamp size="sm" state="ok" label="全部已允许" />
   );
 
   return (
@@ -130,7 +132,7 @@ function PermSection({ open: linked }: { open: boolean }) {
                 info={p.purpose}
                 control={
                   <>
-                    <St tone={tone}>{text}</St>
+                    <StatusLamp size="sm" state={tone} label={text} />
                     {askable && <Btn onClick={() => void ask(p)}>允许</Btn>}
                     {isKnown && !ok && p.state !== 'unsupported' && (
                       <Btn go disabled={!caps.systemSettings} disabledReason="这个平台不能从这里打开系统设置，请手动打开系统的隐私设置" onClick={() => void openSettings(p)}>
@@ -184,7 +186,7 @@ function MotionRows() {
         indent
         control={
           <>
-            {src?.token_set && !token ? <Masked>已保存</Masked> : <Field type="password" aria-label="动作服务令牌" placeholder="粘贴令牌" value={token} disabled={off} onChange={(e) => setToken(e.currentTarget.value)} />}
+            {src?.token_set && !token ? <Masked>已保存</Masked> : <Field type="password" label="动作服务令牌" placeholder="粘贴令牌" value={token} disabled={off} onChange={setToken} />}
             {src?.token_set && !token ? (
               <Btn disabled={off} onClick={() => save({ token: '' }, '已删除动作服务令牌', '没能删除令牌')}>
                 移除

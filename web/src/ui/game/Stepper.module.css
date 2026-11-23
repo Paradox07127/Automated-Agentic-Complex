@@ -284,6 +284,11 @@ button.val {
   outline-offset: -1px;
 }
 
+/* Solid: the list's opaque dark plate as the well, so white digits keep their contrast on a light row. */
+.wrap[data-solid] {
+  --st-well: var(--st-list);
+}
+
 .wrap[data-changed] .step {
   box-shadow: inset 0 0 0 1px var(--ef-accent);
 }

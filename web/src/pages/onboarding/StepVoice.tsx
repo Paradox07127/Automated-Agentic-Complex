@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { getBridge, type CharacterEntry } from '../../bridge';
 import { AgentdCallError, saveVoiceToken, testVoice } from '../../bridge/agentd';
 import { hotkeyText } from '../../bridge/platformText';
+import type { VisualStateKey } from '../../domain/states';
 import { voiceText, type VoiceState } from '../../domain/voiceState';
 import { failure } from '../settings/api';
 import { useSettings } from '../settings/ctx';
 import { capsOf } from '../settings/groups/Keys';
-import { Btn } from '../../ui';
-import { GameSeg } from '../../ui/game';
-import { Dis, Field, KeyCell, St, type StTone } from '../settings/kit';
+import { Btn, Field } from '../../ui';
+import { GameSeg, StatusLamp } from '../../ui/game';
+import { Dis, KeyCell } from '../settings/kit';
 import type { PermRow } from '../settings/perms';
 import { labelOf } from '../settings/registry';
 import { SetRow } from '../settings/SetRow';
@@ -17,7 +18,7 @@ import band from '../settings/band.module.css';
 import { GUIDE_PERMS, type GuideSettings } from './useGuideSettings';
 import { Frame } from './Steps';
 
-const VOICE_TONE: Record<VoiceState, StTone> = { ready: 'ok', unknown: 'off', probing: 'warn', cold: 'warn', unreachable: 'bad', off: 'off' };
+const VOICE_TONE: Record<VoiceState, VisualStateKey> = { ready: 'ok', unknown: 'idle', probing: 'waiting', cold: 'waiting', unreachable: 'broken', off: 'stopped' };
 
 /** POST /voice/test `reason` → what the test row says. */
 function voiceTestFailure(reason: string | null): string {
@@ -31,9 +32,9 @@ function voiceTestFailure(reason: string | null): string {
 /** 她的声音: 出声 and the self-hosted service's state, token and test; a character without a voice says so instead. Its address is
  *  in the settings' 服务. */
 function HerVoice({ her }: { her: CharacterEntry | null }) {
-  const { model, agentdOff, diag } = useSettings();
+  const { model, agentdOff, diag, reload } = useSettings();
+  // The token is sent to agentd and never read back; /diag/state says whether one is saved.
   const [token, setToken] = useState('');
-  const [saved, setSaved] = useState('');
   const [test, setTest] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
   if (her && !her.voice)
@@ -43,15 +44,15 @@ function HerVoice({ her }: { her: CharacterEntry | null }) {
   const saveToken = () =>
     void saveVoiceToken(token.trim()).then(
       () => {
-        setSaved(token.trim());
         setToken('');
+        reload('diag');
         model.notify({ message: '令牌已保存', severity: 'success' });
       },
       (e: unknown) => model.notify({ message: `没能保存令牌：${failure(e).text}`, severity: 'danger', persistent: true }),
     );
   const runTest = async () => {
     setTesting(true);
-    const t = token.trim() || saved;
+    const t = token.trim();
     try {
       const r = await testVoice(t ? { token: t } : {});
       setTest({ ok: r.ok, text: r.ok ? `通过 │ 首声 ${r.first_audio_ms} ms` : voiceTestFailure(r.reason) });
@@ -85,7 +86,7 @@ function HerVoice({ her }: { her: CharacterEntry | null }) {
         desc={
           remote ? (
             <>
-              {voice && <St tone={VOICE_TONE[voice.state]}>{voiceText(voice.state, null)}</St>} <span>自己部署的语音服务，app 只连接</span>
+              {voice && <StatusLamp size="sm" state={VOICE_TONE[voice.state]} label={voiceText(voice.state, null)} />} <span>自己部署的语音服务，app 只连接</span>
             </>
           ) : (
             '不发声，只显示文字'
@@ -99,11 +100,12 @@ function HerVoice({ her }: { her: CharacterEntry | null }) {
           <SetRow
             id="ttsToken"
             title="令牌"
+            desc={diag.voiceTokenSet ? '已保存，粘贴新令牌可以替换' : '还没有保存'}
             info="令牌只送给后台，不回显；换服务地址会删掉旧令牌。"
             indent
             control={
               <>
-                <Field type="password" aria-label="令牌" placeholder="粘贴令牌" value={token} disabled={agentdOff} onChange={(e) => setToken(e.currentTarget.value)} />
+                <Field type="password" label="令牌" placeholder="粘贴令牌" value={token} disabled={agentdOff} onChange={setToken} />
                 <Btn disabled={agentdOff || !token.trim()} onClick={saveToken}>
                   保存
                 </Btn>
@@ -116,7 +118,7 @@ function HerVoice({ her }: { her: CharacterEntry | null }) {
             indent
             control={
               <>
-                {test && <St tone={test.ok ? 'ok' : 'bad'}>{test.text}</St>}
+                {test && <StatusLamp size="sm" state={test.ok ? 'ok' : 'broken'} label={test.text} />}
                 <Btn loading={testing} disabled={agentdOff} disabledReason="后台服务没有运行" onClick={() => void runTest()}>
                   测试
                 </Btn>
@@ -129,13 +131,13 @@ function HerVoice({ her }: { her: CharacterEntry | null }) {
   );
 }
 
-const PERM_STATE: Record<PermRow['state'], [StTone, string]> = {
+const PERM_STATE: Record<PermRow['state'], [VisualStateKey, string]> = {
   granted: ['ok', '已允许'],
-  denied: ['bad', '没允许'],
-  notDetermined: ['warn', '还没问过'],
-  unsupported: ['off', '这个平台没有'],
-  loading: ['off', '读取中'],
-  unread: ['off', '未读到'],
+  denied: ['broken', '没允许'],
+  notDetermined: ['waiting', '还没问过'],
+  unsupported: ['stopped', '这个平台没有'],
+  loading: ['idle', '读取中'],
+  unread: ['idle', '未读到'],
 };
 
 /** 你的声音: 按住说话's key and the permissions it needs, asked here only. */
@@ -214,7 +216,7 @@ function YourVoice() {
               info={p.purpose}
               control={
                 <>
-                  <St tone={tone}>{text}</St>
+                  <StatusLamp size="sm" state={tone} label={text} />
                   {p.state === 'notDetermined' && <Btn onClick={() => void ask(p)}>允许</Btn>}
                   {known && p.state !== 'granted' && (
                     <Btn go disabled={!caps.systemSettings} disabledReason="这个平台不能从这里打开系统设置，请手动打开系统的隐私设置" onClick={() => void openSettings(p)}>

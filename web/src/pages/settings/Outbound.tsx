@@ -1,8 +1,7 @@
 import { usePlugins } from '../../shell/plugins';
 import { useSettings } from './ctx';
 import { KERNEL_LABEL, SVC } from './fields';
-import { Btn } from '../../ui';
-import { Chip } from './kit';
+import { Btn, Pill } from '../../ui';
 import { REGISTRY } from './registry';
 import { Slab } from './Slab';
 import styles from './groups.module.css';
@@ -77,10 +76,10 @@ export function OutboundPlate() {
         <span className={styles.flow}>
           {out.map((r) => (
             <button key={r.key} type="button" className={styles.chipBtn} title="跳到这一项的开关" onClick={() => goRow(r.row)}>
-              <Chip tone="on">{r.detail ? `${r.label}（${r.detail}）` : r.label}</Chip>
+              <Pill>{r.detail ? `${r.label}（${r.detail}）` : r.label}</Pill>
             </button>
           ))}
-          {out.length === 0 && <Chip tone="off">{unread ? '未读到' : '没有'}</Chip>}
+          {out.length === 0 && <Pill dashed>{unread ? '未读到' : '没有'}</Pill>}
           <span className={styles.to}>
             → <b>{dest}</b> │ 发出前遮蔽 {mask === true ? '开' : mask === false ? '关' : '—'}
           </span>

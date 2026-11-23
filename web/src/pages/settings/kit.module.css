@@ -1,6 +1,6 @@
-/* Settings fields and marks; switches, segments and buttons are the shared Switch, GameSeg and Btn. */
+/* Settings readouts; fields, keys, switches, segments and buttons are the shared Field, Kbd, Switch, GameSeg and Btn. */
 
-/* Text field: the same white capsule, inset. */
+/* A saved secret: the shared Field's white capsule, without an input. */
 .fld {
   display: flex;
   flex: 1 1 auto;
@@ -9,32 +9,12 @@
   width: 100%;
   min-width: 0;
   max-width: var(--cw, 330px);
-  height: 34px;
+  height: var(--ef-h-md);
   padding: 0 6px 0 14px;
   border-radius: 999px;
   background: var(--ef-field);
   box-shadow: 0 0 0 1px var(--ef-btn-outline);
   color: var(--ef-field-text);
-}
-
-.fld:focus-within {
-  box-shadow: 0 0 0 2px var(--ef-accent);
-}
-
-.fld input {
-  all: unset;
-  flex: 1;
-  min-width: 0;
-  color: var(--ef-field-text);
-  font: 13px var(--ef-font-mono);
-}
-
-.fld input::placeholder {
-  color: var(--ef-paper-text-2);
-}
-
-.fld input:disabled {
-  color: var(--ef-paper-text-2);
 }
 
 .mask {
@@ -92,16 +72,6 @@
   background: var(--ef-slab);
   box-shadow: inset 0 0 0 1px var(--ef-line-strong);
   color: var(--ef-text-1);
-}
-
-.key kbd {
-  min-width: 24px;
-  padding: 0 6px;
-  border: 1px solid var(--ef-text-2);
-  border-radius: 3px;
-  color: var(--ef-text-1);
-  font: 500 13px/22px var(--ef-font-num);
-  text-align: center;
 }
 
 .key[data-warn] {

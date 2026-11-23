@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { toast as pushToast } from '../../shell/toast';
-import { Btn, OverlayPortal, useOverlayFocus } from '../../ui';
+import { Btn, Field, OverlayPortal, useOverlayFocus } from '../../ui';
 import { useSettings } from './ctx';
 import type { ConfirmSpec } from './model';
 import styles from './SettingsOverlays.module.css';
@@ -73,13 +73,13 @@ function Paper({ spec, onClose }: { spec: ConfirmSpec; onClose: () => void }) {
         {spec.confirmWord && (
           <label className={styles.field} htmlFor={wordId}>
             <span>输入「{spec.confirmWord}」确认</span>
-            <input
+            <Field
               id={wordId}
-              className={styles.input}
+              label={`输入「${spec.confirmWord}」确认`}
               value={word}
               autoComplete="off"
               spellCheck={false}
-              onChange={(e) => setWord(e.currentTarget.value)}
+              onChange={setWord}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') run();
               }}

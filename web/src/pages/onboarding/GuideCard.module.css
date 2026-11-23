@@ -1,4 +1,4 @@
-/* Step card: hollow large number, micro English, the 28 px title, the game title line, one lead line and the 必做 / 可跳过 tag. */
+/* Step card: hollow large number, micro English, the 28 px title, the game title line, one lead line and the 必做 / 可跳过 Pill. */
 .card {
   position: relative;
   display: grid;
@@ -88,20 +88,7 @@
 
 .tag {
   display: inline-flex;
-  align-items: center;
-  height: 22px;
   margin-top: 4px;
-  padding: 0 8px;
-  box-shadow: inset 0 0 0 1px var(--ef-text-3);
-  color: var(--ef-text-2);
-  font-size: 12px;
-}
-
-.tag[data-k='must'] {
-  background: var(--ef-text-1);
-  box-shadow: none;
-  color: var(--ef-band);
-  font-weight: 600;
 }
 
 /* The smallest window: one line of title, tag and the lead cut short; number, micro English and rule hidden. */

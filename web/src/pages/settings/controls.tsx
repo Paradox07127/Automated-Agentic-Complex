@@ -1,11 +1,9 @@
-import { Select, Switch } from '../../ui';
-import { GameSeg } from '../../ui/game';
+import { Field, Select, Switch } from '../../ui';
+import { GameSeg, Stepper } from '../../ui/game';
 import { useSettings } from './ctx';
 import { targetOf, type Opt } from './fields';
-import { Field } from './kit';
 import { optionsOf } from './native';
 import { labelOf } from './registry';
-import { Stepper } from './Stepper';
 import styles from './groups.module.css';
 
 const OFF_REASON = '后台服务没有运行，这一项暂时只读';
@@ -46,14 +44,16 @@ export function useControls() {
         />
       );
     },
-    stepper: (id: string, min: number, max: number, step: number, format?: (n: number) => string, dis?: boolean, reason?: string) => (
+    stepper: (id: string, min: number, max: number, step: number, digits: number, format?: (n: number) => string, dis?: boolean, reason?: string) => (
       <Stepper
         label={labelOf(id)}
         value={Number(v(id) ?? min)}
         min={min}
         max={max}
         step={step}
+        digits={digits}
         format={format}
+        solid
         disabled={lock(id) || dis}
         disabledReason={why(id, reason)}
         onChange={(n) => model.set(id, n)}
@@ -63,7 +63,7 @@ export function useControls() {
     text: (id: string, label: string, placeholder?: string, dis?: boolean) => (
       <Field
         key={`${id}:${String(v(id) ?? '')}`}
-        aria-label={label}
+        label={label}
         placeholder={placeholder}
         defaultValue={String(v(id) ?? '')}
         disabled={lock(id) || dis}

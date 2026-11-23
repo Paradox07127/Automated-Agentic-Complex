@@ -78,15 +78,6 @@
   font-size: 13px;
 }
 
-.input {
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--ef-field-border);
-  background: var(--ef-raised);
-  color: var(--ef-paper-text);
-  font: inherit;
-}
-
 .acts {
   display: flex;
   justify-content: flex-end;

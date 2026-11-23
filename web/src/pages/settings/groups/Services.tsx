@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import type { RuntimeService } from '../../../bridge/runtimeSnapshot';
+import type { VisualStateKey } from '../../../domain/states';
 import type { ServiceId, ServiceMode, ServiceRecord } from '../../../bridge/services';
-import { Btn, IconBtn } from '../../../ui';
-import { ExpandRow, GameSeg } from '../../../ui/game';
-import { Field, St, type StTone } from '../kit';
+import { Btn, Field, IconBtn } from '../../../ui';
+import { ExpandRow, GameSeg, StatusLamp } from '../../../ui/game';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
 import groups from '../groups.module.css';
@@ -38,13 +38,13 @@ const MODES: Array<{ value: ServiceMode; label: string }> = [
 ];
 const MODE_LABEL = Object.fromEntries(MODES.map((m) => [m.value, m.label])) as Record<ServiceMode, string>;
 
-const STATE: Record<string, [StTone, string]> = {
-  stopped: ['off', '未启动'],
-  starting: ['warn', '启动中'],
+const STATE: Record<string, [VisualStateKey, string]> = {
+  stopped: ['stopped', '未启动'],
+  starting: ['waiting', '启动中'],
   running: ['ok', '运行中'],
-  backoff: ['warn', '重连中'],
-  port_in_use: ['bad', '端口被占用'],
-  failed: ['bad', '失败'],
+  backoff: ['waiting', '重连中'],
+  port_in_use: ['broken', '端口被占用'],
+  failed: ['broken', '失败'],
   external: ['ok', '沿用已有转发'],
 };
 const LIVE: ReadonlySet<string> = new Set(['running', 'starting', 'backoff']);
@@ -124,7 +124,7 @@ function Service({ id, name, record, runtime, rejected, disabled, onSave, onStar
   // A reply about another mode describes what ran before the last save.
   const rt = runtime?.mode === record.mode ? runtime : null;
   const kind = rt?.state?.kind;
-  const [tone, text]: [StTone, string] = kind ? (STATE[kind] ?? ['off', kind]) : ['off', '未读到'];
+  const [tone, text]: [VisualStateKey, string] = kind ? (STATE[kind] ?? ['idle', kind]) : ['idle', '未读到'];
   const reason = managed ? rt?.state?.reason : undefined;
   const detail = managed ? rt?.detail : null;
   const live = kind != null && LIVE.has(kind);
@@ -145,13 +145,13 @@ function Service({ id, name, record, runtime, rejected, disabled, onSave, onStar
       descTone="bad"
       control={
         <Field
-          aria-label={`${name} ${title}`}
-          aria-invalid={bad(key) != null || undefined}
+          label={`${name} ${title}`}
+          invalid={bad(key) != null}
           placeholder={placeholder}
           value={key === 'command' ? command : draft[key]}
           disabled={disabled}
           spellCheck={false}
-          onChange={(e) => (key === 'command' ? setCommand(e.currentTarget.value) : set({ [key]: e.currentTarget.value }))}
+          onChange={(v) => (key === 'command' ? setCommand(v) : set({ [key]: v }))}
         />
       }
     />
@@ -199,7 +199,7 @@ function Service({ id, name, record, runtime, rejected, disabled, onSave, onStar
           // Off and url run nothing here; the fold right below names the mode.
           managed && (
             <>
-              <St tone={tone}>{text}</St>
+              <StatusLamp size="sm" state={tone} label={text} />
               {kind !== 'external' &&
                 (live ? (
                   <IconBtn icon="stop" label={`停止${name}`} disabled={disabled} disabledReason={OFF_REASON} onClick={() => onStop(id)} />

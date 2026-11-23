@@ -1,6 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Btn, Fold, IconBtn, Select } from '../../ui';
-import { Field } from './kit';
+import { Btn, Field, Fold, IconBtn, Select } from '../../ui';
 import { addAllow, failure, removeAllow } from './api';
 import { useSettings } from './ctx';
 import { Slab } from './Slab';
@@ -64,11 +63,11 @@ export function AllowList({ right }: { right: ReactNode }) {
       <div className={styles.chips}>
         <Select label="读取类型" value={field} width={120} options={FIELD.map((f) => ({ value: f.value, label: f.label }))} disabled={ro} onChange={(v) => setField(v as AllowField)} />
         <Field
-          aria-label="要读取的内容"
+          label="要读取的内容"
           placeholder={FIELD.find((f) => f.value === field)?.hint}
           value={value}
           disabled={ro}
-          onChange={(e) => setValue(e.currentTarget.value)}
+          onChange={setValue}
           onKeyDown={(e) => e.key === 'Enter' && add()}
         />
         <Btn disabled={ro || !value.trim()} onClick={add}>
