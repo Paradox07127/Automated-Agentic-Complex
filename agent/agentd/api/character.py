@@ -138,9 +138,28 @@ class CharacterMixin:
         if not _motion_state_ok(body):
             return self._json(400, {"error": "invalid_motion_state"})
         self.server.spatial.motion_state(body)
+        if body["phase"] == "started":
+            self._motion_started(body["behavior_id"], body["clip"])
         self.send_response(204)
         self.send_header("Content-Length", "0")
         self.end_headers()
+
+    def _motion_started(self, behavior_id, clip):
+        """motion.started, which the daily brief counts: in its behavior's trace after its dispatch, a clip of no
+        behavior or of one from a forgotten trace in a trace of its own."""
+        from traces.trace_store import new_trace_id
+        spatial = self.server.spatial
+        linkage = spatial.receipt_trace(behavior_id) if behavior_id is not None else None
+        with self.server._write_lock:
+            if self.server.resetting:
+                return
+            trace_id, cause = new_trace_id(), None
+            if linkage is not None and linkage[3] == self.server._trace_epoch():
+                with spatial._lock:
+                    record = spatial.records.get(behavior_id)
+                    trace_id, cause = linkage[0], record.get("dispatched") if record is not None else None
+            self.server._trace("motion.started", trace_id, causation_id=cause,
+                               attrs={"behavior_id": behavior_id, "clip": clip})
 
     def _motion_prefs_put(self):
         """PUT /behavior/motion_prefs: the current character's action switches and motion overrides as the

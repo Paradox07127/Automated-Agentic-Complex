@@ -10,7 +10,7 @@ import { AvatarVisibility, HIDE_EXPIRY_MS } from '../src/common/visibility-reaso
 import type { HelperReply } from '../src/main/helper/client.ts';
 import { cpuSecondsReader, psCpuSeconds } from '../src/main/ops/avatar.ts';
 import type { OpsContext } from '../src/main/ops/context.ts';
-import { psResidentMB, supervisorOps } from '../src/main/ops/supervisor.ts';
+import { ProcessHistory, psResidentMB, supervisorOps } from '../src/main/ops/supervisor.ts';
 
 const PS = process.platform === 'win32' ? "ps is macOS's" : false;
 
@@ -95,8 +95,31 @@ test('supervisor.state lists the ssh and local services by id, external as exter
     stop: async () => ({ ok: true, line: null }) as const, restart: async () => ({ ok: true, line: null }) as const, saved() {} };
   const listed = state({ services })();
   assert.deepEqual(Object.keys(listed), ['agentd', 'avatar', 'tts', 'llm']);
-  assert.deepEqual(listed.tts, { state: 'external', pid: null, backoff: null, cpuPercent: null, memoryMB: null });
+  assert.deepEqual(listed.tts, { state: 'external', pid: null, backoff: null, cpuPercent: null, memoryMB: null, history: [] });
   assert.deepEqual([listed.llm!.state, listed.llm!.backoff], ['backoff(4)', 4]);
+});
+
+test('ProcessHistory keeps the last readings of each process, oldest first, and supervisor.state carries them', () => {
+  let seconds = 10, avatarPid: number | undefined;
+  const ports = { platform: 'windows' as const, cpuSeconds: () => seconds,
+    supervisor: { state: () => ({ kind: 'running' as const }), pid: () => process.pid, avatar: () => ({ kind: 'stopped' as const }),
+      avatarPid: () => avatarPid } };
+  const history = new ProcessHistory(ports, 3);
+  assert.deepEqual(history.of('agentd'), []);
+  for (const at of [1000, 2000, 3000, 4000]) {
+    avatarPid = at >= 3000 ? process.pid : undefined;
+    history.sample(at);
+    seconds += 1;
+  }
+  const agentd = history.of('agentd');
+  assert.deepEqual(agentd.map((r) => r.at), [2000, 3000, 4000], 'past 3 the oldest goes');
+  assert.ok(agentd.every((r) => typeof r.cpuPercent === 'number' && r.memoryMB === null), 'Windows reads no memory');
+  assert.deepEqual(history.of('avatar').slice(0, 2).map((r) => [r.at, r.cpuPercent]), [[2000, null], [3000, null]],
+    'a stopped process and a first read have no CPU');
+  assert.equal(typeof history.of('avatar')[2]!.cpuPercent, 'number');
+  const ops = supervisorOps({ ...ports, supervisor: { ...ports.supervisor, restart() {} }, processHistory: history } as unknown as OpsContext);
+  const s = ops['supervisor.state']!([], undefined as never) as Record<string, Record<string, unknown>>;
+  assert.deepEqual([s.agentd!.history, s.avatar!.history], [agentd, history.of('avatar')]);
 });
 
 test('psResidentMB reads a process\'s resident memory in MB; a gone process is null', { skip: PS }, () => {

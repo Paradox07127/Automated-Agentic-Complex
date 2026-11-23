@@ -44,6 +44,10 @@ class ContractOutputsTest(unittest.TestCase):
         self.assertTrue(committed == gen_routes.render_c6(),
                         f"protocol/C6-agentd-api/CONTRACT.md §3 is stale; run `{REGENERATE}` from the repo root")
 
+    def test_a_nullable_path_under_two_lists_is_nullable(self):
+        loose = {"nullable": ["tasks[].artifacts[].opened_at"], "free_keys": []}
+        self.assertEqual(gen_routes._ts_type(1.0, "tasks[].artifacts[].opened_at", loose, ""), "number | null")
+
     def test_spec_pointer_mentions_route(self):
         texts, missing = {}, 0
         for route in REGISTRY:

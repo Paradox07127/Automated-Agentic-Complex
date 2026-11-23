@@ -143,7 +143,7 @@ describe('diag page', () => {
     await waitFor(() => expect(node('模型')!.getAttribute('aria-label')).toContain('近 1 小时 18 次 │ p50 3.1 s'));
     cleanup();
     mount('tab=proc&demo=full');
-    await waitFor(() => expect(document.body.textContent).toMatch(/本页打开以来 \d+ 分钟/));
+    await waitFor(() => expect(document.body.textContent).toMatch(/近 \d+ 分钟/));
     expect(screen.getByRole('img', { name: /后台服务 CPU/ })).toBeTruthy();
   });
 });

@@ -97,7 +97,7 @@ function shortRecovery(code: string, runtime: string | null): string | null {
   if (code === 'native_login_required' && runtime === 'codex') return '角色内核未登录：终端运行 codex login';
   if (code === 'native_login_required' && runtime === 'claude') return '角色内核未登录：终端运行 claude auth login';
   if (code === 'local_runtime_missing' || code === 'bundled_runtime_missing') return '没找到 Codex CLI 或 ACP agent';
-  if (code === 'runtime_protocol_unavailable' || code === 'runtime_version_not_verified') return '内核协议不可用，请刷新或更新 CLI';
+  if (code === 'runtime_protocol_unavailable' || code === 'runtime_version_not_verified') return '内核协议不可用，请更新 CLI 后重新检测';
   return null;
 }
 

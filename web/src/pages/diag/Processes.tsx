@@ -1,4 +1,4 @@
-import { Btn, SecHead, Skel } from '../../ui';
+import { Btn, Empty, SecHead, Skel } from '../../ui';
 import { GameSeg } from '../../ui/game';
 import { ProcRow } from './ProcRow';
 import { cpuText, memText } from './procText';
@@ -6,8 +6,6 @@ import type { DiagProcess, ProcKey } from './status';
 import type { RowAction } from './useDiagActions';
 import type { ProcSample } from './useProcSamples';
 import styles from './Proc.module.css';
-
-export type { UptimeSeg } from './demoSlot';
 
 export interface ProcessesProps {
   /** supervisor.state rows; null before the first read. */
@@ -40,7 +38,7 @@ export function Processes({ rows, error, onRetry, samples, now, metric, onMetric
         title="进程"
         count={rows?.length}
         micro="PROCESS MONITOR"
-        info="CPU 是单核占比，可以超过 100%。曲线是本页打开以来的读数，最多留 30 分钟。"
+        info="CPU 是单核占比，可以超过 100%。曲线是近 30 分钟的读数，外壳每 10 秒记一次，本页打开后每次刷新再加一点。"
         right={
           <>
             {rows && (
@@ -62,13 +60,16 @@ export function Processes({ rows, error, onRetry, samples, now, metric, onMetric
         }
       />
       {error && !rows ? (
-        <div className={styles.empty} role="status">
-          <b>读不到进程状态</b>
-          <span>{error}</span>
-          <Btn size="sm" icon="refresh" onClick={onRetry}>
-            重试
-          </Btn>
-        </div>
+        <Empty
+          size="compact"
+          title="读不到进程状态"
+          desc={error}
+          action={
+            <Btn size="sm" variant="secondary" icon="refresh" onClick={onRetry}>
+              重试
+            </Btn>
+          }
+        />
       ) : !rows ? (
         <Skel rows={3} shape="cards" />
       ) : (
@@ -91,7 +92,7 @@ export function Processes({ rows, error, onRetry, samples, now, metric, onMetric
             ))}
           </div>
           <p className={styles.legend}>
-            {metric === 'cpu' ? 'CPU' : '内存'} │ 本页打开以来 <span className="num">{mins}</span> 分钟
+            {metric === 'cpu' ? 'CPU' : '内存'} │ 近 <span className="num">{mins}</span> 分钟
           </p>
         </>
       )}

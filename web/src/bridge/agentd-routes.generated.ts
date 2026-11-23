@@ -494,7 +494,7 @@ export interface AgentSnapshotResponse {
           version: number;
           self_checked: boolean;
           sha256: string;
-          opened_at: number;
+          opened_at: number | null;
         }>;
         kind: string;
         material_is_instruction: boolean;
@@ -540,7 +540,7 @@ export interface AgentSnapshotResponse {
         version: number;
         self_checked: boolean;
         sha256: string;
-        opened_at: number;
+        opened_at: number | null;
       }>;
       kind: string;
       material_is_instruction: boolean;
@@ -934,21 +934,21 @@ export interface DaySegmentsResponse {
     name: string;
     sessions: Array<{
       session_id: string;
-      started_at: number;
-      ended_at: number;
+      started_at: number | null;
+      ended_at: number | null;
       agents_done: number;
       agents_failed: number;
-      last_gate: { at: number; passed: boolean };
+      last_gate: { at: number | null; passed: boolean } | null;
       guard_blocks: number;
     }>;
     own: Array<{
       session_id: string;
       title: string;
       state: string;
-      last_line: string;
+      last_line: string | null;
       started_at: number;
       updated_at: number;
-      task_id: string;
+      task_id: string | null;
     }>;
   }>;
 }
@@ -964,18 +964,18 @@ export interface EpisodesResponse {
     title: string;
     description: string;
     threads: Array<{
-      session: string;
-      status: string;
-      progress: string;
+      session: string | null;
+      status: string | null;
+      progress: string | null;
       evidence: number[];
-      topic: string;
-      blocked: boolean;
+      topic: string | null;
+      blocked: boolean | null;
       source_ids: string[];
-      subject: string;
-      goal: string;
+      subject: string | null;
+      goal: string | null;
       constraints: string[];
       decisions: Array<{ decision: string; reason: string }>;
-      outcome: string;
+      outcome: string | null;
       unresolved: string[];
       next_steps: string[];
       requires: string[];
@@ -1431,7 +1431,7 @@ export interface AgentTasksResponse {
         version: number;
         self_checked: boolean;
         sha256: string;
-        opened_at: number;
+        opened_at: number | null;
       }>;
       kind: string;
       material_is_instruction: boolean;

@@ -37,6 +37,7 @@ import { exampleRoutes } from './endpoints';
 import { feedScript, playOnce, replyScript, scriptedStream } from './feed';
 import { fakeImports } from './imports';
 import { fakeLogs } from './logs';
+import { fakeHistory } from './processHistory';
 import { fakeMotion, fakePreviewSequence, fakePreviewView, motionGroupRoutes, traceEventRoutes } from './motion';
 import { createFakeOnboarding } from './onboarding';
 import { fakeOutfit } from './outfit';
@@ -186,8 +187,8 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
   let keepClearOfMain = false;
   const computerUse: ComputerUseState = { granted: ['observation'], active: false };
   const processes: Record<SupervisorTarget, ProcessState> = {
-    agentd: { state: 'running', pid: 4242, backoff: null, cpuPercent: 3.4, memoryMB: 168 },
-    avatar: { state: 'running', pid: 4343, backoff: null, cpuPercent: 21.6, memoryMB: 1210 },
+    agentd: { state: 'running', pid: 4242, backoff: null, cpuPercent: 3.4, memoryMB: 168, history: fakeHistory(3.4, 168) },
+    avatar: { state: 'running', pid: 4343, backoff: null, cpuPercent: 21.6, memoryMB: 1210, history: fakeHistory(21.6, 1210) },
   };
   const desktop = createFakeDesktop(hashQuery, processes, () => computerUse.active);
   let character = CHARACTERS.find((c) => c.active)?.id ?? '';

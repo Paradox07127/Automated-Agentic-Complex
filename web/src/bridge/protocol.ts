@@ -95,6 +95,15 @@ export interface ProcessState {
   cpuPercent?: number | null;
   /** Physical memory footprint in MB; null while not running or unreadable. */
   memoryMB?: number | null;
+  /** The shell's readings every 10 s since it started, oldest first, at most the last 30 minutes. */
+  history?: ProcessReading[];
+}
+
+/** One reading of the shell's process sampler; `at` in ms since the epoch, the values null when unread. */
+export interface ProcessReading {
+  at: number;
+  cpuPercent: number | null;
+  memoryMB: number | null;
 }
 
 /** `app.look()`: agentd took the 看一下 request; the screenshot follows natively. */

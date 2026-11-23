@@ -122,7 +122,9 @@
       "*.pid",
       "*.backoff",
       "*.cpuPercent",
-      "*.memoryMB"
+      "*.memoryMB",
+      "*.history[].cpuPercent",
+      "*.history[].memoryMB"
     ],
     "value": {
       "agentd": {
@@ -130,14 +132,28 @@
         "pid": 1,
         "backoff": null,
         "cpuPercent": 1,
-        "memoryMB": 1
+        "memoryMB": 1,
+        "history": [
+          {
+            "at": 1,
+            "cpuPercent": 1,
+            "memoryMB": 1
+          }
+        ]
       },
       "avatar": {
         "state": "running",
         "pid": 1,
         "backoff": null,
         "cpuPercent": 1,
-        "memoryMB": 1
+        "memoryMB": 1,
+        "history": [
+          {
+            "at": 1,
+            "cpuPercent": 1,
+            "memoryMB": 1
+          }
+        ]
       }
     }
   },

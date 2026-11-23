@@ -1955,6 +1955,31 @@ class MotionLaneServerTest(ServerCase):
         stage = next(e for e in events if e["kind"] == "stage.changed")
         self.assertEqual(stage["attrs"], {"from": "normal", "to": "quiet", "revision": 1})
 
+    def test_a_started_clip_is_traced_and_the_daily_brief_counts_it(self):
+        from personal.brief_day import _traces
+        self.server.spatial.use_motion(MotionChooser(PACK))
+        self.server.spatial.motion_step()
+        [loop] = [r["behavior"] for r in self.server.spatial.active.values()]
+        started = {"behavior_id": loop["behavior_id"], "origin": "agent", "phase": "started", "resting": True,
+                   "busy": False, "clip": "base_loop"}
+        local = {"behavior_id": None, "origin": "local", "phase": "started", "resting": False, "busy": True,
+                 "clip": "wave"}
+        for body in (started, {**started, "phase": "cycle_end"}, local):
+            self.assertEqual(self.request("POST", "/behavior/motion_state", body), (204, None))
+        motions = self.events("motion.started")
+        self.assertEqual([e["attrs"] for e in motions], [{"behavior_id": loop["behavior_id"], "clip": "base_loop"},
+                                                         {"behavior_id": None, "clip": "wave"}])
+        [dispatched] = [e for e in self.events("behavior.dispatched")
+                        if e["attrs"]["behavior_id"] == loop["behavior_id"]]
+        self.assertEqual((motions[0]["trace_id"], motions[0]["causation_id"]),
+                         (dispatched["trace_id"], dispatched["event_id"]))
+        self.assertEqual(self.server.trace_errors, 0)
+        now = time.time()
+        counted, _ = _traces(lambda query, params: self.server.trace.db.execute(query, params).fetchall(),
+                             {"voice": False, "scr": False, "shot": False}, self.server.spatial,
+                             now - 60, now - 60, now + 60, now + 60, lambda *_: None)
+        self.assertEqual(dict(counted), {"base_loop": 1, "wave": 1})
+
 
 class MotionStateServerTest(ServerCase):
     GOOD ={"behavior_id": "b-1-1", "origin": "agent", "phase": "cycle_end", "resting": True, "busy": False,

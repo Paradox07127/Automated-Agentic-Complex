@@ -1,8 +1,6 @@
 // Diag demo data beyond agentd's current endpoints: the `sparse` day and the `full` demo's stage aggregate and process history.
 import type { LineSeries } from '../charts';
 import type { NodeId, NodeStat } from '../pages/diag/flow';
-import type { UptimeSeg } from '../pages/diag/Processes';
-import type { ProcessKey } from '../pages/diag/status';
 import type { WireUsage } from '../domain';
 import { at, MINUTE } from './fixtures/clock';
 
@@ -76,25 +74,7 @@ const series = (f: (k: number, i: number) => number): LineSeries[] => PROC.map((
 export const DIAG_FULL: {
   hourly: Record<NodeId, NodeStat>;
   procHistory: { cpu: LineSeries[]; mem: LineSeries[] };
-  procRows: { uptime: Partial<Record<ProcessKey, UptimeSeg[]>>; cpu: Partial<Record<ProcessKey, number[]>> };
 } = {
   hourly: Object.fromEntries(Object.entries(H).map(([k, [count, p50, fail]]) => [k, { count, p50, fail }])) as Record<NodeId, NodeStat>,
   procHistory: { cpu: series(cpuAt), mem: series(memAt) },
-  procRows: {
-    uptime: {
-      agentd: [{ from: 0, to: 1, up: true }],
-      avatar: [
-        { from: 0, to: 0.18, up: false },
-        { from: 0.18, to: 1, up: true },
-      ],
-      voice: [
-        { from: 0, to: 0.62, up: true },
-        { from: 0.62, to: 1, up: false },
-      ],
-    },
-    cpu: {
-      agentd: Array.from({ length: 20 }, (_, i) => cpuAt(1, i + 10)),
-      avatar: Array.from({ length: 20 }, (_, i) => cpuAt(2, i + 10)),
-    },
-  },
 };

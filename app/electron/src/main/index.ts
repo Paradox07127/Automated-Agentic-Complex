@@ -84,7 +84,7 @@ import { type OpsContext, registry } from './ops/index.ts';
 import { ObservationControl } from './ops/observation.ts';
 import { sessionsRoute } from './ops/open.ts';
 import { saveSettings, settingsOps } from './ops/settings.ts';
-import { processState } from './ops/supervisor.ts';
+import { ProcessHistory, processState } from './ops/supervisor.ts';
 import { runAgentdTool, validationHost } from './ops/tools.ts';
 import { HelperSupervisor } from './helper/supervisor.ts';
 import { type PackagedLaunch, packagedConfigPath, packagedContents, preparePackaged, webRoot } from './packaged.ts';
@@ -475,6 +475,12 @@ const helper = config && new HelperSupervisor({
 });
 /** The status monitor's CPU readings, one reader across every surface. */
 const cpuSeconds = cpuSecondsReader(shellPlatform(), helper);
+/** supervisor.state's `history`: one sampler from launch, read by every surface. */
+const processHistory = new ProcessHistory({
+  platform: shellPlatform(), cpuSeconds, services: services && { view: (id) => services.get(id)!.view },
+  supervisor: supervisor && { state: () => supervisor.state, pid: () => supervisor.pid, avatar: () => rendererState, avatarPid: () => renderer?.pid },
+});
+processHistory.start();
 /** A test run's switch: push-to-talk is left out, so the helper registers no key and opens no microphone. */
 const noPushToTalk = process.argv.includes('--no-push-to-talk');
 /** `voice.onPushToTalk`'s values; sent as they come, none replayed. */
@@ -816,7 +822,7 @@ function opsContext(surface: Surface): OpsContext {
         desktop?.pushState();
       },
     }),
-    cpuSeconds,
+    cpuSeconds, processHistory,
     looks, switcher, mmdSync,
     placement: placer,
     preview,

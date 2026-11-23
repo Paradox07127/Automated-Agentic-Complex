@@ -61,7 +61,7 @@ export function ProcRow({ p, metric, samples, now, uptime, stale, action, highli
       </div>
       <div className={styles.cv}>
         <LineChart
-          label={`${p.name} ${metric === 'cpu' ? 'CPU' : '内存'}，本页打开以来 ${mins} 分钟`}
+          label={`${p.name} ${metric === 'cpu' ? 'CPU' : '内存'}，近 ${mins} 分钟`}
           series={[{ id: p.key, label: metric === 'cpu' ? 'CPU' : '内存', pts: pts.map(([t, v]) => [t, v] as Pt) }]}
           t0={t0}
           t1={now}

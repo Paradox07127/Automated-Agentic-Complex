@@ -53,13 +53,13 @@ export function parseSay(arg: unknown): SayRequest {
 
 /** ErrorText.recovery: the step that fixes a refusal the role runtime causes; null for the others. */
 export function recovery(code: string, backend: string | null): string | null {
-  if (code === 'native_login_required' && backend === 'codex') return '在终端运行 codex login，完成后到 设置›角色内核 点刷新再发';
-  if (code === 'native_login_required' && backend === 'claude') return '在终端运行 claude auth login，完成后到 设置›角色内核 点刷新再发';
+  if (code === 'native_login_required' && backend === 'codex') return '在终端运行 codex login，完成后到 设置 › 内核 点「重新检测」再发';
+  if (code === 'native_login_required' && backend === 'claude') return '在终端运行 claude auth login，完成后到 设置 › 内核 点「重新检测」再发';
   if (code === 'local_runtime_missing' || code === 'bundled_runtime_missing') {
-    return '没找到可用的 Codex CLI 或 ACP agent。安装并登录其中一个后到 设置›角色内核 点刷新';
+    return '没找到可用的 Codex CLI 或 ACP agent。安装并登录其中一个后到 设置 › 内核 点「重新检测」';
   }
   if (code === 'runtime_protocol_unavailable' || code === 'runtime_version_not_verified') {
-    return '内核缺少需要的协议能力，请更新 CLI 后到 设置›角色内核 点刷新';
+    return '内核缺少需要的协议能力，请更新 CLI 后到 设置 › 内核 点「重新检测」';
   }
   return null;
 }

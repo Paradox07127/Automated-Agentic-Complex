@@ -21,17 +21,32 @@ interface SupervisorRead {
 }
 
 /**
- * The process readings since the page opened, at most the last 30 minutes, lost when the page closes. Each new
- * supervisor.state read adds one; `base` is the page clock at mount, so the times line up with the page's other data.
+ * The process readings of the last 30 minutes: the shell's 10 s history from before the page opened, then one per
+ * supervisor.state read; `base` is the page clock at mount, so the times line up with the page's other data.
  */
 export function useProcSamples(read: SupervisorRead, base: number, poll: boolean, seed: readonly ProcSample[] = []): ProcSample[] {
   const [samples, setSamples] = useState<ProcSample[]>(() => [...seed]);
   const t0 = useRef(Date.now());
+  // The shell's readings from before the page opened go in once, ahead of the page's own.
+  const seeded = useRef(seed.length > 0);
   const { data, dataUpdatedAt } = read;
   useEffect(() => {
     if (!data || !dataUpdatedAt) return;
     const at = base + Math.max(0, dataUpdatedAt - t0.current);
     const keys = Object.keys(data) as ProcKey[];
+    if (!seeded.current) {
+      seeded.current = true;
+      const past = new Map<number, ProcSample>();
+      for (const k of keys)
+        for (const h of data[k]?.history ?? []) {
+          if (h.at >= t0.current) continue;
+          const p = past.get(h.at) ?? { at: base + h.at - t0.current, cpu: {}, mem: {} };
+          p.cpu[k] = h.cpuPercent;
+          p.mem[k] = h.memoryMB;
+          past.set(h.at, p);
+        }
+      if (past.size) setSamples((x) => [...[...past.values()].sort((a, b) => a.at - b.at), ...x]);
+    }
     const s: ProcSample = {
       at,
       cpu: Object.fromEntries(keys.map((k) => [k, data[k]?.cpuPercent ?? null])),

@@ -71,7 +71,8 @@ def _ts_union(items):
 
 def _ts_type(value, path, loose, indent):
     """The TS type agentd/tests/test_c6_fixtures.py `mismatches` accepts for `value` at `path`."""
-    nullable = any(fnmatch(path, p) for p in loose["nullable"])
+    # "[" escaped as in the test: fnmatch reads the "[]" of two lists as one character class
+    nullable = any(fnmatch(path, p.replace("[", "[[]")) for p in loose["nullable"])
     if value is None:
         return "unknown" if nullable else "null"
     if isinstance(value, bool):
