@@ -70,7 +70,7 @@ v16.1（2026-10-22，用户授权第一批修复）：补规则 17 的首心跳�
 | `--agentic-complex-camera-yaw` | 数（度），`-180`…`180`，取到 0.5°（v27 规则 49 起不再只限 `-90` / `-45` / `0` / `45` / `90` / `180`） | 总传 | 同上 |
 | `--agentic-complex-camera-pitch` | 数（度），`-20`…`20`，取到 0.5° | 总传 | 同上 |
 | `--agentic-complex-facing-mode` | `auto` / `front` / `side` / `back` | 总传 | 同上 |
-| `--agentic-complex-ground-shadow` | `off` / `contact` | 总传 | 脚下的接触阴影（v27）；不传时为 `off` |
+| `--agentic-complex-ground-shadow` | `off` / `contact` / `cast` | 总传 | 脚下阴影（v27）：`contact` 接触阴影，`cast` 主光把她的轮廓投到地面（v27 追加）；不传时为 `off` |
 | `--agentic-complex-ambient` | `off` / `wallpaper` / `screen` | 总传 | 环境融合的颜色来源（v27，规则 44）；不传时为 `off` |
 | `--agentic-complex-light-wrap` | `0` / `1` | 总传 | 边缘光（light wrap：轮廓内侧一窄带背景色，v27）；不传时为 `0` |
 | `--agentic-complex-camera-zoom` | 数，`1`…`4` | 总传 | 绕头部放大她的画面，相机不动（v27，规则 49）；不传时为 `1` |
@@ -630,7 +630,7 @@ Metal 宿主把 `fps_tier.fps` 作为自动基线，消息格式和上表取值�
 43. 即时渲染设置（v27）：
     - 两边都列了 `render_live` 才发。例：`{"v":1,"type":"set_render","req":7,"camera":{"mode":"show","yaw":0,"pitch":0},"light":{"yaw":0,"pitch":0,"strength":1},"outline":"original","facing":"auto","grounding":{"mode":"off"},"ambient":{"mode":"off","light_wrap":false}}`。
     - 组：`camera`、`light`、`outline`、`facing`、`grounding`、`ambient`，至少带一组；组内字段都可选，没带的字段保持现值。
-    - 取值同「启动」一节的参数表，数取表里最小到最大之间的值：`camera.mode` `show` / `overview` / `document`，`camera.yaw` −90…180，`camera.pitch` −20…20；`light.yaw` −15…15，`light.pitch` −10…10，`light.strength` 0.5…1.5；`outline` `original` / `subtle` / `contrast`；`facing` `auto` / `front` / `side` / `back`；`grounding.mode` `off` / `contact`（`--agentic-complex-ground-shadow`）；`ambient.mode` `off` / `wallpaper` / `screen`（`--agentic-complex-ambient`），`ambient.light_wrap` 布尔（`--agentic-complex-light-wrap`）。
+    - 取值同「启动」一节的参数表，数取表里最小到最大之间的值：`camera.mode` `show` / `overview` / `document`，`camera.yaw` −90…180，`camera.pitch` −20…20；`light.yaw` −15…15，`light.pitch` −10…10，`light.strength` 0.5…1.5；`outline` `original` / `subtle` / `contrast`；`facing` `auto` / `front` / `side` / `back`；`grounding.mode` `off` / `contact` / `cast`（`--agentic-complex-ground-shadow`）；`ambient.mode` `off` / `wallpaper` / `screen`（`--agentic-complex-ambient`），`ambient.light_wrap` 布尔（`--agentic-complex-light-wrap`）。
     - 回执：带 `req` 时渲染器列了 `ack` 就按规则 18 回一条。`invalid`：未知组或组内未知字段、越界、一组都没带、Companion 的 `hello` 没列 `render_live`（同规则 21 丢弃这一条）、待处理的请求已满 16 条；`unsupported`：渲染器做不到这一组（没有 actor）。
     - 生效：从下一个提交帧开始。`camera.yaw`、`camera.pitch`、`light.yaw`、`light.pitch` 和机位切换在 0.4 s 内过渡；描边、朝向、阴影开关立即。之后的 `pipeline.render` 报实际生效值。
     - 滤镜（v27 追加，`filters`）：组 `filter`，字符串，`none` 或 `filter_1`…`filter_8`、`sp_filter_1`…`sp_filter_7`（`--agentic-complex-filter`，Companion 设置 `render_filter`），复刻游戏拍照模式的滤镜。例：`{"v":1,"type":"set_render","req":9,"filter":"sp_filter_2"}`。两边都列了 `filters` 才带这一组，否则按「未知组」回 `invalid`；id 不在渲染器的滤镜资源里也回 `invalid`。立即生效，不过渡。滤镜只改她的颜色，不改桌面和舞台盒背景；`none` 时画面和没有滤镜时相同。`pipeline.render.filter` 报实际生效的 id。

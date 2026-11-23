@@ -77,7 +77,7 @@ const ROWS: Row[] = [
   ['rnd.outline', '@character', '角色边界', 'original', 'none', [['original', '原作'], ['subtle', '柔和外轮廓'], ['contrast', '增强外轮廓']]],
   ['rnd.lightYaw', '@character', '主光水平微调', '0', 'none', [['-15', '左偏 15°'], ['0', '原作'], ['15', '右偏 15°']]], ['rnd.lightPitch', '@character', '主光俯仰微调', '0', 'none', [['-10', '降低 10°'], ['0', '原作'], ['10', '抬高 10°']]],
   ['rnd.lightStrength', '@character', '主光强度', '1', 'none', [['0.5', '50 %'], ['0.75', '75 %'], ['1', '原作 · 100 %'], ['1.25', '125 %'], ['1.5', '150 %']]],
-  ['rnd.ground', '@character', '脚下阴影', 'contact', 'none', [['off', '关'], ['contact', '接触阴影']]], ['rnd.wrap', '@character', '边缘环境光', false, 'none'],
+  ['rnd.ground', '@character', '脚下阴影', 'cast', 'none', [['off', '关'], ['contact', '接触阴影'], ['cast', '真实投影']]], ['rnd.wrap', '@character', '边缘环境光', false, 'none'],
   ['rnd.filter', '@character', '滤镜', 'none', 'none', [['none','无'],['sp_filter_1','黑金'],['sp_filter_2','温暖'],['sp_filter_3','苍白'],['sp_filter_4','胶片'],['sp_filter_5','希望色彩'],['sp_filter_6','血忆'],['sp_filter_7','武陵印象'],['filter_1','明亮'],['filter_2','冷调'],['filter_3','清新'],['filter_4','暗色'],['filter_5','黑白'],['filter_6','春'],['filter_7','文艺'],['filter_8','蓝橙']]],
   ['rnd.dof', '@character', '景深', 'off', 'none', [['off', '关'], ['closeup', '近景时']]], ['rnd.ambient', '@character', '环境取色', 'off', 'none', [['off', '关'], ['wallpaper', '壁纸颜色'], ['screen', '屏幕取色']]],
   ['scn.mode', '@character', '场景', 'off', 'avatar', [['off', '关'], ['box', '舞台盒'], ['stage', '展示台']]], ['scn.parallax', '@character', '背景视差', true, 'avatar'],

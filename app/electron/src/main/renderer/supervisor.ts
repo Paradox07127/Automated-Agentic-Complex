@@ -63,7 +63,7 @@ export function lookArguments(s: Record<string, unknown>): string[] {
     '--agentic-complex-light-pitch', option('render_light_pitch', ['-10', '0', '10'], '0'),
     '--agentic-complex-light-strength', option('render_light_strength', ['0.5', '0.75', '1', '1.25', '1.5'], '1'),
     '--agentic-complex-secondary-motion', flag('render_secondary_motion', true) ? '1' : '0',
-    '--agentic-complex-ground-shadow', option('render_ground_shadow', ['off', 'contact'], 'contact'),
+    '--agentic-complex-ground-shadow', option('render_ground_shadow', ['off', 'contact', 'cast'], 'cast'),
     '--agentic-complex-filter', option('render_filter', FILTERS, 'none'),
     '--agentic-complex-dof', option('render_dof', ['off', 'closeup'], 'off'),
   ];

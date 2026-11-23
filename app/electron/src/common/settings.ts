@@ -90,7 +90,7 @@ const ITEMS: Item[] = [
   dropdown('render_shadow', '自阴影精度', [['1024', '高 · 1024'], ['512', '中 · 512'], ['256', '低 · 256']], '1024', 'avatar'),
   dropdown('render_fps', '帧率上限（空闲自动节能在此之下）', [['60', '60 fps'], ['45', '45 fps'], ['30', '30 fps']], '60'),
   dropdown('render_outline', '角色边界', [['original', '原作'], ['subtle', '柔和外轮廓'], ['contrast', '增强外轮廓']], 'original'),
-  dropdown('render_ground_shadow', '脚下阴影', [['off', '关'], ['contact', '接触阴影']], 'contact'),
+  dropdown('render_ground_shadow', '脚下阴影', [['off', '关'], ['contact', '接触阴影'], ['cast', '真实投影']], 'cast'),
   dropdown('render_ambient', '环境取色', [['off', '关'], ['wallpaper', '壁纸颜色'], ['screen', '屏幕取色']], 'off'),
   toggle('render_light_wrap', '边缘环境光', false),
   dropdown('render_filter', '滤镜', FILTERS, 'none'),

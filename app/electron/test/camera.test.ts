@@ -104,7 +104,7 @@ test('camera model: savedCamera and liveRenderPayload read config.json as Avatar
   assert.deepEqual(savedCamera({ render_camera_yaw: '30', render_camera_pitch: 'x', render_camera_zoom: 5 }), { yaw: 0, pitch: 0, zoom: 1 });
   assert.deepEqual(liveRenderPayload({}), {
     camera: { mode: 'show', yaw: 0, pitch: 0, zoom: 1, sway: false, track: 'stage', framing: 'full' },
-    light: { yaw: 0, pitch: 0, strength: 1 }, outline: 'original', facing: 'auto', grounding: { mode: 'contact' },
+    light: { yaw: 0, pitch: 0, strength: 1 }, outline: 'original', facing: 'auto', grounding: { mode: 'cast' },
     ambient: { mode: 'off', light_wrap: false }, filter: 'none', dof: { mode: 'off' } });
   assert.deepEqual(liveRenderPayload({ render_camera_mode: 'document', render_camera_yaw: 45, render_camera_pitch: -7.5, render_camera_zoom: 1.5,
     render_camera_sway: true, render_camera_track: 'off', stay_mode: 'bust', render_light_yaw: '15', render_light_pitch: '-10',
@@ -114,6 +114,7 @@ test('camera model: savedCamera and liveRenderPayload read config.json as Avatar
     light: { yaw: 15, pitch: -10, strength: 1.25 }, outline: 'subtle', facing: 'side', grounding: { mode: 'off' },
     ambient: { mode: 'screen', light_wrap: true }, filter: 'sp_filter_3', dof: { mode: 'closeup' } });
   assert.deepEqual(liveRenderPayload({ render_filter: 'filter_9', render_light_yaw: '20', render_outline: 3 }).filter, 'none');
+  assert.deepEqual(liveRenderPayload({ render_ground_shadow: 'contact' }).grounding, { mode: 'contact' });
 });
 
 /** A link for the closeup driver. */

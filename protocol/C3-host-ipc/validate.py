@@ -59,7 +59,7 @@ MOTION_GEOMETRY = {"turn": ("yaw",), "walk": ("to", "end_yaw"), "window_loop": (
                    "sit_loop": ("seat",), "sit_exit": ("seat",), "lean": ("hand", "grip")}
 CAMERA_MODES = ("show", "overview", "document")
 FACING_MODES = ("auto", "front", "side", "back")
-GROUNDING_MODES = ("off", "contact")
+GROUNDING_MODES = ("off", "contact", "cast")
 AMBIENT_MODES = ("off", "wallpaper", "screen")
 AMBIENT_SOURCES = ("screen", "wallpaper", "appearance")
 AMBIENT_REGIONS = ("mean", "top", "bottom", "left", "right")

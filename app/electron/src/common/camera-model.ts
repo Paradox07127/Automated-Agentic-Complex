@@ -166,7 +166,7 @@ export function liveRenderPayload(s: Record<string, unknown>): Record<string, un
       strength: Number(option('render_light_strength', ['0.5', '0.75', '1', '1.25', '1.5'], '1')) },
     outline: option('render_outline', ['original', 'subtle', 'contrast'], 'original'),
     facing: option('render_facing_mode', ['auto', 'front', 'side', 'back'], 'auto'),
-    grounding: { mode: option('render_ground_shadow', ['off', 'contact'], 'contact') },
+    grounding: { mode: option('render_ground_shadow', ['off', 'contact', 'cast'], 'cast') },
     ambient: { mode: option('render_ambient', ['off', 'wallpaper', 'screen'], 'off'), light_wrap: flag('render_light_wrap', false) },
     filter: option('render_filter', FILTERS, 'none'),
     dof: { mode: option('render_dof', ['off', 'closeup'], 'off') },
