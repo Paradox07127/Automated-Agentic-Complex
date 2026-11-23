@@ -36,9 +36,13 @@
   width: 30px;
   padding: 0;
   border: 0;
-  background: rgb(255 255 255 / 8%);
+  /* A small key in the well: lighter on top, a light rim over a dark seam. */
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ef-g-btn-hover) 16%, transparent), color-mix(in srgb, var(--ef-g-btn-hover) 5%, transparent));
   color: #fff;
   cursor: pointer;
+  box-shadow:
+    inset 0 2px 0 color-mix(in srgb, var(--ef-g-btn-hover) 34%, transparent),
+    inset 0 -2px 0 color-mix(in srgb, var(--ef-popup-text) 50%, transparent);
 }
 
 /* Light (the game's small ColorTint buttons): white .502 hovered, #444 .502 pressed, 100 ms linear, under the arrow. */
@@ -71,6 +75,7 @@
   background: rgb(255 255 255 / 3%);
   color: rgb(255 255 255 / 22%);
   cursor: default;
+  box-shadow: none;
 }
 
 .ar:focus-visible,

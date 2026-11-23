@@ -85,7 +85,11 @@
   bottom: 2px;
   left: calc(5px + var(--i) * (100% - 10px) / var(--n));
   width: calc((100% - 10px) / var(--n));
-  background: linear-gradient(180deg, #fff 60%, rgb(230 230 230));
+  /* The watch key's face: white on top, darkening downwards, a light rim over a dark seam at the foot. */
+  background: linear-gradient(180deg, var(--ef-g-btn-hover), var(--ef-g-btn-face) 55%, color-mix(in srgb, var(--ef-g-btn-face) 88%, var(--ef-g-icon)));
+  box-shadow:
+    inset 0 2px 0 var(--ef-g-btn-hover),
+    inset 0 -2px 0 color-mix(in srgb, var(--ef-popup-text) 32%, transparent);
   clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
   transition: left 200ms var(--ef-ease-g-enter);
 }
@@ -183,7 +187,7 @@
 }
 
 .seg[data-off] .knob {
-  background: var(--gs-knob-off);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ef-g-btn-hover) 30%, var(--gs-knob-off)), var(--gs-knob-off) 55%, color-mix(in srgb, var(--gs-knob-off) 88%, var(--ef-g-icon)));
 }
 
 .seg[data-off] .knob::after {
@@ -197,6 +201,7 @@
 
 .seg[aria-disabled='true'] .knob {
   background: #5a5a5a;
+  box-shadow: none;
 }
 
 .seg[aria-disabled='true'] .knob::after {

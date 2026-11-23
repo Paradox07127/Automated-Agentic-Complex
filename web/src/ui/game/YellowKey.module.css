@@ -21,6 +21,9 @@
   --yk-face-low: rgb(240 222 0);
   --yk-ink: #1a1a1a;
   --yk-hatch: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(0 0 0 / 14%) 4px 5.5px);
+  --yk-drop: color-mix(in srgb, var(--ef-popup-text) 44%, transparent);
+  --yk-rim: color-mix(in srgb, var(--ef-g-btn-hover) 60%, transparent);
+  --yk-seam: color-mix(in srgb, var(--ef-popup-text) 28%, transparent);
   --yk-mul: 1;
   --yk-top: color-mix(in srgb, var(--yk-face-top) calc(var(--yk-mul) * 100%), #000);
   --yk-mid: color-mix(in srgb, var(--ef-accent) calc(var(--yk-mul) * 100%), #000);
@@ -33,7 +36,8 @@
   background: none;
   color: var(--yk-ink);
   cursor: pointer;
-  filter: drop-shadow(0 0 10px rgb(255 241 0 / 35%)) drop-shadow(0 3px 0 rgb(0 0 0 / 14%));
+  /* The shadow falls down and to the right, as --ef-shadow-btn's; drop-shadow follows the cut face. */
+  filter: drop-shadow(0 0 10px rgb(255 241 0 / 35%)) drop-shadow(2px 6px 4px var(--yk-drop));
   transition: --yk-mul var(--ef-dur-g-btn) linear;
 }
 
@@ -46,6 +50,9 @@
   padding: 0 24px 0 5px;
   background: linear-gradient(180deg, var(--yk-top), var(--yk-mid) 60%, var(--yk-low));
   font: 600 15px / 1 var(--ef-font-sans);
+  box-shadow:
+    inset 0 2px 0 var(--yk-rim),
+    inset 0 -2px 0 var(--yk-seam);
   white-space: nowrap;
   clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
 }
@@ -82,7 +89,9 @@
   height: var(--yk-h, 76px);
   padding: calc(var(--yk-h, 76px) * 0.12) 11px;
   background: linear-gradient(165deg, var(--yk-top), var(--yk-mid) 50%, var(--yk-low));
-  box-shadow: inset 0 -3px 0 rgb(0 0 0 / 12%);
+  box-shadow:
+    inset 0 2px 0 var(--yk-rim),
+    inset 0 -3px 0 rgb(0 0 0 / 12%);
   clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
 }
 
@@ -172,7 +181,7 @@
   --yk-face-top: #fff;
   --yk-face-low: #e4e4e4;
 
-  filter: drop-shadow(0 0 10px rgb(255 255 255 / 25%)) drop-shadow(0 3px 0 rgb(0 0 0 / 14%));
+  filter: drop-shadow(0 0 10px rgb(255 255 255 / 25%)) drop-shadow(2px 6px 4px var(--yk-drop));
 }
 
 .key[data-tone='white'] :is(.face, .tall) {

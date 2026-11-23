@@ -79,25 +79,29 @@
   height: 34px;
   padding: 0 12px 0 10px;
   border: 0;
-  background: rgb(46 46 46 / 78%);
+  /* Lighter on top, a light rim over a dark seam; the cut clips any outer shadow. */
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ef-g-btn-hover) 12%, transparent), transparent 60%) rgb(46 46 46 / 78%);
   color: #fff;
   font: 500 13px / 1 var(--ef-font-sans);
   white-space: nowrap;
   cursor: pointer;
   backdrop-filter: blur(8px);
+  box-shadow:
+    inset 0 2px 0 color-mix(in srgb, var(--ef-g-btn-hover) 32%, transparent),
+    inset 0 -2px 0 color-mix(in srgb, var(--ef-popup-text) 50%, transparent);
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
 }
 
 .chip:hover {
-  background: rgb(66 66 66 / 82%);
+  background-color: rgb(66 66 66 / 82%);
 }
 
 .chip:active:not([aria-pressed='true']) {
-  background: rgb(30 30 30 / 88%);
+  background-color: rgb(30 30 30 / 88%);
 }
 
 .chip[aria-pressed='true'] {
-  background: var(--ef-accent);
+  background-color: var(--ef-accent);
   color: #1a1a1a;
 }
 

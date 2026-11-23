@@ -160,6 +160,7 @@
   background: none;
   color: rgb(0 0 0 / 55%);
   cursor: pointer;
+  filter: drop-shadow(2px 6px 4px color-mix(in srgb, var(--ef-popup-text) 36%, transparent));
 }
 
 .list::before,
@@ -216,20 +217,36 @@
   background: none;
   color: rgb(0 0 0 / 50%);
   cursor: pointer;
+  isolation: isolate;
 }
 
+/* The face: lighter on top, a light rim over a dark seam. */
 .bareKey::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgb(255 255 255 / 42%);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 70%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ef-g-btn-hover) 40%, transparent), transparent 60%) rgb(255 255 255 / 42%);
+  box-shadow:
+    inset 0 -2px 0 color-mix(in srgb, var(--ef-popup-text) 28%, transparent),
+    inset 0 0 0 1px rgb(255 255 255 / 70%),
+    inset 0 2px 0 var(--ef-g-btn-hover);
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
   backdrop-filter: blur(6px);
 }
 
+/* --ef-shadow-btn under the face, cut along the face's corner so it follows the cut (a filter here would end the face's frost). */
+.bareKey::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  box-shadow: var(--ef-shadow-btn);
+  clip-path: polygon(-16px -16px, calc(100% + 16px) -16px, calc(100% + 16px) calc(100% - 21px), calc(100% - 21px) calc(100% + 16px), -16px calc(100% + 16px));
+  pointer-events: none;
+}
+
 .bareKey:hover::before {
-  background: rgb(255 255 255 / 70%);
+  background-color: rgb(255 255 255 / 70%);
 }
 
 .bareKey[aria-pressed='true'] {
@@ -237,7 +254,7 @@
 }
 
 .bareKey[aria-pressed='true']::before {
-  background: var(--ef-accent);
+  background-color: var(--ef-accent);
 }
 
 .bareKey > svg {

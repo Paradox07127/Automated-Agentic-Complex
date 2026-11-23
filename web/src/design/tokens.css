@@ -82,7 +82,7 @@
   --ef-hud-text-2: #DFDFDF;
   --ef-dlg-backing: #222222;
   --ef-shadow-hud: none;
-  --ef-shadow-btn: 1px 4px 6px -1px rgba(0,0,0,.48);
+  --ef-shadow-btn: 2px 6px 8px -1px rgba(0,0,0,.6);
   --ef-shadow-card: 1.5px 7.5px 0 rgba(45,45,45,.48);
   --ef-shadow-popup: 0 24px 24px -16px rgba(0,0,0,.5);
   --ef-bg-canvas: #161616;
@@ -354,7 +354,7 @@
   --ef-hud-text-2: #383838;
   --ef-dlg-backing: #FFFFFF;
   --ef-shadow-hud: none;
-  --ef-shadow-btn: 1px 4px 6px -1px rgba(0,0,0,.28);
+  --ef-shadow-btn: 2px 6px 8px -1px rgba(0,0,0,.38);
   --ef-shadow-card: 1.5px 7.5px 0 rgba(45,45,45,.22);
   --ef-shadow-popup: 0 24px 24px -16px rgba(0,0,0,.3);
   --ef-bg-canvas: #ECECE9;

@@ -77,7 +77,10 @@
 .plate {
   background: linear-gradient(180deg, color-mix(in srgb, var(--rc-white) 6%, transparent), transparent 50%), var(--rc-plate);
   backdrop-filter: blur(8px);
-  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--rc-black) 18%, transparent);
+  box-shadow:
+    inset 0 2px 0 color-mix(in srgb, var(--rc-white) 22%, transparent),
+    inset 0 -2px 0 color-mix(in srgb, var(--rc-black) 18%, transparent),
+    var(--ef-shadow-btn);
 }
 
 /* DefalutBg/Light: a white wash over the plate. */
@@ -112,7 +115,9 @@
   bottom: 0;
   width: calc(100% + var(--size-x) * 1px);
   background: linear-gradient(180deg, var(--rc-white), transparent 60%), var(--rc-plate-on);
-  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--rc-black) 10%, transparent);
+  box-shadow:
+    inset 0 -2px 0 color-mix(in srgb, var(--rc-black) 10%, transparent),
+    var(--ef-shadow-btn);
   opacity: 0;
 }
 

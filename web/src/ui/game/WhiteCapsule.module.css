@@ -21,7 +21,7 @@
   cursor: pointer;
   box-shadow:
     var(--ef-shadow-btn),
-    inset 0 -1px 0 rgb(0 0 0 / 10%);
+    inset 0 -2px 0 color-mix(in srgb, var(--ef-popup-text) 28%, transparent);
   transition: background-color var(--ef-dur-g-btn) linear;
 }
 
