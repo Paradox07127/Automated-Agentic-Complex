@@ -353,7 +353,6 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
       onPanel: (cb) => (cb(COMPUTER_DEMO), none),
     },
     camera: { onState: (cb) => (cb(CAMERA_DEMO), none), drag: done, endDrag: done, scroll: done, magnify: done, act: done },
-    region: { finish: done, cancel: done },
     resize: { onState: (cb) => (cb(RESIZE_DEMO), none), drag: done, endDrag: done, act: done },
     window: {
       contentRect: async () => ({ width: window.innerWidth, height: window.innerHeight }),

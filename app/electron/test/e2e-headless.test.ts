@@ -14,7 +14,7 @@ import { pathToFileURL } from 'node:url';
 import routes from '../../../protocol/ui-bridge/routes.json' with { type: 'json' };
 import { type ChildState, stateText } from '../src/common/agentd.ts';
 import { handle } from '../src/common/bridge.ts';
-import { menuLines, rendererPreflight } from '../src/common/components.ts';
+import { rendererPreflight } from '../src/common/components.ts';
 import { type Config, launchCharacter } from '../src/common/config.ts';
 import { PageSession } from '../src/common/page.ts';
 import type { ScreenInfo } from '../src/common/placement.ts';
@@ -215,8 +215,10 @@ class Stack {
     return supervisorOps(ctx)['supervisor.state']!([], undefined as never) as Record<string, Record<string, unknown>>;
   }
 
-  tray(): string[] {
-    return menuLines(this.config, this.renderer, this.supervisor.state);
+  /** `supervisor.state`'s avatar and agentd states. */
+  stateTexts(): unknown[] {
+    const p = this.processes();
+    return [p.avatar!.state, p.agentd!.state];
   }
 
   /** Each mock_host.py launch's arguments. */
@@ -310,7 +312,7 @@ e2e('agentd starts as the configured character and answers ready; the renderer s
   assert.equal(await stack.character(), 'aster');
   assert.deepEqual(stack.states, ['starting', 'running']);
   assert.equal(stack.processes().avatar!.state, 'stopped');
-  assert.deepEqual(stack.tray(), ['角色 · 未启动', '后台 · 运行中']);
+  assert.deepEqual(stack.stateTexts(), ['stopped', 'running']);
   assert.equal(stack.hostLaunches, 0);
 });
 
@@ -374,7 +376,7 @@ e2e('a port held by another process is checked again and agentd starts once it i
     await sleep(3);
     assert.equal(stack.supervisor.state.kind, 'portInUse');
     assert.equal(stack.agentdLaunches, 0);
-    assert.deepEqual(stack.tray(), ['角色 · 未启动', '后台 · 端口被占用']);
+    assert.deepEqual(stack.stateTexts(), ['stopped', 'portInUse']);
   } finally {
     await new Promise((r) => holder.close(r));
   }
@@ -389,7 +391,7 @@ e2e('without the agentd component agentd fails at once and is never launched, no
   await sleep(5);
   assert.equal(stack.agentdLaunches, 0);
   assert.deepEqual(stack.states, ['failed(缺 agentd 组件)']);
-  assert.deepEqual(stack.tray(), ['角色 · 未启动', '后台 · 失败：缺 agentd 组件']);
+  assert.deepEqual(stack.stateTexts(), ['stopped', 'failed(缺 agentd 组件)']);
   assert.equal(stack.processes().agentd!.state, 'failed(缺 agentd 组件)');
 
   await stack.supervisor.restart();
@@ -402,7 +404,7 @@ e2e('without the renderer component the renderer fails and is never launched; ag
   stack.start();
   assert.ok(await stack.waitRunning(), `agentd not running: ${stack.states}`);
   assert.equal(stack.processes().avatar!.state, 'failed(缺 renderer 组件)');
-  assert.deepEqual(stack.tray(), ['角色 · 失败：缺 renderer 组件', '后台 · 运行中']);
+  assert.deepEqual(stack.stateTexts(), ['failed(缺 renderer 组件)', 'running']);
   assert.equal(stack.hostLaunches, 0);
 }, { missing: { renderer: 'componentMissing' } });
 
@@ -444,7 +446,7 @@ e2e('the renderer starts beside agentd and says hello over C3; the loading panel
   assert.ok(await until(5, () => stack.avatar!.loading.kind === 'hidden'), JSON.stringify(stack.avatar!.loading));
   assert.deepEqual(stack.avatarStates, ['starting', 'running']);
   assert.equal(stack.link!.currentCharacter, 'aster');
-  assert.deepEqual(stack.tray(), ['角色 · 运行中', '后台 · 运行中']);
+  assert.deepEqual(stack.stateTexts(), ['running', 'running']);
   assert.equal(stack.processes().avatar!.state, 'running');
   assert.equal(stack.hostLaunches, 1);
   const [sent] = stack.transcripts().map((t) => t.filter((m) => m.dir === 'c2a').map((m) => m.msg.type));
@@ -484,7 +486,7 @@ e2e('a renderer that exits 78 at startup fails without a restart; agentd runs', 
   assert.ok(await stack.waitRunning(), `agentd not running: ${stack.states}`);
   await sleep(3);
   assert.deepEqual(stack.avatarStates, ['starting', 'running', 'failed(角色包与程序版本不符)']);
-  assert.deepEqual(stack.tray(), ['角色 · 失败：角色包与程序版本不符', '后台 · 运行中']);
+  assert.deepEqual(stack.stateTexts(), ['failed(角色包与程序版本不符)', 'running']);
   assert.equal(stack.hostLaunches, 1);
 }, { windows: MOCK_RENDERER });
 

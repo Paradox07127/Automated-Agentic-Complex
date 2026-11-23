@@ -52,13 +52,11 @@
 
 `camera.onState(cb)` 推「调整镜头」浮层的状态（接收区在页面里的框、当前镜头值、能不能编辑、「近景」能不能点），订阅时先推当前的；`camera.drag(dx, dy)`（页面点，y 向下）、`endDrag()`、`scroll(deltaY)`（点，正数拉近）、`magnify(m)` 页面不等它们的回复；`camera.act(name)` 是「全身」`fullBody`、「近景」`closeup`、「复位」`reset`、「完成」`commit` 和取消 `cancel`。这六个只放行 stack，宿主只给浮层那一页（`stack.html#/camera`）处理函数。
 
-`region.finish(from, to)` 交出「框选给她看」那一页拖出的两个角（页面点，y 向下，按下处和松开处），有一边不到 8 点时宿主按取消算；`region.cancel()` 是右键或没按下就松开。这两个只放行 stack，宿主只给框选那一页（`stack.html#/region`）处理函数。
-
 `resize.onState(cb)` 推「调整大小」缩放框的状态（她在页面里的框 `frame`、`scale`、到 50 % 或 200 % 时的 `limit`（`min` / `max`）、正在拖的角 `dragging`），订阅时先推当前的；`resize.drag(corner, dx, dy)`（`topLeft`、`topRight`、`bottomLeft`、`bottomRight` 之一，从按下起的总位移，页面点，y 向下）、`endDrag()` 页面不等它们的回复；`resize.act(name)` 是「恢复默认」`restoreDefault`、「完成」`done` 和取消 `cancel`。这四个只放行 stack，宿主只给缩放框那一页（`stack.html#/resize`）处理函数。
 
 `window.logInfo(message)` 不等回复，原生把 `message` 作为一行 info 写进该面板的 `ui.log`（与注入的错误脚本经 `efLog` 写的错误行同一个文件、同一个每分钟限额，消息以 `info: ` 开头）；只放行 stack。
 
-桌面层（浮窗栈、角色附属层、命令层）的桥 op 是 `window.onAnchor`、`window.setContentSize`、`window.releaseKey` 和 `desktop.onState`、`desktop.onPresence`、`desktop.onCommand`、`desktop.say`、`desktop.action`：`/desktop/presence` 由原生读了再经 `desktop.onPresence` 推给页面，快速输入经 `desktop.say` 走原生发送路径，不走 `/say` 路由。这些 op 不改 routes.json。
+桌面层（浮窗栈、角色附属层、命令层）的桥 op 是 `window.onAnchor`、`window.setContentSize`、`window.releaseKey` 和 `desktop.onState`、`desktop.onPresence`、`desktop.onCommand`、`desktop.say`、`desktop.action`、`desktop.notice`：`/desktop/presence` 由原生读了再经 `desktop.onPresence` 推给页面，快速输入经 `desktop.say` 走原生发送路径，不走 `/say` 路由；`desktop.notice(text)` 不等回复，原生把这一行（非空，至多 200 字符）作为 `notice` 命令推给气泡，轮盘选格的回执走它。这些 op 不改 routes.json。
 
 菜单栏弹窗的最近播报：`desktop.onRecent(cb)` 推原生缓存的最近 20 条播报 `{ id, text, time, unread }[]`（新的在前，订阅时先推当前的）；`desktop.openAnnouncement(id)` 标这一条已读，有会话时在主窗口打开它；`desktop.markAllRead()` 全部标为已读。三者只放行 stack。首次设置面（onboarding）只读 `desktop.onState`。
 
@@ -81,7 +79,7 @@
 `returns/` 下的 JSON 用例描述 `web/src/bridge/protocol.ts`、`onboarding.ts` 和 `desktop.ts` 里返回 promise 的调用解析出的值。`web/tests/unit/bridge-returns.test.ts` 用一个新建并冻结的假桥逐条核对，并对照生成的 op 目录检查 UI 面板上可用的调用都有用例。订阅回调的 payload 是事件；订阅和同步返回的行为由 `bridge-surfaces.test.ts` 覆盖。
 
 - `computerUse.grant`、`computerUse.revoke`、`computerUse.resume`、`computerUse.dismiss` 只放行 stack，外壳只给电脑操作小窗那一页（`computer-use.json`）。
-- `camera.*` 只给「调整镜头」那一页（`camera.json`）；`region.*` 只给「框选给她看」那一页（`region.json`）；`resize.*` 只给「调整大小」那一页（`resize.json`）。
+- `camera.*` 只给「调整镜头」那一页（`camera.json`）；`resize.*` 只给「调整大小」那一页（`resize.json`）。
 
 每个用例写明 `op`、允许的 `surface`、可选的 `args`，以及为到达合法状态要先调的 `before`。`value` 是一个有代表性的 JSON 值：`web/tests/unit/shape.ts` 比较键集合和 JSON 类型，不比较标量值，数组只比第一项。`nullable` 和 `free_keys` 的含义同 C6 夹具（`protocol/C6-agentd-api/fixtures/loose-fields.json`）。`kind: "undefined"` 表示解析为 void，JSON 写不出这个值。
 

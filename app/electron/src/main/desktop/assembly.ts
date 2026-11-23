@@ -552,6 +552,11 @@ export class DesktopAssembly {
         this.o.log(`ui: ${message}`);
         return null;
       }],
+      ['desktop.notice', ([text]) => {
+        if (typeof text !== 'string' || text.trim() === '' || [...text].length > 200) throw new BridgeFailure('invalid_args', 'a line of at most 200 characters');
+        this.notice(text);
+        return null;
+      }],
       // A pick on the hover buttons closes them, but for 说话, which keeps them while it records.
       ['desktop.action', async (args, page) => {
         const result = await action(args, page);

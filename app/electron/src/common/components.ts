@@ -1,8 +1,7 @@
 // C11 composition locks, component manifests and the split import index as the shell reads them, the failure reasons, and what a missing component does
 // to the supervised children (docs/components.md §5). Reading files and the tree hash are src/main/components.ts's.
-import { agentdMenuLine, type Backoff, type ChildState, crashState, menuDetail } from './agentd.ts';
-import { type Config, firstMissingComponent, type ShellPlatform } from './config.ts';
-import type { SlotState } from './runtime.ts';
+import { type Backoff, type ChildState, crashState } from './agentd.ts';
+import type { Config, ShellPlatform } from './config.ts';
 
 /** The values `missing_components` takes, and `lockInvalid` for a lock that cannot be used at all. */
 export type Reason = 'lockInvalid' | 'componentMissing' | 'manifestInvalid' | 'manifestMismatch' | 'entrypointMissing'
@@ -197,16 +196,4 @@ export function rendererExit(status: number | null, signal: string | null, backo
   if (signal === null && status === 78) return { kind: 'failed', reason: '角色包与程序版本不符' };
   if (signal === null && (status === 69 || status === 71)) return { kind: 'failed', reason: '无法使用 GPU' };
   return crashState(backoff.recordCrash());
-}
-
-/** The tray's child rows: 角色 (renderer), 后台 (agentd), and 语音隧道 (`tunnel`, the tunnel supervisor's state) when a TTS
- *  tunnel is configured. */
-export function menuLines(config: Config, renderer: ChildState, agentd: ChildState, tunnel?: SlotState): string[] {
-  const rows = [`角色 · ${menuDetail(renderer)}`, agentdMenuLine(agentd)];
-  if (config.ttsTunnelHost !== '') {
-    const python = firstMissingComponent(config, ['runtime.python']);
-    const state: SlotState = tunnel ?? (python === undefined ? { kind: 'stopped' } : { kind: 'failed', reason: `缺 ${python} 组件` });
-    rows.push(`语音隧道 · ${state.kind === 'external' ? '沿用已有连接' : menuDetail(state)}`);
-  }
-  return rows;
 }

@@ -84,11 +84,12 @@ test('wheel: 1 opens the chat page; Esc closes it', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('wheel: 自由活动 answers in the panel; with nothing pending 待处理 is greyed and runs nothing', async ({ page }) => {
+test('wheel: 自由活动 closes the wheel with no toast on the panel (its receipt goes to her bubble); with nothing pending 待处理 is greyed and runs nothing', async ({ page }) => {
   const errors = collectErrors(page);
   await open(page, { mode: 'ring' });
   await page.getByRole('menu', { name: '她的轮盘' }).press('6');
-  await expect(page.getByRole('status')).toContainText('自由活动已开启');
+  await expect(page.getByRole('menu', { name: '她的轮盘' })).toHaveCount(0);
+  await expect(page.getByRole('status')).toHaveCount(0);
   await expect(page).toHaveURL(/stack\.html#\/cmd/);
 
   await open(page, { mode: 'ring', demo: 'empty' });

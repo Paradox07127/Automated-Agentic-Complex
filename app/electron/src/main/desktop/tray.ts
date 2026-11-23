@@ -13,14 +13,10 @@ export interface TrayPorts {
   log(line: string): void;
 }
 
-/**
- * Electron's tray click as `trayClick` takes it, and whether its menu shows 诊断: on macOS an option click, left or right;
- * Windows has no option click, so a left click always goes to the console and a Shift right click stands in for option.
- */
-export function trayClickOf(platform: ShellPlatform, right: boolean, keys: { altKey?: boolean; shiftKey?: boolean }, bounds: Rectangle):
-  { click: { right: boolean; option: boolean; bounds: Rectangle }; diagnostics: boolean } {
-  if (platform === 'mac') return { click: { right, option: keys.altKey === true, bounds }, diagnostics: keys.altKey === true };
-  return { click: { right, option: false, bounds }, diagnostics: right && keys.shiftKey === true };
+/** Electron's tray click as `trayClick` takes it: Windows has no option click, so a left click there always goes to the console. */
+export function trayClickOf(platform: ShellPlatform, right: boolean, keys: { altKey?: boolean }, bounds: Rectangle):
+  { right: boolean; option: boolean; bounds: Rectangle } {
+  return { right, option: platform === 'mac' && keys.altKey === true, bounds };
 }
 
 export function trayClick(click: { right: boolean; option: boolean; bounds: Rectangle }, ports: TrayPorts): void {

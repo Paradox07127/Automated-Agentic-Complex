@@ -103,8 +103,6 @@
     "camera.scroll",
     "camera.magnify",
     "camera.act",
-    "region.finish",
-    "region.cancel",
     "resize.onState",
     "resize.drag",
     "resize.endDrag",
@@ -131,6 +129,7 @@
     "desktop.onCommand",
     "desktop.say",
     "desktop.action",
+    "desktop.notice",
     "desktop.onRecent",
     "desktop.openAnnouncement",
     "desktop.markAllRead"
@@ -277,8 +276,6 @@
       "camera.scroll",
       "camera.magnify",
       "camera.act",
-      "region.finish",
-      "region.cancel",
       "resize.onState",
       "resize.drag",
       "resize.endDrag",
@@ -304,6 +301,7 @@
       "desktop.onCommand",
       "desktop.say",
       "desktop.action",
+      "desktop.notice",
       "desktop.onRecent",
       "desktop.openAnnouncement",
       "desktop.markAllRead",
@@ -367,7 +365,8 @@
       "window.openMain",
       "window.setContentSize",
       "window.releaseKey",
-      "window.logInfo"
+      "window.logInfo",
+      "desktop.notice"
     ],
     "stream": [
       "feed.subscribe",
@@ -383,6 +382,7 @@
     "desktop.onCommand",
     "desktop.say",
     "desktop.action",
+    "desktop.notice",
     "desktop.onRecent",
     "desktop.openAnnouncement",
     "desktop.markAllRead"

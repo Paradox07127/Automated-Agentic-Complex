@@ -163,6 +163,17 @@ test('pushState sends desktop.onState now; notice and openStack reach desktop.on
   h.done();
 });
 
+test('desktop.notice from the wheel page reaches the bubble as a notice command; a blank or overlong line is refused', async () => {
+  const h = setup(['--no-attention']);
+  h.desktop.start();
+  const commands = h.watch('/bubble', 'desktop.onCommand');
+  assert.equal(await h.call('/cmd', 'desktop.notice', ['免打扰已开始 │ 14:30 恢复']), null);
+  assert.deepEqual(commands, [{ kind: 'notice', text: '免打扰已开始 │ 14:30 恢复' }]);
+  for (const bad of ['', '  ', 'x'.repeat(201), 3]) await assert.rejects(async () => h.call('/cmd', 'desktop.notice', [bad]), /invalid_args/);
+  assert.equal(commands.length, 1);
+  h.done();
+});
+
 test('desktop.onRecent sends 最近播报 at start and on each change; the console opens one and marks all read through the shell', async () => {
   const rows = [{ id: 'announce-2', text: '周报已交付', time: '14:01', unread: true }];
   const calls: string[] = [];

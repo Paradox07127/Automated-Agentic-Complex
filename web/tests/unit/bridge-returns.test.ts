@@ -19,7 +19,7 @@ interface ReturnCase {
 }
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../protocol/ui-bridge/returns');
-const FILES = ['app', 'agentd', 'settings', 'avatar', 'desktop', 'onboarding', 'void', 'computer-use', 'camera', 'region', 'resize', 'logs'];
+const FILES = ['app', 'agentd', 'settings', 'avatar', 'desktop', 'onboarding', 'void', 'computer-use', 'camera', 'resize', 'logs'];
 const read = (name: string): ReturnCase[] => JSON.parse(readFileSync(resolve(ROOT, `${name}.json`), 'utf8'));
 
 function member(bridge: AgenticComplexBridge, op: string): (...args: unknown[]) => unknown {

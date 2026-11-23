@@ -5,7 +5,6 @@
 import type { AttentionSample, BlacklistRules, Rect } from '../../common/attention.ts';
 import { type CaptureWindow, captureBlockReason } from '../../common/capture-rules.ts';
 import type { ShellPlatform } from '../../common/config.ts';
-import { type RegionRead, regionPlainText } from '../../common/handover.ts';
 import type { HelperAnswer } from '../../common/push-to-talk.ts';
 import {
   type AgentdReply, allowsAutomaticText, allowsOCR, allowsRequest, axObservation, BrowserWindowMemory, type CaptureFailure,
@@ -174,32 +173,6 @@ export class ContextCapturer {
     return { decision, app: front?.window.app ?? null };
   }
 
-  /** ContextCapturer.readRegion: the AX text inside `rect` (helper coordinates) of the window under its center, outside
-   *  `excluding`. The user asked for it, so the text consent and level are not consulted; the blacklist, incognito and secure
-   *  input checks are. */
-  async readRegion(rect: Rect, excluding: readonly number[]): Promise<RegionRead> {
-    this.refreshPolicy();
-    const refused = (reason: string, text: string): RegionRead => {
-      this.ports.log(`REGION refused reason=${reason}`);
-      return { kind: 'refused', text };
-    };
-    const center = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
-    const hit = await this.ports.helper.request('windows.at_point', { point: center, exclude_pids: [...excluding], layer0_only: true });
-    const at = hit.ok ? decodeWindows({ windows: [hit.result.window] })[0] : undefined;
-    const found = at ? await this.windowNow(at.windowId) : null;
-    if (!at || !found) return refused('no_window', '框里没有可以读的窗口');
-    const reason = captureBlockReason(found.window, this.ports.blacklist(), this.ports.ownPids());
-    if (reason !== null) return refused(reason, '这个窗口设了不读');
-    const read = await this.axWindowText(at.pid, at.bounds, this.policy.redact, rect);
-    if (!read.matched) return refused('ax_unavailable', this.platform === 'windows' ? '读不了这个窗口的文字' : '读不了这个窗口（需要辅助功能权限）');
-    const text = regionPlainText(read.observation?.text ?? '');
-    if (text.trim() === '') return refused('ax_empty', '框里没有读到文字');
-    const scalars = [...text], truncated = scalars.length > SELECTION_LIMIT;
-    const kept = truncated ? scalars.slice(0, SELECTION_LIMIT).join('') : text;
-    this.ports.log(`REGION read chars=${scalarCount(kept)} truncated=${truncated}`);
-    return { kind: 'read', text: kept, truncated, app: found.window.window.app };
-  }
-
   private seconds(): number {
     return this.ports.now() / 1000;
   }
@@ -360,12 +333,10 @@ export class ContextCapturer {
     return read.observation;
   }
 
-  /** The window whose CG bounds are `bounds`, front or not, only its nodes meeting `clip` when given; `matched` is false when
-   *  the helper found no single such window. */
-  private async axWindowText(pid: number, bounds: unknown, redact: boolean,
-    clip?: Rect): Promise<{ matched: boolean; observation: Observation | null }> {
+  /** The window whose CG bounds are `bounds`, front or not; `matched` is false when the helper found no single such window. */
+  private async axWindowText(pid: number, bounds: unknown, redact: boolean): Promise<{ matched: boolean; observation: Observation | null }> {
     if (this.ports.ownPids().includes(pid)) return { matched: false, observation: null };
-    const r = await this.ports.helper.request('ax.window_text', { pid, level: 'window', window_bounds: bounds, ...(clip && { clip }) });
+    const r = await this.ports.helper.request('ax.window_text', { pid, level: 'window', window_bounds: bounds });
     if (!r.ok) return { matched: false, observation: null };
     const read = axObservation(r.result, redact);
     return read.matched ? read : { matched: false, observation: null };

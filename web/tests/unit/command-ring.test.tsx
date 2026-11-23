@@ -255,6 +255,20 @@ describe('wheel actions', () => {
     await waitFor(() => expect(openMain).toHaveBeenCalledWith(expect.stringMatching(/^\/chat/)));
   });
 
+  it('a pick with a receipt hands it to her bubble through desktop.notice and closes the wheel, no toast on the panel', async () => {
+    const bridge = stackBridge();
+    const notice = vi.spyOn(bridge.desktop, 'notice');
+    const close = vi.spyOn(bridge.window, 'close');
+    mount('#/cmd?still=1');
+    await screen.findByRole('menu', { name: '她的轮盘' });
+    await flush(async () => {});
+    await flush(async () => fireEvent.keyDown(screen.getByRole('menu', { name: '她的轮盘' }), { key: '3' }));
+    await waitFor(() => expect(notice.mock.calls).toEqual([[expect.stringContaining('免打扰已开始')]]));
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.queryByRole('menu', { name: '她的轮盘' })).toBeNull();
+  });
+
   it('送礼物 on the opened wheel says why it cannot play, and 7 runs nothing', async () => {
     const bridge = stackBridge();
     vi.spyOn(bridge.avatar, 'actions').mockResolvedValue([{ id: 'wave', label: '挥手', enabled: true }]);

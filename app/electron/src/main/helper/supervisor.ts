@@ -5,7 +5,7 @@ import { type ChildProcess, spawn } from 'node:child_process';
 import { closeSync, fchmodSync, openSync } from 'node:fs';
 import { constants } from 'node:os';
 import { join } from 'node:path';
-import { Backoff, type ChildState, launchFailure, menuDetail, sameState, stateText } from '../../common/agentd.ts';
+import { Backoff, type ChildState, launchFailure, sameState, stateText } from '../../common/agentd.ts';
 import { appendLog, prepareLogs } from '../log.ts';
 import { HelperConnection, type HelperEvent, type HelperReply, localError, PROTOCOL } from './client.ts';
 
@@ -16,11 +16,6 @@ export const HELPER_TIMING = {
   /** Between SIGTERM and SIGKILL; on Windows the first kill already ends the process (TerminateProcess). */
   killGrace: 2,
 } as const;
-
-/** The tray's helper row, worded like the agentd and renderer rows. */
-export function helperMenuLine(s: ChildState): string {
-  return `系统助手 · ${menuDetail(s)}`;
-}
 
 const running = (child: ChildProcess) => child.exitCode === null && child.signalCode === null;
 

@@ -12,7 +12,7 @@ test('overlay levels: 调整大小 and 调整镜头 over her hover buttons and t
   for (const frame of [L.resize, L.camera]) for (const below of [L.dock, L.bubble, L.chip]) assert.ok(frame > below);
   assert.ok(L.dock > L.bubble && L.dock > L.chip);
   // NSPopUpMenuWindowLevel (101) over the avatar's status level (25).
-  assert.deepEqual([L.cmd, L.console, L.region], [76, 76, 76]);
+  assert.deepEqual([L.cmd, L.console], [76, 76]);
   for (const [name, level] of Object.entries(L)) if (name !== 'control') assert.ok(L.control > level, name);
   const calls: unknown[][] = [];
   const win = { setAlwaysOnTop: (...a: unknown[]) => calls.push(a), setVisibleOnAllWorkspaces() {}, setIgnoreMouseEvents() {},

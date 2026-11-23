@@ -1,4 +1,4 @@
-// 交给她 (src/common/handover.ts, src/main/handover/*.ts): drops, the clipboard, a region and a window handed to her.
+// 交给她 (src/common/handover.ts, src/main/handover/*.ts): drops and a window handed to her.
 // A fake helper, a fake desktop layer, a fake import and a fake character library.
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -8,11 +8,9 @@ import { test } from 'node:test';
 import routes from '../../../protocol/ui-bridge/routes.json' with { type: 'json' };
 import { appKitY, helperY } from '../src/common/attention.ts';
 import { silentSource } from '../src/common/feed.ts';
-import { clipboardDrop, DropBacklog, regionPlainText, regionRect, splitMotion, windowHandover } from '../src/common/handover.ts';
+import { DropBacklog, splitMotion, windowHandover } from '../src/common/handover.ts';
 import type { DropItem } from '../src/common/stack-cards.ts';
-import { handClipboard } from '../src/main/handover/clipboard.ts';
 import { DropHandover, opsMotionImport } from '../src/main/handover/drop.ts';
-import { selectRegion } from '../src/main/handover/region.ts';
 import type { DesktopAssembly } from '../src/main/desktop/assembly.ts';
 import { dragRelease, shellWindowHandover, type WindowPorts } from '../src/main/handover/window.ts';
 import type { OpsContext } from '../src/main/ops/context.ts';
@@ -159,50 +157,6 @@ test('opsMotionImport runs character.importMotion on the dropped files without a
   }
 });
 
-test('clipboardDrop: files, links, then text per item, items without any left out, at most 16; concealed reads nothing', () => {
-  const items = [{ types: ['public.file-url'], file: '/a.txt' }, { types: ['public.url'], url: 'https://b' }, { types: ['public.png'] },
-    { types: ['public.utf8-plain-text'], text: 'c' }];
-  assert.deepEqual(clipboardDrop({ items, concealed: false, truncated: false }), { items: [file('/a.txt'), { kind: 'url', url: 'https://b' },
-    { kind: 'text', text: 'c' }], truncated: false, concealed: false });
-  const many = Array.from({ length: 17 }, (_, n) => ({ types: [], text: `t${n}` }));
-  const read = clipboardDrop({ items: [{ types: ['public.png'] }, ...many.slice(0, 16)], concealed: false, truncated: false });
-  assert.equal(read.items.length, 16);
-  assert.equal(read.truncated, false);
-  assert.equal(clipboardDrop({ items: many, concealed: false, truncated: false }).truncated, true);
-  assert.equal(clipboardDrop({ items: [{ types: [], text: 'x' }], concealed: false, truncated: true }).truncated, true);
-  assert.deepEqual(clipboardDrop({ items: [], concealed: true, truncated: false }), { items: [], truncated: false, concealed: true });
-});
-
-test('handClipboard: the clipboard goes the way of a drop on her, with its counts in the log', async () => {
-  const helper = fakeHelper({ 'clipboard.read': { ok: true, result: { items: [{ types: [], url: 'https://x' }, { types: [], text: 'y' }],
-    concealed: false, truncated: false } } });
-  const desktop = fakeDesktop(), lines: string[] = [];
-  const drops = new DropHandover({ desktop: () => desktop, importMotion: async () => ({ ok: true }), log: () => {} });
-  await handClipboard({ helper, drops, desktop: () => desktop, log: (line) => lines.push(line) });
-  assert.deepEqual(helper.asked, [{ op: 'clipboard.read', params: { max_text_bytes: 16_384 } }]);
-  assert.deepEqual(desktop.calls, ['drop [{"kind":"url","url":"https://x"},{"kind":"text","text":"y"}] truncated=false']);
-  assert.deepEqual(lines, ['clipboard handover items=2 truncated=false']);
-});
-
-test('handClipboard: concealed, empty, no desktop layer and a failed read each end with a line, never a card', async () => {
-  const run = async (answer: Parameters<typeof fakeHelper>[0][string], up: boolean) => {
-    const desktop = fakeDesktop(), lines: string[] = [];
-    const drops = new DropHandover({ desktop: () => (up ? desktop : null), importMotion: async () => ({ ok: true }), log: (l) => lines.push(l) });
-    await handClipboard({ helper: fakeHelper({ 'clipboard.read': answer }), drops, desktop: () => (up ? desktop : null), log: (l) => lines.push(l) });
-    return [...desktop.calls, ...lines];
-  };
-  assert.deepEqual(await run({ ok: true, result: { items: [], concealed: true, truncated: false } }, true),
-    ['notice 剪贴板里的内容标了保密，没有读']);
-  assert.deepEqual(await run({ ok: true, result: { items: [{ types: ['public.png'] }], concealed: false, truncated: false } }, true),
-    ['notice 剪贴板里没有文字、链接或文件']);
-  assert.deepEqual(await run({ ok: true, result: { items: [], concealed: false, truncated: false } }, false),
-    ['clipboard handover: 剪贴板里没有文字、链接或文件 (desktop layer not ready)']);
-  assert.deepEqual(await run({ ok: true, result: { items: [{ types: [], text: 'z' }], concealed: false, truncated: false } }, false),
-    ['clipboard handover items=1 truncated=false', 'drop queued: desktop layer not ready count=1']);
-  assert.deepEqual(await run({ ok: false, error: { code: 'helper_exited', message: 'gone' } }, true),
-    ['clipboard handover failed code=helper_exited']);
-});
-
 test('windowHandover: no Option ignores; text sharing off or no window refuses with a line; else 快速输入 gets the window', () => {
   const w = { windowId: 7, pid: 42, title: 'Doc', app: 'Pages' };
   assert.deepEqual(windowHandover(false, false, w), { kind: 'ignore' });
@@ -275,54 +229,4 @@ test('shellWindowHandover: the link\'s onDragRelease runs dragRelease on the des
   assert.deepEqual(helper.asked.map((a) => a.op), ['input.modifiers', 'windows.at_point']);
   assert.deepEqual(helper.asked[1]!.params!.exclude_pids, [99, 4242]);
   assert.deepEqual(desktop.calls, ['quickInput {"kind":"window","windowId":7,"pid":42,"title":"Doc","app":"Pages"}']);
-});
-
-test('selectRegion: the dragged rect, in the helper\'s coordinates, is read outside her pids; its text opens 快速输入 as 框选', async () => {
-  const desktop = fakeDesktop(), lines: string[] = [], reads: unknown[] = [];
-  const answers = [{ kind: 'read' as const, text: 'hello', truncated: false, app: 'Pages' }, { kind: 'refused' as const, text: '框里没有读到文字' }];
-  const ports = {
-    select: async () => ({ x: 100, y: 200, w: 50, h: 40 }),
-    read: async (rect: unknown, excluding: readonly number[]) => { reads.push([rect, excluding]); return answers.shift()!; },
-    excluded: () => [1, 9], helperY: appKitY, mainHeight: () => 1000, desktop: () => desktop, log: (l: string) => lines.push(l),
-  };
-  await selectRegion(ports);
-  assert.deepEqual(reads, [[{ x: 100, y: 760, width: 50, height: 40 }, [1, 9]]]);
-  assert.deepEqual(desktop.calls, ['quickInput {"kind":"selection","source":"region","text":"hello","app":"Pages","truncated":false}']);
-  await selectRegion(ports);
-  assert.deepEqual(desktop.calls.slice(1), ['notice 框里没有读到文字']);
-  assert.deepEqual(lines, []);
-});
-
-test('selectRegion: a cancelled drag reads nothing; no reader or no desktop layer ends in the menu log', async () => {
-  const lines: string[] = [];
-  let read = 0;
-  const base = { excluded: () => [], helperY: appKitY, mainHeight: () => 1000, log: (l: string) => lines.push(l),
-    read: async () => { read += 1; return { kind: 'read' as const, text: 't', truncated: true, app: null }; } };
-  await selectRegion({ ...base, select: async () => null, desktop: () => fakeDesktop() });
-  assert.equal(read, 0);
-  let shown = 0;
-  await selectRegion({ ...base, read: null, select: async () => { shown += 1; return null; }, desktop: () => fakeDesktop() });
-  assert.equal(shown, 0);
-  await selectRegion({ ...base, select: async () => ({ x: 0, y: 0, w: 10, h: 10 }), desktop: () => null });
-  await selectRegion({ ...base, read: async () => ({ kind: 'refused' as const, text: '框里没有可以读的窗口' }),
-    select: async () => ({ x: 0, y: 0, w: 10, h: 10 }), desktop: () => null });
-  assert.deepEqual(lines, ['region handover: no context capturer (config failed)', 'region handover: desktop layer not ready',
-    'region handover: 框里没有可以读的窗口 (desktop layer not ready)']);
-});
-
-test('RegionGeometryTests.testEitherCornerOrderGivesTheSameRect and testASideUnderEightPointsCancels', () => {
-  const want = { x: 10, y: 20, width: 100, height: 50 };
-  for (const [a, b] of [[[10, 20], [110, 70]], [[110, 70], [10, 20]], [[10, 70], [110, 20]], [[110, 20], [10, 70]]] as const) {
-    assert.deepEqual(regionRect({ x: a[0], y: a[1] }, { x: b[0], y: b[1] }), want);
-  }
-  assert.equal(regionRect({ x: 0, y: 0 }, { x: 7, y: 100 }), null);
-  assert.equal(regionRect({ x: 0, y: 0 }, { x: 100, y: 7 }), null);
-  assert.notEqual(regionRect({ x: 0, y: 0 }, { x: 8, y: 8 }), null);
-  assert.deepEqual(regionRect({ x: 5, y: 5 }, { x: 5, y: 9 }, 0), { x: 5, y: 5, width: 0, height: 4 });
-});
-
-test('RegionGeometryTests.testPlainTextDropsTheKeyNames', () => {
-  const observation = '焦点控件: AXTextArea\n标签: 笔记\n可见文字: 合成笔记\n本周出库：480 箱\n说明: 工具栏\n选中: 480';
-  assert.equal(regionPlainText(observation), '笔记\n合成笔记\n本周出库：480 箱\n工具栏\n480');
-  assert.equal(regionPlainText('可见文字: 备注: 可见文字: 原样'), '备注: 可见文字: 原样');
 });

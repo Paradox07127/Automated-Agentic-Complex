@@ -143,17 +143,17 @@ export function overlayOptions(platform: ShellPlatform = shellPlatform()): Brows
   };
 }
 
-/** Each overlay window: the desktop panels, 调整大小, 调整镜头, 框选给她看, the computer control approval and 雷霆大字. */
-export type Overlay = PanelKind | 'resize' | 'camera' | 'region' | 'control' | 'title';
+/** Each overlay window: the desktop panels, 调整大小, 调整镜头, the computer control approval and 雷霆大字. */
+export type Overlay = PanelKind | 'resize' | 'camera' | 'control' | 'title';
 
 /**
  * The overlays' stacking, lowest first, as levels over the avatar window's status level (25): bubble, chip and 雷霆大字, her
- * hover buttons, the full-screen 调整大小 and 调整镜头 frames over those while they edit, the command layer, the console and
- * 框选 at NSPopUpMenuWindowLevel (101), and the computer control approval over all of them. macOS keeps a higher level in
+ * hover buttons, the full-screen 调整大小 and 调整镜头 frames over those while they edit, the command layer and the console
+ * at NSPopUpMenuWindowLevel (101), and the computer control approval over all of them. macOS keeps a higher level in
  * front. Windows has no levels: every overlay is topmost alike and the one shown last is in front of the others.
  */
 export const OVERLAY_LEVELS: Readonly<Record<Overlay, number>> = {
-  bubble: 1, chip: 1, title: 1, dock: 2, resize: 4, camera: 4, cmd: 76, console: 76, region: 76, control: 77,
+  bubble: 1, chip: 1, title: 1, dock: 2, resize: 4, camera: 4, cmd: 76, console: 76, control: 77,
 };
 
 /**

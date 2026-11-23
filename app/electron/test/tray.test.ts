@@ -54,24 +54,21 @@ test('tray: a test instance (config.json loaded on another support dir) shows �
   assert.equal(trayTitle(null, installed), '', 'config.json did not load');
 });
 
-test('tray: on Windows a left click goes to the console whatever the keys; a Shift right click asks for 诊断', () => {
+test('tray: on Windows a left click goes to the console whatever the keys; a right click pops the menu up', () => {
   const taskbar = { x: 1700, y: 1040, width: 24, height: 24 };
-  assert.deepEqual(trayClickOf('windows', false, { altKey: true, shiftKey: true }, taskbar),
-    { click: { right: false, option: false, bounds: taskbar }, diagnostics: false });
-  assert.deepEqual(trayClickOf('windows', true, { shiftKey: false }, taskbar), { click: { right: true, option: false, bounds: taskbar }, diagnostics: false });
-  assert.deepEqual(trayClickOf('windows', true, { shiftKey: true }, taskbar), { click: { right: true, option: false, bounds: taskbar }, diagnostics: true });
-  assert.deepEqual(trayClickOf('windows', true, { altKey: true }, taskbar).diagnostics, false, 'Alt is not the Mac\'s option');
+  assert.deepEqual(trayClickOf('windows', false, { altKey: true }, taskbar), { right: false, option: false, bounds: taskbar });
+  assert.deepEqual(trayClickOf('windows', true, {}, taskbar), { right: true, option: false, bounds: taskbar });
   const h = harness();
-  trayClick(trayClickOf('windows', false, {}, taskbar).click, h.ports());
+  trayClick(trayClickOf('windows', false, {}, taskbar), h.ports());
   assert.deepEqual(h.calls, ['open {"x":1700,"y":16,"w":24,"h":24}'], 'the console at the icon');
-  trayClick(trayClickOf('windows', true, { shiftKey: true }, taskbar).click, h.ports());
+  trayClick(trayClickOf('windows', true, {}, taskbar), h.ports());
   assert.deepEqual(h.calls.slice(1), ['close', 'menu']);
 });
 
-test('tray: on macOS option makes a left click pop the menu up and asks for 诊断, left or right', () => {
-  assert.deepEqual(trayClickOf('mac', false, { altKey: true }, BOUNDS), { click: { right: false, option: true, bounds: BOUNDS }, diagnostics: true });
-  assert.deepEqual(trayClickOf('mac', true, { altKey: true }, BOUNDS), { click: { right: true, option: true, bounds: BOUNDS }, diagnostics: true });
-  assert.deepEqual(trayClickOf('mac', true, { shiftKey: true }, BOUNDS), { click: { right: true, option: false, bounds: BOUNDS }, diagnostics: false });
+test('tray: on macOS option makes a left click pop the menu up, left or right', () => {
+  assert.deepEqual(trayClickOf('mac', false, { altKey: true }, BOUNDS), { right: false, option: true, bounds: BOUNDS });
+  assert.deepEqual(trayClickOf('mac', true, { altKey: true }, BOUNDS), { right: true, option: true, bounds: BOUNDS });
+  assert.deepEqual(trayClickOf('mac', true, {}, BOUNDS), { right: true, option: false, bounds: BOUNDS });
 });
 
 test('tray: Windows has no title beside the icon; the tooltip carries trayTitle\'s text', () => {

@@ -1,5 +1,5 @@
 // 交给她: which part of a drop on her
-// is a motion to import, the drops waiting for the desktop layer, the clipboard as a drop, and what an Option-held drag release
+// is a motion to import, the drops waiting for the desktop layer, and what an Option-held drag release
 // over a window does.
 import type { DropItem } from './stack-cards.ts';
 
@@ -63,24 +63,6 @@ export class DropBacklog {
   }
 }
 
-/** The avatar's drop limits: items and text bytes. */
-export const CLIPBOARD_LIMITS = { items: 16, textBytes: 16_384 } as const;
-
-/** One item per clip item that has
- *  a file, a link or text, at most CLIPBOARD_LIMITS.items of them. */
-export function clipboardDrop(result: Json): Drop & { concealed: boolean } {
-  if (result.concealed === true) return { items: [], truncated: false, concealed: true };
-  const all = (Array.isArray(result.items) ? result.items : []).flatMap((i): DropItem[] => {
-    if (!isObject(i)) return [];
-    if (typeof i.file === 'string' && i.file !== '') return [{ kind: 'file', path: i.file }];
-    if (typeof i.url === 'string' && i.url !== '') return [{ kind: 'url', url: i.url }];
-    if (typeof i.text === 'string' && i.text !== '') return [{ kind: 'text', text: i.text }];
-    return [];
-  });
-  return { items: all.slice(0, CLIPBOARD_LIMITS.items), truncated: result.truncated === true || all.length > CLIPBOARD_LIMITS.items,
-    concealed: false };
-}
-
 /** The `window` desktop command the 快速输入 page attaches (web `bridge/desktop.ts`). */
 export type WindowCommand = { kind: 'window'; windowId: number; pid: number; app: string | null; title: string | null };
 
@@ -101,26 +83,4 @@ export function windowHandover(optionDown: boolean, allowsText: boolean, window:
   if (!allowsText) return { kind: 'refuse', text: '读窗口文字没有打开，可以在设置的隐私里打开' };
   if (window === null) return { kind: 'refuse', text: '这里没有可以读的窗口' };
   return { kind: 'window', ...window };
-}
-
-/** ContextCapturer.RegionRead: the AX text in a dragged region, or the line that says why there is none. */
-export type RegionRead = { kind: 'read'; text: string; truncated: boolean; app: string | null } | { kind: 'refused'; text: string };
-
-/** RegionGeometry.regionRect: the rect two drag corners span, in their own space; null when a side is under `minSide`. */
-export function regionRect(a: { x: number; y: number }, b: { x: number; y: number }, minSide = 8):
-  { x: number; y: number; width: number; height: number } | null {
-  const rect = { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) };
-  return rect.width >= minSide && rect.height >= minSide ? rect : null;
-}
-
-const REGION_KEYS = ['标签: ', '说明: ', '选中: ', '可见文字: '];
-
-/** RegionGeometry.regionPlainText: a window observation as the user reads it; the focused control's role line goes, and each
- *  other line loses its key name. */
-export function regionPlainText(observation: string): string {
-  return observation.split('\n').flatMap((line) => {
-    if (line.startsWith('焦点控件: ')) return [];
-    const key = REGION_KEYS.find((k) => line.startsWith(k));
-    return [key === undefined ? line : line.slice(key.length)];
-  }).join('\n');
 }

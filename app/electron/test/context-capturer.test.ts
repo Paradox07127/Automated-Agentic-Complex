@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { type AttentionSample, type AttentionWindow, type BlacklistRules, parseBlacklist } from '../src/common/attention.ts';
 import type { ShellPlatform } from '../src/common/config.ts';
 import type { HelperAnswer } from '../src/common/push-to-talk.ts';
-import { type AgentdReply, type ContextPolicy, DEFAULT_CONTEXT_POLICY, SELECTION_LIMIT } from '../src/common/screen-context.ts';
+import { type AgentdReply, type ContextPolicy, DEFAULT_CONTEXT_POLICY } from '../src/common/screen-context.ts';
 import { NO_ANSWER, type UserAnswer } from '../src/main/attention/sampler.ts';
 import { type ContextPorts, startContext } from '../src/main/context/capturer.ts';
 
@@ -571,50 +571,4 @@ test('selection: secure input, incognito and the blacklist refuse before reading
     assert.deepEqual((await s.c.readSelection()).decision, { kind: 'refused', message });
     assert.ok(!s.ops().includes('ax.selected_text') && !s.ops().includes('clipboard.read'));
   }
-});
-
-// ---- 框选给她看… (ContextCapturer.readRegion)
-
-test('readRegion: the window under the region\'s center outside the given pids, read clipped to the region as plain text, without text consent', async () => {
-  const s = setup({ policy: DEFAULT_CONTEXT_POLICY, helper: {
-    'windows.at_point': ok({ window: NOTES }),
-    'ax.window_text': axText('焦点控件: AXTextArea\n标签: 笔记\n可见文字: 合成笔记'),
-  } });
-  const rect = { x: 100, y: 120, width: 200, height: 80 };
-  assert.deepEqual(await s.c.readRegion(rect, [1, 9]), { kind: 'read', text: '笔记\n合成笔记', truncated: false, app: 'Notes' });
-  assert.deepEqual(s.requests.find(([op]) => op === 'windows.at_point')?.[1], { point: { x: 200, y: 160 }, exclude_pids: [1, 9], layer0_only: true });
-  assert.deepEqual(s.requests.find(([op]) => op === 'ax.window_text')?.[1],
-    { pid: 800, level: 'window', window_bounds: { x: 40, y: 60, width: 900, height: 700 }, clip: rect });
-  assert.deepEqual(s.logs, ['REGION read chars=7 truncated=false']);
-  assert.deepEqual(s.posts, []);
-  s.helper['ax.window_text'] = axText('a'.repeat(SELECTION_LIMIT + 5));
-  const long = await s.c.readRegion(rect, []);
-  assert.deepEqual(long.kind === 'read' && [long.text.length, long.truncated], [SELECTION_LIMIT, true]);
-  assert.equal(s.logs.at(-1), `REGION read chars=${SELECTION_LIMIT} truncated=true`);
-});
-
-test('readRegion: no window, a blocked window, no AX and no text each say why', async () => {
-  const rect = { x: 0, y: 0, width: 50, height: 50 };
-  const cases: [Parameters<typeof setup>[0], string, string][] = [
-    [{ helper: { 'windows.at_point': ok({ window: null }) } }, '框里没有可以读的窗口', 'no_window'],
-    [{ helper: { 'windows.at_point': ok({ window: { ...NOTES, window_id: 5 } }) } }, '框里没有可以读的窗口', 'no_window'],
-    [{ helper: { 'windows.at_point': ok({ window: NOTES }) }, blacklist: parseBlacklist({ mode: 'deny', app_names: ['notes'] }) }, '这个窗口设了不读', 'blacklisted'],
-    [{ helper: { 'windows.at_point': ok({ window: NOTES }), 'attention.sample': ok({ secure_input: true }) } }, '这个窗口设了不读', 'secure_input'],
-    [{ helper: { 'windows.at_point': ok({ window: NOTES }), 'ax.window_text': axText('', { matched: false }) } },
-      '读不了这个窗口（需要辅助功能权限）', 'ax_unavailable'],
-    [{ helper: { 'windows.at_point': ok({ window: NOTES }), 'ax.window_text': err('permission_denied') } },
-      '读不了这个窗口（需要辅助功能权限）', 'ax_unavailable'],
-    [{ helper: { 'windows.at_point': ok({ window: NOTES }), 'ax.window_text': axText('焦点控件: AXTextArea\n  ') } }, '框里没有读到文字', 'ax_empty'],
-  ];
-  for (const [o, text, reason] of cases) {
-    const s = setup(o);
-    assert.deepEqual(await s.c.readRegion(rect, []), { kind: 'refused', text }, reason);
-    assert.deepEqual(s.logs, [`REGION refused reason=${reason}`], reason);
-  }
-});
-
-test('readRegion on Windows says the window could not be read, not which macOS permission is missing', async () => {
-  const s = setup({ platform: 'windows', helper: { 'windows.at_point': ok({ window: NOTES }), 'ax.window_text': err('unsupported') } });
-  assert.deepEqual(await s.c.readRegion({ x: 0, y: 0, width: 50, height: 50 }, []), { kind: 'refused', text: '读不了这个窗口的文字' });
-  assert.deepEqual(s.logs, ['REGION refused reason=ax_unavailable']);
 });

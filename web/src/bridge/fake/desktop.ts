@@ -201,6 +201,7 @@ export function createFakeDesktop(
       onRecent: (cb) => once(() => (demo() === 'console-unread' ? RECENT : RECENT.filter((r) => !r.unread)), cb),
       openAnnouncement: async () => {},
       markAllRead: async () => {},
+      notice: () => {},
       // `quickInput` sends 快速输入's opening to the subscribed pages, with the drop scope its `arg` names first, as native does.
       action: async (name, arg) => {
         if (name !== 'quickInput') return;

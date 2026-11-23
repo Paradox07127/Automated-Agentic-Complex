@@ -23,12 +23,12 @@ export const BRIDGE_OPS: readonly string[] = [
   'open.artifact', 'open.revealInFinder', 'open.jumpToSession', 'open.runFeedCommand', 'open.runInTerminal',
   'clipboard.writeText', 'logs.sources', 'logs.read', 'computerUse.state', 'computerUse.grant', 'computerUse.revoke',
   'computerUse.stop', 'computerUse.onState', 'computerUse.resume', 'computerUse.dismiss', 'computerUse.onPanel',
-  'camera.onState', 'camera.drag', 'camera.endDrag', 'camera.scroll', 'camera.magnify', 'camera.act', 'region.finish',
-  'region.cancel', 'resize.onState', 'resize.drag', 'resize.endDrag', 'resize.act', 'window.contentRect',
-  'window.setInteractiveRegions', 'window.close', 'window.requestKey', 'window.openMain', 'window.onRoute',
-  'window.onVisibility', 'window.onPointer', 'window.onAnchorState', 'window.onA11y', 'window.setContentSize',
-  'window.releaseKey', 'window.onAnchor', 'window.logInfo', 'stack.onCards', 'stack.decide', 'stack.collapse',
-  'desktop.onState', 'desktop.onPresence', 'desktop.onCommand', 'desktop.say', 'desktop.action', 'desktop.onRecent',
+  'camera.onState', 'camera.drag', 'camera.endDrag', 'camera.scroll', 'camera.magnify', 'camera.act', 'resize.onState',
+  'resize.drag', 'resize.endDrag', 'resize.act', 'window.contentRect', 'window.setInteractiveRegions', 'window.close',
+  'window.requestKey', 'window.openMain', 'window.onRoute', 'window.onVisibility', 'window.onPointer',
+  'window.onAnchorState', 'window.onA11y', 'window.setContentSize', 'window.releaseKey', 'window.onAnchor',
+  'window.logInfo', 'stack.onCards', 'stack.decide', 'stack.collapse', 'desktop.onState', 'desktop.onPresence',
+  'desktop.onCommand', 'desktop.say', 'desktop.action', 'desktop.notice', 'desktop.onRecent',
   'desktop.openAnnouncement', 'desktop.markAllRead', 'onboarding.state', 'onboarding.advance', 'onboarding.back',
   'onboarding.goto', 'onboarding.skip', 'onboarding.complete',
 ];
@@ -70,11 +70,11 @@ export const SURFACE_OPS: Readonly<Record<Surface, readonly string[]>> = {
     'voice.onPushToTalk', 'open.revealInFinder', 'open.jumpToSession', 'clipboard.writeText', 'computerUse.state',
     'computerUse.grant', 'computerUse.revoke', 'computerUse.stop', 'computerUse.onState', 'computerUse.resume',
     'computerUse.dismiss', 'computerUse.onPanel', 'camera.onState', 'camera.drag', 'camera.endDrag', 'camera.scroll',
-    'camera.magnify', 'camera.act', 'region.finish', 'region.cancel', 'resize.onState', 'resize.drag', 'resize.endDrag',
-    'resize.act', 'window.contentRect', 'window.setInteractiveRegions', 'window.close', 'window.requestKey',
-    'window.openMain', 'window.onVisibility', 'window.onPointer', 'window.onAnchorState', 'window.onA11y',
-    'window.setContentSize', 'window.releaseKey', 'window.onAnchor', 'window.logInfo', 'stack.onCards', 'stack.decide',
-    'stack.collapse', 'desktop.onState', 'desktop.onPresence', 'desktop.onCommand', 'desktop.say', 'desktop.action',
+    'camera.magnify', 'camera.act', 'resize.onState', 'resize.drag', 'resize.endDrag', 'resize.act',
+    'window.contentRect', 'window.setInteractiveRegions', 'window.close', 'window.requestKey', 'window.openMain',
+    'window.onVisibility', 'window.onPointer', 'window.onAnchorState', 'window.onA11y', 'window.setContentSize',
+    'window.releaseKey', 'window.onAnchor', 'window.logInfo', 'stack.onCards', 'stack.decide', 'stack.collapse',
+    'desktop.onState', 'desktop.onPresence', 'desktop.onCommand', 'desktop.say', 'desktop.action', 'desktop.notice',
     'desktop.onRecent', 'desktop.openAnnouncement', 'desktop.markAllRead', 'feed.unsubscribe', 'events.unsubscribe',
   ],
   onboarding: [
@@ -98,7 +98,7 @@ export const WATCH_OPS: readonly string[] = [
 /** Void ops sent without waiting for the reply. */
 export const SYNC_OPS: readonly string[] = [
   'window.setInteractiveRegions', 'window.close', 'window.requestKey', 'window.openMain', 'window.setContentSize',
-  'window.releaseKey', 'window.logInfo',
+  'window.releaseKey', 'window.logInfo', 'desktop.notice',
 ];
 
 /** Event streams; `<name>.unsubscribe` ends them. */
@@ -109,8 +109,8 @@ export const STREAM_OPS: readonly string[] = [
 /** Ops served only when the native host has a desktop. */
 export const DESKTOP_OPS: readonly string[] = [
   'window.setContentSize', 'window.releaseKey', 'window.onAnchor', 'desktop.onState', 'desktop.onPresence',
-  'desktop.onCommand', 'desktop.say', 'desktop.action', 'desktop.onRecent', 'desktop.openAnnouncement',
-  'desktop.markAllRead',
+  'desktop.onCommand', 'desktop.say', 'desktop.action', 'desktop.notice', 'desktop.onRecent',
+  'desktop.openAnnouncement', 'desktop.markAllRead',
 ];
 
 /** `'host:avatar'`: true only when the native host has an avatar; `'host:actionLoop'`: only when it lists C3 `action_loop`;

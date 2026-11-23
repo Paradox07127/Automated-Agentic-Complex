@@ -7,7 +7,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { type ChildState, stateText } from '../src/common/agentd.ts';
-import { helperMenuLine, HelperSupervisor } from '../src/main/helper/supervisor.ts';
+import { HelperSupervisor } from '../src/main/helper/supervisor.ts';
+import { processState } from '../src/main/ops/supervisor.ts';
 import { helperExecutable } from '../src/main/platform/index.ts';
 
 const sleep = (seconds: number) => new Promise((r) => setTimeout(r, seconds * 1000));
@@ -90,9 +91,9 @@ test('the helper is found where its build puts it: .build/release on macOS, .loc
   assert.equal(helperExecutable('C:\\r\\app', 'win32'), 'C:\\r\\.local\\build\\helper-windows\\ac-helper.exe');
 });
 
-test('the tray row is worded like the agentd and renderer rows', () => {
+test('desktop.onState\'s helper pip is worded like the agentd and renderer states', () => {
   assert.deepEqual([{ kind: 'stopped' }, { kind: 'running' }, { kind: 'backoff', seconds: 4 }, { kind: 'failed', reason: '找不到程序 /x' }]
-    .map((s) => helperMenuLine(s as ChildState)), ['系统助手 · 未启动', '系统助手 · 运行中', '系统助手 · 重连中 4 s', '系统助手 · 失败：找不到程序 /x']);
+    .map((s) => processState(s as ChildState, undefined).state), ['stopped', 'running', 'backoff(4)', 'failed(找不到程序 /x)']);
 });
 
 test('hello first, then requests; stop sends shutdown and the helper exits 0', async () => {
@@ -284,7 +285,7 @@ test('a protocol mismatch (exit 3) is a failure without a restart', async () => 
     assert.ok(await until(10, () => s.helper.state.kind === 'failed'), s.states.join(' '));
     await sleep(0.5);
     assert.equal(s.launches(), 1);
-    assert.equal(helperMenuLine(s.helper.state), '系统助手 · 失败：版本不符：本程序用协议 1');
+    assert.equal(processState(s.helper.state, undefined).state, 'failed(版本不符：本程序用协议 1)');
   } finally {
     await s.done();
   }
@@ -326,7 +327,7 @@ test('a missing helper is a failure that names its path', async () => {
   try {
     helper.start();
     assert.ok(await until(5, () => helper.state.kind === 'failed'));
-    assert.equal(helperMenuLine(helper.state), `系统助手 · 失败：找不到程序 ${join(dir, 'none')}`);
+    assert.equal(processState(helper.state, undefined).state, `failed(找不到程序 ${join(dir, 'none')})`);
   } finally {
     await helper.stop();
     rmSync(dir, { recursive: true, force: true });

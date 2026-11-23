@@ -2,7 +2,6 @@
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import type { AttentionSample, Rect } from '../../common/attention.ts';
-import type { RegionRead } from '../../common/handover.ts';
 import {
   type AgentdReply, contextPolicy, type LookResult, lookResult, resultText, type SelectionDecision,
 } from '../../common/screen-context.ts';
@@ -44,8 +43,6 @@ export interface ShellContext {
   look(): Promise<LookResult>;
   /** The selected text for `hotkey_selection`. */
   readSelection(): Promise<{ decision: SelectionDecision; app: string | null }>;
-  /** ContextCapturer.readRegion for 框选给她看…: `rect` in the helper's coordinates. */
-  readRegion(rect: Rect, excluding: readonly number[]): Promise<RegionRead>;
   ownCaptureRecent(): boolean;
   stop(): void;
 }
@@ -123,7 +120,6 @@ export function shellContext(o: ShellContextOptions): ShellContext | null {
       return result;
     },
     readSelection: () => capturer.readSelection(),
-    readRegion: (rect, excluding) => capturer.readRegion(rect, excluding),
     ownCaptureRecent: () => capturer.ownCaptureRecent(),
     stop: () => capturer.stop(),
   };

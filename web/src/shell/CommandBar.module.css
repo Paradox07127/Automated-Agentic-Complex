@@ -204,13 +204,6 @@
   align-items: center;
 }
 
-.tools[data-active='true'] [data-look='bar'] > button {
-  --bg: var(--ef-accent);
-  background-color: var(--ef-accent);
-  color: var(--ef-on-accent);
-  font-weight: var(--ef-fw-semibold);
-}
-
 @media (max-width: 1099px) {
   .roleName {
     display: none;

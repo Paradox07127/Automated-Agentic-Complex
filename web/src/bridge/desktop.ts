@@ -159,6 +159,8 @@ export interface DesktopOps {
    * 快速输入 in the bubble; its optional `arg`, `{"scopeId", "files"}` as JSON, opens it with that drop scope.
    */
   action(name: DesktopActionName, arg?: string): Promise<void>;
+  /** One line, at most 200 characters, that her bubble shows for a few seconds as a `notice` command. */
+  notice(text: string): void;
   /** 最近播报: the last 20 announcements, newest first. */
   onRecent(cb: (rows: RecentAnnouncement[]) => void): Unsubscribe;
   /** Marks one read and opens its session in the main window when it has one. */

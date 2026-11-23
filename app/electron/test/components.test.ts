@@ -1,5 +1,5 @@
 // C11 resolution, import and tree hash, the
-// config.json fields a packaged launch writes, the renderer's failure states and the tray's child rows (docs/components.md §5).
+// config.json fields a packaged launch writes, the renderer's failure states and each child's preflight state.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -9,11 +9,12 @@ import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { Backoff, preflightFailure } from '../src/common/agentd.ts';
 import {
-  ComponentFailure, componentPlatform, ImportFailure, menuLines, parseIndex, parseLock, parseManifest, rendererExit, rendererPreflight,
+  ComponentFailure, componentPlatform, ImportFailure, parseIndex, parseLock, parseManifest, rendererExit, rendererPreflight,
 } from '../src/common/components.ts';
 import { ConfigError, parseConfig } from '../src/common/config.ts';
 import { installComponents, prepareComponents, resolveComponents, treeHash, writeComposition } from '../src/main/components.ts';
 import { loadConfig } from '../src/main/config.ts';
+import { slotText } from '../src/main/ops/supervisor.ts';
 
 const REPO = resolve(import.meta.dirname, '../../..');
 const EXAMPLES = join(REPO, 'protocol/C11-components/examples');
@@ -299,18 +300,15 @@ test('the renderer: a missing component or library fails it, exit 78, 69 and 71 
   assert.deepEqual(rendererExit(null, 'SIGKILL', backoff), { kind: 'backoff', seconds: 2 });
 });
 
-test('the tray has a row per child, as docs/components.md §5 words them', () => {
+test('each child\'s preflight state names what is missing, as supervisor.state words it', () => {
   const stopped = { kind: 'stopped' } as const;
   const missing = (ids: Record<string, string>, extra: Record<string, unknown> = {}) => {
     const config = baseConfig({ missing_components: ids, ...extra });
-    return menuLines(config, rendererPreflight(config) ?? stopped, preflightFailure(config) ?? stopped);
+    return [rendererPreflight(config) ?? stopped, preflightFailure(config) ?? stopped].map(slotText);
   };
-  assert.deepEqual(missing({ renderer: 'componentMissing' }), ['角色 · 失败：缺 renderer 组件', '后台 · 未启动']);
-  assert.deepEqual(missing({ agentd: 'componentMissing' }), ['角色 · 未启动', '后台 · 失败：缺 agentd 组件']);
-  const tunnel = { voice_service: 'remote', tts_url: 'http://127.0.0.1:9880', tts_tunnel_host: 'gpu-box' };
-  assert.deepEqual(missing({ 'runtime.python': 'componentMissing', agentd: 'requirementUnmet' }, tunnel),
-    ['角色 · 未启动', '后台 · 失败：缺 agentd 组件', '语音隧道 · 失败：缺 runtime.python 组件']);
-  assert.deepEqual(missing({}, tunnel), ['角色 · 未启动', '后台 · 未启动', '语音隧道 · 未启动']);
+  assert.deepEqual(missing({ renderer: 'componentMissing' }), ['failed(缺 renderer 组件)', 'stopped']);
+  assert.deepEqual(missing({ agentd: 'componentMissing' }), ['stopped', 'failed(缺 agentd 组件)']);
+  assert.deepEqual(missing({ 'runtime.python': 'componentMissing', agentd: 'requirementUnmet' }), ['stopped', 'failed(缺 agentd 组件)']);
   assert.deepEqual(missing({}, { character_library_missing: ['characters.aster'] }),
-    ['角色 · 失败：没有角色库：缺 characters.aster 组件', '后台 · 失败：没有角色库：缺 characters.aster 组件']);
+    ['failed(没有角色库：缺 characters.aster 组件)', 'failed(没有角色库：缺 characters.aster 组件)']);
 });

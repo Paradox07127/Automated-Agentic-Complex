@@ -60,7 +60,6 @@ import { DesktopAssembly } from './desktop/assembly.ts';
 import { trayClick, trayClickOf } from './desktop/tray.ts';
 import { devReload } from './dev-reload.ts';
 import { devWebResponse } from './dev-web.ts';
-import { RegionSelectWindow } from './handover/region-window.ts';
 import { DropHandover, opsMotionImport } from './handover/drop.ts';
 import { shellWindowHandover } from './handover/window.ts';
 import { HotkeyRecorder } from './hotkeys/record.ts';
@@ -595,23 +594,6 @@ store?.subscribe((e) => context?.feed(e));
 /** 按住 Option 把她拖到窗口上 (handover/window.ts); none with `--no-attention`. */
 const windowHandover = config && helper ? shellWindowHandover({ argv: process.argv, helper, settings: () => readObject(configPath),
   helperY: helperYFor(shellPlatform()), mainHeight: () => screen.getPrimaryDisplay().bounds.height, desktop: () => desktop }) : null;
-/** 框选给她看…'s window (handover/region-window.ts); its BrowserWindow is made at each selection. */
-const regionWindow = new RegionSelectWindow({
-  url: `${ORIGIN}/stack.html#/region`,
-  makeWindow: () => {
-    const win = new BrowserWindow({ ...overlayOptions(), width: 100, height: 100,
-      webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false } });
-    makeOverlay(win, 'region', addon);
-    guardWebContents(win.webContents, 'stack', webGuard);
-    return win;
-  },
-  get space() { return (cursorSpace ??= c3Space(screen)); },
-  toDip: (r) => c3Dip(screen)(r), cursor: () => screen.getCursorScreenPoint(),
-  presses: (listener) => watchers?.onMouseDown(listener) ?? (() => {}),
-  register: (contents, page, panelOps) => pages.set(contents.id, { surface: 'stack', page, ops: panelOps }),
-  unregister: (id) => pages.delete(id),
-  get baseOps() { return surfaceOps('stack'); },
-});
 /** The computer control host over the helper (src/main/control/shell.ts), for agentd's desktop tools; none without `control`
  *  in the launch's plan or with `--no-attention`. */
 const control = config && helper && plan().has('control') ? shellControl({
@@ -1198,7 +1180,6 @@ app.on('will-quit', (e) => {
   cameraOverlay?.stop();
   resizeOverlay?.stop();
   titleOverlay?.stop();
-  regionWindow.stop();
   placer?.stop();
   watchers?.stop();
   recorders?.stop();
@@ -1346,9 +1327,8 @@ void app.whenReady().then(async () => {
   if (shellPlatform() === 'mac') tray.setTitle(trayTitle(config?.supportDir ?? null, DEFAULT_SUPPORT_DIR));
   const space = c3Space(screen);
   // No context menu on Windows either: with one set Electron shows it itself on a right click.
-  const click = (right: boolean, keys: { altKey?: boolean; shiftKey?: boolean }, bounds: Rectangle) => {
-    const { click: c } = trayClickOf(shellPlatform(), right, keys, bounds);
-    trayClick(c, {
+  const click = (right: boolean, keys: { altKey?: boolean }, bounds: Rectangle) => {
+    trayClick(trayClickOf(shellPlatform(), right, keys, bounds), {
       desktop, toPlacement: (b) => space.fromDip(b),
       popUpMenu: () => tray?.popUpContextMenu(Menu.buildFromTemplate(trayContextMenu(shellPlatform(), menus.state(), menus.ports()))),
       log: (line) => appendLog(config?.supportDir ?? supportDir, 'companion', line),

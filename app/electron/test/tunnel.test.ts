@@ -7,11 +7,11 @@ import { createServer, type Server } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import type { ChildState } from '../src/common/agentd.ts';
-import { menuLines } from '../src/common/components.ts';
 import type { Config } from '../src/common/config.ts';
 import { initialRuntime, reduced, runtimeJson, runtimePhase, type SlotState } from '../src/common/runtime.ts';
 import { loadConfig } from '../src/main/config.ts';
+import type { OpsContext } from '../src/main/ops/context.ts';
+import { supervisorOps } from '../src/main/ops/supervisor.ts';
 import { lsofListeners, ownSshListeners, tasklistImage, type TunnelOptions, TunnelSupervisor, tunnelArguments, tunnelPort,
   watcherArguments } from '../src/main/tunnel/supervisor.ts';
 
@@ -401,16 +401,13 @@ test('a log whose mode cannot be set fails the tunnel launch without keeping its
     }
   });
 
-test('the tray\'s 语音隧道 row shows the tunnel\'s state; external reads 沿用已有连接', () => {
-  const s = setup();
-  const stopped: ChildState = { kind: 'stopped' };
-  try {
-    assert.deepEqual(menuLines(s.config, stopped, stopped, { kind: 'external' }), ['角色 · 未启动', '后台 · 未启动', '语音隧道 · 沿用已有连接']);
-    assert.deepEqual(menuLines(s.config, stopped, stopped, { kind: 'backoff', seconds: 2 })[2], '语音隧道 · 重连中 2 s');
-    assert.deepEqual(menuLines(s.write({ tts_tunnel_host: '' }), stopped, stopped, { kind: 'running' }), ['角色 · 未启动', '后台 · 未启动']);
-  } finally {
-    s.cleanup();
-  }
+test('supervisor.state carries the tunnel\'s state while one is configured; an adopted forward reads external', () => {
+  const read = (tunnel: SlotState | null) => supervisorOps({ supervisor: { state: () => ({ kind: 'stopped' }), pid: () => undefined, restart() {},
+    avatar: () => ({ kind: 'stopped' }), tunnel: () => tunnel, tunnelPid: () => undefined } } as unknown as OpsContext)['supervisor.state']!([], undefined as never) as
+    Record<string, Record<string, unknown> | undefined>;
+  assert.equal(read({ kind: 'external' }).tunnel!.state, 'external');
+  assert.deepEqual([read({ kind: 'backoff', seconds: 2 }).tunnel!.state, read({ kind: 'backoff', seconds: 2 }).tunnel!.backoff], ['backoff(2)', 2]);
+  assert.equal(read(null).tunnel, undefined);
 });
 
 test('the runtime carries the tunnel\'s external state as `external`, which is not degraded', () => {

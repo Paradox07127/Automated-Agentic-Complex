@@ -31,7 +31,7 @@ export const MENU_STATE_DEFAULTS: MenuState = {
 };
 
 /** Features the app does not have, whose entries the menus leave out. */
-export const ABSENT_FEATURES: ReadonlySet<'freeRoam' | 'liveLog'> = new Set(['liveLog']);
+export const ABSENT_FEATURES: ReadonlySet<'freeRoam'> = new Set();
 
 /** The main window's hash routes the menus open. */
 export const MENU_ROUTES = {

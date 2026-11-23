@@ -1,7 +1,7 @@
 // The screen context capturer wired as index.ts wires it (src/main/context/shell.ts): a fake platform helper, a fake agentd
 // client, fake feed events and a fake clock. Nothing here reads the real system's windows, screen or clipboard.
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -297,20 +297,6 @@ test('the attention sampler does not count a screenshot of the context capturer 
   } finally {
     release();
     s.context!.stop();
-    s.done();
-  }
-});
-
-test('readRegion: 框选给她看\'s read goes to the capturer with the blacklist file, before agentd runs', async () => {
-  const s = setup({ settings: {}, helper: { 'windows.at_point': ok({ window: TEXTEDIT }) } });
-  try {
-    assert.deepEqual(await s.context!.readRegion({ x: 10, y: 30, width: 100, height: 40 }, [1]),
-      { kind: 'read', text: 'hello', truncated: false, app: 'TextEdit' });
-    writeFileSync(join(s.dir, 'blacklist.json'), JSON.stringify({ mode: 'deny', bundle_ids: ['com.apple.TextEdit'] }));
-    // On Windows a rewrite within one clock tick keeps the mtime the rules are cached by.
-    utimesSync(join(s.dir, 'blacklist.json'), new Date(), new Date(Date.now() + 2000));
-    assert.deepEqual(await s.context!.readRegion({ x: 10, y: 30, width: 100, height: 40 }, [1]), { kind: 'refused', text: '这个窗口设了不读' });
-  } finally {
     s.done();
   }
 });

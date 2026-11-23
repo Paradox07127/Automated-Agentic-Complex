@@ -14,7 +14,7 @@ const root = document.getElementById('root');
 if (!root) throw new Error('missing #root');
 
 // Native loads each desktop panel with its own hash path: `#/bubble`, `#/chip`, `#/dock`, `#/cmd`, `#/console`,
-// `#/computer`, `#/camera`, `#/region`, `#/resize`, `#/title`. `#/hud`, and any other path, is the stack cards' page, which
+// `#/computer`, `#/camera`, `#/resize`, `#/title`. `#/hud`, and any other path, is the stack cards' page, which
 // native no longer opens as a panel. Each panel loads only its own Root's chunk.
 const path = window.location.hash.replace(/^#/, '').split('?')[0];
 type RootModule = Promise<{ default: ComponentType }>;
@@ -28,7 +28,6 @@ const ROOTS: Record<string, () => RootModule> = {
   '/console': () => import('./surfaces/desktop/ConsoleRoot').then((m) => ({ default: m.ConsoleRoot })),
   '/computer': () => import('./surfaces/desktop/ComputerUseRoot').then((m) => ({ default: m.ComputerUseRoot })),
   '/camera': () => import('./surfaces/desktop/CameraRoot').then((m) => ({ default: m.CameraRoot })),
-  '/region': () => import('./surfaces/desktop/RegionRoot').then((m) => ({ default: m.RegionRoot })),
   '/resize': () => import('./surfaces/desktop/ResizeRoot').then((m) => ({ default: m.ResizeRoot })),
   '/title': () => import('./surfaces/desktop/TitleRoot').then((m) => ({ default: m.TitleRoot })),
 };
