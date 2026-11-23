@@ -260,7 +260,22 @@ class SemanticRouteTests(unittest.TestCase):
             self.assertEqual(self.c.semantic.run('memory_extract', '返回JSON', {})['backend'], 'codex')
         self.assertEqual([c['backend'] for c in configs], ['codex'])
         self.assertEqual(self.db.execute('SELECT purpose,outcome FROM semantic_attempts ORDER BY rowid').fetchall(),
-                         [('proactive_decide', 'failed'), ('facing_decide', 'failed'), ('memory_extract', 'succeeded')])
+                         [('memory_extract', 'succeeded')])
+
+    def test_background_work_on_pi_without_a_connection_never_starts_pi_and_leaves_no_failed_run(self):
+        # The default kernel: Pi with no provider and nothing saved under 「AI 账号」.
+        self.c.settings.save({'backend': 'pi', 'runtime_source': 'bundled'})
+        self.c.session_factory_override = None
+        with patch.object(self.c, '_pi_available', return_value=True), \
+                patch.object(self.c, '_session_factory', wraps=self.c._session_factory) as factory:
+            for purpose in ('proactive_decide', 'thought', 'memory_extract', 'observation_interpret', 'worklog_fast'):
+                with self.subTest(purpose=purpose), self.assertRaisesRegex(ValueError, '^pi_connection_missing$'):
+                    self.c.semantic.run(purpose, '返回JSON', {})
+            self.assertEqual(self.c.public()['error'], 'pi_connection_missing')
+        self.assertEqual(factory.call_count, 0)
+        # No spent background attempt and no failed run in 记忆整理 for a kernel that was never asked.
+        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM semantic_attempts').fetchone()[0], 0)
+        self.assertEqual(self.c.list_memory_runs(50), [])
 
 
 if __name__ == '__main__':

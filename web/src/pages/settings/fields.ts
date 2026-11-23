@@ -248,8 +248,15 @@ export function runtimeBody(w: WireRuntimePublic, changes: Vals, handles: Handle
   // `routes` is written whole: the changed cells over the saved rows.
   if (Object.keys(changes).some((id) => RUNTIME_FIELD[id] === 'routes')) patch.routes = routesBody({ ...runtimeVals(w), ...changes });
   // agentd refuses Codex, ACP and Claude Code with the bundled source, and an app has no local Pi; an ACP agent and Claude Code sign in by themselves.
+  // Codex takes no provider but OpenAI and no 本机无需密钥, so Pi's others are dropped.
   const implied: Record<string, unknown> =
-    patch.backend === 'acp' || patch.backend === 'claude' ? { runtime_source: 'local', auth_source: 'existing_login', provider: '' } : patch.backend ? { runtime_source: patch.backend === 'codex' ? 'local' : 'bundled' } : {};
+    patch.backend === 'acp' || patch.backend === 'claude'
+      ? { runtime_source: 'local', auth_source: 'existing_login', provider: '' }
+      : patch.backend === 'codex'
+        ? { runtime_source: 'local', ...(w.provider === 'openai' ? {} : { provider: '' }), ...(w.auth_source === 'local_no_auth' ? { auth_source: 'existing_login' } : {}) }
+        : patch.backend
+          ? { runtime_source: 'bundled' }
+          : {};
   for (const [key, v] of Object.entries(implied)) if (!(key in patch)) patch[key] = v;
   // Only DeepSeek Harness runs on another auth source than the agent's own login.
   if (patch.acp_agent != null && patch.acp_agent !== 'deepseek-harness') patch.auth_source = 'existing_login';
@@ -300,6 +307,7 @@ export const RUNTIME_ERROR: Readonly<Record<string, RuntimeError>> = {
   local_runtime_missing: { label: '没找到本机的可执行文件', fix: EXE },
   bundled_runtime_missing: { label: '应用里没有带这个内核', fix: RUNSRC_FIX },
   runtime_missing: { label: '没有安装' },
+  plugin_off: { label: '重启后台服务后才能用' },
   runtime_discovery_pending: { label: '正在检测本机的内核…' },
   runtime_probe_pending: { label: '正在检查所选的可执行文件…' },
   character_context_unavailable: { label: '角色对话还没有启动' },

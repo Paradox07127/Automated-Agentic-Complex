@@ -309,7 +309,7 @@ class SemanticTests(unittest.TestCase):
             return self.factory(definitions)
         self.c.session_factory_override = None
         with patch.dict('character_agent.integration.HARNESSES', {'pi': replace(HARNESSES['pi'], session=session)}), \
-                patch.object(self.c, '_credential', return_value='fixture-key'):
+                patch.object(self.c, '_credential', return_value='fixture-key'), patch.object(self.c, 'route_error', return_value=None):
             self.c.semantic.run('observation_brief', '返回JSON', {})
         self.assertEqual([(common['max_turns'], common['native_tools']) for common in commons],
                          [(POLICIES['observation_brief'][1], False)])

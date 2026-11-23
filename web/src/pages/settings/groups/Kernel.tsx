@@ -98,13 +98,13 @@ function KernelPick({ acp }: { acp: AcpState }) {
   const picked = list.find((r) => r.id === selected && r.id !== cur?.id && !readyOf(r)) ?? null;
   const switchTo = (id: string) => void k.onSwitch(id, list.find((x) => x.id === id)?.name ?? id);
   const othersOn = model.value(OTHERS) === true;
-  // A kernel agentd turned away for its plug-in: picking it turns the plug-in on, and it can be picked after the restart.
+  // A kernel agentd turned away for its plug-in: picking it also turns the plug-in on; it runs after the backend restart.
   const gated = (r: RuntimeInfo) => !usable(r) && r.reason === 'plugin_off' && r.id !== 'pi';
   const pick = (id: string) => {
     const r = list.find((x) => x.id === id);
     if (ro || !r || id === selected) return;
-    if (gated(r) && !othersOn) return model.set(OTHERS, true);
-    if (!usable(r)) return;
+    if (!usable(r) && !gated(r)) return;
+    if (gated(r) && !othersOn) model.set(OTHERS, true);
     // A picked executable belongs to the kernel it was picked for; agentd drops the saved one on a switch.
     model.setDraft(({ exe: _exe, ...rest }) => rest);
     model.set('kernel', id);
@@ -131,7 +131,7 @@ function KernelPick({ acp }: { acp: AcpState }) {
           {list.map((r) => {
             const on = selected === r.id;
             const bi = kernelBreak(r);
-            const status = gated(r) ? (othersOn ? '重启后台服务后可选' : '没打开，点这一行打开') : !usable(r) ? '暂不可用' : bi < 0 ? '已就绪' : (BREAK_LABEL[bi] ?? '未就绪');
+            const status = gated(r) ? (othersOn ? '重启后台服务后可用' : '没打开，点这一行打开并选用') : !usable(r) ? '暂不可用' : bi < 0 ? '已就绪' : (BREAK_LABEL[bi] ?? '未就绪');
             return (
               <TableRow key={r.id} id={r.id}>
                 <TableCell>

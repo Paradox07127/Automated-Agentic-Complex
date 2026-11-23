@@ -555,12 +555,15 @@ class CharacterAgentController:
             provider = account["backends"][provider]["pi_provider"]
         return RuntimeSettings.route(snapshot, "quick", pi_provider=provider)
 
-    def quick_status(self):
+    def _pi_backend(self):
+        """Pi's available_backends row, read without runtime discovery."""
         enabled = plugins.on("light_ai")
         available = enabled and (self.session_factory_override is not None or self._pi_available())
-        pi = {"id": "pi", "available": available, "reason": "runtime_missing" if enabled else "plugin_off"}
+        return {"id": "pi", "available": available, "reason": "runtime_missing" if enabled else "plugin_off"}
+
+    def quick_status(self):
         config = self._quick_config(self.settings.snapshot())
-        error = self._readiness(config, [pi], False, False, self.settings.error)[0]
+        error = self._readiness(config, [self._pi_backend()], False, False, self.settings.error)[0]
         return {"backend": "pi", "ready": error is None, "error": error}
 
     def available_backends(self, *, wait=True):
@@ -623,7 +626,8 @@ class CharacterAgentController:
 
     def route_error(self, config):
         """The readiness error of a routed kernel config (RuntimeSettings.route); None when it can run."""
-        return self._readiness(config, self.available_backends(), False, True)[0]
+        available = [self._pi_backend()] if config["backend"] == "pi" else self.available_backends()
+        return self._readiness(config, available, False, True)[0]
 
     def _readiness(self, config, available, pending, wait, error=None):
         """(error, selected runtime) of a kernel config as /character/runtime reports them; error None is ready."""

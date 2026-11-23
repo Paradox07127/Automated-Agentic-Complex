@@ -153,6 +153,13 @@ class SemanticService:
     def run(self, purpose, instructions, evidence, *, valid=lambda: True, image=None, validate_output=None, knowledge_service=None, character_id=None):
         if purpose not in PURPOSES: raise ValueError('invalid_semantic_purpose')
         c, s = self.controller, self.controller.server
+        # A routed kernel or Pi that cannot run is never asked, and the main kernel never stands in for a routed one: no
+        # attempt, run or journal; /character/runtime reports the error. The main CLI kernels' checks wait on discovery.
+        settings = c.settings.snapshot()
+        config = RuntimeSettings.route(settings, ROUTE[purpose])
+        if ROUTE[purpose] in settings['routes'] or config['backend'] == 'pi':
+            failure = c.route_error(config)
+            if failure: raise ValueError(failure)
         meter = s.usage or self.usage
         scheduler = self.observation_scheduler if purpose=='observation_interpret' else self.scheduler
         conversation = purpose == 'memory_extract' and isinstance(evidence,dict) and any(
@@ -197,10 +204,6 @@ class SemanticService:
             route = settings['routes'].get(ROUTE[purpose])
             config = RuntimeSettings.route(settings, ROUTE[purpose])
             if config['backend'] not in ('codex', 'pi', 'acp', 'claude'): raise ValueError('unsupported_harness')
-            # A routed kernel that cannot run fails as itself: the main kernel in its place would switch the model unseen.
-            if route is not None:
-                failure = c.route_error(config)
-                if failure: raise ValueError(failure)
             _, consent = s.sync_privacy()
             selected_character=s.character
             if character_id is not None and purpose not in ('observation_interpret', 'memory_extract'): raise ValueError('invalid_semantic_character')

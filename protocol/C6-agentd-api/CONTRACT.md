@@ -6,6 +6,10 @@
 T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全部端点见 §3 端点总表；逐条的字段和错误码见表中「规格」列指的文档；本文件的端点细则在 §2 和 §4。
 本合同版本 v1；agentd 在 `GET /health` 的回复里以 `c6_contract`（字符串 `"v1"`）报它实现的版本，`agentd --describe`（C9）也报同一个值。
 
+## 2026-11-23 后台语义任务不启动没就绪的 Pi 和用途内核
+
+- 后台语义任务走用途指定的内核或 Pi 时，先按 `/character/runtime` 的就绪判断；没就绪（如 Pi 没有连接时的 `pi_connection_missing`）就以那个错误码失败，不启动内核，不记语义尝试，不留失败的运行和记忆整理记录。状态只在 `/character/runtime` 的 `error`、`routes[*].error` 里报。
+
 ## 2026-11-23 免打扰时段改为开关加多个时段，休息、喝水提醒和收工时间不再是设置
 
 - `GET /proactive/settings` 改为 `{companion_mode, quiet_enabled, quiet_ranges}`，`PUT` 收这三个键的任意非空子集；去掉 `quiet_start`、`quiet_end`。免打扰时段只在 `quiet_enabled` 为 true 时拦主动提示，默认关。
