@@ -1,6 +1,7 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import type { MotionPlaylist } from '../../bridge';
 import { gameClips } from '../../design/gameClips.generated';
+import { Btn } from '../../ui';
 import { useGameClip } from '../../ui/fx/useGameClip';
 import { Barcode, GameSeg, MicroLabel, YellowKey } from '../../ui/game';
 import type { Setlist as SetlistState } from './useSetlist';
@@ -150,15 +151,15 @@ export function Setlist({ who, cards, list, blocked }: SetlistProps) {
                     <Barcode width={40} height={9} />
                   </span>
                   <span className={styles.mv}>
-                    <button type="button" aria-label="前移" disabled={off != null || i === 0} title={off ?? (i === 0 ? '已在最前' : '前移')} onClick={() => list.move(i, -1)}>
+                    <Btn variant="text" size="sm" label="前移" disabled={off != null || i === 0} disabledReason={off ?? '已在最前'} onClick={() => list.move(i, -1)}>
                       ◀
-                    </button>
-                    <button type="button" aria-label="后移" disabled={off != null || i === items.length - 1} title={off ?? (i === items.length - 1 ? '已在最后' : '后移')} onClick={() => list.move(i, 1)}>
+                    </Btn>
+                    <Btn variant="text" size="sm" label="后移" disabled={off != null || i === items.length - 1} disabledReason={off ?? '已在最后'} onClick={() => list.move(i, 1)}>
                       ▶
-                    </button>
-                    <button type="button" disabled={off != null} title={off ?? undefined} onClick={() => list.put(items.filter((x) => x !== c.id))}>
+                    </Btn>
+                    <Btn variant="text" size="sm" disabled={off != null} disabledReason={off ?? ''} onClick={() => list.put(items.filter((x) => x !== c.id))}>
                       移出
-                    </button>
+                    </Btn>
                   </span>
                 </li>
               );

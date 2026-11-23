@@ -30,7 +30,7 @@
   gap: 10px;
   width: var(--panel-w);
   min-width: 0;
-  color: #fff;
+  color: var(--ef-text-1);
 }
 
 @container mmd (max-width: 1100px) or (max-height: 600px) {
@@ -53,7 +53,7 @@
 .why {
   margin: 0;
   padding: 14px 16px;
-  background: rgb(46 46 46 / 86%);
-  color: #e6e6e6;
+  background: color-mix(in srgb, var(--ef-hud-row-head) 86%, transparent);
+  color: var(--ef-track-text);
   font-size: 13px;
 }

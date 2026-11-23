@@ -1,9 +1,9 @@
 import { useRef, type KeyboardEvent, type ReactNode } from 'react';
 import type { MmdEntry, MmdListResult } from '../../bridge';
 import { gameClips } from '../../design/gameClips.generated';
-import { Icon, Skel } from '../../ui';
+import { Empty, IconBtn, Skel, Tabs } from '../../ui';
 import { useGameClip } from '../../ui/fx/useGameClip';
-import { Barcode, GameTabs, MicroLabel, WhiteCapsule } from '../../ui/game';
+import { Barcode, MicroLabel, StatusLamp, WhiteCapsule } from '../../ui/game';
 import { motionImportReason } from '../character/labels';
 import styles from './Library.module.css';
 
@@ -71,11 +71,11 @@ function Lead({ state }: { state: MmdState['state'] }) {
   );
 }
 
-/** 读取失败：左缘橙色的深色条和「重试」。 */
+/** 读取失败：失败灯和原因，下面「重试」。 */
 export function LibraryError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className={styles.err} role="alert">
-      <span>{message}</span>
+      <StatusLamp onDark state="failed" label={message} />
       <WhiteCapsule label="重试" icon="refresh" onClick={onRetry} />
     </div>
   );
@@ -95,12 +95,15 @@ export function Library(p: LibraryProps) {
   if (!d) return <Skel rows={4} />;
   if (d.entries.length === 0)
     return (
-      <div className={styles.empty}>
-        <MicroLabel>NO DANCE YET</MicroLabel>
-        <span>
-          曲库里还没有舞。点右上 <b>导入 VMD</b> 选一个 VMD 动作（可附带音乐）；导入后每个角色共用，切到别的角色时会自动同步给她。
-        </span>
-      </div>
+      <Empty
+        icon="upload"
+        title="曲库里还没有舞"
+        desc={
+          <>
+            点右上 <b>导入 VMD</b> 选一个 VMD 动作（可附带音乐）；导入后每个角色共用，切到别的角色时会自动同步给她。
+          </>
+        }
+      />
     );
 
   const { ready, waiting, tabs } = counts(d.entries, p.current);
@@ -122,14 +125,15 @@ export function Library(p: LibraryProps) {
     <>
       {tabs && (
         <div className={styles.tabs}>
-          <GameTabs
+          <Tabs
             label="筛选"
+            keys={false}
             value={f}
             onChange={(v) => p.onFilter?.(v as MmdFilter)}
             tabs={[
-              { id: 'all', label: '全部', icon: 'menu', micro: 'ALL', count: d.entries.length },
-              { id: 'ready', label: '可播放', icon: 'play', micro: 'READY', count: ready },
-              { id: 'pending', label: '未就绪', icon: 'clock', micro: 'PENDING', count: waiting },
+              { id: 'all', label: '全部', count: d.entries.length },
+              { id: 'ready', label: '可播放', count: ready },
+              { id: 'pending', label: '未就绪', count: waiting },
             ]}
           />
         </div>
@@ -176,12 +180,10 @@ export function Library(p: LibraryProps) {
 /** ＋ at a row's end: puts the dance at the end of her list. */
 export function AddKey({ off, onAdd }: { off: string | null; onAdd: () => void }) {
   return (
-    <button type="button" className={styles.add} aria-label="加入演出列表" title={off ?? '加入演出列表'} disabled={off != null} onClick={onAdd}>
-      <i aria-hidden="true">
-        <Icon name="plus" size={14} />
-      </i>
+    <span className={styles.add}>
+      <IconBtn icon="plus" label="加入演出列表" shape="round" disabled={off != null} disabledReason={off ?? undefined} onClick={onAdd} />
       <MicroLabel>ADD</MicroLabel>
-    </button>
+    </span>
   );
 }
 

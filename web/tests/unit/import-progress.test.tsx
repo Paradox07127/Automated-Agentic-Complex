@@ -1,7 +1,7 @@
 // 导入进度条: character.importState/onImport drive the bar under 动作's 导入 buttons, 外观's 导入 progress card and MMD's strip; the fake pushes read … publish → reload.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge, ImportState } from '../../src/bridge/protocol';
@@ -104,11 +104,12 @@ describe('MMD section', () => {
     await mount('&view=mmd');
     const btn = (await screen.findByRole('button', { name: '导入 VMD' })) as HTMLButtonElement;
     await act(async () => sink.push({ running: true, kind: 'outfit', title: 'SummerMod', stage: 'publish', fraction: 0.9 }));
-    expect(screen.getByRole('progressbar', { name: '发布' }).getAttribute('aria-valuenow')).toBe('90');
-    expect(screen.getByRole('status', { name: 'MMD 导入' }).textContent).toContain('正在导入「SummerMod」');
+    const strip = screen.getByRole('status', { name: 'MMD 导入' });
+    expect(within(strip).getByRole('progressbar').getAttribute('aria-valuenow')).toBe('90');
+    expect(strip.textContent).toContain('正在导入「SummerMod」发布');
     expect(btn.disabled).toBe(true);
     await act(async () => sink.push(IDLE));
-    expect(screen.queryByRole('progressbar', { name: '发布' })).toBeNull();
+    expect(screen.queryByRole('status', { name: 'MMD 导入' })).toBeNull();
   });
 });
 

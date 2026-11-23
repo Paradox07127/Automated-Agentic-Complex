@@ -118,7 +118,7 @@ describe('MMD library', () => {
     await mount();
     await waitFor(() => expect(item('mmd_c')).not.toBeNull());
     const tabs = screen.getByRole('tablist', { name: '筛选' });
-    expect(within(tabs).getAllByRole('tab').map((t) => t.textContent)).toEqual(['全部3ALL', '可播放1READY', '未就绪2PENDING']);
+    expect(within(tabs).getAllByRole('tab').map((t) => t.textContent)).toEqual(['全部[3]', '可播放[1]', '未就绪[2]']);
     await click(within(tabs).getByRole('tab', { name: /可播放/ }));
     expect([item('mmd_a'), item('mmd_b'), item('mmd_c')].map((e) => e != null)).toEqual([true, false, false]);
     await click(within(tabs).getByRole('tab', { name: /未就绪/ }));
@@ -157,11 +157,12 @@ describe('MMD library', () => {
     expect(screen.queryByRole('status', { name: 'MMD 同步' })).toBeNull();
     await act(async () => push({ running: true, character: 'si', total: 3, done: 1, failed: 0, stage: null, fraction: 1 / 3 }));
     const strip = screen.getByRole('status', { name: 'MMD 同步' });
-    const bar = within(strip).getByRole('progressbar', { name: '准备中 1/3' });
+    const bar = within(strip).getByRole('progressbar');
     expect(bar.getAttribute('aria-valuenow')).toBe('33');
-    expect(strip.textContent).toBe('同步曲库到 示例乙准备中SYNC1/333%');
+    expect(strip.textContent).toBe('同步曲库到 示例乙准备中SYNC1/3正在载入33%');
     await act(async () => push({ running: true, character: 'si', total: 3, done: 2, failed: 0, stage: 'write', fraction: 0.7 }));
-    expect(screen.getByRole('progressbar', { name: '写入角色包 2/3' }).getAttribute('aria-valuenow')).toBe('70');
+    expect(strip.textContent).toContain('写入角色包SYNC2/3');
+    expect(within(strip).getByRole('progressbar').getAttribute('aria-valuenow')).toBe('70');
     const lists = list.mock.calls.length;
     const reads = actions.mock.calls.length;
     await act(async () => push({ running: false, character: null, total: 0, done: 0, failed: 0, stage: null, fraction: 0 }));

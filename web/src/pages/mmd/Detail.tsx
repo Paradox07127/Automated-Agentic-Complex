@@ -1,6 +1,6 @@
 import type { CharacterEntry, MmdEntry } from '../../bridge';
-import { Icon } from '../../ui';
-import { GameSeg, MicroLabel, WhiteCapsule } from '../../ui/game';
+import { Btn } from '../../ui';
+import { GameSeg, MicroLabel, StatusLamp, WhiteCapsule } from '../../ui/game';
 import { motionImportReason } from '../character/labels';
 import { stateOf } from './Library';
 import styles from './Detail.module.css';
@@ -59,16 +59,12 @@ export function Detail(p: DetailProps) {
           </span>
         )}
         <span className={styles.sp} />
-        <button type="button" className={styles.key} disabled={p.editOff != null} title={p.editOff ?? '改名'} onClick={p.onRename}>
-          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
-            <path d="m10.6 1.6 3.8 3.8-8.6 8.6H2v-3.8zM3.6 10.9v1.5h1.5l6.9-6.9-1.5-1.5z" fill="currentColor" />
-          </svg>
+        <Btn variant="secondary" icon="g-rename" label="改名" disabled={p.editOff != null} disabledReason={p.editOff ?? ''} onClick={p.onRename}>
           <Txt>改名</Txt>
-        </button>
-        <button type="button" className={styles.key} disabled={p.editOff != null} title={p.editOff ?? '删除'} onClick={p.onRemove}>
-          <Icon name="del" size={14} />
+        </Btn>
+        <Btn variant="secondary" icon="del" label="删除" disabled={p.editOff != null} disabledReason={p.editOff ?? ''} onClick={p.onRemove}>
           <Txt>删除</Txt>
-        </button>
+        </Btn>
       </div>
       {p.others.length > 0 && (
         <div className={styles.others}>
@@ -83,8 +79,8 @@ export function Detail(p: DetailProps) {
                     {c.head && <img src={c.head} alt="" onError={(ev) => void (ev.currentTarget.hidden = true)} />}
                   </span>
                   <span className={styles.chn}>{c.name}</span>
-                  {s.state === 'pending' && <span>待同步</span>}
-                  {why && <span className={styles.r}>{why}</span>}
+                  {s.state === 'pending' && <StatusLamp onDark state="pending" label="待同步" />}
+                  {why && <StatusLamp onDark state="failed" label={why} />}
                 </li>
               );
             })}

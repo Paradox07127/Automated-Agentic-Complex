@@ -75,7 +75,7 @@ describe('MMD list', () => {
     expect(row('mmd_a').textContent).toContain('01');
     expect(row('mmd_b').textContent).toContain('02');
     expect(row('mmd_a').textContent).toContain('舞蹈甲');
-    expect((within(row('mmd_a')).getByRole('button', { name: '前移' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(within(row('mmd_a')).getByRole('button', { name: '前移' }).getAttribute('aria-disabled')).toBe('true');
     await click(within(row('mmd_b')).getByRole('button', { name: '前移' }));
     expect(set).toHaveBeenLastCalledWith({ items: ['mmd_b', 'mmd_a'], loop: 'off', speed: 1 });
     await click(within(screen.getByRole('radiogroup', { name: '循环' })).getByRole('radio', { name: '全部' }));
