@@ -128,6 +128,36 @@
   text-overflow: ellipsis;
 }
 
+/* A readout that opens what it counts: the cell is its button, the ⓘ stays above it; hover and press lighten the cell. */
+.hit {
+  all: unset;
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+}
+
+.hit:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: -2px;
+}
+
+.ro:has(> .hit) {
+  transition: background-color var(--ef-dur-g-btn) linear;
+}
+
+.ro:has(> .hit:hover) {
+  background: color-mix(in srgb, var(--ef-text-1) 5%, transparent);
+}
+
+.ro:has(> .hit:active) {
+  background: color-mix(in srgb, var(--ef-text-1) 9%, transparent);
+}
+
+.k [data-stub='InfoTip'] {
+  position: relative;
+  z-index: 1;
+}
+
 .ro[data-err]::before {
   background: var(--ef-danger-text);
 }
@@ -143,6 +173,14 @@
 
 .rows [data-err] {
   box-shadow: inset 3px 0 0 var(--ef-danger-text);
+}
+
+/* An error row, then its run's jump to 诊断 when it has one. */
+.er {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--ef-sp-8);
+  align-items: center;
 }
 
 /* Yesterday's observation brief: three counts in wells, then its first detail as a quote. */

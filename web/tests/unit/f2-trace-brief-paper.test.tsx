@@ -125,7 +125,7 @@ describe('每日简报 明细 star', () => {
   it('is the star icon, yellow when on', async () => {
     const bridge = createFakeBridge({ surface: 'main', still: true });
     const day = (await bridge.agentd.request<BriefDay>('GET', '/brief/day?date=2026-11-20')).body!;
-    render(<DetailTab day={day} pins={ITEM_ORDER.slice(0, 2)} onPins={() => {}} go={() => {}} />);
+    render(<DetailTab day={day} pins={ITEM_ORDER.slice(0, 2)} onPins={() => {}} go={() => {}} links={{}} />);
     const on = screen.getAllByRole('button', { name: /^从总览拿掉：/ })[0]!;
     expect(on.querySelector('[data-icon="star"]')).not.toBeNull();
     expect(read('pages/overview/DetailTab.module.css')).toMatch(/\.star[^{]*\[aria-pressed='true'\][^{]*\{[^}]*--plate:\s*var\(--ef-accent\)/);

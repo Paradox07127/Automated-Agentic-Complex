@@ -4,6 +4,12 @@ import { DEFAULT_PINS, ITEM_ORDER, type BriefDay, type BriefItemId } from './bri
 
 export type BriefTab = 'ov' | 'her' | 'tm' | 'dt';
 
+/** Where a readout leads: `open` shows the items it counts, `to` ends its button's name. */
+export interface ItemLink {
+  open: () => void;
+  to: string;
+}
+
 export interface BriefTabProps {
   day: BriefDay;
   /** 星标项，最多 6 个，按星标先后。 */
@@ -11,6 +17,8 @@ export interface BriefTabProps {
   onPins: (next: BriefItemId[]) => void;
   /** 跳到另一个页签，例如总览里「看她这一天」。 */
   go: (tab: BriefTab) => void;
+  /** Readouts that open what they count; one without a link stays a figure. */
+  links: Partial<Record<BriefItemId, ItemLink>>;
 }
 
 const KEY = 'brief.pins';

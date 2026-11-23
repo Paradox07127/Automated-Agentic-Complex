@@ -28,7 +28,7 @@ describe('native focus and reminder landing', () => {
     const day = (await bridge.agentd.request<BriefDay>('GET', '/brief/day?date=2026-11-20')).body!;
     const { container } = render(
       <QueryClientProvider client={new QueryClient()}>
-        <OverviewTab day={day} pins={DEFAULT_PINS} onPins={() => {}} go={() => {}} isToday line={undefined} pending={null} running={null} done={undefined} convs={undefined} reminders={[]} onTask={() => {}} goPage={() => {}} />
+        <OverviewTab day={day} pins={DEFAULT_PINS} onPins={() => {}} go={() => {}} links={{}} isToday line={undefined} pending={null} running={null} done={undefined} convs={undefined} reminders={[]} onTask={() => {}} goPage={() => {}} />
       </QueryClientProvider>,
     );
     expect(container.querySelector('[data-nav-target="reminders"]')?.getAttribute('aria-label')).toBe('提醒');

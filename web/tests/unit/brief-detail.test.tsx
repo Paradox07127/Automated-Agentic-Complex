@@ -14,7 +14,7 @@ const read = async (sw?: string) => {
 
 const show = (day: BriefDay, pins: BriefItemId[] = DEFAULT_PINS) => {
   const onPins = vi.fn();
-  render(<DetailTab day={day} pins={pins} onPins={onPins} go={() => {}} />);
+  render(<DetailTab day={day} pins={pins} onPins={onPins} go={() => {}} links={{}} />);
   return onPins;
 };
 

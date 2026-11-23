@@ -1,4 +1,5 @@
 // 明细：开着的项一行一个（星标、名牌、每小时走势、今天和对比值），关着的项在列表下合成一行，底部排序和对比两个下拉。
+// 有去处的一行整行可点，和总览读数去同一处。
 import { useState } from 'react';
 import { appNow } from '../../bridge/clock';
 import { Btn, IconBtn, Select } from '../../ui';
@@ -56,7 +57,7 @@ function Trend({ id, item, lim }: { id: BriefItemId; item: BriefItem; lim: numbe
   );
 }
 
-export function DetailTab({ day, pins, onPins }: BriefTabProps) {
+export function DetailTab({ day, pins, onPins, links }: BriefTabProps) {
   const go = useGo();
   const [sort, setSort] = useState<Sort>('def');
   const [cmp, setCmp] = useState<Cmp>('avg');
@@ -102,8 +103,10 @@ export function DetailTab({ day, pins, onPins }: BriefTabProps) {
           const meta = ITEMS[id];
           const pinned = pins.includes(id);
           const ref = refOf(id);
+          const link = links[id];
           return (
             <li key={id} className={styles.it} data-pinned={pinned || undefined}>
+              {link && <button type="button" className={styles.hit} aria-label={`${meta.name} ${plain(id, it.today)}，${link.to}`} onClick={link.open} />}
               <div className={styles.nm}>
                 <span className={styles.star}>
                   <IconBtn

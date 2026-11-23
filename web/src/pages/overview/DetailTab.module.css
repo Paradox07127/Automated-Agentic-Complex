@@ -35,9 +35,36 @@
 }
 
 .it {
+  position: relative;
   display: grid;
   grid-template-columns: var(--dt-cols);
   min-height: 66px;
+}
+
+/* A row that opens what it counts: the row is its button, the star stays above it; hover and press lighten the row. */
+.hit {
+  all: unset;
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  cursor: pointer;
+}
+
+.hit:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: 2px;
+}
+
+.it:has(> .hit) {
+  transition: filter var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+}
+
+.it:has(> .hit:hover) {
+  filter: brightness(1.06);
+}
+
+.it:has(> .hit:active) {
+  filter: brightness(1.12);
 }
 
 .nm {
@@ -53,6 +80,8 @@
 
 /* The pin badge over the plate's left edge, ringed in the page ground. */
 .star {
+  position: relative;
+  z-index: 2;
   display: grid;
   place-items: center;
   justify-self: start;

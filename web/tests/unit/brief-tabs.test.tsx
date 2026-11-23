@@ -33,7 +33,7 @@ const routed = (tab: ReactNode) => {
     </QueryClientProvider>,
   );
 };
-const props = (day: BriefDay): BriefTabProps => ({ day, pins: DEFAULT_PINS, onPins: () => {}, go: () => {} });
+const props = (day: BriefDay): BriefTabProps => ({ day, pins: DEFAULT_PINS, onPins: () => {}, go: () => {}, links: {} });
 const panel = (name: string) => screen.queryByRole('region', { name });
 
 describe('brief her tab', () => {

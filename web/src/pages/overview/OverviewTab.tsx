@@ -1,5 +1,6 @@
 // 每日简报 › 总览：今日一句、6 项读数（和近 7 天比在 ⓘ 里），左栏待批准（今天）、做完了和聊了什么，右栏在做（今天）、提醒和前一天的观察日报（关着时换成她这一天的一句）。
 // 做完了、聊了什么、观察日报和已提醒的提醒是折叠段，默认收起；有出错时自动打开。
+// 读数点开它数的那些：出错是这一天的出错列表，其余去各自的页面或页签。
 import { useState, type ReactNode } from 'react';
 import { formatClock } from '../../domain';
 import type { Task } from '../../domain/work';
@@ -10,7 +11,7 @@ import { ITEMS, readouts, type ItemMeta } from './briefDay';
 import type { BriefTabProps } from './briefTabs';
 import type { Reminder } from './load';
 import type { DayConv } from './loadBrief';
-import type { Go } from './nav';
+import type { Go, NavTarget } from './nav';
 import s from './OverviewTab.module.css';
 import type { DayLine } from './today';
 
@@ -113,6 +114,57 @@ function ObsBrief({ date }: { date: string }) {
   );
 }
 
+/** One error of the day: a failed task, or a failed turn of today. */
+export interface DayError {
+  id: string;
+  at: number;
+  /** 角色任务, 编码任务, the coding tool, or 对话. */
+  source: string;
+  title: string;
+  /** Why it failed, when the overview has read it. */
+  reason: string | null;
+  /** The task, or the turn in 诊断. */
+  open: NavTarget;
+  /** The task's run in 诊断 › 对话轮次. */
+  trace: string | null;
+}
+
+/** The day's 出错 in a sheet, newest first: a row opens its task or turn; a task with a run also opens that run. */
+export function ErrorSheet({ rows, isToday, go, onClose }: { rows: DayError[] | undefined; isToday: boolean; go: Go; onClose: () => void }) {
+  return (
+    <Sheet open title="出错" width={480} onClose={onClose}>
+      <Region q={{ status: rows ? 'success' : 'pending', data: rows }} what="出错" reserve={{ rows: 3 }} empty={{ text: isToday ? '今天没有出错' : '那天没有出错' }}>
+        {(list) => (
+          <div className={s.rows}>
+            {list.map(({ id, trace, ...e }) => (
+              <div key={id} className={s.er}>
+                <Row
+                  height="compact"
+                  category={e.open.page === 'tasks' ? 'mission' : 'neutral'}
+                  title={e.title}
+                  sub={
+                    <>
+                      <span className="num">{formatClock(e.at)}</span> │ {e.source}
+                      {e.reason && ` │ ${e.reason}`}
+                    </>
+                  }
+                  data-err
+                  onClick={() => go(e.open)}
+                />
+                {trace && (
+                  <Btn size="sm" variant="text" onClick={() => go({ page: 'diag', tab: 'turns', turn: trace })}>
+                    对话轮次 ›
+                  </Btn>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Region>
+    </Sheet>
+  );
+}
+
 const KIND: Record<'self' | 'reply' | 'miss', string> = { self: '主动', reply: '回你', miss: '没回' };
 
 const reminderRow = (r: Reminder) => <Row key={r.id} height="compact" title={r.title} sub={r.triggered ? '已提醒' : '还没到'} right={<span className="num">{formatClock(r.due_at)}</span>} />;
@@ -141,8 +193,10 @@ export function OverviewTab(p: OverviewTabProps) {
           const meta = ITEMS[id];
           const it = day.items[id];
           const diff = it.avg7 == null ? null : it.today - it.avg7;
+          const link = p.links[id];
           return (
             <li key={id} className={s.ro} data-item={id} data-err={(id === 'err' && it.today > 0) || undefined}>
+              {link && <button type="button" className={s.hit} aria-label={`${meta.name} ${amountText(meta, it.today)}，${link.to}`} onClick={link.open} />}
               <span className={`${s.v} num`}>{amount(meta, it.today)}</span>
               <span className={s.k}>
                 <span className={s.kn}>{meta.name}</span>

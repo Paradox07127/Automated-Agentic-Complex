@@ -93,7 +93,7 @@ describe('每日简报: shared components', () => {
     const bridge = createFakeBridge({ surface: 'main', still: true });
     const day = (await bridge.agentd.request<BriefDay>('GET', '/brief/day?date=2026-11-20')).body!;
     const pins = ITEM_ORDER.slice(0, 6);
-    render(<DetailTab day={day} pins={pins} onPins={noop} go={noop} />);
+    render(<DetailTab day={day} pins={pins} onPins={noop} go={noop} links={{}} />);
     const star = screen.getAllByRole('button', { name: /^放进总览：/ })[0]!;
     expect(star.getAttribute('data-stub')).toBe('IconBtn');
     expect(star.getAttribute('data-shape')).toBe('round');
