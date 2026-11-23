@@ -401,7 +401,7 @@ const preview = (() => {
       hiddenLayers: hostLink.hiddenLayers }),
     library: async (id) => (catalog ? loadMotionLibrary(catalog, id) : null),
     modSettings: (id) => looks?.modSettings(id) ?? {},
-    renderArgs: () => lookArguments(readObject(configPath)),
+    renderArgs: () => [...lookArguments(readObject(configPath)), '--agentic-complex-scene-stage', 'charinfo'],
   });
 })();
 /** The renderer restart after a package write; the preview keeps each action's old bundle until told. */
