@@ -79,24 +79,6 @@
   box-shadow: 0 6px 8px -2px rgb(0 0 0 / 18%);
 }
 
-/* Orange corner diamonds (common red-dot shape) on the plate's two top corners. */
-.dia {
-  position: absolute;
-  top: -5px;
-  width: 10px;
-  height: 10px;
-  background: var(--ef-g-reddot);
-  transform: rotate(45deg);
-}
-
-.dia[data-side='l'] {
-  left: -5px;
-}
-
-.dia[data-side='r'] {
-  right: -5px;
-}
-
 .ic {
   display: grid;
   flex: none;

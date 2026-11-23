@@ -17,7 +17,7 @@ export interface GameTab {
   changed?: boolean;
 }
 
-/** 页面页签条（游戏 CharInfo 档案页）：每格「图标 │ 标签」；未选浅灰半透明加细斜纹，选中深灰、竖分隔变黄、两个上角橙色菱形；条下白线右端一段黄。←→ Home End 切换。 */
+/** 页面页签条（游戏 CharInfo 档案页）：每格「图标 │ 标签」；未选浅灰半透明加细斜纹，选中深灰、竖分隔变黄；条下白线右端一段黄。←→ Home End 切换。 */
 export interface GameTabsProps {
   tabs: GameTab[];
   /** 当前页签 id */
@@ -37,7 +37,7 @@ const STEP: Record<string, (i: number, n: number) => number> = {
   End: (_, n) => n - 1,
 };
 
-// btnprofiletab_open / _close: the dark plate grows rightwards from 143 px short of the cell (the 6 px keep the corner diamonds).
+// btnprofiletab_open / _close: the dark plate grows rightwards from 143 px short of the cell.
 const SHUT = 'inset(-6px 143px -6px -6px)';
 const FULL = 'inset(-6px)';
 const EXIT = 'cubic-bezier(1, 0, 0.667, 1)';
@@ -132,10 +132,7 @@ export function GameTabs({ tabs, value, label, tail, onChange }: GameTabsProps) 
               onClick={() => go(i, false)}
             >
               {(on || t.id === leaving) && (
-                <span className={styles.plate} data-g={on ? 'slc' : undefined} data-leaving={on ? undefined : ''} aria-hidden="true">
-                  <i className={styles.dia} data-side="l" />
-                  <i className={styles.dia} data-side="r" />
-                </span>
+                <span className={styles.plate} data-g={on ? 'slc' : undefined} data-leaving={on ? undefined : ''} aria-hidden="true" />
               )}
               <span className={styles.ic} data-g={on ? 'slcIcon' : undefined}>
                 <Icon name={t.icon} size={20} />

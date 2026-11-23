@@ -41,6 +41,11 @@ describe('GameTabs', () => {
     expect(mod.textContent).toContain('9');
   });
 
+  it('the selected plate carries no corner marks, a changed tab included: those are for notices', () => {
+    render(<GameTabs label="t" tabs={tabs} value="mod" />);
+    expect(screen.getByRole('tab', { name: '模组设置' }).querySelectorAll('[data-side]')).toHaveLength(0);
+  });
+
   it('clicking the current tab does not report a change', () => {
     const onChange = vi.fn();
     render(<GameTabs label="t" tabs={tabs} value="look" onChange={onChange} />);
