@@ -445,6 +445,15 @@ class GateDaemonTest(unittest.TestCase):
         self.daemon.link(wt)
         self.assertEqual((wt / 'private').resolve(), self.repo / 'private')
 
+    def test_link_gives_the_whole_fixed_library_when_the_profile_names_it(self):
+        self.write('private/release/release.json', json.dumps(dict(character_catalog='.local/library/current.json', ui_art=None, photo_looks=None)))
+        (self.repo / '.local/library/packages/si').mkdir(parents=True)
+        wt = self.tmp / 'library-wt'
+        self.git('worktree', 'add', '-q', '--detach', str(wt), 'main')
+        self.daemon.link(wt)
+        self.assertEqual(os.readlink(wt / '.local/library'), str(self.repo / '.local/library'))
+        self.assertTrue((wt / '.local/library/packages/si').is_dir())
+
     def test_link_without_a_local_profile_takes_only_what_the_public_profile_names(self):
         wt = self.tmp / 'public-wt'
         self.git('worktree', 'add', '-q', '--detach', str(wt), 'main')

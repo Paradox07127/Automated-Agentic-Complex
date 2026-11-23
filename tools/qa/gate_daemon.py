@@ -263,7 +263,8 @@ class Daemon:
         # Read after the link: the local profile is private/release/release.json.
         profile = json.loads(default_profile(checkout).read_text())
         for path in [profile['character_catalog'], profile.get('ui_art'), profile.get('photo_looks')]:
-            if path: names.append(str(Path(*Path(path).parts[:3])))
+            # A build output's whole .local/output/<name>, else its top directory (.local/library).
+            if path: names.append(str(Path(*Path(path).parts[:3 if Path(path).parts[1] == 'output' else 2])))
         receipts = checkout / RECEIPTS
         if receipts.is_dir() and not receipts.is_symlink():
             # A checkout from before the link: move its per-run receipts into the main store, then link.
