@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getBridge } from '../../bridge';
+import type { ServiceId } from '../../bridge/protocol';
 import { formatClock } from '../../domain';
 import { navigate } from '../../shell/nav';
 import type { PushToast } from '../../shell/toast';
@@ -18,6 +19,9 @@ const LOG_OF: Record<ProcessKey, string> = { agentd: 'agentd', avatar: 'avatar',
 
 /** 查看日志 opens that process's log on the 日志 tab. */
 export const viewLogs = (key: ProcessKey) => navigate({ page: 'diag', tab: 'logs', src: LOG_OF[key] });
+
+/** A service's row in 设置 › 服务. */
+export const serviceSettings = (key: ServiceId) => navigate({ page: 'settings', group: 'services', item: `svc_${key}` });
 
 export const CONFIRM: Record<RestartTarget, { title: string; note: string; danger: boolean; label: string }> = {
   all: { title: '全部重启？', note: '依次重启 Companion、后台服务和角色。进行中的任务会中断，重启后不会自动重跑。', danger: true, label: '全部重启' },

@@ -1,6 +1,7 @@
 import { formatClock } from '../../domain';
 import { isoToMsOrNull } from '../../domain/units';
-import { KV } from '../../ui';
+import { navigate } from '../../shell/nav';
+import { Btn, KV } from '../../ui';
 import type { WireDiagState } from '../../domain/wire';
 import { stateWord } from '../character/labels';
 import { BEHAVIOR, JUDGE_BACKEND } from './model';
@@ -62,7 +63,21 @@ export function NowPanel({ d }: NowPanelProps) {
             key: '嘴和声音',
             value: `${mv.mouth === 'busy' ? '在说' : '闲着'} │ ${mv.voice ? (VOICE[mv.voice] ?? mv.voice) : '没有语音'}${mv.muted ? ' │ 已静音' : ''}${mv.avatar_visible ? '' : ' │ 角色隐藏'}`,
           },
-          ...(mv.speech_failed ? [{ key: '上次没说出口', value: speechFailed(mv.speech_failed) }] : []),
+          ...(mv.speech_failed
+            ? [
+                {
+                  key: '上次没说出口',
+                  value: (
+                    <>
+                      {speechFailed(mv.speech_failed)}{' '}
+                      <Btn size="sm" variant="text" go onClick={() => navigate({ page: 'settings', group: 'speak', item: 'tts' })}>
+                        前往设置
+                      </Btn>
+                    </>
+                  ),
+                },
+              ]
+            : []),
           { key: '身体', value: [d.body.activity && (BEHAVIOR[d.body.activity] ?? '其他动作'), mood, running && `在做 ${running}`].filter(Boolean).join(' │ ') || null },
           {
             key: '主动判断',

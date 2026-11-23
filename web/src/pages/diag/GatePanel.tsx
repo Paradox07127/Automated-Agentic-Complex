@@ -3,6 +3,8 @@ import { BracketMeter, CountdownRing } from '../../charts';
 import { formatDuration, type Cooldown, type WireDiagGate } from '../../domain';
 import { secToMs } from '../../domain/units';
 import { useDevMode } from '../../shell/devMode';
+import { navigate, type NavTarget } from '../../shell/nav';
+import { Btn } from '../../ui';
 import { MicroLabel, StatusLamp } from '../../ui/game';
 import { readProactiveStats, type ProactiveStats } from '../settings/api';
 import styles from './State.module.css';
@@ -13,6 +15,8 @@ export interface GatePanelProps {
 }
 
 const STATS_REFRESH_MS = 60_000;
+/** The row that turns proactive speech back on. */
+export const SPEAK_WHEN: NavTarget = { page: 'settings', group: 'speak', item: 'speakWhen' };
 
 /** What currently holds proactive speech back (gate switches and the shared cooldown); empty when nothing does. */
 export function gateHolds(g: WireDiagGate): string[] {
@@ -70,6 +74,11 @@ export function GatePanel({ cooldowns, gate }: GatePanelProps) {
         <div key={k} className={styles.gr}>
           <span className={styles.k}>{k}</span>
           <StatusLamp state={ok ? 'ok' : 'warning'} label={ok ? yes : no} />
+          {k === '主动发言开关' && !ok && (
+            <Btn size="sm" go onClick={() => navigate(SPEAK_WHEN)}>
+              前往设置
+            </Btn>
+          )}
         </div>
       ))}
       {cooldowns.map((c) => (

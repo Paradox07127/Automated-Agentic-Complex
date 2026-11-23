@@ -26,10 +26,12 @@ export interface ProcRowProps {
   highlight: boolean;
   onLogs: () => void;
   onRestart: () => void;
+  /** Opens the settings row that fixes the process; absent when nothing there needs fixing. */
+  onFix?: (() => void) | undefined;
 }
 
 /** One process as a statistic row: dark name plate │ curve since the page opened with its two threshold lines │ CPU and memory │ 日志, 重启. */
-export function ProcRow({ p, metric, samples, now, uptime, stale, action, highlight, onLogs, onRestart }: ProcRowProps) {
+export function ProcRow({ p, metric, samples, now, uptime, stale, action, highlight, onLogs, onRestart, onFix }: ProcRowProps) {
   const lim = LIMITS[p.key];
   const [warn, bad] = lim[metric];
   const pts = samples.map((s) => [s.at, (metric === 'cpu' ? s.cpu : s.mem)[p.key] ?? null] as const);
@@ -93,6 +95,11 @@ export function ProcRow({ p, metric, samples, now, uptime, stale, action, highli
         <Btn size="sm" icon="file" onClick={onLogs}>
           日志
         </Btn>
+        {onFix && (
+          <Btn size="sm" go onClick={onFix}>
+            前往设置
+          </Btn>
+        )}
         {p.restartable && (
           <Btn size="sm" variant="secondary" icon="refresh" disabled={busy} disabledReason="正在重启" onClick={onRestart}>
             重启

@@ -24,10 +24,12 @@ export interface ResourcesProps {
   /** avatar.details: renderer, quality and the host's last error. */
   details: AvatarDetails | null;
   onProc: () => void;
+  /** The 角色 log on 日志. */
+  onLogs?: () => void;
 }
 
 /** 渲染：the frame readings large, frame rate and frame time over the last minute side by side, then the host's details. */
-export function Resources({ samples, renderWhy, details, onProc }: ResourcesProps) {
+export function Resources({ samples, renderWhy, details, onProc, onLogs }: ResourcesProps) {
   // The readouts take a new sample at most once a second; the charts draw every one.
   const cur = useThrottled([...samples].reverse().find((s) => s.fps != null) ?? null);
   const over = overBudget(samples);
@@ -128,7 +130,17 @@ export function Resources({ samples, renderWhy, details, onProc }: ResourcesProp
                 items={[
                   { key: '描边', value: p?.outline ?? null },
                   { key: '暂停', value: p ? (p.suspended != null ? suspendedText(p.suspended) : '没有') : null },
-                  { key: '上次出错', value: p?.error ?? (p ? '没有' : null) },
+                  {
+                    key: '上次出错',
+                    value: p?.error && onLogs ? (
+                      <>
+                        {p.error}{' '}
+                        <Btn size="sm" variant="text" go onClick={onLogs}>
+                          日志
+                        </Btn>
+                      </>
+                    ) : (p?.error ?? (p ? '没有' : null)),
+                  },
                 ]}
               />
             </div>

@@ -27,7 +27,8 @@ import { DEFAULT_LEVELS, filledSources, type LogFilters, LogView, shownLines } f
 import { buildTurn } from './steps';
 import { TurnDetail } from './TurnDetail';
 import { TurnList, visibleTurns } from './TurnList';
-import { LEVEL_NAME, LOG_IDS, LOG_NAME, useLogs } from './useLogs';
+import { logReport } from './logReport';
+import { LOG_IDS, useLogs } from './useLogs';
 import bs from './Bars.module.css';
 import t from './Trace.module.css';
 
@@ -130,6 +131,7 @@ export function TraceView({ tab, tabs }: TraceViewProps) {
   });
 
   const logs = useLogs(true, tab === 'logs' && !still);
+  const app = useQuery({ queryKey: ['diag', 'app'], queryFn: () => getBridge().app.info(), enabled: tab === 'logs', retry: false });
   const [f, setF] = useState<LogFilters>(() => ({ on: isLogId(srcParam) ? [srcParam] : null, levels: DEFAULT_LEVELS, q: '', win: null, follow: true, pausedAt: 0 }));
   const onF = useCallback((patch: Partial<LogFilters>) => setF((x) => ({ ...x, ...patch })), []);
   useEffect(() => {
@@ -148,9 +150,7 @@ export function TraceView({ tab, tabs }: TraceViewProps) {
   const reveal = () => {
     getBridge().app.action('reveal_logs').then(() => toast(revealText('已在 Finder 中显示日志文件'))).catch(() => toast('显示日志失败', { severity: 'danger' }));
   };
-  const selectedText = () =>
-    logs.lines.filter((l) => sel.has(l.key)).map((l) => [`${l.at != null ? new Date(l.at).toISOString() : '—'} ${LOG_NAME[l.source]} ${LEVEL_NAME[l.level]} ${l.text}`, ...l.more].join('\n')).join('\n');
-  const copySel = () => sel.size > 0 && copy(selectedText(), `已复制 ${sel.size} 行`);
+  const copySel = () => sel.size > 0 && copy(logReport(logs.lines.filter((l) => sel.has(l.key)), app.data ?? null), `已复制 ${sel.size} 行`);
 
   const start = selRow ? isoToMs(selRow.started_at) : 0;
   const win = selRow ? { no, t0: start - 2000, t1: start + selRow.duration_ms + 3000 } : null;
@@ -204,6 +204,12 @@ export function TraceView({ tab, tabs }: TraceViewProps) {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'c' && tab === 'logs' && sel.size && !window.getSelection()?.toString()) {
       e.preventDefault();
       copySel();
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'a' && tab === 'logs') {
+      e.preventDefault();
+      setSel(new Set(shownLines(logs, f).map((l) => l.key)));
+      if (f.follow) onF({ follow: false, pausedAt: logs.last });
       return;
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return;

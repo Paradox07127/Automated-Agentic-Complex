@@ -45,6 +45,8 @@ export interface FlowSectionProps {
   /** 对话轮次: that turn, or the list. */
   onTrace: (turnId: string | null) => void;
   onChat: () => void;
+  /** 设置 › 说话, for a voice node waiting on an unreachable TTS. */
+  onVoice: () => void;
   /** 近 24 小时 and 模型调用 below the flow. */
   children?: ReactNode;
 }
@@ -90,7 +92,7 @@ export function FlowSection(p: FlowSectionProps) {
           {p.loading ? <Skel rows={3} shape="cards" /> : <DgFlow nodes={p.nodes} edges={p.edges} sel={p.sel} onPick={p.onPick} onStation={p.onStation} live={p.live} dead={p.dead} calm={p.calm} />}
         </div>
         <Sheet open={node != null} title={node ? `${node.label}节点` : '读法'} head="none" dockFrom={1200} onClose={p.onClear}>
-          {node ? <NodeDetail node={node} fails={p.failsOf(node.id)} approvals={p.approvals} onTasks={p.onTasks} onTrace={p.onTrace} onClear={p.onClear} /> : <Legend />}
+          {node ? <NodeDetail node={node} fails={p.failsOf(node.id)} approvals={p.approvals} onTasks={p.onTasks} onTrace={p.onTrace} onClear={p.onClear} onVoice={p.onVoice} /> : <Legend />}
         </Sheet>
       </div>
       {p.children && <div className={styles.two}>{p.children}</div>}
@@ -98,7 +100,7 @@ export function FlowSection(p: FlowSectionProps) {
   );
 }
 
-function NodeDetail({ node, fails, approvals, onTasks, onTrace, onClear }: { node: FlowNode; fails: FailRow[]; approvals: number; onTasks: () => void; onTrace: (turnId: string | null) => void; onClear: () => void }) {
+function NodeDetail({ node, fails, approvals, onTasks, onTrace, onClear, onVoice }: { node: FlowNode; fails: FailRow[]; approvals: number; onTasks: () => void; onTrace: (turnId: string | null) => void; onClear: () => void; onVoice: () => void }) {
   const s = node.stat;
   return (
     <div className={styles.side}>
@@ -148,6 +150,11 @@ function NodeDetail({ node, fails, approvals, onTasks, onTrace, onClear }: { nod
         <p className={styles.note}>近 1 小时没有失败</p>
       )}
       <div className={styles.acts}>
+        {node.id === 'tts' && node.state === 'att' && (
+          <Btn size="sm" go onClick={onVoice}>
+            前往设置
+          </Btn>
+        )}
         <Btn size="sm" onClick={() => onTrace(null)}>
           在对话轮次里看
         </Btn>

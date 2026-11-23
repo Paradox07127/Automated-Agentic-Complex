@@ -25,7 +25,7 @@ import { overBudget, Resources } from './Resources';
 import { healthOf, issuesOf, processesOf, type ProcKey } from './status';
 import { UsageCard } from './UsageCard';
 import { clock, STATE_KEY, type DiagSnap, useDecisions, useDiagState, useDiagStream, useFailEvents, useRenderStats, useSideReads, useTurns } from './useDiag';
-import { CONFIRM, useDiagActions, viewLogs, type RestartTarget } from './useDiagActions';
+import { CONFIRM, serviceSettings, useDiagActions, viewLogs, type RestartTarget } from './useDiagActions';
 import { seedOf, useProcSamples } from './useProcSamples';
 import { reasonOf } from './reason';
 import type { WireDiagItem } from './wire';
@@ -313,12 +313,13 @@ export function NowView({ tab, item, onTab, tabs }: NowViewProps) {
             highlight={highlight === 'agentd' || highlight === 'avatar' || highlight === 'tts' || highlight === 'motion' || highlight === 'llm' ? highlight : null}
             onRestart={setConfirm}
             onLogs={viewLogs}
+            onService={serviceSettings}
           />
         </div>
       )}
       {tab === 'render' && (
         <div className={styles.view}>
-          {loading ? <Skel rows={2} shape="cards" /> : <Resources samples={samples} renderWhy={why} details={side.avatar.data ?? null} onProc={() => setTab('proc')} />}
+          {loading ? <Skel rows={2} shape="cards" /> : <Resources samples={samples} renderWhy={why} details={side.avatar.data ?? null} onProc={() => setTab('proc')} onLogs={() => viewLogs('avatar')} />}
         </div>
       )}
       {tab === 'flow' && (
@@ -345,6 +346,7 @@ export function NowView({ tab, item, onTab, tabs }: NowViewProps) {
             onTasks={() => go({ page: 'tasks' })}
             onTrace={(turn) => go(turn ? { page: 'diag', tab: 'turns', turn } : { page: 'diag', tab: 'turns' })}
             onChat={() => go({ page: 'chat' })}
+            onVoice={() => go({ page: 'settings', group: 'speak', item: 'tts' })}
           >
             <HourBars buckets={bucketsOf(allTurns, range, turns.data?.end ?? now)} range={range} onRange={setRange} onPick={(at) => go({ page: 'diag', tab: 'turns', at })} truncated={turns.data?.truncated ?? false} />
             <UsageCard budget={d?.budget ?? null} loading={loading} />

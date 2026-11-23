@@ -1,8 +1,9 @@
+import type { ServiceId } from '../../bridge/protocol';
 import { Btn, Empty, SecHead, Skel } from '../../ui';
 import { GameSeg } from '../../ui/game';
 import { ProcRow } from './ProcRow';
 import { cpuText, memText } from './procText';
-import type { DiagProcess, ProcKey } from './status';
+import { lampOf, SERVICE_ROWS, type DiagProcess, type ProcKey } from './status';
 import type { RowAction } from './useDiagActions';
 import type { ProcSample } from './useProcSamples';
 import styles from './Proc.module.css';
@@ -25,10 +26,14 @@ export interface ProcessesProps {
   highlight: ProcKey | null;
   onRestart: (target: 'agentd' | 'avatar') => void;
   onLogs: (key: ProcKey) => void;
+  /** A service's row in 设置 › 服务. */
+  onService?: (key: ServiceId) => void;
 }
 
+const SERVICES: ReadonlySet<ProcKey> = new Set(SERVICE_ROWS.map(([k]) => k));
+
 /** 进程：one statistic row per supervised process; the CPU / 内存 switch picks what every curve draws. */
-export function Processes({ rows, error, onRetry, samples, now, metric, onMetric, uptime, agentdGone, actions, highlight, onRestart, onLogs }: ProcessesProps) {
+export function Processes({ rows, error, onRetry, samples, now, metric, onMetric, uptime, agentdGone, actions, highlight, onRestart, onLogs, onService }: ProcessesProps) {
   const cpu = rows?.reduce((a, p) => a + (p.cpu_percent ?? 0), 0) ?? 0;
   const mem = rows?.reduce((a, p) => a + (p.memory_mb ?? 0), 0) ?? 0;
   const mins = Math.max(1, Math.round((now - (samples[0]?.at ?? now)) / 60_000));
@@ -88,6 +93,7 @@ export function Processes({ rows, error, onRetry, samples, now, metric, onMetric
                 highlight={highlight === p.key}
                 onLogs={() => onLogs(p.key)}
                 onRestart={() => onRestart(p.key as 'agentd' | 'avatar')}
+                onFix={onService && SERVICES.has(p.key) && lampOf(p) !== 'ok' ? () => onService(p.key as ServiceId) : undefined}
               />
             ))}
           </div>

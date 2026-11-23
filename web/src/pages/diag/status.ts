@@ -198,6 +198,12 @@ const CAP_FIX: Readonly<Record<string, NavTarget>> = {
   mouth: { page: 'settings', group: 'kernel', item: 'kernel' },
   voice: { page: 'settings', group: 'speak', item: 'tts' },
 };
+/** Reasons fixed on another row than their capability's. */
+const REASON_FIX: Readonly<Record<string, NavTarget>> = {
+  native_login_required: { page: 'settings', group: 'kernel', item: 'kernelLogin' },
+  product_login_required: { page: 'settings', group: 'kernel', item: 'kernelLogin' },
+  llm_service_off: { page: 'settings', group: 'services', item: 'svc_llm' },
+};
 
 /** Degraded or unavailable /capabilities items; sharing the user turned off and a muted voice are not problems. */
 export function issuesOf(caps: WireCapabilities | null): DiagIssue[] {
@@ -211,6 +217,6 @@ export function issuesOf(caps: WireCapabilities | null): DiagIssue[] {
       title: `${CAP_LABEL[name] ?? name}${it.state === 'unavailable' ? '不可用' : '受限'}`,
       detail: it.reason ? (CAP_REASON[it.reason] ?? '其他原因') : '后台没给原因',
       ...(it.reason ? { code: it.reason } : {}),
-      to: CAP_FIX[name] ?? null,
+      to: (it.reason ? REASON_FIX[it.reason] : undefined) ?? CAP_FIX[name] ?? null,
     }));
 }

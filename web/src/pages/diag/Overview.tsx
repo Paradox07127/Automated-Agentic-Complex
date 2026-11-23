@@ -6,7 +6,7 @@ import { voiceSource, voiceText } from '../../domain/voiceState';
 import { Btn, ErrBar, SecHead, Skel } from '../../ui';
 import { Barcode, DeviceRow, ReadTick, type DeviceRowProps } from '../../ui/game';
 import type { NavTarget } from '../overview/nav';
-import { gateHolds } from './GatePanel';
+import { gateHolds, SPEAK_WHEN } from './GatePanel';
 import { cpuParts, memParts } from './procText';
 import { CAP_REASON, LIMITS, lampOf, levelOf, SERVICE_ROWS, ttsText, type DiagIssue, type DiagProcess } from './status';
 import styles from './Diag.module.css';
@@ -69,7 +69,20 @@ export function Overview(p: OverviewProps) {
   const others = p.issues.filter((i) => !KERNEL_CAPS.has(i.id) && i.id !== 'voice');
   return (
     <div className={styles.view}>
-      {gone && <ErrBar message="后台服务没有响应" staleAt={p.staleAt || undefined} extra={<RestartAgentd onClick={() => p.onRestart('agentd')} />} />}
+      {gone && (
+        <ErrBar
+          message="后台服务没有响应"
+          staleAt={p.staleAt || undefined}
+          extra={
+            <>
+              <Btn size="sm" go onClick={() => p.go({ page: 'diag', tab: 'logs', src: 'agentd' })}>
+                日志
+              </Btn>
+              <RestartAgentd onClick={() => p.onRestart('agentd')} />
+            </>
+          }
+        />
+      )}
       {p.screenOff && (
         <ErrBar
           tone="warning"
@@ -167,7 +180,7 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
           : { state: 'ok' as const, stateLabel: '就绪', why: '内核检测通过' }
         : { state: 'failed' as const, stateLabel: '不可用', why: kernelIssue?.detail ?? (h?.runtime.error ? (CAP_REASON[h.runtime.error] ?? '其他原因') : '读不到内核状态') }),
     micro: 'RUNTIME',
-    go: { label: '设置 › 内核', external: true, onClick: () => p.go({ page: 'settings', group: 'kernel', item: 'kernel' }) },
+    go: { label: '设置 › 内核', external: true, onClick: () => p.go(kernelIssue?.to ?? { page: 'settings', group: 'kernel', item: 'kernel' }) },
   };
 
   const p95 = (v: number | null) => (v == null ? ['—', undefined] : [v.toFixed(1), 'ms']) as [string, string | undefined];
@@ -241,6 +254,12 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
     state: lampOf(s),
     stateLabel: s.status_text,
     why: s.backoff_s != null ? `${s.backoff_s} 秒后自动重启` : '外壳替它起的隧道或本机进程',
+    actions:
+      lampOf(s) === 'ok' ? undefined : (
+        <Btn size="sm" go onClick={() => p.go({ page: 'settings', group: 'services', item: `svc_${s.key}` })}>
+          前往设置
+        </Btn>
+      ),
     micro: s.key.toUpperCase(),
     go: { label: '去进程', onClick: () => p.onTab('proc') },
   }));
@@ -280,6 +299,11 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
           stateLabel: holds.length ? '暂时不说' : '可以说',
           why: holds.length ? holds.join(' │ ') : cool.length ? `没有拦着的条件 │ 冷却还剩 ${formatDuration(secToMs(Math.min(...cool)))}` : '没有拦着的条件',
           reads: [tick(String(g.today), `/${g.daily_limit}`, '今天'), tick(String(g.blocked_today), undefined, '被拦', 'ink', true)],
+          actions: g.enabled ? undefined : (
+            <Btn size="sm" go onClick={() => p.go(SPEAK_WHEN)}>
+              前往设置
+            </Btn>
+          ),
         }),
   };
 
