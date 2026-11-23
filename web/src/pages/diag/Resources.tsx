@@ -1,15 +1,17 @@
 import { formatClock, fpsReadout, type RenderSample } from '../../domain';
 import { useThrottled } from '../../domain/useThrottled';
 import type { AvatarDetails } from '../../bridge/protocol';
+import { LineChart, type Pt } from '../../charts';
 import { RawFold } from '../../features/trace';
-import { Btn, InfoTip, KV, SecHead } from '../../ui';
+import { Btn, KV, SecHead } from '../../ui';
 import { GameFrame, ReadTick } from '../../ui/game';
 import { detailRaw, hasDetails, rendererName, suspendedText } from './avatarDetails';
-import { Curve } from './Curve';
 import styles from './Res.module.css';
 
 export const FRAME_BUDGET_MS = 16.7;
 const hms = (t: number) => formatClock(t, { seconds: true });
+/** Fits two charts side by side above the host details at 600 px high. */
+const CHART_H = 180;
 const num1 = (v: number | null | undefined) => (v == null ? '—' : v.toFixed(1));
 
 /** Seconds of the samples whose P95 frame time went over the 60 fps budget. */
@@ -32,25 +34,21 @@ export function Resources({ samples, renderWhy, details, onProc }: ResourcesProp
   const p = details?.pipeline ?? null;
   const t1 = samples.at(-1)?.at ?? 0;
   const t0 = t1 - 59_000;
-  const axis = [59, 44, 29, 14, 0].map((s) => ({ t: t1 - s * 1000, label: s === 0 ? '现在' : `−${s} s` }));
   const none = samples.length === 0;
-  const empty = (
-    <span className={styles.why}>
-      {renderWhy}
-      <Btn size="sm" onClick={onProc}>
-        去进程
-      </Btn>
-    </span>
-  );
   return (
     <section className={styles.sec} aria-label="渲染">
       <SecHead
         title="帧"
         micro="FRAME 60 S"
+        info="帧数据来自宿主每秒一次的上报；暂停时不读。"
         right={
           <>
-            <InfoTip>帧数据来自宿主每秒一次的上报；暂停时不读。</InfoTip>
             <span>近 60 秒 │ 每秒一个读数</span>
+            {none && (
+              <Btn size="sm" onClick={onProc}>
+                去进程
+              </Btn>
+            )}
           </>
         }
       />
@@ -64,67 +62,50 @@ export function Resources({ samples, renderWhy, details, onProc }: ResourcesProp
         </span>
       </div>
       <div className={styles.charts}>
-        <GameFrame variant="chart" title="帧率" micro="FRAME RATE 60 S" label="帧率">
+        <GameFrame variant="chart" compact title="帧率" micro="FRAME RATE 60 S" label="帧率">
           <div className={styles.plot}>
-            <Curve
+            <LineChart
               label="帧率 60 秒"
-              series={[{ id: 'fps', label: '帧率', pts: samples.map((s) => [s.at, s.fps] as const), tone: 'main', area: true }]}
+              series={[{ id: 'fps', label: '帧率', pts: samples.map((s) => [s.at, s.fps] as Pt) }]}
               t0={t0}
               t1={t1}
-              min={20}
-              max={66}
-              lines={[
-                { v: 60, label: '目标 60', tone: 'ink' },
-                { v: 30, label: '过低 30', tone: 'bad' },
+              yMin={20}
+              yMax={66}
+              h={CHART_H}
+              area
+              limit={[
+                { v: 60, label: '目标 60' },
+                { v: 30, label: '过低 30' },
               ]}
-              axis={axis}
-              fmtY={(v) => String(Math.round(v))}
-              fmt={(v) => `${Math.round(v)} fps`}
+              fmtY={(v) => (v == null ? '—' : `${Math.round(v)} fps`)}
               fmtT={hms}
-              note={none ? empty : undefined}
+              st={none ? 'empty' : 'ok'}
+              empty={renderWhy}
             />
           </div>
         </GameFrame>
-        <GameFrame variant="chart" title="帧耗时" micro="FRAME TIME MS" label="帧耗时">
+        <GameFrame variant="chart" compact title="帧耗时" micro="FRAME TIME MS" label="帧耗时">
           <div className={styles.plot}>
-            <Curve
+            <LineChart
               label="帧耗时 P95 和 GPU"
               series={[
-                { id: 'p95', label: 'P95', pts: samples.map((s) => [s.at, s.p95_ms] as const), tone: 'main', over: FRAME_BUDGET_MS },
-                { id: 'gpu', label: 'GPU', pts: samples.map((s) => [s.at, s.gpu_ms] as const), tone: 'ink' },
+                { id: 'p95', label: 'P95', pts: samples.map((s) => [s.at, s.p95_ms] as Pt) },
+                { id: 'gpu', label: 'GPU', pts: samples.map((s) => [s.at, s.gpu_ms] as Pt) },
               ]}
               t0={t0}
               t1={t1}
-              min={0}
-              max={30}
-              lines={[{ v: FRAME_BUDGET_MS, label: `预算 ${FRAME_BUDGET_MS}`, tone: 'warn' }]}
-              axis={axis}
-              fmtY={(v) => String(Math.round(v))}
-              fmt={(v) => `${v.toFixed(1)} ms`}
+              yMin={0}
+              yMax={30}
+              h={CHART_H}
+              limit={{ v: FRAME_BUDGET_MS, label: `预算 ${FRAME_BUDGET_MS}` }}
+              fmtY={(v) => (v == null ? '—' : `${v.toFixed(1)} ms`)}
               fmtT={hms}
-              note={none ? empty : undefined}
+              st={none ? 'empty' : 'ok'}
+              empty={renderWhy}
             />
           </div>
         </GameFrame>
       </div>
-      <p className={styles.legend}>
-        <span data-tone="main">
-          <i aria-hidden="true" />
-          帧率 │ P95
-        </span>
-        <span data-tone="ink">
-          <i aria-hidden="true" />
-          GPU
-        </span>
-        <span data-tone="warn">
-          <i aria-hidden="true" />
-          预算线
-        </span>
-        <span data-tone="pad">
-          <i aria-hidden="true" />
-          P95 超预算
-        </span>
-      </p>
       {hasDetails(details) && (
         <GameFrame title="宿主详情" micro="AVATAR DETAILS" label="宿主详情">
           <div className={styles.host}>

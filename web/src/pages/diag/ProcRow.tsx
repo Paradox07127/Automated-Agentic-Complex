@@ -1,7 +1,7 @@
 import { formatClock } from '../../domain';
+import { LineChart, type Pt } from '../../charts';
 import { Btn, Icon, type IconName } from '../../ui';
 import { LoadBar, ReadTick, StatusLamp } from '../../ui/game';
-import { Curve } from './Curve';
 import { cpuParts, cpuText, memParts, memText } from './procText';
 import { LIMITS, lampOf, levelOf, type DiagProcess, type ProcKey } from './status';
 import type { RowAction } from './useDiagActions';
@@ -10,6 +10,8 @@ import styles from './Proc.module.css';
 
 const GLYPH: Record<ProcKey, IconName> = { agentd: 'data', avatar: 'user', tunnel: 'sync' };
 const MIN = 60_000;
+/** Fits the row's shortest height. */
+const CHART_H = 96;
 
 export interface ProcRowProps {
   p: DiagProcess;
@@ -58,26 +60,24 @@ export function ProcRow({ p, metric, samples, now, uptime, stale, action, highli
         <i className={styles.bar} aria-hidden="true" />
       </div>
       <div className={styles.cv}>
-        <Curve
+        <LineChart
           label={`${p.name} ${metric === 'cpu' ? 'CPU' : '内存'}，本页打开以来 ${mins} 分钟`}
-          series={[{ id: p.key, label: metric === 'cpu' ? 'CPU' : '内存', pts, tone: 'main', area: true }]}
+          series={[{ id: p.key, label: metric === 'cpu' ? 'CPU' : '内存', pts: pts.map(([t, v]) => [t, v] as Pt) }]}
           t0={t0}
           t1={now}
-          min={0}
-          max={max}
-          lines={[
-            { v: bad, label: `过高 ${fmt(bad)}`, tone: 'bad' },
-            { v: warn, label: `注意 ${fmt(warn)}`, tone: 'warn' },
+          yMin={0}
+          yMax={max}
+          h={CHART_H}
+          area
+          limit={[
+            { v: warn, label: `注意 ${fmt(warn)}` },
+            { v: bad, label: `过高 ${fmt(bad)}` },
           ]}
-          lineLabels="right"
-          axis={[
-            { t: t0, label: `−${mins} 分` },
-            { t: now, label: '现在' },
-          ]}
-          fmt={fmt}
+          fmtY={fmt}
           fmtT={(t) => formatClock(t, { seconds: true })}
-          stale={stale}
-          note={few ? '刚开始记录' : undefined}
+          st={few ? 'empty' : stale ? 'disconnected' : 'ok'}
+          empty="刚开始记录"
+          {...(stale && !few ? { stoppedAt: samples.at(-1)?.at ?? now } : {})}
         />
       </div>
       <div className={styles.reads}>
@@ -85,7 +85,7 @@ export function ProcRow({ p, metric, samples, now, uptime, stale, action, highli
         <span className={styles.mem}>
           <ReadTick value={memV} unit={memU} label={`内存 │ 注意线 ${memText(lim.mem[0])}`} tone={memL ?? 'ink'} />
           <span className={styles.meter}>
-            <LoadBar variant="port" fraction={stale || p.memory_mb == null ? 0 : p.memory_mb / lim.mem[1]} label={`${p.name}内存，满格是过高线`} />
+            <LoadBar variant="port" fraction={stale || p.memory_mb == null ? 0 : p.memory_mb / lim.mem[1]} thresholds={[lim.mem[0] / lim.mem[1]]} label={`${p.name}内存，刻度是注意线，满格是过高线`} />
           </span>
         </span>
       </div>

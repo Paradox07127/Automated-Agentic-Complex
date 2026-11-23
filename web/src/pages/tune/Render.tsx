@@ -135,11 +135,12 @@ export function Render({ offline, onRestart, toast }: RenderProps) {
             </Btn>
           }
         />
-        <ReadoutPlate label="帧读数" eyebrow="LOAD" cells={cells} />
+        <ReadoutPlate label="帧读数" eyebrow="LOAD" cells={cells} compact={compact} />
       </section>
       <section className={styles.sec} aria-label="画质">
         <SecHead
           title="画质"
+          dev
           micro="QUALITY"
           right={
             <span className={styles.headR}>

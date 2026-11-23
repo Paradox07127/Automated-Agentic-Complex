@@ -31,12 +31,12 @@ import styles from './Diag.module.css';
 import stateStyles from './State.module.css';
 
 const HOUR = 3_600_000;
-const TABS: ReadonlyArray<{ id: DiagTab; label: string; icon: 'grid' | 'data' | 'g-window' | 'hub' | 'tune'; wm: string }> = [
-  { id: 'overview', label: '总览', icon: 'grid', wm: 'DIAG' },
-  { id: 'proc', label: '进程', icon: 'data', wm: 'PROC' },
-  { id: 'render', label: '渲染', icon: 'g-window', wm: 'FRAME' },
-  { id: 'flow', label: '管道', icon: 'hub', wm: 'FLOW' },
-  { id: 'state', label: '状态', icon: 'tune', wm: 'STATE' },
+const TABS: ReadonlyArray<{ id: DiagTab; label: string; icon: 'd-overview' | 'd-proc' | 'd-render' | 'd-flow' | 'd-state'; wm: string }> = [
+  { id: 'overview', label: '总览', icon: 'd-overview', wm: 'DIAG' },
+  { id: 'proc', label: '进程', icon: 'd-proc', wm: 'PROC' },
+  { id: 'render', label: '渲染', icon: 'd-render', wm: 'FRAME' },
+  { id: 'flow', label: '管道', icon: 'd-flow', wm: 'FLOW' },
+  { id: 'state', label: '状态', icon: 'd-state', wm: 'STATE' },
 ];
 const asTab = (v: string | null): DiagTab | null => TABS.find((t) => t.id === v)?.id ?? null;
 const ROW_ITEMS = new Set(['agentd', 'avatar', 'voice']);

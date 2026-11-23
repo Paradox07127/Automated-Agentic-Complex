@@ -61,27 +61,3 @@ export const BEHAVIOR: Readonly<Record<string, string>> = {
   fly: '空中施术',
   guard: '戒备',
 };
-
-/** Run states of /agent/runs and /memory/runs (runtime.py, memory_service.py). */
-export const RUN_STATE: Readonly<Record<string, string>> = {
-  running: '进行中',
-  completed: '完成',
-  succeeded: '完成',
-  committed: '记忆已写入',
-  no_new_knowledge: '无新增知识',
-  rejected: '校验未通过',
-  failed: '失败',
-  cancelled: '已取消',
-  interrupted: '被打断',
-  waiting_user: '待处理',
-};
-
-
-const pad2 = (n: number) => String(n).padStart(2, '0');
-
-/** Local calendar day as `/summary/runs?date=` takes it. */
-export function localDay(ms: number): string {
-  const d = new Date(ms);
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
-

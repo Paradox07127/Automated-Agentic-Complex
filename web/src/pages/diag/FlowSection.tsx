@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { formatClock, formatMs, type VisualStateKey } from '../../domain';
-import { Btn, InfoTip, SecHead, Sheet, Skel } from '../../ui';
+import { Btn, SecHead, Sheet, Skel } from '../../ui';
 import { GameTable, ReadTick, StatusLamp } from '../../ui/game';
 import { DgFlow } from './DgFlow';
 import { STATE_TEXT, type FlowEdge, type FlowNode, type NodeId, type NodeState } from './flow';
@@ -56,9 +56,9 @@ export function FlowSection(p: FlowSectionProps) {
     <section className={styles.sec} aria-label="管道">
       <SecHead
         title="轮次管道"
+        info="节点的次数是近 1 小时轮次走过的估算；主线节点的耗时等后端补上，现在写「—」。观察、解读、记忆提取的次数在记忆管线页。"
         right={
           <>
-            <InfoTip>节点的次数是近 1 小时轮次走过的估算；主线节点的耗时等后端补上，现在写「—」。观察、解读、记忆提取的次数在记忆管线页。</InfoTip>
             <span className={styles.head}>
               近 1 小时 │ <b className="num">{p.turns}</b> 轮 │ 失败{' '}
               <b className="num" data-bad={p.fails > 0 || undefined}>
@@ -72,7 +72,7 @@ export function FlowSection(p: FlowSectionProps) {
       {p.error && (
         <p className={styles.note} role="status">
           读不到轮次：{p.error}{' '}
-          <Btn size="sm" variant="text" icon="refresh" onClick={p.onRetry}>
+          <Btn size="sm" icon="refresh" onClick={p.onRetry}>
             重试
           </Btn>
         </p>
@@ -80,7 +80,7 @@ export function FlowSection(p: FlowSectionProps) {
       {!p.loading && !p.error && p.turns === 0 && (
         <p className={styles.note}>
           近 1 小时她没有跑过一轮{' '}
-          <Btn size="sm" variant="text" onClick={p.onChat}>
+          <Btn size="sm" onClick={p.onChat}>
             去对话
           </Btn>
         </p>
@@ -138,7 +138,7 @@ function NodeDetail({ node, fails, approvals, onTasks, onTrace, onClear }: { nod
               ),
             },
             end: (
-              <Btn size="sm" variant="text" onClick={() => onTrace(f.turn_id)}>
+              <Btn size="sm" onClick={() => onTrace(f.turn_id)}>
                 打开
               </Btn>
             ),

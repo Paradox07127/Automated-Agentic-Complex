@@ -85,7 +85,7 @@ export function Behavior(p: BehaviorProps) {
       {s === undefined ? (
         <Skel rows={1} shape="block" />
       ) : (
-        <ReadoutPlate label="她现在的状态" eyebrow="STATE CURRENT" cells={stateCells(s, p.offline, compact)} />
+        <ReadoutPlate label="她现在的状态" eyebrow="STATE CURRENT" cells={stateCells(s, p.offline, compact)} compact={compact} />
       )}
       <section className={styles.sec} aria-label="状态与决策">
         <SecHead

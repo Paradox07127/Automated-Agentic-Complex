@@ -1,5 +1,5 @@
 import type { WireDiagBudget, WireUsage } from '../../domain';
-import { InfoTip, SecHead } from '../../ui';
+import { SecHead } from '../../ui';
 import { GameFrame, MicroLabel } from '../../ui/game';
 import styles from './Flow.module.css';
 
@@ -67,12 +67,8 @@ export function UsageCard({ budget, loading }: UsageCardProps) {
     <section id="diag-usage" className={styles.col} data-nav-target="diag-usage" aria-label="模型调用">
       <SecHead
         title="模型调用"
-        right={
-          <>
-            <InfoTip>按调用种类数次数；按通道数 token：实色是新输入，斜纹是缓存，灰色是输出。</InfoTip>
-            <span className={styles.head}>今天</span>
-          </>
-        }
+        info="按调用种类数次数；按通道数 token：实色是新输入，斜纹是缓存，灰色是输出。"
+        right={<span className={styles.head}>今天</span>}
       />
       <GameFrame label="今天的模型调用">
         <div className={styles.calls}>

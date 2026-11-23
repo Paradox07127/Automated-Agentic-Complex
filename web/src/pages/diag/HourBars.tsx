@@ -1,5 +1,5 @@
 import { formatMs, type Turn } from '../../domain';
-import { InfoTip, SecHead } from '../../ui';
+import { SecHead } from '../../ui';
 import { GameFrame, GameSeg } from '../../ui/game';
 import styles from './Flow.module.css';
 
@@ -63,20 +63,18 @@ export function HourBars({ buckets, range, onRange, onPick, truncated }: HourBar
     <section className={styles.col} aria-label={range === '7d' ? '近 7 天' : '近 24 小时'}>
       <SecHead
         title={range === '7d' ? '近 7 天' : '近 24 小时'}
+        info={`每${range === '7d' ? '天' : '小时'}一根柱：灰是成功、红是失败；黄线是那段时间的 p50 用时。点柱子去运行记录的那段时间。${truncated ? '读数到了上限，更早的轮次没有算进来。' : ''}`}
         right={
-          <>
-            <InfoTip>{`每${range === '7d' ? '天' : '小时'}一根柱：灰是成功、红是失败；黄线是那段时间的 p50 用时。点柱子去运行记录的那段时间。${truncated ? '读数到了上限，更早的轮次没有算进来。' : ''}`}</InfoTip>
-            <GameSeg
-              label="范围"
-              size="compact"
-              value={range}
-              options={[
-                { value: '24h', label: '24 h' },
-                { value: '7d', label: '7 天' },
-              ]}
-              onChange={(v) => onRange(v === '7d' ? '7d' : '24h')}
-            />
-          </>
+          <GameSeg
+            label="范围"
+            size="compact"
+            value={range}
+            options={[
+              { value: '24h', label: '24 h' },
+              { value: '7d', label: '7 天' },
+            ]}
+            onChange={(v) => onRange(v === '7d' ? '7d' : '24h')}
+          />
         }
       />
       <GameFrame variant="chart" title={range === '7d' ? '轮次 │ 天' : '轮次 │ 小时'} micro={range === '7d' ? 'TURNS DAILY' : 'TURNS HOURLY'} label="轮次柱">

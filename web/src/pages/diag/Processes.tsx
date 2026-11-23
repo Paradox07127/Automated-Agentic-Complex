@@ -1,4 +1,4 @@
-import { Btn, InfoTip, SecHead, Skel } from '../../ui';
+import { Btn, SecHead, Skel } from '../../ui';
 import { GameSeg } from '../../ui/game';
 import { ProcRow } from './ProcRow';
 import { cpuText, memText } from './procText';
@@ -40,9 +40,9 @@ export function Processes({ rows, error, onRetry, samples, now, metric, onMetric
         title="进程"
         count={rows?.length}
         micro="PROCESS MONITOR"
+        info="CPU 是单核占比，可以超过 100%。曲线是本页打开以来的读数，最多留 30 分钟。"
         right={
           <>
-            <InfoTip>CPU 是单核占比，可以超过 100%。曲线是本页打开以来的读数，最多留 30 分钟。</InfoTip>
             {rows && (
               <span className={styles.total}>
                 合计 CPU <b className="num">{cpuText(cpu)}</b> │ 内存 <b className="num">{memText(mem)}</b>
@@ -91,18 +91,7 @@ export function Processes({ rows, error, onRetry, samples, now, metric, onMetric
             ))}
           </div>
           <p className={styles.legend}>
-            <span data-tone="main">
-              <i aria-hidden="true" />
-              {metric === 'cpu' ? 'CPU' : '内存'} │ 本页打开以来 <span className="num">{mins}</span> 分钟
-            </span>
-            <span data-tone="warn">
-              <i aria-hidden="true" />
-              注意线
-            </span>
-            <span data-tone="bad">
-              <i aria-hidden="true" />
-              过高线
-            </span>
+            {metric === 'cpu' ? 'CPU' : '内存'} │ 本页打开以来 <span className="num">{mins}</span> 分钟
           </p>
         </>
       )}

@@ -113,13 +113,8 @@ export function RestartAgentd({ onClick }: { onClick: () => void }) {
   );
 }
 
-// DeviceRow takes no attributes of its own, so the landing target sits on a wrapper.
 function rowEl({ key, ...r }: Row, highlight: string | null) {
-  return (
-    <div key={key} className={styles.slot} data-nav-target={`proc-${key}`} data-row={key}>
-      <DeviceRow {...r} highlight={highlight === key} />
-    </div>
-  );
+  return <DeviceRow key={key} {...r} highlight={highlight === key} data-nav-target={`proc-${key}`} data-row={key} />;
 }
 
 const tick = (value: string, unit: string | undefined, label: string, tone: 'main' | 'ink' | 'warn' | 'bad' = 'main', opt = false): ReactNode =>

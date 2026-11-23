@@ -26,68 +26,9 @@
   gap: var(--ef-sp-12);
 }
 
+/* The chart takes the column's width instead of widening the column to its first measure. */
 .plot {
-  height: clamp(180px, 30vh, 280px);
-}
-
-.why {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: var(--ef-sp-8);
-  align-items: center;
-  justify-content: center;
-  color: var(--ef-text-2);
-  font: var(--ef-t-meta);
-}
-
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  align-items: center;
-  margin: 0;
-  color: var(--ef-text-2);
-  font: var(--ef-t-meta);
-}
-
-.legend i {
-  display: inline-block;
-  width: 14px;
-  height: 0;
-  margin-right: 5px;
-  border-top: 1.5px solid var(--ef-text-2);
-  vertical-align: 3px;
-}
-
-.legend [data-tone='main'] {
-  color: var(--ef-accent-text);
-}
-
-.legend [data-tone='main'] i {
-  border-top: 2px solid var(--ef-accent);
-}
-
-:global([data-theme='light']) .legend [data-tone='main'] {
-  color: var(--ef-text-1);
-}
-
-:global([data-theme='light']) .legend [data-tone='main'] i {
-  border-top-color: var(--ef-text-1);
-}
-
-.legend [data-tone='warn'] {
-  color: color-mix(in srgb, var(--ef-g-reddot) 62%, var(--ef-text-1));
-}
-
-.legend [data-tone='warn'] i {
-  border-top: 1px dashed var(--ef-g-reddot);
-}
-
-.legend [data-tone='pad'] i {
-  height: 10px;
-  border: 0;
-  background: color-mix(in srgb, var(--ef-danger-vivid) 22%, transparent);
-  vertical-align: -1px;
+  contain: inline-size;
 }
 
 .host {
