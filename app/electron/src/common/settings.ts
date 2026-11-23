@@ -447,14 +447,18 @@ function parseValue(raw: unknown, row: Row, platform: ShellPlatform): SettingVal
   throw new Rejection(`「${row.item.label}」不能设成 ${shown(describe(raw))}：${shown(allowed)}`);
 }
 
+/** The page's fixed ⌘K, which it reads as Ctrl+K on Windows. */
+const PALETTE_HOTKEY: Readonly<Record<ShellPlatform, string>> = { mac: 'command+k', windows: 'control+k' };
+
 /** protocol.ts `HotkeyCheck` of `combo` for row `id` against the other hot keys in `saved` and the page's fixed ⌘K. */
 export function validateHotkey(id: string, combo: unknown, load: () => Record<string, SettingValue>, login: boolean | null,
-  refused: Record<string, string> = {}): { ok: true } | { ok: false; conflictWith: string } | { error: 'invalid_hotkey' } {
+  platform: ShellPlatform = 'mac', refused: Record<string, string> = {}):
+  { ok: true } | { ok: false; conflictWith: string } | { error: 'invalid_hotkey' } {
   const row = rowById(id)!;
   const name = typeof combo === 'string' ? hotkeyName(combo, allowsRightOption(row)) : null;
   if (name === null) return { error: 'invalid_hotkey' };
-  if (name === 'command+k') return { ok: false, conflictWith: '命令面板' };
-  const values = current(load(), login, 'mac', refused).values;
+  if (name === PALETTE_HOTKEY[platform]) return { ok: false, conflictWith: '命令面板' };
+  const values = current(load(), login, platform, refused).values;
   if (values[row.item.key] !== name) {
     const other = ROWS.find((r) => isHotkey(r) && r.item.key !== row.item.key && values[r.item.key] === name);
     if (other) return { ok: false, conflictWith: other.item.label };
@@ -523,7 +527,10 @@ export function planSave(saved: Record<string, SettingValue>, login: boolean | n
     const name = next[row.item.key];
     if (typeof name !== 'string' || name === '') continue;
     const other = hotkeys.find((r) => r.item.key !== row.item.key && next[r.item.key] === name);
-    if (other) return { write: {}, effects: [], restart: 'none', error: `${webHotkey(name) ?? name} 已被「${other.item.label}」占用` };
+    if (other) {
+      const caps = webHotkey(name) ?? name;
+      return { write: {}, effects: [], restart: 'none', error: `${platform === 'windows' ? windowsCaps(caps) : caps} 已被「${other.item.label}」占用` };
+    }
   }
   const changed = Object.keys(next).filter((k) => old[k] !== next[k]);
   if (changed.length === 0) return { write: {}, effects: [], restart: 'none' };

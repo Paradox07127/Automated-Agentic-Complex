@@ -54,7 +54,7 @@ export function CommandBar({ routes, activeId, title, sub, tabsRef, rightRef, ac
     kind: 'item',
     label: r.title,
     ...(r.icon ? { icon: r.icon } : {}),
-    ...(r.hotkey ? { hint: r.hotkey } : {}),
+    ...(r.hotkey ? { hint: keyText(r.hotkey) } : {}),
     ...(routeOff(r, plugins) ? { off: routeOff(r, plugins) } : {}),
     onSelect: () => navigate({ page: r.id as PageId }),
   });

@@ -2,6 +2,7 @@ import { Fragment, useState, type KeyboardEvent } from 'react';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { post, put, seg } from '../bridge/agentd';
 import { appNow } from '../bridge/clock';
+import { keyText } from '../bridge/platformText';
 import { refreshRuntime } from '../data/runtime';
 import { fromRuntimePublic, quiet as quietBody, runCancel, splitCanonical, type Task } from '../domain';
 import { useHotkeyLabels } from '../domain/hotkeys';
@@ -165,7 +166,7 @@ export function CmdPalette({ routes, onClose }: { routes: PageRoute[]; onClose: 
                 )}
                 <span className={styles.grow}>{h.label}</span>
                 {h.hint && <span className={styles.hint}>{h.hint}</span>}
-                <span className={styles.keys}>{h.shortcut && <Kbd>{h.shortcut}</Kbd>}</span>
+                <span className={styles.keys}>{h.shortcut && <Kbd>{keyText(h.shortcut)}</Kbd>}</span>
               </button>
             </Fragment>
           ))}

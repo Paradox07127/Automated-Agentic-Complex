@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createFakeBridge } from '../../src/bridge/fake';
 import { CmdPalette } from '../../src/shell/CmdPalette';
 import { paletteItems } from '../../src/shell/CmdPalette.data';
 import { CommandBar } from '../../src/shell/CommandBar';
@@ -268,5 +269,29 @@ describe('CmdPalette', () => {
     expect(overview.querySelector('svg')?.getAttribute('data-icon')).toBe(pageRoutes.find((r) => r.id === 'overview')?.icon);
     expect(within(list).getByRole('option', { name: /^设置/ }).querySelector('svg')?.getAttribute('data-icon')).toBe('settings');
     expect(list.textContent).not.toContain('Today');
+  });
+
+  it('spells the shortcuts Ctrl in the palette and the page menu on the Windows shell', async () => {
+    stubMatchMedia();
+    window.agenticComplex = { ...createFakeBridge({ surface: 'main', still: true }), platform: 'windows' };
+    try {
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <CmdPalette routes={pageRoutes} onClose={() => {}} />
+        </QueryClientProvider>,
+      );
+      const list = screen.getByRole('listbox');
+      expect(within(list).getByRole('option', { name: /每日简报/ }).querySelector('kbd')?.textContent).toBe('Ctrl+1');
+      expect(list.textContent).not.toMatch(/[⌘⌃⌥⇧]/);
+      cleanup();
+      const { nav } = await mountCommandBar('overview');
+      fireEvent.click(within(nav).getByRole('button', { name: '每日简报' }));
+      const items = within(screen.getByRole('menu', { name: '每日简报' })).getAllByRole('menuitem');
+      expect(items.find((i) => i.textContent?.startsWith('设置'))?.querySelector('kbd')?.textContent).toBe('Ctrl+,');
+      expect(screen.getByRole('menu').textContent).not.toMatch(/[⌘⌃⌥⇧]/);
+    } finally {
+      delete window.agenticComplex;
+      vi.unstubAllGlobals();
+    }
   });
 });

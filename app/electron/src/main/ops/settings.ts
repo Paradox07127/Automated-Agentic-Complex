@@ -253,7 +253,7 @@ export function settingsOps(ctx: OpsContext): Ops {
     },
     'settings.validateHotkey': ([id, combo]) => {
       if (typeof id !== 'string' || !isHotkeyRow(id)) throw new BridgeFailure('unknown_setting', String(id));
-      const check = validateHotkey(id, combo, load, ctx.loginItem.enabled(), refused());
+      const check = validateHotkey(id, combo, load, ctx.loginItem.enabled(), platform, refused());
       if ('error' in check) throw new BridgeFailure('invalid_hotkey', String(combo));
       return check;
     },

@@ -180,6 +180,20 @@ test('settings.save writes the changed keys and refuses launch keys and bad valu
   }
 });
 
+test('settings.validateHotkey on Windows finds a clash with the Windows defaults and refuses Ctrl+K', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'settings-'));
+  try {
+    writeFileSync(join(dir, 'config.json'), '{}');
+    const ops = registry({ ...context(dir), platform: 'windows' }), page = new PageSession(() => {});
+    const call = (op: string, ...args: unknown[]) => handle('main', page0, { op, args }, ops, page);
+    assert.deepEqual(await call('settings.validateHotkey', 'hk_quick', '⌃⌥H'), { ok: true, value: { ok: false, conflictWith: '显示 / 隐藏角色' } });
+    assert.deepEqual(await call('settings.validateHotkey', 'hk_quick', '⌃K'), { ok: true, value: { ok: false, conflictWith: '命令面板' } });
+    assert.equal(planSave({}, null, { hotkey_quick_input: 'control+option+h' }, 'windows').error, 'Ctrl+Alt+H 已被「显示 / 隐藏角色」占用');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('a save of the behavior switches puts them with her hover buttons as they are then', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'settings-'));
   try {
