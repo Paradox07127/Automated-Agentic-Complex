@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AgentdCallError } from '../../bridge/agentd';
+import { keyText } from '../../bridge/platformText';
 import { formatClock, type MemorySource } from '../../domain';
 import { stateVisual } from '../../domain/status';
 import { useDemo } from '../../shell/demo';
 import { BottomBarSlot, PageHeaderSlot } from '../../shell/headerSlot';
 import { useGo } from '../../shell/nav';
-import { Btn, ErrBar, Kbd } from '../../ui';
+import { Btn, ErrBar, Kbd, type KbdItem, Skel } from '../../ui';
 import { GameFrame, LoadBar, StatusLamp } from '../../ui/game';
 import { StateGlyph } from '../../ui/game/StateGlyph';
 import { added14, isCandidate, SRC_ORDER, sum } from '../memory/model';
@@ -30,14 +31,13 @@ const NO_DIAG: DiagRead = {};
 const editable = (el: EventTarget | null) => el instanceof HTMLElement && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 const offlineOf = (e: unknown) => e instanceof AgentdCallError && e.code === 'offline';
 
-const key = (k: string[], label: string, opt = false) => (
-  <span key={label} data-opt={opt || undefined}>
-    {k.map((x) => (
-      <Kbd key={x}>{x}</Kbd>
-    ))}
-    {label}
-  </span>
-);
+const KEYS: KbdItem[] = [
+  { keys: ['←', '→'], label: '换工位' },
+  { keys: ['↑', '↓'], label: '选行' },
+  { keys: ['↵'], label: '展开 / 打开', more: true },
+  { keys: ['Q', 'E'], label: '切页签', more: true },
+  { keys: ['esc'], label: '回主页' },
+];
 
 /** The big number while a read is on its way. */
 const SKEL = <span className={styles.skel} aria-label="读取中" />;
@@ -264,7 +264,7 @@ export function PipelineView() {
   const bySource = Object.fromEntries(SRC_ORDER.map((s) => [s, active.filter((f) => f.source === s).length])) as Record<MemorySource, number>;
   const detail = (): ReactNode => {
     const st = states[sel];
-    if (st.phase === 'loading') return <div className={styles.skelRows} aria-busy="true" aria-label="正在读取" />;
+    if (st.phase === 'loading') return <Skel rows={5} />;
     if (sel === 'obs') return diagData ? <ObsView diag={diagData} readAt={diag.dataUpdatedAt || now} now={now} selected={row} onSelect={setRow} /> : <Unread onRetry={retry} what="观察状态" />;
     if (sel === 'interp')
       return interpData ? (
@@ -331,12 +331,8 @@ export function PipelineView() {
       />
       <BottomBarSlot
         lead={
-          <span className={styles.keys} aria-hidden="true">
-            {key(['←', '→'], '换工位')}
-            {key(['↑', '↓'], '选行')}
-            {key(['↵'], '展开 / 打开', true)}
-            {key(['Q', 'E'], '切页签', true)}
-            {key(['esc'], '回主页')}
+          <span aria-hidden="true">
+            <Kbd variant="bar" held items={KEYS.map((it) => ({ ...it, keys: it.keys.map((k) => keyText(k)) }))} />
           </span>
         }
         actions={action}

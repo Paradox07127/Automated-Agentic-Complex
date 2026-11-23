@@ -3,10 +3,12 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { useQueryClient } from '@tanstack/react-query';
 import { getBridge } from '../../bridge';
 import { resetVoice } from '../../bridge/agentd';
+import { keyText } from '../../bridge/platformText';
 import { formatAgo } from '../../domain/time';
 import { formatClock, formatDuration, type WireVoice } from '../../domain';
 import { isoToMsOrNull } from '../../domain/units';
-import { Btn, Dialog, ErrBar, Kbd, Menu, Skel, type IconName } from '../../ui';
+import { Btn, Dialog, Empty, ErrBar, Kbd, Menu, Skel, type IconName } from '../../ui';
+import { StatusLamp } from '../../ui/game';
 import { useDemo } from '../../shell/demo';
 import { BottomBarSlot, PageHeaderSlot } from '../../shell/headerSlot';
 import { useToast } from '../../shell/toast';
@@ -28,7 +30,6 @@ import { seedOf, useProcSamples } from './useProcSamples';
 import { reasonOf } from './reason';
 import type { WireDiagItem } from './wire';
 import styles from './Diag.module.css';
-import stateStyles from './State.module.css';
 
 const HOUR = 3_600_000;
 /** 回看: what already happened. */
@@ -51,15 +52,6 @@ const ROW_ITEMS = new Set(['agentd', 'avatar', 'voice']);
 const LIST_KINDS = new Set(['input.received', 'model.finished', 'playback.ended', 'playback.interrupted', 'cancel.acked', 'turn.settled']);
 const USER = new Set(['text', 'voice']);
 export const TYPING = 'input, textarea, select, [contenteditable=""], [contenteditable="true"], [role="dialog"], [role="menu"]';
-
-const keyHint = (k: string[], label: string) => (
-  <span key={label}>
-    {k.map((x) => (
-      <Kbd key={x}>{x}</Kbd>
-    ))}
-    {label}
-  </span>
-);
 
 export interface NowViewProps {
   tab: DiagTab;
@@ -237,7 +229,6 @@ export function NowView({ tab, item, onTab, tabs }: NowViewProps) {
   const gone = staleAt != null && tab !== 'overview' && (
     <ErrBar message="后台服务没有响应" staleAt={staleAt || undefined} extra={<RestartAgentd onClick={() => setConfirm('agentd')} />} />
   );
-  const lamp: [string, string] = offline ? ['off', '已断开'] : paused ? ['pause', '已暂停'] : ['on', '实时'];
   const c = confirm ? CONFIRM[confirm] : null;
   const close = () => setConfirm(null);
   const marks: Partial<Record<Tab, string>> = {
@@ -261,9 +252,8 @@ export function NowView({ tab, item, onTab, tabs }: NowViewProps) {
                 <b className="num">{linkOk}</b>项正常<span className={styles.sl} />出错<b className="num" data-bad={linkBad > 0 || undefined}>{linkBad}</b>
               </>
             )}
-            <span className={styles.lamp} data-s={lamp[0]} role="status">
-              <i aria-hidden="true" />
-              {lamp[1]}
+            <span className={styles.lamp} role="status">
+              <StatusLamp size="sm" state={offline ? 'broken' : paused ? 'paused' : 'ok'} label={offline ? '已断开' : paused ? '已暂停' : '实时'} onDark />
               {staleAt ? <> │ 截至 <span className="num">{formatClock(staleAt)}</span></> : null}
             </span>
           </span>
@@ -271,11 +261,17 @@ export function NowView({ tab, item, onTab, tabs }: NowViewProps) {
       />
       <BottomBarSlot
         lead={
-          <span className={styles.keys} aria-hidden="true">
-            {keyHint(['Q', 'E'], '切页签')}
-            {keyHint(['1', '9'], '直达页签')}
-            <span className={styles.long}>{keyHint(['Space'], '暂停')}</span>
-            {keyHint(['esc'], node ? '取消选中' : '主页')}
+          <span aria-hidden="true">
+            <Kbd
+              variant="bar"
+              held
+              items={[
+                { keys: ['Q', 'E'], label: '切页签' },
+                { keys: ['1', '9'], label: '直达页签' },
+                { keys: ['Space'], label: '暂停', more: true },
+                { keys: ['esc'], label: node ? '取消选中' : '主页' },
+              ].map((it) => ({ ...it, keys: it.keys.map((k) => keyText(k)) }))}
+            />
           </span>
         }
         actions={
@@ -363,10 +359,7 @@ export function NowView({ tab, item, onTab, tabs }: NowViewProps) {
           ) : loading ? (
             <Skel rows={3} shape="cards" />
           ) : (
-            <div className={stateStyles.empty} role="status">
-              <b>后台断开时没有内部状态</b>
-              <span>{staleAt ? `最后一次读到是 ${formatClock(staleAt)}，重启后会重新读` : '重启后台服务后会重新读'}</span>
-            </div>
+            <Empty size="compact" title="后台断开时没有内部状态" desc={staleAt ? `最后一次读到是 ${formatClock(staleAt)}，重启后会重新读` : '重启后台服务后会重新读'} />
           )}
         </div>
       )}

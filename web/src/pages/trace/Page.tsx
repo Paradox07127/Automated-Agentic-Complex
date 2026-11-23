@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBridge } from '../../bridge';
 import { appNow } from '../../bridge/clock';
-import { revealText } from '../../bridge/platformText';
+import { keyText, revealText } from '../../bridge/platformText';
 import type { LogSourceId } from '../../bridge/logs';
 import { type TraceEvent, traceEvents } from '../../bridge/traceEvents';
 import type { ChartStatus } from '../../charts';
@@ -14,7 +14,7 @@ import { useDemo } from '../../shell/demo';
 import { BottomBarSlot, PageHeaderSlot } from '../../shell/headerSlot';
 import { navigate as jump } from '../../shell/nav';
 import { useToast } from '../../shell/toast';
-import { Btn, Kbd, Sheet } from '../../ui';
+import { Btn, Kbd, type KbdItem, Sheet } from '../../ui';
 import { StatusLamp } from '../../ui/game';
 import { demoSource, learnedOf, useTraceRow, useTraceRows, useTurnFacts } from '../chat/useTurnData';
 import { useDiagStream } from '../diag/useDiag';
@@ -61,13 +61,6 @@ function useNarrow() {
   }, narrowNow);
 }
 const editable = (el: EventTarget | null) => el instanceof HTMLElement && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
-
-const key = (k: string[], label: string) => (
-  <span key={label}>
-    {k.map((x) => <Kbd key={x}>{x}</Kbd>)}
-    {label}
-  </span>
-);
 
 export interface TraceViewProps {
   tab: 'turns' | 'lanes' | 'logs';
@@ -281,25 +274,20 @@ export function TraceView({ tab, tabs }: TraceViewProps) {
       />
       <BottomBarSlot
         lead={
-          <span className={bs.keys} aria-hidden="true">
-            {key(['Q', 'E'], '切页签')}
-            {tab === 'lanes' ? (
-              key(['←', '→'], '换一个事件')
-            ) : tab === 'turns' ? (
-              <>
-                {key(['↑', '↓'], '换一轮')}
-                <span className={bs.opt}>{key(['↵'], '展开一步')}</span>
-              </>
-            ) : (
-              <>
-                {key(['/'], '搜索')}
-                <span className={bs.opt}>
-                  {key(['End'], '回到最新')}
-                  {key(['⇧', '点'], '选多行')}
-                </span>
-              </>
-            )}
-            {key(['esc'], '主页')}
+          <span aria-hidden="true">
+            <Kbd
+              variant="bar"
+              held
+              items={[
+                { keys: ['Q', 'E'], label: '切页签' },
+                ...(tab === 'lanes'
+                  ? [{ keys: ['←', '→'], label: '换一个事件' }]
+                  : tab === 'turns'
+                    ? [{ keys: ['↑', '↓'], label: '换一轮' }, { keys: ['↵'], label: '展开一步', more: true }]
+                    : [{ keys: ['/'], label: '搜索' }, { keys: ['End'], label: '回到最新', more: true }, { keys: ['⇧', '点'], label: '选多行', more: true }]),
+                { keys: ['esc'], label: '主页' },
+              ].map((it: KbdItem) => ({ ...it, keys: it.keys.map((k) => keyText(k)) }))}
+            />
           </span>
         }
         actions={

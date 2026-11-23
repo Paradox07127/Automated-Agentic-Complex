@@ -44,11 +44,6 @@
   }
 }
 
-.skelRows {
-  height: 120px;
-  background: repeating-linear-gradient(180deg, var(--ef-chip) 0 14px, transparent 14px 26px);
-}
-
 /* The big number while it is read. */
 .skel {
   display: inline-block;
@@ -124,29 +119,6 @@
   color: var(--ef-badge-dot);
 }
 
-/* Key hints show while ⌘ / Ctrl is held. */
-.keys {
-  display: flex;
-  gap: 14px;
-  align-items: center;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--ef-text-2);
-  font-size: var(--ef-fs-small);
-  white-space: nowrap;
-  transition: opacity 0.12s;
-}
-
-.keys > span {
-  display: inline-flex;
-  gap: 5px;
-  align-items: center;
-}
-
-:global(html:not([data-keys])) .keys {
-  opacity: 0;
-}
-
 @media (max-width: 1099px) {
   .page {
     padding: 10px var(--ef-page-pad) var(--ef-sp-12);
@@ -155,10 +127,6 @@
   .scroll {
     gap: 10px;
     padding: 10px var(--ef-sp-12) 14px;
-  }
-
-  .keys [data-opt] {
-    display: none;
   }
 }
 

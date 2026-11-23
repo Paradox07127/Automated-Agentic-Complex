@@ -64,30 +64,7 @@
   font-size: 12px;
 }
 
-/* Empty, error and loading (mailpanel EmptyNode: one line, a barcode rule, one action). */
-.empty {
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 12px;
-  min-height: min(320px, 60vh);
-  padding: 30px 16px;
-  color: var(--ef-text-2);
-  text-align: center;
-}
-
-.empty b {
-  color: var(--ef-text-1);
-  font: 500 18px / 26px var(--ef-font-sans);
-}
-
-.bc {
-  width: min(320px, 80%);
-  height: 8px;
-  background: repeating-linear-gradient(90deg, var(--ef-text-3) 0 2px, transparent 2px 5px, var(--ef-text-3) 5px 9px, transparent 9px 11px, var(--ef-text-3) 11px 12px, transparent 12px 17px);
-  opacity: 0.5;
-}
-
+/* Loading rows. */
 .skel {
   height: 54px;
   border-radius: 0 5px 5px 0;

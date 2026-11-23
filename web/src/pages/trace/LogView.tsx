@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { LogLevel, LogSourceId } from '../../bridge/logs';
 import { keyText } from '../../bridge/platformText';
-import { Btn, Menu, type MenuItem, MoreLines, Row, SearchField, SecHead } from '../../ui';
+import { Btn, Empty, Menu, type MenuItem, MoreLines, Row, SearchField, SecHead } from '../../ui';
 import { GameFrame, GameSeg } from '../../ui/game';
 import { clockOf, dayOf } from './data';
 import { LevelMark } from './Glyphs';
@@ -90,19 +90,15 @@ export function LogView({ logs, f, sel, now, searchRef, turnNo, onF, onSelect, o
 
   let body: ReactNode;
   if (logs.status === 'missing' || logs.status === 'error')
-    body = (
-      <div className={t.empty}>
-        <b>读不到日志</b>
-        <span>{logs.status === 'missing' ? '这个版本的外壳还没有读日志的接口。' : (logs.error ?? '外壳没有回答。')}</span>
-      </div>
-    );
+    body = <Empty size="compact" title="读不到日志" desc={logs.status === 'missing' ? '这个版本的外壳还没有读日志的接口。' : (logs.error ?? '外壳没有回答。')} />;
   else if (logs.status === 'loading') body = Array.from({ length: 14 }, (_, i) => <div key={i} className={`${t.skel} ${g.skl}`} />);
   else if (lines.length === 0)
     body = (
-      <div className={t.empty}>
-        <b>{f.q ? `没有含「${f.q}」的行` : '这些条件下没有日志'}</b>
-        <Btn variant="secondary" size="sm" onClick={() => onF({ q: '', win: null, levels: DEFAULT_LEVELS, on: null })}>清掉筛选</Btn>
-      </div>
+      <Empty
+        size="compact"
+        title={f.q ? `没有含「${f.q}」的行` : '这些条件下没有日志'}
+        action={<Btn variant="secondary" size="sm" onClick={() => onF({ q: '', win: null, levels: DEFAULT_LEVELS, on: null })}>清掉筛选</Btn>}
+      />
     );
   else {
     const out: ReactNode[] = [];

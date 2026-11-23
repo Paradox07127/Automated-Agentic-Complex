@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { ChartStatus } from '../../charts';
 import { isoToMs } from '../../domain';
 import type { WireTraceTurn } from '../../domain/wire';
-import { Btn, Fold, SecHead } from '../../ui';
+import { Btn, Empty, Fold, SecHead } from '../../ui';
 import { GameFrame, StatusLamp } from '../../ui/game';
 import { fmtMs } from '../chat/turnTrace';
 import { clockOf, dayOf, fmtK, LAMP, SHAPE_LABEL, shapeOf, srcLabel } from './data';
@@ -105,12 +105,17 @@ export function TurnDetail({ row, no, turn, st, emptyText, convTitle, related, o
         <div className={d.dt}>
           <Head row={row} no={no} title={row?.head ?? ''} />
           <div className={d.scroll}>
-            <div className={t.empty}>
-              <span className={t.bc} aria-hidden="true" />
-              <b>{msg}</b>
-              {st === 'error' && <Btn variant="secondary" size="sm" icon="refresh" onClick={onRetry}>重试</Btn>}
-              {st !== 'error' && st !== 'loading' && row && onOpenChat && <Btn variant="secondary" size="sm" icon="ext" onClick={onOpenChat}>在对话中打开</Btn>}
-            </div>
+            <Empty
+              size="compact"
+              title={msg}
+              action={
+                st === 'error' ? (
+                  <Btn variant="secondary" size="sm" icon="refresh" onClick={onRetry}>重试</Btn>
+                ) : st !== 'loading' && row && onOpenChat ? (
+                  <Btn variant="secondary" size="sm" icon="ext" onClick={onOpenChat}>在对话中打开</Btn>
+                ) : undefined
+              }
+            />
           </div>
         </div>
       </GameFrame>

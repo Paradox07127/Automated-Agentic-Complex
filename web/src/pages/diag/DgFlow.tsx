@@ -1,5 +1,6 @@
 import { useWidth } from '../../charts/useWidth';
 import { formatMs } from '../../domain';
+import { CountBadge } from '../../ui';
 import { COLS, HOOK_TIP, LANES, STATE_TEXT, type FlowEdge, type FlowNode, type NodeId, type NodeStat } from './flow';
 import styles from './DgFlow.module.css';
 
@@ -23,7 +24,12 @@ export interface DgFlowProps {
   calm: boolean;
 }
 
-const statText = (s: NodeStat) => `${s.count} 次 │ ${s.p50 == null ? '—' : formatMs(s.p50)}`;
+const stat = (s: NodeStat) => (
+  <>
+    <span>{s.count} 次</span>
+    <span>{s.p50 == null ? '—' : formatMs(s.p50)}</span>
+  </>
+);
 
 export function nodeTip(n: FlowNode): string {
   if (n.station) return `${n.label} │ 次数在记忆管线页`;
@@ -115,10 +121,12 @@ export function DgFlow({ nodes, edges, sel, onPick, onStation, live, dead, calm 
           >
             <i className={styles.strip} aria-hidden="true" />
             <b className={styles.nl}>{n.label}</b>
-            <span className={`${styles.ns} num`}>{station ? '记忆管线 ›' : n.stat ? statText(n.stat) : (n.sub ?? '0 次')}</span>
+            <span className={`${styles.ns} num`} data-stat={!station && n.stat ? '' : undefined}>
+              {station ? '记忆管线 ›' : n.stat ? stat(n.stat) : (n.sub ?? '0 次')}
+            </span>
             {n.state === 'fail' ? (
               <span className={styles.badge} aria-hidden="true">
-                ■ <b>{n.stat?.fail ?? ''}</b>
+                <CountBadge kind="square" count={n.stat?.fail ?? 0} />
               </span>
             ) : n.state === 'att' ? (
               <span className={styles.att} aria-hidden="true">

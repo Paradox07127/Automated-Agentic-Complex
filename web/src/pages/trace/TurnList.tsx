@@ -3,12 +3,11 @@ import { keyText } from '../../bridge/platformText';
 import type { ChartStatus } from '../../charts';
 import { isoToMs } from '../../domain';
 import type { WireTraceTurn } from '../../domain/wire';
-import { Btn, Menu, type MenuItem, SearchField } from '../../ui';
+import { Btn, Empty, Menu, type MenuItem, SearchField, Skel } from '../../ui';
 import { GameSeg, StatusLamp } from '../../ui/game';
 import { fmtMs } from '../chat/turnTrace';
 import { clockOf, groupOf, hourOf, inFilter, LAMP, no4, type ResFilter, SHAPE_LABEL, shapeOf, SRC_GROUPS, srcLabel, type SrcGroup } from './data';
 import s from './List.module.css';
-import t from './Trace.module.css';
 
 const PAGE = 40;
 const RES: ReadonlyArray<[ResFilter, string]> = [['all', '全部'], ['fail', '出错'], ['cut', '打断'], ['live', '在跑']];
@@ -49,30 +48,19 @@ export function TurnList({ rows, noOf, sel, st, stoppedAt, q, group, res, search
   }, [sel]);
 
   let body: ReactNode;
-  if (st === 'loading') body = Array.from({ length: 8 }, (_, i) => <div key={i} className={t.skel} />);
+  if (st === 'loading') body = <Skel rows={8} height={54} />;
   else if (st === 'error')
     body = (
-      <div className={t.empty}>
-        <b>读不到对话轮次</b>
-        <span>后台已断开{stoppedAt ? `，列表停在 ${stoppedAt}` : ''}。</span>
-        <Btn variant="secondary" size="sm" icon="refresh" onClick={onRetry}>重试</Btn>
-      </div>
+      <Empty
+        size="compact"
+        title="读不到对话轮次"
+        desc={`后台已断开${stoppedAt ? `，列表停在 ${stoppedAt}` : ''}。`}
+        action={<Btn variant="secondary" size="sm" icon="refresh" onClick={onRetry}>重试</Btn>}
+      />
     );
-  else if (rows.length === 0)
-    body = (
-      <div className={t.empty}>
-        <span className={t.bc} aria-hidden="true" />
-        <b>近 24 小时她没有跑过一轮</b>
-        <Btn variant="secondary" size="sm" icon="send" onClick={onChat}>去对话</Btn>
-      </div>
-    );
+  else if (rows.length === 0) body = <Empty size="compact" title="近 24 小时她没有跑过一轮" action={<Btn variant="secondary" size="sm" icon="send" onClick={onChat}>去对话</Btn>} />;
   else if (list.length === 0)
-    body = (
-      <div className={t.empty}>
-        <b>没有符合的轮次</b>
-        <Btn variant="secondary" size="sm" onClick={() => (onQ(''), onGroup('all'), onRes('all'))}>看全部</Btn>
-      </div>
-    );
+    body = <Empty size="compact" title="没有符合的轮次" action={<Btn variant="secondary" size="sm" onClick={() => (onQ(''), onGroup('all'), onRes('all'))}>看全部</Btn>} />;
   else {
     const out: ReactNode[] = [];
     let hour = '';

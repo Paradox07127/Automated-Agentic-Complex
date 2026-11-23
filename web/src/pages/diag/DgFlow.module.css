@@ -148,18 +148,23 @@
   white-space: nowrap;
 }
 
+/* Count and duration are never cut: on a narrow plate the duration drops to its own line. */
+.ns[data-stat] {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 6px;
+  justify-content: space-between;
+}
+
+.ns[data-stat] > span {
+  flex: none;
+}
+
 .badge {
   position: absolute;
   top: 0;
   right: 0;
-  padding: 1px 5px;
-  background: var(--ef-danger-vivid);
-  color: var(--ef-g-watch-ink);
-  font: var(--ef-fw-semibold) 11px / 14px var(--ef-font-num);
-}
-
-.badge b {
-  font-weight: inherit;
+  display: flex;
 }
 
 .att {

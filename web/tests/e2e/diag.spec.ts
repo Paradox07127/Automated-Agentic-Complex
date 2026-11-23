@@ -47,6 +47,20 @@ test('diag 管道: a node opens its failures; Esc clears it before leaving the p
   await expect(page.locator('[data-page="diag"]')).toBeVisible();
 });
 
+test('diag 管道 at 1440 with the detail column open: no node clips its count or duration', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('main.html#/diag?still=1&tab=flow&demo=full');
+  // 模型 lists its failures, the widest detail column.
+  await node(page, '模型').click();
+  await expect(page.getByRole('button', { name: '在对话轮次里看' })).toBeVisible();
+  const clipped = await page.evaluate(() =>
+    [...document.querySelectorAll('[data-nav-target^="flow-"] *')]
+      .filter((e) => !e.closest('[aria-hidden="true"]') && /\d/.test(e.textContent ?? '') && e.scrollWidth > e.clientWidth)
+      .map((e) => `${e.textContent} ${e.scrollWidth}>${e.clientWidth}`),
+  );
+  expect(clipped).toEqual([]);
+});
+
 test('diag: 暂停 stops the live lamp; 重启 asks first', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/diag?still=1&tab=proc');

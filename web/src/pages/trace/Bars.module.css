@@ -24,29 +24,6 @@
   transform: skewX(-20deg);
 }
 
-/* Bottom bar key hints, shown while ⌘ / Ctrl is held. */
-.keys {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--ef-text-2);
-  font-size: 12px;
-  white-space: nowrap;
-  transition: opacity var(--ef-dur-instant);
-}
-
-.keys > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-:global(html:not([data-keys])) .keys {
-  opacity: 0;
-}
-
 .note {
   color: var(--ef-text-2);
   font-size: 12px;
@@ -54,8 +31,7 @@
 }
 
 @media (max-width: 1100px) {
-  .long,
-  .opt {
+  .long {
     display: none;
   }
 }

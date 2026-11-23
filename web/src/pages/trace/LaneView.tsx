@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import type { ChartStatus } from '../../charts';
 import { isoToMs } from '../../domain';
-import { Menu, type MenuItem, Row, SecHead } from '../../ui';
+import { Empty, Menu, type MenuItem, Pill, Row, SecHead } from '../../ui';
 import { GameFrame, GameSeg, StatusLamp } from '../../ui/game';
 import { clockOf, LAMP, type Shape } from './data';
 import { causesOf, effectsOf, inWindow, labelOf, LANE_NAME, laneOf, lanesOf, type LaneEvent, type LaneId, pack, type Range, RANGES, toneOf, walkOf } from './lanes';
@@ -155,10 +155,7 @@ export function LaneView({ events, st, now }: LaneViewProps) {
           <Menu label="显示哪些线" icon="tune" align="right" narrowed={hidden.size > 0} items={[{ kind: 'head', label: '显示的线' }, ...lanes.map((id): MenuItem => ({ kind: 'item', label: LANE_NAME[id], checked: !hidden.has(id), onSelect: () => toggle(id) }))]} />
         </div>
         {msg != null ? (
-          <div className={t.empty}>
-            <span className={t.bc} aria-hidden="true" />
-            <b>{msg}</b>
-          </div>
+          <Empty size="compact" title={msg} />
         ) : (
           <div className={l.scroll}>
             <div className={l.axis} aria-hidden="true">
@@ -201,14 +198,11 @@ export function LaneView({ events, st, now }: LaneViewProps) {
       </section>
       <GameFrame label="所选事件">
         {!picked ? (
-          <div className={t.empty}>
-            <span className={t.bc} aria-hidden="true" />
-            <b>选一个事件看前因后果</b>
-          </div>
+          <Empty size="compact" title="选一个事件看前因后果" />
         ) : (
           <div className={l.dscroll} key={picked.event_id}>
             <div className={l.dh}>
-              <span className={l.tag}>{laneName(picked)}</span>
+              <Pill size="lg">{laneName(picked)}</Pill>
               <span className={`${t.num} ${l.when}`}>{clockOf(isoToMs(picked.t_wall), true)}</span>
               {status && <StatusLamp state={LAMP[status[0]]} label={status[1]} />}
             </div>
