@@ -187,7 +187,8 @@ describe('memory › 档案', () => {
     await openAll();
     expect(rows().sort()).toEqual(['g1', 'x3'].map(v31Id).sort());
     fireEvent.click(screen.getByRole('button', { name: '清除搜索' }));
-    fireEvent.change(screen.getByRole('combobox', { name: '排序' }), { target: { value: 'idle' } });
+    fireEvent.click(screen.getByRole('button', { name: '排序' }));
+    fireEvent.click(screen.getByRole('option', { name: '最久没用' }));
     expect(screen.queryByRole('group', { name: '偏好' })).toBeNull();
     expect(rows()).toHaveLength(18);
   });

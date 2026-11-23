@@ -55,12 +55,12 @@
 
 .belt[data-tone='block'] .body {
   border-color: var(--ef-danger-g-power-save);
-  background: repeating-linear-gradient(-60deg, rgb(255 255 255 / 25%) 0 2px, transparent 2px 6px), color-mix(in srgb, var(--ef-danger-g-power-save) 70%, transparent);
+  background: repeating-linear-gradient(-60deg, color-mix(in srgb, var(--ef-on-danger-strong) 25%, transparent) 0 2px, transparent 2px 6px), color-mix(in srgb, var(--ef-danger-g-power-save) 70%, transparent);
 }
 
 .belt[data-tone='fail'] .body {
   border-color: var(--ef-danger-g-power-none);
-  background: repeating-linear-gradient(-60deg, rgb(255 255 255 / 22%) 0 2px, transparent 2px 6px), color-mix(in srgb, var(--ef-danger-g-power-none) 70%, transparent);
+  background: repeating-linear-gradient(-60deg, color-mix(in srgb, var(--ef-on-danger-strong) 22%, transparent) 0 2px, transparent 2px 6px), color-mix(in srgb, var(--ef-danger-g-power-none) 70%, transparent);
 }
 
 .belt[data-tone='pause'] .body {

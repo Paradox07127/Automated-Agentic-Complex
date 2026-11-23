@@ -1,16 +1,17 @@
-import { useEffect, useRef, useState, type Ref } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBridge } from '../../bridge';
+import { keyText } from '../../bridge/platformText';
 import { get, seg } from '../../bridge/agentd';
 import { BottomBarSlot } from '../../shell/headerSlot';
-import { Btn, ErrBar, InfoTip, SecHead } from '../../ui';
+import { Btn, ErrBar, InfoTip, SearchField, SecHead } from '../../ui';
 import { useGo } from './api';
 import { Frame, Note, Spacer, Text } from './Detail';
 import detail from './Detail.module.css';
 import { errorText } from './errors';
 import { LeftCol } from './Index';
 import { Keys } from './Keys';
-import { Block, Cell, DetailCol, DetailHead, Empty, Kv, List, Lnk, Panel, Quote, Row, SearchBox, Sep, Skeleton, Tag, useNarrow } from './parts';
+import { Block, Cell, DetailCol, DetailHead, Empty, Kv, List, Lnk, Panel, Quote, Row, Sep, Skeleton, Tag, useNarrow } from './parts';
 import styles from './Cols.module.css';
 
 type SourceKind = 'work_events' | 'raw';
@@ -71,7 +72,7 @@ function eventOf(text: string): { title?: string; summary?: string; evidence?: R
 }
 
 /** 回顾：她看到过的原始记录，左栏工作片段 / 原始观察，中栏按 10 分钟分段的行（回车搜索），右栏原文或证据。 */
-export function Review({ searchRef }: { searchRef: Ref<HTMLInputElement> }) {
+export function Review() {
   const narrow = useNarrow();
   const [kind, setKind] = useState<SourceKind>('work_events');
   const [draft, setDraft] = useState('');
@@ -188,17 +189,19 @@ export function Review({ searchRef }: { searchRef: Ref<HTMLInputElement> }) {
       </LeftCol>
       <section className={styles.ccol} aria-label="回顾">
         <div className={styles.crow}>
-          <SearchBox
-            inputRef={searchRef}
-            value={draft}
-            label="搜索活动"
-            placeholder="搜索她看到的内容（按回车）"
-            onChange={(v) => {
-              setDraft(v.slice(0, 500));
-              if (!v) setQuery('');
-            }}
-            onSubmit={() => setQuery(draft.trim())}
-          />
+          <span className={styles.search}>
+            <SearchField
+              value={draft}
+              label="搜索活动"
+              placeholder="搜索她看到的内容（按回车）"
+              shortcut={keyText('⌘F')}
+              onChange={(v) => {
+                setDraft(v.slice(0, 500));
+                if (!v) setQuery('');
+              }}
+              onSubmit={(v) => setQuery(v.trim())}
+            />
+          </span>
           <span className={styles.sp} />
           <Btn loading={list.isRefetching} onClick={() => void list.refetch()}>
             刷新

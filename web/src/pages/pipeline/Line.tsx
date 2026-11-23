@@ -5,6 +5,7 @@ import { StateGlyph } from '../../ui/game/StateGlyph';
 import { stateVisual } from '../../domain/status';
 import { Belt, MergeBelt } from './Belt';
 import { belts, PHASE, type Phase, type StationId, type States } from './model';
+import { useNarrow } from './narrow';
 import styles from './Line.module.css';
 
 export const NAME: Readonly<Record<StationId, { no: string; micro: string; name: string; icon: IconName }>> = {
@@ -59,6 +60,7 @@ function Legend() {
 /** 产线：观察 → 理解 → 整理 → 记忆库四个工位卡，中间是传送带；工位就是这页的选择器。 */
 export function Line({ states, cards, selected, onSelect, flow, stale, alert }: LineProps) {
   const [b1, b2, b3] = belts(states, stale);
+  const compact = useNarrow();
   const card = (k: StationId) => {
     const s = states[k];
     return (
@@ -71,6 +73,7 @@ export function Line({ states, cards, selected, onSelect, flow, stale, alert }: 
           stateLabel={PHASE[s.phase].label}
           why={s.why ?? undefined}
           selected={selected === k}
+          compact={compact}
           onSelect={() => onSelect(k)}
         />
         {alert?.at === k && (

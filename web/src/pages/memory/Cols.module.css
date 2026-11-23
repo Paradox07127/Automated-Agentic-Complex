@@ -68,39 +68,23 @@
   margin-top: 8px;
 }
 
-/* Sort: a paper capsule around a native select. */
+/* The search box grows with the row, up to 420. */
+.search {
+  display: flex;
+  flex: 1;
+  min-width: 120px;
+  max-width: 420px;
+}
+
+/* Sort: its word, then the shared dropdown. */
 .sel {
   display: inline-flex;
   flex: none;
   gap: 8px;
   align-items: center;
-  height: 32px;
-  padding: 0 8px 0 14px;
-  border-radius: 999px;
   font-size: 13px;
   white-space: nowrap;
-  color: var(--ef-paper-text);
-  background: var(--ef-paper);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ef-paper-text) 20%, transparent);
-}
-
-.sel span {
-  color: var(--ef-paper-text-2);
-}
-
-.sel select {
-  all: unset;
-  padding-right: 18px;
-  font: 500 13px var(--ef-font-sans);
-  color: var(--ef-paper-text);
-  cursor: pointer;
-  background:
-    linear-gradient(45deg, transparent 50%, var(--ef-field-text) 50%) right 6px center / 6px 6px no-repeat,
-    linear-gradient(-45deg, transparent 50%, var(--ef-field-text) 50%) right 0 center / 6px 6px no-repeat;
-}
-
-.sel:focus-within {
-  box-shadow: 0 0 0 2px var(--ef-focus);
+  color: var(--ef-text-2);
 }
 
 @media (max-width: 1199px) {

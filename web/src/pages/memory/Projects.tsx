@@ -1,18 +1,19 @@
-import { useState, type Ref } from 'react';
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { get, patch, seg } from '../../bridge/agentd';
 import type { MemoryTaskResponse, MemoryTasksResponse } from '../../bridge/agentd-routes.generated';
 import { secToMs } from '../../domain/units';
 import { BottomBarSlot } from '../../shell/headerSlot';
 import { toast } from '../../shell/toast';
-import { Btn, ErrBar, SecHead } from '../../ui';
+import { keyText } from '../../bridge/platformText';
+import { Btn, ErrBar, SearchField, SecHead } from '../../ui';
 import { Frame, Line, Lines, Note, Spacer, Text } from './Detail';
 import detail from './Detail.module.css';
 import { errorText, isConflict } from './errors';
 import { LeftCol } from './Index';
 import { Keys } from './Keys';
 import { hm, ymd } from './model';
-import { Block, Cell, DetailCol, DetailHead, Empty, Kv, List, Lnk, Panel, Row, SearchBox, Sep, Skeleton, Glyph, useNarrow, type GlyphName } from './parts';
+import { Block, Cell, DetailCol, DetailHead, Empty, Kv, List, Lnk, Panel, Row, Sep, Skeleton, Glyph, useNarrow, type GlyphName } from './parts';
 import styles from './Cols.module.css';
 
 export type WorkTask = MemoryTasksResponse['tasks'][number];
@@ -39,13 +40,12 @@ export interface ProjectsProps {
   error: string | null;
   onRetry: () => void;
   initialQ: string;
-  searchRef: Ref<HTMLInputElement>;
   /** Opens a session on 今天. */
   onSession: (id: string) => void;
 }
 
 /** 项目：左栏四种状态，中栏「00.101 名称 / 项目 日期 会话数」行，右栏目标、进展、下一步和会话；目标记错了可以改。 */
-export function Projects({ tasks, error, onRetry, initialQ, searchRef, onSession }: ProjectsProps) {
+export function Projects({ tasks, error, onRetry, initialQ, onSession }: ProjectsProps) {
   const narrow = useNarrow();
   const [q, setQ] = useState(initialQ);
   const [status, setStatus] = useState<string | null>(null);
@@ -106,7 +106,9 @@ export function Projects({ tasks, error, onRetry, initialQ, searchRef, onSession
       </LeftCol>
       <section className={styles.ccol} aria-label="项目">
         <div className={styles.crow}>
-          <SearchBox inputRef={searchRef} value={q} label="搜索项目" placeholder="搜索项目" onChange={setQ} />
+          <span className={styles.search}>
+            <SearchField value={q} label="搜索项目" placeholder="搜索项目" shortcut={keyText('⌘F')} onChange={setQ} />
+          </span>
         </div>
         <Panel>{list}</Panel>
       </section>

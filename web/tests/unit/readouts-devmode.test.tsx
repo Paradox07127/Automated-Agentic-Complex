@@ -1,5 +1,4 @@
 // Fixed-width, once-a-second frame readouts, and the 开发者模式 switch that hides developer pages and internal numbers.
-import { createRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider, type RouteComponent } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -174,7 +173,7 @@ describe(' 开发者模式 off', () => {
   it('drops the reference count from a memory row', () => {
     const { container } = render(
       <QueryClientProvider client={client()}>
-        <Archive facts={[fact]} error={null} onRetry={noop} now={2_000} still fresh={new Set()} initial={{ sel: null, q: '' }} searchRef={createRef()} write={{ confirm: ok, correct: ok, reject: ok, forget: ok, add: ok }} onJump={noop} onChat={noop} actions={null} />
+        <Archive facts={[fact]} error={null} onRetry={noop} now={2_000} still fresh={new Set()} initial={{ sel: null, q: '' }} write={{ confirm: ok, correct: ok, reject: ok, forget: ok, add: ok }} onJump={noop} onChat={noop} actions={null} />
       </QueryClientProvider>,
     );
     expect(container.textContent).toContain('喜欢黑咖啡');

@@ -1,6 +1,7 @@
 // 记忆管线的读法：四个工位的状态、传送带、顶栏一句话，全部由回包推出，不另取数据。
 import type { VisualStateKey } from '../../domain/states';
 import { formatClock } from '../../domain';
+import { stateVisual } from '../../domain/status';
 import { isoToMsOrNull } from '../../domain/units';
 
 export type StationId = 'obs' | 'interp' | 'mem' | 'store';
@@ -12,9 +13,9 @@ export type Phase = 'run' | 'idle' | 'block' | 'fail' | 'pause' | 'wait' | 'load
 export const PHASE: Readonly<Record<Phase, { key: VisualStateKey; label: string }>> = {
   run: { key: 'running', label: '在跑' },
   idle: { key: 'idle', label: '空闲' },
-  block: { key: 'warning', label: '堵住' },
+  block: { key: 'blocked', label: stateVisual('blocked').label },
   fail: { key: 'failed', label: '出错了' },
-  pause: { key: 'stopped', label: '已暂停' },
+  pause: { key: 'paused', label: stateVisual('paused').label },
   wait: { key: 'waiting', label: '待确认' },
   loading: { key: 'idle', label: '读取中' },
   unread: { key: 'idle', label: '读不到' },
@@ -90,9 +91,9 @@ export const troubled = (s: States): StationId | null => STATIONS.find((k) => s[
 /** 顶栏一句话：几处出错 / 堵住 / 暂停，否则全线正常；还在读时不写。 */
 export function lineWord(s: States): { phase: 'fail' | 'block' | 'pause' | 'ok'; text: string } | null {
   if (STATIONS.some((k) => s[k].phase === 'loading')) return null;
-  for (const [phase, word] of [['fail', '出错了'], ['block', '堵住'], ['pause', '已暂停']] as const) {
+  for (const phase of ['fail', 'block', 'pause'] as const) {
     const n = STATIONS.filter((k) => s[k].phase === phase).length;
-    if (n > 0) return { phase, text: `${n} 处${word}` };
+    if (n > 0) return { phase, text: `${n} 处${PHASE[phase].label}` };
   }
   return { phase: 'ok', text: '全线正常' };
 }

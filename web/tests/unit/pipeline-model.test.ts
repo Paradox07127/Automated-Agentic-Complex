@@ -1,6 +1,6 @@
 // 记忆管线的状态推导：工位状态、传送带、出事的工位、顶栏一句话。
 import { describe, expect, it } from 'vitest';
-import { belts, interpState, lineWord, memState, obsState, storeState, troubled, type States } from '../../src/pages/pipeline/model';
+import { belts, interpState, lineWord, memState, obsState, PHASE, storeState, troubled, type States } from '../../src/pages/pipeline/model';
 
 const idle = { phase: 'idle' as const, why: null };
 const all = (over: Partial<States>): States => ({ obs: idle, interp: idle, mem: idle, store: idle, ...over });
@@ -43,5 +43,12 @@ describe('the line', () => {
     expect(lineWord(s)).toEqual({ phase: 'fail', text: '1 处出错了' });
     expect(lineWord(all({}))).toEqual({ phase: 'ok', text: '全线正常' });
     expect(lineWord(all({ obs: { phase: 'loading', why: null } }))).toBeNull();
+  });
+
+  it('堵住 and 已暂停 are the shared blocked and paused states', () => {
+    expect(PHASE.block).toEqual({ key: 'blocked', label: '堵住' });
+    expect(PHASE.pause).toEqual({ key: 'paused', label: '已暂停' });
+    expect(lineWord(all({ obs: { phase: 'block', why: null } }))?.text).toBe('1 处堵住');
+    expect(lineWord(all({ mem: { phase: 'pause', why: null } }))?.text).toBe('1 处已暂停');
   });
 });

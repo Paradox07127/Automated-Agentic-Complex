@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { keyText } from '../../bridge/platformText';
 import type { Fact, FactKind } from '../../domain';
 import { BottomBarSlot } from '../../shell/headerSlot';
-import { Btn, ErrBar, SecHead } from '../../ui';
+import { Btn, ErrBar, SearchField, SecHead, Select } from '../../ui';
 import { Detail } from './Detail';
 import { Keys } from './Keys';
 import { LeftCol, Plate } from './Index';
 import { catOf, CATS, factText, isCandidate, isDormant, matches, plateOf, recentText, SORTERS, SORTS, SRC, ymd, type Cat, type Sort } from './model';
 import { AddPop, DeleteCard } from './Papers';
-import { Cell, DetailCol, Empty, List, Lnk, Panel, Row, SearchBox, Sep, Skeleton, SrcMark, Tag, useNarrow, type GlyphName } from './parts';
+import { Cell, DetailCol, Empty, List, Lnk, Panel, Row, Sep, Skeleton, SrcMark, Tag, useNarrow, type GlyphName } from './parts';
 import { Votes } from './Votes';
 import styles from './Cols.module.css';
 
@@ -25,7 +26,6 @@ export interface ArchiveProps {
   fresh: ReadonlySet<string>;
   /** `?sel=` and `?q=` on arrival. */
   initial: { sel: string | null; q: string };
-  searchRef: Ref<HTMLInputElement>;
   /** Writes; each resolves true when agentd took it, after saying so. */
   write: {
     confirm: (f: Fact) => Promise<boolean>;
@@ -43,7 +43,7 @@ export interface ArchiveProps {
 }
 
 /** 档案：左栏名牌和分类格，中栏搜索、排序、新增和记录行，右栏这条记忆（窄窗是抽屉）；有待确认时先停在「待确认」的投票卡。 */
-export function Archive({ facts, error, onRetry, now, still, fresh, initial, searchRef, write, onJump, onChat, tabbed = false, actions }: ArchiveProps) {
+export function Archive({ facts, error, onRetry, now, still, fresh, initial, write, onJump, onChat, tabbed = false, actions }: ArchiveProps) {
   const narrow = useNarrow();
   const all = facts ?? [];
   const asks = all.filter(isCandidate);
@@ -223,18 +223,14 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, sea
       ) : (
         <section className={styles.ccol} aria-label="记忆">
           <div className={styles.crow}>
-            <SearchBox inputRef={searchRef} value={q} label="搜索记忆" placeholder="搜索记住的事" onChange={setQ} />
+            <span className={styles.search}>
+              <SearchField value={q} label="搜索记忆" placeholder="搜索记住的事" shortcut={keyText('⌘F')} onChange={setQ} />
+            </span>
             <span className={styles.sp} />
-            <label className={styles.sel}>
-              <span>排序</span>
-              <select value={sort} aria-label="排序" onChange={(e) => setSort(e.currentTarget.value as Sort)}>
-                {SORTS.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <span className={styles.sel}>
+              <span aria-hidden="true">排序</span>
+              <Select label="排序" value={sort} options={SORTS} width={124} onChange={(v) => setSort(v as Sort)} />
+            </span>
             <Btn icon="plus" onClick={() => setAdding(true)}>
               新增
             </Btn>

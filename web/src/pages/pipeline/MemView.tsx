@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { formatClock } from '../../domain';
 import { Btn } from '../../ui';
 import { GameTable, StatusLamp, type GameTableRow } from '../../ui/game';
@@ -89,6 +90,14 @@ export function MemView({ runs, digest, today, picked, selected, onSelect, onRec
   const fails = today.filter((r) => isBad(r.state)).length;
   const p50 = median(done.flatMap((r) => (r.end != null ? [r.end - r.at] : [])));
   const last = runs.find((r) => r.state !== 'running');
+  // The asked-for batch opens once its changes arrive; a row opened or closed by hand stays so.
+  const want = picked != null && (digest.get(picked)?.changes.length ?? 0) > 0 ? picked : null;
+  const [expanded, setExpanded] = useState<string[]>(want ? [want] : []);
+  const [opened, setOpened] = useState(want);
+  if (want !== opened) {
+    setOpened(want);
+    if (want && !expanded.includes(want)) setExpanded([...expanded, want]);
+  }
   const rows: GameTableRow[] = runs.map((r) => {
     const d = digest.get(r.id);
     const changes = d?.changes ?? [];
@@ -96,7 +105,6 @@ export function MemView({ runs, digest, today, picked, selected, onSelect, onRec
     return {
       id: r.id,
       ...(bad ? { tone: 'fail' as const } : r.state === 'running' ? { tone: 'run' as const } : {}),
-      defaultOpen: r.id === picked && changes.length > 0,
       cells: {
         at: <span className="num">{formatClock(r.at)}</span>,
         use: PURPOSE_LABEL[r.purpose],
@@ -152,8 +160,7 @@ export function MemView({ runs, digest, today, picked, selected, onSelect, onRec
         ]}
       />
       <Panel title="整理记录" count={runs.length} micro="CONSOLIDATE LOG" tip="生成记录只保留 48 小时，过后只剩操作回执">
-        {/* GameTable reads defaultOpen once: it mounts again when the asked-for batch's changes arrive. */}
-        <GameTable key={picked == null || digest.has(picked) ? 'open' : 'wait'} label="整理记录" columns={COLS} endWidth="auto" rows={rows} selected={selected} onSelect={onSelect} />
+        <GameTable label="整理记录" columns={COLS} endWidth="auto" rows={rows} selected={selected} onSelect={onSelect} expanded={expanded} onExpandedChange={setExpanded} />
       </Panel>
     </>
   );

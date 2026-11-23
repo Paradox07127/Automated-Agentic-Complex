@@ -1,8 +1,8 @@
 // 记忆管线（开发者）：观察 → 理解 → 整理 → 记忆库四个工位卡排成产线，选中一个看它的详情；命令栏菜单只在开发者模式列出它。
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider, type RouteComponent } from '@tanstack/react-router';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PipelinePage } from '../../src/pages/pipeline/Page';
 import { CommandBar } from '../../src/shell/CommandBar';
 import { setDevMode } from '../../src/shell/devMode';
@@ -13,6 +13,7 @@ import { stubMatchMedia } from './mediaStub';
 beforeEach(() => localStorage.clear());
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
   localStorage.clear();
   window.location.hash = '';
 });
@@ -54,6 +55,29 @@ describe('记忆管线页', () => {
   it('?run= picks 整理 and opens that batch’s generation record', async () => {
     mountAt(PipelinePage, '&station=obs&run=mrun-00');
     expect(await screen.findByRole('dialog', { name: '生成记录' }, T)).toBeTruthy();
+  });
+
+  it('?run= opens that batch’s row to what it wrote', async () => {
+    mountAt(PipelinePage, '&run=mrun-00');
+    const sheet = await screen.findByRole('dialog', { name: '生成记录' }, T);
+    fireEvent.keyDown(sheet, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '生成记录' })).toBeNull(), T);
+    const table = await screen.findByRole('group', { name: '整理记录' }, T);
+    expect(await within(table).findByText(/按项目分组/, {}, T)).toBeTruthy();
+    expect(within(table).getAllByRole('button', { expanded: true })).toHaveLength(1);
+  });
+
+  it('below 1100 px the station cards and the readouts go compact; wide they stay as they are', async () => {
+    const media = stubMatchMedia(new Set(['(max-width: 1099px)']));
+    mountAt(PipelinePage);
+    const line = await screen.findByRole('tablist', { name: '工位' }, T);
+    const cards = within(line).getAllByRole('tab');
+    expect(cards.every((c) => c.hasAttribute('data-compact'))).toBe(true);
+    await waitFor(() => expect(document.querySelectorAll('[data-stub="ReadTick"]').length).toBeGreaterThan(0), T);
+    expect([...document.querySelectorAll('[data-stub="ReadTick"]')].every((t) => t.hasAttribute('data-inline'))).toBe(true);
+    media.set('(max-width: 1099px)', false);
+    await waitFor(() => expect(within(line).getAllByRole('tab').some((c) => c.hasAttribute('data-compact'))).toBe(false));
+    expect([...document.querySelectorAll('[data-stub="ReadTick"]')].some((t) => t.hasAttribute('data-inline'))).toBe(false);
   });
 
   it('?station= picks the station; E moves along the line', async () => {

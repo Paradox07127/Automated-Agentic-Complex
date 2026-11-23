@@ -1,5 +1,4 @@
-import { useSyncExternalStore, type CSSProperties, type ReactNode, type Ref } from 'react';
-import { keyText } from '../../bridge/platformText';
+import { useSyncExternalStore, type CSSProperties, type ReactNode } from 'react';
 import type { MemorySource } from '../../domain';
 import { Btn, IconBtn, SecHead, Sheet } from '../../ui';
 import { Barcode, MicroLabel } from '../../ui/game';
@@ -91,45 +90,6 @@ export function Cell({ icon, label, count, selected, pending, i, onClick }: Cell
       {count !== undefined && <span className={`${cells.n} num`}>{count ?? '—'}</span>}
       {pending && <i className={cells.rd} aria-hidden="true" />}
     </button>
-  );
-}
-
-/** White capsule search box (⌘F); `onSubmit` makes it search on Enter only. Esc clears it, then leaves it. */
-export function SearchBox({ value, label, placeholder, inputRef, onChange, onSubmit }: { value: string; label: string; placeholder: string; inputRef?: Ref<HTMLInputElement>; onChange: (v: string) => void; onSubmit?: () => void }) {
-  return (
-    <form
-      role="search"
-      className={cells.field}
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSubmit?.();
-      }}
-    >
-      <Glyph name="search" size={16} />
-      <input
-        ref={inputRef}
-        type="text"
-        value={value}
-        placeholder={placeholder}
-        aria-label={label}
-        maxLength={500}
-        data-search=""
-        onChange={(e) => onChange(e.currentTarget.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape' && value) {
-            e.preventDefault();
-            onChange('');
-          }
-        }}
-      />
-      {value ? (
-        <button type="button" className={cells.clear} aria-label="清除搜索" title="清除搜索" onClick={() => onChange('')}>
-          <Glyph name="close" size={12} />
-        </button>
-      ) : (
-        <kbd className={cells.key}>{keyText('⌘F')}</kbd>
-      )}
-    </form>
   );
 }
 

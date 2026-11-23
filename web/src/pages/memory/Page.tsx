@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBridge } from '../../bridge';
 import { AgentdCallError, del, get, put } from '../../bridge/agentd';
@@ -71,23 +71,11 @@ export function MemoryPage() {
   const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set());
   const [clearing, setClearing] = useState(false);
   const [exportOff, setExportOff] = useState<string | null>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
   const view: View = (picked === 'projects' && !hasProjects) || (picked === 'activity' && !hasReview) ? 'about' : (picked ?? 'about');
   const sel = params.get('sel');
   const q = params.get('q') ?? srcQuery(params.get('src')) ?? '';
 
   useEffect(() => setPicked(viewParam(params)), [params]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
-        e.preventDefault();
-        searchRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
 
   // /feed memory events (server.py, integration.py, memory_pipeline.py): rows change live, a finished run moves 上次整理.
   useEffect(() => {
@@ -219,11 +207,10 @@ export function MemoryPage() {
           error={work.isError && !noRoute(work.error) ? errorText(work.error) : null}
           onRetry={() => void work.refetch()}
           initialQ={q}
-          searchRef={searchRef}
           onSession={(id) => go({ page: 'overview', sel: id })}
         />
       ) : view === 'activity' ? (
-        <Review searchRef={searchRef} />
+        <Review />
       ) : (
         <Archive
           key={sel ?? ''}
@@ -234,7 +221,6 @@ export function MemoryPage() {
           still={still}
           fresh={fresh}
           initial={{ sel, q }}
-          searchRef={searchRef}
           write={write}
           onJump={jump}
           onChat={() => go({ page: 'chat' })}

@@ -41,7 +41,7 @@
 
 .bars i {
   width: 7px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--hd-c) 70%, #fff), var(--hd-c));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--hd-c) 70%, var(--ef-on-danger-strong)), var(--hd-c));
 }
 
 .bars i + i {

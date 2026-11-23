@@ -3,6 +3,7 @@ import { Empty, InfoTip, type IconName } from '../../ui';
 import { Barcode, GameFrame, MicroLabel, ReadTick, StatusLamp, type ReadTickProps } from '../../ui/game';
 import { NAME } from './Line';
 import { PHASE, type StationId, type StationState } from './model';
+import { useNarrow } from './narrow';
 import styles from './Detail.module.css';
 
 /** 每个工位一句话讲清这一段做什么。 */
@@ -49,13 +50,14 @@ export interface ReadCell extends Omit<ReadTickProps, 'size'> {
   opt?: boolean;
 }
 
-/** 读数带：一排同级读数，竖条 + 大数 + 小字；出错红、满额橙。 */
+/** 读数带：一排同级读数，竖条 + 大数 + 小字；出错红、满额橙。窄窗里小字跟在数后面，读数带只占一行。 */
 export function Reads({ cells }: { cells: readonly ReadCell[] }) {
+  const narrow = useNarrow();
   return (
     <div className={styles.reads} style={{ '--n': cells.length, '--n-sm': cells.filter((c) => !c.opt).length } as CSSProperties}>
       {cells.map(({ opt, ...c }, i) => (
         <span key={i} className={styles.read} data-opt={opt || undefined}>
-          <ReadTick size="lg" {...c} />
+          <ReadTick size="lg" inline={narrow} {...c} />
         </span>
       ))}
     </div>

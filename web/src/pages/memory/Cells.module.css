@@ -1,4 +1,4 @@
-/* 左栏分类格（游戏百科 TabCell）、分隔标签和白胶囊搜索框。贴图全是 CSS 自绘。 */
+/* 左栏分类格（游戏百科 TabCell）和分隔标签。贴图全是 CSS 自绘。 */
 
 /* `INDEX ──── ⁄⁄⁄⁄`: label, a rule and a short hatch at its end. */
 .sep {
@@ -159,76 +159,6 @@
     opacity: 0;
     transform: translateX(-10px);
   }
-}
-
-/* ---------- 搜索框：白胶囊 ---------- */
-.field {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 8px;
-  min-width: 120px;
-  max-width: 420px;
-  height: 34px;
-  margin: 0;
-  padding: 0 6px 0 14px;
-  border-radius: 999px;
-  color: var(--ef-paper-text);
-  background: linear-gradient(180deg, var(--ef-field-hover), var(--ef-field));
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--ef-paper-text) 18%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--ef-paper-text) 28%, transparent),
-    0 0 0 3px color-mix(in srgb, var(--ef-paper-text) 12%, transparent);
-}
-
-.field:focus-within {
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ef-paper-text) 18%, transparent), 0 0 0 2px var(--ef-accent);
-}
-
-.field input {
-  all: unset;
-  flex: 1;
-  min-width: 0;
-  font-size: 14px;
-  color: var(--ef-paper-text);
-}
-
-.field input::placeholder {
-  color: var(--ef-paper-text-2);
-}
-
-.field svg {
-  color: var(--ef-field-text);
-}
-
-/* ⌘F cap: shown only while ⌘ / Ctrl is held. */
-.key {
-  display: none;
-  margin-right: 4px;
-  padding: 0 4px;
-  border: 1px solid color-mix(in srgb, var(--ef-paper-text) 30%, transparent);
-  border-radius: 3px;
-  font: 11px var(--ef-font-num);
-  color: var(--ef-field-text);
-}
-
-:global(html[data-keys]) .key {
-  display: inline;
-}
-
-.clear {
-  all: unset;
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  color: var(--ef-field-text);
-  cursor: pointer;
-}
-
-.clear:hover {
-  background: color-mix(in srgb, var(--ef-paper-text) 8%, transparent);
 }
 
 @media (max-height: 620px) {
