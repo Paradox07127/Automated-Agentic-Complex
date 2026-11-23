@@ -136,6 +136,8 @@ export interface FlowInput {
   hookSub: string;
   /** Stats from the hourly aggregate where one exists (mock `full` demo); they replace the computed ones. */
   hourly?: Partial<Record<NodeId, NodeStat>> | null;
+  /** /diag/state `stages`: the last hour's median ms of the nodes agentd times. */
+  p50?: Partial<Record<NodeId, number>>;
 }
 
 /** Approvals opened since `since` and not decided yet. */
@@ -174,7 +176,7 @@ export function flowOf(f: FlowInput): { nodes: FlowNode[]; edges: FlowEdge[] } {
     if (station) return { id, label, xi, yi, stat: null, state: 'idle', station };
     const h = f.hourly?.[id];
     const n = h?.count ?? count.get(id) ?? 0;
-    const stat: NodeStat | null = h ?? (n > 0 ? { count: n, p50: null, fail: fail.get(id) ?? 0 } : null);
+    const stat: NodeStat | null = h ?? (n > 0 ? { count: n, p50: f.p50?.[id] ?? null, fail: fail.get(id) ?? 0 } : null);
     const att = (id === 'tts' && f.voiceDown) || (id === 'appr' && waiting);
     const state: NodeState = stat && stat.fail > 0 ? 'fail' : att ? 'att' : stat && stat.count > 0 ? 'ok' : 'idle';
     return { id, label, xi, yi, stat: stat && stat.count > 0 ? stat : null, state, ...(id === 'hook' ? { sub: f.hookSub } : {}) };

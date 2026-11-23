@@ -56,7 +56,7 @@ export function FlowSection(p: FlowSectionProps) {
     <section className={styles.sec} aria-label="管道">
       <SecHead
         title="轮次管道"
-        info="节点的次数是近 1 小时轮次走过的估算；主线节点的耗时等后端补上，现在写「—」。观察、解读、记忆提取的次数在记忆管线页。"
+        info="节点的次数是近 1 小时轮次走过的估算；耗时是后台服务记下的近 1 小时中位数，输入和台词不单独计时，写「—」，重启后台服务后重新累计。观察、解读、记忆提取的次数在记忆管线页。"
         right={
           <>
             <span className={styles.head}>

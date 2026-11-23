@@ -27,7 +27,7 @@ import type { MockRoute } from './types';
 
 const stamp = <T extends object>(block: T, at: string) => ({ ...block, updated_at: at });
 
-/** `GET /diag/state`: the 15 blocks of server.py `diag_state`. */
+/** `GET /diag/state`: the 16 blocks of server.py `diag_state`. */
 export const DIAG_STATE: WireDiagState = {
   hooks: stamp(WIRE_DIAG_HOOKS, isoAt(14, 29)),
   turn: stamp(WIRE_DIAG_TURN, WIRE_DIAG_TURN.updated_at ?? isoAt(14, 32, 4)),
@@ -92,6 +92,7 @@ export const DIAG_STATE: WireDiagState = {
   character_state: stamp(WIRE_CHARACTER_STATE, isoAt(14, 22)),
   interaction: stamp({ name: 'balanced', model_every: 180, model_refresh: 900, proactive_speech: true, same_cooldown: 600, random_tick_scale: 1, wander_scale: 1, focus_walk_probability: 0.5 }, isoAt(13, 20)),
   rituals: stamp({ pending: ['water'], today: [{ kind: 'morning', line_id: 'line-morning', at: isoAt(9, 2) }] }, isoAt(9, 2)),
+  stages: stamp({ window_s: 3600, nodes: { ctx: { p50_ms: 38, n: 6 }, judge: { p50_ms: 410, n: 3 }, model: { p50_ms: 3120, n: 6 }, tts: { p50_ms: 640, n: 5 }, play: { p50_ms: 2400, n: 5 } } }, isoAt(14, 31, 58)),
 };
 
 /** `GET /capabilities`: the voice is degraded (TTS unreachable); screenshots sharing is off, which is not a problem. */

@@ -38,6 +38,7 @@ from observation.spatial import Spatial
 from observation.user_now import UserNow
 from observation.user_state import UserState
 from traces.motion_lane import MotionLane
+from traces.stage_times import StageTimes
 from api.views import _iso
 from voice.voice_provider import NoVoice
 
@@ -291,6 +292,7 @@ class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, 
         self.trace = None  # TraceStore (T1); None emits nothing and answers /trace/* with 503
         self.desk = None  # DeskLog; None records no touches or desk spans and answers /interaction/record with 503
         self.trace_errors = 0  # events the store refused; a line never stops for its trace
+        self.stage_times = StageTimes()  # the traced spans /diag/state `stages` takes its medians from
         self._turn_trace = None  # the current turn's trace (see _open_trace); a cancel lands in it
         self._speech_traces = OrderedDict()  # speech_id -> the trace of the line it voices
         self._early_speech = OrderedDict()  # speech_id -> relay events that came before speak() returned

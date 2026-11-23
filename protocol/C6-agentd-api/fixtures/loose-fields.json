@@ -113,7 +113,7 @@
     "task-understanding.json": ["task_corrections"],
     "diag-state.json": [
       "turn.phases_ms", "gate.cooldown_s", "budget.model.by_call", "budget.model.by_channel",
-      "behavior.capabilities", "behavior.unsupported"
+      "behavior.capabilities", "behavior.unsupported", "stages.nodes"
     ],
     "observation-state.json": ["queue.by_origin", "queue.all_characters", "task_corrections"],
     "observation-sources.json": ["items[].metadata"],

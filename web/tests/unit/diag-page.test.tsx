@@ -120,6 +120,11 @@ describe('diag page', () => {
     expect(window.location.hash).toMatch(/\/trace\?at=\d+/);
   });
 
+  it('管道: a main-line node reads its p50 from /diag/state stages', async () => {
+    mount('tab=flow');
+    await waitFor(() => expect(node('模型')!.getAttribute('aria-label')).toContain('p50 3.1 s'));
+  });
+
   it('sparse: the coding-tool lane is idle', async () => {
     mount('tab=flow&demo=sparse');
     await waitFor(() => expect(node('会话')).not.toBeNull());
@@ -181,6 +186,13 @@ describe('diag flow model', () => {
     expect([by.obs?.stat, by.interp?.stat, by.memx?.stat]).toEqual([null, null, null]);
     expect([by.obs?.station, by.interp?.station, by.memx?.station]).toEqual(['obs', 'interp', 'mem']);
     expect(edges.find((e) => e.from === 'obs' && e.to === 'interp')?.n).toBeUndefined();
+  });
+
+  it('a node with a /diag/state stages median shows it; one without keeps null', () => {
+    const { nodes } = flowOf({ turns: [turn('a', 'text', 'ok')], decisions: [], since: NOW - 3_600_000, failAt: {}, voiceDown: false, hookSub: '', p50: { model: 3120 } });
+    const by = Object.fromEntries(nodes.map((n) => [n.id, n]));
+    expect(by.model?.stat?.p50).toBe(3120);
+    expect(by.input?.stat?.p50).toBeNull();
   });
 
   it('buckets 24 hours of turns with failures and the p50', () => {

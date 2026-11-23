@@ -60,6 +60,9 @@ class DiagMixin:
             return self._json(413, {"error": "too_many"})
         result = store.ingest(events)
         turn, rejected = self.server._turn_trace, {r["index"] for r in result["rejected"]}
+        for i, e in enumerate(events):
+            if i not in rejected:
+                self.server.stage_times.event(e["kind"], e["status"], e["turn_id"], e.get("duration_ms"), e["attrs"])
         if turn is not None:  # the host's receipts for the current turn move its phase in /diag/state
             turn["marks"] += [(e["kind"], time.monotonic()) for i, e in enumerate(events)
                               if i not in rejected and e["trace_id"] == turn["trace_id"]]

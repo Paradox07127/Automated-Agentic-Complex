@@ -39,7 +39,7 @@ class DiagnosticsMixin:
                   "budget": self._diag_budget(), "connections": self._diag_connections(),
                   "context": self._diag_context(False), "behavior": self._diag_behavior(),
                   "character_state": self.character_state(), "interaction": self.interaction.describe(),
-                  "rituals": self._diag_rituals()}
+                  "rituals": self._diag_rituals(), "stages": self.stage_times.diag()}
         shown = {**blocks, "context": self._diag_context(True)} if with_text else dict(blocks)
         now = _iso(time.time())
         with self._diag_lock:

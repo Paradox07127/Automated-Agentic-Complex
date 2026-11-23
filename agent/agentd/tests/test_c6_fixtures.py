@@ -363,6 +363,7 @@ class C6FixtureTest(unittest.TestCase):
         server.rituals.begin("morning", "line-morning")
         server.rituals.settled("line-morning", "completed")
         server.rituals.set_pending("water", {"minutes": 30})
+        server.stage_times.event("model.finished", "ok", "tr1", 3120, {})
         spatial = server.spatial
         spatial.set_capabilities(server.character, {"climb_window_top": "motion_missing", "sit": None})
         spec = {"type": "sit", "target": None, "trigger": {"source": "tick", "event": None},

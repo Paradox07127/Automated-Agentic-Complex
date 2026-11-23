@@ -28,13 +28,13 @@ from infra.store import open_store  # noqa: E402
 import test_capture  # noqa: E402
 from test_server import EVENTS, HOOK, UI  # noqa: E402
 import test_speech  # noqa: E402
-from test_trace_server import TraceServerCase  # noqa: E402
+from test_trace_server import TraceServerCase, avatar_event  # noqa: E402
 from test_turn import relay_for, wait_for  # noqa: E402
 from traces.trace_format import validate_stream  # noqa: E402
-from traces.trace_store import TraceStore, new_trace_id  # noqa: E402
+from traces.trace_store import TraceStore, new_span_id, new_trace_id  # noqa: E402
 
 BLOCKS = {"hooks", "turn", "mouth_voice", "gate", "proactive", "observation", "body", "sessions", "budget", "connections",
-          "context", "behavior", "character_state", "interaction", "rituals"}
+          "context", "behavior", "character_state", "interaction", "rituals", "stages"}
 SELECTION = "一段很长的私密选中文字"
 TITLE = "某个私密的页面标题"
 
@@ -419,6 +419,27 @@ class DiagStateTest(DiagCase):
                          ("aster", True, "dispatch_done"))
         self.assertEqual(set(block["labels"]), {"energy", "mood", "engagement"})
         datetime.datetime.fromisoformat(block["updated_at"])
+
+    def test_stages_hold_the_turn_spans_agentd_and_the_host_traced(self):
+        self.assertEqual(self.state()["stages"]["nodes"], {})
+        trace = self.server._open_trace("line-x", self.server.turn_generation, "text", "你好")
+        self.server._step(trace, "context.assembled", new_span_id(), attrs={"items": []})
+        span = new_span_id()
+        self.server._step(trace, "model.started", span, attrs={"model": "m", "call": "character_agent"})
+        self.server._step(trace, "model.finished", span, duration_ms=1800,
+                          attrs={"model": "m", "input_tokens": 1, "output_tokens": 1, "stop_reason": "end_turn"})
+        self.server._decision("judge.decided", {"backend": "rules", "answers": [], "judge_id": "j1",
+                                                "latency_ms": 410.0}, "comment-1")
+        turn = {"turn_id": "line-x", "turn_generation": trace["generation"]}
+        played = {**avatar_event(), **turn, "trace_id": trace["trace_id"], "kind": "playback.ended", "duration_ms": 2400}
+        cut = {**avatar_event(seq=2), **turn, "kind": "playback.interrupted", "duration_ms": 300,
+               "attrs": {"speech_id": "s1", "clause_id": None, "reason": "user_cut", "planned_ms": None}}
+        self.assertEqual(self.request("POST", "/trace/events", {"events": [played, cut]})[1]["accepted"], 2)
+        nodes = self.state()["stages"]["nodes"]
+        self.assertEqual({k: v for k, v in nodes.items() if k != "ctx"},
+                         {"model": {"p50_ms": 1800, "n": 1}, "judge": {"p50_ms": 410, "n": 1},
+                          "play": {"p50_ms": 2400, "n": 1}})
+        self.assertEqual(nodes["ctx"]["n"], 1)
 
     def test_budget_shows_what_the_meters_report(self):
         self.assertIsNone(self.state()["budget"]["model"])

@@ -1,4 +1,4 @@
-// `full` demo: the stage p50s and the process history show only with the mock data.
+// `full` demo: the hourly stage aggregate and the process history show only with the mock data.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getBridge } from '../../bridge';
@@ -159,6 +159,7 @@ export function DiagPage() {
     voiceDown: health?.voice.state === 'unreachable',
     hookSub,
     hourly: full ? (slot.full?.hourly ?? null) : null,
+    p50: Object.fromEntries(Object.entries(d?.stages.nodes ?? {}).map(([id, s]) => [id, s.p50_ms])),
   });
   const live = paused || offline ? null : liveEdgeOf(d?.turn.phase);
   const liveAt = live ? (nodes.find((n) => n.id === live[1])?.label ?? null) : null;

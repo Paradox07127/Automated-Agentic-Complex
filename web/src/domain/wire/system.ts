@@ -303,6 +303,12 @@ export interface WireDiagRituals {
   today: Array<{ at: string; [k: string]: unknown }>;
 }
 
+/** stage_times.py `diag()`: each main-line node's median time over the last `window_s` seconds; a node without samples is absent. */
+export interface WireDiagStages {
+  window_s: number;
+  nodes: Record<string, { p50_ms: number; n: number }>;
+}
+
 /** spatial.py `diag()`; `running[].since` is ISO here. */
 export interface WireDiagBehavior {
   running: Array<{ behavior_id: string; type: string; target: unknown; since: string }>;
@@ -313,7 +319,7 @@ export interface WireDiagBehavior {
   unsupported: Record<string, number>;
 }
 
-/** GET /diag/state and each `state` item of the diag stream (server.py `diag_state`): 15 blocks, each with updated_at. */
+/** GET /diag/state and each `state` item of the diag stream (server.py `diag_state`): 16 blocks, each with updated_at. */
 export interface WireDiagState {
   hooks: Stamped<WireDiagHooks>;
   turn: Stamped<WireDiagTurn>;
@@ -339,4 +345,5 @@ export interface WireDiagState {
     focus_walk_probability: number;
   }>;
   rituals: Stamped<WireDiagRituals>;
+  stages: Stamped<WireDiagStages>;
 }

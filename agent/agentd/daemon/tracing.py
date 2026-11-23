@@ -21,9 +21,13 @@ class TracingMixin:
     def _trace(self, kind, trace_id, **fields):
         """TraceStore.emit; the event_id, or None without a store or when the store refuses the event.
         A stored event also goes to /diag/stream, its texts as {len, head} only."""
-        turn = self._turn_trace
+        turn, now = self._turn_trace, time.monotonic()
         if turn is not None and turn["trace_id"] == trace_id:
-            turn["marks"].append((kind, time.monotonic()))
+            if kind == "context.assembled":
+                self.stage_times.assembled(turn["marks"], now)
+            turn["marks"].append((kind, now))
+        self.stage_times.event(kind, fields.get("status", "ok"), fields.get("turn_id"), fields.get("duration_ms"),
+                               fields.get("attrs") or {})
         if self.trace is None:
             return None
         try:
