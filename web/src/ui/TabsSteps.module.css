@@ -1,0 +1,8 @@
+/* Step cells keep their width, a four-character name included; Q / E clear the yellow block hanging 13 px past the end cells. */
+.steps > [role='tab'] {
+  flex: none;
+}
+
+.steps > [aria-hidden='true'] {
+  margin: 0 18px;
+}

@@ -5,6 +5,7 @@ import { Kbd } from './Kbd';
 import { playClip } from './ToggleClip';
 import { useControlled } from './useControlled';
 import styles from './Tabs.module.css';
+import stepStyles from './TabsSteps.module.css';
 
 /**
  * 页内二级页签：未选灰字，选中项是白色点纹板加两侧光晕、深色字；计数写成「待处理 [3]」；Q / E 键帽常显在页签条两端，←→ Home End 切换。
@@ -39,6 +40,8 @@ export interface TabsProps {
   label?: string;
   /** 显示并响应 Q/E 键帽，默认 true */
   keys?: boolean;
+  /** Q / E 到两端时绕回另一端，默认 true；false 时停在两端 */
+  loop?: boolean;
   /** 切换 */
   onChange?: (id: string) => void;
   /** 右键一个页签 */
@@ -53,7 +56,7 @@ const TYPING = 'input, textarea, select, [contenteditable=""], [contenteditable=
 /** valuabledepot_tab_select_out: the tab just left folds its plate for this long. */
 const LEAVE_MS = 333;
 
-export function Tabs({ tabs, value, label, keys = true, variant, onChange, onTabContextMenu }: TabsProps) {
+export function Tabs({ tabs, value, label, keys = true, loop = true, variant, onChange, onTabContextMenu }: TabsProps) {
   const [current, setCurrent] = useControlled(value, onChange);
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
   const sel = tabs.findIndex((t) => t.id === current);
@@ -93,8 +96,8 @@ export function Tabs({ tabs, value, label, keys = true, variant, onChange, onTab
   };
 
   // Q / E switch tabs from anywhere on the page, except while typing or inside a dialog.
-  const latest = useRef({ index, go });
-  latest.current = { index, go };
+  const latest = useRef({ index, go, loop, n: tabs.length });
+  latest.current = { index, go, loop, n: tabs.length };
   useEffect(() => {
     if (!keys) return;
     const onKey = (e: globalThis.KeyboardEvent) => {
@@ -104,7 +107,10 @@ export function Tabs({ tabs, value, label, keys = true, variant, onChange, onTab
       const k = e.key.toLowerCase();
       if (k !== 'q' && k !== 'e') return;
       e.preventDefault();
-      latest.current.go(latest.current.index + (k === 'q' ? -1 : 1), false);
+      const { index: at, go: to, loop: wrap, n } = latest.current;
+      const next = at + (k === 'q' ? -1 : 1);
+      if (!wrap && (next < 0 || next >= n)) return;
+      to(next, false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -118,7 +124,7 @@ export function Tabs({ tabs, value, label, keys = true, variant, onChange, onTab
   };
 
   return (
-    <div ref={root} role="tablist" className={styles.tabs} data-stub="Tabs" data-variant={variant} aria-label={label} onKeyDown={onKeyDown}>
+    <div ref={root} role="tablist" className={variant === 'steps' ? `${styles.tabs} ${stepStyles.steps}` : styles.tabs} data-stub="Tabs" data-variant={variant} aria-label={label} onKeyDown={onKeyDown}>
       {keys && (
         <span className={styles.key} aria-hidden="true">
           <Kbd size="lg">Q</Kbd>

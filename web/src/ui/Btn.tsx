@@ -3,6 +3,7 @@ import { Icon, type IconName } from './Icon';
 import { Kbd } from './Kbd';
 import styles from './Btn.module.css';
 import hintStyles from './BtnHint.module.css';
+import pressStyles from './BtnPressed.module.css';
 
 /**
  * 按钮（.ef-btn）：胶囊。primary 黄、ghost 浅、secondary 深灰、
@@ -29,6 +30,8 @@ export interface BtnProps {
   kbd?: string;
   /** 加载中：图标位（或前置位）换加载环 */
   loading?: boolean;
+  /** 切换类按钮的按下态：写 aria-pressed，向右下沉 1 px、没有阴影 */
+  pressed?: boolean;
   /** 禁用 */
   disabled?: boolean;
   /** 禁用原因，作为 tooltip（禁用时必给） */
@@ -59,7 +62,7 @@ const VARIANT: Record<NonNullable<BtnProps['variant']>, Variant> = {
 const TAIL: Partial<Record<Variant, IconName>> = { primary: 'check', secondary: 'chev', danger: 'del', ring: 'chev' };
 export const MOUSE_ONLY_HINT = '只能用鼠标点击';
 
-export function Btn({ variant = 'ghost', size = 'md', icon, tail, go, label, kbd, loading, disabled, disabledReason, mouseOnly, onClick, children }: BtnProps) {
+export function Btn({ variant = 'ghost', size = 'md', icon, tail, go, label, kbd, loading, pressed, disabled, disabledReason, mouseOnly, onClick, children }: BtnProps) {
   const [hint, setHint] = useState(false);
   const reasonId = useId();
   const v = VARIANT[variant];
@@ -78,12 +81,13 @@ export function Btn({ variant = 'ghost', size = 'md', icon, tail, go, label, kbd
     if (e.type === 'keydown') setHint(true);
   };
 
-  const lead = icon ? <Icon name={icon} size={size === 'sm' ? 14 : 16} /> : null;
+  // Without a tail the icon already sits in the round slot.
+  const lead = icon && !(slot && !tail) ? <Icon name={icon} size={size === 'sm' ? 14 : 16} /> : null;
 
   const button = (
     <button
       type="button"
-      className={`${styles.btn} ${styles[v]} ${styles[size]}`}
+      className={`${styles.btn} ${styles[v]} ${styles[size]} ${pressStyles.press}`}
       data-stub="Btn"
       data-variant={v}
       data-size={size}
@@ -92,6 +96,7 @@ export function Btn({ variant = 'ghost', size = 'md', icon, tail, go, label, kbd
       data-loading={loading || undefined}
       data-mouse-only={mouseOnly || undefined}
       aria-label={label}
+      aria-pressed={pressed}
       aria-disabled={disabled || undefined}
       aria-busy={loading || undefined}
       aria-describedby={disabled && disabledReason ? reasonId : undefined}
@@ -163,6 +168,7 @@ export const BtnDemos: Array<{ name: string; props: BtnProps }> = [
   { name: 'text', props: { variant: 'text', children: '前往设置' } },
   { name: 'ring', props: { variant: 'ring', children: '稍后处理' } },
   { name: 'go', props: { go: true, children: '打开配置文件' } },
+  { name: 'pressed', props: { variant: 'secondary', size: 'sm', pressed: true, children: '只看出错' } },
   { name: 'link', props: { variant: 'link', children: '恢复默认排除' } },
   { name: 'small', props: { variant: 'primary', size: 'sm', children: '确认' } },
   { name: 'small-tail', props: { variant: 'primary', size: 'sm', tail: 'look', children: '屏幕识读' } },

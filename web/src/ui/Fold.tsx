@@ -7,12 +7,18 @@ import styles from './Fold.module.css';
  * 内容不超过 3 行时直接摊开、不给折叠键。Enter / 空格切换，→ 展开，← 收起；Esc 不管折叠。
  */
 export interface FoldProps {
-  /** 给了就按「页面 + id」把开合记在 sessionStorage（本次运行内有效） */
+  /** 给了就按「页面 + id」把开合记在 sessionStorage（本次运行内有效）；受控时不记 */
   id?: string;
   /** 标签 */
   label: string;
-  /** 标签后的计数 */
-  count?: number;
+  /** 标签后的计数，例如 6 或 3/5 */
+  count?: number | string;
+  /** 受控：给了就按它开合，不再读写 sessionStorage */
+  open?: boolean;
+  /** 开合键被按下，参数是要变成的开合 */
+  onToggle?: (open: boolean) => void;
+  /** head 变体：标题右侧的通栏细线，默认 true */
+  rule?: boolean;
   /** 收起时标签后的一行摘要 */
   summary?: ReactNode;
   /** 默认展开 */
@@ -55,8 +61,10 @@ function remember(id: string, open: boolean) {
   }
 }
 
-export function Fold({ id, label, count, summary, defaultOpen = false, autoOpen = false, rows, right, variant = 'row', head, children }: FoldProps) {
-  const [open, setOpen] = useState(() => autoOpen || ((id ? recall(id) : undefined) ?? defaultOpen));
+export function Fold({ id, label, count, open: given, onToggle, rule = true, summary, defaultOpen = false, autoOpen = false, rows, right, variant = 'row', head, children }: FoldProps) {
+  const controlled = given !== undefined;
+  const [own, setOpen] = useState(() => !controlled && (autoOpen || ((id ? recall(id) : undefined) ?? defaultOpen)));
+  const open = controlled ? given : own;
   const [wasAuto, setWasAuto] = useState(autoOpen);
   if (wasAuto !== autoOpen) {
     setWasAuto(autoOpen);
@@ -66,8 +74,11 @@ export function Fold({ id, label, count, summary, defaultOpen = false, autoOpen 
   const flat = rows != null && rows <= FLAT_ROWS;
   const set = (next: boolean) => {
     if (next === open) return;
-    if (id) remember(id, next);
-    setOpen(next);
+    if (!controlled) {
+      if (id) remember(id, next);
+      setOpen(next);
+    }
+    onToggle?.(next);
   };
   const onKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
     const next = e.key === 'ArrowRight' ? true : e.key === 'ArrowLeft' ? false : null;
@@ -88,7 +99,7 @@ export function Fold({ id, label, count, summary, defaultOpen = false, autoOpen 
   if (variant === 'head')
     return (
       <section className={styles.sec} data-stub="Fold" data-variant="head" data-open={shown || undefined} aria-label={label}>
-        <SecHead title={label} count={count} right={right} {...head} fold={toggle} />
+        <SecHead title={label} count={count} right={right} {...head} fold={toggle} rule={rule} />
         {shown && (
           <div id={bodyId} className={styles.secBody}>
             {children}
@@ -142,5 +153,6 @@ export const FoldDemos: Array<{ name: string; props: FoldProps }> = [
   { name: 'flat', props: { label: '提醒', count: 2, rows: 2, children: list(2) } },
   { name: 'right', props: { label: '原始记录', count: 12, summary: '12 行', rows: 12, right: '只存本机', children: list(5) } },
   { name: 'head', props: { variant: 'head', label: '前一天的观察日报', count: 3, summary: '看到 1 │ 卡住 1 │ 建议 1', rows: 8, head: { micro: 'Daily Report' }, children: list(8) } },
+  { name: 'head-no-rule', props: { variant: 'head', label: '开发者项', count: '3/5', rule: false, rows: 5, children: list(5) } },
   { name: 'head-open', props: { variant: 'head', label: '进行中', count: 4, defaultOpen: true, rows: 4, head: { tone: 'running', micro: 'Running' }, children: list(4) } },
 ];

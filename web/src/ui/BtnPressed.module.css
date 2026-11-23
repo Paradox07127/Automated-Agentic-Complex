@@ -1,0 +1,5 @@
+/* Pressed toggle (aria-pressed): the capsule sinks 1 px right and down and drops its shadow. */
+.press[aria-pressed='true'] {
+  --btn-shadow: 0 0 transparent;
+  transform: translate(1px, 1px);
+}

@@ -18,7 +18,9 @@
   background: none;
   color: var(--ef-btn-dark-text);
   cursor: pointer;
-  transition: color var(--ef-dur-g-btn) var(--ef-ease-g-fade);
+  transition:
+    color var(--ef-dur-g-btn) var(--ef-ease-g-fade),
+    transform var(--ef-dur-g-btn) var(--ef-ease-g-fade);
 }
 
 .btn[data-size='sm'] {
@@ -75,26 +77,48 @@
   background-color: var(--ef-overlay-hover);
 }
 
+/* Round badge: a 24 px circle at any size. */
+.btn[data-shape='round'] {
+  width: 24px;
+  height: 24px;
+}
+
+.btn[data-shape='round']::before,
+.btn[data-shape='round']::after {
+  inset: 0;
+  border-radius: 50%;
+}
+
 .btn[aria-pressed='true'] {
   --plate: var(--ef-btn-light);
   color: var(--ef-btn-light-text);
 }
 
-.btn:hover:not(:disabled)::after {
-  opacity: 1;
-  transition-duration: var(--ef-dur-g-btn-hover);
+/* Expanded: Btn's pressed state, sunk 1 px right and down under the pressed shade. */
+.btn[aria-expanded='true'] {
+  transform: translate(1px, 1px);
 }
 
-.btn[data-icon='close']:hover:not(:disabled) {
-  color: var(--ef-text-1);
-}
-
-.btn:active:not(:disabled)::after {
+.btn[aria-expanded='true']::after {
   background-color: var(--press);
   opacity: 1;
 }
 
-.btn[data-icon='close']:active:not(:disabled)::after {
+.btn:hover:not(:disabled, [aria-disabled='true'])::after {
+  opacity: 1;
+  transition-duration: var(--ef-dur-g-btn-hover);
+}
+
+.btn[data-icon='close']:hover:not(:disabled, [aria-disabled='true']) {
+  color: var(--ef-text-1);
+}
+
+.btn:active:not(:disabled, [aria-disabled='true'])::after {
+  background-color: var(--press);
+  opacity: 1;
+}
+
+.btn[data-icon='close']:active:not(:disabled, [aria-disabled='true'])::after {
   background-color: var(--ef-overlay-press);
 }
 
@@ -106,13 +130,24 @@
   box-shadow: 0 0 0 2px var(--ef-focus);
 }
 
-.btn:disabled {
+.btn:is(:disabled, [aria-disabled='true']) {
   --plate: var(--ef-btn-disabled);
   color: var(--ef-btn-light-text);
   cursor: not-allowed;
 }
 
-.btn[data-icon='close']:disabled {
+/* On a dark island the light disabled plate reads as a lit key; dim it toward the bar instead. */
+:global([data-theme='dark']) .btn:not([data-icon='close']):is(:disabled, [aria-disabled='true']) {
+  --plate: var(--ef-surface-2);
+  color: var(--ef-text-disabled);
+}
+
+:global([data-theme='dark'] [data-theme='light']) .btn:not([data-icon='close']):is(:disabled, [aria-disabled='true']) {
+  --plate: var(--ef-btn-disabled);
+  color: var(--ef-btn-light-text);
+}
+
+.btn[data-icon='close']:is(:disabled, [aria-disabled='true']) {
   --plate: transparent;
   color: var(--ef-text-disabled);
 }
