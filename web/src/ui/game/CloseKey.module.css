@@ -23,7 +23,7 @@
   background: var(--ef-g-watch-map);
   color: var(--ef-g-icon);
   cursor: pointer;
-  box-shadow: 1.85px 1.2px 0 color-mix(in srgb, #000 39%, transparent);
+  box-shadow: var(--ef-shadow-btn);
 }
 
 .close::before {

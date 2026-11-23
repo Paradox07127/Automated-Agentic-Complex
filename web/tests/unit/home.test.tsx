@@ -261,6 +261,13 @@ describe('home disc', () => {
     mount();
     const card = await screen.findByRole('button', { name: /^角色：/ });
     await vi.waitFor(() => expect(card.textContent).toMatch(/制服.*60 FPS/));
+    // The frame rate is a developer reading: outside 开发者模式 the card keeps the outfit alone.
+    cleanup();
+    setDevMode(false);
+    mount();
+    const plain = await screen.findByRole('button', { name: /^角色：/ });
+    await vi.waitFor(() => expect(plain.textContent).toContain('制服'));
+    expect(plain.textContent).not.toContain('FPS');
   });
 
   it('counts no failed run as done on the task plaque, and shows no plaque before the runs are read', async () => {
@@ -378,7 +385,7 @@ describe('home with the plug-ins at their defaults', () => {
     expect([band.style.left, band.style.width]).toEqual([`${BAR_SLOTS[0].box.left}px`, `${BAR_SLOTS[0].box.width}px`]);
   });
 
-  it('sends none of the today reads with 日报与简报 off, and the clock reads /health, not them, for 已连接', async () => {
+  it('sends none of the today reads with 日报与简报 off, and 后台 reads /health, not them', async () => {
     const bridge = getBridge();
     const real = bridge.agentd.request.bind(bridge.agentd);
     const paths: string[] = [];
@@ -388,11 +395,24 @@ describe('home with the plug-ins at their defaults', () => {
       return (TODAY_READS.includes(path.split('?')[0]!) ? { status: 409, body: { error: 'plugin_off' } } : await real(method, path, body)) as never;
     });
     mount();
-    const clock = await screen.findByRole('group', { name: '时钟' });
-    expect(await within(clock).findByText('已连接')).toBeTruthy();
+    const status = await screen.findByRole('group', { name: '组件状态' });
+    await vi.waitFor(() => expect(status.textContent).toMatch(/^后台运行中/));
     expect(paths).toContain('/health');
     expect(paths.filter((p) => TODAY_READS.includes(p))).toEqual([]);
-    expect(within(clock).queryByText('读取失败')).toBeNull();
+    expect(within(status).queryByText('读取失败')).toBeNull();
+  });
+
+  it('says the connection once, on 后台: a failed read shows there and the clock carries only the time and date', async () => {
+    const bridge = getBridge();
+    const real = bridge.agentd.request.bind(bridge.agentd);
+    vi.spyOn(bridge.agentd, 'request').mockImplementation(async (method, path, body) =>
+      (path.split('?')[0] === '/health' ? { status: 503, body: { error: 'down' } } : await real(method, path, body)) as never,
+    );
+    mount();
+    const status = await screen.findByRole('group', { name: '组件状态' });
+    await vi.waitFor(() => expect(status.textContent).toMatch(/^后台读取失败/));
+    const clock = screen.getByRole('group', { name: '时钟' });
+    for (const word of ['已连接', '读取中', '读取失败']) expect(within(clock).queryByText(word)).toBeNull();
   });
 
   it('offers 派发任务 with 个人代理 on and 日报与简报 off, and opens the dispatch dialog in place', async () => {

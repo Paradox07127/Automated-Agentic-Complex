@@ -2,7 +2,7 @@ import { Icon } from '../Icon';
 import { placeAt, type Box } from './WatchKey';
 import styles from './CloseKey.module.css';
 
-/** 圆形关闭键：深底白圈里一枚白圆、深色 ✕，往右下落一道硬影；按下沉到影子上。 */
+/** 圆形关闭键：深底白圈里一枚白圆、深色 ✕，带按钮阴影；按下沉到影子上。 */
 export interface CloseKeyProps {
   /** 在舞台上的位置和大小 */
   box: Box;

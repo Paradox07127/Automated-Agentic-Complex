@@ -23,11 +23,11 @@ import { useLook } from '../character/useLook';
 import { CreateDialog } from '../tasks/CreateDialog';
 import { draftFor, type CreateDraft } from '../tasks/CreateForm';
 import { useToast } from '../../shell/toast';
-import { BottomBar, Counters, LiveCharMeta, type Conn } from './Cards';
+import { BottomBar, Counters, LiveCharMeta } from './Cards';
 import { Disc, type RunItem } from './Disc';
 import { BANNER, CARD, CLOSE, COUNTERS, leftTiles, rightTiles, STAGE, STATUS, TOP_ICONS } from './geometry';
 import { Contours, Floor } from './Terrain';
-import { Status } from './Top';
+import { Status, type Conn } from './Top';
 import { Backdrop, Logo, Rings } from './Rings';
 import { Group } from './Tiles';
 import { useFit } from './useFit';
@@ -90,7 +90,7 @@ async function readHealth(): Promise<AgentdConnection> {
   return connection;
 }
 
-/** The clock's status line from a read and the connection it carries. */
+/** What a read and the connection it carries say of 后台, for the status row. */
 function connOf(connection: AgentdConnection | undefined, isError: boolean): Conn {
   if (!connection) return isError ? 'failed' : 'loading';
   if (connection !== 'connected') return connection === 'unauthorized' ? 'refused' : 'lost';
@@ -291,9 +291,9 @@ export function HomePage() {
               right={today && { icon: 'grid', title: today.title, onClick: () => go({ page: 'overview' }) }}
             />
             </div>
-            <Counters box={COUNTERS} now={now} conn={conn} />
+            <Counters box={COUNTERS} now={now} />
             <CloseKey box={CLOSE} />
-            <Status box={STATUS} />
+            <Status box={STATUS} conn={conn} />
             {entered && !still && <Sway root={hud} on={attended} />}
           </div>
           </div>

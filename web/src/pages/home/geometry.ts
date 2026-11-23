@@ -98,8 +98,8 @@ export const TOP_ICONS = [box(-326, -222, 52, 48), box(-270, -222, 52, 48), box(
 /** The component status row, top centre over the ring. */
 export const STATUS: Box = box(0, -256, 316, 22);
 
-/** Top_RightNode: the clock strip, top right, left of the close key. */
-export const COUNTERS: Box = box(286, -240, 256, 30);
+/** Top_RightNode: the clock strip, top right, left of the close key; as wide as the time and the longest date. */
+export const COUNTERS: Box = box(312, -240, 204, 30);
 
 /** CloseButtonNode: closes the window, top right. */
 export const CLOSE: Box = box(446, -240, 32, 32);

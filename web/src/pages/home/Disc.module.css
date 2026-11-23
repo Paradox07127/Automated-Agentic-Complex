@@ -122,7 +122,7 @@
   display: inline-flex;
   gap: var(--ef-sp-4);
   align-items: center;
-  height: 22px;
+  height: 24px;
   padding: 0 var(--ef-sp-12);
   border: 0;
   border-radius: 999px;
@@ -276,7 +276,7 @@
 
 .repOf {
   font: var(--ef-fw-regular) var(--ef-fs-meta) / 1 var(--ef-font-num);
-  opacity: 0.6;
+  opacity: 0.7;
 }
 
 .repRun {

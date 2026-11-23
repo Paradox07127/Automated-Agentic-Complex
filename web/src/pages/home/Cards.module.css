@@ -28,8 +28,8 @@
 }
 
 .slot:hover [data-tone] {
-  --face-top: color-mix(in srgb, #fff 45%, var(--ef-g-yellow));
-  --face-mid: color-mix(in srgb, #fff 25%, var(--ef-g-yellow));
+  --face-top: color-mix(in srgb, var(--ef-g-btn-hover) 45%, var(--ef-g-yellow));
+  --face-mid: color-mix(in srgb, var(--ef-g-btn-hover) 25%, var(--ef-g-yellow));
 }
 
 /* Pressed snaps back to rest at once, as the game's Pressed state is its Normal one. */
@@ -38,7 +38,7 @@
 }
 
 .slot:active [data-tone] {
-  --face-top: color-mix(in srgb, #fff 22%, var(--ef-g-yellow));
+  --face-top: color-mix(in srgb, var(--ef-g-btn-hover) 22%, var(--ef-g-yellow));
   --face-mid: var(--ef-g-yellow);
 }
 
@@ -119,7 +119,11 @@
   opacity: 0.7;
 }
 
-.conn {
-  display: inline-flex;
-  margin-left: auto;
+/* The card's last line without the frame rate: as CharMeta draws the outfit. */
+.outfit {
+  overflow: hidden;
+  font: var(--ef-fw-regular) var(--ef-fs-meta) / 1.3 var(--ef-font-ui);
+  opacity: 0.7;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

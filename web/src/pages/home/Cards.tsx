@@ -1,11 +1,11 @@
 import type { CSSProperties } from 'react';
 import { getBridge } from '../../bridge';
 import { formatClock, fpsReadout } from '../../domain';
+import { useDevMode } from '../../shell/devMode';
 import { Icon, type IconName } from '../../ui';
 import { CharMeta } from '../../ui/game';
 import { Slab, type Pt } from '../../ui/game/Slab';
 import { useRenderStats } from '../diag/useDiag';
-import { Pip, type PipProps } from '../overview/Pip';
 import { BAR, BAR_SLOTS, type Box, type KeyShape } from './geometry';
 import styles from './Cards.module.css';
 
@@ -41,25 +41,15 @@ export function BottomBar({ left, right }: { left: BarAction; right: BarAction |
   );
 }
 
-/** Her outfit and the renderer's frame rate; on its own so the once-a-second samples redraw only this line. */
+/** Her outfit, and in 开发者模式 the renderer's frame rate; on its own so the once-a-second samples redraw only this line. */
 export function LiveCharMeta({ outfit }: { outfit: string | null }) {
   const canAvatar = getBridge().capabilities.avatar;
-  const fps = useRenderStats(canAvatar).at(-1)?.fps;
+  const dev = useDevMode();
+  const fps = useRenderStats(canAvatar && dev).at(-1)?.fps;
   if (!canAvatar) return null;
+  if (!dev) return outfit ? <span className={styles.outfit}>{outfit}</span> : null;
   return <CharMeta outfit={outfit} fps={fpsReadout(fps)} />;
 }
-
-/** What the clock card's status line says about the overview's reads. */
-export type Conn = 'loading' | 'failed' | 'refused' | 'lost' | 'stale' | 'ok';
-
-const CONN: Record<Conn, PipProps> = {
-  loading: { tone: 'idle', label: '读取中' },
-  failed: { tone: 'failed', label: '读取失败' },
-  refused: { tone: 'failed', label: '后台拒绝访问' },
-  lost: { tone: 'failed', label: '后台无响应' },
-  stale: { tone: 'failed', label: '刷新失败' },
-  ok: { tone: 'ok', label: '已连接' },
-};
 
 const WEEK = '日一二三四五六';
 const dateZh = (t: number) => {
@@ -67,9 +57,8 @@ const dateZh = (t: number) => {
   return `${d.getMonth() + 1}月${d.getDate()}日 周${WEEK[d.getDay()]}`;
 };
 
-/** Top_RightNode: the time to the second, the date and the connection on a pill forward of the face, as the game's
- *  wallet bar. */
-export function Counters({ box, now, conn }: { box: Box; now: number; conn: Conn }) {
+/** Top_RightNode: the time to the second and the date on a pill forward of the face, as the game's wallet bar. */
+export function Counters({ box, now }: { box: Box; now: number }) {
   const r = box.height / 2;
   const end = (cx: number, from: number): Pt[] =>
     Array.from({ length: 9 }, (_, i) => {
@@ -86,9 +75,6 @@ export function Counters({ box, now, conn }: { box: Box; now: number; conn: Conn
             {formatClock(now, { seconds: true })}
           </time>
           <span className={styles.date}>{dateZh(now)}</span>
-          <span className={styles.conn}>
-            <Pip {...CONN[conn]} />
-          </span>
         </span>
       </Slab>
     </div>

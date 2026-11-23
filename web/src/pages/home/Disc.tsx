@@ -46,17 +46,17 @@ function Focus({ item, act, go }: { item: PendingItem; act: DiscProps['act']; go
         {danger && item.kind !== 'review' ? (
           <>
             <Btn size="sm" variant="secondary" onClick={open}>查看</Btn>
-            <Btn size="sm" variant="cancel" onClick={() => (item.kind === 'approval' ? act.onApprove(item, 'deny') : act.onAnswer(item, '拒绝'))}>拒绝</Btn>
+            <Btn size="sm" variant="secondary" onClick={() => (item.kind === 'approval' ? act.onApprove(item, 'deny') : act.onAnswer(item, '拒绝'))}>拒绝</Btn>
           </>
         ) : item.kind === 'approval' ? (
           <>
             <Btn size="sm" variant="primary" onClick={() => act.onApprove(item, 'allow')}>批准</Btn>
-            <Btn size="sm" variant="cancel" onClick={() => act.onApprove(item, 'deny')}>拒绝</Btn>
+            <Btn size="sm" variant="secondary" onClick={() => act.onApprove(item, 'deny')}>拒绝</Btn>
           </>
         ) : item.kind === 'question' && item.interaction_kind === 'approval' ? (
           <>
             <Btn size="sm" variant="primary" onClick={() => act.onAnswer(item, '允许')}>允许</Btn>
-            <Btn size="sm" variant="cancel" onClick={() => act.onAnswer(item, '拒绝')}>拒绝</Btn>
+            <Btn size="sm" variant="secondary" onClick={() => act.onAnswer(item, '拒绝')}>拒绝</Btn>
           </>
         ) : item.kind === 'question' && one && one.options.length > 0 && one.options.length <= QUICK ? (
           one.options.map((o) => (
