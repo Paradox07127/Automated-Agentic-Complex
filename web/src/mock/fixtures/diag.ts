@@ -1,7 +1,6 @@
 import type {
   Budget,
   Cooldown,
-  ErrorEntry,
   Health,
   Pipeline,
   ProcessRow,
@@ -15,7 +14,6 @@ import type {
 import { fromCooldowns, fromDiagBudget, fromTurnNow } from '../../domain/adapt';
 import { isoToMsOrNull } from '../../domain/units';
 import { at, DAY, NOW, seeded, SECOND } from './clock';
-import { T6 } from './ids';
 import { WIRE_DIAG_BUDGET, WIRE_DIAG_GATE, WIRE_DIAG_HOOKS, WIRE_DIAG_TURN } from './wire/system';
 
 /** Link health; options switch the three branches for demos. Defaults match PROCESSES uptime. */
@@ -131,7 +129,7 @@ export const TURNS: Turn[] = [
 
 const DOT_SOURCES = ['对话', '主动发言', '观察摘要', '角色运行', '语音'];
 
-/** Turns of the last 24 h (`/trace/turns?since`). Today's only failure is tr5, matching ERRORS; earlier failures fall before midnight. */
+/** Turns of the last 24 h (`/trace/turns?since`). Today's only failure is tr5; earlier failures fall before midnight. */
 export const TURN_DOTS: TurnDot[] = (() => {
   const rnd = seeded(11);
   const out: TurnDot[] = TURNS.map((x) => ({ id: x.id, turn_id: x.turn_id, started_at: x.started_at, duration_ms: x.duration_ms, result: x.result, source: x.source }));
@@ -148,12 +146,6 @@ export const TURN_DOTS: TurnDot[] = (() => {
   }
   return out.sort((a, b) => a.started_at - b.started_at);
 })();
-
-/** Today's errors: failed tasks + failed turns. t6 time matches its run (10:12–10:15). */
-export const ERRORS: ErrorEntry[] = [
-  { id: T6, kind: 'task', at: at(10, 15), title: '下载资源索引', reason: '资料授权已撤销：~/Downloads 不在可读取的文件夹里', fix: '去权限与授权' },
-  { id: 'tr5', kind: 'turn', at: at(14, 24, 3), title: '观察摘要', reason: '上游超时（900 ms 没有返回）', fix: '看时间线' },
-];
 
 /** Process table (CPU, uptime). Totals: 840 MB, CPU 16 % on the last sample. */
 export const PROCESSES: ProcessRow[] = [

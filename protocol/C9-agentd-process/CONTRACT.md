@@ -57,6 +57,8 @@ Companion 每次启动 agentd 前把 `<support>/bin/agentic-complex-hook`（0755
 
 stdout 和 stderr 都写到 `<support>/logs/agentd.log`。stderr 每行前加时间和 pid；就绪时 stdout 打一行 `agentd listening on 127.0.0.1:<port>; …`，这一行不是接口，宿主不要解析它。
 
+agentd 自己的错误记录写到 `<support>/logs/agentd-error.jsonl`（`daemon/error_record.py`；目录是 `--tts-token-file` 所在目录下的 `logs`，没传时是 `<state-dir>/logs`），和 Companion 的 `error.jsonl` 分开，两个进程不追加同一个文件。每行一个 JSON，信封同 `error.jsonl`：`{t, component, code, message, detail?, turn_id?, trace_id?, req?, count}`，`t` 是 UTC ISO 时间（到毫秒），`component` 为 `agentd`，`message` 截到 300 字符、`detail` 截到 500；同一 (component, code, message) 一分钟内的重复合成一行，`count` 是这一行代表的次数，正常关闭时写出还没写的次数。`code` 的取值见 `daemon/error_record.py` 文件头。文件 0600，agentd 只追加，写失败就丢掉这一行。不写提示词、工具输入、文件内容、查询值和密钥。轮转归 Companion（`src/main/log.ts` `rotateLogs`）：启动时把它设成 0600；运行中写日志时至多每分钟查一次，超过 20 MiB 就复制成 `agentd-error.jsonl.1`（覆盖旧的）再原地清空，agentd 接着追加。诊断的「错误」面板经 ui-bridge `logs.errors` 读它和 `error.jsonl` 各自最后 500 行。
+
 `--exit-with-parent`（默认开）：agentd 每秒看一次 `getppid()`，变了就正常关闭（退出码 0）。经 launcher 启动时 agentd 的父进程是 Companion。
 
 宿主启动前自己检查端口：端口被别的进程占着时 Companion 不启动 agentd，状态为 `portInUse`，每 30 s 再查一次；占着的是上一个 agentd 时按崩溃处理。

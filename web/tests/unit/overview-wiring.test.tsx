@@ -7,14 +7,14 @@ import { getBridge, type StreamEvent } from '../../src/bridge';
 import { AgentdCallError } from '../../src/bridge/agentd';
 import { createDispatcher } from '../../src/bridge/fake/agentd';
 import { exampleRoutes } from '../../src/bridge/fake/endpoints';
-import { fromInteraction, isoWithOffset, sortPending, type Approval, type Question } from '../../src/domain';
+import { fromInteraction, sortPending, type Approval, type Question } from '../../src/domain';
 import { mockRoutes, type MockRoute } from '../../src/mock';
 import { at, DAY, MINUTE, NOW, WIRE_CHARACTER_STATE, WIRE_DIAG_BUDGET, WIRE_DIAG_CONNECTIONS, WIRE_DIAG_GATE, WIRE_INTERACTION_APPROVAL, WIRE_RUNTIME } from '../../src/mock/fixtures';
-import { A1, A2, A3, DLV_T1_V2, Q1, Q_APPROVAL, S_5E10, S_C07A, T1, T2, T3, T6 } from '../../src/mock/fixtures/ids';
+import { A1, A2, A3, DLV_T1_V2, Q1, Q_APPROVAL, S_5E10, S_C07A, T1, T2, T3 } from '../../src/mock/fixtures/ids';
 import { errText } from '../../src/pages/overview/errors';
 import { RUNTIME_KEY } from '../../src/data/runtime';
 import { runtimeOf, withRuntime } from '../../src/pages/overview/kernel';
-import { readDay, readFailedTurns, readRole, readRunning, readSnapshot, type OverviewSnapshot } from '../../src/pages/overview/load';
+import { readDay, readRole, readRunning, readSnapshot, type OverviewSnapshot } from '../../src/pages/overview/load';
 import { useOverview } from '../../src/pages/overview/useOverview';
 import { nextMorning, useOverviewActions } from '../../src/pages/overview/useOverviewActions';
 import { loadOverview } from './overviewReads';
@@ -35,9 +35,6 @@ function serve(extra: MockRoute[] = [], hold: (path: string) => Promise<void> | 
     return dispatch(method, path, body);
   });
 }
-
-/** Today's failed turns, read with the snapshot. */
-const TURNS_READ = `GET /trace/turns?since=${encodeURIComponent(isoWithOffset(new Date(NOW).setHours(0, 0, 0, 0)))}&result=failed&limit=50`;
 
 function gate() {
   let open: () => void = () => {};
@@ -66,7 +63,6 @@ describe('overview reads', () => {
     expect(await calls(() => readSnapshot(null, false))).toEqual(['GET /agent/snapshot?demo=']);
     expect(await calls(() => readRunning({ sessions: true, runs: true }))).toEqual(['GET /agent/runs', 'GET /sessions']);
     expect(await calls(() => readRunning({ sessions: false, runs: true }))).toEqual(['GET /agent/runs']);
-    expect(await calls(() => readFailedTurns(NOW))).toEqual([TURNS_READ]);
     expect(await calls(() => readRole(null))).toEqual(['GET /character/state', 'GET /diag/state', 'GET /state']);
     expect(await calls(() => readDay(null, NOW))).toEqual(['GET /day/segments?date=2026-10-29']);
     const r = runtimeOf(WIRE_RUNTIME);
@@ -110,8 +106,6 @@ describe('overview reads', () => {
     expect(sessions.find((x) => x.id === S_5E10)).toMatchObject({ started_at: at(13, 51), ended_at: null });
     expect(sessions.find((x) => x.last_gate === 'fail')).toMatchObject({ ended_at: at(11, 40), agents_failed: 1 });
     expect(s.day.runs.find((r) => r.run_id === 'run-8d03')?.task_id).toBe(T1);
-    expect(s.errors.filter((e) => e.kind === 'task')).toEqual([{ id: T6, kind: 'task', at: at(10, 15), title: '下载资源索引', reason: '资料授权已撤销', fix: '查看任务' }]);
-    expect(s.errors.filter((e) => e.kind === 'turn').map((e) => [e.reason, e.fix])).toEqual([['这一轮没有完成', '看时间线']]);
   });
 
   it('reads the status column from /character/state, /character/runtime and /diag/state', async () => {
@@ -308,7 +302,7 @@ describe('overview feed', () => {
     send('agent_run', { run_id: 'run-8d03', kind: 'tool_started', tool: 'Bash' });
     await waitFor(() => expect(spy).toHaveBeenCalledWith('GET', '/agent/snapshot?demo=', undefined));
     await waitFor(() => expect(hook.result.current.q.isFetching).toBe(false));
-    expect(spy.mock.calls.map(([m, p]) => `${m} ${p}`).sort()).toEqual(['GET /agent/runs', 'GET /agent/snapshot?demo=', 'GET /sessions', TURNS_READ].sort());
+    expect(spy.mock.calls.map(([m, p]) => `${m} ${p}`).sort()).toEqual(['GET /agent/runs', 'GET /agent/snapshot?demo=', 'GET /sessions'].sort());
     expect(hook.result.current.data?.kernel?.runtime.id).toBe('codex');
     expect(hook.result.current.data?.quota).not.toBeNull();
   });

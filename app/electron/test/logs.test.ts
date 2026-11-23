@@ -8,7 +8,7 @@ import { after, test } from 'node:test';
 import { BridgeFailure } from '../src/common/bridge.ts';
 import { type LogLine, parseLog, type RawLine } from '../src/common/log-line.ts';
 import type { OpsContext } from '../src/main/ops/context.ts';
-import { logsOps, MAX_LINES } from '../src/main/ops/logs.ts';
+import { logsOps, MAX_ERROR_RECORDS, MAX_LINES } from '../src/main/ops/logs.ts';
 
 const rows = (...lines: string[]): RawLine[] => {
   let off = 0;
@@ -145,4 +145,32 @@ test('logs.read takes source ids only: a path, an unknown id or a bad cursor is 
   }
   const none = logsOps({ config: { path: join(dir, 'config.json'), supportDir: null, devResources: null } } as OpsContext);
   assert.throws(() => none['logs.read']!([{ sources: ['agentd'] }], null as never), (e: unknown) => e instanceof BridgeFailure && e.code === 'failed');
+});
+
+type ErrorRow = { source: string; at: number; component: string; code: string; message: string; detail: string | null; turn_id: string | null;
+  trace_id: string | null; req: string | null; count: number };
+const errorRows = () => (ops['logs.errors']!([], null as never) as { records: ErrorRow[] }).records;
+const rec = (s: number, more: Record<string, unknown> = {}) =>
+  JSON.stringify({ t: iso(s), component: 'bridge', code: 'op_failed', message: `m${s}`, count: 1, ...more });
+
+test('logs.errors: error.jsonl and agentd-error.jsonl newest first; a line that is not a record is skipped', () => {
+  assert.deepEqual(errorRows(), []);
+  writeFileSync(join(logs, 'error.jsonl'), `${rec(1)}\nnot json\n${rec(4, { detail: 'd', req: 'logs.read', count: 3 })}\n`);
+  writeFileSync(join(logs, 'agentd-error.jsonl'), `${JSON.stringify({ t: iso(2), component: 'agentd', code: 'timeout', message: 'text turn failed: TimeoutError',
+    turn_id: 't1', trace_id: 'tr1', count: 1 })}\n{"t":"x","component":"agentd","code":"c","message":"m"}\n5\n`);
+  const got = errorRows();
+  assert.deepEqual(got.map((r) => [r.source, r.code, r.message]), [['shell', 'op_failed', 'm4'], ['agentd', 'timeout', 'text turn failed: TimeoutError'],
+    ['shell', 'op_failed', 'm1']]);
+  assert.deepEqual(got[0], { source: 'shell', at: Date.parse(iso(4)), component: 'bridge', code: 'op_failed', message: 'm4', detail: 'd', turn_id: null,
+    trace_id: null, req: 'logs.read', count: 3 });
+  assert.deepEqual([got[1]!.turn_id, got[1]!.trace_id], ['t1', 'tr1']);
+});
+
+test('logs.errors reads the last MAX_ERROR_RECORDS lines of each file', () => {
+  writeFileSync(join(logs, 'error.jsonl'), `${Array.from({ length: MAX_ERROR_RECORDS + 20 }, (_, i) => rec(10, { message: `n${i}` })).join('\n')}\n`);
+  writeFileSync(join(logs, 'agentd-error.jsonl'), '');
+  const got = errorRows();
+  assert.equal(got.length, MAX_ERROR_RECORDS);
+  assert.equal(got[0]!.message, `n${MAX_ERROR_RECORDS + 19}`);
+  assert.equal(got.at(-1)!.message, 'n20');
 });

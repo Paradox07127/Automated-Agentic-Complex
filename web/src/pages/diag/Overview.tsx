@@ -6,6 +6,7 @@ import { voiceSource, voiceText } from '../../domain/voiceState';
 import { Btn, ErrBar, SecHead, Skel } from '../../ui';
 import { Barcode, DeviceRow, ReadTick, type DeviceRowProps } from '../../ui/game';
 import type { NavTarget } from '../overview/nav';
+import { ErrorPanel } from './ErrorPanel';
 import { gateHolds, SPEAK_WHEN } from './GatePanel';
 import { cpuParts, memParts } from './procText';
 import { CAP_REASON, LIMITS, lampOf, levelOf, SERVICE_ROWS, ttsText, type DiagIssue, type DiagProcess } from './status';
@@ -55,7 +56,7 @@ interface Row extends DeviceRowProps {
   key: string;
 }
 
-/** 总览：one row per part (lamp, word, reason, fix, where to look next), dependencies as a tree, then the pipeline and proactive speech in one line each. */
+/** 总览：one row per part (lamp, word, reason, fix, where to look next), dependencies as a tree, then the pipeline and proactive speech in one line each, then the error records. */
 export function Overview(p: OverviewProps) {
   if (p.loading)
     return (
@@ -112,6 +113,7 @@ export function Overview(p: OverviewProps) {
       <div className={styles.board}>{link.map((r) => rowEl(r, p.highlight))}</div>
       <SecHead title="运行" count={run.length} micro="RUNTIME 1H" />
       <div className={styles.board}>{run.map((r) => rowEl(r, p.highlight))}</div>
+      <ErrorPanel now={p.now} go={p.go} />
       {p.source && <Source info={p.source} />}
     </div>
   );

@@ -1,10 +1,10 @@
 // The fake bridge's `logs.*`: the seven sources with demo lines in each format's words, written around the mock turns
 // of the last two hours; a new line every 1.1 s unless the page is still. `state=error` answers as an old shell
-// (not_implemented), `state=loading` never answers.
+// (not_implemented), `state=loading` never answers. `logs.errors` lists demo error records of both files.
 import { isoToMs } from '../../domain';
 import { TRACE_TURNS } from '../../mock/diag';
 import { NOW } from '../../mock/fixtures';
-import type { LogLevel, LogLine, LogsOps, LogSourceId, LogSourceInfo } from '../logs';
+import type { ErrorRecordRow, LogLevel, LogLine, LogsOps, LogSourceId, LogSourceInfo } from '../logs';
 
 const SIZES: Record<LogSourceId, [string, number]> = {
   agentd: ['agentd.log', 1_240_000], companion: ['companion.log', 78_300], avatar: ['avatar.log', 529_400], helper: ['helper.log', 0],
@@ -120,5 +120,28 @@ export function fakeLogs(still: boolean): LogsOps {
       lines.sort((a, b) => (a.at ?? 0) - (b.at ?? 0));
       return { lines: lines.map((l) => ({ ...l, more: [...l.more] })), cursor, truncated: [] };
     }),
+    errors: () => answer(() => ({ records: errorRecords() })),
   };
+}
+
+/** error.jsonl and agentd-error.jsonl: each failed mock turn with its trace, and the other codes each side writes. */
+function errorRecords(): ErrorRecordRow[] {
+  const E = (source: ErrorRecordRow['source'], at: number, component: string, code: string, message: string, more: Partial<ErrorRecordRow> = {}): ErrorRecordRow => ({
+    source, at, component, code, message, detail: null, turn_id: null, trace_id: null, req: null, count: 1, ...more,
+  });
+  const rows = [
+    E('agentd', ago(4166), 'agentd', 'tts_token_missing', 'tts token missing'),
+    E('shell', ago(3118), 'helper', 'permission_denied', 'automation apps.activate', { req: 'apps.activate' }),
+    E('agentd', ago(1650), 'agentd', 'internal_error', 'POST /rituals/settle: TimeoutError: ', { req: '/rituals/settle' }),
+    E('shell', ago(1078), 'page', 'page_exception', "#/memory: TypeError: Cannot read properties of undefined (reading 'facts')", { detail: 'at FactList (memory/FactList.tsx:58:21)' }),
+    E('shell', ago(640), 'bridge', 'op_failed', 'permissions.request denied', { req: 'permissions.request', count: 3 }),
+    E('shell', ago(190), 'renderer-link', 'host_message_rejected', 'type=placement why=scale', { count: 4 }),
+    E('shell', ago(95), 'bridge', 'op_failed', 'avatar.capture not_running', { req: 'avatar.capture' }),
+  ];
+  for (const t of TRACE_TURNS) {
+    if (t.result !== 'failed') continue;
+    const code = t.error_code ?? 'unknown';
+    rows.push(E('agentd', isoToMs(t.started_at) + t.duration_ms, 'agentd', code, `${t.source} turn failed: ${code}`, { turn_id: t.turn_id, trace_id: t.trace_id }));
+  }
+  return rows.sort((a, b) => b.at - a.at);
 }

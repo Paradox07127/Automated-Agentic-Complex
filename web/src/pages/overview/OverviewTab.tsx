@@ -3,6 +3,9 @@
 // 读数点开它数的那些：出错是这一天的出错列表，其余去各自的页面或页签。
 import { useState, type ReactNode } from 'react';
 import { formatClock } from '../../domain';
+import { toCanonical } from '../../domain/ids';
+import { secToMs } from '../../domain/units';
+import type { WireBriefError } from '../../domain/wire';
 import type { Task } from '../../domain/work';
 import { Btn, Empty, Fold, InfoTip, Region, Row, SecHead, Sheet } from '../../ui';
 import { BriefsSec } from '../observe/BriefsSec';
@@ -114,50 +117,50 @@ function ObsBrief({ date }: { date: string }) {
   );
 }
 
-/** One error of the day: a failed task, or a failed turn of today. */
-export interface DayError {
-  id: string;
-  at: number;
-  /** 角色任务, 编码任务, the coding tool, or 对话. */
-  source: string;
-  title: string;
-  /** Why it failed, when the overview has read it. */
-  reason: string | null;
-  /** The task, or the turn in 诊断. */
-  open: NavTarget;
-  /** The task's run in 诊断 › 对话轮次. */
-  trace: string | null;
-}
+/** Each error kind's word, and the title of a row without one. */
+const ERR_KIND: Record<WireBriefError['kind'], [string, string]> = {
+  task: ['任务', '未命名任务'],
+  run: ['角色运行', '角色运行失败'],
+  turn: ['对话', '一轮对话没有完成'],
+  session: ['编码会话', '编码会话出错'],
+};
 
-/** The day's 出错 in a sheet, newest first: a row opens its task or turn; a task with a run also opens that run. */
-export function ErrorSheet({ rows, isToday, go, onClose }: { rows: DayError[] | undefined; isToday: boolean; go: Go; onClose: () => void }) {
+/** The day's 出错, the very `/brief/day` errors the readout counts, newest first: a row opens its task, else its turn in
+ *  诊断 › 对话轮次; a task's row with a trace also opens that trace. A coding session has nowhere to open. */
+export function ErrorSheet({ errors, isToday, go, onClose }: { errors: WireBriefError[] | undefined; isToday: boolean; go: Go; onClose: () => void }) {
   return (
     <Sheet open title="出错" width={480} onClose={onClose}>
-      <Region q={{ status: rows ? 'success' : 'pending', data: rows }} what="出错" reserve={{ rows: 3 }} empty={{ text: isToday ? '今天没有出错' : '那天没有出错' }}>
+      <Region q={{ status: errors ? 'success' : 'pending', data: errors && [...errors].sort((a, b) => b.at - a.at) }} what="出错" reserve={{ rows: 3 }} empty={{ text: isToday ? '今天没有出错' : '那天没有出错' }}>
         {(list) => (
           <div className={s.rows}>
-            {list.map(({ id, trace, ...e }) => (
-              <div key={id} className={s.er}>
-                <Row
-                  height="compact"
-                  category={e.open.page === 'tasks' ? 'mission' : 'neutral'}
-                  title={e.title}
-                  sub={
-                    <>
-                      <span className="num">{formatClock(e.at)}</span> │ {e.source}
-                      {e.reason && ` │ ${e.reason}`}
-                    </>
-                  }
-                  data-err
-                  onClick={() => go(e.open)}
-                />
-                {trace && (
-                  <Btn size="sm" variant="text" onClick={() => go({ page: 'diag', tab: 'turns', turn: trace })}>
-                    对话轮次 ›
-                  </Btn>
-                )}
-              </div>
-            ))}
+            {list.map((e) => {
+              const [kind, untitled] = ERR_KIND[e.kind];
+              const trace = e.trace_id ?? e.turn_id;
+              const open: NavTarget | null = e.task_id ? { page: 'tasks', sel: toCanonical(e.task_id) } : trace ? { page: 'diag', tab: 'turns', turn: trace } : null;
+              return (
+                <div key={`${e.kind}:${e.id}:${e.at}`} className={s.er}>
+                  <Row
+                    height="compact"
+                    category={e.task_id ? 'mission' : 'neutral'}
+                    title={e.title ?? untitled}
+                    sub={
+                      <>
+                        <span className="num">{formatClock(secToMs(e.at))}</span> │ {kind}
+                        {e.reason && ` │ ${e.reason}`}
+                      </>
+                    }
+                    data-err
+                    disabled={!open}
+                    onClick={() => open && go(open)}
+                  />
+                  {e.task_id && trace && (
+                    <Btn size="sm" variant="text" onClick={() => go({ page: 'diag', tab: 'turns', turn: trace })}>
+                      对话轮次 ›
+                    </Btn>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </Region>

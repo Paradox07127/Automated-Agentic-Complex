@@ -42,11 +42,11 @@ afterEach(() => {
 });
 
 describe('diag page', () => {
-  it('总览 lists the link rows as a tree, then the pipeline and proactive speech rows', async () => {
+  it('总览 lists the link rows as a tree, then the pipeline and proactive speech rows, then the error records', async () => {
     mount('');
     await waitFor(() => expect(row('flow')).not.toBeNull());
     const heads = [...document.querySelectorAll('[data-stub="SecHead"] h3')].map((h) => h.textContent);
-    expect(heads).toEqual(['链路', '运行']);
+    expect(heads).toEqual(['链路', '运行', '错误']);
     expect([...document.querySelectorAll('[data-row]')].map((r) => r.getAttribute('data-row'))).toEqual(['agentd', 'runtime', 'avatar', 'voice', 'flow', 'gate']);
     expect(within(row('voice')!).getByText('连不上')).toBeTruthy();
     expect(within(row('voice')!).getByRole('button', { name: '重新连接' })).toBeTruthy();

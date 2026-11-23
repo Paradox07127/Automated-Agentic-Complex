@@ -81,21 +81,14 @@ describe('one state per task everywhere', () => {
     }
   });
 
-  it('places t6 at 10:12–10:15 in the task, its run, the error list and the character cause', () => {
+  it('places t6 at 10:12–10:15 in the task, its run and the character cause', () => {
     const t6 = task(T6);
     const runs = F.RUNS.filter((r) => r.run_id === task(T6).run_id);
     expect(runs).toHaveLength(1);
     expect(runs[0]).toMatchObject({ started_at: F.at(10, 12), ended_at: F.at(10, 15), state: 'failed' });
     expect(t6.ended_at).toBe(F.at(10, 15));
-    expect(F.ERRORS.find((e) => e.id === T6)?.at).toBe(F.at(10, 15));
     expect(F.CHARACTER_STATE.causes.find((c) => c.cause === 'task_failed')?.at).toBe(F.at(10, 15));
     expect(F.STEP_EVENTS[T6]?.at(-1)?.at).toBe(F.at(10, 15));
-  });
-
-  it('lists exactly today\'s failed tasks and failed turns as errors', () => {
-    const failedTurns = F.TURN_DOTS.filter((d) => d.result === 'failed' && d.started_at >= F.at(0, 0)).map((d) => d.id);
-    const failedTasks = F.TASKS.filter((t) => t.status === 'failed').map((t) => t.id);
-    expect(F.ERRORS.map((e) => e.id).sort()).toEqual([...failedTasks, ...failedTurns].sort());
   });
 
   it('keeps candidate facts and counts aligned', () => {

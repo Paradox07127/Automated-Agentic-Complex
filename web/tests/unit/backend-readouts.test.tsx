@@ -20,7 +20,6 @@ import { reminderTime } from '../../src/pages/overview/briefModel';
 import { createTasksActions, failMessage, type ActionDeps } from '../../src/pages/tasks/actions';
 import { deriveView, emptyLocal } from '../../src/pages/tasks/model';
 import { useSessionLines, watchTasksDiag, watchTasksFeed } from '../../src/pages/tasks/useTasksData';
-import { loadOverview } from './overviewReads';
 import { mountTaskDetail } from './taskDetailMount';
 
 afterEach(() => {
@@ -194,43 +193,6 @@ describe('task reads follow next_cursor', () => {
     const old = { ...t1.delivery!, id: 'delivery-old' as never, version: 1, generation: 0, decided_at: null, state: 'viewed' as const };
     const view = deriveView({ tasks: [t1], deliveries: [t1.delivery!, old], sessions: [], approvals: [], questions: [], goals: [], activeRuns: {}, roleMissing: false }, emptyLocal());
     expect(view.pending.filter((p) => p.kind === 'review').map((p) => p.id)).toEqual([`r-${t1.delivery!.id}`]);
-  });
-});
-
-describe('overview errors', () => {
-  // Under a native-like bridge the page reads the real clock; the fixtures are dated at NOW.
-  const freeze = () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(NOW);
-  };
-  it('a failed run gives its reason, and today’s failed turns are listed', async () => {
-    freeze();
-    install();
-    const s = await loadOverview(null, false);
-    const t6 = s.errors.find((e) => e.id === T6);
-    expect(t6?.reason).toBe('资料授权已撤销');
-    expect(s.errors.some((e) => e.kind === 'turn')).toBe(true);
-  });
-  it('a failed coding task gives its verify result', async () => {
-    freeze();
-    const t7 = { ...ledger({ task_id: 'aa11bb22cc33dd44', state: 'failed', updated_at: NOW / 1000 - 60, result: { exit_code: null, output_tail: 'x', reason: 'timeout' } }) };
-    const mock = createFakeBridge({ surface: 'main', still: true });
-    install((path) => {
-      if (!path.startsWith('/agent/snapshot')) return null;
-      return { status: 200, body: { ...snapshotBody, tasks: { tasks: [...snapshotBody.tasks.tasks, t7] } } };
-    });
-    const snapshotBody = (await mock.agentd.request<{ tasks: { tasks: WireLedgerTask[] } }>('GET', '/agent/snapshot')).body!;
-    const s = await loadOverview(null, false);
-    expect(s.errors.find((e) => e.id === 'task:aa11bb22cc33dd44')?.reason).toBe('检查命令超时');
-  });
-  it('a coding task sent back without a verify command reads 已退回', async () => {
-    freeze();
-    const t8 = ledger({ task_id: 'ee55ff66aa77bb88', state: 'failed', updated_at: NOW / 1000 - 60, result: { exit_code: null, output_tail: null, reason: 'no_verify_cmd' } });
-    const mock = createFakeBridge({ surface: 'main', still: true });
-    const snapshotBody = (await mock.agentd.request<{ tasks: { tasks: WireLedgerTask[] } }>('GET', '/agent/snapshot')).body!;
-    install((path) => (path.startsWith('/agent/snapshot') ? { status: 200, body: { ...snapshotBody, tasks: { tasks: [...snapshotBody.tasks.tasks, t8] } } } : null));
-    const s = await loadOverview(null, false);
-    expect(s.errors.find((e) => e.id === 'task:ee55ff66aa77bb88')?.reason).toBe('已退回');
   });
 });
 

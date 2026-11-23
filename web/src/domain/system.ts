@@ -79,16 +79,6 @@ export interface ProcessRow {
   uptime: Array<{ start: number; end: number | null }>;
 }
 
-/** Error list entry. */
-export interface ErrorEntry {
-  id: string;
-  kind: 'task' | 'turn';
-  at: number;
-  title: string;
-  reason: string;
-  fix: string;
-}
-
 /** Diag budget row (usage.py today().by_call). `unpriced` calls have no cost in `cost_usd`. */
 export interface ModelCall {
   label: string;

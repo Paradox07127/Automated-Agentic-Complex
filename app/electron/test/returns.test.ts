@@ -49,7 +49,7 @@ const IMPLEMENTED = [
   'avatar.playPlaylist', 'avatar.stopPlaylist', 'avatar.playlistState', 'avatar.toggleClickThroughAll', 'avatar.photo.set', 'avatar.capture',
   'app.openQuickInput',
   'settings.recordHotkey',
-  'logs.sources', 'logs.read',
+  'logs.sources', 'logs.read', 'logs.errors',
   'services.read', 'services.save', 'services.start', 'services.stop', 'services.restart',
 ];
 

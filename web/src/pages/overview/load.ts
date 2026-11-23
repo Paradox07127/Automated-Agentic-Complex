@@ -14,20 +14,16 @@ import {
   fromSession,
   fromTaskRow,
   indexActiveRuns,
-  isoToMs,
   isoToMsOrNull,
   isCodingReview,
   isReviewableDelivery,
-  isoWithOffset,
   mergeTasks,
-  runFailure,
   secToMs,
   secToMsOrNull,
   type ActiveRun,
   type Budget,
   type CharacterState,
   type Delivery,
-  type ErrorEntry,
   type Health,
   type PendingItem,
   type Review,
@@ -40,9 +36,7 @@ import {
   type WireDiagState,
   type WireRun,
   type WireSession,
-  type WireTraceTurn,
 } from '../../domain';
-import { verifyText } from '../../domain/errorText';
 import { errText, orNone } from './errors';
 import { roleOf, type RoleNow } from './role';
 import type { WireAgentSnapshot, WireCommitment, WireDaySegments, WireState } from './wire';
@@ -91,8 +85,6 @@ export interface OverviewSnapshot {
   sessions: Session[];
   deliveries: Delivery[];
   reminders: Reminder[];
-  /** Today's failed tasks. */
-  errors: ErrorEntry[];
   character: { id?: string | null; name: string | null; en?: string | null; head?: string | null; mood: CharacterMood | null };
   /** What she thinks you are doing now (/diag/state context.activity), in Chinese; null when unknown. */
   activity: string | null;
@@ -248,14 +240,6 @@ export async function readRunning(on: { sessions: boolean; runs: boolean }): Pro
   return { sessions: s.sessions.map(fromSession), runs: r.runs };
 }
 
-/** Today's failed turns, counted under 出错. */
-export async function readFailedTurns(now: number): Promise<ErrorEntry[]> {
-  const since = isoWithOffset(new Date(now).setHours(0, 0, 0, 0));
-  const r = await get<{ turns: WireTraceTurn[] }>(`/trace/turns?since=${encodeURIComponent(since)}&result=failed&limit=50`);
-  // The mock ignores `result`; agentd filters by it.
-  return r.turns.filter((x) => x.result === 'failed').map(turnError);
-}
-
 /** The role band's reads; each blanks only its own part. */
 export type RoleRead = Pick<OverviewSnapshot, 'character' | 'activity' | 'role' | 'health' | 'quota' | 'pause' | 'diag_error'> & { connection: AgentdConnection };
 
@@ -303,23 +287,12 @@ export function readDay(demo: string | null, now: number): Promise<WireDaySegmen
   return get<WireDaySegments>(`/day/segments?date=${dayOf(now)}${fake && demo ? `&demo=${demo}` : ''}`);
 }
 
-/** Why a failed task failed: a coding task's verify result (a failed one without a verify command was sent back), else its run's failure. */
-function failReason(t: Task, runs: readonly WireRun[]): string {
-  if (t.verify?.reason === 'no_verify_cmd') return '已退回';
-  if (t.verify) return verifyText(t.verify);
-  return runFailure(runs.find((r) => r.run_id === t.run_id))?.reason ?? '运行失败';
-}
-
-/** A failed turn of today; the fix opens it in the timeline. */
-const turnError = (r: WireTraceTurn): ErrorEntry => ({ id: r.trace_id, kind: 'turn', at: isoToMs(r.started_at), title: r.head || '一轮对话', reason: '这一轮没有完成', fix: '看时间线' });
-
 /** The section reads that have answered so far; a missing one leaves its part empty. */
 export interface OverviewParts {
   snapshot?: SnapshotRead | undefined;
   running?: RunningRead | undefined;
   /** Why `/sessions` or `/agent/runs` could not be read. */
   runningError?: string | undefined;
-  turns?: ErrorEntry[] | undefined;
   role?: RoleRead | undefined;
   day?: WireDaySegments | undefined;
   dayError?: string | undefined;
@@ -366,12 +339,6 @@ export function overviewOf(p: OverviewParts): OverviewSnapshot {
     sessions,
     deliveries,
     reminders: (s?.commitments?.commitments ?? []).filter((c) => shownReminder(c, now)).map(reminderOf),
-    errors: [
-      ...tasks
-        .filter((t) => t.status === 'failed' && t.ended_at != null && dayOf(t.ended_at) === dayOf(now))
-        .map((t): ErrorEntry => ({ id: t.id, kind: 'task', at: t.ended_at ?? now, title: t.title, reason: failReason(t, wireRuns), fix: '查看任务' })),
-      ...(p.turns ?? []),
-    ].sort((a, b) => b.at - a.at),
     ...role,
     health: role.health && { ...role.health, agentd: { ...role.health.agentd, up: connection === 'connected' } },
     kernel: null,
@@ -388,7 +355,7 @@ export function overviewOf(p: OverviewParts): OverviewSnapshot {
 
 /** `state=empty`: the same role band with no work anywhere. */
 export function emptyWork(s: OverviewSnapshot): OverviewSnapshot {
-  return { ...s, pending: [], tasks: [], active_runs: {}, sessions: [], deliveries: [], reminders: [], errors: [], day: { runs: [], segments: [], lane_errors: {} } };
+  return { ...s, pending: [], tasks: [], active_runs: {}, sessions: [], deliveries: [], reminders: [], day: { runs: [], segments: [], lane_errors: {} } };
 }
 
 /** `demo=sparse` on the fake bridge: a quiet day, nothing waiting or running, one reminder ahead. */

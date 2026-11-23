@@ -35,9 +35,27 @@ export interface LogRead {
   truncated: LogSourceId[];
 }
 
+/** One line of error.jsonl (`shell`) or agentd-error.jsonl (`agentd`), app/electron/src/common/error-record.ts. */
+export interface ErrorRecordRow {
+  source: 'shell' | 'agentd';
+  /** Epoch ms of the record's `t`. */
+  at: number;
+  component: string;
+  code: string;
+  message: string;
+  detail: string | null;
+  turn_id: string | null;
+  trace_id: string | null;
+  req: string | null;
+  /** How many of these the line stands for. */
+  count: number;
+}
+
 /** Read-only; the page names sources by id, never by path. Main surface only. */
 export interface LogsOps {
   sources(): Promise<{ dirs: { support: string; web: string }; sources: LogSourceInfo[] }>;
   /** Without `after` for a source: its last lines. At most 1000 lines a call. */
   read(req: { sources: LogSourceId[]; after?: Partial<Record<LogSourceId, number>> }): Promise<LogRead>;
+  /** The last 500 lines of each error file, newest first. */
+  errors(): Promise<{ records: ErrorRecordRow[] }>;
 }

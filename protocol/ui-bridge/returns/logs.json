@@ -53,5 +53,31 @@
       },
       "truncated": []
     }
+  },
+  {
+    "op": "logs.errors",
+    "surface": "main",
+    "nullable": [
+      "records[].detail",
+      "records[].turn_id",
+      "records[].trace_id",
+      "records[].req"
+    ],
+    "value": {
+      "records": [
+        {
+          "source": "agentd",
+          "at": 1795276206919,
+          "component": "agentd",
+          "code": "timeout",
+          "message": "text turn failed: TimeoutError",
+          "detail": null,
+          "turn_id": "turn-1",
+          "trace_id": "5f1c0e7a-2b3d-4c8e-9a10-0d4e6b7c8a91",
+          "req": null,
+          "count": 1
+        }
+      ]
+    }
   }
 ]

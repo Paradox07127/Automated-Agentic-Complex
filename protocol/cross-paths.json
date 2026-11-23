@@ -24,7 +24,7 @@
  "owned": {
   "agentd": ["agent/agentd", "agentd_launcher.py", "codex_hook_forward.py", "character_tool.py", "motion_tool.py", "outfit_tool.py", "install_hooks.py",
    "distribution_seed.py", "tts_token.py", "runtime/agentd", "runtime/content", "ui-runtime.json", "events-runtime.json",
-   "blacklist.json", "hook.token", "tts-token", "distribution-seed.json"],
+   "blacklist.json", "hook.token", "tts-token", "distribution-seed.json", "agentd-error.jsonl"],
   "runtime.python": ["agentic-complex-python", "runtime/python"],
   "harness.pi": ["pi-runtime"],
   "renderer": ["metal-avatar-host", "AgenticComplexMetalAvatar", "AgenticComplexMetalPreview", "preview.xpc",
@@ -47,6 +47,7 @@
   "index.json": "the shared MMD library index (agent/agentd/motion_tool.py) and the component and distribution indexes (app/electron/src/main/components.ts) are different files"
  },
  "allow": [
+  {"row": "C9", "token": "agentd-error.jsonl", "files": ["app/electron/src/main/ops/logs.ts"]},
   {"row": "C8", "token": "pi-runtime", "files": ["agent/agentd/character_agent/harness/pi_install_runtime.py"]},
   {"row": "C8", "token": "pi-runtime", "files": ["agent/agentd/character_agent/harness/pi_config.py"]},
   {"row": "C8", "token": "pi-runtime", "files": ["agent/agentd/daemon/main.py"]},

@@ -1,0 +1,99 @@
+/* 错误: one line per component and code on the reads band, its records indented under it when open. */
+.list,
+.recs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.group {
+  min-width: 0;
+  background: var(--dg-read);
+}
+
+.head {
+  display: grid;
+  grid-template-columns: 184px 104px 48px 92px minmax(0, 1fr);
+  gap: var(--ef-sp-12);
+  align-items: baseline;
+  width: 100%;
+  padding: var(--ef-sp-6) var(--ef-sp-12);
+  border: 0;
+  border-left: 3px solid var(--ef-danger-text);
+  background: none;
+  color: var(--ef-text-1);
+  font: var(--ef-t-meta);
+  text-align: left;
+  cursor: pointer;
+}
+
+.head:hover {
+  background: var(--ef-overlay-hover);
+}
+
+.head:focus-visible {
+  outline: 2px solid var(--ef-focus);
+  outline-offset: -2px;
+}
+
+.head[aria-expanded='true'] {
+  background: var(--ef-overlay-hover);
+}
+
+.code {
+  font-family: var(--ef-font-num);
+  font-weight: var(--ef-fw-semibold);
+}
+
+.comp,
+.at {
+  color: var(--ef-text-2);
+}
+
+.n {
+  color: var(--ef-danger-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.code,
+.comp,
+.msg {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recs {
+  padding: 0 var(--ef-sp-12) var(--ef-sp-6) calc(var(--ef-sp-12) + 3px);
+}
+
+.rec {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  gap: var(--ef-sp-12);
+  align-items: baseline;
+  min-height: 28px;
+  border-top: 1px solid var(--ef-line-subtle);
+  font: var(--ef-t-meta);
+}
+
+.rec .msg {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.rec .n {
+  margin-right: var(--ef-sp-8);
+}
+
+.detail {
+  display: block;
+  color: var(--ef-text-2);
+}

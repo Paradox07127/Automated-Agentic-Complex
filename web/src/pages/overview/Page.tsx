@@ -24,7 +24,7 @@ import { HerTab } from './HerTab';
 import { clock, dayOf } from './load';
 import { loadBrief } from './loadBrief';
 import { useGo, useNow } from './nav';
-import { ErrorSheet, OverviewTab, type DayError } from './OverviewTab';
+import { ErrorSheet, OverviewTab } from './OverviewTab';
 import { PauseReadout } from './PauseReadout';
 import { PendingSection } from './PendingSection';
 import { RunningSection } from './RunningSection';
@@ -142,24 +142,6 @@ export function OverviewPage() {
 
   const dayConvs = isToday ? brief?.convs : pastQ.data?.convs;
   const [errs, setErrs] = useState(false);
-  // The day's failed tasks (any source) and, today, the failed turns the overview read.
-  const dayErrors = (): DayError[] | undefined => {
-    const view = desk.listReady ? desk.view : null;
-    if (!view) return undefined;
-    const tasks = view.tasks
-      .filter((t) => inDay(t.updated_at) && view.effective[t.id] === 'failed')
-      .map((t): DayError => ({
-        id: t.id,
-        at: t.updated_at,
-        source: t.source === 'role' ? '角色任务' : t.source === 'code' ? '编码任务' : (t.agent ?? '外部会话'),
-        title: t.title || '未命名任务',
-        reason: snap.errors.find((e) => e.id === t.id)?.reason ?? null,
-        open: { page: 'tasks', sel: t.id },
-        trace: t.run_id,
-      }));
-    const turns = isToday ? snap.errors.filter((e) => e.kind === 'turn').map((e): DayError => ({ id: e.id, at: e.at, source: '对话', title: e.title, reason: e.reason, open: { page: 'diag', tab: 'turns', turn: e.id }, trace: null })) : [];
-    return [...tasks, ...turns].sort((x, y) => y.at - x.at);
-  };
   const her = { open: () => put({ tab: 'her' }), to: `看${snap.character.name ?? '角色'}这一天` };
   const links: BriefTabProps['links'] = {
     done: { open: () => go({ page: 'tasks', tab: 'done' }), to: '前往已完成的任务' },
@@ -310,7 +292,7 @@ export function OverviewPage() {
         </PageIssues>
       </div>
       {ep && <EpisodeSheet ep={ep} onClose={() => setEp(null)} />}
-      {errs && <ErrorSheet rows={dayErrors()} isToday={isToday} go={go} onClose={() => setErrs(false)} />}
+      {errs && <ErrorSheet errors={dayQ.data?.errors} isToday={isToday} go={go} onClose={() => setErrs(false)} />}
     </div>
   );
 }

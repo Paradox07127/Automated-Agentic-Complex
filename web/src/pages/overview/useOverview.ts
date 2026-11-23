@@ -2,12 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBridge, type StreamEvent } from '../../bridge';
 import { useRuntimePublic } from '../../data/runtime';
-import type { ActiveRun, ErrorEntry, Plan, StepStatus } from '../../domain';
+import type { ActiveRun, Plan, StepStatus } from '../../domain';
 import type { DemoState } from '../../shell/demo';
 import { usePlugins } from '../../shell/plugins';
 import { errText } from './errors';
 import { runtimeOf, withRuntime } from './kernel';
-import { clock, emptyWork, overviewOf, readDay, readFailedTurns, readRole, readRunning, readSnapshot, sparseWork, type RoleRead, type RunningRead, type SnapshotRead } from './load';
+import { clock, emptyWork, overviewOf, readDay, readRole, readRunning, readSnapshot, sparseWork, type RoleRead, type RunningRead, type SnapshotRead } from './load';
 import { loadBrief, readMood, type MoodPoint, type OverviewBrief } from './loadBrief';
 import type { WireDaySegments } from './wire';
 
@@ -133,7 +133,6 @@ export function useOverview(demo: string | null, state: DemoState | null, today 
     ...once,
     enabled: once.enabled && (runOn.sessions || runOn.runs),
   });
-  const turns = useQuery<ErrorEntry[], Error>({ queryKey: [...work, 'turns'], queryFn: said(() => readFailedTurns(clock())), ...once });
   const role = useQuery<RoleRead, Error>({ queryKey: ['overview', demo, 'role'], queryFn: said(() => readRole(demo)), ...core });
   const day = useQuery<WireDaySegments, Error>({ queryKey: ['overview', demo, 'day'], queryFn: said(() => readDay(demo, clock())), ...once, refetchInterval: REFRESH_MS });
   const bq = useQuery<OverviewBrief, Error>({ queryKey: ['overview', demo, 'brief'], queryFn: said(() => loadBrief(clock())), ...once, refetchInterval: REFRESH_MS });
@@ -173,10 +172,10 @@ export function useOverview(demo: string | null, state: DemoState | null, today 
 
   const live = useLive(q.data ? String(q.data.wire.seq) : null, reload, demo === 'plan-lost');
   const data = useMemo(() => {
-    const parts = { snapshot: q.data, running: running.data, runningError: running.error?.message, turns: turns.data, role: role.data, day: day.data, dayError: day.error?.message };
+    const parts = { snapshot: q.data, running: running.data, runningError: running.error?.message, role: role.data, day: day.data, dayError: day.error?.message };
     const s = withRuntime(overviewOf(parts), kernel.data);
     return state === 'empty' ? emptyWork(s) : sparseDemo(demo) ? sparseWork(s) : s;
-  }, [q.data, running.data, running.error, turns.data, role.data, day.data, day.error, kernel.data, state, demo]);
+  }, [q.data, running.data, running.error, role.data, day.data, day.error, kernel.data, state, demo]);
   const brief = useMemo(() => {
     const b = bq.data;
     if (!b) return b;
@@ -191,5 +190,5 @@ export function useOverview(demo: string | null, state: DemoState | null, today 
     }
     return out;
   }, [data, live.plans, live.tools]);
-  return { q, reads: { running, turns, role, day, brief: bq, mood }, data, brief, activeRuns, lost: live.lost };
+  return { q, reads: { running, role, day, brief: bq, mood }, data, brief, activeRuns, lost: live.lost };
 }

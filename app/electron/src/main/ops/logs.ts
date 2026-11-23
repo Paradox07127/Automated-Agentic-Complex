@@ -1,5 +1,6 @@
 // `logs.sources` and `logs.read`: 诊断's 日志 tab. Read-only, the fixed files of common/log-line.ts, and the
 // lines go to that page only; one read returns at most MAX_LINES lines out of at most MAX_BYTES of the files.
+// `logs.errors`: 诊断's 错误 panel, the same way over error.jsonl and agentd-error.jsonl.
 import { closeSync, openSync, readSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { BridgeFailure } from '../../common/bridge.ts';
@@ -10,6 +11,9 @@ import type { Ops, OpsContext } from './context.ts';
 
 export const MAX_LINES = 1000;
 export const MAX_BYTES = 2 * 1024 * 1024;
+/** Lines `logs.errors` reads from the end of each error file. */
+export const MAX_ERROR_RECORDS = 500;
+const ERROR_FILES = [['shell', 'error.jsonl'], ['agentd', 'agentd-error.jsonl']] as const;
 
 /** `start`..`end` of the file as lines that end in a line break; `skipFirst` drops the partial line a mid-file start lands in. */
 function readLines(path: string, start: number, end: number, skipFirst: boolean): { rows: RawLine[]; next: number } {
@@ -95,6 +99,32 @@ export function logsOps(ctx: OpsContext): Ops {
       }
       lines.sort((a, b) => (a.at ?? -Infinity) - (b.at ?? -Infinity));
       return { lines: lines.slice(-MAX_LINES), cursor, truncated };
+    },
+    // 诊断's 错误: the last records of the shell's and agentd's error files (common/error-record.ts), newest first.
+    'logs.errors': () => {
+      const dir = dirs().support;
+      const text = (v: unknown) => (typeof v === 'string' ? v : null);
+      const records = ERROR_FILES.flatMap(([source, file]) => {
+        const path = join(dir, file);
+        const st = statSync(path, { throwIfNoEntry: false });
+        if (!st?.isFile() || st.size === 0) return [];
+        const start = Math.max(0, st.size - MAX_BYTES / 2);
+        return readLines(path, start, st.size, start > 0).rows.slice(-MAX_ERROR_RECORDS).reverse().flatMap((row) => {
+          let r: unknown;
+          try {
+            r = JSON.parse(row.text);
+          } catch {
+            return [];
+          }
+          if (typeof r !== 'object' || r === null) return [];
+          const { t, component, code, message, detail, turn_id, trace_id, req, count } = r as Record<string, unknown>;
+          const at = typeof t === 'string' ? Date.parse(t) : NaN;
+          if (Number.isNaN(at) || typeof component !== 'string' || typeof code !== 'string' || typeof message !== 'string') return [];
+          return [{ source, at, component, code, message, detail: text(detail), turn_id: text(turn_id), trace_id: text(trace_id), req: text(req),
+            count: Number.isSafeInteger(count) && (count as number) > 0 ? (count as number) : 1 }];
+        });
+      });
+      return { records: records.sort((a, b) => b.at - a.at) };
     },
   };
 }

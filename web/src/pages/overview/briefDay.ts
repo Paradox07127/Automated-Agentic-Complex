@@ -1,5 +1,6 @@
 // 每日简报的统计：GET /brief/day 一次读回一天；做完了、在做、提醒、观察日报等列表仍读各自原有的接口。
 import { get } from '../../bridge/agentd';
+import type { WireBriefError } from '../../domain/wire';
 
 /** 决定简报显示哪些块的开关，各对应设置里的一行。 */
 export type BriefSwitch = 'scr' | 'read' | 'shot' | 'code' | 'agent' | 'voice';
@@ -69,6 +70,8 @@ export interface BriefDay {
     /** 她在桌面上的分钟数；没有来源时为 null。 */
     on_desk_min: number | null;
   };
+  /** items.err 计的每一条，按时刻升序。 */
+  errors: WireBriefError[];
 }
 
 export interface ItemMeta {
