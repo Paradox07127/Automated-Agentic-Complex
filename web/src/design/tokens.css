@@ -207,6 +207,9 @@
   --ef-g-power: #E2E53E;
   --ef-danger-g-power-save: #F74815;
   --ef-danger-g-power-none: #DC1C2C;
+  --ef-g-state-closed: #8A8A8A;
+  --ef-g-state-ink: #121212;
+  --ef-g-state-hatch: rgba(255,255,255,.08);
   --ef-danger-g-quit: rgba(255,65,69,.722);
   --ef-g-frost: #4C4C4C;
   --ef-g-btn-face: #E7E7E7;
@@ -476,6 +479,9 @@
   --ef-g-power: #E2E53E;
   --ef-danger-g-power-save: #F74815;
   --ef-danger-g-power-none: #DC1C2C;
+  --ef-g-state-closed: #8A8A8A;
+  --ef-g-state-ink: #121212;
+  --ef-g-state-hatch: rgba(22,22,22,.08);
   --ef-danger-g-quit: rgba(255,65,69,.722);
   --ef-g-frost: #4C4C4C;
   --ef-g-btn-face: #E7E7E7;

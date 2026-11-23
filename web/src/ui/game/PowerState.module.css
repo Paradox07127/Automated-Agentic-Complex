@@ -1,0 +1,223 @@
+/* 通电状态：已关闭取 BuildingStateStopped 的中灰，未接入取 NoPower / NotLinked 的橙红；色块上一律深色字。 */
+.block,
+.page {
+  --ps-c: var(--ef-g-state-closed);
+  --ps-hatch: repeating-linear-gradient(45deg, var(--ef-g-state-hatch) 0 6px, transparent 6px 14px);
+}
+
+:is(.block, .page)[data-state='unlinked'] {
+  --ps-c: var(--ef-danger-g-power-save);
+  --ps-hatch: linear-gradient(transparent, transparent);
+}
+
+/* 内容照常排版，只是褪成灰。 */
+.content[data-dim] {
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+
+/* ---- 区块：顶部状态条 ---- */
+.block {
+  display: grid;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-8) var(--ef-sp-12);
+  min-height: 40px;
+  padding: var(--ef-sp-4) var(--ef-sp-8) var(--ef-sp-4) var(--ef-sp-12);
+  border-left: 3px solid var(--ps-c);
+  background: var(--ps-hatch), var(--ef-fold);
+  box-shadow: inset 0 0 0 1px var(--ef-plate-rim);
+  color: var(--ef-text-1);
+}
+
+.mark {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  color: var(--ps-c);
+}
+
+.text {
+  display: grid;
+  flex: 1 1 220px;
+  gap: 2px;
+  min-width: 0;
+}
+
+.text > b {
+  font: var(--ef-t-h3);
+}
+
+.why {
+  min-width: 0;
+  font: var(--ef-t-meta);
+  color: var(--ef-text-2);
+}
+
+.acts {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  margin-left: auto;
+}
+
+/* 状态词：色块 + 斜切的箭头尾（同色 α0.6）。 */
+.word {
+  display: inline-flex;
+  flex: none;
+  align-items: stretch;
+  height: 22px;
+}
+
+.word > b {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--ef-sp-8) 0 var(--ef-sp-8);
+  background: var(--ps-c);
+  color: var(--ef-g-state-ink);
+  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-sans);
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 50%, calc(100% - 6px) 100%, 0 100%);
+  padding-right: 14px;
+}
+
+.tail {
+  width: 14px;
+  margin-left: -4px;
+  background: color-mix(in srgb, var(--ps-c) 60%, transparent);
+  clip-path: polygon(0 0, 8px 0, 100% 50%, 8px 100%, 0 100%, 6px 50%);
+}
+
+/* ---- 整页：内容在下，状态板在上 ---- */
+.page {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+}
+
+.page > .content {
+  height: 100%;
+}
+
+.veil {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--ef-sp-24);
+  background: var(--ps-hatch), color-mix(in srgb, var(--ef-canvas) 40%, transparent);
+}
+
+.board {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: var(--ef-sp-20);
+  width: min(460px, 100%);
+  padding: var(--ef-sp-20) var(--ef-sp-24) var(--ef-sp-20) var(--ef-sp-20);
+  border-top: 3px solid var(--ps-c);
+  background: var(--ef-raised);
+  box-shadow:
+    inset 0 0 0 1px var(--ef-plate-rim),
+    var(--ef-shadow-card);
+  color: var(--ef-text-1);
+}
+
+/* 图标座：两道连接环围着状态图标（电力门的 Ring）；已关闭垫灰斜纹。 */
+.plate {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  background: var(--ps-hatch), var(--ef-fold);
+  color: var(--ps-c);
+}
+
+.halo {
+  position: absolute;
+  inset: 8px;
+  border: 2px solid color-mix(in srgb, var(--ps-c) 55%, transparent);
+  border-radius: 50%;
+}
+
+.halo + .halo {
+  inset: 16px;
+  border-width: 1px;
+}
+
+.body {
+  display: grid;
+  align-content: start;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-12);
+}
+
+.micro {
+  font: var(--ef-fw-medium) var(--ef-fs-micro) / 1 var(--ef-font-wide);
+  font-stretch: var(--ef-wide);
+  letter-spacing: 0.08em;
+  color: var(--ef-text-3);
+}
+
+.title {
+  margin: 0;
+  font: var(--ef-t-h1);
+}
+
+.reason {
+  margin: 0;
+  font: var(--ef-t-table);
+  color: var(--ef-text-2);
+}
+
+.body > .acts {
+  margin: var(--ef-sp-4) 0 0;
+}
+
+/* 离线时只有连接环和连线呼吸（facpowergate_offline_loop 只动透明度）。 */
+[data-state='unlinked'] :is(.halo, .link) {
+  animation: ps-breathe 1.6s ease-in-out infinite alternate;
+}
+
+[data-state='unlinked'] .halo + .halo {
+  animation-delay: -0.8s;
+}
+
+@keyframes ps-breathe {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-state='unlinked'] :is(.halo, .link) {
+    animation: none;
+  }
+}
+
+:global(.still) [data-state='unlinked'] :is(.halo, .link),
+:global([data-reduce-motion]) [data-state='unlinked'] :is(.halo, .link) {
+  animation: none;
+}
+
+@media (max-width: 640px) {
+  .board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

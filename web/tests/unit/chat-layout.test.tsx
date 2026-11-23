@@ -193,7 +193,7 @@ describe('chat: kernel not ready', () => {
     loggedIn = false;
     fireEvent.change(input, { target: { value: '在吗' } });
     fireEvent.click(within(thread).getByRole('button', { name: /发送/ }));
-    const notice = (await within(thread).findByText(/没有可用的模型/)).closest<HTMLElement>('[role="alert"]')!;
+    const notice = (await within(thread).findByText(/没有可用的模型/)).closest<HTMLElement>('[role="status"]')!;
     expect(input.disabled).toBe(false);
     loggedIn = true;
     fireEvent.click(within(notice).getByRole('button', { name: '重新检测' }));
@@ -237,11 +237,12 @@ describe('chat: kernel not ready', () => {
 
   const piRuntime = (error: string | null) => ({ ...WIRE_RUNTIME, backend: 'pi' as const, ready: false, error, selected_runtime: null });
 
-  it('Pi without a model connection shows the no-model notice with its settings link', async () => {
+  it('Pi without a model connection shows 未接入 over the input with its settings button', async () => {
     bridgeWith([idle, { method: 'GET', path: '/character/runtime', handler: () => ({ status: 200, body: piRuntime('pi_connection_missing') }) }]);
     const thread = await mountDefault();
-    const notice = (await within(thread).findByText(/没有可用的模型/)).closest<HTMLElement>('[role="alert"]')!;
-    expect(within(notice).getByRole('link', { name: '设置 › pi 账号与凭据' }).getAttribute('href')).toBe('#/settings?group=model');
+    const notice = (await within(thread).findByText(/没有可用的模型/)).closest<HTMLElement>('[role="status"]')!;
+    expect(notice.textContent).toContain('未接入');
+    expect(within(notice).getByRole('button', { name: /前往设置连接/ })).toBeTruthy();
     expect(within(thread).queryByText('Pi 未就绪')).toBeNull();
   });
 

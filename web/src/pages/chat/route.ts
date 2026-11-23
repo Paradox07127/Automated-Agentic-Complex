@@ -10,5 +10,5 @@ export const route: PageRoute = {
   order: 20,
   group: 'primary',
   hotkey: '⌘2',
-  component: lazyRouteComponent(() => import('./Page'), 'ChatPage'),
+  component: lazyRouteComponent(() => import('./Gate'), 'ChatGate'),
 };

@@ -17,6 +17,7 @@ export * from './LoadBar';
 export * from './Marks';
 export * from './NewsBanner';
 export * from './OptionStack';
+export * from './PowerState';
 export * from './RailCell';
 export * from './Readout';
 export * from './Slab';

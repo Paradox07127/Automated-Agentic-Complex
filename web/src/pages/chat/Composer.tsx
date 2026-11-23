@@ -3,8 +3,10 @@ import { getBridge, type PickedHandle } from '../../bridge';
 import type { DroppedHandle } from '../../bridge/adopt';
 import { post } from '../../bridge/agentd';
 import type { RuntimeInfo } from '../../domain';
+import { navigate } from '../../shell/nav';
 import { usePlugins } from '../../shell/plugins';
 import { Btn, Icon, IconBtn, Menu, type MenuItem } from '../../ui';
+import { PowerState } from '../../ui/game';
 import { AttachTray, type TrayItem } from './AttachTray';
 import { reasonOf } from './reasons';
 import styles from './Composer.module.css';
@@ -261,16 +263,8 @@ export function Composer(p: ComposerProps) {
     }
   };
   const inactive = said === '' || p.sending;
-  return (
+  const body = (
     <div className={styles.root}>
-      {noModel && (
-        <div className={styles.kernel} role="alert">
-          没有可用的模型：登录 Claude Code 或 Codex，或在 <a href="#/settings?group=model">设置 › pi 账号与凭据</a> 填一个 API key
-          <Btn size="sm" variant="ghost" icon="refresh" onClick={p.onRecheck}>
-            重新检测
-          </Btn>
-        </div>
-      )}
       {p.kernel && !noModel && (
         <div className={styles.kernel} role="alert">
           <span className={styles.flagMark} aria-hidden="true">
@@ -332,5 +326,23 @@ export function Composer(p: ComposerProps) {
         </Btn>
       </div>
     </div>
+  );
+  // No model: the input stays usable under the strip, since agentd may still route the line once an account is signed in.
+  return noModel ? (
+    <PowerState
+      state="unlinked"
+      mode="block"
+      title="没有可用的模型"
+      reason="登录 Claude Code 或 Codex，或在设置里给 pi 填一个 API key"
+      action={{ label: '前往设置连接', onClick: () => navigate({ page: 'settings', group: 'model', item: 'svc' }) }}
+      more={
+        <Btn size="sm" variant="ghost" icon="refresh" onClick={p.onRecheck}>
+          重新检测
+        </Btn>
+      }>
+      {body}
+    </PowerState>
+  ) : (
+    body
   );
 }

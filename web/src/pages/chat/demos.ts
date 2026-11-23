@@ -15,6 +15,8 @@ export const demos: Demo[] = [
   { name: 'disconnected', params: { demo: 'disconnected' } }, // 后台断开：保留上次数据并标时间、查看诊断、重试
   { name: 'sendfail', params: { demo: 'sendfail' } }, // 发送失败：原因 + 重新发送，保留原文
   { name: 'kernel', params: { demo: 'kernel' } }, // 内核未就绪：KernelChain；读 /character/runtime?demo=logged-out
+  { name: 'nomodel', params: { demo: 'nomodel' } }, // 未接入：没有模型账号，输入区顶上状态条，按钮前往设置的模型服务
+  { name: 'ai-off', params: { demo: 'ai-off' } }, // 已关闭：「和她对话」关着，整页灰掉，状态板按钮前往设置打开
   { name: 'history', params: { demo: 'history', conv: C2 } }, // 历史对话
   { name: 'plan-snapshot', params: { demo: 'plan-snapshot' } }, // 右栏任务页签：计划取 run 的 plan item，没有就写「还没有计划」
   { name: 'reject', params: { demo: 'reject' } }, // 右栏任务页签：补充要求框展开

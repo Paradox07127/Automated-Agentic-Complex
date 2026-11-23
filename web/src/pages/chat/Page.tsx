@@ -207,7 +207,7 @@ export function ChatPage() {
   };
   // A failed line shows in the topic it was for only.
   const failedHere = failed != null && failed.conv === conv ? failed : null;
-  const modelError = failedHere?.code ?? replies.at(-1)?.error ?? rowOf(wire.at(-1)?.turn_id)?.error_code ?? (selected?.id === 'pi' && runtime.data?.info.error === 'pi_connection_missing' ? 'pi_connection_missing' : null);
+  const modelError = (demo === 'nomodel' ? 'no_llm' : null) ?? failedHere?.code ?? replies.at(-1)?.error ?? rowOf(wire.at(-1)?.turn_id)?.error_code ?? (selected?.id === 'pi' && runtime.data?.info.error === 'pi_connection_missing' ? 'pi_connection_missing' : null);
 
   const roleName = who?.name ?? '角色';
   const headUrl = who?.head ? { headUrl: who.head } : {};
