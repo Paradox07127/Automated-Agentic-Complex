@@ -234,6 +234,20 @@
     "kind": "undefined"
   },
   {
+    "op": "desktop.openAnnouncement",
+    "surface": "stack",
+    "args": [
+      "announce-41"
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "desktop.markAllRead",
+    "surface": "stack",
+    "args": [],
+    "kind": "undefined"
+  },
+  {
     "op": "avatar.photo.set",
     "surface": "main",
     "args": [

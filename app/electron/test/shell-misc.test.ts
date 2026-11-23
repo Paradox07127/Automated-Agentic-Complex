@@ -145,6 +145,21 @@ test('a hide for any reason but fullscreen shows her again after 30 minutes with
   assert.equal(HIDE_EXPIRY_MS, 30 * 60 * 1000);
 });
 
+test('hiddenUntil is when an expiring hide ends, epoch ms; null for a show and a fullscreen hide', () => {
+  let now = 1_000;
+  const v = new AvatarVisibility({ after: () => () => {}, expired: () => {}, now: () => now });
+  assert.equal(v.hiddenUntil, null);
+  v.set(true, 'user');
+  assert.equal(v.hiddenUntil, 1_000 + HIDE_EXPIRY_MS);
+  now = 5_000;
+  v.set(true, 'fullscreen');
+  assert.equal(v.hiddenUntil, null);
+  v.set(true, 'hotkey');
+  assert.equal(v.hiddenUntil, 5_000 + HIDE_EXPIRY_MS);
+  v.set(false, 'user');
+  assert.equal(v.hiddenUntil, null);
+});
+
 test('window.onA11y sends the system display options with glass false at once and again on each change', () => {
   let now = { reduceMotion: false, reduceTransparency: true, increaseContrast: false };
   let changed: () => void = () => {};

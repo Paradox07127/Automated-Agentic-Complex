@@ -33,6 +33,7 @@ registerHooks({
     ? { url: `data:text/javascript,${encodeURIComponent(STUB)}`, shortCircuit: true } : next(specifier, context)),
 });
 const { DesktopAssembly } = await import('../src/main/desktop/assembly.ts');
+type DesktopOptions = import('../src/main/desktop/assembly.ts').DesktopOptions;
 /** The panels' routes in the order the assembly makes their windows. */
 const ROUTES = ['/bubble', '/dock', '/cmd', '/console', '/chip'];
 /** The URLs the fake windows loaded. */
@@ -53,7 +54,8 @@ function fakeWindow(id: number, shown: (route: string) => void, moved: (route: s
 /** An assembly on fake windows with `extra` arguments until `done`, with config.json in a temporary support dir. */
 function setup(extra: string[], o: { present?: boolean; request?: Request; marks?: TurnMarks; mouse?: () => { x: number; y: number };
   mouseDowns?: (listener: () => void) => () => void; feed?: EventSource; noteLine?: () => void; makeWindow?: (kind: string) => void;
-  toDip?: (f: Rect) => Rectangle; screens?: () => ScreenInfo[]; hovered?: boolean; talk?: (phase: 'start' | 'stop') => void } = {}) {
+  toDip?: (f: Rect) => Rectangle; screens?: () => ScreenInfo[]; hovered?: boolean; talk?: (phase: 'start' | 'stop') => void;
+  recent?: DesktopOptions['recent'] } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'desktop-assembly-'));
   writeFileSync(join(dir, 'config.json'), JSON.stringify({ hotkey_quick_input: 'control+option+k' }));
   const argv = process.argv;
@@ -75,6 +77,7 @@ function setup(extra: string[], o: { present?: boolean; request?: Request; marks
     cursorDip: () => ({ x: 0, y: 0 }), mouse: o.mouse ?? (() => ({ x: 0, y: 0 })),
     ...(o.mouseDowns && { mouseDowns: o.mouseDowns }),
     ...(o.noteLine && { noteLine: o.noteLine }),
+    ...(o.recent && { recent: o.recent }),
     register: (contents, page, ops) => {
       pages.set(ROUTES[contents.id - 1]!, { page, ops });
     },
@@ -156,6 +159,38 @@ test('pushState sends desktop.onState now; notice and openStack reach desktop.on
     { kind: 'expandStack' }]);
   assert.equal(await h.call('/cmd', 'desktop.action', ['openSessions']), null);
   assert.ok(h.calls.includes('openMain /overview?focus=running'));
+  h.done();
+});
+
+test('desktop.onRecent sends 最近播报 at start and on each change; the console opens one and marks all read through the shell', async () => {
+  const rows = [{ id: 'announce-2', text: '周报已交付', time: '14:01', unread: true }];
+  const calls: string[] = [];
+  const h = setup(['--no-attention'], { recent: { rows: () => rows, open: (id) => calls.push(`open ${id}`), markAllRead: () => calls.push('markAllRead') } });
+  h.desktop.start();
+  const got = h.watch('/console', 'desktop.onRecent');
+  assert.deepEqual(got, [rows]);
+  rows[0]!.unread = false;
+  h.desktop.recentChanged();
+  assert.deepEqual(got, [[{ ...rows[0], unread: true }], rows]);
+  assert.equal(await h.call('/console', 'desktop.openAnnouncement', ['announce-2']), null);
+  assert.equal(await h.call('/console', 'desktop.markAllRead', []), null);
+  assert.deepEqual(calls, ['open announce-2', 'markAllRead']);
+  await assert.rejects(async () => h.call('/console', 'desktop.openAnnouncement', [3]), /invalid_args/);
+  h.done();
+  const bare = setup(['--no-attention']);
+  bare.desktop.start();
+  assert.deepEqual(bare.watch('/console', 'desktop.onRecent'), [[]]);
+  assert.throws(() => bare.call('/console', 'desktop.markAllRead', []), TypeError, 'no handler without 最近播报');
+  bare.done();
+});
+
+test('stateSource replays the last desktop.onState to a page outside the panels (the first-run guide)', () => {
+  const h = setup(['--no-attention']);
+  h.desktop.start();
+  h.desktop.pushState();
+  const got: unknown[] = [];
+  h.desktop.stateSource.subscribe(null, (e) => got.push(JSON.parse(e.data)), () => {});
+  assert.deepEqual(got, [{ n: 1, dock: { open: false, side: 'right', compact: false } }]);
   h.done();
 });
 

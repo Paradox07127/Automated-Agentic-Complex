@@ -1,6 +1,6 @@
 import type { PendingItem } from '../../domain';
 import type { DesktopPresenceResponse } from '../agentd-routes.generated';
-import type { CmdMode, DesktopAnchor, DesktopCommand, DesktopPanel, DesktopState, DockReason, AgenticComplexBridge, ProcessState, Unsubscribe } from '../protocol';
+import type { CmdMode, DesktopAnchor, DesktopCommand, DesktopPanel, DesktopState, DockReason, AgenticComplexBridge, ProcessState, RecentAnnouncement, Unsubscribe } from '../protocol';
 import { CHARACTERS, PAUSE, PENDING, PRESENCE_ROLE, SESSIONS, WIRE_TASK_ROWS } from '../../mock/fixtures';
 import { demoPlugins } from '../../mock/settings';
 import { stackSessions } from '../../mock/stack';
@@ -24,7 +24,15 @@ function once<T>(value: () => T, cb: (v: T) => void): Unsubscribe {
   return () => void (live = false);
 }
 
-const DOCK_REASONS: DockReason[] = ['hidden', 'fullscreen', 'offscreen', 'stale', 'noroom'];
+/** 最近播报 as native keeps it, newest first. */
+const RECENT: RecentAnnouncement[] = [
+  { id: 'announce-41', text: '「周报草稿」已交付，在任务里看', time: '14:01', unread: true },
+  { id: 'announce-40', text: '编码会话 fix-login 跑完了 · 3 个测试没过', time: '13:47', unread: true },
+  { id: 'announce-38', text: '提醒：15:00 和设计组过评审', time: '13:30', unread: true },
+  { id: 'announce-35', text: '「晨间简报」已交付', time: '08:30', unread: false },
+];
+
+const DOCK_REASONS: DockReason[] =['hidden', 'fullscreen', 'offscreen', 'stale', 'noroom'];
 
 /** desktop_presence.py LABELS for the session states the fake has. */
 const ACTIVITY: Record<string, string> = {
@@ -73,6 +81,7 @@ export function createFakeDesktop(
       clickThroughAll: demo() === 'passthrough',
       freeRoam: false,
       quietUntil: demo() === 'quiet' ? Date.now() + 45 * 60_000 : PAUSE.quiet_until,
+      hiddenUntil: demo() === 'hidden' ? Date.now() + 30 * 60_000 : null,
       dock: {
         open: query().get('dock') !== 'closed',
         side: (['left', 'above'] as const).find((s) => s === query().get('dock')) ?? 'right',
@@ -188,6 +197,10 @@ export function createFakeDesktop(
         if (!r.text.trim()) return { ok: false, reason: 'rejected' };
         return demo() === 'agentdoff' ? { ok: false, reason: 'agentd' } : { ok: true };
       },
+      // `demo=console-unread`: three unread announcements and a read one; otherwise only the read one.
+      onRecent: (cb) => once(() => (demo() === 'console-unread' ? RECENT : RECENT.filter((r) => !r.unread)), cb),
+      openAnnouncement: async () => {},
+      markAllRead: async () => {},
       // `quickInput` sends 快速输入's opening to the subscribed pages, with the drop scope its `arg` names first, as native does.
       action: async (name, arg) => {
         if (name !== 'quickInput') return;

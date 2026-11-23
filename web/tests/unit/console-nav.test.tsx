@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act as flush, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act as flush, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { DesktopAnchor, DesktopCommand, AgenticComplexBridge } from '../../src/bridge/protocol';
@@ -52,7 +52,7 @@ describe('控制台 panel', () => {
       far: false, toHead: null, room: { width: 900, height: 300 } }));
     flush(() => send({ kind: 'openConsole' }));
     const menu = screen.getByRole('dialog', { name: 'Agentic Complex 菜单' });
-    expect(menu.style.maxHeight).toBe('256px');
+    expect(menu.style.maxHeight).toBe('288px');
     fireEvent.click(screen.getByRole('button', { name: '关闭菜单' }));
     expect(screen.queryByRole('dialog', { name: 'Agentic Complex 菜单' })).toBeNull();
     expect(unsubscribe).not.toHaveBeenCalled();
@@ -109,8 +109,8 @@ describe('控制台 page links', () => {
     const openMain = vi.spyOn(bridge.window, 'openMain').mockImplementation(() => {});
     const close = vi.spyOn(bridge.window, 'close');
     mount();
-    fireEvent.click(await screen.findByRole('button', { name: '打开主窗口' }));
-    expect(openMain).toHaveBeenCalledExactlyOnceWith('/overview?focus=page&still=1');
+    fireEvent.click(await screen.findByRole('button', { name: /打开主窗口/ }));
+    expect(openMain).toHaveBeenCalledExactlyOnceWith('/home?focus=page&still=1');
     expect(screen.queryByRole('dialog', { name: 'Agentic Complex 菜单' })).toBeNull();
     expect(close).toHaveBeenCalledTimes(1);
   });
@@ -132,16 +132,24 @@ describe('控制台 page links', () => {
     expect(screen.queryByRole('dialog', { name: 'Agentic Complex 菜单' })).toBeNull();
   });
 
-  it('shows a failed command ring handoff and keeps its entry available', async () => {
+  it('asks once before 退出, and Escape takes the question back without closing the menu', async () => {
     const bridge = stackBridge();
-    const action = vi.spyOn(bridge.desktop, 'action').mockRejectedValue(new Error('unavailable'));
-    const close = vi.spyOn(bridge.window, 'close');
+    const action = vi.spyOn(bridge.desktop, 'action').mockResolvedValue(undefined);
+    let send: (c: DesktopCommand) => void = () => {};
+    vi.spyOn(bridge.desktop, 'onCommand').mockImplementation((cb) => {
+      send = cb;
+      return () => {};
+    });
     mount();
-    const ring = await screen.findByRole('button', { name: /命令环/ });
-    fireEvent.click(ring);
-    expect(await screen.findByText('未能打开命令环，请重试。')).toBeTruthy();
-    expect(action).toHaveBeenCalledExactlyOnceWith('cmdMode', 'ring');
-    expect(close).not.toHaveBeenCalled();
-    expect(ring.hasAttribute('disabled')).toBe(false);
+    flush(() => send({ kind: 'openConsole' }));
+    fireEvent.click(await screen.findByRole('button', { name: '退出' }));
+    expect(action).not.toHaveBeenCalled();
+    expect(screen.getByRole('alertdialog', { name: '退出确认' })).toBeTruthy();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('alertdialog', { name: '退出确认' })).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'Agentic Complex 菜单' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '退出' }));
+    fireEvent.click(within(screen.getByRole('alertdialog', { name: '退出确认' })).getByRole('button', { name: '退出' }));
+    expect(action).toHaveBeenCalledExactlyOnceWith('quit');
   });
 });

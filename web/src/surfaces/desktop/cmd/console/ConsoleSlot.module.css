@@ -1,223 +1,213 @@
-/* Watch panel: square edges, entry squares for the shortcuts. */
+/* The menu bar popover: the watch panel in miniature, a glass plate with the map's dot grid, contour lines top right and
+   corner ticks; head and foot stay put while the middle scrolls. */
 .card {
   position: relative;
-  width: 332px;
-  min-width: 0;
-  overflow: auto;
-  border: 1px solid var(--ef-line);
-  border-radius: 0;
-  background: var(--ef-bg-base);
-  box-shadow: var(--ef-shadow-hud);
+  display: flex;
+  flex-direction: column;
+  width: 344px;
+  min-height: 0;
+  border: 1.5px solid color-mix(in srgb, var(--ef-text-1) 30%, transparent);
+  background:
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--ef-text-1) 7%, transparent) 1px, transparent 1.5px) 0 0 / 16px 16px,
+    linear-gradient(180deg, color-mix(in srgb, var(--ef-text-1) 7%, var(--ef-bg-base)), var(--ef-bg-base) 55%, color-mix(in srgb, #000 6%, var(--ef-bg-base)));
+  box-shadow: var(--ef-shadow-card);
   color: var(--ef-text-1);
   font: var(--ef-fs-body) / var(--ef-lh-body) var(--ef-font-sans);
   animation: console-in var(--ef-dur-g-panel-in) var(--ef-ease-g-enter);
 }
 
+.topo {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 200px;
+  height: 150px;
+  opacity: 0.09;
+  pointer-events: none;
+}
+
+.topo path {
+  fill: none;
+  stroke: var(--ef-text-1);
+  stroke-width: 0.8;
+}
+
+.tick {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 0 solid var(--ef-text-1);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.tick[data-at='tl'] { top: 3px; left: 3px; border-top-width: 1.5px; border-left-width: 1.5px; }
+.tick[data-at='tr'] { top: 3px; right: 3px; border-top-width: 1.5px; border-right-width: 1.5px; }
+.tick[data-at='bl'] { bottom: 3px; left: 3px; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.tick[data-at='br'] { bottom: 3px; right: 3px; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+
+/* Head: the clock strip's yellow slash, the name, 设置 and the close key. */
 .head {
+  position: relative;
   display: flex;
+  flex: none;
   align-items: center;
   gap: 10px;
-  padding: 12px 12px 10px 16px;
+  height: 52px;
+  padding: 0 10px 0 22px;
 }
 
-.name {
+.slash {
+  position: absolute;
+  top: 13px;
+  left: 9px;
+  width: 5px;
+  height: 26px;
+  background: var(--ef-g-yellow);
+  transform: skewX(-20deg);
+}
+
+.ttl {
+  display: flex;
   flex: 1;
-  font: var(--ef-fw-semibold) 17px / 1.3 var(--ef-font-ui);
-  letter-spacing: .035em;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
 }
 
-.mark {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  background: var(--ef-accent);
-  color: var(--ef-on-accent);
+.ttl b {
+  font: var(--ef-fw-semibold) 16px / 1 var(--ef-font-ui);
+  letter-spacing: 0.03em;
 }
 
 .body {
-  display: grid;
-  gap: 8px;
-  padding: 0 12px 10px;
-}
-
-.close,
-.primary,
-.shortcut,
-.pending,
-.options {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-width: 0;
-  min-height: 38px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: 0;
-  background: transparent;
-  color: var(--ef-text-1);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  padding: 0 12px 12px;
+  overflow: auto;
+  scrollbar-width: thin;
 }
 
-.close {
-  justify-content: center;
-  width: 36px;
-  min-height: 36px;
-  padding: 0;
-  border-radius: 50%;
+.body > * {
+  flex: none;
+}
+
+/* The home page's status row, spread across the card's width. */
+.status > * {
+  gap: 6px;
+  justify-content: stretch;
+}
+
+.status > * > * {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Desktop panels draw text at full opacity; the shared row and card fade their second line with opacity. */
+.status b {
+  opacity: 1;
   color: var(--ef-text-2);
 }
 
-.primary {
-  min-height: 51px;
-  padding: 0 13px 0 10px;
-  border-color: var(--ef-line);
-  border-inline-start: 3px solid var(--ef-accent);
-  background: var(--ef-fold);
-  font-size: 15px;
-  font-weight: var(--ef-fw-semibold);
+.body [data-stub='CharCard'] span[title] {
+  opacity: 1;
 }
 
-.primary:hover {
-  border-color: var(--ef-accent);
-  background: var(--ef-accent);
-  color: var(--ef-on-accent);
-}
-
-.primary > span,
-.shortcut > span,
-.pending > span,
-.options > span {
-  flex: 1;
-}
-
-/* Entry squares: icon over name, the hotkey under it; the white button plate with its shadow plate behind. */
-.shortcuts {
+/* The error bar with its white capsules under it. */
+.err {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--ef-sp-12);
-  padding: var(--ef-sp-8) 3px var(--ef-sp-8) 0;
+  gap: 8px;
 }
 
-.shortcuts .shortcut {
-  position: relative;
-  flex-direction: column;
-  justify-content: center;
-  gap: var(--ef-sp-4);
-  min-height: 76px;
-  padding: var(--ef-sp-8) var(--ef-sp-4);
-  border-color: var(--ef-btn-outline);
-  background: var(--ef-btn-light);
-  color: var(--ef-btn-light-text);
-  text-align: center;
-  transition: background var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
+.acts {
+  display: flex;
+  gap: 8px;
+  padding-left: 20px;
 }
 
-.shortcuts .shortcut > span {
-  flex: none;
-  font-weight: var(--ef-fw-medium);
-}
-
-.pending {
-  border-color: var(--ef-line-subtle);
-  background: var(--ef-fold);
-  font-weight: var(--ef-fw-medium);
-}
-
-.pending > svg:first-child {
-  color: var(--ef-badge-dot);
-}
-
-.shortcut kbd {
-  padding: 2px 5px;
-  border: 1px solid var(--ef-btn-outline);
-  border-radius: 4px;
-  color: var(--ef-btn-light-text);
-  font: var(--ef-fs-meta) / 1 var(--ef-font-mono);
+.more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: var(--ef-fw-semibold) 12px / 1 var(--ef-font-ui);
   white-space: nowrap;
 }
 
-.shortcuts .shortcut:disabled {
-  background: var(--ef-btn-disabled);
-  color: var(--ef-btn-light-text);
-  cursor: default;
-  opacity: 0.5;
-}
-
-.options {
-  min-height: 36px;
-  color: var(--ef-text-2);
-}
-
-.options:hover,
-.close:hover,
-.pending:hover {
-  border-color: var(--ef-line-strong);
-  background: var(--ef-fold);
-  color: var(--ef-text-1);
-}
-
-.shortcuts .shortcut:not(:disabled):hover {
-  border-color: var(--ef-accent);
-  background: var(--ef-accent);
-  color: var(--ef-btn-accent-text);
-}
-
-.card button:active:not(:disabled) {
-  translate: 0 1px;
-}
-
-.recovery {
-  display: grid;
-  gap: 7px;
-  padding: 8px 10px;
-  border-left: var(--ef-lw-category) solid var(--ef-danger);
-  background: var(--ef-fold);
-}
-
-.recovery > span,
-.recovery > div {
+/* The four keys; the right edge leaves room for the last key's plate. */
+.keys {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.states {
-  display: grid;
-  padding: 1px 10px;
-  border-radius: 0;
-  background: var(--ef-fold);
-}
-
-.state {
-  display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  min-height: 36px;
-}
-
-.state + .state {
-  border-top: 1px solid var(--ef-line-subtle);
-}
-
-.state small {
-  margin-inline-start: 8px;
-  color: var(--ef-text-2);
+  padding: 2px 4px 4px 0;
 }
 
 .note {
-  margin: 0 10px 4px;
+  margin: 0 2px;
   color: var(--ef-text-2);
+  font-size: 12px;
+}
+
+/* Foot: 退出 with the quit key's stripes; asked, the line and its two buttons. */
+.foot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px 0 14px;
+  border-top: 1px solid color-mix(in srgb, var(--ef-text-1) 14%, transparent);
+  font-size: 12px;
+}
+
+.ask {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quit {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  background: none;
+  color: var(--ef-text-2);
+  font: var(--ef-fw-semibold) 12px / 1 var(--ef-font-ui);
+  cursor: pointer;
+}
+
+.quit:hover {
+  background: repeating-linear-gradient(-45deg, transparent 0 3px, color-mix(in srgb, var(--ef-text-1) 14%, transparent) 3px 4.5px);
+  color: var(--ef-text-1);
 }
 
 .card :focus-visible {
   outline: var(--ef-lw-focus) solid var(--ef-focus);
-  outline-offset: -2px;
+  outline-offset: 2px;
+}
+
+/* Short screens: the room under the menu bar is less than the full card. */
+.card[data-tight] .head {
+  height: 44px;
+}
+
+.card[data-tight] .slash {
+  top: 10px;
+  height: 24px;
+}
+
+.card[data-tight] .body {
+  gap: 8px;
+}
+
+.card[data-tight] .foot {
+  height: 30px;
 }
 
 @keyframes console-in {

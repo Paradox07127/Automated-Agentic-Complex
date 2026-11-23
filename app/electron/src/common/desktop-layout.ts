@@ -103,8 +103,9 @@ export const FACE_HALF_WIDTH = 60;
 export const CHEST = 0.57;
 /** The wheel's page is this many CSS px a side (GameWheel's box). */
 export const WHEEL_PANEL = 520;
-/** The console page's transparent padding around its card (ConsoleRoot.module.css `.root`). */
-export const CONSOLE_INSET = 16;
+/** The console page's transparent padding around its card (ConsoleRoot.module.css `.root`): `lead` on the left and top,
+ *  `trail` on the right and bottom, where the card's shadow falls. */
+export const CONSOLE_INSET = { lead: 4, trail: 8 } as const;
 /** The console card's top below the menu bar. */
 export const CONSOLE_DROP = 4;
 
@@ -384,14 +385,15 @@ class Pass {
     const item = r.statusItem ?? null;
     const s = (item && this.input.screens.find((x) => contains(x.frame, midX(item), midY(item)))) || this.screen;
     const v = inset(s.visibleFrame, EDGE);
-    const { w, h } = r.size, cardWidth = w - 2 * CONSOLE_INSET;
+    const { lead, trail } = CONSOLE_INSET;
+    const { w, h } = r.size, cardWidth = w - lead - trail;
     const cardX = Math.max(Math.min(item ? maxX(item) : maxX(v), maxX(v)) - cardWidth, v.x);
     // A button in a taskbar at the bottom (Windows) has the card stand on the taskbar instead.
     if (item && midY(item) < midY(s.frame)) {
-      return { x: cardX - CONSOLE_INSET, y: Math.max(maxY(item), s.visibleFrame.y) + CONSOLE_DROP - CONSOLE_INSET, w, h };
+      return { x: cardX - lead, y: Math.max(maxY(item), s.visibleFrame.y) + CONSOLE_DROP - trail, w, h };
     }
     const top = (item ? item.y : maxY(s.visibleFrame)) - CONSOLE_DROP;
-    return { x: cardX - CONSOLE_INSET, y: top + CONSOLE_INSET - h, w, h };
+    return { x: cardX - lead, y: top + lead - h, w, h };
   }
 
   /** Rules 3–5 when docked: the bubble becomes the subtitle bar when she is hidden or fullscreen, and the chip goes there

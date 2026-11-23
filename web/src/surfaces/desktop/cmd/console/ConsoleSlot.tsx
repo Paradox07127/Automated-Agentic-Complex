@@ -1,10 +1,15 @@
-import { useId, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { getBridge, type DesktopState } from '../../../../bridge';
+import { keyText } from '../../../../bridge/platformText';
+import { Pip } from '../../../../pages/overview/Pip';
 import { navRoute, type NavTarget } from '../../../../shell/nav';
-import { Btn, Icon } from '../../../../ui';
-import { pendingCount } from '../actions';
+import { ErrBar, Icon } from '../../../../ui';
+import { CharCard, CloseKey, DarkRow, MicroLabel, NewsBanner, StatusRow, TopIcon, WhiteCapsule, YellowKey } from '../../../../ui/game';
 import { consoleDemo } from './demos';
-import { States } from './Tiles';
+import { doingOf, statusCells, useRecent, useRuntime, waitingOf } from './model';
+import { Foot, Plate } from './Parts';
+import { Keys } from './Tiles';
 import styles from './ConsoleSlot.module.css';
 
 interface ConsoleSlotProps {
@@ -14,32 +19,50 @@ interface ConsoleSlotProps {
   maxHeight?: number | undefined;
 }
 
-/** Menu bar popover. Keep shortcuts here and the full task, session and service views in the main window. */
+/** The card's content width: 344 less its 1.5 px rims and the body's 12 px sides. */
+const INNER = 317;
+/** Below this much room under the menu bar the card takes its short form before its middle scrolls. */
+const TIGHT_BELOW = 540;
+
+/** Menu bar popover: whether all is well and what waits, the main window, and the switches that must work while she
+ *  cannot be clicked. Decisions stay in the main window. */
 export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotProps) {
   const bridge = getBridge();
   const [note, setNote] = useState<string | null>(null);
-  const [details, setDetails] = useState(false);
-  const [working, setWorking] = useState<'input' | 'ring' | 'restart' | null>(null);
+  const [working, setWorking] = useState<'input' | 'restart' | null>(null);
   const [demo] = useState(consoleDemo);
-  const detailsId = useId();
+  const runtime = useRuntime();
+  const recent = useRecent();
+  const roster = useQuery({ queryKey: ['character', 'list'], queryFn: () => bridge.character.list(), enabled: bridge.capabilities.avatar, retry: false });
+  const cardRef = useRef<HTMLElement>(null);
   const process = state?.pips.agentd.state;
-  const starting = process === 'starting' || process === 'backoff';
+  const starting = process === 'starting' || process?.startsWith('backoff');
   const offline = demo.agentdDown || (process != null && process !== 'running' && process !== 'external');
-  const total = offline ? 0 : pendingCount(presence);
+  const configError = demo.configError ?? runtime?.config_error ?? null;
+  const noAvatar = runtime != null && !['running', 'external'].includes(runtime.processes.avatar.state);
+  const tight = maxHeight !== undefined && maxHeight < TIGHT_BELOW;
+  const waiting = offline ? null : waitingOf(presence);
+  const unread = recent.filter((r) => r.unread);
+  const character = state?.character ?? null;
+  const head = roster.data?.find((c) => c.active)?.head ?? null;
+
+  // Opened, the keyboard is on 打开主窗口: Return goes to the main window.
+  useEffect(() => {
+    cardRef.current?.querySelector<HTMLButtonElement>('[data-stub="YellowKey"]')?.focus({ preventScroll: true });
+  }, []);
 
   const go = (target: NavTarget) => {
     bridge.window.openMain(navRoute(target));
     close();
   };
-  const openDesktop = async (target: 'input' | 'ring') => {
+  const quickInput = async () => {
     setNote(null);
-    setWorking(target);
+    setWorking('input');
     try {
-      if (target === 'input') await bridge.desktop.action('quickInput');
-      else await bridge.desktop.action('cmdMode', 'ring');
+      await bridge.desktop.action('quickInput');
       close();
     } catch {
-      setNote(target === 'input' ? '未能打开快速输入，请重试。' : '未能打开命令环，请重试。');
+      setNote('未能打开快速输入，请重试。');
     } finally {
       setWorking(null);
     }
@@ -56,71 +79,76 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
       setWorking(null);
     }
   };
+  const openAnnouncement = (id: string) => {
+    void bridge.desktop.openAnnouncement(id).then(close, () => setNote('未能打开这条播报，请重试。'));
+  };
+  const markAllRead = () => {
+    void bridge.desktop.markAllRead().catch(() => setNote('未能标为已读，请重试。'));
+  };
 
+  const cells = statusCells(runtime, state?.pips.helper, offline);
   return (
-    <section
-      className={styles.card}
-      style={maxHeight === undefined ? undefined : { maxHeight }}
-      data-slot="console"
-      data-region=""
-      role="dialog"
-      aria-label="Agentic Complex 菜单"
-    >
+    <section ref={cardRef} className={styles.card} style={maxHeight === undefined ? undefined : { maxHeight }} data-slot="console" data-region="" data-tight={tight || undefined}
+      role="dialog" aria-label="Agentic Complex 菜单">
+      <Plate />
       <header className={styles.head}>
-        <span className={styles.mark} aria-hidden="true"><Icon name="grid" size={16} /></span>
-        <span className={styles.name}>Agentic Complex</span>
-        <button type="button" className={styles.close} aria-label="关闭菜单" onClick={close}>
-          <Icon name="close" size={20} />
-        </button>
+        <span className={styles.slash} aria-hidden="true" />
+        <span className={styles.ttl}>
+          <MicroLabel>Menu Bar</MicroLabel>
+          <b>Agentic Complex</b>
+        </span>
+        <TopIcon box={{ width: 44, height: 44 }} icon="tune" label="设置" named onClick={() => go({ page: 'settings' })} />
+        <CloseKey box={{ width: 26, height: 26 }} label="关闭菜单" onClick={close} />
       </header>
       <div className={styles.body}>
-        <button type="button" className={styles.primary} onClick={() => go({ page: 'overview' })}>
-          <Icon name="side" size={20} />
-          <span>打开主窗口</span>
-          <Icon name="chev" size={20} />
-        </button>
-        <nav className={styles.shortcuts} aria-label="快捷操作">
-          <button type="button" className={styles.shortcut} aria-busy={working === 'input'} disabled={offline || working != null}
-            title={offline ? '后台服务未连接' : undefined} onClick={() => void openDesktop('input')}>
-            <Icon name="send" />
-            <span>快速输入</span>
-            {state?.hotkeys.hk_quick && <kbd>{state.hotkeys.hk_quick}</kbd>}
-          </button>
-          <button type="button" className={styles.shortcut} aria-busy={working === 'ring'} disabled={working != null}
-            onClick={() => void openDesktop('ring')}>
-            <Icon name="grid" />
-            <span>命令环</span>
-            {state?.hotkeys.hk_wheel && <kbd>{state.hotkeys.hk_wheel}</kbd>}
-          </button>
-          <button type="button" className={styles.shortcut} onClick={() => go({ page: 'settings' })}>
-            <Icon name="tune" />
-            <span>设置</span>
-          </button>
-        </nav>
-        {total > 0 && (
-          <button type="button" className={styles.pending} data-sec="waiting" onClick={() => go({ page: 'overview', focus: 'pending' })}>
-            <Icon name="bell" />
-            <span>{total} 项待处理</span>
-            <Icon name="chev" />
-          </button>
-        )}
-        {offline && (
-          <div className={styles.recovery} data-fix="后台" role="status">
-            <span><Icon name="warn" />{starting ? '后台服务正在启动' : '后台服务未连接'}</span>
-            <div>
-              {!starting && <Btn size="sm" variant="secondary" loading={working === 'restart'} onClick={() => !working && void restart()}>重启后台</Btn>}
-              <Btn size="sm" onClick={() => go({ page: 'diag', item: 'agentd' })}>查看诊断</Btn>
-            </div>
+        {cells.length > 0 && (
+          <div className={styles.status}>
+            <StatusRow items={cells.map((c) => ({ name: c.name, failed: c.tone === 'failed', state: <Pip tone={c.tone} label={c.label} /> }))} />
           </div>
         )}
-        <button type="button" className={styles.options} aria-expanded={details} aria-controls={details ? detailsId : undefined} onClick={() => setDetails((open) => !open)}>
-          <Icon name="side" />
-          <span>桌面选项</span>
-          <Icon name={details ? 'chevd' : 'chev'} />
-        </button>
-        {details && <div id={detailsId}><States state={state} offline={offline} say={setNote} /></div>}
+        {configError != null ? (
+          <div className={styles.err} data-fix="配置" role="group" aria-label="配置出错">
+            <ErrBar message={`配置读不了：${configError}`} />
+            <div className={styles.acts}>
+              <WhiteCapsule label="打开设置" icon="tune" tone="accent" onClick={() => go({ page: 'settings' })} />
+              <WhiteCapsule label="查看诊断" icon="radio" onClick={() => go({ page: 'diag', item: 'agentd' })} />
+            </div>
+          </div>
+        ) : (
+          <>
+            {offline && (
+              <div className={styles.err} data-fix="后台" role="group" aria-label="后台出错">
+                <ErrBar tone={starting ? 'warning' : 'danger'} message={starting ? '后台正在启动，好了会自动接上' : '后台没有响应，她听不到你'} />
+                {!starting && (
+                  <div className={styles.acts}>
+                    <WhiteCapsule label="重启后台" icon="refresh" tone="accent" disabled={working === 'restart'} disabledReason="正在重启"
+                      onClick={() => void restart()} />
+                    <WhiteCapsule label="查看诊断" icon="radio" onClick={() => go({ page: 'diag', item: 'agentd' })} />
+                  </div>
+                )}
+              </div>
+            )}
+            <CharCard box={{ width: INNER, height: tight ? 52 : 66 }} compact name={character?.name ?? '她'} head={head} id={character?.id ?? null}
+              doing={offline ? '—' : (doingOf(presence) ?? '—')} onClick={() => go({ page: 'character' })} />
+            <YellowKey label="打开主窗口" icon="side" micro="Home" block hint={keyText('⌘0')} onClick={() => go({ page: 'home' })} />
+            {waiting && (
+              <div data-sec="waiting">
+                <DarkRow title={waiting.title} sub={waiting.kind} mark="new" compact onPress={() => go({ page: 'overview', focus: 'pending' })}
+                  end={<span className={styles.more}>{waiting.total > 1 && `还有 ${waiting.total - 1} 项`}<Icon name="chev" size={16} /></span>} />
+              </div>
+            )}
+            {unread.length > 0 && (
+              <NewsBanner box={{ width: INNER, height: tight ? 62 : 70 }} still={document.documentElement.classList.contains('still')}
+                items={unread.map((r) => ({ kind: '播报', title: r.text, at: r.time, go: () => openAnnouncement(r.id) }))}
+                count={unread.length} onReadAll={markAllRead} />
+            )}
+            <Keys state={state} offline={offline} noAvatar={noAvatar} tight={tight} quickInput={() => void quickInput()} quickBusy={working === 'input'}
+              say={setNote} />
+          </>
+        )}
         {note && <p className={styles.note} role="status">{note}</p>}
       </div>
+      <Foot quit={() => void bridge.desktop.action('quit')} />
     </section>
   );
 }

@@ -81,6 +81,8 @@ export interface DesktopState {
   clickThroughAll: boolean;
   freeRoam: boolean;
   quietUntil: number | null;
+  /** Epoch ms her hide expires; null while she shows or the hide does not expire. */
+  hiddenUntil?: number | null;
   /** Her hover buttons: open after a rest on her, on the side native placed them; compact while she is under 200 px tall. */
   dock: DesktopDock;
   showPresence?: boolean;
@@ -89,7 +91,8 @@ export interface DesktopState {
   characters: { id: string; name: string }[];
   screens: { id: string; name: string; current: boolean }[];
   hotkeys: Record<string, string>;
-  pips: { agentd: ProcessState; avatar: ProcessState; voice: 'on' | 'off' | 'denied' };
+  /** `helper`: the platform helper; null where the shell has none. */
+  pips: { agentd: ProcessState; avatar: ProcessState; voice: 'on' | 'off' | 'denied'; helper?: ProcessState | null };
   computerUseActive: boolean;
   /** The plug-ins agentd runs with, in the registry's order. */
   plugins: PluginId[];
@@ -153,4 +156,17 @@ export interface DesktopOps {
    * 快速输入 in the bubble; its optional `arg`, `{"scopeId", "files"}` as JSON, opens it with that drop scope.
    */
   action(name: DesktopActionName, arg?: string): Promise<void>;
+  /** 最近播报: the last 20 announcements, newest first. */
+  onRecent(cb: (rows: RecentAnnouncement[]) => void): Unsubscribe;
+  /** Marks one read and opens its session in the main window when it has one. */
+  openAnnouncement(id: string): Promise<void>;
+  markAllRead(): Promise<void>;
+}
+
+/** A 最近播报 row; `time` is the local `HH:mm` it came at. */
+export interface RecentAnnouncement {
+  id: string;
+  text: string;
+  time: string;
+  unread: boolean;
 }

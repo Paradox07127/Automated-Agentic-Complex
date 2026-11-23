@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import { ConsoleSlot } from '../../src/surfaces/desktop/cmd/console/ConsoleSlot';
@@ -25,7 +25,6 @@ it('does not show focus presets or start a timer from the menu bar', () => {
       <ConsoleSlot state={null} presence={{ focus: { until: Date.now() / 1000 + 600 } }} close={vi.fn()} />
     </QueryClientProvider>,
   );
-  fireEvent.click(screen.getByRole('button', { name: '桌面选项' }));
   expect(screen.queryByText(/陪我专注|25 分钟|50 分钟/)).toBeNull();
   expect(request).not.toHaveBeenCalledWith('POST', '/focus', expect.anything());
 });

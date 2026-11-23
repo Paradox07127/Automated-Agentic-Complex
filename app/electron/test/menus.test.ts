@@ -3,17 +3,15 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { iconState, MENU_STATE_DEFAULTS, type MenuBarStatus, type MenuState, processStatus, quietUntil } from '../src/common/menus.ts';
-import { PLUGIN_IDS, type Plugins, shellPlan } from '../src/common/plugins.ts';
+import { PLUGIN_IDS, type Plugins } from '../src/common/plugins.ts';
 import { appMenu, pageShortcut } from '../src/main/menus/app.ts';
 import { iconBitmap, squareIcon } from '../src/main/menus/icon.ts';
 import { type MenuItem, type MenuPorts, SettingsChanges } from '../src/main/menus/items.ts';
 import { trayContextMenu, trayMenu } from '../src/main/menus/tray.ts';
 
-/** MenuBarMenuState.sample, every plug-in on. */
+/** MenuBarMenuState.sample. */
 const SAMPLE: MenuState = {
   ...MENU_STATE_DEFAULTS,
-  plan: shellPlan(Object.fromEntries(PLUGIN_IDS.map((id) => [id, true])) as Plugins),
-  services: [{ name: '角色', detail: '运行中' }, { name: '后台', detail: '运行中' }, { name: '语音隧道', detail: '重连中 5 s' }],
   recent: [{ id: 'a1', text: 'claude:agentd 在等你批准', time: '14:35', unread: true },
     { id: 'a2', text: 'codex 会话没能启动', time: '14:40', unread: true },
     { id: 'a3', text: 'HostLink 的 click 已经接上', time: '14:32', unread: false },
@@ -30,16 +28,12 @@ function ports(without: (keyof MenuPorts)[] = []) {
   const calls: string[] = [];
   const rec = (name: string) => (...args: unknown[]) => { calls.push(args.length ? `${name} ${args.map((a) => JSON.stringify(a)).join(' ')}` : name); };
   const all: MenuPorts = {
-    openMain: rec('openMain'), quit: rec('quit'), log: rec('log'), look: rec('look'), quickInput: rec('quickInput'),
+    openMain: rec('openMain'), quit: rec('quit'), log: rec('log'),
     openAnnouncement: rec('openAnnouncement'), markAllAnnouncementsRead: rec('markAllAnnouncementsRead'),
     setQuiet: async (until) => { calls.push(`setQuiet ${until}`); },
-    toggleClickThroughAll: rec('toggleClickThroughAll'), toggleFreeRoam: rec('toggleFreeRoam'), settingsChanged: rec('settingsChanged'),
-    toggleHidden: rec('toggleHidden'), resetPosition: rec('resetPosition'), switchCharacter: rec('switchCharacter'),
-    switchAppearance: rec('switchAppearance'), toggleLayer: rec('toggleLayer'), setPose: rec('setPose'), togglePoseLock: rec('togglePoseLock'),
-    restartChildren: rec('restartChildren'), openTune: rec('openTune'), beginCamera: rec('beginCamera'),
-    capture: { take: async () => 'shot.png', saved: rec('captureSaved') },
-    giveGift: rec('giveGift'), resetPanels: rec('resetPanels'), handClipboard: rec('handClipboard'), selectRegion: rec('selectRegion'),
-    playSlot: rec('playSlot'), playPlaylist: rec('playPlaylist'), stopPlaylist: rec('stopPlaylist'), setPlaylistLoop: rec('setPlaylistLoop'),
+    toggleFreeRoam: rec('toggleFreeRoam'), settingsChanged: rec('settingsChanged'),
+    resetPosition: rec('resetPosition'), switchCharacter: rec('switchCharacter'), switchAppearance: rec('switchAppearance'),
+    restartChildren: rec('restartChildren'), resetPanels: rec('resetPanels'),
     now: () => Date.UTC(2026, 10, 20, 6, 0, 0),
   };
   for (const key of without) delete all[key];
@@ -62,141 +56,115 @@ const settle = () => new Promise((r) => setImmediate(r));
 test('menus: the tray menu has every title, submenus included', () => {
   const menu = trayMenu(SAMPLE, ports().ports);
   assert.deepEqual(deepTitles(menu), [
-    '角色 · 运行中', '后台 · 运行中', '语音隧道 · 重连中 5 s',
-    '打开主窗口', '对话', '待处理', '会话面板', '屏幕识读', '快速输入…',
-    '最近播报', 'claude:agentd 在等你批准', 'codex 会话没能启动', 'HostLink 的 click 已经接上', '已跳转到 Terminal',
+    '打开主页', '对话',
+    '最近播报', '● claude:agentd 在等你批准', '● codex 会话没能启动', 'HostLink 的 click 已经接上', '已跳转到 Terminal',
     'TTS 隧道断开', '全部标为已读',
-    '记忆…', '日志与 Trace', '状态监控',
-    '安静', '30 分钟', '1 小时', '到明早 7:00', '结束安静', '临时全部点穿', '自由活动',
-    '隐藏角色 30 分钟', '放回默认位置', '切换角色', '示例甲', '示例乙', '角色卡…', '外观', '标准制服', '外勤', '休息日',
-    '设置…', '重启子进程', '退出',
+    '免打扰', '30 分钟', '1 小时', '到明早 7:00', '结束免打扰', '自由活动', '放回默认位置', '复位浮窗',
+    '切换角色', '示例甲', '示例乙', '角色卡…', '外观', '标准制服', '外勤', '休息日',
+    '设置…', '运行记录', '诊断', '重启后台和角色', '退出 Agentic Complex',
   ]);
-  // Separators after the rows, 快速输入 › 最近播报, 状态监控, 自由活动, 外观.
-  assert.deepEqual(menu.flatMap((i, n) => (i.type === 'separator' ? [menu[n - 1]!.label] : [])),
-    ['语音隧道 · 重连中 5 s', '最近播报', '状态监控', '自由活动', '外观']);
-  assert.ok(menu.slice(0, 3).every((i) => i.enabled === false && i.click === undefined), 'the rows are not commands');
+  // Separators after 对话, 最近播报, 复位浮窗, 外观.
+  assert.deepEqual(menu.flatMap((i, n) => (i.type === 'separator' ? [menu[n - 1]!.label] : [])), ['对话', '最近播报', '复位浮窗', '外观']);
+  assert.deepEqual(sub(menu, '免打扰').map((i) => i.type ?? i.label), ['30 分钟', '1 小时', '到明早 7:00', 'separator', '结束免打扰']);
 });
 
-test('menus: tray shortcuts, checks and greyed items follow the state', () => {
-  const menu = trayMenu({ ...SAMPLE, quickInputHotkey: 'control+option+space', lookHotkey: 'control+option+l' }, ports().ports);
+test('menus: tray shortcuts, checks and greyed items follow the state; unread 最近播报 lead with a dot, not a check', () => {
+  const menu = trayMenu(SAMPLE, ports().ports);
   const accel = Object.fromEntries(menu.filter((i) => i.accelerator).map((i) => [i.label, i.accelerator]));
-  assert.deepEqual(accel, { 打开主窗口: 'Command+0', 对话: 'Command+J', 屏幕识读: 'Control+Alt+L', '快速输入…': 'Control+Alt+Space',
-    临时全部点穿: 'Control+Alt+P', '设置…': 'Command+,', 退出: 'Command+Q' });
+  assert.deepEqual(accel, { 打开主页: 'Command+0', 对话: 'Command+J', '设置…': 'Command+,', '退出 Agentic Complex': 'Command+Q' });
   const recent = sub(menu, '最近播报');
-  assert.deepEqual(recent.slice(0, 5).map((i) => [i.checked, i.sublabel]),
-    [[true, '14:35'], [true, '14:40'], [false, '14:32'], [false, '14:20'], [false, '14:03']]);
+  assert.deepEqual(recent.slice(0, 5).map((i) => [i.label, i.type, i.checked, i.sublabel]), [
+    ['● claude:agentd 在等你批准', undefined, undefined, '14:35'], ['● codex 会话没能启动', undefined, undefined, '14:40'],
+    ['HostLink 的 click 已经接上', undefined, undefined, '14:32'], ['已跳转到 Terminal', undefined, undefined, '14:20'],
+    ['TTS 隧道断开', undefined, undefined, '14:03']]);
   assert.equal(find(recent, '全部标为已读').enabled, true);
   assert.equal(find(sub(trayMenu({ ...SAMPLE, recent: [] }, ports().ports), '最近播报'), '全部标为已读').enabled, false);
   assert.equal(find(menu, '自由活动').checked, true);
   assert.equal(find(trayMenu({ ...SAMPLE, freeRoam: false }, ports().ports), '自由活动').checked, false);
-  assert.equal(find(menu, '临时全部点穿').checked, false);
   assert.equal(find(sub(menu, '切换角色'), '示例甲').checked, true);
   assert.equal(find(sub(menu, '外观'), '标准制服').checked, true);
-  // A name that is no hot key, or right option, leaves the item without a shortcut.
-  const bare = trayMenu({ ...SAMPLE, lookHotkey: 'right_option', quickInputHotkey: '' }, ports().ports);
-  assert.equal(find(bare, '屏幕识读').accelerator, undefined);
-  assert.equal(find(bare, '快速输入…').accelerator, undefined);
-  // Hidden, switching, one appearance.
-  const hidden = trayMenu({ ...SAMPLE, avatarHidden: true, characterSwitching: true }, ports().ports);
-  assert.ok(titles(hidden).includes('显示角色'));
-  assert.equal(find(hidden, '切换角色').enabled, false);
-  assert.ok(sub(hidden, '切换角色').filter((i) => i.label !== '角色卡…' && i.type !== 'separator').every((i) => i.enabled === false));
-  assert.equal(find(hidden, '外观').enabled, false);
+  // Switching, one appearance.
+  const switching = trayMenu({ ...SAMPLE, characterSwitching: true }, ports().ports);
+  assert.equal(find(switching, '切换角色').enabled, false);
+  assert.ok(sub(switching, '切换角色').filter((i) => i.label !== '角色卡…' && i.type !== 'separator').every((i) => i.enabled === false));
+  assert.equal(find(switching, '外观').enabled, false);
   assert.ok(!titles(trayMenu({ ...SAMPLE, appearances: SAMPLE.appearances.slice(0, 1) }, ports().ports)).includes('外观'));
   const loading = sub(trayMenu({ ...SAMPLE, appearanceSwitchingTo: 'field' }, ports().ports), '外观');
   assert.deepEqual(loading.map((i) => [i.label, i.enabled]), [['标准制服', false], ['外勤 · 切换中…', false], ['休息日', false]]);
-  // 诊断 stays out until the app has it, option or not.
-  assert.deepEqual(titles(trayMenu({ ...SAMPLE, showsDiagnostics: true }, ports().ports)).slice(-4), ['切换角色', '外观', '设置…', '重启子进程', '退出'].slice(-4));
 });
 
-test('menus: on Windows the tray icon\'s menu is the Mac\'s popup with the helper\'s row under the children\'s', () => {
-  const h = ports();
-  const menu = trayContextMenu('windows', SAMPLE, h.ports, '系统助手 · 运行中');
-  const mac = deepTitles(trayMenu(SAMPLE, h.ports));
-  assert.deepEqual(deepTitles(menu), [...mac.slice(0, 3), '系统助手 · 运行中', ...mac.slice(3)]);
-  assert.equal(menu[4]!.type, 'separator');
-  assert.ok(menu.slice(0, 4).every((i) => i.enabled === false && i.click === undefined), 'the rows are not commands');
-  for (const label of ['切换角色', '设置…', '退出']) assert.ok(titles(menu).includes(label), `no item ${label}`);
-  click(find(sub(menu, '切换角色'), '示例乙'));
-  click(find(menu, '设置…'));
-  click(find(menu, '退出'));
-  assert.deepEqual(h.calls, ['switchCharacter "birch"', 'openMain "/settings"', 'quit']);
-  const failed = { ...SAMPLE, configError: '请查看设置' };
-  assert.deepEqual(titles(trayContextMenu('windows', failed, h.ports, '系统助手 · 未启动')), titles(trayMenu(failed, h.ports)));
-  assert.deepEqual(deepTitles(trayContextMenu('mac', SAMPLE, h.ports, '系统助手 · 运行中')), mac, 'the Mac\'s has no helper row');
-});
-
-test('menus: off the Mac the tray icon\'s menu has no Command+ shortcut, a config error\'s included; hot keys stay', () => {
+test('menus: on Windows the tray icon\'s menu is the Mac\'s without its Command+ shortcuts, a config error\'s included', () => {
   const deep = (menu: MenuItem[]): MenuItem[] => menu.flatMap((i) => [i, ...deep((i.submenu as MenuItem[] | undefined) ?? [])]);
   const h = ports();
   for (const s of [SAMPLE, { ...SAMPLE, configError: '请查看设置' }]) {
-    const menu = trayContextMenu('windows', s, h.ports, '系统助手 · 运行中');
-    assert.deepEqual(deep(menu).filter((i) => i.accelerator?.startsWith('Command+')).map((i) => i.label), []);
+    const menu = trayContextMenu('windows', s, h.ports);
+    assert.deepEqual(deepTitles(menu), deepTitles(trayMenu(s, h.ports)));
+    assert.deepEqual(deep(menu).filter((i) => i.accelerator).map((i) => i.label), []);
   }
-  const accel = Object.fromEntries(trayContextMenu('windows', SAMPLE, h.ports, '系统助手 · 运行中')
-    .filter((i) => i.accelerator).map((i) => [i.label, i.accelerator]));
-  assert.deepEqual(accel, { 屏幕识读: 'Control+Alt+L', '快速输入…': 'Control+Space', 临时全部点穿: 'Control+Alt+P' });
-  assert.equal(find(trayMenu(SAMPLE, h.ports), '退出').accelerator, 'Command+Q', 'the Mac keeps its own');
+  const menu = trayContextMenu('windows', SAMPLE, h.ports);
+  click(find(sub(menu, '切换角色'), '示例乙'));
+  click(find(menu, '设置…'));
+  click(find(menu, '退出 Agentic Complex'));
+  assert.deepEqual(h.calls, ['switchCharacter "birch"', 'openMain "/settings"', 'quit']);
+  assert.equal(find(trayContextMenu('mac', SAMPLE, h.ports), '退出 Agentic Complex').accelerator, 'Command+Q', 'the Mac keeps its own');
 });
 
-test('menus: a config error keeps only the error, the main window, 对话, 会话面板 and a grey 重启子进程', () => {
+test('menus: a config error keeps only the error, 打开主页, 诊断, a grey 重启后台和角色 and 退出', () => {
   const h = ports();
   const menu = trayMenu({ ...SAMPLE, configError: 'tts_url 不是有效地址' }, h.ports);
-  assert.deepEqual(titles(menu), ['配置错误：tts_url 不是有效地址', '打开主窗口', '对话', '会话面板', '重启子进程', '退出']);
+  assert.deepEqual(titles(menu), ['配置错误：tts_url 不是有效地址', '打开主页', '诊断', '重启后台和角色', '退出 Agentic Complex']);
   assert.equal(menu.filter((i) => i.type === 'separator').length, 2);
   assert.equal(find(menu, '配置错误：tts_url 不是有效地址').enabled, false);
-  assert.equal(find(menu, '重启子进程').enabled, false);
-  for (const label of ['打开主窗口', '对话', '会话面板', '退出']) click(find(menu, label));
-  assert.deepEqual(h.calls, ['openMain "/home"', 'openMain "/chat"', 'openMain "/overview?focus=running"', 'quit']);
+  assert.equal(find(menu, '重启后台和角色').enabled, false);
+  for (const label of ['打开主页', '诊断', '退出 Agentic Complex']) click(find(menu, label));
+  assert.deepEqual(h.calls, ['openMain "/home"', 'openMain "/diag"', 'quit']);
 });
 
 test('menus: each tray item calls its port; a missing port greys its item', async () => {
   const h = ports();
   const menu = trayMenu(SAMPLE, h.ports);
-  for (const label of ['打开主窗口', '对话', '待处理', '会话面板', '屏幕识读', '快速输入…', '记忆…', '日志与 Trace', '状态监控',
-    '临时全部点穿', '自由活动', '隐藏角色 30 分钟', '放回默认位置', '设置…', '重启子进程', '退出']) click(find(menu, label));
-  click(find(sub(menu, '最近播报'), 'codex 会话没能启动'));
+  for (const label of ['打开主页', '对话', '自由活动', '放回默认位置', '复位浮窗', '设置…', '运行记录', '诊断', '重启后台和角色',
+    '退出 Agentic Complex']) click(find(menu, label));
+  click(find(sub(menu, '最近播报'), '● codex 会话没能启动'));
   click(find(sub(menu, '最近播报'), '全部标为已读'));
   click(find(sub(menu, '切换角色'), '示例乙'));
   click(find(sub(menu, '切换角色'), '角色卡…'));
   click(find(sub(menu, '外观'), '外勤'));
-  assert.deepEqual(h.calls, ['openMain "/home"', 'openMain "/chat"', 'openMain "/overview?focus=pending"', 'openMain "/overview?focus=running"',
-    'look', 'quickInput', 'openMain "/memory"', 'openMain "/diag?tab=timeline"', 'openMain "/diag?tab=run"',
-    'toggleClickThroughAll', 'toggleFreeRoam', 'settingsChanged ["stay_mode"]', 'toggleHidden', 'resetPosition',
-    'openMain "/settings"', 'restartChildren', 'quit',
+  assert.deepEqual(h.calls, ['openMain "/home"', 'openMain "/chat"', 'toggleFreeRoam', 'settingsChanged ["stay_mode"]', 'resetPosition',
+    'resetPanels', 'openMain "/settings"', 'openMain "/trace"', 'openMain "/diag"', 'restartChildren', 'quit',
     'openAnnouncement "a2"', 'markAllAnnouncementsRead', 'switchCharacter "birch"', 'openMain "/character"', 'switchAppearance "field"']);
 
-  const bare = trayMenu(SAMPLE, ports(['look', 'quickInput', 'setQuiet', 'toggleClickThroughAll', 'toggleFreeRoam', 'toggleHidden',
-    'resetPosition', 'switchCharacter', 'switchAppearance', 'restartChildren', 'openAnnouncement', 'markAllAnnouncementsRead']).ports);
-  for (const label of ['屏幕识读', '快速输入…', '临时全部点穿', '自由活动', '隐藏角色 30 分钟', '放回默认位置', '重启子进程']) {
+  const bare = trayMenu(SAMPLE, ports(['setQuiet', 'toggleFreeRoam', 'resetPosition', 'resetPanels', 'switchCharacter', 'switchAppearance',
+    'restartChildren', 'openAnnouncement', 'markAllAnnouncementsRead']).ports);
+  for (const label of ['自由活动', '放回默认位置', '复位浮窗', '重启后台和角色']) {
     assert.equal(find(bare, label).enabled, false, label);
     assert.equal(find(bare, label).click, undefined, label);
   }
-  assert.ok(sub(bare, '安静').every((i) => i.enabled === false));
+  assert.ok(sub(bare, '免打扰').every((i) => i.type === 'separator' || i.enabled === false));
   assert.ok(sub(bare, '最近播报').every((i) => i.type === 'separator' || i.enabled === false));
   assert.equal(find(sub(bare, '切换角色'), '示例甲').enabled, false);
   assert.equal(find(sub(bare, '切换角色'), '角色卡…').enabled, true);
   assert.equal(find(sub(bare, '外观'), '外勤').enabled, false);
-  for (const label of ['打开主窗口', '对话', '待处理', '会话面板', '记忆…', '设置…', '退出']) assert.equal(find(bare, label).enabled, true);
+  for (const label of ['打开主页', '对话', '设置…', '运行记录', '诊断', '退出 Agentic Complex']) assert.equal(find(bare, label).enabled, true);
   await settle();
 });
 
-test('menus: 安静 sets quiet for its span, 结束安静 only while quiet; a failure is logged', async () => {
+test('menus: 免打扰 sets quiet for its span, 结束免打扰 only while quiet; a failure is logged', async () => {
   const h = ports();
   const now = h.ports.now!();
-  const quiet = sub(trayMenu(SAMPLE, h.ports), '安静');
-  assert.equal(find(trayMenu(SAMPLE, h.ports), '安静').checked, false);
-  assert.equal(find(quiet, '结束安静').enabled, false);
+  const quiet = sub(trayMenu(SAMPLE, h.ports), '免打扰');
+  assert.equal(find(trayMenu(SAMPLE, h.ports), '免打扰').checked, false);
+  assert.equal(find(quiet, '结束免打扰').enabled, false);
   for (const label of ['30 分钟', '1 小时', '到明早 7:00']) click(find(quiet, label));
-  const on = sub(trayMenu({ ...SAMPLE, quiet: true }, h.ports), '安静');
-  assert.equal(find(trayMenu({ ...SAMPLE, quiet: true }, h.ports), '安静').checked, true);
-  click(find(on, '结束安静'));
+  const on = sub(trayMenu({ ...SAMPLE, quiet: true }, h.ports), '免打扰');
+  assert.equal(find(trayMenu({ ...SAMPLE, quiet: true }, h.ports), '免打扰').checked, true);
+  click(find(on, '结束免打扰'));
   await settle();
   assert.deepEqual(h.calls, [`setQuiet ${now / 1000 + 1800}`, `setQuiet ${now / 1000 + 3600}`,
     `setQuiet ${quietUntil('untilMorning', now)}`, 'setQuiet null']);
   const failing = ports();
   failing.ports.setQuiet = async () => { throw new Error('agentd 不在'); };
-  click(find(sub(trayMenu(SAMPLE, failing.ports), '安静'), '1 小时'));
+  click(find(sub(trayMenu(SAMPLE, failing.ports), '免打扰'), '1 小时'));
   await settle();
   assert.deepEqual(failing.calls, ['log "quiet span=hour failed: agentd 不在"']);
 });

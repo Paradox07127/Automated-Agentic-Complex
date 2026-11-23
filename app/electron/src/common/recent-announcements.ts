@@ -14,6 +14,8 @@ export class RecentAnnouncements {
   private entries: Entry[] = [];
   /** Entry ids per agentd slot since its last `terminal`, oldest first. */
   private progress = new Map<string, string[]>();
+  /** Called after each change of the rows. */
+  onChange: (() => void) | null = null;
 
   /** A `/feed` event, `at` epoch ms; only an `announce` that decodes counts. */
   receive(e: StreamEvent, at: number): void {
@@ -39,6 +41,7 @@ export class RecentAnnouncements {
     }
     this.entries = [{ id, text: a.headline, at, sessionId, unread: true }, ...this.entries.filter((x) => x.id !== id)]
       .slice(0, RECENT_LIMIT);
+    this.onChange?.();
   }
 
   /** The submenu's rows, newest first, at the local `HH:mm` each came. */
@@ -54,10 +57,12 @@ export class RecentAnnouncements {
     const e = this.entries.find((x) => x.id === id);
     if (!e) return null;
     e.unread = false;
+    this.onChange?.();
     return e.sessionId;
   }
 
   markAllRead(): void {
     for (const e of this.entries) e.unread = false;
+    this.onChange?.();
   }
 }

@@ -351,7 +351,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 | GET | `/user/now` | ui | `host_only` | — | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | `user-now.json` |
 | POST | `/desktop/sessions/seen` | ui | `write` | main、stack | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | GET | `/model/settings` | ui | `read` | main、onboarding | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | `model-settings.json` |
-| GET | `/motion/settings` | ui | `read` | main、stack | `motion.routes` | `protocol/C1-agent-events/CONTRACT.md` | — |
+| GET | `/motion/settings` | ui | `read` | main | `motion.routes` | `protocol/C1-agent-events/CONTRACT.md` | — |
 | GET | `/motions/:motion_id/meta`、`/motions/:motion_id/keys` | ui 或 events | `host_only` | — | `motion.routes` | `protocol/C1-agent-events/CONTRACT.md` | — |
 | GET | `/motions/:motion_id/tracks` | ui 或 events | `host_only` | — | `motion.routes` | `protocol/C1-agent-events/CONTRACT.md` | — |
 | GET | `/tasks` | ui | `read` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | `tasks.json` |
@@ -493,7 +493,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 | PUT | `/observation/quiet` | ui | `write` | main、stack | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | PUT | `/proactive/mutes` | ui | `write` | main、stack | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | PUT | `/proactive/settings` | ui | `write` | main、onboarding | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
-| PUT | `/motion/settings` | ui | `write` | main、stack | `motion.routes` | `protocol/C1-agent-events/CONTRACT.md` | — |
+| PUT | `/motion/settings` | ui | `write` | main | `motion.routes` | `protocol/C1-agent-events/CONTRACT.md` | — |
 | PUT | `/characters/:character_id/binding` | ui | `write` | main | `character.binding_routes` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | PUT | `/context/activity` | ui | `write` | main | `api.handler` | `protocol/C6-agentd-api/CONTRACT.md` | — |
 | PUT | `/behavior/capabilities` | ui | `host_only` | — | `api.handler` | — | — |

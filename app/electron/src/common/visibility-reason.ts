@@ -7,11 +7,15 @@ export interface VisibilityPorts {
   after(ms: number, fn: () => void): () => void;
   /** The hide expired: the shell shows her with reason `hide_expired`, which comes back through `set`. */
   expired(): void;
+  /** Epoch ms; Date.now without it. */
+  now?(): number;
 }
 
 export class AvatarVisibility {
   /** `visibility.reason`; null before the first change. */
   reason: string | null = null;
+  /** Epoch ms the running hide expires; null without one. */
+  hiddenUntil: number | null = null;
   private readonly ports: VisibilityPorts;
   private cancel: (() => void) | null = null;
 
@@ -23,6 +27,8 @@ export class AvatarVisibility {
   set(hidden: boolean, reason: string): void {
     this.reason = reason;
     this.cancel?.();
-    this.cancel = hidden && reason !== 'fullscreen' ? this.ports.after(HIDE_EXPIRY_MS, () => this.ports.expired()) : null;
+    const expires = hidden && reason !== 'fullscreen';
+    this.cancel = expires ? this.ports.after(HIDE_EXPIRY_MS, () => this.ports.expired()) : null;
+    this.hiddenUntil = expires ? (this.ports.now?.() ?? Date.now()) + HIDE_EXPIRY_MS : null;
   }
 }

@@ -12,13 +12,13 @@ import routes from '../../../../protocol/ui-bridge/routes.json' with { type: 'js
 import { a11ySource } from '../common/a11y.ts';
 import { type ChildState } from '../common/agentd.ts';
 import type { Rect as HelperRect } from '../common/attention.ts';
-import { boot, handle, type Handler, type Reply, type Surface } from '../common/bridge.ts';
+import { boot, BridgeFailure, handle, type Handler, type Reply, type Surface } from '../common/bridge.ts';
 import { computerUseState } from '../common/computer-control.ts';
 import { avatarHovered } from '../common/desktop-hover.ts';
 import { AVATAR_STAGE_TITLES } from '../common/stack-source.ts';
 import { shownFrame } from '../common/keepclear.ts';
 import type { Rect } from '../common/placement.ts';
-import { menuLines, rendererPreflight } from '../common/components.ts';
+import { rendererPreflight } from '../common/components.ts';
 import { type Config, configLogLine, launchCharacter, statusTitle, webLogsDir } from '../common/config.ts';
 import { FeedSource, SharedSource } from '../common/feed.ts';
 import { processStatus } from '../common/menus.ts';
@@ -60,8 +60,6 @@ import { DesktopAssembly } from './desktop/assembly.ts';
 import { trayClick, trayClickOf } from './desktop/tray.ts';
 import { devReload } from './dev-reload.ts';
 import { devWebResponse } from './dev-web.ts';
-import { handClipboard } from './handover/clipboard.ts';
-import { selectRegion } from './handover/region.ts';
 import { RegionSelectWindow } from './handover/region-window.ts';
 import { DropHandover, opsMotionImport } from './handover/drop.ts';
 import { shellWindowHandover } from './handover/window.ts';
@@ -72,22 +70,23 @@ import { appendLog } from './log.ts';
 import { appMenu, pageShortcut } from './menus/app.ts';
 import { SettingsChanges } from './menus/items.ts';
 import { type IconBitmap, squareIcon } from './menus/icon.ts';
-import { shellMenus } from './menus/shell.ts';
+import { openAnnouncement, shellMenus } from './menus/shell.ts';
 import { trayContextMenu } from './menus/tray.ts';
 import { SystemNotifier } from './notify/system.ts';
 import { onboardingWindow } from './onboarding/window.ts';
 import { adoptPasted, adoptPaths, clearPasted, filePage, SCOPE_FILE_TYPES } from './ops/adopt.ts';
 import { bundleBuild } from './ops/app.ts';
-import { avatarPlaylist, cpuSecondsReader } from './ops/avatar.ts';
+import { cpuSecondsReader } from './ops/avatar.ts';
 import { characterArt, shellMmdSync } from './ops/character.ts';
 import { reloadAvatar } from './ops/holding.ts';
+import { watch } from './ops/events.ts';
 import { type OpsContext, registry } from './ops/index.ts';
 import { ObservationControl } from './ops/observation.ts';
 import { sessionsRoute } from './ops/open.ts';
 import { saveSettings } from './ops/settings.ts';
 import { processState } from './ops/supervisor.ts';
 import { runAgentdTool, validationHost } from './ops/tools.ts';
-import { HelperSupervisor, helperMenuLine } from './helper/supervisor.ts';
+import { HelperSupervisor } from './helper/supervisor.ts';
 import { type PackagedLaunch, packagedConfigPath, packagedContents, preparePackaged, webRoot } from './packaged.ts';
 import { AvatarPlacer } from './placement/controller.ts';
 import { ResizeOverlayWindow } from './placement/resize-overlay.ts';
@@ -644,7 +643,7 @@ protocol.registerSchemesAsPrivileged([{ scheme: SCHEME, privileges: { standard: 
 
 /** The surface, document state and, for a desktop panel, its own ops of each web contents that has the bridge, by id. */
 const pages = new Map<number, { surface: Surface; page: PageSession; ops?: ReadonlyMap<string, Handler<PageSession>> }>();
-/** The bubble and hud panels; made once the app is ready with the web UI built. */
+/** The desktop panels (desktop/assembly.ts); made once the app is ready with the web UI built. */
 let desktop: DesktopAssembly | null = null;
 let controlPanel: ControlPanel | null = null;
 let mainWindow: BrowserWindow | null = null;
@@ -716,6 +715,8 @@ function webMissingPage(): string {
 /** `activate: false` shows it without taking the front app. */
 function openMain(activate = true): void {
   if (mainWindow) {
+    // show() leaves a minimized window in the Dock (the Windows taskbar).
+    if (activate && mainWindow.isMinimized()) mainWindow.restore();
     if (activate) mainWindow.show();
     else mainWindow.showInactive();
     return;
@@ -919,7 +920,11 @@ const guide = onboardingWindow({
     webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false } }),
   served: () => serve !== null,
   workArea: () => screen.getPrimaryDisplay().workAreaSize,
-  ops: () => (config ? surfaceOps('onboarding') : null),
+  // 在桌面上 on the last step reads the desktop panels' state.
+  ops: () => (config ? new Map([...surfaceOps('onboarding'), ['desktop.onState', (args, page) => {
+    if (!desktop) throw new BridgeFailure('unavailable', '没有桌面层');
+    return watch('desktop.onState', desktop.stateSource)(args, page);
+  }]]) : null),
   register: (contents, page, guideOps) => pages.set(contents.id, { surface: 'onboarding', page, ops: guideOps }),
   unregister: (id) => pages.delete(id),
   openMain: openMainAt,
@@ -936,12 +941,12 @@ function desktopState(): Record<string, unknown> {
   const name = (c: string) => config?.characters.find((x) => x.id === c)?.name ?? c;
   return {
     hidden: hostLink?.hidden ?? false, clickThroughAll: hostLink?.clickThroughAll ?? false, freeRoam: !['stay', 'bust'].includes(s.stay_mode as string),
-    quietUntil: observation?.quietUntil() ?? null,
+    quietUntil: observation?.quietUntil() ?? null, hiddenUntil: hostLink?.hidden ? visibility.hiddenUntil : null,
     showPresence: s.desktop_presence !== false, showHoverHints: s.desktop_hover_hints !== false,
     character: id && { id, name: name(id) }, characters: (config?.characters ?? []).map((c) => ({ id: c.id, name: c.name })),
     screens: desktopScreens(placer?.currentScreen() ?? null, screen.getAllDisplays()), hotkeys: desktopHotkeys(s, shellPlatform()),
     pips: { agentd: processState(agentdState, supervisor?.pid), avatar: processState(rendererState, renderer?.pid),
-      voice: pushToTalk?.voice ?? 'off' },
+      voice: pushToTalk?.voice ?? 'off', helper: helper ? processState(helperState, helper.pid) : null },
     computerUseActive: control ? computerUseState(control.state).active : false,
     plugins: enabledPlugins(supervisor?.plugins ?? DEFAULT_PLUGINS),
   };
@@ -993,20 +998,18 @@ function notifyCaptureSaved(file: string): void {
 }
 
 /** The menus' state and ports, read when a menu opens, and the menu bar icon, the Mac's only (menus/shell.ts). */
-/** 最近播报 of the tray menu. */
+/** 最近播报 of the tray menu and the console. */
 const recent = new RecentAnnouncements();
+recent.onChange = () => desktop?.recentChanged();
 const menus = shellMenus({
-  playlist: () => mainCtx && avatarPlaylist(mainCtx), recent,
-  settings: () => readObject(configPath), plan,
+  recent,
+  settings: () => readObject(configPath),
   characters: () => config && config.characters.map((c) => ({ id: c.id, name: c.name })),
   launched,
-  services: () => (config ? menuLines(tunnel?.config ?? config, rendererState, agentdState, tunnelState) : []),
   processes: () => processStatus(config === null, agentdState, rendererState, [rendererState, agentdState,
     ...(tunnel && tunnel.config.ttsTunnelHost !== '' ? [tunnelState.kind === 'external' ? { kind: 'running' } as const : tunnelState] : [])]),
-  link: hostLink, looks, switcher, observation, camera, pushToTalk, context, interaction,
+  link: hostLink, looks, switcher, observation, pushToTalk, interaction,
   desktop: () => desktop, placer: () => placer,
-  capture: { dir: CAPTURE_DIR, saved: notifyCaptureSaved },
-  setHidden: (hidden) => { setAvatarHidden(hidden); },
   restartChildren: () => {
     void supervisor?.restart();
     restartTunnel('children');
@@ -1014,13 +1017,6 @@ const menus = shellMenus({
   },
   openMain: openMainAt, quit: () => app.quit(), settingsChanged: (keys) => settingsChanges.changed(keys),
   log: (line) => appendLog(config?.supportDir ?? supportDir, 'companion', line),
-  handClipboard: helper && drops ? () => { void handClipboard({ helper, drops, desktop: () => desktop, log: (line) => appendLog(config!.supportDir, 'companion', line) }); } : undefined,
-  selectRegion: config ? () => {
-    void selectRegion({ select: () => regionWindow.select(), read: context ? (rect, excluding) => context.readRegion(rect, excluding) : null,
-      excluded: () => (renderer?.pid === undefined ? [process.pid] : [process.pid, renderer.pid]), helperY: helperYFor(shellPlatform()),
-      mainHeight: () => screen.getPrimaryDisplay().bounds.height, desktop: () => desktop,
-      log: (line) => appendLog(config!.supportDir, 'companion', line) });
-  } : undefined,
   setIcon: (icon: IconBitmap) => {
     const b = shellPlatform() === 'mac' ? icon : squareIcon(icon, nativeTheme.shouldUseDarkColors);
     tray?.setImage(trayImage(nativeImage.createFromBitmap(Buffer.from(b.pixels), { width: b.width, height: b.height, scaleFactor: 2 })));
@@ -1127,6 +1123,7 @@ function startDesktop(): void {
     a11y: a11ySource(() => ({ reduceMotion: systemPreferences.getAnimationSettings().prefersReducedMotion,
       reduceTransparency: nativeTheme.prefersReducedTransparency, increaseContrast: nativeTheme.shouldUseHighContrastColors }),
     (changed) => { nativeTheme.on('updated', changed); }),
+    recent: { rows: () => recent.rows(), open: (id) => openAnnouncement(recent, openMainAt, id), markAllRead: () => recent.markAllRead() },
     log: (line) => appendLog(config!.supportDir, 'companion', line),
   });
   drops?.desktopReady();
@@ -1335,13 +1332,12 @@ void app.whenReady().then(async () => {
   // Windows has no title beside the icon; the tooltip (statusTitle) says 测试 there.
   if (shellPlatform() === 'mac') tray.setTitle(trayTitle(config?.supportDir ?? null, DEFAULT_SUPPORT_DIR));
   const space = c3Space(screen);
-  // No context menu on Windows either: with one set Electron shows it itself on a right click, and Shift could not add 诊断.
+  // No context menu on Windows either: with one set Electron shows it itself on a right click.
   const click = (right: boolean, keys: { altKey?: boolean; shiftKey?: boolean }, bounds: Rectangle) => {
-    const { click: c, diagnostics } = trayClickOf(shellPlatform(), right, keys, bounds);
+    const { click: c } = trayClickOf(shellPlatform(), right, keys, bounds);
     trayClick(c, {
       desktop, toPlacement: (b) => space.fromDip(b),
-      popUpMenu: () => tray?.popUpContextMenu(Menu.buildFromTemplate(trayContextMenu(shellPlatform(), menus.state({ diagnostics }), menus.ports(),
-        helperMenuLine(helperState)))),
+      popUpMenu: () => tray?.popUpContextMenu(Menu.buildFromTemplate(trayContextMenu(shellPlatform(), menus.state(), menus.ports()))),
       log: (line) => appendLog(config?.supportDir ?? supportDir, 'companion', line),
     });
   };

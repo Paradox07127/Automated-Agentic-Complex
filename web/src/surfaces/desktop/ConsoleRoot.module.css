@@ -1,5 +1,5 @@
-/* Shrink-wrapped: the panel takes this box's size; empty while the console is closed. DesktopLayout.consoleInset is
-   the top and side padding; the bottom holds the card's whole shadow. */
+/* Shrink-wrapped: the panel takes this box's size; empty while the console is closed. desktop-layout.ts CONSOLE_INSET:
+   4 on the left and top, 8 on the right and bottom, where the card's shadow falls. */
 .root {
   position: relative;
   display: inline-flex;
@@ -9,5 +9,5 @@
 }
 
 .root:not(:empty) {
-  padding: var(--ef-sp-16) var(--ef-sp-16) 28px;
+  padding: 4px 8px 8px 4px;
 }

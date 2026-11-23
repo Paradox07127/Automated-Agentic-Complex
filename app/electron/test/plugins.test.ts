@@ -1,14 +1,11 @@
-// config.json's `plugins`: what agentd is told, what this shell starts and which menu items show (src/common/plugins.ts).
+// config.json's `plugins`: what agentd is told and what this shell starts (src/common/plugins.ts).
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { agentdArguments } from '../src/common/agentd.ts';
 import { ConfigError, parseConfig } from '../src/common/config.ts';
-import { MENU_STATE_DEFAULTS } from '../src/common/menus.ts';
 import { PLUGINS } from '../src/common/plugins.generated.ts';
 import { DEFAULT_PLUGINS, enabledPlugins, PLUGIN_IDS, type Plugins, shellPlan } from '../src/common/plugins.ts';
 import { current, parseChanges, planSave, schema, settingValues, withSettings } from '../src/common/settings.ts';
-import type { MenuItem, MenuPorts } from '../src/main/menus/items.ts';
-import { trayMenu } from '../src/main/menus/tray.ts';
 
 const config = (o: Record<string, unknown> = {}) => parseConfig(JSON.stringify({
   agentd_dir: '/a/agentd', python: '/a/python', agentd_port: 48810, gpu_hold_files: [], characters: [{ id: 'aster', name: '示例甲', avatar_app: '/A.app' }],
@@ -75,26 +72,6 @@ test('settings: plugins.<id> rows restart the backend; they read from and write 
   assert.deepEqual([plan.write, plan.restart], [{ 'plugins.coding_sessions': true }, 'backend']);
   assert.deepEqual(withSettings({ mute: true, plugins: { screen_awareness: true } }, plan.write),
     { mute: true, plugins: { screen_awareness: true, coding_sessions: true } });
-});
-
-/** Every port; none is called here. */
-const PORTS: MenuPorts = {
-  openMain: () => {}, quit: () => {}, log: () => {}, look: () => {}, quickInput: () => {}, handClipboard: () => {}, selectRegion: () => {},
-};
-const deepIds = (menu: MenuItem[]): string[] =>
-  menu.flatMap((i) => (i.type === 'separator' ? [] : [String(i.id), ...deepIds((i.submenu as MenuItem[] | undefined) ?? [])]));
-
-test('menus: with coding sessions off the tray has no session items; with it on it does', () => {
-  const off = { ...MENU_STATE_DEFAULTS, plan: shellPlan(DEFAULT_PLUGINS) };
-  for (const menu of [trayMenu(off, PORTS), trayMenu({ ...off, configError: '配置错误' }, PORTS)]) {
-    const ids = deepIds(menu);
-    assert.ok(!ids.includes('sessions') && !ids.includes('pending'), ids.join(' '));
-  }
-  // Screen reading is off too.
-  assert.ok(!deepIds(trayMenu(off, PORTS)).includes('look'));
-  const on = { ...off, plan: shellPlan({ ...DEFAULT_PLUGINS, coding_sessions: true }) };
-  assert.ok(deepIds(trayMenu(on, PORTS)).includes('sessions') && deepIds(trayMenu(on, PORTS)).includes('pending'));
-  assert.ok(deepIds(trayMenu({ ...on, configError: '配置错误' }, PORTS)).includes('sessions'));
 });
 
 test('the 键鼠计数 row belongs to no plug-in: the coarse beat reads it with screen awareness off too', () => {

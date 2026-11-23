@@ -436,11 +436,12 @@ const consoleRequest = (w: number, h: number, statusItem: Rect | null): PanelReq
 test('the console card hangs under the menu bar button even over her, its right edge kept on screen', () => {
   const item = r(1300, 957, 30, 25);
   let { placements: p } = layout(r(100, 100, 200, 400), { requests: [consoleRequest(360, 300, item)] });
-  assert.deepEqual(p.console, { frame: r(986, 669, 360, 300), side: 'status', docked: null, far: true });
+  // The page's inset is 4 pt on the left and top, 8 pt on the right and bottom for the card's shadow.
+  assert.deepEqual(p.console, { frame: r(978, 657, 360, 300), side: 'status', docked: null, far: true });
   ({ placements: p } = layout(r(1000, 500, 200, 400), { requests: [consoleRequest(360, 300, item)] }));
-  assert.deepEqual(p.console, { frame: r(986, 669, 360, 300), side: 'status', docked: null, far: false });
+  assert.deepEqual(p.console, { frame: r(978, 657, 360, 300), side: 'status', docked: null, far: false });
   ({ placements: p } = layout(null, { requests: [consoleRequest(360, 300, r(1490, 957, 30, 25))] }));
-  assert.equal(p.console!.frame.x + p.console!.frame.w, 1504 + 16, 'the card\'s right edge stays on screen');
+  assert.equal(p.console!.frame.x + p.console!.frame.w, 1504 + 8, 'the card\'s right edge stays on screen');
   ({ placements: p } = layout(null, { docked: 'stale', requests: [dock, consoleRequest(360, 300, item)] }));
   assert.equal(overlaps(p.dock!.frame, p.console!.frame), false, 'a cornered dock keeps clear of the console');
 });
@@ -448,7 +449,7 @@ test('the console card hangs under the menu bar button even over her, its right 
 test('the console card stands on a taskbar at the bottom, its right edge on the notification area icon\'s', () => {
   const display: ScreenInfo = { id: 4, frame: r(0, 0, 1920, 1080), visibleFrame: r(0, 48, 1920, 1032) };
   const { placements: p } = layout(null, { screens: [display], requests: [consoleRequest(360, 300, r(1700, 12, 24, 24))] });
-  assert.deepEqual(p.console!.frame, r(1380, 36, 360, 300));
+  assert.deepEqual(p.console!.frame, r(1372, 44, 360, 300));
 });
 
 const ITEM = r(1188, 873, 36, 24);
@@ -476,8 +477,8 @@ test('the console waits for its own size, then aligns its card with the menu bar
   assert.equal(c.moves.length, 0, 'not placed with the empty page\'s size');
   c.contentSize = { w: 392, h: 261 };
   at(0.1);
-  // The card inside the 16 pt inset: its right edge on the button's, its top 4 pt below the menu bar.
-  assert.deepEqual(c.moves, [{ frame: r(1224 + 16 - 392, 873 - 4 + 16 - 261, 392, 261), animated: false }]);
+  // The card inside the page's inset (8 pt right, 4 pt top): its right edge on the button's, its top 4 pt below the menu bar.
+  assert.deepEqual(c.moves, [{ frame: r(1224 + 8 - 392, 873 - 4 + 4 - 261, 392, 261), animated: false }]);
 });
 
 test('the console shows with an unchanged size after a while', () => {
@@ -488,7 +489,7 @@ test('the console shows with an unchanged size after a while', () => {
   at(0.2);
   assert.equal(c.moves.length, 0);
   at(0.4);
-  assert.deepEqual(c.moves.at(-1)?.frame, r(848, 624, 392, 261));
+  assert.deepEqual(c.moves.at(-1)?.frame, r(840, 612, 392, 261));
 });
 
 test('the wheel opens in the command panel and leaves the console; closing either leaves the other; the page closing it ends it', () => {

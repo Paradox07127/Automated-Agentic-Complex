@@ -29,8 +29,8 @@ export const BRIDGE_OPS: readonly string[] = [
   'window.onVisibility', 'window.onPointer', 'window.onAnchorState', 'window.onA11y', 'window.setContentSize',
   'window.releaseKey', 'window.onAnchor', 'window.logInfo', 'stack.onCards', 'stack.decide', 'stack.later',
   'stack.collapse', 'stack.complete', 'desktop.onState', 'desktop.onPresence', 'desktop.onCommand', 'desktop.say',
-  'desktop.action', 'onboarding.state', 'onboarding.advance', 'onboarding.back', 'onboarding.goto', 'onboarding.skip',
-  'onboarding.complete',
+  'desktop.action', 'desktop.onRecent', 'desktop.openAnnouncement', 'desktop.markAllRead', 'onboarding.state',
+  'onboarding.advance', 'onboarding.back', 'onboarding.goto', 'onboarding.skip', 'onboarding.complete',
 ];
 
 /** Ops only the native shim sends; they are not bridge members. */
@@ -75,7 +75,8 @@ export const SURFACE_OPS: Readonly<Record<Surface, readonly string[]>> = {
     'window.openMain', 'window.onVisibility', 'window.onPointer', 'window.onAnchorState', 'window.onA11y',
     'window.setContentSize', 'window.releaseKey', 'window.onAnchor', 'window.logInfo', 'stack.onCards', 'stack.decide',
     'stack.later', 'stack.collapse', 'stack.complete', 'desktop.onState', 'desktop.onPresence', 'desktop.onCommand',
-    'desktop.say', 'desktop.action', 'feed.unsubscribe', 'events.unsubscribe',
+    'desktop.say', 'desktop.action', 'desktop.onRecent', 'desktop.openAnnouncement', 'desktop.markAllRead',
+    'feed.unsubscribe', 'events.unsubscribe',
   ],
   onboarding: [
     'app.openQuickInput', 'agentd.request', 'settings.read', 'settings.save', 'settings.validateHotkey',
@@ -91,7 +92,8 @@ export const WATCH_OPS: readonly string[] = [
   'app.onRuntime', 'settings.onChange', 'avatar.onState', 'avatar.onStats', 'avatar.preview.onProgress',
   'voice.onPushToTalk', 'computerUse.onState', 'computerUse.onPanel', 'camera.onState', 'resize.onState',
   'window.onVisibility', 'window.onPointer', 'window.onAnchorState', 'window.onA11y', 'window.onAnchor',
-  'stack.onCards', 'desktop.onState', 'desktop.onPresence', 'desktop.onCommand', 'mmd.onSync', 'character.onImport',
+  'stack.onCards', 'desktop.onState', 'desktop.onPresence', 'desktop.onCommand', 'desktop.onRecent', 'mmd.onSync',
+  'character.onImport',
 ];
 
 /** Void ops sent without waiting for the reply. */
@@ -108,7 +110,8 @@ export const STREAM_OPS: readonly string[] = [
 /** Ops served only when the native host has a desktop. */
 export const DESKTOP_OPS: readonly string[] = [
   'window.setContentSize', 'window.releaseKey', 'window.onAnchor', 'desktop.onState', 'desktop.onPresence',
-  'desktop.onCommand', 'desktop.say', 'desktop.action',
+  'desktop.onCommand', 'desktop.say', 'desktop.action', 'desktop.onRecent', 'desktop.openAnnouncement',
+  'desktop.markAllRead',
 ];
 
 /** `'host:avatar'`: true only when the native host has an avatar; `'host:actionLoop'`: only when it lists C3 `action_loop`;

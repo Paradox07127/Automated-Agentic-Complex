@@ -60,6 +60,8 @@
 
 桌面层（浮窗栈、角色附属层、命令层）的桥 op 是 `window.onAnchor`、`window.setContentSize`、`window.releaseKey` 和 `desktop.onState`、`desktop.onPresence`、`desktop.onCommand`、`desktop.say`、`desktop.action`：`/desktop/presence` 由原生读了再经 `desktop.onPresence` 推给页面，快速输入经 `desktop.say` 走原生发送路径，不走 `/say` 路由。这些 op 不改 routes.json。
 
+菜单栏弹窗的最近播报：`desktop.onRecent(cb)` 推原生缓存的最近 20 条播报 `{ id, text, time, unread }[]`（新的在前，订阅时先推当前的）；`desktop.openAnnouncement(id)` 标这一条已读，有会话时在主窗口打开它；`desktop.markAllRead()` 全部标为已读。三者只放行 stack。首次设置面（onboarding）只读 `desktop.onState`。
+
 ## 现行取舍
 
 下面几条路由的分类取更严的一类：

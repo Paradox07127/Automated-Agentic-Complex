@@ -24,7 +24,7 @@ export function ConsoleRoot() {
   // The native host waits for this subscription even while the menu is closed.
   const anchor = useAnchor();
   const room = anchor?.room.height ?? 0;
-  const shadowRoom = 44; // The root's 16 pt top and 28 pt bottom padding.
+  const shadowRoom = 12; // The root's 4 pt top and 8 pt bottom padding.
   const maxHeight = room > shadowRoom ? Math.floor(room) - shadowRoom : undefined;
   const state = useDesktopState();
   const presence = usePresence();

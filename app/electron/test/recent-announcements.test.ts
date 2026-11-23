@@ -64,3 +64,18 @@ test('recent: open marks one read and names its session; one without a session o
   r.markAllRead();
   assert.deepEqual(r.rows().map((x) => x.unread), [false, false, false, false]);
 });
+
+test('recent: onChange hears each change of the rows, an announce, an open and 全部标为已读; nothing else', () => {
+  const r = new RecentAnnouncements();
+  let n = 0;
+  r.onChange = () => { n += 1; };
+  r.receive(announce(1), at(9, 0));
+  r.receive({ event: 'line', id: null, data: '{}' }, at(9, 0));
+  r.receive({ event: 'announce', id: null, data: '{' }, at(9, 0));
+  assert.equal(n, 1);
+  r.open('announce-1');
+  r.open('announce-7');
+  assert.equal(n, 2);
+  r.markAllRead();
+  assert.equal(n, 3);
+});

@@ -132,7 +132,10 @@
     "desktop.onPresence",
     "desktop.onCommand",
     "desktop.say",
-    "desktop.action"
+    "desktop.action",
+    "desktop.onRecent",
+    "desktop.openAnnouncement",
+    "desktop.markAllRead"
   ],
   "internal": [
     "feed.unsubscribe",
@@ -305,6 +308,9 @@
       "desktop.onCommand",
       "desktop.say",
       "desktop.action",
+      "desktop.onRecent",
+      "desktop.openAnnouncement",
+      "desktop.markAllRead",
       "feed.unsubscribe",
       "events.unsubscribe"
     ],
@@ -354,6 +360,7 @@
       "desktop.onState",
       "desktop.onPresence",
       "desktop.onCommand",
+      "desktop.onRecent",
       "mmd.onSync",
       "character.onImport"
     ],
@@ -379,7 +386,10 @@
     "desktop.onPresence",
     "desktop.onCommand",
     "desktop.say",
-    "desktop.action"
+    "desktop.action",
+    "desktop.onRecent",
+    "desktop.openAnnouncement",
+    "desktop.markAllRead"
   ],
   "capabilities": {
     "main": {

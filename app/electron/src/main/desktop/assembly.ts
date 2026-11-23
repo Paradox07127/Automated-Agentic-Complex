@@ -15,6 +15,7 @@ import { DOCK_IDLE, dockOpen, type DockState, dockStep, ENTER_GROW, KEEP_GROW } 
 import { DEFAULT_QUICK_INPUT_HOTKEY, QuickInputHotkey } from '../../common/desktop-hotkey.ts';
 import { CHEST, type CmdMode, type PanelKind } from '../../common/desktop-layout.ts';
 import { parseSay, say } from '../../common/desktop-say.ts';
+import type { MenuAnnouncement } from '../../common/menus.ts';
 import type { Cancel, EventSource, PageSession } from '../../common/page.ts';
 import type { AvatarPlacement, Point, Rect, ScreenInfo } from '../../common/placement.ts';
 import { PushSource } from '../../common/push.ts';
@@ -77,6 +78,8 @@ export interface DesktopOptions {
   guard?: WebGuardPorts;
   /** `window.onA11y`'s source; absent, the pages keep their defaults. */
   a11y?: EventSource;
+  /** 最近播报 for the console: its rows, and `open` reads one and shows its session; absent, `desktop.onRecent` is empty. */
+  recent?: { rows(): MenuAnnouncement[]; open(id: string): void; markAllRead(): void };
   log(line: string): void;
 }
 
@@ -103,6 +106,7 @@ export class DesktopAssembly {
   private readonly command = new PushSource('command', { replay: false });
   /** The console page's `desktop.onCommand`; the other pages' commands never reach it, nor its theirs. */
   private readonly consoleCommand = new PushSource('command', { replay: false });
+  private readonly recent = new PushSource('recent');
   private readonly panels: Record<PanelKind, DesktopPanel>;
   private readonly follow: DesktopFollow;
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -178,6 +182,9 @@ export class DesktopAssembly {
   /** The console is open in its own panel. */
   get consoleOpen(): boolean { return this.follow.consoleOpen; }
 
+  /** `desktop.onState`'s source, for a page outside the panels to watch. */
+  get stateSource(): EventSource { return this.state; }
+
   /** 快速输入 is open in the bubble. */
   get quickInputOpen(): boolean { return this.follow.quickInputOpen; }
 
@@ -197,6 +204,7 @@ export class DesktopAssembly {
   /** Loads the pages hidden; each shows once its page has something to show. */
   start(): void {
     for (const p of Object.values(this.panels)) p.start();
+    this.recentChanged();
     if (this.hotkeyOn) this.hotkey.register(quickInputHotkey());
     this.presenceTimer ??= setInterval(() => void this.pollPresence(), PRESENCE_MS);
     this.hoverTimer ??= setInterval(() => this.hoverTick(), TICK_MS);
@@ -218,6 +226,11 @@ export class DesktopAssembly {
     const dock = this.dockView();
     this.dockSent = JSON.stringify(dock);
     this.state.send({ ...this.o.state(), dock });
+  }
+
+  /** `desktop.onRecent` goes out with 最近播报's rows now. */
+  recentChanged(): void {
+    this.recent.send(this.o.recent?.rows() ?? []);
   }
 
   /** A short line in the bubble, such as why a click on her asked nothing. */
@@ -444,6 +457,8 @@ export class DesktopAssembly {
       ['desktop.onState', watch('desktop.onState', this.state)],
       ['desktop.onPresence', watch('desktop.onPresence', this.presence)],
       ['desktop.onCommand', watch('desktop.onCommand', kind === 'console' ? this.consoleCommand : this.command)],
+      ['desktop.onRecent', watch('desktop.onRecent', this.recent)],
+      ...this.recentOps(),
       ['window.setInteractiveRegions', ([list, glass]) => {
         if (!Array.isArray(list) || list.length > 32) throw new BridgeFailure('invalid_args', 'Region[] of up to 32');
         const regions: Region[] = list.map((r: Record<string, unknown>) => {
@@ -526,6 +541,23 @@ export class DesktopAssembly {
       ['stack.complete', ([id]) => decisions.complete(cardId(id))],
     ];
     return new Map([...this.o.baseOps, ...own]);
+  }
+
+  /** `desktop.openAnnouncement` and `desktop.markAllRead`, with 最近播报 only. */
+  private recentOps(): [string, Handler<PageSession>][] {
+    const recent = this.o.recent;
+    if (!recent) return [];
+    return [
+      ['desktop.openAnnouncement', ([id]) => {
+        if (typeof id !== 'string' || id === '') throw new BridgeFailure('invalid_args', 'an announcement id');
+        recent.open(id);
+        return null;
+      }],
+      ['desktop.markAllRead', () => {
+        recent.markAllRead();
+        return null;
+      }],
+    ];
   }
 }
 
