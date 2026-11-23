@@ -49,7 +49,7 @@ class PackageWindowsTests(unittest.TestCase):
         # build.bat puts the speech runtime's DLLs beside ac-helper.exe.
         for name in ('sherpa-onnx-c-api.dll', 'onnxruntime.dll'): (self.root / name).write_text('dll ' + name)
         self.renderer = self.root / 'renderer'; self.renderer.mkdir()
-        for name in ('efw.exe', 'depth_copy.dxbc', 'premultiply_alpha.dxbc', 'main.obj', 'product.txt'):
+        for name in ('efw.exe', 'depth_copy.spv', 'premultiply_alpha.spv', 'main.obj', 'product.txt'):
             (self.renderer / name).write_text('renderer ' + name)
         self.fbx_tool = self.root / 'fbx-motion.exe'; self.fbx_tool.write_text('fbx')
         self.output = self.root / 'pack out'
@@ -95,7 +95,7 @@ class PackageWindowsTests(unittest.TestCase):
         self.assertEqual(receipt['fuses'], FUSES)
         top = {f for f in files if '/' not in f}
         self.assertEqual(top, {'Agentic Complex.exe', 'ac-helper.exe', 'sherpa-onnx-c-api.dll', 'onnxruntime.dll', 'efw.exe',
-                               'depth_copy.dxbc', 'premultiply_alpha.dxbc', 'ffmpeg.dll', 'icudtl.dat', 'LICENSE'})
+                               'depth_copy.spv', 'premultiply_alpha.spv', 'ffmpeg.dll', 'icudtl.dat', 'LICENSE'})
         for name in ('sherpa-onnx-c-api.dll', 'onnxruntime.dll'): self.assertEqual((package / name).read_text(), 'dll ' + name)
         self.assertEqual(sorted(p.name for p in (package / 'licenses').iterdir()),
                          ['onnxruntime-LICENSE.txt', 'onnxruntime-ThirdPartyNotices.txt', 'sherpa-onnx-LICENSE.txt'])
@@ -155,7 +155,7 @@ class PackageWindowsTests(unittest.TestCase):
         self.assertEqual(entries['host'], {'executable': 'Agentic Complex.exe'})
         self.assertEqual(entries['renderer'], {'executable': 'efw.exe'})
         self.assertEqual(manifests['agentd']['requires'], {'runtime.python': '3.12.10'})
-        self.assertEqual(manifests['renderer']['placed'], {name: name for name in ('efw.exe', 'depth_copy.dxbc', 'premultiply_alpha.dxbc')})
+        self.assertEqual(manifests['renderer']['placed'], {name: name for name in ('efw.exe', 'depth_copy.spv', 'premultiply_alpha.spv')})
         placed = manifests['host']['placed']
         self.assertEqual(list(placed)[:2], ['Agentic Complex.exe', 'ac-helper.exe'])
         self.assertTrue({'resources/app', 'resources/parent_watch.py', 'locales', 'ffmpeg.dll'} <= set(placed))
@@ -202,7 +202,7 @@ class PackageWindowsTests(unittest.TestCase):
         self.output.mkdir()
         with self.assertRaisesRegex(ValueError, 'output already exists'): self.stage()
         self.output.rmdir()
-        for path in self.renderer.glob('*.dxbc'): path.unlink()
+        for path in self.renderer.glob('*.spv'): path.unlink()
         with self.assertRaisesRegex(ValueError, 'renderer_shaders_missing'): self.stage()
 
     def test_a_helper_without_its_speech_dlls_beside_it_is_refused(self):
@@ -237,10 +237,12 @@ class PackageWindowsTests(unittest.TestCase):
         self.assertTrue((ui / 'art/brand/AppIcon-1024.png').is_file())
         self.assertFalse((ui / 'art/characters/elsewhere').exists())
         self.assertEqual(receipt['ui_art'], dict(files=2, manifest_sha256=package_windows.digest(art / 'art-manifest.json')))
-        self.assertEqual(self.order, ['brand', 'fuses'])
-        executable, ui_art, *rest = self.brand.call_args.args
-        self.assertEqual((Path(executable).name, ui_art, rest), ('Agentic Complex.exe', art, ['Agentic Complex', '0.2.0', '20261121.1']))
-        self.assertEqual(receipt['branding'], BRANDING)
+        self.assertEqual(self.order, ['brand', 'brand', 'brand', 'fuses'])
+        calls = [(Path(call.args[0]).name, *call.args[1:])
+                 for call in self.brand.call_args_list]
+        self.assertEqual(sorted(calls), [(name, art, 'Agentic Complex', '0.2.0', '20261121.1')
+                                         for name in ('Agentic Complex.exe', 'ac-helper.exe', 'efw.exe')])
+        self.assertEqual(receipt['branding'], {name: BRANDING for name in ('Agentic Complex.exe', 'ac-helper.exe', 'efw.exe')})
         self.assertEqual(json.loads((self.output / 'pack-receipt.json').read_text()), json.loads(json.dumps(receipt)))
 
     def test_without_ui_art_the_pages_have_none_and_the_exe_gets_only_its_version(self):
@@ -251,6 +253,7 @@ class PackageWindowsTests(unittest.TestCase):
         with patch.object(windows_exe, 'brand') as brand:
             package_windows.brand(Path('x.exe'), None, 'Agentic Complex', '0.2.0', '1')
             self.assertIsNone(brand.call_args.kwargs['icon_png'])
+            self.assertEqual(brand.call_args.kwargs['executable'], 'x.exe')
             package_windows.brand(Path('x.exe'), self.art(), 'Agentic Complex', '0.2.0', '1')
             self.assertEqual(brand.call_args.kwargs['icon_png'][:8], b'\x89PNG\r\n\x1a\n')
 
@@ -272,7 +275,7 @@ class PackageWindowsTests(unittest.TestCase):
         components = {row['id']: row for row in found['components']}
         self.assertEqual(set(components), {'runtime.python', 'harness.pi', 'agentd', 'web-ui', 'characters.fixture', 'renderer', 'host'})
         # host's are its placed paths (the exe, the runtime's files and resources\app) and its component.json.
-        host = [f for f in files if '/' not in f and f not in ('efw.exe', 'depth_copy.dxbc', 'premultiply_alpha.dxbc', 'big copy.bin')]
+        host = [f for f in files if '/' not in f and f not in ('efw.exe', 'depth_copy.spv', 'premultiply_alpha.spv', 'big copy.bin')]
         host += [f for f in files if f.startswith(('locales/', 'licenses/', 'resources/app/', 'resources/components/host/'))]
         self.assertEqual(components['host']['files'], len(host + ['resources/parent_watch.py']))
         self.assertEqual(components['renderer']['files'], 4)

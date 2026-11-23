@@ -2,7 +2,7 @@
 """Stage the Windows portable directory `Agentic Complex\\` (C11 windows-x64, portable only) from build outputs.
 
 Takes the official Electron win32-x64 root, app/electron after `npm run build`, ac-helper.exe, private\\renderer\\windows\\build
-(efw.exe and its product .dxbc), fbx-motion.exe, the web build, the prepared harness runtime, a CPython 3.12 base prefix,
+(efw.exe and its product .spv), fbx-motion.exe, the web build, the prepared harness runtime, a CPython 3.12 base prefix,
 a character library and, optionally, the UI art (as release.py's ui_art: the pages' art and the
 exe's icon). No installer and no signing; prints one JSON line, the receipt, also written to <output>/pack-receipt.json.
 """
@@ -75,8 +75,8 @@ def stage_host(host, electron_runtime, electron_dir, helper, product_name, app_v
 
 
 def stage_renderer(renderer, build):
-    """Copy efw.exe and the product .dxbc it loads from its own directory; return their names, efw.exe first."""
-    shaders = sorted(path.name for path in Path(build).glob('*.dxbc'))
+    """Copy efw.exe and the product .spv it loads from its own directory; return their names, efw.exe first."""
+    shaders = sorted(path.name for path in Path(build).glob('*.spv'))
     if not shaders: raise ValueError('renderer_shaders_missing: ' + str(build))
     renderer.mkdir(parents=True)
     for name in [RENDERER, *shaders]: shutil.copy2(Path(build) / name, renderer / name)
@@ -87,7 +87,7 @@ def brand(executable, ui_art, product_name, app_version, build_version):
     """The exe's version resource, and its icon from the UI art when there is one; what reads back."""
     icon = Path(ui_art) / ICON_SOURCE if ui_art else None
     return windows_exe.brand(executable, icon_png=icon.read_bytes() if icon else None, product_name=product_name,
-                             app_version=app_version, build_version=build_version, executable=EXECUTABLE)
+                             app_version=app_version, build_version=build_version, executable=Path(executable).name)
 
 
 def contents(package):
@@ -151,7 +151,7 @@ def check_runtime_python(python):
 def stage(*, library, python, harness_runtime, web_dist, electron_runtime, electron_dir, helper, renderer,
           fbx_tool, output, build_version, port=None, id=None, product_name=None, app_version=None, ui_art=None):
     """Write output/Agentic Complex/ and return the receipt: its path, file count, bytes, the fuses and the exe's resources
-    read back, the UI art shipped and contents()."""
+    read back per exe, the UI art shipped and contents()."""
     output = Path(output).resolve()
     if output.exists(): raise ValueError('output already exists')
     identity = id or 'local.agenticcomplex.companion'
@@ -173,7 +173,8 @@ def stage(*, library, python, harness_runtime, web_dist, electron_runtime, elect
         renderer_paths = stage_renderer(component_stage / 'renderer/payload', renderer)
         build_components.validate_canon_windows(component_stage / 'agentd/payload/agentd' / build_components.CANON_RELATIVE)
         # Before the fuses: the resource update rewrites the exe.
-        branding = brand(host / EXECUTABLE, ui_art, product_name, app_version, build_version)
+        branding = {path.name: brand(path, ui_art, product_name, app_version, build_version)
+                    for path in (host / EXECUTABLE, host / HELPER, component_stage / 'renderer/payload' / RENDERER)}
         fuses = flip_fuses(host / EXECUTABLE)
         with tempfile.TemporaryDirectory(prefix='.catalog-', dir=output) as temporary_catalog:
             compose([component_stage / component['id'] / 'payload' for component in components
@@ -225,7 +226,7 @@ if __name__ == '__main__':
                       ('harness-runtime', 'harness_runtime.py --output'), ('web-dist', 'The vite build of web/'),
                       ('electron-runtime', 'electron_runtime.py: the unpacked root holding electron.exe'),
                       ('electron-dir', 'app/electron after npm run build'), ('helper', 'ac-helper.exe, the DLLs of HELPER_DLLS beside it'),
-                      ('renderer', 'private\\renderer\\windows\\build: efw.exe and its .dxbc'), ('fbx-tool', 'fbx-motion.exe'),
+                      ('renderer', 'private\\renderer\\windows\\build: efw.exe and its .spv'), ('fbx-tool', 'fbx-motion.exe'),
                       ('output', 'A new directory; Agentic Complex\\ is written in it')]:
         parser.add_argument('--' + key, type=Path, required=True, help=help)
     parser.add_argument('--ui-art', type=Path, help='The UI art: art-manifest.json, the files it lists and ' + ICON_SOURCE)
