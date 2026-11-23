@@ -93,6 +93,26 @@ describe('her hover buttons', () => {
     expect(d.action.mock.calls).toEqual([['talk', 'start'], ['talk', 'stop']]);
   });
 
+  it('说话 held ends when the press is cancelled, as at its release', async () => {
+    const d = mount();
+    await flush(async () => {});
+    const now = vi.spyOn(performance, 'now').mockReturnValue(1000);
+    await flush(async () => fireEvent.pointerDown(row(/^说话$/), { button: 0, pointerId: 1 }));
+    now.mockReturnValue(1000 + TAP_MS + 300);
+    await flush(async () => fireEvent.pointerCancel(row(/^在听/), { pointerId: 1 }));
+    expect(d.action.mock.calls).toEqual([['talk', 'start'], ['talk', 'stop']]);
+    expect(within(group()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['对话', '说话', '给她看', '隐藏']);
+  });
+
+  it('a press on 对话 records nothing; its click picks it', async () => {
+    const d = mount();
+    await flush(async () => {});
+    await flush(async () => fireEvent.pointerDown(row(/^对话$/), { button: 0, pointerId: 1 }));
+    await flush(async () => fireEvent.pointerUp(row(/^对话$/), { button: 0, pointerId: 1 }));
+    await flush(async () => fireEvent.click(row(/^对话$/)));
+    expect(d.action.mock.calls).toEqual([['quickInput', undefined]]);
+  });
+
   it('without agentd 对话, 说话 and 给她看 are greyed with the reason, and a greyed 说话 records nothing', async () => {
     const bridge: AgenticComplexBridge = createFakeBridge({ surface: 'stack', still: true });
     window.agenticComplex = bridge;

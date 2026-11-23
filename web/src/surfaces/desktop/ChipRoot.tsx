@@ -114,7 +114,8 @@ export function ChipRoot() {
       {shown && mark && (
         <span ref={hitRef} key={shown.kind} className={styles.hit} data-region="" data-chip={shown.kind} {...handlers}>
           <StatusMark state={mark.state} cap={mark.cap} count={shown.kind === 'waiting' ? shown.count : undefined}
-            label={shown.kind === 'waiting' ? `${mark.label} ${shown.count} 项` : mark.label} onClick={open} />
+            label={shown.kind === 'waiting' ? `${mark.label} ${shown.count} 项` : mark.label} plug={shown.kind === 'offline'}
+            mirror={tipSide === 'left'} onClick={open} />
         </span>
       )}
       {shown && hovered && tip && (

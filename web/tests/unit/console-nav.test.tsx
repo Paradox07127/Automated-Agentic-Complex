@@ -103,6 +103,50 @@ describe('控制台 panel', () => {
   });
 });
 
+describe('控制台 card parts', () => {
+  function open(room: number, demo = '') {
+    const bridge = stackBridge();
+    let send: (c: DesktopCommand) => void = () => {};
+    let pushAnchor: (a: DesktopAnchor) => void = () => {};
+    vi.spyOn(bridge.desktop, 'onCommand').mockImplementation((cb) => ((send = cb), () => {}));
+    vi.spyOn(bridge.window, 'onAnchor').mockImplementation((cb) => ((pushAnchor = cb), () => {}));
+    window.location.hash = `#/console?still=1${demo ? `&demo=${demo}` : ''}`;
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <ConsoleRoot />
+      </QueryClientProvider>,
+    );
+    flush(() => pushAnchor({ panel: 'console', state: 'settled', side: 'status', docked: null, far: false, toHead: null, room: { width: 900, height: room } }));
+    flush(() => send({ kind: 'openConsole' }));
+    return bridge;
+  }
+
+  it('her card keeps room for its three lines on a short screen too', () => {
+    open(300);
+    expect(screen.getByRole('dialog', { name: 'Agentic Complex 菜单' }).hasAttribute('data-tight')).toBe(true);
+    expect(document.querySelector<HTMLElement>('[data-stub="CharCard"]')?.style.height).toBe('66px');
+  });
+
+  it('the four keys are compact, 打开主窗口 has the focus, and 退出 is the exit key', () => {
+    open(820);
+    expect([...document.querySelectorAll('[data-stub="WatchKey"] button')].map((b) => b.hasAttribute('data-compact'))).toEqual([true, true, true, true]);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /打开主窗口/ }));
+    expect(screen.getByRole('button', { name: '退出' }).closest('[data-stub="ExitKey"]')).not.toBeNull();
+  });
+
+  it('the error bars carry their buttons and the second line themselves', () => {
+    open(820, 'console-offline');
+    const down = screen.getByRole('alert');
+    expect(down.textContent).toContain('后台没有响应');
+    expect(within(down.querySelector('[data-part="actions"]') as HTMLElement).getAllByRole('button').map((b) => b.textContent)).toEqual(['重启后台', '查看诊断']);
+    cleanup();
+    open(820, 'console-config');
+    const config = screen.getByRole('alert');
+    expect(config.querySelector('[data-part="detail"]')?.textContent).toBe('配置文件第 12 行不是有效的 JSON');
+    expect(within(config.querySelector('[data-part="actions"]') as HTMLElement).getAllByRole('button').map((b) => b.textContent)).toEqual(['打开设置', '查看诊断']);
+  });
+});
+
 describe('控制台 page links', () => {
   it('open the main window and close the console', async () => {
     const bridge = stackBridge();

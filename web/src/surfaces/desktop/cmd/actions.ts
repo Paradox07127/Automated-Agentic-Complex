@@ -1,5 +1,5 @@
 // Her wheel's action table: 8 direct actions, one step each, no sub-menus.
-import type { DesktopState } from '../../../bridge';
+import type { AvatarAction, DesktopState } from '../../../bridge';
 import type { NavTarget } from '../../../shell/nav';
 import type { GameWheelItem } from '../../../ui/game/GameWheel';
 
@@ -11,8 +11,19 @@ export interface CmdItem extends GameWheelItem {
   to?: NavTarget;
 }
 
-/** The wheel's 8 slots clockwise from the top; the toggles follow the desktop state, 待处理 is greyed with nothing waiting. */
-export function wheelItems(s: DesktopState | null, pending: number, now = Date.now()): CmdItem[] {
+/** Her gift actions in order of preference, as the shell picks one (app/electron common/desktop-action.ts `GIFT_IDS`). */
+const GIFT_IDS = ['receive_gift', 'library_interact_receive_gift', 'interact_receive_gift'];
+
+/** Why 送礼物 cannot play with her action list, as the shell would refuse it; null when it can. */
+export function giftOff(actions: readonly AvatarAction[]): string | null {
+  const gift = GIFT_IDS.map((id) => actions.find((a) => a.id === id)).find((a) => a !== undefined);
+  if (!gift || gift.missing) return gift?.missingReason || '当前角色包尚未导入原作收礼动作';
+  return null;
+}
+
+/** The wheel's 8 slots clockwise from the top; the toggles follow the desktop state, 待处理 is greyed with nothing waiting
+ *  and 送礼物 with `gift`, why it cannot play. */
+export function wheelItems(s: DesktopState | null, pending: number, now = Date.now(), gift: string | null = null): CmdItem[] {
   const quiet = s?.quietUntil != null && s.quietUntil > now;
   const pass = s?.hotkeys.hk_pass;
   return [
@@ -26,7 +37,7 @@ export function wheelItems(s: DesktopState | null, pending: number, now = Date.n
     { id: 'pass', label: '点穿', icon: 'hand', desc: pass ? `点击穿过她；${pass} 恢复` : '点击穿过她；在菜单栏恢复' },
     { id: 'home', label: '放回原位', icon: 'loc', desc: '她和浮窗回到默认位置' },
     { id: 'roam', label: '自由活动', icon: 'sync', desc: s?.freeRoam ? '开着：她会在屏幕上走动' : '让她在屏幕上走动', on: s?.freeRoam === true },
-    { id: 'gift', label: '送礼物', icon: 'redeem', desc: '看她收礼的动作' },
+    { id: 'gift', label: '送礼物', icon: 'redeem', desc: '看她收礼的动作', ...(gift != null && { off: gift }) },
     { id: 'goCharacter', label: '角色页', icon: 'user', desc: '换角色、外观、姿态、镜头', to: { page: 'character' } },
   ];
 }

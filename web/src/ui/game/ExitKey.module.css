@@ -1,0 +1,34 @@
+/* 退出: quit_icon on quit_icon_bg, a small capsule key; its stripes show on hover. */
+.key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 10px;
+  border: var(--ef-lw-hair) solid color-mix(in srgb, var(--ef-text-1) 30%, transparent);
+  border-radius: 999px;
+  background: var(--ef-raised);
+  color: var(--ef-text-2);
+  font: var(--ef-fw-semibold) 12px / 1 var(--ef-font-ui);
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: var(--ef-shadow-btn);
+}
+
+.key:hover {
+  background:
+    repeating-linear-gradient(-45deg, transparent 0 3px, color-mix(in srgb, var(--ef-text-1) 14%, transparent) 3px 4.5px),
+    var(--ef-raised);
+  color: var(--ef-text-1);
+}
+
+/* Pressed: down onto its shadow. */
+.key:active {
+  translate: 1px 1px;
+  box-shadow: none;
+}
+
+.key:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 2px;
+}

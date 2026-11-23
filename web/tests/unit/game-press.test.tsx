@@ -1,5 +1,5 @@
-// ui/game press feedback: the game never moves or shadows a control on press, but for the close key, which sinks onto its
-// shadow; selection out clips run on the cell or tab that loses it.
+// ui/game press feedback: the game never moves or shadows a control on press, but for the close and exit keys, which sink
+// onto their shadow; selection out clips run on the cell or tab that loses it.
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { act, cleanup, render } from '@testing-library/react';
@@ -8,7 +8,7 @@ import { GameTabs, RailCell } from '../../src/ui/game';
 
 const KIT = resolve(__dirname, '../../src/ui/game');
 const css = (f: string) => readFileSync(resolve(KIT, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-const sheets = readdirSync(KIT).filter((f) => f.endsWith('.module.css') && f !== 'CloseKey.module.css');
+const sheets = readdirSync(KIT).filter((f) => f.endsWith('.module.css') && f !== 'CloseKey.module.css' && f !== 'ExitKey.module.css');
 
 /** Innermost `selector { declarations }` blocks, so rules inside @media come out with their own selector. */
 function rules(text: string): Array<{ sel: string; body: string }> {

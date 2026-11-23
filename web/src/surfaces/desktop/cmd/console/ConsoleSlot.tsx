@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getBridge, type DesktopState } from '../../../../bridge';
 import { keyText } from '../../../../bridge/platformText';
@@ -34,8 +34,8 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
   const runtime = useRuntime();
   const recent = useRecent();
   const roster = useQuery({ queryKey: ['character', 'list'], queryFn: () => bridge.character.list(), enabled: bridge.capabilities.avatar, retry: false });
-  const cardRef = useRef<HTMLElement>(null);
   const process = state?.pips.agentd.state;
+  const backoff = state?.pips.agentd.backoff ?? null;
   const starting = process === 'starting' || process?.startsWith('backoff');
   const offline = demo.agentdDown || (process != null && process !== 'running' && process !== 'external');
   const configError = demo.configError ?? runtime?.config_error ?? null;
@@ -45,11 +45,6 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
   const unread = recent.filter((r) => r.unread);
   const character = state?.character ?? null;
   const head = roster.data?.find((c) => c.active)?.head ?? null;
-
-  // Opened, the keyboard is on 打开主窗口: Return goes to the main window.
-  useEffect(() => {
-    cardRef.current?.querySelector<HTMLButtonElement>('[data-stub="YellowKey"]')?.focus({ preventScroll: true });
-  }, []);
 
   const go = (target: NavTarget) => {
     bridge.window.openMain(navRoute(target));
@@ -88,7 +83,7 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
 
   const cells = statusCells(runtime, state?.pips.helper, offline);
   return (
-    <section ref={cardRef} className={styles.card} style={maxHeight === undefined ? undefined : { maxHeight }} data-slot="console" data-region="" data-tight={tight || undefined}
+    <section className={styles.card} style={maxHeight === undefined ? undefined : { maxHeight }} data-slot="console" data-region="" data-tight={tight || undefined}
       role="dialog" aria-label="Agentic Complex 菜单">
       <Plate />
       <header className={styles.head}>
@@ -107,30 +102,32 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
           </div>
         )}
         {configError != null ? (
-          <div className={styles.err} data-fix="配置" role="group" aria-label="配置出错">
-            <ErrBar message={`配置读不了：${configError}`} />
-            <div className={styles.acts}>
-              <WhiteCapsule label="打开设置" icon="tune" tone="accent" onClick={() => go({ page: 'settings' })} />
-              <WhiteCapsule label="查看诊断" icon="radio" onClick={() => go({ page: 'diag', item: 'agentd' })} />
-            </div>
-          </div>
+          <ErrBar message="配置读不了" detail={configError}
+            actions={
+              <>
+                <WhiteCapsule label="打开设置" icon="tune" tone="accent" size="sm" onClick={() => go({ page: 'settings' })} />
+                <WhiteCapsule label="查看诊断" icon="radio" size="sm" onClick={() => go({ page: 'diag', item: 'agentd' })} />
+              </>
+            } />
         ) : (
           <>
             {offline && (
-              <div className={styles.err} data-fix="后台" role="group" aria-label="后台出错">
-                <ErrBar tone={starting ? 'warning' : 'danger'} message={starting ? '后台正在启动，好了会自动接上' : '后台没有响应，她听不到你'} />
-                {!starting && (
-                  <div className={styles.acts}>
-                    <WhiteCapsule label="重启后台" icon="refresh" tone="accent" disabled={working === 'restart'} disabledReason="正在重启"
-                      onClick={() => void restart()} />
-                    <WhiteCapsule label="查看诊断" icon="radio" onClick={() => go({ page: 'diag', item: 'agentd' })} />
-                  </div>
-                )}
-              </div>
+              <ErrBar tone={starting ? 'warning' : 'danger'} message={starting ? '后台正在启动，好了会自动接上' : '后台没有响应，她听不到你'}
+                detail={starting && backoff != null ? `${backoff} 秒后自动重试` : undefined}
+                actions={
+                  starting ? undefined : (
+                    <>
+                      <WhiteCapsule label="重启后台" icon="refresh" tone="accent" size="sm" disabled={working === 'restart'} disabledReason="正在重启"
+                        onClick={() => void restart()} />
+                      <WhiteCapsule label="查看诊断" icon="radio" size="sm" onClick={() => go({ page: 'diag', item: 'agentd' })} />
+                    </>
+                  )
+                } />
             )}
-            <CharCard box={{ width: INNER, height: tight ? 52 : 66 }} compact name={character?.name ?? '她'} head={head} id={character?.id ?? null}
+            {/* Its name, Operator and doing lines need the full height in the short form too. */}
+            <CharCard box={{ width: INNER, height: 66 }} compact name={character?.name ?? '她'} head={head} id={character?.id ?? null}
               doing={offline ? '—' : (doingOf(presence) ?? '—')} onClick={() => go({ page: 'character' })} />
-            <YellowKey label="打开主窗口" icon="side" micro="Home" block hint={keyText('⌘0')} onClick={() => go({ page: 'home' })} />
+            <YellowKey label="打开主窗口" icon="side" micro="Home" block hint={keyText('⌘0')} autoFocus onClick={() => go({ page: 'home' })} />
             {waiting && (
               <div data-sec="waiting">
                 <DarkRow title={waiting.title} sub={waiting.kind} mark="new" compact onPress={() => go({ page: 'overview', focus: 'pending' })}

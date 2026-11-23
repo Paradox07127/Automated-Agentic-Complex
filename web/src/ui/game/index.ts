@@ -5,6 +5,7 @@ export * from './CharCard';
 export * from './CloseKey';
 export * from './DarkRow';
 export * from './DeviceRow';
+export * from './ExitKey';
 export * from './ExpandRow';
 export * from './GameFrame';
 export * from './GameSeg';

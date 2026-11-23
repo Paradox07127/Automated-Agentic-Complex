@@ -5,7 +5,7 @@ import { createFakeBridge } from '../../src/bridge/fake';
 import type { DesktopCommand, DesktopState, AgenticComplexBridge } from '../../src/bridge/protocol';
 import { BubbleRoot } from '../../src/surfaces/desktop/BubbleRoot';
 import { CmdRoot } from '../../src/surfaces/desktop/CmdRoot';
-import { pendingCount, wheelItems, type CmdItem } from '../../src/surfaces/desktop/cmd/actions';
+import { giftOff, pendingCount, wheelItems, type CmdItem } from '../../src/surfaces/desktop/cmd/actions';
 import { ECHO_MS } from '../../src/surfaces/desktop/cmd/input/QuickInput';
 import { CommandRing } from '../../src/surfaces/desktop/cmd/ring/CommandRing';
 import { runCmdAction } from '../../src/surfaces/desktop/cmd/ring/run';
@@ -78,6 +78,15 @@ describe('the action table', () => {
     expect(on[5]).toMatchObject({ id: 'roam', on: true });
     expect(on[3]?.desc).toContain('⌃P 恢复');
     expect(wheelItems({ ...STATE, quietUntil: now - 60_000 }, 0, now)[2]?.id).toBe('quiet');
+  });
+
+  it('送礼物 is greyed with why when her package has no gift action, or has it missing', () => {
+    expect(giftOff([{ id: 'receive_gift', label: '收礼', enabled: true }])).toBeNull();
+    expect(giftOff([{ id: 'wave', label: '挥手', enabled: true }])).toBe('当前角色包尚未导入原作收礼动作');
+    expect(giftOff([{ id: 'interact_receive_gift', label: '收礼', enabled: true, missing: true, missingReason: '缺动作文件' }])).toBe('缺动作文件');
+    const now = 1_800_000_000_000;
+    expect(wheelItems(STATE, 0, now, '缺动作文件')[6]).toMatchObject({ id: 'gift', off: '缺动作文件' });
+    expect(wheelItems(STATE, 0, now)[6]?.off).toBeUndefined();
   });
 
   it('counts questions, approvals and results in presence, past the first 3', () => {
@@ -244,6 +253,20 @@ describe('wheel actions', () => {
     expect(document.querySelector('[role="menuitem"][data-sel]')?.getAttribute('aria-label')).toMatch(/^1 /);
     await push({ kind: 'ringPointer', phase: 'up', x: 0, y: -80, ms: 400 });
     await waitFor(() => expect(openMain).toHaveBeenCalledWith(expect.stringMatching(/^\/chat/)));
+  });
+
+  it('送礼物 on the opened wheel says why it cannot play, and 7 runs nothing', async () => {
+    const bridge = stackBridge();
+    vi.spyOn(bridge.avatar, 'actions').mockResolvedValue([{ id: 'wave', label: '挥手', enabled: true }]);
+    const action = vi.spyOn(bridge.desktop, 'action');
+    mount('#/cmd?still=1');
+    await screen.findByRole('menu', { name: '她的轮盘' });
+    await flush(async () => {});
+    const wheel = screen.getByRole('menu', { name: '她的轮盘' });
+    await waitFor(() => expect(within(wheel).getByRole('menuitem', { name: /^7 送礼物/ }).getAttribute('aria-disabled')).toBe('true'));
+    await flush(async () => fireEvent.keyDown(wheel, { key: '7' }));
+    expect(wheel.textContent).toContain('当前角色包尚未导入原作收礼动作');
+    expect(action).not.toHaveBeenCalled();
   });
 
   it('an input open shows nothing on the cmd page', async () => {

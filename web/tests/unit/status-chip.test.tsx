@@ -226,6 +226,18 @@ describe('the status chip page', () => {
     expect(c.openMain).toHaveBeenLastCalledWith('/diag');
   });
 
+  it('unplugged draws the plug; on her left the capsule turns outward', async () => {
+    const c = mountChip();
+    await c.push({ offline: true });
+    const mark = () => chip()?.querySelector('[data-stub="StatusMark"]');
+    expect(mark()?.querySelector('svg')?.getAttribute('data-shape')).toBe('plug');
+    expect(mark()?.hasAttribute('data-mirror')).toBe(false);
+    await c.push({ offline: true }, {}, { ...ANCHOR, toHead: { dx: 220, dy: -36 } });
+    expect(mark()?.hasAttribute('data-mirror')).toBe(true);
+    await c.push(presenceOf({ role: role('running_tool') }));
+    expect(mark()?.querySelector('svg')?.getAttribute('data-shape')).not.toBe('plug');
+  });
+
   it('drops an error once it is opened', async () => {
     const c = mountChip();
     await c.push(presenceOf({ sessions: [{ id: 's1', title: 'Codex', state: 'error', status: 'error' }] }));

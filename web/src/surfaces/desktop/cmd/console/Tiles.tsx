@@ -56,13 +56,13 @@ export function Keys({ state, offline, noAvatar, tight, quickInput, quickBusy, s
   const avatarOff = noAvatar ? '角色没在运行' : null;
   return (
     <div className={styles.keys} role="group" aria-label="快捷开关">
-      <WatchKey box={box} icon="send" title="快速输入" sub={agentdOff ?? state?.hotkeys.hk_quick} off={off(agentdOff) ?? (quickBusy ? '正在打开' : undefined)}
+      <WatchKey box={box} compact icon="send" title="快速输入" sub={agentdOff ?? state?.hotkeys.hk_quick} off={off(agentdOff) ?? (quickBusy ? '正在打开' : undefined)}
         onClick={quickInput} />
-      <WatchKey box={box} icon="moonz" title="免打扰" pressed={quiet != null} sub={agentdOff ?? (quiet != null ? `到 ${formatClock(quiet)}` : '30 分钟')}
+      <WatchKey box={box} compact icon="moonz" title="免打扰" pressed={quiet != null} sub={agentdOff ?? (quiet != null ? `到 ${formatClock(quiet)}` : '30 分钟')}
         off={off(agentdOff) ?? (working ? '正在切换' : undefined)} onClick={() => void run(quiet == null ? 'quiet' : 'quietEnd')} />
-      <WatchKey box={box} icon="eye" title="隐藏她" pressed={hidden} sub={avatarOff ?? (hidden ? (hiddenUntil != null ? `到 ${formatClock(hiddenUntil)}` : '已隐藏') : '30 分钟')}
+      <WatchKey box={box} compact icon="eye" title="隐藏她" pressed={hidden} sub={avatarOff ?? (hidden ? (hiddenUntil != null ? `到 ${formatClock(hiddenUntil)}` : '已隐藏') : '30 分钟')}
         off={off(avatarOff) ?? (working ? '正在切换' : undefined)} onClick={() => void run(hidden ? 'show' : 'hide')} />
-      <WatchKey box={box} icon="hand" title="全部点穿" pressed={pass} sub={avatarOff ?? (pass ? '点穿中' : state?.hotkeys.hk_pass)}
+      <WatchKey box={box} compact icon="hand" title="全部点穿" pressed={pass} sub={avatarOff ?? (pass ? '点穿中' : state?.hotkeys.hk_pass)}
         off={off(avatarOff) ?? (working ? '正在切换' : undefined)} onClick={() => void run('pass')} />
     </div>
   );

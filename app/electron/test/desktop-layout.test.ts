@@ -155,16 +155,17 @@ test('the column side outlasts ten minutes hidden', () => {
 
 const chip: PanelRequest = { kind: 'chip', size: { w: 528, h: 36 }, cardInsets: fallbackInsets('chip'), visible: true };
 
-test('the chip\'s circle beside her face on the column\'s side, its top at her head, where the bubble\'s card begins', () => {
+test('the chip\'s circle beside her face on the side away from the bubble, its top at her head', () => {
   // Head top (700, 500), face 640…760.
   const body = r(600, 100, 200, 400);
   assert.deepEqual(fallbackInsets('chip'), { left: 246, right: 246, top: 0, bottom: 0 });
   const withBubble = { ...bubble, cardInsets: fallbackInsets('bubble') };
   let { placements: p, memory: mem } = layout(body, { requests: [withBubble, chip] });
-  assert.deepEqual(p.chip, { frame: r(522, 464, 528, 36), side: 'right', docked: null, far: false });
-  assert.deepEqual(cardIn(chip.cardInsets, p.chip!.frame), r(768, 464, 36, 36));
-  const card = cardIn(withBubble.cardInsets, p.bubble!.frame);
-  assert.deepEqual([card.x, card.y + card.h], [768, 500]);
+  assert.equal(p.bubble?.side, 'right');
+  assert.deepEqual(p.chip, { frame: r(350, 464, 528, 36), side: 'left', docked: null, far: false });
+  assert.deepEqual(cardIn(chip.cardInsets, p.chip!.frame), r(596, 464, 36, 36));
+  assert.equal(overlaps(cardIn(chip.cardInsets, p.chip!.frame), cardIn(withBubble.cardInsets, p.bubble!.frame)), false);
+  assert.equal(mem.bubble?.side, 'right', 'the chip leaves the column\'s side to the bubble');
   // Alone it takes the column's remembered side, and keeps the column from going stale.
   mem = { bubble: { side: 'left', candidate: null, since: 0, hiddenAt: null } };
   ({ placements: p, memory: mem } = layout(body, { requests: [chip], memory: mem, now: 100 }));
@@ -174,6 +175,18 @@ test('the chip\'s circle beside her face on the column\'s side, its top at her h
     ({ placements: p } = layout(body, { docked: reason, requests: [chip] }));
     assert.deepEqual(p.chip, { frame: r(492, 913, 528, 36), side: 'menubar', docked: reason, far: false });
   }
+});
+
+test('the chip goes opposite her hover buttons without a bubble, and above her head when the far side has no room', () => {
+  let { placements: p } = layout(r(600, 100, 200, 400), { requests: [dock, chip] });
+  assert.equal(p.dock?.side, 'right');
+  assert.equal(p.chip?.side, 'left');
+  // At the screen's right edge the bubble goes left and the right has no room for the chip.
+  const withBubble = { ...bubble, cardInsets: fallbackInsets('bubble') };
+  ({ placements: p } = layout(r(1272, 100, 200, 400), { requests: [withBubble, chip] }));
+  assert.equal(p.bubble?.side, 'left');
+  assert.equal(p.chip?.side, 'above');
+  assert.equal(overlaps(cardIn(chip.cardInsets, p.chip!.frame), cardIn(withBubble.cardInsets, p.bubble!.frame)), false);
 });
 
 test('the anchor payload: toHead from the panel centre, y down; room is the visible frame less the edge', () => {

@@ -47,8 +47,7 @@ export function LiveCharMeta({ outfit }: { outfit: string | null }) {
   const dev = useDevMode();
   const fps = useRenderStats(canAvatar && dev).at(-1)?.fps;
   if (!canAvatar) return null;
-  if (!dev) return outfit ? <span className={styles.outfit}>{outfit}</span> : null;
-  return <CharMeta outfit={outfit} fps={fpsReadout(fps)} />;
+  return <CharMeta outfit={outfit} fps={dev ? fpsReadout(fps) : undefined} />;
 }
 
 const WEEK = '日一二三四五六';

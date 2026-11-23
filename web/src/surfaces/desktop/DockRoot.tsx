@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getBridge, type DesktopState } from '../../bridge';
 import { formatClock } from '../../domain';
 import { useSystemTheme } from '../../shell/useSystemTheme';
@@ -76,16 +76,15 @@ export function DockRoot() {
     act('talk', 'stop');
   };
 
-  const onTalkDown = (e: PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0 || !isTalk(e.target)) return;
-    e.currentTarget.setPointerCapture?.(e.pointerId);
+  const onPressStart = (id: string) => {
+    if (id !== 'talk') return;
     press.current = { at: performance.now(), pointer: true };
     if (talk === 'tap') stop();
     else if (!talk) start('hold');
   };
-  const onTalkUp = () => {
+  const onPressEnd = (id: string) => {
     const p = press.current;
-    if (!p?.pointer || talk !== 'hold') return;
+    if (id !== 'talk' || !p?.pointer || talk !== 'hold') return;
     if (performance.now() - p.at < TAP_MS) setTalk('tap');
     else stop();
   };
@@ -108,7 +107,7 @@ export function DockRoot() {
   return (
     <div ref={rootRef} className={styles.root} data-surface-root="dock" data-side={dock?.side}>
       {(shown || talk) && (
-        <div className={styles.stack} data-region="" onPointerDown={onTalkDown} onPointerUp={onTalkUp} onPointerCancel={onTalkUp}>
+        <div className={styles.stack} data-region="">
           <OptionStack
             items={dockItems(state, presence, talk)}
             side={dock?.side === 'left' ? 'left' : 'right'}
@@ -116,16 +115,11 @@ export function DockRoot() {
             note={quietUntil != null && !talk ? `免打扰到 ${formatClock(quietUntil)}` : undefined}
             label="她的按钮"
             onPick={pick}
+            onPressStart={onPressStart}
+            onPressEnd={onPressEnd}
           />
         </div>
       )}
     </div>
   );
-}
-
-/** The 说话 row is the one whose label starts so, or the live row; one it cannot use is not. */
-function isTalk(target: EventTarget): boolean {
-  const button = (target as HTMLElement).closest?.('button');
-  if (!button || button.getAttribute('aria-disabled') === 'true') return false;
-  return button.hasAttribute('data-live') || button.getAttribute('aria-label')?.startsWith('说话') === true;
 }

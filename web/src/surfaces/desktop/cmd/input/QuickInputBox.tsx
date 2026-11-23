@@ -1,6 +1,6 @@
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import type { SayRequest, SayResult } from '../../../../bridge';
-import { Btn, Icon, Kbd } from '../../../../ui';
+import { Btn, ErrBar, Icon, Kbd } from '../../../../ui';
 import styles from './QuickInputBox.module.css';
 
 export type SayFailure = Extract<SayResult, { ok: false }>;
@@ -9,7 +9,7 @@ export type SayFailure = Extract<SayResult, { ok: false }>;
  * 快速输入: 420 wide, 1–4 rows; ⏎ sends, ⇧⏎ breaks the line, esc closes, ⌘J opens
  * 对话. ⏎ while an input method is composing only picks the candidate. A failed send keeps the text and turns the line red.
  * Borrowed parts in the page's appearance: interaction-menu head and structure line, toast field,
- * selected-row capsule chips; the tips-card errors stay dark in both.
+ * selected-row capsule chips; the error bar stays dark in both.
  */
 export interface QuickInputBoxProps {
   /** Character name for the head. */
@@ -111,30 +111,17 @@ export function QuickInputBox(p: QuickInputBoxProps) {
           onKeyDown={onKey}
         />
       </div>
-      {err?.reason === 'agentd' && (
-        <div className={styles.err} role="alert" data-theme="dark">
-          <Icon name="warn" size={14} />
-          <span>后台服务没有运行 │ 原文已保留</span>
-          <Btn variant="quiet" size="sm" onClick={p.onRestartBackend}>
-            重启后台服务
-          </Btn>
-        </div>
-      )}
-      {err?.reason === 'kernel' && (
-        <div className={styles.core} role="alert" data-theme="dark">
-          <span className={styles.coretag} aria-hidden="true">
-            Core Offline
-          </span>
-          <span className={styles.msg}>{err.detail ? `角色内核未就绪 │ ${err.detail}` : '角色内核未就绪 │ 原文已保留'}</span>
-          <Btn variant="quiet" size="sm" icon="refresh" onClick={p.onRecheck}>
-            重新检测
-          </Btn>
-        </div>
-      )}
-      {err?.reason === 'rejected' && (
-        <div className={styles.err} role="alert" data-theme="dark">
-          <Icon name="warn" size={14} />
-          <span className={styles.msg}>{`没有发出去：${err.detail ?? '后台不接受这条'} │ 原文已保留`}</span>
+      {err && (
+        <div className={styles.err} data-theme="dark">
+          {err.reason === 'agentd' && (
+            <ErrBar message="后台服务没有运行" detail="原文已保留"
+              actions={<Btn variant="ghost" size="sm" onClick={p.onRestartBackend}>重启后台服务</Btn>} />
+          )}
+          {err.reason === 'kernel' && (
+            <ErrBar tone="warning" message="角色内核未就绪" detail={err.detail ?? '原文已保留'}
+              actions={<Btn variant="ghost" size="sm" icon="refresh" onClick={p.onRecheck}>重新检测</Btn>} />
+          )}
+          {err.reason === 'rejected' && <ErrBar message={`没有发出去：${err.detail ?? '后台不接受这条'}`} detail="原文已保留" />}
         </div>
       )}
       <div className={styles.opts}>

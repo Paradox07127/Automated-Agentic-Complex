@@ -4,7 +4,7 @@ import type { Severity } from '../../../../domain';
 import { Toast } from '../../../../ui';
 import type { WheelPress } from '../../../../ui/game/GameWheel';
 import type { CommandSlotProps } from '../../types';
-import { pendingCount, wheelItems, type CmdItem } from '../actions';
+import { giftOff, pendingCount, wheelItems, type CmdItem } from '../actions';
 import { CommandRing, WHEEL_BOX } from './CommandRing';
 import { runCmdAction } from './run';
 import styles from './RingSlot.module.css';
@@ -41,6 +41,20 @@ export function RingSlot({ state, presence, command, close }: CommandSlotProps) 
     [],
   );
 
+  // Each open reads her action list again: a gift action she lacks greys 送礼物 with why. Unread, the slot stays open.
+  const [gift, setGift] = useState<string | null>(null);
+  useEffect(() => {
+    if (!bridge.capabilities.avatar) return;
+    let live = true;
+    bridge.avatar.actions().then(
+      (list) => live && setGift(giftOff(list)),
+      () => live && setGift(null),
+    );
+    return () => {
+      live = false;
+    };
+  }, [bridge, round]);
+
   const run = (item: CmdItem) =>
     void runCmdAction(item, { bridge, state, now: Date.now }).then((o) => {
       if (!mounted.current) return;
@@ -56,7 +70,7 @@ export function RingSlot({ state, presence, command, close }: CommandSlotProps) 
           <Toast message={view.text} severity={view.tone} onClose={close} />
         </div>
       ) : (
-        <CommandRing key={round} items={wheelItems(state, pendingCount(presence))} center={center} at={at} press={press} onRun={run} onClose={close} />
+        <CommandRing key={round} items={wheelItems(state, pendingCount(presence), Date.now(), gift)} center={center} at={at} press={press} onRun={run} onClose={close} />
       )}
     </div>
   );

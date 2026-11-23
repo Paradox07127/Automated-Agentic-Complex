@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Btn } from '../../../../ui';
+import { ExitKey } from '../../../../ui/game';
 import styles from './ConsoleSlot.module.css';
 
 /** The card's ground: the watch map's contour lines in the top right corner and the brief cards' corner ticks. */
@@ -48,12 +49,7 @@ export function Foot({ quit }: { quit: () => void }) {
     );
   return (
     <footer className={styles.foot}>
-      <button type="button" className={styles.quit} onClick={() => setAsking(true)}>
-        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 3v8M7.2 6.2a7.5 7.5 0 1 0 9.6 0" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="square" />
-        </svg>
-        退出
-      </button>
+      <ExitKey onClick={() => setAsking(true)} />
     </footer>
   );
 }

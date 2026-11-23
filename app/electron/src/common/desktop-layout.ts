@@ -153,7 +153,7 @@ export function layoutScreen(input: LayoutInput, head: Rect | null): ScreenInfo 
   return s.find((x) => contains(x.frame, m.x, m.y)) ?? s[0] ?? null;
 }
 
-const KINDS: PanelKind[] = ['bubble', 'chip', 'dock', 'cmd', 'console'];
+const KINDS: PanelKind[] = ['bubble', 'dock', 'chip', 'cmd', 'console'];
 
 /** The wheel's panel, `size` a side, centred on `at` and moved inward onto the visible frame of the screen `at` is on. */
 export function wheelFrame(at: Point, size: number, screens: ScreenInfo[]): Rect {
@@ -230,6 +230,8 @@ class Pass {
       return this.placed(dragged, side, r);
     }
     if (r.kind === 'dock') return this.dock(r, k, body);
+    const away = r.kind === 'chip' ? this.awayFrom(r, k, head) : null;
+    if (away) return away;
     if (r.kind === 'bubble' || r.kind === 'chip') return this.column(r, k, (s) => Pass.beside(s, r.size, r.cardInsets, k, this.v, maxY(head), midX(head), 0));
     const v = this.v;
     const roomier: PanelSide = maxX(v) - maxX(k) >= k.x - v.x ? 'right' : 'left';
@@ -346,6 +348,18 @@ class Pass {
       return this.placed(f, side, r);
     }
     return this.noRoom(r);
+  }
+
+  /** The chip beside her head on the side away from the bubble beside her, else from the dock, else above her head when
+   *  that side has no room; null with neither beside her. The column's side stays the bubble's. */
+  awayFrom(r: PanelRequest, k: Rect, head: Rect): PanelPlacement | null {
+    const by = [this.out.bubble, this.out.dock].find((p) => p && p.docked === null && (p.side === 'left' || p.side === 'right'));
+    if (!by) return null;
+    for (const side of [by.side === 'left' ? 'right' : 'left', 'above'] as PanelSide[]) {
+      const f = Pass.beside(side, r.size, r.cardInsets, k, this.v, maxY(head), midX(head), 0);
+      if (f) return this.placed(f, side, r);
+    }
+    return null;
   }
 
   /** The card of a bubble beside her on the dock's side meeting the dock's moves up to `GAP` above it, kept on screen; a

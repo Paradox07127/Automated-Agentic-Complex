@@ -115,16 +115,22 @@
   opacity: 1;
 }
 
-/* The error bar with its white capsules under it. */
-.err {
-  display: grid;
-  gap: 8px;
+/* The English line under her name (Operator without one), dimmed by its colour. */
+.body [data-stub='CharCard'] b + span {
+  opacity: 1;
+  color: color-mix(in srgb, var(--ef-g-watch-ink) 70%, transparent);
 }
 
-.acts {
-  display: flex;
-  gap: 8px;
-  padding-left: 20px;
+/* The card is too narrow for the words and the white capsules on one line: the capsules wrap under them. */
+.body [data-stub='ErrBar'] {
+  flex-wrap: wrap;
+  row-gap: 6px;
+  padding-bottom: 8px;
+}
+
+/* Under the words, past the flag. */
+.body [data-stub='ErrBar'] [data-part='actions'] {
+  margin-left: 32px;
 }
 
 .more {
@@ -148,7 +154,7 @@
   font-size: 12px;
 }
 
-/* Foot: 退出 with the quit key's stripes; asked, the line and its two buttons. */
+/* Foot: the exit key; asked, the line and its two buttons. */
 .foot {
   display: flex;
   flex: none;
@@ -167,24 +173,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.quit {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 24px;
-  padding: 0 8px;
-  border: 0;
-  background: none;
-  color: var(--ef-text-2);
-  font: var(--ef-fw-semibold) 12px / 1 var(--ef-font-ui);
-  cursor: pointer;
-}
-
-.quit:hover {
-  background: repeating-linear-gradient(-45deg, transparent 0 3px, color-mix(in srgb, var(--ef-text-1) 14%, transparent) 3px 4.5px);
-  color: var(--ef-text-1);
 }
 
 .card :focus-visible {
