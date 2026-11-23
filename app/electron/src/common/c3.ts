@@ -613,7 +613,7 @@ function setRenderProblem(m: Fields, both: (c: string) => boolean): string | nul
     strength: (x) => inRange(x, 0.5, 1.5) })) return 'light';
   if (m.outline !== undefined && !oneOf('original', 'subtle', 'contrast')(m.outline)) return 'outline';
   if (m.facing !== undefined && !oneOf('auto', 'front', 'side', 'back')(m.facing)) return 'facing';
-  if (m.grounding !== undefined && !group(m.grounding, { mode: oneOf('off', 'contact') })) return 'grounding';
+  if (m.grounding !== undefined && !group(m.grounding, { mode: oneOf('off', 'contact', 'cast') })) return 'grounding';
   if (m.ambient !== undefined && !group(m.ambient, { mode: oneOf('off', 'wallpaper', 'screen'), light_wrap: bool })) return 'ambient';
   if (m.filter !== undefined && (!both('filters') || !RENDER_FILTERS.includes(m.filter as string))) return 'filter';
   if ((m.dof !== undefined || m.photo !== undefined) && !both('photo')) return 'photo_capability';
