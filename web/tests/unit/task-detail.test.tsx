@@ -103,7 +103,7 @@ describe('task detail: 在运行记录看', () => {
     const v = view();
     const task = v.tasks.find((t) => t.run_id && !v.activeRuns[t.id])!;
     await createTasksActions(deps(v)).onTask(task)({ kind: 'open_timeline' });
-    expect(window.location.hash).toContain(`#/trace?${new URLSearchParams({ turn: task.run_id! })}&`);
+    expect(window.location.hash).toBe(`#/trace?${new URLSearchParams({ turn: task.run_id! })}`);
     await createTasksActions(deps(v)).onTask({ ...task, run_id: null })({ kind: 'open_timeline' });
     expect(window.location.hash).not.toContain('turn=');
     expect(window.location.hash).toContain('#/trace?');

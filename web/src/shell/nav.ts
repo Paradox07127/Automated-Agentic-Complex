@@ -4,8 +4,8 @@ import type { BriefTab } from '../pages/overview/briefTabs';
 
 /**
  * Where a jump lands: page, then the page's own selection / tab, then `focus`, the landing's `data-nav-target`
- * that the shell scrolls to and highlights. Without `focus` the landing is derived (selected task, settings row,
- * else the page header).
+ * that the shell scrolls to and highlights. Without `focus` the landing is derived (selected task, settings row);
+ * a plain page jump has none.
  */
 export type NavTarget =
   | {
@@ -78,13 +78,13 @@ export function setNavRouter(r: AnyRouter): void {
   router = r;
 }
 
-function landing(t: NavTarget): string {
+function landing(t: NavTarget): string | null {
   if (t.focus) return t.focus;
   if ((t.page === 'overview' || t.page === 'tasks') && t.sel) return `task-${t.sel}`;
   if (t.page === 'settings' && t.item) return `set-${t.item}`;
   if (t.page === 'diag' && t.item === 'usage') return 'diag-usage';
   if (t.page === 'diag' && t.item && t.item !== 'state') return `proc-${t.item}`;
-  return 'page';
+  return null;
 }
 
 function currentQuery(): URLSearchParams {
@@ -98,7 +98,8 @@ export function navRoute(t: NavTarget): string {
   const { page, focus: _focus, ...rest } = t;
   const q = new URLSearchParams();
   for (const [k, v] of Object.entries(rest)) if (v != null) q.set(k, String(v));
-  q.set('focus', landing(t));
+  const land = landing(t);
+  if (land) q.set('focus', land);
   const cur = currentQuery();
   for (const k of CARRY) {
     const v = cur.get(k);

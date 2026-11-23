@@ -47,6 +47,7 @@ describe('navRoute', () => {
     expect(navRoute({ page: 'overview', sel: T1 })).toBe(`/overview?sel=${encodeURIComponent(T1)}&focus=${encodeURIComponent(`task-${T1}`)}&theme=light&still=1`);
     expect(navRoute({ page: 'settings', group: 'perm', item: 'automation' })).toContain('focus=set-automation');
     expect(navRoute({ page: 'diag', item: 'usage' })).toContain('focus=diag-usage');
-    expect(navRoute({ page: 'chat' })).toBe('/chat?focus=page&theme=light&still=1');
+    // A plain page jump has no landing, so nothing is highlighted.
+    expect(navRoute({ page: 'chat' })).toBe('/chat?theme=light&still=1');
   });
 });

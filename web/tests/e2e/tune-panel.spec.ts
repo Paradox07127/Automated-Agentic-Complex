@@ -113,7 +113,7 @@ test('menu bar: 打开主窗口 opens the home page and closes the panel', async
   await expect.poll(names).toEqual(['设置', '关闭菜单', '角色：示例乙', expect.stringMatching(/打开主窗口/), '快速输入', '免打扰', '隐藏她', '全部点穿', '退出']);
   await expect(menu.getByRole('button', { name: /打开主窗口/ })).toBeFocused();
   await menu.getByRole('button', { name: /打开主窗口/ }).click();
-  await expect.poll(() => calls('window.openMain')).toEqual([['/home?focus=page&still=1']]);
+  await expect.poll(() => calls('window.openMain')).toEqual([['/home?still=1']]);
   await expect.poll(() => calls('window.close')).toEqual([[]]);
   await expect(menu).toHaveCount(0);
 });
@@ -153,7 +153,7 @@ test('menu bar: the switches stay open and say what changed; settings opens its 
   await expect.poll(() => calls('desktop.action')).toEqual([['quiet'], ['clickThroughAll'], ['hide']]);
   await expect(menu.getByText(/陪我专注/)).toHaveCount(0);
   await menu.getByRole('button', { name: '设置' }).click();
-  await expect.poll(() => calls('window.openMain')).toEqual([['/settings?focus=page&still=1']]);
+  await expect.poll(() => calls('window.openMain')).toEqual([['/settings?still=1']]);
   await expect(menu).toHaveCount(0);
 });
 

@@ -266,7 +266,7 @@ export function TasksPage() {
   );
 
   return (
-    <div className={styles.page} data-page="tasks" data-nav-target="page">
+    <div className={styles.page} data-page="tasks">
       <PageHeaderSlot
         tabs={<Tabs label="任务页签" keys={false} value={tab} onChange={setTab} tabs={TABS.map((t) => (t.id === 'run' && waiting ? { ...t, mark: '有要你处理的任务' } : t))} />}
         bottom={

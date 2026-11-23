@@ -154,7 +154,7 @@ describe('控制台 page links', () => {
     const close = vi.spyOn(bridge.window, 'close');
     mount();
     fireEvent.click(await screen.findByRole('button', { name: /打开主窗口/ }));
-    expect(openMain).toHaveBeenCalledExactlyOnceWith('/home?focus=page&still=1');
+    expect(openMain).toHaveBeenCalledExactlyOnceWith('/home?still=1');
     expect(screen.queryByRole('dialog', { name: 'Agentic Complex 菜单' })).toBeNull();
     expect(close).toHaveBeenCalledTimes(1);
   });

@@ -50,7 +50,7 @@ describe(' 观察: 外发总览 plate', () => {
     const plate = await screen.findByRole('region', { name: '外发总览' });
     window.location.hash = '';
     fireEvent.click(within(plate).getByRole('button', { name: /在每日简报看今天的截图/ }));
-    expect(window.location.hash).toMatch(/^#\/overview\?tab=tm&/);
+    expect(window.location.hash).toBe('#/overview?tab=tm');
   });
 
   it('a type in the plate opens its setting row', async () => {

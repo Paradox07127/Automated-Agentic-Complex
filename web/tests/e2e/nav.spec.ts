@@ -61,9 +61,10 @@ test('⌘K jumps to a page', async ({ page }) => {
   await page.keyboard.press('ControlOrMeta+k');
   await page.keyboard.type('诊断');
   await page.keyboard.press('Enter');
-  // A page landing has no page header to highlight any more.
-  await expect(page).toHaveURL(/#\/diag\?.*focus=page/);
+  // A plain page jump names no landing, so nothing is framed.
   await expect(page.locator('main[data-route-id="diag"]')).toBeVisible();
+  await expect(page).not.toHaveURL(/focus=/);
+  await expect(page.locator('[data-nav-hl]')).toHaveCount(0);
   await expect(page).toHaveURL(/still=1/);
   expect(errors).toEqual([]);
 });
