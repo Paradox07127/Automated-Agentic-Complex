@@ -7,10 +7,10 @@ import { useDevMode } from '../../shell/devMode';
 import { usePlugins, type PluginId, type PluginState } from '../../shell/plugins';
 import type { IconName } from '../../ui';
 
-export type GroupId = 'speak' | 'perm' | 'privacy' | 'kernel' | 'model' | 'keys' | 'data' | 'about';
+export type GroupId = 'speak' | 'perm' | 'privacy' | 'kernel' | 'model' | 'services' | 'keys' | 'data' | 'about';
 
 // 能做 and 观察 keep the ids 'perm' and 'privacy' that other pages and agentd actions link to.
-export const GROUP_IDS: GroupId[] = ['speak', 'perm', 'privacy', 'kernel', 'model', 'keys', 'data', 'about'];
+export const GROUP_IDS: GroupId[] = ['speak', 'perm', 'privacy', 'kernel', 'model', 'services', 'keys', 'data', 'about'];
 
 export const DEFAULT_GROUP: GroupId = 'speak';
 
@@ -20,6 +20,7 @@ export const GROUP_ICON: Record<GroupId, IconName> = {
   privacy: 'eye',
   kernel: 'kernel',
   model: 'hub',
+  services: 'radio',
   keys: 'keys',
   data: 'data',
   about: 'info',
@@ -34,7 +35,7 @@ export const PI_ONLY_ROWS: ReadonlySet<string> = new Set(['runsrc', 'piApproval'
 export const NEEDS_AGENTD: GroupId[] = ['kernel', 'model'];
 
 /** Groups holding config.json rows; they turn read-only when the shell cannot read it. */
-export const NATIVE_GROUPS: GroupId[] = ['speak', 'perm', 'privacy', 'keys', 'about'];
+export const NATIVE_GROUPS: GroupId[] = ['speak', 'perm', 'privacy', 'services', 'keys', 'about'];
 
 export function isGroup(v: string | null | undefined): v is GroupId {
   return GROUP_IDS.includes(v as GroupId);
@@ -158,6 +159,9 @@ const RAW: Raw[] = [
   ['maxOut', 'model', '默认模型', '最大输出', 'pi 兼容 max tokens'],
   ['images', 'model', '默认模型', '图像输入', 'pi 兼容 图片 视觉'],
   ['reasoning', 'model', '默认模型', '思考', 'pi 兼容 推理 reasoning'],
+  ['svc_tts', 'services', '服务', '语音服务', 'tts 语音 地址 ssh 隧道 本机 命令 启动脚本 日志'],
+  ['svc_motion', 'services', '服务', '动作服务', 'Kimodo 动作 地址 ssh 隧道 本机 命令 启动脚本 日志'],
+  ['svc_llm', 'services', '服务', '模型服务', 'Ollama vLLM 兼容 API openai 地址 ssh 隧道 本机 命令 启动脚本 日志'],
   ['hk_ptt', 'keys', '全局快捷键', '按住说话', '语音 热键'],
   ['hk_quick', 'keys', '全局快捷键', '快速输入', '热键 输入'],
   ['hk_look', 'keys', '全局快捷键', '屏幕识读', '截图 热键 识读'],

@@ -1,0 +1,12 @@
+/* 保存 under the fold's last field, on the rows' control column. */
+.foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 22px 2px 0;
+}
+
+@container setp (max-width: 1040px) {
+  .foot {
+    padding-right: 14px;
+  }
+}

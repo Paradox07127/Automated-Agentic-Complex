@@ -20,6 +20,7 @@ import { KernelGroup } from './groups/Kernel';
 import { KeysGroup } from './groups/Keys';
 import { ModelGroup } from './groups/Model';
 import { SeeGroup } from './groups/See';
+import { ServicesData } from './groups/ServicesData';
 import { SpeakGroup } from './groups/Speak';
 import { useSettingsModel } from './model';
 import type { Native } from './native';
@@ -39,6 +40,7 @@ const GROUPS: Record<GroupId, ComponentType> = {
   privacy: SeeGroup,
   kernel: KernelGroup,
   model: ModelGroup,
+  services: ServicesData,
   keys: KeysGroup,
   data: DataGroup,
   about: AboutGroup,
@@ -75,7 +77,7 @@ function carry(prev: Record<string, unknown>, next: Record<string, string>): Rec
   return out;
 }
 
-/** 设置: eight group tabs and the search in the top bar, one list column, the bottom bar, white confirm cards. */
+/** 设置: nine group tabs and the search in the top bar, one list column, the bottom bar, white confirm cards. */
 export function SettingsPage() {
   const { demo } = useDemo();
   return <SettingsBody key={demo ?? 'none'} />;
