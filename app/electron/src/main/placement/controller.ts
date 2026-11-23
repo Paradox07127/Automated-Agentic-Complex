@@ -300,8 +300,8 @@ export class AvatarPlacer {
   }
 
   /** HostLink.avatarHovered's inputs at `mouse` (placement space): the capsule hit, their age on `clock`, and the drag. */
-  hoverSample(mouse: { x: number; y: number }): { hit: boolean; age: number | null; dragging: boolean } {
-    return { hit: capsuleHit(mouse, this.capsules), age: this.bodyAt === null ? null : this.clock() - this.bodyAt, dragging: this.dragging };
+  hoverSample(mouse: { x: number; y: number }, grow = 0): { hit: boolean; age: number | null; dragging: boolean } {
+    return { hit: capsuleHit(mouse, this.capsules, grow), age: this.bodyAt === null ? null : this.clock() - this.bodyAt, dragging: this.dragging };
   }
 
   /** The id of the screen she stands on; null when unknown. */

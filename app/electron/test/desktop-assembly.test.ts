@@ -263,7 +263,6 @@ test('the hover buttons open after a rest on her, go out in desktop.onState, and
   assert.equal(open(), false, 'not yet at 150 ms');
   await new Promise((resolve) => setTimeout(resolve, 300));
   assert.equal(open(), true);
-  assert.equal(h.desktop.avatarHovered, true);
   h.desktop.open('ring');
   assert.equal(open(), false, 'the wheel takes over');
   h.desktop.close();

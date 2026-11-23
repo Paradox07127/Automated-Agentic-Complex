@@ -174,8 +174,6 @@ export class DesktopAssembly {
     this.source.shown = () => this.panels.bubble.isShown || this.panels.chip.isShown;
   }
 
-  /** Her hover buttons are open; index.ts's `desktopState` still sends it as `avatarHovered`, which no page reads. */
-  get avatarHovered(): boolean { return dockOpen(this.dock); }
 
   /** The console is open in its own panel. */
   get consoleOpen(): boolean { return this.follow.consoleOpen; }

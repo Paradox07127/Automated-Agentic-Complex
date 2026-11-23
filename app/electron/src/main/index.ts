@@ -937,7 +937,7 @@ function desktopState(): Record<string, unknown> {
   return {
     hidden: hostLink?.hidden ?? false, clickThroughAll: hostLink?.clickThroughAll ?? false, freeRoam: !['stay', 'bust'].includes(s.stay_mode as string),
     quietUntil: observation?.quietUntil() ?? null,
-    avatarHovered: desktop?.avatarHovered ?? false, showPresence: s.desktop_presence !== false, showHoverHints: s.desktop_hover_hints !== false,
+    showPresence: s.desktop_presence !== false, showHoverHints: s.desktop_hover_hints !== false,
     character: id && { id, name: name(id) }, characters: (config?.characters ?? []).map((c) => ({ id: c.id, name: c.name })),
     screens: desktopScreens(placer?.currentScreen() ?? null, screen.getAllDisplays()), hotkeys: desktopHotkeys(s, shellPlatform()),
     pips: { agentd: processState(agentdState, supervisor?.pid), avatar: processState(rendererState, renderer?.pid),
@@ -1082,12 +1082,15 @@ function startDesktop(): void {
     hover: () => {
       const p = screen.getCursorScreenPoint();
       const at = space.fromDip({ x: p.x, y: p.y, width: 0, height: 0 });
-      const s = placer?.hoverSample({ x: at.x, y: at.y }) ?? { hit: false, age: null, dragging: false };
       const hidden = hostLink?.hidden ?? false;
+      const near = (grow: number) => simulateHover || avatarHovered({
+        ...(placer?.hoverSample({ x: at.x, y: at.y }, grow) ?? { hit: false, age: null, dragging: false }), hidden,
+        clickThroughAll: hostLink?.clickThroughAll ?? false, switching: hostLink?.characterSwitching ?? false,
+        buttonsDown: watchers?.buttonsDown ?? false, lastCursorHit: hostLink?.lastCursorHit ?? false });
       return {
         present: !!hostLink?.connected && !hidden && placer?.anchorSample().body != null,
-        hovered: simulateHover || avatarHovered({ ...s, hidden, clickThroughAll: hostLink?.clickThroughAll ?? false, switching: hostLink?.characterSwitching ?? false,
-          buttonsDown: watchers?.buttonsDown ?? false, lastCursorHit: hostLink?.lastCursorHit ?? false }),
+        hovered: near(0),
+        within: near,
         hints: (() => {
           const now = performance.now();
           if (now - hoverHints.at >= 1000) Object.assign(hoverHints, { on: readObject(configPath).desktop_hover_hints !== false, at: now });
@@ -1098,6 +1101,7 @@ function startDesktop(): void {
     state: desktopState,
     actions: {
       ...interaction?.actions,
+      ...(pushToTalk && { talk: (phase: 'start' | 'stop') => pushToTalk.talk(phase) }),
       look: () => { void context?.look(); },
       setHidden: (hidden) => { setAvatarHidden(hidden); },
       setQuiet: async (until) => {
