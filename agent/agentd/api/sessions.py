@@ -105,7 +105,9 @@ class SessionsMixin:
             return self._json(409, {"error": "delivery_receipt_required"})
         if task["state"] != "needs_review":
             return self._json(409, {"error": "invalid_state"})
-        return self._json(200, {"task": tasks.transition(task_id, "succeeded" if verdict == "accept" else "failed")})
+        delivery = (task["result"] or {}).get("delivery_id")
+        return self._json(200, {"task": tasks.transition(task_id, "succeeded" if verdict == "accept" else "failed",
+                                                         source="user", delivery_id=delivery)})
 
     def _commitment_action(self, commitment_id, action, body):
         """POST /commitments/<id>/cancel|snooze|complete: the user settles a reminder."""

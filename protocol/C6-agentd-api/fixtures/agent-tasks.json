@@ -14,7 +14,8 @@
       "decision_source": "user", "title": "整理周报", "produced_at": 1793503662.4, "presented_at": 1793503663.0,
       "viewed_at": 1793503664.0, "decided_at": 1793503665.0, "redacted": false, "schema_version": 1, "summary": "按项目整理了本周提交。",
       "artifacts": [{"artifact_id": "art-1", "path": "周报.md", "absolute_path": "/Users/me/Documents/周报.md", "version": 1,
-                     "self_checked": true, "sha256": "0000000000000000000000000000000000000000000000000000000000000001"}],
+                     "self_checked": true, "sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+                     "opened_at": 1793503664.0}],
       "kind": "task_notice", "material_is_instruction": false
     },
     "revision": 2, "verification_source": "unverified", "redacted": false

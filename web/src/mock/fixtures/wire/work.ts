@@ -23,6 +23,7 @@ const artifact = (n: number, path: string, self_checked: boolean, version = 1) =
   version,
   self_checked,
   sha256: n.toString(16).padStart(64, '0'),
+  opened_at: null,
 });
 
 const delivery = (d: Partial<WireDelivery> & Pick<WireDelivery, 'delivery_id' | 'canonical_task_id' | 'run_id' | 'generation' | 'revision' | 'state'>): WireDelivery => ({

@@ -21,7 +21,7 @@ def route(handler, method, path):
     run_items = re.fullmatch(r'/agent/runs/([A-Za-z0-9_-]{1,128})/items', path)
     run_files = re.fullmatch(r'/agent/runs/([A-Za-z0-9_-]{1,128})/files', path)
     canonical = re.fullmatch(r'/agent/tasks/([^/]{1,196})(?:/(steps|files|accept|reject))?', path)
-    delivery = re.fullmatch(r'/agent/deliveries/(delivery-[a-f0-9]{32})(?:/(presented|viewed))?', path)
+    delivery = re.fullmatch(r'/agent/deliveries/(delivery-[a-f0-9]{32})(?:/(presented|viewed|opened))?', path)
     if path not in ("/character/runtime", "/character/capabilities", "/character/acp/agents", "/character/acp/install", "/agent/scopes", "/agent/runs", "/memory/runs", '/agent/goals', '/agent/jobs', '/agent/interactions', '/agent/tasks', '/agent/deliveries', '/agent/artifacts/revert') and not interaction and not task and not scope and not memory_run and not goal and not job and not run and not run_items and not run_files and not canonical and not delivery:
         return False
     h, server = handler, handler.server
@@ -68,6 +68,10 @@ def route(handler, method, path):
                 return reply(405, {'error': 'method_not_allowed'})
             if method != 'POST': return reply(405, {'error': 'method_not_allowed'})
             body = h.body()
+            if delivery and delivery[2] == 'opened':
+                if not isinstance(body, dict) or set(body) != {'artifact_id'} or not isinstance(body['artifact_id'], str):
+                    raise DeliveryError('invalid_delivery_payload', 400)
+                return reply(200, {'delivery': service.opened(delivery[1], body['artifact_id'])})
             required = {'expected_revision', 'generation'} | ({'delivery_id'} if canonical else set())
             if not isinstance(body, dict) or set(body) != required: raise DeliveryError('invalid_delivery_payload', 400)
             options = {key: body[key] for key in ('expected_revision', 'generation')}

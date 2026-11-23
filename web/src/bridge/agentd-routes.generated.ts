@@ -101,6 +101,7 @@ export const AGENTD_ROUTES: readonly AgentdRoute[] = [
   { method: 'GET', path: '^/agent/deliveries/delivery-[a-f0-9]{32}$', templates: ['/agent/deliveries/:delivery_id'], class: 'read', surfaces: ['main'], plugin: 'personal_agent' },
   { method: 'POST', path: '^/agent/tasks/[^/]{1,196}/(accept|reject)$', templates: ['/agent/tasks/:task_id/accept', '/agent/tasks/:task_id/reject'], class: 'write', surfaces: ['main', 'stack'], plugin: 'personal_agent' },
   { method: 'POST', path: '^/agent/deliveries/delivery-[a-f0-9]{32}/(presented|viewed)$', templates: ['/agent/deliveries/:delivery_id/presented', '/agent/deliveries/:delivery_id/viewed'], class: 'write', surfaces: ['main'], plugin: 'personal_agent' },
+  { method: 'POST', path: '^/agent/deliveries/delivery-[a-f0-9]{32}/opened$', templates: ['/agent/deliveries/:delivery_id/opened'], class: 'write', surfaces: ['main'], plugin: 'personal_agent' },
   { method: 'GET', path: '/task-understanding', templates: ['/task-understanding'], class: 'read', surfaces: ['main'], plugin: 'screen_awareness', response: 'task-understanding.json' },
   { method: 'GET', path: '/observation/state', templates: ['/observation/state'], class: 'read', surfaces: ['main'], plugin: 'screen_awareness', response: 'observation-state.json' },
   { method: 'GET', path: '/observation/sources', templates: ['/observation/sources'], class: 'read', surfaces: ['main'], plugin: 'screen_awareness', response: 'observation-sources.json' },
@@ -247,12 +248,12 @@ export type AgentdRouteKey =
   | 'GET /agent/tasks' | `GET /agent/tasks/${string}` | `GET /agent/tasks/${string}/steps`
   | `GET /agent/tasks/${string}/files` | 'GET /agent/deliveries' | `GET /agent/deliveries/${string}`
   | `POST /agent/tasks/${string}/accept` | `POST /agent/tasks/${string}/reject`
-  | `POST /agent/deliveries/${string}/presented` | `POST /agent/deliveries/${string}/viewed` | 'GET /task-understanding'
-  | 'GET /observation/state' | 'GET /observation/sources' | `GET /observation/sources/${string}`
-  | `GET /observation/sources/${string}/changes` | `GET /observation/sources/${string}/image`
-  | 'POST /observation/analyze' | 'POST /observation/refresh' | 'GET /observation/briefs'
-  | 'GET /observation/briefs/settings' | `GET /observation/briefs/${string}` | 'POST /observation/briefs'
-  | 'POST /observation/briefs/settings' | `DELETE /observation/briefs/${string}`
+  | `POST /agent/deliveries/${string}/presented` | `POST /agent/deliveries/${string}/viewed`
+  | `POST /agent/deliveries/${string}/opened` | 'GET /task-understanding' | 'GET /observation/state'
+  | 'GET /observation/sources' | `GET /observation/sources/${string}` | `GET /observation/sources/${string}/changes`
+  | `GET /observation/sources/${string}/image` | 'POST /observation/analyze' | 'POST /observation/refresh'
+  | 'GET /observation/briefs' | 'GET /observation/briefs/settings' | `GET /observation/briefs/${string}`
+  | 'POST /observation/briefs' | 'POST /observation/briefs/settings' | `DELETE /observation/briefs/${string}`
   | `POST /task-understanding/${string}/correct` | `GET /agent/jobs/${string}` | 'GET /agent/interactions'
   | 'POST /hook/claude' | 'POST /hook/codex' | 'POST /context/browser' | 'POST /integration/notify'
   | 'POST /integration/reminders' | `GET /integration/reminders/${string}` | 'GET /integration/memory'
@@ -485,6 +486,7 @@ export interface AgentSnapshotResponse {
           version: number;
           self_checked: boolean;
           sha256: string;
+          opened_at: number;
         }>;
         kind: string;
         material_is_instruction: boolean;
@@ -530,6 +532,7 @@ export interface AgentSnapshotResponse {
         version: number;
         self_checked: boolean;
         sha256: string;
+        opened_at: number;
       }>;
       kind: string;
       material_is_instruction: boolean;
@@ -1410,6 +1413,7 @@ export interface AgentTasksResponse {
         version: number;
         self_checked: boolean;
         sha256: string;
+        opened_at: number;
       }>;
       kind: string;
       material_is_instruction: boolean;

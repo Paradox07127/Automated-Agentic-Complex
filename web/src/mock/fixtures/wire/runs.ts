@@ -16,6 +16,7 @@ const run = (run_id: string, task: boolean, generation: number, state: string, s
   result: null,
   started_at,
   ended_at,
+  state_since: ended_at ?? started_at,
 });
 
 /** Runs of role tasks; their times match the task, delivery, error and character-cause fixtures. */

@@ -33,6 +33,15 @@ class RunStoreTests(unittest.TestCase):
         self.assertNotIn('prompt', row); self.assertIsNotNone(row['ended_at'])
         self.assertEqual(self.path.stat().st_mode & 0o777, 0o600)
 
+    def test_state_since_is_when_the_run_entered_its_state(self):
+        self.begin('live'); self.begin('waiting')
+        self.store.finish('waiting', 'waiting_user')
+        live, waiting = self.store.get('live'), self.store.get('waiting')
+        self.assertEqual(live['state_since'], live['started_at'])
+        self.assertEqual(waiting['state_since'], waiting['ended_at'])
+        self.assertEqual({row['run_id']: row['state_since'] for row in self.store.list()},
+                         {'waiting': waiting['ended_at'], 'live': live['started_at']})
+
     def test_restart_marks_only_live_runs_interrupted(self):
         self.begin('active'); self.begin('done'); self.store.finish('done', 'completed')
         self.store.close(); self.store = RunStore(self.path)

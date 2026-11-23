@@ -24,8 +24,6 @@ export interface TasksLocal {
   resolved: Record<string, true>;
   /** Delivery decisions taken here. */
   decided: Record<string, { state: 'accepted' | 'rejected'; at: number; note?: string }>;
-  /** Artifact paths opened here. */
-  opened: Record<string, true>;
   /** Stop time per task. */
   stopped: Record<string, number>;
   /** Tasks created or re-dispatched here, newest first. */
@@ -34,7 +32,7 @@ export interface TasksLocal {
   goalStatus: Record<string, Goal['status']>;
 }
 
-export const emptyLocal = (): TasksLocal => ({ resolved: {}, decided: {}, opened: {}, stopped: {}, created: [], archived: {}, goalStatus: {} });
+export const emptyLocal = (): TasksLocal => ({ resolved: {}, decided: {}, stopped: {}, created: [], archived: {}, goalStatus: {} });
 
 export interface TasksView {
   tasks: Task[];
@@ -69,8 +67,7 @@ function reviewOf(d: Delivery, task: Task | undefined): Review {
 export function deriveView(base: TasksBase, local: TasksLocal): TasksView {
   const deliveries = base.deliveries.map((d) => {
     const dec = local.decided[d.id];
-    const artifacts = d.artifacts.map((a) => (local.opened[a.path] ? { ...a, opened: true } : a));
-    return dec ? { ...d, artifacts, state: dec.state, decided_at: dec.at } : { ...d, artifacts };
+    return dec ? { ...d, state: dec.state, decided_at: dec.at } : d;
   });
   const latest = (taskId: string) => deliveries.filter((d) => d.task_id === taskId).sort((a, b) => b.version - a.version)[0];
   const tasks = [...local.created, ...base.tasks].map((t): Task => {

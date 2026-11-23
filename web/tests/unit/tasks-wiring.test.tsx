@@ -181,6 +181,22 @@ describe('tasks: delivery decisions', () => {
   });
 });
 
+describe('tasks: opening an artifact', () => {
+  it('a delivered file → POST /agent/deliveries/{id}/opened {artifact_id} on its newest delivery, then reload; another file posts nothing', async () => {
+    const { bridge, calls } = install();
+    vi.spyOn(bridge.open, 'artifact').mockResolvedValue(undefined as never);
+    const d = deps();
+    const art = delivery(DLV_T1_V2).artifacts[0]!;
+    await createTasksActions(d).onTask(pick(TASKS, T1))({ kind: 'open_artifact', path: art.path });
+    expect(writes(calls)).toEqual([{ method: 'POST', path: `/agent/deliveries/${DLV_T1_V2}/opened`, body: { artifact_id: art.artifact_id } }]);
+    expect(d.reload).toHaveBeenCalled();
+    expect(d.setLocal).not.toHaveBeenCalled();
+    calls.length = 0;
+    await createTasksActions(deps()).onTask(pick(TASKS, T1))({ kind: 'open_artifact', path: '/Users/me/other.md' });
+    expect(writes(calls)).toEqual([]);
+  });
+});
+
 describe('tasks: continue, session message, approvals, questions, goals', () => {
   it('continue on a job → /agent/jobs/{hex}/resume {text, use_current_backend}', async () => {
     const { calls } = install();

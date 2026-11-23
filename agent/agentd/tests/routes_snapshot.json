@@ -578,6 +578,13 @@
     ]
   ],
   [
+    "POST",
+    "^/agent/deliveries/delivery-[a-f0-9]{32}/opened$",
+    [
+      "ui_token"
+    ]
+  ],
+  [
     "GET",
     "/task-understanding",
     [

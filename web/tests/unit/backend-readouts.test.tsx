@@ -146,7 +146,7 @@ describe('coding task verify result', () => {
     expect(sec?.textContent).not.toContain('HostLinkTests failed');
   });
   it('no_verify_cmd reads as a sentence, once, on the 验收 paper', () => {
-    const t = fromLedgerTask(ledger({ state: 'needs_review', result: { exit_code: null, output_tail: null, reason: 'no_verify_cmd' } }));
+    const t = fromLedgerTask(ledger({ state: 'needs_review', result: { exit_code: null, output_tail: null, reason: 'no_verify_cmd', delivery_id: 'delivery-9c0d1e2f3a4b5c6d9c0d1e2f3a4b5c6d' } }));
     const { container } = mountTaskDetail(t);
     expect((container.textContent ?? '').match(/没有设置检查命令/g)).toHaveLength(1);
     expect(container.textContent).not.toContain('no_verify_cmd');
@@ -235,7 +235,7 @@ describe('overview errors', () => {
 });
 
 describe('coding review in the main window', () => {
-  const review: Task = { ...fromLedgerTask(ledger({ state: 'needs_review', result: { exit_code: null, output_tail: null, reason: 'no_verify_cmd' } })) };
+  const review: Task = { ...fromLedgerTask(ledger({ state: 'needs_review', result: { exit_code: null, output_tail: null, reason: 'no_verify_cmd', delivery_id: 'delivery-9c0d1e2f3a4b5c6d9c0d1e2f3a4b5c6d' } })) };
 
   it('the detail offers 验收 and 驳回, each sent to the ledger task', async () => {
     const { calls } = install((path) => (path.startsWith('/tasks/') ? { status: 200, body: { task: {} } } : null));

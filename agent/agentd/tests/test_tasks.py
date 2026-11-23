@@ -7,7 +7,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from infra.store import open_store  # noqa: E402
-from sessions.tasks import TaskLedger, check_verify  # noqa: E402
+from sessions.tasks import TaskLedger, check_verify, delivery_id  # noqa: E402
 
 
 class TaskLedgerTest(unittest.TestCase):
@@ -59,7 +59,20 @@ class TaskLedgerTest(unittest.TestCase):
         self.returned(verify_cmd="git status --short")
         row = self.ledger.verify("d-1", runner=lambda argv, cwd, timeout: (0, b"ok"))
         self.assertEqual((row["state"], row["result"]),
-                         ("succeeded", {"exit_code": 0, "output_tail": "ok", "reason": None}))
+                         ("succeeded", {"exit_code": 0, "output_tail": "ok", "reason": None,
+                                        "delivery_id": delivery_id("d-1")}))
+
+    def test_every_verify_result_carries_the_tasks_stable_delivery_id(self):
+        self.assertRegex(delivery_id("d-1"), r"^delivery-[a-f0-9]{32}$")
+        self.assertNotEqual(delivery_id("d-1"), delivery_id("d-2"))
+        self.returned("d-1")
+        self.assertEqual(self.ledger.verify("d-1")["result"]["delivery_id"], delivery_id("d-1"))
+        self.returned("d-2", verify_cmd="python3 -m pytest")
+
+        def runner(argv, cwd, timeout):
+            raise subprocess.TimeoutExpired(argv, timeout)
+        self.ledger.verify("d-2", runner=runner)
+        self.assertEqual(self.ledger.get("d-2")["result"]["delivery_id"], delivery_id("d-2"))
 
     def test_a_verify_cmd_that_times_out_fails_the_task(self):
         self.returned(verify_cmd="python3 -m pytest")

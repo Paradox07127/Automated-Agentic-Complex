@@ -4,6 +4,7 @@ import {
   fromApproval,
   fromAttention,
   fromCharacterState,
+  fromCodingReview,
   fromConversation,
   fromCooldowns,
   fromDelivery,
@@ -23,6 +24,7 @@ import {
   fromTraceTurn,
   fromTurnNow,
   indexActiveRuns,
+  isCodingReview,
   mergeTasks,
 } from '../../src/domain/adapt';
 import type { WireRunItem, WireTaskRow } from '../../src/domain/wire';
@@ -119,6 +121,21 @@ describe('tasks and pending', () => {
     expect(fromDelivery(one(WIRE_DELIVERIES, (x) => x.delivery_id === DLV_T4_V1)).verification_source).toBe('auto');
   });
 
+  it('fromDelivery: an artifact counts as opened once agentd keeps its opened_at', () => {
+    const w = one(WIRE_DELIVERIES, (x) => x.delivery_id === DLV_T1_V2);
+    const [first, ...rest] = w.artifacts;
+    const d = fromDelivery({ ...w, artifacts: [{ ...first!, opened_at: 1_793_503_664 }, ...rest.map((a) => ({ ...a, opened_at: null }))] });
+    expect(d.artifacts.map((a) => a.opened)).toEqual([true, ...rest.map(() => false)]);
+  });
+
+  it('fromCodingReview: the review carries the delivery id the ledger result keeps', () => {
+    const wire = { ...one(WIRE_LEDGER, (l) => `task:${l.task_id}` === T7), state: 'needs_review', result: { exit_code: null, output_tail: null, reason: 'no_verify_cmd', delivery_id: 'delivery-0123456789abcdef0123456789abcdef' } };
+    const t = fromLedgerTask(wire);
+    expect(isCodingReview(t)).toBe(true);
+    expect(fromCodingReview(t as Parameters<typeof fromCodingReview>[0])).toMatchObject({ id: `c-${wire.task_id}`, delivery_id: 'delivery-0123456789abcdef0123456789abcdef', task_id: T7 });
+    expect(fromTaskRow({ ...row(T2), state: 'needs_review' }, { ...ledgerOf(row(T2))!, state: 'needs_review', result: wire.result }).delivery_id).toBe(wire.result.delivery_id);
+  });
+
   it('fromTaskRow: inline delivery, run count, end time and source', () => {
     const t1 = fromTaskRow(row(T1), undefined, runOf(row(T1)));
     expect(t1).toMatchObject({ id: T1, source: 'role', status: 'needs_review', run_count: 2, revision: 3, ended_at: at(14, 26), conversation_id: C1, target: 'character' });
@@ -178,7 +195,9 @@ describe('tasks and pending', () => {
     expect(fromRun(one(WIRE_TASK_RUNS, (r) => r.run_id === 'run-5b20'))).toMatchObject({ task_id: 'character-run-5b20', started_at: at(10, 40), ended_at: at(10, 58), state: 'completed' });
     const live = indexActiveRuns(WIRE_TASK_RUNS, tasks());
     expect(Object.keys(live).sort()).toEqual([T1, T3].sort());
-    expect(live[T1]).toMatchObject({ run_id: 'run-8d03', generation: 1, phase: null, since: null, plan: null, conversation_id: C1 });
+    expect(live[T1]).toMatchObject({ run_id: 'run-8d03', generation: 1, phase: null, since: at(14, 22, 5), plan: null, conversation_id: C1 });
+    const waiting = { ...runOf(row(T1))!, state: 'waiting_user', ended_at: at(14, 28) / 1000, state_since: at(14, 28) / 1000 };
+    expect(indexActiveRuns([waiting], tasks())[T1]?.since).toBe(at(14, 28));
   });
 });
 

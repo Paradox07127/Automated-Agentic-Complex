@@ -119,6 +119,18 @@ export async function sendReceipt(d: Delivery, kind: 'presented' | 'viewed'): Pr
   return fromDelivery(r.delivery);
 }
 
+/**
+ * POST /agent/deliveries/{id}/opened for the file at `path` (absolute or as the delivery lists it) in the task's newest
+ * delivery listing it; false when none does, as for a file the run only changed.
+ */
+export async function sendOpened(deliveries: readonly Delivery[], taskId: string, path: string): Promise<boolean> {
+  const of = (d: Delivery) => d.artifacts.find((a) => a.absolute_path === path || a.path === path);
+  const d = deliveries.filter((x) => x.task_id === taskId && of(x)).sort((x, y) => y.version - x.version)[0];
+  if (!d) return false;
+  await post(`/agent/deliveries/${seg(d.id)}/opened`, { artifact_id: of(d)!.artifact_id });
+  return true;
+}
+
 /** Stop by source: a job, a character ledger task, an own coding session's turn, else the live run. */
 async function stopOne(t: Task, view: TasksView): Promise<void> {
   if (t.job_id) {
@@ -279,7 +291,12 @@ export function createTasksActions(d: ActionDeps) {
         await jump(a.sessionId);
         return;
       case 'open_artifact':
-        if (await native('artifact', () => bridge.open.artifact(a.path), `已打开：${fileName(a.path)}`)) d.setLocal((l) => ({ ...l, opened: { ...l.opened, [a.path]: true } }));
+        if (!(await native('artifact', () => bridge.open.artifact(a.path), `已打开：${fileName(a.path)}`))) return;
+        try {
+          if (await sendOpened(d.view.deliveries, task.id, a.path)) d.reload();
+        } catch (e) {
+          fail(e);
+        }
         return;
       case 'reveal_artifact':
         // Gated by capabilities.revealInFinder, so a refusal does not turn off opening.

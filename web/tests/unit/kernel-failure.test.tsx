@@ -24,6 +24,7 @@ const run = (result: unknown): WireRun => ({
   result,
   started_at: 1,
   ended_at: 2,
+  state_since: 2,
 });
 
 describe('kernel failure text', () => {

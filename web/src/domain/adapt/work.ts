@@ -116,6 +116,7 @@ function fromArtifact(w: WireDelivery['artifacts'][number]): Artifact {
     sha256: w.sha256,
     self_checked: w.self_checked,
     validation: w.validation ?? null,
+    opened: w.opened_at != null,
   };
 }
 
@@ -194,6 +195,7 @@ export function fromTaskRow(row: WireTaskRow, ledger?: WireLedgerTask, run?: Wir
     steps_total: null,
     ...(delivery?.summary ? { summary: delivery.summary } : {}),
     ...(verify ? { verify } : {}),
+    ...(ledger?.result?.delivery_id ? { delivery_id: ledger.result.delivery_id as DeliveryId } : {}),
     run_count: row.run_count ?? (row.run_id ? 1 : 0),
   };
 }
@@ -228,20 +230,22 @@ export function fromLedgerTask(l: WireLedgerTask): Task {
     steps_done: 0,
     steps_total: null,
     ...(verify ? { verify } : {}),
+    ...(l.result?.delivery_id ? { delivery_id: l.result.delivery_id as DeliveryId } : {}),
     run_count: 0,
   };
 }
 
-/** A coding task waiting for 验收: no delivery, settled at `/tasks/:id/accept|reject` (server.py _task_review). */
-export const isCodingReview = (t: Task): boolean => t.source === 'code' && t.target !== 'character' && t.status === 'needs_review' && t.task_id != null;
+/** A coding task waiting for 验收: its delivery is its verify result, settled at `/tasks/:id/accept|reject` (api/sessions.py _task_review). */
+export const isCodingReview = (t: Task): t is Task & { task_id: string; delivery_id: DeliveryId } =>
+  t.source === 'code' && t.target !== 'character' && t.status === 'needs_review' && t.task_id != null && t.delivery_id != null;
 
-/** The 待处理 item of a coding task waiting for 验收; `delivery_id` stays empty, nothing sends it. */
-export function fromCodingReview(t: Task): Review {
+/** The 待处理 item of a coding task waiting for 验收. */
+export function fromCodingReview(t: Task & { task_id: string; delivery_id: DeliveryId }): Review {
   return {
-    id: `c-${t.task_id ?? ''}`,
+    id: `c-${t.task_id}`,
     kind: 'review',
     task_id: t.id as CanonicalTaskId,
-    delivery_id: '' as DeliveryId,
+    delivery_id: t.delivery_id,
     title: t.title,
     source: `${t.agent ?? '编码工具'} │ ${t.title}`,
     since: t.updated_at,
@@ -392,7 +396,7 @@ export function indexActiveRuns(runs: readonly WireRun[], tasks: readonly Task[]
       state: r.state as RunState,
       phase: RUN_PHASE[r.state] ?? null,
       started_at: secToMs(r.started_at),
-      since: null,
+      since: secToMs(r.state_since),
       plan: null,
     };
   }

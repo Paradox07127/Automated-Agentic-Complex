@@ -188,6 +188,8 @@ class RunStore:
         value = dict(row)
         for key in ("dependencies", "result"):
             value[key] = json.loads(value[key]) if value[key] else None
+        # finish() stamps ended_at on every state it sets, waiting_user included.
+        value["state_since"] = value["ended_at"] if value["ended_at"] is not None else value["started_at"]
         return value
 
     def list(self, limit=50):

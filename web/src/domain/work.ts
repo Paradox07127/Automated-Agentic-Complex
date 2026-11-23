@@ -72,6 +72,8 @@ export interface Task {
   failure?: { reason: string; fix?: string };
   /** A coding task's verify result (`/tasks` result). */
   verify?: TaskVerify;
+  /** A coding task's delivery id from its `/tasks` result; its 验收 is recorded against it. */
+  delivery_id?: DeliveryId;
   /** Actual runs owned by this task, independent of runtime generation. */
   run_count: number;
 }
@@ -106,7 +108,7 @@ export interface ActiveRun {
   state: RunState;
   phase: RunPhase | null;
   started_at: number;
-  /** Since when `state` holds; agentd has no source for it yet. */
+  /** Since when `state` holds (the run's state_since). */
   since: number | null;
   /** Current tool name while state is running_tool. */
   tool?: string;
@@ -250,8 +252,8 @@ export interface Artifact {
   sha256: string;
   self_checked: boolean;
   validation?: { ok: boolean; checks: Array<{ check: string; ok: boolean; source_id?: string; section?: string; column?: string }> } | null;
-  /** The user opened it at least once ("0/2 打开过"); kept locally, agentd does not know. */
-  opened?: boolean;
+  /** The user opened it at least once ("0/2 打开过"): agentd keeps its opened_at. */
+  opened: boolean;
 }
 
 /** `personal_deliveries` row (deliveries.py:14-30). Send `revision` and `generation` back; `version` is display only. */

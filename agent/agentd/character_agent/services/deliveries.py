@@ -82,6 +82,7 @@ class DeliveryService:
         value.update(json.loads(value.pop('payload')))
         value.setdefault('summary', '')
         value.setdefault('artifacts', [])
+        for artifact in value['artifacts']: artifact.setdefault('opened_at', None)
         value['redacted'] = bool(value['redacted'])
         value['kind'] = 'task_notice'
         value['material_is_instruction'] = False
@@ -247,6 +248,24 @@ class DeliveryService:
                             (presented, viewed, state, ident))
             self.db.execute('INSERT INTO personal_delivery_events VALUES(?,?,?,?,?)',
                             (ident, value['revision'] + 1, state, now, 'user_view' if action == 'viewed' else 'ui_presented'))
+            self.db.commit()
+            value = self._row(ident)
+        self._emit(value)
+        return value
+
+    def opened(self, ident, artifact_id):
+        """The user opened one of its artifacts. Opening decides nothing, so the revision stays and receipts or a
+        decision sent at it still apply."""
+        with self.lock:
+            value = self._row(ident)
+            if value is None: raise DeliveryError('unknown_delivery', 404)
+            if value['redacted']: raise DeliveryError('delivery_revoked')
+            artifact = next((a for a in value['artifacts'] if a['artifact_id'] == artifact_id), None)
+            if artifact is None: raise DeliveryError('unknown_artifact', 404)
+            if artifact['opened_at'] is not None: return value
+            artifact['opened_at'] = self.clock()
+            self.db.execute('UPDATE personal_deliveries SET payload=? WHERE delivery_id=?',
+                            (_json({'summary': value['summary'], 'artifacts': value['artifacts']}), ident))
             self.db.commit()
             value = self._row(ident)
         self._emit(value)

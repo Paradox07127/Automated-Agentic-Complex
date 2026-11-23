@@ -186,9 +186,12 @@ class TaskServerTest(unittest.TestCase):
         self.assertEqual(self.request("POST", f"/tasks/{accepted['task_id']}/accept"),
                          (409, {"error": "invalid_state"}))
         self.end_turn(session, "completed", "改好了")
-        self.until(accepted["task_id"], "needs_review")
+        delivery = self.until(accepted["task_id"], "needs_review")["result"]["delivery_id"]
         status, body = self.request("POST", f"/tasks/{accepted['task_id']}/accept")
-        self.assertEqual((status, body["task"]["state"]), (200, "succeeded"))
+        self.assertEqual((status, body["task"]["state"], body["task"]["result"]["delivery_id"]), (200, "succeeded", delivery))
+        [attrs] = self.server.tasks.db.execute("SELECT attrs_json FROM task_events WHERE task_id = ? AND kind = 'succeeded'",
+                                               (accepted["task_id"],)).fetchone()
+        self.assertEqual(json.loads(attrs), {"source": "user", "delivery_id": delivery})
         self.assertEqual(self.request("POST", f"/tasks/{accepted['task_id']}/reject"),
                          (409, {"error": "invalid_state"}))
         rejected, session = self.dispatch()

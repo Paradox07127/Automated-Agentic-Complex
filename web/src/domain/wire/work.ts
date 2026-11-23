@@ -97,6 +97,8 @@ export interface WireArtifact {
   sha256: string;
   /** Older delivery payloads have no saved per-artifact result. */
   validation?: { ok: boolean; checks: Array<{ check: string; ok: boolean; source_id?: string; section?: string; column?: string }> } | null;
+  /** First time the user opened it (`POST /agent/deliveries/{id}/opened`); null until then. */
+  opened_at: number | null;
 }
 
 /** deliveries.py:14-30,91-102 personal_deliveries row plus payload. */
@@ -161,6 +163,8 @@ export interface WireLedgerResult {
   exit_code?: number | null;
   output_tail?: string | null;
   reason?: string | null;
+  /** On every verify result: the id 验收 records (tasks.py delivery_id). */
+  delivery_id?: string;
 }
 
 /** tasks.py:26 COLUMNS row; GET /tasks → {tasks}. */
@@ -229,6 +233,8 @@ export interface WireRun {
   result: unknown;
   started_at: number;
   ended_at: number | null;
+  /** When the run entered `state`: started_at while running, ended_at after. */
+  state_since: number;
   delivery_eligible?: number;
   delivery_revoked?: number;
 }

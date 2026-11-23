@@ -92,7 +92,7 @@ const CODE_LEDGER: WireLedgerTask[] = [
     session_id: null,
     created_at: atS(13, 40),
     updated_at: atS(13, 58),
-    result: { exit_code: null, output_tail: null, reason: 'no_verify_cmd' },
+    result: { exit_code: null, output_tail: null, reason: 'no_verify_cmd', delivery_id: 'delivery-d439477959f613d1dcc65d3caa7701ac' },
     requested_by: null,
   },
   {
@@ -117,6 +117,7 @@ const CODE_LEDGER: WireLedgerTask[] = [
         'Executed 14 tests, with 1 failure (0 unexpected) in 3.208 seconds',
       ].join('\n'),
       reason: null,
+      delivery_id: 'delivery-516d123071c5ed9ba2a6645937a14fed',
     },
   },
 ];
@@ -198,6 +199,17 @@ function receipt(kind: 'presented' | 'viewed'): MockRoute['handler'] {
   };
 }
 
+/** deliveries.py opened: the artifact's first opened_at; the revision stays. */
+const opened: MockRoute['handler'] = ({ params, body }) => {
+  if (!keysAre(body, 'artifact_id') || typeof obj(body).artifact_id !== 'string') return bad('invalid_delivery_payload');
+  const d = WIRE_DELIVERIES.find((x) => x.delivery_id === params.id);
+  if (!d) return bad('unknown_delivery', 404);
+  if (d.redacted) return bad('delivery_revoked', 409);
+  const id = obj(body).artifact_id;
+  if (!d.artifacts.some((a) => a.artifact_id === id)) return bad('unknown_artifact', 404);
+  return ok({ delivery: { ...d, artifacts: d.artifacts.map((a) => (a.artifact_id === id ? { ...a, opened_at: a.opened_at ?? NOW_S } : a)) } });
+};
+
 export const routes: MockRoute[] = [
   // The reads behind loadTasksBase (deliveries.py tasks_page, tasks.py, http.py).
   { method: 'GET', path: '/agent/tasks', handler: ({ query }) => (query.get('fail') ? bad('not_found', 404) : ok({ tasks: codeDemo(query) ? [...WIRE_TASK_ROWS, ...CODE_ROWS] : WIRE_TASK_ROWS, next_cursor: null })) },
@@ -265,6 +277,7 @@ export const routes: MockRoute[] = [
   ),
   { method: 'POST', path: '/agent/deliveries/:id/presented', handler: receipt('presented') },
   { method: 'POST', path: '/agent/deliveries/:id/viewed', handler: receipt('viewed') },
+  { method: 'POST', path: '/agent/deliveries/:id/opened', handler: opened },
   {
     method: 'POST',
     path: '/approvals/:id/decision',

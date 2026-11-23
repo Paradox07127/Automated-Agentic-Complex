@@ -19,6 +19,7 @@ import {
 } from '../../domain';
 import type { TaskAction } from '../../features/task';
 import type { PushToast } from '../../shell/toast';
+import { sendOpened } from '../tasks/actions';
 import type { TasksLocal, TasksView } from '../tasks/model';
 import { navigate } from '../tasks/params';
 import type { SendOptions } from './Composer';
@@ -257,8 +258,12 @@ export function createChatActions(d: ChatDeps) {
         case 'open_artifact':
           return attempt('没有打开', async () => {
             await bridge.open.artifact(a.path);
-            d.setLocal((l) => ({ ...l, opened: { ...l.opened, [a.path]: true } }));
             d.push(`已打开：${fileName(a.path)}`);
+            const view = d.view;
+            if (!task || !view) return;
+            await attempt('打开过没有记下', async () => {
+              if (await sendOpened(view.deliveries, task.id, a.path)) d.reload.tasks();
+            });
           });
         case 'reveal_artifact':
           return attempt('没有显示', async () => {

@@ -279,6 +279,26 @@ class DeliveryTests(unittest.TestCase):
         self.assertEqual(self.request('GET', '/agent/tasks?limit=0')[0], 400)
         self.assertEqual(self.request('GET', '/agent/tasks?cursor=bogus')[0], 400)
 
+    def test_opening_an_artifact_is_kept_on_the_delivery_without_raising_its_revision(self):
+        job, delivery = self.produce_job()
+        self.assertEqual([a['opened_at'] for a in delivery['artifacts']], [None])
+        path = '/agent/deliveries/' + delivery['delivery_id'] + '/opened'
+        self.now = 140.
+        code, body = self.request('POST', path, {'artifact_id': 'artifact'})
+        self.assertEqual(code, 200)
+        self.assertEqual([a['opened_at'] for a in body['delivery']['artifacts']], [140.])
+        self.assertEqual((body['delivery']['revision'], body['delivery']['state']), (delivery['revision'], 'produced'))
+        self.now = 150.
+        self.assertEqual(self.request('POST', path, {'artifact_id': 'artifact'})[1]['delivery']['artifacts'][0]['opened_at'], 140.)
+        self.assertEqual(self.service.get(delivery['delivery_id'])['artifacts'][0]['opened_at'], 140.)
+        self.assertEqual(self.request('POST', path, {'artifact_id': 'other'}), (404, {'error': 'unknown_artifact'}))
+        for bad in ({}, {'artifact_id': 1}, {'artifact_id': 'artifact', 'expected_revision': 1}):
+            self.assertEqual(self.request('POST', path, bad), (400, {'error': 'invalid_delivery_payload'}))
+        self.assertEqual(self.request('POST', path, {'artifact_id': 'artifact'}, token='hook')[0], 401)
+        self.assertEqual(self.request('GET', path)[0], 405)
+        self.service.revoke([job['run_id']])
+        self.assertEqual(self.request('POST', path, {'artifact_id': 'artifact'}), (409, {'error': 'delivery_revoked'}))
+
     def test_competing_accept_reject_has_one_winner(self):
         _, delivery = self.produce_job()
         results = []

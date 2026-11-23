@@ -1,4 +1,5 @@
 """Persistent task ledger: one row per dispatched task and an event per state change, so a restart can explain it."""
+import hashlib
 import json
 import shlex
 import subprocess
@@ -35,6 +36,11 @@ def check_verify(mode, cmd):
     if not POLICY.verify_command(mode, cmd):
         raise ValueError("invalid_verify_cmd")
     return cmd
+
+
+def delivery_id(task_id):
+    """The id of what a coding task returned; its verify result keeps it and a user review records it."""
+    return "delivery-" + hashlib.sha256(("task:" + task_id).encode()).hexdigest()[:32]
 
 
 def run_verify(argv, cwd, timeout):
@@ -111,19 +117,20 @@ class TaskLedger:
     def verify(self, task_id, runner=None, now=None):
         """Run a returned task's verify command in its cwd; its exit code decides succeeded or failed."""
         task = self.transition(task_id, "verifying", now=now)
+        delivery = {"delivery_id": delivery_id(task_id)}
         if task["verify_cmd"] is None:
-            result = {"exit_code": None, "output_tail": None, "reason": "no_verify_cmd"}
+            result = {"exit_code": None, "output_tail": None, "reason": "no_verify_cmd", **delivery}
             return self.transition(task_id, "needs_review", now=now, result=result)
         try:
             code, output = (runner or run_verify)(shlex.split(task["verify_cmd"]), task["cwd"], VERIFY_TIMEOUT)
         except subprocess.TimeoutExpired as timeout:
             output = (timeout.stdout or b"") + (timeout.stderr or b"")
-            result = {"exit_code": None, "output_tail": _tail(output), "reason": "timeout"}
+            result = {"exit_code": None, "output_tail": _tail(output), "reason": "timeout", **delivery}
             return self.transition(task_id, "failed", now=now, result=result)
         except OSError as error:  # the program is missing or cannot run in cwd
-            result = {"exit_code": None, "output_tail": str(error)[-TAIL_BYTES:], "reason": "not_started"}
+            result = {"exit_code": None, "output_tail": str(error)[-TAIL_BYTES:], "reason": "not_started", **delivery}
             return self.transition(task_id, "failed", now=now, result=result)
-        result = {"exit_code": code, "output_tail": _tail(output), "reason": None}
+        result = {"exit_code": code, "output_tail": _tail(output), "reason": None, **delivery}
         return self.transition(task_id, "succeeded" if code == 0 else "failed", now=now, result=result)
 
     def recover(self, now=None):
