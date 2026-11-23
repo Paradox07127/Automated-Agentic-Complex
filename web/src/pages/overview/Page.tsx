@@ -7,7 +7,7 @@ import { get } from '../../bridge/agentd';
 import { formatClock, sortPending } from '../../domain';
 import type { WireSchedule } from '../../domain/schedules';
 import { IconBtn, Menu, Btn, PageIssues, Region, Tabs, type IconName, type MenuItem } from '../../ui';
-import { PowerState } from '../../ui/game';
+import { PowerState, StatusLamp } from '../../ui/game';
 import { useDemo } from '../../shell/demo';
 import { navRoute } from '../../shell/nav';
 import { PageHeaderSlot } from '../../shell/headerSlot';
@@ -27,7 +27,6 @@ import { useGo, useNow } from './nav';
 import { OverviewTab } from './OverviewTab';
 import { PauseReadout } from './PauseReadout';
 import { PendingSection } from './PendingSection';
-import { Pip } from './Pip';
 import { RunningSection } from './RunningSection';
 import { parseTodayParams } from './today';
 import { TimeTab } from './TimeTab';
@@ -247,7 +246,7 @@ export function OverviewPage() {
               <IconBtn icon="chev" label="后一天" size="sm" disabled={isToday} disabledReason="已经是今天" onClick={() => put({ date: shift(date, 1) })} />
             </span>
             {/* The top bar says 已连接. */}
-            {(loading || (stale && !offline)) && <span className={styles.conn}>{loading ? <Pip tone="idle" label="读取中" /> : <Pip tone="failed" label="刷新失败" />}</span>}
+            {(loading || (stale && !offline)) && <span className={styles.conn}><StatusLamp size="sm" state={loading ? 'idle' : 'broken'} label={loading ? '读取中' : '刷新失败'} /></span>}
             <Menu label="免打扰" align="right" items={dnd} />
           </>
         }
