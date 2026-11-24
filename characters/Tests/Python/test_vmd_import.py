@@ -1,4 +1,5 @@
 """Authored fixtures only. Real licensed VMD/character acceptance is opt-in."""
+import importlib.util
 import json
 import math
 from pathlib import Path
@@ -351,6 +352,18 @@ class VmdImportTests(unittest.TestCase):
         w_pre=rotation.as_rotvec(qmul(q_seam[1],qconj(q_seam[0])))*30.0
         w_post=rotation.as_rotvec(qmul(q_seam[2],qconj(q_seam[1])))*30.0
         self.assertLess(float(np.linalg.norm(w_pre-w_post)),0.15)
+
+    @unittest.skipUnless(importlib.util.find_spec('scipy'),'the grafted graph fixture needs scipy; run with .local/venvs/pipeline/bin/python3')
+    def testImportRewritesThePackagesMotionGraphWithTheNewClip(self):
+        from agentic_complex_build.motion_graph import FILE as GRAPH,graft
+        sys.path.insert(0,str(CHARACTERS.parent/'agent/agentd/tests'))
+        from test_motion_tool import motion_fixture
+        doc=authored_rig();source=self.root/'source';motion_fixture(source,rig=doc)
+        grafted=self.root/'grafted';graft(source,grafted)
+        report=import_motion(grafted,self.motion(),self.root/'imported',foot_ik=False)
+        graph=json.loads((self.root/'imported/runtime/animation'/GRAPH).read_text(encoding='utf-8'))
+        self.assertIn(report['clip'],[c['name'] for c in graph['clips']])
+        native_bundle.verify(self.root/'imported/runtime')
 
 
 if __name__=='__main__':unittest.main()

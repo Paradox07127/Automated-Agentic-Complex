@@ -3,19 +3,21 @@ from pathlib import Path
 import struct
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
+from unittest import mock
 
 CHARACTERS = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(CHARACTERS)]
-from agentic_complex_build import efmi_mod
+from agentic_complex_build import efmi_geometry, efmi_mod, mesh_codec
 
 CHECK = 'run = CommandList\\EFMIv1\\OverrideTextures'
 
 
-def dds(dxgi=98):
+def dds(dxgi=98, mips=1, width=4):
     """A DDS header with a DX10 header naming `dxgi`, enough for its format to be read."""
     header = bytearray(124)
-    struct.pack_into('<7I', header, 0, 124, 0x1007, 4, 4, 0, 0, 1)
+    struct.pack_into('<7I', header, 0, 124, 0x1007, 4, width, 0, 0, mips)
     struct.pack_into('<2I4s', header, 72, 32, 0x4, b'DX10')
     return b'DDS '+bytes(header)+struct.pack('<5I', dxgi, 3, 0, 1, 0)+bytes(16)
 
@@ -312,6 +314,42 @@ filename = Textures/c.dds
         ini = component('ps-t0 = ResourceA\nif ps-t0->format == 99\n    drawindexed = 3, 0, 0\nendif') + \
             '\n[ResourceA]\nfilename = Textures/a.dds\ncolor_space = sRGB\n'
         self.assertEqual(self.spans(self.mod(ini, ['Textures/a.dds']).components), [(0, 3)])
+
+    def test_an_if_chain_is_decided_once_though_its_body_changes_the_test(self):
+        ini = '[Constants]\nglobal $x = 1\n' + component(
+            'if $x == 1\n    $x = 0\n    drawindexed = 3, 0, 0\nelse\n    drawindexed = 3, 3, 0\nendif', count=6)
+        self.assertEqual(self.spans(self.mod(ini).components), [(0, 3)])
+
+    # 9. Untrusted sizes are refused before what they would allocate.
+
+    def test_a_dds_declaring_more_mips_than_its_size_holds_or_no_size_is_refused_at_the_header(self):
+        levels = []
+        def mip_size(*args):
+            levels.append(args)
+            if len(levels) > 33:raise AssertionError('a mip level past the header bound was built')
+            return 16
+        for name, raw in (('mips', dds(mips=0xFFFFFFFF)), ('width', dds(width=0))):
+            with self.subTest(name), mock.patch.object(efmi_mod, 'mip_size', mip_size):
+                (self.root/f'{name}.dds').write_bytes(raw)
+                levels.clear()
+                with self.assertRaisesRegex(ValueError, 'texture_size'):efmi_mod.read_dds(self.root/f'{name}.dds')
+
+    def test_repeated_draws_past_the_index_budget_are_refused_before_their_indices_are_joined(self):
+        (self.root/'ib.buf').write_bytes(struct.pack('<1000I', *range(1000)))
+        mod = SimpleNamespace(files={'ib.buf': self.root/'ib.buf'}, custom_shaders={})
+        draw = efmi_mod.Segment(0, 1000, (), {})
+        component = SimpleNamespace(ib={'file': 'ib.buf', 'format': 'R32_UINT'}, section='TextureOverride_Component0', id=0,
+                                    segments=[draw]*(efmi_geometry.MAX_INDICES//1000+1))
+        with mock.patch.object(mesh_codec, 'concat_ranges', side_effect=AssertionError('indices joined')):
+            with self.assertRaisesRegex(ValueError, 'geometry_too_large:0'):efmi_geometry.index_groups(mod, component, 1000)
+
+    def test_the_inis_past_the_total_size_are_refused_before_they_are_read(self):
+        root = self.root/'inis'; root.mkdir()
+        for n in range(3):(root/f'{n}.ini').write_text(f'[Notes{n}]\n' + 'line = 1\n'*20, encoding='utf-8')
+        with mock.patch.object(efmi_mod, 'MAX_TOTAL_BYTES', (root/'0.ini').stat().st_size*2), \
+                mock.patch.object(efmi_mod, 'parse_ini', wraps=efmi_mod.parse_ini) as parse:
+            with self.assertRaisesRegex(ValueError, 'mod_too_large'):efmi_mod.load_mod(root)
+        self.assertEqual(parse.call_count, 2)
 
 
 if __name__ == '__main__':

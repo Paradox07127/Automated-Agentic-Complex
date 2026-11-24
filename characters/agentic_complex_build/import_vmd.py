@@ -23,6 +23,7 @@ from resource_store import clone_or_copy
 from .common import canonical_json, reference as ref, sha256_bytes
 from .stance import stances
 from .motion_import.edit import write_document
+from .motion_graph import FILE as GRAPH,pack_graph,text
 
 
 def _read_checked_vmd_raw(path):
@@ -491,6 +492,9 @@ def install_clips(package,output,clips,report_name,report):
         write_json(palette_path,palette); pack['animation']['palette_contract']=ref(palette_path,animation)
         if (animation/'supplemental-clips.json').exists():
             change(animation,'supplemental-clips.json',lambda d:d.update(base_contract_sha256=digest(palette_path)))
+        if (animation/GRAPH).exists():
+            # From the old graph's poses, as motion_import.edit does; the new clips are unmeasured.
+            (animation/GRAPH).write_text(text(pack_graph(package.id,pack_path,archive_path,previous=read_json(animation/GRAPH))),encoding='utf-8',newline='\n')
         for section in ['animation','interaction']:
             folder=pack_path.parent/section
             pack[section]['data']=[dict(x,**ref(folder/x['file'],folder))for x in pack[section]['data']]

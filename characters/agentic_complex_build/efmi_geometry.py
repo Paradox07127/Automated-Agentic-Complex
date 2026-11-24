@@ -172,9 +172,10 @@ def index_groups(mod, component, vertex_count):
     indices = mesh_codec.widen_indices(raw, width)
     keep = kept_segments(mod, component)
     if not keep:raise ValueError('unsupported_geometry:no_draw:'+component.section)
+    # Each group joins a part of these draws, so their sum bounds every list below; a negative count cannot offset it.
+    if sum(abs(s.count) for s in keep) > MAX_INDICES:raise ValueError(f'geometry_too_large:{component.id}')
     try:drawn = mesh_codec.concat_ranges(indices, [(s.first, s.count, 0) for s in keep], vertex_count)
     except ValueError:raise ValueError('geometry_invalid:index_range:'+component.section) from None
-    if len(drawn) > MAX_INDICES:raise ValueError(f'geometry_too_large:{component.id}')
     groups = {}
     for s in keep:groups.setdefault((tuple(sorted(s.textures.items())), s.condition, s.split), []).append(s)
     return [(mesh_codec.concat_ranges(indices, [(s.first, s.count, 0) for s in segments], vertex_count), slot_files(segments[0].textures))

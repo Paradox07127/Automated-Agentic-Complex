@@ -82,7 +82,7 @@ class Entry:
     # Each enclosing if block, outermost first: (the tests of its earlier branches, its own test or None for else).
     conditions: tuple = ()
     part: str | None = None
-    # An id per enclosing block branch, outermost first: lines of one branch run under one test, taken when the first of them runs.
+    # (its if's entry index, depth, place in the if/elif/else chain) per enclosing block branch, outermost first.
     blocks: tuple = ()
 
 
@@ -251,11 +251,10 @@ def parse_ini(text):
             test = line[len(word):].strip()
             # 3DMigoto reads `else if` as `elif`.
             if word == 'else' and re.match(r'if\b', test, re.IGNORECASE):word, test = 'elif', test[2:].strip()
-            if word == 'if':stack.append(((), test)); blocks.append(None)
+            # The entry index an if starts at and its depth tell its chain within the section.
+            if word == 'if':stack.append(((), test)); blocks.append((len(current.entries) if current else 0, len(stack), 0))
             elif stack and word == 'endif':stack.pop(); blocks.pop()
-            elif stack:stack[-1] = (stack[-1][0]+(stack[-1][1],), test if word == 'elif' else None)
-            # A branch is told by the entry index it starts at and its depth, unique within the section.
-            if stack and word != 'endif':blocks[-1] = (len(current.entries) if current else 0, len(stack), len(stack[-1][0]))
+            elif stack:stack[-1] = (stack[-1][0]+(stack[-1][1],), test if word == 'elif' else None); blocks[-1] = blocks[-1][:2]+(len(stack[-1][0]),)
             continue
         if current is None:continue
         key, _, value = line.partition('=')
@@ -631,6 +630,15 @@ def shader_kind(section, geometry):
     return 'pixel_effect' if stage('ps') else 'state'
 
 
+def chain_tests(entries):
+    """(if's entry index, depth) -> the tests of its chain's branches up to the last holding one of `entries`, None for else."""
+    out = {}
+    for e in entries:
+        for (earlier, test), block in zip(e.conditions, e.blocks):
+            if len(earlier) >= len(out.get(block[:2], ())):out[block[:2]] = earlier+(test,)
+    return out
+
+
 class Run:
     """One pass over the mod's command lists as data: variables, bindings and draw calls; no shader or file of the mod runs."""
 
@@ -668,17 +676,21 @@ class Run:
         return fork+((test,) if value is None and unsure else ())
 
     def section(self, entries, outer, fork, depth):
-        """The lines of one section: `pre` and unprefixed ones, then `post` ones; a branch's test is taken at its first line."""
-        taken = {}
+        """The lines of one section: `pre` and unprefixed ones, then `post` ones; an if/elif/else chain's tests are all taken at
+        the first of its lines, so a line that changes a variable a test reads does not reopen the chain."""
+        chains, taken = None, {}
         for phase in ('pre', 'post'):
             for e in entries:
                 key = phase_key(e.key)
                 if (e.key.startswith('post ') and key != e.key) != (phase == 'post'):continue
                 own = ()
                 for (earlier, test), block in zip(e.conditions, e.blocks):
-                    if block not in taken:taken[block] = self.branch(earlier, test)
-                    if taken[block] is None:break
-                    own += taken[block]
+                    chain = block[:2]
+                    if chain not in taken:
+                        if chains is None:chains = chain_tests(entries)
+                        taken[chain] = [self.branch(chains[chain][:i], t) for i, t in enumerate(chains[chain])]
+                    if taken[chain][block[2]] is None:break
+                    own += taken[chain][block[2]]
                 else:
                     self.line(key, e.value, outer+e.conditions, fork+own, depth)
 
@@ -832,7 +844,7 @@ def load_mod(root):
     sections, owner, total = [], {}, 0
     for ini in inis:
         size = ini.stat().st_size; total += size
-        if size > MAX_FILE_BYTES:raise ValueError('mod_too_large')
+        if size > MAX_FILE_BYTES or total > MAX_TOTAL_BYTES:raise ValueError('mod_too_large')
         own = parse_ini(ini.read_text(encoding='utf-8-sig'))
         # A resource's file is relative to the folder of the ini naming it.
         if (folder := ini.parent.relative_to(root).as_posix()) != '.':
@@ -979,6 +991,8 @@ def read_dds(path, color_space=None):
     else:raise ValueError('unsupported_texture_format')
     if color_space == 'srgb':fmt = fmt.replace('_UNORM', '_SRGB') if fmt != 'BC5_UNORM_BLOCK' else fmt
     elif color_space == 'linear':fmt = fmt.replace('_SRGB', '_UNORM')
+    # A mip chain ends at its 1x1 level.
+    if not width or not height or mip_count > max(width, height).bit_length():raise ValueError('texture_size')
     mips, offset = [], 0
     for level in range(max(1, mip_count)):
         w, h = max(1, width >> level), max(1, height >> level)
