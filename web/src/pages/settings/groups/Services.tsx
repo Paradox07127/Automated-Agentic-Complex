@@ -169,8 +169,8 @@ function Service({ id, use, record, runtime, disabled, onStart, onStop, onRestar
               {field('cwd', '工作目录')}
             </>
           )}
-          {id === 'tts' && <TtsSecretRows />}
-          {id === 'motion' && <MotionTokenRow />}
+          {id === 'tts' && <TtsSecretRows pending={dirty} />}
+          {id === 'motion' && <MotionTokenRow pending={dirty} />}
           {id === 'llm' && <LlmSecretRows pending={dirty} />}
         </div>
       )}

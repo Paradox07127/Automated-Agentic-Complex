@@ -81,6 +81,25 @@ describe('settings › 声音 › muted kinds', () => {
     expect(screen.queryByRole('group', { name: '久盯一个窗口时搭话' })).toBeNull();
   });
 
+  it('restores one kind against the list as it is now, keeping a kind the bubble muted since the page read it', async () => {
+    let gets = 0;
+    const request = vi.spyOn(window.agenticComplex!.agentd, 'request').mockImplementation(async (method, path, body) => {
+      if (path !== '/proactive/mutes') return { status: 200, body: {} } as never;
+      if (method === 'GET') return { status: 200, body: { muted: (gets += 1) === 1 ? ['comment'] : ['comment', 'stuck'] } } as never;
+      return { status: 200, body } as never;
+    });
+    render(
+      <Harness>
+        <SpeakGroup />
+      </Harness>,
+    );
+    const comment = await screen.findByRole('group', { name: '久盯一个窗口时搭话' });
+    expect(screen.queryByRole('group', { name: '卡住时问要不要帮忙' })).toBeNull();
+    await act(async () => fireEvent.click(within(comment).getByRole('button', { name: '恢复' })));
+    expect(request).toHaveBeenCalledWith('PUT', '/proactive/mutes', { muted: ['stuck'] });
+    expect(screen.getByRole('group', { name: '卡住时问要不要帮忙' })).toBeTruthy();
+  });
+
   it('leaves the row out while none is muted, and drops it once the last kind is restored', async () => {
     vi.spyOn(window.agenticComplex!.agentd, 'request').mockResolvedValue({ status: 200, body: { muted: [] } });
     const { container } = render(

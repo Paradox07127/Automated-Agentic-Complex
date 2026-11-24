@@ -98,15 +98,15 @@ function KernelPick({ acp }: { acp: AcpState }) {
   const picked = list.find((r) => r.id === selected && r.id !== cur?.id && !readyOf(r)) ?? null;
   const switchTo = (id: string) => void k.onSwitch(id, list.find((x) => x.id === id)?.name ?? id);
   const othersOn = model.value(OTHERS) === true;
-  // A kernel agentd turned away for its plug-in: picking it also turns the plug-in on; it runs after the backend restart.
+  // A kernel agentd turned away for its plug-in: picking it also drafts the plug-in on, applied with the kernel; it runs after
+  // the backend restart.
   const gated = (r: RuntimeInfo) => !usable(r) && r.reason === 'plugin_off' && r.id !== 'pi';
   const pick = (id: string) => {
     const r = list.find((x) => x.id === id);
     if (ro || !r || id === selected) return;
     if (!usable(r) && !gated(r)) return;
-    if (gated(r) && !othersOn) model.set(OTHERS, true);
     // A picked executable belongs to the kernel it was picked for; agentd drops the saved one on a switch.
-    model.setDraft(({ exe: _exe, ...rest }) => rest);
+    model.setDraft(({ exe: _exe, [OTHERS]: _others, ...rest }) => (gated(r) && model.vals[OTHERS] !== true ? { ...rest, [OTHERS]: true } : rest));
     model.set('kernel', id);
   };
   return (

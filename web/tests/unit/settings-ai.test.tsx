@@ -11,7 +11,8 @@ import { demoNative } from '../../src/mock/settings';
 import { runtimeView, SettingsCtx, useSettings, type RuntimeView, type SettingsCtxValue } from '../../src/pages/settings/ctx';
 import { diagView } from '../../src/pages/settings/diag';
 import { KernelGroup } from '../../src/pages/settings/groups/Kernel';
-import { useSettingsModel, type ModelInit } from '../../src/pages/settings/model';
+import { PiSections } from '../../src/pages/settings/groups/Model';
+import { useSettingsModel, type ModelInit, type SettingsModel } from '../../src/pages/settings/model';
 import type { Native } from '../../src/pages/settings/native';
 import { SettingsPage } from '../../src/pages/settings/Page';
 import { groupOf, searchSettings } from '../../src/pages/settings/registry';
@@ -140,12 +141,31 @@ describe('settings › 内核 › 选择内核', () => {
         </Harness>,
       );
       await click(screen.getByRole('radio', { name }).closest('tr')!);
-      expect(save).toHaveBeenLastCalledWith({ 'plugins.harness_bridge': true });
+      expect(save).not.toHaveBeenCalled();
       expect(screen.getByRole('radio', { name }).getAttribute('aria-checked'), name).toBe('true');
       await click(screen.getByRole('button', { name: '应用' }));
       expect(puts(request).at(-1), name).toMatchObject({ backend });
+      expect(save).toHaveBeenLastCalledWith({ 'plugins.harness_bridge': true });
+      save.mockClear();
       cleanup();
     }
+
+    // Looked at, then put back: the plug-in stays off.
+    function Revert() {
+      const { model } = useSettings();
+      return <button onClick={model.revertAll}>撤销</button>;
+    }
+    render(
+      <Harness runtime={runtimeView(wire)}>
+        <KernelGroup />
+        <Revert />
+      </Harness>,
+    );
+    await click(screen.getByRole('radio', { name: 'Codex' }).closest('tr')!);
+    await click(screen.getByRole('radio', { name: 'Pi' }).closest('tr')!);
+    await click(screen.getByRole('radio', { name: 'Claude Code' }).closest('tr')!);
+    await click(screen.getByRole('button', { name: '撤销' }));
+    expect(save).not.toHaveBeenCalled();
   });
 
   it('drops a Pi provider and 本机无需密钥 that Codex does not take when switching to it', async () => {
@@ -166,6 +186,97 @@ describe('settings › 内核 › 选择内核', () => {
       expect(puts(request).at(-1)).toMatchObject(want);
       cleanup();
     }
+  });
+});
+
+describe('settings › 内核 › API Key', () => {
+  const keyPosts = (request: { mock: { calls: unknown[][] } }) => request.mock.calls.filter((c) => c[0] === 'POST' && c[1] === '/model/settings').map((c) => c[2]);
+  const key = () => row('apikey') as HTMLElement;
+
+  it('saves a Pi catalog key for the catalog provider it shows, and waits while the provider or the address is a draft', async () => {
+    const saved = models;
+    models = { ...saved, provider: 'pi_catalog', backends: { ...saved.backends, pi_catalog: { ...saved.backends.pi_catalog, pi_provider: 'openrouter' } } };
+    const request = vi.spyOn(window.agenticComplex!.agentd, 'request');
+    render(
+      <Harness runtime={piRuntime()}>
+        <PiSections />
+      </Harness>,
+    );
+    fireEvent.change(key().querySelector('input[aria-label="API Key"]')!, { target: { value: 'or-0123456789' } });
+    await click(within(key()).getByRole('button', { name: '保存' }));
+    expect(keyPosts(request)).toEqual([{ provider: 'pi_catalog', pi_provider: 'openrouter', api_key: 'or-0123456789' }]);
+    cleanup();
+    request.mockClear();
+
+    // Groq picked over the saved OpenRouter: the key row is OpenRouter's until 应用.
+    render(
+      <Harness runtime={piRuntime()} init={{ draft: { piProvider: 'groq' } }}>
+        <PiSections />
+      </Harness>,
+    );
+    fireEvent.change(key().querySelector('input[aria-label="API Key"]')!, { target: { value: 'gsk-0123456789' } });
+    expect(within(key()).getByRole('button', { name: '保存' }).getAttribute('aria-disabled')).toBe('true');
+    await click(within(key()).getByRole('button', { name: '保存' }));
+    expect(keyPosts(request)).toEqual([]);
+    cleanup();
+
+    // Anthropic's saved key with a new address drafted: 替换 and 移除 wait for 应用.
+    models = saved;
+    render(
+      <Harness runtime={piRuntime()} init={{ draft: { apiBase: 'https://gateway.example' } }}>
+        <PiSections />
+      </Harness>,
+    );
+    for (const name of ['替换', '移除']) expect(within(key()).getByRole('button', { name }).getAttribute('aria-disabled'), name).toBe('true');
+  });
+});
+
+describe('settings › 应用', () => {
+  let m: SettingsModel;
+  function Grab() {
+    m = useSettings().model;
+    return null;
+  }
+  const OFF_CARD = JSON.stringify({ mode: 'off', url: '', ssh_host: '', start_script: '', command: '', cwd: '' });
+
+  it('keeps a draft made while it runs and a row edited since it was sent, and takes a second click as none', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const services = vi.spyOn(window.agenticComplex!.services, 'save').mockImplementation(async () => {
+      await gate;
+      return { ok: true };
+    });
+    render(
+      <Harness runtime={piRuntime()} init={{ draft: { svc_tts: OFF_CARD, svc_motion: OFF_CARD } }}>
+        <Grab />
+      </Harness>,
+    );
+    let applied!: Promise<boolean>;
+    await act(async () => void (applied = m.applyAll()));
+    expect(m.applying).toBe(true);
+    await act(async () => void (await m.applyAll()));
+    act(() => m.set('chatModel', 'claude-sonnet-5'));
+    act(() => m.setDraft((d) => ({ ...d, svc_motion: JSON.stringify({ ...JSON.parse(OFF_CARD), mode: 'url', url: 'http://10.0.0.5:7860' }) })));
+    await act(async () => {
+      release();
+      await applied;
+    });
+    expect(services.mock.calls.map((c) => c[0])).toEqual(['tts', 'motion']);
+    expect(Object.keys(m.draft).sort()).toEqual(['chatModel', 'svc_motion']);
+    expect(m.applying).toBe(false);
+  });
+
+  it('drops the runtime drafts agentd took when the model settings write then fails, and keeps those', async () => {
+    const request = window.agenticComplex!.agentd.request.bind(window.agenticComplex!.agentd);
+    vi.spyOn(window.agenticComplex!.agentd, 'request').mockImplementation((method, path, body) =>
+      method === 'POST' && path === '/model/settings' ? Promise.reject(new Error('down')) : request(method, path, body));
+    render(
+      <Harness runtime={piRuntime()} init={{ draft: { maxCost: 7, chatModel: 'claude-sonnet-5' } }}>
+        <Grab />
+      </Harness>,
+    );
+    await act(async () => void (await m.applyAll()));
+    expect(m.draft).toEqual({ chatModel: 'claude-sonnet-5' });
   });
 });
 
@@ -214,8 +325,8 @@ describe('settings › AI tab and old links', () => {
     );
   }
 
-  it('has one 内核 tab, and group=model lands on it', async () => {
-    await mount('&group=model');
+  it('has one 内核 tab, and group=kernel lands on it', async () => {
+    await mount('&group=kernel');
     const nav = await screen.findByRole('tablist', { name: '设置分组' });
     expect(within(nav).getAllByRole('tab').map((t) => t.getAttribute('title'))).toEqual(['交流', '能力', '感知', '显示', '内核', '服务', '快捷键', '数据', '关于']);
     expect(within(nav).getByRole('tab', { name: /内核/ }).getAttribute('aria-selected')).toBe('true');

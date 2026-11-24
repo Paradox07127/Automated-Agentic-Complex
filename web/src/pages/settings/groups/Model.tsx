@@ -132,7 +132,7 @@ export function PiSections({ provider, routes }: { provider?: ReactNode; routes?
               title={labelOf('apikey')}
               desc={keyNote(cfg?.has_key === true)}
               descTone={!cfg?.has_key ? 'attention' : undefined}
-              control={<ApiKeyControl key={svc} provider={svc} disabled={!keySlot} />}
+              control={<ApiKeyControl key={svcValue} provider={svc} disabled={!keySlot} />}
             />
           )
         )}

@@ -15,8 +15,11 @@ function voiceTestFailure(reason: string | null): string {
   return text[reason ?? ''] ?? '没有通过';
 }
 
-/** The voice service card's token and test: the token goes to agentd and is never read back; the test may try the one on screen. */
-export function TtsSecretRows() {
+/**
+ * The voice service card's token and test: the token goes to agentd and is never read back; the test may try the one on screen.
+ * Both act on the running address, so they wait while the card has a draft.
+ */
+export function TtsSecretRows({ pending }: { pending: boolean }) {
   const { model, agentdOff, diag, reload } = useSettings();
   const [token, setToken] = useState('');
   const [test, setTest] = useState<{ ok: boolean; text: string } | null>(null);
@@ -53,7 +56,7 @@ export function TtsSecretRows() {
         control={
           <>
             <Field type="password" label="令牌" placeholder="粘贴令牌" value={token} disabled={agentdOff} onChange={setToken} />
-            <Btn disabled={agentdOff || !token.trim()} onClick={saveToken}>
+            <Btn disabled={agentdOff || !token.trim() || pending} disabledReason={pending ? '先应用上面的改动' : undefined} onClick={saveToken}>
               保存
             </Btn>
           </>
@@ -65,7 +68,7 @@ export function TtsSecretRows() {
         control={
           <>
             {test && <StatusLamp size="sm" state={test.ok ? 'ok' : 'broken'} label={test.text} />}
-            <Btn loading={testing} disabled={agentdOff} disabledReason="后台服务没有运行" onClick={() => void runTest()}>
+            <Btn loading={testing} disabled={agentdOff || pending} disabledReason={agentdOff ? '后台服务没有运行' : '先应用上面的改动'} onClick={() => void runTest()}>
               测试
             </Btn>
           </>

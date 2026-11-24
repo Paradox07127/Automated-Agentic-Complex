@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi, type Mock } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { RuntimeService } from '../../src/bridge/runtimeSnapshot';
 import type { ServiceId, ServiceRecord } from '../../src/bridge/services';
@@ -16,6 +16,7 @@ import { ServicesGroup, type ServicesGroupProps } from '../../src/pages/settings
 import { ServicesData } from '../../src/pages/settings/groups/ServicesData';
 import { joinCommand, splitCommand } from '../../src/pages/settings/servicesDraft';
 import type { Go } from '../../src/shell/nav';
+import { pluginsOn, pluginsReset } from './plugins';
 
 afterEach(() => {
   cleanup();
@@ -221,9 +222,31 @@ describe('settings › 服务 cards', () => {
     }
   });
 
+  it('hold each card\'s token or key and its test while the card has a draft, so a secret is never saved or tried for the address that runs', async () => {
+    pluginsOn();
+    onTestFinished(() => pluginsReset());
+    const request = vi.spyOn(window.agenticComplex!.agentd, 'request');
+    draw(MIXED, MIXED_RT);
+    await act(async () => {});
+    const off = (name: string, rowId: string, button: string) => within(within(card(name)).getByRole('group', { name: rowId })).getByRole('button', { name: button }).getAttribute('aria-disabled');
+    fireEvent.change(within(card('语音服务')).getByLabelText('令牌', { selector: 'input' }), { target: { value: 'b-token' } });
+    fireEvent.change(within(card('动作服务')).getByLabelText('动作服务令牌', { selector: 'input' }), { target: { value: 'm-token' } });
+    fireEvent.change(within(card(LLM)).getByLabelText('自建模型接口 API Key', { selector: 'input' }), { target: { value: 'llm-0123456789' } });
+    expect([off('语音服务', '令牌', '保存'), off('语音服务', '测试连接', '测试'), off('动作服务', '令牌', '保存'), off(LLM, 'API Key', '保存')]).toEqual([null, null, null, null]);
+    type('语音服务 地址', 'http://127.0.0.1:9881');
+    type('动作服务 工作目录', '/Users/me/motion2');
+    type(`${LLM} 地址`, 'http://10.0.0.6:8000/v1');
+    expect([off('语音服务', '令牌', '保存'), off('语音服务', '测试连接', '测试'), off('动作服务', '令牌', '保存'), off(LLM, 'API Key', '保存')]).toEqual(['true', 'true', 'true', 'true']);
+    request.mockClear();
+    for (const [name, rowId, button] of [['语音服务', '令牌', '保存'], ['语音服务', '测试连接', '测试'], ['动作服务', '令牌', '保存'], [LLM, 'API Key', '保存']] as const)
+      await click(within(within(card(name)).getByRole('group', { name: rowId })).getByRole('button', { name: button }));
+    expect(request.mock.calls.filter((c) => c[0] !== 'GET')).toEqual([]);
+  });
+
   it('joinCommand undoes splitCommand', () => {
     const argv = ['a', 'b c', '', `it's`, 'x"y'];
     expect(splitCommand(joinCommand(argv))).toEqual(argv);
+    for (const both of [['run', `a'b"c`, 'x'], [`'"`, `"' `, ` a "b" 'c' `, '', `''`, `""`]]) expect(splitCommand(joinCommand(both)), joinCommand(both)).toEqual(both);
   });
 });
 

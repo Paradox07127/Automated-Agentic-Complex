@@ -65,6 +65,25 @@ describe('leaving 设置 with a change that waits for a backend restart', () => 
     expect(dialog()).toBeNull();
   });
 
+  it('Escape, the backdrop and 留在设置 stay with the change kept; only 不重启 puts it back', async () => {
+    const m = await mount();
+    const save = vi.spyOn(m.bridge.settings, 'save');
+    const ways: Array<[string, () => void]> = [
+      ['Escape', () => fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })],
+      ['backdrop', () => fireEvent.mouseDown(document.querySelector('[data-stub="Modal"]')!)],
+      ['留在设置', () => fireEvent.click(within(dialog()!).getByRole('button', { name: /留在设置/ }))],
+    ];
+    for (const [way, stay] of ways) {
+      await m.leave();
+      expect(dialog(), way).not.toBeNull();
+      await act(async () => stay());
+      expect(dialog(), way).toBeNull();
+      expect(m.router.state.location.pathname, way).toBe('/settings');
+      expect(screen.getByRole('switch', { name: '外部智能体接入' }).getAttribute('aria-checked'), way).toBe('false');
+    }
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it('does not ask once the value is back where the backend runs', async () => {
     const m = await mount();
     await act(async () => fireEvent.click(screen.getByRole('switch', { name: '外部智能体接入' })));

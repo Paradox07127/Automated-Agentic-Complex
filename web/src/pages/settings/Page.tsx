@@ -28,7 +28,7 @@ import { useSettingsModel } from './model';
 import type { Native } from './native';
 import { usePerms } from './perms';
 import { demoInit } from './demoInit';
-import { DEFAULT_GROUP, GROUP_IDS, GROUP_MOVED, groupOf, isGroup, NATIVE_GROUPS, NEEDS_AGENTD, NOT_PI_ROWS, PI_ONLY_ROWS, ROW_MOVED, SECTION_GROUP, searchSettings, DRAFT_SECTION, useRowShown, type GroupId, type RegEntry } from './registry';
+import { DEFAULT_GROUP, GROUP_IDS, groupOf, isGroup, NATIVE_GROUPS, NEEDS_AGENTD, NOT_PI_ROWS, PI_ONLY_ROWS, SECTION_GROUP, searchSettings, DRAFT_SECTION, useRowShown, type GroupId, type RegEntry } from './registry';
 import { SearchResults } from './SearchResults';
 import { SetNav, SetSearch } from './SetNav';
 import { SettingsOverlays } from './SettingsOverlays';
@@ -69,8 +69,8 @@ function useSearchParams() {
     const p = new URLSearchParams(search);
     const g = p.get('group');
     const item = p.get('item');
-    const group = isGroup(g) ? g : (GROUP_MOVED[g ?? ''] ?? DEFAULT_GROUP);
-    return { group, item: item && (ROW_MOVED[item] ?? item), q: p.get('q') ?? '' };
+    const group = isGroup(g) ? g : DEFAULT_GROUP;
+    return { group, item, q: p.get('q') ?? '' };
   }, [search]);
 }
 
@@ -163,11 +163,10 @@ function SettingsBody() {
   );
   const goRow = useCallback(
     (row: string, g?: GroupId) => {
-      const id = ROW_MOVED[row] ?? row;
-      const target = g ?? groupOf(id) ?? group;
+      const target = g ?? groupOf(row) ?? group;
       setQ('');
-      setHl(id);
-      go({ group: target, item: id });
+      setHl(row);
+      go({ group: target, item: row });
     },
     [go, group],
   );

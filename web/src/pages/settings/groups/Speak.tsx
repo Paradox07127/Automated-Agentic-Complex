@@ -254,8 +254,9 @@ function MutedRow({ disabled }: { disabled: boolean }) {
       live = false;
     };
   }, []);
+  // The PUT is the whole list: read it again first, so a kind the bubble muted since stays muted.
   const restore = (kind: string, label: string) =>
-    void saveMutes((muted ?? []).filter((k) => k !== kind)).then(
+    void readMutes().then((r) => saveMutes(r.muted.filter((k) => k !== kind))).then(
       (r) => setMuted(r.muted),
       (e) => model.notify({ message: `没能恢复「${label}」：${failure(e).text}`, severity: 'danger', persistent: true }),
     );

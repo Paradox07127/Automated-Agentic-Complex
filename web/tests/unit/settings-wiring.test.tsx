@@ -94,6 +94,11 @@ function Harness({ d, init = {}, reload = () => {}, goRow = () => {}, children }
         </div>
       )}
       {model.toast && <output data-testid="toast">{model.toast.message}</output>}
+      {model.toast?.action && (
+        <button type="button" data-testid="toast-action" onClick={model.toast.action.onClick}>
+          {model.toast.action.label}
+        </button>
+      )}
     </SettingsCtx.Provider>
   );
 }
@@ -168,6 +173,35 @@ describe('native rows (settings.schema / read / save)', () => {
     await click(within(screen.getByRole('dialog', { name: '关闭「窗口文字」并删除已收集的内容？' })).getByRole('button', { name: '关闭并删除' }));
     expect(consent).toHaveBeenCalledWith('wintext');
     expect(save).toHaveBeenCalledWith({ wintext: false });
+  });
+
+  it('keeps the warning of a save the running backend did not take, with no 已更改 over it', async () => {
+    vi.spyOn(window.agenticComplex!.settings, 'save').mockResolvedValue({ restart: 'none', notApplied: ['wintext'], error: undefined });
+    render(<Harness d={d}><SeeGroup /></Harness>);
+    await click(screen.getByRole('switch', { name: '屏幕感知' }));
+    expect(screen.getByTestId('toast').textContent).toBe('已保存，窗口文字要重启 Agentic Complex 后生效');
+    expect(screen.queryByTestId('toast-action')).toBeNull();
+  });
+
+  it('撤销 of a destructive switch turned on asks before it goes off again, and does nothing once the row changed since', async () => {
+    const save = vi.spyOn(window.agenticComplex!.settings, 'save');
+    const off = { ...d, native: { ...d.native, saved: { ...d.native.saved, wintext: false } } };
+    const ui = render(<Harness d={off}><SeeGroup /></Harness>);
+    await click(screen.getByRole('switch', { name: '窗口文字' }));
+    expect(save).toHaveBeenCalledTimes(1);
+    await click(screen.getByTestId('toast-action'));
+    expect(screen.getByRole('dialog', { name: '关闭「窗口文字」并删除已收集的内容？' })).toBeTruthy();
+    expect(save).toHaveBeenCalledTimes(1);
+    ui.unmount();
+
+    // Turned off elsewhere (config.json read again) before 撤销.
+    const again = render(<Harness d={off}><SeeGroup /></Harness>);
+    await click(screen.getByRole('switch', { name: '窗口文字' }));
+    again.rerender(<Harness d={{ ...off, native: { ...off.native, saved: { ...off.native.saved } } }}><SeeGroup /></Harness>);
+    await click(screen.getByTestId('toast-action'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByTestId('toast').textContent).toBe('「窗口文字」已经又改过，没有撤销');
+    expect(save).toHaveBeenCalledTimes(2);
   });
 
   it('the delete confirm says how many records go, from settings.previewDestructive', async () => {
@@ -607,12 +641,12 @@ describe('外部语音服务', () => {
     [false, '令牌不回显'],
   ])('reads token_set %s from /diag/state as %s', (token_set, note) => {
     const tts = { ...WIRE_TTS.ready, token_set };
-    render(<Harness d={{ ...d, diag: { ...DIAG, connections: { ...WIRE_DIAG_CONNECTIONS, tts } } }}><TtsSecretRows /></Harness>);
+    render(<Harness d={{ ...d, diag: { ...DIAG, connections: { ...WIRE_DIAG_CONNECTIONS, tts } } }}><TtsSecretRows pending={false} /></Harness>);
     expect(document.querySelector('[data-row="ttsToken"]')?.textContent).toContain(note);
   });
 
   it('tests the token on screen against the voice in use and shows the first audio time', async () => {
-    render(<Harness d={d}><TtsSecretRows /></Harness>);
+    render(<Harness d={d}><TtsSecretRows pending={false} /></Harness>);
     fireEvent.change(screen.getByLabelText('令牌', { selector: 'input' }), { target: { value: ' secret ' } });
     await click(screen.getByRole('button', { name: '测试' }));
     expect(sent('POST', '/voice/test')).toEqual({ token: 'secret' });
@@ -620,13 +654,13 @@ describe('外部语音服务', () => {
   });
 
   it('leaves an empty token out of the test', async () => {
-    render(<Harness d={d}><TtsSecretRows /></Harness>);
+    render(<Harness d={d}><TtsSecretRows pending={false} /></Harness>);
     await click(screen.getByRole('button', { name: '测试' }));
     expect(sent('POST', '/voice/test')).toEqual({});
   });
 
   it('leaves the token just saved to agentd once the field is empty again', async () => {
-    render(<Harness d={d}><TtsSecretRows /></Harness>);
+    render(<Harness d={d}><TtsSecretRows pending={false} /></Harness>);
     fireEvent.change(screen.getByLabelText('令牌', { selector: 'input' }), { target: { value: 'secret' } });
     await click(screen.getByRole('button', { name: '保存' }));
     await click(screen.getByRole('button', { name: '测试' }));
@@ -635,7 +669,7 @@ describe('外部语音服务', () => {
 
   it('reads /diag/state again after saving the token', async () => {
     const reload = vi.fn();
-    render(<Harness d={d} reload={reload}><TtsSecretRows /></Harness>);
+    render(<Harness d={d} reload={reload}><TtsSecretRows pending={false} /></Harness>);
     fireEvent.change(screen.getByLabelText('令牌', { selector: 'input' }), { target: { value: 'secret' } });
     expect(reload).not.toHaveBeenCalled();
     await click(screen.getByRole('button', { name: '保存' }));
@@ -650,21 +684,21 @@ describe('外部语音服务', () => {
     ['bad_stream', '返回的不是语音流'],
     ['timeout', '超时'],
   ])('shows the failure %s as %s', async (reason, text) => {
-    render(<Harness d={d}><TtsSecretRows /></Harness>);
+    render(<Harness d={d}><TtsSecretRows pending={false} /></Harness>);
     request.mockResolvedValueOnce({ status: 200, body: { ok: false, first_audio_ms: null, total_ms: null, reason } } as never);
     await click(screen.getByRole('button', { name: '测试' }));
     expect(testRow()?.textContent).toContain(text);
   });
 
   it('says the voice is not enabled when agentd has no relay', async () => {
-    render(<Harness d={d}><TtsSecretRows /></Harness>);
+    render(<Harness d={d}><TtsSecretRows pending={false} /></Harness>);
     request.mockResolvedValueOnce({ status: 503, body: { error: 'no_tts' }, error: { code: 'no_tts' } } as never);
     await click(screen.getByRole('button', { name: '测试' }));
     expect(testRow()?.textContent).toContain('语音没有启用');
   });
 
   it('saves the token through POST /voice/token and never reads it back', async () => {
-    render(<Harness d={d}><TtsSecretRows /></Harness>);
+    render(<Harness d={d}><TtsSecretRows pending={false} /></Harness>);
     const token = screen.getByLabelText('令牌', { selector: 'input' }) as HTMLInputElement;
     expect(token.type).toBe('password');
     expect(token.value).toBe('');
@@ -704,6 +738,10 @@ describe('资料范围 with picked handles', () => {
     await click(screen.getByRole('button', { name: '添加文件夹…' }));
     expect(sent('POST', '/agent/scopes')).toEqual({ roots: [root], output_root: out });
     await click(screen.getByRole('button', { name: '撤销授权' }));
+    // agentd's revoke stops every run and clears what the continuous observation and the memory journal hold, not only this scope's.
+    const ask = screen.getByRole('dialog').textContent;
+    for (const what of ['所有在跑的任务和对话都会停下', '持续观察记下的内容和分析', '观察简报', '记忆整理记录里的原文']) expect(ask).toContain(what);
+    expect(ask).not.toContain('用这个范围的任务会停下');
     await click(within(screen.getByRole('dialog')).getByRole('button', { name: '撤销授权' }));
     expect(sent('POST', `/agent/scopes/${d.scopes[0]!.scope_id}/revoke`)).toEqual({});
   });

@@ -35,7 +35,9 @@ export function ScopeList() {
       title: `撤销「${name(s.roots[0]?.path ?? '')}」的授权？`,
       danger: true,
       warning: '立即生效',
-      note: '撤销后角色不能再读这些文件夹，用这个范围的任务会停下。',
+      // agentd's revoke cancels every run and clears these stores, whichever scope fed them.
+      list: ['所有在跑的任务和对话都会停下，不只是用这个范围的', '持续观察记下的内容和分析会清空', '观察简报会清空', '记忆整理记录里的原文会抹掉'],
+      note: '撤销后角色不能再读这些文件夹。',
       confirmLabel: '撤销授权',
       onConfirm: () =>
         revokeScope(s.scope_id).then(() => {

@@ -8,8 +8,8 @@ import { Masked } from '../kit';
 import { SetRow } from '../SetRow';
 import { ApiKeyControl, keyNote } from './ApiKey';
 
-/** The motion service card's token (GET/PUT /motion/settings), sent once and never read back. */
-export function MotionTokenRow() {
+/** The motion service card's token (GET/PUT /motion/settings), sent once and never read back; it waits while the card has a draft. */
+export function MotionTokenRow({ pending }: { pending: boolean }) {
   const { model, agentdOff } = useSettings();
   const [src, setSrc] = useState<MotionSource | null>(null);
   const [token, setToken] = useState('');
@@ -43,11 +43,11 @@ export function MotionTokenRow() {
         <>
           {src?.token_set && !token ? <Masked>已保存</Masked> : <Field type="password" label="动作服务令牌" placeholder="粘贴令牌" value={token} disabled={off} onChange={setToken} />}
           {src?.token_set && !token ? (
-            <Btn disabled={off} onClick={() => save({ token: '' }, '已删除动作服务令牌', '没能删除令牌')}>
+            <Btn disabled={off || pending} disabledReason={pending ? '先应用上面的改动' : undefined} onClick={() => save({ token: '' }, '已删除动作服务令牌', '没能删除令牌')}>
               移除
             </Btn>
           ) : (
-            <Btn disabled={off || !token.trim()} onClick={() => save({ token: token.trim() }, '令牌已保存', '没能保存令牌')}>
+            <Btn disabled={off || !token.trim() || pending} disabledReason={pending ? '先应用上面的改动' : undefined} onClick={() => save({ token: token.trim() }, '令牌已保存', '没能保存令牌')}>
               保存
             </Btn>
           )}
@@ -79,7 +79,7 @@ export function LlmSecretRows({ pending }: { pending: boolean }) {
         id="svc_llm_key"
         title="API Key"
         desc={keyNote(models?.backends.compatible?.has_key === true)}
-        control={<ApiKeyControl provider="compatible" label="自建模型接口 API Key" />}
+        control={<ApiKeyControl provider="compatible" label="自建模型接口 API Key" pending={pending} />}
       />
       <SetRow
         id="svc_llm_test"

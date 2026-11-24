@@ -28,9 +28,21 @@ export function splitCommand(text: string): string[] {
   return out;
 }
 
+/** One argument as splitCommand reads it back: bare, in the quotes it does not hold, or, holding both, as adjacent quoted spans. */
+function quoteArg(a: string): string {
+  if (a !== '' && !/[\s"']/.test(a)) return a;
+  if (!a.includes('"')) return `"${a}"`;
+  if (!a.includes("'")) return `'${a}'`;
+  return a
+    .split(/(["'])/)
+    .filter(Boolean)
+    .map((p) => (p === '"' ? `'"'` : p === "'" ? `"'"` : `'${p}'`))
+    .join('');
+}
+
 /** argv back into the field, quoting what splitCommand would otherwise split or strip. */
 export function joinCommand(argv: string[]): string {
-  return argv.map((a) => (a !== '' && !/[\s"']/.test(a) ? a : a.includes('"') ? `'${a}'` : `"${a}"`)).join(' ');
+  return argv.map(quoteArg).join(' ');
 }
 
 export const SERVICE_NAME: Record<ServiceId, string> = { tts: '语音服务', motion: '动作服务', llm: '自建模型接口（兼容 API）' };

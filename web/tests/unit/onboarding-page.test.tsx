@@ -16,6 +16,8 @@ let saves: Array<Record<string, unknown>>;
 
 /** `tokenSet` is what /diag/state's connections.tts.token_set says; `diagReads` counts its reads. */
 let diagReads: number;
+/** Every POST /model/settings body. */
+let modelPosts: unknown[];
 
 function install(over: Partial<OnboardingOps> = {}, opts: { testOk?: boolean; tokenSet?: boolean } = {}) {
   const fake = createFakeBridge({ surface: 'onboarding', still: true });
@@ -32,6 +34,7 @@ function install(over: Partial<OnboardingOps> = {}, opts: { testOk?: boolean; to
   const agentd = {
     ...fake.agentd,
     request: ((method, path, body) => {
+      if (method === 'POST' && path === '/model/settings') modelPosts.push(body);
       if (path === '/model/test' && opts.testOk === false)
         return Promise.resolve({ status: 200, body: { ok: false, kernel: 'pi', provider: null, model: '', elapsed_ms: 0, tokens: null, cost_usd: null } });
       if (path !== '/diag/state') return fake.agentd.request(method, path, body);
@@ -68,6 +71,7 @@ async function toStep(n: number) {
 
 beforeEach(() => {
   diagReads = 0;
+  modelPosts = [];
   calls = [];
   asked = [];
   saves = [];
@@ -196,6 +200,25 @@ describe('onboarding page', () => {
     const before = diagReads;
     fireEvent.click(within(row).getByRole('button', { name: '保存' }));
     await waitFor(() => expect(diagReads).toBeGreaterThan(before));
+  });
+
+  it('drops an API key typed for one service when another is picked, so it is never saved for that one', async () => {
+    install();
+    mount();
+    await roster();
+    await toStep(2);
+    const key = () => document.querySelector('[data-row="apikey"]') as HTMLElement;
+    await waitFor(() => expect(within(key()).getByRole('button', { name: '替换' })).toBeTruthy());
+    fireEvent.click(within(key()).getByRole('button', { name: '替换' }));
+    fireEvent.change(within(key()).getByLabelText('API Key', { selector: 'input' }), { target: { value: 'sk-ant-0123456789' } });
+    fireEvent.click(screen.getByRole('button', { name: '模型提供方' }));
+    fireEvent.click(within(screen.getByRole('listbox', { name: '模型提供方' })).getByRole('option', { name: 'OpenAI API' }));
+    await waitFor(() => expect(modelPosts).toEqual([{ provider: 'openai' }]));
+    const field = within(key()).getByLabelText('API Key', { selector: 'input' }) as HTMLInputElement;
+    expect(field.value).toBe('');
+    fireEvent.click(within(key()).getByRole('button', { name: '保存' }));
+    await act(async () => {});
+    expect(modelPosts).toEqual([{ provider: 'openai' }]);
   });
 
   it('跳过引导 asks on white paper, then ends the guide', async () => {

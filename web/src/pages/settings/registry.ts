@@ -12,9 +12,6 @@ export type GroupId = 'speak' | 'perm' | 'privacy' | 'display' | 'kernel' | 'ser
 // 能力, 感知 and 内核 keep the ids 'perm', 'privacy' and 'kernel' that other pages and agentd actions link to.
 export const GROUP_IDS: GroupId[] = ['speak', 'perm', 'privacy', 'display', 'kernel', 'services', 'keys', 'data', 'about'];
 
-/** Groups merged into another, for old links. */
-export const GROUP_MOVED: Readonly<Record<string, GroupId>> = { model: 'kernel' };
-
 export const DEFAULT_GROUP: GroupId = 'speak';
 
 export const GROUP_ICON: Record<GroupId, IconName> = {
@@ -36,9 +33,6 @@ export const PI_ONLY_ROWS: ReadonlySet<string> = new Set(['runsrc', 'piApproval'
 
 /** Rows of the other kernels' account and model; search leaves them out for Pi. */
 export const NOT_PI_ROWS: ReadonlySet<string> = new Set(['acct', 'kernelLogin', 'mainModel']);
-
-/** Rows merged into another row, for old links: the 外接 harness switch is the kernel picker's to turn on now. */
-export const ROW_MOVED: Readonly<Record<string, string>> = { 'plugins.harness_bridge': 'kernel' };
 
 /** Groups whose values all come from agentd; they turn read-only when the backend is down. */
 export const NEEDS_AGENTD: GroupId[] = ['kernel'];

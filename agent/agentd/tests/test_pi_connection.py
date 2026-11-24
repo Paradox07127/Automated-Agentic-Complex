@@ -95,8 +95,10 @@ class PiConnectionCase(unittest.TestCase):
         join_reapers()
         self.tmp.cleanup()
 
-    def use(self, provider, **backend):
+    def use(self, provider, api_key=None, **backend):
         self.models.save({"provider": provider, **backend})
+        if api_key is not None:
+            self.models.save({"provider": provider, "api_key": api_key})
 
     def config(self, **changes):
         return {**DEFAULTS, **changes}

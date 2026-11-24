@@ -142,6 +142,32 @@ describe(' states and navigation', () => {
     for (const g of SETTING_GROUPS) expect(tips().filter((t) => t.includes(g.desc)), g.id).toEqual([]);
   });
 
+  it('opens an unknown group, an object key or the old 模型 group alike, on the default group', async () => {
+    for (const g of ['constructor', 'toString', 'model', 'nope']) {
+      await mount(`&group=${g}`);
+      const nav = await screen.findByRole('tablist', { name: '设置分组' });
+      expect(within(nav).getByRole('tab', { name: /交流/ }).getAttribute('aria-selected'), g).toBe('true');
+      cleanup();
+    }
+  });
+
+  it('keeps a confirm open while its action runs, and its end closes only that confirm', async () => {
+    let finish!: () => void;
+    const fake = createFakeBridge({ surface: 'main', still: true });
+    window.agenticComplex = { ...fake, settings: { ...fake.settings, wipeLocalData: () => new Promise<void>((r) => (finish = r)) } };
+    await mount('&group=data');
+    await act(async () => fireEvent.click(await screen.findByRole('button', { name: '删除所有…' })));
+    const paper = () => screen.queryByRole('dialog');
+    await act(async () => fireEvent.click(within(paper()!).getByRole('button', { name: '删除所有' })));
+    expect(within(paper()!).getByRole('button', { name: '正在处理…' })).toBeTruthy();
+    await act(async () => void fireEvent.keyDown(document.body, { key: 'Escape' }));
+    await act(async () => void fireEvent.mouseDown(document.querySelector('[data-stub="SettingsConfirm"]')!));
+    await act(async () => fireEvent.click(within(paper()!).getByRole('button', { name: '取消' })));
+    expect(paper()?.textContent).toContain('删除所有本地数据？');
+    await act(async () => finish());
+    expect(paper()).toBeNull();
+  });
+
   it('draws no › on a row whose control is a button', async () => {
     await mount('&group=data');
     await screen.findByText('清空活动记录');

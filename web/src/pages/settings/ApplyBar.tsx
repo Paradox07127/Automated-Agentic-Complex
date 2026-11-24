@@ -50,10 +50,10 @@ export function ApplyBar() {
         )}
         {drafts > 0 && (
           <>
-            <Btn size="sm" onClick={model.revertAll}>
+            <Btn size="sm" disabled={model.applying} disabledReason="正在应用" onClick={model.revertAll}>
               撤销
             </Btn>
-            <Btn size="sm" variant="primary" disabled={ro || (agentdOff && needsAgentd)} disabledReason="后台服务没有运行" onClick={() => void model.applyAll()}>
+            <Btn size="sm" variant="primary" loading={model.applying} disabled={ro || (agentdOff && needsAgentd)} disabledReason="后台服务没有运行" onClick={() => void model.applyAll()}>
               应用
             </Btn>
           </>

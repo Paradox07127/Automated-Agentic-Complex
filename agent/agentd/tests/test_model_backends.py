@@ -242,6 +242,18 @@ class ModelsTest(unittest.TestCase):
         self.settings.save({"provider": "pi_catalog", "pi_provider": "openrouter"})
         self.assertEqual(self.settings.connection()[2], "openrouter-key")
 
+    def test_a_key_write_keeps_the_active_connection(self):
+        self.settings.save({"provider": "pi_catalog", "pi_provider": "openrouter", "model": "m"})
+        self.settings.save({"provider": "compatible", "api_key": "compatible-key"})
+        self.settings.save({"provider": "pi_catalog", "pi_provider": "groq", "api_key": "groq-key"})
+        self.settings.save({"provider": "openai", "clear_key": True})
+        public = self.settings.public()
+        catalog = public["backends"]["pi_catalog"]
+        self.assertEqual((public["provider"], catalog["pi_provider"], catalog["model"], catalog["has_key"]), ("pi_catalog", "openrouter", "m", False))
+        self.assertTrue(public["backends"]["compatible"]["has_key"])
+        self.settings.save({"provider": "pi_catalog", "pi_provider": "groq"})
+        self.assertEqual(self.settings.connection()[2], "groq-key")
+
     def test_public_is_only_the_credential_store(self):
         self.config()
         public = self.settings.public()

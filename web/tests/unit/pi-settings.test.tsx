@@ -229,7 +229,7 @@ describe('其他（Pi 目录）', () => {
     render(<Harness d={other('groq')}><PiSections /></Harness>);
     fireEvent.change(row('apikey')!.querySelector('input[aria-label="API Key"]')!, { target: { value: 'gsk-0123456789' } });
     await click(within(row('apikey')!).getByRole('button', { name: '保存' }));
-    expect(sent('POST', '/model/settings')).toEqual({ provider: 'pi_catalog', api_key: 'gsk-0123456789' });
+    expect(sent('POST', '/model/settings')).toEqual({ provider: 'pi_catalog', pi_provider: 'groq', api_key: 'gsk-0123456789' });
   });
 });
 

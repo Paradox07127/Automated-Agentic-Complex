@@ -123,7 +123,7 @@ class CollectTest(unittest.TestCase):
             snapshot = collect(fake)
             self.assertEqual(item(snapshot, "generation"), ("degraded", "credential_permissions"))
             path.chmod(0o600)
-            real_models.save({"provider": "anthropic", "api_key": "k"})
+            real_models.save({"provider": "anthropic", "model": "m", "api_key": "k"})
             snapshot = collect(fake)
             self.assertEqual(item(snapshot, "generation"), ("configured", None))
 

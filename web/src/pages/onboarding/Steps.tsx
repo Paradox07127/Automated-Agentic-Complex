@@ -131,16 +131,19 @@ const GUIDE_SVC = SVC.filter((o) => o.value !== 'pi_catalog');
 function AccountRows() {
   const { model, ro, models, reload } = useSettings();
   const c = useControls();
-  const [key, setKey] = useState('');
-  const [replacing, setReplacing] = useState(false);
   const svc = String(model.value('svc') ?? models?.provider ?? 'chatgpt');
+  // A typed key belongs to the service it was typed for: picking another one starts empty.
+  const [typed, setTyped] = useState({ svc, key: '', replacing: false });
+  const mine = typed.svc === svc ? typed : { svc, key: '', replacing: false };
+  const { key, replacing } = mine;
+  const setKey = (k: string) => setTyped({ ...mine, key: k });
+  const setReplacing = (r: boolean) => setTyped({ ...mine, replacing: r });
   const cfg = models?.backends[svc as keyof NonNullable<typeof models>['backends']];
   const saveKey = () => {
     if (key.trim().length < 8) return model.notify({ message: 'API Key 太短，没有保存', severity: 'warning' });
     void saveModels({ provider: svc, api_key: key.trim() }).then(
       () => {
-        setKey('');
-        setReplacing(false);
+        setTyped((t) => (t.svc === svc ? { svc, key: '', replacing: false } : t));
         reload('models');
         model.notify({ message: 'API Key 已保存', severity: 'success' });
       },

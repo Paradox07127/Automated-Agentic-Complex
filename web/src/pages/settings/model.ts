@@ -97,6 +97,8 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(init.confirm ?? null);
   const [toast, setToast] = useState<ToastSpec | null>(null);
   const [restarting, setRestarting] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const applyingNow = useRef(false);
   // Service cards' fields the last 应用 refused, by card row.
   const [rejected, setRejected] = useState<Record<string, ServiceRejected>>({});
   const timers = useRef<number[]>([]);
@@ -131,9 +133,11 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
     timers.current.push(window.setTimeout(() => setOk((o) => (o === id ? null : o)), 1200));
   }, []);
 
-  /** config.json through the shell. Only a row whose own schema says `restart: backend` waits for a backend restart. */
+  /** config.json through the shell. Only a row whose own schema says `restart: backend` waits for a backend restart.
+   *  `notApplied`: saved, but a live effect did not take, and its warning is on screen. */
   const saveNative = useCallback(
-    async (changes: Vals, what: string): Promise<boolean> => {
+    async (changes: Vals, what: string): Promise<{ saved: boolean; notApplied: boolean }> => {
+      const failed = { saved: false, notApplied: false };
       const rows = s.current.native?.rows ?? {};
       const restart = Object.keys(changes).filter((id) => rows[id]?.restart === 'backend');
       // Read before the save: config.json's change notice may refresh `vals` while it is out.
@@ -143,13 +147,13 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
         res = await bridge.settings.save(changes);
       } catch {
         setToast({ message: `没有保存「${what}」：原生设置服务没有响应`, severity: 'danger', persistent: true });
-        return false;
+        return failed;
       }
       if (res.error) {
         // The shell's text may carry an option key or a system message: logged, not shown.
         console.warn('settings.save refused', res.error);
         setToast({ message: `没有保存「${what}」：桌面端没有接受这次修改`, severity: 'danger', persistent: true });
-        return false;
+        return failed;
       }
       setVals((v) => ({ ...v, ...changes }));
       if (restart.length)
@@ -164,12 +168,24 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
           return next;
         });
       if (res.notApplied.length) setToast({ message: `已保存，${res.notApplied.map(labelOf).join('、')}要重启 Agentic Complex 后生效`, severity: 'warning', persistent: true });
-      return true;
+      return { saved: true, notApplied: res.notApplied.length > 0 };
     },
     [bridge],
   );
 
-  /** agentd: one request per target, the reply folded back into the read. */
+  /** A write took these values: they are saved, and their drafts go, each only while it still holds the value sent, with the
+   *  picked file sent for it. */
+  const settle = useCallback((sent: Vals, sentHandles: Handles) => {
+    setVals((v) => ({ ...v, ...sent }));
+    setDraft((d) => {
+      const next = { ...d };
+      for (const [id, v] of Object.entries(sent)) if (next[id] === v) delete next[id];
+      return next;
+    });
+    for (const id of Object.keys(sent)) if (handles.current[id] === sentHandles[id]) delete handles.current[id];
+  }, []);
+
+  /** agentd: one request per target, the reply folded back into the read; each target's drafts go once it took them. */
   const saveAgentd = useCallback(async (changes: Vals, what: string): Promise<boolean> => {
     const by: Partial<Record<Target, Vals>> = {};
     for (const [id, v] of Object.entries(changes)) {
@@ -177,16 +193,19 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
       if (t) by[t] = { ...by[t], [id]: v };
     }
     const cur = s.current;
+    const sentHandles = { ...handles.current };
     try {
       if (by.runtime) {
         if (!cur.runtime) throw new Error(NO_READ.runtime);
-        const reply = await saveRuntime(runtimeBody(cur.runtime, by.runtime, handles.current));
+        const reply = await saveRuntime(runtimeBody(cur.runtime, by.runtime, sentHandles));
         cur.merge?.('runtime', reply);
+        settle(by.runtime, sentHandles);
       }
       if (by.models) {
         if (!cur.models) throw new Error(NO_READ.models);
         const reply = await saveModels(modelsBody(cur.models, by.models));
         cur.merge?.('models', reply);
+        settle(by.models, sentHandles);
       }
     } catch (e) {
       const f = e instanceof Error && Object.values(NO_READ).includes(e.message) ? { text: e.message, conflict: false } : failure(e);
@@ -194,22 +213,32 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
       setToast({ message: `没有保存「${what}」：${f.text}`, severity: 'danger', persistent: true });
       return false;
     }
-    setVals((v) => ({ ...v, ...changes }));
     return true;
-  }, []);
+  }, [settle]);
 
-  const save = useCallback(
-    (changes: Vals, what: string) => (Object.keys(changes).every((id) => targetOf(id)) ? saveAgentd(changes, what) : saveNative(changes, what)),
+  const commit = useCallback(
+    async (changes: Vals, what: string) =>
+      Object.keys(changes).every((id) => targetOf(id)) ? { saved: await saveAgentd(changes, what), notApplied: false } : saveNative(changes, what),
     [saveAgentd, saveNative],
   );
+  const save = useCallback(async (changes: Vals, what: string) => (await commit(changes, what)).saved, [commit]);
 
+  // 撤销 goes through `set`, which asks before a destructive switch goes off.
+  const setLatest = useRef<(id: string, v: SettingValue) => void>(() => {});
   const write = useCallback(
     async (id: string, v: SettingValue, old: SettingValue | undefined) => {
-      if (!(await save({ [id]: v }, labelOf(id)))) return;
+      const r = await commit({ [id]: v }, labelOf(id));
+      if (!r.saved) return;
       flash(id);
-      setToast({ message: `已更改「${labelOf(id)}」`, action: { label: '撤销', onClick: () => void save({ [id]: old ?? null }, labelOf(id)) } });
+      // The warning that it did not take stays on screen.
+      if (r.notApplied) return;
+      const undo = () => {
+        if (now.current[id] === v) setLatest.current(id, old ?? null);
+        else setToast({ message: `「${labelOf(id)}」已经又改过，没有撤销` });
+      };
+      setToast({ message: `已更改「${labelOf(id)}」`, action: { label: '撤销', onClick: undo } });
     },
-    [save, flash],
+    [commit, flash],
   );
 
   /** Writes one setting: drafts stay local, a destructive switch going off asks first. */
@@ -244,6 +273,7 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
     },
     [bridge, vals, write],
   );
+  setLatest.current = set;
 
   /** A picked file for a draft row: the handle goes into the request, its name onto the screen. */
   const setHandle = useCallback(
@@ -255,35 +285,53 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
   );
 
   /** Saves every draft at once (the bottom「未应用 N 项」bar): agentd's first, then each service card's; a failed target keeps its
-   *  drafts. True when none is left. */
+   *  drafts. Edits made while it runs stay drafts; a second call meanwhile does nothing. True when none of the sent is left. */
   const applyAll = useCallback(async (): Promise<boolean> => {
-    const n = Object.keys(draft).length;
+    const sent = draft;
+    const n = Object.keys(sent).length;
     if (n === 0) return true;
-    const agentd = Object.fromEntries(Object.entries(draft).filter(([id]) => !serviceOf(id)));
-    if (Object.keys(agentd).length && !(await saveAgentd(agentd, `${n} 项改动`))) return false;
-    handles.current = {};
-    const left: Vals = {};
-    const refused: Record<string, ServiceRejected> = {};
-    let note: ToastSpec | null = null;
-    for (const [row, v] of Object.entries(draft)) {
-      const id = serviceOf(row);
-      if (!id) continue;
-      const r = await applyService(id, JSON.parse(String(v)) as ServiceDraft);
-      if (r.ok) {
-        setVals((x) => ({ ...x, [row]: JSON.stringify(r.record) }));
-        if (r.tokenCleared) note = { message: TOKEN_CLEARED, severity: 'warning', persistent: true };
-        continue;
+    if (applyingNow.current) return false;
+    applyingNow.current = true;
+    setApplying(true);
+    try {
+      const agentd = Object.fromEntries(Object.entries(sent).filter(([id]) => targetOf(id)));
+      if (Object.keys(agentd).length && !(await saveAgentd(agentd, `${n} 项改动`))) return false;
+      // A config.json row drafted with them: the plug-in a picked kernel needs.
+      const native = Object.fromEntries(Object.entries(sent).filter(([id]) => !targetOf(id) && !serviceOf(id)));
+      if (Object.keys(native).length) {
+        if (!(await saveNative(native, `${n} 项改动`)).saved) return false;
+        settle(native, {});
       }
-      left[row] = v;
-      if (r.rejected) refused[row] = r.rejected;
-      if (r.message) note = { message: r.message, severity: 'danger', persistent: true };
+      let left = 0;
+      const refused: Record<string, ServiceRejected> = {};
+      let note: ToastSpec | null = null;
+      for (const [row, v] of Object.entries(sent)) {
+        const id = serviceOf(row);
+        if (!id) continue;
+        const r = await applyService(id, JSON.parse(String(v)) as ServiceDraft);
+        if (r.ok) {
+          setVals((x) => ({ ...x, [row]: JSON.stringify(r.record) }));
+          setDraft((d) => {
+            if (d[row] !== v) return d;
+            const { [row]: _sent, ...rest } = d;
+            return rest;
+          });
+          if (r.tokenCleared) note = { message: TOKEN_CLEARED, severity: 'warning', persistent: true };
+          continue;
+        }
+        left += 1;
+        if (r.rejected) refused[row] = r.rejected;
+        if (r.message) note = { message: r.message, severity: 'danger', persistent: true };
+      }
+      setRejected(refused);
+      const done = n - left;
+      setToast(note ?? (done ? { message: `已应用 ${done} 项`, severity: 'success' } : null));
+      return left === 0;
+    } finally {
+      applyingNow.current = false;
+      setApplying(false);
     }
-    setRejected(refused);
-    setDraft(left);
-    const done = n - Object.keys(left).length;
-    setToast(note ?? (done ? { message: `已应用 ${done} 项`, severity: 'success' } : null));
-    return Object.keys(left).length === 0;
-  }, [saveAgentd, draft]);
+  }, [saveAgentd, saveNative, settle, draft]);
 
   const revertAll = useCallback(() => {
     handles.current = {};
@@ -328,7 +376,7 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
       for (const id of Object.keys(changes)) {
         if (s.current.native?.rows[id]?.destructive && vals[id] === true && !(await bridge.settings.confirmDestructive(id))) return false;
       }
-      return Object.keys(changes).length === 0 || saveNative(changes, '默认设置');
+      return Object.keys(changes).length === 0 || (await saveNative(changes, '默认设置')).saved;
     },
     [bridge, vals, saveNative],
   );
@@ -341,6 +389,7 @@ export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
     confirm,
     toast,
     restarting,
+    applying,
     rejected,
     value,
     set,

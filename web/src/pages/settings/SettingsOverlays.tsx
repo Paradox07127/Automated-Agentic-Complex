@@ -23,34 +23,44 @@ export function SettingsOverlays() {
   if (!confirm) return null;
   return (
     <OverlayPortal>
-      <Paper spec={confirm} onClose={() => model.ask(null)} />
+      {/* Closes only the confirm it was opened for. */}
+      <Paper key={confirm.title} spec={confirm} onClose={() => model.ask((c) => (c?.title === confirm.title ? null : c))} />
     </OverlayPortal>
   );
 }
 
-/** White paper card (decisions only): the warning tape along the top, red on danger, the question, ▲ what cannot be undone, the list of what goes, then 取消 and the confirm. Opens on 取消, so Enter cancels. */
+/**
+ * White paper card (decisions only): the warning tape along the top, red on danger, the question, ▲ what cannot be undone, the list
+ * of what goes, then 取消 and the confirm. Opens on 取消, so Enter cancels. While the confirmed action runs it cannot be dismissed.
+ */
 function Paper({ spec, onClose }: { spec: ConfirmSpec; onClose: () => void }) {
+  const { model } = useSettings();
   const [busy, setBusy] = useState(false);
   const [word, setWord] = useState('');
   const wordId = useId();
   const titleId = useId();
   const panel = useRef<HTMLDivElement>(null);
-  const trap = useOverlayFocus(panel, onClose);
+  const dismiss = () => !busy && onClose();
+  const trap = useOverlayFocus(panel, dismiss);
   const ok = !spec.confirmWord || word.trim() === spec.confirmWord;
-  const run = () => {
+  const run = async () => {
     if (busy || !ok) return;
     setBusy(true);
-    void Promise.resolve(spec.onConfirm()).finally(() => {
+    try {
+      await spec.onConfirm();
+    } catch {
+      model.notify({ message: `没能完成「${spec.confirmLabel}」`, severity: 'danger', persistent: true });
+    } finally {
       setBusy(false);
       onClose();
-    });
+    }
   };
   return (
     <div
       className={styles.veil}
       data-stub="SettingsConfirm"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) dismiss();
       }}
     >
       <div ref={panel} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} data-theme="light" data-danger={spec.danger || undefined} className={styles.paper} onKeyDown={trap}>
@@ -81,14 +91,16 @@ function Paper({ spec, onClose }: { spec: ConfirmSpec; onClose: () => void }) {
               spellCheck={false}
               onChange={setWord}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') run();
+                if (e.key === 'Enter') void run();
               }}
             />
           </label>
         )}
         <div className={styles.acts}>
-          <Btn onClick={onClose}>{spec.cancelLabel ?? '取消'}</Btn>
-          <Btn variant={spec.danger ? 'danger' : 'primary'} loading={busy} disabled={!ok} disabledReason={spec.confirmWord ? `先输入「${spec.confirmWord}」` : undefined} onClick={run}>
+          <Btn disabled={busy} onClick={dismiss}>
+            {spec.cancelLabel ?? '取消'}
+          </Btn>
+          <Btn variant={spec.danger ? 'danger' : 'primary'} loading={busy} disabled={!ok} disabledReason={spec.confirmWord ? `先输入「${spec.confirmWord}」` : undefined} onClick={() => void run()}>
             {busy ? '正在处理…' : spec.confirmLabel}
           </Btn>
         </div>

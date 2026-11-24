@@ -33,6 +33,7 @@ class CredentialStorageTest(unittest.TestCase):
         settings = ModelSettings(self.state, self.store)
         for provider, extra in (("openai", {}), ("pi_catalog", {"pi_provider": "groq"})):
             key = "dummy-private-" + provider
+            settings.save({"provider": provider, "model": "m", **extra})
             settings.save({"provider": provider, "api_key": key, **extra})
             self.assertEqual(settings.connection()[2], key)
         self.assertEqual(ModelSettings(self.state, self.store).connection()[2], "dummy-private-pi_catalog")

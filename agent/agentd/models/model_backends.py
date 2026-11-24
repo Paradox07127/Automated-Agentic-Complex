@@ -109,18 +109,23 @@ class ModelSettings:
         return {**data, "chatgpt": self.auth.state(), "error": self.error}
 
     def save(self, body):
+        """A body of only the provider (with `pi_provider` for Pi's catalog) and `api_key` or `clear_key` writes that one key slot,
+        leaving the active provider and Pi's catalog choice as they are; any other body also makes its provider the active one."""
         if not isinstance(body, dict) or body.get("provider") not in DEFAULTS:
             raise ModelError("invalid_provider")
         provider = body["provider"]
+        key_only = ("api_key" in body or body.get("clear_key") is True) and set(body) <= {"provider", "pi_provider", "api_key", "clear_key"}
         with self.lock:
             updated = copy.deepcopy(self.data)
             config = updated["backends"][provider]
             host = urlparse(config.get("base_url", "")).hostname
+            slot = config.get("pi_provider", provider)
             if provider == "pi_catalog" and "pi_provider" in body:
                 name = body["pi_provider"]
                 if not isinstance(name, str) or not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}", name):
                     raise ModelError("invalid_pi_provider")
-                if name != config["pi_provider"]:
+                slot = name
+                if name != config["pi_provider"] and not key_only:
                     # Model ids belong to one provider.
                     config.update(pi_provider=name, model="")
             key_value = None
@@ -164,7 +169,7 @@ class ModelSettings:
                 config["base_url"] = DEEPSEEK_BASE_URL
             if provider == "pi_catalog":
                 # Pi's catalog has each provider's address; a key goes to the chosen provider's own slot.
-                if key_value is not None and not config["pi_provider"]:
+                if key_value is not None and not slot:
                     raise ModelError("invalid_pi_provider")
                 config["base_url"] = ""
             elif provider != "compatible":
@@ -175,9 +180,9 @@ class ModelSettings:
                 if parsed.hostname != host and "api_key" not in body:
                     key_value = ""  # a stored key never follows the URL to another host
                 config["base_url"] = config["base_url"].rstrip("/")
-            updated["provider"] = provider
+            if not key_only:
+                updated["provider"] = provider
             ensure_state_dir(self.path.parent)
-            slot = config.get("pi_provider", provider)
             old_ref = config.get("key_refs", {}).get(slot)
             with setting_secret(self.secrets, old_ref, "provider-", None if key_value is None else key_value.encode()) as ref:
                 if ref:
