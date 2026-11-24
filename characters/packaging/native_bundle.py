@@ -357,14 +357,17 @@ def holds(root,item,sha,size=None):
     try:raw=pool_codec.raw_identity(root/item['file'],item['byte_count'])
     except ValueError:return False
     return raw[0]==sha and size in (None,raw[1])
-def verify(root):
+def verify(root,known=None):
+    """known: {inventory path: sha256} the caller has already checked; those files are not hashed again."""
+    known=known or {}
     root=pathlib.Path(root).resolve();manifest=load(root/'bundle.json');require(manifest.get('schema')=='metal-native-character-bundle/v1','unknown bundle')
     require(len({e['id'] for e in manifest['characters']})==len(manifest['characters']),'duplicate character ID')
     indexed={};folded=set();bytes_total=0
     for item in manifest['files']:
         rel=str(relative(item['file']));require(rel not in indexed and rel.casefold() not in folded,'duplicate/case-colliding inventory path');folded.add(rel.casefold());path=root/rel
         require(path.is_file() and not path.is_symlink() and path.resolve().is_relative_to(root),'absent/escaping/nonregular packaged file: '+rel)
-        require(path.stat().st_size==item['byte_count'] and digest(path)==item['sha256'],'packaged SHA/length mismatch: '+rel);indexed[rel]=item;bytes_total+=item['byte_count']
+        require(path.stat().st_size==item['byte_count'] and (known[rel] if rel in known else digest(path))==item['sha256'],'packaged SHA/length mismatch: '+rel);indexed[rel]=item;bytes_total+=item['byte_count']
+    for rel in known:require(rel in indexed,'vouched file is not in the inventory: '+rel)
     visited=set();runtime=set();pools={}
     def visit(ref,kind,actor_root=None,pool=None):
         named=path=str(relative(ref['file']));item=indexed.get(path)

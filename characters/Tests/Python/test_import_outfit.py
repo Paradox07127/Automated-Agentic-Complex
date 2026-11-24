@@ -1181,6 +1181,49 @@ filename = Textures/new.dds
             self.assertEqual('%08x' % import_outfit.crc32c(struct.pack(f'<{len(indices)}H', *indices)), expected)
         self.assertEqual('%08x' % import_outfit.crc32c(struct.pack('<3I', 0, 1, 2)), 'dd3bebfb')
 
+    def test_crc32c_known_vector(self):
+        self.assertEqual(import_outfit.crc32c(b'123456789'), 0xE3069283)
+
+    def test_crc32c_equals_the_bytewise_reference(self):
+        def reference(data, crc=0):
+            crc ^= 0xFFFFFFFF
+            for b in data:
+                crc ^= b
+                for _ in range(8):crc = (crc >> 1) ^ (0x82F63B78 if crc & 1 else 0)
+            return crc ^ 0xFFFFFFFF
+        rng = __import__('random').Random(7)
+        lanes = import_outfit.CRC32C_LANES*import_outfit.CRC32C_LANE_MIN
+        for n in (0, 1, 7, 8, 4095, 4096, 4097, lanes-1, lanes, lanes+1, lanes*3+5, (1 << 20)+3):
+            data = rng.randbytes(n)
+            for seed in (0, 0x12345678, 0xFFFFFFFF):
+                with self.subTest(n=n, seed=seed):self.assertEqual(import_outfit.crc32c(data, seed), reference(data, seed))
+
+    def test_verify_hashes_every_file_it_is_not_vouched_for(self):
+        self.si_import(textures={'1': '_MetallicGlossMap'}); runtime = self.root/'out/runtime'
+        files = read_json(runtime/'bundle.json')['files']; target = files[0]['file']
+        raw = bytearray((runtime/target).read_bytes()); raw[0] ^= 1; (runtime/target).write_bytes(raw)
+        known = {f['file']: f['sha256'] for f in files if f['file'] != target}
+        with self.assertRaisesRegex(native_bundle.BundleError, 'packaged SHA/length mismatch: '+target):native_bundle.verify(runtime, known)
+
+    def test_verify_rejects_a_vouched_path_outside_the_inventory(self):
+        self.si_import(textures={'1': '_MetallicGlossMap'}); runtime = self.root/'out/runtime'
+        with self.assertRaisesRegex(native_bundle.BundleError, 'vouched file is not in the inventory: absent.bin'):
+            native_bundle.verify(runtime, {'absent.bin': '0'*64})
+
+    def test_import_vouches_only_for_files_still_as_cloned(self):
+        calls, original = [], native_bundle.verify
+        def verify(root, known=None):
+            calls.append((Path(root), dict(known or {}))); return original(root, known)
+        with mock.patch.object(native_bundle, 'verify', verify):self.si_import(textures={'1': '_MetallicGlossMap'})
+        (root, known), = calls
+        listed = {f['file']: f['sha256'] for f in read_json(self.root/'out/runtime/bundle.json')['files']}
+        self.assertTrue(known)
+        self.assertLess(len(known), len(listed))
+        for rel, sha in known.items():
+            self.assertEqual(listed[rel], sha)
+            self.assertEqual(self.package.inventory['runtime/'+rel]['sha256'], sha)
+            self.assertEqual((self.root/'out/runtime'/rel).stat().st_mtime_ns, (self.package.root/'runtime'/rel).stat().st_mtime_ns)
+
     def test_module_stays_content_safe(self):
         text = (CHARACTERS/'agentic_complex_build/import_outfit.py').read_text()
         for word in ('sys.path', '__file__', 'presentation_candidate'):self.assertNotIn(word, text)

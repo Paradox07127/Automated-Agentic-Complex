@@ -20,6 +20,8 @@ import struct
 import subprocess
 import tempfile
 
+import numpy as np
+
 from character_library import Package, read_json, write_json, need
 import native_bundle
 import pool_codec
@@ -218,11 +220,59 @@ def crc_table():
 
 
 CRC32C_TABLE = crc_table()
+# Slicing-by-4 folded into two 16-bit tables: one step takes a little-endian word into the register.
+_T = [np.array(CRC32C_TABLE, np.uint32)]
+for _ in range(3):_T.append((_T[-1] >> 8) ^ _T[0][_T[-1] & 0xFF])
+_X = np.arange(1 << 16, dtype=np.uint32)
+CRC32C_LO, CRC32C_HI = _T[3][_X & 0xFF] ^ _T[2][_X >> 8], _T[1][_X & 0xFF] ^ _T[0][_X >> 8]
+del _T, _X
+# Inputs of at least LANES*LANE_MIN bytes run as LANES equal segments at once.
+CRC32C_LANES, CRC32C_LANE_MIN = 1024, 64
+
+
+def gf2_apply(cols, x):
+    """The 32-bit linear map whose image of bit i is cols[i], applied to x."""
+    out, i = 0, 0
+    while x:
+        if x & 1:out ^= cols[i]
+        x >>= 1; i += 1
+    return out
+
+
+def zero_bytes(n):
+    """The map of the CRC register over n zero bytes (without the pre/post inversion), as images of its 32 bits."""
+    step, out = [CRC32C_TABLE[(1 << i) & 0xFF] ^ ((1 << i) >> 8) for i in range(32)], [1 << i for i in range(32)]
+    while n:
+        if n & 1:out = [gf2_apply(step, c) for c in out]
+        n >>= 1
+        if n:step = [gf2_apply(step, c) for c in step]
+    return out
+
+
+def crc32c_lanes(data, crc):
+    """(register after the longest prefix of `data` that splits into CRC32C_LANES segments of whole words, the rest of `data`)
+    from register `crc`. Without the inversion the register is linear in its start and the bytes: over A then B it is
+    zero_bytes(len B)(register over A) ^ (register over B from 0). Segment 0 starts from `crc`, the others from 0; segments are
+    then joined in pairs, each pair a segment twice as long, until one is left."""
+    m = len(data)//CRC32C_LANES//4
+    s = np.zeros(CRC32C_LANES, np.uint32); s[0] = crc
+    words = np.frombuffer(data, '<u4', CRC32C_LANES*m).reshape(CRC32C_LANES, m)
+    for j in range(m):
+        s ^= words[:, j]; s = CRC32C_LO[s & 0xFFFF] ^ CRC32C_HI[s >> 16]
+    bits = (np.arange(256)[:, None] >> np.arange(8) & 1).astype(bool)
+    shift = zero_bytes(4*m)
+    while len(s) > 1:
+        t = np.bitwise_xor.reduce(np.where(bits, np.array(shift, np.uint32).reshape(4, 1, 8), np.uint32(0)), axis=2)
+        a = s[0::2]
+        s = t[0][a & 0xFF] ^ t[1][a >> 8 & 0xFF] ^ t[2][a >> 16 & 0xFF] ^ t[3][a >> 24] ^ s[1::2]
+        shift = [gf2_apply(shift, c) for c in shift]
+    return int(s[0]), data[CRC32C_LANES*m*4:]
 
 
 def crc32c(data, crc=0):
     """Standard CRC-32C (Castagnoli) continued from `crc`, which XXMI calls with seed 0 as the hash of one submesh's index range."""
     crc ^= 0xFFFFFFFF
+    if len(data) >= CRC32C_LANES*CRC32C_LANE_MIN:crc, data = crc32c_lanes(data, crc)
     for b in data:crc = CRC32C_TABLE[(crc ^ b) & 0xFF] ^ (crc >> 8)
     return crc ^ 0xFFFFFFFF
 
@@ -1043,9 +1093,10 @@ def import_outfit(package_root, mod_dir, stage, name=None, mapping=None, progres
             for digest, raw in written.items():(character_dir/vulkan_outfit.OWN/digest).write_bytes(raw)
             frame_path.write_bytes(table); entry[native_bundle.VULKAN[0]] = ref(frame_path, runtime)
         cp = runtime/entry['coverage']['file']; write_json(cp, native_bundle.character_coverage(runtime, entry)); entry['coverage'] = ref(cp, runtime)
+        kept = {}
         def reference(p, root):
-            """ref(p, root); a file still as cloned (cp -c keeps size and mtime) keeps the hash of the package's inventory, which the
-            library checks in the copy it publishes; a file the import rewrote was read from a package file that must match it."""
+            """ref(p, root); a file still as cloned (cp -c keeps size and mtime) keeps the hash of the installed package's inventory,
+            which no later step hashes again; a file the import rewrote was read from a package file that must match it."""
             # String slices: p lies under root and root under tmp, and relative_to is slow over every file of a package.
             key = str(p)[len(str(tmp))+1:]; known = package.inventory.get(key)
             if known is None:return ref(p, root)
@@ -1053,11 +1104,13 @@ def import_outfit(package_root, mod_dir, stage, name=None, mapping=None, progres
             if (a.st_size, a.st_mtime_ns) != (b.st_size, b.st_mtime_ns):
                 need(sha256_file(package.root/key) == known['sha256'], 'file_sha_mismatch')
                 return ref(p, root)
-            return dict(file=str(p)[len(str(root))+1:], sha256=known['sha256'], byte_count=known['byte_count'])
+            rel = str(p)[len(str(root))+1:]; kept[rel] = known['sha256']
+            return dict(file=rel, sha256=known['sha256'], byte_count=known['byte_count'])
         roles = {x['file']: x.get('roles', ['runtime_imported_outfit']) for x in native['files']}
         native['files'] = [dict(**reference(p, runtime), roles=roles.get(p.relative_to(runtime).as_posix(), ['runtime_imported_outfit']))
                            for p in sorted(runtime.rglob('*')) if p.is_file() and p != native_path]
-        write_json(native_path, native); native_bundle.verify(runtime)
+        # verify hashes only what reference did not take from the installed package's inventory.
+        write_json(native_path, native); native_bundle.verify(runtime, kept)
         definition['components']['render']['native_bundle'] = ref(native_path, tmp)
         # The host finds the window envelope of an imported package by the version it derives from.
         definition.setdefault('base_package_version', definition['version'])
