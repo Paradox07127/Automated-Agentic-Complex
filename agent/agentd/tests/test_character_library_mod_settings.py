@@ -150,6 +150,15 @@ class CharacterLibraryModSettingsTests(unittest.TestCase):
         self.rejected("block_variant_on_mesh", "variant_mesh_mismatch", changed(lambda a: a["textures"][0]["variants"].append(texture["variants"][0])), variants)
         self.rejected("same_block_twice", "shape", changed(lambda a: a.update(textures=[texture, texture])), variants, DRAWS + [other])
 
+    def test_a_texture_rule_for_a_block_without_the_resource_is_unknown(self):
+        # Block 4 of the mesh samples no _BaseMap; block IB's slot must not stand in for it.
+        other = draw("PreGBuffer", MESH, "4" * 64, 300)
+        other["resources"] = other["resources"][1:]
+        variants = VARIANTS + [dict(VARIANTS[0], id="mod_a/cloth_01/444/_BaseMap/1", indices_sha256="4" * 64)]
+        texture = {"mesh": MESH, "indices_sha256": "4" * 64, "resource": "_BaseMap",
+                   "variants": [{"variant": "mod_a/cloth_01/444/_BaseMap/1", "when": {"color": [1]}}]}
+        self.rejected("block_without_slot", "unknown_resource", changed(lambda a: a.update(textures=[texture])), variants, DRAWS + [other])
+
     def test_segment_out_of_range(self):
         self.rejected("past_end", "segment_out_of_range", changed(lambda a: a["segments"][2].update(count=1803)))
         self.rejected("unaligned", "segment_out_of_range", changed(lambda a: a["segments"][2].update(first=4201, count=1797)))

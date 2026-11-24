@@ -46,7 +46,7 @@ class DispatchTest(unittest.TestCase):
         self.assertEqual(parse_command("让 Codex 查一下这个仓库的测试怎么跑"),
                          {"action": "dispatch", "target": "codex", "prompt": "查一下这个仓库的测试怎么跑"})
         self.assertEqual(parse_command("示例甲，让claude总结一下 README。"),
-                         {"action": "dispatch", "target": "claude", "prompt": "总结一下 README"})
+                         {"action": "dispatch", "target": "claude", "prompt": "总结一下 README。"})
         self.assertIsNone(parse_command("让我想想"))
         self.assertIsNone(parse_command("让 Codex"))
 

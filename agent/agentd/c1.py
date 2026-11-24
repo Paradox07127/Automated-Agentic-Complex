@@ -439,7 +439,8 @@ def _receipt_fits(receipt, behavior, renewal, last_phase):
     if renewal and last_phase is None and phase != "running":
         problems.append("a renewal has no entry motion: its first receipt is running")
     target = behavior.get("target") or {}
-    if target.get("kind") == "session" and target.get("window_id") is None \
+    gaze = bool(behavior.get("channels")) and set(behavior["channels"]) <= {"eyes", "head"}  # attend_session@user
+    if target.get("kind") == "session" and target.get("window_id") is None and not gaze \
             and (phase in ("running", "completed") or phase == "blocked" and receipt.get("reason") != "target_gone"):
         problems.append("a session target without window_id ends blocked / target_gone")
     if receipt.get("turn_generation") != behavior.get("turn_generation"):
@@ -476,6 +477,8 @@ def check_file(data):
                 problems.append(f"#{i}: seq does not increase")
             last = message["seq"]
         resumed = message.get("behaviors") if message.get("event") == "snapshot" else None
+        if isinstance(resumed, list):
+            running.clear()  # a snapshot lists every running behavior
         for behavior in resumed if isinstance(resumed, list) else ():
             if isinstance(behavior, dict) and phases.get(behavior.get("behavior_id")) in ENDED:
                 problems.append(f"#{i}: snapshot resumes an ended behavior; renew it under a new behavior_id")
@@ -545,8 +548,8 @@ def _expected_state(state, sent):
         problems.append(f"origin is one of {ORIGINS}")
     if state["behavior_id"] is None and state["origin"] == "agent":
         problems.append("a null behavior_id is a local reaction's or a user play's")
-    elif state["behavior_id"] is not None and state["origin"] == "user":
-        problems.append("a user play's behavior_id is null")
+    elif state["behavior_id"] is not None and state["origin"] in ("local", "user"):
+        problems.append("a local reaction's or a user play's behavior_id is null")
     elif state["behavior_id"] is not None and state["behavior_id"] not in sent:
         problems.append(f"behavior_id {state['behavior_id']!r} was not sent in a step")
     if state["phase"] not in (USER_PHASES if state["origin"] == "user" else MOTION_STATE_PHASES):
@@ -603,9 +606,16 @@ def check_player_fixture(data):
 
 
 def main(folder):
+    paths = sorted(Path(folder).glob("*.json"))
+    if not paths:
+        print(f"{folder}: no *.json fixture to check")
+        return 1
     failed = False
-    for path in sorted(Path(folder).glob("*.json")):
-        problems = check_file(json.loads(path.read_text(encoding="utf-8")))
+    for path in paths:
+        try:
+            problems = check_file(json.loads(path.read_text(encoding="utf-8")))
+        except ValueError as error:
+            problems = [f"invalid JSON: {error}"]
         print(f"{path.name}: {'OK' if not problems else '; '.join(problems)}")
         failed = failed or bool(problems)
     return 1 if failed else 0

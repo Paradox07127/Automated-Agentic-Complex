@@ -186,7 +186,8 @@ class CharacterState:
                 parts.append(f"absorbed in {DOING[self.activity]}")
             offset = self.valence - self._baseline()
             if abs(offset) >= MOOD_OFF:
-                why = next((c["cause"] for c in reversed(self.causes) if c["attr"] == "valence"), None)
+                why = next((c["cause"] for c in reversed(self.causes)
+                            if c["attr"] == "valence" and c["delta"] * offset > 0), None)
                 mood = "in a good mood" if offset > 0 else "in a bit of a low mood"
                 parts.append(f"{mood} (because {BECAUSE[why].format(user_title=user)})" if why in BECAUSE else mood)
             return f"You yourself are now {', '.join(parts)}. {DISCLAIMER.format(user_title=user)}" if parts else ""

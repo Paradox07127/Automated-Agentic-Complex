@@ -33,6 +33,8 @@ NEUTRAL_FIELDS = ("neutral_scene", "neutral_build_record", "metal_product")
 VULKAN_FIELDS = ("vulkan_frame",)
 MAX_FILES = 50000
 MAX_BYTES = 32 * 1024 ** 3
+# Seconds the host may take to load a package's native bundle; callers hold the library lock meanwhile.
+VALIDATE_TIMEOUT = 300
 
 
 class PackageError(ValueError):
@@ -209,7 +211,7 @@ def check_mod_settings(table, appearances, source, indexed):
             ok(any(d.get("mesh") == t["mesh"] for d in draws), "unknown_mesh")
             ok("indices_sha256" not in t or any(d.get("mesh") == t["mesh"] and isinstance(d.get("indices"), dict) and
                                                 d["indices"].get("sha256") == t["indices_sha256"] for d in draws), "unknown_indices")
-            ok(slots(t["mesh"], [t["resource"]]), "unknown_resource")
+            ok(slots(t["mesh"], [t["resource"]], t.get("indices_sha256")), "unknown_resource")
             picked = set()
             for v in t["variants"]:
                 ok(isinstance(v, dict) and isinstance(v.get("variant"), str) and v["variant"] not in picked, "shape")
@@ -328,6 +330,12 @@ class Package:
         need(not vulkan or neutral, "vulkan_frame_without_neutral_package")
         for field in neutral + vulkan:
             ref = self.native_entry[field]; validate_ref(ref)
+            need(all(native_index.get(ref["file"], {}).get(k) == ref[k] for k in ("file", "sha256", "byte_count")), "native_reference_not_indexed")
+            self.resolve(dict(ref, file=str(native_prefix / ref["file"])))
+        # The scene is shared by every character; publish copies its path into the library bundle.
+        if "scene" in n:
+            need(isinstance(n["scene"], dict) and isinstance(n["scene"].get("objects"), dict), "invalid_native_scene")
+            ref = n["scene"]["objects"]; validate_ref(ref)
             need(all(native_index.get(ref["file"], {}).get(k) == ref[k] for k in ("file", "sha256", "byte_count")), "native_reference_not_indexed")
             self.resolve(dict(ref, file=str(native_prefix / ref["file"])))
         archive = read_json(self.resolve(dict(self.native_entry["actor_archive"], file=str(native_prefix / self.native_entry["actor_archive"]["file"]))))
@@ -496,14 +504,15 @@ class Library:
             stage = Path(temporary)
             if directory:
                 need(not source.is_symlink(), "runtime_symlink")
-                shutil.copytree(source, stage, dirs_exist_ok=True, symlinks=True)
+                # Finder and Explorer drop these into any folder the user browses; they are not package files.
+                shutil.copytree(source, stage, dirs_exist_ok=True, symlinks=True,
+                                ignore=shutil.ignore_patterns(".DS_Store", "Thumbs.db", "desktop.ini"))
             else:
                 safe_extract_zip(source, stage, max_files=MAX_FILES, max_bytes=MAX_BYTES)
             package = Package(stage)
-            if not directory:
-                expected = set(package.inventory) | {"character.json"}
-                actual = {p.relative_to(stage).as_posix() for p in stage.rglob("*") if p.is_file()}
-                need(actual == expected, "archive_unindexed_payload")
+            expected = set(package.inventory) | {"character.json"}
+            actual = {p.relative_to(stage).as_posix() for p in stage.rglob("*") if p.is_file()}
+            need(actual == expected, "archive_unindexed_payload")
             if host is not None: validate_pack(host, package)
             return self.install(stage)
 
@@ -609,8 +618,12 @@ class Library:
 def validate_pack(host, package):
     """The Metal host must load the package's native bundle; its stderr is the failure reason."""
     if not package.render_enabled: return
-    result = subprocess.run([str(host), "--validate-pack", str(package.resolve(package.native_ref))],
-                            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, encoding="utf-8")
+    try:
+        result = subprocess.run([str(host), "--validate-pack", str(package.resolve(package.native_ref))],
+                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace",
+                                timeout=VALIDATE_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        raise PackageError("load_failed: host validation timed out") from None
     need(result.returncode == 0, result.stderr.strip() or "load_failed: host validation exited " + str(result.returncode))
 
 

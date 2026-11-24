@@ -87,7 +87,7 @@ class ParseCommandTest(unittest.TestCase):
                  "ターミナルに切り替えて": {"action": "jump", "target": "ターミナル"},
                  "ask Codex to run the tests": {"action": "dispatch", "target": "codex", "prompt": "run the tests"},
                  "Have claude summarize the README.": {"action": "dispatch", "target": "claude",
-                                                       "prompt": "summarize the README"},
+                                                       "prompt": "summarize the README."},
                  "codexにテストを直させて": {"action": "dispatch", "target": "codex", "prompt": "テストを直させて"}}
         for text, expected in cases.items():
             self.assertEqual(parse_command(text), expected, text)
@@ -117,6 +117,17 @@ class ParseCommandTest(unittest.TestCase):
                  "让 claude 修一下\n第二行": ("claude", "修一下\n第二行")}
         for text, (target, prompt) in cases.items():
             self.assertEqual(parse_command(text), {"action": "dispatch", "target": target, "prompt": prompt}, text)
+
+    def test_reminder_and_dispatch_text_keeps_its_last_word_and_punctuation(self):
+        self.assertEqual(parse_command("提醒我明天8点去酒吧"), {"action": "remind", "text": "提醒我明天8点去酒吧"})
+        cases = {"让 claude 检查网吧": ("claude", "检查网吧"), "ask codex to print Hello!": ("codex", "print Hello!"),
+                 "ask claude to fix displease": ("claude", "fix displease")}
+        for text, (target, prompt) in cases.items():
+            self.assertEqual(parse_command(text), {"action": "dispatch", "target": target, "prompt": prompt}, text)
+        self.assertIsNone(parse_command("pleased to meet you"))
+
+    def test_a_longer_name_is_not_shadowed_by_its_prefix(self):
+        self.assertEqual(parse_command("艾米，停下", names=("艾", "艾米")), {"action": "stop"})
 
 
 if __name__ == "__main__":

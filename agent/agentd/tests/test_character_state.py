@@ -121,6 +121,15 @@ class CharacterStateTest(unittest.TestCase):
         state.flush()
         self.assertEqual(json.loads(self.row("aster")[2]), state.snapshot()["causes"])
 
+    def test_the_mood_names_a_cause_that_moved_it_its_way(self):
+        state = self.make()
+        for kind in ("session_done", "dispatch_done", "dispatch_done", "session_error"):
+            state.on_event(kind)
+        self.assertAlmostEqual(state.snapshot()["valence"] - DEFAULT_PROFILE["mood_baseline"], 0.3)
+        summary = state.summary(PROMPT_USER)
+        self.assertIn("in a good mood (because a dispatched task just finished)", summary)
+        self.assertNotIn("error", summary)
+
     def test_valence_returns_to_baseline_and_never_goes_sad_without_an_event(self):
         state = self.make()
         self.assertEqual(DEFAULT_PROFILE["mood_baseline"], 0.2)

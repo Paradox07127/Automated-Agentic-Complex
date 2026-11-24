@@ -1,4 +1,5 @@
 """The same package feeds the app roster, persona and native runtime catalog."""
+import copy
 import hashlib
 import json
 import subprocess
@@ -6,6 +7,7 @@ from pathlib import Path, PureWindowsPath
 import sys
 import tempfile
 import unittest
+from unittest import mock
 import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -484,6 +486,67 @@ class CharacterLibraryTests(unittest.TestCase):
                 path = library.root / entry[field]["file"]
                 self.assertTrue(path.is_file(), entry[field]["file"])
                 self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), entry[field]["sha256"])
+
+    def test_native_scene_objects_must_be_an_indexed_file_beside_the_bundle(self):
+        src = self.root / "role"; fixture(src)
+        data = b'{"objects": []}\n'
+        (src / "runtime/scene").mkdir(); (src / "runtime/scene/objects.json").write_bytes(data)
+        objects = dict(file="scene/objects.json", sha256=hashlib.sha256(data).hexdigest(), byte_count=len(data))
+        path = src / "runtime/bundle.json"; original = json.loads(path.read_text(encoding="utf-8"))
+        definition = json.loads((src / "character.json").read_text(encoding="utf-8"))
+        def bundle(scene, indexed):
+            native = dict(original, scene=scene, files=original["files"] + ([objects] if indexed else []))
+            raw = (json.dumps(native, ensure_ascii=False, sort_keys=True) + "\n").encode(); path.write_bytes(raw)
+            ref = dict(file="runtime/bundle.json", sha256=hashlib.sha256(raw).hexdigest(), byte_count=len(raw))
+            doc = copy.deepcopy(definition); doc["components"]["render"]["native_bundle"] = ref
+            doc["inventory"] = [r for r in doc["inventory"] if r["file"] != ref["file"]] + [ref, dict(objects, file="runtime/scene/objects.json")]
+            write_json(src / "character.json", doc)
+        for name, scene, indexed, reason in [
+                ("escaping", {"objects": dict(objects, file="../../../x")}, True, "escaping_path"),
+                ("not_a_dict", ["objects"], True, "invalid_native_scene"),
+                ("unindexed", {"objects": objects}, False, "native_reference_not_indexed")]:
+            with self.subTest(name):
+                bundle(scene, indexed)
+                with self.assertRaisesRegex(PackageError, reason): Package(src)
+        bundle({"objects": objects}, True)
+        library = Library(self.root / "library"); library.install(src)
+        native = json.loads((library.root / library.snapshot()["native_bundle"]["file"]).read_text(encoding="utf-8"))
+        self.assertEqual((library.root / native["scene"]["objects"]["file"]).read_bytes(), data)
+
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
+    def test_folder_import_refuses_a_file_the_inventory_does_not_list(self):
+        src = self.root / "source"; fixture(src)
+        (src / "runtime/extra.json").write_text("{}", encoding="utf-8")
+        library = Library(self.root / "library")
+        with self.assertRaisesRegex(PackageError, "archive_unindexed_payload"): library.import_path(src, validate_with=self.host())
+        self.assertEqual(library.entries(), [])
+
+    def test_folder_import_skips_file_manager_metadata(self):
+        src = self.root / "source"; fixture(src)
+        for name in (".DS_Store", "runtime/Thumbs.db", "runtime/desktop.ini"):
+            (src / name).write_bytes(b"\0")
+        library = Library(self.root / "library")
+        library.import_path(src, validate_with=self.host())
+        self.assertEqual(len(library.entries()), 1)
+
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
+    def test_host_stderr_that_is_not_utf8_is_still_the_failure_reason(self):
+        src = self.root / "source"; fixture(src)
+        host = self.root / "host"
+        host.write_text("#!" + sys.executable + "\nimport sys\nsys.stderr.buffer.write(b'pack_rejected: \\xff')\nsys.exit(78)\n", encoding="utf-8")
+        host.chmod(0o700)
+        with self.assertRaisesRegex(PackageError, "^pack_rejected: \ufffd$"): Library(self.root / "library").import_path(src, validate_with=host)
+
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
+    def test_a_host_that_never_answers_fails_the_import(self):
+        src = self.root / "source"; fixture(src)
+        host = self.root / "host"
+        host.write_text("#!" + sys.executable + "\nimport time\ntime.sleep(30)\n", encoding="utf-8"); host.chmod(0o700)
+        library = Library(self.root / "library")
+        with mock.patch("character_library.VALIDATE_TIMEOUT", 0.5), \
+                self.assertRaisesRegex(PackageError, "^load_failed: host validation timed out$"):
+            library.import_path(src, validate_with=host)
+        self.assertEqual(library.entries(), [])
 
     def test_catalog_hash_detects_changed_definition_and_native_manifest(self):
         src = self.root / "source"; fixture(src)

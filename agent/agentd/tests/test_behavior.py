@@ -364,6 +364,16 @@ class BehaviorTest(unittest.TestCase):
         self.assertEqual(category({"bundle_id": "com.example.app"}), "other")
         self.assertIn("game", behavior.CATEGORY_NAMES)
 
+    def test_windows_app_ids_have_the_same_categories(self):
+        # The Windows helper's app_id (a lower-case exe name or a packaged app's AUMID) arrives as bundle_id, with no category.
+        cases = {"code.exe": "coding", "chrome.exe": "browsing", "windowsterminal.exe": "terminal",
+                 "Microsoft.WindowsTerminal_8wekyb3d8bbwe!App": "terminal", "MSTeams_8wekyb3d8bbwe!MSTeams": "meeting",
+                 "WINWORD.EXE": "writing", "explorer.exe": "files", "notepad.exe": "other"}
+        for app_id, expected in cases.items():
+            with self.subTest(app_id=app_id):
+                self.assertEqual(category({"bundle_id": app_id, "category": None}), expected)
+        self.assertTrue(set(behavior.WINDOWS_CATEGORIES.values()) <= set(behavior.CATEGORY_NAMES))
+
     def test_each_tick_is_reported_with_its_options_and_reason(self):
         seen = []
         b = self.make(FakeModel({"activity": "yawn", "mood": "normal"}))

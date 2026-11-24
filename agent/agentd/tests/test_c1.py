@@ -1,7 +1,10 @@
+import contextlib
 import copy
+import io
 import json
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -161,6 +164,14 @@ class MessageTest(unittest.TestCase):
         self.assertTrue(self.broken(lambda m: m["behaviors"][1].update(type="dance"), snapshot))
         self.assertTrue(self.broken(lambda m: m.update(behavior=HOLD, behaviors=[]), snapshot))  # the old field
 
+    def test_a_snapshot_replaces_what_runs(self):
+        cleared = {"event": "snapshot", "seq": 8, "turn_generation": 3, "behaviors": []}
+        again = {**HOLD, "seq": 9, "behavior_id": "b-e1-2"}
+        self.assertEqual(c1.check_file({"description": "x", "messages": [HOLD, cleared, again]}), [])
+        kept = {**cleared, "behaviors": [HOLD]}
+        self.assertIn("#2: b-e1-1 with the same type and target still runs; renew it with replaces",
+                      c1.check_file({"description": "x", "messages": [HOLD, kept, again]}))
+
     def test_a_snapshot_never_resumes_an_ended_behavior(self):
         lost = {"event": "receipt", "behavior_id": "b-e1-1", "phase": "cancelled", "reason": "connection_lost",
                 "at_ms": 1760900000500, "turn_generation": 3}
@@ -258,7 +269,11 @@ class MessageTest(unittest.TestCase):
         at = HOLD["expires_at_ms"] - 1000
         blocked = [attend, self.receipt("prepared", at - 10), self.receipt("blocked", at, "target_gone")]
         self.assertEqual(self.file(*blocked), [])
-        self.assertTrue(self.file(attend, self.receipt("prepared", at - 10), self.receipt("running", at)))
+        # Eyes and head alone may look at the user in place (attend_session@user).
+        self.assertEqual(self.file(attend, self.receipt("prepared", at - 10), self.receipt("running", at)), [])
+        body = {**attend, "channels": ["eyes", "head", "full_body"]}
+        self.assertEqual(self.file(body, self.receipt("prepared", at - 10), self.receipt("running", at)),
+                         ["#2: a session target without window_id ends blocked / target_gone"])
 
     def test_a_receipt_carries_its_behaviors_turn_generation(self):
         at = HOLD["expires_at_ms"] - 1000
@@ -680,11 +695,30 @@ class PlayerFixtureTest(unittest.TestCase):
                        lambda f: f["expect"][0]["motion_state"].update(origin="remote"),
                        lambda f: f["expect"][0]["motion_state"].update(resting=1),
                        lambda f: f["expect"][0]["motion_state"].update(behavior_id=None),  # agent needs its behavior
+                       lambda f: f["expect"][1]["motion_state"].update(behavior_id="b-e7-1"),  # a local reaction has none
                        lambda f: f["expect"][0]["motion_state"].update(behavior_id="b-e7-9"),  # never sent
                        lambda f: f["expect"][1].update(t_ms_max=50), lambda f: f["expect"][0].pop("t_ms_max"),
                        lambda f: f["expect"][0].update(note="x")):
             with self.subTest(change=change):
                 self.assertTrue(self.broken(change))
+
+
+class MainTest(unittest.TestCase):
+    def test_a_folder_with_nothing_to_check_fails(self):
+        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(c1.main(tmp), 1)
+            self.assertEqual(c1.main(Path(tmp) / "missing"), 1)
+
+    def test_a_file_that_is_not_json_fails_and_the_rest_are_checked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "a.json").write_text("{", encoding="utf-8")
+            (Path(tmp) / "b.json").write_text(json.dumps({"description": "x", "messages": [HOLD]}), encoding="utf-8")
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(c1.main(tmp), 1)
+            lines = out.getvalue().splitlines()
+            self.assertTrue(lines[0].startswith("a.json: invalid JSON"), lines)
+            self.assertEqual(lines[1], "b.json: OK")
 
 
 class InvalidFixtureTest(unittest.TestCase):

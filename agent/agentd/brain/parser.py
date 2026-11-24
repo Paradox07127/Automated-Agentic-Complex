@@ -44,20 +44,24 @@ def prefix_names():
 
 
 @functools.cache
-def _strip(names):
-    return re.compile(rf"^((?:{'|'.join(map(re.escape, names))})[，,\s]*)?(请|please)?[，,\s]*|"
-                      r"[\s。！!？?，,~～.]*(吧|please|ください)?[\s。！!？?，,~～.]*$", re.IGNORECASE)
+def _prefix(names):
+    names = sorted(names, key=len, reverse=True)  # a longer name wins over a name it starts with
+    return re.compile(rf"^(?:(?:{'|'.join(map(re.escape, names))})[，,\s]*)?(?:请|\bplease\b)?[，,\s]*", re.IGNORECASE)
+
+
+# Only fixed phrases lose this tail; reminder and dispatch text is the user's own.
+_TAIL = re.compile(r"[\s。！!？?，,~～.]*(?:吧|\bplease|ください)?[\s。！!？?，,~～.]*$", re.IGNORECASE)
 
 
 def parse_command(text, names=None):
-    strip = _strip(prefix_names() if names is None else tuple(names))
-    core = strip.sub("", text.strip())
+    core = _prefix(prefix_names() if names is None else tuple(names)).sub("", text.strip(), count=1)
     for pattern in _DISPATCH:
         dispatch = pattern.match(core)
         if dispatch:
             return {"action": "dispatch", "target": dispatch.group(1).lower(), "prompt": dispatch.group(2).strip()}
     if core.startswith("提醒我") or WAIT.match(core):
         return {"action": "remind", "text": core}
+    core = _TAIL.sub("", core, count=1)
     if core.lower() in _EXACT:
         return {"action": _EXACT[core.lower()]}
     for pattern, action in _TARGETED:

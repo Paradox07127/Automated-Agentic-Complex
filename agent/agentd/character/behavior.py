@@ -49,6 +49,20 @@ CATEGORIES = {"com.microsoft.VSCode": "coding", "com.apple.dt.Xcode": "coding", 
               "com.apple.iWork.Pages": "writing", "notion.id": "writing", "com.spotify.client": "media",
               "com.apple.Music": "media", "us.zoom.xos": "meeting", "com.microsoft.teams2": "meeting",
               "com.figma.Desktop": "canvas", "com.apple.ScreenSharing": "remote_desktop"}
+# The Windows helper's app_id (C12 §2.9), lower-cased: an exe name, or a packaged app's AUMID by its package name.
+WINDOWS_CATEGORIES = {**dict.fromkeys(("code.exe", "cursor.exe", "devenv.exe", "idea64.exe", "pycharm64.exe", "webstorm64.exe",
+                                       "rider64.exe", "clion64.exe", "goland64.exe", "sublime_text.exe"), "coding"),
+                      **dict.fromkeys(("windowsterminal.exe", "microsoft.windowsterminal", "microsoft.windowsterminalpreview",
+                                       "wezterm-gui.exe", "alacritty.exe", "warp.exe", "cmd.exe", "powershell.exe", "pwsh.exe"),
+                                      "terminal"),
+                      **dict.fromkeys(("chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "vivaldi.exe", "opera.exe",
+                                       "thebrowsercompany.arc"), "browsing"),
+                      **dict.fromkeys(("claude.exe", "claude"), "assistant"), "explorer.exe": "files",
+                      **dict.fromkeys(("acrobat.exe", "acrord32.exe", "sumatrapdf.exe"), "reading"),
+                      **dict.fromkeys(("winword.exe", "notion.exe"), "writing"),
+                      **dict.fromkeys(("spotify.exe", "spotifyab.spotifymusic", "appleinc.applemusicwin", "vlc.exe"), "media"),
+                      **dict.fromkeys(("zoom.exe", "ms-teams.exe", "msteams", "teams.exe"), "meeting"),
+                      "figma.exe": "canvas", "mstsc.exe": "remote_desktop"}
 # Last part of the app's LSApplicationCategoryType (C6 front.category) -> category, for bundles CATEGORIES lacks;
 # any `games` or `*-games` is "game".
 APP_CATEGORIES = {"developer-tools": "coding", "video": "media", "entertainment": "media", "music": "media",
@@ -75,6 +89,7 @@ SYSTEM = ("You pick the current background activity and mood of the desktop char
 def category(window):
     bundle = (window or {}).get("bundle_id") or ""
     found = next((c for prefix, c in CATEGORIES.items() if bundle == prefix or bundle.startswith(prefix + ".")), None)
+    found = found or WINDOWS_CATEGORIES.get(bundle.lower().split("!")[0].split("_")[0] if "!" in bundle else bundle.lower())
     if found:
         return found
     declared = (window or {}).get("category")
