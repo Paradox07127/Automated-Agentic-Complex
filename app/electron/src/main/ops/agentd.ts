@@ -56,11 +56,9 @@ export function agentdOps(ctx: OpsContext): Ops {
       }
       const refused = ctx.agentd && await decisionGate(ctx.agentd, ctx.confirm, checked.method, route, checked.body);
       if (refused) return refused;
-      // Out of `picked` while the request is out, so no other request sends them too.
-      const taken = [...swapped.used].flatMap((handle) => {
-        const entry = page.picked.get(handle);
-        return entry ? [[handle, entry] as const] : [];
-      });
+      // Out of `picked` while the request is out, so no other request sends them too; one sent meanwhile went already.
+      if ([...swapped.used].some((handle) => !page.picked.has(handle))) return rejected('handle_required', '');
+      const taken = [...swapped.used].map((handle) => [handle, page.picked.get(handle)!] as const);
       for (const [handle] of taken) page.picked.delete(handle);
       if (!ctx.agentd) {
         for (const [, entry] of taken) entry.discard?.();

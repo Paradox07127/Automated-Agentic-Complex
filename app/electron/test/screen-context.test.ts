@@ -188,7 +188,8 @@ test('listedBlockReason: a listed window without its title is blocked while a ti
   assert.equal(listedBlockReason(cw({ title: 'notes.txt' }), rules, []), null);
   assert.equal(listedBlockReason(cw({ title: null }), NO_RULES, []), null);
   assert.equal(listedBlockReason(cw({ title: null }), parseBlacklist({ mode: 'allow', title_patterns: ['^Private'],
-    allow: { bundle_ids: ['com.apple.TextEdit'] } }), []), null, 'allow mode reads no title rule');
+    allow: { bundle_ids: ['com.apple.TextEdit'] } }), []), 'blacklisted', 'a title rule applies in allow mode too');
+  assert.equal(listedBlockReason(cw({ title: null }), parseBlacklist({ mode: 'allow', allow: { bundle_ids: ['com.apple.TextEdit'] } }), []), null);
   assert.equal(listedBlockReason(cw({ bundleId: 'com.secret' }), rules, []), 'blacklisted');
 });
 

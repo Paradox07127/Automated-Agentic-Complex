@@ -103,7 +103,7 @@ export function logsOps(ctx: OpsContext): Ops {
       for (const r of read) {
         const last = r.lines.findLastIndex((l) => sent.has(l));
         cursor[r.id] = last + 1 < r.lines.length ? r.lines[last + 1]!.off : r.next;
-        if (r.lines.slice(0, last).some((l) => !sent.has(l)) && !truncated.includes(r.id)) truncated.push(r.id);
+        if (last > 0 && r.lines.slice(0, last).some((l) => !sent.has(l)) && !truncated.includes(r.id)) truncated.push(r.id);
       }
       return { lines: out, cursor, truncated };
     },

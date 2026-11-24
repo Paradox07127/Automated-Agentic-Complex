@@ -247,12 +247,14 @@ test('appRefusal and titleRefusal: browsers, the blacklisted app and the blackli
   assert.equal(titleRefusal(app(702), null, parseBlacklist({ mode: 'deny', app_names: ['notes'] }), []), null);
 });
 
-test('appRefusal and titleRefusal in allow mode: an app allowed by its name is controlled, whatever its window title', () => {
+test('appRefusal and titleRefusal in allow mode: an app allowed by its name is controlled unless a title rule excludes its window', () => {
   const app = (pid: number) => APPS.find((a) => a.pid === pid)!;
   const allowed = parseBlacklist({ mode: 'allow', title_patterns: ['bank'], allow: { app_names: [app(702).name] } });
   assert.equal(appRefusal(app(702), allowed, []), null);
-  assert.equal(titleRefusal(app(702), 'my bank.txt', allowed, []), null);
-  assert.equal(titleRefusal(app(702), null, allowed, []), null);
+  assert.equal(titleRefusal(app(702), 'notes.txt', allowed, []), null);
+  assert.equal(titleRefusal(app(702), 'my bank.txt', allowed, [])?.message, '此窗口标题被排除');
+  assert.equal(titleRefusal(app(702), null, allowed, [])?.code, 'blacklisted', 'an untitled window under a title rule');
+  assert.equal(titleRefusal(app(702), null, parseBlacklist({ mode: 'allow', allow: { app_names: [app(702).name] } }), []), null);
   assert.equal(appRefusal(app(702), EMPTY_BLACKLIST, [])?.code, 'blacklisted');
 });
 

@@ -216,7 +216,7 @@ export function captureFailure(code: string): CaptureFailure {
  *  rule that can't be checked blocks it. */
 export function listedBlockReason(w: CaptureWindow, rules: BlacklistRules, ownPids: readonly number[]): BlockReason | null {
   return captureBlockReason(w, rules, ownPids)
-    ?? (rules.mode === 'deny' && rules.titles.length > 0 && w.window.title === null ? 'blacklisted' : null);
+    ?? (rules.titles.length > 0 && w.window.title === null ? 'blacklisted' : null);
 }
 
 /** For a `look_window` text request: the AX level the policy allows for it, or the failure to report. The focused level

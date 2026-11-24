@@ -473,7 +473,7 @@ export function appRefusal(app: RunningApp, rules: BlacklistRules, ownPids: read
  *  Screen Recording): while any title rule exists such a window is refused, since the AX observation would still read it. */
 export function titleRefusal(app: RunningApp, title: string | null, rules: BlacklistRules, ownPids: readonly number[]): ControlError | null {
   if (title === null) {
-    return rules.mode === 'deny' && rules.titles.length > 0 ? new ControlError('blacklisted', '读不到窗口标题，无法核对标题排除规则') : null;
+    return rules.titles.length > 0 ? new ControlError('blacklisted', '读不到窗口标题，无法核对标题排除规则') : null;
   }
   if (hides(rules, { app: app.name, bundleId: app.appId, pid: app.pid, windowId: null, title, urlHost: null }, ownPids)) {
     return new ControlError('blacklisted', '此窗口标题被排除');

@@ -481,6 +481,30 @@ test('a picked handle whose request never reached agentd stays the page\'s to se
   }
 });
 
+test('two requests at once with the same picked handle: only the first reaches agentd', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'race-'));
+  try {
+    const sent: unknown[] = [];
+    const agentd = {
+      request: async (_method: string, _path: string, body: unknown) => {
+        sent.push(body);
+        return { status: 201, body: Buffer.from('{}') };
+      },
+    } as unknown as OpsContext['agentd'];
+    const ops = registry({ ...context(dir), agentd }), page = new PageSession(() => {});
+    const picked = await handle('main', page0, { op: 'files.pickFolder', args: [{ purpose: 'session_cwd' }] }, ops, page);
+    assert.ok(picked.ok);
+    const h = (picked.value as { handle: string }).handle;
+    const send = async () => ((await handle('main', page0, { op: 'agentd.request', args: ['POST', '/sessions', { cwd: { handle: h } }] }, ops, page)) as
+      { ok: true; value: { status: number; error?: { code: string } } }).value;
+    const replies = await Promise.all([send(), send()]);
+    assert.deepEqual(replies.map((r) => r.status === 201 ? 'sent' : r.error?.code), ['sent', 'handle_required']);
+    assert.deepEqual(sent, [{ cwd: '/picked' }]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('a decision a page posts itself meets the stack\'s rules against agentd\'s live record: what needs a gesture asks natively', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'decisions-'));
   try {

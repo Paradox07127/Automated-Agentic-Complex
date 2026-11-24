@@ -156,6 +156,19 @@ test('logs.read over MAX_LINES new lines in two sources returns the rest at the 
   assert.deepEqual(read({ sources: ['agentd', 'companion'], after: second.cursor }).lines, []);
 });
 
+test('logs.read: a source with no line among the MAX_LINES sent is not truncated; its lines come next', () => {
+  const at = (ms: number) => new Date(Date.UTC(2026, 10, 22, 8, 0, 0) + ms).toISOString();
+  writeFileSync(join(logs, 'agentd.log'), '');
+  writeFileSync(join(logs, 'companion.log'), '');
+  const start = read({ sources: ['agentd', 'companion'] });
+  writeFileSync(join(logs, 'agentd.log'), Array.from({ length: MAX_LINES }, (_, i) => `${at(i)} pid=1 agentd: n${i}\n`).join(''));
+  writeFileSync(join(logs, 'companion.log'), `${at(MAX_LINES)} pid=2 supervisor: late\n${at(MAX_LINES + 1)} pid=2 supervisor: later\n`);
+  const first = read({ sources: ['agentd', 'companion'], after: start.cursor });
+  assert.ok(first.lines.every((l) => l.source === 'agentd'));
+  assert.deepEqual(first.truncated, []);
+  assert.deepEqual(read({ sources: ['agentd', 'companion'], after: first.cursor }).lines.map((l) => l.text), ['supervisor: late', 'supervisor: later']);
+});
+
 test('logs.read takes source ids only: a path, an unknown id or a bad cursor is refused', () => {
   for (const req of [{ sources: ['../config.json'] }, { sources: ['/etc/hosts'] }, { sources: [] }, {}, { sources: ['agentd'], after: { agentd: -1 } },
     { sources: ['agentd'], after: { 'config.json': 0 } }]) {

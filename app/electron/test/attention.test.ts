@@ -143,9 +143,8 @@ test('allow list: no file and a file without mode are the empty allow list, whic
   assert.deepEqual(parseBlacklist({}), EMPTY_BLACKLIST);
 });
 
-test('allow list: an app is read by its exact bundle id or its name case-insensitively; the blacklist keys are not used', () => {
-  const bl = rules({ mode: 'allow', bundle_ids: ['com.apple.TextEdit'], title_patterns: ['notes'],
-    allow: { bundle_ids: ['com.apple.TextEdit'], app_names: ['Terminal'] } });
+test('allow list: an app is read by its exact bundle id or its name case-insensitively', () => {
+  const bl = rules({ mode: 'allow', allow: { bundle_ids: ['com.apple.TextEdit'], app_names: ['Terminal'] } });
   const w = { app: 'TextEdit', bundleId: 'com.apple.TextEdit', pid: 1, windowId: 1, title: 'notes.txt', urlHost: null };
   assert.equal(hides(bl, w, OWN), false);
   assert.equal(hides(bl, { ...w, bundleId: 'COM.apple.TextEdit' }, OWN), true);
@@ -162,6 +161,21 @@ test('allow list: a browser window is read by its host alone, a listed domain or
   assert.equal(hides(bl, { ...w, urlHost: 'example.com' }, OWN), true, 'the allowed browser app does not read other hosts');
   const byDomain = rules({ mode: 'allow', allow: { domains: ['github.com'] } });
   assert.equal(hides(byDomain, w, OWN), false, 'the browser app need not be listed');
+});
+
+test('allow list: a deny entry wins over an allow entry, as agentd\'s blacklist.py hides', () => {
+  const w = { app: 'TextEdit', bundleId: 'com.apple.TextEdit', pid: 1, windowId: 1, title: 'my bank.txt', urlHost: null };
+  const titled = rules({ mode: 'allow', title_patterns: ['bank'], allow: { bundle_ids: ['com.apple.TextEdit'] } });
+  assert.equal(hides(titled, w, OWN), true, 'a title deny on an allowed app');
+  assert.equal(hides(titled, { ...w, title: 'notes.txt' }, OWN), false);
+  const domains = rules({ mode: 'allow', domains: ['secret.github.com'], allow: { domains: ['github.com'] } });
+  const tab = { app: 'Safari', bundleId: 'com.apple.Safari', pid: 1, windowId: 1, title: null, urlHost: 'Login.Secret.github.com' };
+  assert.equal(hides(domains, tab, OWN), true, 'a denied subdomain under an allowed domain');
+  assert.equal(hides(domains, { ...tab, urlHost: 'gist.github.com' }, OWN), false);
+  for (const both of [rules({ mode: 'allow', bundle_ids: ['com.apple.TextEdit'], allow: { bundle_ids: ['com.apple.TextEdit'] } }),
+    rules({ mode: 'allow', app_names: ['textedit'], allow: { app_names: ['TextEdit'] } })]) {
+    assert.equal(hides(both, { ...w, title: null }, OWN), true, 'an app both allowed and denied');
+  }
 });
 
 test('allow list: our own process and the Companion bundle id are hidden even when listed; incognito is always on', () => {

@@ -98,7 +98,7 @@ export function chooseTitle(ax: string | null, cg: string | null): string | null
 
 /** `<agentd_state_dir>/blacklist.json` v1, matched as agentd's blacklist.py does. */
 export interface BlacklistRules {
-  /** `allow` reads only the allow lists' windows and uses no blacklist key; `deny` reads all but the blacklist's. */
+  /** `allow` reads only the allow lists' windows, `deny` all; the blacklist's entries hide a window in both. */
   mode: 'allow' | 'deny';
   /** Always true in allow mode. */
   incognito: boolean;
@@ -158,20 +158,20 @@ export function parseBlacklist(json: unknown): BlacklistRules {
 /** `host` folded: it is one of `domains` or a subdomain of one. */
 const under = (host: string, domains: readonly string[]) => domains.some((d) => host === d || host.endsWith(`.${d}`));
 
-/** `ownPids`: this shell's processes, which are hidden before any rule. In allow mode a window with a URL host is read
- *  by its host alone, any other by its bundle id or app name. */
+/** `ownPids`: this shell's processes, which are hidden before any rule. A deny entry hides a window in both modes; then
+ *  allow mode reads a window with a URL host by its host alone, any other by its bundle id or app name. */
 export function hides(rules: BlacklistRules, w: AttentionWindow, ownPids: readonly number[]): boolean {
   if ((w.pid !== null && ownPids.includes(w.pid)) || OWN_BUNDLES.includes(w.bundleId ?? '')) return true;
-  if (rules.mode === 'allow') {
-    if (w.urlHost !== null && w.urlHost !== '') return !under(fold(w.urlHost), rules.allowDomains);
-    return !((w.bundleId !== null && rules.allowBundles.has(w.bundleId))
-      || (w.app !== null && w.app !== '' && rules.allowNames.has(fold(w.app))));
-  }
   if (w.bundleId !== null && rules.bundles.has(w.bundleId)) return true;
   if (w.app !== null && rules.names.has(fold(w.app))) return true;
-  if (w.urlHost !== null && w.urlHost !== '' && under(fold(w.urlHost), rules.domains)) return true;
+  const host = w.urlHost !== null && w.urlHost !== '' ? fold(w.urlHost) : null;
+  if (host !== null && under(host, rules.domains)) return true;
   const title = w.title ?? '';
-  return rules.titles.some((r) => r.test(title));
+  if (rules.titles.some((r) => r.test(title))) return true;
+  if (rules.mode === 'deny') return false;
+  if (host !== null) return !under(host, rules.allowDomains);
+  return !((w.bundleId !== null && rules.allowBundles.has(w.bundleId))
+    || (w.app !== null && w.app !== '' && rules.allowNames.has(fold(w.app))));
 }
 
 // ---- Redaction

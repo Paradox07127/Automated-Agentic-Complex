@@ -29,16 +29,17 @@
 | `domains` | 字符串数组 | 主机名不分大小写等于其中一项，或是它的子域，就排除 |
 | `title_patterns` | 字符串数组 | 正则，在窗口标题里搜索，搜到就排除。agentd 和 native host 用 Python `re`，Companion 用 `NSRegularExpression`；Companion 编不过的表达式忽略 |
 | `incognito` | 布尔 | 黑名单模式下为真时 Companion 不采集无痕窗口和标签页；白名单模式下无痕一律不采集，不看这个键。只有 Companion 读它 |
-| `mode` | 字符串 | `"allow"`（白名单）或 `"deny"`（黑名单）。缺少或是别的值按 `"allow"`。上面四个数组只在 `"deny"` 下用 |
+| `mode` | 字符串 | `"allow"`（白名单）或 `"deny"`（黑名单）。缺少或是别的值按 `"allow"`。上面四个数组在两种模式下都用：命中其中一项就排除，白名单也放不过 |
 | `allow` | 对象 | 白名单：`{"bundle_ids": [], "app_names": [], "domains": []}`，三个字符串数组，缺少的按空数组。只在 `"allow"` 下用 |
 
 - 少了某个数组键按空数组处理；Companion 少了 `incognito` 按假处理。
 - 白名单模式下「排除」的判断（三个读方相同）：
   1. Companion 自己照样排除。
-  2. 窗口带非空的 `url_host`（浏览器窗口）：主机名不分大小写等于 `allow.domains` 的一项或是它的子域才不排除，不看应用。
-  3. 其余窗口：bundle id 等于 `allow.bundle_ids` 的一项，或应用名不分大小写等于 `allow.app_names` 的一项，才不排除。
-  4. 无痕窗口和标签页、安全输入照样不读。
-  5. 白名单为空时什么都排除。
+  2. 命中上面四个黑名单数组的一项就排除，先于白名单：白名单里的应用的窗口标题命中 `title_patterns`、白名单域名下的子域在 `domains` 里、同时在两边的应用，都排除。Companion 读不到窗口标题、又有 `title_patterns` 时，按命中处理。
+  3. 窗口带非空的 `url_host`（浏览器窗口）：主机名不分大小写等于 `allow.domains` 的一项或是它的子域才不排除，不看应用。
+  4. 其余窗口：bundle id 等于 `allow.bundle_ids` 的一项，或应用名不分大小写等于 `allow.app_names` 的一项，才不排除。
+  5. 无痕窗口和标签页、安全输入照样不读。
+  6. 白名单为空时什么都排除。
 - 「排除」在两种模式下的后果相同：注意力心跳只发 `{"app": "<hidden>"}`，不读窗口文字、不截图、不 OCR，浏览器扩展不转发这个标签页。用户主动的划词（选中文字，没有时退到剪贴板）也按同一个判断；用户拖给她的文件不按名单判断。
 - 不管文件写了什么，两端都排除 Companion 自己（bundle id `local.agenticcomplex.companion`、`local.agenticcomplex.development`）。
 - 文件不在：agentd 写默认内容；Companion 按空白名单处理，什么都排除；native host 不创建文件。native host 在文件缺失、不可读、JSON 损坏或不是 JSON 对象时不转发任何消息，下次 `config()` 时再读。Companion 读到半截或不是 JSON 对象的文件时沿用上一次的规则，下次再读。
