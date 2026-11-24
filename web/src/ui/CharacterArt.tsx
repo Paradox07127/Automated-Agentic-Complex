@@ -2,17 +2,9 @@ import { useState, type CSSProperties, type ReactNode } from 'react';
 import { Icon } from './Icon';
 import styles from './CharacterArt.module.css';
 
-/** Character art the app bundles under `ui/art/characters/<id>/`. */
-export type ArtKind = 'round' | 'card' | 'banner' | 'charinfo-bg' | 'portrait' | 'comm';
-
 /** Inside the app, or a local preview built with `VITE_EF_ART=1` and `/art` mounted; a plain browser has no art, and a 404 would log a console error. */
 export function artEnabled(): boolean {
   return typeof window !== 'undefined' && (window.agenticComplex != null || import.meta.env.VITE_EF_ART === '1');
-}
-
-/** Bundled art of a character; undefined where there is none to load. */
-export function artSrc(id: string | null | undefined, kind: ArtKind): string | undefined {
-  return id && artEnabled() ? `art/characters/${id}/${kind}.png` : undefined;
 }
 
 /** Page CSS shows its common/ decorations only under html[data-art]; an app built without art never gets it. */
@@ -26,7 +18,7 @@ export function markArt(): void {
 }
 markArt();
 
-/** 角色头像 / 立绘：有图时铺满裁切（头像顶对齐）；先用调用方给的图，再用打包的 art，都没有或读不出来时显示占位。 */
+/** 角色头像 / 立绘：有图时铺满裁切（头像顶对齐）；没有或读不出来时显示占位。 */
 export interface CharacterArtProps {
   /** `CharacterEntry.head` / `.portrait` */
   src?: string | undefined;
@@ -38,15 +30,11 @@ export interface CharacterArtProps {
   h: number;
   /** 占位 */
   fallback: ReactNode;
-  /** 角色 id，配合 art 找打包的图 */
-  id?: string | null | undefined;
-  /** 打包的哪一张，src 没有或读不出来时用 */
-  art?: ArtKind | undefined;
 }
 
-export function CharacterArt({ src, kind, w, h, fallback, id, art }: CharacterArtProps) {
-  const [failed, setFailed] = useState<string[]>([]);
-  const url = [src, art ? artSrc(id, art) : undefined].find((u): u is string => !!u && !failed.includes(u));
+export function CharacterArt({ src, kind, w, h, fallback }: CharacterArtProps) {
+  const [failed, setFailed] = useState<string>();
+  const url = src !== failed ? src : undefined;
   if (!url && fallback == null) {
     return <span className={styles.fallback} data-stub="CharacterArt" />;
   }
@@ -60,7 +48,7 @@ export function CharacterArt({ src, kind, w, h, fallback, id, art }: CharacterAr
   }
   return (
     <span className={styles.frame} data-stub="CharacterArt" data-kind={kind} style={size}>
-      <img className={styles.art} data-kind={kind} src={url} width={w} height={h} alt="" onError={() => setFailed((f) => [...f, url])} />
+      <img className={styles.art} data-kind={kind} src={url} width={w} height={h} alt="" onError={() => setFailed(url)} />
     </span>
   );
 }

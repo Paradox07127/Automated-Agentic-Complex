@@ -271,7 +271,6 @@ export function HomePage() {
                 name={snap.character.name ?? character.title}
                 en={false}
                 head={snap.character.head ?? null}
-                id={snap.character.id ?? null}
                 doing={doing}
                 meta={<LiveCharMeta outfit={outfit} />}
                 onClick={() => go({ page: 'character' })}

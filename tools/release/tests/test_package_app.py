@@ -173,7 +173,7 @@ class SingleAppStageTests(unittest.TestCase):
             for name in ['main.html', 'stack.html']:
                 (web / name).write_text('synthetic ' + name)
             art = root / 'art'
-            files = {'characters/fixture/round.png': b'round', 'common/contour.png': b'contour', 'brand/AppIcon.icns': b'icns'}
+            files = {'pages/overview/complete-halo.png': b'halo', 'common/contour.png': b'contour', 'brand/AppIcon.icns': b'icns'}
             for name, data in files.items():
                 (art / name).parent.mkdir(parents=True, exist_ok=True); (art / name).write_bytes(data)
             manifest = dict(schema='endfield-ui-art/v1', files=[dict(key=name[:-4], file=name, sha256=package_app.digest(art / name))
@@ -194,7 +194,7 @@ class SingleAppStageTests(unittest.TestCase):
             for name, data in files.items():
                 self.assertEqual((ui / 'art' / name).read_bytes(), data)
             shipped = {p.relative_to(ui).as_posix(): package_app.digest(p) for p in sorted(ui.rglob('*')) if p.is_file()}
-            self.assertIn('art/characters/fixture/round.png', shipped)
+            self.assertIn('art/pages/overview/complete-halo.png', shipped)
             receipt = json.loads((args.output / 'staging-manifest.json').read_text())
             self.assertEqual(receipt['ui_sha256'], hashlib.sha256(json.dumps(shipped, sort_keys=True).encode()).hexdigest())
             self.assertEqual(receipt['ui_art'], dict(files=3, manifest_sha256=package_app.digest(art / 'art-manifest.json')))

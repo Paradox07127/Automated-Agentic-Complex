@@ -36,7 +36,7 @@ const CONTOURS = [
 
 /** 训练场：角色页和 MMD 页内容区的灰色房间，照游戏 CharInfo 场景自绘，不随主题，用来对照看渲染。一面无缝渐变的墙、偏暗的地面和几条淡等高线、一架深色细线格架、角色灰度水印、几乎看不出的暗角；详情分区里她脚下一块柔和的灰影。全在模型画布下面，不接点击。 */
 export interface TrainingRoomProps {
-  /** 角色灰度大水印（`artSrc(id, 'charinfo-bg')`）；没有或读不出来时不画 */
+  /** 角色灰度大水印（`CharacterEntry.background`）；没有或读不出来时不画 */
   watermark?: string | undefined;
 }
 

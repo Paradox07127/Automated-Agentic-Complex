@@ -45,7 +45,7 @@ export function Roster({ characters, current, pending, offline, importing = fals
               {pad2(i + 1)}
             </span>
             <span className={styles.art} aria-hidden="true">
-              <CharacterArt src={c.head} id={c.id} art="round" kind="head" w={84} h={84} fallback={<Icon name="user" size={32} />} />
+              <CharacterArt src={c.head} kind="head" w={84} h={84} fallback={<Icon name="user" size={32} />} />
             </span>
             <span className={styles.name}>{c.name}</span>
           </button>

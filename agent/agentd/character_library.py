@@ -278,9 +278,10 @@ class Package:
             if self.render_enabled or ref is not None: self.resolve(ref)
         for ref in (self.game_ref, self.head_ref):
             if ref is not None: self.resolve(ref)
-        portrait = ui.get('portrait')
-        need((portrait is not None) == ('ui.portrait' in d['capabilities']), 'portrait_capability_mismatch')
-        if portrait is not None: self.resolve(portrait)
+        for kind in ('portrait', 'background'):
+            art = ui.get(kind)
+            need((art is not None) == ('ui.' + kind in d['capabilities']), kind + '_capability_mismatch')
+            if art is not None: self.resolve(art)
         card, game = self.card(), self.game_data() if self.game_ref is not None else None
         need(card.get("name") == self.name and (game is None or game.get("id") == self.id and
              game.get("source_character_id") == source["character_id"] and game.get("name") == self.name), "component_identity_mismatch")

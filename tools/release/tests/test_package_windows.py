@@ -91,10 +91,8 @@ class PackageWindowsTests(unittest.TestCase):
         (art / 'brand').mkdir(parents=True); (art / 'common').mkdir()
         (art / 'brand/AppIcon-1024.png').write_bytes(windows_exe.write_png(256, 256, [bytearray(b'\x10\x20\x30\xff' * 256)] * 256))
         (art / 'common/tab.png').write_bytes(b'tab')
-        # A character the library does not have: its art stays out.
-        (art / 'characters/elsewhere').mkdir(parents=True); (art / 'characters/elsewhere/round.png').write_bytes(b'round')
         files = [dict(key=f[:-4], file=f, sha256=package_windows.digest(art / f))
-                 for f in ('brand/AppIcon-1024.png', 'common/tab.png', 'characters/elsewhere/round.png')]
+                 for f in ('brand/AppIcon-1024.png', 'common/tab.png')]
         (art / 'art-manifest.json').write_text(json.dumps(dict(schema='endfield-ui-art/v1', files=files)))
         return art
 
@@ -260,7 +258,6 @@ class PackageWindowsTests(unittest.TestCase):
         ui = self.output / 'Agentic Complex/resources/components/web-ui/payload/ui'
         self.assertEqual((ui / 'art/common/tab.png').read_bytes(), b'tab')
         self.assertTrue((ui / 'art/brand/AppIcon-1024.png').is_file())
-        self.assertFalse((ui / 'art/characters/elsewhere').exists())
         self.assertEqual(receipt['ui_art'], dict(files=2, manifest_sha256=package_windows.digest(art / 'art-manifest.json')))
         self.assertEqual(self.order, ['brand', 'brand', 'brand', 'fuses', 'vpk'])
         calls = [(Path(call.args[0]).name, *call.args[1:])

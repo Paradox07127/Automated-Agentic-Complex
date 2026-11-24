@@ -5,7 +5,7 @@ import { formatClock } from '../../domain';
 import { useDemo } from '../../shell/demo';
 import { PageHeaderSlot } from '../../shell/headerSlot';
 import { navigate as navTo } from '../../shell/nav';
-import { artSrc, Btn, ErrBar, Menu, Spinner } from '../../ui';
+import { Btn, ErrBar, Menu, Spinner } from '../../ui';
 import { PowerState, TrainingRoom } from '../../ui/game';
 import { useMmdSection } from '../mmd/Section';
 import { failure, readRunningTasks, readState } from './api';
@@ -76,7 +76,8 @@ export function CharacterPage() {
   // No catalog when the shell has no avatar or does not implement the op.
   const noCatalog = !canAvatar || codeOf(list.error) === 'not_implemented';
   const roster = noCatalog ? NO_ROSTER : list.data;
-  const cur = currentOf(roster, host.current)?.id ?? '';
+  const her = currentOf(roster, host.current);
+  const cur = her?.id ?? '';
   const name = roster?.find((c) => c.id === cur)?.name ?? '';
   const motions = useQuery({ queryKey: ['character', 'motions', cur], queryFn: () => getBridge().avatar.actions(), enabled: canAvatar && roster != null });
   const library = useMotionLibrary({ onChanged: () => void motions.refetch() });
@@ -183,7 +184,7 @@ export function CharacterPage() {
   const stage = isCharTab(tab) ? 'set' : photo ? 'photo' : mmdView ? (mmd.band ? 'band' : 'set') : isPane(pane) && pane !== 'overview' ? (scene.deck ? 'deck' : 'wide') : undefined;
   return (
     <div className={styles.page} data-page="character" data-stage-span={stage} data-compact={scene.compact || undefined}>
-      <TrainingRoom watermark={artSrc(cur, 'charinfo-bg')} />
+      <TrainingRoom watermark={her?.background} />
       {/* The shell draws the live preview in here: over the room, under every part of the page (usePreview.ts). */}
       <div className={styles.layer} data-preview-layer="" aria-hidden="true" />
       {fb.node}

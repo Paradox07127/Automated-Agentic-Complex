@@ -1,5 +1,5 @@
 // agentic-complex-ui://app/ over one root directory, with `art/` from the UI art directory
-// the web-ui component copies into its ui/art, and `characters/<id>/head.png` and `portrait.png` from the character packages.
+// the web-ui component copies into its ui/art, and `characters/<id>/head.png`, `portrait.png` and `background.png` from the character packages.
 import { readFileSync, realpathSync, statSync } from 'node:fs';
 import { extname, join, sep } from 'node:path';
 import type { ArtKind } from '../common/character.ts';
@@ -16,7 +16,7 @@ export interface ArtImage {
 }
 
 export interface CharacterArt {
-  /** The package file of a character's head or portrait; null for an unknown id or a missing file. */
+  /** The package file of a character's head, portrait or background; null for an unknown id or a missing file. */
   file(id: string, kind: ArtKind): string | null;
   /** The image in a file (`nativeImage.createFromPath`). */
   image(file: string): ArtImage;
@@ -66,10 +66,10 @@ export function uiServer(root: string, art: string | null = null, characters: Ch
   const characterArt = (parts: string[]): Buffer | null => {
     const [top, id, name] = parts;
     const kind = name?.endsWith('.png') ? name.slice(0, -4) : null;
-    if (characters === null || parts.length !== 3 || top !== 'characters' || (kind !== 'head' && kind !== 'portrait')) return null;
+    if (characters === null || parts.length !== 3 || top !== 'characters' || (kind !== 'head' && kind !== 'portrait' && kind !== 'background')) return null;
     const file = characters.file(id!, kind);
     if (file === null) return null;
-    if (kind === 'head') {
+    if (kind !== 'portrait') {
       try {
         return readFileSync(file);
       } catch {

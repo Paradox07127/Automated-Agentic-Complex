@@ -1,7 +1,7 @@
 // CharacterArt: the host's head / portrait when it has a URL, the page's placeholder without one or once the image fails.
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { artSrc, CharacterArt, markArt } from '../../src/ui';
+import { CharacterArt, markArt } from '../../src/ui';
 
 afterEach(cleanup);
 
@@ -31,30 +31,6 @@ describe('CharacterArt', () => {
     expect(screen.getByTestId('placeholder')).toBeTruthy();
     rerender(<CharacterArt src="agentic-complex-ui://app/characters/dahlia/portrait.png" kind="portrait" w={520} h={520} fallback={placeholder} />);
     expect(container.querySelector('img')?.getAttribute('src')).toBe('agentic-complex-ui://app/characters/dahlia/portrait.png');
-  });
-});
-
-describe('CharacterArt with bundled art', () => {
-  afterEach(() => vi.unstubAllEnvs());
-
-  it('loads no bundled art in a plain browser', () => {
-    expect(artSrc('cedar', 'round')).toBeUndefined();
-    const { container } = render(<CharacterArt kind="head" w={40} h={40} id="cedar" art="round" fallback={placeholder} />);
-    expect(container.querySelector('img')).toBeNull();
-    expect(screen.getByTestId('placeholder')).toBeTruthy();
-  });
-
-  it('uses the host image first, then the bundled art, then the placeholder', () => {
-    vi.stubEnv('VITE_EF_ART', '1');
-    expect(artSrc('cedar', 'card')).toBe('art/characters/cedar/card.png');
-    expect(artSrc(null, 'card')).toBeUndefined();
-    const { container } = render(<CharacterArt src="agentic-complex-ui://app/characters/cedar/head.png" kind="head" w={44} h={44} id="cedar" art="card" fallback={placeholder} />);
-    expect(container.querySelector('img')?.getAttribute('src')).toBe('agentic-complex-ui://app/characters/cedar/head.png');
-    fireEvent.error(container.querySelector('img') as HTMLImageElement);
-    expect(container.querySelector('img')?.getAttribute('src')).toBe('art/characters/cedar/card.png');
-    fireEvent.error(container.querySelector('img') as HTMLImageElement);
-    expect(container.querySelector('img')).toBeNull();
-    expect(screen.getByTestId('placeholder')).toBeTruthy();
   });
 });
 

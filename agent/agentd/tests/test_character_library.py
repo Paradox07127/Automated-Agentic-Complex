@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from character_library import Library, Package, PackageError, write_json, export_package, relative
 
 
-def fixture(root, cid="fixture", voice=False, weapon=False, portrait=False, neutral=False, vulkan=False, pool=()):
+def fixture(root, cid="fixture", voice=False, weapon=False, portrait=False, background=False, neutral=False, vulkan=False, pool=()):
     """pool: the bytes of each file of the source manifest's Files/ pool."""
     root.mkdir(parents=True)
     inventory = []
@@ -31,6 +31,7 @@ def fixture(root, cid="fixture", voice=False, weapon=False, portrait=False, neut
                                    "source": "fixture-table/row"}]})
     head = blob("ui/head.png", {"fixture": "image bytes are opaque to inventory"})
     art = blob("ui/portrait.png", {"fixture": "portrait bytes are opaque to inventory"}) if portrait else None
+    backdrop = blob("ui/background.png", {"fixture": "background bytes are opaque to inventory"}) if background else None
     runtime_files = []
     def component(path, value):
         ref = blob("runtime/" + path, value); runtime_files.append(dict(ref, file=path)); return dict(ref, file=path)
@@ -65,6 +66,9 @@ def fixture(root, cid="fixture", voice=False, weapon=False, portrait=False, neut
     if portrait:
         doc['components']['ui']['portrait']=art
         doc['capabilities'].append('ui.portrait')
+    if background:
+        doc['components']['ui']['background']=backdrop
+        doc['capabilities'].append('ui.background')
     if weapon:
         doc['components']['render']['weapon_visibility']=dict(shown_appearance='armed',hidden_appearance='default',meshes=['weapon'])
         doc['capabilities'].append('render.weapon_toggle')
@@ -185,6 +189,16 @@ class CharacterLibraryTests(unittest.TestCase):
             with self.assertRaisesRegex(PackageError,'portrait_capability_mismatch'):Package(root)
             doc['capabilities'].append('ui.portrait');write_json(root/'character.json',doc)
             (root/'ui/portrait.png').write_bytes(b'changed')
+            with self.assertRaises(PackageError):Package(root)
+
+    def test_optional_background_is_verified_and_capability_must_match(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)/'role';doc=fixture(root,background=True)
+            self.assertIn('background',Package(root).components['ui'])
+            doc['capabilities'].remove('ui.background');write_json(root/'character.json',doc)
+            with self.assertRaisesRegex(PackageError,'background_capability_mismatch'):Package(root)
+            doc['capabilities'].append('ui.background');write_json(root/'character.json',doc)
+            (root/'ui/background.png').write_bytes(b'changed')
             with self.assertRaises(PackageError):Package(root)
 
     def setUp(self):

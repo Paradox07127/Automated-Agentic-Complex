@@ -197,18 +197,6 @@ class BuildComponentsTests(unittest.TestCase):
         self.assertEqual((runtime / 'lib/python3.12/_sysconfigdata__darwin_darwin.py').read_text(),
                          "build_time_vars = {'BINDIR': '/install/bin', 'CC': 'clang'}\n")
 
-    def test_ui_art_ships_only_the_library_characters(self):
-        files = {'characters/fixture/portrait.png': b'in', 'characters/absent/portrait.png': b'out', 'common/contour.png': b'common'}
-        for name, data in files.items():
-            (self.art / name).parent.mkdir(parents=True, exist_ok=True); (self.art / name).write_bytes(data)
-        (self.art / 'art-manifest.json').write_text(json.dumps(dict(files=[
-            dict(file=name, sha256=hashlib.sha256((self.art / name).read_bytes()).hexdigest())
-            for name in [*files, 'brand/AppIcon.icns']])))
-        self.stage_components()
-        art = self.stage / 'web-ui/payload/ui/art'
-        self.assertEqual({path.relative_to(art).as_posix() for path in art.rglob('*') if path.is_file()},
-                         {'characters/fixture/portrait.png', 'common/contour.png', 'brand/AppIcon.icns'})
-
     def test_ui_art_naming_a_file_outside_the_art_directory_is_refused(self):
         outside = self.root / 'outside.png'; outside.write_bytes(b'outside')
         (self.art / 'link.png').symlink_to(outside)

@@ -7,7 +7,7 @@ type Json = Record<string, unknown>;
 const isObject = (v: unknown): v is Json => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** protocol.ts `CharacterEntry` of a package's `character.json`. Appearances and layers come from the renderer, so none yet;
- *  head and portrait depend on the package's files. `voice`: the package has a voice profile (character_library.py
+ *  head, portrait and background depend on the package's files. `voice`: the package has a voice profile (character_library.py
  *  `voice_enabled`). */
 export function characterEntry(definition: string, id: string, active: boolean): Json {
   const { name } = parseCharacterDefinition(definition, id);
@@ -88,8 +88,8 @@ export function mmdEntries(line: Json): Json[] {
     characters: (Array.isArray(e.characters) ? e.characters : []).map((c: Json) => ({ id: c.id, state: c.state, reason: c.reason ?? null })) }));
 }
 
-/** The two files `characters/<id>/<kind>.png` may name. */
-export type ArtKind = 'head' | 'portrait';
+/** The files `characters/<id>/<kind>.png` may name. */
+export type ArtKind = 'head' | 'portrait' | 'background';
 
 export interface AssetReference { file: string; sha256: string; byteCount: number }
 
@@ -101,7 +101,7 @@ export function isPackagePath(file: string): boolean {
     && file.split('/').every((part) => part !== '' && part !== '.' && part !== '..');
 }
 
-/** CharacterPackage.headURL and portraitURL before the file is read: `components.ui.<kind>` of `character.json` when it is a
+/** The head, portrait or background before the file is read: `components.ui.<kind>` of `character.json` when it is a
  *  valid reference (CharacterPackage.validate) the inventory lists; null otherwise. */
 export function artReference(definition: string, kind: ArtKind): AssetReference | null {
   const def: unknown = JSON.parse(definition);

@@ -61,7 +61,7 @@ export function HeadStrip(p: HeadStripProps) {
             >
               {on && <HeadPick />}
               <span className={styles.face}>
-                <CharacterArt src={c.head} id={c.id} art="round" kind="head" w={60} h={60} fallback={<Icon name="user" size={24} />} />
+                <CharacterArt src={c.head} kind="head" w={60} h={60} fallback={<Icon name="user" size={24} />} />
               </span>
               {c.active && (
                 <span className={styles.desk} aria-hidden="true">

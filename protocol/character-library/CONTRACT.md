@@ -81,6 +81,7 @@ Vulkan 段：`vulkan/frame.bin` 是 Windows 渲染器读的帧表，由 `neutral
 | `animation/motion-graph.json` | 可选 | 没有：`GET /characters/{id}/motion-graph` 回 404 `motion_graph_missing`；动作策略的 `chainStarts` 为 nil | `motion_graph_routes.py:17-24`；`ActorMotionPolicy.swift:74-75` |
 | `interaction/presentation-look.json` | 可选 | 没有：各字段取缺省 | `HostPresentationLook.swift:54-57` |
 | `components.game_data`、`components.ui.head` | 可选 | 见「纯文字角色包」一节最后一段 | `character_library.py:265-278` |
+| `components.ui.portrait`（立绘）、`components.ui.background`（角色页背景水印） | 可选；有它必有同名 capability `ui.portrait`、`ui.background`，反之亦然 | 缺立绘时引导页画占位，缺背景时角色页不画水印；capability 不符报 `portrait_capability_mismatch`、`background_capability_mismatch` | `character_library.py:281-284`；Electron `app/electron/src/main/ops/character.ts` 的 `characterArt` 读出，`ui-scheme.ts` 以 `characters/<id>/<kind>.png` 提供 |
 | `character.json` 的 `base_package_version` | 可选 | 见「派生包的窗口包络」一节 | `HostFixedWindow.swift` |
 
 ## 衣片的横向约束（bone-physics.json）
@@ -240,7 +241,7 @@ schema 仍是 `endfield-character-pack/v1`，只加可选字段；包里没有 `
 - `capabilities` 含 `text_only_base_capabilities`（`persona.dialogue`），不要求 `base_capabilities` 的其余项；
 - schema、`id`、`version`、`inventory`、`display.name`、`aliases`、`source_identity` 的通用校验照旧；`game` 字段可省。
 
-`game_data`、`ui.head`、`ui.portrait` 可省，出现时照旧校验。纯文字包不往全库原生包写条目和文件，安装时也不调宿主的 `--validate-pack`；库里全是纯文字包时 `native-<sha>.json` 的 `characters` 为空。有 `render` 的包仍要求 `base_capabilities` 全部（`render.default`、`motion.idle`、`motion.preview`、`persona.dialogue`）和 `game` 字段（字符串，标来源，值不限）。
+`game_data`、`ui.head`、`ui.portrait`、`ui.background` 可省，出现时照旧校验。纯文字包不往全库原生包写条目和文件，安装时也不调宿主的 `--validate-pack`；库里全是纯文字包时 `native-<sha>.json` 的 `characters` 为空。有 `render` 的包仍要求 `base_capabilities` 全部（`render.default`、`motion.idle`、`motion.preview`、`persona.dialogue`）和 `game` 字段（字符串，标来源，值不限）。
 
 不论有没有 `render`，`game_data`、`ui`、`ui.head` 都可省，出现时照旧校验；缺 `ui.head` 时头像用占位（Companion 的条纹方块，网页各处的缺省图），缺 `game_data` 时角色资料为空。
 
@@ -291,3 +292,5 @@ schema 仍是 `endfield-character-pack/v1`，只加可选字段；包里没有 `
 2026-11-20 v2.1：`bundle.json` 角色条目加三个可选引用 `neutral_scene`、`neutral_build_record`、`metal_product`（中立包，「库里的文件」表加一行、加「中立包」一段）；constants.json 加 `neutral_fields` 和三份文件的 schema。只加可选内容，v2 的读者不受影响；没有这三个引用的包照常安装和加载。
 
 2026-11-22 v2.3：Windows 的帧表从 D3D11 段换成 Vulkan 段：`bundle.json` 角色条目的可选引用 `vulkan_frame` 指向 `vulkan/frame.bin`（`EFWVKP01`），文件列 `vulkan/blobs/`；constants.json 的 `d3d11_fields` 换成 `vulkan_fields`。没有 `d3d11_frame` 这个引用了，读者都不认它。
+
+2026-11-24 v2.4：`components.ui` 加可选的 `background`（配 capability `ui.background`）。角色头像、立绘、背景图只随角色包走，web-ui 不再带 `art/characters/`。只加可选内容，`schema_version` 不变；v2.3 的读者不读 `background`。

@@ -214,8 +214,8 @@ export interface CharacterEntry {
   voice: boolean;
   /** `agentic-complex-ui://app/characters/<id>/head.png`; absent when the package has no head. */
   head?: string;
-  /** `agentic-complex-ui://app/characters/<id>/portrait.png` (≤1024 px); absent when the package has no portrait. */
-  portrait?: string;
+  /** `agentic-complex-ui://app/characters/<id>/portrait.png` (≤1024 px); absent when the package has no portrait. */ portrait?: string;
+  /** `agentic-complex-ui://app/characters/<id>/background.png`, the character page's watermark; absent when the package has none. */ background?: string;
   /** The current character only, and only when her appearance has outfit layers. */ layers?: CharacterLayer[];
 }
 

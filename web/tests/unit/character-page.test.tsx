@@ -199,6 +199,21 @@ describe('character · real data', () => {
     expect(stage().textContent).not.toContain('今日');
     expect(screen.queryByRole('switch', { name: '显示武器' })).toBeNull();
   });
+
+  it("draws the current character's package background as the room's watermark, and none without one", async () => {
+    const bridge = createFakeBridge({ surface: 'main', still: true });
+    const background = 'agentic-complex-ui://app/characters/si/background.png';
+    vi.spyOn(bridge.character, 'list').mockResolvedValue([{ id: 'si', name: '示例乙', en: 'SI', active: true, voice: false, appearances: [], background }]);
+    window.agenticComplex = bridge;
+    await mount();
+    const watermark = () => document.querySelector('[data-training-room] img');
+    await waitFor(() => expect(watermark()?.getAttribute('src')).toBe(background));
+    cleanup();
+    vi.spyOn(bridge.character, 'list').mockResolvedValue([{ id: 'si', name: '示例乙', en: 'SI', active: true, voice: false, appearances: [] }]);
+    await mount();
+    await screen.findByText('示例乙');
+    expect(watermark()).toBeNull();
+  });
 });
 
 describe('character · demos', () => {

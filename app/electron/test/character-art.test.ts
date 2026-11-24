@@ -1,4 +1,4 @@
-// `character.list`'s head and portrait and the scheme's `characters/<id>/<kind>.png`, over a library in a temporary directory.
+// `character.list`'s head, portrait and background and the scheme's `characters/<id>/<kind>.png`, over a library in a temporary directory.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -36,7 +36,8 @@ function pack(id: string, files: Record<string, string>, ui: (r: Record<string, 
     inventory: inventory ? Object.values(components.ui) : [] }));
 }
 
-pack('si', { 'ui/head.png': 'head', 'ui/portrait.png': 'portrait' }, (r) => ({ head: r['ui/head.png'], portrait: r['ui/portrait.png'] }));
+pack('si', { 'ui/head.png': 'head', 'ui/portrait.png': 'portrait', 'ui/background.png': 'background' },
+  (r) => ({ head: r['ui/head.png'], portrait: r['ui/portrait.png'], background: r['ui/background.png'] }));
 pack('cedar', { 'ui/head.png': 'head' }, (r) => ({ head: { ...r['ui/head.png'], sha256: '0'.repeat(64) } }));
 pack('voice_a', { 'ui/head.png': 'head' }, (r) => ({ head: r['ui/head.png'] }), false);
 pack('ember', {}, () => ({ head: ref('../../secret.png', 'secret'), portrait: ref('/etc/hosts', 'x') }));
@@ -51,6 +52,7 @@ test('the art file is the package\'s ui reference when it is listed, inside the 
   const real = realpathSync(library);
   assert.equal(characterArt(catalog, 'si', 'head'), join(real, 'si', 'ui', 'head.png'));
   assert.equal(characterArt(catalog, 'si', 'portrait'), join(real, 'si', 'ui', 'portrait.png'));
+  assert.equal(characterArt(catalog, 'si', 'background'), join(real, 'si', 'ui', 'background.png'));
   assert.equal(characterArt(catalog, 'cedar', 'head'), null, 'sha256 mismatch');
   assert.equal(characterArt(catalog, 'cedar', 'portrait'), null, 'no portrait');
   assert.equal(characterArt(catalog, 'voice_a', 'head'), null, 'not in the inventory');
@@ -78,17 +80,18 @@ test('a symbolic link in the package, or a package reached through one, leaves n
   assert.equal(characterArt(linkedCatalog, 'si', 'head'), null, 'a linked package');
 });
 
-test('character.list gives head and portrait URLs only for the art there is', async () => {
+test('character.list gives head, portrait and background URLs only for the art there is', async () => {
   const ctx = { library: { catalog, launched: 'si' }, agentd: null, avatar: null, log: () => {} } as unknown as OpsContext;
   const listed = await characterOps(ctx)['character.list']!([], null as never) as Record<string, unknown>[];
-  assert.deepEqual(listed.map((e) => [e.id, e.head ?? null, e.portrait ?? null]), [
-    ['si', 'agentic-complex-ui://app/characters/si/head.png', 'agentic-complex-ui://app/characters/si/portrait.png'],
-    ['cedar', null, null], ['voice_a', null, null], ['ember', null, null], ['wulfgard', null, null], ['yvonne', null, null],
+  assert.deepEqual(listed.map((e) => [e.id, e.head ?? null, e.portrait ?? null, e.background ?? null]), [
+    ['si', 'agentic-complex-ui://app/characters/si/head.png', 'agentic-complex-ui://app/characters/si/portrait.png',
+      'agentic-complex-ui://app/characters/si/background.png'],
+    ['cedar', null, null, null], ['voice_a', null, null, null], ['ember', null, null, null], ['wulfgard', null, null, null], ['yvonne', null, null, null],
   ]);
   assert.equal('head' in listed[1]!, false, 'absent, as Swift leaves a nil key out');
 });
 
-test('the scheme serves the head as it is and the portrait at most 1024 pixels on its longest side, once per character', () => {
+test('the scheme serves the head and background as they are and the portrait at most 1024 pixels on its longest side, once per character', () => {
   const root = join(tmp, 'dist');
   mkdirSync(root, { recursive: true });
   const images: string[] = [];
@@ -106,6 +109,7 @@ test('the scheme serves the head as it is and the portrait at most 1024 pixels o
   assert.equal(head.headers['Content-Security-Policy'], CSP);
   assert.equal(head.headers['Content-Length'], '4');
   assert.equal(head.body.toString(), 'head');
+  assert.equal(serve('agentic-complex-ui://app/characters/si/background.png').body.toString(), 'background');
   assert.equal(serve('agentic-complex-ui://app/characters/si/portrait.png').body.toString(), '683x1024 best');
   assert.equal(serve('agentic-complex-ui://app/characters/si/portrait.png').status, 200);
   assert.deepEqual(images, [join(realpathSync(library), 'si', 'ui', 'portrait.png')], 'the downscaled portrait is kept');

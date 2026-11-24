@@ -49,14 +49,12 @@ def check_manifest_file(source, name, what):
         raise ValueError(what + ' file outside its directory: ' + name)
 
 
-def copy_ui_art(source, target, characters=None):
-    """Copy the files art-manifest.json lists after checking each SHA-256; web pages load them from ui/art/.
-    Of characters/<id>/, only the ids in characters are copied; None copies every character."""
+def copy_ui_art(source, target):
+    """Copy the files art-manifest.json lists after checking each SHA-256; web pages load them from ui/art/."""
     manifest_path = source / 'art-manifest.json'
     manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
     for entry in manifest['files']: check_manifest_file(source, entry['file'], 'UI art')
-    files = [entry['file'] for entry in manifest['files']
-             if characters is None or not entry['file'].startswith('characters/') or entry['file'].split('/')[1] in characters]
+    files = [entry['file'] for entry in manifest['files']]
     for entry in manifest['files']:
         if digest(source / entry['file']) != entry['sha256']: raise ValueError('UI art hash mismatch: ' + entry['file'])
     for file in files:
@@ -65,11 +63,11 @@ def copy_ui_art(source, target, characters=None):
     return dict(files=len(files), manifest_sha256=digest(manifest_path))
 
 
-def stage_ui(web_dist, ui_art, target, characters=None):
+def stage_ui(web_dist, ui_art, target):
     """Copy ui/ and ui-bridge/ into target; return the UI art receipt."""
     ui = target / 'ui'
     shutil.copytree(web_dist, ui)
-    ui_art_receipt = copy_ui_art(ui_art, ui / 'art', characters) if ui_art else None
+    ui_art_receipt = copy_ui_art(ui_art, ui / 'art') if ui_art else None
     (target / 'ui-bridge').mkdir()
     shutil.copy2(ROOT / 'protocol/ui-bridge/routes.json', target / 'ui-bridge/routes.json')
     return ui_art_receipt
@@ -274,7 +272,7 @@ def stage_components(stage, *, python, harness_runtime, web_dist, ui_art, librar
                      'install_hooks': 'agentd/tools/install_hooks.py', 'distribution_seed': 'agentd/distribution_seed.py',
                      'fbx_tool': 'tools/' + fbx_name},
         provides={'C6': '1', 'C9': '1'}, requires={'runtime.python': python_version}))
-    stage_ui(web_dist, ui_art, stage / 'web-ui/payload', {package.id for package in packages})
+    stage_ui(web_dist, ui_art, stage / 'web-ui/payload')
     components.append(dict(id='web-ui', version=build_version, entrypoints={'index': 'ui/main.html'},
                            provides={}, requires={}))
     for package in packages:

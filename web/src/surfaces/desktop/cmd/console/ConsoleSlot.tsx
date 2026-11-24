@@ -84,7 +84,7 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
   const cells = statusCells(runtime, state?.pips.helper, offline);
   // Its name, Operator and doing lines need the full height in the short form too.
   const card = (
-    <CharCard box={{ width: INNER, height: 66 }} compact name={character?.name ?? '角色'} head={head} id={character?.id ?? null}
+    <CharCard box={{ width: INNER, height: 66 }} compact name={character?.name ?? '角色'} head={head}
       doing={offline ? '—' : (doingOf(presence) ?? '—')} onClick={() => go({ page: 'character' })} />
   );
   return (

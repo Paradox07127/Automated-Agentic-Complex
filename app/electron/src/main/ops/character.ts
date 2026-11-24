@@ -298,8 +298,8 @@ export function characterOps(ctx: OpsContext, picker: ImportPicker = electronPic
           const file = resolve(root, entry.definition);
           if (!file.startsWith(root + sep) || !existsSync(file)) throw new Error('missing_or_escaping_file');
           const active = entry.id === current;
-          // A missing head or portrait is left out.
-          const art = Object.fromEntries((['head', 'portrait'] as const).filter((kind) => characterArt(catalog, entry.id, kind) !== null)
+          // A missing head, portrait or background is left out.
+          const art = Object.fromEntries((['head', 'portrait', 'background'] as const).filter((kind) => characterArt(catalog, entry.id, kind) !== null)
             .map((kind) => [kind, `${SCHEME}://${HOST}/characters/${entry.id}/${kind}.png`]));
           const listed = { ...characterEntry(readFileSync(file, 'utf8'), entry.id, active), ...art };
           return active ? { ...listed, ...looksOf(ctx, entry.id, dirname(file)) } : listed;
