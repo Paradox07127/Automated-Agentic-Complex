@@ -161,17 +161,18 @@ describe('overview writes', () => {
     const s = await snap();
     const { spy, hook } = actions(s);
     const a2 = s.pending.find((p) => p.id === A2) as Approval;
-    act(() => hook.result.current.onApprove(a2, 'allow'));
+    // The decisions settle with agentd's reply; the request goes out at once.
+    act(() => void hook.result.current.onApprove(a2, 'allow'));
     expect(spy).toHaveBeenCalledWith('POST', `/approvals/${A2}/decision`, { generation: 7, decision: 'allow' });
     const q = fromInteraction(WIRE_INTERACTION_APPROVAL, NOW) as Question;
-    act(() => hook.result.current.onAnswer(q, '拒绝'));
+    act(() => void hook.result.current.onAnswer(q, '拒绝'));
     expect(spy).toHaveBeenCalledWith('POST', `/agent/interactions/${Q_APPROVAL}/answer`, { expected_version: 1, answers: { decision: ['拒绝'] } });
   });
 
   it('a 409 on a decision says it was settled elsewhere and reads again', async () => {
     const s = await snap();
     const { toast, refetch, hook } = actions(s, [{ method: 'POST', path: '/approvals/:id/decision', handler: () => ({ status: 409, body: { ok: false, error: 'generation_mismatch' } }) }]);
-    act(() => hook.result.current.onApprove(s.pending.find((p) => p.id === A2) as Approval, 'deny'));
+    act(() => void hook.result.current.onApprove(s.pending.find((p) => p.id === A2) as Approval, 'deny'));
     await waitFor(() => expect(refetch).toHaveBeenCalled());
     expect(toast).toHaveBeenCalledWith('提交决定：已在别处更新，已重新读取', { severity: 'warning' });
   });

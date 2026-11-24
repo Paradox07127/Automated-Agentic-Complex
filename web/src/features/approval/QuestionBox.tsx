@@ -120,9 +120,11 @@ export function QuestionBox({ question, now, compact, selected = null, text = ''
                   onKeyDown={onKey}
                 />
               )}
-              <Btn variant="quiet" size="sm" onClick={onCancel}>
-                取消
-              </Btn>
+              {onCancel && (
+                <Btn variant="quiet" size="sm" onClick={onCancel}>
+                  取消
+                </Btn>
+              )}
               <Btn variant={secondaryEmphasis ? 'secondary' : 'primary'} size="sm" disabled={!canSubmit} disabledReason="选一个选项或写下回答" onClick={() => submit()}>
                 发送
               </Btn>
@@ -177,9 +179,11 @@ export function QuestionBox({ question, now, compact, selected = null, text = ''
               <Btn variant="primary" size="sm" disabled={!canSubmit} disabledReason="选一个选项或写下回答" onClick={() => submit()}>
                 提交回答
               </Btn>
-              <Btn variant="quiet" size="sm" onClick={onCancel}>
-                取消请求
-              </Btn>
+              {onCancel && (
+                <Btn variant="quiet" size="sm" onClick={onCancel}>
+                  取消请求
+                </Btn>
+              )}
             </div>
           ) : (
             <DecisionBar
@@ -187,7 +191,7 @@ export function QuestionBox({ question, now, compact, selected = null, text = ''
               secondaryEmphasis={secondaryEmphasis}
               kind="question"
               primary={{ label: '提交回答', disabled: !canSubmit, disabledReason: '选一个选项或写下回答', onClick: () => submit() }}
-              secondary={[{ label: '取消请求', onClick: onCancel }]}
+              secondary={onCancel ? [{ label: '取消请求', onClick: onCancel }] : []}
             />
           )}
         </>

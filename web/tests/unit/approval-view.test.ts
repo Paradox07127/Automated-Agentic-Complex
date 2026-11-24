@@ -58,7 +58,9 @@ describe('approvalView', () => {
         extra: [],
         token: item.generation,
       });
-      expect(v.expiredNote).toContain('这次工具调用按「未批准」处理');
+      // An own session's call is declined back to it; only a hook card's call waits in the terminal.
+      if (item.display_session?.startsWith('own:')) expect(v.expiredNote).toBe('这次调用没有执行，会话按「拒绝」继续');
+      else expect(v.expiredNote).toContain('这次工具调用按「未批准」处理');
     }
     expect(approvalView(broker(A2)).allowSession).toBe(true);
     expect(approvalView(broker(A1))).toMatchObject({ dangerous: true, dangerRule: 'rm_recursive', allowSession: false });
@@ -95,27 +97,42 @@ describe('approvalView', () => {
     expect(danger.previewText).toContain('rm -rf ~/x');
   });
 
-  it('an ACP agent approval reads as the agent, its title and the paths, not the raw preview', () => {
+  it('an ACP agent approval reads as the agent, its title, the call and the paths, not the raw preview', () => {
     const preview = { source: 'acp_agent', agent: 'Claude Agent', title: '编辑 a.ts', kind: 'edit', locations: ['/repo/src/a.ts', '/repo/src/b.ts'], raw_input: { file_path: '/repo/src/a.ts' } };
     const w = { ...WIRE_INTERACTION_APPROVAL, data: { ...WIRE_INTERACTION_APPROVAL.data!, preview, preview_text: JSON.stringify(preview, null, 2) } };
-    expect(roleView(role(w))).toMatchObject({ origin: 'Claude Agent │ 请求批准', title: '编辑 a.ts', previewText: '/repo/src/a.ts\n/repo/src/b.ts' });
+    const call = `类型：编辑\n${JSON.stringify(preview.raw_input, null, 2)}`;
+    expect(roleView(role(w))).toMatchObject({ origin: 'Claude Agent │ 请求批准', title: '编辑 a.ts', previewText: `${call}\n/repo/src/a.ts\n/repo/src/b.ts` });
     const bare = { ...preview, locations: null };
     const v = roleView(role({ ...w, data: { ...w.data, preview: bare, preview_text: JSON.stringify(bare, null, 2) } }));
-    expect(v).toMatchObject({ origin: 'Claude Agent │ 请求批准', title: '编辑 a.ts', previewText: null });
+    expect(v).toMatchObject({ origin: 'Claude Agent │ 请求批准', title: '编辑 a.ts', previewText: call });
+    const empty = { ...bare, kind: null, raw_input: {} };
+    expect(roleView(role({ ...w, data: { ...w.data, preview: empty, preview_text: JSON.stringify(empty, null, 2) } })).previewText).toBeNull();
   });
 
   it("a Pi approval reads as Pi, the tool and its target, and the file it writes", () => {
     const preview = { source: 'pi', agent: 'Pi', title: 'write: plan.md', kind: 'edit', locations: ['/Users/demo/AgenticComplex/plan.md'], raw_input: { path: 'plan.md', content: 'draft' } };
     const w = { ...WIRE_INTERACTION_APPROVAL, data: { ...WIRE_INTERACTION_APPROVAL.data!, preview, preview_text: JSON.stringify(preview, null, 2) } };
-    expect(roleView(role(w))).toMatchObject({ origin: 'Pi │ 请求批准', title: 'write: plan.md', previewText: '/Users/demo/AgenticComplex/plan.md' });
+    expect(roleView(role(w))).toMatchObject({ origin: 'Pi │ 请求批准', title: 'write: plan.md', previewText: `类型：编辑\n${JSON.stringify(preview.raw_input, null, 2)}\n/Users/demo/AgenticComplex/plan.md` });
   });
 
   it('a Claude Code or Codex approval reads as that kernel', () => {
     for (const [source, agent] of [['claude', 'Claude Code'], ['codex', 'Codex']]) {
       const preview = { source, agent, title: 'Bash', kind: null, locations: null, raw_input: { command: 'ls' } };
       const w = { ...WIRE_INTERACTION_APPROVAL, data: { ...WIRE_INTERACTION_APPROVAL.data!, preview, preview_text: JSON.stringify(preview, null, 2) } };
-      expect(roleView(role(w))).toMatchObject({ origin: `${agent} │ 请求批准`, title: 'Bash', previewText: null });
+      expect(roleView(role(w))).toMatchObject({ origin: `${agent} │ 请求批准`, title: 'Bash', previewText: 'ls' });
     }
+  });
+
+  it('a harness approval shows the call it authorizes: its kind and the command or the arguments', () => {
+    const preview = { source: 'codex', agent: 'Codex', title: 'Bash', kind: 'execute', locations: null, raw_input: { command: 'rm -rf build' } };
+    const w = { ...WIRE_INTERACTION_APPROVAL, data: { ...WIRE_INTERACTION_APPROVAL.data!, preview, preview_text: JSON.stringify(preview, null, 2) } };
+    const v = roleView(role(w));
+    expect(v.title).toBe('Bash');
+    expect(v.previewText).toContain('rm -rf build');
+    expect(v.previewText).toContain('执行');
+    const write = { ...preview, title: 'Write', kind: 'edit', raw_input: { file_path: '/repo/a.ts', content: 'export const a = 1;' } };
+    const ww = { ...w, data: { ...w.data, preview: write, preview_text: JSON.stringify(write, null, 2) } };
+    expect(roleView(role(ww)).previewText).toContain('export const a = 1;');
   });
 
   it('action builds the CardAction each source already sends', () => {

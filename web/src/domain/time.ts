@@ -52,11 +52,11 @@ export function formatMs(ms: number): string {
   return `${(ms / 1000).toFixed(ms >= 10_000 ? 0 : 1)} s`;
 }
 
-/** Countdown text: `剩余 41 秒`, `剩余 2 分 05 秒`, `已超时`; null means no deadline. */
+/** Countdown text: `剩余 41 秒`, `剩余 2 分 05 秒`, `已超时`; null means no deadline. A part second left still counts as one. */
 export function formatRemaining(secondsLeft: number | null | undefined): string {
   if (secondsLeft == null) return '不限时';
-  const s = Math.floor(secondsLeft);
-  if (s <= 0) return '已超时';
+  if (secondsLeft <= 0) return '已超时';
+  const s = Math.ceil(secondsLeft);
   if (s < 60) return `剩余 ${s} 秒`;
   return `剩余 ${Math.floor(s / 60)} 分 ${pad2(s % 60)} 秒`;
 }

@@ -1,11 +1,11 @@
-import { useRef, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import type { PendingItem, Question, Session, VisualStateKey } from '../../domain';
-import { ApprovalCard, QuestionBox } from '../../features/approval';
+import { ApprovalCard, approvalView, QuestionBox } from '../../features/approval';
 import { Btn, Empty, OpenSec, Paper, Receipt, Region, StatusTag, type RegionSource } from '../../ui';
 import { ExpandRow } from '../../ui/game';
 import { CompleteFx, GroupHead, useCellIn } from './MissionFx';
 import type { Go } from './nav';
-import { focusOf, isExpired, KIND_LABEL, leftAt } from './pending';
+import { focusOf, isExpired, KIND_LABEL, leftAt, requestKey } from './pending';
 import styles from './Page.module.css';
 
 /** Receipt of the last decision taken here; the focus item has already moved on. */
@@ -27,11 +27,12 @@ export interface PendingSectionProps {
   sessions: Session[];
   receipt: DecidedReceipt | null;
   go: Go;
-  onApprove: (item: PendingItem & { kind: 'approval' }, decision: 'allow' | 'deny' | 'allow_session', reason?: string) => void;
+  /** The decisions settle once agentd has answered; the card's buttons stay off until then. `mode` only with a dispatch. */
+  onApprove: (item: PendingItem & { kind: 'approval' }, decision: 'allow' | 'deny' | 'allow_session', mode?: string, reason?: string) => Promise<void>;
   /** A character approval (an interaction of kind approval) is decided with its one label. */
-  onAnswer: (item: Question, label: '允许' | '拒绝') => void;
+  onAnswer: (item: Question, label: '允许' | '拒绝' | '本对话都允许') => Promise<void>;
   /** A question answered in place. */
-  onReply: (item: Question, answers: Record<string, string[]>) => void;
+  onReply: (item: Question, answers: Record<string, string[]>) => Promise<void>;
   onJumpSession: (session: Session) => void;
 }
 
@@ -57,10 +58,10 @@ export function PendingSection(p: PendingSectionProps) {
         <GroupHead className={styles.grp} icon={<span className={styles.grpIc}>!!!</span>}>
           紧要
         </GroupHead>
-        <Card p={p} item={focus} nav />
+        <Card key={requestKey(focus)} p={p} item={focus} nav />
         {rest.map((item) => (
           <RowCell key={item.id} id={item.id}>
-            <ExpandRow label={`${item.title}，${KIND_LABEL[item.kind]}`} end={<StatusTag state={rowState(item)} />} body={<Card p={p} item={item} />}>
+            <ExpandRow label={`${item.title}，${KIND_LABEL[item.kind]}`} end={<StatusTag state={rowState(item)} />} body={<Card key={requestKey(item)} p={p} item={item} />}>
               <span className={styles.rowT}>{item.title}</span>
               <span className={styles.rowS}>
                 {KIND_LABEL[item.kind]} │ {item.source}
@@ -88,7 +89,7 @@ function Card({ p, item, nav }: { p: PendingSectionProps; item: PendingItem; nav
   const ref = useCellIn<HTMLDivElement>();
   return (
     <div ref={ref} className={styles.focus} data-item={item.id} data-nav-target={nav ? `item-${item.id}` : undefined} data-g="cell">
-      <Paper priority={item.kind === 'approval' && item.dangerous ? 0 : 1} label={`待处理：${item.title}`}>
+      <Paper priority={item.kind !== 'review' && item.dangerous ? 0 : 1} label={`待处理：${item.title}`}>
         <Focus {...p} item={item} />
       </Paper>
     </div>
@@ -117,6 +118,8 @@ function DoneReceipt({ r }: { r: DecidedReceipt }) {
   );
 }
 
+const ANSWER_LABEL = { allow: '允许', deny: '拒绝', allow_session: '本对话都允许' } as const;
+
 /** An external session jumps to its terminal; anything else opens the task. */
 function openSession(p: PendingSectionProps, item: PendingItem) {
   const session = item.kind === 'approval' ? p.sessions.find((s) => s.id === item.session_id) : undefined;
@@ -130,11 +133,17 @@ function openSession(p: PendingSectionProps, item: PendingItem) {
 /** The card's content: approvals decide here, questions are answered here, reviews open their task. */
 function Focus(p: PendingSectionProps & { item: PendingItem }) {
   const { item, now, at, go } = p;
+  const [busy, setBusy] = useState(false);
+  const send = (decide: Promise<void>) => {
+    setBusy(true);
+    void decide.finally(() => setBusy(false));
+  };
   if (item.kind === 'approval') {
     return (
       <ApprovalCard
         approval={{ ...item, seconds_left: leftAt(item, now, at) ?? item.seconds_left }}
-        onDecide={(d, _mode, reason) => p.onApprove(item, d, reason)}
+        busy={busy}
+        onDecide={(d, mode, reason) => send(p.onApprove(item, d, mode, reason))}
         onOpenSession={() => openSession(p, item)}
         onOpenTimeline={item.trace_id ? () => go({ page: 'diag', tab: 'turns', turn: item.trace_id }) : undefined}
         details="fold"
@@ -148,20 +157,9 @@ function Focus(p: PendingSectionProps & { item: PendingItem }) {
     </div>
   );
   if (item.kind === 'question' && item.interaction_kind === 'approval') {
-    return (
-      <>
-        {head}
-        <h4 className={styles.cardT}>{item.title}</h4>
-        <div className={styles.btnRow}>
-          <Btn variant="ring" kbd="esc" onClick={() => p.onAnswer(item, '拒绝')}>
-            拒绝
-          </Btn>
-          <Btn variant="primary" onClick={() => p.onAnswer(item, '允许')}>
-            允许
-          </Btn>
-        </div>
-      </>
-    );
+    // The stack's view of the call: its preview, danger rule and session offer; its ⋯ actions belong to the stack.
+    const view = { ...approvalView({ id: item.id, kind: 'question', at, item: { ...item, interaction_kind: 'approval', seconds_left: leftAt(item, now, at) } }), extra: [] };
+    return <ApprovalCard view={view} busy={busy} onDecide={(d) => send(p.onAnswer(item, ANSWER_LABEL[d]))} />;
   }
   if (item.kind === 'question') {
     return (

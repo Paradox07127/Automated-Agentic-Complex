@@ -16,7 +16,7 @@ afterEach(() => {
   sessionStorage.clear();
 });
 
-const noop = () => {};
+const noop = async () => {};
 const READY = { status: 'success', data: true } as const;
 const pick = (id: string) => APPROVALS.find((a) => a.id === id)!;
 

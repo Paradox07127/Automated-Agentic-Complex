@@ -141,6 +141,9 @@ describe('time formatting', () => {
     expect(formatRemaining(41)).toBe('剩余 41 秒');
     expect(formatRemaining(125)).toBe('剩余 2 分 05 秒');
     expect(formatRemaining(0)).toBe('已超时');
+    // A fraction of a second still decides: it reads 1 秒, not 已超时.
+    expect(formatRemaining(0.7)).toBe('剩余 1 秒');
+    expect(formatRemaining(59.5)).toBe('剩余 1 分 00 秒');
     expect(formatRemaining(null)).toBe('不限时');
     expect(isUrgent(10)).toBe(true);
     expect(isUrgent(11)).toBe(false);

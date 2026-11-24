@@ -1,12 +1,15 @@
 // 总览：01 待处理、02 进行中，读数和跳转。
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { getBridge } from '../../src/bridge';
 import { createDispatcher } from '../../src/bridge/fake/agentd';
 import { exampleRoutes } from '../../src/bridge/fake/endpoints';
-import { sortPending } from '../../src/domain';
+import { fromInteraction, sortPending, type Approval, type Question } from '../../src/domain';
 import { mockRoutes } from '../../src/mock';
-import { at, DAY, NOW } from '../../src/mock/fixtures';
+import { APPROVALS, at, DAY, NOW, pick, WIRE_INTERACTION_APPROVAL_DANGER, WIRE_INTERACTIONS } from '../../src/mock/fixtures';
+import { A2 } from '../../src/mock/fixtures/ids';
+import { useOverviewActions } from '../../src/pages/overview/useOverviewActions';
 import { codeCounts, nextReminder, reminderTime, runRows, type RunRow } from '../../src/pages/overview/briefModel';
 import type { OverviewSnapshot } from '../../src/pages/overview/load';
 import { loadBrief, readMood, type MoodPoint, type OverviewBrief } from '../../src/pages/overview/loadBrief';
@@ -15,7 +18,7 @@ import { demos } from '../../src/pages/overview/demos';
 import { RunningSection } from '../../src/pages/overview/RunningSection';
 import { loadOverview } from './overviewReads';
 
-const noop = () => {};
+const noop = async () => {};
 /** A section read that has answered. */
 const READY = { status: 'success', data: true } as const;
 let snap: OverviewSnapshot;
@@ -129,10 +132,86 @@ describe(' 01 待处理', () => {
 
   it('decides a non-dangerous approval on its card', () => {
     const items = sortPending(snap.pending).filter((p) => p.kind === 'approval' && !p.dangerous);
-    const onApprove = vi.fn();
+    const onApprove = vi.fn(async () => {});
     render(<PendingSection q={READY} items={items} now={NOW} at={NOW} sessions={snap.sessions} receipt={null} go={noop} onApprove={onApprove} onAnswer={noop} onReply={noop} onJumpSession={noop} />);
     fireEvent.click(screen.getByRole('button', { name: /^批准/ }));
-    expect(onApprove).toHaveBeenLastCalledWith(items[0], 'allow', undefined);
+    expect(onApprove).toHaveBeenLastCalledWith(items[0], 'allow', undefined, undefined);
+  });
+
+  it('a new focus request starts with no session grant and no draft left from the one before', () => {
+    const a = pick(APPROVALS, A2);
+    const b = { ...a, id: 'approval-b', generation: 11, title: 'Edit: Other.swift' };
+    const onApprove = vi.fn(async () => {});
+    const props = { q: READY, now: NOW, at: NOW, sessions: [], receipt: null, go: noop, onApprove, onAnswer: noop, onReply: noop, onJumpSession: noop };
+    const { rerender } = render(<PendingSection {...props} items={[a]} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: /本会话都允许/ }));
+    rerender(<PendingSection {...props} items={[b]} />);
+    fireEvent.click(screen.getByRole('button', { name: /^批准/ }));
+    expect(onApprove).toHaveBeenLastCalledWith(b, 'allow', undefined, undefined);
+    cleanup();
+
+    const x = fromInteraction(WIRE_INTERACTIONS[0]!, NOW) as Question;
+    const y = { ...x, id: 'question-y', title: '另一个问题' };
+    const r = render(<PendingSection {...props} items={[x]} />);
+    fireEvent.change(screen.getByRole('textbox', { name: '写下回答' }), { target: { value: '只写给 X 的' } });
+    r.rerender(<PendingSection {...props} items={[y]} />);
+    expect((screen.getByRole('textbox', { name: '写下回答' }) as HTMLTextAreaElement).value).toBe('');
+  });
+
+  it('sends one decision per request while its reply is out', () => {
+    const request = vi.spyOn(getBridge().agentd, 'request').mockImplementation(() => new Promise(() => {}));
+    const items = [pick(APPROVALS, A2)];
+    function Harness() {
+      const a = useOverviewActions(undefined, NOW, noop, noop, noop);
+      return <PendingSection q={READY} items={items} now={NOW} at={NOW} sessions={[]} receipt={null} go={noop} onApprove={a.onApprove} onAnswer={a.onAnswer} onReply={a.onReply} onJumpSession={noop} />;
+    }
+    render(<QueryClientProvider client={new QueryClient()}><Harness /></QueryClientProvider>);
+    fireEvent.click(screen.getByRole('button', { name: /^批准/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^批准/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^拒绝(?!并)/ }));
+    expect(request.mock.calls.filter(([m, p]) => m === 'POST' && p.startsWith('/approvals/'))).toHaveLength(1);
+    request.mockRestore();
+  });
+
+  it('approving a dispatch on its card sends the mode picked there', () => {
+    const request = vi.spyOn(getBridge().agentd, 'request').mockImplementation(() => new Promise(() => {}));
+    const d: Approval = {
+      ...pick(APPROVALS, A2),
+      approval_kind: 'dispatch',
+      scope_ok: false,
+      dispatch: { target: 'codex', cwd: '/w/p', prompt: '修好构建', source: 'text', utterance: null, modes: ['read_only', 'workspace_write'], mode: 'read_only', verify_cmd: null, cwd_from: { source: 'explicit' } },
+    };
+    function Harness() {
+      const a = useOverviewActions(undefined, NOW, noop, noop, noop);
+      return <PendingSection q={READY} items={[d]} now={NOW} at={NOW} sessions={[]} receipt={null} go={noop} onApprove={a.onApprove} onAnswer={a.onAnswer} onReply={a.onReply} onJumpSession={noop} />;
+    }
+    render(<QueryClientProvider client={new QueryClient()}><Harness /></QueryClientProvider>);
+    fireEvent.click(screen.getByRole('radio', { name: '可改工作区' }));
+    fireEvent.click(screen.getByRole('button', { name: /^批准/ }));
+    expect(request).toHaveBeenCalledWith('POST', `/approvals/${A2}/decision`, { generation: 7, decision: 'allow', mode: 'workspace_write' });
+    request.mockRestore();
+  });
+
+  it('a question card offers no 取消请求 it cannot send', () => {
+    render(<PendingSection q={READY} items={[fromInteraction(WIRE_INTERACTIONS[0]!, NOW)]} now={NOW} at={NOW} sessions={[]} receipt={null} go={noop} onApprove={noop} onAnswer={noop} onReply={noop} onJumpSession={noop} />);
+    expect(screen.queryByRole('button', { name: '取消请求' })).toBeNull();
+  });
+
+  it('a character approval shows its call and danger rule, and a dangerous 批准 is not taken by Enter', () => {
+    const q = fromInteraction(WIRE_INTERACTION_APPROVAL_DANGER, NOW) as Question;
+    const onAnswer = vi.fn(async () => {});
+    const { container } = render(<PendingSection q={READY} items={[q]} now={NOW} at={NOW} sessions={[]} receipt={null} go={noop} onApprove={noop} onAnswer={onAnswer} onReply={noop} onJumpSession={noop} />);
+    const card = container.querySelector<HTMLElement>('[data-stub="ApprovalCard"]')!;
+    expect(card.getAttribute('data-dangerous')).toBe('true');
+    expect(card.textContent).toContain('rm -rf ~/x');
+    expect(card.textContent).toContain('强制递归删除');
+    expect(screen.queryByRole('button', { name: '本对话都允许' })).toBeNull();
+    fireEvent.keyDown(card, { key: 'Enter' });
+    const approve = screen.getByRole('button', { name: /^批准/ });
+    expect(approve.getAttribute('data-mouse-only')).toBe('true');
+    expect(onAnswer).not.toHaveBeenCalled();
+    fireEvent.click(approve);
+    expect(onAnswer).toHaveBeenCalledWith(q, '允许');
   });
 
   it('nothing waiting says so in one line', () => {

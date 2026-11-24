@@ -41,6 +41,8 @@ export interface SessionApprovalProps {
   onAllow: () => void;
   /** 本对话都允许；没有时隐藏 */
   onAlways?: () => void;
+  /** 本对话都允许之后不再问的范围，写在按钮那一行上面 */
+  grants?: string | null;
   onDeny: () => void;
   onKeyDown: (e: KeyboardEvent<HTMLElement>) => void;
 }
@@ -49,7 +51,7 @@ type Open = 'diff' | 'cmd' | 'details' | null;
 
 const TARGET_LABEL: Partial<Record<ActionLine['kind'], string>> = { file: '文件', url: '地址' };
 
-export function SessionApproval({ title, line, dangerous, dangerRule, cmd, diff, details, source, live, receipt, outcome, left, windowS, hint, approveLabel, primary, more, onAllow, onAlways, onDeny, onKeyDown }: SessionApprovalProps) {
+export function SessionApproval({ title, line, dangerous, dangerRule, cmd, diff, details, source, live, receipt, outcome, left, windowS, hint, approveLabel, primary, more, onAllow, onAlways, grants, onDeny, onKeyDown }: SessionApprovalProps) {
   const [open, setOpen] = useState<Open>(null);
   const flip = (o: Exclude<Open, null>) => setOpen((cur) => (cur === o ? null : o));
   const counts = diff ? diffCounts(diff) : null;
@@ -90,15 +92,19 @@ export function SessionApproval({ title, line, dangerous, dangerRule, cmd, diff,
       </p>
       {live && (
         <div className={styles.tabs}>
-          {counts &&
+          {diff &&
             tab(
               'diff',
-              <>
-                差异{' '}
-                <span className="num">
-                  <span className={styles.add}>+{counts.added}</span> <span className={styles.del}>−{counts.removed}</span>
-                </span>
-              </>,
+              counts ? (
+                <>
+                  差异{' '}
+                  <span className="num">
+                    <span className={styles.add}>+{counts.added}</span> <span className={styles.del}>−{counts.removed}</span>
+                  </span>
+                </>
+              ) : (
+                '内容'
+              ),
             )}
           {cmd && tab('cmd', '命令')}
           {tab('details', '详情')}
@@ -118,6 +124,7 @@ export function SessionApproval({ title, line, dangerous, dangerRule, cmd, diff,
         </div>
       )}
       {receipt}
+      {live && onAlways && grants && <p className={styles.meta}>{grants}</p>}
       {live && (
         <div className={styles.foot}>
           <span data-left="" className={`${styles.left} num`} role="timer" data-urgent={isUrgent(left) || undefined}>

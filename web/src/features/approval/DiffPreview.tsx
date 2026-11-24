@@ -2,9 +2,9 @@ import { useId, useState } from 'react';
 import { MoreLines } from '../../ui/MoreLines';
 import styles from './DiffPreview.module.css';
 
-/** 差异预览：Edit / Write 类审批的 content_preview，标题写「+N −M」；先显示前 6 行，长的给「全部 N 行」。 */
+/** 差异预览：Edit / Write 类审批的 content_preview，是 unified diff 时标题写「+N −M」，是写入的新内容时写「内容预览」；先显示前 6 行，长的给「全部 N 行」。 */
 export interface DiffPreviewProps {
-  /** unified diff 片段 */
+  /** unified diff 片段，或写入的新内容 */
   preview: string;
   /** 默认显示全部行 */
   defaultOpen?: boolean;
@@ -15,6 +15,12 @@ export interface DiffPreviewProps {
 /** Lines shown before 全部 N 行. */
 const PREVIEW = 6;
 
+/** The preview's lines, without the empty one after a trailing newline. */
+function linesOf(preview: string): string[] {
+  const lines = preview.split('\n');
+  return lines.at(-1) === '' ? lines.slice(0, -1) : lines;
+}
+
 function lineClass(line: string): string | undefined {
   if (line.startsWith('@@')) return styles.hunk;
   if (line.startsWith('+')) return styles.add;
@@ -22,32 +28,39 @@ function lineClass(line: string): string | undefined {
   return undefined;
 }
 
-/** Added and removed line counts of a unified diff snippet. */
-export function diffCounts(preview: string): { added: number; removed: number } {
-  const lines = preview.split('\n');
+/** Added and removed line counts of a unified diff snippet; null for new content (a Write's text, an Edit's new string), which has no hunk. */
+export function diffCounts(preview: string): { added: number; removed: number } | null {
+  const lines = linesOf(preview);
+  if (!lines.some((l) => l.startsWith('@@'))) return null;
   return { added: lines.filter((l) => l.startsWith('+')).length, removed: lines.filter((l) => l.startsWith('-')).length };
 }
 
 export function DiffPreview({ preview, defaultOpen = false, bare }: DiffPreviewProps) {
   const [open, setOpen] = useState(defaultOpen);
   const diffId = useId();
-  const lines = preview.split('\n');
-  const { added, removed } = diffCounts(preview);
+  const lines = linesOf(preview);
+  const counts = diffCounts(preview);
   const all = open || bare || lines.length <= PREVIEW;
   return (
     <div data-stub="DiffPreview" className={styles.root} data-bare={bare || undefined}>
       {!bare && (
         <span className={styles.head}>
-          差异预览{' '}
-          <span className="num">
-            <span className={styles.addN}>+{added}</span> <span className={styles.delN}>−{removed}</span>
-          </span>
+          {counts ? (
+            <>
+              差异预览{' '}
+              <span className="num">
+                <span className={styles.addN}>+{counts.added}</span> <span className={styles.delN}>−{counts.removed}</span>
+              </span>
+            </>
+          ) : (
+            '内容预览'
+          )}
         </span>
       )}
       <div className={styles.box}>
         <pre id={diffId} className={styles.diff} data-selectable="">
           {(all ? lines : lines.slice(0, PREVIEW)).map((l, i) => (
-            <span key={i} className={lineClass(l)}>
+            <span key={i} className={counts ? lineClass(l) : undefined}>
               {l}
               {'\n'}
             </span>

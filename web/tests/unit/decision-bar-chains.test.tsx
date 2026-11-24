@@ -50,7 +50,7 @@ describe(' copy: no dev notes, issue numbers or `//` on screen', () => {
   });
 
   it('an expired approval marks its consequence ▲ 未验证 instead of （未核实）', () => {
-    const { container } = render(<DecisionReceipt outcome={{ kind: 'expired', at: NOW }} agent="Codex" />);
+    const { container } = render(<DecisionReceipt outcome={{ kind: 'expired', at: NOW }} agent="Codex" origin="hook" />);
     expect(container.textContent).not.toContain('未核实');
     expect(container.textContent).toContain('▲ 未验证');
   });
@@ -78,7 +78,7 @@ describe(' copy: no dev notes, issue numbers or `//` on screen', () => {
 
 describe(' DecisionBar on questions and reviews', () => {
   it('QuestionBox submits and cancels from a question DecisionBar', () => {
-    const { container } = render(<QuestionBox question={pick(QUESTIONS, Q1)} now={NOW} />);
+    const { container } = render(<QuestionBox question={pick(QUESTIONS, Q1)} now={NOW} onCancel={() => {}} />);
     const bar = container.querySelector('[data-stub="DecisionBar"][data-kind="question"]') as HTMLElement;
     expect(bar).not.toBeNull();
     expect(within(bar).getByRole('button', { name: '提交回答' })).toBeTruthy();
@@ -102,7 +102,7 @@ describe(' DecisionBar on questions and reviews', () => {
   });
 
   it('the compact desk QuestionBox keeps its one row of small buttons, no status tag', () => {
-    const { container } = render(<QuestionBox question={pick(QUESTIONS, Q1)} now={NOW} compact />);
+    const { container } = render(<QuestionBox question={pick(QUESTIONS, Q1)} now={NOW} compact onCancel={() => {}} />);
     expect(container.querySelector('[data-stub="DecisionBar"]')).toBeNull();
     expect(container.querySelector('[data-stub="StatusTag"]')).toBeNull();
     for (const name of ['提交回答', '取消请求']) expect(screen.getByRole('button', { name }).getAttribute('data-size')).toBe('sm');

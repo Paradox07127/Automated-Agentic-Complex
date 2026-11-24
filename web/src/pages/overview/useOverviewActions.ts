@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getBridge } from '../../bridge';
 import { post, put, seg } from '../../bridge/agentd';
@@ -15,6 +15,7 @@ import type { WireCommitment } from './wire';
 export type PauseKind = 'observe' | 'quiet' | 'meeting';
 
 const DECISION_TEXT = { allow: '已批准', allow_session: '已批准（本会话）', deny: '已拒绝' } as const;
+const ANSWER_TEXT = { 允许: '已允许', 本对话都允许: '已允许（本对话）', 拒绝: '已拒绝' } as const;
 const NO_PAUSE: Pause = { paused_until: null, quiet_until: null, meeting: false, off: false };
 
 /** Next 07:00 local after `now`: 「安静到明早」. */
@@ -61,35 +62,51 @@ export function useOverviewActions(snap: OverviewSnapshot | undefined, now: numb
     [now, toast],
   );
 
+  // Requests with a decision out: a second press on one sends nothing until agentd has answered the first.
+  const out = useRef(new Set<string>());
+  const once = useCallback((id: string, send: () => Promise<void>): Promise<void> => {
+    if (out.current.has(id)) return Promise.resolve();
+    out.current.add(id);
+    return send().finally(() => out.current.delete(id));
+  }, []);
+
+  /** `mode` only goes with a dispatch card. */
   const onApprove = useCallback(
-    (item: Approval, decision: 'allow' | 'deny' | 'allow_session', reason?: string) => {
-      post(`/approvals/${seg(item.id)}/decision`, approvalDecision(item, decision, undefined, reason))
-        .then(() => settle(item, DECISION_TEXT[decision]))
-        .catch(fail('提交决定'));
-    },
-    [settle, fail],
+    (item: Approval, decision: 'allow' | 'deny' | 'allow_session', mode?: string, reason?: string) =>
+      once(item.id, () =>
+        post(`/approvals/${seg(item.id)}/decision`, approvalDecision(item, decision, mode, reason))
+          .then(() => settle(item, DECISION_TEXT[decision]))
+          .catch(fail('提交决定')),
+      ),
+    [once, settle, fail],
   );
 
   /** A character approval (interaction kind approval) is answered with the label of its only question. */
   const onAnswer = useCallback(
-    (item: Question, label: '允许' | '拒绝') => {
+    (item: Question, label: '允许' | '拒绝' | '本对话都允许') => {
       const q = item.questions[0];
-      if (!q) return;
-      post(`/agent/interactions/${seg(item.id)}/answer`, interactionAnswer(item, { [q.id]: [label] }))
-        .then(() => settle(item, label === '允许' ? '已允许' : '已拒绝'))
-        .catch(fail('提交决定'));
+      if (!q) return Promise.resolve();
+      const body = interactionAnswer(item, { [q.id]: [label] });
+      return once(item.id, () =>
+        post(`/agent/interactions/${seg(item.id)}/answer`, body)
+          .then(() => settle(item, ANSWER_TEXT[label]))
+          .catch(fail('提交决定')),
+      );
     },
-    [settle, fail],
+    [once, settle, fail],
   );
 
   /** A question answered on the 01 card. */
   const onReply = useCallback(
     (item: Question, answers: Record<string, string[]>) => {
-      post(`/agent/interactions/${seg(item.id)}/answer`, interactionAnswer(item, answers))
-        .then(() => settle(item, '已回答'))
-        .catch(fail('提交回答'));
+      const body = interactionAnswer(item, answers);
+      return once(item.id, () =>
+        post(`/agent/interactions/${seg(item.id)}/answer`, body)
+          .then(() => settle(item, '已回答'))
+          .catch(fail('提交回答')),
+      );
     },
-    [settle, fail],
+    [once, settle, fail],
   );
 
   const onJumpSession = useCallback(

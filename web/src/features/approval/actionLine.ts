@@ -1,5 +1,5 @@
 // What an approval asks to do, as one short Chinese line: 「改 HostLink.swift」, 「运行 swift test」, 「访问 api.github.com」.
-import { AGENT_NAME, type ApprovalDispatch } from '../../domain';
+import { AGENT_NAME, pathParts, type ApprovalDispatch } from '../../domain';
 
 export interface ActionLine {
   /** file: target is the file name; run: the command; url: the host; other: whatever the call named. */
@@ -28,7 +28,7 @@ const VERB: Readonly<Record<string, [ActionLine['kind'], string]>> = {
   Grep: ['other', '搜索'],
 };
 
-const baseName = (path: string) => path.replace(/\/+$/, '').split('/').at(-1) || path;
+const baseName = (path: string) => pathParts(path).at(-1) ?? path;
 
 function hostOf(url: string): string {
   try {

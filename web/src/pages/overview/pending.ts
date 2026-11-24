@@ -2,6 +2,9 @@ import type { PendingItem } from '../../domain';
 
 export const KIND_LABEL: Record<PendingItem['kind'], string> = { approval: '审批', question: '提问', review: '复核' };
 
+/** One request's identity: a card keyed by it starts with fresh decision state and buttons when the request changes. */
+export const requestKey = (item: PendingItem) => `${item.kind}:${item.id}:${item.generation}`;
+
 /** Seconds left at `now`, counted down from the snapshot time; null = no deadline. */
 export function leftAt(item: PendingItem, now: number, at: number): number | null {
   if (item.kind === 'review' || item.seconds_left == null) return null;

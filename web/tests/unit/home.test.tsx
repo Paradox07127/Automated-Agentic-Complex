@@ -5,7 +5,10 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getBridge } from '../../src/bridge';
 import { createFakeBridge } from '../../src/bridge/fake';
+import { APPROVALS, pick } from '../../src/mock/fixtures';
+import { A2, A3 } from '../../src/mock/fixtures/ids';
 import { demos } from '../../src/pages/home/demos';
+import { Disc } from '../../src/pages/home/Disc';
 import { BANNER, BAR_SLOTS, CARD, COUNTERS, leftTiles, listKey, STAGE, TOP_ICONS, type Box } from '../../src/pages/home/geometry';
 import { HomePage } from '../../src/pages/home/Page';
 import { setDevMode } from '../../src/shell/devMode';
@@ -147,6 +150,30 @@ describe('home disc', () => {
     const first = within(disc).getByRole('group', { name: /^(审批|提问|复核)：/ });
     fireEvent.click(within(first).getAllByRole('button')[0]!);
     expect(window.location.hash).toMatch(/^#\/overview\?sel=([^&]+)&focus=item-\1/);
+  });
+
+  it('mounts fresh buttons for a new first request, so a press begun on A never approves B', () => {
+    const a = pick(APPROVALS, A2);
+    const b = { ...pick(APPROVALS, A3), dangerous: false };
+    const act = { onApprove: vi.fn(async () => {}), onAnswer: vi.fn(async () => {}), onReply: vi.fn(async () => {}) };
+    const props = { title: '圆盘', report: null, running: null, act, go: vi.fn() };
+    const { rerender } = render(<Disc {...props} urgent={[a]} />);
+    const approve = screen.getByRole('button', { name: '批准' });
+    fireEvent.pointerDown(approve);
+    fireEvent.mouseDown(approve);
+    rerender(<Disc {...props} urgent={[b]} />);
+    fireEvent.click(approve);
+    expect(act.onApprove).not.toHaveBeenCalledWith(b, expect.anything());
+  });
+
+  it('sends one decision per request while its reply is out', () => {
+    const a = pick(APPROVALS, A2);
+    const act = { onApprove: vi.fn(() => new Promise<void>(() => {})), onAnswer: vi.fn(async () => {}), onReply: vi.fn(async () => {}) };
+    render(<Disc title="圆盘" urgent={[a]} report={null} running={null} act={act} go={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: '批准' }));
+    fireEvent.click(screen.getByRole('button', { name: '批准' }));
+    fireEvent.click(screen.getByRole('button', { name: '拒绝' }));
+    expect(act.onApprove).toHaveBeenCalledTimes(1);
   });
 
   it('puts the next reminder on the banner and lands it on 每日简报 at the reminders', async () => {

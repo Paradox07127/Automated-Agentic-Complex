@@ -1,4 +1,4 @@
-import type { RuntimeInfo } from '../../domain';
+import { pathParts, type RuntimeInfo } from '../../domain';
 import { NodeChain, type ChainNode } from '../../charts';
 import { Btn } from '../../ui';
 import styles from './KernelChain.module.css';
@@ -33,7 +33,7 @@ export function kernelBreak(r: RuntimeInfo): number {
 /** Nodes up to the break are done, the break is ✕, everything after it is unreachable. */
 export function kernelNodes(r: RuntimeInfo): ChainNode[] {
   const bi = kernelBreak(r);
-  const subs = [r.path ? r.path.split('/').slice(-2).join('/') : r.id === 'pi' && r.available ? '随应用的 SDK' : '没找到', r.version ?? '—', r.authenticated == null ? '不适用' : r.authenticated ? '已登录' : '未登录'];
+  const subs = [r.path ? pathParts(r.path).slice(-2).join('/') : r.id === 'pi' && r.available ? '随应用的 SDK' : '没找到', r.version ?? '—', r.authenticated == null ? '不适用' : r.authenticated ? '已登录' : '未登录'];
   return STEPS.map((label, i) => {
     const state = bi < 0 || i < bi ? 'done' : i === bi ? 'broken' : 'unreachable';
     return { label, state, sub: state === 'unreachable' ? '不可达' : subs[i], tip: `${label} │ ${subs[i]}` };

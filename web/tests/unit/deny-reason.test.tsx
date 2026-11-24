@@ -77,7 +77,7 @@ describe('expired receipt', () => {
     expect(r.container.textContent).toContain('已超时 │ 请求已失效');
     expect(r.container.textContent).toContain(view.expiredNote);
     r.unmount();
-    const bare = render(<DecisionReceipt outcome={{ kind: 'expired', at: NOW }} />);
+    const bare = render(<DecisionReceipt outcome={{ kind: 'expired', at: NOW }} origin="own" />);
     expect(bare.container.textContent).toContain('已超时 │ 请求已失效');
   });
 });

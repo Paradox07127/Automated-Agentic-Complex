@@ -1,5 +1,5 @@
 // One view of a stack approval, whether the broker (`/approvals`) or a role exact-call approval (`/agent/interactions` kind approval) asked.
-import { AGENT_NAME, type ApprovalDispatch, type ApprovalOutcome, type Question, type StackCard } from '../../domain';
+import { AGENT_NAME, type Approval, type ApprovalDispatch, type ApprovalOutcome, type Question, type StackCard } from '../../domain';
 import { CANCEL_RECEIPT, type CardAction } from '../../surfaces/stack/actions';
 
 export type ApprovalVerdict = 'allow' | 'allow_session' | 'deny' | 'cancel';
@@ -68,14 +68,51 @@ export function outcomeOfReceipt(receipt: string | undefined, at: number): Appro
   return kind === 'denied' || kind === 'elsewhere' ? { kind, at, text: receipt } : { kind, at };
 }
 
+/** Who a broker card's call came back to: a coding tool's own hook, a session agentd runs, or a dispatch agentd has not started. */
+export type ApprovalOrigin = 'hook' | 'own' | 'dispatch';
+
+export const approvalOrigin = (a: Pick<Approval, 'dispatch' | 'display_session'>): ApprovalOrigin =>
+  a.dispatch ? 'dispatch' : a.display_session?.startsWith('own:') ? 'own' : 'hook';
+
+/** What a broker card timing out means, after 「后果：」. */
+export function expiredNote(origin: ApprovalOrigin, agent: string): string {
+  if (origin === 'dispatch') return '任务没有派出，什么都没有开始';
+  if (origin === 'own') return '这次调用没有执行，会话按「拒绝」继续';
+  return `这次工具调用按「未批准」处理，${agent} 会停在这一步，待用户在终端处理`;
+}
+
+/** What 本对话都允许 lets through without asking again (approvals.py session_scope); null when agentd did not say. */
+export function scopeLine(scope: { kind: string; detail: string | null } | null): string | null {
+  if (!scope) return null;
+  if (scope.kind === 'all_edits') return `之后不再问：本会话在工作区里的所有编辑和 mkdir/touch/rm/rmdir/mv/cp/sed${scope.detail ? `；另含 ${scope.detail}` : ''}`;
+  if (!scope.detail) return null;
+  if (scope.kind === 'same_files') return `之后不再问：对 ${scope.detail.split('\n').filter(Boolean).join('、')} 的改动`;
+  return `之后不再问：${scope.detail}`;
+}
+
+/** ACP ToolKind, as the preview names the call. */
+const CALL_KIND: Readonly<Record<string, string>> = { read: '读取', edit: '编辑', delete: '删除', move: '移动', search: '搜索', execute: '执行', think: '思考', fetch: '访问', switch_mode: '切换模式', other: '其他' };
+
+/** A harness call's arguments: its command when it is one, else every argument it passes. */
+function callArguments(raw: unknown): string | null {
+  if (raw == null) return null;
+  if (typeof raw !== 'object') return String(raw);
+  const command = (raw as { command?: unknown }).command;
+  if (typeof command === 'string') return command;
+  if (Array.isArray(command) && command.every((c) => typeof c === 'string')) return command.join(' ');
+  return Object.keys(raw).length > 0 ? JSON.stringify(raw, null, 2) : null;
+}
+
 /** integration.py _harness_permission preview: Claude Code, Codex, Pi or an ACP agent asking to run a tool; null for any other preview. */
-function harnessPreview(text: string | undefined): { agent: string; title: string | null; locations: string[] } | null {
+function harnessPreview(text: string | undefined): { agent: string; title: string | null; call: string | null } | null {
   if (!text) return null;
   try {
-    const p = JSON.parse(text) as { source?: unknown; agent?: unknown; title?: unknown; locations?: unknown };
+    const p = JSON.parse(text) as { source?: unknown; agent?: unknown; title?: unknown; kind?: unknown; locations?: unknown; raw_input?: unknown };
     if (!(p.source === 'claude' || p.source === 'codex' || p.source === 'pi' || p.source === 'acp_agent') || typeof p.agent !== 'string') return null;
     const locations = Array.isArray(p.locations) ? p.locations.filter((l): l is string => typeof l === 'string') : [];
-    return { agent: p.agent, title: typeof p.title === 'string' && p.title ? p.title : null, locations };
+    const kind = typeof p.kind === 'string' && p.kind ? `类型：${CALL_KIND[p.kind] ?? p.kind}` : null;
+    const lines = [kind, callArguments(p.raw_input), ...locations].filter((l): l is string => !!l);
+    return { agent: p.agent, title: typeof p.title === 'string' && p.title ? p.title : null, call: lines.join('\n') || null };
   } catch {
     return null;
   }
@@ -106,7 +143,7 @@ export function approvalView(card: ApprovalStackItem): ApprovalView {
       secondsLeft: item.seconds_left,
       since: item.since,
       outcome: card.outcome ?? null,
-      expiredNote: `这次工具调用按「未批准」处理，${agent} 会停在这一步，待用户在终端处理`,
+      expiredNote: expiredNote(approvalOrigin(item), agent),
       links: true,
       extra: [],
       token: item.generation,
@@ -139,7 +176,7 @@ export function approvalView(card: ApprovalStackItem): ApprovalView {
     origLen: null,
     diff: null,
     cwd: null,
-    previewText: harness ? harness.locations.join('\n') || null : (item.preview_text ?? null),
+    previewText: harness ? harness.call : (item.preview_text ?? null),
     // No verdict: not dangerous.
     dangerous: item.dangerous ?? false,
     dangerRule: item.danger_rule ?? null,
@@ -161,3 +198,43 @@ export function approvalView(card: ApprovalStackItem): ApprovalView {
     action: (verdict) => (verdict === 'allow' ? answer('允许') : verdict === 'deny' ? answer('拒绝') : verdict === 'cancel' ? cancel : verdict === 'allow_session' && allowSession ? answer('本对话都允许') : null),
   };
 }
+
+/** The Approval fields the card reads; windows may be null for a role approval. */
+export type Fields = Pick<Approval, 'id' | 'title' | 'tool' | 'source' | 'cmd' | 'content_preview' | 'summary_truncated' | 'orig_len' | 'cwd' | 'dangerous' | 'danger_rule' | 'dispatch' | 'scope_ok' | 'session_scope' | 'since' | 'agent' | 'display_session'> & {
+  window_s: number | null;
+  seconds_left: number | null;
+};
+
+export const fieldsOf = (v: ApprovalView): Fields => ({
+  id: v.id,
+  title: v.title,
+  tool: v.tool,
+  source: v.origin,
+  cmd: v.cmd ?? undefined,
+  content_preview: v.diff ?? undefined,
+  summary_truncated: v.truncated,
+  orig_len: v.origLen ?? undefined,
+  cwd: v.cwd,
+  dangerous: v.dangerous,
+  danger_rule: v.dangerRule ?? undefined,
+  dispatch: v.dispatch,
+  scope_ok: v.allowSession,
+  session_scope: v.sessionScope,
+  since: v.since,
+  agent: '',
+  display_session: null,
+  window_s: v.windowS,
+  seconds_left: v.secondsLeft,
+});
+
+/** Where a dispatch's directory came from (cwd_from), as the card states it. */
+export function cwdFrom(d: ApprovalDispatch): string | null {
+  const f = d.cwd_from;
+  if (!f) return null;
+  if (f.source === 'explicit') return '指定的目录';
+  if (f.source === 'focus') return `取自焦点会话 ${f.display_session}（${f.state}）`;
+  return f.matched === 'project' ? `按项目 ${f.project} 找到` : AGENT_CWD[f.matched];
+}
+
+/** dispatch_tool.py _resolve_cwd: the directory the character gave, the focused session's, or the workspace. */
+const AGENT_CWD = { cwd: '角色给的目录', focus: '取自焦点会话', workspace: '默认工作区' } as const;

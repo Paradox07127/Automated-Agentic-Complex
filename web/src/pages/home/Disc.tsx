@@ -3,7 +3,7 @@ import type { PendingItem, Question } from '../../domain';
 import { dangerRuleText } from '../../features/approval';
 import type { Go } from '../../shell/nav';
 import { Btn, Icon } from '../../ui';
-import { KIND_LABEL } from '../overview/pending';
+import { KIND_LABEL, requestKey } from '../overview/pending';
 import { Slab, unit } from '../../ui/game/Slab';
 import styles from './Disc.module.css';
 
@@ -18,10 +18,11 @@ export interface DiscProps {
   report: Report | null;
   /** What runs now; null while neither 编码会话 nor 个人代理 is on. */
   running: readonly RunItem[] | null;
+  /** Each settles once agentd has answered, so the item's buttons stay off until then. */
   act: {
-    onApprove: (item: Approval, decision: 'allow' | 'deny' | 'allow_session', reason?: string) => void;
-    onAnswer: (item: Question, label: '允许' | '拒绝') => void;
-    onReply: (item: Question, answers: Record<string, string[]>) => void;
+    onApprove: (item: Approval, decision: 'allow' | 'deny' | 'allow_session') => Promise<void>;
+    onAnswer: (item: Question, label: '允许' | '拒绝') => Promise<void>;
+    onReply: (item: Question, answers: Record<string, string[]>) => Promise<void>;
   };
   go: Go;
   /** 每日简报 off: its 已关闭 block takes the place of 待批准, 在做 and the report. */
@@ -37,6 +38,11 @@ function Focus({ item, act, go }: { item: PendingItem; act: DiscProps['act']; go
   // A call that hit a danger rule is not approved from here in one click: its card on 每日简报 shows the whole command.
   const danger = item.kind !== 'review' && item.dangerous ? dangerRuleText(item.danger_rule ?? '') : null;
   const one = item.kind === 'question' && item.interaction_kind === 'question' && item.questions.length === 1 ? item.questions[0] : undefined;
+  const [busy, setBusy] = useState(false);
+  const send = (decide: () => Promise<void>) => () => {
+    setBusy(true);
+    void decide().finally(() => setBusy(false));
+  };
   return (
     <div className={styles.focus} data-depth="" role="group" aria-label={`${KIND_LABEL[item.kind]}：${item.title}`}>
       <button type="button" className={styles.focusT} onClick={open}>
@@ -48,21 +54,21 @@ function Focus({ item, act, go }: { item: PendingItem; act: DiscProps['act']; go
         {danger && item.kind !== 'review' ? (
           <>
             <Btn size="sm" variant="secondary" onClick={open}>查看</Btn>
-            <Btn size="sm" variant="secondary" onClick={() => (item.kind === 'approval' ? act.onApprove(item, 'deny') : act.onAnswer(item, '拒绝'))}>拒绝</Btn>
+            <Btn size="sm" variant="secondary" loading={busy} onClick={send(() => (item.kind === 'approval' ? act.onApprove(item, 'deny') : act.onAnswer(item, '拒绝')))}>拒绝</Btn>
           </>
         ) : item.kind === 'approval' ? (
           <>
-            <Btn size="sm" variant="primary" onClick={() => act.onApprove(item, 'allow')}>批准</Btn>
-            <Btn size="sm" variant="secondary" onClick={() => act.onApprove(item, 'deny')}>拒绝</Btn>
+            <Btn size="sm" variant="primary" loading={busy} onClick={send(() => act.onApprove(item, 'allow'))}>批准</Btn>
+            <Btn size="sm" variant="secondary" loading={busy} onClick={send(() => act.onApprove(item, 'deny'))}>拒绝</Btn>
           </>
         ) : item.kind === 'question' && item.interaction_kind === 'approval' ? (
           <>
-            <Btn size="sm" variant="primary" onClick={() => act.onAnswer(item, '允许')}>允许</Btn>
-            <Btn size="sm" variant="secondary" onClick={() => act.onAnswer(item, '拒绝')}>拒绝</Btn>
+            <Btn size="sm" variant="primary" loading={busy} onClick={send(() => act.onAnswer(item, '允许'))}>允许</Btn>
+            <Btn size="sm" variant="secondary" loading={busy} onClick={send(() => act.onAnswer(item, '拒绝'))}>拒绝</Btn>
           </>
         ) : item.kind === 'question' && one && one.options.length > 0 && one.options.length <= QUICK ? (
           one.options.map((o) => (
-            <Btn key={o.label} size="sm" variant="secondary" onClick={() => act.onReply(item, { [one.id]: [o.label] })}>{o.label}</Btn>
+            <Btn key={o.label} size="sm" variant="secondary" loading={busy} onClick={send(() => act.onReply(item, { [one.id]: [o.label] }))}>{o.label}</Btn>
           ))
         ) : (
           <Btn size="sm" variant="secondary" onClick={open}>{item.kind === 'review' ? '去复核' : '去回答'}</Btn>
@@ -240,7 +246,7 @@ export function Disc({ title, urgent, report, running, act, go, off }: DiscProps
           <Running items={running} go={go} />
         ) : first ? (
           <>
-            <Focus item={first} act={act} go={go} />
+            <Focus key={requestKey(first)} item={first} act={act} go={go} />
             {rest.length > 0 && (
               <button type="button" className={styles.row} aria-label={`另有 ${rest.length} 件待处理`} onClick={() => go({ page: 'overview', focus: 'pending' })}>
                 <Icon name="hand" size={14} />

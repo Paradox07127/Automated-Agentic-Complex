@@ -5,7 +5,7 @@ import type { CardAction } from '../../surfaces/stack/actions';
 import { Btn, Menu, type MenuItem } from '../../ui';
 import { Fold } from '../../ui/Fold';
 import { actionLine } from './actionLine';
-import type { ApprovalView } from './approvalView';
+import { approvalOrigin, cwdFrom, fieldsOf, scopeLine, type ApprovalView, type Fields } from './approvalView';
 import { CmdBlock } from './CmdBlock';
 import { dangerRuleText } from './dangerRule';
 import { DecisionBar } from './DecisionBar';
@@ -62,39 +62,14 @@ export interface ApprovalCardProps {
   confirmDanger?: boolean;
   /** 主窗口卡的规则、目录和链接：inline 摊开（默认）；fold 收进带计数的「详情」折叠 */
   details?: 'inline' | 'fold';
+  /** 决定已发出、还没回复：批准、拒绝和本对话都允许都不再响应 */
+  busy?: boolean;
 }
 
 /** How long a dangerous 批准 stays 确认批准 waiting for the second click. */
 export const CONFIRM_MS = 1000;
 
-/** The Approval fields the card reads; windows may be null for a role approval. */
-type Fields = Pick<Approval, 'id' | 'title' | 'tool' | 'source' | 'cmd' | 'content_preview' | 'summary_truncated' | 'orig_len' | 'cwd' | 'dangerous' | 'danger_rule' | 'dispatch' | 'scope_ok' | 'since' | 'agent' | 'display_session'> & {
-  window_s: number | null;
-  seconds_left: number | null;
-};
-
-const fieldsOf = (v: ApprovalView): Fields => ({
-  id: v.id,
-  title: v.title,
-  tool: v.tool,
-  source: v.origin,
-  cmd: v.cmd ?? undefined,
-  content_preview: v.diff ?? undefined,
-  summary_truncated: v.truncated,
-  orig_len: v.origLen ?? undefined,
-  cwd: v.cwd,
-  dangerous: v.dangerous,
-  danger_rule: v.dangerRule ?? undefined,
-  dispatch: v.dispatch,
-  scope_ok: v.allowSession,
-  since: v.since,
-  agent: '',
-  display_session: null,
-  window_s: v.windowS,
-  seconds_left: v.secondsLeft,
-});
-
-export function ApprovalCard({ approval: given, view, onExtra, surface = 'main', position, queue, previewOpen, outcome = null, timelineReason, sessionReason, onDecide, onOpenSession, onOpenTimeline, paper, compact, confirmDanger = paper != null, details = 'inline' }: ApprovalCardProps) {
+export function ApprovalCard({ approval: given, view, onExtra, surface = 'main', position, queue, previewOpen, outcome = null, timelineReason, sessionReason, onDecide, onOpenSession, onOpenTimeline, paper, compact, confirmDanger = paper != null, details = 'inline', busy = false }: ApprovalCardProps) {
   const approval: Fields = given ?? fieldsOf(view!);
   const inSession = useContext(InSession);
   const left = useCountdown(approval.seconds_left, outcome == null);
@@ -111,10 +86,13 @@ export function ApprovalCard({ approval: given, view, onExtra, surface = 'main',
   const live = shown == null;
   const agent = AGENT_NAME[approval.agent] ?? (approval.agent || '会话');
   const sourceTip = [approval.source, approval.display_session].filter(Boolean).join(' │ ');
-  const decide = (session: boolean) => onDecide?.(!danger && approval.scope_ok && session ? 'allow_session' : 'allow', dispatch ? mode : undefined);
+  const decide = (session: boolean) => {
+    if (!busy) onDecide?.(!danger && approval.scope_ok && session ? 'allow_session' : 'allow', dispatch ? mode : undefined);
+  };
   const decideAllow = () => decide(scope);
   const twice = danger && confirmDanger;
   const allow = () => {
+    if (busy) return;
     if (!twice) return decideAllow();
     clearTimeout(confirmTimer.current);
     if (!confirming) {
@@ -126,7 +104,11 @@ export function ApprovalCard({ approval: given, view, onExtra, surface = 'main',
     decideAllow();
   };
   const approveLabel = twice && confirming ? '确认批准' : '批准';
-  const deny = () => onDecide?.('deny');
+  const deny = () => {
+    if (!busy) onDecide?.('deny');
+  };
+  const grants = !danger && approval.scope_ok ? scopeLine(approval.session_scope) : null;
+  const covers = live && grants && <p className={styles.meta}>{grants}</p>;
   const timelineOff = !onOpenTimeline || !!timelineReason;
   const sessionOff = !onOpenSession || !!sessionReason;
 
@@ -166,6 +148,7 @@ export function ApprovalCard({ approval: given, view, onExtra, surface = 'main',
       本会话都允许同类操作
     </label>
   );
+  const from = dispatch && cwdFrom(dispatch);
   const dispatchMeta = (
     <>
       {dispatch && (
@@ -173,6 +156,18 @@ export function ApprovalCard({ approval: given, view, onExtra, surface = 'main',
           <span>派给</span>
           <code>{AGENT_NAME[dispatch.target] ?? dispatch.target}</code>
           <span>{dispatch.prompt}</span>
+        </p>
+      )}
+      {dispatch && (
+        <p className={styles.meta}>
+          目录 <code>{dispatch.cwd}</code>
+          {from && <span>{from}</span>}
+        </p>
+      )}
+      {dispatch?.source === 'voice' && dispatch.utterance && (
+        <p className={styles.meta}>
+          <span>原话</span>
+          <span>{dispatch.utterance}</span>
         </p>
       )}
       {live && dispatch && dispatch.modes.length > 1 && (
@@ -208,7 +203,7 @@ export function ApprovalCard({ approval: given, view, onExtra, surface = 'main',
         <p className={receiptStyles.note}>后果：{view.expiredNote}</p>
       </div>
     ) : (
-      <DecisionReceipt outcome={shown} agent={agent} hook={!dispatch} onGoTerminal={onOpenSession} />
+      <DecisionReceipt outcome={shown} agent={agent} origin={approvalOrigin(approval)} onGoTerminal={onOpenSession} />
     ));
   const title = (
     <>
@@ -258,6 +253,7 @@ export function ApprovalCard({ approval: given, view, onExtra, surface = 'main',
         more={more}
         onAllow={allow}
         onAlways={!danger && approval.scope_ok ? () => decide(true) : undefined}
+        grants={grants}
         onDeny={deny}
         onKeyDown={onPaperKey}
       />
@@ -320,19 +316,20 @@ export function ApprovalCard({ approval: given, view, onExtra, surface = 'main',
               危险操作只能用鼠标点击「批准」
             </p>
           )}
+          {!compact && covers}
           {live && (
             <div className={styles.pFoot}>
               {more.length > 0 && <Menu label="更多操作" icon="more" items={more} align="right" />}
-              <Btn variant="secondary" size="lg" tail="close" onClick={deny}>
+              <Btn variant="secondary" size="lg" tail="close" loading={busy} onClick={deny}>
                 拒绝
               </Btn>
               {!danger && approval.scope_ok && (
-                <Btn variant="secondary" size="lg" onClick={() => decide(true)}>
+                <Btn variant="secondary" size="lg" loading={busy} onClick={() => decide(true)}>
                   本对话都允许
                 </Btn>
               )}
               <span data-approve="" className={styles.approve}>
-                <Btn variant={danger ? 'danger' : paper.top ? 'primary' : 'secondary'} size="lg" tail="check" mouseOnly={danger} onClick={allow}>
+                <Btn variant={danger ? 'danger' : paper.top ? 'primary' : 'secondary'} size="lg" tail="check" mouseOnly={danger} loading={busy} onClick={allow}>
                   {approveLabel}
                 </Btn>
               </span>
@@ -370,6 +367,7 @@ export function ApprovalCard({ approval: given, view, onExtra, surface = 'main',
         {preview}
         {minor ?? links}
         {scopeBox}
+        {covers}
         {receipt}
         {live && (
           <DecisionBar
@@ -377,8 +375,9 @@ export function ApprovalCard({ approval: given, view, onExtra, surface = 'main',
             kind="approval"
             dangerous={danger}
             meta={<CountdownRing size="mini" secondsLeft={left} windowS={approval.window_s} />}
-            primary={{ label: approveLabel, kbd: '⏎', onClick: allow }}
-            secondary={[{ label: '拒绝', kbd: 'esc', onClick: deny, withReason: dispatch ? undefined : (r) => onDecide?.('deny', undefined, r) }, ...(!danger && approval.scope_ok ? [{ label: '本对话都允许', onClick: () => decide(true) }] : [])]}
+            primary={{ label: approveLabel, kbd: '⏎', loading: busy, onClick: allow }}
+            // Only a broker tool card's deny carries a reason; a role approval's answer has no field for one.
+            secondary={[{ label: '拒绝', kbd: 'esc', disabled: busy, onClick: deny, withReason: given && !dispatch ? (r) => onDecide?.('deny', undefined, r) : undefined }, ...(!danger && approval.scope_ok ? [{ label: '本对话都允许', disabled: busy, onClick: () => decide(true) }] : [])]}
             more={more}
             onEscape={deny}
             hint={hint}

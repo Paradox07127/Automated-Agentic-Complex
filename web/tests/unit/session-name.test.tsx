@@ -1,6 +1,8 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { fromSession, sessionName, unhidden, type WireSession } from '../../src/domain';
+import { fromSession, sessionName, unhidden, type RuntimeInfo, type WireSession } from '../../src/domain';
+import { actionLine } from '../../src/features/approval/actionLine';
+import { kernelNodes } from '../../src/features/kernel/KernelChain';
 import { EpisodeDetail } from '../../src/pages/observe/EpisodeDetail';
 import { timelineFromDay } from '../../src/pages/overview/today';
 import { readPresence } from '../../src/surfaces/desktop/tags/presence';
@@ -17,6 +19,19 @@ describe('session names', () => {
     expect(sessionName('/Users/me/.claude/worktrees')).toBe('worktrees');
     expect(sessionName(null)).toBe('会话');
     expect(sessionName('')).toBe('会话');
+  });
+
+  it('sessionName reads a Windows path by its own separator, drive and UNC roots too', () => {
+    expect(sessionName('C:\\w\\repo\\.claude\\worktrees\\ab12')).toBe('repo · 子任务');
+    expect(sessionName('C:\\w\\repo')).toBe('repo');
+    expect(sessionName('C:\\w\\repo\\')).toBe('repo');
+    expect(sessionName('\\\\server\\share\\repo')).toBe('repo');
+  });
+
+  it('an approval names the file and the kernel chain the executable by the last segments of a Windows path', () => {
+    expect(actionLine({ tool: 'Edit', cmd: 'C:\\w\\repo\\src\\a.ts', title: '', dispatch: null })).toMatchObject({ target: 'a.ts', full: 'C:\\w\\repo\\src\\a.ts' });
+    const r = { id: 'codex', path: 'C:\\Users\\me\\AppData\\npm\\codex.cmd', version: '1.0', entry_supported: true, available: true, authenticated: true } as RuntimeInfo;
+    expect(kernelNodes(r)[0]?.sub).toBe('npm/codex.cmd');
   });
 
   it('fromSession: an untitled session in a worktree is named from the repository, not the worktree id', () => {

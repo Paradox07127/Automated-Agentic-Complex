@@ -24,7 +24,7 @@ import { Group } from '../../src/pages/tasks/List';
 import { loadOverview } from './overviewReads';
 import { pluginsOn, pluginsReset } from './plugins';
 
-const noop = () => {};
+const noop = async () => {};
 
 afterEach(() => {
   cleanup();
