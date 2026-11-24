@@ -345,8 +345,8 @@ export interface AgenticComplexBridge {
     /** `id` is 1–64 bytes; `title` is trimmed and must then be 1–64 characters, else the call rejects with `bad_args`. */
     renameMotion(character: string, id: string, title: string): Promise<MotionRenameResult>;
     removeMotion(character: string, id: string): Promise<MotionRemoveResult>;
-    /** Without `character` (the desktop ring) the current character's; with it, `character_changed` when another is current. */
-    getPlaylist(character?: string): Promise<MotionPlaylist>; setPlaylist(character: string, p: MotionPlaylist): Promise<{ ok: true }>;
+    /** `character_changed` when another character is current. */
+    getPlaylist(character: string): Promise<MotionPlaylist>; setPlaylist(character: string, p: MotionPlaylist): Promise<{ ok: true }>;
   };
   mmd: import('./mmd').MmdOps; voice: { onPushToTalk(cb: (s: PushToTalkState) => void): Unsubscribe };
   files: import('./adopt').FileAdopt & {

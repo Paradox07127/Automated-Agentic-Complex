@@ -303,19 +303,24 @@ describe('the wheel', () => {
 
   it('the desktop panels may read her setlist and play it from a dance', async () => {
     const bridge = stackBridge();
-    await expect(bridge.character.getPlaylist()).resolves.toEqual({ items: [], loop: 'off', speed: 1 });
+    const who = (await bridge.character.list()).find((c) => c.active)!.id;
+    await expect(bridge.character.getPlaylist(who)).resolves.toEqual({ items: [], loop: 'off', speed: 1 });
     await expect(bridge.avatar.playPlaylist({ start: 0 })).resolves.toEqual({ ok: false, reason: 'empty' });
   });
 
   it('7 opens 动作 in place with her setlist; Esc goes back up; a dance plays her list from it and closes the panel', async () => {
     const bridge = stackBridge();
     vi.spyOn(bridge.avatar, 'actions').mockResolvedValue(DANCES);
-    vi.spyOn(bridge.character, 'getPlaylist').mockResolvedValue({ items: ['mmd_lamb', 'mmd_jile'], loop: 'one', speed: 1 });
+    const get = vi.spyOn(bridge.character, 'getPlaylist').mockResolvedValue({ items: ['mmd_lamb', 'mmd_jile'], loop: 'one', speed: 1 });
     const play = vi.spyOn(bridge.avatar, 'playPlaylist').mockResolvedValue({ ok: true });
     const close = vi.spyOn(bridge.window, 'close');
+    const who = (await bridge.character.list()).find((c) => c.active)!.id;
     mount('#/cmd?still=1');
     await screen.findByRole('menu', { name: '角色的轮盘' });
     await flush(async () => {});
+    // The setlist read names the character the ring shows.
+    expect(get.mock.calls.map(([c]) => c)).toContain(who);
+    expect(get.mock.calls.every(([c]) => c === who)).toBe(true);
     const wheel = screen.getByRole('menu', { name: '角色的轮盘' });
     await flush(async () => fireEvent.keyDown(wheel, { key: '7' }));
     expect(within(wheel).getAllByRole('menuitem').map((m) => m.getAttribute('aria-label'))).toEqual(['1 Lamb.', '2 极乐净土', '7 姿态', '8 送礼物']);

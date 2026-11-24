@@ -157,13 +157,16 @@ export function LookPane(p: LookPaneProps) {
     setRemoveLook(null);
   }
   const [removingId, setRemovingId] = useState<string | null>(null);
+  // Only the newest size request rolls back when it fails; an older one failing leaves the newer value.
+  const sizeAsked = useRef(0);
   const setSize = (v: number) => {
     const was = p.look.scale;
+    const k = ++sizeAsked.current;
     p.look.setScale(v);
     void getBridge()
       .avatar.setScale(v / 100)
       .catch((e: unknown) => {
-        p.look.setScale(was);
+        if (k === sizeAsked.current) p.look.setScale(was);
         failed('改大小', p.toast)(e);
       });
   };

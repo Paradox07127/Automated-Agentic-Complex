@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getBridge, type SettingValue } from '../../bridge';
 import { ErrBar, Skel, type IconName } from '../../ui';
 import { GameTabs, MicroLabel, PowerState, WhiteCapsule, type GameTab } from '../../ui/game';
@@ -59,8 +59,15 @@ export function SetPanel(p: SetPanelProps) {
 /** 设定：本页改了几项和整页恢复，再是各节的设置行；每行即时保存，改过的行点 ↺ 恢复默认。 */
 export function CharacterSettings(p: CharacterSettingsProps) {
   const { q, merge } = useCharSettings();
-  const [pending, setPending] = useState<Set<string>>(() => new Set());
+  // Restart rows saved, each true once she has left `running` since its save: the next `running` drops it.
+  const [pending, setPending] = useState<Record<string, boolean>>({});
+  const up = useRef(true);
   const [failed, setFailed] = useState<Record<string, string>>({});
+  // Saves still out: 恢复默认 waits for them, as it builds its payload from the merged values.
+  const [saving, setSaving] = useState(0);
+  // Per row, the newest save merged: an older answer does not land over a newer one.
+  const sent = useRef(0);
+  const merged = useRef<Record<string, number>>({});
   const n = q.data;
   const tabs = n ? presentTabs(n) : [];
   const tab = tabs.includes(p.tab) ? p.tab : tabs[0];
@@ -71,6 +78,20 @@ export function CharacterSettings(p: CharacterSettingsProps) {
     const id = p.row === LIGHT_PAD.pitch ? LIGHT_PAD.yaw : p.row;
     if (loaded && id) document.getElementById(`set-${id}`)?.scrollIntoView({ block: 'center' });
   }, [loaded, p.row]);
+
+  useEffect(
+    () =>
+      getBridge().app.onRuntime((s) => {
+        const running = s.processes.avatar.state === 'running';
+        up.current = running;
+        setPending((was) => {
+          const ids = Object.keys(was);
+          if (running) return ids.some((id) => was[id]) ? Object.fromEntries(ids.filter((id) => !was[id]).map((id) => [id, false])) : was;
+          return ids.some((id) => !was[id]) ? Object.fromEntries(ids.map((id) => [id, true])) : was;
+        });
+      }),
+    [],
+  );
 
   useEffect(() => {
     if (!p.avatar) return;
@@ -85,13 +106,19 @@ export function CharacterSettings(p: CharacterSettingsProps) {
   // `quiet`: a slider value sent mid-drag; the released value is saved again with its toast, a failure stays on the row.
   const save = (changes: Record<string, SettingValue>, fail: string, quiet = false) => {
     const ids = Object.keys(changes);
+    const k = ++sent.current;
     const onRow = (message: string) => setFailed((f) => ({ ...f, ...Object.fromEntries(ids.map((id) => [id, message])) }));
-    void saveSettings(changes, { ok: '已保存', fail }, n.rows, quiet ? (message, o) => o?.severity === 'danger' && onRow(message) : p.toast).then((ok) => {
-      if (!ok) return;
+    setSaving((c) => c + 1);
+    return saveSettings(changes, { ok: '已保存', fail }, n.rows, quiet ? (message, o) => o?.severity === 'danger' && onRow(message) : p.toast).then((ok) => {
+      setSaving((c) => c - 1);
+      if (!ok) return false;
       setFailed((f) => Object.fromEntries(Object.entries(f).filter(([id]) => !ids.includes(id))));
-      merge(changes);
+      const fresh = ids.filter((id) => k > (merged.current[id] ?? 0));
+      for (const id of fresh) merged.current[id] = k;
+      merge(Object.fromEntries(fresh.map((id) => [id, changes[id]!])));
       const restart = ids.filter((id) => n.rows[id]?.restart === 'avatar');
-      if (restart.length) setPending((s) => new Set([...s, ...restart]));
+      if (restart.length) setPending((s) => ({ ...s, ...Object.fromEntries(restart.map((id) => [id, !up.current])) }));
+      return true;
     });
   };
   const set = (id: string, v: SettingValue, quiet?: boolean) => save({ [id]: v }, `没有保存「${n.rows[id]?.label ?? id}」`, quiet);
@@ -115,8 +142,8 @@ export function CharacterSettings(p: CharacterSettingsProps) {
           <WhiteCapsule
             label={look ? '恢复原作' : '恢复默认'}
             icon="refresh"
-            disabled={p.offline || changed.length === 0}
-            disabledReason={p.offline ? '角色未运行' : '没有改动'}
+            disabled={p.offline || changed.length === 0 || saving > 0}
+            disabledReason={p.offline ? '角色未运行' : changed.length === 0 ? '没有改动' : '还有设置在保存'}
             onClick={reset}
           />
         </div>
@@ -126,7 +153,7 @@ export function CharacterSettings(p: CharacterSettingsProps) {
             tab={tab}
             set={set}
             setMany={(changes) => save(changes, '没有保存「主光方向」')}
-            pending={pending}
+            pending={new Set(Object.keys(pending))}
             failed={failed}
             offline={p.offline}
           />

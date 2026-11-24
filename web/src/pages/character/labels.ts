@@ -120,6 +120,8 @@ const MOTION_IMPORT_REASON: Record<string, string> = {
   unknown_action: '找不到这个动作',
   not_imported: '这不是导入的动作',
   bad_title: '名字要 1–64 个字',
+  linked_motion: '别的动作会接到这个动作，或别的动作行用到了它，所以不能删',
+  outside_package: '角色包指向了包外的文件，为安全起见没有改',
   bad_zip: '压缩包打不开或不安全',
   ambiguous_motion: '包里有多支动作、相机或音乐，分不出用哪个',
 };

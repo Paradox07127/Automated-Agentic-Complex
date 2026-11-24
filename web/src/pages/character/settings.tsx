@@ -59,8 +59,8 @@ interface SettingSliderProps {
   row: SchemaRow;
   value: SettingValue | undefined;
   disabled: boolean;
-  /** `quiet`: a value sent while the pointer still drags the slider. */
-  onChange: (v: number, quiet: boolean) => void;
+  /** `quiet`: a value sent while the pointer still drags the slider. Resolves false when the save failed. */
+  onChange: (v: number, quiet: boolean) => Promise<boolean>;
 }
 
 /** Slider row: a `percent` value reads ×100. While dragging it sends at most 30 changes a second, then the released value once more without `quiet`. */
@@ -78,9 +78,14 @@ function SettingSlider({ row, value, disabled, onChange }: SettingSliderProps) {
   latest.current = onChange;
   // A pointer drag in progress: its window listeners and its last value.
   const drag = useRef<{ off: AbortController; last: number | null } | null>(null);
+  // The value sent last: when its save fails the slider shows the stored value again, unless it moved on since.
+  const asked = useRef<number | null>(null);
   const send = (v: number) => {
     sent.current = Date.now();
-    latest.current(Number((v / k).toFixed(6)), drag.current !== null);
+    asked.current = v;
+    void latest.current(Number((v / k).toFixed(6)), drag.current !== null).then((ok) => {
+      if (!ok && asked.current === v) setLive((l) => (l === v ? null : l));
+    });
   };
   const flush = () => {
     timer.current = undefined;
@@ -139,7 +144,7 @@ export function gameControl(
   row: SchemaRow,
   value: SettingValue | undefined,
   disabled: boolean,
-  onChange: (v: SettingValue, quiet?: boolean) => void,
+  onChange: (v: SettingValue, quiet?: boolean) => Promise<boolean>,
   short?: Readonly<Record<string, string>>,
   compact = false,
 ): ReactNode {

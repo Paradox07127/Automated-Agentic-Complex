@@ -317,6 +317,9 @@
   {
     "op": "character.getPlaylist",
     "surface": "main",
+    "args": [
+      "si"
+    ],
     "value": {
       "items": [
         "mmd_0123456789abcdef"

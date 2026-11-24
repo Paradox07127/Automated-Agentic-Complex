@@ -14,9 +14,10 @@ import styles from './SettingRows.module.css';
 export interface SettingRowsProps {
   n: Native;
   tab: CharTab;
-  set: (id: string, v: SettingValue, quiet?: boolean) => void;
+  /** Resolves false when the save failed. */
+  set: (id: string, v: SettingValue, quiet?: boolean) => Promise<boolean>;
   /** Several rows in one save (主光方向's two values). */
-  setMany: (changes: Record<string, SettingValue>) => void;
+  setMany: (changes: Record<string, SettingValue>) => Promise<boolean>;
   pending: Set<string>;
   /** Per row: why its last mid-drag save failed. */
   failed: Readonly<Record<string, string>>;
@@ -72,8 +73,18 @@ function LightPad({ n, disabled, setMany }: { n: Native; disabled: boolean; setM
   const pitches = [...(pitch.options ?? [])].reverse();
   const cur = { y: String(n.saved[LIGHT_PAD.yaw]), p: String(n.saved[LIGHT_PAD.pitch]) };
   const cells = useRef<Array<HTMLButtonElement | null>>([]);
+  // The cell picked last while its save is out, and the count of picks.
+  const asked = useRef<{ y: string; p: string } | null>(null);
+  const picks = useRef(0);
   const pick = (y: string, p: string) => {
-    if (y !== cur.y || p !== cur.p) setMany({ [LIGHT_PAD.yaw]: y, [LIGHT_PAD.pitch]: p });
+    // A pick compares with the newest one asked, so going back to the saved cell while another saves is sent too.
+    const want = asked.current ?? cur;
+    if (y === want.y && p === want.p) return;
+    const k = ++picks.current;
+    asked.current = { y, p };
+    void setMany({ [LIGHT_PAD.yaw]: y, [LIGHT_PAD.pitch]: p }).then(() => {
+      if (k === picks.current) asked.current = null;
+    });
   };
   const move = (e: KeyboardEvent, r: number, c: number) => {
     const d = NEXT[e.key];

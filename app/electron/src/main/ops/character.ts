@@ -296,10 +296,10 @@ export function characterOps(ctx: OpsContext, picker: ImportPicker = electronPic
   }
 
   /** The current character; `character_changed` when it is not `expected` (null: any). */
-  async function playlistCharacter(expected: string | null): Promise<string> {
+  async function playlistCharacter(expected: string): Promise<string> {
     const character = await currentCharacter(ctx);
     if (character === null) throw new BridgeFailure('failed', NOT_LINKED);
-    if (expected !== null && character !== expected) throw new BridgeFailure('character_changed', CHANGED);
+    if (character !== expected) throw new BridgeFailure('character_changed', CHANGED);
     return character;
   }
 
@@ -436,9 +436,8 @@ export function characterOps(ctx: OpsContext, picker: ImportPicker = electronPic
     'character.importState': () => imports(ctx).tracker.state,
     'character.onImport': watch('character.onImport', imports(ctx).events),
     'character.getPlaylist': async ([of]) => {
-      // The desktop ring reads whoever is current.
-      const expected = of === null || of === undefined ? null : characterArg(of);
-      if (of !== null && of !== undefined && expected === null) throw new BridgeFailure('invalid_args', 'character id');
+      const expected = characterArg(of);
+      if (expected === null) throw new BridgeFailure('invalid_args', 'character id');
       const character = await playlistCharacter(expected);
       const list = decodePlaylists(readObject(ctx.config.path).motion_playlists)[character] ?? { items: [], loop: 'off', speed: 1 };
       return { items: list.items, loop: list.loop, speed: list.speed };

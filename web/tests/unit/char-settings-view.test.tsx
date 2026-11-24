@@ -1,9 +1,11 @@
-// 角色页「设定」: its own game tab bar when standalone, the panel's bar on the character page; desktop-only sections say so; a failed mid-drag save stays on its row.
+// 角色页「设定」: its own game tab bar when standalone, the panel's bar on the character page; desktop-only sections say so; a failed mid-drag save stays on its row;
+// a refused slider value, a reset during a save, the restart marker and the light pad's out-of-order answers.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider, type RouteComponent } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getBridge } from '../../src/bridge';
+import type { RuntimeSnapshot } from '../../src/bridge/runtimeSnapshot';
 import { CharacterSettings } from '../../src/pages/character/CharacterSettings';
 import { CharacterPage } from '../../src/pages/character/Page';
 import type { CharTab } from '../../src/pages/character/sections';
@@ -161,6 +163,87 @@ describe('CharacterSettings', () => {
     fireEvent.pointerUp(window);
     await waitFor(() => expect(within(row).queryByText('没有保存「水平朝向」：原生设置服务没有响应')).toBeNull());
     expect(toast).toHaveBeenCalledWith('已保存 │ 立即生效');
+  });
+
+  it('R20-12: puts a slider back on the stored value when the shell refuses the value it was moved to', async () => {
+    const toast = vi.fn();
+    view('render', vi.fn(), toast);
+    const pitch = (await screen.findByRole('slider', { name: '俯仰朝向' })) as HTMLInputElement;
+    const stored = pitch.value;
+    const save = vi.spyOn(getBridge().settings, 'save').mockResolvedValue({ restart: 'none', notApplied: [], error: 'refused' });
+    try {
+      fireEvent.change(pitch, { target: { value: '15' } });
+      await waitFor(() => expect(save).toHaveBeenLastCalledWith({ 'rnd.pitch': 15 }));
+      await waitFor(() => expect(toast).toHaveBeenCalledWith('没有保存「俯仰朝向」：桌面端没有接受这次修改', expect.anything()));
+      await waitFor(() => expect(pitch.value).toBe(stored));
+    } finally {
+      save.mockRestore();
+    }
+  });
+
+  it('R20-11: greys 恢复原作 while a row save is out, so the reset cannot miss that row', async () => {
+    setDevMode(false);
+    view('render');
+    await screen.findByRole('tablist', { name: '设定' });
+    fireEvent.click(within(screen.getByRole('radiogroup', { name: '景深' })).getByRole('radio', { name: '近景时' }));
+    const reset = () => screen.getByRole('button', { name: '恢复原作' }) as HTMLButtonElement;
+    await waitFor(() => expect(reset().disabled).toBe(false));
+    let done!: (r: { restart: 'none'; notApplied: string[] }) => void;
+    const save = vi.spyOn(getBridge().settings, 'save').mockReturnValueOnce(new Promise((r) => (done = r)));
+    try {
+      fireEvent.click(within(screen.getByRole('radiogroup', { name: '主光方向' })).getByRole('radio', { name: '原作，抬高 10°' }));
+      expect(save).toHaveBeenCalledTimes(1);
+      expect(reset().disabled).toBe(true);
+      await act(async () => done({ restart: 'none', notApplied: [] }));
+      expect(reset().disabled).toBe(false);
+    } finally {
+      save.mockRestore();
+    }
+  });
+
+  it('R20-11: drops a restart row\'s 重启后生效 once the runtime reports her running again after the save', async () => {
+    let push: (s: RuntimeSnapshot) => void = () => {};
+    const on = vi.spyOn(getBridge().app, 'onRuntime').mockImplementation((cb) => {
+      push = cb;
+      return () => {};
+    });
+    try {
+      view('behavior');
+      fireEvent.click(await screen.findByRole('switch', { name: '头发衣物物理' }));
+      const tag = () => document.getElementById('set-beh.physics')!.querySelector('[data-stub="EffectTag"]')!;
+      await waitFor(() => expect(tag().getAttribute('data-pending')).toBe('true'));
+      const s = await getBridge().app.runtime();
+      const avatar = (state: RuntimeSnapshot['processes']['avatar']['state']) => push({ ...s, processes: { ...s.processes, avatar: { ...s.processes.avatar, state } } });
+      await act(async () => avatar('running'));
+      expect(tag().getAttribute('data-pending')).toBe('true');
+      await act(async () => avatar('starting'));
+      expect(tag().getAttribute('data-pending')).toBe('true');
+      await act(async () => avatar('running'));
+      expect(tag().getAttribute('data-pending')).toBeNull();
+    } finally {
+      on.mockRestore();
+    }
+  });
+
+  it('sends 主光方向 going back to the saved cell while another cell saves, and the older answer does not land over it', async () => {
+    setDevMode(false);
+    view('render');
+    const pad = within(await screen.findByRole('radiogroup', { name: '主光方向' }));
+    const saved = pad.getAllByRole('radio').find((r) => r.getAttribute('aria-checked') === 'true')!;
+    const other = pad.getAllByRole('radio').find((r) => r.getAttribute('aria-checked') === 'false')!;
+    let done!: (r: { restart: 'none'; notApplied: string[] }) => void;
+    const save = vi.spyOn(getBridge().settings, 'save').mockReturnValueOnce(new Promise((r) => (done = r)));
+    try {
+      fireEvent.click(other);
+      fireEvent.click(saved);
+      expect(save).toHaveBeenCalledTimes(2);
+      await waitFor(() => expect(saved.getAttribute('aria-checked')).toBe('true'));
+      await act(async () => done({ restart: 'none', notApplied: [] }));
+      expect(saved.getAttribute('aria-checked')).toBe('true');
+      expect(other.getAttribute('aria-checked')).toBe('false');
+    } finally {
+      save.mockRestore();
+    }
   });
 });
 

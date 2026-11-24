@@ -42,6 +42,7 @@ export function RingSlot({ state, presence, command, close }: CommandSlotProps) 
   // 动作's dances. Unread, 送礼物 stays open and 动作 has no dances.
   const [actions, setActions] = useState<AvatarAction[] | null>(null);
   const [setlist, setSetlist] = useState<string[]>([]);
+  const who = state?.character?.id ?? null;
   useEffect(() => {
     if (!bridge.capabilities.avatar) return;
     let live = true;
@@ -49,14 +50,17 @@ export function RingSlot({ state, presence, command, close }: CommandSlotProps) 
       (list) => live && setActions(list),
       () => live && setActions(null),
     );
-    bridge.character.getPlaylist().then(
-      (list) => live && setSetlist(list.items),
-      () => live && setSetlist([]),
-    );
+    // The setlist of the character the ring names; another one current by then is refused.
+    if (who === null) setSetlist([]);
+    else
+      bridge.character.getPlaylist(who).then(
+        (list) => live && setSetlist(list.items),
+        () => live && setSetlist([]),
+      );
     return () => {
       live = false;
     };
-  }, [bridge, round]);
+  }, [bridge, round, who]);
 
   const run = (item: CmdItem) => {
     if (item.id === 'actions' || item.id === 'poses') setLevel(item.id);

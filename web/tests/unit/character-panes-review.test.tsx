@@ -1,6 +1,7 @@
 // Review 11-22 on the character page's panes: 外观's import banner and progress, 设定's deep link, the name block's voice, 拍照 offline, 模组设置's chips, 动作表's 只看导入.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge, AvatarDetails, ImportedMotionEntry, ImportState } from '../../src/bridge/protocol';
@@ -91,6 +92,45 @@ describe('外观 · 导入进度 (5220#7)', () => {
     const card = document.querySelector('[data-import-progress]') as HTMLElement;
     expect(card.textContent).not.toContain('Stage 0');
     expect(card.textContent).toContain('准备中');
+  });
+});
+
+describe('外观 · 大小 (R20-10)', () => {
+  it('keeps the newer size when an older size request fails, and rolls back only the newest one', async () => {
+    const idle: ImportState = { running: false, kind: null, title: null, stage: null, fraction: 0 };
+    const outfit: OutfitImport = { state: 'idle', run: noop, remove: noop, removing: false, landed: null, warned: null, dismiss: noop };
+    function Pane() {
+      const [scale, setScale] = useState(100);
+      return (
+        <LookPane
+          tab="look"
+          character="si"
+          appearances={[]}
+          lookId="default"
+          look={{ scale, setScale } as never}
+          onWear={noop}
+          layers={[]}
+          onLayer={noop}
+          onShowAll={noop}
+          mods={undefined}
+          modsUnreadable={false}
+          ro={null}
+          outfit={outfit}
+          importing={idle}
+          toast={noop}
+        />
+      );
+    }
+    const asks: Array<{ resolve: () => void; reject: (e: unknown) => void }> = [];
+    vi.spyOn(bridge.avatar, 'setScale').mockImplementation(() => new Promise<void>((resolve, reject) => asks.push({ resolve, reject })));
+    render(<Pane />);
+    const range = screen.getByRole('slider', { name: '大小' }) as HTMLInputElement;
+    fireEvent.change(range, { target: { value: '120' } });
+    fireEvent.change(range, { target: { value: '140' } });
+    await act(async () => asks[0]!.reject({ code: 'failed' }));
+    expect(range.value).toBe('140');
+    await act(async () => asks[1]!.reject({ code: 'failed' }));
+    expect(range.value).toBe('120');
   });
 });
 
