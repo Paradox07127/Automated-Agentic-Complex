@@ -235,6 +235,8 @@ def startup_privacy(server):
             server.attention.clear_typed_text()
         if getattr(server, "timeline", None) is not None:
             server.timeline.clear_typed_text()
+    if not permissions["agent_sessions"] and server.attention is not None:
+        server.attention.clear_agent_sessions()
     # Only the window level keeps window trees; a narrower one may have been saved while agentd was stopped.
     if (not permissions["window_text"] or level != "window") and getattr(server, "timeline", None) is not None:
         server.timeline.clear_trees()

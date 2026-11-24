@@ -899,8 +899,9 @@ class MemoryErrorTest(MemoryServerCase):
         fact_id = self.memory.add("我在上海", "asserted_by_user")
         self.assertEqual(self.request("PATCH", f"/memory/facts/{fact_id}", {"expected_version": 1, "text": " "}),
                          (400, {"error": "invalid_text"}))
-        for path in ("/memory?scope=everything", "/memory"):
+        for path in ("/memory?scope=everything", "/memory", "/memory?scope=facts&owner=", "/memory?scope=all&owner="):
             self.assertEqual(self.request("DELETE", path), (400, {"error": "invalid_scope"}), path)
+        self.assertEqual([f["fact_id"] for f in self.memory.active()], [fact_id])
         self.assertEqual(self.request("PUT", "/memory/paused", {"paused": "yes"})[0], 400)
         self.assertFalse(self.memory.paused())
         for method, path, body in (("GET", "/memory", None), ("GET", "/memory/export", None),

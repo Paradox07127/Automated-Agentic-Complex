@@ -55,6 +55,7 @@ class ConsentPolicy:
     def __init__(self, path, capabilities):
         self.path, self.capabilities = path, capabilities
         self.lock = threading.RLock()
+        self.applying = threading.RLock()  # sync_privacy holds it from pending() to applied()
         self.permissions = None
         self.level = None
         self.epoch = 0
@@ -76,8 +77,8 @@ class ConsentPolicy:
             return dict(permissions), self.epoch
 
     def pending(self):
-        """The queued revocations and the epoch they were read at; they stay queued until applied, so a second
-        sync_privacy while one applies them applies them too instead of returning early."""
+        """The queued revocations and the epoch they were read at; they stay queued until applied, so a sync_privacy
+        that waited on applying while another applied them sees what is still queued."""
         with self.lock:
             return set(self.revoked), self.epoch
 

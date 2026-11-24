@@ -14,7 +14,7 @@ const ready = chrome.storage.session.get(["browser_session", "docs"]).then(async
 const ids = state => ({ browser_session: browserSession, document_id: state.document_id, revision: state.revision });
 const send = message => { if (port && message) { try { port.postMessage(message); } catch {} } };
 function hidden(tab) {
-  return tab.incognito || !hostOf(tab.url) || blocked(hostOf(tab.url), policy) || policy.mode === "deny" && policy.title_patterns.some(p => {
+  return tab.incognito || !hostOf(tab.url) || blocked(hostOf(tab.url), policy) || policy.title_patterns.some(p => {
     try { return new RegExp(p).test(tab.title || ""); } catch { return true; }
   });
 }

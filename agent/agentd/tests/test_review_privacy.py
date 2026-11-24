@@ -111,9 +111,10 @@ class AgentSessionsRevocationTest(unittest.TestCase):
         from daemon.main import startup_privacy
         episode = self.session_episode()
         self.server.share_agent_sessions = False
-        with patch.object(self.server, 'attention', unittest.mock.MagicMock(), create=True):
+        with patch.object(self.server, 'attention', unittest.mock.MagicMock(), create=True) as attention:
             startup_privacy(self.server)
         self.assertIsNone(self.server.episodes.get(episode))
+        attention.clear_agent_sessions.assert_called_once_with()
 
 
 class ResetThoughtsTest(unittest.TestCase):

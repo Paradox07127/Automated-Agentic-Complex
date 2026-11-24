@@ -32,6 +32,7 @@ CHROMIUM = {"com.google.Chrome", "com.google.Chrome.canary", "com.microsoft.edge
             "company.thebrowser.Browser"}
 RAW_COLUMNS = ("ts", "kind", "app", "bundle_id", "window", "url_host", "doc", "role", "subrole", "label", "value",
                "value_len", "shrink", "edits", "input_near")
+AGENT_KINDS = ("agent", "prompt")  # events_raw rows of coding sessions, under agent_sessions
 NEAR = 2.0  # a key, click or scroll this close to an AX event marks it input_near
 
 
@@ -64,6 +65,7 @@ class AttentionStore:
         self._browser_samples = 0
         self._front = (None, None)  # (timestamp, bundle_id) of the latest scrubbed front app
         self.typed_generation = 0  # clear_typed_text() bumps it; a batch checked before that keeps no text
+        self.agent_generation = 0  # clear_agent_sessions() bumps it; agent and prompt rows checked before that are not kept
         # clear_browser_text() and every delete bump it; page or selection text checked before that is not kept
         self.context_generation = 0
         self.raw_floor = float("-inf")  # clock time of the last delete; nothing from before it is stored
@@ -180,14 +182,17 @@ class AttentionStore:
             self.db.commit()
         return True
 
-    def ingest_events(self, events, typed_generation=None):
+    def ingest_events(self, events, typed_generation=None, agent_generation=None):
         """Checked Companion events (dicts of RAW_COLUMNS) into events_raw: a blacklisted one goes, one at or before
         raw_floor, and every value while the last heartbeat had secure input. With a typed_generation other than
-        the current one every value goes too. Returns (stored, dropped)."""
+        the current one every value goes too; with an agent_generation other than the current one every agent and
+        prompt row goes. Returns (stored, dropped)."""
         with self.lock:
             self._prune()
             stale = typed_generation is not None and typed_generation != self.typed_generation
-            kept = [event for event in events if event["ts"] > self.raw_floor and not self._raw_hidden(event)]
+            revoked = agent_generation is not None and agent_generation != self.agent_generation
+            kept = [event for event in events if event["ts"] > self.raw_floor and not self._raw_hidden(event)
+                    and not (revoked and event["kind"] in AGENT_KINDS)]
             self._trim()
             rows = [tuple(self._input_near(event["ts"]) if column == "input_near"
                           else None if column == "value" and (self._secure or stale) else event.get(column)
@@ -597,6 +602,13 @@ class AttentionStore:
                 return self.db.execute("SELECT COUNT(*) FROM events_raw WHERE value IS NOT NULL").fetchone()[0]
             self.typed_generation += 1
             self.db.execute("UPDATE events_raw SET value = NULL")
+            self.db.commit()
+
+    def clear_agent_sessions(self):
+        """agent_sessions revoked: every agent and prompt row goes."""
+        with self.lock:
+            self.agent_generation += 1
+            self.db.execute(f"DELETE FROM events_raw WHERE kind IN ({', '.join('?' * len(AGENT_KINDS))})", AGENT_KINDS)
             self.db.commit()
 
 

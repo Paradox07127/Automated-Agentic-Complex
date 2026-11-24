@@ -21,36 +21,40 @@ class SwitchesMixin:
         permissions, epoch = self.consent.snapshot()
         if self.capture is not None:
             self.capture.consent = self.consent.snapshot
-        revoked, read = self.consent.pending()
-        if revoked:
-            if self.character_agent is not None:
-                self.character_agent.cancel("context_changed")
-            if self.capture is not None:
-                self.capture.clear()
-            if "page_text" in revoked and self.attention is not None:
-                self.attention.clear_browser_text()
-            if "typed_text" in revoked and self.attention is not None:
-                self.attention.clear_typed_text()
-            if "typed_text" in revoked and self.timeline is not None:
-                self.timeline.clear_typed_text()
-            if "window_text" in revoked and self.timeline is not None:
-                self.timeline.clear_trees()
+        # One sync applies at a time: a second one read under it would clear what arrived after sharing came back.
+        with self.consent.applying:
+            revoked, read = self.consent.pending()
             if revoked:
-                self.forget_user_state()
-            if self.proactive is not None:
-                self.proactive.reset()
-            if self.worklog is not None:
-                self.worklog.delete_permissions(set(revoked))
-            if set(revoked).intersection(('page_text','typed_text','window_text','screenshots','agent_sessions')) and self.episodes is not None:
-                self._forget_derived(self.episodes.delete_permissions(set(revoked)), wait=False)
-                checkpoint(self.episodes)
-            self._assembled = None
-            for line in tuple(self._live_lines):
-                self._context_cut.add(line)
-                line.set()
-            if self._live_lines:
-                self.cancel_turn("context_cleared")
-            self.consent.applied(revoked, read)
+                if self.character_agent is not None:
+                    self.character_agent.cancel("context_changed")
+                if self.capture is not None:
+                    self.capture.clear()
+                if "page_text" in revoked and self.attention is not None:
+                    self.attention.clear_browser_text()
+                if "typed_text" in revoked and self.attention is not None:
+                    self.attention.clear_typed_text()
+                if "agent_sessions" in revoked and self.attention is not None:
+                    self.attention.clear_agent_sessions()
+                if "typed_text" in revoked and self.timeline is not None:
+                    self.timeline.clear_typed_text()
+                if "window_text" in revoked and self.timeline is not None:
+                    self.timeline.clear_trees()
+                if revoked:
+                    self.forget_user_state()
+                if self.proactive is not None:
+                    self.proactive.reset()
+                if self.worklog is not None:
+                    self.worklog.delete_permissions(set(revoked))
+                if set(revoked).intersection(('page_text','typed_text','window_text','screenshots','agent_sessions')) and self.episodes is not None:
+                    self._forget_derived(self.episodes.delete_permissions(set(revoked)), wait=False)
+                    checkpoint(self.episodes)
+                self._assembled = None
+                for line in tuple(self._live_lines):
+                    self._context_cut.add(line)
+                    line.set()
+                if self._live_lines:
+                    self.cancel_turn("context_cleared")
+                self.consent.applied(revoked, read)
         return permissions, epoch
 
     def apply_live_settings(self, settings):

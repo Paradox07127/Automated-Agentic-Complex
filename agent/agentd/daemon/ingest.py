@@ -81,6 +81,7 @@ class IngestMixin:
         store nothing."""
         attention = self.attention
         generation = attention and attention.typed_generation  # before consent, so a revocation in between drops the text
+        agent_generation = attention and attention.agent_generation  # and drops the row
         with self.consent.lock:
             permissions = self.consent.snapshot()[0]
         if not (plugins.on("coding_sessions") and permissions["agent_sessions"]):
@@ -109,7 +110,7 @@ class IngestMixin:
             attention.ingest_events(
                 [{**row, "kind": "prompt", "role": origin, "value": prompt[:PROMPT_MAX] if permissions["typed_text"] else None,
                   "value_len": len(prompt)} if origin == "unknown" else agent("notification", origin)],
-                typed_generation=generation)
+                typed_generation=generation, agent_generation=agent_generation)
             if observations: observations.ingest_hook(event,body,origin=origin,typed_generation=generation)
             return
         message = body.get("last_assistant_message")
@@ -120,7 +121,7 @@ class IngestMixin:
             rows = [agent("waiting")]
         else:
             rows = [agent("stop" if event.kind == "stop" else "subagent", value=message)]
-        attention.ingest_events(rows, typed_generation=generation)
+        attention.ingest_events(rows, typed_generation=generation, agent_generation=agent_generation)
         if observations: observations.ingest_hook(event,body,typed_generation=generation)
 
     def _spans(self, spans, until):

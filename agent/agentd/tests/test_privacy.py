@@ -20,6 +20,7 @@ from daemon.agentd_server import AgentdServer
 from infra.store import checkpoint, open_store
 from personal.episodes import Episodes
 from personal.memory import Memory
+from sessions.events import normalize_codex
 from support import serve_in_thread
 from test_server import KernelLines, Script, ScriptedMouth
 
@@ -143,6 +144,27 @@ class PrivacyRevocationTest(unittest.TestCase):
         self.save(share_page_text=False);self.server.sync_privacy()
         self.assertEqual(self.attention.db.execute('SELECT COUNT(*) FROM context').fetchone()[0],0)
 
+    def test_a_second_sync_keeps_a_page_sent_after_sharing_came_back(self):
+        self.attention.ingest_browser({"type":"page","ts":time.time(),"url_host":"example.com","text":"old secret"})
+        a_clearing,b_read,page_sent=threading.Event(),threading.Event(),threading.Event()
+        clear,pending=self.attention.clear_browser_text,self.server.consent.pending
+        def held_clear(dry=False):
+            if threading.current_thread() is first: a_clearing.set();b_read.wait(1)
+            else: page_sent.wait(2)
+            return clear(dry)
+        def read_pending():
+            found=pending()
+            if threading.current_thread() is second: b_read.set()
+            return found
+        self.save(share_page_text=False)
+        first=threading.Thread(target=self.server.sync_privacy);second=threading.Thread(target=self.server.sync_privacy)
+        with patch.object(self.attention,'clear_browser_text',held_clear),patch.object(self.server.consent,'pending',read_pending):
+            first.start();self.assertTrue(a_clearing.wait(2));second.start();first.join(3)
+            self.save(share_page_text=True);self.server.consent.snapshot()
+            self.attention.ingest_browser({"type":"page","ts":time.time(),"url_host":"example.com","text":"new page"})
+            page_sent.set();second.join(3)
+        self.assertEqual([c['text'] for c in self.attention.context()],["new page"])
+
     def test_page_permission_is_rechecked_without_waiting_for_the_tick(self):
         self.server.sync_privacy()
         self.save(share_page_text=False)
@@ -237,6 +259,48 @@ class PrivacyRevocationTest(unittest.TestCase):
                          {"browser_text":1,"typed_values":2,"episodes":2,"facts":2})
         self.assertEqual({k:v for k,v in dry['counts'].items() if k not in queries},
                          {"task_understanding":0})
+
+
+class AgentSessionsRevocationTest(unittest.TestCase):
+    def setUp(self):
+        enable_plugins(self,'screen_awareness','coding_sessions')
+        self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
+        self.root=Path(self.temp.name);self.config=self.root/'config.json'
+        self.save(share_agent_sessions=True)
+        self.attention=AttentionStore(self.root/'attention.sqlite',Blacklist(deny_blacklist(self.root/'blacklist.json')))
+        self.addCleanup(self.attention.close)
+        self.server=AgentdServer(('127.0.0.1',0),'hook','ui',attention=self.attention,tick_interval=1000)
+        self.addCleanup(self.server.server_close)
+        self.server.share_typed_text=self.server.share_agent_sessions=True
+        self.server.privacy_config=str(self.config)
+        self.server.sync_privacy()
+
+    def save(self,share_agent_sessions):
+        self.config.write_text(json.dumps({"share_typed_text":True,"share_agent_sessions":share_agent_sessions}), encoding='utf-8')
+
+    def hook(self,name,**body):
+        body={'session_id':'agent-revoke','cwd':str(self.root),**body}
+        self.server.record_agent_event(normalize_codex({**body,'hook_event_name':name}),body)
+
+    def kinds(self):
+        return [e['kind'] for e in self.attention.recent_events(0)]
+
+    def test_a_revocation_after_the_consent_check_keeps_no_row(self):
+        def revoke(*_):
+            self.save(False);self.server.sync_privacy();return {"title":None}
+        self.server.agent_meta=NS(session=revoke)
+        self.hook('UserPromptSubmit',prompt='SYNTHETIC_PROMPT')
+        self.server.share_agent_sessions=True;self.save(True);self.server.sync_privacy()
+        self.hook('PostToolUse',tool_name='exec_command',tool_input={'command':'echo x'})
+        self.assertEqual(self.kinds(),[])
+
+    def test_revoking_agent_sessions_deletes_the_kept_agent_rows(self):
+        self.attention.ingest_events([{"ts":time.time(),"kind":"value","app":"Fixture","value":"SYNTHETIC_TYPED"}])
+        self.hook('UserPromptSubmit',prompt='SYNTHETIC_PROMPT')
+        self.hook('PostToolUse',tool_name='exec_command',tool_input={'command':'echo x'})
+        self.assertEqual(sorted(self.kinds()),['agent','prompt','value'])
+        self.save(False);self.server.sync_privacy()
+        self.assertEqual(self.kinds(),['value'])
 
 
 class ConsentPolicyTest(unittest.TestCase):

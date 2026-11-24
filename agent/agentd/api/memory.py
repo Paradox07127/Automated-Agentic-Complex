@@ -139,9 +139,9 @@ class MemoryMixin:
             self.server._memory_changed(fact_match.group(1), deleted=True)
             checkpoint(memory)
             return self._json(200, {"deleted": True})
-        query = parse_qs(urlparse(self.path).query)
+        query = parse_qs(urlparse(self.path).query, keep_blank_values=True)
         scope, owner = query.get("scope", [None])[0], query.get("owner", [None])[0]
-        if scope not in ("facts", "history", "all") or (owner is not None and scope != "facts"):
+        if scope not in ("facts", "history", "all") or (owner is not None and (scope != "facts" or not owner)):
             return self._json(400, {"error": "invalid_scope"})
         facts = 0
         if scope != "history":

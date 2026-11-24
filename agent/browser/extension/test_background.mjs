@@ -135,6 +135,11 @@ test("allow mode samples only allowed hosts, keeps a denied allowed host out and
   assert.equal(sampled(), before);
   h.setPolicy({ mode: undefined, allow_domains: ["EXAMPLE.com"], domains: ["m.example.com"], title_patterns: ["Article"] });
   await h.tick(); await h.tick();
+  // A title pattern hides an allowed host's tab in allow mode too.
+  assert.equal(h.requests.at(-1).enabled, false);
+  assert.equal(h.out.filter(m => m.type === "heartbeat").at(-1).url_host, "<hidden>");
+  assert.equal(sampled(), before);
+  h.setPolicy({ title_patterns: [] }); await h.tick(); await h.tick();
   assert.equal(h.requests.at(-1).enabled, true);
   assert.equal(h.out.filter(m => m.type === "page").at(-1).url_host, "example.com");
   // m.example.com is allowed through example.com but denied itself: the deny entry wins.
