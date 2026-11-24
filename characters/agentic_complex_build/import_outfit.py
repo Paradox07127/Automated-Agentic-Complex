@@ -800,8 +800,6 @@ def match_textures(mod, source, read_blob, drawn, hidden, by_component, mapping,
                 assigned.setdefault(p, {}).update(dict.fromkeys(keys, blob))
         # The template samplers may need the whole chain, which a block-compressed texture cannot be given here.
         if len(blob.mips) == 1 and any(own[p][n]['mip_count'] > 1 for p in places for n in chosen):warnings.append('needs_mips:'+filename)
-        # The runtime samples the file in its own format whatever the resource's.
-        if any(own[p][n]['rd_format_name'] != blob.rd_format_name for p in places for n in chosen):warnings.append('format_changed:'+filename)
         tag = re.search(r'bc7-srgb|bc7-linear|bc5-linear', Path(filename).name, re.IGNORECASE)
         if tag and FORMAT_TAGS[tag.group(0).lower()] != blob.rd_format_name:warnings.append('format_tag:'+filename)
     return rows, assigned, warnings
@@ -944,6 +942,16 @@ def import_outfit(package_root, mod_dir, stage, name=None, mapping=None, progres
             if row.get('matched_by'):warnings.append('stale_hash:'+row['section'])
             if row.get('reason') == 'stream_only':warnings.append('stream_only_ignored:'+row['section'])
         for g in geometry:warnings += [w for w in g['warnings'] if w not in warnings]
+        # A texture that only a skipped shader patch reads is that patch's loss, named in its warning.
+        folded = {}
+        for w in warnings:
+            if not w.startswith('texture_unbound:'):continue
+            f = w.split(':', 1)[1]
+            read = [re.fullmatch(r'ps-t(\d+)', t.slot) for t in mod.slot_textures if t.filename == f]
+            patch = next((n for n, ts in mod.shader_patches.items() if read and all(r and int(r.group(1)) in ts for r in read)), None)
+            if patch:folded.setdefault(patch, []).append(f)
+        warnings = [':'.join(['shader_patch_ignored', w[21:], *folded[w[21:]]]) if w.startswith('shader_patch_ignored:') and w[21:] in folded else w
+                    for w in warnings if not (w.startswith('texture_unbound:') and any(w[16:] in fs for fs in folded.values()))]
         referenced = set(mod.files.values())
         unused = sorted(p.relative_to(mod.root).as_posix() for p in mod.root.rglob('*') if p.suffix.lower() == '.dds' and p.resolve() not in referenced)
         fp = fingerprint(mod)

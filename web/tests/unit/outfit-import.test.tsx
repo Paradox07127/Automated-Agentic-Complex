@@ -391,6 +391,12 @@ describe('导入外观 · 要留意的地方', () => {
     expect(outfitImportWarning('brand_new:x')).toBe('brand_new:x');
   });
 
+  it('names after a skipped shader patch the textures that only it reads', () => {
+    expect(outfitImportWarning('shader_patch_ignored:Cutout.ini')).toBe('模组的「Cutout.ini」改的是游戏的着色器，没有套上');
+    expect(outfitImportWarning('shader_patch_ignored:Skin.ini:Assets/a.dds:Assets/b.dds'))
+      .toBe('模组的「Skin.ini」改的是游戏的着色器，没有套上，只给它用的贴图「Assets/a.dds」「Assets/b.dds」也没用上');
+  });
+
   it('says the mod-settings codes in one sentence each', () => {
     expect(outfitImportWarning('setting_fixed:glow')).toBe('这个开关在 mod 里写死了，不能切换');
     expect(outfitImportWarning('variant_unplaced')).toBe('有贴图变体找不到对应部件，没有导入');

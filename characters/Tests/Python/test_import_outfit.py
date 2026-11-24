@@ -730,13 +730,11 @@ filename = Textures/new.dds
         mapping = write_map(self.root/'map.json', textures={'1': '_ClearCoatMask'})
         report = import_outfit.import_outfit(self.package.root, mod, self.root/'out', mapping=mapping)
         self.assertEqual(report['components'][0]['action'], 'textures')
-        self.assertNotIn('format_changed:Textures/L.Dds', report['warnings'])
 
-    def test_a_mapping_may_put_a_bc7_normal_map_in_a_bc5_slot_with_a_warning(self):
+    def test_a_mapping_may_put_a_bc7_normal_map_in_a_bc5_slot(self):
         mapping = write_map(self.root/'map.json', textures={'1': '_BumpMap'})
         report = import_outfit.import_outfit(self.package.root, si_mod(self.root/'si'), self.root/'out', mapping=mapping)
         self.assertEqual(report['textures'][1]['resource'], '_BumpMap')
-        self.assertIn('format_changed:Textures/L.Dds', report['warnings'])
 
     def test_a_texture_equal_to_its_template_is_unchanged_and_its_hash_rules_out_its_resource(self):
         old, new = 'Textures/Components-0 t=11111111 BC7-Linear.dds', 'Textures/Components-0 t=22222222 BC7-Linear.dds'
@@ -764,17 +762,15 @@ filename = Textures/new.dds
         # old.dds, of the template's size, is placed before new.dds.
         self.assertEqual(str(caught.exception), f'texture_mismatch:1:Textures/old.dds: candidates {CLOTH}: _ClearCoatMask, _MetallicGlossMap')
 
-    def test_a_slot_learned_from_a_bc5_normal_map_takes_a_file_of_another_format_with_a_warning(self):
+    def test_a_slot_learned_from_a_bc5_normal_map_takes_a_file_of_another_format(self):
         # The runtime samples the file in its own format; the programs unpack _BumpMap as the game's do (x *= w, xy*2-1, z rebuilt).
         draw = SLOT_DRAW.replace('ps-t18', 'ps-t19')
         mod = cloth_mod(self.root/'srgb', draw, {'Textures/old.dds': dds(4, 4, fourcc=b'ATI2', fill=6), 'Textures/new.dds': dds(4, 4, 99)}, SLOT_SECTIONS)
         report = import_outfit.import_outfit(self.package.root, mod, self.root/'out-srgb')
         self.assertEqual(report['textures'][0]['resource'], '_BumpMap')
-        self.assertIn('format_changed:Textures/new.dds', report['warnings'])
         mod = cloth_mod(self.root/'mod', draw, {'Textures/old.dds': dds(4, 4, fourcc=b'ATI2', fill=6), 'Textures/new.dds': dds(4, 4, 98)}, SLOT_SECTIONS)
         report = import_outfit.import_outfit(self.package.root, mod, self.root/'out')
         self.assertEqual(report['textures'][0]['resource'], '_BumpMap')
-        self.assertIn('format_changed:Textures/new.dds', report['warnings'])
 
     def test_the_slot_hint_table_places_a_texture_the_mod_teaches_nothing_about(self):
         draw = 'ps-t18 = ResourceNew\ndrawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'
@@ -908,8 +904,6 @@ endif
         report = import_outfit.import_outfit(self.package.root, mod, self.root/'out')
         self.assertEqual(report['textures'], [dict(index=0, file='Textures/coat.dds', meshes=[CLOTH], resource='_ClearCoatMask'),
                                               dict(index=1, file='Textures/parameters.dds', meshes=[CLOTH], resource='_MetallicGlossMap')])
-        self.assertIn('format_changed:Textures/parameters.dds', report['warnings'])
-        self.assertNotIn('format_changed:Textures/coat.dds', report['warnings'])
 
     def test_one_file_replaces_every_template_texture_whose_hash_it_overrides_in_the_file_s_own_format(self):
         # 85063a9b and 67d578ae are 3DMigoto's hashes of CLOTH's _EmissionMap (sRGB) and _ClearCoatMask; BODY has neither.
@@ -944,7 +938,8 @@ this = ref ResourceZero
         report = import_outfit.import_outfit(package.root, mod, self.root/'out')
         self.assertEqual(report['textures'], [dict(index=0, file='Textures/zero.dds', meshes=[CLOTH], resource='_ClearCoatMask',
                                                    resources=['_ClearCoatMask', '_EmissionMap'])])
-        self.assertIn('format_changed:Textures/zero.dds', report['warnings'])
+        # The game samples the file in its own format too, so the color space change is the mod's own look.
+        self.assertEqual([w for w in report['warnings'] if w.startswith('format_changed')], [])
         *_, source, _, _ = self.staged(self.root/'out')
         [clone] = [d for d in source['draws'] if d['mesh'] == 'outfit:'+report['appearance']['id']+'/'+CLOTH]
         replaced = {r['names'][0]: r for r in clone['resources']}
@@ -978,7 +973,6 @@ this = ref ResourceZero
         report = import_outfit.import_outfit(self.package.root, cloth_mod(self.root/'mod', FILTER_DRAW, {'Textures/new.dds': dds(8, 8, 99)}, sections),
                                              self.root/'out')
         self.assertEqual(report['textures'], [dict(index=0, file='Textures/new.dds', meshes=[CLOTH], resource='_ClearCoatMask')])
-        self.assertIn('format_changed:Textures/new.dds', report['warnings'])
 
     def test_a_filter_that_matches_no_texture_falls_back_to_the_hash_in_the_file_name(self):
         # 67d578ae is 3DMigoto's hash of _ClearCoatMask, the template texture farthest from the filter's dHash.
@@ -1007,25 +1001,37 @@ this = ref ResourceZero
         self.assertEqual(report['textures'], [dict(index=0, file='Textures/base.dds', meshes=[CLOTH], resource='_BaseMap')])
         self.assertIn('texture_unbound:'+file, report['warnings'])
 
-    def test_a_table_named_slot_takes_a_file_of_another_format_with_a_warning(self):
+    def test_a_table_named_slot_takes_a_file_of_another_format(self):
         draw = 'ps-t18 = ResourceNew\ndrawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'
         hints = {'fixture': {'M_cloth': {'ps-t18': '_MetallicGlossMap'}}}
         carrying = package_fixture(self.root/'carrying', tables={import_outfit.HINTS_FILE: dict(schema=import_outfit.HINTS_SCHEMA, characters=hints)})
         mod = cloth_mod(self.root/'mod', draw, {'Textures/new.dds': dds(4, 4, 99)}, '\n[ResourceNew]\nfilename = Textures/new.dds\n')
         report = import_outfit.import_outfit(carrying.root, mod, self.root/'out-hinted')
         self.assertEqual(report['textures'], [dict(index=0, file='Textures/new.dds', meshes=[CLOTH], resource='_MetallicGlossMap')])
-        self.assertIn('format_changed:Textures/new.dds', report['warnings'])
         # A mapping, too, may put a file of another color space in place.
         report, _ = self.si_import(textures={'1': '_BaseMap'})
         self.assertEqual(report['textures'][1]['resource'], '_BaseMap')
-        self.assertIn('format_changed:Textures/L.Dds', report['warnings'])
+
+    def test_a_texture_only_a_skipped_shader_patch_reads_is_named_in_that_patch_s_warning(self):
+        draw = 'ps-t17 = ResourceNew\nps-t110 = ResourceMask\ndrawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'
+        sections = '\n[ResourceNew]\nfilename = Textures/new.dds\n\n[ResourceMask]\nfilename = Textures/mask.dds\n'
+        mod = cloth_mod(self.root/'mod', draw, {'Textures/new.dds': dds(8, 8, 98), 'Textures/mask.dds': dds(2, 2, 28)}, sections)
+        (mod/'Cutout.ini').write_text('[ShaderRegexCut]\nshader_model = ps_5_0\n\n[ShaderRegexCut.Pattern.Replace]\n'
+                                      'dcl_resource_texture2d (float,float,float,float) t110\\n\n')
+        (mod/'Finish.ini').write_text('[ShaderRegexFinish]\nshader_model = ps_5_0\n\n[ShaderRegexFinish.Pattern.Replace]\n'
+                                      'sample_b_indexable(texture2d)(float,float,float,float) r0.xyzw, v1.xyxx, t71.xyzw, s1\\n\n')
+        hints = {'fixture': {'M_cloth': {'ps-t17': '_BaseMap'}}}
+        package = package_fixture(self.root/'hinted', tables={import_outfit.HINTS_FILE: dict(schema=import_outfit.HINTS_SCHEMA, characters=hints)})
+        warnings = import_outfit.import_outfit(package.root, mod, self.root/'out')['warnings']
+        self.assertIn('shader_patch_ignored:Cutout.ini:Textures/mask.dds', warnings)
+        self.assertIn('shader_patch_ignored:Finish.ini', warnings)
+        self.assertNotIn('texture_unbound:Textures/mask.dds', warnings)
 
     def test_a_resource_s_color_space_sets_the_format_its_file_is_read_in(self):
         draw = 'ps-t17 = ResourceNew\ndrawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'
         sections = '\n[ResourceNew]\nfilename = Textures/new.dds\ncolor_space = sRGB\n'
         report = import_outfit.import_outfit(self.package.root, cloth_mod(self.root/'mod', draw, {'Textures/new.dds': dds(8, 8, 98)}, sections), self.root/'out')
         self.assertEqual(report['textures'], [dict(index=0, file='Textures/new.dds', meshes=[CLOTH], resource='_BaseMap')])
-        self.assertNotIn('format_changed:Textures/new.dds', report['warnings'])
         *_, source, _, _ = self.staged(self.root/'out')
         [clone] = [d for d in source['draws'] if d['mesh'] == 'outfit:'+report['appearance']['id']+'/'+CLOTH]
         base = next(r for r in clone['resources'] if r['names'] == ['_BaseMap'])

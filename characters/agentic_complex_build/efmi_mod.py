@@ -223,6 +223,8 @@ class EfmiMod:
     warnings: list[str] = field(default_factory=list)
     # Filename -> 'srgb' or 'linear' of a Resource's color_space, which the runtime loads the DDS by in place of its own format.
     color_spaces: dict = field(default_factory=dict)
+    # Ini file name -> the ps-t registers its ShaderRegex sections name, for each ini that patches the game's shaders.
+    shader_patches: dict = field(default_factory=dict)
 
 
 def parse_ini(text):
@@ -911,13 +913,17 @@ def load_mod(root):
         bones = constants.get(given, given)
     color_spaces = {resources[s.name.lower()]: space for s in sections if s.name.lower().startswith('resource') and s.name.lower() in resources
                     and (space := (s.get('color_space') or '').strip().lower()) in ('srgb', 'linear')}
-    warnings = ['shader_patch_ignored:'+ini.name for ini in inis if any(s.name.lower().startswith('shaderregex') and owner[s.name.lower()] == ini
-                                                                        for s in sections)]
+    patches = {}
+    for s in sections:
+        if s.name.lower().startswith('shaderregex'):
+            patches.setdefault(owner[s.name.lower()].name, set()).update(
+                int(n) for e in s.entries for n in re.findall(r'\bt(\d+)\b', e.key+' '+e.value))
+    warnings = ['shader_patch_ignored:'+name for name in patches]
     mod = EfmiMod(root=root, ini=inis[0], inis=inis, sections=sections, name=name, buffers=buffers, entry_points=entry_points, draws=draws,
                   textures=textures, files=files, merged_skeleton=merged, overrides=overrides, slot_textures=slots,
                   external_textures=external, constants=constants, keys=keys, skeleton=skeleton,
                   bones_count=int(bones) if bones and bones.isdigit() else None, layouts=layouts if isinstance(layouts, dict) else {},
-                  warnings=warnings, color_spaces=color_spaces)
+                  warnings=warnings, color_spaces=color_spaces, shader_patches=patches)
     scene = Scene(mod)
     mod.custom_shaders = {by_name[n].name: kind for n, kind in scene.kinds.items()}
     mod.defaults = startup(scene)

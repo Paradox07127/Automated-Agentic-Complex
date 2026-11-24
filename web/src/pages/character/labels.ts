@@ -211,12 +211,14 @@ const OUTFIT_IMPORT_WARNING: Record<string, (n: string) => string> = {
   texture_unsupported: (n) => `贴图「${n}」的格式本程序还不支持，没有用上`,
   external_namespace: (n) => `贴图「${n}」要借别的模组的部件才套得上，没有用上`,
   needs_mips: (n) => `贴图「${n}」没有缩小用的多级图，远看可能发虚`,
-  format_changed: (n) => `贴图「${n}」和角色原来的贴图格式不同，颜色可能略有偏差`,
   format_tag: (n) => `贴图「${n}」文件名写的格式和实际的不同，已按实际格式用上`,
   geometry_not_applied: (n) => `模组的「${n}」改了模型，没有套上`,
   stale_hash: (n) => `模组的「${n}」写的是旧版游戏的部件，这里照样套上了，游戏里它不会生效`,
   stream_only_ignored: (n) => `模组的「${n}」只换了模型的一部分数据，没有套上`,
-  shader_patch_ignored: (n) => `模组的「${n}」改的是游戏的着色器，没有套上`,
+  shader_patch_ignored: (n) => {
+    const [ini, ...files] = n.split(':');
+    return `模组的「${ini}」改的是游戏的着色器，没有套上${files.length ? `，只给它用的贴图${files.map((f) => `「${f}」`).join('')}也没用上` : ''}`;
+  },
   custom_shader_ignored: (n) => `模组的「${n}」用自己的着色器做的效果，没有套上`,
   shapekey_ignored: () => '模组的形态键没有套上',
   morph_ignored: () => '模组的变形效果没有套上',
