@@ -11,7 +11,7 @@ import { homedir, release } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import routes from '../../../../protocol/ui-bridge/routes.json' with { type: 'json' };
 import { a11ySource } from '../common/a11y.ts';
-import { appearanceOf, applyAppearance, glassSupported, mainWindowGround } from '../common/appearance.ts';
+import { APPEARANCE_CHANNEL, appearanceOf, applyAppearance, glassSupported, mainWindowGround } from '../common/appearance.ts';
 import { type ChildState } from '../common/agentd.ts';
 import type { Rect as HelperRect } from '../common/attention.ts';
 import { boot, BridgeFailure, handle, type Handler, type Reply, type Surface } from '../common/bridge.ts';
@@ -987,8 +987,16 @@ function guideGreeting(link: HostLink, client: AgentdClient, dir: string): (dest
 /** The first-run guide's window (onboarding/window.ts). */
 const guide = onboardingWindow({
   configPath,
-  makeWindow: (options) => new BrowserWindow({ ...options,
-    webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false } }),
+  // The main window's ground; its page lays its own over the glass only in part.
+  makeWindow: (options) => {
+    const win = new BrowserWindow({ ...options, ...mainWindowGround(shellPlatform(), appearanceNow().glass),
+      webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false } });
+    win.webContents.on('dom-ready', () => {
+      const { glass, glassAlpha, reduceMotion } = appearanceNow();
+      win.webContents.send(APPEARANCE_CHANNEL, { glass, glassAlpha, reduceMotion });
+    });
+    return win;
+  },
   served: () => serve !== null,
   workArea: () => screen.getPrimaryDisplay().workAreaSize,
   // 在桌面上 on the last step reads the desktop panels' state.

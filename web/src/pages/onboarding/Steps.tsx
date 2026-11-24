@@ -229,24 +229,6 @@ export function StepChat({ g }: { g: GuideSettings }) {
   );
 }
 
-function DrawnFigure({ id }: { id: string }) {
-  const h = hueOf(id);
-  return (
-    <svg className={styles.drawn} viewBox="0 0 220 300" aria-hidden="true">
-      <defs>
-        <pattern id="fht" width="4" height="4" patternUnits="userSpaceOnUse">
-          <circle cx="2" cy="2" r=".8" fill="currentColor" fillOpacity=".18" />
-        </pattern>
-      </defs>
-      <path d="M70 100c-10-50 20-80 40-80s52 22 42 80c8 30 4 70-8 96H78c-12-26-16-66-8-96z" fill={`hsl(${h} 30% 55%)`} fillOpacity=".5" />
-      <ellipse cx="110" cy="96" rx="30" ry="36" fill={`hsl(${h} 15% 85%)`} fillOpacity=".8" />
-      <path d="M30 300c4-70 36-110 80-110s76 40 80 110z" fill={`hsl(${h} 15% 78%)`} fillOpacity=".55" />
-      <path d="M30 300c4-70 36-110 80-110s76 40 80 110z" fill="url(#fht)" />
-      <path d="M78 80c10-26 52-30 66-4-16-8-44-12-66 4z" fill={`hsl(${h} 35% 50%)`} />
-    </svg>
-  );
-}
-
 function Mouse({ side }: { side: 'left' | 'right' }) {
   return (
     <svg className={styles.mouse} viewBox="0 0 20 24" aria-hidden="true">
@@ -288,7 +270,7 @@ export function StepDone({ o, g, missing, goto }: { o: Onboarding; g: GuideSetti
         <span className={styles.wm}>{her?.name}</span>
         {her && (
           <span className={styles.fig}>
-            {her.portrait ? <CharacterArt src={her.portrait} kind="portrait" w={220} h={300} fallback={<DrawnFigure id={her.id} />} /> : <DrawnFigure id={her.id} />}
+            <CharacterArt src={her.head} kind="head" w={220} h={300} fallback={<DrawnHead id={her.id} />} />
           </span>
         )}
         <span className={styles.line} />

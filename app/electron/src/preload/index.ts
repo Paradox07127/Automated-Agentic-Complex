@@ -72,9 +72,9 @@ if (boot) {
       } : undefined,
     ],
   });
-  if (boot.surface === 'main') {
-    installPreview();
-    // 外观: the main window's root attributes (common/appearance.ts applyPage), sent at each dom-ready and save.
+  if (boot.surface === 'main') installPreview();
+  // 外观: the main and guide windows' root attributes (common/appearance.ts applyPage), sent at each dom-ready and save.
+  if (boot.surface === 'main' || boot.surface === 'onboarding') {
     ipcRenderer.on(APPEARANCE_CHANNEL, (_e, page: PageAppearance) => applyPage(document.documentElement, page));
   }
 }

@@ -5,6 +5,10 @@
   background: var(--ef-band);
 }
 
+:global(html[data-window-glass]) .root {
+  background: color-mix(in srgb, var(--ef-band) var(--ef-glass-alpha), transparent);
+}
+
 .win {
   position: relative;
   display: grid;
