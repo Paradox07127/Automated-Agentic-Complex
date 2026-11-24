@@ -168,6 +168,23 @@ describe('settings › 内核 › 选择内核', () => {
     expect(save).not.toHaveBeenCalled();
   });
 
+  it('keeps the kernel table and Codex\'s sections when Codex is picked with harness_bridge off', async () => {
+    pluginsOn('light_ai');
+    const wire = {
+      ...WIRE_RUNTIME,
+      backend: 'pi',
+      available_backends: [{ id: 'pi', title: 'Pi', available: true, reason: null }, { id: 'codex', title: 'Codex', available: false, reason: 'plugin_off' }],
+    } as WireRuntimePublic;
+    render(
+      <Harness runtime={runtimeView(wire)}>
+        <KernelGroup />
+      </Harness>,
+    );
+    await click(screen.getByRole('radio', { name: 'Codex' }).closest('tr')!);
+    expect(screen.getByRole('radio', { name: 'Codex' }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('region', { name: '账号 │ Codex' })).toBeTruthy();
+  });
+
   it('drops a Pi provider and 本机无需密钥 that Codex does not take when switching to it', async () => {
     const request = vi.spyOn(window.agenticComplex!.agentd, 'request');
     // settings.py validate: Codex takes provider '' or 'openai' only, and local_no_auth only on Pi.

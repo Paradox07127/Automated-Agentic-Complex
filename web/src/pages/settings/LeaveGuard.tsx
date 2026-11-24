@@ -11,7 +11,7 @@ import { serviceOf } from './servicesDraft';
  * 留在设置, Escape and the backdrop stay with everything kept.
  */
 export function LeaveGuard() {
-  const { model, agentdOff } = useSettings();
+  const { model, agentdOff, native } = useSettings();
   const [ask, setAsk] = useState<((stay: boolean) => void) | null>(null);
   const busy = useRef(false);
   const drafts = Object.keys(model.draft);
@@ -45,7 +45,8 @@ export function LeaveGuard() {
     }
   };
   const stay = () => !busy.current && answer(true);
-  const restart = pending.length > 0;
+  // A drafted config.json row (the plug-in a picked kernel needs) waits for a restart once applied.
+  const restart = pending.length > 0 || (!agentdOff && drafts.some((id) => native?.rows[id]?.restart === 'backend'));
   // agentd's own drafts need it running; service cards and waiting rows go through the shell.
   const canApply = !agentdOff || drafts.every((id) => serviceOf(id));
   const go = () => run(async () => (await model.applyAll()) && (!restart || (await model.restartBackend())));

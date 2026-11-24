@@ -38,8 +38,9 @@ export function KernelGroup() {
   const acp = useAcpAgents(agentdOff);
   const selected = String(model.value('kernel') ?? runtime?.selected ?? 'pi');
   const pi = selected === 'pi';
-  // Pi runs on light_ai alone; every other kernel needs harness_bridge too (agentd integration.py available_backends).
-  const on = plugins.light_ai && (pi || plugins.harness_bridge);
+  // Pi runs on light_ai alone; every other kernel needs harness_bridge too (agentd integration.py available_backends). A gated
+  // pick drafts harness_bridge on.
+  const on = plugins.light_ai && (pi || plugins.harness_bridge || model.value(OTHERS) === true);
   const routes = shown('routes') && <KernelRoutes agents={acp.list?.agents ?? []} />;
   return (
     <>

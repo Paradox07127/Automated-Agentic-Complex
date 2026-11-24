@@ -25,7 +25,7 @@ const ACCESS_SETTINGS = new Set(['wintext', 'grain', 'web', 'typing', 'actions',
 export function resetOnAccessChange(client: QueryClient, onChange: (cb: (c: SettingsChange) => void) => Unsubscribe): Unsubscribe {
   return onChange(({ ids }) => {
     if (!ids.some((id) => ACCESS_SETTINGS.has(id))) return;
-    for (const queryKey of [['today'], ['overview'], ['memory'], ['observe']]) void client.resetQueries({ queryKey });
+    for (const queryKey of [['today'], ['overview'], ['memory'], ['observe'], ['brief'], ['pipeline']]) void client.resetQueries({ queryKey });
   });
 }
 

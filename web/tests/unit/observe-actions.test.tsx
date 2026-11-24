@@ -2,13 +2,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { del, post } from '../../src/bridge/agentd';
+import { del, post, put } from '../../src/bridge/agentd';
 import { toast } from '../../src/shell/toast';
 import { KEY } from '../../src/pages/observe/data';
 import { useActions, type ObserveActions } from '../../src/pages/observe/useActions';
 
 vi.mock('../../src/shell/toast', async (original) => ({ ...(await original<typeof import('../../src/shell/toast')>()), toast: vi.fn() }));
-vi.mock('../../src/bridge/agentd', async (original) => ({ ...(await original<typeof import('../../src/bridge/agentd')>()), post: vi.fn(), del: vi.fn() }));
+vi.mock('../../src/bridge/agentd', async (original) => ({ ...(await original<typeof import('../../src/bridge/agentd')>()), post: vi.fn(), put: vi.fn(), del: vi.fn() }));
 
 const EPISODE = { id: 'ep-1', start: 0, end: 60_000, title: '修 HostLink', apps: [] };
 
@@ -33,10 +33,19 @@ afterEach(() => {
   cleanup();
   vi.mocked(toast).mockReset();
   vi.mocked(post).mockReset();
+  vi.mocked(put).mockReset();
   vi.mocked(del).mockReset();
 });
 
 describe('observe actions', () => {
+  it('resume writes the pause off before it says so', async () => {
+    const actions = mount();
+    vi.mocked(put).mockResolvedValueOnce({ paused_until: null });
+    act(() => actions().resume());
+    await waitFor(() => expect(toast).toHaveBeenCalledWith('已恢复观察', {}));
+    expect(put).toHaveBeenCalledWith('/observation/paused', expect.anything());
+  });
+
   it('offers 撤销 for an exclusion only when the rule was added now', async () => {
     const actions = mount();
     vi.mocked(post).mockResolvedValueOnce({ added: false, deleted: { events: 0, context: 0, observations: 0 } });

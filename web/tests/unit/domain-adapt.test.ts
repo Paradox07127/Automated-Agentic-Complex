@@ -290,7 +290,8 @@ describe('character, diagnostics, kernel', () => {
     expect(codex(signedIn)?.authenticated).toBe(true);
     const signedOut = { ...signedIn, installed_runtimes: WIRE_RUNTIME.installed_runtimes, product_login: { ...base.product_login, accounts: { codex: { signed_in: false, email: null, plan: null } } } };
     expect(codex(signedOut)?.authenticated).toBe(false);
-    expect(codex({ ...base, product_login: { ...base.product_login, accounts: {} } })?.authenticated).toBeNull();
+    // Not probed yet (agentd reports product_login_checking): not signed in, never 不需要.
+    expect(codex({ ...base, product_login: { ...base.product_login, accounts: {} } })?.authenticated).toBe(false);
   });
 
   it('fromTraceTurn: trace id as id, ISO start, result mapped', () => {

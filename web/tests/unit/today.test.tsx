@@ -174,4 +174,18 @@ describe('a consent change', () => {
     expect(reads).toBe(2);
     off();
   });
+
+  it('drops the cached brief day and pipeline reads, which agentd filters by consent too', () => {
+    const client = new QueryClient();
+    let push: (c: SettingsChange) => void = () => {};
+    resetOnAccessChange(client, (cb) => {
+      push = cb;
+      return () => {};
+    });
+    client.setQueryData(['brief', 'day', '2026-10-31'], { episodes: [] });
+    client.setQueryData(['pipeline', 'episodes', '2026-10-31'], []);
+    push({ ids: ['wintext'] });
+    expect(client.getQueryData(['brief', 'day', '2026-10-31'])).toBeUndefined();
+    expect(client.getQueryData(['pipeline', 'episodes', '2026-10-31'])).toBeUndefined();
+  });
 });

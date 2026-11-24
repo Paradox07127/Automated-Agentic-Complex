@@ -35,6 +35,8 @@ export const why = (e: unknown) => ((e as { code?: string } | null)?.code === 'n
 
 /** How long a dispatched restart waits for supervisor.state to show the process up again. */
 const RESTART_WAIT_MS = 60_000;
+/** How often supervisor.state is read again meanwhile: the diag stream that re-reads it is off while paused. */
+const RESTART_POLL_MS = 1_000;
 
 /** One restart the shell took: each process's state and pid when it was asked, and how each came back. */
 interface Restart {
@@ -43,6 +45,7 @@ interface Restart {
   from: Partial<Record<SupervisorTarget, ProcessState>>;
   result: Partial<Record<SupervisorTarget, 'ok' | 'failed'>>;
   timer?: ReturnType<typeof setTimeout>;
+  poll?: ReturnType<typeof setInterval>;
 }
 
 const names = (keys: SupervisorTarget[]) => keys.map((k) => NAME[k]).join('、');
@@ -67,6 +70,7 @@ export function useDiagActions(now: number, toast: PushToast, sup: Partial<Recor
       mark([key], { kind: 'restart', phase: 'done', at, text: result === 'ok' ? `✓ 已重启 │ ${formatClock(at)}` : result === 'failed' ? '■ 重启失败' : '■ 没看到重启' });
       if (r.keys.some((k) => !r.result[k])) return;
       clearTimeout(r.timer);
+      clearInterval(r.poll);
       const ok = r.keys.filter((k) => r.result[k] === 'ok');
       const bad = r.keys.filter((k) => r.result[k] !== 'ok');
       if (bad.length === 0) toast(r.target === 'all' ? `已全部重启：${names(ok)}` : `已重启${names(ok)}`, { severity: 'success' });
@@ -85,9 +89,17 @@ export function useDiagActions(now: number, toast: PushToast, sup: Partial<Recor
       else if ((kind === 'failed' || kind === 'portInUse') && s.state !== from?.state) settle(r, key, 'failed');
     }
   }, [sup, settle]);
+  const mounted = useRef(true);
   useEffect(() => {
     const pending = inFlight.current;
-    return () => pending.forEach((r) => clearTimeout(r.timer));
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      pending.forEach((r) => {
+        clearTimeout(r.timer);
+        clearInterval(r.poll);
+      });
+    };
   }, []);
 
   const restart = useCallback(
@@ -102,8 +114,12 @@ export function useDiagActions(now: number, toast: PushToast, sup: Partial<Recor
         .supervisor.restart(target)
         .then(() => {
           // The shell only dispatched it; the rows wait for supervisor.state.
-          void qc.invalidateQueries({ queryKey: ['diag', 'supervisor'] });
-          if (keys.some((k) => inFlight.current.get(k) === r)) r.timer = setTimeout(() => keys.forEach((k) => settle(r, k, 'unseen')), RESTART_WAIT_MS);
+          if (!mounted.current) return;
+          const read = () => void qc.invalidateQueries({ queryKey: ['diag', 'supervisor'] }, { cancelRefetch: false });
+          read();
+          if (!keys.some((k) => inFlight.current.get(k) === r)) return;
+          r.poll = setInterval(read, RESTART_POLL_MS);
+          r.timer = setTimeout(() => keys.forEach((k) => settle(r, k, 'unseen')), RESTART_WAIT_MS);
         })
         .catch((e: unknown) => {
           for (const k of keys) if (inFlight.current.get(k) === r) inFlight.current.delete(k);

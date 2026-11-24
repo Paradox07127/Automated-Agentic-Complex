@@ -42,7 +42,8 @@ export function useActions(setPausedDemo: (v: number | null | undefined) => void
   /** `undo` gets the reply and returns the undo, or undefined when this write changed nothing to take back. */
   const run = async <R,>(what: string, write: () => Promise<R>, done: string, keys: ReadonlyArray<readonly unknown[]>, undo?: (r: R) => (() => void) | undefined) => {
     try {
-      const back = undo?.(await write());
+      const r = await write();
+      const back = undo?.(r);
       toast(done, back ? { action: { label: '撤销', onClick: back } } : {});
     } catch (e) {
       toast(`没有${what}：${errorText(e)}`);

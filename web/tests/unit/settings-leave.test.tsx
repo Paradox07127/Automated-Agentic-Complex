@@ -4,6 +4,7 @@ import { createMemoryHistory, createRootRoute, createRoute, createRouter, Outlet
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getBridge } from '../../src/bridge';
+import { PLUGINS } from '../../src/bridge/plugins.generated';
 import { SettingsPage } from '../../src/pages/settings/Page';
 import { pluginsOn, pluginsReset, pluginsSaved } from './plugins';
 
@@ -89,6 +90,40 @@ describe('leaving 设置 with a change that waits for a backend restart', () => 
     await act(async () => fireEvent.click(screen.getByRole('switch', { name: '外部智能体接入' })));
     await m.leave();
     expect(dialog()).toBeNull();
+    await screen.findByText('对话页');
+  });
+});
+
+describe('leaving 设置 with a kernel picked that its plug-in turned away', () => {
+  it('applies the pick with the plug-in and restarts the backend for it', async () => {
+    pluginsOn(...PLUGINS.map((p) => p.id).filter((id) => id !== 'harness_bridge'));
+    await pluginsSaved();
+    const bridge = getBridge();
+    const real = bridge.agentd.request.bind(bridge.agentd);
+    vi.spyOn(bridge.agentd, 'request').mockImplementation(async (method, path, body) => {
+      const res = await real(method, path, body);
+      if (method !== 'GET' || path !== '/character/runtime') return res as never;
+      const off = (id: string, title: string) => ({ id, title, available: false, reason: 'plugin_off' });
+      return { ...res, body: { ...(res.body as object), backend: 'pi', available_backends: [{ id: 'pi', title: 'Pi', available: true, reason: null }, off('codex', 'Codex')] } } as never;
+    });
+    const save = vi.spyOn(bridge.settings, 'save');
+    const restart = vi.spyOn(bridge.supervisor, 'restart');
+    const root = createRootRoute({ component: Outlet });
+    const settings = createRoute({ getParentRoute: () => root, path: '/settings', component: SettingsPage });
+    const chat = createRoute({ getParentRoute: () => root, path: '/chat', component: () => <p>对话页</p> });
+    const router = createRouter({ routeTree: root.addChildren([settings, chat]), history: createMemoryHistory({ initialEntries: ['/settings?still=1&group=kernel'] }) });
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    const codex = await screen.findByRole('radio', { name: 'Codex' });
+    await act(async () => fireEvent.click(codex.closest('tr')!));
+    await act(async () => void router.navigate({ to: '/chat' }));
+    const confirm = within(dialog()!).getAllByRole('button').find((b) => b.textContent === '重启后台' || b.textContent === '应用')!;
+    await act(async () => fireEvent.click(confirm));
+    expect(save).toHaveBeenLastCalledWith({ 'plugins.harness_bridge': true });
+    expect(restart).toHaveBeenCalledWith('agentd');
     await screen.findByText('对话页');
   });
 });
