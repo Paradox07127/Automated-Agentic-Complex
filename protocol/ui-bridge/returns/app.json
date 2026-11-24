@@ -88,8 +88,7 @@
         "provider": "none",
         "state": "off",
         "reason": "not_configured",
-        "retry_after_s": null,
-        "muted": false
+        "retry_after_s": null
       },
       "services": {
         "tts": {
@@ -111,7 +110,6 @@
           "detail": null
         }
       },
-      "voice_input": "off",
       "degraded": []
     }
   },

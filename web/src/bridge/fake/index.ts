@@ -154,8 +154,8 @@ function runtimeSnapshot(
     processes: { agentd: process(processes.agentd), avatar: process(processes.avatar) },
     character: { current: character, shown: character, agentd: character, pending: null, switching: false, failure: null },
     visibility: { hidden: !avatar.visible, reason: null, fullscreen_hidden: false, click_through_all: avatar.clickThroughAll },
-    tts: { provider: 'none', state: 'off', reason: 'not_configured', retry_after_s: null, muted: false },
-    services, voice_input: 'off',
+    tts: { provider: 'none', state: 'off', reason: 'not_configured', retry_after_s: null },
+    services,
     degraded: [],
   };
 }

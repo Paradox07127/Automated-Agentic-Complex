@@ -56,10 +56,8 @@ export interface RuntimeSnapshot {
     state: 'unknown' | 'probing' | 'ready' | 'cold' | 'unreachable' | 'off';
     reason: string | null;
     retry_after_s: number | null;
-    muted: boolean;
   };
   services: Record<ServiceId, RuntimeService>;
-  voice_input: 'on' | 'off' | 'denied';
   /** A `service` entry's `detail` is the service id. */
   degraded: { source: 'agentd' | 'config' | 'service' | 'voice' | 'avatar'; code: string; detail: string | null }[];
 }

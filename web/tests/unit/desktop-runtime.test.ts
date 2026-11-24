@@ -41,13 +41,12 @@ function snapshot(current: string | null, agentd: RuntimeProcess, avatar: Runtim
     processes: { agentd, avatar },
     character: { current, shown: current, agentd: current, pending: null, switching: false, failure: null },
     visibility: { hidden: false, reason: null, fullscreen_hidden: false, click_through_all: false },
-    tts: { provider: 'none', state: 'off', reason: null, retry_after_s: null, muted: false },
+    tts: { provider: 'none', state: 'off', reason: null, retry_after_s: null },
     services: {
       tts: { mode: 'off', state: null, pid: null, detail: null },
       motion: { mode: 'off', state: null, pid: null, detail: null },
       llm: { mode: 'off', state: null, pid: null, detail: null },
     },
-    voice_input: 'on',
     degraded: [],
   };
 }
