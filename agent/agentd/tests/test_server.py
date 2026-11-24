@@ -876,6 +876,24 @@ class ServerTest(unittest.TestCase):
         self.assertEqual((snapshot["display_session"], snapshot["state"], snapshot["turn_generation"]),
                          ("claude:A", "thinking", 4))
 
+    def test_a_live_events_snapshot_carries_the_first_snapshots_epoch(self):
+        self.hook("claude", "UserPromptSubmit")
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+        conn.request("GET", "/events", headers={"Authorization": f"Bearer {UI}"})
+        response = conn.getresponse()
+        snapshots, event = [], None
+        while len(snapshots) < 2:
+            line = response.fp.readline().decode()
+            if line.startswith("event: "):
+                event = line[7:].strip()
+            elif line.startswith("data: ") and event == "snapshot":
+                snapshots.append(json.loads(line[6:]))
+                if len(snapshots) == 1:
+                    self.server.spatial.stage_event("stage.quiet")  # publishes a live snapshot
+        conn.close()
+        self.assertEqual(snapshots[1]["stage"]["revision"], snapshots[0]["stage"]["revision"] + 1)
+        self.assertEqual(snapshots[1]["epoch"], snapshots[0]["epoch"])
+
     def test_events_resume_with_numeric_ids_and_no_stream_frame(self):
         self.hook("claude", "UserPromptSubmit")
         conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)

@@ -269,10 +269,11 @@ class Registry:
 
     def publish_event(self, event, data):
         """A C1 /events item other than an intent (speech_cancelled, behavior); it takes the next intent seq,
-        which it returns."""
+        which it returns. A snapshot also takes the epoch, as the first snapshot does from current_intent."""
         with self.cv:
             self.intent_seq += 1
-            self.intents.append({"seq": self.intent_seq, "event": event, **data})
+            self.intents.append({"seq": self.intent_seq, "event": event, **data,
+                                 **({"epoch": self.epoch} if event == "snapshot" else {})})
             self.cv.notify_all()
             return self.intent_seq
 

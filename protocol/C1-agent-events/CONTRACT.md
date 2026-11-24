@@ -61,6 +61,7 @@
   （夹具 11）。host 的 adapter 把它放在 LastState 顶层，之后的 `behavior` 加进去或按 `replaces` 替换，同 id 的
   `behavior_cancel` 把它移出；`behavior`、`behavior_cancel`、`clause_intent`、`text_line`
   按 speech.cancelled 的封装原样转，丢掉 `seq` ≤ 游标的和第一条 snapshot 之前的。
+- 每条 `event: snapshot` 都带 agentd 的 `epoch`：连上时的第一条和之后的每条实时 snapshot 一样（`test_server` 钉住）。
 - `event: snapshot` 可另带下面三个字段（v2.7）。角色加载或换角色时、重连时都带上，不依赖终态的有效期；带了的字段整份替换渲染器
   手里的那一份，没带的保持原值。
 
