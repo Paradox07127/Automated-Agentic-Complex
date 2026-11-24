@@ -88,7 +88,7 @@ describe('SettingRows', () => {
 
   it('marks a changed row: ↺ puts that row back, the second line names the default; an unchanged row keeps its description', async () => {
     const n = await demoNative(null);
-    const set = vi.fn();
+    const set = vi.fn(async () => true);
     draw({ ...n, saved: { ...n.saved, 'rnd.lightStrength': '1.25', 'rnd.lightPitch': '10' } }, 'render', { set });
     const strength = document.getElementById('set-rnd.lightStrength')!;
     expect(strength.hasAttribute('data-changed')).toBe(true);
@@ -142,7 +142,7 @@ describe('SettingRows', () => {
 
   it('draws slider rows in their format and sends at most one change per 1/30 s', async () => {
     const n = await demoNative(null);
-    const set = vi.fn();
+    const set = vi.fn(async () => true);
     vi.useFakeTimers();
     try {
       render(<SettingRows n={n} tab="render" set={set} setMany={vi.fn()} pending={new Set()} failed={{}} offline={false} />);
