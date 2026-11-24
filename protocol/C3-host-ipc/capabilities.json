@@ -38,7 +38,7 @@
     "play_chain": {"mac": "yes", "windows": "yes"},
     "mod_settings": {"mac": "yes", "windows": "yes"},
     "right_drag": {"mac": "yes", "windows": "yes"},
-    "moving": {"mac": "yes", "windows": "no", "ref": "CONTRACT.md:948"},
+    "moving": {"mac": "yes", "windows": "yes"},
     "action_transport": {"mac": "yes", "windows": "yes"},
     "presentation": {"mac": "yes", "windows": "yes"}
   },
