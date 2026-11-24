@@ -703,6 +703,29 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(result["body"]["hookSpecificOutput"]["decision"]["updatedPermissions"],
                          [edits, {**rule, "destination": "session"}, other])
 
+    def test_an_owned_claude_session_offers_no_session_allow_its_ask_rules_would_outrank(self):
+        self.server.broker.window = 5.0
+        own = SimpleNamespace(session_id="own:ab", mode="read_only")
+        self.server.sessions = SimpleNamespace(sessions={}, native_ids=lambda: {"A": own}, reap=lambda: None,
+                                               close=lambda timeout: None)
+        for mode, tool, offered in (("read_only", "Bash", False), ("read_only", "Edit", False),
+                                    ("read_only", "WebFetch", True), ("workspace_write", "Bash", False),
+                                    ("workspace_write", "Edit", True)):
+            with self.subTest(mode=mode, tool=tool):
+                own.mode = mode
+                rule = {"type": "addRules", "rules": [{"toolName": tool, "ruleContent": "x"}], "behavior": "allow",
+                        "destination": "localSettings"}
+                result = {}
+                hook = threading.Thread(target=lambda: result.update(zip(("status", "body"), self.hook(
+                    "claude", "PermissionRequest", tool_name=tool, tool_input={"command": "npm test"},
+                    permission_suggestions=[rule]))))
+                hook.start()
+                card = self.wait_for_approval()
+                self.assertEqual(card["options"], ["allow", "allow_session", "deny"] if offered else ["allow", "deny"])
+                self.assertEqual(self.decide(card, "allow")[0], 200)
+                hook.join(5)
+                self.assertEqual(result["body"]["hookSpecificOutput"]["decision"], {"behavior": "allow"})
+
     def test_bypass_suggestion_offers_no_session_choice(self):
         bypass = {"type": "setMode", "mode": "bypassPermissions", "destination": "session"}
         hook, result, card = self.ask_in_background("npm test", [bypass])

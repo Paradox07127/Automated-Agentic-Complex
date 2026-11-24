@@ -153,11 +153,12 @@ class SemanticService:
     def run(self, purpose, instructions, evidence, *, valid=lambda: True, image=None, validate_output=None, knowledge_service=None, character_id=None):
         if purpose not in PURPOSES: raise ValueError('invalid_semantic_purpose')
         c, s = self.controller, self.controller.server
-        # A routed kernel or Pi that cannot run is never asked, and the main kernel never stands in for a routed one: no
-        # attempt, run or journal; /character/runtime reports the error. The main CLI kernels' checks wait on discovery.
+        # A routed kernel, Pi or an ACP agent that cannot run is never asked, and the main kernel never stands in for a
+        # routed one: no attempt, run or journal; /character/runtime reports the error. The main CLI kernels' checks
+        # wait on discovery.
         settings = c.settings.snapshot()
         config = RuntimeSettings.route(settings, ROUTE[purpose])
-        if ROUTE[purpose] in settings['routes'] or config['backend'] == 'pi':
+        if ROUTE[purpose] in settings['routes'] or config['backend'] in ('pi', 'acp'):
             failure = c.route_error(config)
             if failure: raise ValueError(failure)
         meter = s.usage or self.usage

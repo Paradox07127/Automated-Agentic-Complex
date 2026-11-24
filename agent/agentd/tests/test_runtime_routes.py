@@ -285,6 +285,26 @@ class SemanticRouteTests(unittest.TestCase):
         self.assertEqual(self.db.execute('SELECT purpose,outcome FROM semantic_attempts ORDER BY rowid').fetchall(),
                          [('memory_extract', 'succeeded')])
 
+    def test_semantic_run_following_a_main_acp_agent_that_cannot_be_locked_fails_before_it_runs(self):
+        agents = [{'id': agent, 'name': agent, 'source': 'local', 'command': ['/synthetic/' + agent, 'acp']}
+                  for agent in ('goose', 'opencode')]
+        main = {'backend': 'acp', 'acp_agent': 'goose', 'runtime_source': 'local', 'auth_source': 'existing_login',
+                'routes': {}}
+        self.c.settings.save(main)
+        self.c.session_factory_override = None
+        self.c.discovery = SimpleNamespace(scan=lambda refresh=False: {'runtimes': [], 'scanned_at': 0})
+        configs, factory = self.recorded()
+        with patch('character_agent.harness.acp_agents.find_local', return_value=agents), factory:
+            with self.assertRaisesRegex(ValueError, '^acp_agent_unrestricted$'):
+                self.c.semantic.run('memory_extract', '返回JSON', {})
+            self.assertEqual(self.c.public()['routes']['memory']['error'], 'acp_agent_unrestricted')
+            self.assertEqual(configs, [])
+            self.c.settings.save({**main, 'acp_agent': 'opencode'})
+            self.assertEqual(self.c.semantic.run('memory_extract', '返回JSON', {})['backend'], 'acp')
+        self.assertEqual([c['acp_agent'] for c in configs], ['opencode'])
+        self.assertEqual(self.db.execute('SELECT purpose,outcome FROM semantic_attempts ORDER BY rowid').fetchall(),
+                         [('memory_extract', 'succeeded')])
+
     def test_background_work_on_pi_without_a_connection_never_starts_pi_and_leaves_no_failed_run(self):
         # The default kernel: Pi with no provider and nothing saved under 「AI 账号」.
         self.c.settings.save({'backend': 'pi', 'runtime_source': 'bundled'})

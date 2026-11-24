@@ -7,6 +7,7 @@ import socket
 import time
 
 from sessions.events import command_text
+from sessions.own import CLAUDE_ASK
 from tool_gateway.policy import POLICY
 
 DENY_MESSAGE = "Denied on the desktop character approval card."
@@ -80,7 +81,9 @@ class HooksMixin:
                                   content_preview_length=event.content_preview_length,
                                   content_preview_sha256=event.content_preview_sha256,
                                   display=own.session_id if own else None,
-                                  session_scope=session_scope(event.suggestions),
+                                  # an own session's ask rule outranks a session allow rule: that tool asks again
+                                  session_scope=None if own and event.tool_name in CLAUDE_ASK[own.mode]
+                                  else session_scope(event.suggestions),
                                   targets=[command] if (command := command_text(body.get("tool_input"))) is not None
                                   else None, cwd=event.cwd)
             event.request_id = request.request_id

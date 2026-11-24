@@ -292,7 +292,7 @@ class TurnsMixin:
         return status, looked
 
     def start_line(self, line_id, text, recheck=None, reason=None, source="proactive", material=None, gift=None,
-                   conversation_id=None, resume_run_id=None, scripted=None):
+                   conversation_id=None, resume_run_id=None, scripted=None, on_voiced=None):
         """A proactive line; unlike /say it cuts nothing, so callers check busy() first (see claim_line).
         It continues the trace its gate and judge decisions opened under line_id, if there is one.
         recheck: () -> bool, asked once before the first clause is voiced; False cancels the line.
@@ -301,7 +301,9 @@ class TurnsMixin:
         its text, which history, the mouth's turns and the trace keep.
         conversation_id: the conversation its row and /feed items go to, not the active one.
         resume_run_id: the run its row follows; the UI then shows the row without its text (History.record).
-        scripted: (card event, localized text) to deliver directly."""
+        scripted: (card event, localized text) to deliver directly.
+        on_voiced: () -> None, called once its first clause is voiced or, text-only, all its text is shown; a line
+        that ends without it frees line_id in _reported_tasks, so a later tick claims it again."""
         with self._switch_lock:
             if self.closing or self.resetting:
                 return False
@@ -323,7 +325,8 @@ class TurnsMixin:
                 event, reply = scripted
                 self._last_scripted[self.character, event] = reply
                 threading.Thread(target=self._run_line, args=(line_id, text, cancel, generation),
-                                 kwargs=dict(source=source, trace=trace, recheck=recheck, reason=reason, scripted=reply),
+                                 kwargs=dict(source=source, trace=trace, recheck=recheck, reason=reason, scripted=reply,
+                                             on_voiced=on_voiced),
                                  daemon=True).start()
                 return
         if material:
@@ -332,10 +335,10 @@ class TurnsMixin:
             self.tts_ensurer.request()  # the character agent's turn runs before _run_line's own request
         threading.Thread(target=self._run_character_line,
             args=(line_id, text, cancel, generation, None, None, source, trace),
-            kwargs={"recheck": recheck, "reason": reason}, daemon=True).start()
+            kwargs={"recheck": recheck, "reason": reason, "on_voiced": on_voiced}, daemon=True).start()
 
     def claim_line(self, line_id, text, recheck=None, reason=None, material=None, conversation_id=None,
-                   resume_run_id=None):
+                   resume_run_id=None, on_voiced=None):
         """start_line on an idle mouth as one step: False when a line or speech is in progress."""
         lane = self._line_lane()
         with self._slot_lock, self._switch_lock:
@@ -348,11 +351,11 @@ class TurnsMixin:
                 if scripted is None:
                     return False
             return self.start_line(line_id, text, recheck, reason, material=material, conversation_id=conversation_id,
-                                   resume_run_id=resume_run_id, scripted=scripted) is not False
+                                   resume_run_id=resume_run_id, scripted=scripted, on_voiced=on_voiced) is not False
 
     def _run_character_line(self, line_id, text, cancel, generation, wait=None, refused=None, source="text", trace=None,
                             remember=True, voice_timing=None, scope_id=None, expected_outputs=None, resume_run_id=None,
-                            recheck=None, reason=None, side=False):
+                            recheck=None, reason=None, side=False, on_voiced=None):
         """The harness runs outside the delivery lock; only its completed reply enters the speech pipeline.
         side: a side line (see say), whose cancel is in _side_lines until this returns."""
         started = time.monotonic()
@@ -377,7 +380,7 @@ class TurnsMixin:
                            attrs={"request_id": wait, "state": seen}, duration_ms=_ms_since(looked))
             if self.closing:  # shutting down: _run_line ends the line cancelled without reading a reply
                 self._run_line(line_id, text, cancel, generation, refused, source, trace,
-                               remember=remember, voice_timing=voice_timing, reason=reason)
+                               remember=remember, voice_timing=voice_timing, reason=reason, on_voiced=on_voiced)
                 return
             prepare = lambda: self.character_agent.prepare(line_id, text, cancel, generation, source, trace,
                 scope_id=scope_id, expected_outputs=expected_outputs, wait=wait, refused=refused,
@@ -393,7 +396,8 @@ class TurnsMixin:
                 while self.speech.busy() and not self._stale(cancel, generation) and time.monotonic() < deadline:
                     cancel.wait(0.05)
             self._run_line(line_id, text, cancel, generation, refused, source, trace,
-                           remember=remember, voice_timing=voice_timing, prepared=prepared, recheck=recheck, reason=reason)
+                           remember=remember, voice_timing=voice_timing, prepared=prepared, recheck=recheck, reason=reason,
+                           on_voiced=on_voiced)
             if worker is not None:
                 worker.join()
             # The foreground session's projection is its own; a side reply does not move it.
@@ -414,12 +418,19 @@ class TurnsMixin:
             self._turn_settled(trace, state, started, trace.get("line_error"), trace.get("outcome"),
                                trace.get("line_message"))
             trace["done"] = True
+            self._unvoiced(trace, line_id, on_voiced)
             self._live_lines.discard(cancel)
             self._line_consent.pop(cancel, None)
             if side:
                 self._line_context.pop(cancel, None)
                 self._side_lines.discard(cancel)
             TURN_TRACE.reset(traced)
+
+    def _unvoiced(self, trace, line_id, on_voiced):
+        """A line given on_voiced that ended without calling it frees its claim (see start_line)."""
+        if on_voiced is not None and not trace.get("voiced"):
+            with self._announce_lock:
+                self._reported_tasks.discard(line_id)
 
     def _prepare_streamed(self, prepare, line_id, text, cancel, source, trace, reason):
         """prepare() on a thread of its own: (its reply, None) when it ends before its run's final answer begins,
@@ -475,12 +486,13 @@ class TurnsMixin:
         self._step(trace, "context.assembled", new_span_id(), attrs={"items": items})
 
     def _run_line(self, line_id, text, cancel, generation, refused=None, source="text", trace=None,
-                  recheck=None, reason=None, remember=True, voice_timing=None, prepared=None, scripted=None):
+                  recheck=None, reason=None, remember=True, voice_timing=None, prepared=None, scripted=None,
+                  on_voiced=None):
         """refused: why the line's look was refused.
         A newer turn_generation cancels the line as its cancel event does. source: the history row's source.
         trace: this turn's trace from _open_trace; None opens one here. recheck, reason: see start_line.
         remember False, voice_timing: see _open_trace. prepared: the character agent's reply the line streams.
-        scripted: plain text from the card, ready to deliver without agent context or a model."""
+        scripted: plain text from the card, ready to deliver without agent context or a model. on_voiced: see start_line."""
         self._live_lines.add(cancel)
         started_at = time.time()
         started = time.monotonic()
@@ -547,6 +559,9 @@ class TurnsMixin:
                                 return
                             if source == "proactive":
                                 self._proactive_voiced(line_id, "".join(spoken).strip(), reason)
+                            if on_voiced is not None:
+                                trace["voiced"] = True
+                                on_voiced()
                             if self.state is not None:
                                 self.state.on_event("line")  # she voices it from here
                             utterance = self._begin_utterance(line_id, generation, trace["trace_id"], policy)
@@ -689,6 +704,9 @@ class TurnsMixin:
                 if utterance is None and words and not error and not self._stale(cancel, generation):
                     if source == "proactive":
                         self._proactive_voiced(line_id, words, reason)  # a line nobody hears counts once it is all shown
+                    if on_voiced is not None:
+                        trace["voiced"] = True
+                        on_voiced()
                     if self.state is not None:
                         self.state.on_event("line")
                 if source == "proactive" and utterance is not None and words:
@@ -730,6 +748,7 @@ class TurnsMixin:
                     print(f"agentd: ritual settle failed: {type(e).__name__}", file=sys.stderr)
             trace["done"] = True
             if not trace.get("agent_line"):  # _run_character_line ends a character line's liveness once its turn settles
+                self._unvoiced(trace, line_id, on_voiced)
                 self._live_lines.discard(cancel)
             self._line_consent.pop(cancel, None)
             self._line_material.pop(cancel, None)  # a line that ended before its context was assembled

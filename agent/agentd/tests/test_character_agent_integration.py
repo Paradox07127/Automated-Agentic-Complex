@@ -2581,8 +2581,24 @@ class JobReportTests(IntegrationFixture):
             self.server._schedules_due()
         claim.assert_called_once()
         self.assertFalse(self.told(job))
-        with patch.object(self.server, 'claim_line', return_value=True) as claim:
+        with patch.object(self.server, 'claim_line', side_effect=lambda *a, on_voiced, **kw: on_voiced() or True) as claim:
             self.server._schedules_due(); self.server._schedules_due()
+        claim.assert_called_once()
+        self.assertTrue(self.told(job))
+
+    def test_a_line_cancelled_before_it_says_anything_writes_no_receipt_and_the_next_tick_tells_it(self):
+        _, job = self.handed_off()
+        claim_line = self.server.claim_line
+        # Its recheck fails inside the line, after the tick's own check passed.
+        with patch.object(self.server, 'claim_line', side_effect=lambda key, text, recheck, **kw: claim_line(
+                key, text, lambda: False, **kw)) as claim:
+            self.server._schedules_due()
+            self.settled()
+        claim.assert_called_once()
+        self.assertFalse(self.told(job))
+        with patch.object(self.server, 'claim_line', wraps=claim_line) as claim:
+            self.server._schedules_due()
+            self.settled()
         claim.assert_called_once()
         self.assertTrue(self.told(job))
 

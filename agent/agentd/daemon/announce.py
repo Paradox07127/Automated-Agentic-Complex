@@ -280,9 +280,8 @@ class AnnounceMixin:
             claimed = False
             try:
                 claimed = self.claim_line(key, instruction, recheck, reason=reason, material=material,
-                                          conversation_id=conversation_id, resume_run_id=job['run_id'])
-                if claimed:
-                    deliveries.told(delivery['delivery_id'])
+                                          conversation_id=conversation_id, resume_run_id=job['run_id'],
+                                          on_voiced=lambda ident=delivery['delivery_id']: deliveries.told(ident))
             finally:
                 if not claimed:
                     untold = True
@@ -344,9 +343,8 @@ class AnnounceMixin:
             claimed = False
             try:
                 claimed = self.claim_line(key, instruction, recheck, reason=reason, material=material,
-                                          conversation_id=job['conversation_id'], resume_run_id=job['run_id'])
-                if claimed:
-                    deliveries.told(delivery['delivery_id'])
+                                          conversation_id=job['conversation_id'], resume_run_id=job['run_id'],
+                                          on_voiced=lambda ident=delivery['delivery_id']: deliveries.told(ident))
             finally:
                 if not claimed:
                     untold = True

@@ -342,8 +342,17 @@ class ScheduleTests(unittest.TestCase):
                                                           'summary': '总结结果', **delivery}),
                                was_told=Mock(side_effect=told.__contains__), told=Mock(side_effect=told.add))
 
+    def test_a_claimed_report_is_told_only_once_its_line_says_it(self):
+        self.scheduled_result()
+        self.server._schedules_due()
+        self.server.claim_line.assert_called_once()
+        self.controller.deliveries.told.assert_not_called()  # the line may still be cancelled before it says anything
+        self.server.claim_line.call_args.kwargs['on_voiced']()
+        self.controller.deliveries.told.assert_called_once_with('delivery-1')
+
     def test_a_told_report_is_not_told_again_after_a_restart(self):
         self.scheduled_result()
+        self.server.claim_line.side_effect = lambda *args, on_voiced, **kwargs: on_voiced() or True
         self.server._schedules_due()
         self.server.claim_line.assert_called_once()
         self.controller.deliveries.told.assert_called_once_with('delivery-1')
