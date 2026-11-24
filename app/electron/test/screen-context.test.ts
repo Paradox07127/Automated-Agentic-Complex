@@ -74,6 +74,8 @@ test('ScreenContextConsent: a change bumps the generation, the same policy does 
 test('ContextCapturer.configure: narrowing revokes window_text and screenshots', () => {
   assert.deepEqual(revokedKinds(policy({ allowText: true }), policy()), ['window_text']);
   assert.deepEqual(revokedKinds(policy({ allowText: true, level: 'window' }), policy({ allowText: true, level: 'focused' })), ['window_text']);
+  assert.deepEqual(revokedKinds(policy({ allowText: true, level: 'focused' }), policy({ allowText: true, level: 'status' })), ['window_text']);
+  assert.deepEqual(revokedKinds(policy({ allowText: true, level: 'status' }), policy()), []);
   assert.deepEqual(revokedKinds(policy({ allowImages: true }), policy()), ['screenshots']);
   assert.deepEqual(revokedKinds(policy(), policy({ allowText: true, allowImages: true })), []);
 });

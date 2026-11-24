@@ -2,6 +2,7 @@
 // the caller's.
 import type { ShellPlatform } from './config.ts';
 import { PLUGINS, type PluginId } from './plugins.generated.ts';
+import { contextPolicy, revokedKinds } from './screen-context.ts';
 
 /** A config.json value a setting stores. */
 export type SettingValue = boolean | number | string;
@@ -541,6 +542,10 @@ export function planSave(saved: Record<string, SettingValue>, login: boolean | n
   const effects: SaveEffect[] = [];
   for (const [key, revoke] of [['share_page_text', 'page_text'], ['share_typed_text', 'typed_text'], ['share_agent_sessions', 'agent_sessions']]) {
     if (old[key!] === true && next[key!] === false) effects.push({ kind: 'revoke', revoke: revoke!, key: key! });
+  }
+  for (const revoke of revokedKinds(contextPolicy(old), contextPolicy(next))) {
+    const key = revoke === 'screenshots' ? 'share_screenshots' : changed.includes('share_window_text') ? 'share_window_text' : 'screen_context_level';
+    effects.push({ kind: 'revoke', revoke, key });
   }
   if (typeof old.launch_at_login === 'boolean' && typeof next.launch_at_login === 'boolean' && old.launch_at_login !== next.launch_at_login) {
     effects.push({ kind: 'loginItem', on: next.launch_at_login });

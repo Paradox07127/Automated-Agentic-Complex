@@ -11,8 +11,7 @@ import {
   captureFailure, captureTargetChange, CaptureTriggers, ContextConsent, type ContextPolicy, type ContextResult, contextImageBody,
   contextTextBodies, decideSelection, decodeWindows, type FeedRequest, feedRequest, firstClipItem, frontWindow, imageFailureBody,
   imageResult, listedBlockReason, type LookResult, lookResult, lookTitle, namedWindow, type Observation, ocrObservation, OwnCapture,
-  resultText,
-  revokedKinds, scalarCount, SELECTION_LIMIT, selectionBlockReason, type SelectionDecision, textResult, windowNow, windowReadPlan,
+  resultText, scalarCount, SELECTION_LIMIT, selectionBlockReason, type SelectionDecision, textResult, windowNow, windowReadPlan,
 } from '../../common/screen-context.ts';
 import type { UserAnswer } from '../attention/sampler.ts';
 import { shellPlatform } from '../platform/index.ts';
@@ -184,15 +183,9 @@ export class ContextCapturer {
 
   /** Local consent narrows on save even while agentd is still waiting for a restart. */
   private refreshPolicy(): void {
-    const old = this.consent.policy;
-    const next = this.ports.policy();
-    if (!this.consent.configure(next)) return;
+    if (!this.consent.configure(this.ports.policy())) return;
     this.triggers = new CaptureTriggers();
     this.lastSent = new Map();
-    const revoke = revokedKinds(old, next);
-    void this.ports.post('/context/privacy/sync', revoke.length === 0 ? {} : { revoke }).then((r) => {
-      if (r.status !== 200) this.ports.log(`CAPTURE privacy_sync status=${r.status}`);
-    });
   }
 
   /** Moves the `context` watch to `pid`'s app; null stops it. */

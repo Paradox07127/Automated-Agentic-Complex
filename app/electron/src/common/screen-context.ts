@@ -74,10 +74,12 @@ export class ContextConsent {
   }
 }
 
-/** ContextCapturer.configure: what agentd's `POST /context/privacy/sync` discards when consent narrows. */
+/** planSave: what agentd's `POST /context/privacy/sync` discards when consent narrows; agentd's window_text is text at
+ *  `focused` or `window`. */
 export function revokedKinds(old: ContextPolicy, next: ContextPolicy): string[] {
   const out: string[] = [];
-  if (old.allowText && (!next.allowText || (old.level === 'window' && next.level !== 'window'))) out.push('window_text');
+  const text = (p: ContextPolicy) => p.allowText && p.level !== 'status';
+  if (text(old) && (!text(next) || (old.level === 'window' && next.level !== 'window'))) out.push('window_text');
   if (old.allowImages && !next.allowImages) out.push('screenshots');
   return out;
 }

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { noteContent } from '../src/common/notify.ts';
-import { current, parseChanges, planSave, Rejection, rowById, ROWS, snapshot, validProxyUrl } from '../src/common/settings.ts';
+import { current, parseChanges, planSave, Rejection, rowById, ROWS, type SettingValue, snapshot, validProxyUrl } from '../src/common/settings.ts';
 import type { AnnounceKind } from '../src/common/stack-source.ts';
 
 test('every web row has an item, each web id and each config key once', () => {
@@ -65,6 +65,16 @@ test('a change of any avatar-restart row restarts the renderer; viewport only wh
   }
   assert.ok(!planSave({}, null, { viewport: 'fullscreen' }).effects.some((e) => e.kind === 'restartAvatar'));
   assert.equal(planSave({}, null, { viewport: 'window' }).restart, 'avatar');
+});
+
+test('a save that narrows window text or screenshot consent revokes them in agentd', () => {
+  const revokes = (saved: Record<string, SettingValue>, changes: Record<string, SettingValue>) =>
+    planSave(saved, null, changes).effects.filter((e) => e.kind === 'revoke');
+  assert.deepEqual(revokes({ share_window_text: true, screen_context_level: 'focused' }, { screen_context_level: 'status' }),
+    [{ kind: 'revoke', revoke: 'window_text', key: 'screen_context_level' }]);
+  assert.deepEqual(revokes({ share_window_text: true, share_screenshots: true }, { share_window_text: false, share_screenshots: false }),
+    [{ kind: 'revoke', revoke: 'window_text', key: 'share_window_text' }, { kind: 'revoke', revoke: 'screenshots', key: 'share_screenshots' }]);
+  assert.deepEqual(revokes({ share_window_text: false }, { share_window_text: true, share_screenshots: true }), []);
 });
 
 test('a save that puts a global hot key on the page\'s palette shortcut is refused', () => {

@@ -265,7 +265,7 @@ test('text request: stop while the read waits for its beat drops the text', asyn
   assert.equal(textPosts(s.posts).length, 0);
 });
 
-test('text request: consent revoked during the read drops the text and asks agentd to forget window text', async () => {
+test('text request: consent revoked during the read drops the text; the settings save owns the revocation', async () => {
   const s = await running();
   s.helper['ax.window_text'] = async () => {
     s.state.policy = DEFAULT_CONTEXT_POLICY;
@@ -279,7 +279,7 @@ test('text request: consent revoked during the read drops the text and asks agen
   assert.equal(textPosts(s.posts).length, 0);
   await s.request('text', 640, 'judge', 'r2');
   assert.ok(s.logs.includes('CAPTURE request_blocked id=r2 reason=local_policy'));
-  assert.deepEqual(s.posts.find(([p]) => p === '/context/privacy/sync')?.[1], { revoke: ['window_text'] });
+  assert.ok(!s.posts.some(([p]) => p === '/context/privacy/sync'));
 });
 
 test('requests: only between start and stop', async () => {
