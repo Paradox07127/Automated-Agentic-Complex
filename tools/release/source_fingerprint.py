@@ -45,7 +45,8 @@ def digest(path):
     return result.hexdigest()
 
 
-def profile_inputs(root):
+def profile_inputs(root, directories=True):
+    """The selected profile's hash and its content overrides, with directories every file of its PROFILE_DIRECTORIES."""
     # Imported here: release imports this module.
     from release import default_profile
     profile = default_profile(Path(root))
@@ -57,17 +58,17 @@ def profile_inputs(root):
     for target, source in document.get('content_overrides', {}).items():
         inputs['@content-override/' + target] = digest(Path(root) / source)
     for key, prefix in PROFILE_DIRECTORIES.items():
-        if document.get(key) is None: continue
+        if not directories or document.get(key) is None: continue
         directory = Path(root) / document[key]
         for path in sorted(directory.rglob('*')):
             if path.is_file(): inputs[prefix + path.relative_to(directory).as_posix()] = digest(path)
     return inputs
 
 
-def source_files(root):
+def source_files(root, profile_dirs=True):
     """SHA-256 by checkout-relative path, with a stable key for the selected profile in any checkout."""
     root = Path(root)
-    files = profile_inputs(root)
+    files = profile_inputs(root, profile_dirs)
     for scope in SCOPES:
         # followlinks=False matches rglob('*'): symlinked directories are not entered, symlinked files are hashed.
         for directory, dirnames, filenames in os.walk(root / scope):
@@ -88,6 +89,8 @@ def fingerprint(files):
     return hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest()
 
 
-def compute(root):
-    files = source_files(root)
+def compute(root, profile_dirs=True):
+    """(files, fingerprint); profile_dirs=False leaves out the profile's directories, which may be git-ignored, so that
+    a checkout and a copy made from git hash the same files."""
+    files = source_files(root, profile_dirs)
     return files, fingerprint(files)

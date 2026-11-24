@@ -163,6 +163,15 @@ class BuildComponentsTests(unittest.TestCase):
         package = (LIBRARY / catalog['characters'][0]['definition']['file']).parent
         self.assertEqual(self.files(self.stage / 'characters.fixture/payload'), self.files(package))
 
+    def test_the_windows_release_content_checks_name_their_encoding(self):
+        # package_windows.py runs with -I, so PYTHONUTF8 is ignored and an unnamed encoding is the host's code page.
+        probe = ('import sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]); import build_components; '
+                 'build_components.check_no_imported_appearance(Path(sys.argv[2])); build_components.stage_content(Path(sys.argv[3]))')
+        run = subprocess.run([sys.executable, '-I', '-X', 'warn_default_encoding', '-W', 'error::EncodingWarning', '-c', probe,
+                              str(Path(build_components.__file__).parent), str(LIBRARY / 'current.json'), str(self.root / 'content')],
+                             capture_output=True, text=True)
+        self.assertEqual(run.returncode, 0, run.stderr)
+
     def test_runtime_python_leaves_out_libpython_tk_ensurepip_and_tests(self):
         dropped = ['include/Python.h', 'share/man/python.1', 'lib/libpython3.12.dylib', 'lib/libtcl9.0.dylib', 'lib/tcl9.0/init.tcl',
                    'lib/tk9.0/tk.tcl', 'lib/itcl4.3.8/itcl.tcl', 'lib/thread3.0.6/x', 'lib/pkgconfig/python3.pc', 'bin/pip3', 'bin/idle3.12',

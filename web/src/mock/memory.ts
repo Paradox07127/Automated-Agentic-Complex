@@ -17,6 +17,7 @@ import {
 } from './fixtures';
 import { V31_FACTS, V31_RUNS, V31_SPARSE_FACTS, V31_SPARSE_RUNS, v31RunDetail } from './memory-v31';
 import { addVersion, factVersionRoutes, versionsOf } from './factVersions';
+import { cascadeChanged, factCascadeRoutes } from './factCascade';
 
 // Memory page endpoints in agentd's shapes (server.py, memory.py, history.py, ca/task_understanding*.py). Writes change
 // this module's copy, so a demo shows what it just did; a reload starts from the fixtures again.
@@ -171,14 +172,6 @@ const counts = (rows: WireFact[]) => {
   return out;
 };
 
-/** memory.py `tombstoned`: the other facts citing one of f's episodes, by id. */
-function cascadeOf(f: WireFact): WireFact[] {
-  const ep = (ref: string) => (ref.startsWith('episode:') ? ref.split('@')[0] : null);
-  return facts()
-    .filter((x) => x !== f && x.evidence.some((r) => ep(r) != null && f.evidence.map(ep).includes(ep(r))))
-    .sort((a, b) => (a.fact_id < b.fact_id ? -1 : 1));
-}
-
 /** memory.py `_revise`: version check, then the new version (touched by the user, so observed and inferred become confirmed). */
 function revise(id: string | undefined, body: unknown, newText?: string): MockResponse {
   const b = obj(body);
@@ -231,11 +224,7 @@ export const routes: MockRoute[] = [
     },
   },
   { method: 'POST', path: '/memory/facts/:id/confirm', handler: ({ params, body }) => revise(params.id, body) },
-  // PATCH here keeps the cascade, so a demo can correct each; DELETE takes it.
-  { method: 'GET', path: '/memory/facts/:id/cascade', handler: ({ params }) => {
-    const f = facts().find((x) => x.fact_id === params.id);
-    return f ? ok({ fact_ids: cascadeOf(f).map((x) => x.fact_id) }) : bad('unknown_fact', 404);
-  } },
+  ...factCascadeRoutes(facts, setFacts),
   ...factVersionRoutes(facts),
   {
     method: 'POST', path: '/memory/facts/:id/reject',
@@ -257,27 +246,7 @@ export const routes: MockRoute[] = [
       if (!isInt(obj(body).expected_version)) return bad('expected_version_required');
       if (!Array.isArray(seen) || !seen.every((x) => typeof x === 'string')) return bad('cascade_required');
       const f = facts().find((x) => x.fact_id === params.id);
-      const ids = f ? cascadeOf(f).map((x) => x.fact_id) : [];
-      if (f && f.version === obj(body).expected_version && [...new Set(seen as string[])].sort().join(',') !== ids.join(',')) return bad('cascade_changed', 409, { fact_ids: ids });
-      return revise(params.id, body, t);
-    },
-  },
-  {
-    method: 'DELETE',
-    path: '/memory/facts/:id',
-    handler: ({ params, query }) => {
-      const v = Number(query.get('expected_version') ?? 'x');
-      if (!Number.isInteger(v)) return bad('expected_version_required');
-      const seen = query.get('cascade');
-      if (seen == null) return bad('cascade_required');
-      const f = facts().find((x) => x.fact_id === params.id);
-      if (!f) return bad('unknown_fact', 404);
-      if (f.version !== v) return bad('version_conflict', 409, { current_version: f.version });
-      const gone = cascadeOf(f);
-      const ids = gone.map((x) => x.fact_id);
-      if ([...new Set(seen.split(',').filter(Boolean))].sort().join(',') !== ids.join(',')) return bad('cascade_changed', 409, { fact_ids: ids });
-      setFacts(facts().filter((x) => x !== f && !gone.includes(x)));
-      return ok({ deleted: true });
+      return (f && f.version === obj(body).expected_version && cascadeChanged(facts(), f, seen as string[])) || revise(params.id, body, t);
     },
   },
   {

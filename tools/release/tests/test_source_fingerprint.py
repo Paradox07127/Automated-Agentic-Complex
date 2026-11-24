@@ -69,6 +69,24 @@ class SourceFingerprintTests(unittest.TestCase):
                          'private/renderer/core/build/libplayer_core.a'):
             self.assertFalse(release.shipping_path(relative), relative)
 
+    def test_profile_dirs_false_leaves_out_the_profile_directories_and_nothing_else(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for relative in source_fingerprint.EXTRA_FILES + ['app/packaging/ui-art/common/tab.png']:
+                (root / relative).parent.mkdir(parents=True, exist_ok=True)
+                (root / relative).touch()
+            profile = root / 'private/release/release.json'; profile.parent.mkdir(parents=True)
+            profile.write_text(json.dumps(dict(ui_art='app/packaging/ui-art', photo_looks='.local/output/looks')))
+            with patch.dict(os.environ, AAC_RELEASE_PROFILE=''):
+                files = source_fingerprint.compute(root, profile_dirs=False)[0]
+                self.assertIn(source_fingerprint.PROFILE_KEY, files)
+                self.assertFalse([name for name in files if name.startswith(('@ui-art/', '@photo-looks/'))])
+                (root / '.local/output/looks').mkdir(parents=True)
+                (root / '.local/output/looks/looks.json').touch()
+                self.assertEqual(source_fingerprint.compute(root, profile_dirs=False)[0], files)
+                self.assertEqual(set(source_fingerprint.compute(root)[0]) - set(files),
+                                 {'@ui-art/common/tab.png', '@photo-looks/looks.json'})
+
     def test_compute_hashes_scoped_sources_and_extra_files_only(self):
         inside = ['agent/agentd/server.py', 'web/src/main.tsx', 'protocol/ui-bridge/routes.json']
         outside = ['agent/agentd/notes.bin', 'agent/agentd/__pycache__/server.py',

@@ -84,12 +84,12 @@ def sources_moved(before,after):
 def check_no_imported_appearance(catalog):
     """Refuses a release library with a kind=imported appearance in any pack: a user's mod never ships."""
     library=catalog.parent;found=[]
-    for row in json.loads(catalog.read_text()).get('characters',[]):
-        definition=library/row['definition']['file'];render=json.loads(definition.read_text())['components'].get('render')
+    for row in json.loads(catalog.read_text(encoding='utf-8')).get('characters',[]):
+        definition=library/row['definition']['file'];render=json.loads(definition.read_text(encoding='utf-8'))['components'].get('render')
         if render is None:continue
         bundle=definition.parent/render['native_bundle']['file']
-        for character in json.loads(bundle.read_text())['characters']:
-            pack=json.loads((bundle.parent/character['c7']['file']).read_text())
+        for character in json.loads(bundle.read_text(encoding='utf-8'))['characters']:
+            pack=json.loads((bundle.parent/character['c7']['file']).read_text(encoding='utf-8'))
             found+=[row['id']+'/'+a['id'] for a in pack.get('appearances',[]) if a.get('kind')=='imported']
     if found:raise ValueError('release_contains_imported_appearance: '+', '.join(found))
 

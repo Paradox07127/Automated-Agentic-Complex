@@ -93,7 +93,7 @@ def stage_agentd(service):
 def stage_content(content):
     """Copy the motion importers into content; its caller supplies the import roots."""
     content.mkdir(parents=True)
-    (content / '__init__.py').write_text('"""VMD importer shipped in the app; the caller provides its import roots."""\n')
+    (content / '__init__.py').write_text('"""VMD importer shipped in the app; the caller provides its import roots."""\n', encoding='utf-8')
     for relative in CONTENT_SOURCES:
         text = (ROOT / relative).read_text(encoding='utf-8')
         if Path(relative).name == 'native_bundle.py':
