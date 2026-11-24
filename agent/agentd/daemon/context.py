@@ -117,8 +117,11 @@ class ContextMixin:
             used.append(("sessions", None))
         now = now or datetime.datetime.now().astimezone()
         snapshot = self.registry.snapshot()
+        shared = self.external_session_activity_allowed()
         sessions = "; ".join(f"{s['display_session']} ({os.path.basename(s['cwd'] or '') or '?'}) "
-                            f"{s['effective_state']}" for s in snapshot["sessions"][:8]) or "none"
+                            f"{s['effective_state']}" for s in snapshot["sessions"][:8]) or "none" \
+            if shared else str(len(snapshot["sessions"]))
+        focus = f"{snapshot['focus']['display_session'] or 'none'} " if shared else ""
         mine = self.state_view.summary(self.user_title()) if self.state is not None else ""  # "" while her state is as usual
         if mine and self.egress is not None:
             try:
@@ -126,8 +129,9 @@ class ContextMixin:
             except OutboundBlocked:  # her state is left out; the line goes on
                 mine = ""
         lines = (f"Local time: {local_time(now)}",
-                 f"Sessions: {sessions}", f"Focus: {snapshot['focus']['display_session'] or 'none'} {snapshot['focus']['state']}",
-                 self._approvals_context(snapshot), self._tasks_context(), self._interrupted(),
+                 f"Sessions: {sessions}", f"Focus: {focus}{snapshot['focus']['state']}",
+                 self._approvals_context(snapshot) if shared else f"Pending approvals: {len(self.broker.pending())}",
+                 self._tasks_context(), self._interrupted(),
                  self._attention_context(said, look, refused, used, window), mine)
         return "\n".join(line for line in lines if line)
 

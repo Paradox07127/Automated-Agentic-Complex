@@ -121,10 +121,10 @@ class Schedules:
                                                                           'conversation_id', 'scope_id'}:
             raise ValueError('invalid_schedule')
         with self.lock, self.db:
-            item = self._get(ident)
-            if item is None:
+            saved = self._get(ident)
+            if saved is None:
                 raise ValueError('unknown_schedule')
-            item.update(changes)
+            item = {**saved, **changes}
             if not _text(item['title'], 200) or not _text(item['instruction'], 8000) or type(item['enabled']) is not bool \
                     or not _binding(item['conversation_id']) or not _binding(item['scope_id']):
                 raise ValueError('invalid_schedule')
@@ -132,7 +132,7 @@ class Schedules:
             now = self.clock()
             self._changed()
             due = next_run(trigger, now) if item['enabled'] else None
-            if 'trigger' not in changes and 'enabled' not in changes:
+            if trigger == saved['trigger'] and item['enabled'] == saved['enabled']:
                 due = item['next_run_at']
             self.db.execute('UPDATE schedules SET title=?,instruction=?,trigger_kind=?,trigger_json=?,enabled=?,next_run_at=?,'
                             'updated_at=?,conversation_id=?,scope_id=? WHERE schedule_id=?',

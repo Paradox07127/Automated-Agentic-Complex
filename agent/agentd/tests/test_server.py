@@ -1533,8 +1533,26 @@ class SayTest(FeedServerCase):
         self.assertEqual((body["trace_id"], accepted["trace_id"]), (row["trace_id"], row["trace_id"]))
         wake.assert_called_once_with()
 
+    def test_context_counts_sessions_and_cards_without_their_content_while_sessions_are_not_shared(self):
+        from test_registry import claude  # noqa: E402
+        self.server.registry.ingest(claude("SessionStart", time.time(), session="secretsession", cwd="/x/secretproj"))
+        self.server.broker.open("claude", "secretsession", tool_name="Bash", tool_summary="cat ~/.ssh/id_rsa")
+        ended = self.server.broker.open("claude", "secretsession", tool_name="Read", tool_summary="cat ~/.ssh/id_ed25519")
+        self.server.broker.decide(ended.request_id, ended.generation, "allow")
+        context = self.server.context("hi")
+        for secret in ("secretproj", "secretsession", "id_rsa", "id_ed25519", "Bash"):
+            self.assertNotIn(secret, context)
+        self.assertIn("Sessions: 1", context)
+        self.assertIn("Pending approvals: 1", context)
+        self.server.share_agent_sessions = True
+        self.server.sync_privacy()
+        context = self.server.context("hi")
+        self.assertIn("secretproj", context)
+        self.assertIn("id_rsa", context)
+
     def test_context_names_the_pending_card_and_says_when_there_is_none(self):
         """What the card asks for is in the context; without a card nothing is there to make up."""
+        self.server.share_agent_sessions = True
         self.assertIn("Pending approvals: none", self.server.context())
         request = self.server.broker.open("claude", "A", tool_name="Bash", tool_summary="npm test -- --ci")
         context = self.server.context()
@@ -1544,6 +1562,7 @@ class SayTest(FeedServerCase):
 
     def test_context_says_how_a_card_ended_and_whether_its_tool_then_failed(self):
         from test_registry import claude  # noqa: E402
+        self.server.share_agent_sessions = True
         request = self.server.broker.open("claude", "A", tool_name="Bash", tool_summary="make all")
         self.server.broker.decide(request.request_id, request.generation, "allow")
         context = self.server.context()

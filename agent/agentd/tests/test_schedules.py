@@ -237,7 +237,7 @@ class ScheduleTests(unittest.TestCase):
         item = self.store().add('日报', '总结', DAILY, enabled=True, conversation_id=origin['id'])
         self.now = item['next_run_at']
         self.server._schedules_due()
-        self.controller.deliveries = SimpleNamespace(produce=Mock(return_value={'delivery_id': 'delivery'}))
+        self.controller.deliveries = self.deliveries()
         self.controller.jobs.store.get.return_value = {
             'job_id': 'job-1', 'run_id': 'bg-1', 'state': 'needs_review',
             'conversation_id': origin['id'], 'result': {'task_id': 'task-1', 'reply': '报告'},
@@ -282,9 +282,11 @@ class ScheduleTests(unittest.TestCase):
         self.now = item['next_run_at']; self.server._schedules_due()
         self.controller.jobs.store.get.return_value = {'job_id': 'job-1', 'run_id': 'bg-1', 'state': 'needs_review',
             'result': {'task_id': 'task-1', 'reply': '总结结果'}, 'payload': {'character_id': self.server.character}}
-        self.controller.deliveries = SimpleNamespace(produce=Mock(return_value=None))
+        self.controller.deliveries = self.deliveries()
+        delivery = self.controller.deliveries.produce.return_value
+        self.controller.deliveries.produce.return_value = None
         self.server._schedules_due(); self.server.claim_line.assert_not_called()
-        self.controller.deliveries.produce.return_value = {'delivery_id': 'delivery-1'}
+        self.controller.deliveries.produce.return_value = delivery
         self.server.claim_line.side_effect = [False, True]
         self.server._schedules_due(); self.server._schedules_due(); self.server._schedules_due()
         self.assertEqual(self.server.claim_line.call_count, 2)
@@ -302,7 +304,61 @@ class ScheduleTests(unittest.TestCase):
         self.now = item['next_run_at']; self.server._schedules_due()
         self.controller.jobs.store.get.return_value = {'job_id': 'job-1', 'run_id': 'bg-1', 'state': 'succeeded',
             'result': {'task_id': 'task-1', 'reply': '总结结果'}, 'payload': {'character_id': self.server.character}}
-        self.controller.deliveries = SimpleNamespace(produce=Mock(return_value={'delivery_id': 'delivery-1'}))
+        self.controller.deliveries = self.deliveries()
+
+    def deliveries(self, **delivery):
+        """A deliveries service whose produce answers one unredacted delivery of the job's reply."""
+        told = set()  # the told events, kept across a restart like the database's
+        return SimpleNamespace(produce=Mock(return_value={'delivery_id': 'delivery-1', 'redacted': False,
+                                                          'summary': '总结结果', **delivery}),
+                               was_told=Mock(side_effect=told.__contains__), told=Mock(side_effect=told.add))
+
+    def test_a_told_report_is_not_told_again_after_a_restart(self):
+        self.scheduled_result()
+        self.server._schedules_due()
+        self.server.claim_line.assert_called_once()
+        self.controller.deliveries.told.assert_called_once_with('delivery-1')
+        self.server._reported_tasks.clear(); self.server._schedules = None; self.server._reports_marker = None
+        self.server._schedules_due()
+        self.server.claim_line.assert_called_once()
+
+    def test_a_redacted_or_told_delivery_is_not_said(self):
+        for delivery in ({'redacted': True, 'summary': ''}, {}):
+            with self.subTest(delivery=delivery):
+                self.scheduled_result()
+                self.controller.deliveries = self.deliveries(**delivery)
+                if not delivery:
+                    self.controller.deliveries.told('delivery-1')
+                self.assertFalse(self.server._schedule_reports(self.store()))
+                self.server.claim_line.assert_not_called()
+
+    def test_an_unbound_schedule_reports_in_the_active_conversation(self):
+        self.server.history = History(self.db, lock=self.memory.lock)
+        self.scheduled_result()
+        self.controller.jobs.store.get.return_value['conversation_id'] = None
+        self.server._schedules_due()
+        self.server.claim_line.assert_called_once()
+        self.assertIsNone(self.server.claim_line.call_args.kwargs['conversation_id'])
+
+    def test_an_interrupted_or_cancelled_job_leaves_nothing_untold(self):
+        for state in ('interrupted', 'cancelled'):
+            with self.subTest(state=state):
+                self.scheduled_result()
+                self.controller.jobs.store.get.return_value['state'] = state
+                self.controller.deliveries.produce.return_value = None
+                self.assertFalse(self.server._schedule_reports(self.store()))
+        self.server.claim_line.assert_not_called()
+
+    def test_editing_only_the_title_keeps_a_due_unclaimed_occurrence(self):
+        store = self.store()
+        item = store.add('日报', '总结', DAILY, enabled=True)
+        self.now = item['next_run_at'] + 5
+        store.update(item['schedule_id'], {'title': '晚报', 'trigger': DAILY, 'enabled': True})
+        self.assertEqual(store.get(item['schedule_id'])['next_run_at'], item['next_run_at'])
+        self.assertEqual(len(store.due(self.now + 1)), 1)
+        changed = store.add('周报', '总结', DAILY, enabled=True)
+        store.update(changed['schedule_id'], {'trigger': {**DAILY, 'at': '19:00'}})
+        self.assertGreater(store.get(changed['schedule_id'])['next_run_at'], self.now)
 
     def assert_shown_not_said(self, name, value):
         self.scheduled_result()

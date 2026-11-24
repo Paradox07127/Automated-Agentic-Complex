@@ -223,7 +223,9 @@ class AnnounceMixin:
                 pass
 
     def _schedule_reports(self, store):
-        """True when a report is left untold that a later tick may tell without a job or schedule changing."""
+        """Once across restarts (the delivery's told event), like _job_reports; an unbound schedule's result goes to
+        the active conversation. True when a report is left untold that a later tick may tell without a job or
+        schedule changing."""
         controller = self.character_agent
         if controller is None or controller.jobs is None:
             return False
@@ -234,13 +236,16 @@ class AnnounceMixin:
                 if key in self._reported_tasks:
                     continue
             job = controller.jobs.store.get(run['job_id'], private=True)
-            if not job or job['state'] not in ('succeeded', 'needs_review', 'failed', 'interrupted', 'cancelled'):
+            if not job or job['state'] not in ('succeeded', 'needs_review', 'failed'):
                 continue
             deliveries = getattr(controller, 'deliveries', None)
             if deliveries is None:
                 continue
-            if deliveries.produce(job['run_id']) is None:
+            delivery = deliveries.produce(job['run_id'])
+            if delivery is None:
                 untold = True
+                continue
+            if delivery['redacted'] or deliveries.was_told(delivery['delivery_id']):
                 continue
             item = store.get(run['schedule_id'])
             if item is None:
@@ -255,7 +260,7 @@ class AnnounceMixin:
                 return current_epoch == epoch and character == self.character and not self.resetting \
                     and not self.closing and self.quiet_until is None and not self._text_only('announce') \
                     and self.gate.check('job_report', level='P1') in (None, *COUNTED) \
-                    and (self.history is None or conversation_id == self.history.conversations.active) \
+                    and (self.history is None or conversation_id in (None, self.history.conversations.active)) \
                     and self.character_agent is controller and store.get(ident) is not None
 
             if not recheck():
@@ -266,7 +271,7 @@ class AnnounceMixin:
             task = {'task_id': result.get('task_id') or job['job_id'], 'title': item['title'],
                     'target': 'local background job', 'cwd': ''}
             instruction, material, reason = dispatch_report.build(task, {'kind': kind, 'headline': job['state'],
-                                                                        'detail': result.get('reply') or result.get('error')},
+                                                                        'detail': delivery['summary'] or result.get('error')},
                                                                  self.user_title())
             with self._announce_lock:
                 if key in self._reported_tasks:
@@ -276,6 +281,8 @@ class AnnounceMixin:
             try:
                 claimed = self.claim_line(key, instruction, recheck, reason=reason, material=material,
                                           conversation_id=conversation_id, resume_run_id=job['run_id'])
+                if claimed:
+                    deliveries.told(delivery['delivery_id'])
             finally:
                 if not claimed:
                     untold = True
