@@ -19,6 +19,14 @@ test("blocked matches the host or a subdomain only", () => {
   assert.equal(blocked(null, deny(["icbc.com.cn"])), false);
 });
 
+test("blocked compares the A-label without the root dot, as agentd stores and matches domains", () => {
+  assert.equal(blocked(hostOf("https://münchen.de/"), deny(["xn--mnchen-3ya.de"])), true);
+  assert.equal(blocked("xn--mnchen-3ya.de", deny(["xn--mnchen-3ya.de"])), true);
+  assert.equal(blocked("example.com.", deny(["example.com"])), true);
+  assert.equal(blocked(hostOf("https://m.Example.com./x"), deny(["example.com"])), true);
+  assert.equal(blocked("example.com.", { mode: "allow", domains: [], allow_domains: ["example.com"] }), false);
+});
+
 test("allow mode blocks every host but the allowed ones and their subdomains; a missing mode is allow", () => {
   const allow = { mode: "allow", domains: ["github.com"], allow_domains: ["GitHub.com"] };
   assert.equal(blocked("gist.github.COM", allow), false);

@@ -200,6 +200,20 @@ test("sleep during the final tab count or selection focus check cannot publish s
   assert.equal(h.out.some(m => m.text === "pre-sleep selection"), false);
 });
 
+test("a hello from a page restored from the back-forward cache rebinds the tab to that page's document", async () => {
+  const h = await harness(); await h.tick();
+  const from = (documentId, type, extra = {}) => h.chrome.runtime.onMessage.fire({ type, captured_at: h.now(), ...extra },
+    { tab: { ...h.tab }, url: h.tab.url, frameId: 0, documentId });
+  const selections = () => h.out.filter(m => m.type === "selection").map(m => [m.text, m.document_id]);
+  from("D2", "hello"); await h.flush();
+  from("D1", "selection", { text: "from the page left" }); await h.flush();
+  assert.deepEqual(selections(), []);
+  from("D1", "hello"); await h.flush();
+  await h.tick();
+  from("D1", "selection", { text: "from the restored page" }); await h.flush();
+  assert.deepEqual(selections(), [["from the restored page", "D1"]]);
+});
+
 test("short IPC delays preserve the capture timestamp instead of relabeling old data as new", async () => {
   const h = await harness(); await h.tick();
   let release;

@@ -16,6 +16,16 @@ import urllib.request
 
 HIDDEN = {"app": "<hidden>"}
 MAX_MESSAGE = 1024 * 1024  # Chrome's limit for messages from the extension
+BASE_URL = re.compile(r"http://127\.0\.0\.1:([1-9][0-9]{0,4})")  # the only agentd address the bearer goes to
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args):
+        return None
+
+
+# Chrome starts the host without the app's NO_PROXY, so the bearer and page text skip every proxy explicitly.
+OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect)
 
 
 class Blacklist:
@@ -38,7 +48,7 @@ class Blacklist:
         self.allow_domains = allow_domains
 
     def hides(self, window):
-        host = (window.get("url_host") or "").casefold()
+        host = (window.get("url_host") or "").casefold().removesuffix(".")  # agentd's normal_host
         if self.mode == "allow":  # only allowed hosts; a message without a host is hidden
             return not (host and any(host == d.casefold() or host.endswith("." + d.casefold())
                                      for d in self.allow_domains))
@@ -75,6 +85,9 @@ def live_base(runtime_path):
     try:
         record = json.loads(runtime_path.read_text(encoding="utf-8"))
         base = record["base_url"]
+        match = BASE_URL.fullmatch(base)
+        if match is None or int(match[1]) > 65535:
+            return None
         if "pid" in record:
             pid = record["pid"]
             if type(pid) is not int or pid <= 0:
@@ -140,9 +153,9 @@ def serve(state_dir, stdin, stdout, timeout=3.0):
             print("agentd is not running", file=sys.stderr)
         else:
             try:
-                request = urllib.request.Request(base.rstrip("/") + "/context/browser/policy",
+                request = urllib.request.Request(base + "/context/browser/policy",
                                                  headers={"Authorization": f"Bearer {token}"})
-                with urllib.request.urlopen(request, timeout=timeout) as response:
+                with OPENER.open(request, timeout=timeout) as response:
                     policy = json.load(response)
             except (urllib.error.URLError, OSError, ValueError):
                 pass
@@ -167,10 +180,10 @@ def serve(state_dir, stdin, stdout, timeout=3.0):
         if message is None or live_base(runtime) != base:
             continue
         request = urllib.request.Request(
-            base.rstrip("/") + "/context/browser", data=json.dumps(message).encode(), method="POST",
+            base + "/context/browser", data=json.dumps(message).encode(), method="POST",
             headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"})
         try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:
+            with OPENER.open(request, timeout=timeout) as response:
                 response.read()
         except (urllib.error.URLError, OSError):
             pass  # agentd down or busy: drop this one; the next heartbeat comes within a minute

@@ -62,9 +62,22 @@ export interface AttentionSample {
   frontBounds: Rect | null;
 }
 
-// The Windows ids are C12 §2.9's lower-case executable names of the same browsers; a Store-packaged one has an AUMID instead.
-const BROWSERS = new Set(['com.apple.Safari', 'com.google.Chrome', 'com.microsoft.edgemac', 'com.brave.Browser',
-  'company.thebrowser.Browser', 'org.mozilla.firefox', 'chrome.exe', 'msedge.exe', 'brave.exe', 'arc.exe', 'firefox.exe']);
+// The Chromium, Firefox and WebKit browsers in common use, with their beta and developer channels: a browser missing here
+// counts as an app whose windows are known not private. The Windows ids are C12 §2.9's lower-case executable names; a
+// Store-packaged browser has an AUMID instead, which mayBePrivate already covers.
+const BROWSERS = new Set([
+  'com.apple.Safari', 'com.apple.SafariTechnologyPreview', 'com.kagi.kagimacOS',
+  'com.google.Chrome', 'com.google.Chrome.beta', 'com.google.Chrome.dev', 'com.google.Chrome.canary', 'org.chromium.Chromium',
+  'com.microsoft.edgemac', 'com.microsoft.edgemac.Beta', 'com.microsoft.edgemac.Dev', 'com.microsoft.edgemac.Canary',
+  'com.brave.Browser', 'com.brave.Browser.beta', 'com.brave.Browser.nightly', 'company.thebrowser.Browser',
+  'company.thebrowser.dia', 'com.vivaldi.Vivaldi', 'com.operasoftware.Opera', 'com.operasoftware.OperaGX',
+  'com.duckduckgo.macos.browser', 'ru.yandex.desktop.yandex-browser',
+  'org.mozilla.firefox', 'org.mozilla.firefoxdeveloperedition', 'org.mozilla.nightly', 'org.torproject.torbrowser',
+  'app.zen-browser.zen', 'net.waterfox.waterfox', 'io.gitlab.librewolf-community',
+  'chrome.exe', 'msedge.exe', 'brave.exe', 'arc.exe', 'vivaldi.exe', 'opera.exe', 'browser.exe', '360se.exe',
+  '360chrome.exe', 'qqbrowser.exe', 'sogouexplorer.exe', 'firefox.exe', 'waterfox.exe', 'librewolf.exe', 'zen.exe',
+  'floorp.exe',
+]);
 
 export function isBrowser(bundleId: string | null | undefined): boolean {
   return bundleId != null && BROWSERS.has(bundleId);
@@ -478,7 +491,18 @@ export function browserAsks(bundleId: string | null): boolean {
 export function browserState(bundleId: string | null, reply: HelperAnswer | null): { host: string | null; incognito: boolean | null } {
   if (!mayBePrivate(bundleId)) return { host: null, incognito: false };
   if (reply === null || !reply.ok) return { host: null, incognito: null };
-  return { host: str(reply.result.url_host), incognito: bool(reply.result.incognito) };
+  return { host: normalHost(str(reply.result.url_host)), incognito: bool(reply.result.incognito) };
+}
+
+/** The form agentd stores domains in and matches hosts by: the lower-case IDNA A-label without its root dot. An address
+ *  bar can show the Unicode form. Null when it is no host. */
+function normalHost(host: string | null): string | null {
+  if (host === null) return null;
+  try {
+    return new URL(`http://${host}`).hostname.replace(/\.$/, '') || null;
+  } catch {
+    return null;
+  }
 }
 
 /** What the sample needs besides the helper's reading. */

@@ -30,7 +30,8 @@ function harness() {
     } }; }, addEventListener: (event, f) => { handlers[event] = f; },
     removeEventListener: (event, f) => { if (handlers[event] === f) delete handlers[event]; },
   };
-  vm.runInNewContext(source, { document, location: { href: "https://example.com" },
+  const window = { addEventListener: document.addEventListener, removeEventListener: document.removeEventListener };
+  vm.runInNewContext(source, { document, window, location: { href: "https://example.com" },
     NodeFilter: { SHOW_TEXT: 4, FILTER_REJECT: 2, FILTER_ACCEPT: 1 },
     MutationObserver: class { constructor(f) { mutated = f; } observe() {} disconnect() { disconnectedObservers++; } },
     chrome: { runtime },
@@ -96,6 +97,16 @@ test("reload's synchronous context error is caught and the old script releases i
   assert.equal(h.selectionReads(), 0);
   assert.equal(h.reads(), reads);
   assert.equal(h.sent.length, before);
+});
+
+test("a page restored from the back-forward cache says hello again so background rebinds its document", () => {
+  const h = harness();
+  const sent = () => JSON.stringify(h.sent);
+  assert.equal(sent(), '[{"type":"hello"}]');
+  h.handlers.pageshow?.({ persisted: false });
+  assert.equal(sent(), '[{"type":"hello"}]');
+  h.handlers.pageshow?.({ persisted: true });
+  assert.equal(sent(), '[{"type":"hello"},{"type":"hello"}]');
 });
 
 test("missing runtime id stops the old script before reading selection or sending", () => {

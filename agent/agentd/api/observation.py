@@ -2,6 +2,8 @@
 import re
 from urllib.parse import parse_qs, urlparse
 
+import idna
+
 from observation import activity
 from observation.blacklist import ALLOW_FIELDS, FIELDS, MODES, entry_hides
 from daemon.constants import CLEARABLE, SEEN
@@ -13,6 +15,17 @@ RANGES = {"15m": 900, "1h": 3600}  # DELETE /observation; "today" is since local
 OBSERVED_SOURCES = ("observed_context", "inferred_hypothesis")  # facts DELETE /observation takes with it
 BLACKLIST_VALUE_MAX = 200
 CORRECTION_MAX = 240  # minutes PUT /context/activity may hold for
+
+
+def _entry(field, value):
+    """value as the list `field` holds it: a domain as the lower-case IDNA A-label browsers report (UTS 46), without its
+    root dot; None when a domain is no host name."""
+    if field != "domains":
+        return value
+    try:
+        return idna.encode(value, uts46=True).decode("ascii").removesuffix(".")
+    except UnicodeError:
+        return None
 
 
 class ObservationMixin:
@@ -123,7 +136,8 @@ class ObservationMixin:
         allow = isinstance(body, dict) and body.get("list") == "allow"
         if not (isinstance(body, dict) and body.get("list", "deny") in ("allow", "deny")
                 and field in (ALLOW_FIELDS if allow else FIELDS)
-                and isinstance(value, str) and 0 < len(value) <= BLACKLIST_VALUE_MAX):
+                and isinstance(value, str) and 0 < len(value) <= BLACKLIST_VALUE_MAX
+                and (value := _entry(field, value)) is not None):
             return self._json(400, {"error": "invalid_payload"})
         if self.server.attention is None:
             return self._json(503, {"error": "no_attention"})
@@ -151,12 +165,14 @@ class ObservationMixin:
             return self._json(503, {"error": "no_attention"})
         field, value = (body.get("field"), body.get("value")) if isinstance(body, dict) else (None, None)
         if isinstance(body, dict) and body.get("list") == "allow":
-            if not (field in ALLOW_FIELDS and isinstance(value, str) and 0 < len(value) <= BLACKLIST_VALUE_MAX):
+            if not (field in ALLOW_FIELDS and isinstance(value, str) and 0 < len(value) <= BLACKLIST_VALUE_MAX
+                    and (value := _entry(field, value)) is not None):
                 return self._json(400, {"error": "invalid_payload"})
             return self._json(200, {"added": attention.blacklist.allow_add(field, value),
                                     "deleted": {"events": 0, "context": 0, "observations": 0}})
         if not (field in FIELDS and isinstance(value, str) and 0 < len(value) <= BLACKLIST_VALUE_MAX
-                and body.get("list", "deny") == "deny" and isinstance(body.get("delete_existing"), bool)):
+                and body.get("list", "deny") == "deny" and isinstance(body.get("delete_existing"), bool)
+                and (value := _entry(field, value)) is not None):
             return self._json(400, {"error": "invalid_payload"})
         if field == "title_patterns":
             try:

@@ -233,6 +233,9 @@ test('chooseApp: exactly one running app, never this shell, never one without a 
 test('appRefusal and titleRefusal: browsers, the blacklisted app and the blacklisted or unreadable window title', () => {
   const app = (pid: number) => APPS.find((a) => a.pid === pid)!;
   assert.equal(appRefusal(app(900), NO_RULES, [])?.code, 'browser_driver_required');
+  for (const appId of ['com.vivaldi.Vivaldi', 'com.operasoftware.Opera', 'org.chromium.Chromium', 'vivaldi.exe']) {
+    assert.equal(appRefusal({ ...app(702), name: 'Browser', appId }, NO_RULES, [])?.code, 'browser_driver_required', appId);
+  }
   assert.equal(appRefusal(app(702), NO_RULES, []), null);
   assert.equal(appRefusal(app(702), parseBlacklist({ mode: 'deny', bundle_ids: ['com.apple.TextEdit'] }), [])?.code, 'blacklisted');
   assert.equal(appRefusal(app(702), parseBlacklist({ mode: 'deny', app_names: ['textedit'] }), [])?.code, 'blacklisted');

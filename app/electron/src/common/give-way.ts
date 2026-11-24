@@ -92,6 +92,10 @@ export class FullscreenHider {
   hidden = false;
   private was = false;
   private wasCaptured = false;
+  /** The last read screenCaptured: an unread one (the mic or camera in use) does not end a capture. */
+  private capturing = false;
+  /** A capture began while she was hidden for another reason: hide her when that reason shows her. */
+  private captureOwed = false;
   private watching = false;
   private watchPid: number | null = null;
 
@@ -102,15 +106,19 @@ export class FullscreenHider {
     const pid = s.front?.pid ?? null;
     this.watching = fullscreenWatching(this.watching, front, reflex, pid === this.watchPid);
     this.watchPid = pid;
-    const captured = captureHides(s.screenCaptured, config.hideOnScreenCapture);
+    if (s.screenCaptured !== null) this.capturing = s.screenCaptured;
+    const captured = captureHides(this.capturing, config.hideOnScreenCapture);
     const fullscreen = (front && !this.watching) || captured;
     const was = this.was, wasCaptured = this.wasCaptured;
     this.was = fullscreen;
     this.wasCaptured = captured;
-    if (fullscreen === was && captured === wasCaptured && !this.hidden) return null;
+    const owed = captured && (this.captureOwed || !wasCaptured);
+    this.captureOwed = owed;
+    if (fullscreen === was && captured === wasCaptured && !this.hidden && !(owed && !avatarHidden)) return null;
     const behavior = captured ? 'hide' : config.behavior();
     const step = fullscreenStep({ fullscreen, wasFullscreen: was, behavior, hiddenByUser: avatarHidden && !this.hidden,
-      hiddenByFullscreen: this.hidden, captureStarted: captured && !wasCaptured });
+      hiddenByFullscreen: this.hidden, captureStarted: owed });
+    this.captureOwed = step === 'none' && owed && !this.hidden;
     if (step === 'none') return null;
     this.hidden = step === 'hide';
     return { hide: this.hidden, behavior, captured };

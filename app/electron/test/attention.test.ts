@@ -230,6 +230,19 @@ test('browserState: the helper\'s url_host and incognito are taken as they come'
     { host: 'apple.com', incognito: null });
 });
 
+test('browserState: the url_host is put in agentd\'s normal form, the lower-case A-label without the root dot', () => {
+  const host = (url_host: unknown) => browserState('chrome.exe', { ok: true, result: { url_host, incognito: false } }).host;
+  // The Windows helper reads the address bar, which shows an IDN in Unicode.
+  assert.equal(host('München.de'), 'xn--mnchen-3ya.de');
+  assert.equal(host('Example.COM.'), 'example.com');
+  assert.equal(host('a b'), null);
+  const rules = parseBlacklist({ mode: 'deny', domains: ['xn--mnchen-3ya.de', 'example.com'] });
+  for (const h of ['münchen.de', 'www.example.com.']) {
+    const w = { app: 'Chrome', bundleId: 'chrome.exe', pid: 1, windowId: 1, title: null, urlHost: host(h) };
+    assert.equal(hides(rules, w, OWN), true, h);
+  }
+});
+
 test('composeSample: a browser window whose incognito state is not false gets no title', () => {
   assert.equal(sample(reply(), { browser: { host: 'apple.com', incognito: null } }).front?.title, null);
   assert.equal(sample(reply(), { browser: { host: null, incognito: true } }).front?.title, null);
@@ -258,6 +271,15 @@ test('Windows: a browser by its executable name is a browser of unknown incognit
   }
   assert.equal(isBrowser('notepad.exe'), false);
   assert.deepEqual(browserState('notepad.exe', null), { host: null, incognito: false });
+});
+
+test('the other Chromium, Firefox and WebKit browsers in common use are browsers of unknown incognito state too', () => {
+  for (const id of ['com.vivaldi.Vivaldi', 'com.operasoftware.Opera', 'org.chromium.Chromium', 'com.google.Chrome.canary',
+    'com.microsoft.edgemac.Dev', 'org.mozilla.firefoxdeveloperedition', 'org.torproject.torbrowser', 'app.zen-browser.zen',
+    'com.kagi.kagimacOS', 'com.apple.SafariTechnologyPreview', 'vivaldi.exe', 'opera.exe', 'librewolf.exe', 'waterfox.exe']) {
+    assert.equal(isBrowser(id), true, id);
+    assert.deepEqual(browserState(id, null), { host: null, incognito: null }, id);
+  }
 });
 
 test('Windows: a packaged app is known only by its AUMID and may be a browser, so its private state is unknown and it sends no title', () => {

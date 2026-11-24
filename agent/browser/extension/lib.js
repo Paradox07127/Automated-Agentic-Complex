@@ -13,8 +13,9 @@ export function hostOf(url) {
   }
 }
 
+// URL.hostname is already the A-label agentd stores; only the root dot differs.
 function listed(host, domains) {
-  const h = host.toLowerCase();
+  const h = host.toLowerCase().replace(/\.$/, "");
   return domains.some((d) => {
     const x = d.toLowerCase();
     return h === x || h.endsWith("." + x);

@@ -4583,6 +4583,27 @@ class ObservationControlTest(FeedServerCase):
                 self.assertEqual(self.request("DELETE", "/blacklist", bad), (400, {"error": "invalid_payload"}))
         self.assertEqual(removed("domains", "x.com", token=HOOK)[0], 401)
 
+    def test_blacklist_domains_are_stored_as_lower_case_a_labels(self):
+        for value in ("münchen.de", "MÜNCHEN.DE.", "xn--mnchen-3ya.de"):
+            with self.subTest(value=value):
+                self.request("POST", "/blacklist", {"field": "domains", "value": value, "delete_existing": False})
+        self.request("POST", "/blacklist", {"list": "allow", "field": "domains", "value": "Straße.de."})
+        data = self.request("GET", "/blacklist")[1]
+        self.assertEqual(data["domains"].count("xn--mnchen-3ya.de"), 1)
+        self.assertFalse(any("ü" in d or d.endswith(".") for d in data["domains"]))
+        self.assertEqual(data["allow"]["domains"], ["xn--strae-oqa.de"])
+        self.assertTrue(self.server.attention.blacklist.hides_domain("xn--mnchen-3ya.de."))
+        self.assertEqual(self.request("DELETE", "/blacklist", {"field": "domains", "value": "München.de"}),
+                         (200, {"removed": True}))
+        self.assertEqual(self.request("DELETE", "/blacklist", {"list": "allow", "field": "domains", "value": "straße.de"}),
+                         (200, {"removed": True}))
+        for value in ("*.a.com", "https://a.com", "a.com/x", "a..b", "[::1]", "."):
+            for method, body in (("POST", {"field": "domains", "value": value, "delete_existing": False}),
+                                 ("POST", {"list": "allow", "field": "domains", "value": value}),
+                                 ("DELETE", {"field": "domains", "value": value})):
+                with self.subTest(method=method, body=body):
+                    self.assertEqual(self.request(method, "/blacklist", body), (400, {"error": "invalid_payload"}))
+
     def test_blacklist_defaults_puts_back_the_removed_defaults_and_keeps_the_users(self):
         for field, value in (("bundle_ids", "com.tencent.qq"), ("domains", "paypal.com")):
             self.assertEqual(self.request("DELETE", "/blacklist", {"field": field, "value": value}),

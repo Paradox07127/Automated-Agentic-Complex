@@ -1,8 +1,10 @@
 from contextlib import redirect_stderr
+import http.server
 import io
 import json
 import os
 from pathlib import Path
+import socket
 import struct
 import subprocess
 import sys
@@ -10,6 +12,7 @@ import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest import mock
+import urllib.request
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "agentd"))
@@ -54,7 +57,7 @@ class StandaloneNativeHostTest(unittest.TestCase):
             self.requests.append(request)
             return io.BytesIO(b'{"enabled": true, "text_enabled": true}')
 
-        patch = mock.patch.object(native_host.urllib.request, "urlopen", side_effect=urlopen)
+        patch = mock.patch.object(native_host.OPENER, "open", side_effect=urlopen)
         patch.start()
         self.addCleanup(patch.stop)
 
@@ -181,6 +184,21 @@ class StandaloneNativeHostTest(unittest.TestCase):
                                         for r in self.requests))
                     self.assertEqual(json.loads(self.requests[1].data), self.messages[1])
 
+    def test_discovery_address_other_than_loopback_port_gets_no_request(self):
+        self.write_state(self.state)
+        for base in ("http://example.com:80", "https://127.0.0.1:48820", "http://u@127.0.0.1:48820",
+                     "http://127.0.0.1:48820/", "http://127.0.0.1:48820/x", "http://127.0.0.1:48820?q",
+                     "http://127.0.0.1:48820#f", "http://127.0.0.1", "http://127.0.0.1:0", "http://127.0.0.1:65536",
+                     "http://localhost:48820", "http://127.0.0.1:48820\n"):
+            with self.subTest(base=base):
+                (self.state / "ui-runtime.json").write_text(json.dumps({"base_url": base}), encoding="utf-8")
+                self.requests.clear()
+                stdout = io.BytesIO()
+                with redirect_stderr(io.StringIO()):
+                    native_host.serve(self.state, io.BytesIO(b"".join(frame(m) for m in self.messages)), stdout)
+                self.assertEqual(self.requests, [])
+                self.assertFalse(unframe(stdout.getvalue())[0]["enabled"])
+
     @unittest.skipIf(sys.platform == "win32", "POSIX mode bits, uid or FIFO; on Windows the state directory's DACL protects these files")
     def test_unsafe_hook_tokens_disable_the_host(self):
         for problem in ("mode", "symlink", "hardlink", "fifo", "directory", "owner"):
@@ -268,6 +286,7 @@ class StandaloneNativeHostTest(unittest.TestCase):
                 messages = [{"type": kind, "url_host": host, "title": title}
                             for kind in ("page", "heartbeat")
                             for host, title in (("icbc.COM.cn", "PR"), ("M.icbc.com.cn", "PR"), ("noticbc.com.cn", "PR"),
+                                                ("icbc.com.cn.", "PR"), ("m.icbc.com.cn.", "PR"), ("github.com.", "PR"),
                                                 ("icbc.com.cn.evil", "PR"), ("STRASSE.DE", "PR"),
                                                 ("github.com", "a private PR"), ("github.com", "工资条"),
                                                 ("github.com", "PRIVATE"), ("gist.github.com", "PR"),
@@ -395,6 +414,52 @@ class NativeHostTest(unittest.TestCase):
         (self.state / "ui-runtime.json").write_text(json.dumps({"base_url": "http://127.0.0.1:9", "ui_token": UI}), encoding="utf-8")
         out = self.run_host([{"type": "selection", "ts": 1.0, "url_host": "a.com", "title": None, "text": "x"}])
         self.assertEqual(out[0]["type"], "config")
+
+    @unittest.skipIf(sys.platform == "win32", "POSIX mode bits, uid or FIFO; on Windows the state directory's DACL protects these files")
+    def test_requests_bypass_proxies(self):
+        self.server.share_page_text = True
+        with socket.socket() as dead:
+            dead.bind(("127.0.0.1", 0))
+            proxy = f"http://127.0.0.1:{dead.getsockname()[1]}"
+        environ = {k: v for k, v in os.environ.items() if k.lower() not in ("no_proxy", "http_proxy", "https_proxy")}
+        with mock.patch.dict(os.environ, {**environ, "HTTP_PROXY": proxy, "http_proxy": proxy}, clear=True), \
+                mock.patch.object(urllib.request, "_opener", None):
+            [config] = self.run_host([
+                {"type": "heartbeat", "ts": 1792300000.0, "url_host": "github.com", "title": "PR", "audible": False,
+                 "visible": True, "tab_id": 1, "window_focused": True},
+                {"type": "selection", "ts": 1792300001.0, "url_host": "github.com", "title": "PR", "text": "一句"}])
+        self.assertTrue(config["enabled"])
+        self.assertEqual(self.server.attention.latest_selection()["text"], "一句")
+
+    def test_redirects_are_not_followed(self):
+        seen = []
+
+        class Redirect(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                seen.append((self.path, self.headers.get("Authorization")))
+                if self.path == "/context/browser/policy":
+                    self.send_response(302)
+                    self.send_header("Location", "/elsewhere")
+                    self.end_headers()
+                    return
+                body = b'{"enabled": true, "text_enabled": true}'
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):
+                pass
+
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Redirect)
+        serve_in_thread(server)
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        (self.state / "ui-runtime.json").write_text(json.dumps({"base_url": f"http://127.0.0.1:{server.server_port}"}),
+                                                    encoding="utf-8")
+        [config] = self.run_host([])
+        self.assertFalse(config["enabled"])
+        self.assertEqual(seen, [("/context/browser/policy", "Bearer " + HOOK)])
 
     def test_host_reads_no_ui_token(self):
         self.assertNotIn("ui_token", Path(native_host.__file__).read_text(encoding="utf-8"))

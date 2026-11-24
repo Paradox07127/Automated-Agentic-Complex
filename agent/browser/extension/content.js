@@ -11,7 +11,7 @@ function stop() {
   lastText = null; lastSelection = "";
   clearInterval(timer);
   observer?.disconnect();
-  for (const [name, listener] of listeners) document.removeEventListener(name, listener);
+  for (const [target, name, listener] of listeners) target.removeEventListener(name, listener);
   listeners.length = 0;
   try { chrome.runtime.onMessage.removeListener(receiveSnapshot); } catch {}
 }
@@ -30,9 +30,9 @@ function send(message) {
     });
   } catch { stop(); }
 }
-function listen(name, listener) {
-  document.addEventListener(name, listener);
-  listeners.push([name, listener]);
+function listen(name, listener, target = document) {
+  target.addEventListener(name, listener);
+  listeners.push([target, name, listener]);
 }
 const editable = (node) => (node?.nodeType === 1 ? node : node?.parentElement)?.closest(excluded);
 
@@ -104,6 +104,8 @@ listen("mouseup", () => setTimeout(reportSelection, 0));
 listen("keyup", (e) => { if (e.shiftKey) reportSelection(); });
 listen("selectionchange", () => { if (alive() && lastSelection && !String(getSelection() || "").trim()) reportSelection(); });
 listen("visibilitychange", () => { enabled = false; textEnabled = false; send({ type: "sample" }); });
+// A back-forward cache restore runs no script again: background still holds the document shown before it.
+listen("pageshow", (e) => { if (e.persisted) send({ type: "hello" }); }, window);
 // Coalesce mutations, scrolling and media events; background verifies window focus and policy before reading.
 timer = setInterval(() => { if (alive() && document.visibilityState === "visible") send({ type: "sample" }); }, 5000);
 send({ type: "hello" });

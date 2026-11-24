@@ -145,6 +145,29 @@ test('a screen capture hides her whatever fullscreen_behavior says', () => {
   assert.equal(off.run({ screenCaptured: true }), null);
 });
 
+test('an unread capture keeps the last read one, so unmuting during a share does not show her', () => {
+  const t = hider();
+  assert.deepEqual(t.run({ screenCaptured: true }), { hide: true, behavior: 'hide', captured: true });
+  assert.equal(t.run({ screenCaptured: null, micActive: true }, { hidden: true }), null);
+  assert.equal(t.h.hidden, true);
+  assert.deepEqual(t.run({ screenCaptured: false }, { hidden: true }), { hide: false, behavior: 'hide', captured: false });
+});
+
+test('a capture that starts while she is hidden for another reason hides her once that reason shows her', () => {
+  const t = hider();
+  assert.equal(t.run({ screenCaptured: true }, { hidden: true }), null);
+  assert.equal(t.run({ screenCaptured: true }, { hidden: true }), null);
+  t.h.userSet();
+  assert.deepEqual(t.run({ screenCaptured: true }), { hide: true, behavior: 'hide', captured: true });
+  // Shown again by the user after that hide: theirs, as in fullscreen.
+  t.h.userSet();
+  assert.equal(t.run({ screenCaptured: true }), null);
+  const ended = hider();
+  ended.run({ screenCaptured: true }, { hidden: true });
+  assert.equal(ended.run({ screenCaptured: false }), null);
+  assert.equal(ended.run({ screenCaptured: false }), null);
+});
+
 test('a hide or show by the user during fullscreen is theirs; leaving fullscreen does not undo it', () => {
   const t = hider();
   t.run({ fullscreen: true });
