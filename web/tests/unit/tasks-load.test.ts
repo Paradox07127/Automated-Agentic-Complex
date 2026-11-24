@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgentdConnection, AgentdResponse } from '../../src/bridge/protocol';
 import { loadPending, loadRestOfList, loadTasksList } from '../../src/data/tasksBase';
-import { WIRE_DELIVERIES, WIRE_TASK_ROWS } from '../../src/mock/fixtures';
+import { WIRE_DELIVERIES, WIRE_TASK_ROWS, WIRE_TASK_RUNS } from '../../src/mock/fixtures';
 import { T6 } from '../../src/mock/fixtures/ids';
-import { classify, loadTasksBase, TasksLoadError } from '../../src/pages/tasks/useTasksData';
+import { classify, loadTaskExtras, loadTasksBase, TasksLoadError } from '../../src/pages/tasks/useTasksData';
 
 /** Fake bridge whose agentd answers `override(path)` when it returns a response, else the normal mock. */
 function install(conn: AgentdConnection, override: (path: string) => AgentdResponse<unknown> | null = () => null) {
@@ -114,6 +114,18 @@ describe('task page reads split', () => {
     const p = await read;
     const w = wire.approvals[0]!;
     expect(p.approvals.find((a) => a.id === w.request_id)?.since).toBe(1_000_000 - (w.window_s - w.seconds_left) * 1000);
+  });
+
+  it("a task's failure comes from its own runs, read by id, not from the newest 50", async () => {
+    const failed = { ...WIRE_TASK_RUNS.find((r) => r.run_id === 'run-0f11')!, result: { error: 'timeout' } };
+    install('connected', (path) => {
+      if (path === '/agent/runs') return { status: 200, body: { runs: [] } };
+      if (path === '/agent/runs?run_id=run-0f11') return { status: 200, body: { runs: [failed] } };
+      return null;
+    });
+    const extras = await loadTaskExtras({ id: T6 }, false);
+    expect(extras.failure).toEqual({ reason: '运行超时' });
+    expect(extras.runs.map((r) => r.run_id)).toEqual(['run-0f11']);
   });
 
   it('the list reads the first page of tasks and deliveries; the rest joins it later', async () => {

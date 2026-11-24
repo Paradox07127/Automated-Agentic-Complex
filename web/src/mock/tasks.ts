@@ -222,7 +222,7 @@ export const routes: MockRoute[] = [
     path: '/agent/jobs',
     handler: () => ok({ jobs: WIRE_TASK_ROWS.flatMap((r) => (r.job_id ? [jobRecord(r.job_id, r.title, { state: r.state, run_id: r.run_id, previous_run_id: null, updated_at: r.updated_at, source_turn_id: r.source_run_id, generation: r.generation })] : [])) }),
   },
-  { method: 'GET', path: '/agent/runs', handler: () => ok({ runs: RUNS }) },
+  { method: 'GET', path: '/agent/runs', handler: ({ query }) => ok({ runs: query.has('run_id') ? RUNS.filter((r) => query.getAll('run_id').includes(r.run_id)) : RUNS }) },
   {
     method: 'GET',
     path: '/agent/tasks/:id/steps',

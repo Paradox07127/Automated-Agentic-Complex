@@ -141,12 +141,14 @@ export async function loadTaskExtras(task: Pick<Task, 'id'>, stepsFail: boolean,
     }
     return { steps: out, more: cursor != null };
   };
-  const [steps, files, runs] = await Promise.allSettled([readSteps(), get<{ files: WireTaskFile[] }>(`/agent/tasks/${id}/files`), get<{ runs: WireRun[] }>('/agent/runs')]);
+  const [steps, files] = await Promise.allSettled([readSteps(), get<{ files: WireTaskFile[] }>(`/agent/tasks/${id}/files`)]);
   const wireSteps = steps.status === 'fulfilled' ? steps.value.steps : [];
   const runIds = [...new Set(wireSteps.flatMap((s) => (s.run_id ? [s.run_id] : [])))];
+  const readRuns = Promise.allSettled([runIds.length > 0 ? get<{ runs: WireRun[] }>(`/agent/runs?${runIds.map((r) => `run_id=${encodeURIComponent(r)}`).join('&')}`) : { runs: [] }]);
   const items = await Promise.allSettled(runIds.map((r) => get<{ items: WireRunItem[] }>(`/agent/runs/${seg(r)}/items`)));
+  const [runs] = await readRuns;
   const wireItems = items.flatMap((x) => (x.status === 'fulfilled' ? x.value.items : []));
-  const taskRuns = runs.status === 'fulfilled' ? runs.value.runs.filter((r) => runIds.includes(r.run_id)).sort((a, b) => a.started_at - b.started_at) : [];
+  const taskRuns = runs.status === 'fulfilled' ? [...runs.value.runs].sort((a, b) => a.started_at - b.started_at) : [];
   // A call still open when its run ended was cut off: agentd stores it as it was, never as finished.
   const ended = new Set(taskRuns.flatMap((r) => (r.ended_at != null ? [r.run_id] : [])));
   const tools = items.flatMap((x, k) => (x.status === 'fulfilled' ? x.value.items.flatMap((i) => {

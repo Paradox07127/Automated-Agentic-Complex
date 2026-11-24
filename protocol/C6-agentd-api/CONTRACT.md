@@ -722,7 +722,7 @@ T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全�
 - `GET/POST /agent/scopes`：资料范围；POST 使用 `roots` 与 `output_root`，或 `files`（拖给她的文件，至多 16 个绝对路径，只读这几个文件，`output_root` 省略时输出在状态目录 `drop-outputs/<scope_id>`，24 小时到期；不支持的类型在回包 `unsupported` 里）。
 - `POST /agent/scopes/<id>/revoke`：撤销范围并停止当前动作。
 - `POST /agent/artifacts/revert`：body `{run_id, path, expected_version}`，把上一版写回为新的一版（版本号加一），回包是该产物的公开视图。产物每次被覆盖前，旧内容留在同目录 `.versions/<文件名>.v<旧版本号>`，不清理；没有上一版 400 `no_previous_version`，版本不符 400 `version_conflict`，未知产物 404 `unknown_artifact`。
-- `GET /agent/runs`：产品运行记录。每行的 `state_since` 是进入当前 `state` 的时间（epoch 秒）：在跑时等于 `started_at`，转 `waiting_user` 或终态后等于 `ended_at`。
+- `GET /agent/runs`：产品运行记录。每行的 `state_since` 是进入当前 `state` 的时间（epoch 秒）：在跑时等于 `started_at`，转 `waiting_user` 或终态后等于 `ended_at`。默认返回最新的 50 条；带 `?run_id=a&run_id=b`（可重复）时只返回这几条，不受 50 条窗口限制，不存在的 id 省略；其他查询参数 400 `{"error": "invalid_query"}`。
 - `POST /agent/deliveries/<delivery_id>/opened`：body `{artifact_id}`，记下用户打开过这份交付的这个产物，200 `{delivery}`。交付的每个产物带 `opened_at`（epoch 秒，第一次打开的时间；没打开过为 null），再次打开不改。不改 `revision` 和 `state`，按原 `revision` 发的回执和接受、退回照样有效。body 不对 400 `invalid_delivery_payload`，没有这个产物 404 `unknown_artifact`，交付已撤销 409 `delivery_revoked`。
 - `POST /say`：可附 `scope_id`、`expected_outputs`、`resume_run_id`。
 - 文件校验中 `required_source_ids` 要求产物 `source_refs` 的来源链（授权、读取和版本均复核）；只有 `required_inline_source_ids` 要求来源编号逐字出现在文件正文。固定数值 CSV 无需添加来源列或注释。

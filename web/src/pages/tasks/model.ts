@@ -99,8 +99,11 @@ export function deriveView(base: TasksBase, local: TasksLocal): TasksView {
     ...deliveries.filter((d) => isReviewableDelivery(d, byId.get(d.task_id)) && byId.get(d.task_id)?.delivery?.id === d.id).map((d) => reviewOf(d, byId.get(d.task_id))),
     ...tasks.filter(isCodingReview).map(fromCodingReview),
   ];
+  // A foreground run asks with no job, so with no task id: it belongs to the task whose live run it is.
+  const runTask = new Map(Object.entries(base.activeRuns).map(([id, r]) => [r.run_id, id]));
+  const questions = base.questions.map((q) => (q.task_id == null && runTask.has(q.run_id) ? { ...q, task_id: runTask.get(q.run_id) ?? null } : q));
   const pending = sortPending(
-    [...base.questions, ...base.approvals, ...reviews].filter((p) => !local.resolved[p.id] && (p.task_id == null || stopped[p.task_id] == null)),
+    [...questions, ...base.approvals, ...reviews].filter((p) => !local.resolved[p.id] && (p.task_id == null || stopped[p.task_id] == null)),
   );
   const activeRuns = Object.fromEntries(Object.entries(base.activeRuns).filter(([id]) => stopped[id] == null));
   const sessions = base.sessions.filter((s) => s.task_id == null || stopped[s.task_id] == null);

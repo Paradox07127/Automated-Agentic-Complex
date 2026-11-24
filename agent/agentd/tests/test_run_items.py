@@ -251,6 +251,25 @@ class RunItemTests(unittest.TestCase):
         route(handler, 'GET', '/agent/runs/run/files')
         self.assertEqual(replies[-1][0], 401)
 
+    def test_runs_route_reads_the_named_runs_outside_the_newest_window(self):
+        for k in range(60):
+            self.store.begin(f'newer-{k}', 'conversation', 'character', 1)
+        self.store.db.execute("UPDATE character_runs SET started_at=0 WHERE run_id='run'")
+        self.store.db.commit()
+        replies = []
+        handler = SimpleNamespace(server=SimpleNamespace(ui_token='ui', resetting=False, closing=False,
+            character_agent=SimpleNamespace(store=self.store)), auth=lambda token: token == 'ui',
+            json=lambda status, data: replies.append((status, data)), path='/agent/runs')
+        self.assertTrue(route(handler, 'GET', '/agent/runs'))
+        self.assertNotIn('run', [r['run_id'] for r in replies[-1][1]['runs']])
+        handler.path = '/agent/runs?run_id=run&run_id=newer-3&run_id=missing'
+        self.assertTrue(route(handler, 'GET', '/agent/runs'))
+        self.assertEqual(replies[-1][0], 200)
+        self.assertEqual(sorted(r['run_id'] for r in replies[-1][1]['runs']), ['newer-3', 'run'])
+        handler.path = '/agent/runs?limit=5'
+        route(handler, 'GET', '/agent/runs')
+        self.assertEqual(replies[-1], (400, {'error': 'invalid_query'}))
+
     def test_items_route_requires_ui_auth_and_returns_order_or_unknown_run(self):
         self.store.item(item('second', 4))
         self.store.item(item('first', 1))

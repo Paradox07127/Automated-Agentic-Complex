@@ -113,6 +113,11 @@ describe('tasks and pending', () => {
     expect(ap.seconds_left).toBeCloseTo((at(14, 34) - NOW) / 1000);
   });
 
+  it('fromInteraction: seconds_left is whole seconds, rounded up', () => {
+    const ap = fromInteraction({ ...WIRE_INTERACTION_APPROVAL, expires_at: NOW / 1000 + 89.45 }, NOW);
+    expect(ap.seconds_left).toBe(90);
+  });
+
   it('fromDelivery: id and task id renamed, version = generation + 1, seconds → ms', () => {
     const d = fromDelivery(one(WIRE_DELIVERIES, (x) => x.delivery_id === DLV_T1_V2));
     expect(d).toMatchObject({ id: DLV_T1_V2, task_id: T1, version: 2, generation: 1, revision: 3, verification_source: 'unverified', state: 'viewed' });

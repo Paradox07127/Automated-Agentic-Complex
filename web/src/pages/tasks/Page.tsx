@@ -82,7 +82,8 @@ export function TasksPage() {
     return doneGroups(ended.filter((t) => matches(t, q.trim())).slice(0, limit), view, who, now);
   }, [tab, scheds, view, desk.cards, ended, q, limit, who, now]);
   const ids = groups.flatMap((g) => g.rows.map((r) => r.id));
-  const sel = params.sel && ids.includes(params.sel) ? params.sel : (ids[0] ?? null);
+  // An explicit `sel` that is not among the rows selects nothing; the detail says so.
+  const sel = params.sel ? (ids.includes(params.sel) ? params.sel : null) : (ids[0] ?? null);
   const task = tab !== 'sched' && sel ? (view?.tasks.find((t) => t.id === sel) ?? null) : null;
   const schedule = tab === 'sched' && sel ? (scheds.find((s) => s.schedule_id === sel) ?? null) : null;
   const waiting = view ? runGroups(view, desk.cards, who, now).some((g) => g.key === 'wait') : false;
@@ -269,12 +270,12 @@ export function TasksPage() {
       onToggle={(on) => void writes.toggle(schedule, on)}
       onEdit={() => open(draftFromSchedule(schedule))}
       onDecline={() => setDel(schedule.schedule_id)}
-      onOpenJob={(id) => put({ tab: 'done', sel: id })}
+      onOpenJob={(id) => put({ tab: undefined, sel: id })}
       onGoChat={(c) => go({ page: 'chat', conv: c })}
     />
   ) : (
     <div className={blank.empty} style={{ gridRow: '1 / -1' }}>
-      <p>{loading ? '' : errText ? '—' : tab === 'sched' ? '选一个定时任务' : '选一个任务看详情'}</p>
+      <p>{loading ? '' : errText ? '—' : params.sel && !sel ? '不在这个列表里' : tab === 'sched' ? '选一个定时任务' : '选一个任务看详情'}</p>
     </div>
   );
 

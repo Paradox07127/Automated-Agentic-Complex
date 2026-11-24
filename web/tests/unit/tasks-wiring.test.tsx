@@ -358,7 +358,7 @@ describe('tasks: reads', () => {
     const { calls } = install();
     const x = await loadTaskExtras(pick(TASKS, T6), false);
     const gets = calls.filter((c) => c.method === 'GET').map((c) => c.path);
-    expect(gets).toEqual(expect.arrayContaining([`/agent/tasks/${T6}/steps`, `/agent/tasks/${T6}/files`, '/agent/runs', '/agent/runs/run-0f11/items']));
+    expect(gets).toEqual(expect.arrayContaining([`/agent/tasks/${T6}/steps`, `/agent/tasks/${T6}/files`, '/agent/runs?run_id=run-0f11', '/agent/runs/run-0f11/items']));
     expect(x.steps[0]?.at).toBeGreaterThan(1e12);
     expect(x.tools.every((t) => t.kind === 'tool_call')).toBe(true);
     expect(x.failure?.reason).toContain('资料授权已撤销');
@@ -722,6 +722,26 @@ describe('tasks: 立即运行 on a schedule', () => {
     fireEvent.click(btn);
     await act(async () => answer({ status: 202, body: { schedule_id: SCHED.schedule_id, job_id: 'j' } }));
     expect(writes(calls).filter((c) => c.path.endsWith('/run'))).toHaveLength(1);
+  });
+});
+
+describe('tasks: 看那次任务 opens that job where it is', () => {
+  beforeEach(() => void vi.spyOn(Date, 'now').mockReturnValue(NOW));
+
+  it("a schedule whose last job is still running shows that job's detail on 进行中", async () => {
+    const { bridge } = install((m, p) => (m === 'GET' && p === '/schedules' ? listed({ ...SCHED, last_job_id: hexOf(T3) }) : null));
+    mountPage(bridge, `&tab=sched&sel=${SCHED.schedule_id}`);
+    fireEvent.click(await screen.findByRole('button', { name: '看那次任务' }));
+    expect(await screen.findByRole('heading', { name: '汇总 10 月开销表' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /进行中/ }).getAttribute('aria-selected')).toBe('true');
+    await waitFor(() => expect(document.querySelector(`[data-row="${T3}"]`)?.getAttribute('aria-selected')).toBe('true'));
+  });
+
+  it('a selection that is not among the rows says so instead of showing the first row', async () => {
+    const { bridge } = install();
+    mountPage(bridge, `&tab=done&sel=${T3}`);
+    expect(await screen.findByText('不在这个列表里')).toBeTruthy();
+    expect(document.querySelector('[data-row][aria-selected="true"]')).toBeNull();
   });
 });
 

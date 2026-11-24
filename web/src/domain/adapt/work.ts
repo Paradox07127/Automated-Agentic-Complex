@@ -102,7 +102,7 @@ export function fromInteraction(w: WireInteraction, nowMs: number): Question {
     ...(w.data?.approval_answers != null ? { approval_answers: w.data.approval_answers } : {}),
     conversation_id: w.conversation_id,
     options: (first?.options ?? []).map((o) => o.label),
-    seconds_left: w.expires_at === 0 ? null : Math.max(0, w.expires_at - nowMs / 1000),
+    seconds_left: w.expires_at === 0 ? null : Math.max(0, Math.ceil(w.expires_at - nowMs / 1000)),
   };
 }
 

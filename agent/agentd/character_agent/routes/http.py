@@ -119,7 +119,11 @@ def route(handler, method, path):
             if path == "/agent/scopes":
                 return reply(200, {"scopes": controller.workspace.list_scopes()})
             if path == "/agent/runs":
-                return reply(200, {"runs": controller.store.list()})
+                query = parse_qs(urlparse(h.path).query)
+                if set(query) - {'run_id'}: return reply(400, {'error': 'invalid_query'})
+                if 'run_id' not in query: return reply(200, {"runs": controller.store.list()})
+                runs = [controller.store.get(run_id) for run_id in dict.fromkeys(query['run_id'])]
+                return reply(200, {"runs": [run for run in runs if run is not None]})
             if run_items:
                 if controller.store.get(run_items[1]) is None:
                     return reply(404, {"error": "unknown_run"})

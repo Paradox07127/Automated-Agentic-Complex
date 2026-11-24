@@ -5,7 +5,7 @@ import { ACTIVE_RUNS, APPROVALS, DELIVERIES, GOALS, NOW, PENDING, QUESTIONS, SES
 import { routes } from '../../src/mock/tasks';
 import { deriveView, emptyLocal, nextAfter, pendingOf, stopMark, stoppable } from '../../src/pages/tasks/model';
 import type { TasksBase } from '../../src/pages/tasks/useTasksData';
-import { A1, A2, A3, DLV_T1_V2, S_C07A, T1, T2, T4, T6 } from '../../src/mock/fixtures/ids';
+import { A1, A2, A3, DLV_T1_V2, S_C07A, T1, T2, T3, T4, T6 } from '../../src/mock/fixtures/ids';
 
 const base: TasksBase = {
   tasks: TASKS,
@@ -67,6 +67,14 @@ describe('task page model', () => {
     expect(view.sessions.some((s) => s.id === S_C07A)).toBe(true);
     expect(pendingOf(view, T2).map((p) => p.id)).toContain(A2);
     expect(view.stopped[T2]).toBeUndefined();
+  });
+
+  it('a question from a foreground run (no job, so no task id) belongs to the task whose live run asked it', () => {
+    const run = ACTIVE_RUNS[T3]!;
+    const asked = { ...QUESTIONS[0]!, id: 'q-foreground', task_id: null, job_id: null, run_id: run.run_id };
+    const view = deriveView({ ...base, questions: [...QUESTIONS, asked] }, emptyLocal());
+    expect(pendingOf(view, T3).map((p) => p.id)).toContain('q-foreground');
+    expect(view.effective[T3]).toBe('waiting');
   });
 
   it('stop is offered only where agentd can stop: not on a role job waiting for review, not on an idle own session', () => {
