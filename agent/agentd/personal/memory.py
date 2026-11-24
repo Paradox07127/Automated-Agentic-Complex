@@ -625,10 +625,10 @@ class Memory:
             if source in ("inferred_hypothesis", "observed_context") or text is None:
                 source = "confirmed_by_user"
             if text is not None:
-                # Only this fact's words go: the summary it cites stays for the other facts of its batch.
-                self._forget_words(fact_id)
-                self.db.execute('DELETE FROM fact_sightings WHERE fact_id=?', (fact_id,))
-                evidence = json.dumps([ref for ref in json.loads(evidence) if not _episode(ref)])
+                self._tombstone(fact_id)
+                # The user's replacement claim cannot cite a summary just erased.
+                evidence = json.dumps([ref for ref in json.loads(evidence) if not _episode(ref) or
+                    self.db.execute('SELECT 1 FROM episodes WHERE id=?', (ref.split(':', 1)[1].split('@', 1)[0],)).fetchone()])
             self.db.execute("UPDATE facts SET state = 'corrected' WHERE id = ?", (row_id,))
             if text is not None: self._redact_agent_journal()
             # A corrected text is a new claim; confirming keeps the signals the same words already had.

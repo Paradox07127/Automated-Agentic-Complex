@@ -1,5 +1,4 @@
-import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { QueryClientContext } from '@tanstack/react-query';
+import { useRef, useState, type ReactNode } from 'react';
 import { getBridge, type ActionSpeed, type AvatarAction, type CharacterEntry } from '../../bridge';
 import type { CharacterProfile, CharacterState } from '../../domain';
 import { ErrBar, Skel } from '../../ui';
@@ -25,7 +24,7 @@ import type { MotionImport } from './useMotionImport';
 import type { MotionLibrary } from './useMotionLibrary';
 import { useImportState } from './useImportState';
 import { useLayers } from './useLayers';
-import { useLook } from './useLook';
+import { useLook, useRosterFollowsLook } from './useLook';
 import { useOutfitImport } from './useOutfitImport';
 import { useSectionSwitch } from './useSectionSwitch';
 import type { SwitchState } from './useSwitch';
@@ -117,13 +116,7 @@ export function Operator(p: OperatorProps) {
     reported: transport.progress,
   });
   const look = useLook();
-  // The roster lists the layers of the appearance she wears: another one, put on here or from the menus, reads it again.
-  const qc = useContext(QueryClientContext);
-  const worn = useRef(look.id);
-  useEffect(() => {
-    if (worn.current != null && look.id !== worn.current) void qc?.invalidateQueries({ queryKey: ['character', 'list'] });
-    worn.current = look.id;
-  }, [look.id, qc]);
+  useRosterFollowsLook(look.id);
   const importState = useImportState();
   const pane = p.pane === 'chain' && !p.chains ? 'motion' : (p.pane ?? 'motion');
   const [lookTab, setLookTab] = useState<LookTab>('look');

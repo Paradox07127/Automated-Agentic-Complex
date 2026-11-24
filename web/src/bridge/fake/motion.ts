@@ -7,6 +7,10 @@ const copy = (o: MotionOverrides): MotionOverrides => JSON.parse(JSON.stringify(
 const bytes = (s: string) => new TextEncoder().encode(s).length;
 /** As native: a call meant for a character no longer current. */
 export const characterChanged = (c: string): BridgeError => ({ code: 'character_changed', detail: `${c} is not the current character` });
+/** Refuses a per-character call meant for a character that is no longer `current()`, as the shell does; undefined is the current one. */
+export const guardCharacter = (current: () => string) => (c: string | undefined) => {
+  if (c !== undefined && c !== current()) throw characterChanged(c);
+};
 
 /** `avatar.preview.sequence`, checked as native checks it; a browser has no live preview, so false. */
 export async function fakePreviewSequence(s: PreviewSequence): Promise<boolean> {
