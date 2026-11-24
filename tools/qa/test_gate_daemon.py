@@ -81,6 +81,16 @@ class GateDaemonTest(unittest.TestCase):
         self.write('private/release/release.json', json.dumps(dict(character_catalog='.local/output/rel-1/library/current.json',
             ui_art='.local/output/ui-art-1/art', photo_looks='.local/output/looks-1/looks')))
         self.write('agent/.venv/bin/python', 'stub')
+        for name in ('agent/agentd/requirements-character-agent.lock', 'app/packaging/requirements-content.lock'):
+            self.write(name, 'pkg==1 --hash=sha256:' + '0' * 64 + '\n')
+        # A uv that logs its arguments: the runner syncs a checkout's agent/.venv to its locks with it.
+        uv_bin = self.tmp / 'uv-bin'
+        uv_bin.mkdir()
+        (uv_bin / 'uv').write_text(f'#!/bin/sh\necho "$*" >> {self.ctl}/uv.log\n')
+        (uv_bin / 'uv').chmod(0o755)
+        path = mock.patch.dict(os.environ, PATH=f'{uv_bin}:{os.environ["PATH"]}')
+        path.start()
+        self.addCleanup(path.stop)
         self.c0 = self.commit('base')
         self.daemon = gate_daemon.Daemon(self.repo)
 
@@ -426,6 +436,24 @@ class GateDaemonTest(unittest.TestCase):
         (gr / 'agent/.venv/bin/python').write_text('kept')
         self.daemon.tick()
         self.assertEqual((gr / 'agent/.venv/bin/python').read_text(), 'kept')
+
+    def test_the_runner_syncs_the_venv_to_the_checked_out_locks_only_when_they_change(self):
+        gr = self.repo / '.claude/worktrees/gr'
+        venv_python = gr / 'agent/.venv/bin/python'
+        uv_log = self.ctl / 'uv.log'
+        sync = (f'pip install --python {venv_python} --require-hashes --only-binary=:all: '
+                f'-r {gr}/agent/agentd/requirements-character-agent.lock -r {gr}/app/packaging/requirements-content.lock')
+        self.daemon.tick()
+        self.assertEqual(uv_log.read_text().splitlines(), [sync])
+        self.write('notes.txt', 'no lock change')
+        self.commit('No lock change')
+        self.daemon.tick()
+        self.assertEqual(uv_log.read_text().splitlines(), [sync])
+        self.write('app/packaging/requirements-content.lock', 'numpy==2 --hash=sha256:' + '1' * 64 + '\n')
+        c2 = self.commit('Add numpy')
+        self.daemon.tick()
+        self.assertEqual(uv_log.read_text().splitlines(), [sync, sync])
+        self.assertEqual(self.calls()[-1]['head'], c2)
 
     def test_link_gives_a_session_worktree_the_runner_inputs_and_a_venv(self):
         wt = self.tmp / 'session-wt'

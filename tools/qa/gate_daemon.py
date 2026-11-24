@@ -2,7 +2,8 @@
 """The one gate runner: verifies each new main commit in its own checkout and keeps refs/endfield/green.
 
 Usage: gate_daemon.py ensure | serve | status [--json] | link <worktree> | pack [--profile FILE] | release [--sha SHA] [--profile FILE]
-link    gives a session's worktree the runner's links to the main checkout's ignored inputs and a cloned agent/.venv.
+link    gives a session's worktree the runner's links to the main checkout's ignored inputs and a cloned agent/.venv;
+        it and each runner checkout sync that venv to the checkout's hashed Python locks with uv when they change.
 ensure  starts serve in the background unless it runs; serve runs from the runner checkout, not the caller's tree.
 serve   every 30 s: a new refs/heads/main runs `gate.py --profile commit` in <root>/.claude/worktrees/gr; PASS moves
         refs/endfield/green; FAIL reruns once on the same commit (a second PASS is recorded as flaky), and a second
@@ -50,6 +51,10 @@ RECEIPTS = '.local/gate-receipts'
 # Set for the gate.py runs of a holder of the checkout lock, so that gate.py does not wait on it. Not AAC_*: those
 # enter the suites' cache keys, and the runner's results must stay reusable by session gates.
 LOCK_HELD = 'GATE_CHECKOUT_LOCK_HELD'
+# The hashed Python locks agentd's suites import from (tools/release/harness_runtime.py PYTHON_LOCKS).
+VENV_LOCKS = ['agent/agentd/requirements-character-agent.lock', 'app/packaging/requirements-content.lock']
+# In a checkout's agent/.venv: the sha256 of the VENV_LOCKS contents it was last synced to.
+VENV_STAMP = '.gate-locks'
 
 
 def utc(moment=None):
@@ -247,7 +252,19 @@ class Daemon:
         self.prepare(checkout)
         git(checkout, 'checkout', '-q', '--force', '--detach', sha)
         git(checkout, 'clean', '-fd')
+        self.sync_venv(checkout)
         self.link(checkout)
+
+    def sync_venv(self, checkout):
+        """Installs the checkout's hashed Python locks into its agent/.venv when they differ from the last sync."""
+        locks = [checkout / name for name in VENV_LOCKS]
+        key = hashlib.sha256(b''.join(path.read_bytes() for path in locks)).hexdigest()
+        stamp = checkout / 'agent/.venv' / VENV_STAMP
+        if stamp.is_file() and stamp.read_text() == key:
+            return
+        subprocess.run(['uv', 'pip', 'install', '--python', str(checkout / 'agent/.venv/bin/python'), '--require-hashes',
+                        '--only-binary=:all:', *[arg for path in locks for arg in ('-r', str(path))]], check=True)
+        stamp.write_text(key)
 
     def link(self, checkout):
         """Links the git-ignored inputs the gates and packaging read from the main checkout into checkout."""
@@ -535,6 +552,7 @@ def main(argv=None):
             print('gate-daemon: link is for a worktree, not the main checkout', file=sys.stderr)
             return 1
         daemon.prepare(args.checkout.resolve())
+        daemon.sync_venv(args.checkout.resolve())
         daemon.link(args.checkout.resolve())
         print(f'gate-daemon: linked inputs and agent/.venv into {args.checkout}')
         return 0
