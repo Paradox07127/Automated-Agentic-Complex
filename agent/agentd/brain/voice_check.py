@@ -8,6 +8,8 @@ _AI = re.compile("|".join((
     r"\bi am an ai\b", r"\bi'm an ai\b", r"\bi am a (?:large )?language model\b",
     r"ai\s*として", r"人工知能として", r"言語モデル",
 )), re.IGNORECASE)
+# Inline markers (brain/markers.py) lead a reply's first line; layout is judged on what follows them.
+_MARKERS = re.compile(r"(?:\[(?:intent|point|motion):[^\]\n]*\][ \t]*)*")
 _HEADING = re.compile(r" {0,3}#{1,6}[ \t]+(?=\S)")
 _LIST = re.compile(r"[ \t]*(?:[-*•][ \t]+|\d+\.[ \t]+|\d+、[ \t]*)(?=\S)")
 _SENTENCE = re.compile(r".*?(?:[。！？!?…]+[」』）)\"']*|\.+(?=\s|$)|$)[ \t]*")
@@ -26,7 +28,7 @@ def _prose(text):
 
 def out_of_voice(text):
     reasons = []
-    lines = [line for line, code in _prose(text) if not code]
+    lines = [line[_MARKERS.match(line).end():] for line, code in _prose(text) if not code]
     if any(_AI.search(line) for line in lines):
         reasons.append("ai_self_reference")
     if any(_HEADING.match(line) for line in lines) or sum(bool(_LIST.match(line)) for line in lines) >= 3:
@@ -41,6 +43,8 @@ def for_replay(text):
         if code:
             out.append(line); in_list = False
             continue
+        lead = _MARKERS.match(line).group(0)
+        line = line[len(lead):]
         marker = _LIST.match(line)
         prefix = marker or _HEADING.match(line)
         content = line[prefix.end():] if prefix else line
@@ -49,10 +53,12 @@ def for_replay(text):
         if len(kept) < len(sentences):
             content = "".join(kept).rstrip()
         if line.strip() and not content.strip():
+            if lead:
+                out.append(lead.rstrip()); in_list = False
             continue
         if marker and in_list:
-            out[-1] += joiner + content
+            out[-1] += joiner + lead + content
         else:
-            out.append(content)
+            out.append(lead + content)
         in_list = bool(marker)
     return "\n".join(out)

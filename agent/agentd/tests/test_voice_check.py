@@ -62,6 +62,13 @@ class ForReplayTests(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertEqual(for_replay(text), expected)
 
+    def test_leading_markers_do_not_hide_layout(self):
+        self.assertEqual(out_of_voice("[intent:explain]# 计划\n先吃饭。"), ["markdown_layout"])
+        self.assertEqual(out_of_voice("[intent:explain]- 一\n- 二\n- 三"), ["markdown_layout"])
+        self.assertEqual(for_replay("[intent:explain]## Plan\n- a\n- b\n- c"), "[intent:explain]Plan\na; b; c")
+        self.assertEqual(for_replay("[intent:explain]- 一\n- 二\n- 三"), "[intent:explain]一；二；三")
+        self.assertEqual(out_of_voice("[intent:greet]管理员，你来了。"), [])
+
     def test_keeps_code_blocks_and_other_text(self):
         text = "看：\n```\n# comment\n- a\n- b\n```\n- x\n- y\n- z"
         self.assertEqual(for_replay(text), "看：\n```\n# comment\n- a\n- b\n```\nx；y；z")
