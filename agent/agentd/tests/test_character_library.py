@@ -564,7 +564,7 @@ class CharacterLibraryTests(unittest.TestCase):
         host.write_text("#!" + sys.executable + "\nimport time\ntime.sleep(30)\n", encoding="utf-8"); host.chmod(0o700)
         library = Library(self.root / "library")
         with mock.patch("character_library.VALIDATE_TIMEOUT", 0.5), \
-                self.assertRaisesRegex(PackageError, "^load_failed: host validation timed out$"):
+                self.assertRaisesRegex(TimeoutError, "^load_failed: host validation timed out$"):
             library.import_path(src, validate_with=host)
         self.assertEqual(library.entries(), [])
 

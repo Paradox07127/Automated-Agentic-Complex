@@ -508,6 +508,15 @@ class CommitmentServerTest(unittest.TestCase):
         self.assertEqual((again["state"], again["due_at"]), ("armed", local(26, 9)))
         self.assertEqual(len([a for a in self.feed("announce") if a["kind"] == "reminder_due"]), 3)
 
+    def test_completing_a_daily_reminder_before_its_first_time_moves_it_to_the_next(self):
+        self.now = local(23, 10)
+        item = self.server.commitments.add("吃药", local(24, 9), repeat="daily")
+        status, body = self.request("POST", f"/commitments/{item['id']}/complete")
+        self.assertEqual((status, body["commitment"]["state"], body["commitment"]["due_at"]), (200, "armed", local(25, 9)))
+        self.now = local(24, 9)
+        self.server._commitments_due()
+        self.assertEqual([a for a in self.feed("announce") if a["kind"] == "reminder_due"], [])
+
     def test_the_tick_says_a_due_reminder(self):
         server = self.start(tick_interval=0.01)
         server.commitments.add("喝水", self.now - 1)

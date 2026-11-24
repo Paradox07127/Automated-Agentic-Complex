@@ -109,12 +109,14 @@ class ModelSettings:
         return {**data, "chatgpt": self.auth.state(), "error": self.error}
 
     def save(self, body):
-        """A body of only the provider (with `pi_provider` for Pi's catalog) and `api_key` or `clear_key` writes that one key slot,
+        """A body with `api_key` or `clear_key` and none of the connection's fields (`pi_provider` picks Pi's catalog slot; unknown
+        keys are ignored) writes that one key slot,
         leaving the active provider and Pi's catalog choice as they are; any other body also makes its provider the active one."""
         if not isinstance(body, dict) or body.get("provider") not in DEFAULTS:
             raise ModelError("invalid_provider")
         provider = body["provider"]
-        key_only = ("api_key" in body or body.get("clear_key") is True) and set(body) <= {"provider", "pi_provider", "api_key", "clear_key"}
+        key_only = ("api_key" in body or body.get("clear_key") is True) and not any(key in body for key in (
+            "model", "base_url", "max_output_tokens", "reasoning_effort", "supports_images", "context_window", "reasoning"))
         with self.lock:
             updated = copy.deepcopy(self.data)
             config = updated["backends"][provider]

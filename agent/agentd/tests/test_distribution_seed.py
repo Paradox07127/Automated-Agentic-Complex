@@ -218,6 +218,17 @@ class DistributionSeedTests(unittest.TestCase):
             self.assertEqual(read_json(old.root / 'outfit-imports/fixture/imports.json'), before)
 
     @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
+    def test_a_validator_that_times_out_aborts_the_merge_and_keeps_the_records(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); old, _ = self.imported_library(root); seed = self.seed_library(root); host = self.host(root)
+            before = read_json(old.root / 'outfit-imports/fixture/imports.json')
+            with mock.patch('subprocess.run', side_effect=subprocess.TimeoutExpired(str(host), 1)), self.assertRaises(TimeoutError):
+                self.merge(seed, old, root / 'next', host)
+            self.assertFalse((root / 'next').exists())
+            self.assertEqual(read_json(old.root / 'outfit-imports/fixture/imports.json'), before)
+
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_a_validator_that_rejects_the_rebuilt_package_marks_its_records(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp); old, aid = self.imported_library(root); seed = self.seed_library(root)

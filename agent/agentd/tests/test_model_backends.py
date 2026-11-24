@@ -254,6 +254,13 @@ class ModelsTest(unittest.TestCase):
         self.settings.save({"provider": "pi_catalog", "pi_provider": "groq"})
         self.assertEqual(self.settings.connection()[2], "groq-key")
 
+    def test_a_key_write_with_an_unknown_field_keeps_the_active_connection(self):
+        self.settings.save({"provider": "pi_catalog", "pi_provider": "openrouter", "model": "m"})
+        self.settings.save({"provider": "compatible", "api_key": "compatible-key", "foo": 1})
+        public = self.settings.public()
+        self.assertEqual(public["provider"], "pi_catalog")
+        self.assertTrue(public["backends"]["compatible"]["has_key"])
+
     def test_public_is_only_the_credential_store(self):
         self.config()
         public = self.settings.public()

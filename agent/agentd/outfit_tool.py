@@ -234,7 +234,7 @@ def locked(library, package, host, build, progress=lambda stage, fraction: None)
             # library.upgrade checks every file's SHA-256 in the copy it publishes.
             staged = Package(stage, deep=False)
             try: validate_pack(host, staged)
-            except PackageError as error: fail("validate_failed", error)
+            except (PackageError, TimeoutError) as error: fail("validate_failed", error)
             progress("publish", 0)
             library.upgrade(stage, package.sha256)
         finally:

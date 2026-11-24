@@ -286,7 +286,7 @@ def mmd_sync(args):
                 for entry in failed: entry["failures"][package.id]["package_sha256"] = current.sha256
                 bar.show("validate", SYNC_ENTRIES)
                 try: validate_pack(host, current)
-                except PackageError as error: fail("validate_failed", error)
+                except (PackageError, TimeoutError) as error: fail("validate_failed", error)
                 bar.show("publish", SYNC_ENTRIES + .05)
                 library.upgrade(current.root, package.sha256)
                 result["version"] = current.version
@@ -342,7 +342,7 @@ def run(args):
             # library.upgrade checks every file's SHA-256 in the copy it publishes.
             staged = Package(stage, deep=False)
             try: validate_pack(host, staged)
-            except PackageError as error: fail("validate_failed", error)
+            except (PackageError, TimeoutError) as error: fail("validate_failed", error)
             progress("publish", 0)
             shared = load_mmd(library) if fmt == "vmd" else None
             sources = library.root / "mmd-library/sources" if fmt == "vmd" else library.root / "motion-imports" / package.id
@@ -417,7 +417,7 @@ def edit(args, remove):
             # library.upgrade checks every file's SHA-256 in the copy it publishes.
             staged = Package(stage, deep=False)
             try: validate_pack(host, staged)
-            except PackageError as error: fail("validate_failed", error)
+            except (PackageError, TimeoutError) as error: fail("validate_failed", error)
             library.upgrade(stage, package.sha256)
         finally:
             shutil.rmtree(stage, ignore_errors=True)
@@ -463,7 +463,7 @@ def chain(args):
             # library.upgrade checks every file's SHA-256 in the copy it publishes.
             staged = Package(stage, deep=False)
             try: validate_pack(host, staged)
-            except PackageError as error: fail("validate_failed", error)
+            except (PackageError, TimeoutError) as error: fail("validate_failed", error)
             library.upgrade(stage, package.sha256)
         finally:
             shutil.rmtree(stage, ignore_errors=True)

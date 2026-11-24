@@ -628,7 +628,8 @@ def validate_pack(host, package):
                                 stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace",
                                 timeout=VALIDATE_TIMEOUT)
     except subprocess.TimeoutExpired:
-        raise PackageError("load_failed: host validation timed out") from None
+        # Not a PackageError: a host that cannot answer says nothing about the package.
+        raise TimeoutError("load_failed: host validation timed out") from None
     need(result.returncode == 0, result.stderr.strip() or "load_failed: host validation exited " + str(result.returncode))
 
 

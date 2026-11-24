@@ -314,8 +314,9 @@ class Commitments:
         already re-armed at its series' own time stays as it is."""
         with self.lock:
             item = self._get(commitment_id)
+            # updated_at is created_at until a first occurrence re-arms it: before that there is none to keep.
             if item is not None and item["repeat"] is not None and item["state"] == "armed" \
-                    and self._series(commitment_id) is None:
+                    and item["updated_at"] > item["created_at"] and self._series(commitment_id) is None:
                 return item
             return self.fulfill(commitment_id, None)
 
