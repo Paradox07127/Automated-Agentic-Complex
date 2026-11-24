@@ -33,7 +33,7 @@
     "camera_bust": {"mac": "yes", "windows": "no", "ref": "CONTRACT.md:948"},
     "filters": {"mac": "yes", "windows": "yes"},
     "capture": {"mac": "yes", "windows": "yes"},
-    "photo": {"mac": "yes", "windows": "no", "ref": "CONTRACT.md:948"},
+    "photo": {"mac": "yes", "windows": "yes"},
     "motion_overrides": {"mac": "yes", "windows": "yes"},
     "play_chain": {"mac": "yes", "windows": "yes"},
     "mod_settings": {"mac": "yes", "windows": "yes"},
