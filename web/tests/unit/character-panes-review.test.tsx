@@ -8,6 +8,7 @@ import { MOTIONS } from '../../src/mock/character';
 import { CharacterSettings } from '../../src/pages/character/CharacterSettings';
 import { LookPane } from '../../src/pages/character/LookPane';
 import { ModSettings } from '../../src/pages/character/ModSettings';
+import { outfitImportWarning } from '../../src/pages/character/labels';
 import type { ModSettingRow } from '../../src/pages/character/modSettingsTable';
 import { MotionTable, type MotionTableProps } from '../../src/pages/character/MotionTable';
 import { useVoiceBinding } from '../../src/pages/character/NameBlock';
@@ -90,6 +91,48 @@ describe('外观 · 导入进度 (5220#7)', () => {
     const card = document.querySelector('[data-import-progress]') as HTMLElement;
     expect(card.textContent).not.toContain('Stage 0');
     expect(card.textContent).toContain('准备中');
+  });
+});
+
+describe('外观 · 导入提示', () => {
+  it('keeps each imported appearance\'s import warnings under its row, folded until opened, and none under an original one', () => {
+    const idle: ImportState = { running: false, kind: null, title: null, stage: null, fraction: 0 };
+    const outfit: OutfitImport = { state: 'idle', run: noop, remove: noop, removing: false, landed: null, warned: null, dismiss: noop };
+    render(
+      <LookPane
+        tab="look"
+        character="si"
+        appearances={[
+          { id: 'default', name: '日常', desc: '', kind: 'original' },
+          { id: 'mod_1', name: '野外装', desc: '', kind: 'imported', warnings: ['setting_fixed:glow', 'texture_unbound:Tex/14.dds'] },
+        ]}
+        lookId="default"
+        look={{ scale: 100, setScale: noop } as never}
+        onWear={noop}
+        layers={[]}
+        onLayer={noop}
+        onShowAll={noop}
+        mods={undefined}
+        modsUnreadable={false}
+        ro={null}
+        outfit={outfit}
+        importing={idle}
+        toast={noop}
+      />,
+    );
+    const row = within(document.querySelector('[data-look="mod_1"]') as HTMLElement);
+    const fold = row.getByRole('button', { name: '2 处导入提示' });
+    expect(fold.getAttribute('aria-expanded')).toBe('false');
+    expect(row.queryByRole('list', { name: '「野外装」导入提示' })).toBeNull();
+    fireEvent.click(fold);
+    const items = () => within(row.getByRole('list', { name: '「野外装」导入提示' })).getAllByRole('listitem').map((li) => li.textContent);
+    expect(items()).toEqual(['01这个开关在 mod 里写死了，不能切换', `02${outfitImportWarning('texture_unbound:Tex/14.dds')}`]);
+    fireEvent.click(fold);
+    expect(row.queryByRole('list', { name: '「野外装」导入提示' })).toBeNull();
+    fireEvent.click(fold);
+    expect(items()).toHaveLength(2);
+    const original = within(document.querySelector('[data-look="default"]') as HTMLElement);
+    expect(original.queryByRole('button', { name: /导入提示/ })).toBeNull();
   });
 });
 

@@ -135,6 +135,15 @@
             "name": "Default",
             "desc": "Default appearance",
             "kind": "original"
+          },
+          {
+            "id": "mod_1a2b3c4d",
+            "name": "示例外观",
+            "desc": "",
+            "kind": "imported",
+            "warnings": [
+              "texture_unbound:Tex/14.dds"
+            ]
           }
         ],
         "layers": [

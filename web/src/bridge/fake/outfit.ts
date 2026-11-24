@@ -7,13 +7,16 @@ const WARNINGS = ['texture_unbound:Textures/Body-Emission.dds', 'needs_mips:Text
 /** Any other import: one switch of the mod could not be made switchable. */
 const WARNING = ['setting_fixed:glow'];
 
-/** `character.importOutfit` and `removeOutfit` on the `current()` character; `looks(id)` is what it added to that character's appearances. */
+/** `character.importOutfit` and `removeOutfit` on the `current()` character; `looks(id)` is what it added to that character's appearances,
+ *  with the warnings that import returned. */
 export function fakeOutfit(current: () => string, avatar: AvatarState, demo: () => string | null) {
-  const owners = new Set<string>();
+  /** Character → the warnings of her import. */
+  const owners = new Map<string, string[]>();
   const ops: Pick<AgenticComplexBridge['character'], 'importOutfit' | 'removeOutfit'> = {
     importOutfit: async () => {
-      owners.add(current());
-      return { ok: true, appearance: { id: OUTFIT.id, name: OUTFIT.name }, warnings: demo() === 'outfitwarn' ? [...WARNINGS] : [...WARNING] };
+      const warnings = demo() === 'outfitwarn' ? WARNINGS : WARNING;
+      owners.set(current(), warnings);
+      return { ok: true, appearance: { id: OUTFIT.id, name: OUTFIT.name }, warnings: [...warnings] };
     },
     removeOutfit: async (id) => {
       if (id !== OUTFIT.id || !owners.has(current())) {
@@ -24,5 +27,9 @@ export function fakeOutfit(current: () => string, avatar: AvatarState, demo: () 
       return { ok: true, appearance: { id } };
     },
   };
-  return { ops, looks: (id: string): CharacterAppearance[] => (owners.has(id) ? [OUTFIT] : []) };
+  const looks = (id: string): CharacterAppearance[] => {
+    const warnings = owners.get(id);
+    return warnings ? [{ ...OUTFIT, warnings: [...warnings] }] : [];
+  };
+  return { ops, looks };
 }

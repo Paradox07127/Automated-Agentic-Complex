@@ -201,6 +201,8 @@ export type PreviewPlacement = { x: number; y: number; w: number; h: number; act
 export interface CharacterAppearance {
   id: string; name: string; desc: string;
   kind?: 'original' | 'imported';
+  /** Imported appearances only: the warning codes of its import report (as `character.importOutfit` returned them). */
+  warnings?: string[];
 }
 
 export interface CharacterEntry {

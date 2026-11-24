@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { getBridge, type CharacterAppearance, type CharacterLayer, type ImportState } from '../../bridge';
 import { AgentdCallError } from '../../bridge/agentd';
-import { Btn, Dialog, Icon, Select, Switch } from '../../ui';
+import { Btn, Dialog, Fold, Icon, Select, Switch } from '../../ui';
 import { DarkRow, MicroLabel, TitleBar, WhiteCapsule, YellowKey } from '../../ui/game';
 import { useCompact } from './compact';
 import type { Toast } from './feedback';
@@ -124,19 +124,24 @@ function Landed({ outfit, switches }: { outfit: OutfitImport; switches: number |
         </span>
         <WhiteCapsule label="收起提示" icon="chev" tone="dark" onClick={outfit.dismiss} />
       </div>
-      {l.warnings.length > 0 && (
-        <ul className={imp.warns} aria-label={`「${l.name}」导入提示`}>
-          {l.warnings.map((w, i) => (
-            <li key={i}>
-              <span className={imp.wix} aria-hidden="true">
-                {pad(i + 1)}
-              </span>
-              <span>{outfitImportWarning(w)}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      {l.warnings.length > 0 && <Warns name={l.name} warnings={l.warnings} />}
     </>
+  );
+}
+
+/** An import's warnings in words, numbered. */
+function Warns({ name, warnings }: { name: string; warnings: string[] }) {
+  return (
+    <ul className={imp.warns} aria-label={`「${name}」导入提示`}>
+      {warnings.map((w, i) => (
+        <li key={i}>
+          <span className={imp.wix} aria-hidden="true">
+            {pad(i + 1)}
+          </span>
+          <span>{outfitImportWarning(w)}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -218,6 +223,11 @@ export function LookPane(p: LookPaneProps) {
                           )
                         }
                       />
+                      {imported && l.warnings && l.warnings.length > 0 && (
+                        <Fold label={`${l.warnings.length} 处导入提示`}>
+                          <Warns name={l.name} warnings={l.warnings} />
+                        </Fold>
+                      )}
                     </div>
                   );
                 })}

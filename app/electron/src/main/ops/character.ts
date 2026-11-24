@@ -158,15 +158,24 @@ function libraryDir(ctx: OpsContext): string {
 }
 
 /** The current character's appearances and the layers of the one she wears, as the renderer
- *  reported them; nothing while it shows another character. */
-function looksOf(ctx: OpsContext, id: string): Record<string, unknown> {
+ *  reported them, an imported appearance with the warnings of its import report in the package at `pkg`; nothing while it
+ *  shows another character. */
+function looksOf(ctx: OpsContext, id: string, pkg: string): Record<string, unknown> {
   const avatar = ctx.avatar;
   if (!avatar || avatar.currentCharacter !== id) return {};
   const worn = avatar.currentAppearance;
   const layers = avatar.layers.filter((l) => l.appearances === undefined || (worn !== null && l.appearances.includes(worn)))
     .map((l) => ({ id: l.id, name: l.name, visible: !avatar.hiddenLayers.includes(l.id) }));
-  const appearances = avatar.appearances.map((a) => ({ id: a.id, name: a.name, desc: a.desc ?? '', ...(a.kind !== undefined ? { kind: a.kind } : {}) }));
+  const appearances = avatar.appearances.map((a) => ({ id: a.id, name: a.name, desc: a.desc ?? '', ...(a.kind !== undefined ? { kind: a.kind } : {}),
+    ...(a.kind === 'imported' ? { warnings: importWarnings(pkg, a.id) } : {}) }));
   return { appearances, ...(layers.length > 0 ? { layers } : {}) };
+}
+
+/** `warnings` of import_outfit's report on appearance `id` in the package at `pkg`; throws when it cannot be read. */
+function importWarnings(pkg: string, id: string): string[] {
+  const warnings = (JSON.parse(readFileSync(contained(pkg, `provenance/outfit-${id}.json`), 'utf8')) as Record<string, unknown>).warnings;
+  if (!Array.isArray(warnings) || !warnings.every((w) => typeof w === 'string')) throw new Error(`bad_outfit_report: ${id}`);
+  return warnings;
 }
 
 /** CharacterPackage.contained: `file` under `root` with no symbolic link on the way; throws otherwise. */
@@ -293,7 +302,7 @@ export function characterOps(ctx: OpsContext, picker: ImportPicker = electronPic
           const art = Object.fromEntries((['head', 'portrait'] as const).filter((kind) => characterArt(catalog, entry.id, kind) !== null)
             .map((kind) => [kind, `${SCHEME}://${HOST}/characters/${entry.id}/${kind}.png`]));
           const listed = { ...characterEntry(readFileSync(file, 'utf8'), entry.id, active), ...art };
-          return active ? { ...listed, ...looksOf(ctx, entry.id) } : listed;
+          return active ? { ...listed, ...looksOf(ctx, entry.id, dirname(file)) } : listed;
         });
       } catch (e) {
         throw new BridgeFailure('failed', e instanceof Error ? e.message : String(e));

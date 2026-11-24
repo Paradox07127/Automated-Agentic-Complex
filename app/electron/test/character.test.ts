@@ -138,6 +138,24 @@ test('character.list gives the current character the appearances and the worn ap
     { id: 'si', name: '斯', en: 'Si', active: true, appearances: [], voice: true });
 }));
 
+test('character.list gives an imported appearance the warnings of its import report in the package; an unreadable report fails the list', withDir(async (dir, fake) => {
+  fake.avatar = { currentCharacter: 'si', currentAppearance: 'default',
+    appearances: [{ id: 'default', name: '默认', kind: 'original' }, { id: 'mod_1a2b3c4d', name: '示例外观', kind: 'imported', desc: '导入的外观' }],
+    layers: [], hiddenLayers: [] };
+  mkdirSync(join(dir, 'library', 'si', 'provenance'));
+  writeFileSync(join(dir, 'library', 'si', 'provenance', 'outfit-mod_1a2b3c4d.json'),
+    JSON.stringify({ schema: 'endfield-outfit-import/v1', appearance: { id: 'mod_1a2b3c4d' }, warnings: ['texture_unbound:Tex/14.dds', 'setting_fixed:glow'] }));
+  const call = setUp(dir, fake);
+  assert.deepEqual(((await call('character.list')) as { value: { appearances: unknown[] }[] }).value[0]!.appearances, [
+    { id: 'default', name: '默认', desc: '', kind: 'original' },
+    { id: 'mod_1a2b3c4d', name: '示例外观', desc: '导入的外观', kind: 'imported', warnings: ['texture_unbound:Tex/14.dds', 'setting_fixed:glow'] },
+  ]);
+  rmSync(join(dir, 'library', 'si', 'provenance', 'outfit-mod_1a2b3c4d.json'));
+  const reply = await call('character.list') as { ok: boolean; error?: { code: string } };
+  assert.equal(reply.ok, false);
+  assert.equal(reply.error?.code, 'failed');
+}));
+
 test('a package imported into a library agentd runs without a character restarts agentd and the renderer', withDir(async (dir, fake) => {
   const call = setUp(dir, fake);
   assert.deepEqual(await call('character.importPackage'), { ok: true, value: { ok: false, reason: 'cancelled' } });

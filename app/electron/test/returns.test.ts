@@ -314,6 +314,26 @@ test('every fixture of an implemented op resolves to the fixture shape', async (
   assert.deepEqual(failures, []);
 });
 
+test('character.list gives each kind of appearance its fixture shape, an imported one the warnings of its import report', async () => {
+  const fixture = cases.find((c) => c.op === 'character.list')!;
+  const looks = (fixture.value as { appearances: { kind: string }[] }[])[0]!.appearances;
+  const original = looks.find((a) => a.kind === 'original')!, imported = looks.find((a) => a.kind === 'imported')!;
+  mkdirSync(join(dir, 'library', 'si', 'provenance'), { recursive: true });
+  writeFileSync(join(dir, 'library', 'si', 'provenance', 'outfit-mod_1a2b3c4d.json'), JSON.stringify({ warnings: ['texture_unbound:Tex/14.dds'] }));
+  const host = avatar as { appearances: AvatarHost['appearances'] };
+  host.appearances = [{ id: 'default', name: 'Default', kind: 'original' }, { id: 'mod_1a2b3c4d', name: '示例外观', kind: 'imported' }];
+  try {
+    const reply = await call(fixture);
+    assert.ok(reply.ok, JSON.stringify(reply));
+    const [mine, mod] = (reply.value as { appearances: Record<string, unknown>[] }[])[0]!.appearances;
+    assert.deepEqual(mismatches(original, mine, [], []), []);
+    assert.deepEqual(mismatches(imported, mod, [], []), []);
+    assert.deepEqual(mod!.warnings, ['texture_unbound:Tex/14.dds']);
+  } finally {
+    host.appearances = [];
+  }
+});
+
 test('app.onRuntime pushes the app.runtime fixture shape at once and on every change', async () => {
   const fixture = cases.find((c) => c.op === 'app.runtime')!;
   const pushed: unknown[] = [];
