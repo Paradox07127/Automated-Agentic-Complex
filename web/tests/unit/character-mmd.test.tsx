@@ -48,12 +48,12 @@ describe('MMD is a section of 角色', () => {
   const library = () => screen.queryByRole('region', { name: 'MMD 库' });
   const current = () => screen.getByRole('navigation', { name: '角色分区' }).querySelector('[aria-current="page"]');
 
-  it('the MMD rail item after 拍照 opens ?view=mmd with the rail still there, keeping the view flags', async () => {
+  it('the MMD rail item after 设定 opens ?view=mmd with the rail still there, keeping the view flags', async () => {
     // The shell's hash, which a jump reads the view flags from.
     window.location.hash = '#/character?still=1&theme=light';
     const router = await mount('&theme=light');
     const btn = tab('MMD');
-    expect(btn.previousElementSibling?.textContent).toBe('拍照');
+    expect(btn.previousElementSibling?.textContent).toBe('设定');
     await click(btn);
     expect(router.state.location.pathname).toBe('/character');
     const q = new URLSearchParams(router.state.location.searchStr);

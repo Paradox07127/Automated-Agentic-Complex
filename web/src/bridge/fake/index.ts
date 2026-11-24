@@ -23,7 +23,7 @@ import type {
 } from '../protocol';
 import type { MockRoute } from '../../mock/types';
 import { chatRoutes } from '../../mock/chat';
-import { CAMERA_DEMO, COMPUTER_DEMO, RESIZE_DEMO } from './overlays';
+import { CAMERA_DEMO, COMPUTER_DEMO, PHOTO_DEMO, RESIZE_DEMO } from './overlays';
 import { mockRoutes } from '../../mock';
 import { MOTIONS } from '../../mock/character';
 import { CHARACTER_LAYERS, CHARACTER_LOOKS, CHARACTERS, NO_VOICE, NOW, PIPELINE, RENDER_STATS, SWITCH_REJECT } from '../../mock/fixtures';
@@ -134,7 +134,7 @@ function fakeDetails(suspended: boolean): AvatarDetails {
       clip: 'idle_breathe',
       error: null,
     },
-    placement: { x: 1520, y: 84, scale: 1 }, photo: true, capture: true,
+    placement: { x: 1520, y: 84, scale: 1 },
   };
 }
 
@@ -302,7 +302,6 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
       },
       playlistState: async () => ({ playing: playing !== null, index: playing, id: playing === null ? null : playlist.items[playing] ?? null }),
       presentation: { get: async () => null, set: done },
-      photo: { set: done }, capture: async () => ({ file: `Agentic Complex-${character}-20261116-120000.png` }),
       // A browser has no live preview: the stage keeps its art.
       preview: { show: async () => false, hide: done, sequence: fakePreviewSequence, onProgress: () => none, view: fakePreviewView() },
       onState: () => none,
@@ -356,6 +355,7 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
     },
     camera: { onState: (cb) => (cb(CAMERA_DEMO), none), drag: done, endDrag: done, scroll: done, magnify: done, act: done },
     resize: { onState: (cb) => (cb(RESIZE_DEMO), none), drag: done, endDrag: done, act: done },
+    photo: { onState: (cb) => (cb(PHOTO_DEMO), none), set: done, capture: async () => ({ file: `Agentic Complex-${character}-20261116-120000.png` }), close: done },
     window: {
       contentRect: async () => ({ width: window.innerWidth, height: window.innerHeight }),
       setInteractiveRegions: (r, glass) => sent('window.setInteractiveRegions', r, glass),

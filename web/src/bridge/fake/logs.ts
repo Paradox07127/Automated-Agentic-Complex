@@ -136,7 +136,7 @@ function errorRecords(): ErrorRecordRow[] {
     E('shell', ago(1078), 'page', 'page_exception', "#/memory: TypeError: Cannot read properties of undefined (reading 'facts')", { detail: 'at FactList (memory/FactList.tsx:58:21)' }),
     E('shell', ago(640), 'bridge', 'op_failed', 'permissions.request denied', { req: 'permissions.request', count: 3 }),
     E('shell', ago(190), 'renderer-link', 'host_message_rejected', 'type=placement why=scale', { count: 4 }),
-    E('shell', ago(95), 'bridge', 'op_failed', 'avatar.capture not_running', { req: 'avatar.capture' }),
+    E('shell', ago(95), 'bridge', 'op_failed', 'photo.capture not_running', { req: 'photo.capture' }),
   ];
   for (const t of TRACE_TURNS) {
     if (t.result !== 'failed') continue;

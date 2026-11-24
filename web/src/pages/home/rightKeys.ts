@@ -32,7 +32,6 @@ export const RIGHT: readonly RightSpec[] = [
   { id: 'activity', icon: 'history', title: '回顾', plugin: 'screen_awareness', to: { page: 'memory', view: 'activity' } },
   { id: 'outfit', icon: 'g-image', title: '外观', to: { page: 'character', pane: 'look' } },
   { id: 'motions', icon: 'play', title: '动作表', to: { page: 'character', pane: 'motion' } },
-  { id: 'photo', icon: 'eye', title: '拍照', to: { page: 'character', view: 'photo' } },
   { id: 'mmd', icon: 'radio', title: 'MMD', to: { page: 'character', view: 'mmd' } },
   { id: 'her', icon: 'user', title: '角色这一天', plugin: 'daily_brief', to: { page: 'overview', tab: 'char' } },
   // 每日简报 has its 时间 tab only while 屏幕感知 is on (agentd's brief focus.enabled).

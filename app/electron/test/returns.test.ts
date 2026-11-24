@@ -46,7 +46,7 @@ const IMPLEMENTED = [
   'avatar.modSettings.set', 'character.switchTo', 'permissions.status', 'permissions.request', 'permissions.openSettings',
   'open.jumpToSession', 'open.runFeedCommand', 'open.runInTerminal',
   'avatar.motionOverrides.get', 'avatar.motionOverrides.set', 'avatar.playChain', 'avatar.motionChain.check', 'avatar.motionChain.apply',
-  'avatar.playPlaylist', 'avatar.stopPlaylist', 'avatar.playlistState', 'avatar.toggleClickThroughAll', 'avatar.photo.set', 'avatar.capture',
+  'avatar.playPlaylist', 'avatar.stopPlaylist', 'avatar.playlistState', 'avatar.toggleClickThroughAll',
   'app.openQuickInput',
   'settings.recordHotkey',
   'logs.sources', 'logs.read', 'logs.errors',
@@ -63,8 +63,7 @@ const HELPER: Record<string, Record<string, unknown>> = {
 };
 
 /** A renderer that said hello, reported a pipeline and a placement, and lists one action; it takes motion overrides with one
- *  pool adjusted, starts each chain and play, takes the photo panel, saves each screenshot, and comes back at once after a
- *  restart. */
+ *  pool adjusted, starts each chain and play, and comes back at once after a restart. */
 const linkListeners = new Set<(e: LinkEvent) => void>();
 const played = (playId: string) => {
   for (const l of [...linkListeners]) l({ kind: 'message', message: { v: 1, type: 'action_played', play_id: playId, id: 'x', phase: 'started', reason: null } });
@@ -91,8 +90,6 @@ const avatar: AvatarHost = {
   on: (listener) => { linkListeners.add(listener); return () => linkListeners.delete(listener); },
   clickThroughAll: false,
   setClickThroughAll: () => {},
-  sendPhoto: () => true,
-  capture: async () => ({ file: 'Endfield-si-20261116-120000.png', width: 1080, height: 1920 }),
 };
 
 /** The web mock answers these as agentd's 404; routes.json does not classify them, so the bridge refuses them before

@@ -57,9 +57,9 @@ export interface AvatarHost {
   /** HostLink.clickThroughAll (临时全部点穿); without `setClickThroughAll` `avatar.toggleClickThroughAll` is `not_implemented`. */
   readonly clickThroughAll?: boolean;
   setClickThroughAll?(on: boolean): void;
-  /** HostLink.sendPhoto: false when not sent (both sides list `render_live` and `photo`). */
+  /** HostLink.sendPhoto, for 拍照's window: false when not sent (both sides list `render_live` and `photo`). */
   sendPhoto?(active: boolean, aperture: number, focus: number | null): boolean;
-  /** HostLink.capture: her `captured` file name and size; without it `avatar.capture` is `not_implemented`. */
+  /** HostLink.capture: her `captured` file name and size; without it `photo.capture` is `not_implemented`. */
   capture?(background: string): Promise<{ file: string; width: number; height: number }>;
   /** HostLink.controlAction and actionProgress (C3 rule 58); without them `avatar.controlAction` is `not_implemented`. */
   controlAction?(op: TransportOp, at?: number): Promise<void>;
@@ -107,11 +107,8 @@ export function avatarDetails(host: AvatarHost): Record<string, unknown> {
       gpuAllocatedMB: num(obj(p.gpu).allocated_mb), framesSubmitted: num(obj(p.frames).submitted), clip: p.clip ?? null,
       error: p.error ?? null };
   }
-  const listed = host.hello?.capabilities ?? [];
-  const both = (c: string) => listed.includes(c) && host.companionCapabilities.includes(c);
   return { renderer: typeof build.renderer === 'string' ? build.renderer : null, build: typeof build.git === 'string' ? build.git : null,
-    pipeline, placement: place === null ? null : { x: num(place.x), y: num(place.y), scale: num(place.scale) },
-    photo: both('photo'), capture: both('capture') };
+    pipeline, placement: place === null ? null : { x: num(place.x), y: num(place.y), scale: num(place.scale) } };
 }
 
 /** protocol.ts `AvatarStats` from the last C3 `stats` and the renderer's CPU as a share of one core (null when unread). */
@@ -212,8 +209,6 @@ const progressJson = (p: ActionProgress | null) => (p === null ? null : { id: p.
 /** Metrics.avatarScale. */
 const SCALES = { min: 0.5, max: 2 };
 const NO_LINK = '角色还没连上（配置出错）';
-/** C3 `set_render.photo` ranges. */
-const APERTURE = { min: 1.4, max: 32 }, FOCUS = { min: 0.1, max: 10 };
 /** A renderer that does not list the capability. */
 const UNLISTED = '这个版本的角色不支持动作设置';
 /** Said when the character a page meant is no longer the current one. */
@@ -499,28 +494,6 @@ export function avatarOps(ctx: OpsContext): Ops {
       link.setClickThroughAll(on);
       ctx.log(`CLICK_THROUGH ${on ? 'on' : 'off'} source=menu`);
       return null;
-    },
-    'avatar.photo.set': ([s]) => {
-      const o = typeof s === 'object' && s !== null && !Array.isArray(s) ? s as Record<string, unknown> : null;
-      const { active, aperture, focus } = o ?? {};
-      if (typeof active !== 'boolean' || typeof aperture !== 'number' || aperture < APERTURE.min || aperture > APERTURE.max
-        || !(focus === 'auto' || (typeof focus === 'number' && focus >= FOCUS.min && focus <= FOCUS.max))) {
-        throw new BridgeFailure('invalid_args', '{active, aperture 1.4–32, focus auto or 0.1–10}');
-      }
-      // Whether it was sent does not reach the page.
-      ctx.avatar?.sendPhoto?.(active, aperture, typeof focus === 'number' ? focus : null);
-      return null;
-    },
-    'avatar.capture': async ([o]) => {
-      const background = typeof o === 'object' && o !== null && !Array.isArray(o) ? (o as Record<string, unknown>).background : undefined;
-      if (background !== 'transparent') throw new BridgeFailure('invalid_args', '{background: transparent}');
-      const link = host();
-      if (!link.capture) throw new BridgeFailure('not_implemented', 'avatar.capture');
-      try {
-        return { file: (await link.capture(background)).file };
-      } catch (e) {
-        throw new BridgeFailure('failed', e instanceof Error ? e.message : String(e));
-      }
     },
     'avatar.stopSpeech': () => {
       if (!host().stopSpeech()) throw new BridgeFailure('failed', '角色没有连上');

@@ -7,9 +7,9 @@ import type { CmdActionId, CmdLevel } from '../actions';
 
 export type Outcome = { kind: 'close' } | { kind: 'receipt'; text: string; tone: Severity };
 
-/** A wheel item that runs (动作 and 姿态 open a level instead), or the console's 显示角色 switch. */
+/** A wheel item that runs (动作 and 姿态 open a level instead), or one of the console's switches. */
 export interface RunItem {
-  id: Exclude<CmdActionId, CmdLevel> | 'hide' | 'show';
+  id: Exclude<CmdActionId, CmdLevel> | 'hide' | 'show' | 'pass';
   label: string;
   to?: NavTarget;
   /** A dance's index in her saved setlist. */
@@ -54,6 +54,9 @@ export async function runCmdAction(item: RunItem, { bridge, state, now }: RunCon
       case 'pass':
         await bridge.desktop.action('clickThroughAll');
         return receipt(state?.clickThroughAll ? '全部点穿已结束' : `临时全部点穿已开启${keys.hk_pass ? ` │ ${keys.hk_pass} 关闭` : ''}`);
+      case 'photo':
+        await bridge.desktop.action('photo');
+        return CLOSE;
       case 'quiet':
         await bridge.desktop.action('quiet');
         return receipt(`免打扰已开始 │ ${formatClock(now() + 30 * MINUTE)} 恢复`);

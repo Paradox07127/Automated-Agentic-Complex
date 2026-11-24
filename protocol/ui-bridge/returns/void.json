@@ -245,18 +245,6 @@
     "kind": "undefined"
   },
   {
-    "op": "avatar.photo.set",
-    "surface": "main",
-    "args": [
-      {
-        "active": true,
-        "aperture": 32,
-        "focus": "auto"
-      }
-    ],
-    "kind": "undefined"
-  },
-  {
     "op": "avatar.playChain",
     "surface": "main",
     "args": [

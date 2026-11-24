@@ -378,7 +378,7 @@ test('host link: hello handshake, fps_tier, avatar ops over C3, rule 17 kill, th
       assert.deepEqual(await call('avatar.state'), { ok: true, value: { running: true, visible: true, scale: 1.5, clickThroughAll: false,
         speaking: false, characterId: 'aster', appearanceId: 'default' } });
       assert.deepEqual(await call('avatar.details'), { ok: true, value: { renderer: 'metal', build: 'abc', pipeline: null,
-        placement: { x: 10, y: 20, scale: 1.5 }, photo: false, capture: false } });
+        placement: { x: 10, y: 20, scale: 1.5 } } });
       const actions = await call('avatar.actions') as { ok: true; value: Record<string, unknown>[] };
       assert.deepEqual(actions.value.map((a) => [a.id, a.enabled, a.playable, a.defaultEnabled, a.requiredReason ?? null]),
         [['wave', true, true, true, null], ['walk', true, false, false, '移动']]);

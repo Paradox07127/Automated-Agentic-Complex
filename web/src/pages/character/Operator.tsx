@@ -173,7 +173,7 @@ export function Operator(p: OperatorProps) {
   const lookId = lookRow?.id ?? '';
   const { layers, setLayer, showAll } = useLayers(ch, p.current, p.toast);
 
-  const mode: StageMode = side?.of === 'photo' ? 'photo' : !side && pane === 'overview' ? 'overview' : 'detail';
+  const mode: StageMode = !side && pane === 'overview' ? 'overview' : 'detail';
   const overview = mode === 'overview';
   // Only 总览 has the head strip, so only there a key brings the UI back.
   const isBare = bare && overview;

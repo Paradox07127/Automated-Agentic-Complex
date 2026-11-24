@@ -54,7 +54,7 @@ export interface StageProps {
   loop?: boolean;
 }
 
-export type StageMode = 'overview' | 'detail' | 'photo';
+export type StageMode = 'overview' | 'detail';
 
 /** 目录读到之前的空舞台：同样的画框和影子。 */
 export function StageSkel() {

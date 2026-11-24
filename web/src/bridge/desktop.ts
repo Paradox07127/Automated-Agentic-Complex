@@ -68,6 +68,8 @@ export type DesktopActionName =
   | 'placeOnScreen'
   | 'resetPosition'
   | 'resize'
+  /** Her wheel's 拍照: the photo bar under her. */
+  | 'photo'
   | 'restartAll'
   | 'quit'
   | 'resetBoxes'
@@ -107,6 +109,8 @@ export interface DesktopState {
   playing?: string | null;
   /** Her pose slots in menu order and the held row's id (C3 rule 47); null while her renderer has none. */
   poses?: DesktopPoses | null;
+  /** Both her renderer and this app list C3 `capture` (拍照's shutter). */
+  capture?: boolean;
 }
 
 /** A slot's `id` is its pose row's, null when she has none; `reason` says why it cannot be chosen, null when it can. */

@@ -91,8 +91,8 @@ const POSES: NonNullable<DesktopState['poses']> = {
 
 describe('the action table', () => {
   it('has the 8 slots of the design, clockwise from the top', () => {
-    expect(wheelItems(STATE, 2).map((i) => i.label)).toEqual(['对话页', '待处理', '免打扰', '点穿', '放回原位', '自由活动', '动作', '角色页']);
-    expect(wheelItems(STATE, 2).map((i) => i.id)).toEqual(['goChat', 'pending', 'quiet', 'pass', 'home', 'roam', 'actions', 'goCharacter']);
+    expect(wheelItems(STATE, 2).map((i) => i.label)).toEqual(['对话页', '待处理', '免打扰', '拍照', '放回原位', '自由活动', '动作', '角色页']);
+    expect(wheelItems(STATE, 2).map((i) => i.id)).toEqual(['goChat', 'pending', 'quiet', 'photo', 'home', 'roam', 'actions', 'goCharacter']);
     expect(wheelItems(STATE, 2)[1]).toMatchObject({ count: 2 });
   });
 
@@ -135,11 +135,16 @@ describe('the action table', () => {
   it('待处理 with nothing waiting is greyed with its reason; the toggles follow the desktop state', () => {
     const now = 1_800_000_000_000;
     expect(wheelItems(STATE, 0, now)[1]).toMatchObject({ id: 'pending', off: '没有待处理的事' });
-    const on = wheelItems({ ...STATE, freeRoam: true, quietUntil: now + 60_000, hotkeys: { hk_pass: '⌃P' } }, 0, now);
+    const on = wheelItems({ ...STATE, freeRoam: true, quietUntil: now + 60_000 }, 0, now);
     expect(on[2]).toMatchObject({ id: 'quietEnd', label: '结束免打扰', on: true });
     expect(on[5]).toMatchObject({ id: 'roam', on: true });
-    expect(on[3]?.desc).toContain('⌃P 恢复');
     expect(wheelItems({ ...STATE, quietUntil: now - 60_000 }, 0, now)[2]?.id).toBe('quiet');
+  });
+
+  it('04 is 拍照, greyed with why while her renderer lists no `capture`', () => {
+    expect(wheelItems(STATE, 0)[3]).toMatchObject({ id: 'photo', label: '拍照', icon: 'eye', desc: '调光圈、对焦，拍透明背景的照片' });
+    expect(wheelItems({ ...STATE, capture: true }, 0)[3]?.off).toBeUndefined();
+    expect(wheelItems({ ...STATE, capture: false }, 0)[3]).toMatchObject({ id: 'photo', off: '渲染器没有提供截图' });
   });
 
   it('送礼物 is greyed with why when her package has no gift action, or has it missing', () => {
@@ -187,7 +192,7 @@ describe('the wheel', () => {
     expect(onRun).not.toHaveBeenCalled();
     expect(wheel.textContent).toContain('没有待处理的事');
     fireEvent.keyDown(wheel, { key: '4' });
-    expect(onRun).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'pass' }));
+    expect(onRun).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'photo' }));
     fireEvent.keyDown(wheel, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -377,18 +382,25 @@ describe('wheel actions', () => {
     expect(request).not.toHaveBeenCalled();
   });
 
-  it('点穿 names the saved key, or none; 放回原位 puts her and the panels back', async () => {
+  it('the console\'s 点穿 names the saved key, or none; 放回原位 puts her and the panels back', async () => {
     const bridge = stackBridge();
     const action = vi.spyOn(bridge.desktop, 'action');
     const pass = async (hotkeys: Record<string, string>) => {
       const s = { ...STATE, hotkeys };
-      const o = await runCmdAction(item('pass', s), ctx(bridge, s));
+      const o = await runCmdAction({ id: 'pass', label: '让鼠标穿过角色' }, ctx(bridge, s));
       return o.kind === 'receipt' ? o.text : '';
     };
     expect(await pass({ hk_pass: '⌃P' })).toContain('⌃P 关闭');
     expect(await pass({})).not.toMatch(/⌃/);
     expect(await runCmdAction(item('home'), ctx(bridge))).toEqual({ kind: 'close' });
     expect(action.mock.calls.map((c) => c[0])).toEqual(['clickThroughAll', 'clickThroughAll', 'resetPosition', 'resetBoxes']);
+  });
+
+  it('拍照 opens the photo overlay through native and closes the wheel', async () => {
+    const bridge = stackBridge();
+    const action = vi.spyOn(bridge.desktop, 'action');
+    expect(await runCmdAction(item('photo'), ctx(bridge))).toEqual({ kind: 'close' });
+    expect(action.mock.calls).toEqual([['photo']]);
   });
 
   it('送礼物 goes to native and asks agentd nothing; one native could not play shows its reason', async () => {

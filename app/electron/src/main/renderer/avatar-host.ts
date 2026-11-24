@@ -8,7 +8,7 @@ export type AvatarLink = Omit<Required<AvatarHost>, 'setVisible' | 'setClickThro
 
 /** The link's hello lists these; the ops send their messages. */
 export const MOTION_OFFERS: readonly OfferedCapability[] = ['motion_overrides', 'play_chain', 'action_transport'];
-/** The hello lists these too: `avatar.photo.set` sends `set_render.photo`, `avatar.capture` sends `capture`. */
+/** The hello lists these too: 拍照's window sends `set_render.photo` and `capture`. */
 export const CAPTURE_OFFERS: readonly OfferedCapability[] = ['render_live', 'photo', 'capture'];
 
 /** What the shell does around the link's own. */

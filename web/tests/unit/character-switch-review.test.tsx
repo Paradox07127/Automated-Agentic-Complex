@@ -188,12 +188,12 @@ describe('隐藏界面', () => {
     bottom.remove();
   });
 
-  it('does not carry into 拍照, which has no key to bring the UI back', async () => {
+  it('does not carry into MMD, which has no key to bring the UI back', async () => {
     const { bottom, ui, rerender } = inShell(props);
     await click(screen.getByRole('button', { name: '隐藏界面' }));
     const op = ui.container.querySelector('[data-view="operator"]')!;
     expect(op.hasAttribute('data-bare')).toBe(true);
-    rerender({ ...props, side: { of: 'photo', node: <div /> } });
+    rerender({ ...props, side: { of: 'mmd', node: <div />, band: false, preview: { action: undefined, request: undefined, loop: false } } });
     expect(op.hasAttribute('data-bare')).toBe(false);
     bottom.remove();
   });

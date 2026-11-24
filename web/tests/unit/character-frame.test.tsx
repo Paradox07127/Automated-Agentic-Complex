@@ -129,7 +129,6 @@ describe('detail pages', () => {
       [{ pane: 'look' }, 'wide'],
       [{ pane: 'import' }, 'wide'],
       [{ side: { of: 'set', tab: 'behavior', tabs: ['behavior'], node: <div /> } }, 'narrow'],
-      [{ side: { of: 'photo', node: <div /> } }, 'photo'],
     ];
     for (const [over, tier] of cases) {
       // 设定's tab bar reads the settings for its change dots.

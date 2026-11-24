@@ -15,7 +15,7 @@ import type { HandedItem } from '../src/common/stack-cards.ts';
 import { ORIGIN } from '../src/common/ui.ts';
 import { AgentdClient } from '../src/main/agentd/client.ts';
 import { DropHandover } from '../src/main/handover/drop.ts';
-import { avatarDetails, type AvatarHost } from '../src/main/ops/avatar.ts';
+import type { AvatarHost } from '../src/main/ops/avatar.ts';
 import { reloadAvatar } from '../src/main/ops/holding.ts';
 import { type OpsContext, registry } from '../src/main/ops/index.ts';
 import { localPath } from '../src/main/platform/index.ts';
@@ -930,13 +930,6 @@ test('hot key statuses and refusals name Ctrl, Alt and Win on Windows and keep t
   assert.equal(refusal('hk_ptt', '⇧K', 'mac'), '「按住说话」不能设成 ⇧K：要用带 ⌃、⌥ 或 ⌘ 的组合键，或 F1–F12，或 右⌥');
   assert.equal(refusal('hk_ptt', '⇧K', 'windows'), '「按住说话」不能设成 Shift+K：要用带 Ctrl、Alt 或 Win 的组合键，或 F1–F12，或 右Alt');
   assert.equal(refusal('hk_quick', '⌘⌘K', 'windows'), '「快速输入」不能设成 Win+Win+K：要用带 Ctrl、Alt 或 Win 的组合键，或 F1–F12');
-});
-
-test('avatar.details: photo and capture count when she and the link both list them (WebAvatarWatch.details)', () => {
-  const host = { hello: { v: 1, type: 'hello', role: 'avatar', pid: 1, protocol: 1, capabilities: ['photo', 'capture'] },
-    companionCapabilities: ['capture'], lastPipeline: null, lastPlacement: null } as unknown as AvatarHost;
-  const details = avatarDetails(host);
-  assert.deepEqual([details.photo, details.capture], [false, true]);
 });
 
 test('app.look answers; without a look, offline 屏幕识读不可用（配置出错）', async () => {

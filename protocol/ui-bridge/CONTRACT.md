@@ -60,6 +60,8 @@
 
 `resize.onState(cb)` 推「调整大小」缩放框的状态（她在页面里的框 `frame`、`scale`、到 50 % 或 200 % 时的 `limit`（`min` / `max`）、正在拖的角 `dragging`），订阅时先推当前的；`resize.drag(corner, dx, dy)`（`topLeft`、`topRight`、`bottomLeft`、`bottomRight` 之一，从按下起的总位移，页面点，y 向下）、`endDrag()` 页面不等它们的回复；`resize.act(name)` 是「恢复默认」`restoreDefault`、「完成」`done` 和取消 `cancel`。这四个只放行 stack，宿主只给缩放框那一页（`stack.html#/resize`）处理函数。
 
+`photo.onState(cb)` 推「拍照」浮层的状态（她在页面里的框 `anchor`、两端是否都列了 C3 `photo`（光圈、对焦）和 `capture`（快门）），订阅时先推当前的；浮层打开时宿主让她进入拍照状态（f/32、自动对焦），关上时（「关闭」、Esc、点在条外、渲染器断开、退出）结束它；`photo.set({aperture, focus})`（光圈 1.4–32，对焦 `auto` 或 0.1–10 m）、`photo.capture()` 解析为 `{file}`（透明背景的 PNG 文件名）、`photo.close()`。这四个只放行 stack，宿主只给拍照那一页（`stack.html#/photo`）处理函数。
+
 `window.logInfo(message)` 不等回复，原生把 `message` 作为一行 info 写进该面板的 `ui.log`（与注入的错误脚本经 `efLog` 写的错误行同一个文件、同一个每分钟限额，消息以 `info: ` 开头）；只放行 stack。
 
 桌面层（浮窗栈、角色附属层、命令层）的桥 op 是 `window.onAnchor`、`window.setContentSize`、`window.releaseKey` 和 `desktop.onState`、`desktop.onPresence`、`desktop.onCommand`、`desktop.say`、`desktop.action`、`desktop.notice`：`/desktop/presence` 由原生读了再经 `desktop.onPresence` 推给页面，快速输入经 `desktop.say` 走原生发送路径，不走 `/say` 路由；`desktop.notice(text)` 不等回复，原生把这一行（非空，至多 200 字符）作为 `notice` 命令推给气泡，轮盘选格的回执走它。这些 op 不改 routes.json。
@@ -86,7 +88,7 @@
 `returns/` 下的 JSON 用例描述 `web/src/bridge/protocol.ts`、`onboarding.ts` 和 `desktop.ts` 里返回 promise 的调用解析出的值。`web/tests/unit/bridge-returns.test.ts` 用一个新建并冻结的假桥逐条核对，并对照生成的 op 目录检查 UI 面板上可用的调用都有用例。订阅回调的 payload 是事件；订阅和同步返回的行为由 `bridge-surfaces.test.ts` 覆盖。
 
 - `computerUse.grant`、`computerUse.revoke`、`computerUse.resume`、`computerUse.dismiss` 只放行 stack，外壳只给电脑操作小窗那一页（`computer-use.json`）。
-- `camera.*` 只给「调整镜头」那一页（`camera.json`）；`resize.*` 只给「调整大小」那一页（`resize.json`）。
+- `camera.*` 只给「调整镜头」那一页（`camera.json`）；`resize.*` 只给「调整大小」那一页（`resize.json`）；`photo.*` 只给「拍照」那一页（`photo.json`）。
 
 每个用例写明 `op`、允许的 `surface`、可选的 `args`，以及为到达合法状态要先调的 `before`。`value` 是一个有代表性的 JSON 值：`web/tests/unit/shape.ts` 比较键集合和 JSON 类型，不比较标量值，数组只比第一项。`nullable` 和 `free_keys` 的含义同 C6 夹具（`protocol/C6-agentd-api/fixtures/loose-fields.json`）。`kind: "undefined"` 表示解析为 void，JSON 写不出这个值。
 

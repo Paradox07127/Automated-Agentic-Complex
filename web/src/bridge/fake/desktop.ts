@@ -94,6 +94,7 @@ export function createFakeDesktop(
       pips: { ...pips, voice: 'on' },
       computerUseActive: computerUseActive(),
       plugins: PLUGINS.filter((p) => pluginState(demoPlugins(query().get('plugins')))[p.id]).map((p) => p.id),
+      capture: true,
     };
   };
   // The shape of agentd's `/desktop/presence` (desktop_presence.py `snapshot`): epoch seconds, at most 3 rows per list.

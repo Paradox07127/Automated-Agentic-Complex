@@ -19,17 +19,13 @@
   color: #262626;
 }
 
-/* Detail panel tiers (BRIEF 11-22 C): about 46 % of the content, 36 % for 设定, a 360 px column for 拍照 at 1440. */
+/* Detail panel tiers (BRIEF 11-22 C): about 46 % of the content, 36 % for 设定. */
 .op[data-panel='wide'] {
   --panel-w: clamp(440px, 46cqw, 900px);
 }
 
 .op[data-panel='narrow'] {
   --panel-w: clamp(404px, 36cqw, 700px);
-}
-
-.op[data-panel='photo'] {
-  --panel-w: clamp(300px, 25cqw, 380px);
 }
 
 /* No head strip outside 总览: the stage starts at the left edge. */

@@ -51,6 +51,7 @@ import { ambientOffers, shellAmbient } from './ambient/shell.ts';
 import { shellAttention } from './attention/shell.ts';
 import { helperYFor, shellRecorders, shellWatchers, surfaceLinkOptions } from './attention/watchers.ts';
 import { CameraOverlayWindow } from './camera/overlay.ts';
+import { PhotoOverlayWindow } from './camera/photo-overlay.ts';
 import { desktopPoses, wheelPose } from './camera/pose.ts';
 import { CAMERA_OFFERS, shellCamera } from './camera/shell.ts';
 import { feedCommands } from './commands/feed.ts';
@@ -163,7 +164,7 @@ const configPath = (() => {
 })();
 // A packaged config.json sits in its support dir, also before preparePackaged first writes it.
 const supportDir = supportDirOf(configPath, explicitConfig ? DEFAULT_SUPPORT_DIR : dirname(configPath));
-/** Where the renderer writes `avatar.capture`'s files. */
+/** Where the renderer writes `photo.capture`'s files. */
 const CAPTURE_DIR = join(homedir(), 'Pictures/Agentic Complex');
 // Chromium's profile stays with the support dir, so a `--config` run touches nothing of the installed app.
 app.setPath('userData', join(supportDir, 'electron'));
@@ -325,12 +326,15 @@ const camera = config && hostLink && shellCamera({ link: hostLink, configPath, a
 const play = new DesktopPlay();
 hostLink?.on((e) => {
   const changed = e.kind === 'lost' ? play.lost() : e.kind === 'message' && e.message.type === 'action_played' && play.played(e.message as ActionPlayed);
-  if (changed) desktop?.pushState();
+  // The wheel's 拍照 follows her hello's `capture`.
+  if (changed || e.kind === 'hello' || e.kind === 'lost') desktop?.pushState();
 });
 /** Made once the app is ready: Electron's `screen` is not there before. */
 let placer: AvatarPlacer | null = null;
 /** 调整大小's window, kept to end it at quit. */
 let resizeOverlay: ResizeOverlayWindow | null = null;
+/** 拍照's window, kept to end it at quit. */
+let photoOverlay: PhotoOverlayWindow | null = null;
 const renderer = config && new RendererSupervisor({
   config, reload: () => loadConfig(configPath), settings: () => readObject(configPath), state: () => readObject(join(config!.supportDir, 'state.json')),
   // The last character a switch remembered (rule 14), as at the app's launch.
@@ -1029,6 +1033,7 @@ function desktopState(): Record<string, unknown> {
     computerUseActive: control ? computerUseState(control.state).active : false,
     plugins: enabledPlugins(supervisor?.plugins ?? DEFAULT_PLUGINS),
     playing: play.id, poses: camera ? desktopPoses(camera.poses) : null,
+    capture: !!hostLink && hostLink.capabilities.includes('capture') && hostLink.companionCapabilities.includes('capture'),
   };
 }
 
@@ -1186,6 +1191,7 @@ function startDesktop(): void {
       placeOnScreen: (id) => { placer?.placeOnScreen(Number(id)); },
       resetPosition: () => placer?.resetPosition(),
       resize: () => { resizeOverlay?.begin(); },
+      photo: () => { photoOverlay?.begin(); },
       restartAll: () => {
         void supervisor?.restart();
         void renderer?.restart();
@@ -1280,6 +1286,7 @@ app.on('will-quit', (e) => {
   camera?.stop();
   cameraOverlay?.stop();
   resizeOverlay?.stop();
+  photoOverlay?.stop();
   titleOverlay?.stop();
   placer?.stop();
   watchers?.stop();
@@ -1346,6 +1353,29 @@ void app.whenReady().then(async () => {
       unregister: (id) => pages.delete(id),
       get baseOps() { return surfaceOps('stack'); },
       target: p,
+    });
+    photoOverlay = new PhotoOverlayWindow({
+      url: `${ORIGIN}/stack.html#/photo`,
+      makeWindow: () => {
+        const win = new BrowserWindow({ ...overlayOptions(), width: 100, height: 100,
+          webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false } });
+        // On 调整镜头's level.
+        makeOverlay(win, 'camera', macAddon);
+        guardWebContents(win.webContents, 'stack', webGuard);
+        return win;
+      },
+      toDip: (r) => c3Dip(screen)(r), fromC3: (b) => space.rectFromC3(b), screens: () => space.screens(),
+      cursor: () => screen.getCursorScreenPoint(),
+      presses: (listener) => watchers?.onMouseDown(listener) ?? (() => {}),
+      register: (contents, page, panelOps) => pages.set(contents.id, { surface: 'stack', page, ops: panelOps }),
+      unregister: (id) => pages.delete(id),
+      get baseOps() { return surfaceOps('stack'); },
+      // As 调整镜头's: her visual rect, else her body's, else her window's.
+      figure: () => {
+        const s = p.anchorSample(), r = c3Rect(s.visual ?? s.body ?? null);
+        return r ? { x: r.x, y: r.y, w: r.width, h: r.height } : hostLink.avatarFrame;
+      },
+      link: linkAvatarHost(hostLink, (hidden) => setAvatarHidden(hidden), { captureDir: CAPTURE_DIR, captureSaved: notifyCaptureSaved }),
     });
     screen.on('display-added', () => p.screensChanged());
     screen.on('display-removed', () => p.screensChanged());

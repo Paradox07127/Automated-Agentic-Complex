@@ -1,10 +1,10 @@
-// Review 11-22 on the character page's panes: 外观's import banner and progress, 设定's deep link, the name block's voice, 拍照 offline, 模组设置's chips, 动作表's 只看导入.
+// Review 11-22 on the character page's panes: 外观's import banner and progress, 设定's deep link, the name block's voice, 模组设置's chips, 动作表's 只看导入.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
-import type { AgenticComplexBridge, AvatarDetails, ImportedMotionEntry, ImportState } from '../../src/bridge/protocol';
+import type { AgenticComplexBridge, ImportedMotionEntry, ImportState } from '../../src/bridge/protocol';
 import { MOTIONS } from '../../src/mock/character';
 import { CharacterSettings } from '../../src/pages/character/CharacterSettings';
 import { LookPane } from '../../src/pages/character/LookPane';
@@ -13,7 +13,6 @@ import { outfitImportWarning } from '../../src/pages/character/labels';
 import type { ModSettingRow } from '../../src/pages/character/modSettingsTable';
 import { MotionTable, type MotionTableProps } from '../../src/pages/character/MotionTable';
 import { useVoiceBinding } from '../../src/pages/character/NameBlock';
-import { PhotoMode } from '../../src/pages/character/PhotoMode';
 import { setDevMode } from '../../src/shell/devMode';
 import { useOutfitImport, type OutfitImport } from '../../src/pages/character/useOutfitImport';
 
@@ -210,31 +209,6 @@ describe('名字块 · 语音绑定 (949c#7)', () => {
     rerender({ on: false });
     rerender({ on: true });
     await waitFor(() => expect(result.current).toEqual({ voiceId: 'v_si', language: 'zh' }));
-  });
-});
-
-describe('拍照 · 角色未运行 (949c#13)', () => {
-  it('greys aperture and focus while she is not running, and opens the camera again when she is back', async () => {
-    const base = await bridge.avatar.details();
-    vi.spyOn(bridge.avatar, 'details').mockResolvedValue({ ...base, photo: true, capture: true } satisfies AvatarDetails);
-    const set = vi.spyOn(bridge.avatar.photo, 'set').mockResolvedValue(undefined as never);
-    const qc = client();
-    const at = (offline: boolean) => (
-      <QueryClientProvider client={qc}>
-        <PhotoMode avatar offline={offline} />
-      </QueryClientProvider>
-    );
-    const ui = render(at(false));
-    const aperture = () => screen.getByRole('slider', { name: '光圈' }) as HTMLInputElement;
-    await waitFor(() => expect(aperture().disabled).toBe(false));
-    fireEvent.change(aperture(), { target: { value: '5.6' } });
-    ui.rerender(at(true));
-    expect(aperture().disabled).toBe(true);
-    expect((screen.getByRole('radio', { name: '手动' }) as HTMLButtonElement).disabled).toBe(true);
-    set.mockClear();
-    ui.rerender(at(false));
-    await waitFor(() => expect(set).toHaveBeenCalledWith({ active: true, aperture: 32, focus: 'auto' }));
-    expect(document.querySelector('[data-readout="aperture"]')?.textContent).toBe('f/32');
   });
 });
 

@@ -5,7 +5,7 @@ import type { NavTarget } from '../../../shell/nav';
 import type { GameWheelItem } from '../../../ui/game/GameWheel';
 
 export type CmdActionId =
-  | 'goChat' | 'pending' | 'quiet' | 'quietEnd' | 'pass' | 'home' | 'roam' | 'actions' | 'stop' | 'goCharacter'
+  | 'goChat' | 'pending' | 'quiet' | 'quietEnd' | 'photo' | 'home' | 'roam' | 'actions' | 'stop' | 'goCharacter'
   | 'dance' | 'poses' | 'gift' | 'pose';
 
 /** The levels under the first, named as the slot that opens each. */
@@ -37,10 +37,9 @@ export function giftOff(actions: readonly AvatarAction[]): string | null {
 }
 
 /** The wheel's 8 slots clockwise from the top; the toggles follow the desktop state, 待处理 is greyed with nothing waiting,
- *  and 动作 is 停止 while she plays, named from her `actions`. */
+ *  拍照 while her renderer lists no `capture`, and 动作 is 停止 while she plays, named from her `actions`. */
 export function wheelItems(s: DesktopState | null, pending: number, now = Date.now(), actions: readonly AvatarAction[] = []): CmdItem[] {
   const quiet = s?.quietUntil != null && s.quietUntil > now;
-  const pass = s?.hotkeys.hk_pass;
   return [
     { id: 'goChat', label: '对话页', icon: 'file', desc: '主窗口打开对话', to: { page: 'chat' } },
     pending > 0
@@ -49,7 +48,7 @@ export function wheelItems(s: DesktopState | null, pending: number, now = Date.n
     quiet
       ? { id: 'quietEnd', label: '结束免打扰', icon: 'moon', desc: '又可以主动说话', on: true }
       : { id: 'quiet', label: '免打扰', icon: 'moon', desc: '30 分钟里不主动说话' },
-    { id: 'pass', label: '点穿', icon: 'hand', desc: pass ? `点击穿过角色；${pass} 恢复` : '点击穿过角色；在菜单栏恢复' },
+    { id: 'photo', label: '拍照', icon: 'eye', desc: '调光圈、对焦，拍透明背景的照片', ...(s?.capture === false && { off: '渲染器没有提供截图' }) },
     { id: 'home', label: '放回原位', icon: 'loc', desc: '角色和浮窗回到默认位置' },
     { id: 'roam', label: '自由活动', icon: 'sync', desc: s?.freeRoam ? '开着：角色会在屏幕上走动' : '让角色在屏幕上走动', on: s?.freeRoam === true },
     s?.playing != null

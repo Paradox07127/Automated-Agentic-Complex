@@ -77,7 +77,6 @@ describe('角色页 · 总览', () => {
       ['外观', { pane: 'look' }],
       ['动作', { pane: 'motion' }],
       ['设定', { tab: 'behavior' }],
-      ['拍照', { view: 'photo' }],
       ['总览', {}],
     ];
     for (const [name, want] of steps) {
@@ -94,7 +93,7 @@ describe('角色页 · 总览', () => {
     await waitFor(() => expect(params(router)).toEqual({ pane: 'motion' }));
   });
 
-  it('moves the stage beside the panel on a detail page and to 拍照 with the panel alone', async () => {
+  it('moves the stage beside the panel on a detail page', async () => {
     const router = await mount('&tab=render');
     const op = document.querySelector('[data-view="operator"]') as HTMLElement;
     expect(op.getAttribute('data-mode')).toBe('detail');
@@ -103,9 +102,5 @@ describe('角色页 · 总览', () => {
     expect(document.querySelector('[data-stage]')?.getAttribute('data-mode')).toBe('detail');
     await click(within(bar).getByRole('tab', { name: '场景' }));
     await waitFor(() => expect(params(router)).toEqual({ tab: 'scene' }));
-    cleanup();
-    await mount('&view=photo');
-    expect(document.querySelector('[data-stage]')?.getAttribute('data-mode')).toBe('photo');
-    expect(screen.queryByRole('group', { name: '角色头像' })).toBeNull();
   });
 });

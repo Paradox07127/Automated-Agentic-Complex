@@ -1,0 +1,27 @@
+[
+  {
+    "op": "photo.set",
+    "surface": "stack",
+    "args": [
+      {
+        "aperture": 5.6,
+        "focus": "auto"
+      }
+    ],
+    "kind": "undefined"
+  },
+  {
+    "op": "photo.capture",
+    "surface": "stack",
+    "args": [],
+    "value": {
+      "file": "Endfield-si-20261116-120000.png"
+    }
+  },
+  {
+    "op": "photo.close",
+    "surface": "stack",
+    "args": [],
+    "kind": "undefined"
+  }
+]

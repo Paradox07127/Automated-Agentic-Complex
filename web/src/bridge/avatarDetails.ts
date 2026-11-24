@@ -31,16 +31,6 @@ export interface AvatarDetails {
   pipeline: AvatarPipelineDetails | null;
   /** Window position in screen points and its scale. */
   placement: { x: number; y: number; scale: number } | null;
-  /** Both the renderer and this app list C3 `photo` (depth of field from the photo panel) and `capture` (the shutter); a shell without the photo panel leaves them out. */
-  photo?: boolean;
-  capture?: boolean;
-}
-
-/** `avatar.photo.set`: whether the photo panel is open, its f-number (1.4–32) and focus (`auto`, or 0.1–10 m). */
-export interface PhotoState {
-  active: boolean;
-  aperture: number;
-  focus: 'auto' | number;
 }
 
 export interface AvatarAction {

@@ -64,9 +64,10 @@ The **Character** (`角色`) page switches character packages and browses the av
 - **编排 (Chain)**: inspect and compose motion chains.
 - **外观 (Appearance)**: switch outfits and the part/color toggles that EFMI mods provide.
 - **设定 (Setup)**: adjust character-specific behavior, rendering parameters, and stage/scene settings.
-- **拍照 (Photo)**: open the photo panel to take photos of the character (including transparent-background captures).
 - **MMD**: shared MMD dance library for playing, renaming, and deleting imported VMD/ZIP dances with optional background music.
 - **导入 (Import)**: import EFMI mod outfits and external motion files (VMD, BVH, glTF, GLB, VRMA, FBX; when you drop files directly onto the character, only VMD and ZIP are imported as motions).
+
+Photos of the character (transparent-background captures) are on the desktop character's quick wheel: pick 拍照 (Photo), set aperture and focus in the bar under her, then press the shutter.
 
 Renderable character packages supply models and assets; text-only packages (such as the public sample `aide`) can still be used for conversations. The persona and setting come with the package. See [motion import](guides/motion-import.en.md) for supported formats and limits.
 

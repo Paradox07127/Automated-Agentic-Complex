@@ -52,7 +52,7 @@ const names = (group: HTMLElement) => within(group).getAllByRole('button').map((
 const LEFT = (...ids: string[]) => ids.map(title);
 const ACTIONS = ['派发任务', '搜索', '快速输入', '屏幕识读', '停止说话'];
 /** The right-hand list with every plug-in on, outside 开发者模式; 时间 goes with 屏幕感知. */
-const RIGHT = [...ACTIONS, '定时', '档案', '回顾', '外观', '动作表', '拍照', 'MMD', '角色这一天', '时间', '能力', '感知'];
+const RIGHT = [...ACTIONS, '定时', '档案', '回顾', '外观', '动作表', 'MMD', '角色这一天', '时间', '能力', '感知'];
 /** Appended in 开发者模式. */
 const RIGHT_DEV = ['诊断', '对话轮次', '日志', '管线'];
 const noTime = RIGHT.filter((n) => n !== '时间');

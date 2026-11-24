@@ -4,7 +4,7 @@ import type { AppInfo } from './appInfo';
 import type { CameraOps } from './camera';
 import type { ComputerUseOps } from './computerUse';
 import type { AvatarAction, AvatarDetails, AvatarSwitchReply, CharacterLayer, ImportedMotionsResult, MotionImportResult, MotionPlaylist,
-  MotionRemoveResult, OutfitImportResult, OutfitRemoveResult, MotionRenameResult, PhotoState, PlaylistPlayResult, PlaylistState } from './avatarDetails';
+  MotionRemoveResult, OutfitImportResult, OutfitRemoveResult, MotionRenameResult, PlaylistPlayResult, PlaylistState } from './avatarDetails';
 import type { DesktopOps, DesktopWindowOps, GlassRect, Region } from './desktop';
 import type { OnboardingOps } from './onboarding';
 import type { PermissionKind, PermissionState, SystemSettingsPane } from './permissions';
@@ -323,8 +323,6 @@ export interface AgenticComplexBridge {
     /** Plays the current character's MMD list from item `start` (default 0); not on onboarding. */ playPlaylist(o?: { start?: number }): Promise<PlaylistPlayResult>;
     stopPlaylist(): Promise<{ ok: true }>; playlistState(): Promise<PlaylistState>;
     presentation: { get(): Promise<unknown>; set(value: unknown): Promise<void> };
-    /** The photo panel's state (C3 `set_render.photo`); main surface only. */ photo: { set(s: PhotoState): Promise<void> };
-    /** Saves a PNG of her and resolves with its file name (C3 `capture`); main surface only. */ capture(o: { background: 'transparent' }): Promise<{ file: string }>;
     /** The character page's live preview, drawn by the shell over the page; main surface only. */
     preview: {
       /** Places or moves it and plays `action`; true once the character is drawn there, false where the shell has no live preview. */
@@ -371,8 +369,8 @@ export interface AgenticComplexBridge {
     writeText(t: string): Promise<void>;
   };
   computerUse: ComputerUseOps; logs: import('./logs').LogsOps; services: import('./services').ServicesOps;
-  /** The 调整镜头 and 调整大小 overlay pages' own. */
-  camera: CameraOps; resize: import('./resize').ResizeOps;
+  /** The 调整镜头, 调整大小 and 拍照 overlay pages' own. */
+  camera: CameraOps; resize: import('./resize').ResizeOps; photo: import('./photo').PhotoOps;
   window: DesktopWindowOps & {
     contentRect(): Promise<{ width: number; height: number }>;
     /** `glass`: the page's card rects for native glass; a report without it removes the glass. */

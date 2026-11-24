@@ -1,6 +1,7 @@
-// What the fake bridge shows on the 调整镜头, 调整大小 and 电脑操作 pages, which native fills with its own state.
+// What the fake bridge shows on the 调整镜头, 调整大小, 拍照 and 电脑操作 pages, which native fills with its own state.
 import type { CameraOverlayState } from '../camera';
 import type { ComputerUsePanel } from '../computerUse';
+import type { PhotoOverlayState } from '../photo';
 import type { ResizeOverlayState } from '../resize';
 
 /** Her frame on a 960×640 page. */
@@ -14,6 +15,8 @@ export const CAMERA_DEMO: CameraOverlayState = {
 };
 
 export const RESIZE_DEMO: ResizeOverlayState = { frame: FRAME, scale: 1.2, limit: null, dragging: null };
+
+export const PHOTO_DEMO: PhotoOverlayState = { anchor: FRAME, photo: true, capture: true };
 
 export const COMPUTER_DEMO: ComputerUsePanel = {
   phase: 'waitingPermission',

@@ -16,7 +16,6 @@ import { hostReason } from './labels';
 import { MotionSettings } from './motions/MotionSettings';
 import { isPane, Operator, OperatorSkel } from './Operator';
 import type { SceneReport } from './operatorScene';
-import { PhotoMode } from './PhotoMode';
 import { CHAR_TABS, isCharTab } from './sections';
 import { useCharSettings } from './settings';
 import { presentTabs } from './SettingRows';
@@ -46,7 +45,7 @@ function initialSwitch(demo: string | null, roster: Roster | undefined): SwitchS
   return { phase: 'idle' };
 }
 
-/** 角色：训练场上的实机舞台。默认（`?pane=overview`）是总览；`?pane=motion|chain|look|import` 是外观、动作的详情，`?tab=behavior|render|scene` 是「设定」，`?view=photo` 是拍照面板，`?view=mmd` 是 MMD；她的状态曲线在诊断 › 行为决策。 */
+/** 角色：训练场上的实机舞台。默认（`?pane=overview`）是总览；`?pane=motion|chain|look|import` 是外观、动作的详情，`?tab=behavior|render|scene` 是「设定」，`?view=mmd` 是 MMD；她的状态曲线在诊断 › 行为决策。 */
 export function CharacterPage() {
   const { state, demo } = useDemo();
   const fb = useFeedback();
@@ -54,7 +53,6 @@ export function CharacterPage() {
   const tab = params.get('tab');
   const row = params.get('row');
   const pane = params.get('pane');
-  const photo = !isCharTab(tab) && params.get('view') === 'photo';
   const mmdView = !isCharTab(tab) && params.get('view') === 'mmd';
   const qc = useQueryClient();
   const bridge = getBridge();
@@ -178,17 +176,15 @@ export function CharacterPage() {
           toast={fb.toast}
           {...(isCharTab(tab)
             ? { side: { of: 'set' as const, tab: setTabs.includes(tab) ? tab : (setTabs[0] ?? tab), tabs: setTabs, node: <CharacterSettings tab={tab} row={row ?? undefined} offline={offline} onRestart={restart} avatar={canAvatar} onTab={(t) => navTo({ page: 'character', tab: t })} menu={false} toast={fb.toast} /> } }
-            : photo
-              ? { side: { of: 'photo' as const, node: <PhotoMode avatar={canAvatar} offline={offline} /> } }
-              : mmdView
-                ? { side: mmd }
-                : {})}
+            : mmdView
+              ? { side: mmd }
+              : {})}
         />
       </div>
     );
 
   // Where the stage stands, for the room's floor and rings (Stage.module.css): 总览 is the room's default span; the deck is the one the stage stands on.
-  const stage = isCharTab(tab) ? 'set' : photo ? 'photo' : mmdView ? (mmd.band ? 'band' : 'set') : isPane(pane) && pane !== 'overview' ? (scene.deck ? 'deck' : 'wide') : undefined;
+  const stage = isCharTab(tab) ? 'set' : mmdView ? (mmd.band ? 'band' : 'set') : isPane(pane) && pane !== 'overview' ? (scene.deck ? 'deck' : 'wide') : undefined;
   return (
     <div className={styles.page} data-page="character" data-stage-span={stage} data-compact={scene.compact || undefined}>
       <TrainingRoom watermark={her?.background} />

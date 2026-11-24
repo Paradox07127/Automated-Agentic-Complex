@@ -361,7 +361,7 @@ const ITEMS: GameWheelItem[] = [
   { id: 'chat', label: '对话页', icon: 'file', desc: '主窗口打开对话' },
   { id: 'pending', label: '待处理', icon: 'bell', desc: '2 项待处理', count: 2 },
   { id: 'quiet', label: '免打扰', icon: 'moon', desc: '30 分钟里不主动说话' },
-  { id: 'pass', label: '点穿', icon: 'hand', desc: '点击穿过角色；⌃⌥P 恢复' },
+  { id: 'photo', label: '拍照', icon: 'eye', desc: '调光圈、对焦，拍透明背景的照片' },
   { id: 'home', label: '放回原位', icon: 'loc', desc: '角色和浮窗回到默认位置' },
   { id: 'roam', label: '自由活动', icon: 'sync', desc: '开着：角色会在屏幕上走动', on: true },
   { id: 'actions', label: '动作', icon: 'play', deeper: true },

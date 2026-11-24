@@ -194,7 +194,6 @@ describe('home right list keys', () => {
       ['回顾', 'memory', { view: 'activity' }],
       ['外观', 'character', { pane: 'look' }],
       ['动作表', 'character', { pane: 'motion' }],
-      ['拍照', 'character', { view: 'photo' }],
       ['MMD', 'character', { view: 'mmd' }],
       ['角色这一天', 'overview', { tab: 'char' }],
       ['时间', 'overview', { tab: 'tm' }],

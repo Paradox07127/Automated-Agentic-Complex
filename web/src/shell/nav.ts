@@ -40,7 +40,7 @@ export type NavTarget =
       focus?: string;
     }
   | { page: 'home'; focus?: string }
-  | { page: 'character'; tab?: CharTab; view?: 'photo' | 'mmd'; pane?: 'motion' | 'chain' | 'look' | 'import'; row?: string; focus?: string }
+  | { page: 'character'; tab?: CharTab; view?: 'mmd'; pane?: 'motion' | 'chain' | 'look' | 'import'; row?: string; focus?: string }
   | {
       page: 'diag';
       /** 现在: overview … state; 回看: turns … logs. */
