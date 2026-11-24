@@ -127,5 +127,36 @@ class SharedAdmissionTest(unittest.TestCase):
             self.fail('not admitted')
 
 
+class LoadEntryTest(unittest.TestCase):
+    """serve_tts.load_entry, taken from the source because serve_tts needs FastAPI and a token file to import."""
+    def setUp(self):
+        import ast
+        from unittest import mock
+        path = Path(__file__).with_name('serve_tts.py')
+        node = next(n for n in ast.parse(path.read_text()).body if isinstance(n, ast.FunctionDef) and n.name == 'load_entry')
+        self.built = []
+        built = self.built
+        class Runtime:
+            def __init__(self, name, game_lexicon=False):
+                built.append((name, game_lexicon))
+                self.identity = {'run': name, 'frontend_lexicon_sha256': 'lexicon-sha' if game_lexicon else None}
+            def close(self):
+                pass
+        class HTTPException(Exception):
+            pass
+        class LexiconInstalled(Exception):
+            pass
+        self.namespace = dict(gc=mock.Mock(), Runtime=Runtime, HTTPException=HTTPException, GpuBudgetUnavailable=GpuBudgetUnavailable, LexiconInstalled=LexiconInstalled,
+                              residency=ModelResidency(GpuAdmission(lambda: 32 * 1024 * MIB), lambda: None), loaded=None, loaded_key=None)
+        exec(compile(ast.Module([node], []), str(path), 'exec'), self.namespace)
+
+    def test_entries_sharing_a_run_get_their_own_lexicon_runtime(self):
+        plain, lexicon = {'run': 'X'}, {'run': 'X', 'game_lexicon': True}
+        for entry, sha in ((plain, None), (lexicon, 'lexicon-sha'), (lexicon, 'lexicon-sha')):
+            self.namespace['load_entry'](entry)
+            self.assertEqual(self.namespace['loaded'].identity['frontend_lexicon_sha256'], sha)
+        self.assertEqual(self.built, [('X', False), ('X', True)])
+
+
 if __name__ == '__main__':
     unittest.main()

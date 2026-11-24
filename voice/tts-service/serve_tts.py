@@ -11,8 +11,8 @@ if not TOKEN_FILE:raise SystemExit('Set AAC_TTS_TOKEN_FILE to the TTS token file
 import anyio
 from fastapi import FastAPI,HTTPException
 from fastapi.responses import FileResponse,StreamingResponse
-from pydantic import BaseModel,Field
-from tts_runtime import REPO,ROOT,Runtime
+from pydantic import BaseModel,Field,field_validator
+from tts_runtime import REPO,ROOT,LexiconInstalled,Runtime
 from model_residency import GpuAdmission,GpuBudgetUnavailable,ModelResidency,MAX_MODELS
 from segment_meta import C2Stream,clause_fields
 from cues import CueStream,MfaClient,load_vowel_map
@@ -50,6 +50,11 @@ class Request(BaseModel):
     accelerated:bool=False
     reference_id:str|None=None
     model_profile:str|None=Field(default=None,pattern=r'^[a-z0-9_-]+$')
+    @field_validator('text')
+    @classmethod
+    def text_has_speech(cls,text):
+        if not text.strip():raise ValueError('text is only whitespace')
+        return text
 class SpeechRequest(Request):
     session_epoch:str
     turn_id:str
@@ -80,15 +85,17 @@ def resolve(request):
     return entry
 def load_entry(entry):
     global loaded,loaded_key
-    name=entry['run']
-    if loaded_key==name:return
+    key=(entry['run'],entry.get('game_lexicon',False))
+    if loaded_key==key:return
     # Remove the public strong reference before eviction and collection.
     loaded=None;loaded_key=None;gc.unfreeze()
     try:
-        loaded=residency.load(name,lambda:Runtime(name,game_lexicon=entry.get('game_lexicon',False)))
-        loaded_key=name
+        loaded=residency.load(key,lambda:Runtime(key[0],game_lexicon=key[1]))
+        loaded_key=key
     except GpuBudgetUnavailable as error:
         raise HTTPException(503,str(error)) from error
+    except LexiconInstalled as error:
+        raise HTTPException(409,str(error)) from error
     finally:
         gc.collect();gc.freeze()
 @contextlib.contextmanager
@@ -178,7 +185,6 @@ def speech_stream(request:SpeechRequest):
             with gpu():
                 load_entry(entry);artifact_id=uuid.uuid4().hex;runtime=loaded
                 def fragment(sr,chunk,elapsed):
-                    if sr!=48000:raise ValueError('Fragment sample rate is not 48000')
                     meta=runtime.segments.take(len(chunk),runtime.tail_samples)
                     cues.fragment(chunk.astype('<i2',copy=False).tobytes(),len(chunk),meta,runtime.tail_samples,elapsed)
                 result=runtime.synthesize(request.text,'api-speech-'+artifact_id,request.accelerated,on_chunk=fragment,cancel=cancelled,keep_files=KEEP_FILES,reference_id=request.reference_id if request.reference_id is not None else entry.get('default_reference_id'),**parameters(entry))

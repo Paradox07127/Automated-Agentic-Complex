@@ -127,9 +127,10 @@ def ja_token(group,phone_set):
     head=group[0]
     if head['vowel']=='N':
         assert len(group)==1;return name,[[p] for p in JA_N],[(head['phones'][0],0,0.,1.)]
-    gem=head['vowel']=='cl';base=group[1] if gem else head
-    if gem and (len(group)==1 or not base['cons']):
+    gem=head['vowel']=='cl'
+    if gem and (len(group)==1 or not group[1]['cons']):
         assert len(group)==1,group;return name,[['ʔ']],[(head['phones'][0],0,0.,1.)]
+    base=group[1] if gem else head
     longs=group[2:] if gem else group[1:]
     c=ja_cons(base['cons'][0] if base['cons'] else None,base['vowel']);pos=0
     if gem:

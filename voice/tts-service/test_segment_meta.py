@@ -124,6 +124,23 @@ class ClauseFieldsTest(unittest.TestCase):
     def test_begin_without_clause_is_unchanged_v1(self):
         self.assertEqual(C2Stream('E1','T1','S1').begin('zh',ENGINE,0),{'event':'speech.begin','session_epoch':'E1','turn_id':'T1','speech_id':'S1','seq':0,'schema':SCHEMA,'clock':{'unit':'sample','sample_rate':48000,'origin':'first_pcm_sample'},'format':'pcm_s16le','channels':1,'lang':'zh','engine':ENGINE,'expires_at_ms':0})
 
+class RequestModelTest(unittest.TestCase):
+    """serve_tts's request models, taken from the source because serve_tts needs FastAPI and a token file to import."""
+    def setUp(self):
+        import ast,pydantic
+        path=HERE/'serve_tts.py'
+        nodes=[n for n in ast.parse(path.read_text()).body if isinstance(n,ast.ClassDef) and n.name in ('Request','SpeechRequest')]
+        self.models={name:getattr(pydantic,name) for name in ('BaseModel','Field','field_validator')}
+        exec(compile(ast.Module(nodes,[]),str(path),'exec'),self.models)
+        self.ValidationError=pydantic.ValidationError
+    def test_whitespace_only_text_is_rejected(self):
+        speech={'session_epoch':'E1','turn_id':'T1','speech_id':'S1','expires_at_ms':0}
+        for name,fields in (('Request',{}),('SpeechRequest',speech)):
+            model=self.models[name]
+            self.assertEqual(model(character='c',language='zh',text=' 你好 ',**fields).text,' 你好 ')
+            for text in (' ','　\n\t'):
+                with self.subTest(name,text=text),self.assertRaises(self.ValidationError):model(character='c',language='zh',text=text,**fields)
+
 class C2ExamplesTest(unittest.TestCase):
     def test_producer_matches_shared_examples(self):
         paths=sorted((HERE.parents[1]/'protocol/C2-speech-stream/examples').glob('ok-*.ndjson'))

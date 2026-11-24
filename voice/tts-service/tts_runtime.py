@@ -11,7 +11,10 @@ torch.set_num_threads(8)
 from TTS_infer_pack.TTS import TTS,TTS_Config
 from segment_meta import ModuleHook,SegmentRecorder,bind_accel_hook,wrap_infer_batch
 FRAGMENT_INTERVAL=0.2
+# v5dev's vocoder output rate, the rate C2 and the MFA worker take.
+SAMPLE_RATE=48000
 class Cancelled(Exception):pass
+class LexiconInstalled(Exception):pass
 
 def load_weight(path):return torch.load(path,map_location='cpu',weights_only=True)['weight']
 
@@ -62,6 +65,10 @@ class Runtime:
             assert len(matches)==1,'Comparison run must preserve the parent baseline reference'
             self.reference=matches[0]
         self.lang='zh' if self.reference['language']=='chinese' else 'ja'
+        lexicon=sys.modules.get('frontend_lexicon')
+        # frontend_lexicon patches the process-wide frontend and has no uninstall.
+        if not game_lexicon and lexicon is not None and (lexicon.installed if self.lang=='zh' else lexicon.ja_installed):
+            raise LexiconInstalled(f'The game lexicon already patched this process\'s {self.lang} frontend; restart the TTS service to load {run_name} without it')
         if game_lexicon:
             from frontend_lexicon import install,install_ja
             if self.lang=='zh':install()
@@ -126,6 +133,8 @@ class Runtime:
                 torch.cuda.synchronize();elapsed=time.perf_counter()-start
                 if first is None:first=elapsed
                 assert chunk.dtype==np.int16,'Official output PCM format changed; refuse ambiguous streaming bytes'
+                # TTS.run yields 16 kHz silence when synthesis fails or the text has no segments.
+                if sr!=SAMPLE_RATE:raise ValueError(f'Engine yielded {sr} Hz audio instead of {SAMPLE_RATE} Hz; synthesis failed upstream')
                 if on_chunk is not None:on_chunk(sr,chunk,elapsed)
                 chunks.append(chunk);chunk_timings.append({'generated_after_seconds':elapsed,'samples':len(chunk)})
         finally:self.cancel=None;bind_accel_hook(None,None);run.close()
