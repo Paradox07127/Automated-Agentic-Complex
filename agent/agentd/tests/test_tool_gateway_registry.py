@@ -68,11 +68,12 @@ class RegistryOfferTests(integration.IntegrationFixture):
     def test_per_mode_names_match_head(self):
         self.assertEqual(self.offered(), HEAD)
 
-    def test_typing_after_a_gift_keeps_the_kernel_session(self):
+    def test_a_gift_runs_in_a_session_without_the_harness_tools(self):
         self.line('整理资料')
         self.prepare('gift-1', 'gift')
         self.line('再整理一次')
-        self.assertEqual(len(self.definitions), 1)
+        # One runtime session slot: the gift's restricted session replaces the text one, which typing then reopens.
+        self.assertEqual(len(self.definitions), 3)
 
     def test_every_offered_tool_is_registered(self):
         from tool_gateway.registry import BUILTIN
