@@ -1,13 +1,16 @@
+import os
 from pathlib import Path
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from infra.store import open_store  # noqa: E402
-from sessions.tasks import TaskLedger, check_verify, delivery_id  # noqa: E402
+from sessions.tasks import TAIL_BYTES, TaskLedger, check_verify, delivery_id, run_verify  # noqa: E402
 
 
 class TaskLedgerTest(unittest.TestCase):
@@ -156,6 +159,83 @@ class TaskLedgerTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "invalid_verify_cmd"):
             check_verify("workspace_write", "rm -rf ~")
         self.assertEqual(check_verify("workspace_write", "python3 -m pytest"), "python3 -m pytest")
+
+    @unittest.skipIf(os.name == "nt", "Windows takes the command line whole")
+    def test_a_verify_cmd_that_cannot_be_split_is_refused_and_fails_a_stored_task(self):
+        with self.assertRaisesRegex(ValueError, "invalid_verify_cmd"):
+            check_verify("workspace_write", 'pytest "x')
+        self.returned()
+        self.db.execute("UPDATE tasks SET verify_cmd = ? WHERE task_id = 'd-1'", ('pytest "x',))
+        self.db.commit()
+        row = self.ledger.verify("d-1", runner=lambda argv, cwd, timeout: self.fail("ran"))
+        self.assertEqual((row["state"], row["result"]["reason"]), ("failed", "not_started"))
+
+    def test_a_verifier_gets_no_stdin(self):
+        read, write = os.pipe()  # a stdin that never ends, as a terminal's
+        saved = os.dup(0)
+        os.dup2(read, 0)
+        try:
+            start = time.monotonic()
+            code, _ = run_verify([sys.executable, "-c", "input()"], self.tmp.name, 10)
+        finally:
+            os.dup2(saved, 0)
+            for fd in (saved, read, write):
+                os.close(fd)
+        self.assertNotEqual(code, 0)
+        self.assertLess(time.monotonic() - start, 5)
+
+    def test_a_verifier_keeps_only_the_output_tail(self):
+        code, output = run_verify([sys.executable, "-c", "import sys; sys.stdout.write('x' * 100000 + 'END')"],
+                                  self.tmp.name, 10)
+        self.assertEqual((code, len(output)), (0, TAIL_BYTES))
+        self.assertTrue(output.endswith(b"END"))
+
+    @unittest.skipIf(sys.platform == "win32", "POSIX process groups")
+    def test_a_verifier_past_its_timeout_takes_what_it_started(self):
+        pid_file = Path(self.tmp.name) / "child.pid"
+        script = ("import subprocess, sys, time\n"
+                  "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
+                  f"open({str(pid_file)!r}, 'w').write(str(child.pid))\n"
+                  "print('started', flush=True)\n"
+                  "time.sleep(60)\n")
+        start = time.monotonic()
+        with self.assertRaises(subprocess.TimeoutExpired) as raised:
+            run_verify([sys.executable, "-c", script], self.tmp.name, 1)
+        self.assertLess(time.monotonic() - start, 5)
+        self.assertIn(b"started", raised.exception.stdout)
+        pid = int(pid_file.read_text(encoding="utf-8"))
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.02)
+        else:
+            os.kill(pid, signal.SIGKILL)
+            self.fail("the verifier's child outlived its timeout")
+
+    def test_a_resumed_character_task_is_never_stored_approved(self):
+        db = self.db
+
+        class Recording:
+            states = []
+
+            def execute(self, *args):
+                return db.execute(*args)
+
+            def commit(self):
+                db.commit()
+                self.states.append(db.execute("SELECT state FROM tasks WHERE task_id = 'c-1'").fetchone()[0])
+        ledger = TaskLedger(Recording())
+        ledger.create("c-1", "character", self.tmp.name, "t", "read_only")
+        ledger.transition("c-1", "approved")
+        ledger.transition("c-1", "running")
+        ledger.transition("c-1", "interrupted")
+        Recording.states.clear()
+        row = ledger.resume_character("c-1")
+        self.assertEqual((row["state"], Recording.states), ("running", ["running"]))
+        self.assertEqual([kind for _, kind in self.events("c-1")][-2:], ["resumed", "running"])
 
 
 if __name__ == "__main__":

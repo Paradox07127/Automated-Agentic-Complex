@@ -77,6 +77,29 @@ class ScheduleResetTest(unittest.TestCase):
                 self.assertEqual(body['deleted'][table], 1)
                 self.assertEqual(body['rows'][table], 0)
 
+    def test_reset_retires_dispatch_cards_before_it_stops_sessions(self):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32") as root:
+            db = open_store(Path(root) / 'agentd.sqlite')
+            self.addCleanup(db.close)
+            with patch.object(AgentdServer, 'server_bind'), patch.object(AgentdServer, 'server_activate'):
+                server = AgentdServer(('127.0.0.1', 48810), HOOK, UI)
+            self.addCleanup(server.server_close)
+            server._stopped.set(); server._ticker.join(2)
+            server.memory = Memory(db)
+            card = server.broker.open("agentd", "d-1", "codex", tool_summary="x", kind="dispatch",
+                                      dispatch={"target": "codex", "cwd": root, "prompt": "x"}, window=600.0)
+            seen = []
+
+            class Sessions:
+                store = None
+
+                def stop_all(self, timeout):
+                    seen.append(card.status)  # an allow on a card still pending here would start a session
+            server.sessions = Sessions()
+            status, body = server.reset()
+            self.assertEqual(status, 200, body)
+            self.assertEqual(seen, ["cancelled"])
+
 
 class ResetTest(unittest.TestCase):
     def setUp(self):

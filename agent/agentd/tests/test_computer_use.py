@@ -432,7 +432,7 @@ class OwnComputerWiringTest(unittest.TestCase):
     def test_optional_scoped_mcp_config_preserves_modes_and_contains_no_approval_bypass(self):
         for target in ("codex", "claude"):
             session = OwnSession(target, self.tmp.name, "task", "workspace_write")
-            original = real_argv(target, str(self.manager.settings_path), mode=session.mode)
+            original = real_argv(target, str(self.manager.settings_paths[session.mode]), mode=session.mode)
             args = self.manager.process_argv(session, original)
             if target == "codex":
                 config = tomllib.loads(args[args.index("-c") + 1])["mcp_servers"][SERVER_NAME]
@@ -460,21 +460,22 @@ class OwnComputerWiringTest(unittest.TestCase):
     def test_only_scoped_codex_approval_form_reaches_existing_user_broker(self):
         session = OwnSession("codex", self.tmp.name, "desktop task")
         session.native_id = "thread-1"
-        manager = types.SimpleNamespace(computer_control=self.config, progress=Mock(), ask=Mock(return_value="allow"), verdict=Mock())
+        manager = types.SimpleNamespace(computer_control=self.config, progress=Mock(), ask=Mock(return_value="allow"), verdict=Mock(),
+                                        lock=threading.RLock(), run_current=Mock(return_value=True))
         process = object.__new__(CodexProcess)
         process.manager, process.session, process.write = manager, session, Mock()
         params = {"threadId": "thread-1", "serverName": SERVER_NAME, "mode": "form", "message": "Allow desktop_act?",
                   "requestedSchema": {"type": "object", "properties": {}},
                   "_meta": {"codex_approval_kind": "mcp_tool_call", "tool_params": {"action": "press", "snapshot_id": "s"}}}
-        process._approval({"id": 1, "method": "mcpServer/elicitation/request", "params": params})
+        process._approval({"id": 1, "method": "mcpServer/elicitation/request", "params": params}, None)
         self.assertEqual(process.write.call_args.args[0], {"id": 1, "result": {"action": "accept", "content": {}}})
         manager.ask.assert_called_once()
         manager.ask.return_value = "deny"
-        process._approval({"id": 2, "method": "mcpServer/elicitation/request", "params": params})
+        process._approval({"id": 2, "method": "mcpServer/elicitation/request", "params": params}, None)
         self.assertEqual(process.write.call_args.args[0]["result"]["action"], "decline")
         for replacement in ({"threadId": "other"}, {"mode": "url"},
                             {"_meta": {}}, {"requestedSchema": {"type": "object", "properties": {"secret": {"type": "string"}}}}):
-            process._approval({"id": 3, "method": "mcpServer/elicitation/request", "params": {**params, **replacement}})
+            process._approval({"id": 3, "method": "mcpServer/elicitation/request", "params": {**params, **replacement}}, None)
             self.assertEqual(process.write.call_args.args[0]["error"]["code"], -32601)
         self.assertEqual(manager.ask.call_count, 2)
 
@@ -482,7 +483,8 @@ class OwnComputerWiringTest(unittest.TestCase):
     def test_native_window_grant_avoids_only_the_duplicate_desktop_action_card(self):
         session = OwnSession("codex", self.tmp.name, "desktop task", "workspace_write")
         session.native_id = "thread-1"
-        manager = types.SimpleNamespace(computer_control=self.config, progress=Mock(), ask=Mock(return_value="deny"), verdict=Mock())
+        manager = types.SimpleNamespace(computer_control=self.config, progress=Mock(), ask=Mock(return_value="deny"), verdict=Mock(),
+                                        lock=threading.RLock(), run_current=Mock(return_value=True))
         process = object.__new__(CodexProcess)
         process.manager, process.session, process.write = manager, session, Mock()
         params = {"threadId": "thread-1", "serverName": SERVER_NAME, "mode": "form",
@@ -492,22 +494,22 @@ class OwnComputerWiringTest(unittest.TestCase):
         status = {"session_granted": True, "paused": False, "permissions": ["observation", "control"]}
         with patch("tool_gateway.desktop.ComputerControlClient") as client:
             client.return_value.call.return_value = status
-            process._approval({"id": 1, "method": "mcpServer/elicitation/request", "params": params})
+            process._approval({"id": 1, "method": "mcpServer/elicitation/request", "params": params}, None)
             self.assertEqual(process.write.call_args.args[0]["result"]["action"], "accept")
             manager.ask.assert_not_called()
             client.return_value.call.return_value = {**status, "permissions": ["observation"]}
-            process._approval({"id": 5, "method": "mcpServer/elicitation/request", "params": params})
+            process._approval({"id": 5, "method": "mcpServer/elicitation/request", "params": params}, None)
             self.assertEqual(process.write.call_args.args[0]["result"]["action"], "accept", "native control grant is still required before any effect")
             client.return_value.call.return_value = {**status, "paused": True}
-            process._approval({"id": 2, "method": "mcpServer/elicitation/request", "params": params})
+            process._approval({"id": 2, "method": "mcpServer/elicitation/request", "params": params}, None)
             self.assertEqual(process.write.call_args.args[0]["result"]["action"], "accept")
             manager.ask.assert_not_called()
             client.return_value.call.return_value = {**status, "session_granted": False}
-            process._approval({"id": 4, "method": "mcpServer/elicitation/request", "params": params})
+            process._approval({"id": 4, "method": "mcpServer/elicitation/request", "params": params}, None)
             self.assertEqual(process.write.call_args.args[0]["result"]["action"], "decline")
             manager.ask.assert_called_once()
             malformed = {**params, "_meta": {**params["_meta"], "tool_params": {"action": "press"}}}
-            process._approval({"id": 3, "method": "mcpServer/elicitation/request", "params": malformed})
+            process._approval({"id": 3, "method": "mcpServer/elicitation/request", "params": malformed}, None)
             self.assertEqual(manager.ask.call_count, 2)
 
     def busy_session(self):

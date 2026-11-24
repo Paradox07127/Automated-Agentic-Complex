@@ -98,9 +98,10 @@ class LifecycleMixin:
             self.cancel_turn("client_cancel")
             while self._live_lines and time.monotonic() < deadline:  # a cancelled line still records its row
                 time.sleep(0.01)
+            # Cards first: a dispatch allowed while sessions stop would start one the reset never stops.
+            self.broker.cancel_all(reason="reset")
             if self.sessions is not None:
                 self.sessions.stop_all(max(0.0, deadline - time.monotonic()))
-            self.broker.cancel_all(reason="reset")
             self.broker.forget()
             self.focus.reset()  # before the trace clears: user_now traces the timer's end
             self.gate.focus = False

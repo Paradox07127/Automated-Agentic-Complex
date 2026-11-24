@@ -1,16 +1,18 @@
 """Persistent task ledger: one row per dispatched task and an event per state change, so a restart can explain it."""
 import hashlib
 import json
+import os
 import shlex
 import subprocess
 import threading
 import time
 
+from infra.platform import new_group_options, release_group, signal_group, track_group
 from sessions import git_state
 from tool_gateway.policy import POLICY, READ_ONLY_PRESETS
 
 TRANSITIONS = {
-    "proposed": ("approved", "denied", "expired"),
+    "proposed": ("approved", "denied", "expired", "cancelled"),
     "approved": ("running", "cancelled", "expired"),
     "running": ("returned", "failed", "cancelled", "interrupted", "waiting_user"),
     "waiting_user": ("cancelled", "interrupted"),
@@ -36,7 +38,18 @@ def check_verify(mode, cmd):
     cmd = cmd.strip()
     if not POLICY.verify_command(mode, cmd):
         raise ValueError("invalid_verify_cmd")
+    try:
+        verify_argv(cmd)
+    except ValueError:
+        raise ValueError("invalid_verify_cmd") from None
     return cmd
+
+
+def verify_argv(cmd):
+    """What run_verify starts for a stored verify command; raises ValueError when it cannot be split.
+
+    Windows gets the command line whole: CreateProcess splits it as Windows programs expect, backslashes included."""
+    return cmd if os.name == "nt" else shlex.split(cmd)
 
 
 def delivery_id(task_id):
@@ -45,13 +58,48 @@ def delivery_id(task_id):
 
 
 def run_verify(argv, cwd, timeout):
-    """(exit code, stdout + stderr); raises subprocess.TimeoutExpired. A read_only preset runs as hardened git."""
+    """(exit code, the last TAIL_BYTES of stdout and stderr); raises subprocess.TimeoutExpired carrying that tail.
+
+    No stdin, and its own process group: what the verifier starts ends with it, or at the timeout. A read_only
+    preset runs as hardened git."""
     preset = READ_ONLY_PRESETS.get(shlex.join(argv))
-    done = subprocess.run(argv, cwd=cwd, timeout=timeout, capture_output=True) if preset is None \
-        else git_state.run(cwd, preset, timeout)
-    if done is None:  # git is unavailable
-        raise FileNotFoundError("git_unavailable")
-    return done.returncode, done.stdout + done.stderr
+    if preset is not None:
+        done = git_state.run(cwd, preset, timeout)
+        if done is None:  # git is unavailable
+            raise FileNotFoundError("git_unavailable")
+        return done.returncode, (done.stdout + done.stderr)[-TAIL_BYTES:]
+    proc = subprocess.Popen(argv, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, **new_group_options())
+    try:
+        try:
+            track_group(proc)
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        tail = bytearray()
+
+        def drain():
+            for chunk in iter(lambda: proc.stdout.read1(65536), b""):
+                tail.extend(chunk)
+                del tail[:-TAIL_BYTES]
+        reader = threading.Thread(target=drain, daemon=True)
+        reader.start()
+        try:
+            code = proc.wait(timeout)
+        except subprocess.TimeoutExpired:
+            code = None
+        try:
+            signal_group(proc, force=True)
+        except (ProcessLookupError, PermissionError):  # nothing of the group is left; Darwin: only exiting members
+            pass
+        proc.wait()
+        reader.join(timeout)  # bounded: a process that left the group can hold the pipe open
+        if code is None:
+            raise subprocess.TimeoutExpired(argv, timeout, output=bytes(tail))
+        return code, bytes(tail)
+    finally:
+        release_group(proc)
 
 
 def _row(row):
@@ -127,12 +175,12 @@ class TaskLedger:
             result = {"exit_code": None, "output_tail": None, "reason": "no_verify_cmd", **delivery}
             return self.transition(task_id, "needs_review", now=now, result=result)
         try:
-            code, output = (runner or run_verify)(shlex.split(task["verify_cmd"]), task["cwd"], VERIFY_TIMEOUT)
+            code, output = (runner or run_verify)(verify_argv(task["verify_cmd"]), task["cwd"], VERIFY_TIMEOUT)
         except subprocess.TimeoutExpired as timeout:
             output = (timeout.stdout or b"") + (timeout.stderr or b"")
             result = {"exit_code": None, "output_tail": _tail(output), "reason": "timeout", **delivery}
             return self.transition(task_id, "failed", now=now, result=result)
-        except OSError as error:  # the program is missing or cannot run in cwd
+        except (OSError, ValueError) as error:  # the program is missing or cannot run in cwd; a row stored unsplittable
             result = {"exit_code": None, "output_tail": str(error)[-TAIL_BYTES:], "reason": "not_started", **delivery}
             return self.transition(task_id, "failed", now=now, result=result)
         result = {"exit_code": code, "output_tail": _tail(output), "reason": None, **delivery}
@@ -155,10 +203,12 @@ class TaskLedger:
                 raise ValueError("unknown_character_task")
             if task["state"] not in ("interrupted", "failed", "cancelled", "needs_review", "succeeded", "waiting_user", "rejected"):
                 raise ValueError("task_still_running")
-            self.db.execute("UPDATE tasks SET state='approved',updated_at=?,result_json=NULL WHERE task_id=?", (now, task_id))
+            # Resumed and running in one commit: a stored approved would expire at the next start.
+            self.db.execute("UPDATE tasks SET state='running',updated_at=?,result_json=NULL WHERE task_id=?", (now, task_id))
             self._event(task_id, "resumed", now, {"previous_state": task["state"]})
+            self._event(task_id, "running", now, None)
             self.db.commit()
-        return self.transition(task_id, "running", now=now)
+            return self._get(task_id)
 
     def get(self, task_id):
         with self.lock:

@@ -41,8 +41,12 @@ class Dispatcher:
                                                 if requested_by is not None else {})},
                                    window=self.window)
         if self.tasks is not None:
-            self.tasks.create(request.request_id, target, cwd, title if title is not None else prompt.strip().splitlines()[0][:TITLE_MAX],
-                              "read_only", verify_cmd, requested_by=requested_by)
+            try:
+                self.tasks.create(request.request_id, target, cwd, title if title is not None else prompt.strip().splitlines()[0][:TITLE_MAX],
+                                  "read_only", verify_cmd, requested_by=requested_by)
+            except Exception:  # no task and no waiter: an allow on the card would start nothing
+                self.broker._cancel(lambda r: r.request_id == request.request_id, "task_not_created")
+                raise
         self._report("dispatch.proposed", request, target=target, source=source)
         threading.Thread(target=self._await, args=(request, target, cwd, prompt), daemon=True).start()
         return request
@@ -57,6 +61,8 @@ class Dispatcher:
                 self._announce("dispatch_closed", "P2", target, cwd, request)
             elif decision == "deny":
                 self._task(request, "denied")
+            elif request.status == "cancelled":  # shutdown or reset retired the card
+                self._task(request, "cancelled", result={"reason": request.ended_by})
             return
         approved = {"mode": mode, "verify_cmd": request.dispatch["verify_cmd"]}
         try:
@@ -67,7 +73,10 @@ class Dispatcher:
         try:
             self.sessions.create(target, cwd, prompt, origin=request.request_id, mode=mode)
         except Exception as error:
-            self._task(request, "cancelled", result={"reason": "start_failed"})
+            try:
+                self._task(request, "cancelled", result={"reason": "start_failed"})
+            except ValueError:  # create() already cancelled it with the reason it did not start
+                pass
             # Before the announcement, whose dispatch.finished closes the card's trace.
             self._report("dispatch.failed", request, error=type(error).__name__)
             self._announce("dispatch_failed", "P1", target, cwd, request)

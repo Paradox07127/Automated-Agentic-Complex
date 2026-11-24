@@ -40,8 +40,16 @@ COLUMNS = ("session_id", "origin", "target", "cwd", "title", "native_id", "state
 # Permission modes a session may start in: the Claude --permission-mode and the Codex sandbox each one means.
 MODES = {"read_only": {"claude": "default", "codex": "read-only"},
          "workspace_write": {"claude": "acceptEdits", "codex": "workspace-write"}}
+# Claude tools each mode always sends to a card: an ask rule outranks the allow rules of the user's and the checkout's
+# settings, which --settings only adds to.
+CLAUDE_ASK = {"read_only": ["Bash", "Edit", "Write", "MultiEdit", "NotebookEdit"], "workspace_write": ["Bash"]}
 LIVE_STATES = ("thinking", "running_tool", "awaiting_approval")  # a turn cut off by a restart in these ends as error
 CODEX_LOCK = Path(__file__).resolve().parent / "codex-protocol.lock.json"
+# The declining reply to each Codex server request agentd answers; any other request gets an error reply.
+DECLINES = {"item/commandExecution/requestApproval": {"decision": "decline"},
+            "item/fileChange/requestApproval": {"decision": "decline"},
+            "item/permissions/requestApproval": {"permissions": {}, "scope": "turn"},
+            "mcpServer/elicitation/request": {"action": "decline", "content": None}}
 # Transcript error lines and announcement headlines by reply language code; "harness" (None) takes the Chinese ones.
 TEXT = {
     "zh-Hans": {"turn_failed": "codex 回合启动失败（{error}）", "start_failed": "{target} 启动失败（{error}）",
@@ -128,11 +136,18 @@ class _Process:
         # Its own process group, so stop() also reaches what the CLI starts.
         self.proc = subprocess.Popen(argv, cwd=session.cwd, env=child_env(), stdin=subprocess.PIPE,
                                      stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, bufsize=1,
-                                     encoding="utf-8", **new_group_options())
-        track_group(self.proc)
+                                     encoding="utf-8", errors="replace", **new_group_options())
         self.write_lock = threading.Lock()
         self.stop_lock = threading.Lock()
-        threading.Thread(target=self._read, daemon=True).start()
+        self.released = False  # the group was stopped and its handle released; stop() has nothing left to do
+        try:
+            track_group(self.proc)
+            threading.Thread(target=self._read, daemon=True).start()
+        except BaseException:
+            self.proc.kill()
+            self.proc.wait()
+            release_group(self.proc)
+            raise
         if not manager.register_backend(session, run, self):
             self.stop(0)
             raise SessionCancelled()
@@ -146,20 +161,33 @@ class _Process:
             self.proc.stdin.flush()
 
     def _read(self):
-        for line in self.proc.stdout:
+        try:
+            for line in self.proc.stdout:
+                try:
+                    message = json.loads(line)
+                except ValueError:
+                    continue
+                if not isinstance(message, dict):
+                    continue
+                try:
+                    self.handle(message)
+                except sqlite3.Error:  # the transcript cannot be kept: the finally below stops the process
+                    log.exception("own session %s: transcript not stored", self.session.session_id)
+                    break
+                except Exception:
+                    log.exception("own session %s: message not handled", self.session.session_id)
+        finally:
+            self.proc.stdout.close()
+            with self.write_lock:
+                try:
+                    self.proc.stdin.close()
+                except OSError:  # flushing what the gone child never read
+                    pass
             try:
-                message = json.loads(line)
-            except ValueError:
-                continue
-            if isinstance(message, dict):
-                self.handle(message)
-        self.proc.stdout.close()
-        with self.write_lock:
-            try:
-                self.proc.stdin.close()
-            except OSError:  # flushing what the gone child never read
-                pass
-        self.manager.exited(self.session, self)
+                self.stop(0)  # what the CLI started and left running
+            except OSError as error:
+                log.warning("own session %s: process group not stopped: %s", self.session.session_id, error)
+            self.manager.exited(self.session, self)
 
     def stop(self, timeout=5.0):
         """SIGTERM to the child's process group; SIGKILL to what is left of it after timeout."""
@@ -167,8 +195,9 @@ class _Process:
             self._stop_process(timeout)
 
     def _stop_process(self, timeout):
-        if not self.alive():
+        if self.released:
             return
+        # The group is signalled even when its leader has exited: what the CLI started can outlive it.
         try:
             signal_group(self.proc)
             try:
@@ -185,14 +214,19 @@ class _Process:
                 pass
             if self.alive():
                 raise
+            try:
+                signal_group(self.proc, force=True)  # the rest of the group, now that its leader is reaped
+            except (ProcessLookupError, PermissionError):  # Darwin's EPERM again: only exiting members are left
+                pass
         self.proc.wait()
+        self.released = True
         release_group(self.proc)
 
 
 class ClaudeProcess(_Process):
     def __init__(self, manager, session):
         super().__init__(manager, session, manager.process_argv(session, manager.argv(
-            "claude", str(manager.settings_path), session.native_id, mode=session.mode)))
+            "claude", str(manager.settings_paths[session.mode]), session.native_id, mode=session.mode)))
 
     def send(self, text):
         self.write({"type": "user", "message": {"role": "user", "content": text}})
@@ -309,7 +343,8 @@ class CodexProcess(_Process):
                 slot[1] = message
                 slot[0].set()
         elif "id" in message:
-            threading.Thread(target=self._approval, args=(message,), daemon=True).start()
+            # The turn it was asked in: a card or an accept once that turn has ended would answer a stale request.
+            threading.Thread(target=self._approval, args=(message, self.session.run), daemon=True).start()
         elif method == "turn/started":
             with self.turn_lock:
                 self.turn_id = params["turn"]["id"]
@@ -336,13 +371,21 @@ class CodexProcess(_Process):
                     return  # an older turn's late completion
                 self.turn_id, self.interrupt_pending = None, False
             self.changes.clear()
-            # Cards still open belong to the finished turn; their waiting replies go back as decline.
-            self.manager.broker.cancel_session(self.session.target, self.session.session_id)
             status = params["turn"].get("status")
             self.manager.turn_ended(self.session, status, self.session.text if status == "completed" else None,
                                     backend=self)
+            # Cards still open belong to the finished turn; their waiting replies go back as decline. After the end,
+            # which keeps a later request of that turn from opening one.
+            self.manager.broker.cancel_session(self.session.target, self.session.session_id)
 
-    def _approval(self, message):
+    def _approval(self, message, run):
+        try:
+            self._answer(message, run)
+        except Exception:  # a request it cannot read is declined, never left unanswered
+            log.exception("own session %s: approval request not answered", self.session.session_id)
+            self._decline(message)
+
+    def _answer(self, message, run):
         method, params = message["method"], message.get("params") or {}
         if method == "mcpServer/elicitation/request" and self.manager.computer_control is not None:
             meta = params.get("_meta") or {}
@@ -366,33 +409,42 @@ class CodexProcess(_Process):
                 verdict = POLICY.desktop_elicitation(self.session.mode, tool_params, status)
                 self.manager.verdict(self.session, "desktop_act", verdict)
                 if verdict.method == "native_panel":
+                    accepted = self._current(run)
                     try:
-                        self.write({"id": message["id"], "result": {"action": "accept", "content": {}}})
+                        self.write({"id": message["id"],
+                                    "result": {"action": "accept" if accepted else "decline", "content": {}}})
                     except (OSError, ValueError):
                         pass
                     return
-                self.manager.progress(self.session, "awaiting_approval", None)
-                summary = str(params.get("message") or "Desktop tool request")[:DETAIL_MAX]
+                summary = str(params.get("message") or "Desktop tool request")
                 if isinstance(meta.get("tool_params"), dict):
-                    summary += "\n" + json.dumps(meta["tool_params"], ensure_ascii=False)[:DETAIL_MAX]
-                decision = self.manager.ask(self.session, "desktop_control", summary)
+                    summary += "\n" + json.dumps(meta["tool_params"], ensure_ascii=False)
+                decision = self.manager.ask(self.session, "desktop_control", summary, run=run)
+                current = self._current(run)
                 try:
-                    self.write({"id": message["id"],
-                                "result": {"action": "accept" if decision == "allow" else "decline", "content": {}}})
+                    self.write({"id": message["id"], "result": {
+                        "action": "accept" if decision == "allow" and current else "decline", "content": {}}})
                 except (OSError, ValueError):  # the process is gone; its exit ends the turn
                     return
-                self.manager.progress(self.session, "running_tool", None)
+                if current:
+                    self.manager.progress(self.session, "running_tool", None)
                 return
         if method == "mcpServer/elicitation/request" and not (
                 self.manager.computer_control is not None and params.get("serverName") == SERVER_NAME):
+            schema = params.get("requestedSchema")
+            if params.get("mode") != "url" and isinstance(schema, dict) and schema.get("properties"):
+                return self._decline(message)  # a card cannot fill in a form's fields
             summary = "\n".join(str(params[key]) for key in ("serverName", "message", "url") if params.get(key))
-            return self._card(message, "elicitation", summary[:DETAIL_MAX], lambda allowed: {
+            return self._card(message, run, "elicitation", summary, lambda allowed: {
                 "action": "accept", "content": None if params.get("mode") == "url" else {}} if allowed else
                 {"action": "decline", "content": None})
         if method == "item/permissions/requestApproval":
             permissions = params.get("permissions") or {}
-            summary = "\n".join(filter(None, (params.get("reason"), json.dumps(permissions, ensure_ascii=False))))
-            return self._card(message, "permissions", summary[:DETAIL_MAX],
+            shown = json.dumps(permissions, ensure_ascii=False)
+            if len(shown) > DETAIL_MAX:
+                return self._decline(message)  # allowing it would grant what the card cannot show
+            summary = "\n".join(filter(None, (shown, params.get("reason"))))
+            return self._card(message, run, "permissions", summary,
                               lambda allowed: {"permissions": permissions if allowed else {}, "scope": "turn"})
         if method not in ("item/commandExecution/requestApproval", "item/fileChange/requestApproval"):
             # Unknown server requests fail closed.
@@ -406,29 +458,47 @@ class CodexProcess(_Process):
         if tool == "command" and command is not None:
             targets = [command]
         if changes:
+            if not all(isinstance(c, dict) and isinstance(c.get("path"), str) and isinstance(c.get("diff"), str)
+                       and isinstance(c.get("kind"), dict) and isinstance(c["kind"].get("type"), str) for c in changes):
+                raise ValueError("malformed fileChange changes")
             summary = "\n\n".join(f"{c['kind']['type']} {c['path']}\n{c['diff']}" for c in changes)
             targets = [p for c in changes for p in (c["path"], c["kind"].get("move_path")) if isinstance(p, str)]
             # Codex offers acceptForSession (later changes to the same files) for file changes only; without the
             # change set the files cannot be judged, so the card stays single approval.
             scope = {"kind": "same_files", "detail": "\n".join(c["path"] for c in changes), "updates": None}
-        self.manager.progress(self.session, "awaiting_approval", None)
-        decision = self.manager.ask(self.session, tool, summary, session_scope=scope, targets=targets)
-        reply = {"allow": "accept", "allow_session": "acceptForSession"}.get(decision, "decline")
+        decision = self.manager.ask(self.session, tool, summary, session_scope=scope, targets=targets, run=run)
+        current = self._current(run)
+        reply = {"allow": "accept", "allow_session": "acceptForSession"}.get(decision, "decline") if current \
+            else "decline"
         try:
             self.write({"id": message["id"], "result": {"decision": reply}})
         except (OSError, ValueError):  # the process is gone; its exit ends the turn
             return
-        self.manager.progress(self.session, "running_tool", None)
+        if current:
+            self.manager.progress(self.session, "running_tool", None)
 
-    def _card(self, message, tool, summary, result):
+    def _card(self, message, run, tool, summary, result):
         """A single-approval card; result(allowed) is the reply to Codex."""
-        self.manager.progress(self.session, "awaiting_approval", None)
-        decision = self.manager.ask(self.session, tool, summary)
+        decision = self.manager.ask(self.session, tool, summary, run=run)
+        current = self._current(run)
         try:
-            self.write({"id": message["id"], "result": result(decision == "allow")})
+            self.write({"id": message["id"], "result": result(decision == "allow" and current)})
         except (OSError, ValueError):  # the process is gone; its exit ends the turn
             return
-        self.manager.progress(self.session, "running_tool", None)
+        if current:
+            self.manager.progress(self.session, "running_tool", None)
+
+    def _current(self, run):
+        with self.manager.lock:
+            return self.manager.run_current(self.session, run)
+
+    def _decline(self, message):
+        decline = DECLINES.get(message["method"])
+        try:
+            self.write({"id": message["id"], **({"result": decline} if decline is not None else
+                                                {"error": {"code": -32601, "message": "unsupported"}})})
+        except (OSError, ValueError):  # the process is gone; its exit ends the turn
+            pass
 
 
 class SessionManager:
@@ -442,14 +512,17 @@ class SessionManager:
         self.tasks = None  # TaskLedger the dispatched sessions' tasks are in; None keeps no task rows
         self.codex_checked = False
         self.closed = False  # close() has begun
+        self.resetting = False  # stop_all() has begun and not yet forgotten the sessions
         # Absolute: claude runs with the project as cwd, where a relative --settings would not resolve.
-        self.settings_path = state_dir.resolve() / "own-claude-settings.json"
-        self.ledger = ledger_path(state_dir.resolve())
+        self.state_dir = state_dir.resolve()
+        self.settings_paths = {mode: self.state_dir / f"own-claude-settings-{mode}.json" for mode in MODES}
+        self.ledger = ledger_path(self.state_dir)
         hook = {"type": "http", "url": hook_url.rstrip("/") + "/hook/claude", "timeout": 3,
                 "headers": {"Authorization": f"Bearer {hook_token}"}}
-        write_secret(self.settings_path, json.dumps({"hooks": {
-            name: [{"hooks": [{**hook, "timeout": hook_timeout} if name == "PermissionRequest" else hook]}]
-            for name in HOOK_EVENTS}}, indent=2))
+        hooks = {name: [{"hooks": [{**hook, "timeout": hook_timeout} if name == "PermissionRequest" else hook]}]
+                 for name in HOOK_EVENTS}
+        for mode, path in self.settings_paths.items():
+            write_secret(path, json.dumps({"permissions": {"ask": CLAUDE_ASK[mode]}, "hooks": hooks}, indent=2))
         if store is not None:
             store.execute("CREATE TABLE IF NOT EXISTS session_management (session_id TEXT PRIMARY KEY, pinned INTEGER NOT NULL, archived INTEGER NOT NULL, revision INTEGER NOT NULL)")
             for row in store.execute(f"SELECT {', '.join(COLUMNS)} FROM own_sessions").fetchall():
@@ -478,7 +551,7 @@ class SessionManager:
                 ',default_tools_approval_mode="writes",startup_timeout_sec=10,tool_timeout_sec=210}'
             return [*argv, "-c", f"mcp_servers.{SERVER_NAME}={table}"]
         name = hashlib.sha256(session.session_id.encode()).hexdigest()[:24]
-        path = self.settings_path.parent / f"own-computer-mcp-{name}.json"
+        path = self.state_dir / f"own-computer-mcp-{name}.json"
         write_secret(path, json.dumps({"mcpServers": {SERVER_NAME: config}}))
         return [*argv, "--mcp-config", str(path)]
 
@@ -555,7 +628,11 @@ class SessionManager:
             self.save(session)
         if origin is not None:
             self.move_task(origin, "running", session_id=session.session_id)  # before its turn can end
-        self.message(session.session_id, prompt)
+        result = self.message(session.session_id, prompt)
+        if origin is not None and result not in ("started", "interrupted", "failed"):
+            # No turn began, so no turn end settles the task.
+            self.move_task(origin, "cancelled", result={"reason": result})
+            raise RuntimeError(f"dispatched session not started: {result}")
         return session
 
     def message(self, session_id, text):
@@ -563,7 +640,7 @@ class SessionManager:
         if session is None:
             return "unknown"
         with self.lock:
-            if self.closed:  # shutting down: no new process
+            if self.closed or self.resetting:  # shutting down, or a reset forgetting every session: no new process
                 return "closed"
             if self.sessions.get(session_id) is not session: return "unknown"
             if session.archived: return "archived"
@@ -600,6 +677,8 @@ class SessionManager:
             self.turn_ended(session, "interrupted", None, run=run)
             return "interrupted"
         except Exception as e:  # missing CLI, failed handshake: end the turn instead of staying busy
+            if created:
+                backend.stop(0)
             with self.lock:
                 if not self.run_current(session, run):
                     self.turn_ended(session, "interrupted", None, run=run)
@@ -657,10 +736,17 @@ class SessionManager:
                 backend.stop(0)
         return "interrupted"
 
-    def ask(self, session, tool, summary, session_scope=None, targets=None):
-        request = self.broker.open(session.target, session.session_id, tool, tool_summary=summary,
-                                   display=session.session_id, session_scope=session_scope, targets=targets,
-                                   cwd=session.cwd)
+    def ask(self, session, tool, summary, session_scope=None, targets=None, run=None):
+        """The decision on a card for summary, clipped to DETAIL_MAX; None, and no card, once run is not current."""
+        with self.lock:  # the turn's end cannot slip between the check and the card
+            if run is not None and not self.run_current(session, run):
+                return None
+            self.progress(session, "awaiting_approval", None)
+            request = self.broker.open(session.target, session.session_id, tool, tool_summary=summary[:DETAIL_MAX],
+                                       display=session.session_id, session_scope=session_scope, targets=targets,
+                                       cwd=session.cwd, summary_truncated=len(summary) > DETAIL_MAX,
+                                       summary_length=len(summary),
+                                       summary_sha256=hashlib.sha256(summary.encode("utf-8", "surrogatepass")).hexdigest())
         self.verdict(session, tool, request.verdict)
         return self.broker.wait(request.request_id)
 
@@ -747,7 +833,7 @@ class SessionManager:
             kind = "session_failed"
         self.announce({"ts": time.time(), "level": "P1", "kind": kind, "headline": self.text(kind, target=session.target),
                        "project": session.cwd, "session_id": session.session_id,
-                       "detail": text[:DETAIL_MAX] if status == "completed" and text else None})
+                       "detail": text[:DETAIL_MAX] if text else None})
 
     def text(self, key, **fields):
         return TEXT.get(self.reply_language(), TEXT["zh-Hans"])[key].format(**fields)
@@ -771,29 +857,37 @@ class SessionManager:
                        "detail": text[:DETAIL_MAX] if text else None})
 
     def exited(self, session, backend):
-        if session.backend is not backend:
-            return  # a replaced process; the cards open now are its successor's
-        # Its open cards can no longer be answered.
-        self.broker.cancel_session(session.target, session.session_id)
-        if session.busy:
-            self.turn_ended(session, "failed", None)
+        with self.lock:  # message() cannot put a successor in between
+            if session.backend is not backend:
+                return  # a replaced process; the cards open now are its successor's
+            # Its open cards can no longer be answered.
+            self.broker.cancel_session(session.target, session.session_id)
+        self.turn_ended(session, "failed", None, backend=backend)
 
     def reap(self, now=None):
         now = time.monotonic() if now is None else now
-        for session in list(self.sessions.values()):
-            if not session.busy and session.backend is not None and now - session.idle_since > self.idle_after:
-                self.cancel_computer(session, "own_idle")
-                session.backend.stop()
+        idle = []
+        with self.lock:  # a backend taken here is one no message() reuses
+            for session in self.sessions.values():
+                if not session.busy and session.backend is not None and now - session.idle_since > self.idle_after:
+                    idle.append((session, session.backend))
+                    session.backend = None
+        for session, backend in idle:
+            self.cancel_computer(session, "own_idle")
+            backend.stop()
 
     def alive(self, session_id):
-        backend = self.sessions[session_id].backend
+        with self.lock:
+            backend = self.sessions[session_id].backend
         return backend is not None and backend.alive()
 
     def resumed(self, session_id):
-        return self.sessions[session_id].resumes > 0
+        with self.lock:
+            return self.sessions[session_id].resumes > 0
 
     def native_ids(self):
-        return {s.native_id: s for s in self.sessions.values() if s.target == "claude" and s.native_id}
+        with self.lock:
+            return {s.native_id: s for s in self.sessions.values() if s.target == "claude" and s.native_id}
 
     def close(self, timeout=5.0):
         """Interrupt busy sessions, then stop every backend; all within one timeout."""
@@ -802,10 +896,15 @@ class SessionManager:
         self._stop(timeout)
 
     def stop_all(self, timeout=5.0):
-        """POST /reset: as close() but new sessions may still start; every session is forgotten."""
-        self._stop(timeout)
+        """POST /reset: as close(), and every session is forgotten; sessions start again once they are."""
         with self.lock:
-            self.sessions.clear()
+            self.resetting = True
+        try:
+            self._stop(timeout)
+        finally:
+            with self.lock:
+                self.sessions.clear()
+                self.resetting = False
 
     def clear(self):
         """Every own_sessions row and its stored lines deleted; returns how many own_sessions rows."""

@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from sessions.approvals import ApprovalBroker  # noqa: E402
 from tool_gateway.computer_use import SERVER_NAME  # noqa: E402
+from sessions.lifecycle import SessionRun  # noqa: E402
 from sessions.own import CodexProcess, OwnSession, SessionManager, real_argv  # noqa: E402
 from test_computer_use import Native  # noqa: E402
 
@@ -31,6 +32,11 @@ class OwnApprovalPolicyTest(unittest.TestCase):
                                       computer_control=self.native.config)
         self.session = OwnSession("codex", self.tmp.name, "desktop task", "workspace_write")
         self.session.native_id = "thread-1"
+        # In a turn: approvals answer only the turn they were asked in.
+        self.manager.sessions[self.session.session_id] = self.session
+        self.session.busy, self.session.run = True, SessionRun()
+        self.session.run.phase = "running"
+        self.session.run.started.set()  # close() waits for a start that no message() makes here
         self.process = object.__new__(CodexProcess)
         self.process.manager, self.process.session, self.process.write = self.manager, self.session, Mock()
         self.process.changes = {}
@@ -52,7 +58,7 @@ class OwnApprovalPolicyTest(unittest.TestCase):
 
     def answer(self, message, decision):
         """Run _approval and decide the card it opens."""
-        thread = threading.Thread(target=self.process._approval, args=(message,), daemon=True)
+        thread = threading.Thread(target=self.process._approval, args=(message, self.session.run), daemon=True)
         thread.start()
         deadline = time.monotonic() + 5
         while not self.broker.pending() and time.monotonic() < deadline:
@@ -64,7 +70,7 @@ class OwnApprovalPolicyTest(unittest.TestCase):
 
     @unittest.skipIf(sys.platform == "win32", "the computer-use desktop endpoint is a unix socket served by the macOS app; its Windows side is not built")
     def test_desktop_auto_accept_reports_native_panel_verdict(self):
-        self.process._approval(self.elicitation(1))
+        self.process._approval(self.elicitation(1), self.session.run)
         self.assertEqual(self.process.write.call_args.args[0], {"id": 1, "result": {"action": "accept", "content": {}}})
         self.assertEqual(self.broker.pending(), [])
         self.assertEqual(self.verdicts(), [({"tool": "desktop_act", "method": "native_panel", "dangerous": False,
@@ -117,7 +123,7 @@ class OwnApprovalPolicyTest(unittest.TestCase):
 
     @unittest.skipIf(sys.platform == "win32", "the computer-use desktop endpoint is a unix socket served by the macOS app; its Windows side is not built")
     def test_unknown_server_request_fails_closed(self):
-        self.process._approval({"id": 8, "method": "item/unknown/requestApproval", "params": {}})
+        self.process._approval({"id": 8, "method": "item/unknown/requestApproval", "params": {}}, self.session.run)
         self.assertEqual(self.process.write.call_args.args[0],
                          {"id": 8, "error": {"code": -32601, "message": "unsupported"}})
         self.assertEqual(self.broker.pending(), [])

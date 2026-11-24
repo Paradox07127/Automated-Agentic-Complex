@@ -947,8 +947,9 @@ class SessionsTest(unittest.TestCase):
         relative = Path(os.path.relpath(self.tmp.name))
         manager = SessionManager(self.server.broker, self.server.announce, relative, "http://127.0.0.1:1", HOOK,
                                  hook_timeout=10, argv=fake_argv)
-        self.assertTrue(manager.settings_path.is_absolute())
-        self.assertEqual(manager.settings_path, Path(self.tmp.name).resolve() / "own-claude-settings.json")
+        for mode, path in manager.settings_paths.items():
+            self.assertTrue(path.is_absolute())
+            self.assertEqual(path, Path(self.tmp.name).resolve() / f"own-claude-settings-{mode}.json")
 
     @unittest.skipIf(sys.platform == "win32", "cause on Windows not yet found")
     def test_barge_in_on_an_announcement_leaves_the_session_running(self):
@@ -970,10 +971,12 @@ class SessionsTest(unittest.TestCase):
     @unittest.skipIf(sys.platform == "win32", "cause on Windows not yet found")
     def test_settings_file_is_private_and_child_env_is_scrubbed(self):
         self.idle(self.create("claude", "第一问"))
-        [settings] = Path(self.tmp.name).glob("own-claude-settings.json")
-        self.assertEqual(stat.S_IMODE(settings.stat().st_mode), 0o600)
-        hooks = json.loads(settings.read_text(encoding="utf-8"))["hooks"]
-        self.assertEqual(hooks["PermissionRequest"][0]["hooks"][0]["timeout"], 10)
+        files = sorted(Path(self.tmp.name).glob("own-claude-settings-*.json"))
+        self.assertEqual(len(files), 2)
+        for settings in files:
+            self.assertEqual(stat.S_IMODE(settings.stat().st_mode), 0o600)
+            hooks = json.loads(settings.read_text(encoding="utf-8"))["hooks"]
+            self.assertEqual(hooks["PermissionRequest"][0]["hooks"][0]["timeout"], 10)
         self.assertEqual(child_env({"PATH": "/bin", "ANTHROPIC_API_KEY": "k", "AGENTD_HOOK_TOKEN": "t"}),
                          {"PATH": "/bin"})
 

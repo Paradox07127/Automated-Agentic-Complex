@@ -106,7 +106,7 @@ class OwnLedgerWiringTest(unittest.TestCase):
         expected = str(ledger_path(Path(self.tmp.name).resolve()))
         for target in ("codex", "claude"):
             session = OwnSession(target, self.tmp.name, "task", "workspace_write")
-            args = self.manager.process_argv(session, real_argv(target, str(self.manager.settings_path), mode=session.mode))
+            args = self.manager.process_argv(session, real_argv(target, str(self.manager.settings_paths[session.mode]), mode=session.mode))
             if target == "codex":
                 config = tomllib.loads(args[args.index("-c") + 1])["mcp_servers"][SERVER_NAME]
             else:

@@ -1,5 +1,7 @@
 from pathlib import Path
+import sqlite3
 import sys
+import tempfile
 import threading
 import time
 import unittest
@@ -9,6 +11,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from sessions.approvals import ApprovalBroker  # noqa: E402
 from brain.parser import parse_command  # noqa: E402
 from sessions.dispatch import Dispatcher  # noqa: E402
+from infra.store import open_store  # noqa: E402
+from sessions.tasks import TaskLedger  # noqa: E402
 
 
 class FakeSessions:
@@ -189,6 +193,31 @@ class DispatchTest(unittest.TestCase):
                          [("dispatch.proposed", request.request_id, None, request.request_id),
                           ("dispatch.decided", request.request_id, "allow", request.request_id)])
         self.assertNotIn("查一下测试怎么跑", str(seen))
+
+    def test_a_task_that_cannot_be_stored_leaves_no_card(self):
+        class Locked:
+            def create(self, *args, **kwargs):
+                raise sqlite3.OperationalError("database is locked")
+        dispatcher = self.dispatcher()
+        dispatcher.tasks = Locked()
+        with self.assertRaises(sqlite3.OperationalError):
+            dispatcher.propose("codex", "/repo", "x")
+        self.assertEqual(self.broker.pending(), [])
+
+    def test_a_dispatch_retired_by_shutdown_cancels_its_task(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        db = open_store(Path(folder.name) / "tasks.sqlite")
+        self.addCleanup(db.close)
+        dispatcher = self.dispatcher()
+        dispatcher.tasks = TaskLedger(db)
+        request = dispatcher.propose("codex", "/repo", "x")
+        self.broker.cancel_all("shutdown")
+        deadline = time.monotonic() + 2
+        while dispatcher.tasks.get(request.request_id)["state"] == "proposed" and time.monotonic() < deadline:
+            time.sleep(0.01)
+        task = dispatcher.tasks.get(request.request_id)
+        self.assertEqual((task["state"], task["result"]), ("cancelled", {"reason": "shutdown"}))
 
     def test_a_failing_decision_callback_changes_nothing(self):
         dispatcher = self.dispatcher()
