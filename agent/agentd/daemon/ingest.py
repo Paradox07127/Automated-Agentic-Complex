@@ -65,52 +65,52 @@ class IngestMixin:
             self.thoughts.notice(turned, {"session_id": after.display_id, "state": after.state})
 
     def _signals_allowed(self, row):
+        """row: an event or registry session dict; a "title" in it is judged as the window title."""
         if self.observation_paused() or self.resetting or not self.consent.snapshot()[0]["agent_sessions"]:
             return False
         attention = self.attention
         if attention is None:
             return False
-        metadata = {"app": row["source"], "doc": row.get("cwd"), "label": row["session_id"],
-                    "bundle_id": (row.get("origin") or {}).get("bundle_id")}
         with attention.lock:
-            return not attention._secure and not attention._raw_hidden(metadata)
+            return not attention._secure and not attention._raw_hidden(_session_window(row))
 
     def record_agent_event(self, event, body):
         """A hook event into events_raw under its session's title:a prompt the user sent as "prompt", its text
-        only with typed_text and coding-session sharing; a prompt something else sent, a finished tool, a stop and a wait for the user as
-        "agent". Other kinds, and anything while paused, store nothing."""
-        signals = getattr(self, "signals", None)
-        if signals is not None and self._signals_allowed(event.to_dict()):
-            signals.on_hook(event, body)
+        only with typed_text; a prompt something else sent, a finished tool, a stop and a wait for the user as
+        "agent". Without coding-session sharing nothing is read or stored; other kinds, and anything while paused,
+        store nothing."""
         attention = self.attention
+        generation = attention and attention.typed_generation  # before consent, so a revocation in between drops the text
+        with self.consent.lock:
+            permissions = self.consent.snapshot()[0]
+        if not (plugins.on("coding_sessions") and permissions["agent_sessions"]):
+            return
+        meta = {"title": None} if self.agent_meta is None else \
+            self.agent_meta.session(event.source, event.session_id, body.get("transcript_path"), body.get("session_title"))
+        session = {**event.to_dict(), "title": meta["title"]}
+        signals = getattr(self, "signals", None)
+        if signals is not None and self._signals_allowed(session):
+            signals.on_hook(event, body)
         if attention is None or self.observation_paused() \
                 or event.kind not in ("prompt_submit", "tool_end", "stop", "subagent_stop", "awaiting_input"):
             return
         prompt = body.get("prompt")
         if event.kind == "prompt_submit" and not (isinstance(prompt, str) and prompt):
             return
-        meta = {"title": None} if self.agent_meta is None else \
-            self.agent_meta.session(event.source, event.session_id, body.get("transcript_path"), body.get("session_title"))
-        row = {"ts": event.ts, "app": event.source, "doc": event.cwd and event.cwd[:RAW_TEXT["doc"]],
-               "label": event.session_id[:RAW_TEXT["label"]], "window": meta["title"] and meta["title"][:RAW_TEXT["window"]]}
+        row = {"ts": event.ts, **_session_window(session)}
         agent = lambda role, subrole=None, value=None: {**row, "kind": "agent", "role": role,  # noqa: E731
                                                         "subrole": subrole and subrole[:RAW_TEXT["subrole"]],
                                                         "value": value}
-        generation = attention.typed_generation  # before consent, so a revocation in between drops the text
         observations=getattr(self.character_agent,'observations',None)
         if event.kind == "prompt_submit":
             # Markup is what Claude Code injects (task notifications, command output).
             origin = "subagent" if event.source == "codex" and isinstance(body.get("agent_id"), str) and body["agent_id"] \
                 else "system" if prompt.lstrip().startswith("<") else "unknown"
-            with self.consent.lock:
-                permissions = self.consent.snapshot()[0]
-                shared = plugins.on("coding_sessions") and permissions["agent_sessions"]
-                typed = shared and permissions["typed_text"]
-                attention.ingest_events(
-                    [{**row, "kind": "prompt", "role": origin, "value": prompt[:PROMPT_MAX] if typed else None,
-                      "value_len": len(prompt)} if origin == "unknown" else agent("notification", origin)],
-                    typed_generation=generation)
-            if shared and observations: observations.ingest_hook(event,body,origin=origin,typed_generation=generation)
+            attention.ingest_events(
+                [{**row, "kind": "prompt", "role": origin, "value": prompt[:PROMPT_MAX] if permissions["typed_text"] else None,
+                  "value_len": len(prompt)} if origin == "unknown" else agent("notification", origin)],
+                typed_generation=generation)
+            if observations: observations.ingest_hook(event,body,origin=origin,typed_generation=generation)
             return
         message = body.get("last_assistant_message")
         message = message[:AGENT_TEXT_MAX] if isinstance(message, str) and message else None
@@ -146,3 +146,11 @@ class IngestMixin:
                 done = threading.Event()
                 done.set()
                 self._receipts[key] = {"request": request, "done": done, "answer": tuple(json.loads(answer))}
+
+
+def _session_window(row):
+    """An event or registry session dict as the events_raw window the blacklist judges."""
+    title = row.get("title")
+    return {"app": row["source"], "bundle_id": (row.get("origin") or {}).get("bundle_id"),
+            "window": title and title[:RAW_TEXT["window"]], "doc": row.get("cwd") and row["cwd"][:RAW_TEXT["doc"]],
+            "label": row["session_id"][:RAW_TEXT["label"]]}

@@ -116,6 +116,16 @@ class NowTest(unittest.TestCase):
         self.timeline.expire(T0 + 2 + timeline_module.KEEP_S)
         self.assertNotIn("SECRET-CODE", stored())
 
+    def test_the_window_fields_go_with_the_record_that_set_them(self):
+        self.timeline.ingest([rec(T0, "window", app="Chrome", window_id=7, title="PR", url_host="github.com", target=None),
+                              rec(T0 + 1, "window", app="Chrome", window_id=7, title="Account", url_host="bank.com",
+                                  target=None)])
+        self.assertEqual(self.timeline.now()["url_host"], "bank.com")  # control
+        self.timeline.delete_hidden(lambda w: w["url_host"] == "bank.com")
+        now = self.timeline.now()
+        self.assertEqual((now["url_host"], now["window"], now["basis"]), (None, None, []))
+        self.assertNotIn("bank.com", self.timeline.db.execute("SELECT state FROM now").fetchone()[0])
+
 
 class NowContextTest(unittest.TestCase):
     """The now state as the server's activity() and the mouth's context read it."""

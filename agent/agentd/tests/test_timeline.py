@@ -125,21 +125,12 @@ class TimelineTest(unittest.TestCase):
         self.timeline.clear_trees()
         self.assertEqual([r["tree"] for r in self.timeline.records(int(T0))], [None, None])
 
-    def test_a_clear_while_a_batch_is_filtered_keeps_nothing_from_before_it(self):
-        timeline = self.timeline
-
-        class Clearing:
-            fired = False
-
-            def hides(self, window):
-                if not self.fired:  # DELETE /observation lands while ingest checks the batch
-                    self.fired = True
-                    timeline.clear()
-                return False
-
-        timeline.blacklist = Clearing()
+    def test_a_batch_is_filtered_under_the_lock(self):
+        # So a clear or a "block + delete existing" lands wholly before or after the batch.
+        timeline, held = self.timeline, []
+        timeline.blacklist = types.SimpleNamespace(hides=lambda window: held.append(timeline.lock.locked()))
         timeline.ingest([row(self.now - 5)])
-        self.assertEqual([r["ts"] for s in timeline.segments() for r in timeline.records(s["segment"])], [])
+        self.assertEqual(held, [True])
 
     def test_a_failed_batch_leaves_no_row(self):
         with self.assertRaises(OverflowError):

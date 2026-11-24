@@ -304,6 +304,40 @@ class SnapshotTest(unittest.TestCase):
         self.assertIsNone(inputs["window_text"])
         self.assertEqual(assemble(inputs)["activity"], "build_failed")
 
+    def browse(self, pages):
+        chrome = {"app": "Google Chrome", "bundle_id": "com.google.Chrome", "pid": 13, "window_id": 6, "title": "tab"}
+        for host, title in pages:
+            self.now += 2
+            self.attention.ingest({"ts": self.now, "front": chrome, "mouse": None, "idle_s": 1.0})
+            self.attention.ingest_browser({"type": "heartbeat", "ts": self.now, "url_host": host, "title": title,
+                                           "tab_id": 1, "audible": False})
+        return snapshot(self.attention, self.registry, None, None)
+
+    def test_pages_blacklisted_since_are_not_in_the_scene(self):
+        pages = [("a.com", "A"), ("b.com", "B")] * 3
+        self.assertEqual(assemble(self.browse(pages))["activity"], "comparing_sources")  # control
+        self.attention.blacklist.add("domains", "b.com")
+        inputs = snapshot(self.attention, self.registry, None, None)
+        self.assertEqual({p["url_host"] for p in inputs["recent_pages"]}, {"a.com"})
+        self.assertIsNone(inputs["page"])
+        self.assertNotIn("b.com", json.dumps(assemble(inputs)["facts"], ensure_ascii=False))
+
+    def test_an_unnamed_page_among_the_switches_is_no_label(self):
+        inputs = self.browse([("a.com", "A"), (None, None), ("a.com", "A"), ("b.com", "B"), ("a.com", "A")])
+        self.assertEqual(assemble(inputs)["activity"], "comparing_sources")
+
+    def test_a_clear_between_the_presence_reads_leaves_no_presence_gap(self):
+        self.attention.ingest({"ts": self.now, "front": self.editor, "mouse": None, "idle_s": 1.0})
+        presence = self.attention.presence
+
+        def cleared():
+            answer = presence()
+            self.attention.clear_tables()
+            return answer
+
+        self.attention.presence = cleared
+        self.assertEqual(snapshot(self.attention, self.registry, None, None)["presence"]["status"], "active")
+
 
 class TypingFromKeysTest(unittest.TestCase):
     """Typing and meeting from user_now, switching from the heartbeat's counts (C6 `input`)."""

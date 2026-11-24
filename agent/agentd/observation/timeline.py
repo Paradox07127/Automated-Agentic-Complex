@@ -29,9 +29,10 @@ class Timeline:
         self.db.execute("CREATE INDEX IF NOT EXISTS timeline_segment_ts ON timeline (segment, ts)")
         self.db.execute("CREATE TABLE IF NOT EXISTS now (id INTEGER PRIMARY KEY CHECK (id = 1), state TEXT NOT NULL)")
         # rowid: the segment's start; screen, typed: 1 when the summary's input held SCREEN or TYPED rows, its own or
-        # those of the summaries before it. Summaries outlive the records; they go with the records they were made from.
+        # those of the summaries before it; windows: the JSON [[app, bundle_id, url_host]] of those rows, likewise.
+        # Summaries outlive the records; they go with the records they were made from, or with those windows.
         self.db.execute("CREATE VIRTUAL TABLE IF NOT EXISTS summaries USING fts5(text, screen UNINDEXED, typed UNINDEXED,"
-                        " tokenize='unicode61')")
+                        " windows UNINDEXED, tokenize='unicode61')")
         row = self.db.execute("SELECT state FROM now").fetchone()
         self.state = json.loads(row[0]) if row else now_rules.EMPTY
         self.tree_generation = 0
@@ -48,9 +49,9 @@ class Timeline:
         """Checked records (see api.views._timeline_record) in, less the blacklisted ones and those at or before the
         last clear; with a typed_generation other than the current one, text and target.value go. The stored ones
         advance the now state. Returns stored."""
-        kept = [r for r in records if not self._hidden(r)]
         with self.lock:
-            kept = [r for r in kept if r["ts"] > self.floor]  # under the lock, so a clear() meanwhile counts
+            # Under the lock, so a clear() or a delete_hidden() meanwhile counts.
+            kept = [r for r in records if r["ts"] > self.floor and not self._hidden(r)]
             stale = typed_generation is not None and typed_generation != self.typed_generation
             stale_tree = tree_generation is not None and tree_generation != self.tree_generation
             latest = self.db.execute("SELECT ts FROM timeline ORDER BY segment DESC, ts DESC LIMIT 1").fetchone()
@@ -78,7 +79,7 @@ class Timeline:
         """The now state as its records allow: see observation.now.shown."""
         with self.lock:
             state = self.state
-            ids = [i for i in (state["start_id"], *(a["id"] for a in state["actions"])) if i is not None]
+            ids = [i for i in (state["window_src"], *(a["id"] for a in state["actions"])) if i is not None]
             rows = self.db.execute(f"SELECT id, kind, app, bundle_id, url_host, window_title, target, text FROM timeline"
                                    f" WHERE id IN ({', '.join('?' * len(ids))})", ids).fetchall() if ids else []
         live = {}
@@ -97,8 +98,9 @@ class Timeline:
         """Under the lock: the stored state without what the deleted records gone(id, ts) put in it."""
         s = self.state
         state = {**s, "actions": [a for a in s["actions"] if not gone(a["id"], a["ts"])]}
-        if s["start_id"] is not None and gone(s["start_id"], s["since"]):
-            state.update(dict.fromkeys(now_rules.WINDOW), start_id=None)
+        # since is no later than the window fields' record, so an expired record never stays.
+        if s["window_src"] is not None and gone(s["window_src"], s["since"]):
+            state.update(dict.fromkeys(now_rules.WINDOW), start_id=None, window_src=None)
         self._save(state)
 
     def segments(self, since=None):
@@ -148,7 +150,7 @@ class Timeline:
         return deleted
 
     def delete_hidden(self, hides):
-        """The rows whose window hides(window) matches go. Returns deleted."""
+        """The rows whose window hides(window) matches go, and the summaries made from such a window. Returns deleted."""
         with self.lock:
             rows = self.db.execute("SELECT id, segment, app, bundle_id, url_host, window_title FROM timeline").fetchall()
             gone = [(rowid, segment) for rowid, segment, *window in rows
@@ -156,9 +158,11 @@ class Timeline:
             self.db.executemany("DELETE FROM timeline WHERE id = ?", [(rowid,) for rowid, _ in gone])
             ids = {rowid for rowid, _ in gone}
             self._prune(lambda rowid, _: rowid in ids)
-            if gone:
+            made = [segment for segment, windows in self.db.execute("SELECT rowid, windows FROM summaries")
+                    if any(hides(_window(dict(zip(("app", "bundle_id", "url_host"), w)))) for w in json.loads(windows))]
+            if gone or made:
                 # Each later summary can carry earlier summaries forward through its context.
-                self._drop_summaries("rowid >= ?", (min(segment for _, segment in gone),))
+                self._drop_summaries("rowid >= ?", (min([segment for _, segment in gone] + made),))
             self.db.commit()
         return len(gone)
 
@@ -195,10 +199,16 @@ class Timeline:
                                             (segment,)).fetchone()
             before = self.db.execute("SELECT MAX(screen), MAX(typed) FROM summaries WHERE rowid < ? AND rowid >= ?",
                                      (segment, segment - 3600)).fetchone()
+            windows = {tuple(w) for w in self.db.execute("SELECT DISTINCT app, bundle_id, url_host FROM timeline"
+                                                         " WHERE segment = ?", (segment,))}
+            for earlier, in self.db.execute("SELECT windows FROM summaries WHERE rowid < ? AND rowid >= ?",
+                                            (segment, segment - 3600)):
+                windows.update(tuple(w) for w in json.loads(earlier))
             with self.db:
                 self.db.execute("DELETE FROM summaries WHERE rowid = ?", (segment,))
-                self.db.execute("INSERT INTO summaries (rowid, text, screen, typed) VALUES (?, ?, ?, ?)",
-                                (segment, text, int(bool(screen or before[0])), int(bool(typed or before[1]))))
+                self.db.execute("INSERT INTO summaries (rowid, text, screen, typed, windows) VALUES (?, ?, ?, ?, ?)",
+                                (segment, text, int(bool(screen or before[0])), int(bool(typed or before[1])),
+                                 json.dumps(sorted(windows, key=str), ensure_ascii=False)))
         return True
 
     def summarized(self):

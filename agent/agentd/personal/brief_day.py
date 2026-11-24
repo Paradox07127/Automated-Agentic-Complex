@@ -77,10 +77,9 @@ def _focus(server, enabled, sites_allowed, since, start, end, add):
     a, b = max(active, key=lambda span: span[1] - span[0])
     focus['longest'] = {'start': a, 'minutes': (b - a) / 60}
     with attention.lock:
-        browser_fields = ("json_extract(data,'$.bundle_id'),json_extract(data,'$.url_host'),json_extract(data,'$.incognito')"
-                          if sites_allowed else "NULL,NULL,NULL")
         windows = attention.db.execute(
-            f"SELECT start,duration,json_extract(data,'$.app'),{browser_fields} FROM events WHERE bucket='window'"
+            "SELECT start,duration,json_extract(data,'$.app'),json_extract(data,'$.bundle_id'),"
+            "json_extract(data,'$.url_host'),json_extract(data,'$.incognito') FROM events WHERE bucket='window'"
             " AND start<? AND start+duration>? ORDER BY start", (end, start)).fetchall()
         sites = attention._range('browser', start, end) if sites_allowed else []
 
@@ -95,7 +94,8 @@ def _focus(server, enabled, sites_allowed, since, start, end, add):
     ends = [b for _, b in active]
     browser_spans = []
     for a, duration, app, bundle, host, private in windows:
-        if not app or app == HIDDEN['app'] or duration <= 0:
+        if not app or app == HIDDEN['app'] or duration <= 0 \
+                or attention.blacklist.hides({'app': app, 'bundle_id': bundle, 'url_host': host}):  # blacklisted since
             continue
         for x, y in overlaps(a, a + duration, active, ends):
             apps[app] += y - x

@@ -172,13 +172,13 @@ class AttentionTest(unittest.TestCase):
     def test_presence_from_the_latest_beats(self):
         self.assertIsNone(self.store.presence())
         self.feed(T0, 10, SAFARI)
-        self.assertEqual(self.store.presence(), ("active", 10.0))
+        self.assertEqual(self.store.presence(), ("active", 10.0, self.store.events("afk")[-1]))
         t = T0 + 11
         while t <= T0 + 10 + AFK_AFTER + 20:
             self.now = t
             self.store.ingest(beat(t, SAFARI, idle=t - (T0 + 10)))
             t += 1.0
-        status, seconds = self.store.presence()
+        status, seconds, _ = self.store.presence()
         self.assertEqual(status, "afk")
         self.assertGreaterEqual(seconds, AFK_AFTER)
         self.now += 60  # beats stopped: unknown, not the last state
@@ -245,7 +245,8 @@ class AttentionTest(unittest.TestCase):
         self.browse(T0, url_host="mybank.icbc.com.cn", title="账户")
         self.browse(T0 + 1, "page", url_host="mybank.icbc.com.cn", text="余额 100")
         self.browse(T0 + 2, "selection", url_host="mybank.icbc.com.cn", text="100")
-        self.assertEqual(self.store.events("browser")[0]["data"], {"url_host": "<hidden>", "audible": False})
+        self.assertEqual(self.store.events("browser")[0]["data"],
+                         {"url_host": "<hidden>", "audible": False, "window_focused": False, "visible": False})
         self.assertEqual(self.store.context(), [])
 
     def test_title_pattern_hides_a_page_and_its_text(self):
@@ -254,7 +255,8 @@ class AttentionTest(unittest.TestCase):
         self.browse(T0, title="我的病历")
         self.browse(T0 + 1, "page", title="我的病历", text="诊断")
         self.browse(T0 + 2, "selection", title="我的病历", text="诊断")
-        self.assertEqual(self.store.events("browser")[0]["data"], {"url_host": "<hidden>", "audible": False})
+        self.assertEqual(self.store.events("browser")[0]["data"],
+                         {"url_host": "<hidden>", "audible": False, "window_focused": False, "visible": False})
         self.assertEqual(self.store.context(), [])
 
     def test_page_text_is_dropped_while_secure_input_is_on(self):
@@ -529,6 +531,42 @@ class AttentionTest(unittest.TestCase):
         self.browse(T0 + 3, browser_session="S", document_id="D2", revision=1, tab_id=2)
         self.browse(T0 + 4, browser_session="S", document_id="D2", revision=1, tab_id=2)
         self.assertEqual(self.store.browser_summary(T0, self.now)["page_switches"], 1)
+
+    def test_an_older_beat_changes_no_live_state(self):
+        self.now = T0 + 10
+        self.assertTrue(self.store.ingest(beat(T0 + 10, SAFARI, secure_input=True)))
+        self.assertFalse(self.store.ingest(beat(T0 + 9, SAFARI, idle=AFK_AFTER)))
+        self.assertFalse(self.store.browser_capture_allowed())
+        self.assertEqual(self.store.idle_s(), 0.0)
+
+    def test_beats_and_browser_messages_from_before_a_clear_are_not_stored(self):
+        self.now = T0 + 10
+        self.store.clear_tables()
+        self.store.ingest(beat(T0 + 9, SAFARI))
+        self.store.ingest_browser({"type": "heartbeat", "ts": T0 + 9, "url_host": "github.com", "title": "PR"})
+        self.store.ingest_browser({"type": "page", "ts": T0 + 9, "url_host": "github.com", "title": "PR", "text": "正文"})
+        self.assertEqual((self.store.events("window"), self.store.events("browser"), self.store.context()), ([], [], []))
+
+    def test_a_page_checked_before_clear_browser_text_is_not_kept(self):
+        generation = self.store.context_generation
+        self.store.clear_browser_text()
+        self.assertIsNone(self.store.ingest_browser({"type": "page", "ts": T0, "url_host": "github.com", "title": "PR",
+                                                     "text": "正文"}, generation=generation))
+        self.assertEqual(self.store.context(), [])
+
+    def test_the_blacklist_is_checked_under_the_lock(self):
+        hides, held = self.store.blacklist.hides, []
+        self.store.blacklist.hides = lambda window: held.append(self.store.lock.locked()) or hides(window)
+        self.store.ingest_events([raw(T0)])
+        self.browse(T0, "page", text="正文")
+        self.assertTrue(held and all(held))
+
+    def test_a_hidden_audible_tab_is_no_active_time(self):
+        self.feed(T0, 3, SAFARI)
+        for t in range(4, 60, 5):
+            self.browse(T0 + t, url_host="paypal.com", audible=True, window_focused=False)
+            self.feed(T0 + t, 0, SAFARI, idle=AFK_AFTER + t)
+        self.assertLess(self.store.summary(T0, T0 + 60, "app")["active_s"] + self.items(since=T0).get("Safari", 0), 10)
 
 class InputRingTest(unittest.TestCase):
     """Input counts, mic apps and front audio stay in a 300 s memory ring, never in SQLite."""

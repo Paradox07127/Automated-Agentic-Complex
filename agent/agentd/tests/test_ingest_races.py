@@ -87,6 +87,31 @@ class IngestRacesTest(test_server.FeedServerCase):
         self.assertEqual(self.server.attention.db.execute("SELECT kind, value, value_len FROM events_raw").fetchall(),
                          [("prompt", None, 4)])
 
+    def test_hook_rows_without_coding_session_sharing_keep_nothing(self):
+        titles = []
+        self.server.agent_meta = type("Meta", (), {"session": lambda _, *args: titles.append(args) or {"title": "t"}})()
+        self.hook("claude", "PostToolUse", tool_name="Bash", tool_input={"command": "rm secret"})
+        self.hook("claude", "Stop", last_assistant_message="the secret plan")
+        self.hook("claude", "SubagentStop", last_assistant_message="the secret plan")
+        self.assertEqual(self.server.attention.db.execute("SELECT * FROM events_raw").fetchall(), [])
+        self.assertEqual(titles, [])
+
+    def test_a_hook_from_a_blacklisted_bundle_keeps_no_row(self):
+        self.server.share_agent_sessions = True
+        self.server.attention.blacklist.add("bundle_ids", "x.Term")
+        self.hook("claude", "Stop", last_assistant_message="done", agentd_origin={"kind": "terminal", "bundle_id": "x.Term"})
+        self.assertEqual(self.server.attention.db.execute("SELECT * FROM events_raw").fetchall(), [])
+        self.hook("claude", "Stop", last_assistant_message="done")
+        self.assertEqual(self.server.attention.db.execute("SELECT kind, role FROM events_raw").fetchall(),
+                         [("agent", "stop")])
+
+    def test_a_title_blocked_session_reaches_no_signal(self):
+        self.server.share_agent_sessions = True
+        self.server.attention.blacklist.add("title_patterns", "bank")
+        session = {"source": "claude", "session_id": "A", "cwd": "/w", "origin": None}
+        self.assertFalse(self.server._signals_allowed({**session, "title": "my bank"}))
+        self.assertTrue(self.server._signals_allowed({**session, "title": "notes"}))
+
 
 class SessionReactionTest(test_server.FeedServerCase):
     """A session that ends done or error without becoming the focus intent gets a one-shot session_reaction."""

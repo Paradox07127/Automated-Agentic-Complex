@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlparse
 from infra import plugins
 from character.behavior import category
 from observation.attention import BUCKETS
+from observation.blacklist import HIDDEN
 from observation.browser_stats import valid_metrics
 from observation.capture import TEXT_FAILURES, image_size
 from observation.privacy import saved_switch
@@ -76,8 +77,8 @@ class ContextInputMixin:
                       "clicks_10s", "scrolls_30s", "moves_10s", "switches_60s", "near_clicks_10s"}
         counts = lambda v: isinstance(v, dict) and all(k in input_keys and number(n) and n >= 0 for k, n in v.items())
         if not (isinstance(body, dict) and number(body.get("ts")) and number(body.get("idle_s"))
-                and body["idle_s"] >= 0 and isinstance(body.get("front"), dict)
-                and isinstance(body.get("mouse"), (dict, type(None)))
+                and body["idle_s"] >= 0 and isinstance(body.get("front"), dict) and _url_host(body["front"].get("url_host"))
+                and (body.get("mouse") is None or isinstance(body["mouse"], dict) and _url_host(body["mouse"].get("url_host")))
                 and _focus_window(body.get("focus_window"))
                 and all(isinstance(body.get(k, False), bool) for k in GATE_FLAGS)
                 and isinstance(body["front"].get("category"), (str, type(None)))
@@ -91,7 +92,8 @@ class ContextInputMixin:
         config = self.server.privacy_config  # None: no saved settings, the startup flags alone decide
         if "input" in body and config is not None and not saved_switch(config, "sense_input_counts", default=True):
             body = {k: v for k, v in body.items() if k != "input"}
-        store.ingest(body)
+        if not store.ingest(body):
+            return self._json(200, {})
         self.server.focus.beat(category(body["front"]), body["ts"],
                                self.server.user_now.snapshot()["presence"] == "present")
         if self.server.character_agent is not None:
@@ -256,7 +258,7 @@ class ContextInputMixin:
                 and isinstance(body.get("ts"), (int, float)) and not isinstance(body["ts"], bool)
                 and math.isfinite(body["ts"])
                 and all(k not in body or type(body[k]) is bool for k in ("window_focused", "visible", "audible"))
-                and optional_str(body.get("url_host")) and optional_str(body.get("title"))
+                and (body.get("url_host") == HIDDEN["app"] or _url_host(body.get("url_host"))) and optional_str(body.get("title"))
                 and optional_id(body.get("browser_session")) and optional_id(body.get("document_id"))
                 and optional_int(body.get("tab_id"), -2**63) and optional_int(body.get("revision"), 1)
                 and (body["type"] in ("heartbeat", "selection_cleared")
@@ -264,10 +266,11 @@ class ContextInputMixin:
                      or body["type"] == "page" and isinstance(body.get("text"), str)
                      or body["type"] == "selection" and isinstance(body.get("text"), str) and body["text"].strip())):
             return self._json(400, {"error": "invalid_browser"})
+        generation = store.context_generation  # before consent, so a revocation in between drops the text
         # Enforce the switch again: an older extension or a policy response in flight cannot bypass it.
         if body["type"] in ("page", "selection") and not self.server.page_text_allowed():
             return self._json(200, {})
-        record = store.ingest_browser(body)
+        record = store.ingest_browser(body, generation=generation)
         observations=getattr(getattr(self.server,'character_agent',None),'observations',None)
         if observations and record is not None:
             # Secure input, a lock or sleep that starts before the commit drops it too.

@@ -134,7 +134,7 @@ def snapshot(attention, registry, capture, own, user=None, fullscreen=False):
     presence = None
     status = attention.presence()
     if status is not None:
-        last = attention.events("afk")[-1]
+        last = status[2]
         sensed = attention.inputs()
         counts = [e["input"] for e in sensed if "input" in e]
         apps = None
@@ -143,14 +143,17 @@ def snapshot(attention, registry, capture, own, user=None, fullscreen=False):
                         if e["start"] + e["duration"] >= now - SWITCH_WINDOW})
         presence = {"id": stable_id("presence", last), "status": status[0], "seconds": status[1],
                     "idle_s": attention.idle_s(), "inputs": sensed, "apps_60s": apps}
+    browser = attention.events("browser")
+    shown = lambda data: not attention.blacklist.hides(data)  # noqa: E731  a page blacklisted since it was stored
     spans = [{"id": stable_id("page", {"start": e["start"], "data": e["data"]}), "url_host": e["data"].get("url_host"),
               "title": e["data"].get("title"), "audible": bool(e["data"].get("audible")), "start": e["start"],
               "duration": e["duration"]}
-             for e in attention.events("browser") if e["start"] + e["duration"] >= now - COMPARE_WINDOW
-             and e["data"].get("window_focused", True) and e["data"].get("visible", True)]
+             for e in browser if e["start"] + e["duration"] >= now - COMPARE_WINDOW
+             and e["data"].get("window_focused", True) and e["data"].get("visible", True) and shown(e["data"])]
     page = None
-    latest_browser = attention.events("browser")[-1:]
-    foreground = latest_browser and latest_browser[0]["data"].get("window_focused", True) and latest_browser[0]["data"].get("visible", True)
+    latest_browser = browser[-1:]
+    foreground = latest_browser and latest_browser[0]["data"].get("window_focused", True) \
+        and latest_browser[0]["data"].get("visible", True) and shown(latest_browser[0]["data"])
     if spans and foreground and now - (spans[-1]["start"] + spans[-1]["duration"]) <= WEB_PULSE:
         current = attention.current_page()
         page = {k: spans[-1][k] for k in ("id", "url_host", "title", "audible")}
@@ -473,7 +476,7 @@ def _comparing_sources(scene):
         key = (p.get("url_host"), p.get("title"))
         if not runs or runs[-1][0] != key:
             runs.append((key, p["id"]))
-    labels = list(dict.fromkeys(_label(*key) for key, _ in runs))
+    labels = list(dict.fromkeys(label for key, _ in runs if (label := _label(*key)) is not None))
     if len(labels) < 2 or len(runs) - 1 < COMPARE_SWITCHES:
         return None
     scene.fact(f"In the last {round(COMPARE_WINDOW)} s the user switched {len(runs) - 1} times between "

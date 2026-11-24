@@ -11,7 +11,7 @@ import support
 from support import deny_blacklist
 from observation import summary  # noqa: E402
 from observation.blacklist import Blacklist  # noqa: E402
-from observation.timeline import SEGMENT_S, Timeline  # noqa: E402
+from observation.timeline import KEEP_S, SEGMENT_S, Timeline  # noqa: E402
 from infra.store import open_store  # noqa: E402
 from models.usage import OWN_HOUR_CAPS, UsageMeter  # noqa: E402
 
@@ -81,6 +81,17 @@ class SummaryTest(unittest.TestCase):
         self.assertEqual(self.asked[-1]["previous"], [])
         self.timeline.clear(since=T0 + SEGMENT_S + 5)
         self.assertEqual(self.timeline.search_summaries("build"), [])
+
+    def test_summaries_go_with_a_hidden_window_after_its_records_expired(self):
+        self.summarize(T0, "bankMarker", app="Bank", url_host="bank.com")
+        self.summarize(T0 + SEGMENT_S, "code")
+        self.timeline.expire(T0 + KEEP_S + 2 * SEGMENT_S)
+        self.assertEqual(self.timeline.segments(), [])
+        self.assertEqual(self.timeline.delete_hidden(lambda w: w["url_host"] == "github.com"), 0)
+        self.assertEqual(self.timeline.summarized(), {T0, T0 + SEGMENT_S})  # control
+        self.timeline.delete_hidden(lambda w: w["url_host"] == "bank.com")
+        self.assertEqual(self.timeline.search_summaries("bankMarker"), [])
+        self.assertEqual(self.timeline.summarized(), set())  # the later one read it as the summary before
 
     def test_a_revoke_drops_the_summaries_made_from_what_it_covers(self):
         label, typed, plain = T0 - 21 * SEGMENT_S, T0 - 14 * SEGMENT_S, T0 - 7 * SEGMENT_S  # none reads another

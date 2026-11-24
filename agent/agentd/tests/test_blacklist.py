@@ -4,11 +4,12 @@ from pathlib import Path
 import re
 import sys
 import tempfile
+import threading
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from observation.blacklist import DEFAULTS, HIDDEN, Blacklist, entry_hides  # noqa: E402
+from observation.blacklist import DEFAULTS, HIDDEN, Blacklist, bare_host, entry_hides  # noqa: E402
 
 
 class BlacklistTest(unittest.TestCase):
@@ -101,6 +102,30 @@ class BlacklistTest(unittest.TestCase):
         self.assertTrue(bl.hides_domain("mybank.icbc.com.cn"))
         self.assertFalse(bl.hides_domain("noticbc.com.cn"))
         self.assertFalse(bl.hides_domain("github.com"))
+
+    def test_a_host_in_another_case_or_with_its_root_dot_is_the_same_host(self):
+        bl = self.denying()
+        safari = {"app": "Safari", "bundle_id": "com.apple.Safari"}
+        for host in ("1password.com.", "1Password.COM", "my.1password.com."):
+            with self.subTest(host=host):
+                self.assertTrue(bl.hides({**safari, "url_host": host}))
+                self.assertEqual(bl.scrub({**safari, "url_host": host}), HIDDEN)
+                self.assertTrue(entry_hides("domains", "1password.com", {"url_host": host}))
+        self.assertEqual(bl.scrub({**safari, "url_host": "GitHub.com."})["url_host"], "github.com")
+
+    def test_a_bare_host_has_no_scheme_path_port_or_whitespace(self):
+        for host in ("a.com", "A.com.", "xn--fiqs8s.cn", "localhost", "[::1]"):
+            self.assertTrue(bare_host(host), host)
+        for host in ("a.com:443", "a.com\t", "https://a.com", "a.com/x", "a .com", "", "a..com", None, 5):
+            self.assertFalse(bare_host(host), host)
+
+    def test_a_reload_is_never_seen_half_done(self):
+        bl = self.denying()
+        done = threading.Event()
+        with bl._lock:
+            threading.Thread(target=lambda: (bl.hides({"app": "Safari"}), done.set()), daemon=True).start()
+            self.assertFalse(done.wait(0.1))
+        self.assertTrue(done.wait(5))
 
     def test_title_pattern_and_reload_on_change(self):
         bl = self.denying()

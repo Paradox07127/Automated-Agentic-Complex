@@ -1,6 +1,7 @@
 import datetime
 from pathlib import Path
 import sys
+import threading
 import unittest
 from types import SimpleNamespace as NS
 
@@ -11,6 +12,7 @@ from character.signals import REPEAT_RECHECK, Signals  # noqa: E402
 from daemon.ingest import IngestMixin  # noqa: E402
 from sessions.events import normalize_claude  # noqa: E402
 from sessions.registry import Registry  # noqa: E402
+from support import enable_plugins  # noqa: E402
 from test_check_result import SWIFT  # noqa: E402
 
 T0 = datetime.datetime(2026, 11, 2, 12).timestamp()
@@ -681,8 +683,10 @@ class WorkSignalsTest(unittest.TestCase):
 
 class SignalWiringTest(unittest.TestCase):
     def test_hook_filter_runs_before_old_kind_filter_and_signal_suppresses_musing(self):
+        enable_plugins(self, "coding_sessions")
         server = NS(attention=None, signals=NS(on_hook=lambda *args: hooks.append(args)),
-                    observation_paused=lambda: False, consent=NS(snapshot=lambda: ({'agent_sessions': True}, 0)),
+                    observation_paused=lambda: False, agent_meta=None,
+                    consent=NS(lock=threading.Lock(), snapshot=lambda: ({'agent_sessions': True}, 0)),
                     _signals_allowed=lambda row: allowed[0])
         hooks, allowed = [], [True]
         event = normalize_claude({'session_id': 'A', 'hook_event_name': 'PostToolUseFailure'}, now=T0)

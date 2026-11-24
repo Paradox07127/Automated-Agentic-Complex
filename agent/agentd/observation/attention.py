@@ -6,7 +6,7 @@ import sqlite3
 import threading
 import time
 
-from observation.blacklist import HIDDEN, TITLE_MAX, bare_host
+from observation.blacklist import HIDDEN, TITLE_MAX, bare_host, normal_host
 from observation.browser_stats import valid_metrics
 
 PULSE = 5.0  # C6: POSTs more than 5 s apart leave an unknown gap, never filled from the last state
@@ -64,7 +64,10 @@ class AttentionStore:
         self._browser_samples = 0
         self._front = (None, None)  # (timestamp, bundle_id) of the latest scrubbed front app
         self.typed_generation = 0  # clear_typed_text() bumps it; a batch checked before that keeps no text
-        self.raw_floor = float("-inf")  # clock time of the last delete; events_raw takes nothing from before it
+        # clear_browser_text() and every delete bump it; page or selection text checked before that is not kept
+        self.context_generation = 0
+        self.raw_floor = float("-inf")  # clock time of the last delete; nothing from before it is stored
+        self._beat_ts = float("-inf")  # the ts of the last heartbeat taken
 
     def close(self):
         # SQLite may release the GIL in a read. Closing on another thread must
@@ -119,12 +122,12 @@ class AttentionStore:
         return None
 
     def ingest(self, beat):
+        """One heartbeat; False, changing nothing, for one at or before raw_floor or older than the last one taken."""
         ts, idle = float(beat["ts"]), float(beat["idle_s"])
         front = self.blacklist.scrub(beat["front"])
         category = front.pop("category", None)  # ring only, like SENSED
         secure = bool(beat.get("secure_input"))
         locked_asleep = bool(beat.get("locked") or beat.get("asleep"))
-        self._idle = idle
         if secure:
             front.pop("title", None)
         mouse = self.blacklist.scrub(beat.get("mouse"))
@@ -138,6 +141,9 @@ class AttentionStore:
                  if k in ("key_idle_s", "click_idle_s", "scroll_idle_s")]
         last_input = ts - (min(idles) if idles else idle)
         with self.lock:
+            if ts <= self.raw_floor or ts < self._beat_ts:
+                return False
+            self._beat_ts, self._idle = ts, idle
             was_allowed = self.browser_capture_allowed()
             self._secure, self._locked_asleep = secure, locked_asleep
             allowed = self.browser_capture_allowed()
@@ -172,16 +178,16 @@ class AttentionStore:
                     and mouse.get("window_id") != front.get("window_id")
                 self._heartbeat("focus", ts, mouse if away else front)
             self.db.commit()
+        return True
 
     def ingest_events(self, events, typed_generation=None):
         """Checked Companion events (dicts of RAW_COLUMNS) into events_raw: a blacklisted one goes, one at or before
         raw_floor, and every value while the last heartbeat had secure input. With a typed_generation other than
         the current one every value goes too. Returns (stored, dropped)."""
-        kept = [event for event in events if not self._raw_hidden(event)]
         with self.lock:
             self._prune()
             stale = typed_generation is not None and typed_generation != self.typed_generation
-            kept = [event for event in kept if event["ts"] > self.raw_floor]
+            kept = [event for event in events if event["ts"] > self.raw_floor and not self._raw_hidden(event)]
             self._trim()
             rows = [tuple(self._input_near(event["ts"]) if column == "input_near"
                           else None if column == "value" and (self._secure or stale) else event.get(column)
@@ -225,26 +231,28 @@ class AttentionStore:
     def _raw_hidden(self, event):
         return event.get("app") == HIDDEN["app"] or self.blacklist.hides(_raw_window(event))
 
-    def ingest_browser(self, message):
+    def ingest_browser(self, message, generation=None):
         """One extension message: a heartbeat for the timeline, page / selection text kept locally, or a
-        selection_cleared kept as a context row with empty text. Returns the page or selection it admitted, with
-        its whole text, else None."""
+        selection_cleared kept as a context row with empty text; nothing at or before raw_floor, and no context row
+        with a generation other than context_generation. Returns the page or selection it admitted, with its whole
+        text, else None."""
         ts, kind = float(message["ts"]), message["type"]
         ids = {f: message.get(f) for f in IDENTITY}
         host = message.get("url_host")
-        host = host if isinstance(host, str) and bare_host(host) else None
+        sent_hidden = host == HIDDEN["app"]  # the extension's own blacklist hid the tab
+        host = normal_host(host) if bare_host(host) else None
         title = message.get("title")
         title = title if isinstance(title, str) else None
-        hidden = host == HIDDEN["app"] or self.blacklist.hides({"url_host": host, "title": title})
-        title = title[:TITLE_MAX] if title is not None and not hidden else None
         admitted = None
         with self.lock:
-            if not self.browser_capture_allowed() or ts < self._browser_after:
+            if not self.browser_capture_allowed() or ts < self._browser_after or ts <= self.raw_floor:
                 return None
+            hidden = sent_hidden or self.blacklist.hides({"url_host": host, "title": title})
+            title = title[:TITLE_MAX] if title is not None and not hidden else None
             self._prune()
             if kind == "heartbeat":
                 audible = bool(message.get("audible"))
-                data = {"url_host": HIDDEN["app"], "audible": audible} if hidden else \
+                data = {"url_host": HIDDEN["app"], "audible": audible, "window_focused": False, "visible": False} if hidden else \
                     {"url_host": host, "title": title, "audible": audible, **ids,
                      "window_focused": message.get("window_focused", True), "visible": message.get("visible", True)}
                 self._heartbeat("browser", ts, data, WEB_PULSE)
@@ -260,7 +268,8 @@ class AttentionStore:
                         and (self._browser_metrics is None or ts >= self._browser_metrics["ts"])):
                     self._browser_metrics = {"ts": ts, "url_host": host, "title": title, **ids, "metrics": message["metrics"]}
                     self._browser_samples += 1
-            elif not hidden and (kind == "selection_cleared" or not self._secure and (kind == "page" or message.get("text"))):
+            elif not hidden and generation in (None, self.context_generation) \
+                    and (kind == "selection_cleared" or not self._secure and (kind == "page" or message.get("text"))):
                 text = "" if kind == "selection_cleared" else message["text"][:TEXT_MAX]
                 self.db.execute("INSERT INTO context (ts, kind, url_host, title, text, browser_session, tab_id,"
                                 " document_id, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -472,12 +481,14 @@ class AttentionStore:
                     "page_switches": max(0, len(runs) - 1), "samples_received": self._browser_samples}
 
     def presence(self):
-        """("active" | "afk", seconds in that status up to the latest beat), or None when beats stopped."""
+        """("active" | "afk", seconds in that status up to the latest beat, that afk event as events() gives it), or
+        None when beats stopped."""
         with self.lock:
             last = self._last("afk")
         if last is None or self.clock() - (last[1] + last[2]) > PULSE:
             return None
-        return ("afk" if last[3]["status"] == "afk" else "active"), last[2]
+        return ("afk" if last[3]["status"] == "afk" else "active"), last[2], \
+            {"start": last[1], "duration": last[2], "data": last[3]}
 
     def focus(self):
         """The window the user has looked at for at least GAZE_MIN seconds up to now, or None."""
@@ -515,6 +526,7 @@ class AttentionStore:
         across it ends there. Returns (events deleted, context rows deleted)."""
         with self.lock:
             self.raw_floor = self.clock()
+            self.context_generation += 1
             events = self.db.execute("DELETE FROM events WHERE start >= ?", (cutoff,)).rowcount
             self.db.execute("UPDATE events SET duration = ? - start WHERE start + duration > ?", (cutoff, cutoff))
             context = self.db.execute("DELETE FROM context WHERE ts >= ?", (cutoff,)).rowcount
@@ -531,6 +543,7 @@ class AttentionStore:
         """Window, focus and browser events whose data hides(data) matches go, and context rows whose page it
         matches, and events_raw rows whose window it matches. Returns (events deleted, context rows deleted)."""
         with self.lock:
+            self.context_generation += 1
             if self._browser_metrics is not None and hides(self._browser_metrics):
                 self._browser_metrics = None
             rows = self.db.execute("SELECT id, data FROM events WHERE bucket IN ('window', 'focus', 'browser')")
@@ -554,6 +567,7 @@ class AttentionStore:
         state_log is emptied too but not counted."""
         with self.lock:
             self.raw_floor = self.clock()
+            self.context_generation += 1
             deleted = {"events": self.db.execute("DELETE FROM events").rowcount,
                        "context": self.db.execute("DELETE FROM context").rowcount,
                        "events_raw": self.db.execute("DELETE FROM events_raw").rowcount}
@@ -571,6 +585,7 @@ class AttentionStore:
         with self.lock:
             if dry:
                 return self.db.execute("SELECT COUNT(*) FROM context").fetchone()[0]
+            self.context_generation += 1
             self.db.execute("DELETE FROM context")
             self.db.commit()
 

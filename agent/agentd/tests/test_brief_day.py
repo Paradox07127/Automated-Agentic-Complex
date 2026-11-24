@@ -250,6 +250,19 @@ class BriefDayTest(unittest.TestCase):
         self.permissions['page_text'] = True
         self.assertEqual(self.brief()['focus']['sites'], [{'host': 'example.org', 'minutes': 70 / 60}])
 
+    def test_an_app_blacklisted_since_is_not_in_the_focus(self):
+        plugins.resolved.update(screen_awareness=True, screen_reading=True)
+        t = self.start + 3600
+        for bucket, offset, duration, data in (
+                ('afk', 0, 120, {'status': 'not-afk'}),
+                ('window', 0, 60, {'app': 'Notes', 'bundle_id': 'com.apple.Notes'}),
+                ('window', 60, 60, {'app': 'Diary', 'bundle_id': 'x.diary'})):
+            self.attention.db.execute('INSERT INTO events(bucket,start,duration,data) VALUES(?,?,?,?)',
+                                      (bucket, t + offset, duration, json.dumps(data)))
+        self.assertEqual([app['name'] for app in self.brief()['focus']['apps']], ['Notes', 'Diary'])  # control
+        self.attention.blacklist.add('bundle_ids', 'x.diary')
+        self.assertEqual(self.brief()['focus']['apps'], [{'name': 'Notes', 'minutes': 1}])
+
     def test_speech_cost_and_captures(self):
         self.at = self.now
         self.server.speech = object()

@@ -16,6 +16,8 @@ ALLOW_FIELDS = ("bundle_ids", "app_names", "domains")  # the lists of "allow"
 MODES = ("allow", "deny")
 WINDOW_KEYS = ("app", "bundle_id", "pid", "window_id", "title", "url_host", "category")
 TITLE_MAX = 256
+# A host name alone, in any case and with its root dot, or a bracketed IPv6 address; normal_host() is its normal form.
+HOST = re.compile(r"[\w-]+(?:\.[\w-]+)*\.?|\[[0-9A-Fa-f:.]+\]")
 # Never observe the control panel itself, even with an old or customized blacklist.json; on Windows its app_id is the
 # lower-case tools/release/package_windows.py EXECUTABLE.
 # Other local.agenticcomplex.* bundles (including user test fixtures) are not implicitly hidden.
@@ -49,28 +51,33 @@ class Blacklist:
                 stream.write(json.dumps(DEFAULTS, ensure_ascii=False, indent=2) + "\n")
         self._mtime = None
         self.revision = 0  # +1 each time the file is read
-        self._lock = threading.Lock()  # one add() reads and rewrites the file at a time
+        # One add() reads and rewrites the file at a time; a reload publishes its lists under it.
+        self._lock = threading.RLock()
         self._load()
 
     def _load(self):
-        stat = self.path.stat()
-        mtime = stat.st_mtime_ns
-        if mtime == self._mtime:
-            return
-        if stat.st_mode & 0o077:  # it lists what the user hides: private like the other state files
-            self.path.chmod(0o600)
-        self.data = json.loads(self.path.read_text(encoding="utf-8"))
-        self._bundles = set(self.data.get("bundle_ids", []))
-        self._names = {n.casefold() for n in self.data.get("app_names", [])}
-        self._domains = [d.casefold() for d in self.data.get("domains", [])]
-        self._titles = [re.compile(p) for p in self.data.get("title_patterns", [])]
-        self.mode = self.data.get("mode") if self.data.get("mode") in MODES else "allow"
-        allow = self.data.get("allow", {})
-        self._allow_bundles = set(allow.get("bundle_ids", []))
-        self._allow_names = {n.casefold() for n in allow.get("app_names", [])}
-        self._allow_domains = [d.casefold() for d in allow.get("domains", [])]
-        self._mtime = mtime
-        self.revision += 1
+        """The current lists, read again when the file changed; a caller judges a window by one result."""
+        with self._lock:
+            stat = self.path.stat()
+            mtime = stat.st_mtime_ns
+            if mtime == self._mtime:
+                return self._rules
+            if stat.st_mode & 0o077:  # it lists what the user hides: private like the other state files
+                self.path.chmod(0o600)
+            data = json.loads(self.path.read_text(encoding="utf-8"))
+            allow = data.get("allow", {})
+            rules = {"mode": data.get("mode") if data.get("mode") in MODES else "allow",
+                     "bundles": set(data.get("bundle_ids", [])),
+                     "names": {n.casefold() for n in data.get("app_names", [])},
+                     "domains": [d.casefold() for d in data.get("domains", [])],
+                     "titles": [re.compile(p) for p in data.get("title_patterns", [])],
+                     "allow_bundles": set(allow.get("bundle_ids", [])),
+                     "allow_names": {n.casefold() for n in allow.get("app_names", [])},
+                     "allow_domains": [d.casefold() for d in allow.get("domains", [])]}
+            self.data, self.mode, self._rules = data, rules["mode"], rules
+            self._mtime = mtime
+            self.revision += 1
+            return rules
 
     def add(self, field, value):
         """Appends value to field's list once, rewrites the file atomically (0600) and reloads; True when added."""
@@ -140,43 +147,39 @@ class Blacklist:
         self._load()
 
     def hides(self, window):
-        self._load()
+        rules = self._load()
         app = window.get("app")
         if window.get("bundle_id") in CONTROL_PANEL_BUNDLES:
             return True
-        if self.mode == "allow":
+        if rules["mode"] == "allow":
             host = window.get("url_host")
             if host:
-                return self.hides_domain(host)
-            return window.get("bundle_id") not in self._allow_bundles \
-                and not (isinstance(app, str) and app and app.casefold() in self._allow_names)
-        if window.get("bundle_id") in self._bundles \
-                or isinstance(app, str) and app and app.casefold() in self._names:
+                return _hides_host(rules, host)
+            return window.get("bundle_id") not in rules["allow_bundles"] \
+                and not (isinstance(app, str) and app and app.casefold() in rules["allow_names"])
+        if window.get("bundle_id") in rules["bundles"] \
+                or isinstance(app, str) and app and app.casefold() in rules["names"]:
             return True
         host = window.get("url_host")
-        if host and self.hides_domain(host):
+        if host and _hides_host(rules, host):
             return True
         title = window.get("title") or ""
-        return any(p.search(title) for p in self._titles)
+        return any(p.search(title) for p in rules["titles"])
 
     def hides_domain(self, host):
-        self._load()
-        host = host.casefold()
-        if self.mode == "allow":
-            return not any(host == d or host.endswith("." + d) for d in self._allow_domains)
-        return any(host == d or host.endswith("." + d) for d in self._domains)
+        return _hides_host(self._load(), host)
 
     def scrub(self, window):
         """The window with only known keys, or HIDDEN when it is blacklisted; None stays None."""
         if window is None:
             return None
+        if "url_host" in window:  # a host only, never a URL, in its normal form before it is judged
+            window = {**window, "url_host": normal_host(window["url_host"]) if bare_host(window["url_host"]) else None}
         if window.get("app") == HIDDEN["app"] or self.hides(window):
             return dict(HIDDEN)
         kept = {k: window[k] for k in WINDOW_KEYS if k in window}
         if isinstance(kept.get("title"), str):
             kept["title"] = kept["title"][:TITLE_MAX]
-        if "url_host" in kept and not (isinstance(kept["url_host"], str) and bare_host(kept["url_host"])):
-            kept["url_host"] = None  # a host only, never a URL
         return kept
 
 
@@ -188,10 +191,23 @@ def entry_hides(field, value, window):
         app = window.get("app")
         return isinstance(app, str) and bool(app) and app.casefold() == value.casefold()
     if field == "domains":
-        host, domain = (window.get("url_host") or "").casefold(), value.casefold()
-        return bool(host) and (host == domain or host.endswith("." + domain))
+        name, domain = normal_host(window.get("url_host") or ""), value.casefold()
+        return bool(name) and (name == domain or name.endswith("." + domain))
     return re.search(value, window.get("title") or "") is not None
 
 
+def _hides_host(rules, name):
+    name = normal_host(name)
+    if rules["mode"] == "allow":
+        return not any(name == d or name.endswith("." + d) for d in rules["allow_domains"])
+    return any(name == d or name.endswith("." + d) for d in rules["domains"])
+
+
 def bare_host(value):
-    return value and not any(c in value for c in "/?#@ ")
+    """Whether value is a host name alone: no scheme, path, port or whitespace."""
+    return isinstance(value, str) and HOST.fullmatch(value) is not None
+
+
+def normal_host(value):
+    """A bare host in the form the lists match: lower case, without its root dot."""
+    return value.casefold().removesuffix(".")

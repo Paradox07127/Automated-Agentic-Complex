@@ -224,8 +224,8 @@ class UserNowReadersTest(unittest.TestCase):
         backs = []
         self.server.proactive = SimpleNamespace(back=backs.append, beat=lambda body: None)
         self.server.behavior = SimpleNamespace(edge=lambda kind, away_s: True)
-        self.server.attention = SimpleNamespace(presence=lambda: ("active", 0.0), events=lambda kind: [],
-                                                ingest=lambda body: None,
+        self.server.attention = SimpleNamespace(presence=lambda: ("active", 0.0, {}), events=lambda kind: [],
+                                                ingest=lambda body: True,
                                                 blacklist=SimpleNamespace(scrub=lambda front: front))
         support.enable_plugins(self, "screen_awareness")
         body = {"ts": self.ts, "front": {"app": "Code"}, "mouse": None, "idle_s": 0.0, "edge": "unlock"}
@@ -275,7 +275,7 @@ class UserNowReadersTest(unittest.TestCase):
 
     def test_the_focus_clock_counts_the_beats_user_now_finds_present(self):
         support.enable_plugins(self, "screen_awareness")
-        self.server.attention = SimpleNamespace(ingest=lambda body: None, blacklist=SimpleNamespace(scrub=lambda front: front))
+        self.server.attention = SimpleNamespace(ingest=lambda body: True, blacklist=SimpleNamespace(scrub=lambda front: front))
         self.server.focus.start(25)
         front = {"app": "Code", "category": "public.app-category.developer-tools"}
 
@@ -3732,6 +3732,18 @@ class AttentionServerTest(FeedServerCase):
         self.assertEqual(self.request("GET", "/attention/summary", token=HOOK)[0], 401)
         self.assertEqual(self.request("POST", "/context/attention", {}, token=HOOK)[0], 401)
 
+    def test_a_url_host_that_is_no_bare_host_is_refused(self):
+        now = time.time()
+        for host in ("https://1password.com/vault", "1password.com:443", "1password.com\t", 5):
+            with self.subTest(host=host):
+                front = {"app": "Safari", "bundle_id": "com.apple.Safari", "pid": 1, "window_id": 1, "url_host": host}
+                body = {"ts": now, "front": front, "mouse": None, "idle_s": 0.0}
+                self.assertEqual(self.request("POST", "/context/attention", body), (400, {"error": "invalid_attention"}))
+                self.assertEqual(self.request("POST", "/context/attention", {**body, "front": {**front, "url_host": None},
+                                                                             "mouse": front}),
+                                 (400, {"error": "invalid_attention"}))
+        self.assertEqual(self.server.attention.events("window"), [])
+
     def test_attention_rejects_unknown_input_key(self):
         now = time.time()
         for extra in ({"input": {"keys_10s": 3, "keycode": 4}}, {"input": {"last_key": "a"}},
@@ -3904,6 +3916,7 @@ class AttentionServerTest(FeedServerCase):
         self.assertEqual(self.browser({**heartbeat, "ts": "now"}), (400, {"error": "invalid_browser"}))
         self.assertEqual(self.browser({"type": "page", "ts": time.time(), "url_host": "github.com", "title": "PR"}),
                          (400, {"error": "invalid_browser"}))
+        self.assertEqual(self.browser({**heartbeat, "url_host": "github.com:443"}), (400, {"error": "invalid_browser"}))
         self.assertEqual(len(self.server.attention.events("browser")), 1)
 
     def test_browser_identity_fields_are_typed_and_selection_cleared_needs_no_text(self):
@@ -4040,6 +4053,7 @@ class RawEventsServerTest(FeedServerCase):
                                        ("prompt", "codex", "/w", None, "长" * 500, 600)])
 
     def test_a_pause_keeps_no_prompt(self):
+        self.server.share_agent_sessions = True
         self.server.share_typed_text = True
         self.server.paused_until = self.now + 60
         self.assertEqual(self.hook("claude", "UserPromptSubmit", prompt="帮我看看"), (200, {}))
@@ -4056,17 +4070,20 @@ class RawEventsServerTest(FeedServerCase):
         return rows
 
     def test_a_prompt_in_angle_brackets_is_not_the_users_without_a_transcript(self):
+        self.server.share_agent_sessions = True
         self.server.share_typed_text = True
         self.assertEqual(self.hook("claude", "UserPromptSubmit", prompt=" <task-notification>完成</task-notification>"),
                          (200, {}))
         self.assertEqual(self.agent_rows(), [("agent", "notification", "system", None, "A", None, None)])
 
     def test_a_finished_tool_is_an_agent_row_with_its_summary(self):
+        self.server.share_agent_sessions = True
         self.assertEqual(self.hook("claude", "PostToolUse", tool_name="Bash", tool_input={"command": "x" * 300}),
                          (200, {}))
         self.assertEqual(self.agent_rows(), [("agent", "tool", "Bash", None, "A", "x" * 200, None)])
 
     def test_no_metadata_leaves_the_window_empty(self):
+        self.server.share_agent_sessions = True
         missing = str(Path(self.tmp.name) / "none")
         self.server.agent_meta = AgentMeta()
         self.assertEqual(self.hook("claude", "Notification", notification_type="idle_prompt",
