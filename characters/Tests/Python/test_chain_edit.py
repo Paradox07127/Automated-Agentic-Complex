@@ -104,6 +104,11 @@ class ChainEditTests(unittest.TestCase):
         problems=self.refused(dict(op='set',clip='wave_end',next='wave_start'))
         self.assertIn(dict(edit=None,reason='cycle:wave_start'),problems)
 
+    def test_a_cycle_between_clips_no_pool_or_row_starts_is_refused(self):
+        """nod and shrug lead to each other: each is reached from the other, so neither starts a chain the other checks see."""
+        problems=self.refused(dict(op='set',clip='nod',next='shrug'),dict(op='set',clip='shrug',next='nod'))
+        self.assertEqual(problems,[dict(edit=None,reason='cycle:nod'),dict(edit=None,reason='cycle:shrug')])
+
     def test_a_chain_that_does_not_return_to_its_stance_is_refused(self):
         problems=self.refused(dict(op='replace',chain='wave_start',index=2,clip='sit'))
         self.assertIn(dict(edit=None,reason='no_return:wave_start'),problems)

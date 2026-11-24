@@ -12,7 +12,7 @@ import numpy as np
 
 from character_library import digest
 from .humanoid_map import canonical_arrays, finger_arrays, map_skeleton
-from .take import FPS, Expression, MotionTake
+from .take import FPS, Expression, MotionTake, frame_count
 
 MAX_BYTES = 256 * 1024**2
 MAX_SAMPLES = 4_000_000  # frames x nodes
@@ -119,10 +119,6 @@ def _span(doc, animation):
     return min((a['min'][0] for a in inputs), default=0.0), max((a['max'][0] for a in inputs), default=0.0)
 
 
-def _frames(start, end, fps):
-    return int(np.floor((end - start) * fps + 1e-6)) + 1
-
-
 def animations(doc):
     out = []
     for index, animation in enumerate(doc.get('animations', [])):
@@ -191,9 +187,9 @@ def _interpolate(keys, values, times, mode, rotation):
 def sample(doc, buffers, anim_index, fps=FPS):
     """Every node's TRS at fps from the animation's first key to its last; unanimated channels hold the node default."""
     animation = doc['animations'][anim_index]; nodes = doc.get('nodes', [])
-    start, end = _span(doc, animation); F = _frames(start, end, fps)
+    start, end = _span(doc, animation); F = frame_count(end - start, fps)
     if F * max(len(nodes), 1) > MAX_SAMPLES: raise _bad('too_many_samples')
-    times = start + np.arange(F) / fps
+    times = start + np.arange(F) / fps; times[-1] = end
     trs = {k: dict(zip(('translation', 'rotation', 'scale'), (np.tile(v, (F, 1)) for v in _rest(node))))
            for k, node in enumerate(nodes)}
     weights = {}
@@ -216,20 +212,26 @@ def sample(doc, buffers, anim_index, fps=FPS):
 
 
 def parents(doc):
+    """Each node's parent, or -1; the roots must reach every node once, so the hierarchy is a forest without cycles."""
     nodes = doc.get('nodes', []); parent = [-1] * len(nodes)
     for p, node in enumerate(nodes):
         for child in node.get('children', []):
             if child == p or parent[child] != -1: raise _bad('hierarchy')
             parent[child] = p
+    if len(_order(nodes, parent)) != len(nodes): raise _bad('hierarchy')
     return parent
+
+
+def _order(nodes, parent):
+    """The nodes the roots reach, each after its parent."""
+    order = [k for k in range(len(nodes)) if parent[k] < 0]
+    for k in order: order.extend(nodes[k].get('children', []))
+    return order
 
 
 def world(doc, trs, frames):
     """(frames, N, 4, 4) world matrices with scale; trs values broadcast to frames, missing nodes take their default."""
-    nodes = doc.get('nodes', []); parent = parents(doc)
-    order = [k for k in range(len(nodes)) if parent[k] < 0]
-    for k in order: order.extend(nodes[k].get('children', []))
-    if len(order) != len(nodes): raise _bad('hierarchy')
+    nodes = doc.get('nodes', []); parent = parents(doc); order = _order(nodes, parent)
     G = np.zeros((frames, len(nodes), 4, 4))
     for k in order:
         t, q, s = (trs[k][p] for p in ('translation', 'rotation', 'scale')) if k in trs else _rest(nodes[k])
@@ -289,6 +291,6 @@ def probe(path, take=0):
     if not takes: raise ValueError('no_animation')
     if not 0 <= take < len(takes): raise _bad('take')
     for entry in takes:
-        entry.update(frames=_frames(0, entry['duration_s'], FPS), frame_rate=float(FPS))
+        entry.update(frames=frame_count(entry['duration_s']), frame_rate=float(FPS))
     has_face = any(c['target'].get('path') == 'weights' for c in doc['animations'][take]['channels'])
     return {'takes': takes, 'has_face': has_face, 'has_camera': False, 'warnings': []}

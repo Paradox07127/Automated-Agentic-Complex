@@ -36,7 +36,7 @@ export interface MotionFailure { reason: string; detail: string }
 
 const REASONS = new Set(['too_many_actions', 'too_many_media', 'bad_vmd', 'too_long', 'missing_bones', 'busy', 'validate_failed',
   'internal', 'unsupported_format', 'bad_source', 'no_animation', 'unmapped_skeleton', 'already_imported', 'unknown_action',
-  'not_imported', 'bad_title', 'bad_zip', 'ambiguous_motion']);
+  'not_imported', 'bad_title', 'bad_zip', 'ambiguous_motion', 'linked_motion', 'outside_package']);
 
 /** motion_tool's failure: its last stderr line `{reason, detail}` with a known reason, else `internal` with the stderr's end. */
 export function toolFailure(stderr: string): MotionFailure {

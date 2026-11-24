@@ -11,9 +11,11 @@ INDEX_SCHEMA = 'endfield-motion-imports/v2'
 FORMATS = ('vmd', 'bvh', 'gltf', 'vrma', 'fbx', 'zip')
 FPS = 30
 MAX_SECONDS = 180
+# A last sample closer than this many frames to the one before is dropped: float32 glTF key times are not exact.
+END_TOLERANCE = 1e-3
 REASONS = ('validate_failed', 'too_many_actions', 'too_many_media', 'bad_vmd', 'too_long', 'missing_bones', 'busy', 'internal',
            'unsupported_format', 'bad_source', 'no_animation', 'unmapped_skeleton', 'already_imported', 'unknown_action',
-           'not_imported', 'bad_title', 'bad_zip', 'ambiguous_motion')
+           'not_imported', 'bad_title', 'bad_zip', 'ambiguous_motion', 'linked_motion', 'outside_package')
 # synthesized_bones comes as 'synthesized_bones: <canonical joints, comma-separated>'.
 WARNINGS = ('fingers_rest', 'toe_synthesized', 'hand_tip_synthesized', 'shoulder_synthesized', 'scale_ignored',
             'translation_ignored', 'expression_clamped', 'expressions_not_applied', 'look_at_ignored', 'unmapped_bones',
@@ -76,10 +78,16 @@ class MotionTake:
         return {'names': list(CANONICAL), 'parents': list(CANONICAL_PARENTS), 'neutral_joints': np.asarray(self.neutral, float).tolist()}
 
 
+def frame_count(duration_s, fps=FPS):
+    """Output frames of a take lasting duration_s: one every 1/fps s from its start, and the last at its end."""
+    return math.ceil(duration_s * fps - END_TOLERANCE) + 1
+
+
 def resample(take, fps=FPS):
-    count = math.floor(take.duration_s * fps + 1e-9) + 1
+    count = frame_count(take.duration_s, fps)
     F = len(take.xyz)
     s = np.arange(count) * (take.frame_rate / fps)  # source frame of each output frame
+    s[-1] = F - 1
     i = np.clip(np.floor(s).astype(int), 0, F - 2); w = np.clip(s - i, 0, 1)
 
     def lerp(values):

@@ -7,7 +7,7 @@
  * probe and --version print one JSON line on stdout. sample writes <file>: one JSON line
  * {"nodes":[{"name","parent"}],"frames":F}, then (F + 1) x nodes x 12 little-endian float64,
  * each matrix 3x4 row-major; matrix set 0 is the unevaluated scene, set k + 1 the take at
- * time_begin + k / fps. A failure prints {"error":reason,"detail":text} on stderr and exits 2.
+ * time_begin + k / fps, the last set at time_end (take.frame_count). A failure prints {"error":reason,"detail":text} on stderr and exits 2.
  * Axes and units are left as the file has them.
  */
 #include "ufbx.h"
@@ -20,6 +20,7 @@
 
 #define MAX_BYTES (256.0 * 1024 * 1024)
 #define MAX_SAMPLES 4000000.0 /* frames x nodes, as the glTF importer */
+#define END_TOLERANCE 1e-3 /* frames, as take.END_TOLERANCE */
 
 static void json_string(FILE *out, const char *text, size_t length)
 {
@@ -142,7 +143,7 @@ static int sample(const char *path, long take, double fps, const char *out_path)
 	if (take < 0 || (size_t)take >= scene->anim_stacks.count) fail("take", "no such animation stack");
 	stack = scene->anim_stacks.data[take];
 	if (!(stack->time_end >= stack->time_begin)) fail("bad_source", "the animation stack ends before it starts");
-	frames = (size_t)floor((stack->time_end - stack->time_begin) * fps + 1e-9) + 1;
+	frames = (size_t)ceil((stack->time_end - stack->time_begin) * fps - END_TOLERANCE) + 1;
 	for (i = 0; i < count; i++) {
 		ufbx_node *node = scene->nodes.data[i];
 		index[i] = -1;
@@ -167,7 +168,8 @@ static int sample(const char *path, long take, double fps, const char *out_path)
 		if (!write_matrix(out, &nodes[k]->node_to_world)) cannot_write(out_path);
 	for (i = 0; i < frames; i++) {
 		ufbx_error error;
-		ufbx_scene *state = ufbx_evaluate_scene(scene, stack->anim, stack->time_begin + (double)i / fps, NULL, &error);
+		ufbx_scene *state = ufbx_evaluate_scene(scene, stack->anim,
+			i + 1 == frames ? stack->time_end : stack->time_begin + (double)i / fps, NULL, &error);
 		if (!state) fail("bad_source", error.description.data);
 		for (k = 0; k < kept; k++)
 			if (!write_matrix(out, &state->nodes.data[nodes[k]->typed_id]->node_to_world)) cannot_write(out_path);

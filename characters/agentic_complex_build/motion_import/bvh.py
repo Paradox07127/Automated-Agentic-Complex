@@ -120,11 +120,11 @@ def _canonical(joints, xyz, R, override):
 
 
 def probe(path, take=0):
+    """The source's take, as the file states it: load maps the skeleton, with the import's bone_map."""
     joints, frame_time, motion = _read(path, take)
-    S = len(joints); _, _, _, _, warnings = _canonical(joints, np.zeros((0, S, 3)), np.zeros((0, S, 3, 3)), None)
     return {'takes': [{'index': 0, 'name': Path(path).name, 'duration_s': (len(motion) - 1) * frame_time,
                        'frames': len(motion), 'frame_rate': 1 / frame_time}],
-            'has_face': False, 'has_camera': False, 'warnings': warnings}
+            'has_face': False, 'has_camera': False, 'warnings': []}
 
 
 def load(path, take=0, options=None):

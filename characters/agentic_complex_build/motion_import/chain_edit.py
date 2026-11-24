@@ -2,9 +2,9 @@
 
 An edit rewrites a clip's intent-motion-map next, exit or hold_seconds, or its blend-times blend_in_s. A chain is a
 motion-graph chains key and motion_graph.policy_chain from it; replace and insert at index i (>= 1) rewrite the next of its
-clip i-1 and lead the placed clip on to what followed. Each chain the edits change, from a clip nothing leads to, a pooled clip
-or an action row's clip, is checked as the builder checks its own: no clip repeats along next, else exit; it comes to rest in
-the stance it starts in; a new link keeps the stance; a pooled standing chain passes check_families; an action row's clip stays
+clip i-1 and lead the placed clip on to what followed. No walk the edits change, from any clip, repeats a clip along next, else exit. Each chain the edits
+change, from a clip nothing leads to, a pooled clip or an action row's clip, is checked as the builder checks its own: it comes
+to rest in the stance it starts in; a new link keeps the stance; a pooled standing chain passes check_families; an action row's clip stays
 a chains key. Any problem refuses the whole proposal. An action row whose clip's chain changes takes the new chain's required_clips
 and duration, as build_original_agent_motion writes them.
 """
@@ -99,10 +99,12 @@ def problems_of(mapping, before, metadata, families, actions, returns, clips, gr
     reached = {x for c in names for x in [returns.get(c), (entries.get(c) or {}).get('next'), (entries.get(c) or {}).get('exit')] if x and x != c}
     drawn, rows = pooled(mapping), {c for row in actions for c in row.get('clips') or []}
     links = {pair for path, _ in old.values() for pair in zip(path, path[1:])}
-    for start in sorted(c for c in names if new[c] != old[c] and (c not in reached or c in drawn or c in rows)):
-        path, repeats = new[start]
-        if repeats:
-            add('cycle:' + start); continue
+    changed = sorted(c for c in names if new[c] != old[c])
+    # Every clip of a cycle is reached from another, so the cycle check cannot wait for the chains' starts.
+    for start in changed:
+        if new[start][1]: add('cycle:' + start)
+    for start in (c for c in changed if not new[c][1] and (c not in reached or c in drawn or c in rows)):
+        path = new[start][0]
         for a, b in zip(path, path[1:]):
             if (a, b) not in links and stance(a, 'stance_end') != stance(b, 'stance_start'): add('stance_breaks:%s>%s' % (a, b))
         if stance(path[-1], 'stance_end') != stance(start, 'stance_start'):

@@ -323,8 +323,8 @@ def run(args):
             if zipped:
                 body, camera, bgm, ignored = inputs(args, [*extract(args.source, unpacked), *args.extra])
                 fmt = precheck(package, body, args.format, args.take)
-            if fmt == "gltf":
-                # The kept source is one file: buffers beside a .gltf go into a GLB, which is baked and kept.
+            if fmt in ("gltf", "vrma"):
+                # The kept source is one file: buffers beside a .gltf (a VRMA too) go into a GLB, which is baked and kept.
                 glb.mkdir()
                 try: body = motion_import(".gltf").packed(body, glb)
                 except ValueError as error: source_failure(error)
@@ -412,7 +412,7 @@ def edit(args, remove):
         try:
             try: report = motion_import(".edit").edit_package(package.root, stage, action=args.action, title=getattr(args, "title", None), remove=remove)
             except PackageError as error:
-                if str(error) in ("unknown_action", "not_imported", "bad_title"): fail(str(error), error)
+                if str(error) in ("unknown_action", "not_imported", "bad_title", "linked_motion", "outside_package"): fail(str(error), error)
                 raise
             # library.upgrade checks every file's SHA-256 in the copy it publishes.
             staged = Package(stage, deep=False)

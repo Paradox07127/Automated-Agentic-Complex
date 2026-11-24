@@ -123,6 +123,7 @@ def import_take(package_root, take, output, *, title, bgm=None, bgm_start=None, 
     take.validate()
     progress('retarget', 0)
     source_rate = take.frame_rate; take = replace(resample(take, FPS), fingers=resample_fingers(take, FPS))
+    if len(take.xyz) < 2: raise ValueError('no_animation')
     identity = sha256_bytes(canonical_json(dict(format=take.format, source=take.source_sha256, take=take.take,
         foot_lock=foot_lock, bone_map=bone_map, bgm=digest(bgm) if bgm else None, bgm_start=bgm_start)))[:16]
     name = 'imported_'+take.format+'_'+identity; action = take.format+'_'+identity

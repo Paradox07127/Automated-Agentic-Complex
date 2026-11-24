@@ -3,7 +3,6 @@
 Node transforms are kept as the file has them: its units and axes; a left-handed file is refused.
 """
 import json
-import math
 import os
 from pathlib import Path
 import subprocess
@@ -14,7 +13,7 @@ import numpy as np
 from character_library import digest
 from .gltf import rotations
 from .humanoid_map import canonical_arrays, finger_arrays, map_skeleton
-from .take import FPS, MotionTake
+from .take import FPS, MotionTake, frame_count
 
 TIMEOUT_S = 120
 
@@ -29,7 +28,9 @@ def tool():
 
 def _run(args):
     """The tool's stdout; its exit 2 failure line on stderr becomes the importer's ValueError."""
-    run = subprocess.run([tool(), *map(str, args)], capture_output=True, text=True, timeout=TIMEOUT_S)
+    # The tool prints UTF-8 names; Windows would decode a text pipe in its ANSI code page.
+    try: run = subprocess.run([tool(), *map(str, args)], capture_output=True, encoding='utf-8', errors='strict', timeout=TIMEOUT_S)
+    except UnicodeDecodeError: raise ValueError('bad_source: fbx_tool') from None
     if run.returncode == 2:
         error = json.loads(run.stderr.strip().splitlines()[-1])
         reason = error['error']
@@ -39,10 +40,6 @@ def _run(args):
     return run.stdout
 
 
-def _frames(duration_s):
-    return math.floor(duration_s * FPS + 1e-9) + 1
-
-
 def probe(path, take=0):
     info = json.loads(_run(['probe', path]))
     if not info['right_handed']: raise ValueError('bad_source: left_handed_axes')
@@ -50,7 +47,7 @@ def probe(path, take=0):
     if not takes: raise ValueError('no_animation')
     if not 0 <= take < len(takes): raise ValueError('bad_source: take')
     for entry in takes:
-        entry.update(frames=_frames(entry['duration_s']), frame_rate=float(FPS))
+        entry.update(frames=frame_count(entry['duration_s']), frame_rate=float(FPS))
     return {'takes': takes, 'has_face': False, 'has_camera': False, 'warnings': []}
 
 

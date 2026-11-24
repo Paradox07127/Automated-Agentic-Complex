@@ -9,7 +9,7 @@ import numpy as np
 CHARACTERS=Path(__file__).resolve().parents[2]
 sys.path[:0]=[str(CHARACTERS)]
 from agentic_complex_build.motion_import import bvh, humanoid_map
-from agentic_complex_build.motion_import.take import CANONICAL
+from agentic_complex_build.motion_import.take import CANONICAL,resample
 
 J={name:index for index,name in enumerate(CANONICAL)}
 # Y up, facing +Z, the character's left on +X.
@@ -197,12 +197,36 @@ class BvhTests(unittest.TestCase):
         np.testing.assert_array_equal(take.xyz,self.load(cmu_bvh_text()).xyz)
         self.assertEqual(take.unmapped,['Neck1'])
 
+    def test_probe_leaves_the_skeleton_to_load(self):
+        """The --bone-map override reaches load only, so probe must not map the skeleton without it."""
+        info=bvh.probe(self.write(cmu_bvh_text().replace('LeftUpLeg','L_UpLeg')))
+        self.assertEqual((info['takes'][0]['frames'],info['warnings']),(3,[]))
+
     def test_toe_synthesized_forward(self):
         take=self.load(cmu_bvh_text().replace('ToeBase','Toes'))
         self.assertIn('toe_synthesized',take.warnings)
         for side in ('Left','Right'):
             # 0.12 x (4 + 4) along +Z, the facing direction.
             np.testing.assert_allclose(take.neutral[J[side+'ToeBase']],take.neutral[J[side+'Foot']]+[0,0,.96],atol=1e-12)
+
+    def test_resampling_keeps_the_last_source_pose(self):
+        """A take whose length is no multiple of 1/30 s ends on its own last pose, and a 2-frame take stays animated."""
+        from agentic_complex_build.motion_import.bake import import_take
+        sys.path.insert(0,str(CHARACTERS.parent/'agent/agentd/tests'))
+        from test_motion_tool import motion_fixture
+        from test_vmd_import import authored_rig
+        package=Path(self.tmp.name)/'package';motion_fixture(package,rig=authored_rig())
+        for frames,rate in ((2,60),(3,24),(2,24)):
+            with self.subTest(frames=frames,rate=rate):
+                head,motion=cmu_bvh_text().split('MOTION\n')
+                rows=motion.splitlines()[2:2+frames]
+                text=head+'MOTION\nFrames: %d\nFrame Time: %.10f\n'%(frames,1/rate)+'\n'.join(rows)+'\n'
+                take=self.load(text);out=resample(take)
+                self.assertGreaterEqual(len(out.xyz),2)
+                np.testing.assert_allclose(out.xyz[-1],take.xyz[-1],atol=1e-9)
+                np.testing.assert_allclose(out.R[-1],take.R[-1],atol=1e-9)
+                np.testing.assert_allclose(out.xyz[0],take.xyz[0],atol=1e-12)
+                import_take(package,take,Path(self.tmp.name)/('out-%d-%d'%(frames,rate)),title='walk')
 
     def test_probe(self):
         path=self.write(cmu_bvh_text())
@@ -211,7 +235,7 @@ class BvhTests(unittest.TestCase):
         self.assertEqual(info['takes'][0]['name'],'walk.bvh')
         self.assertAlmostEqual(info['takes'][0]['duration_s'],2/30,places=6)
         self.assertEqual((info['has_face'],info['has_camera']),(False,False))
-        self.assertEqual(info['warnings'],['hand_tip_synthesized','unmapped_bones'])
+        self.assertEqual(info['warnings'],[])
         with self.assertRaisesRegex(ValueError,'^bad_source: take$'):bvh.probe(path,take=1)
 
 

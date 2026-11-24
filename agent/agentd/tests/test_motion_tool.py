@@ -36,8 +36,8 @@ def motion_fixture(root, cid="fixture", rows=1, rig=None, imported=(), motion=No
 
     imported: (actions.json row, provenance report) pairs written as an earlier import would have left them.
     motion: {"clips": {name: (length, loop)}} archive clips after idle, {"animation"|"interaction": {file: document}} data files
-    that replace or follow the default ones, a None document leaving that file out. A rig with nodes gets test_vmd_import's
-    humanoid.json of it by default."""
+    that replace or follow the default ones, a None document leaving that file out, {"metadata": {name: fields}} replacing
+    fields of a clip's metadata. A rig with nodes gets test_vmd_import's humanoid.json of it by default."""
     motion = motion or {}
     doc = fixture(root, cid)
     shutil.rmtree(root / "runtime"); runtime = root / "runtime"
@@ -48,7 +48,8 @@ def motion_fixture(root, cid="fixture", rows=1, rig=None, imported=(), motion=No
     source = put("render/source.json", {"schema": "endfield-native-character-manifest-v1", "draws": []})
     lengths = {"idle": (1.0, True), **motion.get("clips", {})}
     clips = [dict(put("clips/%s.json" % name, {"schema": "metal-actor-clip-v1", "name": name,
-        "keys": put("clips/%s.keys" % name, b"EFKEY001"), "oracle": put("clips/%s.oracle" % name, b"EFPOSE01")}),
+        "keys": put("clips/%s.keys" % name, b"EFKEY001"), "oracle": put("clips/%s.oracle" % name, b"EFPOSE01"),
+        **motion.get("metadata", {}).get(name, {})}),
         name=name, length=length, loop=loop) for name, (length, loop) in lengths.items()]
     archive = put("actor.json", {"schema": "metal-actor-source-export-v1", "source_bundle_sha256": "0" * 64,
         "rig": put("rig.json", rig or {"schema": "metal-actor-rig-v1", "nodes": []}),
@@ -400,6 +401,42 @@ class MotionToolTests(unittest.TestCase):
         doc = self.failure(self.edit("remove", self.host(), "fixture_0"))
         self.assertEqual(doc["reason"], "not_imported")
         self.assertEqual({k: v for k, v in self.files().items() if k.parts[0] != ".vmd-stage"}, before)
+
+    WALK = "bvh_0123456789abcdef"
+
+    def install_walk(self, name, metadata=None, intents=None, rows=()):
+        """A fresh library, made self.library, with a package whose BVH import WALK added the clip walk: metadata replaces fields
+        of walk's clip metadata, intents adds intent-motion-map clips, rows adds animation action rows."""
+        row = dict(id=self.WALK, name="walk", section="idle", clips=["walk"], trigger="导入 BVH · 手动播放", duration=1.0)
+        report = dict(schema="endfield-motion-import/v1", character="fixture", format="bvh", action=dict(id=self.WALK, clip="walk"))
+        idle = dict(id="fixture_0", name="idle", section="idle", clips=["idle"])
+        motion = dict(clips=dict(walk=(1.0, False), nod=(.4, False)), metadata=dict(walk=metadata or {}),
+                      animation={"intent-motion-map.json": {"clips": {"idle": {}, "walk": {}, "nod": {}, **(intents or {})}},
+                                 "actions.json": {"schema": "endfield-character-actions-v1", "actions": [idle, row, *rows]}},
+                      interaction={"motion-metadata.json": {"clips": {"walk": {}}}, "blend-times.json": {"clips": {"walk": {}}}})
+        source = self.root / ("source-" + name); motion_fixture(source, imported=[(row, report)], motion=motion)
+        self.library = Library(self.root / ("library-" + name)); self.library.install(source)
+
+    @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
+    def test_remove_of_an_import_whose_metadata_names_a_file_outside_the_package_deletes_nothing(self):
+        """A third-party package's clip metadata is package data: an absolute or .. keys or oracle path is refused before any unlink."""
+        sentinel = self.root / "thesis.docx"; sentinel.write_bytes(b"the user's own file")
+        up = "../" * 40 + str(sentinel).lstrip("/")
+        # The last case, with the fixture's own paths, is removed.
+        cases = [(field, path) for field in ("oracle", "keys") for path in (str(sentinel), up)] + [(None, None)]
+        for n, (field, path) in enumerate(cases):
+            with self.subTest(field=field, path=path):
+                self.install_walk(str(n), metadata={field: dict(file=path)} if field else None)
+                before = self.published()
+                result = self.edit("remove", self.host(), self.WALK)
+                if not field:
+                    self.success(result); continue
+                doc = self.failure(result)
+                self.assertEqual(doc["reason"], "outside_package")
+                self.assertEqual(sentinel.read_bytes(), b"the user's own file")
+                self.assertEqual(self.published(), before)
+                self.assertEqual([p.name for p in (self.library.root / ".vmd-stage").iterdir()], [".lock"])
 
     @needs_numpy
     def test_running_import_makes_a_second_one_busy(self):
@@ -796,6 +833,59 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual(Library(self.library.root).packages()[0].sha256, new.sha256)
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
+    def test_remove_of_an_import_a_chain_or_another_action_row_leads_to_is_refused(self):
+        """A chain edit can make another clip's next or exit the import, or an action row play it: removing it would leave that edge."""
+        uses = dict(next=dict(intents=dict(nod=dict(next="walk"))), exit=dict(intents=dict(nod=dict(exit="walk"))),
+                    row=dict(rows=[dict(id="nod_row", name="nod", section="idle", clips=["nod"], required_clips=["walk"], duration=1.4)]))
+        for name, use in uses.items():
+            with self.subTest(use=name):
+                self.install_walk(name, **use); before = self.published()
+                doc = self.failure(self.edit("remove", self.host(), self.WALK))
+                self.assertEqual(doc["reason"], "linked_motion")
+                self.assertEqual(self.published(), before)
+                self.assertEqual([p.name for p in (self.library.root / ".vmd-stage").iterdir()], [".lock"])
+
+    def vrma(self):
+        """A text .gltf VRMA of test_bvh_import's CMU skeleton turning its left forearm over 1 s, its buffer in anim.bin beside it."""
+        import struct
+        from test_bvh_import import cmu_joints
+        joints = cmu_joints(); index = {name: k for k, (name, _, _) in enumerate(joints)}
+        children = lambda name: [index[n] for n, parent, _ in joints if parent == name]
+        nodes = [dict(name=name, translation=[c * .1 for c in offset], **({"children": children(name)} if children(name) else {}))
+                 for name, _, offset in joints]
+        data = struct.pack("<10f", 0, 1, 0, 0, 0, 1, 0, 0, math.sqrt(.5), math.sqrt(.5))
+        (self.root / "anim.bin").write_bytes(data)
+        sided = dict(Shoulder="Shoulder", UpperArm="Arm", LowerArm="ForeArm", Hand="Hand", UpperLeg="UpLeg", LowerLeg="Leg", Foot="Foot", Toes="ToeBase")
+        bones = dict(hips="Hips", spine="Spine", neck="Neck", head="Head",
+                     **{side.lower() + vrm: side + name for side in ("Left", "Right") for vrm, name in sided.items()})
+        doc = dict(asset=dict(version="2.0"), extensionsUsed=["VRMC_vrm_animation"], nodes=nodes, scenes=[dict(nodes=[0])],
+                   extensions=dict(VRMC_vrm_animation=dict(specVersion="1.0", humanoid=dict(humanBones={b: dict(node=index[n]) for b, n in bones.items()}))),
+                   buffers=[dict(uri="anim.bin", byteLength=len(data))],
+                   bufferViews=[dict(buffer=0, byteOffset=0, byteLength=8), dict(buffer=0, byteOffset=8, byteLength=32)],
+                   accessors=[dict(bufferView=0, componentType=5126, count=2, type="SCALAR", min=[0], max=[1]),
+                              dict(bufferView=1, componentType=5126, count=2, type="VEC4")],
+                   animations=[dict(name="turn", samplers=[dict(input=0, output=1)],
+                                    channels=[dict(sampler=0, target=dict(node=index["LeftForeArm"], path="rotation"))])])
+        path = self.root / "turn.gltf"; path.write_text(json.dumps(doc), encoding="utf-8")
+        return path
+
+    @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
+    def test_a_vrma_with_an_external_buffer_is_kept_as_one_glb(self):
+        """The kept source is baked again alone, as seed replay does, and identifies the import by its buffer too."""
+        from test_vmd_import import authored_rig
+        from agentic_complex_build.motion_import import formats, gltf
+        self.install(rig=authored_rig())
+        doc = self.success(self.run_import(self.vrma(), self.host()))
+        self.assertEqual(doc["format"], "vrma")
+        [entry] = json.loads((self.library.root / "motion-imports/fixture/imports.json").read_text(encoding="utf-8"))["imports"]
+        (self.root / "anim.bin").unlink()
+        kept = self.library.root / "motion-imports/fixture" / entry["source"]["file"]
+        self.assertEqual(kept.suffix, ".glb")
+        self.assertEqual((formats.detect(kept), len(gltf.read(kept)["buffers"])), ("vrma", 1))
+
+    @needs_numpy
     def test_two_audio_extras_is_ambiguous(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig()); before = self.files()
@@ -889,6 +979,27 @@ class PackagedFbxToolTest(unittest.TestCase):
                     os.environ.pop("AAC_FBX_TOOL", None)
                     self.assertEqual(motion_tool.importer(), "content")
                     self.assertEqual(Path(os.environ["AAC_FBX_TOOL"]).name, name)
+
+    @needs_numpy
+    def test_the_fbx_tool_output_is_read_as_utf8_whatever_the_code_page(self):
+        """fbx-motion prints UTF-8; Windows decodes a text pipe in its ANSI code page (cp1252 here) unless told otherwise."""
+        import os
+        from unittest import mock
+        import motion_tool
+        calls = []
+        def run(args, **options):
+            calls.append(options)
+            data = output
+            if options.get("text") or options.get("encoding"): data = data.decode(options.get("encoding") or "cp1252", options.get("errors") or "strict")
+            return subprocess.CompletedProcess(args, 0, data, "")
+        probe = dict(right_handed=True, takes=[dict(index=0, name="歩き", time_begin=0.0, time_end=1.0)])
+        with mock.patch.dict(os.environ, AAC_FBX_TOOL=sys.executable), mock.patch("subprocess.run", side_effect=run):
+            fbx = motion_tool.motion_import(".fbx")
+            output = json.dumps(probe, ensure_ascii=False).encode("utf-8")
+            self.assertEqual(fbx.probe(Path("walk.fbx"))["takes"][0]["name"], "歩き")
+            self.assertEqual(calls[-1].get("encoding"), "utf-8")
+            output = b"\xff\n"
+            with self.assertRaisesRegex(ValueError, "^bad_source: fbx_tool$"): fbx.probe(Path("walk.fbx"))
 
 
 if __name__ == "__main__": unittest.main()
