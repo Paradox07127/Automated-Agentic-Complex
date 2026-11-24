@@ -140,13 +140,12 @@ class CanonicalReleaseTests(unittest.TestCase):
         if renderer:(root/'private/renderer/host').mkdir(parents=True)
         catalog=root/'library/current.json';catalog.parent.mkdir(parents=True);catalog.write_text('{}')
         profile=dict(schema='endfield-release-config/v1',character_catalog='library/current.json',
-            catalog_sha256=hashlib.sha256(b'{}').hexdigest(),ui_art='.local/art',photo_looks='.local/looks',output_root='out')
+            catalog_sha256=hashlib.sha256(b'{}').hexdigest(),ui_art='.local/art',output_root='out')
         for name in [*release.source_fingerprint.RELEASE_TOOLS,'tools/qa/suites.json']:
             path=root/name;path.parent.mkdir(parents=True,exist_ok=True);path.touch()
         path=root/'app/packaging/release.json';path.parent.mkdir(parents=True);path.write_text(json.dumps(profile))
         self.git(root,'add','.');self.git(root,'commit','-m','release fixture')
         art=root/'.local/art';(art/'brand').mkdir(parents=True);(art/'art-manifest.json').write_text('{}');(art/'brand/AppIcon.icns').write_text('icon')
-        looks=root/'.local/looks';looks.mkdir();(looks/'looks.json').write_text('{}')
     def receipt(self,root,profile='commit',**fields):
         def sha(*names):
             h=hashlib.sha256()
@@ -356,33 +355,16 @@ class CanonicalReleaseTests(unittest.TestCase):
             (root/'custom').mkdir();(root/'.local/art').rename(root/'custom/art')
             command=self.profile_release(root,'custom/art')
             self.assertEqual(command[command.index('--ui-art')+1],str(root/'custom/art'))
-    def test_release_refuses_to_ship_without_photo_looks(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root=Path(tmp);self.release_repo(root);(root/'.local/looks/looks.json').unlink()
-            with self.assertRaisesRegex(ValueError,'Photo looks missing: '+str(root/'.local/looks')+'.*build_photo_looks'):self.build(root,self.args())
-    def test_default_photo_looks_reach_the_packager(self):
+    def test_a_profile_without_content_overrides_passes_none_to_the_packager(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);self.release_repo(root)
-            command=self.profile_release(root,'.local/art')
-            self.assertEqual(command[command.index('--photo-looks')+1],str(root/'.local/looks'))
-            self.assertNotIn('--content-override',command)
-    def test_profile_with_null_photo_looks_ships_without_filters(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root=Path(tmp);self.release_repo(root);(root/'.local/looks/looks.json').unlink()
-            self.assertNotIn('--photo-looks',self.profile_release(root,'.local/art',photo_looks=None))
-    def test_profile_photo_looks_directory_replaces_the_photo_looks_config(self):
+            self.assertNotIn('--content-override',self.profile_release(root,'.local/art'))
+    def test_a_profile_without_ui_art_ships_without_it(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);self.release_repo(root)
-            with self.assertRaisesRegex(ValueError,'Photo looks missing: '+str(root/'custom/looks')):self.profile_release(root,'.local/art',photo_looks='custom/looks')
-            (root/'custom/looks').mkdir(parents=True);(root/'custom/looks/looks.json').write_text('{}')
-            command=self.profile_release(root,'.local/art',photo_looks='custom/looks')
-            self.assertEqual(command[command.index('--photo-looks')+1],str(root/'custom/looks'))
-    def test_a_profile_without_ui_art_or_photo_looks_ships_without_them(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root=Path(tmp);self.release_repo(root)
-            doc=json.loads((root/'app/packaging/release.json').read_text());del doc['ui_art'],doc['photo_looks']
+            doc=json.loads((root/'app/packaging/release.json').read_text());del doc['ui_art']
             command=self.release_command(root,doc)
-            self.assertNotIn('--ui-art',command);self.assertNotIn('--photo-looks',command)
+            self.assertNotIn('--ui-art',command)
     def test_profile_with_null_character_catalog_packages_an_empty_library(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);self.release_repo(root);(root/'library/current.json').unlink()

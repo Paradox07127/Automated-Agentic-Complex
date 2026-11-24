@@ -42,8 +42,8 @@ FULL_EVERY = datetime.timedelta(hours=24)
 KEEP_LOGS = 10
 GREEN = 'refs/endfield/green'
 MAIN = 'refs/heads/main'
-# Inputs a checkout takes from the main checkout; the release profile's catalog, ui_art and photo_looks add the
-# directories they name.
+# Inputs a checkout takes from the main checkout; the release profile's catalog and ui_art add the directories they
+# name.
 LINKS = ['.local/inputs', '.local/cache/character-system',
          '.local/cache/personal-agent-runtime', '.local/gate-receipts', '.local/pi-runtime']
 # release.py in any checkout looks for receipts here; the runner's receipts must land in the main checkout's store.
@@ -276,7 +276,7 @@ class Daemon:
             private.symlink_to(self.root / 'private')
         # Read after the link: the local profile is private/release/release.json.
         profile = json.loads(default_profile(checkout).read_text())
-        for path in [profile['character_catalog'], profile.get('ui_art'), profile.get('photo_looks')]:
+        for path in [profile['character_catalog'], profile.get('ui_art')]:
             # A build output's whole .local/output/<name>, else its top directory (.local/library).
             if path: names.append(str(Path(*Path(path).parts[:3 if Path(path).parts[1] == 'output' else 2])))
         (self.root / RECEIPTS).mkdir(parents=True, exist_ok=True)

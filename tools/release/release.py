@@ -146,9 +146,6 @@ def build(args,root=ROOT):
     art=None if profile.get('ui_art') is None else root/profile['ui_art']
     if art is not None and not (art/'art-manifest.json').is_file():raise ValueError('UI art missing: '+str(art)+'. Render it with tools/release/render_ui_art.py.')
     if art is not None and not (art/'brand/AppIcon.icns').is_file():raise ValueError('App icon missing: '+str(art/'brand/AppIcon.icns')+'. Render it with tools/release/render_ui_art.py.')
-    # A profile's photo_looks names the filter directory; null or absent ships without photo-mode filters.
-    looks=None if profile.get('photo_looks') is None else root/profile['photo_looks']
-    if looks is not None and not (looks/'looks.json').is_file():raise ValueError('Photo looks missing: '+str(looks)+'. Build them with the local tool build_photo_looks.py (not in the public repository).')
     # {path in a component's staged content: repo-relative source} copied over the staged content before signing.
     overrides=[x for relative,source in profile.get('content_overrides',{}).items() for x in ('--content-override',relative+'='+str(root/source))]
     state=release_guard(root)
@@ -211,7 +208,7 @@ def build(args,root=ROOT):
     command=[str(python),'-I',str(root/'tools/release/package_app.py'),
         '--library',str(library),'--output',str(output),*shell,
         *(['--host',str(binary_path(renderer)/'metal-avatar-host')] if renderer.is_dir() else []),
-        '--python',str(runtime),'--harness-runtime',str(harness),'--web-dist',str(ui),'--fbx-tool',str(fbx_tool),*(['--ui-art',str(art)] if art else []),*(['--photo-looks',str(looks)] if looks else []),*overrides,'--layout',layout,
+        '--python',str(runtime),'--harness-runtime',str(harness),'--web-dist',str(ui),'--fbx-tool',str(fbx_tool),*(['--ui-art',str(art)] if art else []),*overrides,'--layout',layout,
         '--build-version',args.build_version or datetime.datetime.now().strftime('%Y%m%d.%H%M%S')]
     if args.port is not None:command+=['--port',str(args.port)]
     subprocess.run(command,check=True)

@@ -34,19 +34,6 @@ def tree_sha256(root):
     return hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest()
 
 
-def copy_photo_looks(source, target):
-    """Copy looks.json and every file it lists after checking each SHA-256; return the copied paths relative to target."""
-    looks = json.loads((source / 'looks.json').read_text(encoding='utf-8'))['looks']
-    for look in looks: build_components.check_manifest_file(source, look['file'], 'Photo look')
-    for look in looks:
-        if digest(source / look['file']) != look['sha256']: raise ValueError('Photo look hash mismatch: ' + look['file'])
-    files = ['looks.json'] + [look['file'] for look in looks]
-    for relative in files:
-        (target / relative).parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source / relative, target / relative)
-    return files
-
-
 def sign_payload(payload):
     subprocess.run(['bash', str(ROOT / 'tools/platform/sign_bundle.sh'), '--payload', str(payload)], check=True)
 
@@ -160,16 +147,12 @@ def stage(args):
             shutil.copy2(args.host.resolve(), renderer / 'MacOS/AgenticComplexMetalAvatar')
             strip_local_symbols(renderer / 'MacOS/AgenticComplexMetalAvatar')
             renderer_paths = ['MacOS/AgenticComplexMetalAvatar']
-        # The profile's content overrides go in before the photo looks so placed paths keep their order.
         payloads = {component['id']: component_stage / component['id'] / 'payload' for component in components}
         placed = dict(host=host_paths, **(dict(renderer=renderer_paths) if renderer else {}))
         overrides = dict(item.split('=', 1) for item in getattr(args, 'content_override', None) or [])
         for component, relative in build_components.stage_release_content(dict(payloads, host=host, **(dict(renderer=renderer) if renderer else {})),
                                                                            overrides, args.library):
             if component in placed and relative not in placed[component]: placed[component].append(relative)
-        if renderer and getattr(args, 'photo_looks', None):
-            looks = 'Resources/looks/photomode-v1/'
-            renderer_paths += [looks + path for path in copy_photo_looks(args.photo_looks, renderer / looks)]
         baseline = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
         sources, fingerprint = source_fingerprint.compute(ROOT)
         write_json(out / 'source-manifest.json', dict(schema='endfield-release-source/v1', baseline=baseline, files=sources, fingerprint=fingerprint))
@@ -246,7 +229,6 @@ if __name__ == '__main__':
     parser.add_argument('--port', type=int)
     parser.add_argument('--build-version', default='20261026.2')
     parser.add_argument('--ui-art', type=Path, help='UI art directory with art-manifest.json')
-    parser.add_argument('--photo-looks', type=Path, help='Built photo-mode filter directory with looks.json')
     parser.add_argument('--content-override', action='append', metavar='COMPONENT/PATH=SOURCE',
                         help='Copy SOURCE to PATH in the staged component COMPONENT before signing; repeatable')
     args = parser.parse_args()

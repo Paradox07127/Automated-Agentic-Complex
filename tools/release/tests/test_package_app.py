@@ -6,7 +6,6 @@ import json
 import os
 from pathlib import Path
 import plistlib
-import re
 import shutil
 import subprocess
 import sys
@@ -626,60 +625,11 @@ console.log(JSON.stringify(prepareComponents({resources, support, layout:'split'
         self.assertEqual(info['NSSpeechRecognitionUsageDescription'], '按住说话时在本机把语音转成文字。')
         self.assertFalse((self.resources / 'characters').exists())
 
-    def photo_looks(self):
-        looks = self.root / 'looks'; (looks / 'lut').mkdir(parents=True)
-        ids = ['sp_filter_%d' % n for n in range(1, 8)] + ['filter_%d' % n for n in range(1, 9)]
-        entries = []
-        for sort, id in enumerate(ids):
-            (looks / 'lut' / (id + '.rgba8')).write_bytes(id.encode() * 4)
-            entries.append(dict(id=id, sort=sort, file='lut/' + id + '.rgba8',
-                                sha256=package_app.digest(looks / 'lut' / (id + '.rgba8'))))
-        (looks / 'looks.json').write_text(json.dumps(dict(schema='endfield-photo-looks/v1', looks=entries)))
-        return looks, ids
-
-    def test_photo_looks_are_verified_and_placed_in_the_renderer_resources(self):
-        stage(self.args)
-        plain = json.loads((self.components / 'renderer/component.json').read_text())['placed']
-        self.assertFalse([path for path in plain if path.startswith('Resources/looks/')])
-        looks, ids = self.photo_looks()
-        self.args.photo_looks = looks; self.args.output = self.root / 'with-looks'
-        stage(self.args)
-        contents = self.args.output / 'Agentic Complex.app/Contents'
-        placed = json.loads((contents / 'Resources/components/renderer/component.json').read_text())['placed']
-        shipped = {path for path in placed if path.startswith('Resources/looks/')}
-        base = 'Resources/looks/photomode-v1/'
-        self.assertEqual(shipped, {base + 'looks.json'} | {base + 'lut/' + id + '.rgba8' for id in ids})
-        self.assertEqual(len(shipped), 16)
-        self.assertEqual(set(placed) - shipped, set(plain))
-        for path in shipped:
-            self.assertEqual((contents / path).read_bytes(), (looks / path[len(base):]).read_bytes())
-        (looks / 'lut/filter_3.rgba8').write_bytes(b'tampered')
-        self.args.output = self.root / 'tampered'
-        with self.assertRaisesRegex(ValueError, 'Photo look hash mismatch: lut/filter_3.rgba8'):
-            stage(self.args)
-        self.assertFalse((self.args.output / 'staging-manifest.json').exists())
-
-    def test_a_photo_look_naming_a_file_outside_the_looks_directory_is_refused(self):
-        outside = self.root / 'outside.rgba8'; outside.write_bytes(b'outside')
-        (self.root / 'link.rgba8').symlink_to(outside)
-        for name in ('../outside.rgba8', str(outside), 'lut/../../outside.rgba8', 'link.rgba8'):
-            with self.subTest(name=name):
-                looks = self.root / 'looks'; (looks / 'lut').mkdir(parents=True, exist_ok=True)
-                (looks / 'link.rgba8').unlink(missing_ok=True)
-                if name == 'link.rgba8': (looks / 'link.rgba8').symlink_to(outside)
-                (looks / 'looks.json').write_text(json.dumps(dict(looks=[
-                    dict(id='x', sort=0, file=name, sha256=package_app.digest(outside))])))
-                target = self.root / 'target'
-                with self.assertRaisesRegex(ValueError, 'Photo look file outside its directory: ' + re.escape(name)):
-                    package_app.copy_photo_looks(looks, target)
-                self.assertFalse(target.exists())
-
     def test_content_overrides_land_in_their_components_before_signing_and_placement(self):
         local = self.root / 'local'; local.mkdir()
         guard = local / 'canon-windows.json'; guard.write_text(json.dumps(dict(n=7, hashes=['0123456789abcdef'])))
         envelopes = local / 'window-envelopes.json'; envelopes.write_text('{"schema": "endfield-window-envelopes/v1"}')
         hints = local / 'efmi-slot-hints.json'; hints.write_text('{}')
-        looks, _ = self.photo_looks(); self.args.photo_looks = looks
         self.args.content_override = ['agentd/agentd/brain/canon-windows.json=' + str(guard),
             'agentd/content/efmi-slot-hints.json=' + str(hints), 'renderer/Resources/window-envelopes.json=' + str(envelopes)]
         signed = []

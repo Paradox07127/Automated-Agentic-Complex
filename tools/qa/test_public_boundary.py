@@ -73,7 +73,7 @@ class PublicBoundary(unittest.TestCase):
         hits = [f'{name}: {path}' for name, paths in lists.items() for path in paths
                 if path.startswith('private/') and not path.startswith(source_fingerprint.RENDERER + '/')]
         profile = json.loads((REPO / 'app/packaging/release.json').read_text(encoding='utf-8'))
-        hits += [f'app/packaging/release.json {key}: {profile[key]}' for key in ('character_catalog', 'ui_art', 'photo_looks', 'output_root')
+        hits += [f'app/packaging/release.json {key}: {profile[key]}' for key in ('character_catalog', 'ui_art', 'output_root')
                  if profile[key] is not None and profile[key].startswith('private/')]
         self.assertEqual(hits, [])
         self.assertFalse(release.shipping_path('private/x'))

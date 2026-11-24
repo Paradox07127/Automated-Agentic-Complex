@@ -2,6 +2,5 @@
   "schema": "endfield-release-config/v1",
   "character_catalog": null,
   "ui_art": "app/packaging/ui-art",
-  "photo_looks": null,
   "output_root": "app/build/releases"
 }

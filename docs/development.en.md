@@ -194,7 +194,7 @@ codesign --verify --strict --deep "app/build/releases/${release_dir}/Agentic Com
 
 - `python3 -I tools/release/release.py --print-profile` prints the path of the profile in use.
 - The release character library is the profile's `character_catalog` (the library's `current.json`); the SHA-256 of that file must equal the profile's `catalog_sha256`. With `character_catalog` null the release ships no characters, and character packages are imported in the app later. `--library <dir>` picks another library explicitly, and then the SHA is not compared.
-- The public profile ships no character library and no photo filters (`photo_looks` null or absent). Its `ui_art` is the self-drawn UI art in the repository, `app/packaging/ui-art`: the sources are the SVGs in `app/packaging/ui-art-src/`; after an edit, run `python3 -I tools/release/render_ui_art.py` to remake the PNGs, `AppIcon.icns` and `art-manifest.json`.
+- The public profile ships no character library. Its `ui_art` is the self-drawn UI art in the repository, `app/packaging/ui-art`: the sources are the SVGs in `app/packaging/ui-art-src/`; after an edit, run `python3 -I tools/release/render_ui_art.py` to remake the PNGs, `AppIcon.icns` and `art-manifest.json`.
 - `content_overrides` (`{path inside the component: repository-relative source file}`) places source files into their components before signing; a path may not leave its component directory.
 
 ### Preparing the harness runtime

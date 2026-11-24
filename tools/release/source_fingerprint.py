@@ -34,7 +34,7 @@ EXTRA_FILES = [f'{RENDERER}/host/Package.swift', f'{RENDERER}/runtime/Package.sw
                f'{RENDERER}/character-assets/Package.swift', f'{RENDERER}/core/build.sh', f'{RENDERER}/common/build.sh',
                'characters/packaging/native_bundle.py', *RELEASE_TOOLS]
 # The profile's directories whose every file the app ships.
-PROFILE_DIRECTORIES = {'ui_art': '@ui-art/', 'photo_looks': '@photo-looks/'}
+PROFILE_DIRECTORIES = {'ui_art': '@ui-art/'}
 
 
 def digest(path):

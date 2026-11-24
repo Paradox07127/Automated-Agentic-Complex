@@ -76,10 +76,10 @@ class GateDaemonTest(unittest.TestCase):
         for name in ('release.py', 'gate_receipt.py', 'source_fingerprint.py'):
             self.write('tools/release/' + name, (RELEASE / name).read_text())
         self.write('app/packaging/release.json', json.dumps(dict(
-            character_catalog='characters/sample-library/current.json', ui_art=None, photo_looks=None)))
+            character_catalog='characters/sample-library/current.json', ui_art=None)))
         self.write('characters/sample-library/current.json', '{}')
         self.write('private/release/release.json', json.dumps(dict(character_catalog='.local/output/rel-1/library/current.json',
-            ui_art='.local/output/ui-art-1/art', photo_looks='.local/output/looks-1/looks')))
+            ui_art='.local/output/ui-art-1/art')))
         self.write('agent/.venv/bin/python', 'stub')
         for name in ('agent/agentd/requirements-character-agent.lock', 'app/packaging/requirements-content.lock'):
             self.write(name, 'pkg==1 --hash=sha256:' + '0' * 64 + '\n')
@@ -129,7 +129,7 @@ class GateDaemonTest(unittest.TestCase):
         # The runner holds the checkout lock while gate.py runs, so gate.py must not wait on it.
         self.assertEqual(call['lock_held'], '1')
         for name in ['.local/inputs', '.local/cache/character-system',
-                     '.local/output/rel-1', '.local/output/ui-art-1', '.local/output/looks-1', '.local/gate-receipts',
+                     '.local/output/rel-1', '.local/output/ui-art-1', '.local/gate-receipts',
                      '.local/pi-runtime']:
             self.assertEqual(os.readlink(gr / name), str(self.repo / name), name)
         self.assertFalse((gr / 'agent/.venv').is_symlink())
@@ -340,8 +340,7 @@ class GateDaemonTest(unittest.TestCase):
         path.start()
         self.addCleanup(path.stop)
         profile = self.tmp / 'electron.json'
-        profile.write_text(json.dumps(dict(character_catalog='characters/sample-library/current.json', ui_art=None,
-                                           photo_looks=None)))
+        profile.write_text(json.dumps(dict(character_catalog='characters/sample-library/current.json', ui_art=None)))
         return sha, profile
 
     def built(self):
@@ -465,7 +464,7 @@ class GateDaemonTest(unittest.TestCase):
         self.assertTrue((wt / '.local/gate-receipts').is_symlink())
 
     def test_link_gives_the_whole_fixed_library_when_the_profile_names_it(self):
-        self.write('private/release/release.json', json.dumps(dict(character_catalog='.local/library/current.json', ui_art=None, photo_looks=None)))
+        self.write('private/release/release.json', json.dumps(dict(character_catalog='.local/library/current.json', ui_art=None)))
         (self.repo / '.local/library/packages/si').mkdir(parents=True)
         wt = self.tmp / 'library-wt'
         self.git('worktree', 'add', '-q', '--detach', str(wt), 'main')
@@ -474,7 +473,7 @@ class GateDaemonTest(unittest.TestCase):
         self.assertTrue((wt / '.local/library/packages/si').is_dir())
 
     def test_link_keeps_a_library_dir_with_real_files(self):
-        self.write('private/release/release.json', json.dumps(dict(character_catalog='.local/library/current.json', ui_art=None, photo_looks=None)))
+        self.write('private/release/release.json', json.dumps(dict(character_catalog='.local/library/current.json', ui_art=None)))
         wt = self.tmp / 'own-library-wt'
         self.git('worktree', 'add', '-q', '--detach', str(wt), 'main')
         (wt / '.local/library').mkdir(parents=True)

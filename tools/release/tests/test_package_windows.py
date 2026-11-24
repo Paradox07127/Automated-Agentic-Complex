@@ -235,22 +235,6 @@ class PackageWindowsTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'window_envelopes_stale: fixture'): self.stage()
             shutil.rmtree(self.output)
 
-    def test_the_photo_looks_go_beside_efw_after_their_sha256_is_checked(self):
-        looks = self.root / 'photo looks'; (looks / 'lut').mkdir(parents=True)
-        strip = b'\x10\x20\x30\xff' * 8
-        (looks / 'lut/sp_filter_1.rgba8').write_bytes(strip)
-        rows = [dict(id='sp_filter_1', file='lut/sp_filter_1.rgba8', sha256=package_windows.digest(looks / 'lut/sp_filter_1.rgba8'))]
-        (looks / 'looks.json').write_text(json.dumps(dict(schema='endfield-photo-looks/v1', looks=rows)))
-        self.stage(photo_looks=looks)
-        package = self.output / 'Agentic Complex'
-        self.assertEqual((package / 'looks/photomode-v1/looks.json').read_bytes(), (looks / 'looks.json').read_bytes())
-        self.assertEqual((package / 'looks/photomode-v1/lut/sp_filter_1.rgba8').read_bytes(), strip)
-        renderer = json.loads((package / 'resources/components/renderer/component.json').read_text())
-        self.assertEqual(list(renderer['placed'])[-2:], ['looks/photomode-v1/looks.json', 'looks/photomode-v1/lut/sp_filter_1.rgba8'])
-        shutil.rmtree(self.output)
-        (looks / 'lut/sp_filter_1.rgba8').write_bytes(strip[::-1])
-        with self.assertRaisesRegex(ValueError, 'Photo look hash mismatch: lut/sp_filter_1.rgba8'): self.stage(photo_looks=looks)
-
     def test_the_profiles_guard_override_ships_its_exact_bytes(self):
         guard = self.root / 'canon-windows.json'
         guard.write_text(json.dumps(dict(n=7, hashes=['0123456789abcdef', 'fedcba9876543210', '00000000000000ff'])))
