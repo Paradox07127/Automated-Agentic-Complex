@@ -84,11 +84,11 @@ def window(period, date, timezone):
     try:
         zone = ZoneInfo(timezone)
         day = dt.date.fromisoformat(date)
-    except (ValueError, TypeError, ZoneInfoNotFoundError):
+        if period == 'weekly': day -= dt.timedelta(days=day.weekday())
+        end = day + dt.timedelta(days=1 if period == 'daily' else 7)
+        return day.isoformat(), dt.datetime.combine(day, dt.time(), zone).timestamp(), dt.datetime.combine(end, dt.time(), zone).timestamp()
+    except (ValueError, TypeError, ZoneInfoNotFoundError, OverflowError, OSError):
         raise ValueError('invalid_brief_window') from None
-    if period == 'weekly': day -= dt.timedelta(days=day.weekday())
-    end = day + dt.timedelta(days=1 if period == 'daily' else 7)
-    return day.isoformat(), dt.datetime.combine(day, dt.time(), zone).timestamp(), dt.datetime.combine(end, dt.time(), zone).timestamp()
 
 
 class ObservationBriefs:
@@ -131,8 +131,9 @@ class ObservationBriefs:
         return self.settings()
 
     def allowed(self):
+        # The pure pause read: valid() runs this under memory.lock.
         return not self.stopped.is_set() and not self.server.closing and not self.server.resetting \
-            and self.controller._permitted('briefs')
+            and not self.server.observation_paused_now()
 
     def _source(self, kind, ident):
         with self.lock: before = self._stored_hash(kind,ident)
@@ -166,7 +167,7 @@ class ObservationBriefs:
             text, start, end, units = row['text'], float(seg), float(seg + SEGMENT_S), [f'timeline:{seg}']
         else: return None
         return {'source_id': kind+':'+str(ident), 'kind':kind, 'id':str(ident), 'start':start, 'end':end, 'stored_hash':before,
-                'text':self.controller.knowledge().sanitize(text, part='observation_brief_source'), 'units':units}
+                'text':self.controller.knowledge().sanitize(text, part='observation_brief_source', observed=True), 'units':units}
 
     def _stored_hash(self, kind, ident):
         """Caller holds memory.lock; final comparison shares the commit fence."""
@@ -192,7 +193,8 @@ class ObservationBriefs:
             _, lo, hi = window('daily', day.isoformat(), timezone)
             if lo >= end: break
             with self.lock:
-                episodes = self.db.execute('SELECT id FROM episodes WHERE start>=? AND start<? ORDER BY start DESC,id DESC LIMIT 7', (lo,hi)).fetchall()
+                episodes = self.db.execute('SELECT e.id FROM episodes e JOIN memory_agent_runs r ON r.run_id=e.run_id WHERE e.start>=? AND e.start<? AND r.character_id=?'
+                                           ' ORDER BY e.start DESC,e.id DESC LIMIT 7', (lo,hi,self.server.character)).fetchall()
             summaries = timeline.summaries_in(lo, hi, limit=6) if timeline is not None else []
             eligible += len(episodes) + len(summaries)
             for ident, in episodes[:6]:
@@ -212,7 +214,7 @@ class ObservationBriefs:
             for rows in buckets.values():
                 if index < len(rows) and len(dump([*selected,rows[index]])) <= budget: selected.append(rows[index])
         service=getattr(self.controller,'observations',None)
-        events=[event for event in service.events(start,limit=1000) if event['at']<end] if service else []
+        events=service.events(start,limit=1000,until=end) if service else []
         event_sources=[source for event in events if (source:=self._source('work_event',event['id']))]
         # Complete event index remains available; full sources can be read using observation_read.
         self._event_sources=event_sources
@@ -282,7 +284,7 @@ class ObservationBriefs:
         result = []
         for row in rows:
             item = dict(zip(keys,row))
-            can_retry = enabled and item['state'] in ('failed','interrupted','cancelled')
+            can_retry = enabled and item['state'] in ('failed','interrupted','cancelled','invalidated')
             retry = None
             earliest = item['updated_at'] + AUTO_RETRY_DELAY
             latest = (item['period'], item['date']) in current
@@ -302,7 +304,9 @@ class ObservationBriefs:
         if raw is None: return None
         retention = min(RETENTION, self.controller.retention() or RETENTION)
         if raw[3] < self.clock()-retention or raw[2] != self.server.consent.snapshot()[1] or not self._dependencies_valid(json.loads(raw[1])):
-            self.dismiss(ident)
+            # Stale, not dismissed by the user: nothing in flight is cancelled and a retry regenerates it.
+            self._settle(ident,'invalidated',states=('completed',))
+            self.server.feed.publish('observation_brief',{'id':ident,'state':'invalidated'})
             return None
         return json.loads(raw[0])
 
@@ -359,10 +363,6 @@ class ObservationBriefs:
         if not self.worker_lock.acquire(False): raise ValueError('brief_busy')
         character, epoch = self.server.character, self.epoch
         ident = 'brief-'+digest([character,period,date,config['timezone']])[:32]
-        with self.lock:
-            self.db.execute('INSERT OR IGNORE INTO observation_briefs VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                (ident,character,period,date,config['timezone'],start,end,self.clock(),'queued',0,None,None,self.server.consent.snapshot()[1]))
-            self.db.commit()
         def work():
             try:
                 if self.server.character==character and self.epoch==epoch: self._run_once(period,date,manual_retry=retry)
@@ -370,7 +370,15 @@ class ObservationBriefs:
             finally:
                 try: self._settle(ident,'cancelled',states=('queued',))
                 finally: self.worker_lock.release()
-        threading.Thread(target=work,name='role-observation-brief-request',daemon=True).start()
+        try:
+            with self.lock:
+                self.db.execute('INSERT OR IGNORE INTO observation_briefs VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                    (ident,character,period,date,config['timezone'],start,end,self.clock(),'queued',0,None,None,self.server.consent.snapshot()[1]))
+                self.db.commit()
+            threading.Thread(target=work,name='role-observation-brief-request',daemon=True).start()
+        except Exception:
+            self.worker_lock.release()
+            raise
         return {'id':ident,'state':'scheduled'}
 
     def status(self, ident):
@@ -401,7 +409,6 @@ class ObservationBriefs:
         validation_sources=list({s['source_id']:s for s in [*sources,*getattr(self,'_event_sources',[])]}.values())
         deps = [{'kind':s['kind'],'id':s['id'],'hash':digest(s),'stored_hash':s['stored_hash']} for s in validation_sources]
         def valid():
-            # Safe under MemoryJournal's non-recursive memory lock.
             return self.allowed() and self.server.character==character and self.server.consent.snapshot()[1]==consent \
                 and self.epoch==epoch and self.memory.content_epoch==memory_epoch
         with self.lock:
@@ -419,7 +426,7 @@ class ObservationBriefs:
         run = None
         try:
             run = self.controller.semantic.run('observation_brief',INSTRUCTIONS,{'period':period,'date':date,'timezone':config['timezone'],'coverage':coverage,'sources':sources},valid=valid,validate_output=lambda v:self.validate(v,validation_sources))
-            value = self.controller.knowledge().sanitize(self.validate(run['value'],validation_sources),part='observation_brief')
+            value = self.controller.knowledge().sanitize(self.validate(run['value'],validation_sources),part='observation_brief',observed=True)
             if not valid() or not self._dependencies_valid(deps): raise ValueError('brief_sources_changed')
             report = {'id':ident,'state':'completed','period':period,'date':date,'timezone':config['timezone'], 'start':start,'end':end,
                 'character_id':character,'generated_at':now,'run_id':run['run_id'],'backend':run['backend'],'model':run['model'],

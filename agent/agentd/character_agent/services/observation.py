@@ -458,7 +458,7 @@ class ObservationService:
         with self.lock: return self.db.execute('SELECT 1 FROM observation_frames WHERE character_id=? LIMIT 1',(self.character,)).fetchone() is not None
 
     def allowed(self, requires=()):
-        if self.stopped.is_set() or self.server.resetting or self.server.closing or self.server.observation_paused(): return False
+        if self.stopped.is_set() or self.server.resetting or self.server.closing or self.server.observation_paused_now(): return False
         permissions = self.server.consent.snapshot()[0]
         return all(permissions.get(p,False) for p in requires) if requires else any(permissions.get(p,False) for p in ('window_text','page_text','typed_text','agent_sessions','screenshots'))
 
@@ -535,12 +535,12 @@ class ObservationService:
             for preview,raw,value in previews:self._link_hook_preview(preview,{**json.loads(raw),'value':value})
         return ident
 
-    def ingest_image(self, window_id, request_id, image, metadata):
+    def ingest_image(self, window_id, request_id, image, metadata, capture_valid=lambda:True):
         _,width,height=image_size(image)
         ident=self.ingest('screen_keyframe',metadata=metadata|{'window_id':window_id,'request_id':request_id,
             'pixel_width':width,'pixel_height':height,
             'coverage':{'status':'complete','scope':'window_image','reasons':[]}},image=image,
-            source_key=digest(['image',metadata.get('bundle_id'),window_id]))
+            source_key=digest(['image',metadata.get('bundle_id'),window_id]),capture_valid=capture_valid)
         return ident
 
     def _allowed_row(self, row):
@@ -590,8 +590,9 @@ class ObservationService:
             if input_fingerprint:
                 existing=self.db.execute('SELECT observation_id FROM observation_input_identity WHERE fingerprint=?',(input_fingerprint,)).fetchone()
                 if existing: return existing[0]
-            previous = self.db.execute('SELECT id,revision FROM observation_frames WHERE character_id=? AND source_key=? ORDER BY rowid DESC LIMIT 1',(character,key)).fetchone()
-            if previous and previous[1]==revision:
+            previous = self.db.execute('SELECT id,revision,consent_epoch FROM observation_frames WHERE character_id=? AND source_key=? ORDER BY rowid DESC LIMIT 1',(character,key)).fetchone()
+            # A frame of an older consent epoch is no longer readable, so a recapture after a consent change is a new frame.
+            if previous and previous[1]==revision and previous[2]==epoch:
                 self.db.execute(STORE_CONTENT,(sha,text,image,self.clock()))
                 self.db.execute('UPDATE observation_frames SET at=?,metadata=? WHERE id=?',(at,dump(meta),previous[0]))
                 # A recapture makes an expired frame fresh, so it is queued again.
@@ -850,10 +851,10 @@ class ObservationService:
             'current_sources':[{'id':r['id'],'origin':r['origin'],'revision':r['revision'],'metadata':{k:v for k,v in r['metadata'].items() if k not in ('nodes','text_blocks')},
                 'total_chars':len(r['text']),'preview':r['text'][:4000],'preview_complete':len(r['text'])<=4000} for r in latest]}
 
-    def events(self, since=0, limit=100):
+    def events(self, since=0, limit=100, until=math.inf):
         with self.lock:
-            rows = self.db.execute('SELECT id,at,title,body,dependencies,analysis_id,character_id FROM observation_work_events WHERE character_id=? AND at>=? ORDER BY at DESC LIMIT ?',
-                (self.character,since,limit)).fetchall()
+            rows = self.db.execute('SELECT id,at,title,body,dependencies,analysis_id,character_id FROM observation_work_events WHERE character_id=? AND at>=? AND at<? ORDER BY at DESC LIMIT ?',
+                (self.character,since,until,limit)).fetchall()
         return [dict(json.loads(body),id=ident,at=at,title=title,analysis_id=analysis,character_id=owner,dependencies=json.loads(deps))
                 for ident,at,title,body,deps,analysis,owner in rows if self.valid_dependencies(json.loads(deps),allow_expired=True)]
 
@@ -1003,6 +1004,9 @@ class ObservationService:
                     for key in ('unresolved','next_steps'):
                         if not isinstance(item.get(key),list) or len(item[key])>16 or any(not isinstance(v,str) or len(v)>4000 for v in item[key]): raise ValueError('invalid_observation_analysis')
                 if section=='task_updates' and (type(item.get('confidence')) not in (int,float) or not 0<=item['confidence']<=1): raise ValueError('invalid_observation_analysis')
+                if section=='task_updates':
+                    # Only the schema's keys: a model never writes a task's authority, so it stays an inferred hypothesis.
+                    item={k:item[k] for k in ('task_key','title','objective','current_step','state','unresolved','next_steps','confidence','evidence')}
                 dependencies.update(found);kept.append(item)
             value[section]=kept
         for key in ('uncertainties','evidence_requests'):
@@ -1016,6 +1020,8 @@ class ObservationService:
             epoch,character,consent,memory_epoch=self.generation,self.character,self.server.consent.snapshot()[1],self.memory.content_epoch
             valid=lambda:self.allowed() and self.generation==epoch and self.character==character and self.server.consent.snapshot()[1]==consent and self.memory.content_epoch==memory_epoch
             rows,evidence=self._evidence()
+            # The model sees tasks without evidence and next_steps; the merge keeps them.
+            tasks=self.understanding().get('tasks',[])
             # One of these becomes its source's base once committed, so ingest keeps their trees meanwhile.
             getattr(self,'_owner',self).reading=frozenset(r['id'] for r in rows)
             if not valid() or any(r['character_id']!=character for r in rows): raise ValueError('observation_source_changed')
@@ -1037,9 +1043,11 @@ class ObservationService:
             dependencies=list({d['id']:d for d in [*self.validate(run['value'],knowledge.observation_images),*[self.dependency(r) for r in rows]]}.values())
             if not valid() or not self.valid_dependencies(dependencies): raise ValueError('observation_source_changed')
             body=run['value'];ident='analysis-'+uuid.uuid4().hex;now=self.clock()
-            prior={t['task_key']:t for t in evidence['previous_state'].get('tasks',[]) if now-(t.get('last_observed_at') or t.get('last_interpreted_at',now))<8*3600}
+            prior={t['task_key']:t for t in tasks if now-(t.get('last_observed_at') or t.get('last_interpreted_at',now))<8*3600}
             for item in body['task_updates']:
-                observed_at=max(self.get(e['observation_id'])['at'] for e in item['evidence'])
+                cited=[self.get(e['observation_id']) for e in item['evidence']]
+                if None in cited: raise ValueError('observation_source_changed')
+                observed_at=max(r['at'] for r in cited)
                 old=prior.get(item['task_key'])
                 # Processing a delayed failure cannot revert an already
                 # observed successful result. Historical events still persist.

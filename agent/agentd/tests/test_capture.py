@@ -375,6 +375,18 @@ class CaptureTest(unittest.TestCase):
                          {"accepted": False, "reason": "stale_ocr"})
         self.assertEqual(m.look()[0], 202)
 
+    def test_a_refresh_is_settled_by_its_own_windows_answer(self):
+        m = self.manager(FakeVision(), share_text=True)
+        ocr = m.refresh(mode="ocr")["request_id"]  # the window has sent no AX text yet
+        self.assertEqual(m.text(text(CODE, "x" * 300, source="ocr", request_id=ocr)), {"accepted": True})
+        self.assertEqual(m.result(ocr), "ready")
+        slow = m.refresh(mode="text")["request_id"]
+        m.text(text(self.NOTES, LONG, request_id=slow))
+        self.assertEqual(m.result(slow), "pending")
+        self.now += 10  # past OCR_TTL, inside the text request's time
+        self.assertEqual(m.text(text(CODE, "y" * 300, source="ocr", request_id=slow)), {"accepted": True})
+        self.assertEqual(m.result(slow), "ready")
+
     def test_local_rules_readable_text_and_one_image_per_unreadable_document(self):
         m = CaptureManager(self.feed, Blacklist(deny_blacklist(Path(self.tmp.name) / 'blacklist.json')), lambda:self.focus,
                            self.log, clock=lambda:self.now, vision=FakeVision())
@@ -719,12 +731,39 @@ class CaptureTest(unittest.TestCase):
 
     def test_look_window_image_asks_that_window_for_an_image(self):
         m = self.manager(FakeVision(), share_text=True)
+        m.text(text(self.NOTES, LONG))
         status, body = m.look(window_id=77, mode="image")
         self.assertEqual(status, 202)
         [request] = self.requests()
         self.assertEqual((request["window_id"], request["mode"], request["reason"]), (77, "image", "look_window"))
         self.assertEqual(self.manager(share_text=True).look(window_id=77, mode="image"),
                          (409, {"error": "vision_off", "status": "unavailable"}))
+
+    def test_look_window_image_of_a_window_whose_text_read_failed_is_declined(self):
+        m = self.manager(FakeVision(), share_text=True)
+        _, body = m.look(window_id=KEYCHAIN["window_id"])
+        m.failure(body["request_id"], KEYCHAIN["window_id"], "ax_unavailable")
+        self.assertEqual(m.look(window_id=KEYCHAIN["window_id"], mode="image"),
+                         (409, {"error": "blocked", "reason": "unknown_window", "status": "declined"}))
+        self.assertEqual([r["mode"] for r in self.requests()], ["text"])
+
+    def test_an_image_handed_on_keeps_its_window_and_policy_fence(self):
+        db = open_store(Path(self.tmp.name) / "agentd.sqlite")
+        self.addCleanup(db.close)
+        m = CaptureManager(self.feed, Blacklist(deny_blacklist(Path(self.tmp.name) / "blacklist.json")), lambda: self.focus,
+                           self.log, clock=lambda: self.now, rules=self.rules, vision=FakeVision(), budget_db=db)
+        handed = []
+        def on_image(window_id, request_id, image, meta, capture_valid=None):
+            handed.append((meta, capture_valid and capture_valid()))
+        m.on_image = on_image
+        _, body = m.look()
+        log = m._log
+        # Secure input turns on just as the upload is accepted.
+        m._log = lambda event, *rest: (log(event, *rest), event == "upload" and m.secure_input(True))
+        self.assertEqual(m.image(body["request_id"], 2, b"png", url_host="example.com")[0], 202)
+        self.assertEqual(handed, [({"app": "Code", "bundle_id": "com.microsoft.VSCode", "title": "server.py",
+                                    "url_host": "example.com"}, False)])
+        self.assertEqual(m.budget.today(), {"used": 0, "reserved": 0, "released": 1, "limit": 200})
 
     def test_recent_focus_window_text_only_when_shared(self):
         plain = self.manager()  # no model backend: --share-window-text is off
@@ -1424,6 +1463,9 @@ class CaptureServerTest(unittest.TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
         self.start(share=True)
+        # An earlier text of the window gives the blacklist its metadata; an unknown window gets no image request.
+        notes = {"window_id": 77, "app": "Notes", "bundle_id": "com.apple.Notes", "title": "清单"}
+        self.assertEqual(self.post("/context/text", text(notes, LONG))[0], 202)
         said = time.monotonic()
         self.look_window_fails()
         self.wait_for(lambda: len(self.requests()) == 2)

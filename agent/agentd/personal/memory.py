@@ -89,7 +89,7 @@ class Memory:
         self.db.execute("UPDATE memory_agent_runs SET detail=NULL,redacted_reason='memory_changed'")
 
     def _tombstone(self, fact_id):
-        """Suppress existing sources as well as the exact deleted words.
+        """Suppress existing sources as well as the deleted words (normalized_text).
 
         Automatic extraction must not replay the source into a fresh diagnostic
         log after the user erased a memory. All writes stay in the caller's transaction.
@@ -105,7 +105,7 @@ class Memory:
             affected.add(current)
             for text,evidence in self.db.execute('SELECT text,evidence FROM facts WHERE fact_id=? AND text IS NOT NULL',(current,)).fetchall():
                 self.db.execute('INSERT OR REPLACE INTO memory_tombstones VALUES(?,?)',
-                    (hashlib.sha256(text.strip().encode()).hexdigest(), self.clock()))
+                    (hashlib.sha256(normalized_text(text).encode()).hexdigest(), self.clock()))
                 sources = {'history:'+str(turn or ident) for ident,turn in self.db.execute(
                     'SELECT id,turn_id FROM history_turns WHERE instr(user_text,?)>0 OR instr(reply,?)>0',(text,text))}
                 for ref in json.loads(evidence):
@@ -211,9 +211,9 @@ class Memory:
             self.revision += 1
 
     def _suppressed(self, text):
-        """Under lock: include old exact-text tombstones as well as normalized decisions."""
-        keys = [hashlib.sha256(value.encode()).hexdigest() for value in (text.strip(), normalized_text(text))]
-        return self.db.execute('SELECT 1 FROM memory_tombstones WHERE digest IN (?,?)', keys).fetchone() is not None
+        """Under lock: whether a deletion or rejection of the same normalized text suppresses text."""
+        key = hashlib.sha256(normalized_text(text).encode()).hexdigest()
+        return self.db.execute('SELECT 1 FROM memory_tombstones WHERE digest=?', (key,)).fetchone() is not None
 
     def _sight(self, fact_id, sources, confidence):
         """Under the extraction transaction: independent evidence, never user-confirmation provenance."""

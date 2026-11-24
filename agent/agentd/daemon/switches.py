@@ -107,10 +107,17 @@ class SwitchesMixin:
     def observation_paused(self):
         """True until paused_until; the pause ends by itself. Also paused during a manual meeting."""
         self._quiet_due()
+        return self.observation_paused_now()
+
+    def observation_paused_now(self):
+        """observation_paused() without settling an ended quiet, which writes a setting: safe under memory.lock."""
+        now, quiet = self.clock(), self.quiet_until
+        if quiet is not None and now >= quiet:
+            return self._quiet_meeting
         if self.gate.meeting_manual:
             return True
         until = self.paused_until
-        return until is not None and self.clock() < until
+        return until is not None and now < until
 
     def paused_at(self, ts):
         """Whether ts falls in a pause of the last RAW_PAST seconds."""

@@ -1,5 +1,6 @@
 """Product stores + selected adapter + evidence, lifecycle and budget boundaries."""
 import datetime as dt
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -421,6 +422,68 @@ class BriefTests(unittest.TestCase):
         self.ready(); self.segment()
         self.server.memory.lock=self.service.lock=threading.Lock()
         self.assertEqual(self.generate()['state'],'completed')
+
+    def test_quiet_ending_before_commit_does_not_deadlock_memory_lock(self):
+        self.ready(); self.segment(); self.reply=self.findings()
+        lock=threading.Lock(); self.server.memory.lock=self.service.lock=lock
+        checked=self.service._dependencies_valid
+        def quiet_ends(deps):
+            self.server.quiet_until=self.server.clock()-1
+            return checked(deps)
+        done=[]
+        with patch.object(self.service,'_dependencies_valid',side_effect=quiet_ends):
+            worker=threading.Thread(target=lambda:done.append(self.service.run_once('daily','2026-10-30')),daemon=True)
+            worker.start(); worker.join(2)
+            # Unstick a self-deadlocked worker so tearDown can close the store.
+            if worker.is_alive(): lock.release(); worker.join(2)
+        self.assertEqual([r['state'] for r in done],['completed'],'run_once hung on memory.lock')
+
+    def test_a_brief_whose_source_changed_is_regenerated_on_retry(self):
+        self.ready(); self.segment(); report=self.generate()
+        self.db.execute("UPDATE episodes SET title=title||'（已更新）' WHERE id=?",(self._seg_ids['seg-one'],)); self.db.commit()
+        epoch=self.service.epoch
+        self.assertIsNone(self.service.get(report['id']))
+        self.assertEqual(self.service.epoch,epoch)
+        with patch('character_agent.services.observation_briefs.threading.Thread') as thread:
+            self.service.request('daily','2026-10-30',retry=True)
+            thread.call_args.kwargs['target']()
+        self.assertEqual(self.service.get(report['id'])['state'],'completed')
+
+    def test_a_source_matching_a_canon_window_is_observed_text(self):
+        from brain.outbound import OutboundGuard
+        self.ready(); line='甲乙丙丁戊己庚'; path=self.root/'windows.json'
+        path.write_text(json.dumps({'n':7,'hashes':[hashlib.sha256(line.encode()).hexdigest()[:16]]}),encoding='utf-8')
+        self.server.egress=semantic_fixture.EgressPolicy(guard=OutboundGuard(path))
+        source=self.segment(subject=line+'，渲染测试失败')
+        self.reply=self.findings(source); self.reply['observed_details'][0]['detail']=line
+        self.assertEqual(self.service.run_once('daily','2026-10-30')['observed_details'][0]['detail'],line)
+
+    def test_events_after_the_period_do_not_crowd_out_the_periods_own(self):
+        self.ready()
+        _,start,end=window('daily','2026-10-30','America/New_York')
+        rows=[('work-inside',start+60)]+[(f'work-later-{i}',end+i) for i in range(1001)]
+        self.db.executemany('INSERT INTO observation_work_events VALUES(?,?,?,?,?,?,?)',
+            [(ident,self.server.character,at,'渲染测试失败',dump({'title':'渲染测试失败','summary':'需要核验帧率','evidence':[]}),'[]','analysis-x') for ident,at in rows])
+        self.db.commit()
+        _,coverage=self.service.sources(start,end,'America/New_York')
+        self.assertEqual([e['observation_id'] for e in coverage['work_event_index']],['work-inside'])
+
+    def test_another_characters_episodes_do_not_crowd_out_the_selected_ones(self):
+        self.ready(); mine=self.segment()
+        for i in range(7): self.segment(f'other-{i}',600+i*60)
+        self.db.execute("UPDATE memory_agent_runs SET character_id='birch' WHERE run_id LIKE 'run-other-%'"); self.db.commit()
+        sources,_=self.service.sources(*window('daily','2026-10-30','America/New_York')[1:],'America/New_York')
+        self.assertEqual([s['source_id'] for s in sources],[mine])
+
+    def test_a_failed_request_insert_releases_the_worker_lock(self):
+        self.ready()
+        def refuse(*_): raise sqlite3.OperationalError('disk I/O error')
+        with patch.object(self.service,'db',SimpleNamespace(execute=refuse)):
+            with self.assertRaises(sqlite3.OperationalError): self.service.request('daily','2026-10-30')
+        self.assertFalse(self.service.worker_lock.locked())
+
+    def test_a_date_past_the_calendar_is_an_invalid_window(self):
+        with self.assertRaisesRegex(ValueError,'invalid_brief_window'): window('daily','9999-12-31','UTC')
 
 
 if __name__=='__main__': unittest.main()

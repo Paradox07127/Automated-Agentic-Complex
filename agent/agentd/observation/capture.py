@@ -203,10 +203,10 @@ class CaptureManager:
                 known = self.windows.get(window_id, {})
                 if answered is None or answered["window_id"] != window_id or answered["mode"] not in ("ocr", "text") \
                         or answered["status"] != "pending" or answered["policy_epoch"] != self.policy_epoch \
-                        or answered["mode"] == "ocr" and (answered.get("_period") != period \
+                        or answered["_reason"] == "low_ax_text" and (answered.get("_period") != period \
                             or known.get("period") != period or answered.get("_ax_hash") != known.get("ax_hash")):
                     return {"accepted": False, "reason": "stale_ocr"}
-                if self.clock() - answered["requested_at"] > OCR_TTL:
+                if answered["mode"] == "ocr" and self.clock() - answered["requested_at"] > OCR_TTL:
                     self._settle(answered["request_id"], "expired")
                     return {"accepted": False, "reason": "stale_ocr"}
             state = self.windows.setdefault(window_id, {"hash": None, "ocr_for": None})
@@ -217,7 +217,8 @@ class CaptureManager:
             state["block"] = "incognito" if body.get("incognito") else \
                 "secure_input" if body.get("secure_input") else None
             blocked = self._blocked(window_id)
-            if answered is not None and answered["mode"] != "image":
+            # An OCR body got here only as its own request's answer.
+            if checking or body["source"] == "ocr":
                 self._settle(answered["request_id"], "declined" if blocked else "ready", blocked,
                              body["text"] if checking and answered.get("_look_window") and not blocked else None)
             if blocked:
@@ -357,6 +358,9 @@ class CaptureManager:
                 request_id = self._request(window_id, "text", "look_window")
                 self.observations[request_id]["_look_window"] = True
                 return 202, {"request_id": request_id, "status": "pending"}
+            if window_id is not None and window_id not in self.windows and (self.focus() or {}).get("window_id") != window_id:
+                # No metadata to check against the blacklist: the image could show a hidden app.
+                return 409, {"error": "blocked", "reason": "unknown_window", "status": "declined"}
             denied, request_id = self._image_request(window["window_id"], "look" if window_id is None else "look_window",
                                                      look=True)
             if denied:
@@ -379,17 +383,22 @@ class CaptureManager:
                 self.budget.release(request_id)
                 self._settle(request_id, "declined", blocked)
                 return 409, {"error": "blocked", "reason": blocked, "status": "declined"}
-            self.budget.sent(request_id)
+            meta = {**self.observations.get(request_id, {}).get("_meta", {}), **({"url_host": url_host} if url_host else {})}
+            epoch = self.policy_epoch
+            if self.on_image is None:
+                self.budget.sent(request_id)
             self._log("upload", window_id, opened[1], request_id)
         if self.on_image is not None:
-            with self._lock: meta=dict(self.observations.get(request_id,{}).get('_meta',{}))
-            ident=self.on_image(window_id,request_id,image,meta)
+            ident=self.on_image(window_id,request_id,image,meta,capture_valid=lambda:epoch==self.policy_epoch and not self._secure)
             with self._lock:
                 state=self.windows.get(window_id)
                 if state is not None: state['image_at']=self.clock()
                 if ident:
+                    self.budget.sent(request_id)
                     self._settle(request_id,'ready',text='Raw image captured; read this revision with observation_image. Ongoing understanding is still processing it.')
-                else: self._settle(request_id,'cancelled','observation_not_permitted')
+                else:
+                    self.budget.release(request_id)
+                    self._settle(request_id,'cancelled','observation_not_permitted')
         else:
             threading.Thread(target=self._describe, args=(window_id, request_id, image, opened[1] in ("look", "look_window")),
                              daemon=True).start()
@@ -681,7 +690,7 @@ class CaptureManager:
             "app": meta.get("app"), "requested_at": now, "observed_at": None, "expires_at": now + (OCR_TTL if mode == "ocr" else IMAGE_TTL),
             "policy_epoch": self.policy_epoch, "status": "pending", "reason": None, "text": None,
             "_meta": {k: meta.get(k) for k in ("app", "bundle_id", "title", "url_host")},
-            "_period": self.windows.get(window_id, {}).get("period"),
+            "_reason": reason, "_period": self.windows.get(window_id, {}).get("period"),
             "_ax_hash": self.windows.get(window_id, {}).get("ax_hash")}
         while len(self.observations) > RESULTS_MAX:
             oldest = next(iter(self.observations))

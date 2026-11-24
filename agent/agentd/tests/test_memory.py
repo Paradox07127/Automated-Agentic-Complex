@@ -178,6 +178,10 @@ class MemoryTest(unittest.TestCase):
             with self.assertRaises(KeyError):
                 edit()
 
+    def test_a_deleted_fact_stays_suppressed_in_another_case_and_spacing(self):
+        self.memory.delete(self.memory.add("I like Tea", "asserted_by_user"))
+        self.assertTrue(self.memory._suppressed("i  like TEA"))
+
     def test_revision_counts_successful_writes(self):
         self.assertEqual(self.memory.revision, 0)
         fact = self.memory.add("我在上海", "inferred_hypothesis")

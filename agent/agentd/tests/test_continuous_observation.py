@@ -1054,4 +1054,41 @@ class ObservationTests(unittest.TestCase):
         self.assertEqual(self.o.image(self.o.ingest_image(8,'request-png',png,{'app':'Canvas'}))['content'][0]['mimeType'],'image/png')
         self.assertNotIn('jpeg_base64',self.o.get(self.o.ingest_text({'app':'Xcode','window_id':9,'text':'body','jpeg_base64':'AAAA'}))['metadata'])
 
+    def test_quiet_ending_between_check_and_commit_does_not_deadlock_memory_lock(self):
+        self.ready()
+        lock=threading.Lock();self.server.memory.lock=self.o.lock=lock
+        def quiet_ends():
+            self.server.quiet_until=self.server.clock()-1;return True
+        done=[]
+        worker=threading.Thread(target=lambda:done.append(self.o.ingest('native_ax','Compile failed',source_key='editor',
+            metadata={'app':'Xcode','bundle_id':'fixture.editor','window_id':7},capture_valid=quiet_ends)),daemon=True)
+        worker.start();worker.join(2)
+        # Unstick a self-deadlocked worker so tearDown can close the store.
+        if worker.is_alive(): lock.release();worker.join(2)
+        self.assertEqual(len(done),1,'ingest hung on memory.lock')
+        self.assertIsNotNone(done[0])
+        self.assertFalse(self.server.observation_paused());self.assertIsNone(self.server.quiet_until)
+
+    def test_a_task_the_next_analysis_omits_keeps_its_evidence_and_next_steps(self):
+        self.ready();a=self.source()
+        self.reply=self.finding(a);self.assertEqual(self.o.run_once()['state'],'completed')
+        b=self.source('Terminal: unrelated tests passed',key='terminal')
+        self.reply={'observed_facts':[{'text':'终端测试通过','evidence':[{'observation_id':b,'quote':'tests passed'}]}],
+            'work_events':[],'task_updates':[],'uncertainties':[],'evidence_requests':[]}
+        self.assertEqual(self.o.run_once()['state'],'completed')
+        [task]=self.o.understanding()['tasks']
+        self.assertEqual((task['next_steps'],[e['observation_id'] for e in task['evidence']]),(['核对声明'],[a]))
+
+    def test_a_model_written_authority_stays_an_inferred_hypothesis(self):
+        self.ready();a=self.source()
+        self.reply=self.finding(a);self.reply['task_updates'][0]['authority']='user_correction_of_hypothesis'
+        self.assertEqual(self.o.run_once()['state'],'completed')
+        [hypothesis]=self.o.task_understanding_context()['hypotheses']
+        self.assertEqual((hypothesis['state'],hypothesis['authority']),('active','inferred_hypothesis'))
+
+    def test_an_unchanged_frame_recaptured_after_a_consent_change_stays_readable(self):
+        self.ready();self.source()
+        self.server.consent.epoch+=1
+        self.assertIsNotNone(self.o.get(self.source()))
+
 if __name__=='__main__':unittest.main()
