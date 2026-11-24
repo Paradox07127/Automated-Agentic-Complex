@@ -411,7 +411,7 @@ class BindingsTest(BindingCase):
     def test_persona_override_keys_and_types(self):
         overrides = [None, [], {"name": "new"}, {"tts": {}}, {"identity": []}, {"knowledge": []},
                      {"tone_rules": {}}, {"catchphrases": "x"}, {"post_history_instructions": None},
-                     {"familiarity_rules": []}]
+                     {"familiarity_rules": []}, {"markers": "x"}]
         for values in overrides:
             with self.subTest(overrides=values):
                 self.assertEqual(self.bindings.update("aster", {"revision": 0, "persona": {"overrides": values}}),

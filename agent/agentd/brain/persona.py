@@ -1,17 +1,21 @@
 """Pure persona formatting shared by package validation and dialogue."""
 
 from brain.language import SUPPORTED
+from brain.markers import INTENTS
 from infra.platform import USER_MACHINE
 
 HAIKU_RULE = "The rules in this system prompt hold for the whole conversation."
 SECTIONS = ("identity", "personality", "relationship", "knowledge", "tone_rules", "catchphrases", "do_dont",
-            "canon", "markers", "examples")
+            "canon", "examples")
 PROMPT_USER = "the user"  # what English prompt text calls the user of a card without user_title
 USER_SLOT = "{user_title}"  # the placeholder a semantic task's instructions hold for it; addressed fills it in
 _SPARING = ("Motions give a line weight, so use them rarely: only when the line carries a clear feeling or gesture, "
             "such as a greeting, good news, comfort, embarrassment or a goodbye; ordinary answers, explanations and reports "
             "get none, and most replies have none. Match the motion to the feeling of the line. ")
-# Follows the markers text while the character's effective motion driver is generated.
+# The <markers> section; INTENTS is the whitelist the marker parser passes, sorted so the prompt stays byte-stable.
+INTENT_RULE = ("Start every reply with one intent marker [intent:name], the name one of: " + ", ".join(sorted(INTENTS))
+               + ". The text follows it directly; write no other bracket marker unless a rule below gives one.")
+# Follows INTENT_RULE while the character's effective motion driver is generated.
 MOTION_RULE = ("You also have a body on the desktop: a marker [motion:English description|seconds] makes your whole body act, "
                "e.g. [motion:waves her right hand happily|3] (this shows the format; pick the act from this line's feeling). "
                + _SPARING + "Describe what the whole body does in plain English (letters and common punctuation only), "
@@ -19,7 +23,7 @@ MOTION_RULE = ("You also have a body on the desktop: a marker [motion:English de
 # Follows MOTION_RULE when the character has game gestures (motion.catalog.phrases).
 MOTION_PHRASES = (" Motions you already know: {}. When the one you want means the same as one of these, copy that phrase "
                   "into [motion:] exactly; it plays most naturally. Otherwise describe your own in English.")
-# Follows the markers text while the driver is game and the character has game gestures: {0} the first phrase, {1} all.
+# Follows INTENT_RULE while the driver is game and the character has game gestures: {0} the first phrase, {1} all.
 GAME_MOTION_RULE = ("You also have a body on the desktop: a marker [motion:phrase|seconds] makes your whole body play one of "
                     "your ready motions, e.g. [motion:{0}|3] (this shows the format; pick the act from this line's feeling). "
                     + _SPARING + "Copy the phrase exactly from this list, without rewording or describing any other act; "
@@ -55,7 +59,7 @@ def addressed(text, card):
 
 
 def render_persona(card, motion=False, motion_phrases=None, language=None):
-    """motion: True adds MOTION_RULE after the markers text, "game" adds GAME_MOTION_RULE when there are motion_phrases;
+    """motion: True adds MOTION_RULE after INTENT_RULE, "game" adds GAME_MOTION_RULE when there are motion_phrases;
     motion_phrases: the English phrases of the character's game gestures, listed after either rule.
     language: the reply language (brain.language code) whose i18n entry applies; None renders the card as written."""
     missing = [key for key in ("name", *SECTIONS, "post_history_instructions") if key not in card]
@@ -82,7 +86,7 @@ def render_persona(card, motion=False, motion_phrases=None, language=None):
         "tone_rules": "\n".join(f"- {rule}" for rule in card["tone_rules"]),
         "catchphrases": "\n".join(f"- \"{c['phrase']}\": {c['when']}" for c in card["catchphrases"]),
         "do_dont": "\n".join(f"- Do: {p['do']}\n  Don't: {p['dont']}" for p in card["do_dont"]),
-        "canon": card["canon"], "markers": card["markers"] + (motion_rule if motion else ""),
+        "canon": card["canon"], "markers": INTENT_RULE + (motion_rule if motion else ""),
         # live: the Context line an example answers from; a reply names only what it gives
         "examples": "\n".join(f"<example>\n{'Context: ' + e['live'] + chr(10) if 'live' in e else ''}"
                               f"{card.get('user_title', 'User')}: {e['user']}\n{name}: {e['reply']}\n</example>" for e in card["examples"]),
@@ -92,7 +96,7 @@ def render_persona(card, motion=False, motion_phrases=None, language=None):
     if not card["examples"]:
         del body["examples"]
     at = SECTIONS.index("relationship") + 1
-    keys = [key for key in (*SECTIONS[:at], "familiarity_rules", *SECTIONS[at:]) if key in body]
+    keys = [key for key in (*SECTIONS[:at], "familiarity_rules", *SECTIONS[at:-1], "markers", "examples") if key in body]
     head = f"You are {name}, talking with the user on {USER_MACHINE}; the user sees and hears only the lines you say. Your character:"
     usage = ("Using these sections:\n"
              "- <identity>, <personality>, <relationship>: every line starts from them.\n"

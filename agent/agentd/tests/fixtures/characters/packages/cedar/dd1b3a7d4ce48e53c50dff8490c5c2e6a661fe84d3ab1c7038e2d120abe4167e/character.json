@@ -1,15 +1,15 @@
 {
   "schema": "endfield-character-definition",
   "schema_version": 1,
-  "id": "dahlia",
+  "id": "cedar",
   "version": "1.0.0",
   "source_identity": {
-    "character_id": "dahlia",
+    "character_id": "cedar",
     "snapshot": "test-fixture-1"
   },
   "display": {
     "name": {
-      "zh-Hans": "示例丁"
+      "zh-Hans": "示例丙"
     }
   },
   "aliases": [],
@@ -17,12 +17,12 @@
     "persona": {
       "card": {
         "file": "persona/card.json",
-        "sha256": "0f647f857d64c5728458e0fb2a50bf5e3864e0e92b7f4d001a2a74d2c4aca098",
-        "byte_count": 1821
+        "sha256": "652f8754d005e4c86c7bca24ccbe91d4283c0f70710533f941382f3bd794375b",
+        "byte_count": 1522
       },
       "lore": {
         "file": "persona/lore.json",
-        "sha256": "a0a46c6bff4cfce57fb1a2330101a09196c40d6183e1247391a5c29c92c8899d",
+        "sha256": "ddf0552b10d4d5693542e9c52f7498bb27b44928f2837d7e13c9249f6daece6e",
         "byte_count": 318
       }
     }
@@ -33,12 +33,12 @@
   "inventory": [
     {
       "file": "persona/card.json",
-      "sha256": "0f647f857d64c5728458e0fb2a50bf5e3864e0e92b7f4d001a2a74d2c4aca098",
-      "byte_count": 1821
+      "sha256": "652f8754d005e4c86c7bca24ccbe91d4283c0f70710533f941382f3bd794375b",
+      "byte_count": 1522
     },
     {
       "file": "persona/lore.json",
-      "sha256": "a0a46c6bff4cfce57fb1a2330101a09196c40d6183e1247391a5c29c92c8899d",
+      "sha256": "ddf0552b10d4d5693542e9c52f7498bb27b44928f2837d7e13c9249f6daece6e",
       "byte_count": 318
     }
   ]

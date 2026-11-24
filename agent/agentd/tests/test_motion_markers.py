@@ -66,20 +66,20 @@ class MotionPromptTest(unittest.TestCase):
     def test_generated_mode_explains_the_marker_after_the_markers_text(self):
         text = persona.render_persona(self.card, motion=True)
         markers = text.split("<markers>\n", 1)[1].split("\n</markers>", 1)[0]
-        self.assertTrue(markers.startswith(self.card["markers"]))
-        self.assertIn("[motion:waves her right hand happily|3]", markers[len(self.card["markers"]):])
+        self.assertTrue(markers.startswith(persona.INTENT_RULE))
+        self.assertIn("[motion:waves her right hand happily|3]", markers[len(persona.INTENT_RULE):])
 
     def markers(self, phrases=None):
         text = persona.render_persona(self.card, motion=True, motion_phrases=phrases)
         return text.split("<markers>\n", 1)[1].split("\n</markers>", 1)[0]
 
     def test_without_phrases_the_prompt_is_unchanged(self):
-        self.assertEqual(self.markers(), self.card["markers"] + "\n" + persona.MOTION_RULE)
+        self.assertEqual(self.markers(), persona.INTENT_RULE + "\n" + persona.MOTION_RULE)
         self.assertEqual(self.markers([]), self.markers())
 
     def test_the_characters_game_gestures_are_listed_to_copy(self):
         markers = self.markers(["waves her hand", "bows slightly"])
-        self.assertTrue(markers.startswith(self.card["markers"] + "\n" + persona.MOTION_RULE))
+        self.assertTrue(markers.startswith(persona.INTENT_RULE + "\n" + persona.MOTION_RULE))
         self.assertIn("waves her hand; bows slightly", markers)
         self.assertIn("copy that phrase", markers)
 
@@ -90,8 +90,8 @@ class MotionPromptTest(unittest.TestCase):
     def test_the_game_driver_offers_only_the_characters_gestures(self):
         text = persona.render_persona(self.card, motion="game", motion_phrases=["waves her hand", "bows slightly"])
         markers = text.split("<markers>\n", 1)[1].split("\n</markers>", 1)[0]
-        rule = markers[len(self.card["markers"]):]
-        self.assertTrue(markers.startswith(self.card["markers"] + "\n"))
+        rule = markers[len(persona.INTENT_RULE):]
+        self.assertTrue(markers.startswith(persona.INTENT_RULE + "\n"))
         self.assertIn("[motion:waves her hand|3]", rule)
         self.assertIn("waves her hand; bows slightly", rule)
         self.assertNotIn(persona.MOTION_RULE, markers)

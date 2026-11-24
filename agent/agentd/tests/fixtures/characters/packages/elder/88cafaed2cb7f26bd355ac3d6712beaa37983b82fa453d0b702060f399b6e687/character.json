@@ -1,15 +1,15 @@
 {
   "schema": "endfield-character-definition",
   "schema_version": 1,
-  "id": "birch",
+  "id": "elder",
   "version": "1.0.0",
   "source_identity": {
-    "character_id": "birch",
+    "character_id": "elder",
     "snapshot": "test-fixture-1"
   },
   "display": {
     "name": {
-      "zh-Hans": "示例乙"
+      "zh-Hans": "示例戊"
     }
   },
   "aliases": [],
@@ -17,18 +17,14 @@
     "persona": {
       "card": {
         "file": "persona/card.json",
-        "sha256": "6f6cd8011033d64f51871b757a29090bbec125dac7da08cea1db180344a65fe0",
-        "byte_count": 1880
+        "sha256": "46b484323c33e43423db95e2b5a256b87b07bb656257ed4524bfce475571ab21",
+        "byte_count": 1522
       },
       "lore": {
         "file": "persona/lore.json",
-        "sha256": "f3891c2f60437d4e04b5b9b8d0105f0869f28775a4533cb1c09fe1f8b48a8fe7",
+        "sha256": "947eac123b28802385c2ac06f7c3726a597165184996095fdba2e011a1c76c7c",
         "byte_count": 318
       }
-    },
-    "voice": {
-      "character": "si",
-      "language": "zh"
     }
   },
   "capabilities": [
@@ -37,12 +33,12 @@
   "inventory": [
     {
       "file": "persona/card.json",
-      "sha256": "6f6cd8011033d64f51871b757a29090bbec125dac7da08cea1db180344a65fe0",
-      "byte_count": 1880
+      "sha256": "46b484323c33e43423db95e2b5a256b87b07bb656257ed4524bfce475571ab21",
+      "byte_count": 1522
     },
     {
       "file": "persona/lore.json",
-      "sha256": "f3891c2f60437d4e04b5b9b8d0105f0869f28775a4533cb1c09fe1f8b48a8fe7",
+      "sha256": "947eac123b28802385c2ac06f7c3726a597165184996095fdba2e011a1c76c7c",
       "byte_count": 318
     }
   ]

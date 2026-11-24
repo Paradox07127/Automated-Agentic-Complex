@@ -17,8 +17,8 @@
     "persona": {
       "card": {
         "file": "persona/card.json",
-        "sha256": "6f6cd8011033d64f51871b757a29090bbec125dac7da08cea1db180344a65fe0",
-        "byte_count": 1880
+        "sha256": "ba6f75c58d3b61b5feec5360c1b13279c1e98febe7850e68772fca24d87bcea4",
+        "byte_count": 1582
       },
       "lore": {
         "file": "persona/lore.json",
@@ -37,8 +37,8 @@
   "inventory": [
     {
       "file": "persona/card.json",
-      "sha256": "6f6cd8011033d64f51871b757a29090bbec125dac7da08cea1db180344a65fe0",
-      "byte_count": 1880
+      "sha256": "ba6f75c58d3b61b5feec5360c1b13279c1e98febe7850e68772fca24d87bcea4",
+      "byte_count": 1582
     },
     {
       "file": "persona/lore.json",

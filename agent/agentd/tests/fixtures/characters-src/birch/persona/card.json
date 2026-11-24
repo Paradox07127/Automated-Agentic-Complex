@@ -28,7 +28,6 @@
     }
   ],
   "canon": "示例乙是测试用的占位角色，没有背景故事。",
-  "markers": "每条回复以一个意图标记开头，格式是 [intent:名字]，名字只能从这些里选：greet、acknowledge、explain、offer、think、listen、uncertain、reassure、celebrate、apologize、idle、none。标记后直接接正文，不要输出别的方括号标记。",
   "examples": [
     {
       "user": "你好",

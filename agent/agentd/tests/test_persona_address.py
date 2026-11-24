@@ -9,7 +9,8 @@ import unittest
 import support  # noqa: F401
 
 from brain import characters  # noqa: E402
-from brain.persona import addressed, render_brief_persona, render_persona  # noqa: E402
+from brain.markers import INTENTS  # noqa: E402
+from brain.persona import INTENT_RULE, addressed, render_brief_persona, render_persona  # noqa: E402
 from character.behavior import prompt  # noqa: E402
 from character.gate import Gate  # noqa: E402
 from infra.store import open_store  # noqa: E402
@@ -35,6 +36,14 @@ class RenderTest(unittest.TestCase):
         self.assertIn(full["post_history_instructions"], brief)
         for section in ("<examples>", "<canon>", "<markers>", "<catchphrases>"):
             self.assertNotIn(section, brief)
+
+    def test_the_intent_rule_comes_from_the_engine(self):
+        text = render_persona({key: value for key, value in card(markers="CARD RULE").items() if key != "markers"})
+        rule = text.split("<markers>\n", 1)[1].split("\n</markers>", 1)[0]
+        self.assertEqual(rule, INTENT_RULE)
+        for intent in INTENTS:
+            self.assertIn(intent, rule)
+        self.assertNotIn("CARD RULE", render_persona(card(markers="CARD RULE")))
 
     def test_examples_label_the_user_with_the_cards_title(self):
         text = render_persona(card(user_title="博士"))
