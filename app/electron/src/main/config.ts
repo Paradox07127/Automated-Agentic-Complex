@@ -50,7 +50,7 @@ function inside(base: string, file: string): string {
  * also the character directory efw reads, as agentd's Package walks to it: `current.json` entry → `character.json` →
  * `components.render.native_bundle` → the bundle entry's `vulkan_frame` → the directory holding its `vulkan/`.
  */
-export function readCatalog(path: string, platform: ShellPlatform = 'mac'): Catalog | null {
+export function readCatalog(path: string, platform: ShellPlatform): Catalog | null {
   if (!existsSync(path)) return null;
   const doc = parseCatalogDocument(readFileSync(path, 'utf8'));
   const root = resolve(dirname(path));

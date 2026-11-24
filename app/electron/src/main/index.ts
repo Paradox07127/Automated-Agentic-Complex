@@ -37,7 +37,7 @@ import { PushToTalk, pushToTalkState, speechLocale } from '../common/push-to-tal
 import { startupWindow } from '../common/startup.ts';
 import { trayTitle } from '../common/tray-title.ts';
 import { TurnMarks } from '../common/turn-marks.ts';
-import { agentdTts, RuntimeCoordinator, runtimeJson } from '../common/runtime.ts';
+import { agentdTts, diagTts, RuntimeCoordinator, runtimeJson } from '../common/runtime.ts';
 import { current, desktopHotkeys, settingValues } from '../common/settings.ts';
 import { CharacterSwitch } from '../common/switch.ts';
 import { ORIGIN, SCHEME } from '../common/ui.ts';
@@ -167,8 +167,13 @@ const supportDir = supportDirOf(configPath, explicitConfig ? DEFAULT_SUPPORT_DIR
 const CAPTURE_DIR = join(homedir(), 'Pictures/Agentic Complex');
 // Chromium's profile stays with the support dir, so a `--config` run touches nothing of the installed app.
 app.setPath('userData', join(supportDir, 'electron'));
-// One instance per support dir, taken before the packaged launch writes anything.
-if (!singleInstance({ requestLock: () => app.requestSingleInstanceLock(), pid: process.pid, appPath: app.getAppPath(),
+/** Resolved at the end of the start-up in app.whenReady below. */
+let started = () => {};
+const shellStarted = new Promise<void>((resolve) => { started = resolve; });
+// One instance per support dir, taken before the packaged launch writes anything; a later launch shows the main window.
+if (!singleInstance({ requestLock: () => app.requestSingleInstanceLock(),
+  on: (event, listener) => (event === 'activate' ? app.on(event, listener) : app.on(event, listener)),
+  ready: shellStarted, showMain: () => openMain(), pid: process.pid, appPath: app.getAppPath(),
   log: (line) => appendLog(supportDir, 'companion', line) })) process.exit(0);
 appendLog(supportDir, 'companion', `STARTED pid=${process.pid} app=${app.getAppPath()} config=${configPath}`);
 let packaged: PackagedLaunch | null = null;
@@ -376,6 +381,7 @@ const supervisor = config && new AgentdSupervisor({
           registry: regExe(), log: (line) => appendLog(config.supportDir, 'companion', line) });
       }
       store?.start();
+      void seedTts(state);
       renderer?.startIfStopped();
       // Ready once the character is read, for this run only.
       void switcher?.agentdReady().then(() => { if (agentdState === state) runtime.send({ kind: 'agentdReady' }); });
@@ -469,11 +475,27 @@ if (switcher) {
     desktop?.pushState();
   };
 }
-const store = runtimePath === null ? null : new AgentStore(runtimePath);
+const store = runtimePath === null ? null : new AgentStore(runtimePath, undefined, (line) => appendLog(config!.supportDir, 'companion', line));
+/** voice_state events seen; a /diag/state read that one overtook is dropped. */
+let voiceStates = 0;
 store?.subscribe((e) => {
-  const tts = e.event === 'voice_state' ? agentdTts(runtime.snapshot.tts, e.data) : null;
-  if (tts) runtime.send({ kind: 'tts', view: tts });
+  const tts = e.event === 'voice_state' ? agentdTts(e.data) : null;
+  if (!tts) return;
+  voiceStates += 1;
+  runtime.send({ kind: 'tts', view: tts });
 });
+/** agentd sends voice_state only on a change: the voice it starts with is read once per run. */
+async function seedTts(run: ChildState): Promise<void> {
+  if (runtimePath === null) return;
+  const seen = voiceStates;
+  try {
+    const reply = await new AgentdClient(runtimePath).request('GET', '/diag/state');
+    const tts = reply.status === 200 ? diagTts(JSON.parse(reply.body.toString('utf8'))) : null;
+    if (tts && agentdState === run && voiceStates === seen) runtime.send({ kind: 'tts', view: tts });
+  } catch (e) {
+    appendLog(config!.supportDir, 'companion', `tts state: /diag/state failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
 store?.subscribe((e) => turnMarks?.feed(e));
 store?.subscribe((e) => void handleNudge(e, hostLink, helper, { helperY: helperYFor(shellPlatform()), mainHeight: () => screen.getPrimaryDisplay().bounds.height },
   (line) => appendLog(config!.supportDir, 'companion', line)));
@@ -623,9 +645,9 @@ store?.subscribe((e) => context?.feed(e));
 /** 按住 Option 把她拖到窗口上 (handover/window.ts); none with `--no-attention`. */
 const windowHandover = config && helper ? shellWindowHandover({ argv: process.argv, helper, settings: () => readObject(configPath),
   helperY: helperYFor(shellPlatform()), mainHeight: () => screen.getPrimaryDisplay().bounds.height, desktop: () => desktop }) : null;
-/** The computer control host over the helper (src/main/control/shell.ts), for agentd's desktop tools; none without `control`
- *  in the launch's plan or with `--no-attention`. */
-const control = config && helper && plan().has('control') ? shellControl({
+/** The computer control host over the helper (src/main/control/shell.ts), for agentd's desktop tools, whatever the plug-ins:
+ *  it refuses requests while computer_use is off in config.json; none with `--no-attention`. */
+const control = config && helper ? shellControl({
   argv: process.argv, helper, supportDir: config.supportDir, configPath, agentdStateDir: config.agentdStateDir,
   saved: (path) => loadConfig(path),
   ownPids: () => (helper.pid === undefined ? [process.pid] : [process.pid, helper.pid]),
@@ -1225,9 +1247,23 @@ function setAppMenu(): void {
 app.on('window-all-closed', () => {});
 
 let childrenStopped = false;
+/** The first `will-quit` stops the children; a later one waits for that. */
+let stopping = false;
 let devReloader: { stop(): void } | null = null;
-// The renderer (C3 quit first), then agentd; the platform helper last.
+// The renderer (C3 quit first), then agentd; the platform helper last. A stop that fails holds up neither the others nor the quit.
 app.on('will-quit', (e) => {
+  if (childrenStopped) return;
+  if (stopping) {
+    e.preventDefault();
+    return;
+  }
+  const stop = async (what: string, f: () => Promise<unknown> | undefined): Promise<void> => {
+    try {
+      await f();
+    } catch (err) {
+      appendLog(supportDir, 'companion', `quit: ${what} stop failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
   flushErrors();
   store?.stop();
   diagStream?.stop();
@@ -1243,18 +1279,21 @@ app.on('will-quit', (e) => {
   recorders?.stop();
   ambient?.stop();
   context?.stop();
-  void control?.stop();
+  // Its grant ends now; the helper stops after it.
+  const controlStopped = stop('computer control', () => control?.stop());
   controlPanel?.stop();
   looks?.stop();
   devReloader?.stop();
-  if (childrenStopped || (!supervisor && !renderer && !helper && !services)) return;
+  if (!supervisor && !renderer && !helper && !services) return;
   e.preventDefault();
+  stopping = true;
   void (async () => {
-    await renderer?.stop();
+    await stop('renderer', () => renderer?.stop());
     hostLink?.stop();
-    await supervisor?.stop();
-    await Promise.all([...services?.values() ?? []].map((s) => s.stop()));
-    await helper?.stop();
+    await stop('agentd', () => supervisor?.stop());
+    await Promise.all([...services?.entries() ?? []].map(([id, s]) => stop(`service ${id}`, () => s.stop())));
+    await controlStopped;
+    await stop('helper', () => helper?.stop());
     childrenStopped = true;
     app.quit();
   })();
@@ -1406,6 +1445,7 @@ void app.whenReady().then(async () => {
   // A config error takes the front, an empty roster does not.
   if (start.open === 'main') openMainAt(start.route, config === null);
   else if (start.open === 'onboarding') guide.begin();
+  started();
   // A test run records what came up, then quits as the tray's 退出 does.
   const quitAfter = quitAfterFromArgs(process.argv);
   if (quitAfter !== null) {

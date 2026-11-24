@@ -78,3 +78,77 @@ test('start while the store waits to reconnect connects at once instead of after
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('a subscriber that throws on a gap stops neither the later subscribers nor the reloads, and the stream stays open', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'store-')), runtime = join(dir, 'ui-runtime.json');
+  const server = createServer((_req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/event-stream' }).write('id: e1-1\nevent: gap\ndata: {}\n\nid: e1-2\nevent: line\ndata: {}\n\n');
+  });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  writeFileSync(runtime, JSON.stringify({ base_url: `http://127.0.0.1:${(server.address() as { port: number }).port}`, ui_token: 'token' }));
+  const lines: string[] = [], seen: string[] = [];
+  let reloads = 0;
+  const store = new AgentStore(runtime, () => 60_000, (line) => lines.push(line));
+  store.subscribe(() => { throw new Error('contents destroyed'); });
+  store.subscribe((e) => seen.push(e.event));
+  store.onReload(() => { reloads += 1; });
+  try {
+    store.start();
+    assert.ok(await until(5, () => seen.length === 2), JSON.stringify(seen));
+    assert.deepEqual(seen, ['gap', 'line']);
+    assert.equal(reloads, 1);
+    assert.equal(store.connection, 'connected');
+    assert.deepEqual(lines, ['feed subscriber threw on gap: contents destroyed', 'feed subscriber threw on line: contents destroyed']);
+  } finally {
+    store.stop();
+    server.closeAllConnections();
+    server.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('an onEvent that throws ends the stream with that error instead of throwing in the socket listener', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'client-')), runtime = join(dir, 'ui-runtime.json');
+  const server = createServer((_req, res) => { res.writeHead(200, { 'Content-Type': 'text/event-stream' }).write('event: gap\ndata: {}\n\n'); });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  writeFileSync(runtime, JSON.stringify({ base_url: `http://127.0.0.1:${(server.address() as { port: number }).port}`, ui_token: 'token' }));
+  const abort = new AbortController();
+  try {
+    await assert.rejects(new AgentdClient(runtime).stream('/feed', undefined, abort.signal, () => { throw new Error('handler'); }), /handler/);
+  } finally {
+    abort.abort();
+    server.closeAllConnections();
+    server.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a base_url other than http on 127.0.0.1 or [::1] with a port is refused before any request is sent', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'client-')), runtime = join(dir, 'ui-runtime.json');
+  let requests = 0;
+  const server = createServer((_req, res) => {
+    requests += 1;
+    res.writeHead(200).end('{}');
+  });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  const { port } = server.address() as { port: number };
+  try {
+    for (const base of ['http://203.0.113.5:9', `http://localhost:${port}`, `https://127.0.0.1:${port}`, `http://u:p@127.0.0.1:${port}`,
+      `http://127.0.0.1:${port}/elsewhere`, `http://127.0.0.1:${port}/?x=1`, 'http://127.0.0.1', `http://127.0.0.1:${port}@203.0.113.5`]) {
+      writeFileSync(runtime, JSON.stringify({ base_url: base, ui_token: 'token' }));
+      const client = new AgentdClient(runtime, 0.5);
+      await assert.rejects(client.request('GET', '/state'), /base_url is not http on 127\.0\.0\.1/, base);
+      await assert.rejects(async () => client.stream('/feed', undefined, new AbortController().signal, () => {}), /base_url/, base);
+    }
+    assert.equal(requests, 0);
+    for (const base of [`http://127.0.0.1:${port}`, `http://127.0.0.1:${port}/`]) {
+      writeFileSync(runtime, JSON.stringify({ base_url: base, ui_token: 'token' }));
+      assert.equal((await new AgentdClient(runtime).request('GET', '/state')).status, 200, base);
+    }
+    assert.equal(requests, 2);
+  } finally {
+    server.closeAllConnections();
+    server.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

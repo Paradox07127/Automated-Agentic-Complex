@@ -141,3 +141,20 @@ test('the blacklist file of agentd_state_dir and the shell\'s own processes reac
     assert.deepEqual(h.sent('control.observe'), []);
   } finally { h.done(); }
 });
+
+test('a launch with computer_use off still gets the endpoint: turning it on and restarting agentd serves without a new host', async () => {
+  const h = setup({ config: JSON.stringify({ plugins: { computer_use: false } }) });
+  try {
+    assert.notEqual(h.control, null);
+    h.control!.helper(true);
+    await settle();
+    const { path, tokenFile } = controlEndpoint(h.dir, shellPlatform());
+    assert.deepEqual(h.sent('control.listen'), [{ endpoint: path, token_file: tokenFile }]);
+    // No input is watched while it is off.
+    assert.deepEqual(h.sent('input.watch'), []);
+    assert.equal(await h.status(1), false);
+    writeFileSync(h.configPath, JSON.stringify({ plugins: { computer_use: true } }));
+    utimesSync(h.configPath, new Date(), new Date(Date.now() + 5000));
+    assert.equal(await h.status(2), true);
+  } finally { h.done(); }
+});

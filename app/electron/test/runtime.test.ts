@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { ChildState } from '../src/common/agentd.ts';
 import {
-  agentdTts, initialRuntime, reduced, type Runtime, RuntimeCoordinator, type RuntimeEvent, runtimeJson, runtimePhase, type SlotState,
+  agentdTts, diagTts, initialRuntime, reduced, type Runtime, RuntimeCoordinator, type RuntimeEvent, runtimeJson, runtimePhase, type SlotState,
 } from '../src/common/runtime.ts';
 
 const t0 = 1_000_000, t1 = 2_000_000;
@@ -37,16 +37,15 @@ test('the golden JSON', () => {
   s.character = { current: 'aster', shown: 'aster', agentd: 'aster', pending: null, switching: false,
     failure: { target: 'birch', stage: 'commit', reason: 'timeout' } };
   s.visibility = { hidden: true, reason: 'fullscreen', fullscreenHidden: true, clickThroughAll: false };
-  s.tts = { provider: 'remote-ws', phase: 'unreachable', reason: 'http_502', retryAfterS: 2.5, muted: false };
-  s.voiceInput = 'on';
+  s.tts = { provider: 'remote-ws', phase: 'unreachable', reason: 'http_502', retryAfterS: 2.5 };
   s.degraded = [{ source: 'agentd', code: 'observations', detail: null }];
   s.agentdReady = true;
-  const golden = '{"character":{"agentd":"aster","current":"aster","failure":{"reason":"timeout","stage":"commit","target":"birch"},"pending":null,"shown":"aster","switching":false},"config_error":null,"degraded":[{"code":"observations","detail":null,"source":"agentd"}],"phase":"degraded","processes":{"agentd":{"backoff":null,"pid":123,"reason":null,"stage":"ready","state":"running"},"avatar":{"backoff":null,"pid":456,"reason":null,"stage":null,"state":"running"}},"revision":12,"services":{"llm":{"detail":null,"mode":"url","pid":null,"state":null},"motion":{"detail":null,"mode":"off","pid":null,"state":null},"tts":{"detail":"ssh 255","mode":"ssh","pid":null,"state":{"kind":"backoff","seconds":4}}},"tts":{"muted":false,"provider":"remote-ws","reason":"http_502","retry_after_s":2.5,"state":"unreachable"},"visibility":{"click_through_all":false,"fullscreen_hidden":true,"hidden":true,"reason":"fullscreen"},"voice_input":"on"}';
+  const golden = '{"character":{"agentd":"aster","current":"aster","failure":{"reason":"timeout","stage":"commit","target":"birch"},"pending":null,"shown":"aster","switching":false},"config_error":null,"degraded":[{"code":"observations","detail":null,"source":"agentd"}],"phase":"degraded","processes":{"agentd":{"backoff":null,"pid":123,"reason":null,"stage":"ready","state":"running"},"avatar":{"backoff":null,"pid":456,"reason":null,"stage":null,"state":"running"}},"revision":12,"services":{"llm":{"detail":null,"mode":"url","pid":null,"state":null},"motion":{"detail":null,"mode":"off","pid":null,"state":null},"tts":{"detail":"ssh 255","mode":"ssh","pid":null,"state":{"kind":"backoff","seconds":4}}},"tts":{"provider":"remote-ws","reason":"http_502","retry_after_s":2.5,"state":"unreachable"},"visibility":{"click_through_all":false,"fullscreen_hidden":true,"hidden":true,"reason":"fullscreen"}}';
   assert.equal(wire(s), golden);
 });
 
 test('the initial JSON has every process and the nulls', () => {
-  const golden = '{"character":{"agentd":null,"current":null,"failure":null,"pending":null,"shown":null,"switching":false},"config_error":null,"degraded":[],"phase":"starting","processes":{"agentd":{"backoff":null,"pid":null,"reason":null,"stage":null,"state":"stopped"},"avatar":{"backoff":null,"pid":null,"reason":null,"stage":null,"state":"stopped"}},"revision":0,"services":{"llm":{"detail":null,"mode":"off","pid":null,"state":null},"motion":{"detail":null,"mode":"off","pid":null,"state":null},"tts":{"detail":null,"mode":"off","pid":null,"state":null}},"tts":{"muted":false,"provider":"none","reason":null,"retry_after_s":null,"state":"unknown"},"visibility":{"click_through_all":false,"fullscreen_hidden":false,"hidden":false,"reason":null},"voice_input":"off"}';
+  const golden = '{"character":{"agentd":null,"current":null,"failure":null,"pending":null,"shown":null,"switching":false},"config_error":null,"degraded":[],"phase":"starting","processes":{"agentd":{"backoff":null,"pid":null,"reason":null,"stage":null,"state":"stopped"},"avatar":{"backoff":null,"pid":null,"reason":null,"stage":null,"state":"stopped"}},"revision":0,"services":{"llm":{"detail":null,"mode":"off","pid":null,"state":null},"motion":{"detail":null,"mode":"off","pid":null,"state":null},"tts":{"detail":null,"mode":"off","pid":null,"state":null}},"tts":{"provider":"none","reason":null,"retry_after_s":null,"state":"unknown"},"visibility":{"click_through_all":false,"fullscreen_hidden":false,"hidden":false,"reason":null}}';
   assert.equal(wire(initialRuntime(t0)), golden);
 });
 
@@ -92,27 +91,24 @@ test('the revision bumps only on a change', () => {
   let s = initialRuntime(t0);
   const visibility = { hidden: true, reason: 'user', fullscreenHidden: false, clickThroughAll: false };
   const character = { current: null, shown: null, agentd: null, pending: null, switching: false, failure: null };
-  const tts = { provider: 'none', phase: 'unknown' as const, reason: null, retryAfterS: null, muted: false };
+  const tts = { provider: 'none', phase: 'unknown' as const, reason: null, retryAfterS: null };
   const service = { mode: 'ssh' as const, state: { kind: 'running' } as SlotState, pid: 3, detail: null };
   const events: [RuntimeEvent, number][] = [
     [{ kind: 'child', name: 'agentd', state: { kind: 'starting' }, pid: 7 }, 1],
     [{ kind: 'child', name: 'agentd', state: { kind: 'starting' }, pid: 7 }, 1],
     [{ kind: 'visibility', view: visibility }, 2],
     [{ kind: 'visibility', view: { ...visibility } }, 2],
-    [{ kind: 'voiceInput', value: 'off' }, 2],
-    [{ kind: 'voiceInput', value: 'denied' }, 3],
-    [{ kind: 'agentdHealth', stage: 'warming', degraded: [] }, 4],
-    [{ kind: 'agentdHealth', stage: 'warming', degraded: [] }, 4],
-    [{ kind: 'configError', error: null }, 4],
-    [{ kind: 'configError', error: 'bad json' }, 5],
-    [{ kind: 'tts', view: tts }, 5],
+    [{ kind: 'agentdHealth', stage: 'warming', degraded: [] }, 3],
+    [{ kind: 'agentdHealth', stage: 'warming', degraded: [] }, 3],
+    [{ kind: 'configError', error: null }, 3],
+    [{ kind: 'configError', error: 'bad json' }, 4],
+    [{ kind: 'tts', view: tts }, 4],
+    [{ kind: 'tts', view: { ...tts, phase: 'off' } }, 5],
     [{ kind: 'character', view: character }, 5],
-    [{ kind: 'avatarStage', stage: null }, 5],
-    [{ kind: 'avatarStage', stage: 'load' }, 6],
-    [{ kind: 'character', view: { ...character, failure: { target: 'si', stage: 'avatar', reason: 'timeout' } } }, 7],
-    [{ kind: 'character', view: { ...character, failure: { target: 'si', stage: 'avatar', reason: 'timeout' } } }, 7],
-    [{ kind: 'service', id: 'motion', view: service }, 8],
-    [{ kind: 'service', id: 'motion', view: { ...service } }, 8],
+    [{ kind: 'character', view: { ...character, failure: { target: 'si', stage: 'avatar', reason: 'timeout' } } }, 6],
+    [{ kind: 'character', view: { ...character, failure: { target: 'si', stage: 'avatar', reason: 'timeout' } } }, 6],
+    [{ kind: 'service', id: 'motion', view: service }, 7],
+    [{ kind: 'service', id: 'motion', view: { ...service } }, 7],
   ];
   events.forEach(([e, revision], i) => {
     s = reduced(s, e, t1);
@@ -120,12 +116,13 @@ test('the revision bumps only on a change', () => {
   });
 });
 
-test('a child change sets since and ends the agentd run', () => {
+test('a child change sets since and ends the agentd run, its voice state too', () => {
   let s = initialRuntime(t0);
   s = reduced(s, { kind: 'child', name: 'agentd', state: { kind: 'running' }, pid: 7 }, t1);
   assert.deepEqual(s.processes.agentd, { state: { kind: 'running' }, pid: 7, stage: null, since: t1 });
   s = reduced(s, { kind: 'agentdHealth', stage: 'ready', degraded: ['observations'] }, t1);
   s = reduced(s, { kind: 'agentdReady' }, t1);
+  s = reduced(s, { kind: 'tts', view: { provider: 'none', phase: 'off', reason: 'not_configured', retryAfterS: null } }, t1);
   assert.equal(s.agentdReady, true);
   assert.equal(s.processes.agentd.stage, 'ready');
 
@@ -135,10 +132,13 @@ test('a child change sets since and ends the agentd run', () => {
   assert.deepEqual(next.processes.agentd, { state: { kind: 'backoff', seconds: 2 }, pid: null, stage: null, since: later });
   assert.equal(next.agentdReady, false);
   assert.deepEqual(next.degraded, []);
+  assert.deepEqual(next.tts, initialRuntime(t0).tts);
+  assert.deepEqual(reduced(s, { kind: 'child', name: 'agentd', state: { kind: 'stopped' }, pid: null }, later).tts, initialRuntime(t0).tts);
   // The same state with another pid only takes the pid.
   const pid = reduced(s, { kind: 'child', name: 'agentd', state: { kind: 'running' }, pid: 8 }, later);
   assert.deepEqual(pid.processes.agentd, { state: { kind: 'running' }, pid: 8, stage: 'ready', since: t1 });
   assert.equal(pid.agentdReady, true);
+  assert.equal(pid.tts.phase, 'off');
   assert.equal(pid.revision, s.revision + 1);
 });
 
@@ -153,12 +153,6 @@ test('agentd health replaces only agentd\'s reasons', () => {
   ]);
 });
 
-test('the avatar stage does not touch its state', () => {
-  let s = reduced(initialRuntime(t0), { kind: 'child', name: 'avatar', state: { kind: 'starting' }, pid: 9 }, t1);
-  s = reduced(s, { kind: 'avatarStage', stage: 'mesh' }, t1);
-  assert.deepEqual(s.processes.avatar, { state: { kind: 'starting' }, pid: 9, stage: 'mesh', since: t1 });
-});
-
 test('the visibility replaces the whole view and leaves the phase', () => {
   let s = snapshot();
   s = reduced(s, { kind: 'visibility', view: { hidden: true, reason: 'fullscreen', fullscreenHidden: true, clickThroughAll: true } }, t1);
@@ -167,17 +161,29 @@ test('the visibility replaces the whole view and leaves the phase', () => {
   assert.ok(wire(s).includes('"visibility":{"click_through_all":false,"fullscreen_hidden":false,"hidden":false,"reason":"fullscreen_exit"}'));
 });
 
-test('agentd\'s voice_state keeps the local mute', () => {
-  const local = { provider: 'none', phase: 'unknown' as const, reason: null, retryAfterS: null, muted: true };
-  assert.deepEqual(agentdTts(local, JSON.stringify({ provider: 'remote-ws', state: 'unreachable', reason: 'http_502', retry_after_s: 2.5 })),
-    { provider: 'remote-ws', phase: 'unreachable', reason: 'http_502', retryAfterS: 2.5, muted: true });
-  assert.equal(agentdTts(local, JSON.stringify({ provider: 'remote-ws', state: 'later' }))?.phase, 'unknown');
-  assert.deepEqual(agentdTts(local, JSON.stringify({ provider: 'none', state: 'off', reason: null, retry_after_s: null })),
-    { provider: 'none', phase: 'off', reason: null, retryAfterS: null, muted: true });
+test('agentd\'s voice_state decodes to the tts view', () => {
+  assert.deepEqual(agentdTts(JSON.stringify({ provider: 'remote-ws', state: 'unreachable', reason: 'http_502', retry_after_s: 2.5 })),
+    { provider: 'remote-ws', phase: 'unreachable', reason: 'http_502', retryAfterS: 2.5 });
+  assert.equal(agentdTts(JSON.stringify({ provider: 'remote-ws', state: 'later' }))?.phase, 'unknown');
+  assert.deepEqual(agentdTts(JSON.stringify({ provider: 'none', state: 'off', reason: null, retry_after_s: null })),
+    { provider: 'none', phase: 'off', reason: null, retryAfterS: null });
   // AgentdVoiceState does not decode: no event.
-  assert.equal(agentdTts(local, JSON.stringify({ state: 'ready' })), null);
-  assert.equal(agentdTts(local, JSON.stringify({ provider: 'none', state: 'off', reason: 3 })), null);
-  assert.equal(agentdTts(local, 'not json'), null);
+  assert.equal(agentdTts(JSON.stringify({ state: 'ready' })), null);
+  assert.equal(agentdTts(JSON.stringify({ provider: 'none', state: 'off', reason: 3 })), null);
+  assert.equal(agentdTts('not json'), null);
+});
+
+test('a run without a voice (NoVoice never changes) reads its state from /diag/state, not unknown', () => {
+  // connections.tts as agentd's _diag_connections builds it for NoVoice.
+  const body = { connections: { tts: { configured: false, result: null, at: null, provider: 'none', state: 'off', reason: 'not_configured',
+    retry_after_s: null, token_set: false }, updated_at: '2026-11-24T00:00:00Z' } };
+  const view = diagTts(body);
+  assert.deepEqual(view, { provider: 'none', phase: 'off', reason: 'not_configured', retryAfterS: null });
+  const ready = reduced(reduced(initialRuntime(t0), { kind: 'child', name: 'agentd', state: { kind: 'running' }, pid: 7 }, t1),
+    { kind: 'tts', view: view! }, t1);
+  assert.equal(runtimeJson(ready).tts.state, 'off');
+  assert.equal(diagTts({ connections: {} }), null);
+  assert.equal(diagTts(null), null);
 });
 
 test('observe hands the current snapshot at once', () => {

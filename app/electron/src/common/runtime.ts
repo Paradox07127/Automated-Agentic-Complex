@@ -16,7 +16,7 @@ export type SlotState = ChildState | { kind: 'external' };
 export interface ProcessStage {
   state: SlotState;
   pid: number | null;
-  /** agentd's /health stage or the avatar's loading stage; null when not reported for this run. */
+  /** agentd's /health stage; null when not reported for this run, and always for the avatar. */
   stage: string | null;
   /** When `state` last changed, in ms. */
   since: number;
@@ -42,8 +42,10 @@ export interface TtsView {
   phase: TtsPhase;
   reason: string | null;
   retryAfterS: number | null;
-  muted: boolean;
 }
+
+/** Until agentd's current run reports its voice. */
+const NO_TTS: TtsView = { provider: 'none', phase: 'unknown', reason: null, retryAfterS: null };
 
 /** One of `services` as the shell runs it. */
 export interface ServiceView {
@@ -54,9 +56,6 @@ export interface ServiceView {
   /** The last failure's text. */
   detail: string | null;
 }
-
-/** Push-to-talk microphone state (voice input, not TTS). */
-export type VoiceInput = 'on' | 'off' | 'denied';
 
 export interface DegradedReason {
   /** agentd, config, service, voice or avatar; a service's `detail` is its id. */
@@ -74,7 +73,6 @@ export interface Runtime {
   visibility: VisibilityView;
   tts: TtsView;
   services: Record<ServiceId, ServiceView>;
-  voiceInput: VoiceInput;
   degraded: DegradedReason[];
   /** The ready plan finished for the current agentd run. */
   agentdReady: boolean;
@@ -84,12 +82,10 @@ export type RuntimeEvent =
   | { kind: 'child'; name: RuntimeChild; state: SlotState; pid: number | null }
   | { kind: 'agentdHealth'; stage: string | null; degraded: string[] }
   | { kind: 'agentdReady' }
-  | { kind: 'avatarStage'; stage: string | null }
   | { kind: 'character'; view: CharacterView }
   | { kind: 'visibility'; view: VisibilityView }
   | { kind: 'tts'; view: TtsView }
   | { kind: 'service'; id: ServiceId; view: ServiceView }
-  | { kind: 'voiceInput'; value: VoiceInput }
   | { kind: 'configError'; error: string | null };
 
 export type RuntimePhase = 'config_failed' | 'starting' | 'avatar_only' | 'agentd_only' | 'interactive' | 'degraded';
@@ -100,9 +96,9 @@ export function initialRuntime(since: number): Runtime {
     revision: 0, configError: null, processes: { agentd: stopped(), avatar: stopped() },
     character: { current: null, shown: null, agentd: null, pending: null, switching: false, failure: null },
     visibility: { hidden: false, reason: null, fullscreenHidden: false, clickThroughAll: false },
-    tts: { provider: 'none', phase: 'unknown', reason: null, retryAfterS: null, muted: false },
+    tts: NO_TTS,
     services: Object.fromEntries(SERVICE_IDS.map((id) => [id, { mode: 'off', state: null, pid: null, detail: null }])) as Record<ServiceId, ServiceView>,
-    voiceInput: 'off', degraded: [], agentdReady: false,
+    degraded: [], agentdReady: false,
   };
 }
 
@@ -128,6 +124,7 @@ export function reduced(s: Runtime, e: RuntimeEvent, now: number): Runtime {
         if (e.name === 'agentd') {
           next.agentdReady = false;
           next.degraded = withoutAgentd();
+          next.tts = NO_TTS;
         }
       }
       break;
@@ -138,9 +135,6 @@ export function reduced(s: Runtime, e: RuntimeEvent, now: number): Runtime {
       break;
     case 'agentdReady':
       next.agentdReady = true;
-      break;
-    case 'avatarStage':
-      next.processes.avatar = { ...s.processes.avatar, stage: e.stage };
       break;
     case 'character':
       next.character = e.view;
@@ -158,9 +152,6 @@ export function reduced(s: Runtime, e: RuntimeEvent, now: number): Runtime {
         ...failed.map((id) => ({ source: 'service', code: 'service_failed', detail: id }))];
       break;
     }
-    case 'voiceInput':
-      next.voiceInput = e.value;
-      break;
     case 'configError':
       next.configError = e.error;
       break;
@@ -181,23 +172,32 @@ export function runtimePhase(s: Runtime): RuntimePhase {
   return 'interactive';
 }
 
-/** agentd's `voice_state` event over `tts` (TtsView.agentd); `muted` is the shell's own. null when `data` is
- *  not a voice state agentd reports. An unknown `state` reads `unknown`. */
-export function agentdTts(tts: TtsView, data: string): TtsView | null {
-  let v: unknown;
+const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** agentd's voice state wire (`provider`, `state`, `reason`, `retry_after_s`); null when `v` is not one. An unknown `state`
+ *  reads `unknown`. */
+function ttsView(v: unknown): TtsView | null {
+  if (!isObject(v)) return null;
+  if (typeof v.provider !== 'string' || typeof v.state !== 'string') return null;
+  if (v.reason != null && typeof v.reason !== 'string') return null;
+  if (v.retry_after_s != null && typeof v.retry_after_s !== 'number') return null;
+  return { provider: v.provider, phase: TTS_PHASES.includes(v.state) ? v.state as TtsPhase : 'unknown',
+    reason: (v.reason as string | undefined) ?? null, retryAfterS: (v.retry_after_s as number | undefined) ?? null };
+}
+
+/** agentd's `voice_state` event; null when `data` is not a voice state agentd reports. */
+export function agentdTts(data: string): TtsView | null {
   try {
-    v = JSON.parse(data);
+    return ttsView(JSON.parse(data));
   } catch {
     return null;
   }
-  if (typeof v !== 'object' || v === null || Array.isArray(v)) return null;
-  const o = v as Record<string, unknown>;
-  if (typeof o.provider !== 'string' || typeof o.state !== 'string') return null;
-  if (o.reason != null && typeof o.reason !== 'string') return null;
-  if (o.retry_after_s != null && typeof o.retry_after_s !== 'number') return null;
-  return { provider: o.provider, phase: TTS_PHASES.includes(o.state) ? o.state as TtsPhase : 'unknown',
-    reason: (o.reason as string | undefined) ?? null, retryAfterS: (o.retry_after_s as number | undefined) ?? null,
-    muted: tts.muted };
+}
+
+/** The voice in a `GET /diag/state` body (`connections.tts`): agentd sends `voice_state` only on a change, so a run's
+ *  first state is read there. */
+export function diagTts(body: unknown): TtsView | null {
+  return isObject(body) && isObject(body.connections) ? ttsView(body.connections.tts) : null;
 }
 
 const WIRE_STATE: Record<SlotState['kind'], string> = {
@@ -226,12 +226,11 @@ export function runtimeJson(s: Runtime) {
     character: { current: c.current, shown: c.shown, agentd: c.agentd, pending: c.pending, switching: c.switching,
       failure: c.failure && { target: c.failure.target, stage: c.failure.stage, reason: c.failure.reason } },
     visibility: { hidden: v.hidden, reason: v.reason, fullscreen_hidden: v.fullscreenHidden, click_through_all: v.clickThroughAll },
-    tts: { provider: t.provider, state: t.phase, reason: t.reason, retry_after_s: t.retryAfterS, muted: t.muted },
+    tts: { provider: t.provider, state: t.phase, reason: t.reason, retry_after_s: t.retryAfterS },
     services: Object.fromEntries(SERVICE_IDS.map((id) => {
       const v = s.services[id];
       return [id, { mode: v.mode, state: v.state && wireState(v.state), pid: v.pid, detail: v.detail }];
     })) as Record<ServiceId, { mode: ServiceMode; state: ReturnType<typeof wireState> | null; pid: number | null; detail: string | null }>,
-    voice_input: s.voiceInput,
     degraded: s.degraded.map((d) => ({ source: d.source, code: d.code, detail: d.detail })),
   };
 }

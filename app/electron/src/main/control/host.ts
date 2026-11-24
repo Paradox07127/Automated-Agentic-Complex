@@ -674,7 +674,8 @@ export class ControlHost {
     const { path, tokenFile } = this.ports.endpoint;
     const r = await this.ports.helper.request('control.listen', { endpoint: path, token_file: tokenFile });
     if (!r.ok) this.ports.log(`computer control: control.listen failed code=${r.error.code}`);
-    await this.watchInput();
+    // While computer use is off no input is watched; a grant starts the monitor.
+    if (this.ports.enabled()) await this.watchInput();
     await this.systemPermissions();
   }
 }

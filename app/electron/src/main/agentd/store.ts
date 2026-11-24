@@ -12,6 +12,7 @@ export class AgentStore implements EventFeed {
   connection: Connection = 'offline';
   private readonly client: AgentdClient;
   private readonly retryDelay: (failures: number) => number;
+  private readonly log: (line: string) => void;
   /** `<stream_epoch>-<seq>` to resume after; undefined until a connection names one. */
   private lastEventID: string | undefined;
   private subscribers = new Map<number, (e: StreamEvent) => void>();
@@ -19,10 +20,12 @@ export class AgentStore implements EventFeed {
   private lastId = 0;
   private abort: AbortController | undefined;
 
-  /** `retryDelay(n)` is the wait in ms after the n-th failure in a row. */
-  constructor(runtimePath: string, retryDelay = (n: number) => Backoff.delay(n) * 1000) {
+  /** `retryDelay(n)` is the wait in ms after the n-th failure in a row; `log` gets a subscriber's or reload's throw. */
+  constructor(runtimePath: string, retryDelay = (n: number) => Backoff.delay(n) * 1000,
+    log: (line: string) => void = (line) => console.error(line)) {
     this.client = new AgentdClient(runtimePath);
     this.retryDelay = retryDelay;
+    this.log = log;
   }
 
   subscribe(onEvent: (e: StreamEvent) => void): Cancel {
@@ -81,7 +84,15 @@ export class AgentStore implements EventFeed {
     const found = feedStreamEdge(e, cursorSent);
     if (found !== undefined) this.lastEventID = found;
     const event: StreamEvent = { event: e.event, id: e.id ?? null, data: e.data };
-    for (const handler of [...this.subscribers.values()]) handler(event);
-    if (e.event === 'gap' || e.event === 'reset') for (const handler of [...this.reloads.values()]) handler();
+    // One handler's throw reaches neither the others nor the stream.
+    const call = (what: string, f: () => void) => {
+      try {
+        f();
+      } catch (err) {
+        this.log(`feed ${what} threw on ${e.event}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    };
+    for (const handler of [...this.subscribers.values()]) call('subscriber', () => handler(event));
+    if (e.event === 'gap' || e.event === 'reset') for (const handler of [...this.reloads.values()]) call('reload', handler);
   }
 }

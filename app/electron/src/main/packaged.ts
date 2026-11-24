@@ -6,7 +6,7 @@ import {
   appendFileSync, chmodSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync,
 } from 'node:fs';
 import { basename, dirname, join, sep } from 'node:path';
-import { ConfigError, parseConfig, type ShellPlatform } from '../common/config.ts';
+import { CatalogError, ConfigError, IDS, parseConfig, type ShellPlatform } from '../common/config.ts';
 import { type Composition, prepareComponents, setComposition, writeAtomic } from './components.ts';
 import { readCatalog } from './config.ts';
 import { appendLog } from './log.ts';
@@ -126,7 +126,7 @@ function pruneLibrary(library: string): void {
  * After the instance lock: imports and resolves the components, seeds or migrates the character library,
  * and writes config.json: managed paths recomputed on every launch, user settings and a user's catalog kept, the old file
  * backed up first. Throws ConfigError when the components, the seed or the prospective config are unusable; config.json is
- * unchanged then. Null without distribution.json.
+ * unchanged then. Null without distribution.json. `agentdStateDir` is the app's own id's; another id's is `agentd-<id>` beside it.
  */
 export function preparePackaged(options: { resources: string; supportBase: string; agentdStateDir: string; platform: ShellPlatform },
   ports: PackagedPorts = nodePorts): PackagedLaunch | null {
@@ -135,6 +135,8 @@ export function preparePackaged(options: { resources: string; supportBase: strin
   if (manifest === null) return null;
   const hash = manifest.catalogSHA256;
   const support = join(options.supportBase, manifest.id);
+  // agentd's tools default to the app's own id's state dir.
+  const agentdStateDir = manifest.id === IDS.appId ? options.agentdStateDir : join(dirname(options.agentdStateDir), `agentd-${manifest.id}`);
   mkdirSync(support, { recursive: true, mode: 0o700 });
   chmodSync(support, 0o700);
   // The .app bundle; on Windows the portable directory.
@@ -151,7 +153,14 @@ export function preparePackaged(options: { resources: string; supportBase: strin
     return { agentd: resolved.agentd, python: resolved.python };
   };
   const checkCatalog = (path: string): void => {
-    if (readCatalog(path) === null) throw new ConfigError(`角色目录不存在：${path}`);
+    let catalog;
+    try {
+      catalog = readCatalog(path, platform);
+    } catch (e) {
+      if (e instanceof CatalogError) throw new ConfigError(`角色目录无效：${e.message}`);
+      throw e;
+    }
+    if (catalog === null) throw new ConfigError(`角色目录不存在：${path}`);
   };
   // Composes the `characters.` payloads into a new library at `output`; returns its `current.json`, checked against the seed.
   const compose = (output: string): string => {
@@ -258,12 +267,12 @@ export function preparePackaged(options: { resources: string; supportBase: strin
   config.avatar_app = avatar;
   setComposition(config, resolved);
   if (!Object.hasOwn(config, 'support_dir')) config.support_dir = support;
-  if (!Object.hasOwn(config, 'agentd_state_dir')) config.agentd_state_dir = options.agentdStateDir;
+  if (!Object.hasOwn(config, 'agentd_state_dir')) config.agentd_state_dir = agentdStateDir;
   // Sorted keys, at every level.
   const text = JSON.stringify(config, (_key, value: unknown) => (typeof value === 'object' && value !== null && !Array.isArray(value)
     ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) : value), 2);
   // Validate the complete prospective config before changing the old one.
-  parseConfig(text, { supportDir: support, agentdStateDir: options.agentdStateDir, catalog: (path) => readCatalog(path) });
+  parseConfig(text, { supportDir: support, agentdStateDir, catalog: (path) => readCatalog(path, platform), platform });
   if (original !== text) {
     writeAtomic(configPath, text, 0o600);
     if (migrationLog !== null && typeof config.character_catalog === 'string') {

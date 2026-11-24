@@ -66,6 +66,20 @@ function send(url: URL, method: string, headers: Record<string, string>, idleTim
   });
 }
 
+/** ui-runtime.json's `base_url` as the origin every request goes to: http on 127.0.0.1 or [::1] with a port, and nothing
+ *  else, so the token never leaves this machine's agentd. */
+function loopbackOrigin(baseUrl: string): string {
+  let url: URL | null = null;
+  try {
+    url = new URL(baseUrl);
+  } catch { /* refused below */ }
+  if (url === null || url.protocol !== 'http:' || (url.hostname !== '127.0.0.1' && url.hostname !== '[::1]') || url.port === ''
+    || url.username !== '' || url.password !== '' || url.pathname !== '/' || url.search !== '' || url.hash !== '') {
+    throw new Error('ui-runtime.json: base_url is not http on 127.0.0.1 or [::1] with a port');
+  }
+  return url.origin;
+}
+
 export class AgentdClient {
   readonly runtimePath: string;
   private readonly idleTimeout: number;
@@ -77,7 +91,8 @@ export class AgentdClient {
     this.idleTimeout = idleTimeout;
   }
 
-  /** agentd writes a fresh ui_token on every start; the file is read again whenever its inode, mtime or size changes. */
+  /** agentd writes a fresh ui_token on every start; the file is read again whenever its inode, mtime or size changes.
+   *  `baseUrl` is the checked origin. */
   runtime(fresh = false): Runtime {
     let stamp: string | undefined;
     try {
@@ -85,7 +100,8 @@ export class AgentdClient {
       stamp = `${st.ino}:${st.mtimeNs}:${st.size}`;
     } catch { /* read below, which throws */ }
     if (!fresh && stamp !== undefined && this.cached?.stamp === stamp) return this.cached.runtime;
-    const runtime = decodeRuntime(JSON.parse(readFileSync(this.runtimePath, 'utf8')));
+    const decoded = decodeRuntime(JSON.parse(readFileSync(this.runtimePath, 'utf8')));
+    const runtime = { baseUrl: loopbackOrigin(decoded.baseUrl), uiToken: decoded.uiToken };
     this.cached = stamp === undefined ? undefined : { stamp, runtime };
     return runtime;
   }
@@ -142,7 +158,14 @@ export class AgentdClient {
             if (line.at(-1) === 0x0d) line = line.subarray(0, -1);
             start = i + 1;
             const event = parser.feed(line.toString('utf8'));
-            if (event) onEvent(event);
+            try {
+              if (event) onEvent(event);
+            } catch (e) {
+              // Inside the socket's listener a throw would be uncaught: it ends this stream instead.
+              reject(e);
+              req.destroy();
+              return;
+            }
           }
           if (start < chunk.length) pending.push(chunk.subarray(start));
         });

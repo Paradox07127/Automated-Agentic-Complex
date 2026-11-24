@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { rendererPreflight } from '../src/common/components.ts';
-import { ConfigError, type ShellPlatform } from '../src/common/config.ts';
+import { ConfigError, IDS, type ShellPlatform } from '../src/common/config.ts';
 import { treeHash } from '../src/main/components.ts';
 import { loadConfig } from '../src/main/config.ts';
 import { nodePorts, packagedConfigPath, packagedContents, type PackagedPorts, preparePackaged, webRoot } from '../src/main/packaged.ts';
@@ -142,7 +142,7 @@ test('a portable app writes a fresh config from its components with the defaults
     python: join(app.bundle, 'runtime.python/payload/bin/python3'),
     agentd_launcher: join(app.bundle, 'agentd/payload/agentd_launcher.py'),
     harness_sites: { 'harness.pi': join(app.bundle, 'harness.pi/payload') },
-    support_dir: app.support, agentd_state_dir: app.options.agentdStateDir,
+    support_dir: app.support, agentd_state_dir: join(dirname(app.options.agentdStateDir), `agentd-${ID}`),
   });
   assert.deepEqual(Object.keys(saved), Object.keys(saved).sort());
   assert.deepEqual(readJSON(join(seeded, 'distribution-seed.json')),
@@ -169,6 +169,16 @@ test('a portable app writes a fresh config from its components with the defaults
   assert.equal(preparePackaged(app.options, tools.ports)!.configPath, configPath);
   assert.equal(tools.calls.length, 1);
   assert.equal(readFileSync(configPath, 'utf8'), before);
+});
+
+test("each distribution id has its own agentd state dir; the app's own id keeps the default one", (t) => {
+  const root = temp(t), own = packagedApp(join(root, 'own')), other = packagedApp(join(root, 'other'));
+  own.edit((d) => { d.id = IDS.appId; });
+  const ownState = readJSON(preparePackaged(own.options, fakeTools().ports)!.configPath).agentd_state_dir;
+  const otherState = readJSON(preparePackaged({ ...other.options, agentdStateDir: own.options.agentdStateDir }, fakeTools().ports)!.configPath)
+    .agentd_state_dir;
+  assert.equal(ownState, own.options.agentdStateDir);
+  assert.equal(otherState, join(dirname(own.options.agentdStateDir), `agentd-${ID}`));
 });
 
 test('a split app imports the components beside it into the support dir and keeps them without the index', (t) => {
@@ -398,6 +408,21 @@ test('a Windows portable directory: its exes beside resources, the component Pyt
     (e) => e instanceof ConfigError && e.message === '组件无法使用：composition.lock.json lockInvalid');
   app.edit((d) => { d.layout = 'split'; });
   assert.throws(() => preparePackaged(app.options, tools.ports), (e) => e instanceof ConfigError && e.message === '无效的发行配置');
+});
+
+test('on Windows a seed whose rendered character lacks its native bundle fails before config.json is written', (t) => {
+  const app = packagedApp(temp(t), 'portable', 'windows'), tools = fakeTools();
+  // current.json, and so catalogSHA256, stays the same: only character.json now asks for a renderer.
+  const ports: PackagedPorts = {
+    run(file, args, log) {
+      const r = tools.ports.run(file, args, log);
+      write(join(args[args.indexOf('--output') + 1]!, 'packages/fixture/character.json'), JSON.stringify({ id: 'fixture', components: { render: {} } }));
+      return r;
+    },
+  };
+  assert.throws(() => preparePackaged(app.options, ports), (e) => e instanceof ConfigError && e.message === '角色目录无效：missing_base_component');
+  assert.equal(existsSync(join(app.support, 'config.json')), false);
+  assert.equal(existsSync(join(app.support, 'character-libraries')), false);
 });
 
 test('the run port: stderr comes back without a log, both streams go to the log with one', (t) => {
