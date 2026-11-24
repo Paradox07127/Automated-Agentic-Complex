@@ -196,7 +196,7 @@ def build(args,root=ROOT):
     renderer=root/source_fingerprint.RENDERER/'host'
     # The host package links the core's and host-common's prebuilt static libraries; swift build does not make them.
     if renderer.is_dir():
-        for library in ('core','common'):subprocess.run(['bash',str(renderer.parent/library/'build.sh')],check=True)
+        for static in ('core','common'):subprocess.run(['bash',str(renderer.parent/static/'build.sh')],check=True)
     for package in [helper]+([renderer] if renderer.is_dir() else []):
         subprocess.run(['swift','build','-c','release','--package-path',str(package)],check=True)
     tools=tempfile.TemporaryDirectory(prefix='endfield-fbx-')

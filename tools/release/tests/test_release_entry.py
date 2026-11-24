@@ -286,6 +286,16 @@ class CanonicalReleaseTests(unittest.TestCase):
             self.assertEqual(receipt['artifact_smoke'],dict(result='PASS',error=None,app='Agentic Complex.app'))
             self.assertEqual((receipt['layout'],receipt['distribution']),('portable','portable'))
             self.assertIn('release_ready',out.getvalue())
+    def test_package_app_gets_the_profile_library_after_the_renderer_libraries_are_built(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);self.release_repo(root);output=root/'out/release'
+            gate_receipt.write(self.receipt(root),store=gate_receipt.store_dir(root))
+            package,seen=self.packaging(output,'PASS'),[]
+            def run(argv,**kwargs):
+                if len(argv)>2 and 'package_app.py' in argv[2]:seen.append(argv[argv.index('--library')+1])
+                return package(argv,**kwargs)
+            with mock.patch('sys.stdout',new_callable=io.StringIO):self.build(root,self.args(output=output),run=run)
+            self.assertEqual(seen,[str(root/'library')])
     def test_shipped_receipts_omit_builder_paths(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);self.release_repo(root);output=root/'out/release'
