@@ -34,7 +34,10 @@ export function useRuntimePublic<T = WireRuntimePublic>({ demo, select }: { demo
 /** 重新检测: agentd rescans the installed runtimes (`refresh=1`); the reply replaces the shared entry. */
 export async function refreshRuntime(qc: QueryClient, demo?: string | null): Promise<WireRuntimePublic> {
   const d = fakeDemo(demo);
+  // A poll sent before the rescan would otherwise land after it and write the older snapshot back.
+  await qc.cancelQueries({ queryKey: runtimeKey(demo) });
   const r = await get<WireRuntimePublic>(`/character/runtime?refresh=1${d ? `&demo=${d}` : ''}`);
+  await qc.cancelQueries({ queryKey: runtimeKey(demo) });
   qc.setQueryData(runtimeKey(demo), r);
   return r;
 }

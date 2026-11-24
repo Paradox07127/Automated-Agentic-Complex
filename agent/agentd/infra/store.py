@@ -97,10 +97,12 @@ SCHEMA = (
     " created_at REAL NOT NULL, updated_at REAL NOT NULL, result_json TEXT, requested_by TEXT)",
     "CREATE TABLE IF NOT EXISTS task_events (task_id TEXT NOT NULL, seq INTEGER NOT NULL, kind TEXT NOT NULL,"
     " at REAL NOT NULL, attrs_json TEXT, PRIMARY KEY (task_id, seq))",
-    # due_at NULL: a reminder waiting for its trigger
+    # due_at NULL: a reminder waiting for its trigger; series_at: a repeating one's own next time while due_at holds a
+    # snoozed re-delivery, else NULL
     "CREATE TABLE IF NOT EXISTS commitments (id TEXT PRIMARY KEY, text TEXT NOT NULL, due_at REAL,"
     " state TEXT NOT NULL, created_at REAL NOT NULL, created_line TEXT, delivered_line TEXT,"
-    " updated_at REAL NOT NULL, revision INTEGER NOT NULL DEFAULT 1, repeat TEXT, trigger TEXT, seen_at REAL)",
+    " updated_at REAL NOT NULL, revision INTEGER NOT NULL DEFAULT 1, repeat TEXT, trigger TEXT, seen_at REAL,"
+    " series_at REAL)",
     "CREATE INDEX IF NOT EXISTS commitments_due ON commitments (due_at)",
     # request: the JSON of [path, body] it answered; answer: the JSON of its (code, body)
     "CREATE TABLE IF NOT EXISTS idempotency_receipts (key TEXT PRIMARY KEY, request TEXT NOT NULL,"
@@ -272,6 +274,8 @@ def open_store(path):
         db.execute('ALTER TABLE facts ADD COLUMN changed_by TEXT')
     if 'owner' not in {r[1] for r in db.execute('PRAGMA table_info(episodes)')}:
         db.execute('ALTER TABLE episodes ADD COLUMN owner TEXT')
+    if 'series_at' not in {r[1] for r in db.execute('PRAGMA table_info(commitments)')}:
+        db.execute('ALTER TABLE commitments ADD COLUMN series_at REAL')
     if not db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='observation_frame_cleanup'").fetchone():
         db.execute('''CREATE TRIGGER observation_frame_cleanup AFTER DELETE ON observation_frames BEGIN
             DELETE FROM observation_processed WHERE id=OLD.id;

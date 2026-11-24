@@ -490,6 +490,24 @@ class CommitmentServerTest(unittest.TestCase):
                 self.server._commitments_due()
                 self.assertEqual(len([a for a in self.feed("announce") if a["origin"] == item["id"]]), 2)
 
+    def test_complete_and_snooze_on_a_delivered_daily_reminder_keep_its_time(self):
+        item = self.server.commitments.add("吃药", local(24, 9), repeat="daily")
+        self.now = local(24, 9)
+        self.server._commitments_due()
+        self.now = local(24, 9, 1)
+        status, body = self.request("POST", f"/commitments/{item['id']}/complete")
+        self.assertEqual((status, body["commitment"]["state"], body["commitment"]["due_at"]), (200, "armed", local(25, 9)))
+        self.assertEqual(self.server.commitments.list()[0]["due_at"], local(25, 9))
+        self.now = local(25, 9)
+        self.server._commitments_due()
+        status, body = self.request("POST", f"/commitments/{item['id']}/snooze", {"minutes": 10})
+        self.assertEqual((status, body["commitment"]["due_at"]), (200, local(25, 9, 10)))
+        self.now = local(25, 9, 10)
+        self.server._commitments_due()
+        [again] = self.server.commitments.list()
+        self.assertEqual((again["state"], again["due_at"]), ("armed", local(26, 9)))
+        self.assertEqual(len([a for a in self.feed("announce") if a["kind"] == "reminder_due"]), 3)
+
     def test_the_tick_says_a_due_reminder(self):
         server = self.start(tick_interval=0.01)
         server.commitments.add("喝水", self.now - 1)

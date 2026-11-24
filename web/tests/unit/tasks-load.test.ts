@@ -82,10 +82,38 @@ describe('task page reads split', () => {
   });
 
   it('a pending read failure names 待处理 and keeps the cause apart', async () => {
-    install('connected', (path) => (path === '/approvals' ? { status: 500, body: null, error: { code: 'internal' } } : null));
+    install('connected', (path) => (path === '/approvals' || path === '/agent/interactions' ? { status: 500, body: null, error: { code: 'internal' } } : null));
     const e = await failure(loadPending());
     expect(e.message).toBe('读取待处理失败：后台出错了');
     expect(e.reason).toBe('后台出错了');
+  });
+
+  it('a failed /agent/interactions keeps the approvals and carries its error', async () => {
+    install('connected', (path) => (path === '/agent/interactions' ? { status: 500, body: null, error: { code: 'internal' } } : null));
+    const p = await loadPending();
+    expect(p.approvals.length).toBeGreaterThan(0);
+    expect(p.questions).toEqual([]);
+    expect(p.failed?.message).toBe('读取待处理失败：后台出错了');
+  });
+
+  it("an approval's countdown starts when /approvals answers, not after the slower read", async () => {
+    let clock = 1_000_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => clock);
+    let answer!: (r: AgentdResponse<unknown>) => void;
+    const slow = new Promise<AgentdResponse<unknown>>((resolve) => (answer = resolve));
+    const bridge = createFakeBridge({ surface: 'main', still: true });
+    const real = bridge.agentd.request.bind(bridge.agentd);
+    vi.spyOn(bridge.agentd, 'connection').mockResolvedValue('connected');
+    vi.spyOn(bridge.agentd, 'request').mockImplementation(async (method, path, body) => (path === '/agent/interactions' ? await slow : await real(method, path, body)) as never);
+    window.agenticComplex = bridge;
+    const wire = (await real('GET', '/approvals')).body as { approvals: Array<{ request_id: string; window_s: number; seconds_left: number }> };
+    const read = loadPending();
+    await new Promise((r) => setTimeout(r, 0));
+    clock += 3000;
+    answer({ status: 200, body: { requests: [] } });
+    const p = await read;
+    const w = wire.approvals[0]!;
+    expect(p.approvals.find((a) => a.id === w.request_id)?.since).toBe(1_000_000 - (w.window_s - w.seconds_left) * 1000);
   });
 
   it('the list reads the first page of tasks and deliveries; the rest joins it later', async () => {

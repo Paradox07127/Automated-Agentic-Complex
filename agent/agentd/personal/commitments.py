@@ -204,6 +204,18 @@ class Commitments:
             raise ValueError("commitment_changed")
         return self._get(commitment_id)
 
+    def _series(self, commitment_id):
+        return self.db.execute("SELECT series_at FROM commitments WHERE id = ?", (commitment_id,)).fetchone()[0]
+
+    def _rearm(self, item, now, delivered_line=None):
+        """A repeating item armed at its series' next own time after now; a snoozed re-delivery it held is dropped."""
+        series = self._series(item["id"])
+        due_at = occurrence(item["due_at"], item["repeat"], max(now, item["due_at"])) if series is None \
+            else occurrence(series, item["repeat"], now)
+        item = self._move(item["id"], "armed", now, delivered_line=delivered_line, due_at=due_at)
+        self.db.execute("UPDATE commitments SET series_at = NULL WHERE id = ?", (item["id"],))
+        return item
+
     def _receipt(self, request_key, request, item=None):
         if request_key is None:
             return None
@@ -287,12 +299,21 @@ class Commitments:
         with self.lock:
             now, item = self.clock(), self._get(commitment_id)
             if item is not None and item["repeat"] is not None:
-                item = self._move(commitment_id, "armed", now, delivered_line=line_id,
-                                  due_at=occurrence(item["due_at"], item["repeat"], max(now, item["due_at"])))
+                item = self._rearm(item, now, line_id)
             else:
                 item = self._move(commitment_id, "fulfilled", now, delivered_line=line_id)
             self.db.commit()
         return item
+
+    def complete(self, commitment_id):
+        """The user is done with the occurrence it delivered: as fulfill, except that a repeating one its delivery
+        already re-armed at its series' own time stays as it is."""
+        with self.lock:
+            item = self._get(commitment_id)
+            if item is not None and item["repeat"] is not None and item["state"] == "armed" \
+                    and self._series(commitment_id) is None:
+                return item
+            return self.fulfill(commitment_id, None)
 
     def seen(self, commitment_id):
         """Its card was on screen: the first receipt since it came due is kept; None for an unknown id."""
@@ -327,7 +348,21 @@ class Commitments:
             if item is not None and item["state"] == "fulfilled" and now - item["updated_at"] > SNOOZE_DELIVERED:
                 raise ValueError("illegal_transition")
             item = self._move(commitment_id, "armed", now, due_at=due_at, expected_revision=expected_revision)
+            self.db.execute("UPDATE commitments SET series_at = NULL WHERE id = ?", (commitment_id,))  # the series moves too
             self._receipt(request_key, request, item)
+            self.db.commit()
+        return item
+
+    def postpone(self, commitment_id, due_at):
+        """Its delivered occurrence said again at due_at: as snooze, except that a repeating one goes on at its series'
+        own time after that."""
+        with self.lock:
+            item = self._get(commitment_id)
+            if item is None or item["repeat"] is None:
+                return self.snooze(commitment_id, due_at)
+            series = self._series(commitment_id) or item["due_at"]
+            item = self._move(commitment_id, "armed", self.clock(), due_at=due_at)
+            self.db.execute("UPDATE commitments SET series_at = ? WHERE id = ?", (series, commitment_id))
             self.db.commit()
         return item
 
@@ -344,7 +379,7 @@ class Commitments:
                 if item["repeat"] is None:
                     items.append(self._move(commitment_id, "missed", now))
                 else:
-                    self._move(commitment_id, "armed", now, due_at=occurrence(item["due_at"], item["repeat"], now))
+                    self._rearm(item, now)
                     items.append(item)
             self.db.commit()
         return items

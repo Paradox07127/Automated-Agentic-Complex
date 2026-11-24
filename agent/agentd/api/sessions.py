@@ -120,9 +120,9 @@ class SessionsMixin:
         try:
             with commitments.lock:
                 if action == "snooze":
-                    item = commitments.snooze(commitment_id, self.server.clock() + body["minutes"] * 60)
+                    item = commitments.postpone(commitment_id, self.server.clock() + body["minutes"] * 60)
                 elif action == "complete":
-                    item = commitments.fulfill(commitment_id, None)
+                    item = commitments.complete(commitment_id)
                 else:
                     item = commitments.cancel(commitment_id)
                 done = "rescheduled" if action == "complete" and item["state"] == "armed" else \

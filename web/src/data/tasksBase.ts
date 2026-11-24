@@ -118,22 +118,35 @@ export interface PendingBase {
   approvals: Approval[];
   questions: Question[];
   offline?: boolean;
+  /** One of the two reads failed; its part is empty, the other's is kept. */
+  failed?: TasksLoadError;
+}
+
+/** One pending read, mapped when it answers: an approval's seconds left count from then. */
+async function part<T, R>(path: string, map: (body: T, now: number) => R[]): Promise<{ res: Got<T>; rows: R[] }> {
+  const res = await get<T>(path);
+  return { res, rows: res.body ? map(res.body, appNow()) : [] };
 }
 
 /** `/approvals` and `/agent/interactions` only, so the time-critical items never wait for the task list. */
 export async function loadPending(): Promise<PendingBase> {
   const [conn, approvals, questions] = await Promise.all([
     getBridge().agentd.connection(),
-    get<{ approvals: WireApproval[] }>('/approvals'),
-    get<{ requests: WireInteraction[] }>('/agent/interactions'),
+    part<{ approvals: WireApproval[] }, Approval>('/approvals', (b, now) => b.approvals.map((a) => fromApproval(a, now))),
+    part<{ requests: WireInteraction[] }, Question>('/agent/interactions', (b, now) => b.requests.map((q) => fromInteraction(q, now))),
   ]);
-  check([approvals, questions], conn, '待处理');
-  const now = appNow();
-  return {
-    approvals: (approvals.body?.approvals ?? []).map((a) => fromApproval(a, now)),
-    questions: (questions.body?.requests ?? []).map((q) => fromInteraction(q, now)),
-    offline: conn === 'offline',
-  };
+  const fails = [approvals, questions].map(({ res }) => {
+    try {
+      check([res], conn, '待处理');
+      return null;
+    } catch (e) {
+      return e as TasksLoadError;
+    }
+  });
+  const fatal = fails.find((f) => f?.kind === 'disconnected') ?? (fails[0] && fails[1]);
+  if (fatal) throw fatal;
+  const failed = fails[0] ?? fails[1];
+  return { approvals: approvals.rows, questions: questions.rows, offline: conn === 'offline', ...(failed ? { failed } : {}) };
 }
 
 /** The one cache entry for the pending approvals and questions; the task page and the shell read it. */

@@ -43,6 +43,25 @@ describe('shared /character/runtime entry', () => {
     expect(hook.result.current[1].data).toBe(r.ready);
   });
 
+  it('a poll still in flight when a refresh answers does not write its older reply back', async () => {
+    const bridge = getBridge();
+    const real = bridge.agentd.request.bind(bridge.agentd);
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    const before = { ready: false, available_backends: [] } as unknown as WireRuntimePublic;
+    vi.spyOn(bridge.agentd, 'request').mockImplementation(async (method, path, body) =>
+      path === '/character/runtime' ? (await held, { status: 200, body: before }) : real(method, path, body),
+    );
+    const qc = new QueryClient();
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+    const hook = renderHook(() => useRuntimePublic(), { wrapper });
+    await waitFor(() => expect(hook.result.current.fetchStatus).toBe('fetching'));
+    const r = await refreshRuntime(qc);
+    release();
+    await waitFor(() => expect(hook.result.current.fetchStatus).toBe('idle'));
+    expect(qc.getQueryData(RUNTIME_KEY)).toEqual(r);
+  });
+
   it('under the fake bridge a demo goes along with the refresh and keeps its own entry', async () => {
     const spy = spyRequests();
     const qc = new QueryClient();
