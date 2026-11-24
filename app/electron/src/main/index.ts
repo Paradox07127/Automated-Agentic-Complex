@@ -73,7 +73,7 @@ import { interactionShell } from './interaction/shell.ts';
 import { appendLog, flushErrors, recordError } from './log.ts';
 import { appMenu, pageShortcut } from './menus/app.ts';
 import { SettingsChanges } from './menus/items.ts';
-import { type IconBitmap, squareIcon } from './menus/icon.ts';
+import { type IconBitmap, iconBitmap, squareIcon } from './menus/icon.ts';
 import { openAnnouncement, shellMenus } from './menus/shell.ts';
 import { trayContextMenu } from './menus/tray.ts';
 import { SystemNotifier } from './notify/system.ts';
@@ -792,16 +792,9 @@ function openMain(activate = true): void {
   camera?.mainWindow(win);
 }
 
-/** A 16 pt ring. */
-function ringImage(): NativeImage {
-  const size = 32, pixels = Buffer.alloc(size * size * 4);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const d = Math.hypot(x + 0.5 - size / 2, y + 0.5 - size / 2);
-      if (d >= 9 && d <= 14) pixels.writeUInt32LE(0xff000000, (y * size + x) * 4);
-    }
-  }
-  return nativeImage.createFromBitmap(pixels, { width: size, height: size, scaleFactor: 2 });
+function trayIcon(icon: IconBitmap): NativeImage {
+  const b = shellPlatform() === 'mac' ? icon : squareIcon(icon, nativeTheme.shouldUseDarkColors);
+  return trayImage(nativeImage.createFromBitmap(Buffer.from(b.pixels), { width: b.width, height: b.height, scaleFactor: 2 }));
 }
 
 /** Asks on the main window; true to go on. */
@@ -1075,10 +1068,7 @@ const menus = shellMenus({
   },
   openMain: openMainAt, quit: () => app.quit(), settingsChanged: (keys) => settingsChanges.changed(keys),
   log: (line) => appendLog(config?.supportDir ?? supportDir, 'companion', line),
-  setIcon: (icon: IconBitmap) => {
-    const b = shellPlatform() === 'mac' ? icon : squareIcon(icon, nativeTheme.shouldUseDarkColors);
-    tray?.setImage(trayImage(nativeImage.createFromBitmap(Buffer.from(b.pixels), { width: b.width, height: b.height, scaleFactor: 2 })));
-  },
+  setIcon: (icon: IconBitmap) => tray?.setImage(trayIcon(icon)),
 });
 
 /** With the web panels: the loading card, under the character's name and the
@@ -1389,7 +1379,7 @@ void app.whenReady().then(async () => {
   store?.subscribe(feedCommands({ ctx: opsContext('main'), notice: (text) => desktop?.notice(text),
     log: (line) => appendLog(config?.supportDir ?? supportDir, 'companion', line) }));
   store?.subscribe((e) => recent.receive(e, Date.now()));
-  tray = new Tray(trayImage(ringImage()));
+  tray = new Tray(trayIcon(iconBitmap('normal')));
   tray.setToolTip(statusTitle(config?.supportDir ?? supportDir, DEFAULT_SUPPORT_DIR));
   // Windows has no title beside the icon; the tooltip (statusTitle) says 测试 there.
   if (shellPlatform() === 'mac') tray.setTitle(trayTitle(config?.supportDir ?? null, DEFAULT_SUPPORT_DIR));

@@ -1,5 +1,5 @@
-// The menu bar icon of each state: a template
-// triangle 18 pt high with the state's mark after it, drawn black on transparent at 2x for `nativeImage.createFromBitmap`.
+// The menu bar icon of each state: the app's mark (app/packaging/ui-art-src/brand/emblem.svg without its hatch, corners and
+// wordmark) 18 pt high with the state's mark after it, drawn black on transparent at 2x for `nativeImage.createFromBitmap`.
 import type { MenuBarIconState } from '../../common/menus.ts';
 
 type Point = [number, number];
@@ -19,10 +19,29 @@ const SCALE = 2;
 /** Samples per pixel side. */
 const SUB = 4;
 
-const TRIANGLE: Point[] = [[9, 2.5], [16.5, 15.5], [1.5, 15.5], [9, 2.5]];
-const ERROR: Point[][] = [[[9, 7], [9, 12]]];
+/** emblem.svg's units to pt: its chevron, 362 units tall from y 18, fills 1.5–15.5 pt, centred on x 9. */
+const pt = ([x, y]: Point): Point => [9 + (x - 256) * 14 / 362, 1.5 + (y - 18) * 14 / 362];
+/** The orbit's -9° tilt about (256, 300), in emblem units. */
+function tilt([x, y]: Point): Point {
+  const a = -9 * Math.PI / 180, dx = x - 256, dy = y - 300;
+  return [256 + dx * Math.cos(a) - dy * Math.sin(a), 300 + dx * Math.sin(a) + dy * Math.cos(a)];
+}
+function cubic(p0: Point, p1: Point, p2: Point, p3: Point): Point[] {
+  return Array.from({ length: 25 }, (_, i): Point => {
+    const t = i / 24, u = 1 - t;
+    return [u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0],
+      u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]];
+  }).map((p) => pt(tilt(p)));
+}
+const CHEVRON: Point[] = ([[256, 18], [440, 380], [362, 380], [256, 168], [150, 380], [72, 380]] as Point[]).map(pt);
+/** 4 units larger than emblem.svg's, so that it keeps its corners at 36 px. */
+const DIAMOND: Point[] = ([[256, 246], [292, 282], [256, 318], [220, 282]] as Point[]).map(pt);
+/** The orbit's front arc, which ends the legs with a gap above it, and its two back arcs. */
+const ORBIT_FRONT = cubic([34, 300], [110, 372], [402, 372], [478, 300]);
+const ORBIT = [ORBIT_FRONT, cubic([34, 300], [62, 270], [112, 250], [164, 243]), cubic([348, 243], [400, 250], [450, 270], [478, 300])];
 /** The marks on their 10-unit grid. */
 const MARKS: Partial<Record<MenuBarIconState, Point[][]>> = {
+  error: [[[5, 1.5], [5, 5.8]], [[5, 8.3], [5, 8.3]]],
   switching: [[[1.5, 3.2], [8.5, 3.2]], [[6.3, 1], [8.5, 3.2], [6.3, 5.4]], [[8.5, 6.8], [1.5, 6.8]], [[3.7, 4.6], [1.5, 6.8], [3.7, 9]]],
   restarting: [[[1.5, 3.2], [8.5, 3.2]], [[6.3, 1], [8.5, 3.2], [6.3, 5.4]], [[8.5, 6.8], [1.5, 6.8]], [[3.7, 4.6], [1.5, 6.8], [3.7, 9]]],
   observationPaused: [[[3.5, 1.5], [3.5, 8.5]], [[6.5, 1.5], [6.5, 8.5]]],
@@ -30,7 +49,7 @@ const MARKS: Partial<Record<MenuBarIconState, Point[][]>> = {
   quiet: [[[1.5, 2.5], [8.5, 2.5], [8.5, 7.5], [1.5, 7.5], [1.5, 2.5]]],
   clickThroughAll: [[[5, 1.5], [5, 8.5]], [[2, 5.5], [5, 8.5], [8, 5.5]]],
 };
-/** The mark's rect: 8 pt square, 2 pt after the triangle, centred. */
+/** The state mark's rect: 8 pt square, 2 pt after the app's mark, centred. */
 const MARK = { x: H + 2, y: (H - 8) / 2, size: 8 };
 
 /** Stroke glyphs for the badge count in a 4 × 7 box, standing in for the mono font. */
@@ -85,6 +104,28 @@ function dashed(line: Point[], on: number, off: number): Point[][] {
 const place = (lines: Point[][], x: number, y: number, scale: number): Point[][] =>
   lines.map((l) => l.map(([px, py]): Point => [x + px * scale, y + py * scale]));
 
+/** Even-odd fill. */
+function polygon(points: Point[]): Shape {
+  return (x, y) => {
+    let inside = false;
+    for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+      const [xi, yi] = points[i]!, [xj, yj] = points[j]!;
+      if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  };
+}
+
+/** Below a polyline running left to right, within its x span. */
+function below(line: Point[]): Shape {
+  return (x, y) => {
+    const i = line.findIndex((p) => p[0] >= x);
+    if (i <= 0) return false;
+    const [ax, ay] = line[i - 1]!, [bx, by] = line[i]!;
+    return y > ay + (by - ay) * (x - ax) / (bx - ax);
+  };
+}
+
 /** A rect with half-height round ends. */
 function capsule(x: number, y: number, w: number, h: number): Shape {
   const r = h / 2, a: Point = [x + r, y + r], b: Point = [x + w - r, y + r];
@@ -98,9 +139,10 @@ export function iconBitmap(state: MenuBarIconState, badge = 0): IconBitmap {
   const mark = MARKS[state];
   const widthPt = state === 'pendingApproval' ? badgeRect.x + badgeRect.w
     : mark || state === 'recording' ? MARK.x + MARK.size : H;
-  const ops: { clear: boolean; shape: Shape }[] = [
-    { clear: false, shape: stroke(state === 'hidden' ? dashed(TRIANGLE, 2, 2) : [TRIANGLE], 1.6) }];
-  if (state === 'error') ops.push({ clear: false, shape: stroke(ERROR, 1.6) });
+  // Hidden: the chevron's dashed outline alone.
+  const ops: { clear: boolean; shape: Shape }[] = state === 'hidden' ? [{ clear: false, shape: stroke(dashed([...CHEVRON, CHEVRON[0]!], 2, 1.5), 1.2) }]
+    : [{ clear: false, shape: polygon(CHEVRON) }, { clear: true, shape: below(ORBIT_FRONT) }, { clear: true, shape: stroke([ORBIT_FRONT], 2.6) },
+      { clear: false, shape: polygon(DIAMOND) }, { clear: false, shape: stroke(ORBIT, 1) }];
   if (state === 'recording') {
     const cx = MARK.x + 5 * 0.8, cy = MARK.y + 5 * 0.8, r = 3 * 0.8;
     ops.push({ clear: false, shape: (x, y) => Math.hypot(x - cx, y - cy) <= r });

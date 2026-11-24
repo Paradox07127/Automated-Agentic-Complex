@@ -266,19 +266,28 @@ test('menus: the icon state follows MenuBarIconState.resolve', () => {
 test('menus: each icon is 18 pt high, as wide as its mark or badge, black with alpha only', () => {
   const widths = Object.fromEntries((['normal', 'error', 'hidden', 'recording', 'switching', 'restarting', 'observationPaused',
     'meetingMode', 'quiet', 'clickThroughAll', 'pendingApproval'] as const).map((s) => [s, iconBitmap(s, 3).width]));
-  assert.deepEqual(widths, { normal: 36, error: 36, hidden: 36, recording: 56, switching: 56, restarting: 56, observationPaused: 56,
+  assert.deepEqual(widths, { normal: 36, error: 56, hidden: 36, recording: 56, switching: 56, restarting: 56, observationPaused: 56,
     meetingMode: 56, quiet: 56, clickThroughAll: 56, pendingApproval: 54 });
   const alpha = (b: ReturnType<typeof iconBitmap>, x: number, y: number) => b.pixels[(Math.round(y * 2) * b.width + Math.round(x * 2)) * 4 + 3]!;
   const normal = iconBitmap('normal');
   assert.equal(normal.height, 36);
   assert.ok(normal.pixels.every((v, i) => i % 4 === 3 || v === 0));
-  assert.equal(alpha(normal, 9, 15.5), 255, 'the base line');
-  assert.equal(alpha(normal, 9, 10), 0, 'hollow');
-  assert.equal(alpha(iconBitmap('error'), 9, 9.5), 255, 'the error bar');
-  // The dashed triangle has gaps along its base.
+  // The mark: the chevron's apex and legs, its hollow counter, the diamond, the orbit with a gap above it, no leg below it.
+  assert.equal(alpha(normal, 9, 3.5), 255, 'the apex');
+  assert.equal(alpha(normal, 6.2, 10), 255, 'the left leg');
+  assert.equal(alpha(normal, 11.8, 10), 255, 'the right leg');
+  assert.equal(alpha(normal, 9, 8.5), 0, 'the counter');
+  assert.equal(alpha(normal, 9, 11.7), 255, 'the diamond');
+  assert.equal(alpha(normal, 9, 13), 0, 'the gap above the orbit');
+  assert.equal(alpha(normal, 9, 14), 255, 'the orbit');
+  assert.equal(alpha(normal, 3, 15.5), 0, 'the leg ends at the orbit');
+  const error = iconBitmap('error');
+  assert.deepEqual([alpha(error, 24, 6), alpha(error, 24, 11.6)], [255, 255], 'the bar and the dot after the mark');
+  // Hidden: the chevron's outline alone, dashed along its outer right edge.
   const hidden = iconBitmap('hidden');
-  const base = Array.from({ length: 24 }, (_, i) => alpha(hidden, 3 + i * 0.5, 15.5));
-  assert.ok(base.some((a) => a < 200) && base.some((a) => a === 255));
+  const edge = Array.from({ length: 24 }, (_, i) => alpha(hidden, 9 + i * 0.5 * 0.508, 1.5 + i * 0.5));
+  assert.ok(edge.some((a) => a < 200) && edge.some((a) => a === 255));
+  assert.equal(alpha(hidden, 9, 11.7), 0, 'no diamond');
   assert.equal(alpha(iconBitmap('recording'), 24, 9), 255, 'the filled dot');
   // The badge: the capsule is filled, the count knocked out of it, a gap cut around it.
   const pending = iconBitmap('pendingApproval', 3);
@@ -291,10 +300,10 @@ test('menus: on Windows each icon is centred on a square, white on a dark taskba
   const at = (b: { width: number; pixels: Uint8Array }, x: number, y: number) => [...b.pixels.slice((y * b.width + x) * 4, (y * b.width + x) * 4 + 4)];
   const quiet = iconBitmap('quiet'), dark = squareIcon(quiet, true), light = squareIcon(quiet, false);
   assert.deepEqual([dark.width, dark.height, dark.pixels.length], [56, 56, 56 * 56 * 4]);
-  // The base line's pixel (18, 31), moved down by (56 - 36) / 2.
-  assert.deepEqual(at(quiet, 18, 31), [0, 0, 0, 255]);
-  assert.deepEqual(at(dark, 18, 41), [255, 255, 255, 255]);
-  assert.deepEqual(at(light, 18, 41), [0, 0, 0, 255]);
+  // The orbit's pixel (18, 28), moved down by (56 - 36) / 2.
+  assert.deepEqual(at(quiet, 18, 28), [0, 0, 0, 255]);
+  assert.deepEqual(at(dark, 18, 38), [255, 255, 255, 255]);
+  assert.deepEqual(at(light, 18, 38), [0, 0, 0, 255]);
   assert.deepEqual(at(dark, 18, 5), [0, 0, 0, 0], 'the padding is clear');
   const normal = squareIcon(iconBitmap('normal'), true);
   assert.deepEqual([normal.width, normal.height], [36, 36]);
