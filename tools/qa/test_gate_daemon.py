@@ -454,6 +454,25 @@ class GateDaemonTest(unittest.TestCase):
         self.assertEqual(os.readlink(wt / '.local/library'), str(self.repo / '.local/library'))
         self.assertTrue((wt / '.local/library/packages/si').is_dir())
 
+    def test_link_replaces_a_library_dir_that_holds_only_links(self):
+        self.write('private/release/release.json', json.dumps(dict(character_catalog='.local/library/current.json', ui_art=None, photo_looks=None)))
+        (self.repo / '.local/library/packages/si').mkdir(parents=True)
+        wt = self.tmp / 'stale-library-wt'
+        self.git('worktree', 'add', '-q', '--detach', str(wt), 'main')
+        (wt / '.local/library').mkdir(parents=True)
+        (wt / '.local/library/current.json').symlink_to(self.repo / '.local/library/current.json')
+        self.daemon.link(wt)
+        self.assertEqual(os.readlink(wt / '.local/library'), str(self.repo / '.local/library'))
+
+    def test_link_keeps_a_library_dir_with_real_files(self):
+        self.write('private/release/release.json', json.dumps(dict(character_catalog='.local/library/current.json', ui_art=None, photo_looks=None)))
+        wt = self.tmp / 'own-library-wt'
+        self.git('worktree', 'add', '-q', '--detach', str(wt), 'main')
+        (wt / '.local/library').mkdir(parents=True)
+        (wt / '.local/library/current.json').write_text('{}')
+        self.daemon.link(wt)
+        self.assertEqual((wt / '.local/library/current.json').read_text(), '{}')
+
     def test_link_without_a_local_profile_takes_only_what_the_public_profile_names(self):
         wt = self.tmp / 'public-wt'
         self.git('worktree', 'add', '-q', '--detach', str(wt), 'main')

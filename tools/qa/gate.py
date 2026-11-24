@@ -59,6 +59,8 @@ SYSTEMS = {'macos', 'windows'}
 FORBIDDEN_PORT = '48800'
 # A stored suite result older than this many days is deleted when its suite stores a new one.
 CACHE_DAYS = 14
+# Build output under a path git ignores (private/renderer/core/build): keying on it would change the key on every build.
+UNHASHED_DIRS = {*source_fingerprint.EXCLUDED_PARTS, 'build', 'obj', '.venv'}
 # Seconds a suite (each module of a suite with modules) may run when it sets no "timeout".
 SUITE_TIMEOUT = 1800
 
@@ -592,13 +594,29 @@ def checkout_lock(repo, profile):
 
 
 def blobs(repo, entries):
-    """{path: git blob id} of the existing tracked and untracked, not ignored, files under entries."""
+    """{path: id} of the existing tracked and untracked, not ignored, files under entries: their git blob id.
+
+    An entry git lists nothing under (a directory git ignores) gives the sha256 of each file under it outside
+    UNHASHED_DIRS instead."""
     listed = subprocess.run(['git', '-C', str(repo), 'ls-files', '-z', '-c', '-o', '--exclude-standard', '--', *entries],
                             capture_output=True, check=True).stdout.decode().split('\0')
     paths = sorted({path for path in listed if path and _under(path, entries) and Path(repo, path).is_file()})
     ids = subprocess.run(['git', '-C', str(repo), 'hash-object', '--stdin-paths'], input=''.join(p + '\n' for p in paths),
                          capture_output=True, text=True, check=True).stdout.split()
-    return dict(zip(paths, ids))
+    found = dict(zip(paths, ids))
+    for entry in entries:
+        if any(_under(path, [entry]) for path in paths):
+            continue
+        root = Path(repo, entry)
+        if root.is_file():
+            found[entry] = source_fingerprint.digest(root)
+        for directory, dirnames, filenames in os.walk(root):
+            dirnames[:] = [name for name in dirnames if name not in UNHASHED_DIRS]
+            for name in filenames:
+                path = Path(directory, name)
+                if name != '.DS_Store' and path.is_file():
+                    found[path.relative_to(repo).as_posix()] = source_fingerprint.digest(path)
+    return dict(sorted(found.items()))
 
 
 def cache_keys(doc, phases, repo, ctx, tools):

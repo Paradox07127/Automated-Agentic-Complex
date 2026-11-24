@@ -523,6 +523,23 @@ class LoadSuites(unittest.TestCase):
             write(root / 'README.en.md', 'changed')
             self.assertNotEqual(key(), before)
 
+    def test_a_file_under_an_ignored_path_changes_the_key_and_its_build_output_does_not(self):
+        suite = {'id': 'p', 'paths': ['local/characters/'], 'run': ['true'], 'parse': 'exit', 'line': 'P'}
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write(root / '.gitignore', '/local\n')
+            write(root / 'local/characters/si/persona.json', 'first')
+            subprocess.run(['git', 'init', '-q', str(root)], check=True)
+            phases = [[[('suite', suite)]]]
+            def key():
+                return gate.cache_keys({}, phases, root, {'agentd_python': sys.executable}, {})['p']
+            before = key()
+            write(root / 'local/characters/si/build/out.bin', 'built')
+            write(root / 'local/characters/si/.DS_Store', 'finder')
+            self.assertEqual(key(), before)
+            write(root / 'local/characters/si/persona.json', 'changed')
+            self.assertNotEqual(key(), before)
+
     def test_public_profile_selects_motion_http_tests_for_motion_changes(self):
         doc = gate.load_suites(private=gate.SUITES_FILE.with_name('absent-suites.json'))
         selected, _ = gate.select(doc, ['motion/server.py'])

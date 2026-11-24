@@ -277,6 +277,9 @@ class Daemon:
         (self.root / RECEIPTS).mkdir(parents=True, exist_ok=True)
         for name in names:
             link = checkout / name
+            # A directory the older per-file links left (.local/library holding only a current.json link): replace it.
+            if link.is_dir() and not link.is_symlink() and all(p.is_symlink() for p in link.iterdir()):
+                shutil.rmtree(link)
             if not os.path.lexists(link):
                 link.parent.mkdir(parents=True, exist_ok=True)
                 link.symlink_to(self.root / name)
