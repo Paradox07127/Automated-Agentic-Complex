@@ -148,6 +148,14 @@ test("allow mode samples only allowed hosts, keeps a denied allowed host out and
   assert.ok(h.out.some(m => m.type === "selection" && m.text === "allowed selection"));
 });
 
+test("allow mode ignores a title pattern JavaScript cannot compile", async () => {
+  const h = await harness();
+  h.tab.title = "Documentation";
+  h.setPolicy({ mode: "allow", allow_domains: ["example.com"], title_patterns: ["(?i)private"] }); await h.tick(); await h.tick();
+  assert.equal(h.requests.at(-1).enabled, true);
+  assert.equal(h.out.filter(m => m.type === "page").at(-1).url_host, "example.com");
+});
+
 test("a resumed timer requires dwell and fresh text; an asynchronous pre-sleep result is discarded", async () => {
   const h = await harness(); await h.tick();
   let release;

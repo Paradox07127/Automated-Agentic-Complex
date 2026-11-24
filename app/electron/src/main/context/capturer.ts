@@ -10,7 +10,7 @@ import {
   type AgentdReply, allowsAutomaticText, allowsOCR, allowsRequest, axObservation, type CaptureFailure,
   captureFailure, captureTargetChange, CaptureTriggers, ContextConsent, type ContextPolicy, type ContextResult, contextImageBody,
   contextTextBodies, decideSelection, decodeWindows, type FeedRequest, feedRequest, firstClipItem, frontWindow, imageFailureBody,
-  imageResult, listedBlockReason, type LookResult, lookResult, lookTitle, namedWindow, type Observation, ocrObservation, OwnCapture,
+  imageResult, type LookResult, lookResult, lookTitle, namedWindow, type Observation, ocrObservation, OwnCapture,
   resultText, scalarCount, SELECTION_LIMIT, selectionBlockReason, type SelectionDecision, textResult, windowNow, windowReadPlan,
 } from '../../common/screen-context.ts';
 import type { UserAnswer } from '../attention/sampler.ts';
@@ -382,7 +382,7 @@ export class ContextCapturer {
     }
     const window = found.window, pid = found.window.window.pid!;
     const isFront = this.sample?.front?.windowId === request.windowId;
-    const reason = listedBlockReason(window, this.ports.blacklist(), this.ports.ownPids());
+    const reason = captureBlockReason(window, this.ports.blacklist(), this.ports.ownPids());
     if (reason !== null) {
       log(`CAPTURE request_blocked id=${id} reason=${reason}`);
       if (request.mode === 'image') this.reportFailure(request, window, 'permission_denied');
@@ -505,7 +505,7 @@ export class ContextCapturer {
     const found = await this.windowNow(request.windowId);
     const window = found?.window ?? namedWindow(request.windowId);
     const plan = windowReadPlan(found !== null, this.policy, this.sample?.front?.windowId === request.windowId,
-      found ? listedBlockReason(found.window, rules, ownPids) : null, await this.axTrusted());
+      found ? captureBlockReason(found.window, rules, ownPids) : null, await this.axTrusted());
     if (typeof plan === 'string' || !found) {
       const failure = typeof plan === 'string' ? plan : 'window_gone';
       this.ports.log(`CAPTURE request_blocked id=${id} reason=${failure}`);

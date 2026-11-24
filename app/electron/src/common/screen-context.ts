@@ -1,7 +1,7 @@
 // The screen context capture's rules over the platform helper's answers (CONTRACT §7.2, §7.4–7.6, §7.10), and the bodies of agentd's `/context/text`, `/context/image` and `/look`.
 // The privacy rules are attention.ts's and capture-rules.ts's; this file only applies them.
 import { type AttentionSample, type BlacklistRules, decodeRect, mayBePrivate, type RawWindow, type Rect, redactText } from './attention.ts';
-import { type BlockReason, type CaptureWindow, captureBlockReason, isSecureNode } from './capture-rules.ts';
+import { type CaptureWindow, captureBlockReason, isSecureNode } from './capture-rules.ts';
 
 type Obj = Record<string, unknown>;
 const obj = (v: unknown): Obj | null => (typeof v === 'object' && v !== null && !Array.isArray(v) ? v as Obj : null);
@@ -212,16 +212,9 @@ export function captureFailure(code: string): CaptureFailure {
   return code === 'permission_denied' || code === 'window_gone' ? code : 'capture_failed';
 }
 
-/** captureBlockReason for a `windows.list` window, which has no title without the Screen Recording permission: a title
- *  rule that can't be checked blocks it. */
-export function listedBlockReason(w: CaptureWindow, rules: BlacklistRules, ownPids: readonly number[]): BlockReason | null {
-  return captureBlockReason(w, rules, ownPids)
-    ?? (rules.titles.length > 0 && w.window.title === null ? 'blacklisted' : null);
-}
-
 /** For a `look_window` text request: the AX level the policy allows for it, or the failure to report. The focused level
  *  reads only the front window. Never OCR: agentd asks for an image itself when AX can't read the window. `block` is
- *  listedBlockReason's result. */
+ *  captureBlockReason's result. */
 export function windowReadPlan(windowFound: boolean, p: ContextPolicy, isFront: boolean, block: string | null,
   axTrusted: boolean): { level: 'focused' | 'window' } | CaptureFailure {
   if (!windowFound) return 'window_gone';

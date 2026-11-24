@@ -27,7 +27,7 @@
 | `bundle_ids` | 字符串数组 | 窗口的 bundle id 等于其中一项就排除 |
 | `app_names` | 字符串数组 | 应用名不分大小写等于其中一项就排除；空的应用名不匹配 |
 | `domains` | 字符串数组 | 主机名不分大小写等于其中一项，或是它的子域，就排除 |
-| `title_patterns` | 字符串数组 | 正则，在窗口标题里搜索，搜到就排除。agentd 和 native host 用 Python `re`，Companion 用 `NSRegularExpression`；Companion 编不过的表达式忽略 |
+| `title_patterns` | 字符串数组 | 正则，在窗口标题里搜索，搜到就排除。agentd 和 native host 用 Python `re`，Companion 用 `NSRegularExpression`，浏览器扩展用 JavaScript `RegExp`；Companion 和扩展编不过的表达式忽略，native host 照样按 Python `re` 用它丢弃 |
 | `incognito` | 布尔 | 黑名单模式下为真时 Companion 不采集无痕窗口和标签页；白名单模式下无痕一律不采集，不看这个键。只有 Companion 读它 |
 | `mode` | 字符串 | `"allow"`（白名单）或 `"deny"`（黑名单）。缺少或是别的值按 `"allow"`。上面四个数组在两种模式下都用：命中其中一项就排除，白名单也放不过 |
 | `allow` | 对象 | 白名单：`{"bundle_ids": [], "app_names": [], "domains": []}`，三个字符串数组，缺少的按空数组。只在 `"allow"` 下用 |

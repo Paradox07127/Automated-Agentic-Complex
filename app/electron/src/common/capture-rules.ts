@@ -6,9 +6,11 @@ export interface CaptureWindow { window: AttentionWindow; incognito: boolean | n
 
 export type BlockReason = 'blacklisted' | 'incognito' | 'browser_unknown' | 'secure_input';
 
-/** The reason agentd would give for dropping this window's content, or null. */
+/** The reason agentd would give for dropping this window's content, or null. A title rule that can't be checked
+ *  because the title is unreadable blocks the window. */
 export function captureBlockReason(w: CaptureWindow, rules: BlacklistRules, ownPids: readonly number[]): BlockReason | null {
   if (hides(rules, w.window, ownPids)) return 'blacklisted';
+  if (rules.titles.length > 0 && w.window.title === null) return 'blacklisted';
   if (w.incognito === true && rules.incognito) return 'incognito';
   // Unknown means the URL host is unknown too, so the domain blacklist can't be checked either.
   if (w.incognito === null) return 'browser_unknown';

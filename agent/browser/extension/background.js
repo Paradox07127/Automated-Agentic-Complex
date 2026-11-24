@@ -15,7 +15,7 @@ const ids = state => ({ browser_session: browserSession, document_id: state.docu
 const send = message => { if (port && message) { try { port.postMessage(message); } catch {} } };
 function hidden(tab) {
   return tab.incognito || !hostOf(tab.url) || blocked(hostOf(tab.url), policy) || policy.title_patterns.some(p => {
-    try { return new RegExp(p).test(tab.title || ""); } catch { return true; }
+    try { return new RegExp(p).test(tab.title || ""); } catch { return false; }
   });
 }
 async function activeTab() {

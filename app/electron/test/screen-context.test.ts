@@ -2,11 +2,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { type AttentionSample, type AttentionWindow, parseBlacklist } from '../src/common/attention.ts';
-import type { CaptureWindow } from '../src/common/capture-rules.ts';
+import { type CaptureWindow, captureBlockReason } from '../src/common/capture-rules.ts';
 import {
   allowsAutomaticText, allowsOCR, allowsRequest, axObservation, captureFailure, captureTargetChange,
   CaptureTriggers, ContextConsent, contextImageBody, contextPolicy, contextTextBodies, DEFAULT_CONTEXT_POLICY, decideSelection,
-  decodeWindows, feedRequest, firstClipItem, imageFailureBody, imageResult, listedBlockReason, lookResult, lookTitle, type Observation, ocrObservation,
+  decodeWindows, feedRequest, firstClipItem, imageFailureBody, imageResult, lookResult, lookTitle, type Observation, ocrObservation,
   OwnCapture, revokedKinds, selectionBlockReason, textPages, textResult, windowNow, windowReadPlan,
 } from '../src/common/screen-context.ts';
 
@@ -183,14 +183,14 @@ test('WindowReadPlan.decide: gone, not allowed, blocked or a background window a
   assert.deepEqual(windowReadPlan(true, whole, false, null, true), { level: 'window' });
 });
 
-test('listedBlockReason: a listed window without its title is blocked while a title rule exists', () => {
-  assert.equal(listedBlockReason(cw({ title: null }), rules, []), 'blacklisted');
-  assert.equal(listedBlockReason(cw({ title: 'notes.txt' }), rules, []), null);
-  assert.equal(listedBlockReason(cw({ title: null }), NO_RULES, []), null);
-  assert.equal(listedBlockReason(cw({ title: null }), parseBlacklist({ mode: 'allow', title_patterns: ['^Private'],
+test('captureBlockReason: a window without its title is blocked while a title rule exists', () => {
+  assert.equal(captureBlockReason(cw({ title: null }), rules, []), 'blacklisted');
+  assert.equal(captureBlockReason(cw({ title: 'notes.txt' }), rules, []), null);
+  assert.equal(captureBlockReason(cw({ title: null }), NO_RULES, []), null);
+  assert.equal(captureBlockReason(cw({ title: null }), parseBlacklist({ mode: 'allow', title_patterns: ['^Private'],
     allow: { bundle_ids: ['com.apple.TextEdit'] } }), []), 'blacklisted', 'a title rule applies in allow mode too');
-  assert.equal(listedBlockReason(cw({ title: null }), parseBlacklist({ mode: 'allow', allow: { bundle_ids: ['com.apple.TextEdit'] } }), []), null);
-  assert.equal(listedBlockReason(cw({ bundleId: 'com.secret' }), rules, []), 'blacklisted');
+  assert.equal(captureBlockReason(cw({ title: null }), parseBlacklist({ mode: 'allow', allow: { bundle_ids: ['com.apple.TextEdit'] } }), []), null);
+  assert.equal(captureBlockReason(cw({ bundleId: 'com.secret' }), rules, []), 'blacklisted');
 });
 
 test('captureFailure: capture.window errors as agentd failures', () => {
