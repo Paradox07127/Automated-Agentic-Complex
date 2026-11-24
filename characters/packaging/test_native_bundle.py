@@ -85,6 +85,31 @@ class BundleTests(unittest.TestCase):
   with self.assertRaisesRegex(n.BundleError,'reference/inventory mismatch: characters/fixture/graph/Files/texture.bytes'):n.verify(self.pooledGraph(True,POOLED,other_container))
  def testGraphBlobAbsentUnderGraphAndPoolFails(self):
   with self.assertRaisesRegex(n.BundleError,'reference/inventory mismatch: characters/fixture/graph/Files/texture.bytes'):n.verify(self.pooledGraph(False))
+ def testGraphBlobOnlyInTheSourcePoolBuilds(self):
+  recipe=self.recipe();r=n.load(recipe);e=r['characters'][0];data=b'texture only in the source pool';sha=hashlib.sha256(data).hexdigest()
+  self.blob('source/Files/'+sha+'.bytes',data);path=self.inputs/'graph/frame-graph.json';g=n.load(path)
+  g['textures']=[dict(id='texture',file='Files/texture.bytes',sha256=sha,byte_count=len(data))];n.write_neutral(self.inputs,dict(graph=dict(file='graph/frame-graph.json')),g)
+  e['graph'].update(sha256=n.digest(path),byte_count=path.stat().st_size);recipe.write_bytes(n.json_bytes(r))
+  out=n.build(recipe,self.root/'bundle');shutil.rmtree(self.inputs);n.verify_isolated(out)
+  self.assertEqual((out/'characters/fixture/source/Files'/(sha+'.bytes')).read_bytes(),data);self.assertFalse((out/'characters/fixture/graph/Files').exists())
+ def testSourceCutoutAndTextureVariantAreShippedAndVerified(self):
+  # As an outfit import leaves the source manifest: a draw's cutout mask and a texture variant, blobs no other reference names.
+  recipe=self.recipe();r=n.load(recipe);e=r['characters'][0];source=self.inputs/'source/manifest.json';s=n.load(source)
+  s['draws'][0]['cutout']=dict(self.blob('source/Files/cutout.bytes',b'cutout mask'),file='Files/cutout.bytes',channel=3,threshold=0.5)
+  s['texture_variants']=[dict(self.blob('source/Files/variant.bytes',b'variant texels'),file='Files/variant.bytes')];source.write_bytes(n.json_bytes(s))
+  c7=self.inputs/'c7/pack.json';pack=n.load(c7);pack['render']['manifest'].update(sha256=n.digest(source),byte_count=source.stat().st_size);c7.write_bytes(n.json_bytes(pack))
+  e['c7'].update(sha256=n.digest(c7),byte_count=c7.stat().st_size);e['source'].update(sha256=n.digest(source),byte_count=source.stat().st_size)
+  graph=self.inputs/'graph/frame-graph.json';g=n.load(graph);g['manifest_sha256']=n.digest(source);graph.write_bytes(n.json_bytes(g))
+  e['graph'].update(sha256=n.digest(graph),byte_count=graph.stat().st_size);recipe.write_bytes(n.json_bytes(r))
+  out=n.build(recipe,self.root/'bundle');manifest=n.load(out/'bundle.json')
+  for name in ['cutout.bytes','variant.bytes']:
+   with self.subTest(name=name):
+    rel='characters/fixture/source/Files/'+name;self.assertIn(rel,{f['file'] for f in manifest['files']})
+    cut=self.root/'cut';shutil.copytree(out,cut);(cut/rel).unlink()
+    (cut/'bundle.json').write_bytes(n.json_bytes(dict(manifest,files=[f for f in manifest['files'] if f['file']!=rel])))
+    with self.assertRaisesRegex(n.BundleError,'reference/inventory mismatch: '+rel):n.verify(cut)
+    shutil.rmtree(cut)
+  shutil.rmtree(self.inputs);n.verify_isolated(out)
  def testTamperedCopiedBlobFails(self):
   out=n.build(self.recipe(),self.root/'bundle');(out/'characters/fixture/source/data.bin').write_bytes(b'bad');self.assertRaises(n.BundleError,n.verify,out)
  def testDerivedVisibilityHasTheOriginalRolesDrawCoverageAndRejectsUnknownTargets(self):

@@ -7,6 +7,7 @@ import types
 import unittest
 import urllib.request
 from pathlib import Path
+from unittest import mock
 
 import numpy as np
 import torch
@@ -41,7 +42,8 @@ class Net(nn.Module):
 
 
 def config(base_sha256='a'*64):
-    return {'name': 'tiny', 'rank': R, 'alpha': ALPHA, 'layers': LAYERS, 'base_sha256': base_sha256}
+    return {'name': 'tiny', 'rank': R, 'alpha': ALPHA, 'layers': LAYERS, 'base_sha256': base_sha256,
+            'entries': [{'module': layer, 'param': 'in_proj_weight', 'kind': 'qkv'} for layer in LAYERS]}
 
 
 def tensors(zero_b):
@@ -116,17 +118,16 @@ class TargetsTest(unittest.TestCase):
             self.assertLessEqual(max((self.weight(tuned, e)-self.weight(merged, e)).abs().max().item() for e, _ in es), 1e-6, kind)
             self.assertGreater(min((self.weight(merged, e)-w).abs().max().item() for e, w in es), 1e-3, kind)
 
-    def test_a_config_without_entries_merges_qkv_only(self):
+    def test_a_config_without_entries_is_refused(self):
         tuned, merged, entries, t = self.parametrized(['qkv'])
         layers = train.lora_layers(tuned)
-        self.assertEqual(sorted(t), sorted(f'{layer}.{n}' for layer in layers for n in ('A', 'B')))
         before = {k: v.clone() for k, v in merged.state_dict().items()}
-        bk.merge_lora(merged, {**config(), 'layers': layers}, t)
-        for e in entries:
-            self.assertLessEqual((self.weight(tuned, e)-self.weight(merged, e)).abs().max().item(), 1e-6)
+        layers_only = {k: v for k, v in config().items() if k != 'entries'}
+        for cfg in ({**layers_only, 'layers': layers}, {**config(), 'layers': layers, 'entries': []}):
+            with self.subTest(entries=cfg.get('entries')), self.assertRaisesRegex(ValueError, 'entries'):
+                bk.merge_lora(merged, cfg, t)
         for k, v in merged.state_dict().items():
-            if not k.endswith('in_proj_weight'):
-                self.assertTrue(torch.equal(v, before[k]), k)
+            self.assertTrue(torch.equal(v, before[k]), k)
 
 
 class TrainOptionsTest(unittest.TestCase):
@@ -179,6 +180,23 @@ class LoraFileTest(unittest.TestCase):
         self.assertEqual(sha, bk.file_sha256(tmp/'lora.pt'))
         with self.assertRaisesRegex(ValueError, 'base checkpoint'):
             bk.read_lora(tmp/'lora.pt', 'c'*64)
+
+    def test_an_interrupted_save_keeps_the_previous_file(self):
+        tmp = Path(self.enterContext(tempfile.TemporaryDirectory()))
+
+        def torn(obj, path):
+            Path(path).write_bytes(b'partial')
+            raise OSError('No space left on device')
+
+        for path, save in ((tmp/'lora.pt', lambda: train.save_lora(tmp/'lora.pt', config(), tensors(zero_b=False))),
+                           (tmp/'ckpt.pt', lambda: train.save_replace({'step': 2}, tmp/'ckpt.pt'))):
+            with self.subTest(path=path.name):
+                path.write_bytes(b'previous good save')
+                with mock.patch.object(train.torch, 'save', torn), self.assertRaises(OSError):
+                    save()
+                self.assertEqual(path.read_bytes(), b'previous good save')
+        train.save_replace({'step': 3}, tmp/'ckpt.pt')
+        self.assertEqual(torch.load(tmp/'ckpt.pt'), {'step': 3})
 
 
 class DatasetTest(unittest.TestCase):

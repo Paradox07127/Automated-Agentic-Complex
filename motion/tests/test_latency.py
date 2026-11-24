@@ -64,6 +64,25 @@ class LatencyTest(unittest.TestCase):
         self.assertEqual(summary["turn_30"]["bytes"], {"meta": 15, "keys": 10, "tracks": 16})
         self.assertEqual(summary["wave_3s"]["bytes"], {"meta": 94, "keys": 10})
 
+    def test_authored_gesture_is_not_a_generated_sample(self):
+        with tempfile.TemporaryDirectory() as cache:
+            package = Path(cache) / "package"
+            animation = package / "runtime/characters/c/c7/animation"
+            animation.mkdir(parents=True)
+            (animation / "actions.json").write_text(json.dumps({"actions": [
+                {"id": "wave_a", "section": "talk", "clips": ["wave_a"], "gestures": ["wave"]}]}))
+            (animation / "clip-catalog.json").write_text(json.dumps({"clips": [{"name": "wave_a", "length": 2.0}]}))
+            harness = latency.Harness("http://service", "t", package, cache, client=FakeClient(), retarget=FakeRetarget)
+            try:
+                samples = [harness.one("wave_3s"), harness.one("bow_2s")]
+            finally:
+                harness.close()
+        summary = latency.summarize(samples)
+        self.assertEqual((summary["wave_3s"]["n"], summary["wave_3s"]["authored"]), (0, 1))
+        self.assertIsNone(summary["wave_3s"]["wall_ms"])
+        self.assertEqual((summary["bow_2s"]["n"], summary["bow_2s"]["authored"]), (1, 0))
+        self.assertEqual(summary["bow_2s"]["fallbacks"], {})
+
     def test_percentiles_and_budget(self):
         samples = [{"case": "c", "fallback": None, "wall_ms": float(v), "total_ms": v} for v in range(1, 11)]
         samples[-1].update(fallback="timeout", wall_ms=None)

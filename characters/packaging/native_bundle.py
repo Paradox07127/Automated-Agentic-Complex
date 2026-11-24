@@ -59,6 +59,8 @@ def references(doc,kind):
             for j,r in enumerate(draw['resources']):
                 if 'cube' in str(r.get('reflected_type','')).lower() and doc.get('original_cube'):continue
                 if isinstance(r.get('file'),str) and isinstance(r.get('sha256'),str):yield ('draws',i,'resources',j),r,'blob',''
+            if 'cutout' in draw:yield ('draws',i,'cutout'),draw['cutout'],'blob',''
+        for j,r in enumerate(doc.get('texture_variants') or []):yield ('texture_variants',j),r,'blob',''
         if doc.get('original_cube'):yield ('original_cube',),doc['original_cube'],'blob',''
     elif kind=='library':
         require(doc.get('schema')=='metal-program-library-v1','unknown program schema')
@@ -146,7 +148,8 @@ class Builder:
         if out.exists():require(out.read_bytes()==data,'generated path collision')
         else:out.write_bytes(data)
         return self.record(target,sha,len(data),role)
-    def component(self,source,target,kind,expected=None,expected_size=None,actor_source_root=None,actor_target_root=None):
+    def component(self,source,target,kind,expected=None,expected_size=None,actor_source_root=None,actor_target_root=None,pool=None):
+        """pool: for a graph, (source Files directory, its bundle path), where a blob absent under graph/ is read by SHA, as verify does."""
         source=pathlib.Path(source).resolve();target=str(relative(str(target)))
         if kind=='optional_blob':
             if not source.is_file():return None
@@ -172,6 +175,7 @@ class Builder:
             if abs_path:rel='evidence/'+r['sha256']+'.json'
             else:rel=raw
             dst=target_base/section/rel
+            if pool is not None and not src.is_file():src=pool[0]/(r['sha256']+'.bytes');dst=pool[1]/(r['sha256']+'.bytes')
             child=self.component(src,str(dst),sub,r['sha256'],r.get('byte_count'),source.parent if kind=='archive' else None,pathlib.PurePosixPath(target).parent if kind=='archive' else None)
             if child is None:continue
             if child.sha256 != r['sha256'] or rel != raw:
@@ -327,7 +331,8 @@ def build(recipe_path,output):
             e=dict(id=name,default_clip=c['default_clip'],default_appearance=c.get('default_appearance','default'))
             for field,kind,directory in [('c7','c7','c7'),('actor_archive','archive','actor'),('source','source','source'),('library','library','programs'),('graph','graph','graph'),('lighting','lighting','lighting')]:
                 item=c[field];path=pathlib.Path(item['file']);path=path if path.is_absolute() else recipe_path.parent/path;dest=f'characters/{name}/{directory}/{path.name}'
-                e[field]=b.component(path,dest,kind,item['sha256'],item.get('byte_count')).ref()
+                if field=='source':pool=(path.resolve().parent/'Files',pathlib.PurePosixPath(dest).parent/'Files')
+                e[field]=b.component(path,dest,kind,item['sha256'],item.get('byte_count'),pool=pool if kind=='graph' else None).ref()
             pack=load(staging/e['c7']['file']);graph=load(staging/e['graph']['file'])
             require(pack['id']==name and pack['render']['manifest']['sha256']==e['source']['sha256'],'C7/native source identity mismatch')
             require(graph['manifest_sha256']==e['source']['sha256'],'graph/source identity mismatch')

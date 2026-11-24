@@ -16,6 +16,7 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import random
 import re
 import sys
@@ -247,9 +248,16 @@ def lora_tensors(mods):
     return {f'{layer}.{n}': getattr(mod, n).detach().clone() for layer, mod in mods.items() for n in ('A', 'B')}
 
 
+def save_replace(obj, path):
+    """torch.save through a .tmp beside path, so an interrupted save leaves the previous file whole."""
+    tmp = Path(path).with_suffix('.tmp')
+    torch.save(obj, tmp)
+    os.replace(tmp, path)
+
+
 def save_lora(path, config, tensors):
     """lora.pt as backend_kimodo.read_lora reads it."""
-    torch.save({'config': config, 'tensors': {k: v.detach().cpu() for k, v in tensors.items()}}, path)
+    save_replace({'config': config, 'tensors': {k: v.detach().cpu() for k, v in tensors.items()}}, path)
 
 
 def text_encoder_id():
@@ -468,7 +476,7 @@ def train(args):
             (out/name).unlink(missing_ok=True)
 
     def checkpoint(step):
-        torch.save({'step': step, 'lora': lora_tensors(mods), 'ema': ema, 'opt': opt.state_dict(), 'sched': sched.state_dict(),
+        save_replace({'step': step, 'lora': lora_tensors(mods), 'ema': ema, 'opt': opt.state_dict(), 'sched': sched.state_dict(),
                     'random': random.getstate(), 'torch': torch.get_rng_state(), 'cuda': torch.cuda.get_rng_state()}, out/'ckpt.pt')
 
     net.train()

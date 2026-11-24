@@ -168,6 +168,10 @@ class ServerTest(unittest.TestCase):
                 self.assertIn('error', json.loads(reply))
         self.assertEqual(self.call('/v1/generate', raw=b'{not json')[0], 400)
         self.assertEqual(self.call('/v1/generate', raw=b'\xff\xfe')[0], 400)
+        huge = b'{"prompt": "a", "seconds": 1' + b'0'*400 + b'}'
+        with self.assertRaises(server.BadRequest):
+            server.parse_generate(json.loads(huge))
+        self.assertEqual(self.call('/v1/generate', raw=huge)[0], 400)
         self.assertEqual(self.backend.requests, [])
 
     def test_npz_has_the_four_keys_with_their_shapes(self):

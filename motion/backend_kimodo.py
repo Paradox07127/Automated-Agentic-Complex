@@ -176,14 +176,16 @@ def read_lora(path, base_sha256):
 
 
 def lora_key(entry):
-    """Prefix of an entry's '.A'/'.B' tensors: '<module>' for qkv (as lora.pt before entries), else '<module>.<param>'."""
+    """Prefix of an entry's '.A'/'.B' tensors: '<module>' for qkv, else '<module>.<param>'."""
     return entry['module'] if entry['kind'] == 'qkv' else f'{entry["module"]}.{entry["param"]}'
 
 
 def merge_lora(net, config, tensors):
-    """W + (alpha/rank)·B·A into each entry's weight of net; a config without entries has the qkv of its layers."""
+    """W + (alpha/rank)·B·A into each entry's weight of net; a config without entries is refused."""
     scale = config['alpha']/config['rank']
-    entries = config.get('entries') or [{'module': layer, 'param': 'in_proj_weight', 'kind': 'qkv'} for layer in config['layers']]
+    entries = config.get('entries')
+    if not entries:
+        raise ValueError(f'LoRA {config.get("name")!r} has no entries: retrain it with train.py')
     with torch.no_grad():
         for e in entries:
             w, key = getattr(net.get_submodule(e['module']), e['param']), lora_key(e)

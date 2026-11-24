@@ -40,9 +40,15 @@ class BadRequest(ValueError):
 
 
 def _number(v, name):
-    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
         raise BadRequest(f'{name} must be a finite number')
-    return float(v)
+    try:
+        f = float(v)
+    except OverflowError:
+        raise BadRequest(f'{name} must be a finite number') from None
+    if not math.isfinite(f):
+        raise BadRequest(f'{name} must be a finite number')
+    return f
 
 
 def _int(v, name, lo, hi):

@@ -52,8 +52,8 @@ class _Settings:
     """The MotionSettings surface Performer reads, with the token kept in memory only."""
     generated = True
 
-    def __init__(self, url, token):
-        self.service_url, self._token = url, token
+    def __init__(self, token):
+        self._token = token
 
     def token(self):
         return self._token
@@ -91,9 +91,9 @@ class Harness:
         self.store = MotionStore()
         self._lock = threading.Lock()
         self._waiting = {}  # trace_id -> sample being filled
-        self.performer = performer.Performer(_Settings(url, token), self._publish, lambda: package_root, cache_dir,
+        self.performer = performer.Performer(_Settings(token), self._publish, lambda: package_root, cache_dir,
                                              offer=self._offer, trace=self._trace, client=client, store=self.store, retarget=retarget,
-                                             perform_budget=BUDGET, request_budget=BUDGET)
+                                             perform_budget=BUDGET, request_budget=BUDGET, service_url=url)
         self._server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), self._handler())
         threading.Thread(target=self._server.serve_forever, daemon=True).start()
         self.files_url = f"http://127.0.0.1:{self._server.server_address[1]}/motions/"
@@ -150,6 +150,7 @@ class Harness:
         if sample is None:
             return
         attrs = attrs or {}
+        sample["kind"] = kind
         sample.update({k: attrs.get(k) for k in ("generate_ms", "retarget_ms", "total_ms")})
         sample["fallback"] = attrs.get("reason") if kind == "motion.fallback" else None
         sample["done"].set()
@@ -210,14 +211,16 @@ def run(harness, n=N, warmup=WARMUP):
 
 def summarize(samples):
     """Per case: percentiles of FIELDS, the fallbacks, and how many samples would have missed agentd's budget for
-    that kind (a perform's, else a host request's)."""
+    that kind (a perform's, else a host request's), over the generated samples only; authored counts the samples that
+    played the package's own gesture."""
     out = {}
     for case in dict.fromkeys(s["case"] for s in samples):
-        mine = [s for s in samples if s["case"] == case]
+        every = [s for s in samples if s["case"] == case]
+        mine = [s for s in every if s.get("kind") != "motion.matched"]
         perform = any(p[0] == case.split(":")[-1] for p in PERFORM)
         budget_ms = (performer.PERFORM_BUDGET if perform else performer.REQUEST_BUDGET) * 1000
         fallbacks = [s["fallback"] for s in mine if s["fallback"]]
-        out[case] = {"n": len(mine), **{f: stats([s.get(f) for s in mine]) for f in FIELDS},
+        out[case] = {"n": len(mine), "authored": len(every) - len(mine), **{f: stats([s.get(f) for s in mine]) for f in FIELDS},
                      "over_budget": sum(1 for s in mine if s["fallback"] or (s.get("wall_ms") or 0) > budget_ms),
                      "fallbacks": {r: fallbacks.count(r) for r in dict.fromkeys(fallbacks)},
                      "bytes": next((s["bytes"] for s in mine if s.get("bytes")), None)}
@@ -227,14 +230,15 @@ def summarize(samples):
 def markdown(summary, header):
     def cell(st):
         return "-" if st is None else f"{st['p50']:.0f} / {st['p95']:.0f} / {st['max']:.0f}"
-    lines = [header, "", "p50 / p95 / max in ms; over budget counts wall time over agentd's budget (perform 4 s, host request 2.5 s) or a fallback.", "",
-             "| case | n | generate | retarget | total | wall (publish) | fetch | over budget | fallbacks | bytes meta/keys/tracks |",
-             "|---|---|---|---|---|---|---|---|---|---|"]
+    lines = [header, "", "p50 / p95 / max in ms; over budget counts wall time over agentd's budget (perform 4 s, host request 2.5 s) or a fallback; "
+             "authored counts the samples that played the package's own gesture, left out of every other column.", "",
+             "| case | n | authored | generate | retarget | total | wall (publish) | fetch | over budget | fallbacks | bytes meta/keys/tracks |",
+             "|---|---|---|---|---|---|---|---|---|---|---|"]
     for case, s in summary.items():
         b = s["bytes"] or {}
         sizes = "/".join(str(b.get(k, "-")) for k in ("meta", "keys", "tracks"))
         fallbacks = ", ".join(f"{r} x{c}" for r, c in s["fallbacks"].items()) or "-"
-        lines.append(f"| {case} | {s['n']} | " + " | ".join(cell(s[f]) for f in FIELDS)
+        lines.append(f"| {case} | {s['n']} | {s['authored']} | " +" | ".join(cell(s[f]) for f in FIELDS)
                      + f" | {s['over_budget']} | {fallbacks} | {sizes} |")
     return "\n".join(lines) + "\n"
 
