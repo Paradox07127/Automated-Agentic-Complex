@@ -895,7 +895,7 @@ class ElectronHostStageTests(unittest.TestCase):
                 'LSUIElement', 'AgenticComplexBuildFingerprint']},
             dict(CFBundleIdentifier=self.args.id, CFBundleName='Agentic Complex', CFBundleDisplayName='Agentic Complex',
                  CFBundleExecutable='AgenticComplex', CFBundleIconFile='AppIcon', CFBundlePackageType='APPL',
-                 CFBundleShortVersionString='0.3.0', CFBundleVersion=self.args.build_version, LSMinimumSystemVersion='26.0',
+                 CFBundleShortVersionString='0.3.0', CFBundleVersion=self.args.build_version, LSMinimumSystemVersion='15.0',
                  LSUIElement=True, AgenticComplexBuildFingerprint=source['fingerprint']))
         self.assertEqual({key: value for key, value in info.items() if key.endswith('UsageDescription')},
                          dict(NSAppleEventsUsageDescription='按设置读取前台浏览器域名或跳转会话。',

@@ -26,49 +26,55 @@ struct Handler {
 
 enum Ops {
     /// The ops this helper implements. `hello` lists exactly these; the other ops of ops.json answer `unsupported`.
-    static let handlers: [String: Handler] = [
-        "screens.list": Handler(onMain: true, run: Screens.list),
-        "windows.list": Handler(onMain: false, run: Windows.list),
-        "windows.at_point": Handler(onMain: false, run: Windows.atPoint),
-        "workspace.watch": Handler(onMain: true, run: Workspace.watch, answered: Workspace.state.answered),
-        "attention.sample": Handler(onMain: false, run: Attention.sample),
-        "presence.watch": Handler(onMain: true, run: Presence.watch, answered: Presence.state.answered),
-        "browser.front_tab": Handler(onMain: false, run: Browser.frontTab),
-        "input.modifiers": Handler(onMain: false, run: Modifiers.read),
-        "input.watch": Handler(onMain: true, run: InputWatch.watch, answered: InputWatch.state.answered),
-        "input.actions": Handler(onMain: true, run: ActionWatch.watch, answered: ActionWatch.state.answered),
-        "ax.focused": Handler(onMain: false, run: AXOps.focused),
-        "ax.dialog_buttons": Handler(onMain: false, run: AXOps.dialogButtons),
-        "ax.overlays": Handler(onMain: false, run: AXOps.overlays),
-        "ax.hit_chain": Handler(onMain: false, run: AXOps.hitChain),
-        "ax.window_text": Handler(onMain: false, cancellable: WindowText.read),
-        "ax.window_tree": Handler(onMain: false, cancellable: WindowTree.read),
-        "ax.selected_text": Handler(onMain: false, run: AXOps.selectedText),
-        "ax.video_rect": Handler(onMain: false, cancellable: AXOps.videoRect),
-        "ax.watch": Handler(onMain: false, run: AXWatch.watch, answered: AXWatch.answered),
-        "capture.window": Handler(onMain: false, cancellable: Capture.window),
-        "capture.ambient": Handler(onMain: false, cancellable: Capture.ambient),
-        "ocr.languages": Handler(onMain: false, run: OCR.languages),
-        "ocr.recognize": Handler(onMain: false, cancellable: OCR.recognize),
-        "speech.locales": Handler(onMain: false, run: Mic.locales),
-        "mic.start": Handler(onMain: false, cancellable: Mic.start, answered: Mic.answered),
-        "mic.stop": Handler(onMain: false, run: Mic.stop),
-        "ptt.register": Handler(onMain: true, run: PushToTalk.register),
-        "ptt.unregister": Handler(onMain: true, run: PushToTalk.unregister),
-        "control.observe": Handler(onMain: false, cancellable: Control.observe),
-        "control.act": Handler(onMain: false, cancellable: Control.act),
-        "control.read": Handler(onMain: false, cancellable: Control.read),
-        "control.listen": Handler(onMain: false, run: ControlListen.listen, answered: ControlListen.answered),
-        "control.respond": Handler(onMain: false, run: ControlListen.respond),
-        "clipboard.read": Handler(onMain: true, run: Clipboard.read),
-        "apps.running": Handler(onMain: true, run: Apps.running),
-        "apps.installed": Handler(onMain: false, run: Apps.installed),
-        "apps.activate": Handler(onMain: true, run: Apps.activate),
-        "terminal.focus": Handler(onMain: false, run: { Terminal.focus($0, .live) }),
-        "process.usage": Handler(onMain: false, run: Processes.usage),
-        "permissions.status": Handler(onMain: false, run: Permissions.status),
-        "permissions.request": Handler(onMain: false, run: { Permissions.request($0, .live) }),
-    ]
+    static let handlers: [String: Handler] = {
+        var table: [String: Handler] = [
+            "screens.list": Handler(onMain: true, run: Screens.list),
+            "windows.list": Handler(onMain: false, run: Windows.list),
+            "windows.at_point": Handler(onMain: false, run: Windows.atPoint),
+            "workspace.watch": Handler(onMain: true, run: Workspace.watch, answered: Workspace.state.answered),
+            "attention.sample": Handler(onMain: false, run: Attention.sample),
+            "presence.watch": Handler(onMain: true, run: Presence.watch, answered: Presence.state.answered),
+            "browser.front_tab": Handler(onMain: false, run: Browser.frontTab),
+            "input.modifiers": Handler(onMain: false, run: Modifiers.read),
+            "input.watch": Handler(onMain: true, run: InputWatch.watch, answered: InputWatch.state.answered),
+            "input.actions": Handler(onMain: true, run: ActionWatch.watch, answered: ActionWatch.state.answered),
+            "ax.focused": Handler(onMain: false, run: AXOps.focused),
+            "ax.dialog_buttons": Handler(onMain: false, run: AXOps.dialogButtons),
+            "ax.overlays": Handler(onMain: false, run: AXOps.overlays),
+            "ax.hit_chain": Handler(onMain: false, run: AXOps.hitChain),
+            "ax.window_text": Handler(onMain: false, cancellable: WindowText.read),
+            "ax.window_tree": Handler(onMain: false, cancellable: WindowTree.read),
+            "ax.selected_text": Handler(onMain: false, run: AXOps.selectedText),
+            "ax.video_rect": Handler(onMain: false, cancellable: AXOps.videoRect),
+            "ax.watch": Handler(onMain: false, run: AXWatch.watch, answered: AXWatch.answered),
+            "capture.window": Handler(onMain: false, cancellable: Capture.window),
+            "capture.ambient": Handler(onMain: false, cancellable: Capture.ambient),
+            "ocr.languages": Handler(onMain: false, run: OCR.languages),
+            "ocr.recognize": Handler(onMain: false, cancellable: OCR.recognize),
+            "ptt.register": Handler(onMain: true, run: PushToTalk.register),
+            "ptt.unregister": Handler(onMain: true, run: PushToTalk.unregister),
+            "control.observe": Handler(onMain: false, cancellable: Control.observe),
+            "control.act": Handler(onMain: false, cancellable: Control.act),
+            "control.read": Handler(onMain: false, cancellable: Control.read),
+            "control.listen": Handler(onMain: false, run: ControlListen.listen, answered: ControlListen.answered),
+            "control.respond": Handler(onMain: false, run: ControlListen.respond),
+            "clipboard.read": Handler(onMain: true, run: Clipboard.read),
+            "apps.running": Handler(onMain: true, run: Apps.running),
+            "apps.installed": Handler(onMain: false, run: Apps.installed),
+            "apps.activate": Handler(onMain: true, run: Apps.activate),
+            "terminal.focus": Handler(onMain: false, run: { Terminal.focus($0, .live) }),
+            "process.usage": Handler(onMain: false, run: Processes.usage),
+            "permissions.status": Handler(onMain: false, run: Permissions.status),
+            "permissions.request": Handler(onMain: false, run: { Permissions.request($0, .live) }),
+        ]
+        // SpeechAnalyzer is macOS 26 and later; below it hello leaves these ops out and they answer unsupported.
+        if #available(macOS 26, *) {
+            table["speech.locales"] = Handler(onMain: false, run: Mic.locales)
+            table["mic.start"] = Handler(onMain: false, cancellable: Mic.start, answered: Mic.answered)
+            table["mic.stop"] = Handler(onMain: false, run: Mic.stop)
+        }
+        return table
+    }()
 
     /// ops.json "events" in its order, each with the op that turns it on.
     static let events: [(event: String, op: String)] = [

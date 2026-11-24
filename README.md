@@ -15,7 +15,7 @@
 
 **Agentic Complex**（仓库目录名 `Endfield`）是一个桌面角色与个人智能体实验应用，也是面向桌面角色包的开发框架：它在桌面上渲染兼容格式的角色包，并为每个角色内置一个可切换内核的个人智能体，可进行文字/语音对话、任务执行、记忆管理，并在用户授权后感知桌面活动。
 
-- **主平台**：Apple Silicon Mac（macOS 26 及以上），使用 Electron 外壳 + 原生 Metal 渲染器 + Swift 平台 Helper。
+- **主平台**：Apple Silicon Mac（macOS 15 及以上），使用 Electron 外壳 + 原生 Metal 渲染器 + Swift 平台 Helper。
 - **Windows x64（开发中 / 实验性）**：Vulkan 渲染器（`efw.exe`）、Windows Helper（`ac-helper.exe`）与便携版打包正在积极开发中，尚未达到功能完整（例如按住说话与角色页实时预览暂未实现）。
 - **资产与同人声明**：本仓库不包含任何游戏本体素材与发行用角色库；公开构建配置仅提供纯文字示例角色「助手」（`aide`）。详见文末[非官方同人声明](#非官方同人声明)。
 
@@ -86,7 +86,7 @@
 
 ### macOS（主支持平台）
 
-- Apple Silicon Mac，macOS 26 或更新版本。
+- Apple Silicon Mac，macOS 15 或更新版本。
 - Xcode（Swift 工具链）、Node.js ≥ `24.22.1`、Python `3.12`（推荐使用 `uv`）。
 - 按功能按需授予系统权限（也可在「设置 › 权限与授权」查看）：
 

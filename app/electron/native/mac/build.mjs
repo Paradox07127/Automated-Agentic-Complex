@@ -9,6 +9,6 @@ export function buildPreviewAddon(out) {
   if (!existsSync(join(include, 'node_api.h'))) throw new Error(`no node_api.h under ${include}`);
   mkdirSync(dirname(out), { recursive: true });
   execFileSync('xcrun', ['clang', '-bundle', '-undefined', 'dynamic_lookup', '-fobjc-arc', '-O2', '-Wall', '-Werror',
-    '-DNAPI_VERSION=8', '-mmacosx-version-min=26.0', `-I${include}`, '-framework', 'AppKit', '-framework', 'IOSurface',
+    '-DNAPI_VERSION=8', '-mmacosx-version-min=15.0', `-I${include}`, '-framework', 'AppKit', '-framework', 'IOSurface',
     join(import.meta.dirname, 'preview.m'), '-o', out], { stdio: 'inherit' });
 }

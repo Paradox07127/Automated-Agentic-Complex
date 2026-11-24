@@ -269,7 +269,7 @@ enum Devices {
 
     /// Unknown while the helper records, since its own input would count.
     static func micActive() -> Bool? {
-        guard !Mic.active else { return nil }
+        if #available(macOS 26, *), Mic.active { return nil }
         guard let ids = objects(kAudioHardwarePropertyDevices) else { return nil }
         return micActive(ids.compactMap { id -> (hasOutput: Bool, running: Bool?)? in
             guard hasStreams(id, kAudioObjectPropertyScopeInput) else { return nil }

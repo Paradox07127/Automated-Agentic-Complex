@@ -173,7 +173,7 @@ def stage(args):
         baseline = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
         sources, fingerprint = source_fingerprint.compute(ROOT)
         write_json(out / 'source-manifest.json', dict(schema='endfield-release-source/v1', baseline=baseline, files=sources, fingerprint=fingerprint))
-        common = dict(CFBundlePackageType='APPL', LSMinimumSystemVersion='26.0', LSUIElement=True,
+        common = dict(CFBundlePackageType='APPL', LSMinimumSystemVersion='15.0', LSUIElement=True,
                       CFBundleVersion=args.build_version, CFBundleShortVersionString='0.2.0',
                       AgenticComplexBuildGit=baseline, AgenticComplexGitCommit=baseline, AgenticComplexBuildFingerprint=fingerprint)
         (host / 'Info.plist').write_bytes(plistlib.dumps(electron_info(plistlib.loads((host / 'Info.plist').read_bytes()),

@@ -33,6 +33,7 @@ struct Transcript {
 
 /// CONTRACT §7.7 `speech.locales`, `mic.start` and `mic.stop`: an AVAudioEngine
 /// input tap feeding SpeechTranscriber through a SpeechAnalyzer, with each buffer's RMS for `mic.level`.
+@available(macOS 26, *)
 enum Mic {
     private static let environment = ProcessInfo.processInfo.environment
     /// The replay's switches: the no-grant path, and a synthetic tone in place of the microphone.

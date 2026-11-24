@@ -4,7 +4,7 @@
 
 ## Environment
 
-- **macOS (Primary platform)**: Apple Silicon, macOS 26 or later, and the Xcode Swift toolchain.
+- **macOS (Primary platform)**: Apple Silicon, macOS 15 or later, and the Xcode Swift toolchain.
 - Install Node.js 24.22.1 or later, as specified by `engines.node` in `web/package.json` and `app/electron/package.json`.
 - From the repository root, create a Python 3.12 environment for `agentd` and install `agent/agentd/requirements.txt` and the release's bundled numpy (`app/packaging/requirements-content.lock`; the shell runs the MMD motion import with this environment):
 

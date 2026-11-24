@@ -15,7 +15,7 @@
 
 **Agentic Complex** (repository directory `Endfield`) is an experimental desktop character app and character-package development framework. It renders compatible character packages on the desktop and embeds a personal agent with switchable execution kernels for text/voice conversation, task execution, memory management, and optional desktop awareness.
 
-- **Primary platform**: Apple Silicon Mac (macOS 26 or later), built with an Electron shell, a native Swift Metal renderer, and a Swift platform helper.
+- **Primary platform**: Apple Silicon Mac (macOS 15 or later), built with an Electron shell, a native Swift Metal renderer, and a Swift platform helper.
 - **Windows x64 (WIP / Experimental)**: A Vulkan renderer (`efw.exe`), Windows helper (`ac-helper.exe`), and portable directory packaging are under active development and not yet feature-complete (e.g., push-to-talk and live 3D character-page previews are not implemented yet).
 - **Assets & fan notice**: This repository ships no game assets or release character library; the public profile ships no characters and provides only a text-only example character, `aide`, under `characters/sample-library/` for testing and learning. See the [unofficial fan project notice](#unofficial-fan-project-notice) below.
 
@@ -86,7 +86,7 @@ Shortcuts can be customized in Settings › 快捷键 (Shortcuts). Inside the ma
 
 ### macOS (Primary platform)
 
-- Apple Silicon Mac, macOS 26 or later.
+- Apple Silicon Mac, macOS 15 or later.
 - Xcode Swift toolchain, Node.js ≥ `24.22.1`, Python `3.12` (recommended via `uv`).
 - Per-feature system permissions (inspectable in Settings › 权限与授权):
 

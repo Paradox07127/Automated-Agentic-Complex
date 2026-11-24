@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "ACHelper",
-    platforms: [.macOS(.v26)],
+    platforms: [.macOS(.v15)],
     targets: [
         .target(name: "HelperCore"),
         .executableTarget(name: "ac-helper", dependencies: ["HelperCore"]),

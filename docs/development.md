@@ -4,7 +4,7 @@
 
 ## 环境
 
-- **macOS（主平台）**：macOS 26 以上，Xcode 自带 Swift 工具链，Apple Silicon。
+- **macOS（主平台）**：macOS 15 以上，Xcode 自带 Swift 工具链，Apple Silicon。
 - 安装 Node.js ≥ 24.22.1（`web/package.json` 与 `app/electron/package.json` 的 `engines.node`）。
 - 在仓库根目录创建 agentd 的 Python 3.12 环境，安装 `agent/agentd/requirements.txt` 和发布版内置的 numpy（`app/packaging/requirements-content.lock`，外壳用这个环境跑 MMD 动作导入）：
 

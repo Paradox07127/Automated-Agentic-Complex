@@ -77,6 +77,7 @@ final class MediaTests: XCTestCase {
         XCTAssertTrue(bounds["x"]! > 0 && bounds["y"]! > 0.2 && bounds["y"]! + bounds["height"]! < 0.9, "\(bounds)")
     }
 
+    @available(macOS 26, *)
     func testLevelsAreRMSClampedAndAtMostTwentyASecond() {
         let half = [Float](repeating: 0.5, count: 8), loud = [Float](repeating: -3, count: 8)
         XCTAssertEqual(half.withUnsafeBufferPointer { Mic.rms($0.baseAddress!, 8) }, 0.5, accuracy: 1e-6)
@@ -87,6 +88,7 @@ final class MediaTests: XCTestCase {
     }
 
     /// The audio thread never waits for stdout: a level goes out from elsewhere while the main process is not reading.
+    @available(macOS 26, *)
     func testTheTapDoesNotWaitForStdout() throws {
         let recording = try XCTUnwrap(Mic.reserve("v-tap"))
         defer { Mic.release(recording) }
@@ -115,6 +117,7 @@ final class MediaTests: XCTestCase {
     }
 
     /// A mic.start that timed out or was cancelled has released its session; its start task opens no input after that.
+    @available(macOS 26, *)
     func testAReleasedSessionOpensNoInput() throws {
         let recording = try XCTUnwrap(Mic.reserve("v-late"))
         Mic.release(recording)
@@ -144,6 +147,7 @@ final class MediaTests: XCTestCase {
         for bad in ["control+f99", "hyper+a", "control+", "", "option+right_option"] { XCTAssertNil(PushToTalk.parse(bad), bad) }
     }
 
+    @available(macOS 26, *)
     func testOneRecordingAtATimeAndMicActiveIsUnknownMeanwhile() throws {
         let first = try XCTUnwrap(Mic.reserve("v-1"))
         defer { Mic.release(first) }
