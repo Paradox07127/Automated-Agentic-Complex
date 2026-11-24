@@ -69,6 +69,6 @@
     "--agentic-complex-camera-framing": {"mac": "applied", "windows": "fixed", "ref": "CONTRACT.md:895"}
   },
   "services": {
-    "preview": {"mac": "yes", "windows": "no", "ref": "CONTRACT.md:852"}
+    "preview": {"mac": "yes", "windows": "yes"}
   }
 }
