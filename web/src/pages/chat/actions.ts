@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { getBridge } from '../../bridge';
-import { AgentdCallError, del, post, put, seg } from '../../bridge/agentd';
+import { AgentdCallError, del, get, post, put, seg } from '../../bridge/agentd';
 import { revealText } from '../../bridge/platformText';
 import {
   conversationCancel,
@@ -147,7 +147,10 @@ export function createChatActions(d: ChatDeps) {
         // An answer that lands while another turn runs waits for an explicit 继续 (interactions.py respond).
         const resume = () =>
           attempt('没有继续', async () => {
-            await post(`/agent/interactions/${seg(q.id)}/continue`, { expected_version: reply.revision });
+            // A continue refused as busy has still moved the revision on (claimed, then settled back).
+            const now = (await get<{ requests: WireInteraction[] }>('/agent/interactions')).requests.find((r) => r.request_id === q.id);
+            if (!now) throw { code: 'interaction_version_changed' };
+            await post(`/agent/interactions/${seg(q.id)}/continue`, { expected_version: now.revision });
             d.push('角色已继续');
             d.reload.tasks();
           });

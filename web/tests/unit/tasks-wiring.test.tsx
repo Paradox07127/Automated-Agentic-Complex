@@ -744,6 +744,36 @@ describe('tasks: 看那次任务 opens that job where it is', () => {
     expect(await screen.findByText('不在这个列表里')).toBeTruthy();
     expect(document.querySelector('[data-row][aria-selected="true"]')).toBeNull();
   });
+
+  it('a selected finished task past the first page of 已完成 shows its detail', async () => {
+    const t6 = WIRE_TASK_ROWS.find((r) => r.canonical_task_id === T6)!;
+    const old = Array.from({ length: 25 }, (_, i) => {
+      const hex = (i + 1).toString(16).padStart(32, '0');
+      return { ...t6, canonical_task_id: `job:${hex}`, job_id: hex, run_id: null, run_count: 0, title: `旧任务 ${i + 1}`, created_at: t6.created_at - 3600 * (i + 1), updated_at: t6.updated_at - 3600 * (i + 1) };
+    });
+    const { bridge } = install((m, p) => (m === 'GET' && p.startsWith('/agent/tasks?') ? { status: 200, body: { tasks: [...WIRE_TASK_ROWS, ...old], next_cursor: null } } : null));
+    mountPage(bridge, `&tab=done&sel=${old[24]!.canonical_task_id}`);
+    expect(await screen.findByRole('heading', { name: '旧任务 25' })).toBeTruthy();
+    expect(screen.queryByText('不在这个列表里')).toBeNull();
+  });
+});
+
+describe('tasks: a pending read that half failed', () => {
+  beforeEach(() => void vi.spyOn(Date, 'now').mockReturnValue(NOW));
+
+  it('says so on 进行中 instead of listing no approvals', async () => {
+    const { bridge } = install((m, p) => (m === 'GET' && p === '/approvals' ? { status: 503, body: null, error: { code: 'unavailable' } } : null));
+    mountPage(bridge, '');
+    expect(await screen.findByText('待处理没读全')).toBeTruthy();
+  });
+
+  it('a part whose plug-in is off is not a failure', async () => {
+    const { bridge } = install((m, p) => (m === 'GET' && p === '/agent/interactions' ? { status: 409, body: { error: 'plugin_off' }, error: { code: 'plugin_off' } } : null));
+    mountPage(bridge, '');
+    expect(await screen.findByRole('tab', { name: /进行中/ })).toBeTruthy();
+    await waitFor(() => expect(document.querySelector('[data-row]')).not.toBeNull());
+    expect(screen.queryByText('待处理没读全')).toBeNull();
+  });
 });
 
 describe('tasks: an accepted proposal that was paused', () => {

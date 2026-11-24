@@ -58,8 +58,15 @@ describe('route contract', () => {
     const at = (module: string) => scanned.requests.filter((r) => r.module === module).map((r) => `${r.method} ${r.path}`);
     expect(at('src/shell/CmdPalette.tsx')).toEqual(expect.arrayContaining(['PUT /observation/quiet']));
     expect(at('src/data/runtime.ts')).toEqual(['GET /character/runtime', 'GET /character/runtime']);
-    expect(at('src/data/tasksBase.ts')).toEqual(expect.arrayContaining(['GET /tasks', 'GET /agent/runs']));
+    expect(at('src/data/tasksBase.ts')).toEqual(expect.arrayContaining(['GET /tasks', 'GET /agent/runs', 'GET /approvals', 'GET /agent/interactions']));
     expect(scanned.dynamic.filter((d) => d.module === 'src/bridge/agentd.ts')).toEqual([]);
+  });
+
+  it('skips a forwarded `path` only inside a registered wrapper, so an unregistered helper is not passed silently', () => {
+    const src = "export async function get<T>(path: string) {\n  return request<T>('GET', path);\n}\nasync function helper(path: string) {\n  return get(path);\n}\n";
+    const r = scanSource(src, 'src/data/tasksBase.ts');
+    expect(r.requests).toEqual([]);
+    expect(r.dynamic.map((d) => d.line)).toEqual([5]);
   });
 
   it('judges a request in a shared helper by the surfaces whose code imports that helper', () => {

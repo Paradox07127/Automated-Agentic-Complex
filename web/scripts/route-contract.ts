@@ -230,6 +230,7 @@ export const WRAPPERS: Wrapper[] = [
   { file: 'src/bridge/agentd.ts', name: 'patch', method: 'PATCH', path: 0 },
   { file: 'src/bridge/agentd.ts', name: 'del', method: 'DELETE', path: 0 },
   { file: 'src/data/tasksBase.ts', name: 'get', method: 'GET', path: 0 },
+  { file: 'src/data/tasksBase.ts', name: 'part', method: 'GET', path: 0 },
   { file: 'src/pages/memory/api.ts', name: 'call', method: 0, path: 1 },
   { file: 'src/pages/overview/nav.ts', name: 'call', method: 0, path: 1 },
   { file: 'src/pages/tasks/actions.ts', name: 'post', method: 'POST', path: 0 },
@@ -414,6 +415,13 @@ export function scanSource(src: string, file: string): { requests: Request[]; dy
   const dynamic: DynamicCall[] = [];
   const lineOf = (at: number) => src.slice(0, at).split('\n').length;
   const own = WRAPPERS.filter((w) => w.file === file).map((w) => ({ ...w, local: w.name }));
+  // Each own wrapper's definition, from its name to the next line that starts at column 0.
+  const bodies = own.flatMap((w) =>
+    [...bare.matchAll(new RegExp(`\\b(?:function|const)\\s+${w.name}\\b`, 'g'))].map((m) => {
+      const end = bare.slice(m.index ?? 0).search(/\n\S/);
+      return [m.index ?? 0, end < 0 ? bare.length : (m.index ?? 0) + end] as const;
+    }),
+  );
   const callees: Array<{ re: RegExp; method: string | number; path: number; wrapper: boolean }> = [
     { re: /agentd\s*\.\s*request\b/g, method: 0, path: 1, wrapper: false },
     ...[...own, ...importedWrappers(code, file)].map((w) => ({ re: new RegExp(`(?<![\\w$.])${w.local}\\b`, 'g'), method: w.method, path: w.path, wrapper: true })),
@@ -441,7 +449,7 @@ export function scanSource(src: string, file: string): { requests: Request[]; dy
       };
       const pathArg = arg(callee.path);
       // The wrappers' own forwarding call; their callers are scanned instead.
-      if (own.length > 0 && pathArg?.code.trim() === 'path') continue;
+      if (pathArg?.code.trim() === 'path' && bodies.some(([a, b]) => at > a && at < b)) continue;
       const methodArg = typeof callee.method === 'number' ? arg(callee.method) : null;
       const method = typeof callee.method === 'string' ? callee.method : methodArg ? literal(methodArg.code, methodArg.bare) : null;
       const paths = pathArg ? literals(pathArg.code, pathArg.bare) : null;

@@ -220,7 +220,8 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
             <div className={styles.send}>
               <Field label="给编码会话发消息" placeholder="给这个会话补一句…" value={msg} onChange={setMsg} />
               <Btn size="sm" variant="ghost" disabled={!msg.trim()} disabledReason="先写要发的话" onClick={async () => {
-                if (await actions.onTask(task)({ kind: 'send_session', text: msg.trim() })) setMsg('');
+                const sent = msg;
+                if (await actions.onTask(task)({ kind: 'send_session', text: sent.trim() })) setMsg((m) => (m === sent ? '' : m));
               }}>
                 发送
               </Btn>

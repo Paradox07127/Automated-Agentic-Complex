@@ -518,18 +518,46 @@ describe('chat actions', () => {
     expect(b.of('POST', `/agent/interactions/${Q1}/dismiss`)[0]!.body).toEqual({ expected_version: q.revision });
   });
 
-  it('an answer saved with resume_required offers 继续, which posts the continue with the reply revision', async () => {
+  it('an answer saved with resume_required offers 继续, which posts the continue with the revision agentd lists', async () => {
     const actions: Array<{ label: string; onClick?: () => void }> = [];
     const { fromInteraction } = await import('../../src/domain');
     const q = fromInteraction(WIRE_INTERACTIONS[0]!, NOW);
     const { b, a, pushes } = await actionsWith({ push: (m, o) => void (pushes.push(m), o?.action && actions.push(o.action)) }, [
       { method: 'POST', path: '/agent/interactions/:id/answer', handler: () => ({ status: 200, body: { ...WIRE_INTERACTIONS[0]!, revision: 3, resume_required: true } }) },
+      { method: 'GET', path: '/agent/interactions', handler: () => ({ status: 200, body: { requests: [{ ...WIRE_INTERACTIONS[0]!, state: 'answered', revision: 3 }] } }) },
       { method: 'POST', path: '/agent/interactions/:id/continue', handler: () => ({ status: 202, body: {} }) },
     ]);
     await a.answer(q, { scope: ['包含'] });
     expect(actions.map((x) => x.label)).toEqual(['继续']);
     actions[0]!.onClick?.();
     await waitFor(() => expect(b.of('POST', `/agent/interactions/${Q1}/continue`).map((c) => c.body)).toEqual([{ expected_version: 3 }]));
+  });
+
+  it('a second 继续 after a busy one sends the revision agentd moved on to', async () => {
+    const actions: Array<{ label: string; onClick?: () => void }> = [];
+    const { fromInteraction } = await import('../../src/domain');
+    const q = fromInteraction(WIRE_INTERACTIONS[0]!, NOW);
+    // A busy continue claims the answer (+1) and settles it back to answered (+1).
+    let revision = 3;
+    const { b, a, pushes } = await actionsWith({ push: (m, o) => void (pushes.push(m), o?.action && actions.push(o.action)) }, [
+      { method: 'POST', path: '/agent/interactions/:id/answer', handler: () => ({ status: 200, body: { ...WIRE_INTERACTIONS[0]!, revision, resume_required: true } }) },
+      { method: 'GET', path: '/agent/interactions', handler: () => ({ status: 200, body: { requests: [{ ...WIRE_INTERACTIONS[0]!, state: 'answered', revision }] } }) },
+      {
+        method: 'POST',
+        path: '/agent/interactions/:id/continue',
+        handler: () => {
+          if (revision > 3) return { status: 202, body: {} };
+          revision += 2;
+          return { status: 409, body: { error: 'character_busy' } };
+        },
+      },
+    ]);
+    await a.answer(q, { scope: ['包含'] });
+    actions[0]!.onClick?.();
+    await waitFor(() => expect(b.of('POST', `/agent/interactions/${Q1}/continue`)).toHaveLength(1));
+    await waitFor(() => expect(pushes.some((m) => m.startsWith('没有继续'))).toBe(true));
+    actions[0]!.onClick?.();
+    await waitFor(() => expect(b.of('POST', `/agent/interactions/${Q1}/continue`).map((c) => c.body)).toEqual([{ expected_version: 3 }, { expected_version: 5 }]));
   });
 
   it('a first line with no conversation opens one for her character with POST /conversations {character_id}', async () => {

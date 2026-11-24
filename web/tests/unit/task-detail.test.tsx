@@ -138,6 +138,24 @@ describe('task detail: notes and messages', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(field.value).toBe('先跑测试');
   });
+
+  it('text typed while a message is being sent stays when the send lands', async () => {
+    const bridge = createFakeBridge({ surface: 'main', still: true });
+    const real = bridge.agentd.request.bind(bridge.agentd);
+    let land: (r: unknown) => void = () => {};
+    vi.spyOn(bridge.agentd, 'request').mockImplementation(async (method, path, body) =>
+      (path.endsWith('/messages') ? await new Promise<unknown>((r) => (land = r)) : await real(method, path, body)) as never);
+    window.agenticComplex = bridge;
+    mount(T2);
+    const field = screen.getByRole('textbox', { name: '给编码会话发消息' }) as HTMLInputElement;
+    fireEvent.change(field, { target: { value: '先跑测试' } });
+    fireEvent.click(screen.getByRole('button', { name: '发送' }));
+    await waitFor(() => expect(bridge.agentd.request).toHaveBeenCalledWith('POST', `/sessions/${S_C07A}/messages`, { text: '先跑测试' }));
+    fireEvent.change(field, { target: { value: '再看日志' } });
+    land({ status: 202, body: {} });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(field.value).toBe('再看日志');
+  });
 });
 
 describe('task detail: 在对话轮次里看', () => {

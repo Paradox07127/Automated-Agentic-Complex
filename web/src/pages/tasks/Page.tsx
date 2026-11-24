@@ -82,8 +82,8 @@ export function TasksPage() {
     return doneGroups(ended.filter((t) => matches(t, q.trim())).slice(0, limit), view, who, now);
   }, [tab, scheds, view, desk.cards, ended, q, limit, who, now]);
   const ids = groups.flatMap((g) => g.rows.map((r) => r.id));
-  // An explicit `sel` that is not among the rows selects nothing; the detail says so.
-  const sel = params.sel ? (ids.includes(params.sel) ? params.sel : null) : (ids[0] ?? null);
+  // An explicit `sel` that is not in the tab selects nothing; the detail says so. 已完成 knows it past the search and the page shown.
+  const sel = params.sel ? (ids.includes(params.sel) || (tab === 'done' && ended.some((t) => t.id === params.sel)) ? params.sel : null) : (ids[0] ?? null);
   const task = tab !== 'sched' && sel ? (view?.tasks.find((t) => t.id === sel) ?? null) : null;
   const schedule = tab === 'sched' && sel ? (scheds.find((s) => s.schedule_id === sel) ?? null) : null;
   const waiting = view ? runGroups(view, desk.cards, who, now).some((g) => g.key === 'wait') : false;
@@ -96,7 +96,10 @@ export function TasksPage() {
   const listError = off ? null : readError;
   const loading = state === 'loading' || (!listError && (tab === 'sched' ? sched.isPending : !desk.listReady));
   const errText = listError instanceof TasksLoadError ? listError.reason : listError ? (failMessage(listError) ?? listError.message) : null;
-  const empty = !loading && !listError && ids.length === 0 && (tab !== 'done' || !q.trim());
+  // A failed approvals or questions read lists none of them; 进行中 says so. A part whose plug-in is off has nothing to list.
+  const pendFail = tab === 'run' && !listError ? (desk.pend.error ?? desk.pend.data?.failed ?? null) : null;
+  const pendText = pendFail && !isPluginOff(pendFail) ? (pendFail instanceof TasksLoadError ? pendFail.reason : pendFail.message) : null;
+  const empty = !loading && !listError && !pendText && ids.length === 0 && (tab !== 'done' || !q.trim());
 
   const canPick = getBridge().capabilities.nativeFilePicker;
   const problem = draft ? problemOf(draft, canPick) : null;
@@ -226,6 +229,18 @@ export function TasksPage() {
             <small>{errText}</small>
           </span>
           <Btn size="sm" variant="ghost" onClick={() => void (tab === 'sched' ? sched.refetch() : desk.reload())}>
+            重试
+          </Btn>
+        </div>
+      )}
+      {pendText && (
+        <div className={styles.tipsR} role="alert">
+          <Warn />
+          <span>
+            <b>待处理没读全</b>
+            <small>{pendText}</small>
+          </span>
+          <Btn size="sm" variant="ghost" onClick={() => void desk.reload()}>
             重试
           </Btn>
         </div>
