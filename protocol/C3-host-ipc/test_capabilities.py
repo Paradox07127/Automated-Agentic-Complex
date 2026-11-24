@@ -56,7 +56,7 @@ def mismatch(table, source):
 
 class CapabilityTableTests(unittest.TestCase):
     def test_rows_are_well_formed(self):
-        for name, row in TABLE['capabilities'].items():
+        for name, row in [*TABLE['capabilities'].items(), *TABLE['services'].items()]:
             self.assertTrue({row['mac'], row['windows']} <= {'yes', 'no', 'by_design'}, name)
             self.assertEqual('ref' in row, row['mac'] != 'yes' or row['windows'] != 'yes', name)
         for name, row in TABLE['render_settings'].items():
@@ -65,7 +65,7 @@ class CapabilityTableTests(unittest.TestCase):
 
     def test_refs_point_at_contract_lines(self):
         lines = CONTRACT.count('\n') + (not CONTRACT.endswith('\n'))
-        for name, row in [*TABLE['capabilities'].items(), *TABLE['render_settings'].items()]:
+        for name, row in [*TABLE['capabilities'].items(), *TABLE['render_settings'].items(), *TABLE['services'].items()]:
             if 'ref' in row:
                 m = re.fullmatch(r'CONTRACT\.md:(\d+)', row['ref'])
                 self.assertTrue(m and 1 <= int(m.group(1)) <= lines, f'{name}: {row["ref"]}')
