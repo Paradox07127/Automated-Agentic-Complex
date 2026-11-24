@@ -1,7 +1,8 @@
 // Checks every method + path the web sends to agentd against protocol/ui-bridge/routes.json: the route must exist,
 // its class must not be one the bridge refuses, and every surface that reaches the call must be in its `surfaces`.
 // Sources: the mock routes (src/mock/*.ts) and literal paths at agentd.request call sites (and known wrappers) in src/.
-// `node scripts/route-contract.ts` prints the issues and exits 1 on any issue not in tests/route-contract.baseline.json.
+// `node scripts/route-contract.ts` prints the issues and exits 1 on any issue not in tests/route-contract.baseline.json,
+// and on any call whose method or path it cannot read.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -84,7 +85,7 @@ export function concretize(pattern: string, method: string, routes: RouteEntry[]
   return null;
 }
 
-const ENTRIES: Record<string, string> = { main: 'src/main.tsx', stack: 'src/stack.tsx' };
+const ENTRIES: Record<string, string> = { main: 'src/main.tsx', stack: 'src/stack.tsx', onboarding: 'src/pages/onboarding/Page.tsx' };
 const DECL = /^(export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?|const|let|class)\s+([A-Za-z_$][\w$]*)/gm;
 
 /** Module paths relative to web, with `.ts`/`.tsx`/`index` resolution; null outside src or not a source. */
@@ -367,6 +368,27 @@ function literal(code: string, bare: string): string | null {
   return out;
 }
 
+/** `literal`, or both branches of `cond ? <literal> : <literal>`. */
+function literals(code: string, bare: string): string[] | null {
+  const one = literal(code, bare);
+  if (one !== null) return [one];
+  let depth = 0;
+  let q = -1;
+  let colon = -1;
+  for (let i = 0; i < bare.length; i += 1) {
+    const c = bare[i] ?? '';
+    if ('([{'.includes(c)) depth += 1;
+    else if (')]}'.includes(c)) depth -= 1;
+    else if (depth > 0) continue;
+    else if (c === '?' && q < 0 && bare[i + 1] !== '?' && bare[i + 1] !== '.' && bare[i - 1] !== '?') q = i;
+    else if (c === ':' && q >= 0 && colon < 0) colon = i;
+  }
+  if (colon < 0) return null;
+  const a = literal(code.slice(q + 1, colon), bare.slice(q + 1, colon));
+  const b = literal(code.slice(colon + 1), bare.slice(colon + 1));
+  return a === null || b === null ? null : [a, b];
+}
+
 function importedWrappers(code: string, file: string): Array<Wrapper & { local: string }> {
   const out: Array<Wrapper & { local: string }> = [];
   for (const m of code.matchAll(/import\s+(?!type\b)\{([^}]*)\}\s*from\s*'([^']+)'/g)) {
@@ -384,7 +406,8 @@ function importedWrappers(code: string, file: string): Array<Wrapper & { local: 
   return out;
 }
 
-/** Literal method + path of each agentd.request / wrapper call in one file; non-literal calls go to `dynamic`. */
+/** Literal method + path of each agentd.request / wrapper call in one file (both paths of a ternary of literals);
+ *  other calls go to `dynamic`. */
 export function scanSource(src: string, file: string): { requests: Request[]; dynamic: DynamicCall[] } {
   const { code, bare } = masks(src);
   const requests: Request[] = [];
@@ -421,14 +444,14 @@ export function scanSource(src: string, file: string): { requests: Request[]; dy
       if (own.length > 0 && pathArg?.code.trim() === 'path') continue;
       const methodArg = typeof callee.method === 'number' ? arg(callee.method) : null;
       const method = typeof callee.method === 'string' ? callee.method : methodArg ? literal(methodArg.code, methodArg.bare) : null;
-      const path = pathArg ? literal(pathArg.code, pathArg.bare) : null;
+      const paths = pathArg ? literals(pathArg.code, pathArg.bare) : null;
       const line = lineOf(at);
-      if (method === null || !METHODS.has(method) || path === null) {
+      if (method === null || !METHODS.has(method) || paths === null) {
         dynamic.push({ module: file, line, text: code.slice(at, (list.at(-1)?.[1] ?? i) + 1).replace(/\s+/g, ' ').slice(0, 120) });
         continue;
       }
       // A `;` anywhere (query included) is refused by the bridge, so keep it in the path to be judged.
-      requests.push({ method, path: path.includes(';') ? path : (path.split('?')[0] ?? ''), module: file, line });
+      for (const path of paths) requests.push({ method, path: path.includes(';') ? path : (path.split('?')[0] ?? ''), module: file, line });
     }
   }
   return { requests, dynamic };
@@ -508,10 +531,9 @@ async function main(): Promise<void> {
     console.log('\nNo longer issues; delete from tests/route-contract.baseline.json:');
     for (const i of gone) console.log(`  ${i.method} ${i.path} ${i.reason} ${i.module}`);
   }
-  if (added.length > 0) {
-    console.error(`\nROUTES FAIL: ${added.length} issue(s) not in the baseline (marked +)`);
-    process.exit(1);
-  }
+  if (added.length > 0) console.error(`\nROUTES FAIL: ${added.length} issue(s) not in the baseline (marked +)`);
+  if (dynamic.length > 0) console.error(`\nROUTES FAIL: ${dynamic.length} call(s) whose method or path is not a literal; write it as one`);
+  if (added.length > 0 || dynamic.length > 0) process.exit(1);
 }
 
 if (import.meta.main) await main();

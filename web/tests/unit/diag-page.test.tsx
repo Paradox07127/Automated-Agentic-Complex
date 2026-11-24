@@ -1,12 +1,14 @@
 // Diag: five tabs — 总览 rows, 进程 curves, 渲染 frames, 管道 flow with hours and model calls, 状态 blocks.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
+import type { ProcessState, StreamEvent } from '../../src/bridge/protocol';
 import type { Turn } from '../../src/domain';
 import { isoWithOffset } from '../../src/domain/units';
-import { TRACE_TURNS } from '../../src/mock/diag';
+import { DIAG_STATE, TRACE_TURNS } from '../../src/mock/diag';
+import { ToastHost } from '../../src/shell/toast';
 import { NOW, WIRE_TURNS } from '../../src/mock/fixtures';
 import { C1_TURNS } from '../../src/mock/fixtures/chatDemo';
 import { flowOf, pathOf } from '../../src/pages/diag/flow';
@@ -148,6 +150,68 @@ describe('diag page', () => {
   });
 });
 
+describe('diag restart', () => {
+  let sup: Record<'agentd' | 'avatar', ProcessState>;
+  let restarts: string[];
+  let reads: number;
+  let push: (e: StreamEvent) => void;
+  beforeEach(() => {
+    sup = { agentd: { state: 'running', pid: 100 }, avatar: { state: 'running', pid: 200 } };
+    restarts = [];
+    reads = 0;
+    push = () => {};
+    const fake = window.agenticComplex!;
+    window.agenticComplex = {
+      ...fake,
+      supervisor: { state: async () => ((reads += 1), sup), restart: async (t) => void restarts.push(t) },
+      diag: { subscribe: (on) => ((push = on), () => {}) },
+    };
+  });
+  const menu = async (item: string, confirm: string) => {
+    fireEvent.click(screen.getAllByRole('button', { name: '重启' }).find((b) => b.getAttribute('aria-haspopup') === 'menu')!);
+    fireEvent.click(screen.getByRole('menuitem', { name: item }));
+    const dialog = screen.getByRole('dialog');
+    await act(async () => fireEvent.click(within(dialog).getByRole('button', { name: confirm })));
+  };
+
+  it('a dispatched restart stays 正在重启 until supervisor.state shows new pids; 全部重启 names no Companion; a second restart meanwhile is not sent', async () => {
+    mount('tab=proc');
+    render(<ToastHost />);
+    await waitFor(() => expect(document.querySelector('[data-nav-target="proc-agentd"]')?.textContent).toContain('pid 100'));
+    fireEvent.click(screen.getAllByRole('button', { name: '重启' }).find((b) => b.getAttribute('aria-haspopup') === 'menu')!);
+    fireEvent.click(screen.getByRole('menuitem', { name: '全部重启…' }));
+    expect(screen.getByRole('dialog').textContent).not.toContain('Companion');
+    const before = reads;
+    await act(async () => fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '全部重启' })));
+    expect(restarts).toEqual(['all']);
+    // The shell answered and supervisor.state was read again, still with the old pids.
+    await waitFor(() => expect(reads).toBeGreaterThan(before));
+    await act(async () => {});
+    expect(document.body.textContent).not.toContain('已重启');
+    expect(document.body.textContent).not.toContain('Companion');
+    expect(screen.getAllByText('◌ 正在重启…')).toHaveLength(2);
+    await menu('重启后台服务', '重启后台服务');
+    expect(restarts).toEqual(['all']);
+    sup = { agentd: { state: 'running', pid: 101 }, avatar: { state: 'running', pid: 201 } };
+    act(() => push({ event: 'state', id: 'b-1', data: JSON.stringify(DIAG_STATE) } as StreamEvent));
+    await waitFor(() => expect(screen.getAllByText(/^✓ 已重启 │ /)).toHaveLength(2));
+    expect(screen.getByText('已全部重启：后台服务、角色')).toBeTruthy();
+  });
+
+  it('an agentd that comes back failed is 重启失败, not 已重启', async () => {
+    mount('tab=proc');
+    render(<ToastHost />);
+    await waitFor(() => expect(document.querySelector('[data-nav-target="proc-agentd"]')?.textContent).toContain('pid 100'));
+    await menu('重启后台服务', '重启后台服务');
+    expect(restarts).toEqual(['agentd']);
+    sup = { ...sup, agentd: { state: 'failed(exit 3)', pid: null } };
+    act(() => push({ event: 'state', id: 'b-1', data: JSON.stringify(DIAG_STATE) } as StreamEvent));
+    await waitFor(() => expect(screen.getByText('■ 重启失败')).toBeTruthy());
+    expect(document.body.textContent).not.toContain('已重启');
+    expect(screen.getByText('后台服务没有重新起来')).toBeTruthy();
+  });
+});
+
 describe('diag mock', () => {
   it('a /trace/turns row carries the same turn_id as the conversation turn', () => {
     const ids = new Set(TRACE_TURNS.map((r) => r.turn_id));
@@ -169,7 +233,7 @@ describe('diag flow model', () => {
   it('counts the last hour only, puts a failure on its node, and marks an open approval', () => {
     const { nodes, edges } = flowOf({
       turns: [turn('a', 'text', 'ok'), turn('b', 'text', 'failed'), turn('old', 'text', 'ok', NOW - 7_200_000), turn('p', 'proactive', 'ok')],
-      decisions: [ev('approval.opened', { approval_id: 'x' })],
+      decisions: [ev('approval.opened', { request_id: 'x' })],
       since: NOW - 3_600_000,
       failAt: { b: 'tts' },
       voiceDown: false,

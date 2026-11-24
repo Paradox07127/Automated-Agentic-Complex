@@ -63,7 +63,7 @@ describe('fake bridge agentd.request', () => {
   const bridge = createFakeBridge({ surface: 'main', still: true });
 
   it('serves the example endpoints', async () => {
-    for (const path of ['/health', '/agent/runs', '/presence', '/approvals', '/memory']) {
+    for (const path of ['/health', '/agent/runs', '/approvals', '/memory']) {
       const res = await bridge.agentd.request('GET', path);
       expect(res.status, path).toBe(200);
       expect(res.body, path).not.toBeNull();
@@ -73,8 +73,8 @@ describe('fake bridge agentd.request', () => {
   it('passes query and path params to handlers', async () => {
     expect((await bridge.agentd.request('GET', '/agent/tasks')).status).toBe(200);
     expect((await bridge.agentd.request('GET', '/agent/tasks?fail=1')).status).toBe(404);
-    const one = await bridge.agentd.request<{ id: string }>('GET', '/agent/runs/run-0141');
-    expect(one.body?.id).toBe('run-0141');
+    expect((await bridge.agentd.request('GET', '/memory/days/x')).status).toBe(400);
+    expect((await bridge.agentd.request('GET', '/memory/days/1999-01-01')).status).toBe(404);
   });
 
   it('answers 404 with an error for unknown paths and methods', async () => {

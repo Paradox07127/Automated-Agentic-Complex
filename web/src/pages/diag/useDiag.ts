@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBridge } from '../../bridge';
 import { get, seg } from '../../bridge/agentd';
+import type { AgentdConnection } from '../../bridge/protocol';
 import { appNow } from '../../bridge/clock';
 import { useRuntimePublic } from '../../data/runtime';
 import type { RenderSample, WireRuntimePublic, WireTraceTurn } from '../../domain';
@@ -37,6 +38,22 @@ export function useSideReads(enabled: boolean) {
   const perms = useQuery({ queryKey: ['diag', 'permissions'], queryFn: () => bridge.permissions.status(), enabled, ...opts });
   const app = useQuery({ queryKey: ['diag', 'app'], queryFn: () => bridge.app.info(), enabled, ...opts });
   return { supervisor, connection, caps, runtime, avatar, perms, app };
+}
+
+/** The shell's runtime push: agentd out of running marks the connection offline (the diag stream reconnects silently),
+ *  its return re-reads every diag query. */
+export function useAgentdRuntime(enabled: boolean) {
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!enabled) return;
+    let up = true;
+    return getBridge().app.onRuntime((s) => {
+      const now = s.processes.agentd.state === 'running';
+      if (!now) qc.setQueryData<AgentdConnection>(['diag', 'connection'], 'offline');
+      else if (!up) void qc.invalidateQueries({ queryKey: ['diag'] });
+      up = now;
+    });
+  }, [enabled, qc]);
 }
 
 /** diag.subscribe while live: `state` replaces the snapshot and re-reads the bridge side, trace and decision items go to `onItem`, a reload re-reads everything. */

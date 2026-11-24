@@ -24,7 +24,7 @@ import { renderWhy } from './renderWhy';
 import { overBudget, Resources } from './Resources';
 import { healthOf, issuesOf, processesOf, type ProcKey } from './status';
 import { UsageCard } from './UsageCard';
-import { clock, STATE_KEY, type DiagSnap, useDecisions, useDiagState, useDiagStream, useFailEvents, useRenderStats, useSideReads, useTurns } from './useDiag';
+import { clock, STATE_KEY, type DiagSnap, useAgentdRuntime, useDecisions, useDiagState, useDiagStream, useFailEvents, useRenderStats, useSideReads, useTurns } from './useDiag';
 import { CONFIRM, serviceSettings, useDiagActions, viewLogs, type RestartTarget } from './useDiagActions';
 import { seedOf, useProcSamples } from './useProcSamples';
 import { reasonOf } from './reason';
@@ -83,7 +83,7 @@ export function NowView({ tab, item, onTab, tabs }: NowViewProps) {
   const decisions = useDecisions(enabled);
   const renderAvailable = getBridge().capabilities.avatar;
   const samples = useRenderStats(renderAvailable && !paused);
-  const act = useDiagActions(now, toast);
+  const act = useDiagActions(now, toast, side.supervisor.data ?? null);
   const seed = useMemo(() => seedOf(full), [full]);
   const procSamples = useProcSamples(side.supervisor, base, enabled && !paused && !still, seed);
 
@@ -95,6 +95,7 @@ export function NowView({ tab, item, onTab, tabs }: NowViewProps) {
     [qc],
   );
   useDiagStream(enabled && !paused, onItem);
+  useAgentdRuntime(enabled);
 
   // 检测中 while the reset runs, then the state it answers; a failure rereads /diag/state.
   const reconnectVoice = useCallback(() => {

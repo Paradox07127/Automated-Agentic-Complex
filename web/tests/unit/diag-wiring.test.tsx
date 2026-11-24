@@ -8,11 +8,13 @@ import type { AgenticComplexBridge, HttpMethod, ProcessState, StreamEvent } from
 import { isoWithOffset } from '../../src/domain/units';
 import { NOW } from '../../src/mock/fixtures';
 import { CAPABILITIES, DIAG_STATE } from '../../src/mock/diag';
+import { waitingApprovals } from '../../src/pages/diag/flow';
 import { GatePanel, gateHolds } from '../../src/pages/diag/GatePanel';
 import { DiagPage } from '../../src/pages/diag/Page';
 import { UsageCard } from '../../src/pages/diag/UsageCard';
 import { turnsView } from '../../src/pages/diag/model';
 import { issuesOf, parseChild } from '../../src/pages/diag/status';
+import type { WireTraceEvent } from '../../src/pages/diag/wire';
 
 type Call = [HttpMethod, string, unknown];
 
@@ -264,6 +266,15 @@ describe('diag model', () => {
     expect(container.textContent).toContain('Anthropic');
     expect(container.textContent).not.toContain('未知渠道');
     expect(screen.getByRole('list', { name: '按调用次数' }).textContent).toContain('观察摘要96 次');
+  });
+
+  it('counts waiting approvals by attrs.request_id, with approval.decided and approval.retired both ending one', () => {
+    const ev = (id: string, kind: string, request_id: string): WireTraceEvent => ({
+      event_id: id, trace_id: 'same-turn', turn_id: null, kind, status: 'ok', t_wall: isoWithOffset(NOW - 60_000), attrs: { request_id, tool: 'Bash' },
+    });
+    const since = NOW - 3_600_000;
+    expect(waitingApprovals([ev('1', 'approval.opened', 'r1'), ev('2', 'approval.opened', 'r2'), ev('3', 'approval.decided', 'r1')], since)).toBe(1);
+    expect(waitingApprovals([ev('1', 'approval.opened', 'r1'), ev('2', 'approval.retired', 'r1')], since)).toBe(0);
   });
 
   it('reads supervisor ChildState descriptions', () => {

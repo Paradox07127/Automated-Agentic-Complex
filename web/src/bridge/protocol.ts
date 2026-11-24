@@ -266,12 +266,7 @@ export interface AgenticComplexBridge {
     onRuntime(cb: (s: RuntimeSnapshot) => void): Unsubscribe;
   };
   agentd: {
-    request<T>(
-      method: HttpMethod,
-      path: string,
-      body?: unknown,
-      opts?: { idempotencyKey?: string },
-    ): Promise<AgentdResponse<T>>;
+    request<T>(method: HttpMethod, path: string, body?: unknown): Promise<AgentdResponse<T>>;
     connection(): Promise<AgentdConnection>;
   };
   feed: {

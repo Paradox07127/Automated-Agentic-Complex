@@ -5,8 +5,9 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { exampleRoutes } from '../../src/bridge/fake/endpoints';
 import type { MockModule } from '../../src/mock/types';
-import { checkAll, compareBaseline, loadBaseline, loadRoutes, matchRoute, scanStatic, surfacesFor, type Request } from '../../scripts/route-contract.ts';
+import { checkAll, compareBaseline, loadBaseline, loadRoutes, matchRoute, scanSource, scanStatic, surfacesFor, type Request } from '../../scripts/route-contract.ts';
 
 const modules = import.meta.glob<MockModule>(['../../src/mock/*.ts', '!../../src/mock/index.ts', '!../../src/mock/types.ts'], { eager: true });
 const mockRequests: Request[] = Object.keys(modules)
@@ -69,6 +70,8 @@ describe('route contract', () => {
       writeFileSync(join(root, 'src/pages/p/api.ts'), "export function motion() {\n  return 1;\n}\nexport function model() {\n  return 2;\n}\n");
       writeFileSync(join(root, 'src/main.tsx'), "import { model, motion } from './pages/p/api';\nmodel();\nmotion();\n");
       writeFileSync(join(root, 'src/stack.tsx'), "import { motion } from './pages/p/api';\nmotion();\n");
+      mkdirSync(join(root, 'src/pages/onboarding'));
+      writeFileSync(join(root, 'src/pages/onboarding/Page.tsx'), '');
       const of = surfacesFor(root);
       expect(of({ method: 'GET', path: '/motion/settings', module: 'src/pages/p/api.ts', line: 2 })).toEqual(['main', 'stack']);
       expect(of({ method: 'GET', path: '/model/settings', module: 'src/pages/p/api.ts', line: 5 })).toEqual(['main']);
@@ -79,6 +82,26 @@ describe('route contract', () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  it('judges the first-run guide\'s requests by the onboarding surface', () => {
+    const noGuide = loadRoutes().map((r) => (r.method === 'GET' && r.path === '/model/settings' ? { ...r, surfaces: ['main'] } : r));
+    const reads = scanned.requests.filter((r) => r.module === 'src/pages/settings/api.ts' && r.method === 'GET' && r.path === '/model/settings');
+    expect(reads.length).toBeGreaterThan(0);
+    expect(show(checkAll(reads, surfacesFor(), noGuide))).toContain('GET /model/settings surface:onboarding src/pages/settings/api.ts');
+  });
+
+  it('checks both branches of a ternary of literal paths, and leaves no call unchecked in src/', () => {
+    const src = "import { get } from '../../bridge/agentd';\nexport const a = (c: boolean) => get(c ? '/memory?owner=x' : '/memory');\nexport const b = (p: string) => get(p);\n";
+    const r = scanSource(src, 'src/pages/x/api.ts');
+    expect(r.requests.map((q) => `${q.method} ${q.path}`)).toEqual(['GET /memory', 'GET /memory']);
+    expect(r.dynamic.map((d) => d.line)).toEqual([3]);
+    expect(scanned.dynamic).toEqual([]);
+  });
+
+  it('serves from the fake bridge\'s example endpoints only routes routes.json has', () => {
+    const examples = exampleRoutes.map((r) => ({ method: r.method, path: r.path, module: 'src/bridge/fake/endpoints.ts' }));
+    expect(show(checkAll(examples, () => [])).filter((i) => i.includes(' missing '))).toEqual([]);
   });
 
   it('has no issue outside the baseline', () => {

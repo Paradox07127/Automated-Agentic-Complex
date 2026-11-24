@@ -72,7 +72,7 @@ test('malformed messages, subframes and foreign origins are refused before the o
     { ok: false, error: { code: 'forbidden_origin', detail: 'https://example.com' } });
 });
 
-test('boot lists every bridge member and the surface capabilities with host bits off, helper bits on while no op list is known', () => {
+test('boot lists every bridge member and the surface capabilities with host bits off without a host, helper bits on while no op list is known', () => {
   const b = boot('main');
   assert.deepEqual(b.ops, [...ops.ops, ...onboarding.ops]);
   assert.equal(b.surface, 'main');
@@ -90,6 +90,13 @@ test('boot turns actionLoop on when the avatar lists action_loop, and while its 
   assert.equal(boot('main', 'mac', null, ['actions']).capabilities.actionLoop, false);
   assert.equal(boot('main', 'mac', null, null).capabilities.actionLoop, true);
   assert.equal(boot('stack', 'mac', null, ['action_loop']).capabilities.actionLoop, false);
+});
+
+test('boot turns the stack avatar bit on when this launch has an avatar host, and off without one', () => {
+  assert.equal(boot('stack', 'mac', null, [], true).capabilities.avatar, true);
+  assert.equal(boot('stack', 'mac', null, null, true).capabilities.avatar, true);
+  assert.equal(boot('stack', 'mac', null, [], false).capabilities.avatar, false);
+  assert.equal(boot('stack').capabilities.avatar, false);
 });
 
 const HELPER_BITS = ['helperPushToTalk', 'helperWindowText', 'helperTypedText', 'helperActionTimeline', 'helperSelectedText'];

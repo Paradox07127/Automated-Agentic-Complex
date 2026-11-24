@@ -1213,7 +1213,7 @@ ipcMain.on('bridge:boot', (e) => {
   const entry = pages.get(e.sender.id);
   const helperOps = helper?.hello?.ops;
   e.returnValue = entry ? boot(entry.surface, shellPlatform(), Array.isArray(helperOps) ? helperOps as string[] : null,
-    hostLink ? (hostLink.connected ? hostLink.capabilities : null) : []) : null;
+    hostLink ? (hostLink.connected ? hostLink.capabilities : null) : [], hostLink != null) : null;
 });
 
 // Dropped and pasted files, from the preload only (src/main/ops/adopt.ts); the main frame's page gets handles back.

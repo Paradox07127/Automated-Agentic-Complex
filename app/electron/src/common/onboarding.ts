@@ -14,14 +14,16 @@ export const GUIDE_SETTINGS: ReadonlySet<string> = new Set(['plugins.light_ai', 
 
 const WINDOWS_HOOK = 'agentic-complex-hook.cmd';
 
-/** The hook installer's command, without `--target`; on Windows in cmd's double quotes, with `flags` before the
- *  script. The hooks post to this launch's agentd (its port and hook.token), which /diag/state counts as installed. */
+/** The hook installer's command, without `--target`, with `flags` before the script; on Windows a PowerShell call
+ *  (the terminal's default shell) of single-quoted literals. The hooks post to this launch's agentd (its port and
+ *  hook.token), which /diag/state counts as installed. */
 export function hookCommand(python: string, agentdDir: string, supportDir: string, agentd: { port: number; stateDir: string },
   platform: ShellPlatform = 'mac', flags: string[] = []): string {
   const url = `http://127.0.0.1:${agentd.port}`;
   if (platform === 'windows') {
-    return [`"${python}"`, ...flags, `"${agentdDir}\\tools\\install_hooks.py"`, '--hook-script',
-      `"${supportDir}\\bin\\${WINDOWS_HOOK}"`, '--url', url, '--token-file', `"${agentd.stateDir}\\hook.token"`].join(' ');
+    const literal = (s: string) => `'${s.replaceAll("'", "''")}'`;
+    return ['&', literal(python), ...flags, literal(`${agentdDir}\\tools\\install_hooks.py`), '--hook-script',
+      literal(`${supportDir}\\bin\\${WINDOWS_HOOK}`), '--url', url, '--token-file', literal(`${agentd.stateDir}\\hook.token`)].join(' ');
   }
   const script = `${agentdDir}/tools/install_hooks.py`;
   const quoted = script.includes(' ') ? `'${script}'` : script;

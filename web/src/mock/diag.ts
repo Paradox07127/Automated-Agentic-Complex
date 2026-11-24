@@ -263,9 +263,9 @@ export const DECISIONS: WireTraceEvent[] = [
   devent('d2', 'tr2', 'tr2', 'judge.decided', NOW - 69_000, { backend: 'haiku', answers: { speak: 'yes' } }),
   devent('d3', 'tr4', 'tr4', 'dispatch.decided', NOW - 359_000, { request_id: 'rq-4', decision: 'allow' }),
   devent('d4', 'bh-tick', null, 'behavior.ticked', NOW - 1_810_000, { options: ['idle', 'fidget'], chosen: 'fidget', reason: null }),
-  devent('d5', 'ap-2', null, 'approval.opened', NOW - 420_000, { approval_id: 'ap-2', tool: 'Bash' }),
-  devent('d6', 'ap-1', null, 'approval.decided', NOW - 1_500_000, { approval_id: 'ap-1', tool: 'Edit', decision: 'allow' }),
-  devent('d7', 'ap-1', null, 'approval.opened', NOW - 1_520_000, { approval_id: 'ap-1', tool: 'Edit' }),
+  devent('d5', 'ap-2', null, 'approval.opened', NOW - 420_000, { request_id: 'ap-2', tool: 'Bash' }),
+  devent('d6', 'ap-1', null, 'approval.decided', NOW - 1_500_000, { request_id: 'ap-1', tool: 'Edit', decision: 'allow' }),
+  devent('d7', 'ap-1', null, 'approval.opened', NOW - 1_520_000, { request_id: 'ap-1', tool: 'Edit' }),
   devent('d8', 'rq-3', null, 'dispatch.proposed', NOW - 2_400_000, { request_id: 'rq-3' }),
 ];
 

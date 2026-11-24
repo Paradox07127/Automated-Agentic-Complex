@@ -97,7 +97,7 @@ const avatar: AvatarHost = {
 
 /** The web mock answers these as agentd's 404; routes.json does not classify them, so the bridge refuses them before
  *  sending (status 0, `unclassified_route`). */
-const UNCLASSIFIED = new Set(['GET /cx-b-unknown', 'GET /agent/runs/cx-b-unknown']);
+const UNCLASSIFIED = new Set(['GET /cx-b-unknown']);
 
 /** The shell's snapshot after agentd and the renderer came up; `runtimeEvents` is fed as index.ts feeds it. */
 const coordinator = new RuntimeCoordinator(Date.now);

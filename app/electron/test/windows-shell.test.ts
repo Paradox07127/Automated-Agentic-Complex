@@ -2,7 +2,7 @@
 // the diagnostics' build (ops/app.ts) and the hot key defaults (common/settings.ts); on Windows the hook script also runs for real.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -17,10 +17,13 @@ const PY = 'C:\\Users\\x\\Agentic Complex\\resources\\components\\runtime.python
 const AGENTD = 'C:\\Users\\x\\Agentic Complex\\resources\\components\\agentd\\payload\\agentd';
 const SUPPORT = 'C:\\Users\\x\\AppData\\Roaming\\Agentic Complex';
 
-test('on Windows the hook install command double-quotes python, install_hooks.py and the .cmd hook script', () => {
+test('on Windows the hook install command is a PowerShell call of single-quoted python, install_hooks.py and the .cmd hook script', () => {
   assert.equal(hookCommand(PY, AGENTD, SUPPORT, { port: 48800, stateDir: 'C:\\L\\agentd' }, 'windows', ['-I', '-B']),
-    `"${PY}" -I -B "${AGENTD}\\tools\\install_hooks.py" --hook-script "${SUPPORT}\\bin\\agentic-complex-hook.cmd"`
-    + ' --url http://127.0.0.1:48800 --token-file "C:\\L\\agentd\\hook.token"');
+    `& '${PY}' -I -B '${AGENTD}\\tools\\install_hooks.py' --hook-script '${SUPPORT}\\bin\\agentic-complex-hook.cmd'`
+    + " --url http://127.0.0.1:48800 --token-file 'C:\\L\\agentd\\hook.token'");
+  assert.equal(hookCommand("C:\\O'Brien $x\\python.exe", 'C:\\A', 'C:\\S', { port: 1, stateDir: 'C:\\L' }, 'windows'),
+    "& 'C:\\O''Brien $x\\python.exe' 'C:\\A\\tools\\install_hooks.py' --hook-script 'C:\\S\\bin\\agentic-complex-hook.cmd'"
+    + " --url http://127.0.0.1:1 --token-file 'C:\\L\\hook.token'");
   assert.equal(hookCommand('/A/python3', '/A/agentd dir', '/S', { port: 48790, stateDir: '/st dir' }, 'mac'),
     "'/A/python3' '/A/agentd dir/tools/install_hooks.py' --hook-script '/S/bin/agentic-complex-hook'"
     + " --url http://127.0.0.1:48790 --token-file '/st dir/hook.token'");
@@ -45,6 +48,27 @@ test('the hook install command writes hooks /diag/state counts as installed: thi
       const hooks = Object.values(JSON.parse(out) as Record<string, Array<{ hooks: Array<{ command: string }> }>>);
       assert.ok(hooks.length > 0, `no hook for http://127.0.0.1:48790 in ${settings}`);
       for (const [group] of hooks) assert.ok(group!.hooks[0]!.command.includes(`'${join(dir, 'agentd state', 'hook.token')}'`), group!.hooks[0]!.command);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+test('pasted into PowerShell, the Windows hook install command writes the hook into the settings it is pointed at',
+  { skip: process.platform !== 'win32' && 'runs powershell.exe and the host\'s Python', timeout: 60_000 }, async () => {
+    const python = process.env.AGENTD_PYTHON;
+    assert.ok(python, 'AGENTD_PYTHON');
+    const dir = mkdtempSync(join(tmpdir(), "hook 'q' $x-")), settings = join(dir, 'claude', 'settings.json');
+    try {
+      mkdirSync(join(dir, 'claude'));
+      const support = join(dir, 'support dir');
+      const command = `${hookCommand(python, join(REPO, 'agent', 'agentd'), support, { port: 48790, stateDir: join(dir, 'agentd state') },
+        'windows', ['-I'])} --target claude --claude-settings '${settings.replaceAll("'", "''")}'`;
+      const code = await new Promise((done) => spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', command],
+        { windowsHide: true, stdio: 'ignore' }).on('exit', done));
+      assert.equal(code, 0, command);
+      // The Claude Code entry is PowerShell too: its quote doubled.
+      const hook = JSON.stringify(join(support, 'bin', 'agentic-complex-hook.cmd').replaceAll("'", "''")).slice(1, -1);
+      assert.ok(readFileSync(settings, 'utf8').includes(hook), settings);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

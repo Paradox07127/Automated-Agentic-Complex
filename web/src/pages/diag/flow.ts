@@ -140,11 +140,11 @@ export interface FlowInput {
   p50?: Partial<Record<NodeId, number>>;
 }
 
-/** Approvals opened since `since` and not decided yet. */
+/** Approvals opened since `since` and not decided or retired yet, by agentd's `request_id`. */
 export function waitingApprovals(decisions: readonly WireTraceEvent[], since: number): number {
   const recent = decisions.filter((e) => isoToMs(e.t_wall) >= since);
-  const decided = new Set(recent.filter((e) => e.kind === 'approval.decided').map((e) => String(e.attrs.approval_id ?? e.trace_id)));
-  return recent.filter((e) => e.kind === 'approval.opened' && !decided.has(String(e.attrs.approval_id ?? e.trace_id))).length;
+  const ended = new Set(recent.filter((e) => e.kind === 'approval.decided' || e.kind === 'approval.retired').map((e) => String(e.attrs.request_id)));
+  return recent.filter((e) => e.kind === 'approval.opened' && !ended.has(String(e.attrs.request_id))).length;
 }
 
 /** Last-hour nodes and belts; counts come from the turn paths and the decisions. */

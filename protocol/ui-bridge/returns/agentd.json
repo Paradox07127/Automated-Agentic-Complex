@@ -42,21 +42,6 @@
     "surface": "main",
     "args": [
       "GET",
-      "/agent/runs/cx-b-unknown"
-    ],
-    "value": {
-      "status": 404,
-      "body": null,
-      "error": {
-        "code": "run_not_found"
-      }
-    }
-  },
-  {
-    "op": "agentd.request",
-    "surface": "main",
-    "args": [
-      "GET",
       "/characters/si/motion-graph"
     ],
     "value": {
