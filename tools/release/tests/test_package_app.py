@@ -225,7 +225,7 @@ class SingleAppStageTests(unittest.TestCase):
             staged = sorted(p.relative_to(content).as_posix() for p in content.rglob('*') if p.is_file())
             self.assertEqual(staged, sorted(['__init__.py', 'import_vmd.py', 'common.py', 'stance.py', 'native_bundle.py', 'neutral_package.py', 'package_format.py', 'vulkan_outfit.py',
                 'import_generated.py', 'secondary_fit.py', 'keys_v2.py', 'live_motion.py', 'style_retarget.py',
-                'kimodo_stand_reference.json', 'efmi_mod.py', 'outfit_compose.py', 'import_outfit.py',
+                'kimodo_stand_reference.json', 'efmi_mod.py', 'eff_mod.py', 'outfit_compose.py', 'import_outfit.py',
                 'motion_graph.py', 'motion_families.py', 'pose_family.py',
                 'mesh_codec.py', 'efmi_geometry.py', 'mod_settings.py', 'texture_mips.py', 'texture_dhash.py', *('mmd/' + p.name for p in mmd.iterdir() if p.suffix in ('.py', '.json')),
                 *('motion_import/' + p.name for p in motion_import.iterdir() if p.suffix in ('.py', '.json'))]))

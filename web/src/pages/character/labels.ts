@@ -233,6 +233,9 @@ const OUTFIT_IMPORT_WARNING: Record<string, (n: string) => string> = {
   setting_fixed: () => '这个开关在 mod 里写死了，不能切换',
   variant_unplaced: () => '有贴图变体找不到对应部件，没有导入',
   segment_unmappable: () => '有部件对不上角色模型，没有导入',
+  eff_target_absent: (n) => `模组要换的「${n}」这个角色身上没有，没有套上`,
+  eff_material_other: (n) => `模组的「${n}」用的是别的部件的材质，保留了原来的贴图`,
+  eff_controls_ignored: () => '模组的按键切换没有套上，只导入了默认的样子',
 };
 
 /** One import report warning (`<code>` or `<code>:<name>`) in words; a code this page does not know stays as it came. */

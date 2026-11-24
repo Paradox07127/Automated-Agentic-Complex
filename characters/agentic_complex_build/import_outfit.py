@@ -6,9 +6,11 @@ the mod's command lists at their defaults: a component that brings its own index
 template replaces the draws of its submesh with its geometry (efmi_geometry), one draw per group of its segments, and every
 other mesh that gets a mod texture is cloned with the template's own index and vertex bytes. The mod's switches become
 interaction/mod-settings.json (mod_settings): the segments and texture variants the runtime switches. None of the mod's shaders or
-scripts runs. The output is a NEW directory; the input package is never modified. Standard library only: this module ships in
-the app's content.
+scripts runs. An EFF (Endfield Framework) format 3 mod instead replaces each template mesh it names with its parts (compose_eff).
+The output is a NEW directory; the input package is never modified. Standard library only: this module ships in the app's
+content.
 """
+from array import array
 from pathlib import Path
 import argparse
 import dataclasses
@@ -18,6 +20,7 @@ import re
 import shutil
 import struct
 import tempfile
+import zlib
 
 import numpy as np
 
@@ -27,7 +30,7 @@ import pool_codec
 from resource_store import clone_or_copy
 import vulkan_outfit
 from .common import canonical_json, reference as ref, sha256_bytes, sha256_file
-from . import efmi_geometry, efmi_mod, mod_settings, outfit_compose, texture_dhash
+from . import eff_mod, efmi_geometry, efmi_mod, mod_settings, outfit_compose, texture_dhash
 
 # skins-R1 LAYOUT.json (endfield-efmi-layout/v1) without its per-sample measurements and evidence pointers.
 LAYOUT = {'schema': 'endfield-efmi-layout/v1',
@@ -305,7 +308,12 @@ def visible_in(appearances, base, appearance_id):
 
 def fingerprint(mod):
     """sha256 over the (path, sha256) list of the inis and every file they name, sorted by path."""
-    rows = sorted([p.relative_to(mod.root).as_posix(), sha256_file(p)] for p in {*mod.inis, *mod.files.values()})
+    return file_fingerprint(mod.root, {*mod.inis, *mod.files.values()})
+
+
+def file_fingerprint(root, paths):
+    """sha256 over the (path relative to `root`, sha256) list of `paths`, sorted by path."""
+    rows = sorted([p.relative_to(root).as_posix(), sha256_file(p)] for p in paths)
     return sha256_bytes(canonical_json(rows))
 
 
@@ -868,6 +876,256 @@ def resource_of(texture_rows, filename, mesh):
     return row['resource'] if mesh in row['meshes'] else row.get('unchanged', {}).get(mesh)
 
 
+def store(*folders):
+    """put(raw): `raw` stored as Files/<sha256>.bytes in each of `folders`, and its reference."""
+    def put(raw):
+        sha = sha256_bytes(raw)
+        for folder in set(folders):
+            p = folder/'Files'/(sha+'.bytes'); p.parent.mkdir(exist_ok=True)
+            if not p.exists():p.write_bytes(raw)
+        return dict(file='Files/'+sha+'.bytes', sha256=sha, byte_count=len(raw))
+    return put
+
+
+class Copy:
+    """The documents an import rewrites of the package copied to `tmp`, and the blob stores beside its source and frame graph."""
+
+    def __init__(self, tmp, native_file):
+        self.tmp = tmp
+        self.definition = read_json(tmp/'character.json')
+        self.native_path = tmp/native_file; self.runtime = self.native_path.parent
+        self.native = read_json(self.native_path); self.entry = self.native['characters'][0]
+        self.source_path, self.graph_path, self.pack_path = (self.runtime/self.entry[k]['file'] for k in ('source', 'graph', 'c7'))
+        self.source, self.graph, self.pack = read_json(self.source_path), read_json(self.graph_path), read_json(self.pack_path)
+        self.animation = self.pack_path.parent/'animation'
+        self.palette_path = self.animation/self.pack['animation']['palette_contract']['file']; self.palette = read_json(self.palette_path)
+        archive_path = self.runtime/self.entry['actor_archive']['file']
+        self.rig = read_json(archive_path.parent/read_json(archive_path)['rig']['file'])
+        self.rig_ids = {n['source_id'] for n in self.rig['nodes'] if n.get('source_id') is not None}
+        self.put, self.put_graph = store(self.source_path.parent), store(self.graph_path.parent)
+
+    def read_blob(self, r):
+        stored = (self.source_path.parent/r['file']).read_bytes()
+        return stored if len(stored) == r['byte_count'] else pool_codec.decode(stored)
+
+
+def new_appearance(pack, fp, name, fmt, mod_name):
+    """The imported appearance of mod fingerprint `fp`, refused when `pack` lists its id."""
+    appearance = dict(id='mod_'+fp[:8], name=name, kind='imported',
+                      source=dict(format=fmt, fingerprint=fp, **(dict(mod_name=mod_name) if mod_name else {}),
+                                  imported_at=datetime.now(timezone.utc).isoformat(timespec='seconds')))
+    if appearance['id'] in {a['id'] for a in pack['appearances']}:raise ValueError('duplicate_appearance')
+    return appearance
+
+
+def is_eff(root):
+    """Whether `root` is an EFF mod: its mod.ini has a [Mod] section with format=."""
+    path = Path(root)/'mod.ini'
+    if not path.is_file():return False
+    if path.stat().st_size > efmi_mod.MAX_FILE_BYTES:raise ValueError('mod_too_large')
+    return any(s.name.lower() == 'mod' and s.get('format') is not None for s in efmi_mod.parse_ini(path.read_text(encoding='utf-8-sig')))
+
+
+def rig_bones(rig):
+    """EFF's bone name hash, the CRC-32 of a rig node's path from its `Root` on -> (the node's source id, that path)."""
+    out = {}
+    for n in rig['nodes']:
+        names = n['path'].split('/')
+        if 'Root' not in names or n.get('source_id') is None:continue
+        path = '/'.join(names[names.index('Root'):])
+        out.setdefault(zlib.crc32(path.encode()), (n['source_id'], path))
+    return out
+
+
+# EFF mesh channel -> (Parts semantic, Unity VertexFormat, components, array typecode, element format). Channel 1 is the game's
+# packed TBN word as float bits; of channel 6 (f32×4) xy is the template's ch6 outline normal, zw zero.
+EFF_ELEMENTS = {0: ('POSITION0', 0, 3, 'f', 'R32G32B32_FLOAT'), 1: ('ENCODEDDATA0', 0, 1, 'I', 'R32_UINT'),
+                4: ('TEXCOORD0', 0, 2, 'f', 'R32G32_FLOAT'), 6: ('OUTLINE0', 0, 4, 'f', 'R32G32_FLOAT'),
+                12: ('BLENDWEIGHTS0', 4, 4, 'H', 'R16G16B16A16_UNORM'), 13: ('BLENDINDICES0', 6, 4, 'B', 'R32G32B32A32_UINT')}
+# Part k's u8 bone index b is BLENDINDICES id k*EFF_BONE_STRIDE+b.
+EFF_BONE_STRIDE = 256
+EFF_SCOPE = ('default state: the visible parts of each Replace, one after another, replace every draw of its target mesh, one draw per '
+             'part with the textures of its material; a skipped target is hidden; the mod\'s controls, other LODs, shape keys and '
+             'material settings are not applied')
+
+
+def eff_geometry(mesh, meshes, source, palette, read_blob, rig_ids, bones):
+    """The GeometryResult replacing every draw of template `mesh` with `meshes` ((part name, EffMesh) each), one group each;
+    `bones` is rig_bones'."""
+    used = [c for c in EFF_ELEMENTS if c in meshes[0][1].channels]
+    for name, m in meshes:
+        if 0 not in m.channels or [c for c in EFF_ELEMENTS if c in m.channels] != used or \
+                any((m.channels[c].format, m.channels[c].dimension & 0xF) != EFF_ELEMENTS[c][1:3] for c in used):
+            raise ValueError('unsupported_geometry:buffer_layout:'+name)
+    arrays, groups, n = {c: array(EFF_ELEMENTS[c][3] if c != 13 else 'I') for c in used}, [], 0
+    for k, (name, m) in enumerate(meshes):
+        for c in used:
+            values = array(EFF_ELEMENTS[c][3], m.channels[c].data)
+            arrays[c] += array('I', (k*EFF_BONE_STRIDE+b for b in values)) if c == 13 else values
+        indices = array('I')
+        for s in m.submeshes:indices += s
+        groups.append((array('I', (i+n for i in indices)) if n else indices, {})); n += m.vertex_count
+    if n > efmi_geometry.MAX_VERTICES:raise ValueError('geometry_too_large:'+mesh)
+    if 6 in arrays:
+        xy = array('f', bytes(8*n)); xy[0::2], xy[1::2] = arrays[6][0::4], arrays[6][1::4]; arrays[6] = xy
+    draws = [d for d in source['draws'] if d['mesh'] == mesh]
+    if not draws:raise ValueError('absent_template_mesh')
+    template = {}
+    for d in draws:
+        for a in d['attributes']:template.setdefault(a['source_channel'], a)
+    def written(c):return template.get(c, {}).get('format'), template.get(c, {}).get('stride')
+    if written(0) != efmi_geometry.WRITTEN[0]:raise ValueError(f'channel_unresolved:{mesh}:0')
+    uvs = efmi_geometry.floats_of(read_blob(template[4])) if written(4) == efmi_geometry.WRITTEN[4] else None
+    parts = efmi_geometry.Parts(mesh, None, n, {EFF_ELEMENTS[c][0]: (arrays[c], EFF_ELEMENTS[c][4]) for c in used}, False, groups, template,
+                                efmi_geometry.floats_of(read_blob(template[0])), uvs, any(d['pass_name'] == 'CharacterOutline' for d in draws), False, [])
+    def bone(g):
+        k, b = divmod(g, EFF_BONE_STRIDE)
+        name, m = meshes[k]
+        if b >= len(m.bone_hashes):raise ValueError(f'unsupported_geometry:bone_unresolved:{name}:{b}')
+        h = m.bone_hashes[b]
+        if h not in bones:raise ValueError(f'unsupported_geometry:unknown_bone:{h}')
+        sid, path = bones[h]
+        return dict(source_transform_id=sid, path=path, bindpose_row_major=list(m.bindposes[b]))
+    return efmi_geometry.build(parts, palette, read_blob, rig_ids, bone)
+
+
+def compose_eff(mod, copy, name):
+    """(appearance, cloned meshes, hidden meshes, report fields) of EffMod `mod` in `copy`, whose documents get its clones."""
+    source, palette, pack, read_blob = copy.source, copy.palette, copy.pack, copy.read_blob
+    meshes = [m['mesh'] for m in palette['meshes'] if not m['mesh'].startswith('outfit:')]
+    bones = rig_bones(copy.rig)
+    warnings = ['eff_controls_ignored'] if mod.controls else []
+    rows, geometry, results, hidden, placed, blobs = [], [], {}, set(), {}, {}
+    def texture(t):
+        if t.dds not in blobs:
+            if t.dds.stat().st_size > efmi_mod.MAX_FILE_BYTES:raise ValueError('mod_too_large')
+            blobs[t.dds] = efmi_mod.read_dds(t.dds, 'linear' if t.linear else 'srgb')
+        return blobs[t.dds]
+    for r in mod.replaces:
+        row = dict(section=r.name, component=None, mesh=r.target_asset); rows.append(row)
+        if r.target_asset not in meshes:
+            warnings.append('eff_target_absent:'+r.target_asset); row['action'] = 'ignored'; continue
+        parts = [p for p in r.parts if p.visible]
+        # A Replace with nothing to draw leaves its target empty in the game.
+        if r.skip or not parts:hidden.add(r.target_asset); row['action'] = 'hidden'; continue
+        found = [(p, eff_mod.read_mesh(p.mesh)) for p in parts]
+        if any(m.shape_count for _, m in found):warnings.append('shapekey_ignored')
+        result = eff_geometry(r.target_asset, [(p.name, m) for p, m in found], source, palette, read_blob, copy.rig_ids, bones)
+        materials = {d['material'] for d in source['draws'] if d['mesh'] == r.target_asset}
+        own = material_textures(source, r.target_asset)
+        groups = []
+        for (p, _), g in zip(found, result.replacement.groups):
+            bound = {}
+            if p.material is not None and p.material.source_asset not in materials:warnings.append('eff_material_other:'+p.name)
+            elif p.material is not None:
+                for slot, t in p.material.textures.items():
+                    file = t.dds.relative_to(mod.root).as_posix(); meshes_of, resources = placed.setdefault(file, (set(), set()))
+                    if slot not in own or texture(t).rd_format_name != own[slot]['rd_format_name']:warnings.append('texture_unbound:'+file); continue
+                    bound[slot] = texture(t); meshes_of.add(r.target_asset); resources.add(slot)
+                    # The template samplers may need the whole chain, which a block-compressed texture cannot be given here.
+                    if len(bound[slot].mips) == 1 and own[slot]['mip_count'] > 1:warnings.append('needs_mips:'+file)
+            groups.append(dataclasses.replace(g, textures=bound))
+        results[r.target_asset] = dataclasses.replace(result.replacement, groups=groups)
+        warnings += [w for w in result.warnings if w not in warnings]
+        row.update(action='geometry', geometry='modified')
+        geometry.append(dict(component=None, section=r.name, mesh=r.target_asset, submesh=None, change='modified', applied=True,
+                             vertices=result.replacement.vertex_count, groups=len(groups), bones_appended=len(result.replacement.extra_bones),
+                             warnings=result.warnings))
+    if not results and not hidden:raise ValueError('unsupported_mod:nothing_to_import')
+    # A file another part binds is used, whatever slot this part's target lacks.
+    warnings = [w for w in warnings if not (w.startswith('texture_unbound:') and placed[w[16:]][0])]
+    files = {mod.root/'mod.ini', *(f for t in mod.textures.values() for f in (t.effres, t.dds)), *(m.effres for m in mod.materials.values()),
+             *(p.mesh for p in mod.parts.values()), *([mod.controls_path] if mod.controls_path else [])}
+    appearance = new_appearance(pack, file_fingerprint(mod.root, files), name or mod.id or mod.root.name, 'eff', mod.id)
+    clones = []
+    for mesh in [m for m in meshes if m in results]:
+        # clone_mesh appends the appearance and refuses one already listed, so each later mesh starts without it.
+        if clones:pack['appearances'].pop()
+        clones.append(outfit_compose.clone_mesh(source, copy.graph, palette, pack, copy.put, [results[mesh]], appearance, read_blob=read_blob,
+                                                put_graph=copy.put_graph, rig_ids=copy.rig_ids, mesh=mesh))
+    if not clones:pack['appearances'].append({k: appearance[k] for k in ('id', 'name', 'kind', 'source')})
+    textures = []
+    for i, (file, (meshes_of, resources)) in enumerate(sorted(placed.items())):
+        textures.append(dict(index=i, file=file, meshes=sorted(meshes_of), resource=min(resources, default=None),
+                             **(dict(resources=sorted(resources)) if len(resources) > 1 else {})))
+    referenced = {t.dds for t in mod.textures.values()}
+    unused = sorted(p.relative_to(mod.root).as_posix() for p in mod.root.rglob('*') if p.suffix.lower() == '.dds' and p.resolve() not in referenced)
+    settings = dict(settings=0, fixed=[], unused=[], segments=0, variants=0, variant_bytes=0, warnings=[])
+    return appearance, set(results), hidden, dict(scope=EFF_SCOPE, components=rows, geometry=geometry, textures=textures, unused_textures=unused,
+                                                  warnings=list(dict.fromkeys(warnings)), clones=clones, settings=settings)
+
+
+def write_package(package, copy, output, appearance, cloned, hidden, fields, progress):
+    """Show the new `appearance`, whose clones of the meshes `cloned` `copy` already holds, wherever the default appearance shows
+    a mesh it neither clones nor hides (`hidden`); write the documents it changed, the Windows frame table, the native and package
+    inventories and the import report (its head, then `fields`); rename the copy to `output` and return the report."""
+    tmp, definition, native, native_path, runtime, entry = copy.tmp, copy.definition, copy.native, copy.native_path, copy.runtime, copy.entry
+    source_path, graph_path, pack_path, animation, palette_path = copy.source_path, copy.graph_path, copy.pack_path, copy.animation, copy.palette_path
+    source, graph, pack, palette, rig = copy.source, copy.graph, copy.pack, copy.palette, copy.rig
+    others = [a['id'] for a in pack['appearances'] if a['id'] != appearance['id']]
+    for m in palette['meshes']:
+        if m['mesh'].startswith('outfit:') or m['mesh'] in cloned:continue
+        if m['mesh'] in hidden:
+            if m.get('appearances') is None:m['appearances'] = others
+        elif m.get('appearances') is not None:m['appearances'] = visible_in(m['appearances'], entry['default_appearance'], appearance['id'])
+    progress('compose', 1); progress('write', 0)
+    write_json(source_path, source)
+    frame_ref = entry.get(native_bundle.VULKAN[0])
+    graph['manifest_sha256'] = sha256_file(source_path); native_bundle.write_neutral(runtime, entry, graph)
+    write_json(palette_path, palette); pack['animation']['palette_contract'] = ref(palette_path, animation)
+    if (animation/'supplemental-clips.json').exists():
+        clips = read_json(animation/'supplemental-clips.json'); clips['base_contract_sha256'] = sha256_file(palette_path)
+        write_json(animation/'supplemental-clips.json', clips)
+    for section in ['animation', 'interaction']:
+        folder = pack_path.parent/section
+        pack[section]['data'] = [dict(x, **ref(folder/x['file'], folder)) for x in pack[section]['data']]
+    pack['render']['manifest'] = ref(source_path, source_path.parent); write_json(pack_path, pack)
+    for key, path in (('source', source_path), ('graph', graph_path), ('c7', pack_path)):entry[key] = ref(path, runtime)
+    if frame_ref:
+        # The Windows frame table gets the clones from its own records; without one the character has no Windows section.
+        frame_path = runtime/frame_ref['file']; character_dir = frame_path.parent.parent
+        def read_any(r, where):
+            path = (source_path.parent if where == 'source' else graph_path.parent)/r['file']
+            if not path.is_file():path = source_path.parent/'Files'/(r['sha256']+'.bytes')
+            stored = path.read_bytes(); raw = stored if len(stored) == r['byte_count'] else pool_codec.decode(stored)
+            need(sha256_bytes(raw) == r['sha256'], 'file_sha_mismatch'); return raw
+        table, written = vulkan_outfit.extend(character_dir, frame_path.read_bytes(), source, entry['source']['sha256'], entry['neutral_scene']['sha256'],
+                                              graph, palette, pack, rig, read_any)
+        (character_dir/vulkan_outfit.OWN).mkdir(parents=True, exist_ok=True)
+        for digest, raw in written.items():(character_dir/vulkan_outfit.OWN/digest).write_bytes(raw)
+        frame_path.write_bytes(table); entry[native_bundle.VULKAN[0]] = ref(frame_path, runtime)
+    cp = runtime/entry['coverage']['file']; write_json(cp, native_bundle.character_coverage(runtime, entry)); entry['coverage'] = ref(cp, runtime)
+    kept = {}
+    def reference(p, root):
+        """ref(p, root); a file still as cloned (cp -c keeps size and mtime) keeps the hash of the installed package's inventory,
+        which no later step hashes again; a file the import rewrote was read from a package file that must match it."""
+        # String slices: p lies under root and root under tmp, and relative_to is slow over every file of a package.
+        key = str(p)[len(str(tmp))+1:]; known = package.inventory.get(key)
+        if known is None:return ref(p, root)
+        a, b = p.stat(), (package.root/key).stat()
+        if (a.st_size, a.st_mtime_ns) != (b.st_size, b.st_mtime_ns):
+            need(sha256_file(package.root/key) == known['sha256'], 'file_sha_mismatch')
+            return ref(p, root)
+        rel = str(p)[len(str(root))+1:]; kept[rel] = known['sha256']
+        return dict(file=rel, sha256=known['sha256'], byte_count=known['byte_count'])
+    roles = {x['file']: x.get('roles', ['runtime_imported_outfit']) for x in native['files']}
+    native['files'] = [dict(**reference(p, runtime), roles=roles.get(p.relative_to(runtime).as_posix(), ['runtime_imported_outfit']))
+                       for p in sorted(runtime.rglob('*')) if p.is_file() and p != native_path]
+    # verify hashes only what reference did not take from the installed package's inventory.
+    write_json(native_path, native); native_bundle.verify(runtime, kept)
+    definition['components']['render']['native_bundle'] = ref(native_path, tmp)
+    # The host finds the window envelope of an imported package by the version it derives from.
+    definition.setdefault('base_package_version', definition['version'])
+    major, minor, patch = map(int, definition['version'].split('.')); definition['version'] = f'{major}.{minor}.{patch+1}'
+    report = dict(schema='endfield-outfit-import/v1', character=package.id, version=definition['version'],
+                  appearance=dict(id=appearance['id'], name=appearance['name']), source=appearance['source'], **fields)
+    write_json(tmp/'provenance'/('outfit-'+appearance['id']+'.json'), report)
+    definition['inventory'] = [reference(p, tmp) for p in sorted(tmp.rglob('*')) if p.is_file() and p != tmp/'character.json']
+    write_json(tmp/'character.json', definition); Package(tmp, deep=False); tmp.rename(output)
+    progress('write', 1)
+    return report
+
+
 def import_outfit(package_root, mod_dir, stage, name=None, mapping=None, progress=None):
     """progress(stage, fraction) is told the stages read, compose and write, each from 0 to 1."""
     progress = progress or (lambda stage, fraction: None)
@@ -876,28 +1134,21 @@ def import_outfit(package_root, mod_dir, stage, name=None, mapping=None, progres
     package = Package(package_root, deep=False); output = Path(stage).resolve()
     need(not output.exists(), 'output_already_exists')
     need(not output.is_relative_to(package.root), 'output_inside_input_package')
-    mod = efmi_mod.load_mod(mod_dir)
+    if eff := is_eff(mod_dir):
+        mod = eff_mod.load_eff(mod_dir)
+    else:mod = efmi_mod.load_mod(mod_dir)
     mapping = read_json(mapping) if mapping else dict(schema=MAP_SCHEMA)
     need(mapping.get('schema') == MAP_SCHEMA, 'invalid_mapping')
     progress('read', 1); progress('compose', 0)
-    values = dict(mod.constants, **{'$lod_level': '0'})
     output.parent.mkdir(parents=True, exist_ok=True)
     tmp = Path(tempfile.mkdtemp(prefix='.outfit-', dir=output.parent)); shutil.rmtree(tmp)
     try:
         shutil.copytree(package.root, tmp, symlinks=True, copy_function=clone_or_copy)
-        definition = read_json(tmp/'character.json')
-        native_path = tmp/package.native_ref['file']; runtime = native_path.parent
-        native = read_json(native_path); entry = native['characters'][0]
-        source_path, graph_path, pack_path = (runtime/entry[k]['file'] for k in ('source', 'graph', 'c7'))
-        source, graph, pack = read_json(source_path), read_json(graph_path), read_json(pack_path)
-        animation = pack_path.parent/'animation'
-        palette_path = animation/pack['animation']['palette_contract']['file']; palette = read_json(palette_path)
-        def read_blob(r):
-            stored = (source_path.parent/r['file']).read_bytes()
-            return stored if len(stored) == r['byte_count'] else pool_codec.decode(stored)
-        archive_path = runtime/entry['actor_archive']['file']
-        rig = read_json(archive_path.parent/read_json(archive_path)['rig']['file'])
-        rig_ids = {n['source_id'] for n in rig['nodes'] if n.get('source_id') is not None}
+        copy = Copy(tmp, package.native_ref['file'])
+        if eff:return write_package(package, copy, output, *compose_eff(mod, copy, name), progress)
+        values = dict(mod.constants, **{'$lod_level': '0'})
+        source, graph, pack, palette, pack_path = copy.source, copy.graph, copy.pack, copy.palette, copy.pack_path
+        read_blob, rig_ids, put, put_graph = copy.read_blob, copy.rig_ids, copy.put, copy.put_graph
         switches = mod_settings.Switches(mod)
         # An underwear switch is held where it draws most, for the defaults and every switch's values alike.
         lod0, pinned = switches.pin(LOD0)
@@ -958,20 +1209,7 @@ def import_outfit(package_root, mod_dir, stage, name=None, mapping=None, progres
                     for w in warnings if not (w.startswith('texture_unbound:') and any(w[16:] in fs for fs in folded.values()))]
         referenced = set(mod.files.values())
         unused = sorted(p.relative_to(mod.root).as_posix() for p in mod.root.rglob('*') if p.suffix.lower() == '.dds' and p.resolve() not in referenced)
-        fp = fingerprint(mod)
-        appearance = dict(id='mod_'+fp[:8], name=name or mod.name or mod.root.name, kind='imported',
-                          source=dict(format='efmi', fingerprint=fp, **(dict(mod_name=mod.name) if mod.name else {}),
-                                      imported_at=datetime.now(timezone.utc).isoformat(timespec='seconds')))
-        if appearance['id'] in {a['id'] for a in pack['appearances']}:raise ValueError('duplicate_appearance')
-        def store(*folders):
-            def put(raw):
-                sha = sha256_bytes(raw)
-                for folder in set(folders):
-                    p = folder/'Files'/(sha+'.bytes'); p.parent.mkdir(exist_ok=True)
-                    if not p.exists():p.write_bytes(raw)
-                return dict(file='Files/'+sha+'.bytes', sha256=sha, byte_count=len(raw))
-            return put
-        put, put_graph = store(source_path.parent), store(graph_path.parent)
+        appearance = new_appearance(pack, fingerprint(mod), name or mod.name or mod.root.name, 'efmi', mod.name)
         controlled = {}
         for (cid, span), when in plan.controlled.items():controlled.setdefault(cid, {})[span] = when
         layouts = {c: mod_settings.groups(mod, drawn_with[c], controlled.get(c, {}), plan.warn) for c in geometric}
@@ -1087,76 +1325,16 @@ def import_outfit(package_root, mod_dir, stage, name=None, mapping=None, progres
             if not listed:pack['interaction']['data'].append(dict(file=mod_settings.FILE))
             if variants:source['texture_variants'] = source.get('texture_variants', [])+variants
         named = {s['id'] for s in settings['settings']}
-        others = [a['id'] for a in pack['appearances'] if a['id'] != appearance['id']]
-        for m in palette['meshes']:
-            if m['mesh'].startswith('outfit:') or m['mesh'] in cloned:continue
-            if m['mesh'] in hidden:
-                if m.get('appearances') is None:m['appearances'] = others
-            elif m.get('appearances') is not None:m['appearances'] = visible_in(m['appearances'], entry['default_appearance'], appearance['id'])
-        progress('compose', 1); progress('write', 0)
-        write_json(source_path, source)
-        frame_ref = entry.get(native_bundle.VULKAN[0])
-        graph['manifest_sha256'] = sha256_file(source_path); native_bundle.write_neutral(runtime, entry, graph)
-        write_json(palette_path, palette); pack['animation']['palette_contract'] = ref(palette_path, animation)
-        if (animation/'supplemental-clips.json').exists():
-            clips = read_json(animation/'supplemental-clips.json'); clips['base_contract_sha256'] = sha256_file(palette_path)
-            write_json(animation/'supplemental-clips.json', clips)
-        for section in ['animation', 'interaction']:
-            folder = pack_path.parent/section
-            pack[section]['data'] = [dict(x, **ref(folder/x['file'], folder)) for x in pack[section]['data']]
-        pack['render']['manifest'] = ref(source_path, source_path.parent); write_json(pack_path, pack)
-        for key, path in (('source', source_path), ('graph', graph_path), ('c7', pack_path)):entry[key] = ref(path, runtime)
-        if frame_ref:
-            # The Windows frame table gets the clones from its own records; without one the character has no Windows section.
-            frame_path = runtime/frame_ref['file']; character_dir = frame_path.parent.parent
-            def read_any(r, where):
-                path = (source_path.parent if where == 'source' else graph_path.parent)/r['file']
-                if not path.is_file():path = source_path.parent/'Files'/(r['sha256']+'.bytes')
-                stored = path.read_bytes(); raw = stored if len(stored) == r['byte_count'] else pool_codec.decode(stored)
-                need(sha256_bytes(raw) == r['sha256'], 'file_sha_mismatch'); return raw
-            table, written = vulkan_outfit.extend(character_dir, frame_path.read_bytes(), source, entry['source']['sha256'], entry['neutral_scene']['sha256'],
-                                                  graph, palette, pack, rig, read_any)
-            (character_dir/vulkan_outfit.OWN).mkdir(parents=True, exist_ok=True)
-            for digest, raw in written.items():(character_dir/vulkan_outfit.OWN/digest).write_bytes(raw)
-            frame_path.write_bytes(table); entry[native_bundle.VULKAN[0]] = ref(frame_path, runtime)
-        cp = runtime/entry['coverage']['file']; write_json(cp, native_bundle.character_coverage(runtime, entry)); entry['coverage'] = ref(cp, runtime)
-        kept = {}
-        def reference(p, root):
-            """ref(p, root); a file still as cloned (cp -c keeps size and mtime) keeps the hash of the installed package's inventory,
-            which no later step hashes again; a file the import rewrote was read from a package file that must match it."""
-            # String slices: p lies under root and root under tmp, and relative_to is slow over every file of a package.
-            key = str(p)[len(str(tmp))+1:]; known = package.inventory.get(key)
-            if known is None:return ref(p, root)
-            a, b = p.stat(), (package.root/key).stat()
-            if (a.st_size, a.st_mtime_ns) != (b.st_size, b.st_mtime_ns):
-                need(sha256_file(package.root/key) == known['sha256'], 'file_sha_mismatch')
-                return ref(p, root)
-            rel = str(p)[len(str(root))+1:]; kept[rel] = known['sha256']
-            return dict(file=rel, sha256=known['sha256'], byte_count=known['byte_count'])
-        roles = {x['file']: x.get('roles', ['runtime_imported_outfit']) for x in native['files']}
-        native['files'] = [dict(**reference(p, runtime), roles=roles.get(p.relative_to(runtime).as_posix(), ['runtime_imported_outfit']))
-                           for p in sorted(runtime.rglob('*')) if p.is_file() and p != native_path]
-        # verify hashes only what reference did not take from the installed package's inventory.
-        write_json(native_path, native); native_bundle.verify(runtime, kept)
-        definition['components']['render']['native_bundle'] = ref(native_path, tmp)
-        # The host finds the window envelope of an imported package by the version it derives from.
-        definition.setdefault('base_package_version', definition['version'])
-        major, minor, patch = map(int, definition['version'].split('.')); definition['version'] = f'{major}.{minor}.{patch+1}'
         warnings += [w for w in plan.warnings if w.split(':', 1)[0] in mod_settings.REPORTED and w not in warnings]
-        report = dict(schema='endfield-outfit-import/v1', character=package.id, version=definition['version'],
-                      appearance=dict(id=appearance['id'], name=appearance['name']), source=appearance['source'],
-                      scope='default state, the mod\'s switches as a table of segments and texture variants: a component with geometry '
-                            'of its own replaces its submesh, other clones keep their template index and vertex bytes; shape keys, '
-                            'morphs and the mod\'s shaders are not applied',
-                      components=rows, geometry=geometry, textures=texture_rows, unused_textures=unused, warnings=warnings, clones=clones,
-                      settings=dict(settings=len(named), fixed=plan.fixed, unused=[s.id for s in plan.settings if s.id not in named and s.id not in plan.fixed],
-                                    segments=len(settings['segments']), variants=len(variants) if named else 0,
-                                    variant_bytes=variant_bytes if named else 0, warnings=plan.warnings))
-        write_json(tmp/'provenance'/('outfit-'+appearance['id']+'.json'), report)
-        definition['inventory'] = [reference(p, tmp) for p in sorted(tmp.rglob('*')) if p.is_file() and p != tmp/'character.json']
-        write_json(tmp/'character.json', definition); Package(tmp, deep=False); tmp.rename(output)
-        progress('write', 1)
-        return report
+        return write_package(package, copy, output, appearance, cloned, hidden,
+                             dict(scope='default state, the mod\'s switches as a table of segments and texture variants: a component with '
+                                        'geometry of its own replaces its submesh, other clones keep their template index and vertex bytes; '
+                                        'shape keys, morphs and the mod\'s shaders are not applied',
+                                  components=rows, geometry=geometry, textures=texture_rows, unused_textures=unused, warnings=warnings, clones=clones,
+                                  settings=dict(settings=len(named), fixed=plan.fixed,
+                                                unused=[s.id for s in plan.settings if s.id not in named and s.id not in plan.fixed],
+                                                segments=len(settings['segments']), variants=len(variants) if named else 0,
+                                                variant_bytes=variant_bytes if named else 0, warnings=plan.warnings)), progress)
     finally:
         if tmp.exists():shutil.rmtree(tmp)
 
@@ -1164,7 +1342,7 @@ def import_outfit(package_root, mod_dir, stage, name=None, mapping=None, progres
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--package', type=Path, required=True, help='character package directory (holds character.json)')
-    p.add_argument('--source', type=Path, required=True, help='EFMI mod directory (holds its .ini files)')
+    p.add_argument('--source', type=Path, required=True, help='EFMI mod directory (holds its .ini files) or EFF mod directory (holds its mod.ini)')
     p.add_argument('--output', type=Path, required=True, help='NEW directory for the package with the imported appearance')
     p.add_argument('--name', help='display name of the appearance; default the mod name')
     p.add_argument('--map', type=Path, help=MAP_SCHEMA+' file whose components and textures override the automatic match')

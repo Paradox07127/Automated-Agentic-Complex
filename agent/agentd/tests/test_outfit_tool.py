@@ -19,7 +19,7 @@ from infra.platform import lock_file
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path[:0] = [str(REPO / "characters"), str(REPO / "characters/Tests/Python")]
-from test_import_outfit import CLOTH, geometry_mod, package_fixture, si_mod, write_map
+from test_import_outfit import CLOTH, eff_mod_fixture, geometry_mod, package_fixture, si_mod, write_map
 # protocol/C3-host-ipc has a test_mod_settings module of its own.
 spec = importlib.util.spec_from_file_location("pipeline_test_mod_settings", REPO / "characters/Tests/Python/test_mod_settings.py")
 pipeline_mod_settings = importlib.util.module_from_spec(spec); spec.loader.exec_module(pipeline_mod_settings)
@@ -125,6 +125,16 @@ class OutfitToolTests(unittest.TestCase):
         args = ["import", "--library", str(library.root), "--character", "fixture", "--source", str(switch_mod(self.root / "switch", panties=True)),
                 "--validate-with", str(self.host())]
         self.assertIn("setting_fixed:panties", self.success(tool_command("outfit_tool.py", *args))["warnings"])
+
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
+    def test_import_of_an_eff_mod_publishes_its_appearance(self):
+        args = ["import", "--library", str(self.library.root), "--character", "fixture", "--source", str(eff_mod_fixture(self.root / "eff")),
+                "--validate-with", str(self.host())]
+        doc = self.success(tool_command("outfit_tool.py", *args))
+        [package] = Library(self.library.root).packages()
+        appearance = self.pack(package)["appearances"][-1]
+        self.assertEqual((appearance["id"], appearance["kind"], appearance["source"]["format"]), (doc["appearance"]["id"], "imported", "eff"))
+        self.assertIn("eff_target_absent:S_actor_test_gone_01_lod0", doc["warnings"])
 
     def test_running_import_makes_a_second_one_busy(self):
         snapshot = self.library.snapshot()

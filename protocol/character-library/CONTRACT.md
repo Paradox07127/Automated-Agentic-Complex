@@ -107,7 +107,7 @@ schema 仍是 `endfield-character-pack/v1`，只加可选字段；包里没有 `
 | name | string | 是 | 现有 |
 | desc | string，≤ 200 字节 | 否 | 菜单和角色页里的说明 |
 | kind | `"original"` \| `"imported"` | 否，缺省为 original | 导入的外观标 imported |
-| source | `{format:"efmi"\|"clone", fingerprint:<64 位十六进制>, mod_name?:string, imported_at:<ISO8601>}` | kind=imported 时必有 | 只存指纹和名字 |
+| source | `{format:"efmi"\|"eff"\|"clone", fingerprint:<64 位十六进制>, mod_name?:string, imported_at:<ISO8601>}` | kind=imported 时必有 | 只存指纹和名字 |
 
 **`layers`**（顶层，可选数组，≤ 16 项）
 

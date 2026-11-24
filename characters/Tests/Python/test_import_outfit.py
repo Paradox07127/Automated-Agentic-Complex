@@ -11,15 +11,17 @@ import sys
 import tempfile
 import unittest
 from unittest import mock
+import zlib
 
 CHARACTERS = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(CHARACTERS), str(CHARACTERS.parent/'agent/agentd/tests')]
+sys.path[:0] = [str(CHARACTERS), str(CHARACTERS.parent/'agent/agentd/tests'), str(Path(__file__).resolve().parent)]
 from agentic_complex_build import efmi_mod, import_outfit, texture_dhash
 from character_library import Package, read_json, write_json
 import native_bundle
 import package_format
 import vulkan_outfit
 from test_character_library import fixture
+import test_eff_mod
 
 CLOTH = 'S_actor_test_cloth_01_lod0'
 BODY = 'S_actor_test_body_01_lod0'
@@ -415,6 +417,78 @@ def template_dhash(fmt, binding):
     return texture_dhash.dhash(fmt, [(4, 4, raw), (2, 2, raw)])
 
 
+# An EFF mod of two parts drawn over CLOTH, the first with a material of CLOTH's own; BODY skipped; one target the character lacks.
+EFF_INI = '''[Mod]
+format=3
+id=eff_fixture
+key_switch_enabled=1
+
+[TextureBase]
+path=textures/base.effres
+dds=textures/base.dds
+
+[TextureBump]
+path=textures/bump.effres
+dds=textures/bump.dds
+linear=true
+
+[TextureGloss]
+path=textures/gloss.effres
+dds=textures/gloss.dds
+
+[MaterialCloth]
+path=materials/cloth.effres
+source.asset=M_cloth
+texture._BaseMap=TextureBase
+texture._BumpMap=TextureBump
+texture._MetallicGlossMap=TextureGloss
+
+[Mesh_PartA]
+path=meshes/a.effres
+
+[PartA]
+mesh=Mesh_PartA
+visible=true
+material_slot=0
+material=MaterialCloth
+
+[Mesh_PartB]
+path=meshes/b.effres
+
+[PartB]
+mesh=Mesh_PartB
+visible=true
+material_slot=0
+
+[ReplaceCloth]
+target.asset=S_actor_test_cloth_01_lod0
+parts=PartA,PartB
+
+[ReplaceBody]
+target.asset=S_actor_test_body_01_lod0
+handling=skip
+
+[ReplaceGone]
+target.asset=S_actor_test_gone_01_lod0
+parts=PartB
+'''
+EFF_TEXTURES = {'textures/base.dds': dds(8, 8, 99, fill=21), 'textures/bump.dds': dds(8, 8, 83, fill=22),
+                # Linear data read as sRGB, as the section does not say linear: no format of the slot.
+                'textures/gloss.dds': dds(8, 8, 98, fill=23)}
+
+
+def eff_mod_fixture(root, ini=EFF_INI, bones=None):
+    """EFF_INI with test_eff_mod's three-vertex mesh as both parts; `bones` replaces the bone name hashes of part A's mesh."""
+    T = test_eff_mod
+    files = {'textures/base.effres': T.effres(3), 'textures/bump.effres': T.effres(3), 'textures/gloss.effres': T.effres(3),
+             'materials/cloth.effres': T.effres(2, b'm', b'format=EFFMAT'), 'meshes/a.effres': T.mesh_effres(), 'meshes/b.effres': T.mesh_effres(),
+             'mod.ini': ini.encode(), **EFF_TEXTURES}
+    if bones:files['meshes/a.effres'] = files['meshes/a.effres'].replace(struct.pack('<2I', *T.BONES), struct.pack('<2I', *bones))
+    for name, raw in files.items():
+        (root/name).parent.mkdir(parents=True, exist_ok=True); (root/name).write_bytes(raw)
+    return root
+
+
 def fingerprint(root, names):
     rows = sorted((n, hashlib.sha256((root/n).read_bytes()).hexdigest()) for n in names)
     return hashlib.sha256(json.dumps([list(r) for r in rows], sort_keys=True).encode()).hexdigest()
@@ -602,6 +676,74 @@ class ImportOutfitTests(unittest.TestCase):
         [caster] = [e for p in graph['passes'] for e in p.get('geometry', []) if e['mesh'] == new]
         cast = next(a for a in caster['attributes'] if a['source_channel'] == 0)
         self.assertEqual((runtime/cast['file']).read_bytes(), (runtime/'source'/position['file']).read_bytes())
+
+    def eff_import(self, **fixture):
+        package = package_fixture(self.root/'skinned', skinned=True)
+        report = import_outfit.import_outfit(package.root, eff_mod_fixture(self.root/'eff', **fixture), self.root/'out')
+        return report, *self.staged(self.root/'out')
+
+    def test_an_eff_replace_draws_its_parts_as_groups_of_one_clone(self):
+        report, _, runtime, pack, source, palette, _ = self.eff_import()
+        aid = report['appearance']['id']
+        new = 'outfit:'+aid+'/'+CLOTH
+        self.assertEqual(report['source']['format'], 'eff')
+        self.assertEqual(pack['appearances'][-1]['source']['mod_name'], 'eff_fixture')
+        self.assertEqual(report['geometry'], [dict(component=None, section='ReplaceCloth', mesh=CLOTH, submesh=None, change='modified', applied=True,
+                                                   vertices=6, groups=2, bones_appended=0, warnings=[])])
+        self.assertEqual([(r['section'], r['action']) for r in report['components']],
+                         [('ReplaceCloth', 'geometry'), ('ReplaceBody', 'hidden'), ('ReplaceGone', 'ignored')])
+        self.assertEqual(report['warnings'], ['eff_controls_ignored', 'needs_mips:textures/base.dds', 'needs_mips:textures/bump.dds',
+                                              'texture_unbound:textures/gloss.dds', 'eff_target_absent:S_actor_test_gone_01_lod0'])
+        self.assertEqual([(t['file'], t['meshes'], t['resource']) for t in report['textures']],
+                         [('textures/base.dds', [CLOTH], '_BaseMap'), ('textures/bump.dds', [CLOTH], '_BumpMap'), ('textures/gloss.dds', [], None)])
+        first, second = [d for d in source['draws'] if d['mesh'] == new]
+        def raw(r):return (runtime/'source'/r['file']).read_bytes()
+        self.assertEqual((raw(first['indices']), raw(second['indices'])), (struct.pack('<3H', 0, 1, 2), struct.pack('<3H', 3, 4, 5)))
+        channel = {a['source_channel']: raw(a) for a in first['attributes']}
+        self.assertEqual(channel[0], b''.join(struct.pack('<3f', *p) for p in test_eff_mod.POSITIONS)*2)
+        self.assertEqual(channel[4], b''.join(struct.pack('<2f', *uv) for uv in test_eff_mod.UVS)*2)
+        # Bones Root/a and Root/a/b are the template's 0 and 1; a slot of weight 0 takes bone 0.
+        self.assertEqual(channel[13], struct.pack('<12I', 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0)*2)
+        [template] = [d for d in source['draws'] if d['mesh'] == CLOTH]
+        own = {r['names'][0]: r for r in template['resources']}
+        textures = {r['names'][0]: r for r in first['resources']}
+        self.assertEqual(textures['_BaseMap']['sha256'], hashlib.sha256(EFF_TEXTURES['textures/base.dds'][148:]).hexdigest())
+        self.assertEqual(textures['_BumpMap']['sha256'], hashlib.sha256(EFF_TEXTURES['textures/bump.dds'][148:]).hexdigest())
+        self.assertEqual(textures['_MetallicGlossMap'], own['_MetallicGlossMap'])
+        meshes = {m['mesh']: m.get('appearances') for m in palette['meshes']}
+        self.assertEqual(meshes, {CLOTH: ['default', 'top'], BODY: ['default', 'top'], TWIN: ['top'], new: [aid]})
+
+    def test_an_eff_part_without_a_material_keeps_the_template_textures(self):
+        report, _, _, _, source, _, _ = self.eff_import()
+        _, second = [d for d in source['draws'] if d['mesh'] == 'outfit:'+report['appearance']['id']+'/'+CLOTH]
+        [template] = [d for d in source['draws'] if d['mesh'] == CLOTH]
+        self.assertEqual(second['resources'], template['resources'])
+
+    def test_an_eff_skip_hides_its_target(self):
+        report, _, _, pack, source, palette, _ = self.eff_import()
+        aid = report['appearance']['id']
+        self.assertFalse([d for d in source['draws'] if d['mesh'] == 'outfit:'+aid+'/'+BODY])
+        self.assertNotIn(aid, next(m for m in palette['meshes'] if m['mesh'] == BODY)['appearances'])
+
+    def test_an_eff_material_of_another_template_material_textures_nothing(self):
+        report, _, _, _, source, _, _ = self.eff_import(ini=EFF_INI.replace('source.asset=M_cloth', 'source.asset=M_body'))
+        self.assertIn('eff_material_other:PartA', report['warnings'])
+        self.assertFalse([w for w in report['warnings'] if w.startswith(('needs_mips:', 'texture_unbound:'))])
+        first, _ = [d for d in source['draws'] if d['mesh'] == 'outfit:'+report['appearance']['id']+'/'+CLOTH]
+        [template] = [d for d in source['draws'] if d['mesh'] == CLOTH]
+        self.assertEqual(first['resources'], template['resources'])
+
+    def test_an_eff_bone_the_rig_lacks_is_refused(self):
+        unknown = zlib.crc32(b'Root/zz')
+        with self.assertRaisesRegex(ValueError, f'^unsupported_geometry:unknown_bone:{unknown}$'):
+            self.eff_import(bones=[test_eff_mod.BONES[0], unknown])
+        self.assertFalse((self.root/'out').exists())
+
+    def test_the_folder_above_an_eff_mod_is_refused_with_the_folder_to_choose(self):
+        package = package_fixture(self.root/'skinned', skinned=True)
+        eff_mod_fixture(self.root/'mods'/'eff')
+        with self.assertRaisesRegex(ValueError, '^unsupported_mod:里面有 EFF 格式的模组'):
+            import_outfit.import_outfit(package.root, self.root/'mods', self.root/'out')
 
     def test_a_texture_replaces_the_material_of_its_size_where_materials_share_a_resource_name(self):
         # maid's cloth_05: two materials of one submesh sample `_MainTex` at two sizes, and the mod brings one file for each.

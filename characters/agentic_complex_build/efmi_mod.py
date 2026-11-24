@@ -24,7 +24,7 @@ FOURCC_DXGI = {b'BC5U': 83, b'ATI2': 83, b'DXT5': 77}
 # An uncompressed DDS without a DX10 header: DDPF_RGB with 32 bits in R, G, B, A byte order.
 RGBA_MASKS = (32, 0xff, 0xff00, 0xff0000, 0xff000000)
 BEM_MAGIC = b'BEM\0PKG\0'
-EFF = 'unsupported_mod:EFF 格式（[Mod] format=）替换的是游戏资源文件，不是 EFMI 的绘制调用'
+EFF_INSIDE = 'unsupported_mod:里面有 EFF 格式的模组（[Mod] format=），请选它 mod.ini 所在的那个文件夹'
 CONTROL = {'if', 'elif', 'else', 'endif'}
 # The exporter's `; [mesh:<part>] [vertex_count:N]` comment above a draw call.
 PART = re.compile(r'\[mesh:([^\]]*)\]')
@@ -853,8 +853,8 @@ def load_mod(root):
         for s in own:
             if owner.setdefault(s.name.lower(), ini) != ini:raise ValueError('ambiguous_ini')
         sections += own
-    # EFF's [Mod] format= ini swaps Unity assets, not draw calls.
-    if any(s.name.lower() == 'mod' and s.get('format') is not None for s in sections):raise ValueError(EFF)
+    # An EFF mod (import_outfit.is_eff) below the chosen folder.
+    if any(s.name.lower() == 'mod' and s.get('format') is not None for s in sections):raise ValueError(EFF_INSIDE)
     files = {}
     for s in sections:
         for e in s.entries:
@@ -863,8 +863,6 @@ def load_mod(root):
             files[name] = checked_path(root, name)
             size = files[name].stat().st_size; total += size
             if size > MAX_FILE_BYTES or total > MAX_TOTAL_BYTES:raise ValueError('mod_too_large')
-            with files[name].open('rb') as f:
-                if f.read(16) == b'EFF_AUTHOR_FILE3':raise ValueError(EFF)
     by_name = {s.name.lower(): s for s in sections}
     resources = {s.name.lower(): s.get('filename').replace('\\', '/') for s in sections if s.get('filename')}
     filters = filter_keys(sections)

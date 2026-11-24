@@ -63,7 +63,7 @@ class Parts:
     mesh: str
     submesh: str | None
     vertex_count: int
-    # Each by semantic: (array of its interleaved components, format).
+    # Each by semantic: (array of its interleaved components, format); an EFF mesh's OUTLINE0 is the template's ch6 f32×2.
     elements: dict
     color: bool
     # (u32 indices, ps-tN slot -> file) per group of segments.
@@ -252,31 +252,14 @@ def match(parts, template_words=None):
     return out
 
 
-def skin(parts, mod, component, palette, rig_ids, mesh_of_component, warnings):
-    """(ch12 weights, ch13 clone palette indices, extra bones), or None without BLENDINDICES.
-
-    Merged-skeleton ids go through the offset table to (component c, local l), bone l of c's template mesh; local ids are bones
-    of this mesh. A bone the mesh lacks is appended in order of first use."""
-    if 'BLENDINDICES0' not in parts.elements:return None
-    ids, id_format = parts.elements['BLENDINDICES0']
-    n = parts.vertex_count
-    if 'BLENDWEIGHTS0' in parts.elements:
-        raw, fmt = parts.elements['BLENDWEIGHTS0']
-        unit = 65535.0 if fmt == 'R16G16B16A16_UNORM' else 1.0
-        sums = [a+b+c+d for a, b, c, d in zip(raw[0::4], raw[1::4], raw[2::4], raw[3::4])]
-        if any(s and abs(s/unit-1.0) >= 0.001 for s in sums):warnings.append('weights_renormalized')
-        weights, zero = mesh_codec.normalize_weights(array('f', raw))
-        if zero:warnings.append('zero_weights_fixed')
-    else:
-        weights = array('f', [1.0, 0.0, 0.0, 0.0]*n)
+def component_bones(parts, mod, component, palette, mesh_of_component):
+    """skin's `bone` of an EFMI component: merged-skeleton ids go through the offset table to (component c, local l), bone l of
+    c's template mesh; local ids are bones of this mesh."""
+    id_format = parts.elements.get('BLENDINDICES0', (None, None))[1]
     entries = {m['mesh']: m for m in palette['meshes']}
-    own = entries[parts.mesh]['bones']
-    index = {}
-    for i, b in enumerate(own):index.setdefault(b['source_transform_id'], i)
-    extra = []
     merged = mod.merged_skeleton and id_format != 'R8G8B8A8_UINT'
     table = sorted((o, c, k) for k, (o, c) in mod.skeleton.items() if o is not None and c is not None)
-    def resolve(g):
+    def bone(g):
         unresolved = f'unsupported_geometry:bone_unresolved:{component.id}:{g}'
         if merged:
             if mod.bones_count is not None and g >= mod.bones_count:raise ValueError(unresolved)
@@ -289,12 +272,38 @@ def skin(parts, mod, component, palette, rig_ids, mesh_of_component, warnings):
                 if l >= len(order):raise ValueError(unresolved)
                 l = order[l]
         else:
-            l, bones = g, own
+            l, bones = g, entries[parts.mesh]['bones']
         if l >= len(bones):raise ValueError(unresolved)
-        bone = bones[l]; sid = bone['source_transform_id']
+        return bones[l]
+    return bone
+
+
+def skin(parts, palette, rig_ids, bone, warnings):
+    """(ch12 weights, ch13 clone palette indices, extra bones), or None without BLENDINDICES.
+
+    `bone(g)` is the palette bone record ({source_transform_id, bindpose_row_major, ...}) of BLENDINDICES id g. A bone the
+    mesh lacks is appended in order of first use."""
+    if 'BLENDINDICES0' not in parts.elements:return None
+    ids, _ = parts.elements['BLENDINDICES0']
+    n = parts.vertex_count
+    if 'BLENDWEIGHTS0' in parts.elements:
+        raw, fmt = parts.elements['BLENDWEIGHTS0']
+        unit = 65535.0 if fmt == 'R16G16B16A16_UNORM' else 1.0
+        sums = [a+b+c+d for a, b, c, d in zip(raw[0::4], raw[1::4], raw[2::4], raw[3::4])]
+        if any(s and abs(s/unit-1.0) >= 0.001 for s in sums):warnings.append('weights_renormalized')
+        weights, zero = mesh_codec.normalize_weights(array('f', raw))
+        if zero:warnings.append('zero_weights_fixed')
+    else:
+        weights = array('f', [1.0, 0.0, 0.0, 0.0]*n)
+    own = {m['mesh']: m for m in palette['meshes']}[parts.mesh]['bones']
+    index = {}
+    for i, b in enumerate(own):index.setdefault(b['source_transform_id'], i)
+    extra = []
+    def resolve(g):
+        record = bone(g); sid = record['source_transform_id']
         if sid not in rig_ids:raise ValueError('unsupported_geometry:unknown_bone:'+str(sid))
         if sid not in index:
-            index[sid] = len(own)+len(extra); extra.append(copy.deepcopy(bone))
+            index[sid] = len(own)+len(extra); extra.append(copy.deepcopy(record))
         return index[sid]
     cache = {}
     out = array('I', bytes(4*len(ids)))
@@ -307,8 +316,9 @@ def skin(parts, mod, component, palette, rig_ids, mesh_of_component, warnings):
     return weights, out, extra
 
 
-def build(parts, mod, component, palette, read_blob, rig_ids, mesh_of_component):
-    """The GeometryResult of `parts`, each channel the template draws written in the template's format at the mod's vertex count."""
+def build(parts, palette, read_blob, rig_ids, bone):
+    """The GeometryResult of `parts`, each channel the template draws written in the template's format at the mod's vertex count;
+    `bone` is skin's."""
     n, t, warnings = parts.vertex_count, parts.template, list(parts.warnings)
     blobs = {}
     def blob(c):
@@ -337,7 +347,8 @@ def build(parts, mod, component, palette, read_blob, rig_ids, mesh_of_component)
             words = mesh_codec.encode_tbn(normals, tangents, signs); warnings.append('normals_recomputed')
         if parts.outline and template_words is not None:
             words = array('I', [w if m < 0 else template_words[m] for w, m in zip(words, matched)])
-    if parts.outline and 6 in t and written(6) == WRITTEN[6]:
+    if 6 in t and written(6) == WRITTEN[6] and 'OUTLINE0' in parts.elements:channels[6] = parts.elements['OUTLINE0'][0].tobytes()
+    elif parts.outline and 6 in t and written(6) == WRITTEN[6]:
         groups, _ = mesh_codec.weld(positions)
         xy = mesh_codec.outline_normals(positions, words, groups)
         old = floats_of(blob(6))
@@ -358,7 +369,7 @@ def build(parts, mod, component, palette, read_blob, rig_ids, mesh_of_component)
     if 4 in t and uvs is not None and written(4) == WRITTEN[4]:channels[4] = uvs.tobytes()
     if 5 in t and 'TEXCOORD1' in parts.elements and written(5) == WRITTEN[5]:channels[5] = parts.elements['TEXCOORD1'][0].tobytes()
     extra = []
-    if (12 in t or 13 in t) and (skinned := skin(parts, mod, component, palette, rig_ids, mesh_of_component, warnings)):
+    if (12 in t or 13 in t) and (skinned := skin(parts, palette, rig_ids, bone, warnings)):
         weights, bones, extra = skinned
         if 12 in t and written(12) == WRITTEN[12]:channels[12] = weights.tobytes()
         if 13 in t and written(13) == WRITTEN[13]:channels[13] = bones.tobytes()
@@ -384,4 +395,4 @@ def component_geometry(mod, component, mesh, source, palette, read_blob, rig_ids
     source transform ids; `read_blob(ref)` reads a source blob."""
     parts = read_component(mod, component, mesh, source, read_blob)
     if parts.unmodified:return None
-    return build(parts, mod, component, palette, read_blob, rig_ids, mesh_of_component)
+    return build(parts, palette, read_blob, rig_ids, component_bones(parts, mod, component, palette, mesh_of_component))

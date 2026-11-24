@@ -12,7 +12,7 @@ import struct
 import sys
 
 from .efmi_geometry import MAX_INDICES, MAX_VERTICES
-from .efmi_mod import checked_path
+from .efmi_mod import MAX_FILE_BYTES, checked_path
 
 MAGIC = b'EFF_AUTHOR_FILE3'
 # Magic, u32 version, u32 kind, u64 meta length, u64 payload length, sha256 of the meta.
@@ -168,6 +168,7 @@ def load_eff(root):
 def read_effres(path):
     """(kind, meta, payload) of one .effres file."""
     path = Path(path)
+    if path.stat().st_size > MAX_FILE_BYTES:raise ValueError('mod_too_large')
     raw = path.read_bytes()
     if len(raw) < HEADER.size:raise ValueError('unsupported_mod:eff_file:'+path.name)
     magic, version, kind, meta_len, payload_len, digest = HEADER.unpack_from(raw)

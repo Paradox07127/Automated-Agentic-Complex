@@ -37,7 +37,7 @@ CONTENT_SOURCES=('characters/agentic_complex_build/import_vmd.py','characters/ag
     'characters/agentic_complex_build/import_generated.py','characters/agentic_complex_build/secondary_fit.py',
     'characters/agentic_complex_build/keys_v2.py','characters/agentic_complex_build/live_motion.py',
     'characters/agentic_complex_build/style_retarget.py','characters/agentic_complex_build/kimodo_stand_reference.json',
-    'characters/agentic_complex_build/efmi_mod.py','characters/agentic_complex_build/outfit_compose.py',
+    'characters/agentic_complex_build/efmi_mod.py','characters/agentic_complex_build/eff_mod.py','characters/agentic_complex_build/outfit_compose.py',
     'characters/agentic_complex_build/import_outfit.py','characters/agentic_complex_build/motion_graph.py',
     'characters/agentic_complex_build/pose_family.py',
     'characters/agentic_complex_build/motion_families.py',

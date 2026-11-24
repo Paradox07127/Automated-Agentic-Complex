@@ -392,7 +392,7 @@ class Package:
             need(('kind' not in a or a['kind'] in ('original','imported')) and
                  ('desc' not in a or isinstance(a['desc'],str) and len(a['desc'].encode())<=200) and
                  (a.get('kind')!='imported' or 'source' in a) and
-                 ('source' not in a or isinstance(source,dict) and source.get('format') in ('efmi','clone') and
+                 ('source' not in a or isinstance(source,dict) and source.get('format') in ('efmi','eff','clone') and
                   isinstance(source.get('fingerprint'),str) and SHA.fullmatch(source['fingerprint']) and
                   isinstance(source.get('imported_at'),str)),'invalid_appearances')
         c7_dir=native_prefix/PurePosixPath(self.native_entry['c7']['file']).parent
