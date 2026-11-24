@@ -93,3 +93,20 @@ test('overlay: the command panel closed hides and shrinks back to 100×100 where
   assert.deepEqual(cmd.win.getBounds(), { x: 400, y: 344, width: 336, height: 356 });
   q.stop();
 });
+
+test('overlay: a panel whose page crashed loads it again, hidden and without the regions the old page reported', () => {
+  const w = fakeWindow(overlayOptions('mac'));
+  let loads = 0;
+  Object.assign(w.win, { loadURL: async () => { loads += 1; } });
+  const p = panel('/bubble', w.win);
+  p.start();
+  p.setInteractiveRegions([{ x: 0, y: 0, width: 380, height: 60, drag: false }], []);
+  p.move({ x: 400, y: 600, w: 380, h: 200 }, false);
+  assert.ok(p.isShown);
+  w.win.webContents.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 1 });
+  assert.equal(loads, 2);
+  assert.equal(p.isShown, false);
+  p.setCards([]);
+  assert.equal(p.isShown, false, 'no region of the crashed page shows it');
+  p.stop();
+});

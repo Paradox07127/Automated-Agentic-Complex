@@ -2,9 +2,11 @@
 // Only templates are checked: no menu pops up and no tray icon changes.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import type { BrowserWindow } from 'electron';
 import { iconState, MENU_STATE_DEFAULTS, type MenuBarStatus, type MenuState, processStatus, quietUntil } from '../src/common/menus.ts';
 import { PLUGIN_IDS, type Plugins } from '../src/common/plugins.ts';
 import { appMenu, pageShortcut } from '../src/main/menus/app.ts';
+import { makeOverlay } from '../src/main/platform/index.ts';
 import { iconBitmap, squareIcon } from '../src/main/menus/icon.ts';
 import { type MenuItem, type MenuPorts, SettingsChanges } from '../src/main/menus/items.ts';
 import { trayContextMenu, trayMenu } from '../src/main/menus/tray.ts';
@@ -198,7 +200,7 @@ test('menus: the app menu has ⌘, ⌘0–⌘4, ⌘W, ⌘M, ⌘Q and the edit it
   const rows = (m: MenuItem) => (m.submenu as MenuItem[]).map((i) => (i.type === 'separator' ? '-' : `${i.label} ${i.accelerator}${i.role ? ` ${i.role}` : ''}`));
   assert.deepEqual(menu.map(rows), [
     ['设置… Command+,', '-', '退出 Agentic Complex Command+Q'],
-    ['关闭窗口 Command+W close'],
+    ['关闭窗口 Command+W'],
     ['撤销 Command+Z undo', '重做 Shift+Command+Z redo', '-', '剪切 Command+X cut', '复制 Command+C copy', '粘贴 Command+V paste',
       '全选 Command+A selectAll'],
     ['主页 Command+0', '每日简报 Command+1', '对话 Command+2', '记忆 Command+3', '角色 Command+4'],
@@ -207,6 +209,20 @@ test('menus: the app menu has ⌘, ⌘0–⌘4, ⌘W, ⌘M, ⌘Q and the edit it
   for (const m of [menu[0]!, menu[3]!]) for (const i of m.submenu as MenuItem[]) if (i.click) click(i);
   assert.deepEqual(h.calls, ['openMain "/settings"', 'quit', 'openMain "/home"', 'openMain "/overview"', 'openMain "/chat"', 'openMain "/memory"',
     'openMain "/character"']);
+});
+
+test('menus: ⌘W closes the focused window, never a desktop overlay', () => {
+  const close = (appMenu(ports().ports, Object.fromEntries(PLUGIN_IDS.map((id) => [id, true])) as Plugins)[1]!.submenu as MenuItem[])[0]!;
+  const closed: string[] = [];
+  const win = (name: string) => ({ close: () => closed.push(name), setAlwaysOnTop() {}, setVisibleOnAllWorkspaces() {}, setIgnoreMouseEvents() {},
+    setHiddenInMissionControl() {} }) as unknown as BrowserWindow;
+  const main = win('main'), console = win('console');
+  makeOverlay(console, 'console', null);
+  const press = close.click as (item: unknown, focused: BrowserWindow | undefined, event: unknown) => void;
+  press(close, console, {});
+  press(close, undefined, {});
+  press(close, main, {});
+  assert.deepEqual(closed, ['main']);
 });
 
 test('menus: 前往 leaves out the page of a plug-in that is off; 今天 is nowhere', () => {

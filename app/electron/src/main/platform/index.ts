@@ -3,7 +3,7 @@ import { execFile } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { posix, win32 } from 'node:path';
-import type { App, BrowserWindow, BrowserWindowConstructorOptions, NativeImage, Rectangle } from 'electron';
+import type { App, BaseWindow, BrowserWindow, BrowserWindowConstructorOptions, NativeImage, Rectangle } from 'electron';
 import { IDS, type ShellPlatform } from '../../common/config.ts';
 import type { PanelKind } from '../../common/desktop-layout.ts';
 import type { Rect } from '../../common/placement.ts';
@@ -159,6 +159,13 @@ export const OVERLAY_LEVELS: Readonly<Record<Overlay, number>> = {
   bubble: 1, chip: 1, title: 1, dock: 2, resize: 4, camera: 4, cmd: 76, console: 76, control: 77,
 };
 
+/** The windows `makeOverlay` made. Only their owner closes them: one closed otherwise is gone until the app starts again. */
+const overlays = new WeakSet<BaseWindow>();
+
+export function isOverlay(win: BaseWindow): boolean {
+  return overlays.has(win);
+}
+
 /**
  * `overlay`'s place in OVERLAY_LEVELS, on every Space and over fullscreen apps, clicks
  * passing through until the pointer reaches an interactive region, and on macOS clicks in it never activating the app
@@ -166,6 +173,7 @@ export const OVERLAY_LEVELS: Readonly<Record<Overlay, number>> = {
  * elsewhere.
  */
 export function makeOverlay(win: BrowserWindow, overlay: Overlay, addon: Pick<MacAddon, 'setPreventsActivation'> | null): void {
+  overlays.add(win);
   win.setAlwaysOnTop(true, 'status', OVERLAY_LEVELS[overlay]);
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
   win.setIgnoreMouseEvents(true, { forward: true });

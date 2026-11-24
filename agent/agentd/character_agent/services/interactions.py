@@ -26,6 +26,8 @@ ASK_TOOL = {'name':'ask_user','description':'Show the user a question card and e
             'required':['id','question'],'additionalProperties':False}}},'required':['questions'],'additionalProperties':False}}
 # The approval card's question by reply language code; None takes the Chinese one. Its option labels are keys the UI answers with.
 APPROVAL_QUESTION = {'zh-Hans': '是否允许这一次操作？', 'en': 'Allow this operation this time?', 'ja': '今回のこの操作を許可しますか？'}
+# The approval decision each option label answers with.
+APPROVAL_LABELS = {'允许': 'allow', '本对话都允许': 'allow_session', '拒绝': 'deny'}
 
 
 class InteractionService:
@@ -155,8 +157,8 @@ class InteractionService:
         result=self.ask(run_id,[{'id':'decision','question':question,
             'options':[{'label':'允许'},*([{'label':'本对话都允许'}] if offered else []),{'label':'拒绝'}]}],
             kind='approval',preview=preview,approval_answers=answers,**context)
-        decision=result['answers']['decision']
-        if decision not in (['允许'],['allow'],['allow_session']):raise ValueError('approval_denied')
+        decision=[APPROVAL_LABELS.get(a,a) for a in result['answers']['decision']]
+        if decision not in (['allow'],['allow_session']):raise ValueError('approval_denied')
         if not context['valid']():raise ValueError('approval_expired')
         if decision==['allow_session']:
             with self.lock:
@@ -179,7 +181,7 @@ class InteractionService:
                 any(not isinstance(s,str) or not 1<=len(s.strip())<=4000 for s in v) for v in answers.values()):
             raise ValueError('invalid_answers')
         if row['kind']=='approval':
-            decision={'允许':'allow','拒绝':'deny'}.get(answers['decision'][0],answers['decision'][0])
+            decision=APPROVAL_LABELS.get(answers['decision'][0],answers['decision'][0])
             if len(answers['decision'])!=1 or decision not in row['data'].get('approval_answers',['allow','deny']) \
                     or decision=='allow_session' and (row['data'].get('dangerous') or row['data'].get('danger_rule')):
                 raise ValueError('invalid_approval')

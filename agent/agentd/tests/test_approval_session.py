@@ -53,6 +53,16 @@ class ApprovalSessionTest(unittest.TestCase):
         self.approve('other')
         self.assertEqual(len(self.cards), 2)
 
+    def test_the_offered_session_label_saves_the_grant_like_allow_session(self):
+        self.answer = '本对话都允许'
+        first = self.approve()
+        self.assertIn({'label': '本对话都允许'}, self.cards[0]['data']['questions'][0]['options'])
+        receipt = self.approve(arguments={'command': 'pwd'})
+        self.assertEqual(len(self.cards), 1)
+        self.assertEqual(receipt['request_id'], first['request_id'])
+        with self.assertRaisesRegex(ValueError, 'invalid_approval'):
+            self.approve(arguments={'command': 'rm -rf out'})
+
     def test_card_question_follows_the_reply_language(self):
         self.answer = 'allow'
         for run, language, question in (('en-run', 'en', 'Allow this operation this time?'), ('zh-run', 'zh-Hans', '是否允许这一次操作？')):

@@ -43,7 +43,7 @@ export interface StackSourceOptions {
   pollInterval?: number;
 }
 
-interface Approval {
+export interface Approval {
   request_id: string; generation: number; display_session?: string | null; source?: string | null; session_id?: string | null;
   tool_name?: string | null; tool_summary?: string | null; kind?: string | null; content_preview?: string | null; cwd?: string | null;
   danger_rule?: string | null; trace_id?: string | null; status: string; summary_truncated: boolean; dangerous: boolean;
@@ -118,6 +118,24 @@ const REMINDERS_PATH = '/overview?focus=reminders';
 export const HIDDEN_POLL_MS = 5_000;
 
 const titleOf = (a: Approval) => `${a.tool_name ?? ''}: ${a.tool_summary ?? ''}`;
+
+/** What is asked before `verdict` on `a` goes out: anything but a deny of a dangerous call, or a dispatch let write its
+ *  workspace (`mode`, else the card's); null when it needs no gesture. */
+export function approvalQuestion(a: Approval, verdict: unknown, mode: unknown): string | null {
+  if (verdict !== 'deny' && a.dangerous) return `批准这条危险操作？\n\n${a.tool_summary ?? titleOf(a)}`;
+  if (verdict !== 'deny' && a.kind === 'dispatch' && (typeof mode === 'string' ? mode : a.dispatch?.mode) === 'workspace_write') {
+    return `允许这个任务改写工作区里的文件？\n\n${a.dispatch?.prompt ?? ''}`;
+  }
+  return null;
+}
+
+/** What is asked before `answers` to `q` go out: anything but a refusal of a dangerous exact-call approval; null when it
+ *  needs no gesture. */
+export function answerQuestion(q: Interaction, answers: Record<string, unknown>): string | null {
+  const refuses = (a: unknown) => Array.isArray(a) && a.length === 1 && (a[0] === '拒绝' || a[0] === 'deny');
+  if (q.kind !== 'approval' || q.data?.dangerous !== true || Object.values(answers).every(refuses)) return null;
+  return `批准这条危险操作？\n\n${q.data.preview_text ?? questionsOf(q)[0]?.question ?? ''}`;
+}
 
 /** A path segment, `:`, `/`, `?`, `%`, `=` and `+` escaped; null for a value no route can name. */
 export function segment(value: string): string | null {
@@ -195,6 +213,8 @@ export class StackSource implements EventSource {
   private retired = new Set<string>();
   /** Card ids sent to a system notification instead of the stack. */
   private sentAway = new Set<string>();
+  /** Card ids whose system notification the system did not add: they take their card. */
+  private unposted = new Set<string>();
   /** What a click on each of those notifications opens; kept past `stop`, as the notifications are. */
   private awayPaths = new Map<string, string>();
   private subscribers = new Map<number, (e: StreamEvent) => void>();
@@ -212,6 +232,10 @@ export class StackSource implements EventSource {
   private feedCancel: Cancel | null = null;
   private refreshing = false;
   private again = false;
+  /** Numbers each list read as it starts; `applied` keeps, per list, the number of the read last synced. A poll and a feed
+   *  event's read overlap, and one that started earlier and ends later would take back what the newer one found. */
+  private reads = 0;
+  private applied = new Map<Part, number>();
 
   constructor(options: StackSourceOptions) {
     this.options = options;
@@ -274,6 +298,7 @@ export class StackSource implements EventSource {
     this.progress.clear();
     this.presented.clear();
     this.sentAway.clear();
+    this.unposted.clear();
     this.options.notifier?.withdraw(this.notified);
     this.notified = [];
     const wasOffline = this.offline;
@@ -290,7 +315,7 @@ export class StackSource implements EventSource {
   subscribe(_afterSeq: string | null, onEvent: (e: StreamEvent) => void, _onReload?: () => void): Cancel {
     const id = ++this.lastSubscriber;
     this.subscribers.set(id, onEvent);
-    if (this.offline) onEvent(this.errorEvent());
+    if (this.offline) onEvent(this.order.length > 0 ? this.cardsEvent() : this.errorEvent());
     else if (this.loaded) {
       onEvent(this.cardsEvent());
       this.presentShown();
@@ -378,22 +403,33 @@ export class StackSource implements EventSource {
     // A row that is not an object fails the whole read.
     const list = <T>(key: string) => (b: Json) => (Array.isArray(b[key])
       && (b[key] as unknown[]).every((row) => row !== null && typeof row === 'object' && !Array.isArray(row)) ? b[key] as T[] : undefined);
+    // True when the read numbered `n` is the newest of `part` to end well.
+    const newest = (part: Part, n: number) => {
+      if (n < (this.applied.get(part) ?? 0)) return false;
+      this.applied.set(part, n);
+      return true;
+    };
+    let n = ++this.reads;
     const approvals = await this.read('/approvals', list<Approval>('approvals'), true);
     if (epoch !== this.epoch) return;
-    if (approvals !== 'failed') this.syncApprovals(approvals === 'absent' ? [] : approvals);
+    if (approvals !== 'failed' && newest('approvals', n)) this.syncApprovals(approvals === 'absent' ? [] : approvals);
+    n = ++this.reads;
     const coding = await this.read('/tasks', list<CodingTask>('tasks'));
     if (epoch !== this.epoch) return;
-    if (coding !== 'failed') this.syncCoding(coding === 'absent' ? [] : coding);
+    if (coding !== 'failed' && newest('coding', n)) this.syncCoding(coding === 'absent' ? [] : coding);
     if (full) {
+      n = ++this.reads;
       const questions = await this.read('/agent/interactions', list<Interaction>('requests'));
       if (epoch !== this.epoch) return;
-      if (questions !== 'failed') this.syncQuestions(questions === 'absent' ? [] : questions);
+      if (questions !== 'failed' && newest('questions', n)) this.syncQuestions(questions === 'absent' ? [] : questions);
+      n = ++this.reads;
       const tasks = await this.readTasks();
       if (epoch !== this.epoch) return;
-      if (tasks !== 'failed') this.syncDeliveries(tasks === 'absent' ? [] : tasks);
+      if (tasks !== 'failed' && newest('deliveries', n)) this.syncDeliveries(tasks === 'absent' ? [] : tasks);
+      n = ++this.reads;
       const reminders = await this.read('/commitments?state=triggered', list<Commitment>('commitments'));
       if (epoch !== this.epoch) return;
-      if (reminders !== 'failed') this.syncReminders(reminders === 'absent' ? [] : reminders);
+      if (reminders !== 'failed' && newest('reminders', n)) this.syncReminders(reminders === 'absent' ? [] : reminders);
     }
     this.sweep();
   }
@@ -430,11 +466,10 @@ export class StackSource implements EventSource {
       } else if (!this.retired.has(d.delivery_id) && (d.state === 'produced' || this.entries.has(doneId))) {
         // Only a delivery not yet shown anywhere opens a card; one already up stays for its lifetime.
         const taskId = d.canonical_task_id ?? row.canonical_task_id;
+        const id = d.delivery_id;
         if (!this.entries.has(doneId)
-          && this.sendAway(doneId, 'done', title, mainRoute('/overview', [['sel', taskId], ['focus', `task-${taskId}`]]))) {
-          this.retired.add(d.delivery_id);
-          continue;
-        }
+          && this.sendAway(doneId, 'done', title, mainRoute('/overview', [['sel', taskId], ['focus', `task-${taskId}`]]), null,
+            () => this.retired.add(id))) continue;
         fresh.push({ id: doneId, key, record: { kind: 'delivery', row, delivery: d }, card: deliveryCard(row, d), at: ms(d.produced_at ?? 0), title });
       }
     }
@@ -458,26 +493,39 @@ export class StackSource implements EventSource {
   }
 
   /** While she is hidden or a fullscreen app is in front, a new delivery or reminder card goes to a system notification
-   *  instead, posted once per id; a click on it opens main window route `path`. True when it stays off the stack. */
-  private sendAway(id: string, kind: AnnounceKind, text: string, path: string, commitmentId: string | null = null): boolean {
+   *  instead, posted once per id; a click on it opens main window route `path`. True when it stays off the stack. `shown`
+   *  runs once the system added it, or at once when nothing is posted; one the system did not add reads everything again,
+   *  and the id takes its card. */
+  private sendAway(id: string, kind: AnnounceKind, text: string, path: string, commitmentId: string | null = null,
+    shown: () => void = () => {}): boolean {
     const settings = this.options.notify(), hidden = this.options.avatarHidden(), fullscreen = this.options.frontFullscreen();
-    if (!settings.systemNotifications || !(hidden || fullscreen)) return false;
+    if (!settings.systemNotifications || !(hidden || fullscreen) || this.unposted.has(id)) return false;
     if (!this.sentAway.has(id)) {
       this.sentAway.add(id);
       this.awayPaths.set(id, path);
       const mode = settings.modes[kind] ?? 'silent';
-      if (mode !== 'silent') {
-        this.post({ id, kind, text, sound: mode === 'sound', sessionId: null, traceId: null, commitmentId }, commitmentId !== null ? [commitmentId] : []);
+      if (mode === 'silent' || !this.options.notifier) shown();
+      else {
+        this.post({ id, kind, text, sound: mode === 'sound', sessionId: null, traceId: null, commitmentId }, commitmentId !== null ? [commitmentId] : [],
+          (added) => {
+            if (added) return shown();
+            this.sentAway.delete(id);
+            this.unposted.add(id);
+            this.requestRefresh();
+          });
       }
     }
     return true;
   }
 
-  /** Posts `note`; once the system added it, tells agentd that it showed each of `due`. */
-  private post(note: SystemNote, due: string[]): void {
+  /** Posts `note`; once the system added it, tells agentd that it showed each of `due`. `done` hears whether it did. */
+  private post(note: SystemNote, due: string[], done: (added: boolean) => void = () => {}): void {
     const notifier = this.options.notifier;
     if (!notifier) return;
-    void notifier.post(note).then((added) => { if (added) this.see(due); });
+    void notifier.post(note).catch(() => false).then((added) => {
+      if (added) this.see(due);
+      done(added);
+    });
   }
 
   /** Tells agentd that a notification showed each commitment; the reply is not read. */
@@ -868,12 +916,22 @@ export class StackSource implements EventSource {
     return card;
   }
 
+  /** While agentd is gone only the cards the shell raised itself are left (`stop` dropped agentd's): they still push, marked
+   *  `offline`; with none the offline error stands. */
   private publish(): void {
     this.updateCount();
+    if (this.offline && this.order.length === 0) {
+      if (this.lastBody === null) return;
+      this.lastBody = null;
+      const event = this.errorEvent();
+      for (const s of this.subscribers.values()) s(event);
+      this.onPush([]);
+      return;
+    }
     const { cards, history } = this.snapshot();
-    const body = JSON.stringify({ cards, history });
-    if (this.offline || (this.loaded && body === this.lastBody)) return;
-    this.loaded = true;
+    const body = JSON.stringify({ cards, history, offline: this.offline });
+    if (this.lastBody !== null && body === this.lastBody) return;
+    if (!this.offline) this.loaded = true;
     this.lastBody = body;
     const event = this.cardsEvent();
     for (const s of this.subscribers.values()) s(event);
@@ -894,7 +952,7 @@ export class StackSource implements EventSource {
   }
 
   private cardsEvent(): StreamEvent {
-    return { event: 'stack.cards', id: null, data: JSON.stringify(this.snapshot()) };
+    return { event: 'stack.cards', id: null, data: JSON.stringify(this.offline ? { ...this.snapshot(), offline: true } : this.snapshot()) };
   }
 
   private errorEvent(): StreamEvent {
@@ -902,6 +960,8 @@ export class StackSource implements EventSource {
   }
 }
 
+/** agentd's option on an exact-call approval that allows the same tool for the rest of the conversation. */
+const SESSION_ALLOW = '本对话都允许';
 const GESTURE_MS = 1_500;
 const CONFIRM_MS = 1_000;
 
@@ -975,11 +1035,9 @@ export class StackDecisions {
     }
     if (generation !== a.generation) throw new BridgeFailure('stale', 'generation_changed');
     if (id === TEST_APPROVAL_ID && part === 'native') return this.source.decideTestApproval(id, verdict);
-    if (verdict === 'allow' && a.dangerous) {
-      await this.gesture(`批准这条危险操作？\n\n${a.tool_summary ?? titleOf(a)}`, d.confirmed === true);
-    } else if (verdict !== 'deny' && dispatch && ((mode as string | undefined) ?? a.dispatch?.mode) === 'workspace_write') {
-      await this.gesture(`允许这个任务改写工作区里的文件？\n\n${a.dispatch?.prompt ?? ''}`, false);
-    }
+    const question = approvalQuestion(a, verdict, mode);
+    // Only the dangerous call's question takes a confirmed click.
+    if (question !== null) await this.gesture(question, a.dangerous && d.confirmed === true);
     const body: Json = { decision: verdict, generation: a.generation };
     if (typeof mode === 'string') body.mode = mode;
     await this.post(id, `/approvals/${seg(a.request_id)}/decision`, body);
@@ -1016,14 +1074,17 @@ export class StackDecisions {
     if (keys.length !== new Set(ids).size || !keys.every((k) => ids.includes(k))) throw invalid('one answer per question');
     const approval = q.kind === 'approval';
     const only = (list: string[], word: string) => list.length === 1 && list[0] === word;
-    if (approval && !Object.values(answers).every((a) => only(a, '允许') || only(a, '拒绝'))) throw invalid('允许 or 拒绝');
+    for (const x of approval ? questionsOf(q) : []) {
+      const labels = (x.options ?? []).map((o) => o.label);
+      if (!labels.some((label) => only(answers[x.id]!, label))) throw invalid(`one of ${labels.join(' / ')}`);
+    }
     if (expected !== q.revision) throw new BridgeFailure('stale', 'interaction_version_changed');
     const refused = Object.values(answers).some((a) => only(a, '拒绝'));
-    if (approval && !refused && q.data?.dangerous === true) {
-      await this.gesture(`批准这条危险操作？\n\n${q.data.preview_text ?? questionsOf(q)[0]?.question ?? ''}`, d.confirmed === true);
-    }
+    const question = answerQuestion(q, answers);
+    if (question !== null) await this.gesture(question, d.confirmed === true);
     const reply = await this.post(id, `/agent/interactions/${seg(q.request_id)}/answer`, { expected_version: expected, answers });
-    const receipt = !approval ? '已回答' : refused ? '已拒绝' : '已允许';
+    const session = Object.values(answers).some((a) => only(a, SESSION_ALLOW));
+    const receipt = !approval ? '已回答' : refused ? '已拒绝' : session ? '已允许（本对话）' : '已允许';
     this.source.settle(id, approval ? (refused ? 'denied' : 'approved') : null, receipt);
     this.source.requestRefresh();
     if (parse<Json>(reply)?.resume_required === true) {

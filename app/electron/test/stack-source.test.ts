@@ -209,6 +209,28 @@ test('stop pushes offline once', async () => {
   assert.equal(h.pushes.filter((p) => p.error).length, 1);
 });
 
+test('while agentd is gone the shell\'s own cards still push, marked offline; with none left the offline error stands', async () => {
+  const h = new Harness();
+  await h.source.refresh();
+  h.listen();
+  h.source.stop();
+  h.source.setAvatarLoading({ kind: 'failed', message: '角色启动失败' });
+  h.source.addNotice('n1', 'resume', '回答已保存');
+  const last = h.pushes.at(-1)!;
+  assert.equal(last.offline, true);
+  assert.deepEqual((last.cards as Json[]).map((c) => c.id), ['avatar-loading', 'n1']);
+  h.source.setComputerUse(panel('executing'));
+  assert.deepEqual(h.ids.at(-1), ['computer-use'], 'the stack panel opens for its own card');
+  const late: Json[] = [];
+  h.source.subscribe(null, (e) => late.push(JSON.parse(e.data) as Json), () => {});
+  assert.equal(late[0]!.offline, true, 'a page that subscribes now gets them too');
+  h.source.setAvatarLoading({ kind: 'hidden' });
+  h.source.setComputerUse(null);
+  h.source.collapse('n1');
+  assert.deepEqual(h.pushes.at(-1), { error: { code: 'offline', detail: '后台已断开' } });
+  assert.equal(h.pushes.filter((p) => p.error).length, 2);
+});
+
 test('a malformed /approvals row is a failed read: the cards stay, polling and requestRefresh go on', async () => {
   const transport = new Transport();
   const rejections: unknown[] = [];

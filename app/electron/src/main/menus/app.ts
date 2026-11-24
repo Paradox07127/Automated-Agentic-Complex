@@ -4,6 +4,7 @@ import type { Input } from 'electron';
 import type { ShellPlatform } from '../../common/config.ts';
 import type { Plugins } from '../../common/plugins.ts';
 import { PLUGINS } from '../../common/plugins.generated.ts';
+import { isOverlay } from '../platform/index.ts';
 import { type MenuItem, type MenuPorts, SEPARATOR } from './items.ts';
 
 /** 设置 and 前往's pages by each page's route.ts `hotkey` (角色's ⌘4 is the menu's own): id, label, the key after Command+,
@@ -24,7 +25,10 @@ export function appMenu(ports: Pick<MenuPorts, 'openMain' | 'quit'>, plugins: Pl
   return [
     { label: 'Agentic Complex', submenu: [settings!, SEPARATOR,
       { id: 'quit', label: '退出 Agentic Complex', accelerator: 'Command+Q', click: () => ports.quit() }] },
-    { label: '文件', submenu: [{ id: 'close', label: '关闭窗口', role: 'close', accelerator: 'Command+W' }] },
+    // `role: 'close'` would close a desktop panel that has the keyboard for good.
+    { label: '文件', submenu: [{ id: 'close', label: '关闭窗口', accelerator: 'Command+W', click: (_item, win) => {
+      if (win && !isOverlay(win)) win.close();
+    } }] },
     { label: '编辑', submenu: [
       { id: 'undo', label: '撤销', role: 'undo', accelerator: 'Command+Z' },
       { id: 'redo', label: '重做', role: 'redo', accelerator: 'Shift+Command+Z' }, SEPARATOR,

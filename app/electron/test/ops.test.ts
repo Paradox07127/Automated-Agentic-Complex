@@ -446,6 +446,88 @@ test('services.save writes over config.json as it is once the start script is co
   }
 });
 
+test('a picked handle whose request never reached agentd stays the page\'s to send again', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'resend-'));
+  try {
+    let down = true;
+    const sent: unknown[] = [];
+    const agentd = {
+      request: async (_method: string, _path: string, body: unknown) => {
+        if (down) throw new Error('ECONNREFUSED');
+        sent.push(body);
+        return { status: 201, body: Buffer.from('{}') };
+      },
+    } as unknown as OpsContext['agentd'];
+    const ops = registry({ ...context(dir), agentd }), page = new PageSession(() => {});
+    const picked = await handle('main', page0, { op: 'files.pickFolder', args: [{ purpose: 'session_cwd' }] }, ops, page);
+    assert.ok(picked.ok);
+    const h = (picked.value as { handle: string }).handle;
+    const send = async () => ((await handle('main', page0, { op: 'agentd.request', args: ['POST', '/sessions', { cwd: { handle: h } }] }, ops, page)) as
+      { ok: true; value: { status: number; error?: { code: string } } }).value;
+    assert.equal((await send()).error?.code, 'offline');
+    assert.ok(page.picked.has(h));
+    down = false;
+    assert.equal((await send()).status, 201);
+    assert.deepEqual(sent, [{ cwd: '/picked' }]);
+    assert.ok(!page.picked.has(h), 'used once it arrived');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a decision a page posts itself meets the stack\'s rules against agentd\'s live record: what needs a gesture asks natively', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'decisions-'));
+  try {
+    const id = 'ab12', job = 'c'.repeat(32), sent: string[] = [], asked: string[] = [];
+    let yes = false;
+    const approval = (o: Record<string, unknown>) => ({ request_id: id, generation: 4, tool_name: 'Bash', tool_summary: 'rm -rf build',
+      kind: 'tool', dangerous: false, options: ['allow', 'deny'], status: 'pending', ...o });
+    let approvals: unknown[] = [];
+    const interactions = [{ request_id: job, kind: 'approval', state: 'pending', revision: 2,
+      data: { questions: [{ id: 'decision', question: '是否允许这一次操作？', options: [{ label: '允许' }, { label: '拒绝' }] }],
+        preview_text: 'rm -rf out', dangerous: true } }];
+    const agentd = {
+      request: async (method: string, path: string) => {
+        sent.push(`${method} ${path}`);
+        const body = path === '/approvals' ? { approvals } : path === '/agent/interactions' ? { requests: interactions } : { ok: true };
+        return { status: 200, body: Buffer.from(JSON.stringify(body)) };
+      },
+    } as unknown as OpsContext['agentd'];
+    for (const surface of ['main', 'stack'] as const) {
+      sent.length = 0;
+      asked.length = 0;
+      const ops = registry({ ...context(dir), surface, agentd, confirm: async (text) => { asked.push(text); return yes; } });
+      const page = new PageSession(() => {});
+      const post = async (path: string, body: unknown) =>
+        ((await handle(surface, page0, { op: 'agentd.request', args: ['POST', path, body] }, ops, page)) as
+          { ok: true; value: { status: number; error?: { code: string } } }).value;
+      yes = false;
+      approvals = [approval({ dangerous: true })];
+      assert.equal((await post(`/approvals/${id}/decision`, { decision: 'allow', generation: 4 })).error?.code, 'declined', surface);
+      assert.ok(asked[0]!.includes('rm -rf build'));
+      assert.deepEqual(sent, ['GET /approvals'], 'no decision reaches agentd');
+      assert.equal((await post(`/approvals/${id}/decision`, { decision: 'deny', generation: 4 })).status, 200, 'a deny needs no gesture');
+      assert.equal(asked.length, 1);
+      approvals = [approval({ kind: 'dispatch', dispatch: { mode: 'read_only', prompt: '修好测试' } })];
+      assert.equal((await post(`/approvals/${id}/decision`, { decision: 'allow', generation: 4, mode: 'workspace_write' })).error?.code,
+        'declined', 'a dispatch let write its workspace');
+      assert.equal((await post(`/agent/interactions/${job}/answer`, { expected_version: 2, answers: { decision: ['允许'] } })).error?.code,
+        'declined', 'a dangerous exact-call approval');
+      assert.equal(asked.length, 3);
+      assert.equal((await post(`/agent/interactions/${job}/answer`, { expected_version: 2, answers: { decision: ['拒绝'] } })).status, 200);
+      approvals = [];
+      assert.equal((await post(`/approvals/${id}/decision`, { decision: 'allow', generation: 4 })).error?.code, 'stale', 'no live approval');
+      yes = true;
+      approvals = [approval({ dangerous: true })];
+      assert.equal((await post(`/approvals/${id}/decision`, { decision: 'allow', generation: 4 })).status, 200);
+      assert.deepEqual(sent.filter((s) => s.startsWith('POST')), [`POST /approvals/${id}/decision`, `POST /agent/interactions/${job}/answer`,
+        `POST /approvals/${id}/decision`]);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('a main-window message agentd took gets its T1 marks from the reply, timed from before it was sent', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'marks-'));
   try {

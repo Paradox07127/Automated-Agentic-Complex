@@ -16,6 +16,8 @@ class Transport {
   failure: Error | null = null;
   /** While set, a presented receipt's reply waits for it. */
   gate: Promise<void> | null = null;
+  /** The next request of each `METHOD path` here answers as agentd did when it came, once the promise resolves. */
+  holds = new Map<string, Promise<void>>();
   set(method: string, path: string, body: unknown, status = 200) {
     this.replies.set(`${method} ${path}`, { status, body: JSON.stringify(body) });
   }
@@ -24,7 +26,11 @@ class Transport {
     this.calls.push({ method, path, json });
     if (this.failure) throw this.failure;
     if (this.gate && path.endsWith('/presented')) await this.gate;
-    return this.replies.get(`${method} ${path}`) ?? { status: 404, body: '{"error":"not_found"}' };
+    const reply = this.replies.get(`${method} ${path}`) ?? { status: 404, body: '{"error":"not_found"}' };
+    const hold = this.holds.get(`${method} ${path}`);
+    this.holds.delete(`${method} ${path}`);
+    if (hold) await hold;
+    return reply;
   };
 }
 
@@ -302,6 +308,20 @@ test('StackDecisionsTests.testARoleApprovalTakesOnlyAllowOrRefuse, and the resum
   assert.equal(h.card('resume-q2'), undefined);
 });
 
+test('a role approval takes the options it offers: 本对话都允许 goes to agentd and gets its own receipt', async () => {
+  const offered = [{ ...roleQuestion[0]!, options: [{ label: '允许' }, { label: '本对话都允许' }, { label: '拒绝' }] }];
+  const h = new Harness();
+  await h.load({ requests: [interaction('q2', { kind: 'approval', expires: 1_000_030, questions: offered, danger: [false, null] }),
+    interaction('q3', { kind: 'approval', expires: 1_000_030, questions: roleQuestion, danger: [false, null] })] });
+  h.transport.set('POST', '/agent/interactions/q2/answer', { state: 'answered', resume_required: false });
+  const d = h.decisions();
+  await assert.rejects(d.decide('q3', { kind: 'answer', expected_version: 2, answers: { decision: ['本对话都允许'] } }), { code: 'invalid_args' },
+    'not offered on this card');
+  await d.decide('q2', { kind: 'answer', expected_version: 2, answers: { decision: ['本对话都允许'] } });
+  assert.deepEqual(h.posts.map((p) => [p.path, p.json]), [['/agent/interactions/q2/answer', { expected_version: 2, answers: { decision: ['本对话都允许'] } }]]);
+  assert.deepEqual(h.card('q2')!.outcome, { kind: 'approved', at: h.now, text: '已允许（本对话）' });
+});
+
 test('StackDecisionsTests.testADangerousRoleAllowNeedsAConfirmedClick', async () => {
   const h = new Harness();
   await h.load({ requests: [interaction('q2', { kind: 'approval', expires: 1_000_030, questions: roleQuestion, preview: 'rm -rf build',
@@ -576,6 +596,23 @@ test('a delivery read again while its presented receipt is in flight is reported
   await until(() => h.item(`r-${DID}`)?.revision === 6, 'revision 6');
 });
 
+test('a read that ends after a newer one does not take back the delivery card the newer one found', async () => {
+  const h = new Harness();
+  h.listen();
+  let release = () => {};
+  h.transport.holds.set('GET /agent/tasks?limit=50', new Promise((r) => { release = r; }));
+  const older = h.source.refresh();
+  await until(() => h.transport.count('GET', '/agent/tasks?limit=50') === 1, 'the older read out');
+  h.transport.set('GET', '/agent/tasks?limit=50', { tasks: [taskRow('job:j1', { state: 'failed' })] });
+  await h.source.refresh();
+  assert.ok(h.card(`d-${DID}`));
+  release();
+  await older;
+  assert.ok(h.card(`d-${DID}`), 'still on the stack');
+  await h.source.refresh();
+  assert.ok(h.card(`d-${DID}`), 'and not retired');
+});
+
 test('a delivery card leaves once its delivery is accepted or rejected', async () => {
   const h = new Harness();
   h.listen();
@@ -661,6 +698,19 @@ test('StackSourceTests.testWhileSheIsHiddenADeliveryOrReminderGoesToMacOSInstead
   assert.equal(h.card(`d-${DID}`), undefined, 'a delivery sent to macOS does not come back');
   assert.ok(h.card('rem-c1'), 'a reminder still due takes its card once she is back');
   assert.equal(h.posted.length, 2);
+});
+
+test('a delivery whose system notification was not added takes its card on the stack', async () => {
+  const h = new Harness();
+  h.hidden = true;
+  h.granted = false;
+  h.transport.set('GET', '/agent/tasks?limit=50', { tasks: [taskRow('job:j1', { state: 'failed' })] });
+  await h.source.refresh();
+  assert.deepEqual(h.postedIds, [`d-${DID}`]);
+  await until(() => h.card(`d-${DID}`) !== undefined, 'the card');
+  await h.source.refresh();
+  assert.ok(h.card(`d-${DID}`));
+  assert.equal(h.posted.length, 1, 'posted once');
 });
 
 test('StackSourceTests.testANotificationSentAwayOpensItsTaskOrTheReminders', async () => {

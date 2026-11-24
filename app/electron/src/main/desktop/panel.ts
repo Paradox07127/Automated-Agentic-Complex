@@ -138,7 +138,18 @@ export class DesktopPanel implements FollowPanel {
       page.end();
       this.alive = false;
     });
-    contents.on('render-process-gone', () => page.end());
+    // A crashed page loads again; until it reports regions and the owner's frame, the panel is hidden.
+    contents.on('render-process-gone', () => {
+      page.end();
+      this.alive = false;
+      this.clearRegions();
+      this.drag = null;
+      this.lastRegionClick = null;
+      this.keyOnShow = false;
+      this.commandRequested = false;
+      this.hide('page gone');
+      if (!win.isDestroyed()) void win.loadURL(this.o.url);
+    });
     // A left mouse down in a drag region drags the panel instead of reaching the page, until the mouse up.
     contents.on('before-mouse-event', (e, mouse) => {
       if (mouse.type === 'mouseDown' && mouse.button === 'left') {
