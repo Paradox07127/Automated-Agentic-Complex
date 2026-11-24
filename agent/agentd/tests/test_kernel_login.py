@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import sys
 import tempfile
+import threading
 import time
 from types import SimpleNamespace
 import unittest
@@ -129,6 +130,48 @@ class KernelLoginTest(unittest.TestCase):
         self.login.cancel()
         self.assertIsNone(self.finished()["error"])
         self.assertLess(time.monotonic() - started, 10)
+
+    def settles(self, seconds=2):
+        deadline = time.monotonic() + seconds
+        while self.login.public()["pending"] is not None and time.monotonic() < deadline:
+            time.sleep(0.02)
+        return self.login.public()
+
+    def test_cancel_with_no_sign_in_returns_and_leaves_the_lock_free(self):
+        thread = threading.Thread(target=self.login.cancel, daemon=True)
+        thread.start()
+        thread.join(1)
+        self.assertFalse(thread.is_alive(), "cancel without a sign-in hung")
+        self.assertTrue(self.login.lock.acquire(timeout=1))
+        self.login.lock.release()
+
+    def test_an_unexpected_error_in_the_sign_in_clears_the_attempt(self):
+        with patch.object(self.login, "_codex", side_effect=KeyError("result")):
+            self.login.start("codex", str(self.cli))
+            done = self.settles()
+        self.assertEqual((done["pending"], done["error"]), (None, "login_failed"))
+        with patch.object(self.login, "_codex", return_value=None):
+            self.login.start("codex", str(self.cli))
+            self.assertIsNone(self.settles()["error"])
+
+    def test_cancel_right_after_a_deepseek_start_stops_its_wait(self):
+        self.addCleanup(os.environ.pop, "FAKE_ACP_SESSION", None)
+        def launch(argv, **_):
+            self.login.cancel()
+            return SimpleNamespace(returncode=0)
+        with patch.object(kernel_login, "DEEPSEEK_POLL", 0.05), \
+                patch.object(kernel_login.subprocess, "run", side_effect=launch):
+            self.login.start("deepseek", self.deepseek("dsh_signed_out"))
+            done = self.settles()
+        self.assertEqual((done["pending"], done["error"]), (None, None))
+
+    def test_a_failed_logout_raises_and_keeps_the_account(self):
+        account = self.login.home("codex") / "account.json"
+        account.write_text("{}", encoding="utf-8")
+        with patch.object(kernel_login.subprocess, "run", return_value=SimpleNamespace(returncode=1)), \
+                self.assertRaisesRegex(ValueError, "logout_failed"):
+            self.login.logout("codex", str(self.cli))
+        self.assertTrue(account.exists())
 
     def test_a_sign_in_the_browser_never_finishes_times_out(self):
         self.mode("hang")

@@ -99,18 +99,21 @@ class DispatchTurn:
             server = getattr(self.controller, 'server', None)
             if server is None or server.tasks is None or server.dispatcher.tasks is None:
                 raise ValueError('dispatch_unavailable')
+            if name == 'dispatch_status':
+                if not self.current():
+                    raise ValueError('run_cancelled')
+                return self._status(args)
+            if not args['prompt'].strip():
+                raise ValueError('invalid_arguments')
+            # Outside broker.cv: the permission hook takes registry.cv before broker.cv.
+            resolved = self._resolve_cwd(args)
+            if 'error' in resolved:
+                return resolved
+            run = self.controller.store.get(self.run_id)
+            conversation_id = run['conversation_id'] if run else server.history.conversations.active if server.history else None
             with server.broker.cv:
                 if not self.current():
                     raise ValueError('run_cancelled')
-                if name == 'dispatch_status':
-                    return self._status(args)
-                if not args['prompt'].strip():
-                    raise ValueError('invalid_arguments')
-                resolved = self._resolve_cwd(args)
-                if 'error' in resolved:
-                    return resolved
-                run = self.controller.store.get(self.run_id)
-                conversation_id = run['conversation_id'] if run else server.history.conversations.active if server.history else None
                 pending = [r for r in server.broker.pending() if r['kind'] == 'dispatch']
                 if len(pending) >= 3 or any((r['dispatch'] or {}).get('source') == 'agent' and
                         (r['dispatch'].get('requested_by') or {}).get('conversation_id') == conversation_id for r in pending):

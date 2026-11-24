@@ -88,6 +88,29 @@ class ExtractTests(unittest.TestCase):
                 'xl/workbook.xml': workbook, 'xl/_rels/workbook.xml.rels': rels({'rId1': 'worksheets/sheet1.xml'}),
                 'xl/worksheets/sheet1.xml': wide}))
 
+    def sheet(self, cells, shared=None):
+        sheet = f'<worksheet {S}><sheetData><row r="1">{cells}</row></sheetData></worksheet>'
+        workbook = f'<workbook {S} {R}><sheets><sheet name="s" sheetId="1" r:id="rId1"/></sheets></workbook>'
+        members = {'xl/workbook.xml': workbook, 'xl/_rels/workbook.xml.rels': rels({'rId1': 'worksheets/sheet1.xml'}),
+                   'xl/worksheets/sheet1.xml': sheet}
+        if shared is not None:
+            members['xl/sharedStrings.xml'] = f'<sst {S}>' + ''.join(f'<si><t>{s}</t></si>' for s in shared) + '</sst>'
+        return package(members)
+
+    def test_xlsx_charges_each_shared_string_reference_against_the_budget(self):
+        data = self.sheet(''.join(f'<c t="s"><v>0</v></c>' for _ in range(20)), shared=['x' * 1000])
+        with patch.object(extract_module, 'MAX_EXTRACTED', 8192):
+            self.assertCode('file_too_large', '.xlsx', data)
+
+    def test_xlsx_refuses_a_cell_before_the_rows_last_column(self):
+        self.assertCode('unsupported_file', '.xlsx', self.sheet('<c r="ZZZ1"><v>1</v></c>' + '<c r="A1"><v>2</v></c>' * 500))
+        self.assertCode('unsupported_file', '.xlsx', self.sheet('<c r="B1"><v>1</v></c><c r="B1"><v>2</v></c>'))
+
+    def test_xlsx_refuses_a_shared_string_index_outside_the_table(self):
+        for index in ('-1', '1'):
+            with self.subTest(index=index):
+                self.assertCode('unsupported_file', '.xlsx', self.sheet(f'<c r="A1" t="s"><v>{index}</v></c>', shared=['a']))
+
     def test_pptx_slides_in_presentation_order(self):
         self.assertEqual(extract('.pptx', pptx()).splitlines(),
                          ['# 第 1 页', '开场', '议程', '# 第 2 页', '第二页标题'])

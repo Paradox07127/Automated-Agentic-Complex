@@ -29,7 +29,7 @@ class KernelLogin:
         self.open_url = open_url
         self.on_acp_login = on_acp_login  # (agent id, signed in) after an ACP sign-in or sign-out
         self.lock = threading.Lock()
-        self.attempt = None  # {"backend", "acp_agent", "proc" | "cancel"} while a sign-in runs
+        self.attempt = None  # {"backend", "acp_agent", "cancel"[, "proc"]} while a sign-in runs
         self.error = None  # the code the last sign-in failed with
         self.detail = None  # the kernel's own words for that failure, when it gave some
         self.status = {}  # backend -> {"signed_in", "email", "plan", "at"}
@@ -110,7 +110,7 @@ class KernelLogin:
         with self.lock:
             if self.attempt:
                 raise ValueError("login_pending")
-            self.attempt = {"backend": backend, "acp_agent": agent["id"] if agent else None}
+            self.attempt = {"backend": backend, "acp_agent": agent["id"] if agent else None, "cancel": threading.Event()}
             self.error = self.detail = None
         target = {"codex": self._codex, "claude": self._claude, "deepseek": self._deepseek}.get(backend) or self._acp
         args = (cli,) if agent is None else (agent, method)
@@ -123,21 +123,22 @@ class KernelLogin:
             target(*args)
         except LoginFailed as failure:
             error, detail = failure.code, failure.detail
-        except (OSError, ValueError):
+        except Exception:
             error = "login_failed"
-        with self.lock:
-            cancelled = self.attempt is not None and self.attempt.get("cancelled")
-            self.attempt = None
-            self.error, self.detail = (None, None) if cancelled else (error, detail)
-            self.status.pop(backend, None)
+        finally:
+            with self.lock:
+                cancelled = self.attempt is not None and self.attempt.get("cancelled")
+                self.attempt = None
+                self.error, self.detail = (None, None) if cancelled else (error, detail)
+                self.status.pop(backend, None)
 
     def cancel(self):
         with self.lock:
             attempt = self.attempt
-            if attempt is None:
-                return self.public()
-            attempt["cancelled"] = True
-        _stop(attempt)
+            if attempt is not None:
+                attempt["cancelled"] = True
+        if attempt is not None:
+            _stop(attempt)
         return self.public()
 
     def _spawn(self, argv, env):
@@ -183,6 +184,7 @@ class KernelLogin:
 
     def _deepseek(self, command):
         # The desktop client signs in to the ~/.dsh it shares with dsh; this waits until dsh sees that account.
+        cancel = self._cancel()
         if sys.platform == "win32":
             client = Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "DeepSeek Harness" / "DeepSeek Harness.exe"
             if not client.is_file():
@@ -190,8 +192,6 @@ class KernelLogin:
             os.startfile(client)
         elif subprocess.run(["open", "-b", "com.deepseek.dsh"], capture_output=True, timeout=30).returncode != 0:
             raise LoginFailed("deepseek_desktop_missing")
-        with self.lock:
-            cancel = self.attempt["cancel"] = threading.Event()
         deadline = time.monotonic() + TIMEOUT
         while not self._probe("deepseek", command)["signed_in"]:
             if cancel.wait(DEEPSEEK_POLL) or time.monotonic() >= deadline:
@@ -204,13 +204,20 @@ class KernelLogin:
             self._wait(self._spawn([*agent["command"], *method.get("args", [])], env))
         else:
             from character_agent.harness.acp_agents import authenticate
-            with self.lock:
-                cancel = self.attempt["cancel"] = threading.Event()
+            cancel = self._cancel()
             refused = authenticate(agent["command"], agent.get("env"), method["id"], TIMEOUT, cancel)
             if refused is not None:
                 raise LoginFailed("login_denied", refused or None)
         if self.on_acp_login:
             self.on_acp_login(agent["id"], True)
+
+    def _cancel(self):
+        """The running attempt's cancel Event; raises when the attempt is already cancelled."""
+        with self.lock:
+            cancel = self.attempt["cancel"]
+        if cancel.is_set():
+            raise LoginFailed("login_cancelled")
+        return cancel
 
     def _wait(self, proc):
         lines = _lines(proc)
@@ -233,10 +240,12 @@ class KernelLogin:
         else:
             argv = [cli, "logout"] if backend == "codex" else [cli, "auth", "logout"]
             try:
-                subprocess.run(argv, env=self._env(backend), stdin=subprocess.DEVNULL, capture_output=True, timeout=30,
-                               cwd=str(self.root / "run" / "workspace"))
+                result = subprocess.run(argv, env=self._env(backend), stdin=subprocess.DEVNULL, capture_output=True,
+                                        timeout=30, cwd=str(self.root / "run" / "workspace"))
             except subprocess.TimeoutExpired:
                 raise ValueError("logout_failed") from None
+            if result.returncode != 0:
+                raise ValueError("logout_failed")
             (self.home(backend) / "account.json").unlink(missing_ok=True)
         with self.lock:
             self.status.pop(backend, None)

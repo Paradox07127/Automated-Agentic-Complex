@@ -203,6 +203,36 @@ class DispatchToolTests(unittest.TestCase):
         self.assertEqual(sum(r.get('state') == 'awaiting_confirmation' for r in replies), 1, replies)
         self.assertEqual(sum(r.get('error', {}).get('code') == 'too_many_pending' for r in replies), 1, replies)
 
+    def test_resolving_the_project_does_not_hold_the_approval_lock_against_a_hook(self):
+        # A PermissionRequest hook holds registry.cv and then takes broker.cv.
+        turn = OrchestrationTurn(self.controller, '修复', {}, self.server.character, None, 'parallel')
+        turn.open(lambda: True)
+        self.server.tasks.create('known-task', 'codex', str(self.project), 'known', 'read_only')
+        registry, broker = self.server.registry, self.server.broker
+        snapshot, entered, locked = registry.snapshot, threading.Event(), threading.Event()
+        def resolving():
+            entered.set()
+            return snapshot()
+        replies, hook = [], []
+        def hook_thread():
+            with registry.cv:
+                locked.set()
+                entered.wait(2)
+                got = broker.cv.acquire(timeout=1)
+                if got:
+                    broker.cv.release()
+                hook.append(got)
+        def tool_thread():
+            locked.wait(2)
+            replies.append(turn.call('dispatch_session', {'backend': 'codex', 'project': 'Endfield', 'prompt': '修复'}))
+        with patch.object(registry, 'snapshot', side_effect=resolving):
+            threads = [threading.Thread(target=hook_thread), threading.Thread(target=tool_thread)]
+            for thread in threads: thread.start()
+            for thread in threads: thread.join(4)
+        self.assertFalse(any(thread.is_alive() for thread in threads))
+        self.assertEqual(hook, [True])
+        self.assertEqual([r.get('state') for r in replies], ['awaiting_confirmation'], replies)
+
     def test_status_is_bounded_read_only_and_can_find_an_older_task(self):
         value = self.dispatch(cwd=str(self.project))
         self.assertIn('task_id', value, value)

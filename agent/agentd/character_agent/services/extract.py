@@ -92,7 +92,11 @@ def _cell(cell, shared):
         item = cell.find(S + 'is')
         return '' if item is None else _string(item)
     value = cell.findtext(S + 'v') or ''
-    return shared[int(value)] if cell.get('t') == 's' and value else value
+    if cell.get('t') != 's' or not value:
+        return value
+    if not 0 <= int(value) < len(shared):
+        raise ValueError('shared_string')
+    return shared[int(value)]
 
 
 def _column(reference):
@@ -115,12 +119,15 @@ def _xlsx(package):
             values = []
             for cell in row.iter(S + 'c'):
                 column = _column(cell.get('r')) or len(values) + 1
-                # Padding is output the member sizes did not pay for.
-                package.left -= column - len(values)
+                if column <= len(values):
+                    raise ValueError('cell_order')
+                text = _cell(cell, shared)
+                # Padding, separators and shared strings repeated per reference are output the member sizes did not pay for.
+                package.left -= column - len(values) + len(text)
                 if package.left < 0:
                     raise _TooLarge()
                 values.extend([''] * (column - 1 - len(values)))
-                values.append(_cell(cell, shared))
+                values.append(text)
             if any(values):
                 lines.append('\t'.join(values))
     return '\n'.join(lines)
