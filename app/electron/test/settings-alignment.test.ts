@@ -58,3 +58,7 @@ test('a stored hot key that is not a name shows the default, and the status quot
   assert.equal(state.values.hotkey_look, 'control+option+l');
   assert.deepEqual(state.broken, { hk_look: '1', hk_sel: 'nonsense+q' });
 });
+
+test('idle_low_fps is off by default: she runs at the full frame rate while idle', () => {
+  assert.equal(current({}, null).values.idle_low_fps, false);
+});

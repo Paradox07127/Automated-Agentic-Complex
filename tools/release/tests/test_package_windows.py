@@ -1,6 +1,7 @@
 """package_windows.py stages the Windows portable directory from tiny build outputs under a path with a space."""
 import json
 import os
+import shutil
 from pathlib import Path
 import struct
 import sys
@@ -57,12 +58,15 @@ class PackageWindowsTests(unittest.TestCase):
         for name in ('efw.exe', 'depth_copy.spv', 'premultiply_alpha.spv', 'main.obj', 'product.txt'):
             (self.renderer / name).write_text('renderer ' + name)
         self.fbx_tool = self.root / 'fbx-motion.exe'; self.fbx_tool.write_text('fbx')
+        self.envelopes = self.root / 'window-envelopes.json'
+        self.envelopes.write_text(json.dumps(dict(schema='endfield-window-envelopes/v1', guard_pt=16, characters=dict(
+            fixture=dict(package_version='1.0.0', extents_pt=dict(left=1, right=1, top=1, bottom=1), clips_pt={})))))
         self.output = self.root / 'pack out'
 
     def stage(self, **changes):
         args = dict(library=LIBRARY, python=self.python, harness_runtime=self.prepared,
                     web_dist=self.web, electron_runtime=self.electron_runtime, electron_dir=self.electron_dir,
-                    helper=self.helper, renderer=self.renderer, fbx_tool=self.fbx_tool, output=self.output,
+                    helper=self.helper, renderer=self.renderer, window_envelopes=self.envelopes, fbx_tool=self.fbx_tool, output=self.output,
                     build_version='20261121.1', vpk=self.root / 'vpk/vpk.exe', port=None, id=None, product_name=None, app_version=None)
         args.update(changes)
         order, self.icon = [], None
@@ -106,7 +110,8 @@ class PackageWindowsTests(unittest.TestCase):
         self.assertEqual(receipt['fuses'], FUSES)
         top = {f for f in files if '/' not in f}
         self.assertEqual(top, {'Agentic Complex.exe', 'ac-helper.exe', 'sherpa-onnx-c-api.dll', 'onnxruntime.dll', 'efw.exe',
-                               'depth_copy.spv', 'premultiply_alpha.spv', 'ffmpeg.dll', 'icudtl.dat', 'LICENSE'})
+                               'depth_copy.spv', 'premultiply_alpha.spv', 'window-envelopes.json', 'ffmpeg.dll', 'icudtl.dat', 'LICENSE'})
+        self.assertEqual((package / 'window-envelopes.json').read_bytes(), self.envelopes.read_bytes())
         for name in ('sherpa-onnx-c-api.dll', 'onnxruntime.dll'): self.assertEqual((package / name).read_text(), 'dll ' + name)
         self.assertEqual(sorted(p.name for p in (package / 'licenses').iterdir()),
                          ['onnxruntime-LICENSE.txt', 'onnxruntime-ThirdPartyNotices.txt', 'sherpa-onnx-LICENSE.txt'])
@@ -168,7 +173,7 @@ class PackageWindowsTests(unittest.TestCase):
         self.assertEqual(entries['host'], {'executable': 'Agentic Complex.exe'})
         self.assertEqual(entries['renderer'], {'executable': 'efw.exe'})
         self.assertEqual(manifests['agentd']['requires'], {'runtime.python': '3.12.10'})
-        self.assertEqual(manifests['renderer']['placed'], {name: name for name in ('efw.exe', 'depth_copy.spv', 'premultiply_alpha.spv')})
+        self.assertEqual(manifests['renderer']['placed'], {name: name for name in ('efw.exe', 'depth_copy.spv', 'premultiply_alpha.spv', 'window-envelopes.json')})
         placed = manifests['host']['placed']
         self.assertEqual(list(placed)[:2], ['Agentic Complex.exe', 'ac-helper.exe'])
         self.assertTrue({'resources/app', 'resources/parent_watch.py', 'locales', 'ffmpeg.dll'} <= set(placed))
@@ -217,6 +222,12 @@ class PackageWindowsTests(unittest.TestCase):
         self.output.rmdir()
         for path in self.renderer.glob('*.spv'): path.unlink()
         with self.assertRaisesRegex(ValueError, 'renderer_shaders_missing'): self.stage()
+
+    def test_window_envelopes_without_a_row_at_a_rendering_characters_package_version_are_refused(self):
+        for rows in (dict(fixture=dict(package_version='0.9.0')), {}):
+            self.envelopes.write_text(json.dumps(dict(characters=rows)))
+            with self.assertRaisesRegex(ValueError, 'window_envelopes_stale: fixture'): self.stage()
+            shutil.rmtree(self.output)
 
     def test_a_helper_without_its_speech_dlls_beside_it_is_refused(self):
         (self.root / 'onnxruntime.dll').unlink()
@@ -288,10 +299,10 @@ class PackageWindowsTests(unittest.TestCase):
         components = {row['id']: row for row in found['components']}
         self.assertEqual(set(components), {'runtime.python', 'harness.pi', 'agentd', 'web-ui', 'characters.fixture', 'renderer', 'host'})
         # host's are its placed paths (the exe, the runtime's files and resources\app) and its component.json.
-        host = [f for f in files if '/' not in f and f not in ('efw.exe', 'depth_copy.spv', 'premultiply_alpha.spv', 'big copy.bin')]
+        host = [f for f in files if '/' not in f and f not in ('efw.exe', 'depth_copy.spv', 'premultiply_alpha.spv', 'window-envelopes.json', 'big copy.bin')]
         host += [f for f in files if f.startswith(('locales/', 'licenses/', 'resources/app/', 'resources/components/host/'))]
         self.assertEqual(components['host']['files'], len(host + ['resources/parent_watch.py']))
-        self.assertEqual(components['renderer']['files'], 4)
+        self.assertEqual(components['renderer']['files'], 5)
         self.assertEqual(sorted(row['path'] for row in found['large']),
                          ['big copy.bin', 'resources/components/harness.pi/payload/pi-runtime/node_modules/a/big.bin'])
         removable = {row['what']: row for row in found['removable']}

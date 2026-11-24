@@ -34,6 +34,7 @@ HELPER_DLLS = ('sherpa-onnx-c-api.dll', 'onnxruntime.dll')
 # Their licence texts (sherpa-onnx v2.0.2; ONNX Runtime 1.28.2, the build that release carries), copied into licenses\.
 HELPER_LICENSES = ROOT / 'app/helpers/windows/licenses'
 RENDERER = 'efw.exe'
+WINDOW_ENVELOPES = 'window-envelopes.json'
 # The built main process as app/electron/build.mjs writes it on Windows (no preview addon); source maps stay out.
 ELECTRON_APP_FILES = ('dist/main.mjs', 'dist/preload.cjs')
 # What main/velopack.ts imports from app/electron's node_modules at run time: the velopack package with its win-x64 module
@@ -88,13 +89,18 @@ def stage_host(host, electron_runtime, electron_dir, helper, product_name, app_v
     return first + sorted(path for path in rest if path not in first)
 
 
-def stage_renderer(renderer, build):
-    """Copy efw.exe and the product .spv it loads from its own directory; return their names, efw.exe first."""
+def stage_renderer(renderer, build, window_envelopes, library):
+    """Copy efw.exe, the product .spv and window-envelopes.json it loads from its own directory; the file needs a row at the
+    package version of each character of `library` that renders. Return their names, efw.exe first."""
     shaders = sorted(path.name for path in Path(build).glob('*.spv'))
     if not shaders: raise ValueError('renderer_shaders_missing: ' + str(build))
+    rows = json.loads(Path(window_envelopes).read_text())['characters']
+    stale = sorted(p.id for p in Library(library).packages() if p.render_enabled and rows.get(p.id, {}).get('package_version') != p.version)
+    if stale: raise ValueError('window_envelopes_stale: ' + ', '.join(stale))
     renderer.mkdir(parents=True)
     for name in [RENDERER, *shaders]: shutil.copy2(Path(build) / name, renderer / name)
-    return [RENDERER, *shaders]
+    shutil.copy2(window_envelopes, renderer / WINDOW_ENVELOPES)
+    return [RENDERER, *shaders, WINDOW_ENVELOPES]
 
 
 def brand(executable, ui_art, product_name, app_version, build_version):
@@ -185,7 +191,7 @@ def check_runtime_python(python):
 
 
 def stage(*, library, python, harness_runtime, web_dist, electron_runtime, electron_dir, helper, renderer,
-          fbx_tool, output, build_version, vpk, port=None, id=None, product_name=None, app_version=None, ui_art=None):
+          window_envelopes, fbx_tool, output, build_version, vpk, port=None, id=None, product_name=None, app_version=None, ui_art=None):
     """Write output/Agentic Complex/, vpk pack it into output/releases/ and return the receipt: its path, file count, bytes,
     the fuses and the exe's resources read back per exe, the UI art shipped, contents(), the release version and files."""
     output = Path(output).resolve()
@@ -207,7 +213,7 @@ def stage(*, library, python, harness_runtime, web_dist, electron_runtime, elect
         host = component_stage / 'host/payload'
         product_name, app_version = product_name or 'Agentic Complex', app_version or '0.2.0'
         host_paths = stage_host(host, electron_runtime, electron_dir, helper, product_name, app_version)
-        renderer_paths = stage_renderer(component_stage / 'renderer/payload', renderer)
+        renderer_paths = stage_renderer(component_stage / 'renderer/payload', renderer, window_envelopes, library)
         build_components.validate_canon_windows(component_stage / 'agentd/payload/agentd' / build_components.CANON_RELATIVE)
         # Before the fuses: the resource update rewrites the exe.
         branding = {path.name: brand(path, ui_art, product_name, app_version, build_version)
@@ -271,7 +277,8 @@ if __name__ == '__main__':
                       ('harness-runtime', 'harness_runtime.py --output'), ('web-dist', 'The vite build of web/'),
                       ('electron-runtime', 'electron_runtime.py: the unpacked root holding electron.exe'),
                       ('electron-dir', 'app/electron after npm run build'), ('helper', 'ac-helper.exe, the DLLs of HELPER_DLLS beside it'),
-                      ('renderer', 'private\\renderer\\windows\\build: efw.exe and its .spv'), ('fbx-tool', 'fbx-motion.exe'),
+                      ('renderer', 'private\\renderer\\windows\\build: efw.exe and its .spv'),
+                      ('window-envelopes', "The release profile's renderer/Resources/window-envelopes.json"), ('fbx-tool', 'fbx-motion.exe'),
                       ('vpk', "vpk.exe, Velopack's packer, at app/packaging/velopack.lock.json's version"),
                       ('output', 'A new directory; Agentic Complex\\ is written in it')]:
         parser.add_argument('--' + key, type=Path, required=True, help=help)

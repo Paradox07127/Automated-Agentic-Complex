@@ -124,8 +124,6 @@ STRUCTS = {
     # with efkey001, EFKEY001 (aux_blob per curve u16 node, u8 attribute, u8 component, u8 pre wrap, u8 post wrap, 2 zero bytes,
     # u32 key count, u32 byte offset); values length, frame rate. A time window of another clip has parent the source clip
     # ordinal, blob and aux_blob NONE, values[2..3] the source time range. oracle_blob NONE and count 0 for a clip without oracle.
-    # envelope (optional, windows_actor_export.py envelope_records): name NONE for her window envelope, else the clip it was
-    # measured for; values left, right, top, bottom (points at scale 1 from the feet anchor) and the guard in points.
     'Actor':Struct('Actor', 'kind:u32 name:u32 index:u32 parent:u32 node:u32 blob:u32 aux_blob:u32 oracle_blob:u32 first:u32 count:u32 '
                     'flags:u32 values:f32[16]'),
     # frame.bin (fixture-f60/, producer-golden/<case>/): FrameHeader, FrameEntry per dynamic address, visible source draw
@@ -175,7 +173,7 @@ ENUMS = {
     'MaterialResponse': {'authored': 0, 'irradiance_sh': 1, 'neutral_diagnostic': 2},
     'ToneMapping': {'aces_modified': 0},
     'ActorKind': {'rig_node': 0, 'mesh': 1, 'bone': 2, 'clip': 3, 'oracle_sample': 4, 'head': 5, 'appearance': 6, 'face_control': 7,
-                  'face_delta': 8, 'vowel': 9, 'sole': 10, 'envelope': 11},
+                  'face_delta': 8, 'vowel': 9, 'sole': 10},
     # scene: a mesh of a 3D stage (palette `scene`), drawn only where the renderer shows that stage. particle: a mesh the
     # palette contract drives per particle (`particle_palette`); without a particle runtime it is never drawn.
     # weapon: a mesh of a weapon presentation (windows_actor_export.py weapon_meshes): parent the weapon id, node the rig node

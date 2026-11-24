@@ -77,7 +77,7 @@ const ROWS: Row[] = [
   ['rnd.yaw', '@character', '水平朝向', 0, 'none', DEG(180)], ['rnd.pitch', '@character', '俯仰朝向', 0, 'none', DEG(20)], ['rnd.aa', '@character', '2× SSAA', true, 'avatar'],
   ['rnd.size', '@character', '渲染尺寸', 'authored', 'avatar', [['authored', '原始尺寸'], ['display', '跟随显示像素（试验）']]],
   ['rnd.shadow', '@character', '自阴影精度', '1024', 'avatar', [['1024', '高 · 1024'], ['512', '中 · 512'], ['256', '低 · 256']]],
-  ['rnd.idle', '@character', '空闲时降到 30 fps', true, 'none'], ['rnd.batt', '@character', '电池供电时降帧', true, 'none'],
+  ['rnd.idle', '@character', '空闲时降到 30 fps', false, 'none'], ['rnd.batt', '@character', '电池供电时降帧', true, 'none'],
   ['rnd.outline', '@character', '角色边界', 'original', 'none', [['original', '原作'], ['subtle', '柔和外轮廓'], ['contrast', '增强外轮廓']]],
   ['rnd.lightYaw', '@character', '主光水平微调', '0', 'none', [['-15', '左偏 15°'], ['0', '原作'], ['15', '右偏 15°']]], ['rnd.lightPitch', '@character', '主光俯仰微调', '0', 'none', [['-10', '降低 10°'], ['0', '原作'], ['10', '抬高 10°']]],
   ['rnd.lightStrength', '@character', '主光强度', '1', 'none', [['0.5', '50 %'], ['0.75', '75 %'], ['1', '原作 · 100 %'], ['1.25', '125 %'], ['1.5', '150 %']]],

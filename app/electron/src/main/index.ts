@@ -270,7 +270,7 @@ const hostLink = config && new HostLink({
   onPoseState: (s) => camera?.poses.state(s), onCameraGesture: (g) => camera?.camera.gesture(g),
   fps: () => {
     const s = readObject(configPath);
-    return { idleLowFps: s.idle_low_fps !== false, userFps: [30, 45, 60].includes(Number(s.render_fps)) ? Number(s.render_fps) : 60,
+    return { idleLowFps: s.idle_low_fps === true, userFps: [30, 45, 60].includes(Number(s.render_fps)) ? Number(s.render_fps) : 60,
       batteryLow: s.battery_low_fps !== false };
   },
   log: (line) => appendLog(config!.supportDir, 'hostlink', `HOSTLINK ${line}`),

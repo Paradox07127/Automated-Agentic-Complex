@@ -106,7 +106,7 @@ const ITEMS: Item[] = [
   toggle('render_camera_sway', '呼吸晃动', false),
   choice('render_camera_auto_closeup', '对话近景', [['off', '关'], ['session', '会话面板打开时']], 'off'),
   choice('render_camera_track', '动作相机轨', [['off', '不播'], ['stage', '舞台框里播']], 'stage'),
-  toggle('idle_low_fps', '空闲时降到 30 fps', true),
+  toggle('idle_low_fps', '空闲时降到 30 fps', false),
   toggle('battery_low_fps', '电池供电时降帧', true),
   hotkey('hotkey_toggle_avatar', '显示 / 隐藏角色', 'control+option+h'),
   hotkey('hotkey_click_through', '临时全部点穿', 'control+option+p'),
