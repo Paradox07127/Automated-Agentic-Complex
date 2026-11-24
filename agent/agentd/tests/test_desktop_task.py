@@ -199,6 +199,27 @@ class DesktopTaskTests(unittest.TestCase):
                      {'target': {}, 'goal': 'x'}, {'target': TARGET, 'goal': 'x', 'extra': 1}):
             self.assertEqual(self.run_task(args=args)['code'], 'invalid_arguments')
 
+    def test_effect_is_not_executed_until_an_action_reaches_the_bridge(self):
+        for script in ((), (('screenshot', {}), ('done', {'result': 'It asks to sign in.'})),
+                       (('screenshot', {}), ('click', {'x': 1, 'y': 1}), ('done', {'result': 'x'}))):
+            with self.subTest(script=script):
+                result = self.run_task(*script)
+                self.assertEqual(result['effect'], 'unverifiable' if len(script) == 3 else 'not_executed')
+        self.assertEqual(self.run_task(args={'target': TARGET, 'goal': ''})['effect'], 'not_executed')
+
+    def test_sub_run_session_has_no_harness_tools_or_workspace(self):
+        from character_agent.integration import CharacterAgentController
+        enable = patch('character_agent.integration.plugins.on', return_value=True)
+        harness = Mock()
+        controller = Mock(session_factory_override=None, state_dir=Path('/state'))
+        controller._model.return_value = 'model'
+        config = {'backend': 'pi', 'auth_source': 'existing_login', 'runtime_source': 'local'}
+        with enable, patch.dict('character_agent.integration.HARNESSES', {'pi': harness}):
+            CharacterAgentController._session_factory(controller, ['tool'], config, 'desktop-task-x',
+                                                      native_tools=False, private_workspace=True, max_turns=9)
+        common = harness.session.call_args.args[2]
+        self.assertEqual((common['native_tools'], common['workspace_dir'], common['max_turns']), (False, None, 9))
+
     def test_kernel_ending_without_done_or_success(self):
         session = Session([])
         session.stream = Mock(side_effect=RuntimeError('runner_disconnected'))
@@ -281,10 +302,12 @@ class DesktopTaskTests(unittest.TestCase):
             available.assert_called_once_with(routed, bridge, None)
             self.assertEqual(run.call_args.kwargs['config'], routed)
             self.assertNotIn('api_key', run.call_args.kwargs)
-            self.assertEqual(run.call_args.kwargs['session_factory'](['tool'], {'backend': 'codex'}), 'session')
+            self.assertEqual(run.call_args.kwargs['session_factory'](['tool'], {'backend': 'codex', 'max_turns': 9}), 'session')
             definitions, sub, actor = controller._session_factory.call_args.args
-            self.assertEqual((definitions, sub), (['tool'], {'backend': 'codex'}))
+            self.assertEqual((definitions, sub), (['tool'], {'backend': 'codex', 'max_turns': 9}))
             self.assertTrue(actor.startswith('desktop-task-'))
+            self.assertEqual(controller._session_factory.call_args.kwargs,
+                             {'native_tools': False, 'private_workspace': True, 'max_turns': 9})
             run.call_args.args[0]('desktop_observe', {'target': TARGET}, timeout=2)
             self.assertEqual(tools.desktop.computer_call.call_args.args[:2], (SessionKey('character', 'run', None), 'desktop_observe'))
             available.return_value = False

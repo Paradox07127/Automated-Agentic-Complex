@@ -1715,9 +1715,16 @@ class TurnContextTests(unittest.TestCase):
             self.c.prepare('tap-turn', '', threading.Event(), self.server.turn_generation, 'tap',
                            {'remember': True, 'reset': -1})
             self.prepare('又一次普通对话')
-        # A tap shares the remembered foreground session, so it keeps the harness's own tools.
         self.assertEqual([call.kwargs.get('native_tools', True) for call in factory.call_args_list],
-                         [True, False, False, True])
+                         [True, False, False, False, True])
+
+    def test_a_tap_after_a_text_turn_opens_a_session_without_the_harness_tools(self):
+        with patch.object(self.c, '_session_factory', wraps=self.c._session_factory) as factory:
+            self.prepare('普通对话')
+            self.c.prepare('tap-turn', '', threading.Event(), self.server.turn_generation, 'tap',
+                           {'remember': True, 'reset': -1})
+        self.assertEqual([call.kwargs.get('native_tools', True) for call in factory.call_args_list], [True, False])
+        self.assertEqual(len(self.sessions), 2)
 
     def test_the_cards_reply_style_comes_last_before_the_tag_and_leaves_the_system(self):
         style = self.server.characters.load_card(self.server.character)['post_history_instructions']

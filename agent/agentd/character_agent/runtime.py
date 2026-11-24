@@ -197,8 +197,9 @@ class PersonalAgentRuntime:
 
     def run(self, *, run_id, text, system_prompt, history, character_id, generation,
             scope_id=None, context="", before_input="", cancelled=None, is_current=lambda: True, expected_outputs=None, resume_run_id=None, allow_actions=True, knowledge_service=None, memory_session=None, orchestration_session=None, question_session=None, conversation_id=None, remember=True, mode=None,
-            setup_ms=None, on_first_token=None, on_tool=None, language=None, quick_session=None, admitted=False):
+            setup_ms=None, on_first_token=None, on_tool=None, language=None, quick_session=None, admitted=False, harness_tools=True):
         """before_input: lines the prompt carries after the context, right before the user's text.
+        harness_tools: whether the session factory turns the harness's own tools on for this turn.
         setup_ms: the caller's own preparation times in ms, recorded on the running event.
         on_first_token() runs when the harness reports the first text.
         language: the reply language code for the check notes this adds to the reply."""
@@ -222,6 +223,7 @@ class PersonalAgentRuntime:
         previous = None
         planned_outputs = None
         pending_tool = None
+        checkpointed = False
         suspended = False
         original_goal = text
         actual_model = self.model
@@ -270,10 +272,12 @@ class PersonalAgentRuntime:
             return not suspended and not self._closed and not cancel.is_set() and is_current()
 
         def save_checkpoint():
+            nonlocal checkpointed
             # Shares the short write fence with cancellation/reset. No model or native wait is held here.
             with self._lock:
-                if not begun or task_id is None and pending_tool is None or not allow_actions or not current():
+                if not begun or task_id is None and pending_tool is None and not checkpointed or not allow_actions or not current():
                     return False
+                checkpointed = True
                 return self.store.checkpoint(run_id, task_id, {"task_id": task_id, "goal": original_goal,
                     "scope_id": scope_id, "dependencies": knowledge.dependencies() if knowledge else [],
                     "expected_outputs": expected_outputs, "planned_outputs": planned_outputs,
@@ -337,8 +341,8 @@ class PersonalAgentRuntime:
                 elif planned_outputs:
                     self.workspace.set_expectations(run_id, {"artifacts": [{"path": p} for p in planned_outputs]})
                 if previous and previous.get("task_id") and self.tasks:
+                    self.tasks.resume_character(previous["task_id"])
                     task_id = previous["task_id"]
-                    self.tasks.resume_character(task_id)
                     active["task_id"] = task_id
                     save_checkpoint()
             if question_session is not None:
@@ -359,7 +363,8 @@ class PersonalAgentRuntime:
                 segments["tools_offer_ms"] = round((time.monotonic()-at)*1000)
                 definitions = offer.definitions
                 projection = _hash(history)
-                session_key = _hash([character_id, system_prompt, self.backend, self.model, self.effort, scope_id, resume_run_id, definitions])
+                session_key = _hash([character_id, system_prompt, self.backend, self.model, self.effort, scope_id, resume_run_id, definitions,
+                                     harness_tools])
                 previous_valid = self._previous_knowledge is None or self._previous_knowledge.valid(self._previous_dependencies)
                 session_reused = self._session is not None and self._session_key == session_key and previous_valid and \
                     (self._last_projection is None or self._last_projection == projection)
@@ -405,13 +410,18 @@ class PersonalAgentRuntime:
                     save_checkpoint()
                     try:
                         value = question_session.call(name, args, tool_call_id)
-                    except (ValueError, WorkspaceError) as error:
-                        if (getattr(error, 'code', None) or str(error)) == 'interaction_pending':
+                    except Exception as error:
+                        if isinstance(error, (ValueError, WorkspaceError)) and \
+                                (getattr(error, 'code', None) or str(error)) == 'interaction_pending':
                             suspended = True
                             with self._lock:
                                 self.store.finish(run_id, 'waiting_user', task_id=task_id, dependencies=knowledge.dependencies())
                                 if task_id and self.tasks.get(task_id)['state'] == 'running':
                                     self.tasks.transition(task_id, 'waiting_user')
+                        else:
+                            # No card was posted, so no checkpoint may hand this question to a resume.
+                            pending_tool = None
+                            save_checkpoint()
                         raise
                 elif family == "knowledge":
                     value = knowledge.call(name, args)
@@ -475,7 +485,12 @@ class PersonalAgentRuntime:
                         with effect:
                             value = self.native_handler(name, args, run_id=run_id, is_current=current)
                         receipt = {"effect": value.get("effect", "unknown"), "tool": name}
-                        effect.settle("committed" if receipt["effect"] == "confirmed" else "unknown", receipt)
+                        settled = receipt["effect"] == "confirmed"
+                        if name == "desktop_task":
+                            # A refused task sent nothing; a completed one acted and waits for the user's review.
+                            receipt.update(code=value.get("code"), effect="not_executed" if value.get("error") else receipt["effect"])
+                            settled = receipt["effect"] == "not_executed" or receipt["code"] == "completed"
+                        effect.settle("committed" if settled else "unknown", receipt)
                     else:
                         value = self.native_handler(name, args, run_id=run_id, is_current=current)
                     if name == "desktop_verify" and ("expected_value" in args or "expected_title" in args):
@@ -646,27 +661,33 @@ class PersonalAgentRuntime:
                 result = {'background_jobs': list(orchestration_session.spawned), 'validation_scope': 'child_tasks_only'}
                 outcome = 'background_pending'
                 self._emit(run_id, 'background_pending', task_id=task_id)
-            elif task_id is not None:
+            elif task_id is not None or expected_outputs is not None and self.tasks is not None:
+                if task_id is None:
+                    begin_task()
                 with self._lock:
                     if not current():
                         raise ValueError("cancelled")
                     self.tasks.transition(task_id, "returned")
                     self.tasks.transition(task_id, "verifying")
                 self._emit(run_id, "verifying", task_id=task_id)
+                artifacts = self.workspace.run_artifacts(run_id)
+                # A refused desktop task settles committed but unchecked, so its task ends needs_review, not succeeded.
+                effects = self.tools.ledger.effects(run_id)
                 # A read-only answer that opened a task has nothing to verify.
-                no_deliverable = expected_outputs is None and not planned_outputs and \
-                    not self.workspace.run_artifacts(run_id) and not self.tools.ledger.effects(run_id)
+                no_deliverable = expected_outputs is None and not planned_outputs and not artifacts and not effects
                 result = {"ok": True, "artifacts": [], "checks": [], "validation_scope": "no_deliverable"} if no_deliverable \
-                    else self.workspace.verify_run(run_id, scope_id)
-                if not self.workspace.run_artifacts(run_id) and self.tools.ledger.effects(run_id):
-                    effects = self.tools.ledger.effects(run_id)
-                    has_desktop = any(e['tool'] in ('desktop_act', 'desktop_task') for e in effects)
+                    else self.workspace.verify_run(run_id, scope_id) if artifacts or expected_outputs is not None or planned_outputs \
+                    else None
+                if effects:
+                    has_act = any(e['tool'] == 'desktop_act' for e in effects)
                     has_mcp = any(e['tool'].startswith('mcp_') for e in effects)
-                    all_confirmed = (not has_desktop or native_verified) and all(e['state'] == 'committed' for e in effects)
-                    native_verified = native_verified and not has_mcp
-                    result = {"ok": all_confirmed, "self_checked": native_verified, "artifacts": [],
-                              "checks": [{"name": "external_operation_returned" if has_mcp else "native_effect_confirmed", "ok": all_confirmed}],
-                              "effects": self.tools.ledger.effects(run_id)}
+                    effects_ok = (not has_act or native_verified) and all(e['state'] == 'committed' for e in effects)
+                    check = {"name": "external_operation_returned" if has_mcp else "native_effect_confirmed", "ok": effects_ok}
+                    checked = native_verified and not has_mcp
+                    # Files and effects are checked apart; the task passes only when both do.
+                    result = {"ok": effects_ok, "self_checked": checked, "artifacts": [], "checks": [check], "effects": effects} \
+                        if result is None else {**result, "ok": result["ok"] and effects_ok, "checks": [*result["checks"], check],
+                                                "self_checked": result.get("self_checked", False) and checked, "effects": effects}
                 # A model-written checklist alone cannot certify the user's whole objective.
                 verified = result["ok"] and result.get("self_checked", False)
                 state = "succeeded" if no_deliverable or verified and expected_outputs is not None else "needs_review"
@@ -745,10 +766,10 @@ class PersonalAgentRuntime:
             memory_state = state
             if task_id is not None and self.tasks is not None:
                 task = self.tasks.get(task_id)
-                if task and task["state"] in ("running", "returned", "verifying"):
+                if task and task["state"] in ("running", "waiting_user", "returned", "verifying"):
                     target = "interrupted" if cancelled_now and active.get('interrupted') else \
-                        "cancelled" if task["state"] == "running" and cancelled_now else \
-                        "interrupted" if cancelled_now or task["state"] == "returned" else "failed"
+                        "cancelled" if task["state"] in ("running", "waiting_user") and cancelled_now else \
+                        "interrupted" if cancelled_now or task["state"] in ("returned", "waiting_user") else "failed"
                     self.tasks.transition(task_id, target, result={"reason": code, "run_id": run_id})
             if begun:
                 self.store.finish(run_id, state, task_id=task_id, dependencies=dependencies, result={"error": code, "failure": failure})

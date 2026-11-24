@@ -93,6 +93,7 @@ class _Window:
         self.bridge, self.target = bridge, dict(target)
         self.deadline, self.is_current = deadline, is_current
         self.snapshot_id, self.image_size, self.window_size, self.elements = None, None, None, ()
+        self.acted = False
 
     def check(self):
         if not self.is_current():
@@ -178,15 +179,18 @@ class _Window:
         except ComputerUseError:
             raise _Stop('invalid_action') from None
         self.snapshot_id, self.elements = None, ()
+        self.acted = True
         result = self._host('desktop_act', params)
         return {'effect': result.get('effect', 'unverifiable'), 'next': 'screenshot to verify'}
 
 
 def run_desktop_task(bridge, args, *, config, session_factory, is_current, report=lambda event: None):
     """session_factory(definitions, config) opens the kernel session the sub-run streams one turn on."""
-    steps, code, answer = 0, 'completed', ''
+    steps, code, answer, window = 0, 'completed', '', None
     def progress():
-        return {'code': code, 'actions': steps, 'effect': 'unverifiable', **({'result': answer} if answer else {})}
+        # not_executed: no action reached the bridge, so the window was never changed.
+        effect = 'unverifiable' if window is not None and window.acted else 'not_executed'
+        return {'code': code, 'actions': steps, 'effect': effect, **({'result': answer} if answer else {})}
     try:
         if not isinstance(args, dict) or set(args) - {'target', 'goal', 'max_actions'}:
             raise ValueError()

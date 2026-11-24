@@ -848,6 +848,121 @@ class RuntimeTests(unittest.TestCase):
                 self.assertTrue(rows)
                 self.assertTrue(all(isinstance(e.get('at'), float) for e in rows))
 
+    def test_a_turn_without_the_harness_tools_never_reuses_a_session_with_them(self):
+        self.run_agent()
+        self.run_agent('run-2', harness_tools=False)
+        self.run_agent('run-3', harness_tools=False)
+        self.assertEqual(len(self.sessions), 2)
+        self.run_agent('run-4')
+        self.assertEqual(len(self.sessions), 3)
+
+    def desktop(self, receipts):
+        """Offers desktop_task, desktop_act and desktop_verify; each call answers with the next receipt for its name."""
+        self.runtime.native_tools = [{'name': n, 'description': 'fixture', 'input_schema': {'type': 'object'}}
+                                     for n in ('desktop_task', 'desktop_act', 'desktop_verify')]
+        self.runtime.native_handler = lambda name, args, **kw: receipts[name].pop(0)
+
+    def test_completed_desktop_task_needs_review_and_a_refused_one_settles_as_not_executed(self):
+        for run, receipt, state, settled in (
+                ('done', {'code': 'completed', 'actions': 3, 'effect': 'unverifiable', 'result': 'The tab is open.'},
+                 'needs_review', 'committed'),
+                ('refused', {'code': 'completed', 'actions': 1, 'effect': 'not_executed', 'result': 'It asks to pay.'},
+                 'needs_review', 'committed'),
+                ('unavailable', {'error': {'code': 'desktop_task_unavailable'}}, 'needs_review', 'committed'),
+                ('cut', {'code': 'action_limit', 'actions': 30, 'effect': 'unverifiable'}, 'failed', 'unknown')):
+            with self.subTest(run=run):
+                self.runtime.invalidate('test_case')
+                self.desktop({'desktop_task': [receipt]})
+                def script(session, prompt, options):
+                    yield from session.use(options, 'desktop_task', {'target': {'pid': 1, 'window_id': 2}, 'goal': 'Open the tab'})
+                    yield {'type': 'result', 'success': True, 'final_text': 'Done.'}
+                self.script = script
+                reply = self.run_agent(run, scope_id=None)
+                self.assertIsNone(reply.error)
+                self.assertEqual(self.tasks.get(reply.task_id)['state'], state)
+                self.assertEqual([e['state'] for e in self.runtime.tools.ledger.effects(run)], [settled])
+                self.assertEqual(bool(self.runtime.tools.ledger.unsettled(run)), settled == 'unknown')
+
+    def test_desktop_effects_and_written_outputs_are_both_checked(self):
+        def acting(write):
+            def script(session, prompt, options):
+                if write:
+                    yield from self.report_script()(session, prompt, options)
+                yield from session.use(options, 'desktop_act', {'snapshot_id': 's', 'action': 'press', 'element_id': 'e'})
+                yield from session.use(options, 'desktop_verify', {'snapshot_id': 's2', 'element_id': 'e', 'expected_value': 'on'})
+                yield {'type': 'result', 'success': True, 'final_text': 'Done.'}
+            return script
+        for run, write, act in (('no-file', False, 'confirmed'), ('unknown-act', True, 'unknown')):
+            with self.subTest(run=run):
+                self.runtime.invalidate('test_case')
+                self.desktop({'desktop_act': [{'effect': act}], 'desktop_verify': [{'effect': 'confirmed'}]})
+                self.script = acting(write)
+                reply = self.run_agent(run, expected_outputs=self.expected())
+                self.assertIsNone(reply.error)
+                self.assertFalse(reply.result['ok'])
+                self.assertNotEqual(self.tasks.get(reply.task_id)['state'], 'succeeded')
+
+    def test_required_outputs_are_checked_even_without_any_tool_call(self):
+        reply = self.run_agent(expected_outputs=self.expected())
+        self.assertIsNone(reply.error)
+        self.assertIsNotNone(reply.task_id)
+        self.assertFalse(reply.result['ok'])
+        self.assertEqual(self.tasks.get(reply.task_id)['state'], 'failed')
+
+    def owned_task_checkpoint(self, state):
+        self.tasks.create('task', 'character', str(self.root), 'Report', 'workspace_write')
+        self.tasks.transition('task', 'approved')
+        self.tasks.transition('task', 'running')
+        if state != 'running':
+            self.tasks.transition('task', state)
+        self.runtime.store.begin('old', self.runtime.conversation_id, 'one', 0)
+        self.runtime.store.checkpoint('old', 'task', {'task_id': 'task', 'goal': 'Report', 'scope_id': None, 'dependencies': []})
+        self.runtime.store.finish('old', 'failed', task_id='task')
+
+    def test_resume_of_a_task_another_attempt_runs_leaves_that_task_alone(self):
+        self.owned_task_checkpoint('running')
+        reply = self.run_agent('run-2', scope_id=None, resume_run_id='old')
+        self.assertEqual(reply.error, 'task_still_running')
+        self.assertIsNone(reply.task_id)
+        self.assertEqual(self.tasks.get('task')['state'], 'running')
+
+    def test_cancel_after_a_question_was_posted_cancels_its_waiting_task(self):
+        from character_agent.services.interactions import InteractionService
+        service = InteractionService(self.runtime.store, wait_seconds=0)
+        self.addCleanup(service.close)
+        def ask(session, prompt, options):
+            yield from session.use(options, 'task_plan', {'title': 'Ask first', 'outputs': []})
+            try:
+                options['tool_handler']('ask_user', {'questions': [{'id': 'q', 'question': '用途？'}]})
+            except ValueError:
+                pass
+            self.runtime.cancel('user_cancelled')
+            yield {'type': 'text_delta', 'text': 'late'}
+        self.script = ask
+        reply = self.run_agent(scope_id=None, question_session=Questions(service, 'run-1'))
+        self.assertEqual(reply.error, 'user_cancelled')
+        self.assertEqual(self.tasks.get(reply.task_id)['state'], 'cancelled')
+        self.assertEqual(self.runtime.store.get('run-1')['state'], 'cancelled')
+
+    def test_a_rejected_question_leaves_no_pending_tool_in_the_checkpoint(self):
+        from character_agent.services.interactions import InteractionService
+        service = InteractionService(self.runtime.store, wait_seconds=0)
+        self.addCleanup(service.close)
+        for run, plan in (('no-task', False), ('with-task', True)):
+            with self.subTest(run=run):
+                def ask(session, prompt, options):
+                    if plan:
+                        yield from session.use(options, 'task_plan', {'title': 'Ask first', 'outputs': []})
+                    with self.assertRaisesRegex(ValueError, 'invalid_questions'):
+                        options['tool_handler']('ask_user', {'questions': [{'id': 'q', 'question': 'A?'},
+                                                                           {'id': 'q', 'question': 'B?'}]})
+                    yield from session.use(options, 'personal_profile', {})
+                    yield from chat(session, prompt, options)
+                self.script = ask
+                reply = self.run_agent(run, scope_id=None, question_session=Questions(service, run))
+                self.assertIsNone(reply.error)
+                self.assertIsNone(self.runtime.store.load_checkpoint(run_id=run)['pending_tool'])
+
 
 class PreparedReplyTests(unittest.TestCase):
     def mouth(self):

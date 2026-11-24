@@ -1056,7 +1056,9 @@ class CharacterAgentController:
             actor = 'desktop-task-' + uuid.uuid4().hex
             return run_desktop_task(lambda method, params, **options: self.tools.desktop.computer_call(
                 SessionKey('character', run_id, None), method, params, **options), args,
-                config=config, session_factory=lambda definitions, sub: self._session_factory(definitions, sub, actor),
+                # The sub-run reads untrusted screenshots: no harness tools and no workspace beyond the leased window.
+                config=config, session_factory=lambda definitions, sub: self._session_factory(definitions, sub, actor,
+                    native_tools=False, private_workspace=True, max_turns=sub.get('max_turns')),
                 is_current=is_current, report=lambda event: self.tools.report('desktop.task_member', event, run_id))
         return self.tools.desktop.call(SessionKey("character", run_id, None), name, args)
 
@@ -1888,8 +1890,9 @@ class CharacterAgentController:
             session = self.quick_session() if quick else None
             span, started = new_span_id(), time.monotonic()
             server._step(trace, "model.started", span, attrs={"model": runtime.model or DEFAULT_MODEL, "call": "character_agent"})
-            # Side and unremembered runs get their own session; the harness's own file and shell tools stay off there.
-            self._turn.native_tools = self.jobs is not None and main_session and trace.get("remember", True)
+            # Only the user's own remembered turn gets the harness's own file and shell tools; no other turn reuses its session.
+            native = self.jobs is not None and main_session and source in ("text", "voice") and trace.get("remember", True)
+            self._turn.native_tools = native
             try:
                 # The native grant outlives the run by minutes and blocks the next run's session with desktop_busy.
                 with self.tools.session(SessionKey("character", line_id,
@@ -1901,7 +1904,7 @@ class CharacterAgentController:
                         mode='embodied_only' if not side and trace.get('remember', True) and source in ('gift', 'ritual', 'tap') else None,
                         remember=trace.get("remember", True),
                         knowledge_service=knowledge, memory_session=memory_session,
-                        quick_session=session, admitted=trace.get("quick_admitted", False),
+                        quick_session=session, admitted=trace.get("quick_admitted", False), harness_tools=native,
                         orchestration_session=OrchestrationTurn(self, egress.user_text(text), self.settings.snapshot(), server.character,
                             scope_id, line_id, utterance=text, answers=answers) if main_session and self.jobs and trace.get('remember', True) else None,
                         question_session=QuestionTurn(self.interactions, self.settings.snapshot()['interactive_tools'], line_id,
