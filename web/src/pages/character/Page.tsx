@@ -32,6 +32,8 @@ type Roster = CharacterEntry[];
 const NO_ROSTER: Roster = [];
 /** Supervisor child states in which the avatar is not running. */
 export const DOWN = /^(stopped|backoff|portInUse|gpuHold|failed)/;
+/** The runtime's avatar process states in which she is not running. */
+const RUNTIME_DOWN: ReadonlySet<string> = new Set(['stopped', 'backoff', 'port_in_use', 'gpu_hold', 'failed']);
 const codeOf = (e: unknown) => (e as { code?: string } | null)?.code;
 /** The `ok` demo opens with two unsaved switches, as the prototype does. */
 const OK_SEED = { stretch: false, watch: true };
@@ -72,7 +74,6 @@ export function CharacterPage() {
     },
   });
   const conn = useQuery({ queryKey: ['agentd', 'connection'], queryFn: () => getBridge().agentd.connection() });
-  const sup = useQuery({ queryKey: ['supervisor', 'state'], queryFn: () => getBridge().supervisor.state() });
   // No catalog when the shell has no avatar or does not implement the op.
   const noCatalog = !canAvatar || codeOf(list.error) === 'not_implemented';
   const roster = noCatalog ? NO_ROSTER : list.data;
@@ -80,7 +81,7 @@ export function CharacterPage() {
   const cur = her?.id ?? '';
   const name = roster?.find((c) => c.id === cur)?.name ?? '';
   const motions = useQuery({ queryKey: ['character', 'motions', cur], queryFn: () => getBridge().avatar.actions(), enabled: canAvatar && roster != null });
-  const library = useMotionLibrary({ onChanged: () => void motions.refetch() });
+  const library = useMotionLibrary({ character: cur, onChanged: () => void motions.refetch() });
   // importMotion resolves once the restarted avatar is back, so its list has the new action.
   const motionImport = useMotionImport(() => getBridge().character.importMotion(), () => {
     void motions.refetch();
@@ -97,9 +98,9 @@ export function CharacterPage() {
   });
   const seeded = useSwitchDemo(sw, demo, roster);
 
-  const avatarState = demo === 'offline' ? 'stopped' : sup.data?.avatar?.state;
-  const offline = avatarState != null && DOWN.test(avatarState);
-  const backoff = demo === 'offline' ? null : (sup.data?.avatar?.backoff ?? null);
+  const avatarState = demo === 'offline' ? 'stopped' : host.avatar?.state;
+  const offline = avatarState != null && RUNTIME_DOWN.has(avatarState);
+  const backoff = demo === 'offline' ? null : (host.avatar?.backoff ?? null);
   // A switch from the tray or menu bar runs on the host only.
   const switching = host.switching || sw.state.phase === 'running';
   const mmd = useMmdSection({ on: mmdView, roster: roster ?? NO_ROSTER, ch: currentOf(roster, host.current), actions: motions.data, offline, switching, sync, toast: fb.toast });
@@ -111,10 +112,13 @@ export function CharacterPage() {
   const listError = !noCatalog && list.isError;
   const loading = state === 'loading' || (!noCatalog && list.isPending) || !seeded;
   const none = state === 'empty' || cs.data === null;
-  const restart = () => {
-    void getBridge().supervisor.restart('avatar');
-    fb.toast('正在重启角色…');
-  };
+  const restart = () =>
+    void getBridge()
+      .supervisor.restart('avatar')
+      .then(
+        () => fb.toast('正在重启角色…'),
+        () => fb.toast('没有重启角色：桌面角色没有回应', { severity: 'danger' }),
+      );
   const importPackage = () =>
     void getBridge()
       .character.importPackage()
@@ -135,7 +139,8 @@ export function CharacterPage() {
 
   let body;
   if (loading) body = <OperatorSkel />;
-  else if (listError || !roster) body = <ErrBar message="读取角色目录失败：角色目录不可用" onRetry={() => void list.refetch()} />;
+  // A failed reread keeps the roster it had, and the drafts with it.
+  else if (!roster) body = <ErrBar message="读取角色目录失败：角色目录不可用" onRetry={() => void list.refetch()} />;
   else if (empty)
     body = (
       <section className={styles.empty} aria-label="还没有角色" data-character-empty="">
@@ -147,6 +152,7 @@ export function CharacterPage() {
   else
     body = (
       <div className={styles.sw}>
+        {listError && <ErrBar message="读取角色目录失败：角色目录不可用，下面是上次读到的" onRetry={() => void list.refetch()} />}
         <Operator
           roster={roster}
           current={cur}
@@ -162,10 +168,11 @@ export function CharacterPage() {
           motionImport={motionImport}
           library={library}
           onImportPackage={importPackage}
-          chains={<MotionSettings offline={offline} toast={fb.toast} />}
+          chains={<MotionSettings character={cur} switching={switching} offline={offline} toast={fb.toast} />}
           pane={isPane(pane) ? pane : 'overview'}
           {...(row && pane === 'motion' ? { motionRow: row } : {})}
-          charState={none ? null : (cs.data ?? null)}
+          // agentd's state of the character before a switch is not hers.
+          charState={none || cs.data?.character_id !== cur ? null : (cs.data ?? null)}
           {...(demo === 'ok' ? { seed: OK_SEED } : {})}
           playing={demo === 'playing' ? 'nod' : null}
           toast={fb.toast}

@@ -13,18 +13,20 @@ const SET: MotionOverrides = {
 describe('fake motion overrides', () => {
   it('starts empty, keeps the whole set per character and counts what it took', async () => {
     const bridge = createFakeBridge({ surface: 'main', still: true });
-    expect(await bridge.avatar.motionOverrides.get()).toEqual({ chains: {}, pools: {}, blend_in: {} });
-    expect(await bridge.avatar.motionOverrides.set(SET)).toEqual({ applied: { chains: 1, pools: 2, blend_in: 1 }, adjusted: [] });
-    expect(await bridge.avatar.motionOverrides.get()).toEqual(SET);
-    await bridge.avatar.motionOverrides.set({ chains: {}, pools: {}, blend_in: { b: 0 } });
-    expect(await bridge.avatar.motionOverrides.get()).toEqual({ chains: {}, pools: {}, blend_in: { b: 0 } });
+    expect(await bridge.avatar.motionOverrides.get('si')).toEqual({ chains: {}, pools: {}, blend_in: {} });
+    expect(await bridge.avatar.motionOverrides.set('si', SET)).toEqual({ applied: { chains: 1, pools: 2, blend_in: 1 }, adjusted: [] });
+    expect(await bridge.avatar.motionOverrides.get('si')).toEqual(SET);
+    await bridge.avatar.motionOverrides.set('si', { chains: {}, pools: {}, blend_in: { b: 0 } });
+    expect(await bridge.avatar.motionOverrides.get('si')).toEqual({ chains: {}, pools: {}, blend_in: { b: 0 } });
     await bridge.character.switchTo('voice_a');
-    expect(await bridge.avatar.motionOverrides.get()).toEqual({ chains: {}, pools: {}, blend_in: {} });
+    expect(await bridge.avatar.motionOverrides.get('voice_a')).toEqual({ chains: {}, pools: {}, blend_in: {} });
+    await expect(bridge.avatar.motionOverrides.get('si')).rejects.toMatchObject({ code: 'character_changed' });
+    await expect(bridge.avatar.motionOverrides.set('si', SET)).rejects.toMatchObject({ code: 'character_changed' });
   });
 
   it('plays a chain and has no live preview sequence', async () => {
     const bridge = createFakeBridge({ surface: 'main', still: true });
-    await expect(bridge.avatar.playChain({ start: 'A_clip_birch_customized_state_think_start', speed: 0.5 })).resolves.toBeUndefined();
+    await expect(bridge.avatar.playChain('si', { start: 'A_clip_birch_customized_state_think_start', speed: 0.5 })).resolves.toBeUndefined();
     expect(await bridge.avatar.preview.sequence({ clips: ['a', 'b'], blend_s: [0.25] })).toBe(false);
     for (const bad of [
       { clips: [], blend_s: [] },
@@ -39,8 +41,8 @@ describe('fake motion overrides', () => {
 
   it('is refused outside the main surface', async () => {
     const bridge = createFakeBridge({ surface: 'stack', still: true });
-    await expect(bridge.avatar.motionOverrides.get()).rejects.toMatchObject({ code: 'not_implemented' });
-    await expect(bridge.avatar.playChain({ start: 'a' })).rejects.toMatchObject({ code: 'not_implemented' });
+    await expect(bridge.avatar.motionOverrides.get('si')).rejects.toMatchObject({ code: 'not_implemented' });
+    await expect(bridge.avatar.playChain('si', { start: 'a' })).rejects.toMatchObject({ code: 'not_implemented' });
   });
 });
 

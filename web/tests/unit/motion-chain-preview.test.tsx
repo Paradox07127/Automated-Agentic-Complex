@@ -77,7 +77,7 @@ describe('编排 预览和桌面播放', () => {
     await mount(toast);
     await openChain(PONDER);
     await click(playBtn());
-    expect(play).toHaveBeenLastCalledWith({ start: PONDER });
+    expect(play).toHaveBeenLastCalledWith('si', { start: PONDER });
     expect(toast).toHaveBeenLastCalledWith('桌面上正在播放「dialog_state_think_start」');
   });
 

@@ -150,11 +150,13 @@ export class AvatarLooks {
     if (link.currentCharacter !== character || link.currentAppearance !== id) throw failed(`外观没有换成：${reason === 'ok' ? 'load_failed' : reason}`);
   }
 
-  /** setLayersAndWait: returns once she reports `hidden`; a failure leaves the old set. */
-  async setLayers(hidden: string[]): Promise<void> {
+  /** setLayersAndWait: hides `hide` and shows `show` in the whole hidden set (every appearance's layers), returns once she
+   *  reports it; a failure leaves the old set. */
+  async setLayers(change: { hide: string[]; show: string[] }): Promise<void> {
     const link = this.o.link, character = link.currentCharacter, ids = link.layers.map((l) => l.id);
     if (character === null || ids.length === 0) throw failed('这个角色没有可以隐藏的层');
-    if (!hidden.every((h) => ids.includes(h))) throw failed('这个角色没有这一层');
+    if (![...change.hide, ...change.show].every((h) => ids.includes(h))) throw failed('这个角色没有这一层');
+    const hidden = [...new Set([...link.hiddenLayers.filter((h) => !change.show.includes(h)), ...change.hide])];
     const same = (a: string[]) => new Set(a).size === new Set(hidden).size && a.every((h) => hidden.includes(h));
     if (same(link.hiddenLayers)) return;
     if (link.layersSwitching || !link.sendSetLayers(hidden)) throw failed('角色没有连上，或者正在换服装分层');

@@ -11,6 +11,7 @@ const SAVE_REFUSED: Record<string, string> = {
   switching: '角色正在切换',
   not_ready: '角色还在加载',
   not_implemented: '这个版本还不支持',
+  character_changed: '角色刚被换过',
 };
 const codeOf = (e: unknown) => (e as { code?: string } | null)?.code ?? '';
 /** How long the stage says 桌面播放中 for a motion without a duration. */
@@ -58,10 +59,15 @@ export interface Play {
 
 /** `character`'s switch drafts saved as one group, and the desktop preview with its progress, the shell's `reported` one when it
  *  sends one, else local; another character starts with none. */
-export function useMotions(o: { character?: string; actions: AvatarAction[]; toast: Toast; seed?: Record<string, boolean>; playing?: string | null;
+export function useMotions(o: { character: string; actions: AvatarAction[]; toast: Toast; seed?: Record<string, boolean>; playing?: string | null;
   reported?: ActionProgress | null }) {
-  const [changed, setChanged] = useState<Record<string, boolean>>(() => o.seed ?? {});
+  const [draft, setChanged] = useState<Record<string, boolean>>(() => o.seed ?? {});
+  // What the last save answered, over `actions` until they are read again.
   const [saved, setSaved] = useState<Record<string, boolean>>({});
+  const [savedOver, setSavedOver] = useState(o.actions);
+  if (savedOver !== o.actions && Object.keys(saved).length > 0) setSaved({});
+  // A draft switch of an action she no longer has is neither shown nor sent.
+  const changed = Object.fromEntries(Object.entries(draft).filter(([id]) => o.actions.some((a) => a.id === id)));
   const [play, setPlay] = useState<Play | null>(() => (o.playing ? { id: o.playing, t0: Date.now(), speed: 1, loop: false } : null));
   const [owner, setOwner] = useState(o.character);
   if (owner !== o.character) {
@@ -103,16 +109,19 @@ export function useMotions(o: { character?: string; actions: AvatarAction[]; toa
     });
 
   const save = () => {
-    const n = Object.keys(changed).length;
+    const sent = changed;
+    const n = Object.keys(sent).length;
     setSaving(true);
     getBridge()
-      .avatar.setActionSwitches(changed)
+      .avatar.setActionSwitches(o.character, sent)
       .then(
         (r) => {
           if (r.error) return o.toast(`没有保存：${SAVE_REFUSED[r.error] ?? NO_REASON}`, { severity: 'danger' });
           // The host's table is the truth: it may keep required, missing or last-in-section actions on.
           setSaved((x) => ({ ...x, ...r.switches }));
-          setChanged({});
+          setSavedOver(o.actions);
+          // A switch changed again while the save was out stays a change.
+          setChanged((c) => Object.fromEntries(Object.entries(c).filter(([id, v]) => sent[id] !== v)));
           const back = r.adjusted.map((a) => `${o.actions.find((m) => m.id === a.id)?.label ?? a.id}（${ADJUSTED[a.reason] ?? NO_REASON}）`);
           o.toast(back.length ? `动作开关已保存 │ 角色改回了 ${back.join('、')}` : `动作开关已保存 │ ${n} 项`);
         },

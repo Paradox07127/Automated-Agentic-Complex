@@ -226,13 +226,13 @@ describe('MMD library', () => {
     expect(input.value).toBe('示例舞蹈');
     fireEvent.change(input, { target: { value: '慢舞' } });
     await act(async () => void fireEvent.keyDown(input, { key: 'Enter' }));
-    expect(rename).toHaveBeenCalledWith('mmd_dance_1', '慢舞');
+    expect(rename).toHaveBeenCalledWith('si', 'mmd_dance_1', '慢舞');
     await waitFor(() => expect(item('mmd_dance_1')?.textContent).toContain('慢舞'));
     await click(within(detail()).getByRole('button', { name: '删除' }));
     const dialog = screen.getByRole('dialog', { name: '删除动作' });
     expect(dialog.textContent).toContain('每个角色');
     await click(within(dialog).getByRole('button', { name: '删除' }));
-    expect(remove).toHaveBeenCalledWith('mmd_dance_1');
+    expect(remove).toHaveBeenCalledWith('si', 'mmd_dance_1');
     await waitFor(() => expect(item('mmd_dance_1')).toBeNull());
   });
 
@@ -248,7 +248,7 @@ describe('MMD library', () => {
     await press(rowKey('mmd_b'), 'ArrowUp');
     expect(rowKey('mmd_a').getAttribute('aria-pressed')).toBe('true');
     await press(rowKey('mmd_a'), 'Enter');
-    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_a'], loop: 'off', speed: 1 });
+    expect(set).toHaveBeenLastCalledWith('si', { items: ['mmd_a'], loop: 'off', speed: 1 });
     await press(rowKey('mmd_a'), 'F2');
     expect(screen.getByRole('dialog', { name: '改名' })).toBeTruthy();
     await click(within(screen.getByRole('dialog', { name: '改名' })).getByRole('button', { name: '取消' }));
@@ -269,7 +269,7 @@ describe('MMD library', () => {
     // Not baked for her: not hers, so no ＋.
     expect(within(item('mmd_b')!).queryByRole('button', { name: '加入演出列表' })).toBeNull();
     await click(within(item('mmd_a')!).getByRole('button', { name: '加入演出列表' }));
-    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_a'], loop: 'off', speed: 1 });
+    expect(set).toHaveBeenLastCalledWith('si', { items: ['mmd_a'], loop: 'off', speed: 1 });
     expect(band.querySelector('[data-playlist-row="mmd_a"]')?.textContent).toContain('舞蹈甲');
     expect(band.textContent).toContain('1 首 │ 共 12.5 s');
     expect(within(item('mmd_a')!).queryByRole('button', { name: '加入演出列表' })).toBeNull();
@@ -359,7 +359,7 @@ describe('MMD section · whose it is', () => {
     await waitFor(() => expect(after.querySelector('[data-playlist-row="mmd_b"]')).not.toBeNull());
     expect(after.querySelector('[data-playlist-row="mmd_a"]')).toBeNull();
     await click(within(within(after).getByRole('radiogroup', { name: '连播速度' })).getByRole('radio', { name: '2×' }));
-    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_b'], loop: 'off', speed: 2 });
+    expect(set).toHaveBeenLastCalledWith('voice_a', { items: ['mmd_b'], loop: 'off', speed: 2 });
   });
 
   it('waits for the roster before it says how a dance stands for her, and offers no import meanwhile', async () => {

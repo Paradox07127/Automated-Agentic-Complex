@@ -58,7 +58,7 @@ describe('product review regressions', () => {
     vi.spyOn(bridge.avatar,'state').mockImplementation(async()=>({...original,visible}));
     const show=vi.spyOn(bridge.avatar,'setVisible').mockImplementation(async(v)=>{ visible=v; });
     const play=vi.spyOn(bridge.avatar,'playAction').mockResolvedValue();
-    const toast=vi.fn(); const {result}=renderHook(()=>useMotions({actions:[],toast}));
+    const toast=vi.fn(); const {result}=renderHook(()=>useMotions({character:'si',actions:[],toast}));
     const motion=(await bridge.avatar.actions())[0]!;
     await act(()=>result.current.preview(motion,1));
     expect(show).toHaveBeenCalledWith(true); expect(play).toHaveBeenCalledWith(motion.id,1);
@@ -103,7 +103,7 @@ describe('product review regressions', () => {
     const bridge = createFakeBridge({surface:'main',still:true}); window.agenticComplex=bridge;
     const motion = { ...(await bridge.avatar.actions())[0]!, durationS:.1 };
     vi.spyOn(bridge.avatar,'playAction').mockResolvedValue();
-    const {result}=renderHook(()=>useMotions({actions:[motion],toast:vi.fn()}));
+    const {result}=renderHook(()=>useMotions({character:'si',actions:[motion],toast:vi.fn()}));
     await act(()=>result.current.preview(motion,1));
     expect(result.current.play?.id).toBe(motion.id);
     await act(async()=>vi.advanceTimersByTime(200));

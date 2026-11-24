@@ -110,7 +110,7 @@ describe('overview kernel read', () => {
 
 /** The character motion table with its save logic. */
 function Motions({ toast }: { toast: (m: string) => void }) {
-  const m = useMotions({ actions: MOTIONS, toast });
+  const m = useMotions({ character: 'si', actions: MOTIONS, toast });
   return (
     <MotionTable
       groups={groupMotions(MOTIONS)}

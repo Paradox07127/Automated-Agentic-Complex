@@ -312,12 +312,12 @@ test('character.removeOutfit runs outfit_tool remove, moves a remembered look on
   try {
     writeFileSync(join(f.dir, 'state.json'), JSON.stringify({ last_appearance: { si: 'mod_1', cedar: 'mod_1' } }));
     f.tool = () => ({ last: '{"ok": true}', status: 0, stderr: '' });
-    assert.deepEqual(await f.call('character.removeOutfit', 'mod_1'), { ok: true, appearance: { id: 'mod_1' } });
+    assert.deepEqual(await f.call('character.removeOutfit', 'si', 'mod_1'), { ok: true, appearance: { id: 'mod_1' } });
     assert.deepEqual(f.tools, [['outfit_tool.py', 'remove', '--library', LIBRARY(f), '--character', 'si', '--appearance', 'mod_1',
       '--validate-with', 'host-bin']]);
     assert.deepEqual(f.calls, ['tool held=true', 'restartAvatar held=true']);
     assert.deepEqual(JSON.parse(readFileSync(join(f.dir, 'state.json'), 'utf8')).last_appearance, { si: 'default', cedar: 'mod_1' });
-    assert.deepEqual(await f.call('character.removeOutfit', 'mod_2'), { ok: true, appearance: { id: 'mod_2' } });
+    assert.deepEqual(await f.call('character.removeOutfit', 'si', 'mod_2'), { ok: true, appearance: { id: 'mod_2' } });
     assert.deepEqual(JSON.parse(readFileSync(join(f.dir, 'state.json'), 'utf8')).last_appearance, { si: 'default', cedar: 'mod_1' });
   } finally {
     f.done();
@@ -327,20 +327,20 @@ test('character.removeOutfit runs outfit_tool remove, moves a remembered look on
 test('character.removeOutfit: bad_args for a bad id, outfit_tool\'s reason, busy, internal without a library', async () => {
   const f = fixture();
   try {
-    assert.deepEqual(await f.call('character.removeOutfit', ''), err('bad_args', 'character.removeOutfit'));
-    assert.deepEqual(await f.call('character.removeOutfit', 'x'.repeat(65)), err('bad_args', 'character.removeOutfit'));
+    assert.deepEqual(await f.call('character.removeOutfit', 'si', ''), err('bad_args', 'character.removeOutfit'));
+    assert.deepEqual(await f.call('character.removeOutfit', 'si', 'x'.repeat(65)), err('bad_args', 'character.removeOutfit'));
     f.tool = () => ({ last: '', status: 1, stderr: '{"reason": "not_imported", "detail": "default"}' });
-    assert.deepEqual(await f.call('character.removeOutfit', 'default'), err('not_imported', 'default'));
+    assert.deepEqual(await f.call('character.removeOutfit', 'si', 'default'), err('not_imported', 'default'));
     assert.deepEqual(f.calls.filter((c) => c.startsWith('restartAvatar')), []);
     f.switcher.held = true;
-    assert.deepEqual(await f.call('character.removeOutfit', 'mod_1'), err('busy', '角色正在切换，或另一个导入还没完成'));
+    assert.deepEqual(await f.call('character.removeOutfit', 'si', 'mod_1'), err('busy', '角色正在切换，或另一个导入还没完成'));
     assert.equal(f.tools.length, 1);
   } finally {
     f.done();
   }
   const bare = fixture({ catalog: false });
   try {
-    assert.deepEqual(await bare.call('character.removeOutfit', 'mod_1'), err('internal', '没有配置角色目录'));
+    assert.deepEqual(await bare.call('character.removeOutfit', 'si', 'mod_1'), err('internal', '没有配置角色目录'));
   } finally {
     bare.done();
   }
@@ -426,7 +426,7 @@ test('character.removeOutfit reports no progress', async () => {
       assert.equal(progress, undefined);
       return { last: '{"ok": true}', status: 0, stderr: '' };
     };
-    assert.deepEqual(await f.call('character.removeOutfit', 'mod_1'), { ok: true, appearance: { id: 'mod_1' } });
+    assert.deepEqual(await f.call('character.removeOutfit', 'si', 'mod_1'), { ok: true, appearance: { id: 'mod_1' } });
     assert.deepEqual(f.pushed, []);
   } finally {
     f.done();
@@ -498,8 +498,8 @@ test('while the shared MMD library bakes, the motion imports, mmd.import, rename
     f.picks = [[join(f.dir, 'dance.vmd')]];
     assert.deepEqual(await f.call('character.importMotion'), SYNCING);
     assert.deepEqual(await f.call('mmd.import'), SYNCING);
-    assert.deepEqual(await f.call('character.renameMotion', 'm', '慢舞'), SYNCING);
-    assert.deepEqual(await f.call('character.removeMotion', 'm'), SYNCING);
+    assert.deepEqual(await f.call('character.renameMotion', 'si', 'm', '慢舞'), SYNCING);
+    assert.deepEqual(await f.call('character.removeMotion', 'si', 'm'), SYNCING);
     assert.deepEqual(f.tools, []);
     assert.deepEqual(f.asked, [], 'no panel opens');
     assert.equal(f.switcher.held, false);
@@ -507,7 +507,7 @@ test('while the shared MMD library bakes, the motion imports, mmd.import, rename
     await done;
     assert.deepEqual(f.synced.at(-1), { ...running, running: false, character: null });
     f.tool = () => ({ last: JSON.stringify({ id: 'm', title: '慢舞' }), status: 0, stderr: '' });
-    assert.deepEqual(await f.call('character.renameMotion', 'm', '慢舞'), { ok: true, id: 'm', title: '慢舞' });
+    assert.deepEqual(await f.call('character.renameMotion', 'si', 'm', '慢舞'), { ok: true, id: 'm', title: '慢舞' });
   } finally {
     f.done();
   }
@@ -517,14 +517,14 @@ test('character.renameMotion and removeMotion restart the renderer while holding
   const f = fixture();
   try {
     f.tool = (_script, args) => ({ last: JSON.stringify({ id: 'm', title: args.find((a) => a.startsWith('--title='))?.slice(8) }), status: 0, stderr: '' });
-    assert.deepEqual(await f.call('character.renameMotion', 'm', '慢舞'), { ok: true, id: 'm', title: '慢舞' });
+    assert.deepEqual(await f.call('character.renameMotion', 'si', 'm', '慢舞'), { ok: true, id: 'm', title: '慢舞' });
     assert.deepEqual(f.calls, ['tool held=true', 'restartAvatar held=true']);
     assert.notEqual(f.link.hello, null, 'the reply waits for her new hello');
-    assert.deepEqual(await f.call('character.removeMotion', 'm'), { ok: true, id: 'm' });
+    assert.deepEqual(await f.call('character.removeMotion', 'si', 'm'), { ok: true, id: 'm' });
     assert.deepEqual(f.calls.slice(2), ['tool held=true', 'restartAvatar held=true']);
     assert.notEqual(f.link.hello, null);
     f.tool = () => ({ last: '', status: 1, stderr: '{"reason": "unknown_action", "detail": "m"}\n' });
-    assert.deepEqual(await f.call('character.removeMotion', 'm'), { ok: false, reason: 'unknown_action', detail: 'm' });
+    assert.deepEqual(await f.call('character.removeMotion', 'si', 'm'), { ok: false, reason: 'unknown_action', detail: 'm' });
     assert.deepEqual(f.calls.slice(4), ['tool held=true'], 'a failure does not restart her');
     assert.equal(f.switcher.held, false);
   } finally {

@@ -124,7 +124,7 @@ describe('MMD · her list', () => {
     await act(async () => read.resolve({ items: ['mmd_a'], loop: 'off', speed: 1 }));
     expect(result.current.items).toEqual(['mmd_a']);
     act(() => result.current.put(['mmd_a', 'mmd_b']));
-    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_a', 'mmd_b'], loop: 'off', speed: 1 });
+    expect(set).toHaveBeenLastCalledWith('si', { items: ['mmd_a', 'mmd_b'], loop: 'off', speed: 1 });
   });
 
   it('keeps a newer edit when an older save fails after it', async () => {

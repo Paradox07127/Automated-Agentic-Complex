@@ -48,8 +48,14 @@ export function useMmdSection(p: MmdSectionProps): Extract<Side, { of: 'mmd' }> 
   };
   const mmdImport = useMotionImport(() => getBridge().mmd.import(), refresh);
   const importing = useImportState();
-  const library = useMotionLibrary({ onChanged: refresh });
+  const library = useMotionLibrary({ character: current, onChanged: refresh });
   const [edit, setEdit] = useState<MotionEdit | null>(null);
+  // An open 改名 or 删除 belongs to the character it was opened on.
+  const [editOf, setEditOf] = useState(current);
+  if (editOf !== current) {
+    setEditOf(current);
+    setEdit(null);
+  }
   const [sel, setSel] = useState<string>();
   const [filter, setFilter] = useState<MmdFilter>('all');
   const [loopPick, setLoop] = useState(false);

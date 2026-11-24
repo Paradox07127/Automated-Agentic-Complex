@@ -5,6 +5,8 @@ import { fakeModSettings } from './modSettings';
 
 const copy = (o: MotionOverrides): MotionOverrides => JSON.parse(JSON.stringify(o)) as MotionOverrides;
 const bytes = (s: string) => new TextEncoder().encode(s).length;
+/** As native: a call meant for a character no longer current. */
+export const characterChanged = (c: string): BridgeError => ({ code: 'character_changed', detail: `${c} is not the current character` });
 
 /** `avatar.preview.sequence`, checked as native checks it; a browser has no live preview, so false. */
 export async function fakePreviewSequence(s: PreviewSequence): Promise<boolean> {
@@ -56,20 +58,26 @@ export const fakeMotionChain = (): MotionChainOps => ({
   apply: async (p) => ({ ok: true, character: p.character, version: '1.2.43' }),
 });
 
-/** Takes every entry; `character` is the current character. Notes are stored, not counted, and dropped when empty. */
+/** Takes every entry; `character` is the current character, and a call for another is refused. Notes are stored, not counted, and dropped when empty. */
 export function fakeMotion(character: () => string): Omit<MotionAvatarOps, 'preview'> {
   const stored: Record<string, MotionOverrides> = {};
   return {
     motionOverrides: {
-      get: async () => copy(stored[character()] ?? { chains: {}, pools: {}, blend_in: {} }),
-      set: async (o) => {
+      get: async (c) => {
+        if (c !== character()) throw characterChanged(c);
+        return copy(stored[c] ?? { chains: {}, pools: {}, blend_in: {} });
+      },
+      set: async (c, o) => {
+        if (c !== character()) throw characterChanged(c);
         const { notes, ...sent } = copy(o);
         stored[character()] = notes && Object.keys(notes).length > 0 ? { ...sent, notes } : sent;
         const applied = { chains: Object.keys(o.chains).length, pools: Object.keys(o.pools).length, blend_in: Object.keys(o.blend_in).length };
         return { applied, adjusted: [] };
       },
     },
-    playChain: async () => {},
+    playChain: async (c) => {
+      if (c !== character()) throw characterChanged(c);
+    },
     motionChain: fakeMotionChain(),
     modSettings: fakeModSettings(),
   };

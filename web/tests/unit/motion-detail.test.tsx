@@ -83,12 +83,12 @@ describe('链检视', () => {
     expect(joints(detail())[2]!.textContent).toBe('0.55 s0.4 cm');
     expect(screen.getByRole('group', { name: '保存动作设置' }).textContent).toContain('混合 dialog_state_think_loop、dialog_state_think_end');
     await save();
-    expect(set).toHaveBeenLastCalledWith({ chains: {}, pools: {}, blend_in: { [PONDER_LOOP]: 0.5, [PONDER_END]: 0.55 } });
+    expect(set).toHaveBeenLastCalledWith('si', { chains: {}, pools: {}, blend_in: { [PONDER_LOOP]: 0.5, [PONDER_END]: 0.55 } });
     await act(async () => void fireEvent.keyDown(wedge('dialog_state_think_end'), { key: 'Delete' }));
     await click(wedge('dialog_state_think_loop'));
     await click(within(detail()).getByRole('button', { name: '用包里的' }));
     await save();
-    expect(set).toHaveBeenLastCalledWith({ chains: {}, pools: {}, blend_in: {} });
+    expect(set).toHaveBeenLastCalledWith('si', { chains: {}, pools: {}, blend_in: {} });
   });
 
   it('shows on its segment why the avatar did not take a blend', async () => {
@@ -114,7 +114,7 @@ describe('链检视', () => {
     await click(plays);
     expect(row(PONDER).textContent).toContain('已关 │ 抽到跳过');
     await save();
-    expect(set).toHaveBeenLastCalledWith({ chains: { [PONDER]: false }, pools: {}, blend_in: {} });
+    expect(set).toHaveBeenLastCalledWith('si', { chains: { [PONDER]: false }, pools: {}, blend_in: {} });
     // A base chain added to a pool: its switch is locked.
     await click(screen.getByRole('radio', { name: /^待机/ }));
     await click(screen.getByRole('button', { name: '往 idle.t1 加链' }));
@@ -133,17 +133,17 @@ describe('链检视', () => {
     expect(box.getAttribute('maxlength')).toBe('500');
     await act(async () => void fireEvent.change(box, { target: { value: '应该放在日常或者思考' } }));
     await save();
-    expect(set).toHaveBeenLastCalledWith({ chains: {}, pools: {}, blend_in: {}, notes: { [THINK]: '应该放在日常或者思考' } });
+    expect(set).toHaveBeenLastCalledWith('si', { chains: {}, pools: {}, blend_in: {}, notes: { [THINK]: '应该放在日常或者思考' } });
     await click(within(row(THINK)).getByRole('button', { name: /^收起/ }));
     await click(within(row(THINK)).getByRole('button', { name: /^展开/ }));
     // A chain with a note opens with it.
     await act(async () => void fireEvent.change(within(detail()).getByRole('textbox', { name: /备注/ }), { target: { value: '' } }));
     await save();
-    expect(set).toHaveBeenLastCalledWith({ chains: {}, pools: {}, blend_in: {} });
+    expect(set).toHaveBeenLastCalledWith('si', { chains: {}, pools: {}, blend_in: {} });
   });
 
   it('locks the blends, the switch and the note while the avatar is not running', async () => {
-    await bridge.avatar.motionOverrides.set({ chains: {}, pools: {}, blend_in: {}, notes: { [PONDER]: '旧备注' } });
+    await bridge.avatar.motionOverrides.set('si', { chains: {}, pools: {}, blend_in: {}, notes: { [PONDER]: '旧备注' } });
     await mount(toast, true);
     await openChain(PONDER);
     await click(wedge('dialog_state_think_loop'));

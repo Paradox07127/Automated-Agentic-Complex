@@ -150,6 +150,12 @@ export function LookPane(p: LookPaneProps) {
   const { outfit, importing } = p;
   const compact = useCompact();
   const [removeLook, setRemoveLook] = useState<CharacterAppearance | null>(null);
+  // An open 删除 belongs to the character it was opened on.
+  const [removeOf, setRemoveOf] = useState(p.character);
+  if (removeOf !== p.character) {
+    setRemoveOf(p.character);
+    setRemoveLook(null);
+  }
   const [removingId, setRemovingId] = useState<string | null>(null);
   const setSize = (v: number) => {
     const was = p.look.scale;

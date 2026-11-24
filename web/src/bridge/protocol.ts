@@ -316,9 +316,10 @@ export interface AgenticComplexBridge {
     /** `loop` (needs `capabilities.actionLoop`) plays it until `stopAction`, which ends the play this started last, at once when none plays; main surface only. */ playAction(id: string, speed: ActionSpeed, o?: { loop?: boolean }): Promise<void>; stopAction(): Promise<void>;
     /** Pauses, resumes or seeks to `atS` that play (C3 rule 58); `not_implemented` when her renderer does not list `action_transport`, `not_playing` when none plays; main surface only. */ controlAction(op: 'pause' | 'resume' | 'seek', atS?: number): Promise<void>;
     /** That play as it stands, then each report; null once it ends. Nothing while her renderer reports none. */ onActionProgress(cb: (p: ActionProgress | null) => void): Unsubscribe;
-    setActionSwitches(switches: Record<string, boolean>): Promise<AvatarSwitchReply>;
+    /** `character` is the one the page shows; another current character rejects with `character_changed`, as do the calls below that take one. */
+    setActionSwitches(character: string, switches: Record<string, boolean>): Promise<AvatarSwitchReply>;
     setAppearance(id: string): Promise<void>;
-    /** Takes the whole hidden layer set; main surface only. */ setLayers(hidden: string[]): Promise<void>;
+    /** Hides `hide` and shows `show`; her other layers, every appearance's, stay as they are; main surface only. */ setLayers(character: string, change: { hide: string[]; show: string[] }): Promise<void>;
     /** Plays the current character's MMD list from item `start` (default 0); not on onboarding. */ playPlaylist(o?: { start?: number }): Promise<PlaylistPlayResult>;
     stopPlaylist(): Promise<{ ok: true }>; playlistState(): Promise<PlaylistState>;
     presentation: { get(): Promise<unknown>; set(value: unknown): Promise<void> };
@@ -338,12 +339,14 @@ export interface AgenticComplexBridge {
     switchTo(id: string): Promise<CharacterSwitchResult>;
     importPackage(): Promise<{ ok: boolean; reason?: string }>;
     importMotion(): Promise<MotionImportResult>;
-    importOutfit(): Promise<OutfitImportResult>; removeOutfit(appearanceId: string): Promise<OutfitRemoveResult>;
-    listImportedMotions(): Promise<ImportedMotionsResult>;
+    importOutfit(): Promise<OutfitImportResult>; removeOutfit(character: string, appearanceId: string): Promise<OutfitRemoveResult>;
+    /** `character` is the one the page shows; another current character answers `{ok: false, reason: 'character_changed'}`, as renameMotion and removeMotion do. */
+    listImportedMotions(character: string): Promise<ImportedMotionsResult>;
     /** `id` is 1–64 bytes; `title` is trimmed and must then be 1–64 characters, else the call rejects with `bad_args`. */
-    renameMotion(id: string, title: string): Promise<MotionRenameResult>;
-    removeMotion(id: string): Promise<MotionRemoveResult>;
-    getPlaylist(): Promise<MotionPlaylist>; setPlaylist(p: MotionPlaylist): Promise<{ ok: true }>;
+    renameMotion(character: string, id: string, title: string): Promise<MotionRenameResult>;
+    removeMotion(character: string, id: string): Promise<MotionRemoveResult>;
+    /** Without `character` (the desktop ring) the current character's; with it, `character_changed` when another is current. */
+    getPlaylist(character?: string): Promise<MotionPlaylist>; setPlaylist(character: string, p: MotionPlaylist): Promise<{ ok: true }>;
   };
   mmd: import('./mmd').MmdOps; voice: { onPushToTalk(cb: (s: PushToTalkState) => void): Unsubscribe };
   files: import('./adopt').FileAdopt & {

@@ -27,6 +27,10 @@ import { useMotionDraft } from './useMotionDraft';
 import styles from './Chain.module.css';
 
 export interface MotionSettingsProps {
+  /** The host's current character, whose settings these are. */
+  character: string;
+  /** The host is switching characters: writes pause. */
+  switching: boolean;
   offline: boolean;
   toast: Toast;
 }
@@ -36,6 +40,8 @@ type Mode = 'idle' | 'event';
 
 const codeOf = (e: unknown) => (e as { code?: string } | null)?.code;
 const hostText = (e: unknown) => (codeOf(e) === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应');
+/** Why a save was refused, by code. */
+const SAVE_FAILED: Record<string, string> = { failed: '角色没有接受', not_stored: '设置文件写不进去', character_changed: '角色刚被换过' };
 const ADJUSTED: Record<MotionOverrideAdjusted['reason'], string> = {
   unknown_chain: '角色包里没有这条链',
   required: REQUIRED_TEXT,
@@ -58,18 +64,15 @@ const NO_JOINTS: Junction[] = [];
 const tierNo = (p: Pool) => Number(/\d+$/.exec(p.key)?.[0] ?? 0);
 
 export function MotionSettings(p: MotionSettingsProps) {
-  const list = useQuery({ queryKey: ['character', 'list'], queryFn: () => getBridge().character.list() });
-  if (list.isError) return <ErrBar message={`读取角色目录失败：${hostText(list.error)}`} onRetry={() => void list.refetch()} />;
-  const id = list.data?.find((c) => c.active)?.id ?? '';
   // Another character starts over: the draft, the open chain and the structure edits belong to the one left.
-  return <Settings key={id} id={id} {...p} />;
+  return <Settings key={p.character} {...p} />;
 }
 
-function Settings({ id, offline, toast }: MotionSettingsProps & { id: string }) {
+function Settings({ character: id, switching, offline, toast }: MotionSettingsProps) {
   const qc = useQueryClient();
   const graph = useQuery({ queryKey: ['character', 'motion-graph', id], queryFn: () => readGraph(id), enabled: id !== '' });
   const ovKey = ['avatar', 'motion-overrides', id];
-  const ov = useQuery({ queryKey: ovKey, queryFn: () => getBridge().avatar.motionOverrides.get(), enabled: id !== '' });
+  const ov = useQuery({ queryKey: ovKey, queryFn: () => getBridge().avatar.motionOverrides.get(id), enabled: id !== '' });
   const groups = useQuery({ queryKey: ['character', 'motion-groups', id], queryFn: () => motionGroups(id), enabled: id !== '' });
   // `${character}\n${pool}\n${clip}` of each proposal 不要 hid on this visit.
   const [dropped, setDropped] = useState<ReadonlySet<string>>(() => new Set());
@@ -106,7 +109,7 @@ function Settings({ id, offline, toast }: MotionSettingsProps & { id: string }) 
   const value = (k: string) => d.draft.chains[k] ?? savedValue(k);
   const note = (k: string) => d.draft.notes[k] ?? stored.notes?.[k] ?? '';
   const blendIn = (clip: string) => (clip in d.draft.blend ? d.draft.blend[clip] : stored.blend_in[clip]) ?? undefined;
-  const lock = offline ? '角色未运行' : null;
+  const lock = offline ? '角色未运行' : switching ? '角色正在切换' : null;
   // The draft is cleared when the save lands, so it takes no edits until then.
   const draftLock = lock ?? (saving ? '正在保存' : null);
   const labelOf = (clip: string) => byKey.get(clip)?.label ?? shortName(clip);
@@ -138,7 +141,7 @@ function Settings({ id, offline, toast }: MotionSettingsProps & { id: string }) 
     const next = d.next(rows, value);
     setSaving(true);
     getBridge()
-      .avatar.motionOverrides.set(next)
+      .avatar.motionOverrides.set(id, next)
       .then(
         (reply) => {
           qc.setQueryData(ovKey, next);
@@ -149,14 +152,14 @@ function Settings({ id, offline, toast }: MotionSettingsProps & { id: string }) 
           const n = reply.adjusted.length;
           toast(n > 0 ? `已保存 │ ${n} 项没有生效` : '已保存', n > 0 ? { severity: 'warning' } : undefined);
         },
-        (e: unknown) => toast(`动作设置没有保存：${codeOf(e) === 'failed' ? '角色没有接受' : hostText(e)}`, { severity: 'danger' }),
+        (e: unknown) => toast(`动作设置没有保存：${SAVE_FAILED[codeOf(e) ?? ''] ?? hostText(e)}`, { severity: 'danger' }),
       )
       .finally(() => setSaving(false));
   };
 
   const play = (r: ChainRow) =>
     void getBridge()
-      .avatar.playChain({ start: r.key })
+      .avatar.playChain(id, { start: r.key })
       .then(
         () => toast(`桌面上正在播放「${r.label}」`),
         (e: unknown) => {
@@ -250,7 +253,7 @@ function Settings({ id, offline, toast }: MotionSettingsProps & { id: string }) 
               options={clip ? candidates(g, ix, clips, at) : []}
               ghosts={ce.editing ? ghosts(g, ix, path.segs.map((s) => s.seg.clip)) : []}
               clipOf={(c) => ix.clips.get(c)}
-              lock={lock}
+              lock={lock ?? (ce.busy ? '正在检查或应用' : null)}
               onReplace={(c) => clip && ce.add({ op: 'replace', chain: key, index: at, clip: c })}
               onInsert={(c) => clip && ce.add({ op: 'insert', chain: key, index: at, clip: c })}
               onInsertAt={(index, c) => ce.add({ op: 'insert', chain: key, index, clip: c })}
@@ -362,7 +365,7 @@ function Settings({ id, offline, toast }: MotionSettingsProps & { id: string }) 
       {ce.editing && (
         <ChainEditBar
           n={ce.edits.length}
-          block={lock ?? (ce.hasSha ? null : NO_SHA)}
+          block={lock ?? (ce.hasSha ? ce.stale : NO_SHA)}
           busy={ce.busy}
           outcome={ce.outcome}
           general={ce.general(openRow ? proposedSegs(g, ix, openRow.key, ce.edits).map((s) => s.clip) : [])}
@@ -371,7 +374,7 @@ function Settings({ id, offline, toast }: MotionSettingsProps & { id: string }) 
           onDiscard={ce.discard}
         />
       )}
-      <CommitBar offline={offline} n={d.n} parts={parts} saving={saving} onUndo={d.clear} onSave={save} />
+      <CommitBar offline={offline} block={lock} n={d.n} parts={parts} saving={saving} onUndo={d.clear} onSave={save} />
     </div>
   );
 }

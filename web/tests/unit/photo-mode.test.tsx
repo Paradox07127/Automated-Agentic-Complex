@@ -52,6 +52,21 @@ describe('PhotoMode', () => {
     expect(screen.getByText('只复刻调色部分')).toBeTruthy();
   });
 
+  it('sends a pick back to the saved filter while the save of another is still out', async () => {
+    const real = getBridge().settings.save.bind(getBridge().settings);
+    let answer!: () => void;
+    const save = vi.spyOn(getBridge().settings, 'save').mockImplementationOnce((v) => new Promise((r) => (answer = () => void real(v).then(r))));
+    const v = await view({ photo: true, capture: true });
+    const cells = within(v.grid).getAllByRole('radio');
+    const saved = cells.find((c) => c.getAttribute('aria-checked') === 'true')!;
+    fireEvent.click(cells.find((c) => c !== saved)!);
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+    fireEvent.click(saved);
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+    answer();
+    await waitFor(() => expect(saved.getAttribute('aria-checked')).toBe('true'));
+  });
+
   it('shows aperture and focus disabled, with the reason, while depth of field is not connected', async () => {
     await view({ photo: false, capture: true });
     expect((screen.getByRole('slider', { name: '光圈' }) as HTMLInputElement).disabled).toBe(true);

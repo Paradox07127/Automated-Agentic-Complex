@@ -33,6 +33,8 @@ export function SaveNote({ offline, n, sparse }: SaveNoteProps) {
 
 export interface CommitProps {
   offline: boolean;
+  /** Why 撤销 and 保存 are off (切换中); null when they are not. */
+  lock: string | null;
   /** The unsaved switches in table order: the name and the value it goes to. */
   changes: Array<{ label: string; on: boolean }>;
   saving: boolean;
@@ -92,8 +94,8 @@ export function Commit(p: CommitProps) {
           ))}
         </span>
       </span>
-      <WhiteCapsule label="撤销" icon="refresh" onClick={p.onUndo} />
-      <YellowKey label="保存" icon="check" micro="Commit" busy={p.saving} onClick={p.onSave} />
+      <WhiteCapsule label="撤销" icon="refresh" disabled={p.lock != null} {...(p.lock != null ? { disabledReason: p.lock } : {})} onClick={p.onUndo} />
+      <YellowKey label="保存" icon="check" micro="Commit" busy={p.saving} disabled={p.lock != null} {...(p.lock != null ? { disabledReason: p.lock } : {})} onClick={p.onSave} />
     </>
   ) : undefined;
   return (

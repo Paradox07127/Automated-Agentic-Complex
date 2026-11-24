@@ -3,6 +3,8 @@ import styles from './Chain.module.css';
 
 export interface CommitBarProps {
   offline: boolean;
+  /** Why 保存 is off (切换中); null when it is not. */
+  block: string | null;
   /** Unsaved changes. */
   n: number;
   /** What they are, by kind: 「池 idle.t1」「混合 cough_end」. */
@@ -39,7 +41,7 @@ export function CommitBar(p: CommitBarProps) {
               right: (
                 <>
                   <WhiteCapsule label="全部撤销" icon="refresh" disabled={p.saving} onClick={p.onUndo} />
-                  <YellowKey label="保存" icon="check" micro="Save" busy={p.saving} onClick={p.onSave} />
+                  <YellowKey label="保存" icon="check" micro="Save" busy={p.saving} disabled={p.block != null} {...(p.block != null ? { disabledReason: p.block } : {})} onClick={p.onSave} />
                 </>
               ),
             }

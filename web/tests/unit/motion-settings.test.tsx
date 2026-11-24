@@ -40,7 +40,7 @@ describe('编排', () => {
     await bridge.character.switchTo('voice_a');
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <MotionSettings offline={false} toast={toast} />
+        <MotionSettings character="voice_a" switching={false} offline={false} toast={toast} />
       </QueryClientProvider>,
     );
     expect(await screen.findByText('这个角色包还没有动作图，需要重建角色包')).toBeTruthy();
@@ -115,7 +115,7 @@ describe('编排', () => {
     expect(weight(THINK).value).toBe('3');
     expect(screen.getByRole('group', { name: '保存动作设置' }).textContent).toContain('未保存 1 项│ 池 session.thinking');
     await save();
-    expect(set).toHaveBeenCalledWith({
+    expect(set).toHaveBeenCalledWith('si', {
       chains: {},
       pools: { 'session.thinking': [{ clip: THINK, weight: 3 }, { clip: PONDER, weight: 5 }] },
       blend_in: {},
@@ -139,7 +139,7 @@ describe('编排', () => {
     await click(within(row(WAVE)).getByRole('button', { name: /^展开/ }));
     expect((screen.getByRole('button', { name: '从这个池去掉' }) as HTMLButtonElement).disabled).toBe(true);
     await save();
-    expect(set).toHaveBeenCalledWith({ chains: {}, pools: { 'idle.t1': [{ clip: WAVE, weight: 1 }] }, blend_in: {} });
+    expect(set).toHaveBeenCalledWith('si', { chains: {}, pools: { 'idle.t1': [{ clip: WAVE, weight: 1 }] }, blend_in: {} });
   });
 
   it('marks each pool and chain the avatar did not take, with its reason', async () => {
@@ -165,7 +165,7 @@ describe('编排', () => {
   });
 
   it('gives a stored pool back to the pack and undoes everything unsaved at once', async () => {
-    await bridge.avatar.motionOverrides.set({ chains: {}, pools: { 'idle.t1': [{ clip: FIDGET, weight: 3 }] }, blend_in: {} });
+    await bridge.avatar.motionOverrides.set('si', { chains: {}, pools: { 'idle.t1': [{ clip: FIDGET, weight: 3 }] }, blend_in: {} });
     const set = vi.spyOn(bridge.avatar.motionOverrides, 'set');
     await mount(toast);
     expect(weight(FIDGET).value).toBe('3');
@@ -176,7 +176,7 @@ describe('编排', () => {
     expect(weight(FIDGET).value).toBe('3');
     await click(within(pool()).getByRole('button', { name: '用包里的' }));
     await save();
-    expect(set).toHaveBeenCalledWith({ chains: {}, pools: {}, blend_in: {} });
+    expect(set).toHaveBeenCalledWith('si', { chains: {}, pools: {}, blend_in: {} });
   });
 
   it('toasts a failed save and keeps the changes', async () => {
@@ -185,6 +185,38 @@ describe('编排', () => {
     await setWeight(FIDGET, '4');
     await save();
     expect(toast).toHaveBeenLastCalledWith(expect.stringContaining('没有保存'), expect.objectContaining({ severity: 'danger' }));
+    expect(screen.getByRole('button', { name: '保存' })).toBeTruthy();
+  });
+
+  it('keeps 保存 off while the host switches characters, and sends the character it shows', async () => {
+    const set = vi.spyOn(bridge.avatar.motionOverrides, 'set');
+    const page = (switching: boolean) => (
+      <QueryClientProvider client={qc}>
+        <MotionSettings character="si" switching={switching} offline={false} toast={toast} />
+      </QueryClientProvider>
+    );
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { rerender } = render(page(false));
+    await screen.findByRole('radiogroup', { name: '池子类型' });
+    await setWeight(FIDGET, '4');
+    rerender(page(true));
+    expect((screen.getByRole('button', { name: '保存' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(weight(FIDGET).disabled).toBe(true);
+    rerender(page(false));
+    await save();
+    expect(set.mock.lastCall![0]).toBe('si');
+  });
+
+  it('says the save was refused when the character changed, or when it could not be stored, and keeps the changes', async () => {
+    const set = vi.spyOn(bridge.avatar.motionOverrides, 'set');
+    set.mockRejectedValueOnce({ code: 'character_changed', detail: '角色刚换过，这次没有改' });
+    await mount(toast);
+    await setWeight(FIDGET, '4');
+    await save();
+    expect(toast).toHaveBeenLastCalledWith('动作设置没有保存：角色刚被换过', expect.objectContaining({ severity: 'danger' }));
+    set.mockRejectedValueOnce({ code: 'not_stored', detail: '动作设置没有存下：EACCES' });
+    await save();
+    expect(toast).toHaveBeenLastCalledWith('动作设置没有保存：设置文件写不进去', expect.objectContaining({ severity: 'danger' }));
     expect(screen.getByRole('button', { name: '保存' })).toBeTruthy();
   });
 

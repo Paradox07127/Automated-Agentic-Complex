@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { getBridge, type MotionPlaylist, type PlaylistState } from '../../bridge';
 import type { Toast } from '../character/feedback';
+import { hostReason } from '../character/labels';
 
 const EMPTY: MotionPlaylist = { items: [], loop: 'off', speed: 1 };
 const IDLE: PlaylistState = { playing: false, index: null, id: null };
 
-const failed = (what: string, toast: Toast) => (e: unknown) =>
-  toast(`${what}没有完成：${(e as { code?: string } | null)?.code === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}`, { severity: 'danger' });
+const failed = (what: string, toast: Toast) => (e: unknown) => {
+  const code = (e as { code?: string } | null)?.code;
+  toast(`${what}没有完成：${code === 'not_implemented' ? '这个版本还不支持' : code === 'character_changed' ? hostReason(code) : '桌面角色没有回应'}`, { severity: 'danger' });
+};
 
 export interface Setlist {
   /** The list in her order, only ids she has. */
@@ -39,7 +42,7 @@ export function useSetlist(character: string, ids: string[], toast: Toast): Setl
     setSaved(EMPTY);
     setRead(null);
     getBridge()
-      .character.getPlaylist()
+      .character.getPlaylist(character)
       .then((l) => {
         if (!live) return;
         setSaved(l);
@@ -70,7 +73,7 @@ export function useSetlist(character: string, ids: string[], toast: Toast): Setl
     const n = ++last.current;
     setSaved(next);
     getBridge()
-      .character.setPlaylist(next)
+      .character.setPlaylist(character, next)
       .catch((e: unknown) => {
         if (n === last.current) setSaved(before);
         failed('改 MMD 列表', toast)(e);

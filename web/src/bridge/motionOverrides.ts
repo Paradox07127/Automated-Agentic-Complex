@@ -66,12 +66,12 @@ export interface PreviewView {
 /** The motion settings' `avatar` ops; main surface only. */
 export interface MotionAvatarOps {
   motionOverrides: {
-    /** The current character's stored set; all `{}` when there is none. */
-    get(): Promise<MotionOverrides>;
-    /** Stores the whole set as the user's and sends it; rejects with `failed` when the avatar did not take it (the store stays). */
-    set(o: MotionOverrides): Promise<MotionOverridesReply>;
+    /** `character`'s stored set; all `{}` when there is none. `character_changed` when another character is current, as set and playChain. */
+    get(character: string): Promise<MotionOverrides>;
+    /** Stores the whole set as the user's and sends it; rejects with `not_stored` when it could not be stored, with `failed` when the avatar did not take it (the store stays). */
+    set(character: string, o: MotionOverrides): Promise<MotionOverridesReply>;
   };
-  playChain(r: PlayChainRequest): Promise<void>;
+  playChain(character: string, r: PlayChainRequest): Promise<void>;
   /** Structure proposals: check one, or apply it by rebuilding the character pack. */
   motionChain: MotionChainOps;
   /** The current appearance's mod switches (C3 v27 rule 53). */

@@ -246,7 +246,7 @@ test('the Windows renderer answers no set_character: after rule 14\'s 11 s it fa
     assert.ok(s.lines.includes('set_character id=birch timed out'), s.lines.join('\n'));
     // Rule 16: no appearance list from efw, so there is nothing to switch to; layers need both hellos to list `layers`.
     assert.deepEqual(await s.call('avatar.setAppearance', 'default'), { ok: false, error: { code: 'failed', detail: '角色没有这个外观' } });
-    assert.deepEqual(await s.call('avatar.setLayers', []), { ok: false, error: { code: 'failed', detail: '这个角色没有可以隐藏的层' } });
+    assert.deepEqual(await s.call('avatar.setLayers', 'aster', { hide: [], show: [] }), { ok: false, error: { code: 'failed', detail: '这个角色没有可以隐藏的层' } });
     assert.deepEqual(await s.call('avatar.modSettings.set', { character: 'aster', appearance: 'default', values: {} }),
       { ok: false, error: { code: 'failed', detail: '这个版本的角色不支持 mod 设置' } });
 
@@ -271,18 +271,28 @@ test('avatar.setAppearance and avatar.setLayers wait for the reply and remember 
     assert.deepEqual(await s.call('avatar.setAppearance', 'winter'), { ok: false, error: { code: 'failed', detail: '角色没有这个外观' } });
     assert.deepEqual(await s.call('avatar.setAppearance', ''), { ok: false, error: { code: 'invalid_args', detail: 'appearance id' } });
 
-    assert.deepEqual(await s.call('avatar.setLayers', ['coat']), { ok: true, value: null });
+    assert.deepEqual(await s.call('avatar.setLayers', 'aster', { hide: ['coat'], show: [] }), { ok: true, value: null });
     assert.deepEqual(a.sent('set_layers').at(-1), { v: 1, type: 'set_layers', hidden: ['coat'] });
     assert.deepEqual((readState(s.support).hidden_layers as Record<string, string[]>).aster, ['coat']);
-    assert.deepEqual(await s.call('avatar.setLayers', ['scarf']), { ok: false, error: { code: 'failed', detail: '这个角色没有这一层' } });
-    assert.deepEqual(await s.call('avatar.setLayers', ['coat', '']), { ok: false, error: { code: 'invalid_args', detail: 'hidden layer ids' } });
+    // A change keeps the layers it does not name, such as another appearance's hidden coat.
+    assert.deepEqual(await s.call('avatar.setLayers', 'aster', { hide: ['hat'], show: [] }), { ok: true, value: null });
+    assert.deepEqual(a.sent('set_layers').at(-1), { v: 1, type: 'set_layers', hidden: ['coat', 'hat'] });
+    assert.deepEqual(await s.call('avatar.setLayers', 'aster', { hide: [], show: ['hat'] }), { ok: true, value: null });
+    assert.deepEqual(a.sent('set_layers').at(-1), { v: 1, type: 'set_layers', hidden: ['coat'] });
+    assert.deepEqual(await s.call('avatar.setLayers', 'aster', { hide: ['scarf'], show: [] }), { ok: false, error: { code: 'failed', detail: '这个角色没有这一层' } });
+    assert.deepEqual(await s.call('avatar.setLayers', 'aster', { hide: ['coat', ''], show: [] }),
+      { ok: false, error: { code: 'invalid_args', detail: '{hide, show: layer ids}' } });
+    const sent = a.sent('set_layers').length;
+    assert.deepEqual(await s.call('avatar.setLayers', 'birch', { hide: [], show: ['coat'] }),
+      { ok: false, error: { code: 'character_changed', detail: '角色刚换过，这次没有改' } }, 'meant for a character no longer current');
+    assert.equal(a.sent('set_layers').length, sent);
 
     // Rule 16: no reply within 10 s (here 0.1 s) is a failure, and the remembered appearance stays.
     a.ignore.add('set_appearance');
     assert.deepEqual(await s.call('avatar.setAppearance', 'default'), { ok: false, error: { code: 'failed', detail: '外观没有换成：timeout' } });
     assert.deepEqual((readState(s.support).last_appearance as Record<string, string>).aster, 'summer');
     a.ignore.add('set_layers');
-    assert.deepEqual(await s.call('avatar.setLayers', []), { ok: false, error: { code: 'failed', detail: '服装分层没有换成：timeout' } });
+    assert.deepEqual(await s.call('avatar.setLayers', 'aster', { hide: [], show: ['coat'] }), { ok: false, error: { code: 'failed', detail: '服装分层没有换成：timeout' } });
     assert.deepEqual((readState(s.support).hidden_layers as Record<string, string[]>).aster, ['coat']);
   } finally {
     s.done();
@@ -312,14 +322,14 @@ test('avatar.setActionSwitches stores the whole table in config.json and returns
   const s = await stack({ config: { action_switches: { aster: { wave: false, idle: true } } } });
   try {
     const a = await s.avatar('mac');
-    const reply = await s.call('avatar.setActionSwitches', { idle: false });
+    const reply = await s.call('avatar.setActionSwitches', 'aster', { idle: false });
     assert.deepEqual(reply, { ok: true, value: { switches: { wave: true, idle: false }, adjusted: [] } });
     assert.deepEqual(a.sent('set_action_switches').map((m) => m.switches), [{ wave: false, idle: true }, { wave: true, idle: false }],
       'the stored table on her list (rule 28), then the saved one');
     assert.deepEqual(storedSwitches(s.config(), 'aster'), { wave: true, idle: false });
     assert.equal(s.config().mute, false, 'the other keys stay');
-    assert.deepEqual(await s.call('avatar.setActionSwitches', { dance: true }), { ok: false, error: { code: 'invalid_args', detail: 'unknown action' } });
-    assert.deepEqual(await s.call('avatar.setActionSwitches', { wave: 1 }), { ok: false, error: { code: 'invalid_args', detail: 'switches' } });
+    assert.deepEqual(await s.call('avatar.setActionSwitches', 'aster', { dance: true }), { ok: false, error: { code: 'invalid_args', detail: 'unknown action' } });
+    assert.deepEqual(await s.call('avatar.setActionSwitches', 'aster', { wave: 1 }), { ok: false, error: { code: 'invalid_args', detail: 'switches' } });
   } finally {
     s.done();
   }
@@ -571,8 +581,8 @@ test('avatar.setActionSwitches: two overlapping saves keep both changes; an id t
   } };
   const ops = new Map(Object.entries(avatarOps({ surface: 'main', routes, avatar, looks } as unknown as OpsContext))), page = new PageSession(() => {});
   const call = (...args: unknown[]) => handle('main', { mainFrame: true, origin: ORIGIN }, { op: 'avatar.setActionSwitches', args }, ops, page);
-  const [a, b] = await Promise.all([call({ wave: false }), call({ idle: false })]);
+  const [a, b] = await Promise.all([call('aster', { wave: false }), call('aster', { idle: false })]);
   assert.ok(a.ok && b.ok, JSON.stringify([a, b]));
   assert.deepEqual(saved.at(-1), { wave: false, idle: false });
-  assert.deepEqual(await call({ toString: true }), { ok: false, error: { code: 'invalid_args', detail: 'unknown action' } });
+  assert.deepEqual(await call('aster', { toString: true }), { ok: false, error: { code: 'invalid_args', detail: 'unknown action' } });
 });

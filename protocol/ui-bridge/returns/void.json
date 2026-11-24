@@ -113,9 +113,13 @@
     "op": "avatar.setLayers",
     "surface": "main",
     "args": [
-      [
-        "coat"
-      ]
+      "si",
+      {
+        "hide": [
+          "coat"
+        ],
+        "show": []
+      }
     ],
     "kind": "undefined"
   },
@@ -256,6 +260,7 @@
     "op": "avatar.playChain",
     "surface": "main",
     "args": [
+      "si",
       {
         "start": "A_clip_birch_customized_state_think_start",
         "speed": 1

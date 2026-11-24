@@ -7,6 +7,7 @@ import type { AvatarAction } from '../../src/bridge';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge } from '../../src/bridge/protocol';
 import { CharacterPage } from '../../src/pages/character/Page';
+import { toast as pushToast } from '../../src/shell/toast';
 
 vi.mock('../../src/shell/toast', async (original) => ({ ...(await original<typeof import('../../src/shell/toast')>()), toast: vi.fn() }));
 
@@ -69,43 +70,56 @@ describe('MMD list', () => {
     await list();
     await waitFor(() => expect(document.querySelector('[data-mmd="mmd_b"]')).not.toBeNull());
     await add('mmd_a');
-    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_a'], loop: 'off', speed: 1 });
+    expect(set).toHaveBeenLastCalledWith('si', { items: ['mmd_a'], loop: 'off', speed: 1 });
     await add('mmd_b');
-    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_a', 'mmd_b'], loop: 'off', speed: 1 });
+    expect(set).toHaveBeenLastCalledWith('si', { items: ['mmd_a', 'mmd_b'], loop: 'off', speed: 1 });
     expect(row('mmd_a').textContent).toContain('01');
     expect(row('mmd_b').textContent).toContain('02');
     expect(row('mmd_a').textContent).toContain('舞蹈甲');
     expect(within(row('mmd_a')).getByRole('button', { name: '前移' }).getAttribute('aria-disabled')).toBe('true');
     await click(within(row('mmd_b')).getByRole('button', { name: '前移' }));
-    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_b', 'mmd_a'], loop: 'off', speed: 1 });
+    expect(set).toHaveBeenLastCalledWith('si', { items: ['mmd_b', 'mmd_a'], loop: 'off', speed: 1 });
     await click(within(screen.getByRole('radiogroup', { name: '循环' })).getByRole('radio', { name: '全部' }));
-    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_b', 'mmd_a'], loop: 'all', speed: 1 });
+    expect(set).toHaveBeenLastCalledWith('si', { items: ['mmd_b', 'mmd_a'], loop: 'all', speed: 1 });
     await click(within(screen.getByRole('radiogroup', { name: '连播速度' })).getByRole('radio', { name: '2×' }));
-    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_b', 'mmd_a'], loop: 'all', speed: 2 });
+    expect(set).toHaveBeenLastCalledWith('si', { items: ['mmd_b', 'mmd_a'], loop: 'all', speed: 2 });
     await click(within(row('mmd_a')).getByRole('button', { name: '移出' }));
-    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_b'], loop: 'all', speed: 2 });
+    expect(set).toHaveBeenLastCalledWith('si', { items: ['mmd_b'], loop: 'all', speed: 2 });
     expect(row('mmd_a')).toBeNull();
   });
 
   it('moves a card with Alt+← / Alt+→, removes it with Delete, and moves it by dragging', async () => {
-    await bridge.character.setPlaylist({ items: ['mmd_a', 'mmd_b'], loop: 'off', speed: 1 });
+    await bridge.character.setPlaylist('si', { items: ['mmd_a', 'mmd_b'], loop: 'off', speed: 1 });
     const set = vi.spyOn(bridge.character, 'setPlaylist');
     await mount();
     await list();
     await waitFor(() => expect(row('mmd_b')).not.toBeNull());
     await press(row('mmd_b'), 'ArrowLeft', { altKey: true });
-    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_b', 'mmd_a'], loop: 'off', speed: 1 });
+    expect(set).toHaveBeenLastCalledWith('si', { items: ['mmd_b', 'mmd_a'], loop: 'off', speed: 1 });
     await press(row('mmd_b'), 'ArrowRight', { altKey: true });
-    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_a', 'mmd_b'], loop: 'off', speed: 1 });
+    expect(set).toHaveBeenLastCalledWith('si', { items: ['mmd_a', 'mmd_b'], loop: 'off', speed: 1 });
     await act(async () => void fireEvent.dragStart(row('mmd_b'), { dataTransfer: { effectAllowed: '' } }));
     await act(async () => void fireEvent.drop(row('mmd_a')));
-    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_b', 'mmd_a'], loop: 'off', speed: 1 });
+    expect(set).toHaveBeenLastCalledWith('si', { items: ['mmd_b', 'mmd_a'], loop: 'off', speed: 1 });
     await press(row('mmd_a'), 'Delete');
-    expect(set).toHaveBeenLastCalledWith({ items: ['mmd_b'], loop: 'off', speed: 1 });
+    expect(set).toHaveBeenLastCalledWith('si', { items: ['mmd_b'], loop: 'off', speed: 1 });
+  });
+
+  it('reads and writes the list of the character it shows, and puts a list refused after a switch back', async () => {
+    const get = vi.spyOn(bridge.character, 'getPlaylist');
+    const set = vi.spyOn(bridge.character, 'setPlaylist').mockRejectedValueOnce({ code: 'character_changed', detail: '角色刚换过，这次没有改' });
+    await mount();
+    await list();
+    await waitFor(() => expect(document.querySelector('[data-mmd="mmd_a"]')).not.toBeNull());
+    expect(get).toHaveBeenCalledWith('si');
+    await add('mmd_a');
+    expect(set).toHaveBeenLastCalledWith('si', { items: ['mmd_a'], loop: 'off', speed: 1 });
+    await waitFor(() => expect(row('mmd_a')).toBeNull());
+    expect(vi.mocked(pushToast)).toHaveBeenLastCalledWith('改 MMD 列表没有完成：角色刚被换过', { severity: 'danger' });
   });
 
   it('plays and stops the list from one key and marks the card playing now', async () => {
-    await bridge.character.setPlaylist({ items: ['mmd_a', 'mmd_b'], loop: 'off', speed: 1 });
+    await bridge.character.setPlaylist('si', { items: ['mmd_a', 'mmd_b'], loop: 'off', speed: 1 });
     const play = vi.spyOn(bridge.avatar, 'playPlaylist').mockResolvedValue({ ok: true });
     const stop = vi.spyOn(bridge.avatar, 'stopPlaylist');
     const state = vi.spyOn(bridge.avatar, 'playlistState').mockResolvedValue({ playing: true, index: 1, id: 'mmd_b' });

@@ -90,6 +90,6 @@ describe('an empty-pack pool on 编排', () => {
     await click(within(pool().querySelector(`[data-proposal="${PAT}"]`)!).getByRole('button', { name: '收下' }));
     expect(rows()).toEqual([PAT]);
     await save();
-    expect(set.mock.lastCall![0].pools).toEqual({ 'click.cheek': [{ clip: PAT, weight: 1 }] });
+    expect(set.mock.lastCall![1].pools).toEqual({ 'click.cheek': [{ clip: PAT, weight: 1 }] });
   });
 });

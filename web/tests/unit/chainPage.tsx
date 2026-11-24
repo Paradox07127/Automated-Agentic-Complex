@@ -26,7 +26,7 @@ export const tierUse = () => MOTION_GRAPH.clips.find((c) => c.name === FIDGET)!.
 export async function mount(toast: Toast = vi.fn<Toast>(), offline = false) {
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MotionSettings offline={offline} toast={toast} />
+      <MotionSettings character="si" switching={false} offline={offline} toast={toast} />
     </QueryClientProvider>,
   );
   await screen.findByRole('radiogroup', { name: '池子类型' });

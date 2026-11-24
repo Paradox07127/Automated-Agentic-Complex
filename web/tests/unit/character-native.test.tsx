@@ -148,8 +148,9 @@ describe('render settings (rnd.*)', () => {
 });
 
 describe('offline note', () => {
-  it('says the supervisor backoff from supervisor.state', async () => {
-    vi.spyOn(bridge.supervisor, 'state').mockResolvedValue({ agentd: { state: 'running', pid: 1, backoff: null }, avatar: { state: 'backoff(8)', pid: null, backoff: 8 } });
+  it('says the supervisor backoff from the runtime', async () => {
+    const s = await bridge.app.runtime();
+    vi.spyOn(bridge.app, 'runtime').mockResolvedValue({ ...s, processes: { ...s.processes, avatar: { ...s.processes.avatar, state: 'backoff', pid: null, backoff: 8 } } });
     await mount();
     expect((await screen.findByText(/退避/)).closest('[role="status"]')?.textContent).toContain('退避 8 秒后重试');
   });

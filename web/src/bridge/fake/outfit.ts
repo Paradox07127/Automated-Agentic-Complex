@@ -1,5 +1,6 @@
 // The fake bridge's imported appearance: the `returns/avatar.json` sample `character.importOutfit` adds, per character.
 import type { CharacterAppearance, AvatarState, BridgeError, AgenticComplexBridge } from '../protocol';
+import { characterChanged } from './motion';
 
 const OUTFIT: CharacterAppearance = { id: 'mod_1a2b3c4d', name: '示例外观', desc: '导入的外观', kind: 'imported' };
 /** `demo=outfitwarn`: the import left two textures and a shader of the mod out. */
@@ -18,7 +19,8 @@ export function fakeOutfit(current: () => string, avatar: AvatarState, demo: () 
       owners.set(current(), warnings);
       return { ok: true, appearance: { id: OUTFIT.id, name: OUTFIT.name }, warnings: [...warnings] };
     },
-    removeOutfit: async (id) => {
+    removeOutfit: async (c, id) => {
+      if (c !== current()) throw characterChanged(c);
       if (id !== OUTFIT.id || !owners.has(current())) {
         throw { code: 'not_imported', detail: `${current()} has no imported appearance ${id}` } satisfies BridgeError;
       }

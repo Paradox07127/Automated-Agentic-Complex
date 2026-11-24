@@ -1,19 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getBridge, type CharacterEntry, type MmdSyncState } from '../../bridge';
-import type { RuntimeSnapshot } from '../../bridge/runtimeSnapshot';
+import type { RuntimeProcess, RuntimeSnapshot } from '../../bridge/runtimeSnapshot';
 
 export interface HostCharacter {
   /** The character the shell and agentd agree on; null until known. */
   current: string | null;
   switching: boolean;
+  /** The avatar process as the runtime last reported it; null until known. */
+  avatar: RuntimeProcess | null;
 }
 
-const UNKNOWN: HostCharacter = { current: null, switching: false };
+const UNKNOWN: HostCharacter = { current: null, switching: false, avatar: null };
 /** What a switch changes: the roster's active one and her appearances, her actions, state and imported motions. */
 const PER_CHARACTER = [['character', 'list'], ['character', 'motions'], ['character', 'state'], ['character', 'importedMotions']];
 
-/** The host's current character from `app.runtime` and its pushes; a change reads her data again. `confirm` takes a switch the page saw succeed. */
+/** The host's current character and avatar process from `app.runtime` and its pushes; a change of character reads her data again. `confirm` takes a switch the page saw succeed. */
 export function useHostCharacter(canAvatar: boolean): HostCharacter & { confirm: (id: string) => void } {
   const qc = useQueryClient();
   const [host, setHost] = useState<HostCharacter>(UNKNOWN);
@@ -22,7 +24,7 @@ export function useHostCharacter(canAvatar: boolean): HostCharacter & { confirm:
   useEffect(() => {
     if (!canAvatar) return;
     let live = true;
-    const apply = (s: RuntimeSnapshot) => live && setHost({ current: s.character.current, switching: s.character.switching });
+    const apply = (s: RuntimeSnapshot) => live && setHost({ current: s.character.current, switching: s.character.switching, avatar: s.processes.avatar });
     getBridge()
       .app.runtime()
       .then((s) => !fresh.current && apply(s), () => {});

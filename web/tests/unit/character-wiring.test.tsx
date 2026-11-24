@@ -184,7 +184,7 @@ describe('motions (avatar.actions shape)', () => {
     render(<Op toast={toast} />);
     flip(toggle('点头附和'));
     fireEvent.click(screen.getByRole('button', { name: '保存' }));
-    await waitFor(() => expect(set).toHaveBeenCalledWith({ nod: false }));
+    await waitFor(() => expect(set).toHaveBeenCalledWith('si', { nod: false }));
     await waitFor(() => expect(toast).toHaveBeenCalled());
     expect(String(toast.mock.calls[0]?.[0])).toContain('分区里至少留一个');
     expect(isOn(toggle('点头附和'))).toBe(true);
@@ -197,7 +197,7 @@ describe('motions (avatar.actions shape)', () => {
     expect(isOn(toggle('攻击'))).toBe(false);
     flip(toggle('攻击'));
     fireEvent.click(screen.getByRole('button', { name: '保存' }));
-    await waitFor(() => expect(set).toHaveBeenCalledWith({ attack: true }));
+    await waitFor(() => expect(set).toHaveBeenCalledWith('si', { attack: true }));
     await waitFor(() => expect(isOn(toggle('攻击'))).toBe(true));
   });
 

@@ -50,7 +50,7 @@ describe('编排 › 角色建议', () => {
       expect(screen.getByRole('group', { name: '保存动作设置' }).textContent).toContain('池 idle.t1');
       await save();
       expect(set).toHaveBeenCalledTimes(1);
-      expect(set).toHaveBeenCalledWith({ chains: {}, pools: { 'idle.t1': [{ clip: FIDGET, weight: 1 }, { clip: RELAX_SP, weight: 3 }] }, blend_in: {} });
+      expect(set).toHaveBeenCalledWith('si', { chains: {}, pools: { 'idle.t1': [{ clip: FIDGET, weight: 1 }, { clip: RELAX_SP, weight: 3 }] }, blend_in: {} });
     } finally {
       x.weight = 1;
     }
@@ -92,7 +92,7 @@ describe('编排 › 角色建议', () => {
 
   it('greys 收下 and the add on a pool at 64 entries, whose header reads 64/64', async () => {
     const full = [{ clip: FIDGET, weight: 1 }, ...Array.from({ length: 63 }, (_, i) => ({ clip: `${P}extra_${i}`, weight: 1 }))];
-    await bridge.avatar.motionOverrides.set({ chains: {}, pools: { 'idle.t1': full }, blend_in: {} });
+    await bridge.avatar.motionOverrides.set('si', { chains: {}, pools: { 'idle.t1': full }, blend_in: {} });
     await mount(toast);
     await ready();
     expect(pool().querySelector('[data-stub="TitleBar"]')!.textContent).toContain('64/64');

@@ -98,10 +98,10 @@ const OVERRIDES = { chains: { A_chain_start: false }, pools: {}, blend_in: {} };
 test('with the link given to the ops, motionOverrides.set, playChain and the playlist ops answer instead of not_implemented', async () => {
   const f = fixture({ motion_playlists: { si: { items: ['mmd_a', 'mmd_b'], loop: 'off', speed: 1 } } });
   try {
-    assert.deepEqual(await f.call('avatar.motionOverrides.set', OVERRIDES),
+    assert.deepEqual(await f.call('avatar.motionOverrides.set', 'si', OVERRIDES),
       { applied: { chains: 1, pools: 0, blend_in: 0 }, adjusted: [] });
     assert.deepEqual(f.link.overrides, [{ character: 'si', overrides: OVERRIDES }]);
-    assert.equal(await f.call('avatar.playChain', { start: 'A_chain_start' }), null);
+    assert.equal(await f.call('avatar.playChain', 'si', { start: 'A_chain_start' }), null);
     assert.deepEqual(await f.call('avatar.playPlaylist'), { ok: true });
     assert.deepEqual(await f.call('avatar.playlistState'), { playing: true, index: 0, id: 'mmd_a' });
     assert.deepEqual(await f.call('avatar.stopPlaylist'), { ok: true });

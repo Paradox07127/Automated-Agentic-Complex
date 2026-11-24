@@ -1,6 +1,7 @@
 // 编排 → 编辑结构: picking a segment or a 「+」, swapping and inserting clips from the candidate list, gaps re-measured from the
 // graph's 17 key-bone poses, the hold, 检查, and 「应用到角色包（重建）」 with its confirmation and its failures.
-import { act, cleanup, fireEvent, screen, within } from '@testing-library/react';
+import { focusManager } from '@tanstack/react-query';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge } from '../../src/bridge/protocol';
@@ -200,6 +201,48 @@ describe('编辑结构', () => {
     await click(within(band()).getByRole('button', { name: '放弃改动' }));
     expect(segs()).toEqual([PONDER, PONDER_LOOP, PONDER_END]);
     expect(within(band()).queryByRole('alert')).toBeNull();
+  });
+
+  it('applies no edit against a pack that changed since the edit was made, and says so', async () => {
+    const apply = vi.spyOn(bridge.avatar.motionChain, 'apply');
+    const real = bridge.agentd.request.bind(bridge.agentd);
+    const request = vi.spyOn(bridge.agentd, 'request');
+    await edit(PONDER);
+    await click(seg(PONDER_END));
+    await click(within(cand(FIDGET)).getByRole('button', { name: '换成' }));
+    const reads = request.mock.calls.filter((c) => String(c[1]).endsWith('/motion-graph')).length;
+    // A motion import rebuilt the pack.
+    request.mockImplementation(async (method, path, body) => {
+      const r = await real(method, path, body);
+      return String(path).endsWith('/motion-graph') ? ({ ...r, body: { ...(r.body as object), package_sha256: 'cd'.repeat(32) } } as typeof r) : r;
+    });
+    await act(async () => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+    await waitFor(() => expect(request.mock.calls.filter((c) => String(c[1]).endsWith('/motion-graph')).length).toBeGreaterThan(reads));
+    await waitFor(() => expect(band().textContent).toContain('角色包在你编辑之后变过了'));
+    await click(within(band()).getByRole('button', { name: '应用到角色包（重建）' }));
+    const dialog = screen.queryByRole('dialog');
+    if (dialog) await click(within(dialog).getByRole('button', { name: '重建' }));
+    expect(apply).not.toHaveBeenCalled();
+    focusManager.setFocused(undefined);
+  });
+
+  it('takes no new edit while an apply is out', async () => {
+    let answer!: () => void;
+    vi.spyOn(bridge.avatar.motionChain, 'apply').mockImplementationOnce(
+      (p) => new Promise((r) => (answer = () => r({ ok: true, character: p.character, version: '1.2.43' }))),
+    );
+    await edit(PONDER);
+    await click(seg(PONDER_END));
+    await click(within(cand(FIDGET)).getByRole('button', { name: '换成' }));
+    await click(within(band()).getByRole('button', { name: '应用到角色包（重建）' }));
+    await click(within(screen.getByRole('dialog')).getByRole('button', { name: '重建' }));
+    for (const b of within(detail().querySelector<HTMLElement>('[data-candidates]')!).getAllByRole('button', { name: '换成' })) {
+      expect((b as HTMLButtonElement).disabled).toBe(true);
+    }
+    await act(async () => answer());
   });
 
   it('greys out 检查 and 应用 when the graph does not name the pack it was read from', async () => {

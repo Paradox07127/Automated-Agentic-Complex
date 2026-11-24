@@ -87,6 +87,7 @@
     "op": "avatar.setActionSwitches",
     "surface": "main",
     "args": [
+      "si",
       {
         "talk": true
       }
@@ -222,6 +223,7 @@
       }
     ],
     "args": [
+      "si",
       "mod_1a2b3c4d"
     ],
     "value": {
@@ -251,7 +253,10 @@
           "warnings": []
         }
       ]
-    }
+    },
+    "args": [
+      "si"
+    ]
   },
   {
     "op": "character.listImportedMotions",
@@ -268,7 +273,10 @@
       "ok": false,
       "reason": "internal",
       "detail": "unknown_character: voice_a"
-    }
+    },
+    "args": [
+      "voice_a"
+    ]
   },
   {
     "op": "character.renameMotion",
@@ -279,6 +287,7 @@
       }
     ],
     "args": [
+      "si",
       "mmd_sample_1",
       "慢舞"
     ],
@@ -297,6 +306,7 @@
       }
     ],
     "args": [
+      "si",
       "mmd_sample_1"
     ],
     "value": {
@@ -319,6 +329,7 @@
     "op": "character.setPlaylist",
     "surface": "main",
     "args": [
+      "si",
       {
         "items": [
           "mmd_0123456789abcdef"
@@ -338,6 +349,7 @@
       {
         "op": "character.setPlaylist",
         "args": [
+          "si",
           {
             "items": [
               "mmd_0123456789abcdef"
@@ -379,6 +391,7 @@
       {
         "op": "character.setPlaylist",
         "args": [
+          "si",
           {
             "items": [
               "mmd_0123456789abcdef"
@@ -480,6 +493,7 @@
       {
         "op": "avatar.motionOverrides.set",
         "args": [
+          "si",
           {
             "chains": {
               "A_clip_birch_customized_state_chesthugging3_start": false
@@ -526,12 +540,16 @@
       "pools",
       "blend_in",
       "notes"
+    ],
+    "args": [
+      "si"
     ]
   },
   {
     "op": "avatar.motionOverrides.set",
     "surface": "main",
     "args": [
+      "si",
       {
         "chains": {
           "A_clip_birch_customized_state_chesthugging3_start": false

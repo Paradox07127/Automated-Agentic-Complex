@@ -119,6 +119,23 @@ describe('角色页 · 模组设置', () => {
     expect(await bridge.avatar.modSettings.get({ character: 'si' })).toEqual({ appearances: { imported_summer: { skirt: 1, color: 0 } } });
   });
 
+  it('changes nothing and offers a retry while the stored values cannot be read', async () => {
+    const get = vi.spyOn(bridge.avatar.modSettings, 'get').mockRejectedValueOnce({ code: 'failed', detail: 'config.json' });
+    const set = vi.spyOn(bridge.avatar.modSettings, 'set');
+    await bridge.avatar.setAppearance('imported_summer');
+    render(<Op />);
+    fireEvent.click(await screen.findByRole('tab', { name: '模组设置' }));
+    const bar = await screen.findByRole('alert');
+    expect(bar.textContent).toContain('读取 mod 设置失败：桌面角色没有回应');
+    expect(arrow('裙长', '下一个').disabled).toBe(true);
+    fireEvent.click(arrow('裙长', '下一个'));
+    expect(set).not.toHaveBeenCalled();
+    await act(async () => void fireEvent.click(within(bar).getByRole('button', { name: '重试' })));
+    expect(get).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(arrow('裙长', '下一个').disabled).toBe(false));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('steps through the values in order and stops at both ends', async () => {
     const set = vi.spyOn(bridge.avatar.modSettings, 'set');
     await wear('imported_field');

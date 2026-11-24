@@ -29,6 +29,11 @@ import { readObject, writeObject } from './settings.ts';
 const NOT_LINKED = '角色还没连上';
 const NO_LINK = '角色还没连上（配置出错）';
 const NO_LIBRARY = '没有配置角色目录';
+/** Said when the character a page meant is no longer the current one. */
+const CHANGED = '角色刚换过，这次没有改';
+
+/** The character a page names: a 1–64-byte id, else null. */
+const characterArg = (v: unknown): string | null => motionID(v);
 
 /** The open panels the imports ask with; the tests answer without one. */
 export interface ImportPicker {
@@ -125,14 +130,17 @@ function validationHost(ctx: OpsContext, failed: (detail: string) => Error): str
 }
 
 /** `importOutfit` and `removeOutfit`: `body` on the current character while the switch is held; every failure is a BridgeFailure
- *  with outfit_tool's reason. */
-async function onOutfit<T>(ctx: OpsContext, body: (library: string, character: string, link: NonNullable<OpsContext['avatar']>) => Promise<T>):
-  Promise<T> {
+ *  with outfit_tool's reason. With `expected`, `character_changed` when another character is current. */
+async function onOutfit<T>(ctx: OpsContext, expected: string | null,
+  body: (library: string, character: string, link: NonNullable<OpsContext['avatar']>) => Promise<T>): Promise<T> {
   try {
     const catalog = ctx.library?.catalog, link = ctx.avatar, sw = ctx.switcher;
     if (!catalog) throw new BridgeFailure('internal', NO_LIBRARY);
     if (!link || !sw) throw new BridgeFailure('internal', NO_LINK);
-    return await holdingMotions(link, sw, (character) => body(dirname(catalog), character, link));
+    return await holdingMotions(link, sw, (character) => {
+      if (expected !== null && character !== expected) throw new BridgeFailure('character_changed', CHANGED);
+      return body(dirname(catalog), character, link);
+    });
   } catch (e) {
     if (e instanceof BridgeFailure) throw e;
     throw new BridgeFailure('internal', e instanceof Error ? e.message : String(e));
@@ -256,19 +264,26 @@ export function characterOps(ctx: OpsContext, picker: ImportPicker = electronPic
     }
   }
 
-  /** `body` on the current character, as `{ok: true, ...}` or motion_tool's `{ok: false, reason, detail}`. */
-  async function onCurrent(body: (library: string, character: string) => Promise<Record<string, unknown>>): Promise<unknown> {
+  /** `body` on `expected`, as `{ok: true, ...}` or motion_tool's `{ok: false, reason, detail}`; `character_changed` when
+   *  another character is current. An edit holds the switch; a read (`edits` false) holds nothing, so a switch need not wait. */
+  async function onCurrent(expected: string, edits: boolean, body: (library: string, character: string) => Promise<Record<string, unknown>>):
+    Promise<unknown> {
     try {
       const library = libraryDir(ctx);
       const sw = ctx.switcher;
+      const current = async () => {
+        const character = await currentCharacter(ctx);
+        if (character === null) throw new MotionFailureError({ reason: 'internal', detail: NOT_LINKED });
+        if (character !== expected) throw new MotionFailureError({ reason: 'character_changed', detail: CHANGED });
+        return motionReply(await body(library, character), true);
+      };
+      if (!edits) return await current();
       if (held || sw?.busy || sw?.held) throw new MotionFailureError({ reason: 'busy', detail: '角色正在切换，或另一个导入还没完成' });
       held = true;
       if (sw) sw.held = true;
       try {
         // Read while held, so no switch can start between the read and the tool.
-        const character = await currentCharacter(ctx);
-        if (character === null) throw new MotionFailureError({ reason: 'internal', detail: NOT_LINKED });
-        return motionReply(await body(library, character), true);
+        return await current();
       } finally {
         held = false;
         if (sw) sw.held = false;
@@ -280,9 +295,11 @@ export function characterOps(ctx: OpsContext, picker: ImportPicker = electronPic
     }
   }
 
-  async function playlistCharacter(): Promise<string> {
+  /** The current character; `character_changed` when it is not `expected` (null: any). */
+  async function playlistCharacter(expected: string | null): Promise<string> {
     const character = await currentCharacter(ctx);
     if (character === null) throw new BridgeFailure('failed', NOT_LINKED);
+    if (expected !== null && character !== expected) throw new BridgeFailure('character_changed', CHANGED);
     return character;
   }
 
@@ -348,7 +365,7 @@ export function characterOps(ctx: OpsContext, picker: ImportPicker = electronPic
     },
     'character.importMotion': () => importMotion(ctx, picker, 'motion', MOTION_EXTENSIONS,
       '选择 VMD、BVH、glTF/GLB、VRMA 或 FBX 动作文件，或装着 VMD 的 ZIP；可多选', NO_LIBRARY),
-    'character.importOutfit': () => onOutfit(ctx, async (library, character, link) => {
+    'character.importOutfit': () => onOutfit(ctx, null, async (library, character, link) => {
       const missing = missingComponent(ctx);
       if (missing !== null) throw new BridgeFailure('internal', missing);
       const source = await picker.folder({ title: '导入外观（EFMI mod）', message: '选择包含 mod.ini 的 mod 目录；只导入到本机' });
@@ -362,11 +379,11 @@ export function characterOps(ctx: OpsContext, picker: ImportPicker = electronPic
       }, () => reloadAvatar(ctx, link));
       return { ok: true, appearance: { id: outfit.id, name: outfit.name }, warnings: outfit.warnings };
     }),
-    'character.removeOutfit': ([id]) => {
+    'character.removeOutfit': ([of, id]) => {
       // C3 appearance ids are 1–64 bytes, as action ids are.
-      const appearance = motionID(id);
-      if (appearance === null) throw new BridgeFailure('bad_args', 'character.removeOutfit');
-      return onOutfit(ctx, async (library, character, link) => {
+      const expected = characterArg(of), appearance = motionID(id);
+      if (expected === null || appearance === null) throw new BridgeFailure('bad_args', 'character.removeOutfit');
+      return onOutfit(ctx, expected, async (library, character, link) => {
         const host = validationHost(ctx, (detail) => new BridgeFailure('validate_failed', detail));
         const { status, stderr } = await ctx.library!.runTool('outfit_tool.py', outfitRemoveArgs(library, character, appearance, host));
         if (status !== 0) throw outfitFailure(stderr, null);
@@ -379,13 +396,17 @@ export function characterOps(ctx: OpsContext, picker: ImportPicker = electronPic
         return { ok: true, appearance: { id: appearance } };
       });
     },
-    'character.listImportedMotions': () => onCurrent(async (library, character) => ({
-      motions: importedMotions(await tool(['list', '--library', library, '--character', character])),
-    })),
-    'character.renameMotion': ([id, title]) => {
-      const action = motionID(id), name = motionTitle(title);
-      if (action === null || name === null) throw new BridgeFailure('bad_args', 'character.renameMotion');
-      return onCurrent(async (library, character) => {
+    'character.listImportedMotions': ([of]) => {
+      const expected = characterArg(of);
+      if (expected === null) throw new BridgeFailure('bad_args', 'character.listImportedMotions');
+      return onCurrent(expected, false, async (library, character) => ({
+        motions: importedMotions(await tool(['list', '--library', library, '--character', character])),
+      }));
+    },
+    'character.renameMotion': ([of, id, title]) => {
+      const expected = characterArg(of), action = motionID(id), name = motionTitle(title);
+      if (expected === null || action === null || name === null) throw new BridgeFailure('bad_args', 'character.renameMotion');
+      return onCurrent(expected, true, async (library, character) => {
         ctx.mmdSync?.sync.checkIdle();
         const line = await tool(['rename', '--library', library, '--character', character, '--action', action, `--title=${name}`,
           '--validate-with', host()]);
@@ -394,10 +415,10 @@ export function characterOps(ctx: OpsContext, picker: ImportPicker = electronPic
         return { id: action, title: line.title };
       });
     },
-    'character.removeMotion': ([id]) => {
-      const action = motionID(id);
-      if (action === null) throw new BridgeFailure('bad_args', 'character.removeMotion');
-      return onCurrent(async (library, character) => {
+    'character.removeMotion': ([of, id]) => {
+      const expected = characterArg(of), action = motionID(id);
+      if (expected === null || action === null) throw new BridgeFailure('bad_args', 'character.removeMotion');
+      return onCurrent(expected, true, async (library, character) => {
         ctx.mmdSync?.sync.checkIdle();
         await tool(['remove', '--library', library, '--character', character, '--action', action, '--validate-with', host()]);
         // So the stored switch table does not keep ids past C3's 128-entry cap.
@@ -414,14 +435,19 @@ export function characterOps(ctx: OpsContext, picker: ImportPicker = electronPic
     },
     'character.importState': () => imports(ctx).tracker.state,
     'character.onImport': watch('character.onImport', imports(ctx).events),
-    'character.getPlaylist': async () => {
-      const character = await playlistCharacter();
+    'character.getPlaylist': async ([of]) => {
+      // The desktop ring reads whoever is current.
+      const expected = of === null || of === undefined ? null : characterArg(of);
+      if (of !== null && of !== undefined && expected === null) throw new BridgeFailure('invalid_args', 'character id');
+      const character = await playlistCharacter(expected);
       const list = decodePlaylists(readObject(ctx.config.path).motion_playlists)[character] ?? { items: [], loop: 'off', speed: 1 };
       return { items: list.items, loop: list.loop, speed: list.speed };
     },
-    'character.setPlaylist': async ([value]) => {
+    'character.setPlaylist': async ([of, value]) => {
+      const expected = characterArg(of);
+      if (expected === null) throw new BridgeFailure('invalid_args', 'character id');
       const list = playlistArg(value);
-      const character = await playlistCharacter();
+      const character = await playlistCharacter(expected);
       const config = readObject(ctx.config.path);
       const table = decodePlaylists(config.motion_playlists);
       table[character] = list;

@@ -5,6 +5,8 @@ import type { AvatarAction, AgenticComplexBridge, ImportStage, ImportState, MmdE
 
 const IDLE: MmdSyncState = { running: false, character: null, total: 0, done: 0, failed: 0, stage: null, fraction: 0 };
 const IMPORT_IDLE: ImportState = { running: false, kind: null, title: null, stage: null, fraction: 0 };
+/** As native: a motion call meant for a character no longer current. */
+const CHANGED = { ok: false as const, reason: 'character_changed', detail: '角色刚换过，这次没有改' };
 const TOOL_STAGES: Record<NonNullable<ImportState['kind']>, ImportStage[]> = {
   motion: ['read', 'sample', 'retarget', 'write', 'validate', 'publish'],
   mmd: ['read', 'sample', 'retarget', 'write', 'validate', 'publish'],
@@ -53,21 +55,24 @@ export function fakeImports(character: () => string) {
       return () => void importWatchers.delete(cb);
     },
     // The fake library has only the starting character's package; listing another one fails as motion_tool does.
-    listImportedMotions: async () => {
+    listImportedMotions: async (c) => {
+      if (c !== character()) return CHANGED;
       if (character() !== packaged) return { ok: false, reason: 'internal', detail: `unknown_character: ${character()}` };
       const motions = imported.map((a) => ({
         id: a.id, clip: `imported_${a.id}`, title: a.label, format: 'vmd', durationS: a.durationS ?? 0, hasBgm: true, createdAt: null, warnings: [],
       }));
       return { ok: true, motions };
     },
-    renameMotion: async (id, title) => {
+    renameMotion: async (c, id, title) => {
+      if (c !== character()) return CHANGED;
       const motion = mmd.find((e) => e.id === id) ?? imported.find((a) => a.id === id);
       if (!motion) return { ok: false, reason: 'unknown_action' };
       if ('title' in motion) motion.title = title.trim();
       else motion.label = title.trim();
       return { ok: true, id, title: title.trim() };
     },
-    removeMotion: async (id) => {
+    removeMotion: async (c, id) => {
+      if (c !== character()) return CHANGED;
       const list: Array<{ id: string }> = mmd.some((e) => e.id === id) ? mmd : imported;
       const i = list.findIndex((a) => a.id === id);
       if (i < 0) return { ok: false, reason: 'unknown_action' };

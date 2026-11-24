@@ -69,7 +69,8 @@ export interface AvatarHost {
 /** Her appearance, layers, action switches and mod settings (src/main/renderer/looks.ts). */
 export interface LooksHost {
   setAppearance(id: string): Promise<void>;
-  setLayers(hidden: string[]): Promise<void>;
+  /** Hides `hide` and shows `show` of the current character's layers; the others keep how they are. */
+  setLayers(change: { hide: string[]; show: string[] }): Promise<void>;
   saveSwitches(character: string, switches: Record<string, boolean>): Promise<SwitchReply>;
   modSettings(character: string): Record<string, ModValues>;
   saveModSettings(character: string, appearance: string, values: ModValues): Promise<ModReceipt>;
@@ -215,6 +216,8 @@ const NO_LINK = '角色还没连上（配置出错）';
 const APERTURE = { min: 1.4, max: 32 }, FOCUS = { min: 0.1, max: 10 };
 /** A renderer that does not list the capability. */
 const UNLISTED = '这个版本的角色不支持动作设置';
+/** Said when the character a page meant is no longer the current one. */
+const CHANGED = '角色刚换过，这次没有改';
 
 /** HostLink `listing`: both sides list `capability`, and she lists each of `hers` too. */
 const listing = (host: AvatarHost, capability: string, ...hers: string[]): boolean =>
@@ -393,6 +396,16 @@ export function avatarOps(ctx: OpsContext): Ops {
     if (id === null) throw new BridgeFailure('failed', '角色还没连上');
     return id;
   };
+  /** The character a page names (1–64 bytes); `invalid_args` otherwise. */
+  const characterArg = (v: unknown): string => {
+    if (typeof v !== 'string' || v === '' || new TextEncoder().encode(v).length > 64) throw new BridgeFailure('invalid_args', 'character id');
+    return v;
+  };
+  /** `character_changed` unless `expected` is `id`. */
+  const sameCharacter = (expected: string, id: string): string => {
+    if (id !== expected) throw new BridgeFailure('character_changed', CHANGED);
+    return id;
+  };
 
   /** Waits while the renderer restarts, at most LINK_TIMING.relink. */
   const linked = async (link: AvatarHost): Promise<void> => {
@@ -562,14 +575,20 @@ export function avatarOps(ctx: OpsContext): Ops {
         return null;
       });
     },
-    'avatar.setLayers': ([ids]) => {
-      if (!Array.isArray(ids) || !ids.every((x) => typeof x === 'string' && x !== '')) throw new BridgeFailure('invalid_args', 'hidden layer ids');
+    'avatar.setLayers': ([of, change]) => {
+      const expected = characterArg(of);
+      const c = (typeof change === 'object' && change !== null && !Array.isArray(change) ? change : {}) as Record<string, unknown>;
+      const ids = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string' && x !== '');
+      if (!ids(c.hide) || !ids(c.show)) throw new BridgeFailure('invalid_args', '{hide, show: layer ids}');
+      const hide = c.hide, show = c.show;
       return bridged(async () => {
-        await looks('avatar.setLayers').setLayers(ids as string[]);
+        sameCharacter(expected, current());
+        await looks('avatar.setLayers').setLayers({ hide, show });
         return null;
       });
     },
-    'avatar.setActionSwitches': ([raw]) => {
+    'avatar.setActionSwitches': ([of, raw]) => {
+      const expected = characterArg(of);
       if (typeof raw !== 'object' || raw === null || Array.isArray(raw) || !Object.values(raw).every((v) => typeof v === 'boolean')) {
         throw new BridgeFailure('invalid_args', 'switches');
       }
@@ -578,9 +597,9 @@ export function avatarOps(ctx: OpsContext): Ops {
       const task = switchSaving.then(async () => {
         try {
           // The page sends only what it changed; the avatar stores the table it gets as the user's whole table.
-          const character = current();
+          const character = sameCharacter(expected, current());
           const switches = (await host().actions(character)).switches;
-          if (host().currentCharacter !== character) throw new BridgeFailure('failed', '角色刚换过，请重新设置');
+          if (host().currentCharacter !== character) throw new BridgeFailure('character_changed', CHANGED);
           if (!Object.keys(changes).every((id) => Object.hasOwn(switches, id))) throw new BridgeFailure('invalid_args', 'unknown action');
           const reply = await looks('avatar.setActionSwitches').saveSwitches(character, { ...switches, ...changes });
           const value: Record<string, unknown> = { switches: reply.switches, adjusted: reply.adjusted };
@@ -613,27 +632,29 @@ export function avatarOps(ctx: OpsContext): Ops {
         return { values: receipt.values, adjusted: receipt.adjusted };
       });
     },
-    'avatar.motionOverrides.get': () => {
-      const id = characterId();
+    'avatar.motionOverrides.get': ([of]) => {
+      const id = sameCharacter(characterArg(of), characterOrFail());
       let stored: StoredOverrides | null = null;
       try {
-        if (id !== null) stored = loadOverrides(readObject(ctx.config.path), id);
+        stored = loadOverrides(readObject(ctx.config.path), id);
       } catch { /* none stored */ }
       return stored ? overridesJson(stored) : { chains: {}, pools: {}, blend_in: {} };
     },
-    'avatar.motionOverrides.set': ([value]) => {
+    'avatar.motionOverrides.set': ([of, value]) => {
+      const expected = characterArg(of);
       const overrides = overridesArg(value);
       if (overrides === null) {
         throw new BridgeFailure('invalid_args', '{chains ≤512, pools ≤64 of 1–64 {clip, weight 1–100000}, blend_in ≤512 of 0–2}');
       }
       const link = host();
       if (!link.setMotionOverrides) throw new BridgeFailure('not_implemented', 'avatar.motionOverrides.set');
-      const character = characterOrFail();
+      const character = sameCharacter(expected, characterOrFail());
       // Stored first; the store stays when sending fails.
       try {
         writeObject(ctx.config.path, storeOverrides(readObject(ctx.config.path), character, overrides));
       } catch (e) {
         ctx.log(`motion_overrides ${character} not stored: ${e instanceof Error ? e.message : String(e)}`);
+        throw new BridgeFailure('not_stored', `动作设置没有存下：${e instanceof Error ? e.message : String(e)}`);
       }
       if (link.hello === null || !listing(link, 'motion_overrides', 'actions', 'ack')) throw new BridgeFailure('not_implemented', UNLISTED);
       return bridged(async () => {
@@ -641,12 +662,13 @@ export function avatarOps(ctx: OpsContext): Ops {
         return { applied: { ...receipt.applied }, adjusted: receipt.adjusted };
       });
     },
-    'avatar.playChain': async ([value]) => {
+    'avatar.playChain': async ([of, value]) => {
+      const expected = characterArg(of);
       // C3 v27 rule 52 (d).
       const { start, speed } = playChainArg(value);
       const link = host();
       if (!link.playChain || !link.on) throw new BridgeFailure('not_implemented', 'avatar.playChain');
-      const character = characterOrFail();
+      const character = sameCharacter(expected, characterOrFail());
       await linked(link);
       if (!listing(link, 'play_chain', 'actions', 'ack')) throw new BridgeFailure('not_implemented', UNLISTED);
       const playId = randomUUID();

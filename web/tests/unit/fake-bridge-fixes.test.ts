@@ -20,7 +20,7 @@ describe('fake bridge', () => {
 
   it('forgets the hidden layers on a character switch', async () => {
     const { avatar, character } = createFakeBridge({ surface: 'main', still: true });
-    await avatar.setLayers(['coat']);
+    await avatar.setLayers('si', { hide: ['coat'], show: [] });
     await character.switchTo('voice_a');
     const active = (await character.list()).find((c) => c.active);
     expect(active?.layers?.filter((l) => !l.visible)).toEqual([]);

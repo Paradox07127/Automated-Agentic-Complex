@@ -51,11 +51,11 @@ function bvhLibrary() {
     ...(await real()),
     ...lib.map((m) => ({ id: m.id, label: m.title, enabled: true, section: 'idle', durationS: m.durationS, playable: true })),
   ]);
-  vi.spyOn(bridge.character, 'removeMotion').mockImplementation(async (id) => {
+  vi.spyOn(bridge.character, 'removeMotion').mockImplementation(async (_c, id) => {
     lib = [];
     return { ok: true, id };
   });
-  return vi.spyOn(bridge.character, 'renameMotion').mockImplementation(async (id, title) => {
+  return vi.spyOn(bridge.character, 'renameMotion').mockImplementation(async (_c, id, title) => {
     lib = lib.map((m) => ({ ...m, title }));
     return { ok: true, id, title };
   });
@@ -98,7 +98,7 @@ describe('motion library', () => {
     expect(input.value).toBe('示例舞蹈');
     fireEvent.change(input, { target: { value: '慢舞' } });
     await act(async () => void fireEvent.keyDown(input, { key: 'Enter' }));
-    expect(rename).toHaveBeenCalledWith(ID, '慢舞');
+    expect(rename).toHaveBeenCalledWith('si', ID, '慢舞');
     expect(screen.queryByRole('dialog')).toBeNull();
     await waitFor(() => expect(itemOf()?.textContent).toContain('慢舞'));
 
@@ -134,7 +134,7 @@ describe('motion library', () => {
     render(
       <ImportPane
         motionImport={{ running: false, note: null, run: () => {} }}
-        library={{ byId: { [ID]: entry }, rename: () => {}, remove: () => {}, busy: false, refetch: () => {} }}
+        library={{ character: 'si', byId: { [ID]: entry }, rename: () => {}, remove: () => {}, busy: false, error: null, refetch: () => {} }}
         offline
         lock={false}
       />,
@@ -142,5 +142,53 @@ describe('motion library', () => {
     expect((screen.getByRole('button', { name: '改名' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByRole('button', { name: '改名' }).title).toBe('角色未运行');
     expect((screen.getByRole('button', { name: '删除' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('closes an open delete dialog when the character changes, so it cannot delete on the new one', async () => {
+    const remove = vi.fn();
+    const pane = (character: string) => (
+      <ImportPane
+        motionImport={{ running: false, note: null, run: () => {} }}
+        library={{ character, byId: { [ID]: BVH }, rename: () => {}, remove, busy: false, error: null, refetch: () => {} }}
+        offline={false}
+        lock={false}
+      />
+    );
+    const { rerender } = render(pane('si'));
+    await click(screen.getByRole('button', { name: '删除' }));
+    expect(screen.getByRole('dialog', { name: '删除动作' })).toBeTruthy();
+    rerender(pane('cedar'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('sends the character the pane shows with a rename and a remove', async () => {
+    const rename = bvhLibrary();
+    await mount('&pane=motion');
+    await click(await screen.findByRole('tab', { name: '导入' }));
+    await click(await screen.findByRole('button', { name: /^导入动作…/ }));
+    await waitFor(() => expect(itemOf()).not.toBeNull());
+    await click(within(itemOf()!).getByRole('button', { name: '改名' }));
+    const input = within(screen.getByRole('dialog', { name: '改名' })).getByRole('textbox');
+    fireEvent.change(input, { target: { value: '慢舞' } });
+    await act(async () => void fireEvent.keyDown(input, { key: 'Enter' }));
+    expect(rename).toHaveBeenCalledWith('si', ID, '慢舞');
+    await click(within(itemOf()!).getByRole('button', { name: '删除' }));
+    await click(within(screen.getByRole('dialog', { name: '删除动作' })).getByRole('button', { name: '删除' }));
+    expect(bridge.character.removeMotion).toHaveBeenCalledWith('si', ID);
+    expect(bridge.character.listImportedMotions).toHaveBeenCalledWith('si');
+  });
+
+  it('keeps the listed motions and offers a retry when a later list read answers busy', async () => {
+    bvhLibrary();
+    await mount('&pane=motion');
+    await click(await screen.findByRole('tab', { name: '导入' }));
+    await click(await screen.findByRole('button', { name: /^导入动作…/ }));
+    await waitFor(() => expect(itemOf()).not.toBeNull());
+    vi.mocked(bridge.character.listImportedMotions).mockResolvedValue({ ok: false, reason: 'busy', detail: '角色正在切换，或另一个导入还没完成' });
+    await click(screen.getByRole('button', { name: /^导入动作…/ }));
+    await waitFor(() => expect(screen.getByText(/读取导入的动作失败/)).toBeTruthy());
+    expect(itemOf()).not.toBeNull();
+    expect(screen.getByRole('button', { name: '重试' })).toBeTruthy();
   });
 });

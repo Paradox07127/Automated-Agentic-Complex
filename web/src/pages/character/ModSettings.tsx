@@ -1,7 +1,7 @@
 // 角色页「模组设置」: the current appearance's switches from agentd's table (C6), each change sent through avatar.modSettings.set.
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { getBridge, type ModSettingAdjusted, type ModSettingValues } from '../../bridge';
-import { Icon, Switch } from '../../ui';
+import { ErrBar, Icon, Switch } from '../../ui';
 import { Diamond, Stepper, TitleBar, WhiteCapsule } from '../../ui/game';
 import { useCompact } from './compact';
 import type { Toast } from './feedback';
@@ -65,6 +65,9 @@ const pad = (n: number) => String(n).padStart(2, '0');
 export function ModSettings({ character, appearance, settings, ro, toast }: ModSettingsProps) {
   const id = appearance.id;
   const [stored, setStored] = useState<{ character: string; values: Record<string, ModSettingValues> }>();
+  // Why the stored values could not be read: until a read succeeds the rows are read only, or a change would send defaults for the rest.
+  const [unread, setUnread] = useState<{ character: string; why: string } | null>(null);
+  const [reads, setReads] = useState(0);
   const [marks, setMarks] = useState<{ appearance: string; notes: Record<string, string>; fail: (Change & { text: string }) | null }>();
   const [run, setRun] = useState<{ ids: string[]; what: string } | null>(null);
   // Each row's value before its last change this session: the other end of 对比.
@@ -79,24 +82,31 @@ export function ModSettings({ character, appearance, settings, ro, toast }: ModS
 
   useEffect(() => {
     let live = true;
-    // Without the op (an older shell) every switch shows its default.
     void getBridge()
       .avatar.modSettings.get({ character })
       .then(
-        (res) => res.appearances,
-        () => ({}),
-      )
-      .then((values) => live && setStored({ character, values }));
+        (res) => {
+          if (!live) return;
+          setStored({ character, values: res.appearances });
+          setUnread(null);
+        },
+        (e: unknown) => {
+          if (!live) return;
+          setStored((x) => (x?.character === character ? x : { character, values: {} }));
+          setUnread({ character, why: (e as { code?: string } | null)?.code === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应' });
+        },
+      );
     return () => {
       live = false;
     };
-  }, [character]);
+  }, [character, reads]);
 
   if (stored?.character !== character || settings.length === 0) return null;
   const value = (s: ModSettingRow) => stored.values[id]?.[s.id] ?? s.default;
   const mark = marks?.appearance === id ? marks : undefined;
   const before = prev?.appearance === id ? prev.values : {};
-  const off = ro != null || run != null;
+  const failedRead = unread?.character === character ? unread.why : null;
+  const off = ro != null || run != null || failedRead != null;
   const put = (values: ModSettingValues) => setStored((x) => (x && x.character === character ? { ...x, values: { ...x.values, [id]: values } } : x));
 
   /** Sends the whole set with `c.values` applied; a failure puts the old values back and bars where `c.at` says. */
@@ -195,7 +205,7 @@ export function ModSettings({ character, appearance, settings, ro, toast }: ModS
       </div>
     ) : null;
 
-  const sync = ro ?? (run ? `正在应用「${run.what}」…` : mark?.fail ? '上次改动没成功，已改回' : '预览与桌面一致');
+  const sync = ro ?? (failedRead ? '读不到已存的设置，只读' : run ? `正在应用「${run.what}」…` : mark?.fail ? '上次改动没成功，已改回' : '预览与桌面一致');
   const anyMoved = settings.some(moved);
 
   return (
@@ -218,6 +228,7 @@ export function ModSettings({ character, appearance, settings, ro, toast }: ModS
           </div>
         </div>
       </div>
+      {failedRead && <ErrBar message={`读取 mod 设置失败：${failedRead}`} onRetry={() => setReads((n) => n + 1)} />}
       {failBar(null)}
       <div className={head.jump} role="group" aria-label="跳到类别">
         <span className={head.jumpLbl}>跳到</span>

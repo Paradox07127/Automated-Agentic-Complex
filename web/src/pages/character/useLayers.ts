@@ -2,37 +2,52 @@ import { useContext, useRef, useState } from 'react';
 import { QueryClientContext } from '@tanstack/react-query';
 import { getBridge, type CharacterEntry } from '../../bridge';
 import type { Toast } from './feedback';
+import { hostReason } from './labels';
 import { previewLookChanged } from './usePreview';
 
 type Layers = CharacterEntry['layers'];
+/** Layer id → whether it shows. */
+type Shown = Record<string, boolean>;
 
-/** The outfit layers with the hidden set this page last sent applied, and the calls that change it. */
+const change = (shown: Shown) => ({
+  hide: Object.keys(shown).filter((id) => !shown[id]),
+  show: Object.keys(shown).filter((id) => shown[id]),
+});
+
+/** The outfit layers with what this page asked and what the host took applied, and the calls that change them. Each call names only
+ *  the layers it changes, so layers of her other appearances keep how they are. */
 export function useLayers(ch: CharacterEntry | undefined, current: string, toast: Toast) {
   // Read from the context, not useQueryClient: the operator view also renders without a query client.
   const qc = useContext(QueryClientContext);
-  // The hidden set the last successful `avatar.setLayers` sent, over the roster layers it was sent against; a roster read since (the menu bar may have changed them) wins.
-  const [hiddenSet, setHiddenSet] = useState<{ character: string; hidden: string[]; of: Layers }>();
+  // What the host took since the roster layers it was taken over; a roster read since (the menu bar may have changed them) wins.
+  const [took, setTook] = useState<{ character: string; shown: Shown; of: Layers }>();
+  // What was asked and not answered yet, shown in the switches meanwhile.
+  const [asked, setAsked] = useState<{ character: string; shown: Shown }>();
   const seen = useRef<Layers>(undefined);
   seen.current = ch?.layers;
-  // The host refuses a `setLayers` while one is open: one goes at a time, and the newest set asked meanwhile goes when it answers.
-  // `hidden` is the newest set asked, so a click builds on it and not on the page.
-  const req = useRef<{ busy: boolean; next?: { character: string; hidden: string[]; done: string }; hidden?: { character: string; hidden: string[] } }>({ busy: false }).current;
-  const layers = (ch?.layers ?? []).map((l) => (hiddenSet?.character === ch?.id && hiddenSet?.of === ch?.layers ? { ...l, visible: !hiddenSet?.hidden.includes(l.id) } : l));
+  // The host refuses a `setLayers` while one is open: one goes at a time, and the clicks meanwhile go together when it answers.
+  const req = useRef<{ busy: boolean; next?: { character: string; shown: Shown; done: string } }>({ busy: false }).current;
+  const tookNow = took && took.character === ch?.id && took.of === ch?.layers ? took.shown : undefined;
+  const askedNow = asked && asked.character === ch?.id ? asked.shown : undefined;
+  const layers = (ch?.layers ?? []).map((l) => ({ ...l, visible: askedNow?.[l.id] ?? tookNow?.[l.id] ?? l.visible }));
 
-  const run = (character: string, hidden: string[], done: string) => {
+  /** Drops the asked entries `shown` answered, unless a later click asked otherwise. */
+  const answered = (character: string, shown: Shown) =>
+    setAsked((a) => (a?.character !== character ? a : { character, shown: Object.fromEntries(Object.entries(a.shown).filter(([id, v]) => shown[id] !== v)) }));
+  const run = (character: string, shown: Shown, done: string) => {
     req.busy = true;
     const settle = () => {
       req.busy = false;
       const next = req.next;
       req.next = undefined;
-      if (next) run(next.character, next.hidden, next.done);
-      else req.hidden = undefined;
+      if (next) run(next.character, next.shown, next.done);
     };
     getBridge()
-      .avatar.setLayers(hidden)
+      .avatar.setLayers(character, change(shown))
       .then(
         () => {
-          setHiddenSet({ character, hidden, of: seen.current });
+          setTook((t) => ({ character, shown: { ...(t?.character === character && t.of === seen.current ? t.shown : {}), ...shown }, of: seen.current }));
+          answered(character, shown);
           void qc?.invalidateQueries({ queryKey: ['character', 'list'] });
           previewLookChanged();
           toast(done);
@@ -40,23 +55,21 @@ export function useLayers(ch: CharacterEntry | undefined, current: string, toast
         },
         (e: unknown) => {
           const code = (e as { code?: string } | null)?.code;
-          toast(`服装分层没有完成：${code === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}`, { severity: 'danger' });
+          answered(character, shown);
+          toast(`服装分层没有完成：${code === 'not_implemented' ? '这个版本还不支持' : code === 'character_changed' ? hostReason(code) : '桌面角色没有回应'}`, { severity: 'danger' });
           settle();
         },
       );
   };
-  const send = (hidden: string[], done: string) => {
-    req.hidden = { character: current, hidden };
-    if (req.busy) req.next = { character: current, hidden, done };
-    else run(current, hidden, done);
+  const send = (shown: Shown, done: string) => {
+    setAsked((a) => ({ character: current, shown: { ...(a?.character === current ? a.shown : {}), ...shown } }));
+    if (!req.busy) return run(current, shown, done);
+    const next = req.next?.character === current ? req.next.shown : {};
+    req.next = { character: current, shown: { ...next, ...shown }, done };
   };
-  const setLayer = (id: string, on: boolean, name: string) => {
-    const open = req.hidden;
-    const hidden = open?.character === current ? open.hidden : layers.filter((x) => !x.visible).map((x) => x.id);
-    send(
-      layers.map((x) => x.id).filter((x) => (x === id ? !on : hidden.includes(x))),
-      on ? `已显示「${name}」` : `已隐藏「${name}」`,
-    );
+  return {
+    layers,
+    setLayer: (id: string, on: boolean, name: string) => send({ [id]: on }, on ? `已显示「${name}」` : `已隐藏「${name}」`),
+    showAll: () => send(Object.fromEntries(layers.map((l) => [l.id, true])), '已全部显示'),
   };
-  return { layers, setLayer, showAll: () => send([], '已全部显示') };
 }

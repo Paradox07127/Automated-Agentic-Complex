@@ -1,16 +1,19 @@
 // 编排 review fixes 11-22: a 1-segment chain's structure, ghosts measured from the chain's own last segment, a character switch,
 // edits while 保存 is in flight, the blend step, the wedge drag, and the 重建 confirmation going offline.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge } from '../../src/bridge/protocol';
+import { MOTIONS } from '../../src/mock/character';
 import { MOTION_GRAPH } from '../../src/mock/motionGraph';
+import { Commit, type CommitProps } from '../../src/pages/character/Commit';
 import type { Toast } from '../../src/pages/character/feedback';
 import { ChainEditBar } from '../../src/pages/character/motions/ChainEditBar';
 import { fixBlend } from '../../src/pages/character/motions/ChainStrip';
 import type { MotionGraph } from '../../src/pages/character/motions/graph';
 import { MotionSettings } from '../../src/pages/character/motions/MotionSettings';
+import { useMotions } from '../../src/pages/character/useMotions';
 import { click, detail, FIDGET, IDLE, mount, openChain, PONDER, PONDER_END, PONDER_LOOP, row, save, setWeight, THINK, weight } from './chainPage';
 
 const pose = (dx: number) => Array.from({ length: 17 }, (_, i) => [dx, i * 10, 0]);
@@ -46,15 +49,16 @@ async function mountSwitchable(graphOf: (g: MotionGraph) => MotionGraph = (g) =>
     return other && path.endsWith('/motion-graph') ? ({ ...r, body: graphOf(r.body as MotionGraph) } as typeof r) : r;
   });
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(
+  const page = (character: string) => (
     <QueryClientProvider client={qc}>
-      <MotionSettings offline={false} toast={toast} />
-    </QueryClientProvider>,
+      <MotionSettings character={character} switching={false} offline={false} toast={toast} />
+    </QueryClientProvider>
   );
+  const { rerender } = render(page('si'));
   await screen.findByRole('radiogroup', { name: '池子类型' });
   return async () => {
     await bridge.character.switchTo('voice_a');
-    await act(async () => void (await qc.invalidateQueries({ queryKey: ['character', 'list'] })));
+    await act(async () => void rerender(page('voice_a')));
     await waitFor(() => {
       expect(request.mock.calls.some((c) => c[1] === '/characters/voice_a/motion-graph')).toBe(true);
       expect(screen.queryByRole('status', { name: '正在读取动作' })).toBeNull();
@@ -144,6 +148,58 @@ describe('保存 in flight', () => {
     await act(async () => answer());
     expect(weight(FIDGET).disabled).toBe(false);
     expect(row(FIDGET)).toBeTruthy();
+  });
+});
+
+describe('the action-switch save', () => {
+  const nod = MOTIONS.find((a) => a.id === 'nod')!;
+  const stretch = MOTIONS.find((a) => a.id === 'stretch')!;
+  const hook = () =>
+    renderHook((p: { actions: typeof MOTIONS }) => useMotions({ character: 'si', actions: p.actions, toast }), { initialProps: { actions: MOTIONS } });
+
+  it('keeps a switch changed while an earlier save is in flight, and sends the character it shows', async () => {
+    let answer!: (r: { switches: Record<string, boolean>; adjusted: [] }) => void;
+    const set = vi.spyOn(bridge.avatar, 'setActionSwitches').mockImplementation(() => new Promise((r) => (answer = r)));
+    const { result } = hook();
+    act(() => result.current.toggle(nod, false));
+    act(() => result.current.save());
+    act(() => result.current.toggle(stretch, false));
+    expect(set).toHaveBeenCalledWith('si', { nod: false });
+    await act(async () => answer({ switches: { nod: false }, adjusted: [] }));
+    expect(result.current.changed).toEqual({ stretch: false });
+    expect(result.current.value(nod)).toBe(false);
+  });
+
+  it('does not send a draft switch of an action that is gone', async () => {
+    const set = vi.spyOn(bridge.avatar, 'setActionSwitches').mockResolvedValue({ switches: {}, adjusted: [] });
+    const { result, rerender } = hook();
+    act(() => result.current.toggle(nod, false));
+    act(() => result.current.toggle(stretch, false));
+    rerender({ actions: MOTIONS.filter((a) => a.id !== 'nod') });
+    expect(result.current.changed).toEqual({ stretch: false });
+    await act(async () => result.current.save());
+    expect(set).toHaveBeenCalledWith('si', { stretch: false });
+  });
+
+  it('shows a fresh read of the actions over what an earlier save answered', async () => {
+    vi.spyOn(bridge.avatar, 'setActionSwitches').mockResolvedValue({ switches: { nod: false }, adjusted: [] });
+    const { result, rerender } = hook();
+    act(() => result.current.toggle(nod, false));
+    await act(async () => result.current.save());
+    expect(result.current.value(nod)).toBe(false);
+    // Turned back on from the tray, then read again.
+    rerender({ actions: MOTIONS.map((a) => (a.id === 'nod' ? { ...a, enabled: true } : a)) });
+    expect(result.current.value(nod)).toBe(true);
+  });
+
+  it('turns 撤销 and 保存 off while the host switches characters', () => {
+    const props: CommitProps = {
+      offline: false, lock: '切换中 │ 输入暂停', changes: [{ label: '点头附和', on: false }], saving: false, onUndo: vi.fn(), onSave: vi.fn(), speed: '1',
+      onSpeed: vi.fn(), oneSpeed: false, blocked: null, onPlay: vi.fn(), loop: false, onLoop: vi.fn(), canLoop: false, looping: false, onStop: vi.fn(), progress: null,
+    };
+    render(<Commit {...props} />);
+    expect((screen.getByRole('button', { name: '保存' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: '撤销' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });
 

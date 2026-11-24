@@ -1,6 +1,6 @@
 // `avatar.motionOverrides.*`, `avatar.playChain`, `avatar.motionChain.*` and the playlist ops against a fake link.
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -143,15 +143,15 @@ const OVERRIDES_ARGS = '{chains ≤512, pools ≤64 of 1–64 {clip, weight 1–
 test('avatar.motionOverrides.set stores the whole set with its notes, sends it without them and answers her receipt; get reads it back', async () => {
   const f = fixture({ config: { mute: false, motion_overrides: { cedar: { chains: {}, pools: {}, blend_in: {} } } } });
   try {
-    assert.deepEqual(await f.call('avatar.motionOverrides.get'), { chains: {}, pools: {}, blend_in: {} });
-    assert.deepEqual(await f.call('avatar.motionOverrides.set', OVERRIDES), { applied: { chains: 1, pools: 1, blend_in: 0 },
+    assert.deepEqual(await f.call('avatar.motionOverrides.get', 'si'), { chains: {}, pools: {}, blend_in: {} });
+    assert.deepEqual(await f.call('avatar.motionOverrides.set', 'si', OVERRIDES), { applied: { chains: 1, pools: 1, blend_in: 0 },
       adjusted: [{ kind: 'pool', key: 'session.thinking', reason: 'stance_mismatch' }] });
     const { notes: _, ...sent } = OVERRIDES;
     assert.deepEqual(f.link!.overrides, [{ character: 'si', overrides: sent }]);
     const config = f.config();
     assert.equal(config.mute, false);
     assert.deepEqual(config.motion_overrides, { cedar: { chains: {}, pools: {}, blend_in: {} }, si: OVERRIDES });
-    assert.deepEqual(await f.call('avatar.motionOverrides.get'), OVERRIDES);
+    assert.deepEqual(await f.call('avatar.motionOverrides.get', 'si'), OVERRIDES);
   } finally {
     f.done();
   }
@@ -165,7 +165,7 @@ test('avatar.motionOverrides.set refuses an argument outside rule 51 (j) and sto
       { ...OVERRIDES, pools: { p: [{ clip: 'a', weight: 1 }, { clip: 'a', weight: 2 }] } }, { ...OVERRIDES, pools: { p: [] } },
       { ...OVERRIDES, blend_in: { a: 2.5 } }, { ...OVERRIDES, chains: { a: 1 } }, { ...OVERRIDES, chains: { ['x'.repeat(129)]: true } },
       { ...OVERRIDES, notes: { a: '字'.repeat(501) } }];
-    for (const value of bad) assert.deepEqual(await f.call('avatar.motionOverrides.set', value), err('invalid_args', OVERRIDES_ARGS));
+    for (const value of bad) assert.deepEqual(await f.call('avatar.motionOverrides.set', 'si', value), err('invalid_args', OVERRIDES_ARGS));
     assert.equal(f.config().motion_overrides, undefined);
     assert.deepEqual(f.link!.overrides, []);
   } finally {
@@ -177,7 +177,7 @@ test('avatar.motionOverrides.set: a renderer that does not list motion_overrides
   for (const link of [new FakeLink(['actions', 'ack', 'play_chain']), (() => { const l = new FakeLink(); l.hello = null; return l; })()]) {
     const f = fixture({ link });
     try {
-      assert.deepEqual(await f.call('avatar.motionOverrides.set', OVERRIDES), err('not_implemented', NOT_LISTED));
+      assert.deepEqual(await f.call('avatar.motionOverrides.set', 'si', OVERRIDES), err('not_implemented', NOT_LISTED));
       assert.deepEqual((f.config().motion_overrides as Record<string, unknown>).si, OVERRIDES);
       assert.deepEqual(link.overrides, []);
     } finally {
@@ -186,8 +186,37 @@ test('avatar.motionOverrides.set: a renderer that does not list motion_overrides
   }
   const f = fixture({ link: null });
   try {
-    assert.deepEqual(await f.call('avatar.motionOverrides.set', OVERRIDES), err('failed', '角色还没连上（配置出错）'));
-    assert.deepEqual(await f.call('avatar.motionOverrides.get'), { chains: {}, pools: {}, blend_in: {} });
+    assert.deepEqual(await f.call('avatar.motionOverrides.set', 'si', OVERRIDES), err('failed', '角色还没连上（配置出错）'));
+    assert.deepEqual(await f.call('avatar.motionOverrides.get', 'si'), err('failed', '角色还没连上'), 'no character is current');
+  } finally {
+    f.done();
+  }
+});
+
+test('avatar.motionOverrides and playChain meant for a character no longer current are refused; the current one\'s set stays', async () => {
+  const f = fixture({ config: { mute: false, motion_overrides: { si: OVERRIDES } } });
+  try {
+    const changed = err('character_changed', '角色刚换过，这次没有改');
+    assert.deepEqual(await f.call('avatar.motionOverrides.set', 'cedar', { chains: {}, pools: {}, blend_in: {} }), changed);
+    assert.deepEqual((f.config().motion_overrides as Record<string, unknown>), { si: OVERRIDES });
+    assert.deepEqual(f.link!.overrides, []);
+    assert.deepEqual(await f.call('avatar.motionOverrides.get', 'cedar'), changed);
+    assert.deepEqual(await f.call('avatar.playChain', 'cedar', { start: 'a' }), changed);
+    assert.deepEqual(f.link!.sent, []);
+    assert.deepEqual(await f.call('avatar.motionOverrides.get', ''), err('invalid_args', 'character id'));
+  } finally {
+    f.done();
+  }
+});
+
+test('avatar.motionOverrides.set rejects when config.json cannot be written, and sends nothing', async () => {
+  const f = fixture();
+  try {
+    // writeObject writes this temporary file first.
+    mkdirSync(join(f.dir, `config.json.tmp-${process.pid}`));
+    const reply = await f.call('avatar.motionOverrides.set', 'si', OVERRIDES) as { error?: { code: string } };
+    assert.equal(reply.error?.code, 'not_stored');
+    assert.deepEqual(f.link!.overrides, []);
   } finally {
     f.done();
   }
@@ -197,7 +226,7 @@ test('avatar.motionOverrides.set passes her refusal on as failed', async () => {
   const f = fixture();
   try {
     f.link!.overridesReply = async () => { throw new ActionFailure('failed', '角色正在切换或动作还没加载好，过一会儿再试'); };
-    assert.deepEqual(await f.call('avatar.motionOverrides.set', OVERRIDES), err('failed', '角色正在切换或动作还没加载好，过一会儿再试'));
+    assert.deepEqual(await f.call('avatar.motionOverrides.set', 'si', OVERRIDES), err('failed', '角色正在切换或动作还没加载好，过一会儿再试'));
   } finally {
     f.done();
   }
@@ -224,8 +253,8 @@ test('the stored set goes to her once with each list without an error, when it i
 test('avatar.playChain sends play_chain and answers once she reports it started', async () => {
   const f = fixture();
   try {
-    assert.equal(await f.call('avatar.playChain', { start: 'A_chain_start', speed: 2 }), null);
-    assert.equal(await f.call('avatar.playChain', { start: 'A_chain_start' }), null);
+    assert.equal(await f.call('avatar.playChain', 'si', { start: 'A_chain_start', speed: 2 }), null);
+    assert.equal(await f.call('avatar.playChain', 'si', { start: 'A_chain_start' }), null);
     assert.deepEqual(f.link!.sent.map(({ play_id: _, ...m }) => m), [
       { v: 1, type: 'play_chain', character: 'si', start: 'A_chain_start', speed: 2 },
       { v: 1, type: 'play_chain', character: 'si', start: 'A_chain_start', speed: 1 }]);
@@ -239,14 +268,14 @@ test('avatar.playChain: a rejected play takes its reason as the code, an ack err
   const f = fixture();
   try {
     f.link!.chainPlayed = { phase: 'rejected', reason: 'busy' };
-    assert.deepEqual(await f.call('avatar.playChain', { start: 'a' }), err('busy', '角色正在做别的动作'));
+    assert.deepEqual(await f.call('avatar.playChain', 'si', { start: 'a' }), err('busy', '角色正在做别的动作'));
     f.link!.chainAck = { ok: false, reason: 'invalid' };
-    assert.deepEqual(await f.call('avatar.playChain', { start: 'a' }), err('failed', '角色没有这条链'));
+    assert.deepEqual(await f.call('avatar.playChain', 'si', { start: 'a' }), err('failed', '角色没有这条链'));
     f.link!.chainAck = { ok: false, reason: 'unsupported' };
-    assert.deepEqual(await f.call('avatar.playChain', { start: 'a' }), err('not_implemented', NOT_LISTED));
+    assert.deepEqual(await f.call('avatar.playChain', 'si', { start: 'a' }), err('not_implemented', NOT_LISTED));
     f.link!.chainAck = { ok: true };
     f.link!.chainPlayed = null;
-    const pending = f.call('avatar.playChain', { start: 'a' });
+    const pending = f.call('avatar.playChain', 'si', { start: 'a' });
     await sleep(20);
     f.link!.emit({ kind: 'lost', reason: 'eof' });
     assert.deepEqual(await pending, err('failed', '和角色的连接断了'));
@@ -258,9 +287,9 @@ test('avatar.playChain: a rejected play takes its reason as the code, an ack err
 test('avatar.playChain: not listed is not_implemented; a renderer coming back is waited for; bad arguments are refused', async () => {
   const f = fixture({ link: new FakeLink(['actions', 'ack', 'motion_overrides']) });
   try {
-    assert.deepEqual(await f.call('avatar.playChain', { start: 'a' }), err('not_implemented', NOT_LISTED));
+    assert.deepEqual(await f.call('avatar.playChain', 'si', { start: 'a' }), err('not_implemented', NOT_LISTED));
     for (const value of [undefined, {}, { start: '' }, { start: 'x'.repeat(129) }, { start: 'a', speed: 3 }, { start: 'a', speed: null }]) {
-      assert.deepEqual(await f.call('avatar.playChain', value), err('invalid_args', '{start, speed? 0.5, 1 or 2}'));
+      assert.deepEqual(await f.call('avatar.playChain', 'si', value), err('invalid_args', '{start, speed? 0.5, 1 or 2}'));
     }
   } finally {
     f.done();
@@ -270,13 +299,13 @@ test('avatar.playChain: not listed is not_implemented; a renderer coming back is
     const hello = g.link!.hello;
     g.link!.hello = null;
     setTimeout(() => { g.link!.hello = hello; }, 250);
-    assert.equal(await g.call('avatar.playChain', { start: 'a' }), null);
+    assert.equal(await g.call('avatar.playChain', 'si', { start: 'a' }), null);
   } finally {
     g.done();
   }
   const h = fixture({ link: null });
   try {
-    assert.deepEqual(await h.call('avatar.playChain', { start: 'a' }), err('failed', '角色还没连上（配置出错）'));
+    assert.deepEqual(await h.call('avatar.playChain', 'si', { start: 'a' }), err('failed', '角色还没连上（配置出错）'));
   } finally {
     h.done();
   }

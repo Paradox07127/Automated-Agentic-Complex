@@ -38,7 +38,7 @@ import { feedScript, playOnce, replyScript, scriptedStream } from './feed';
 import { fakeImports } from './imports';
 import { fakeLogs } from './logs';
 import { fakeHistory } from './processHistory';
-import { fakeMotion, fakePreviewSequence, fakePreviewView, motionGroupRoutes, traceEventRoutes } from './motion';
+import { characterChanged, fakeMotion, fakePreviewSequence, fakePreviewView, motionGroupRoutes, traceEventRoutes } from './motion';
 import { createFakeOnboarding } from './onboarding';
 import { fakeOutfit } from './outfit';
 import { fakeServices } from './services';
@@ -283,9 +283,15 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
       stopSpeech: async () => void (avatar.speaking = false),
       actions: async () => [...MOTIONS.map((a) => ({ ...a })), ...imports.actions()],
       playAction: done, stopAction: done, controlAction: done, onActionProgress: () => none, ...fakeMotion(() => character),
-      setActionSwitches: async (switches) => ({ switches, adjusted: [] }),
+      setActionSwitches: async (c, switches) => {
+        if (c !== character) throw characterChanged(c);
+        return { switches, adjusted: [] };
+      },
       setAppearance: async (id) => void (avatar.appearanceId = id),
-      setLayers: async (hidden) => void (hiddenLayers = [...hidden]),
+      setLayers: async (c, { hide, show }) => {
+        if (c !== character) throw characterChanged(c);
+        hiddenLayers = [...new Set([...hiddenLayers.filter((id) => !show.includes(id)), ...hide])];
+      },
       playPlaylist: async (o) => {
         const start = o?.start ?? 0;
         if (playlist.items[start] === undefined) return { ok: false, reason: 'empty' };
@@ -327,8 +333,12 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
       ...imports.motions,
       ...outfit.ops,
       importOutfit: () => imports.progressed('outfit', 'SummerMod', 400, outfit.ops.importOutfit),
-      getPlaylist: async () => ({ ...playlist, items: [...playlist.items] }),
-      setPlaylist: async (p) => {
+      getPlaylist: async (c) => {
+        if (c !== undefined && c !== character) throw characterChanged(c);
+        return { ...playlist, items: [...playlist.items] };
+      },
+      setPlaylist: async (c, p) => {
+        if (c !== character) throw characterChanged(c);
         playlist = { ...p, items: [...p.items] };
         return { ok: true };
       },

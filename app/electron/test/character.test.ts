@@ -108,7 +108,7 @@ test('while agentd does not answer the motion ops, the playlist and the list tak
   fake.switcher = { busy: false, held: false, current: 'cedar', switchOutcome: async (): Promise<never> => { throw new Error('unused'); } };
   fake.character = undefined;
   const call = setUp(dir, fake);
-  assert.deepEqual(await call('character.removeMotion', 'm'), { ok: true, value: { ok: true, id: 'm' } });
+  assert.deepEqual(await call('character.removeMotion', 'cedar', 'm'), { ok: true, value: { ok: true, id: 'm' } });
   const args = fake.tools.at(-1)!;
   assert.equal(args[args.indexOf('--character') + 1], 'cedar');
   assert.deepEqual(fake.heldAtState, [true], 'the switch is held when the character is read');
@@ -117,7 +117,7 @@ test('while agentd does not answer the motion ops, the playlist and the list tak
   assert.deepEqual(((await call('character.list')) as { value: { id: string; active: boolean }[] }).value.map((c) => [c.id, c.active]),
     [['si', false], ['cedar', true]]);
   fake.switcher.current = null;
-  assert.deepEqual(await call('character.listImportedMotions'), { ok: true, value: { ok: false, reason: 'internal', detail: '角色还没连上' } });
+  assert.deepEqual(await call('character.listImportedMotions', 'cedar'), { ok: true, value: { ok: false, reason: 'internal', detail: '角色还没连上' } });
 }));
 
 test('character.list gives the current character the appearances and the worn appearance\'s layers the renderer reported', withDir(async (dir, fake) => {
@@ -179,24 +179,24 @@ test('a package imported into a library agentd runs without a character restarts
 test('motion ops check ids and titles, run motion_tool on the current character and pass on its failures', withDir(async (dir, fake) => {
   const call = setUp(dir, fake);
   const bad = { ok: false, error: { code: 'bad_args', detail: 'character.renameMotion' } };
-  assert.deepEqual(await call('character.renameMotion', 'm', '   '), bad);
-  assert.deepEqual(await call('character.renameMotion', 'x'.repeat(65), 'ok'), bad);
-  assert.deepEqual(await call('character.renameMotion', 'm', '字'.repeat(65)), bad);
-  assert.deepEqual(await call('character.removeMotion', ''), { ok: false, error: { code: 'bad_args', detail: 'character.removeMotion' } });
+  assert.deepEqual(await call('character.renameMotion', 'si', 'm', '   '), bad);
+  assert.deepEqual(await call('character.renameMotion', 'si', 'x'.repeat(65), 'ok'), bad);
+  assert.deepEqual(await call('character.renameMotion', 'si', 'm', '字'.repeat(65)), bad);
+  assert.deepEqual(await call('character.removeMotion', 'si', ''), { ok: false, error: { code: 'bad_args', detail: 'character.removeMotion' } });
   fake.tool = (args) => ({ last: JSON.stringify({ id: 'm', title: args.find((a) => a.startsWith('--title='))?.slice(8) }), status: 0, stderr: '' });
-  assert.deepEqual(await call('character.renameMotion', 'm', '  慢舞 '), { ok: true, value: { ok: true, id: 'm', title: '慢舞' } });
+  assert.deepEqual(await call('character.renameMotion', 'si', 'm', '  慢舞 '), { ok: true, value: { ok: true, id: 'm', title: '慢舞' } });
   assert.deepEqual(fake.tools.at(-1), ['motion_tool.py', 'rename', '--library', join(dir, 'library'), '--character', 'si', '--action', 'm',
     '--title=慢舞', '--validate-with', '/host']);
   // A title starting with "-" stays the value of --title for argparse.
-  assert.deepEqual(await call('character.renameMotion', 'm', '-intro'), { ok: true, value: { ok: true, id: 'm', title: '-intro' } });
+  assert.deepEqual(await call('character.renameMotion', 'si', 'm', '-intro'), { ok: true, value: { ok: true, id: 'm', title: '-intro' } });
   assert.ok(fake.tools.at(-1)!.includes('--title=-intro'));
   writeFileSync(join(dir, 'config.json'), JSON.stringify({ action_switches: { si: { m: true, n: false } } }));
-  assert.deepEqual(await call('character.removeMotion', 'm'), { ok: true, value: { ok: true, id: 'm' } });
+  assert.deepEqual(await call('character.removeMotion', 'si', 'm'), { ok: true, value: { ok: true, id: 'm' } });
   assert.deepEqual(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')), { action_switches: { si: { n: false } } });
   fake.tool = () => ({ last: '', status: 1, stderr: '{"reason": "unknown_action", "detail": "m"}\n' });
-  assert.deepEqual(await call('character.removeMotion', 'm'), { ok: true, value: { ok: false, reason: 'unknown_action', detail: 'm' } });
+  assert.deepEqual(await call('character.removeMotion', 'si', 'm'), { ok: true, value: { ok: false, reason: 'unknown_action', detail: 'm' } });
   fake.character = null;
-  assert.deepEqual(await call('character.listImportedMotions'), { ok: true, value: { ok: false, reason: 'internal', detail: '角色还没连上' } });
+  assert.deepEqual(await call('character.listImportedMotions', 'si'), { ok: true, value: { ok: false, reason: 'internal', detail: '角色还没连上' } });
   assert.deepEqual(toolFailure('Traceback\n{"reason": "nope"}\n'), { reason: 'internal', detail: 'Traceback\n{"reason": "nope"}' });
 }));
 
@@ -204,17 +204,45 @@ test('the playlist is config.json motion_playlists of the current character', wi
   const call = setUp(dir, fake);
   assert.deepEqual(await call('character.getPlaylist'), { ok: true, value: { items: [], loop: 'off', speed: 1 } });
   const invalid = { ok: false, error: { code: 'invalid_args', detail: '{items, loop: off|one|all, speed: 0.5|1|2}' } };
-  assert.deepEqual(await call('character.setPlaylist', { items: [], loop: 'all', speed: 3 }), invalid);
-  assert.deepEqual(await call('character.setPlaylist', { items: Array(129).fill('a'), loop: 'all', speed: 1 }), invalid);
-  assert.deepEqual(await call('character.setPlaylist', { items: [''], loop: 'all', speed: 1 }),
+  assert.deepEqual(await call('character.setPlaylist', 'si', { items: [], loop: 'all', speed: 3 }), invalid);
+  assert.deepEqual(await call('character.setPlaylist', 'si', { items: Array(129).fill('a'), loop: 'all', speed: 1 }), invalid);
+  assert.deepEqual(await call('character.setPlaylist', 'si', { items: [''], loop: 'all', speed: 1 }),
     { ok: false, error: { code: 'invalid_args', detail: 'items: action ids of 1-64 bytes' } });
-  assert.deepEqual(await call('character.setPlaylist', { items: ['b', 'c'], loop: 'all', speed: 0.5 }), { ok: true, value: { ok: true } });
+  assert.deepEqual(await call('character.setPlaylist', 'si', { items: ['b', 'c'], loop: 'all', speed: 0.5 }), { ok: true, value: { ok: true } });
   assert.deepEqual(await call('character.getPlaylist'), { ok: true, value: { items: ['b', 'c'], loop: 'all', speed: 0.5 } });
   const file = JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')) as Record<string, unknown>;
   assert.deepEqual(file.motion_playlists, { cedar: { items: ['a'], loop: 'one', speed: 2 }, si: { items: ['b', 'c'], loop: 'all', speed: 0.5 } });
   assert.equal(file.python, '/usr/bin/python3');
   fake.character = null;
-  assert.deepEqual(await call('character.getPlaylist'), { ok: false, error: { code: 'failed', detail: '角色还没连上' } });
+  assert.deepEqual(await call('character.getPlaylist', 'si'), { ok: false, error: { code: 'failed', detail: '角色还没连上' } });
+}));
+
+test('a motion edit, the motion list or a playlist call meant for a character no longer current is refused and runs nothing', withDir(async (dir, fake) => {
+  const call = setUp(dir, fake);
+  const changed = { ok: true, value: { ok: false, reason: 'character_changed', detail: '角色刚换过，这次没有改' } };
+  assert.deepEqual(await call('character.removeMotion', 'cedar', 'm'), changed);
+  assert.deepEqual(await call('character.renameMotion', 'cedar', 'm', '慢舞'), changed);
+  assert.deepEqual(await call('character.listImportedMotions', 'cedar'), changed);
+  assert.deepEqual(fake.tools, [], 'motion_tool did not run');
+  assert.deepEqual(await call('character.removeMotion', '', 'm'), { ok: false, error: { code: 'bad_args', detail: 'character.removeMotion' } });
+  const before = readFileSync(join(dir, 'config.json'), 'utf8');
+  const refused = { ok: false, error: { code: 'character_changed', detail: '角色刚换过，这次没有改' } };
+  assert.deepEqual(await call('character.setPlaylist', 'cedar', { items: ['b'], loop: 'off', speed: 1 }), refused);
+  assert.equal(readFileSync(join(dir, 'config.json'), 'utf8'), before, 'neither list was written');
+  assert.deepEqual(await call('character.getPlaylist', 'cedar'), refused);
+  assert.deepEqual(await call('character.setPlaylist', { items: ['b'], loop: 'off', speed: 1 }),
+    { ok: false, error: { code: 'invalid_args', detail: 'character id' } });
+}));
+
+test('the imported motion list holds no switch, and answers while an import holds it', withDir(async (dir, fake) => {
+  fake.switcher = { busy: false, held: false, current: 'si', switchOutcome: async (): Promise<never> => { throw new Error('unused'); } };
+  fake.tool = () => ({ last: JSON.stringify({ motions: [] }), status: 0, stderr: '' });
+  const call = setUp(dir, fake);
+  assert.deepEqual(await call('character.listImportedMotions', 'si'), { ok: true, value: { ok: true, motions: [] } });
+  assert.deepEqual(fake.heldAtState, [false], 'a switch can start while the list is read');
+  fake.switcher.held = true;
+  assert.deepEqual(await call('character.listImportedMotions', 'si'), { ok: true, value: { ok: true, motions: [] } });
+  assert.equal(fake.switcher.held, true, 'the import keeps its hold');
 }));
 
 test('import and MMD sync states are idle and their watches subscribe', withDir(async (dir, fake) => {

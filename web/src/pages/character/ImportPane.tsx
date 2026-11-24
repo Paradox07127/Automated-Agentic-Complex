@@ -1,7 +1,7 @@
 // 角色页 动作 →「导入」: the motion import.
 import { useState, type CSSProperties } from 'react';
 import type { ImportedMotionEntry, ImportState } from '../../bridge';
-import { Icon } from '../../ui';
+import { ErrBar, Icon } from '../../ui';
 import { DarkRow, Diamond, MicroLabel, TitleBar, WhiteCapsule } from '../../ui/game';
 import { useCompact } from './compact';
 import { motionFormatLabel } from './labels';
@@ -44,6 +44,12 @@ function when(at: string | null) {
 function MotionImportPane(p: ImportPaneProps & { importing: ImportState }) {
   const { importing, motionImport } = p;
   const [dialog, setDialog] = useState<MotionEdit | null>(null);
+  // An open 改名 or 删除 belongs to the character it was opened on.
+  const [dialogOf, setDialogOf] = useState(p.library?.character);
+  if (dialogOf !== p.library?.character) {
+    setDialogOf(p.library?.character);
+    setDialog(null);
+  }
   // The stage chain learns it is a VMD once `sample` shows up, and keeps that cell until the import ends.
   const [vmd, setVmd] = useState(false);
   if (importing.stage === 'sample' && !vmd) setVmd(true);
@@ -121,6 +127,7 @@ function MotionImportPane(p: ImportPaneProps & { importing: ImportState }) {
               )}
             </div>
           )}
+          {p.library?.error != null && <ErrBar message={`读取导入的动作失败：${p.library.error}`} onRetry={p.library.refetch} />}
           {motions.length > 0 && (
             <>
               <TitleBar title="已导入的动作" micro="Library" count={motions.length} />

@@ -4,11 +4,13 @@ import { createMemoryHistory, createRootRoute, createRouter, RouterProvider, typ
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
+import type { RuntimeSnapshot } from '../../src/bridge/runtimeSnapshot';
 import { MOTIONS } from '../../src/mock/character';
 import { Operator } from '../../src/pages/character/Operator';
 import { CharacterPage } from '../../src/pages/character/Page';
 import { demos } from '../../src/pages/character/demos';
 import { HeaderSlotContext } from '../../src/shell/headerSlot';
+import { toast as pushToast } from '../../src/shell/toast';
 
 vi.mock('../../src/shell/toast', async (original) => ({ ...(await original<typeof import('../../src/shell/toast')>()), toast: vi.fn() }));
 
@@ -213,6 +215,71 @@ describe('character · real data', () => {
     await mount();
     await screen.findByText('示例乙');
     expect(watermark()).toBeNull();
+  });
+});
+
+describe('character · availability and refetches', () => {
+  /** Pushes runtime snapshots the test writes. */
+  const pushes = (bridge: ReturnType<typeof createFakeBridge>) => {
+    let push: (s: RuntimeSnapshot) => void = () => {};
+    vi.spyOn(bridge.app, 'onRuntime').mockImplementation((cb) => {
+      push = cb;
+      return () => {};
+    });
+    return async (avatar: Partial<RuntimeSnapshot['processes']['avatar']>) => {
+      const s = await bridge.app.runtime();
+      await act(async () => push({ ...s, processes: { ...s.processes, avatar: { ...s.processes.avatar, ...avatar } } }));
+    };
+  };
+
+  it('follows the avatar process from the runtime pushes: stopped is offline, running again is back', async () => {
+    const bridge = createFakeBridge({ surface: 'main', still: true });
+    window.agenticComplex = bridge;
+    const push = pushes(bridge);
+    await mount();
+    await screen.findByText('示例乙');
+    expect(screen.queryByText('角色未运行')).toBeNull();
+    await push({ state: 'backoff', backoff: 8 });
+    expect((await screen.findByText('角色未运行')).closest('[role="status"]')?.textContent).toContain('退避 8 秒后重试');
+    await push({ state: 'running', backoff: null });
+    await waitFor(() => expect(screen.queryByText('角色未运行')).toBeNull());
+  });
+
+  it('keeps the operator and its unsaved switches when a roster reread fails, and says so', async () => {
+    const bridge = createFakeBridge({ surface: 'main', still: true });
+    window.agenticComplex = bridge;
+    await mount('&demo=ok&pane=motion');
+    await waitFor(() => expect(screen.getByText(/已修改/).textContent).toContain('2'));
+    vi.spyOn(bridge.character, 'list').mockRejectedValue({ code: 'failed', detail: 'catalog' });
+    await act(async () => void fireEvent.click(screen.getByRole('button', { name: '更多' })));
+    await act(async () => void fireEvent.click(screen.getByRole('menuitem', { name: '重新读取角色目录' })));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('读取角色目录失败'));
+    expect(screen.getByRole('grid', { name: '全部动作' })).toBeTruthy();
+    expect(screen.getByText(/已修改/).textContent).toContain('2');
+  });
+
+  it('says so when the restart is refused instead of announcing it', async () => {
+    const bridge = createFakeBridge({ surface: 'main', still: true });
+    window.agenticComplex = bridge;
+    const push = pushes(bridge);
+    vi.spyOn(bridge.supervisor, 'restart').mockRejectedValue({ code: 'failed', detail: 'no supervisor' });
+    vi.mocked(pushToast).mockClear();
+    await mount();
+    await screen.findByText('示例乙');
+    await push({ state: 'stopped' });
+    await act(async () => void fireEvent.click(await screen.findByRole('button', { name: '重启角色' })));
+    await waitFor(() => expect(pushToast).toHaveBeenCalledWith('没有重启角色：桌面角色没有回应', { severity: 'danger' }));
+    expect(pushToast).not.toHaveBeenCalledWith('正在重启角色…');
+  });
+
+  it('shows the overview activity only of the character it shows', async () => {
+    const bridge = createFakeBridge({ surface: 'main', still: true });
+    window.agenticComplex = bridge;
+    // agentd still reports si's state while the host is on voice_a.
+    await bridge.character.switchTo('voice_a');
+    await mount();
+    await screen.findAllByText('示例甲');
+    expect(document.querySelector('[data-stage]')?.textContent).not.toContain('坐着');
   });
 });
 

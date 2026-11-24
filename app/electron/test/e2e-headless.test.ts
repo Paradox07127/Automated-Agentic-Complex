@@ -559,7 +559,7 @@ e2e('character.switchTo aster → birch goes through prepare, one set_character 
   assert.equal(readState(stack.support).last_character, 'birch');
 
   assert.deepEqual(await stack.op('avatar.setAppearance', 'default'), { ok: true, value: null });
-  assert.deepEqual(await stack.op('avatar.setLayers', []), { ok: true, value: null });
+  assert.deepEqual(await stack.op('avatar.setLayers', 'birch', { hide: [], show: ['coat'] }), { ok: true, value: null });
   assert.deepEqual(await stack.op('avatar.modSettings.set', { character: 'birch', appearance: 'default', values: { coat: 1 } }),
     { ok: true, value: { values: { coat: 1 }, adjusted: [] } });
   assert.deepEqual(readState(stack.support), { last_character: 'birch', last_appearance: { birch: 'default', aster: 'default' },
@@ -569,7 +569,7 @@ e2e('character.switchTo aster → birch goes through prepare, one set_character 
   assert.deepEqual(await stack.op('character.switchTo', 'aster'), { ok: true, value: { ok: true } });
   assert.ok(await until(15, async () => (agentd = await stack.character()) === 'aster'), `agentd says ${agentd}`);
   assert.deepEqual(await stack.op('avatar.setAppearance', 'summer'), { ok: true, value: null });
-  assert.deepEqual(await stack.op('avatar.setLayers', ['coat']), { ok: true, value: null });
+  assert.deepEqual(await stack.op('avatar.setLayers', 'aster', { hide: ['coat'], show: [] }), { ok: true, value: null });
   assert.deepEqual(await stack.op('avatar.modSettings.set', { character: 'aster', appearance: 'summer', values: { coat: 2 } }),
     { ok: true, value: { values: { coat: 2 }, adjusted: [] } });
   const pid = stack.link!.hello!.pid;

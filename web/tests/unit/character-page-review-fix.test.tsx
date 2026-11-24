@@ -183,7 +183,7 @@ describe('cc03#1 / #13 useLayers', () => {
     expect(set).toHaveBeenCalledTimes(1);
     await act(async () => pending[0]!());
     expect(set).toHaveBeenCalledTimes(2);
-    expect(set).toHaveBeenLastCalledWith(['coat', 'cape']);
+    expect(set).toHaveBeenLastCalledWith('si', { hide: ['cape'], show: [] });
     await act(async () => pending[1]!());
     expect(layer('披风').getAttribute('aria-checked')).toBe('false');
     expect(layer('外套').getAttribute('aria-checked')).toBe('false');
@@ -195,7 +195,7 @@ describe('cc03#1 / #13 useLayers', () => {
     await turn(layer('外套'), false);
     await waitFor(() => expect(layer('外套').getAttribute('aria-checked')).toBe('false'));
     // The menu bar shows it on the host.
-    await act(async () => bridge.avatar.setLayers([]));
+    await act(async () => bridge.avatar.setLayers('si', { hide: [], show: ['coat'] }));
     await click(screen.getByRole('button', { name: '更多' }));
     await click(screen.getByRole('menuitem', { name: '重新读取角色目录' }));
     await waitFor(() => expect(layer('外套').getAttribute('aria-checked')).toBe('true'));

@@ -50,6 +50,9 @@ export function PhotoMode(p: PhotoModeProps) {
   const [shot, setShot] = useState<{ busy: boolean; text: string | null }>({ busy: false, text: null });
   const photoOn = useRef(false);
   const cells = useRef<Array<HTMLButtonElement | null>>([]);
+  // The filter picked last while its save is out, and the sequence of picks asked and merged.
+  const asked = useRef<string | null>(null);
+  const picks = useRef({ asked: 0, merged: 0 });
 
   useEffect(() => {
     if (!p.avatar) return;
@@ -99,8 +102,18 @@ export function PhotoMode(p: PhotoModeProps) {
   const sel = options.find((o) => o.value === using) ?? options[0];
   const at = Math.max(0, options.findIndex((o) => o.value === using));
   const pick = (id: string) => {
-    if (!n || id === using) return;
-    void saveSettings({ [FILTER]: id }, { ok: '已换滤镜', fail: '没有换滤镜' }, n.rows, p.toast).then((ok) => ok && merge({ [FILTER]: id }));
+    // A pick compares with the newest one asked, so going back to the saved filter while another saves is sent too.
+    if (!n || id === (asked.current ?? using)) return;
+    const k = ++picks.current.asked;
+    asked.current = id;
+    void saveSettings({ [FILTER]: id }, { ok: '已换滤镜', fail: '没有换滤镜' }, n.rows, p.toast).then((ok) => {
+      // An older answer does not land over a newer one.
+      if (ok && k > picks.current.merged) {
+        picks.current.merged = k;
+        merge({ [FILTER]: id });
+      }
+      if (k === picks.current.asked) asked.current = null;
+    });
   };
   const move = (e: KeyboardEvent, i: number) => {
     const d = NEXT[e.key];

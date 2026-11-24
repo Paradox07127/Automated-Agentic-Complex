@@ -79,7 +79,7 @@ export function useOutfitImport(
   const remove = (id: string, name: string) => {
     setRemoving(true);
     getBridge()
-      .character.removeOutfit(id)
+      .character.removeOutfit(character, id)
       .then(
         () => {
           setRemoving(false);

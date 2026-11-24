@@ -29,7 +29,7 @@ afterEach(() => {
 });
 
 /** The roster comes from the page's `['character', 'list']` query, as in Page.tsx; the page opens on 导入. */
-function Harness({ toast, pane, current }: { toast: Toast; pane: 'import' | 'look'; current?: string | undefined }) {
+function Harness({ toast, pane, current }: { toast: Toast; pane: 'import' | 'look' | 'motion'; current?: string | undefined }) {
   const list = useQuery({ queryKey: ['character', 'list'], queryFn: () => window.agenticComplex!.character.list() });
   if (!list.data) return null;
   const cur = current ?? list.data.find((c) => c.active)?.id ?? list.data[0]?.id ?? '';
@@ -54,7 +54,7 @@ function Harness({ toast, pane, current }: { toast: Toast; pane: 'import' | 'loo
 /** Opens 外观's 导入 tab; `show('look')` switches to the 外观 pane, as the page's tab does. */
 const mount = async (toast: Toast = noop) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const at = (pane: 'import' | 'look', current?: string) => (
+  const at = (pane: 'import' | 'look' | 'motion', current?: string) => (
     <QueryClientProvider client={client}>
       <Harness toast={toast} pane={pane} current={current} />
     </QueryClientProvider>
@@ -63,7 +63,7 @@ const mount = async (toast: Toast = noop) => {
   // 导入 opened from 外观 imports outfit mods.
   fireEvent.click(await screen.findByRole('tab', { name: '导入' }));
   ui.rerender(at('import'));
-  return { ...ui, show: (pane: 'import' | 'look', current?: string) => ui.rerender(at(pane, current)) };
+  return { ...ui, show: (pane: 'import' | 'look' | 'motion', current?: string) => ui.rerender(at(pane, current)) };
 };
 
 const key = () => screen.findByRole('button', { name: '选择 mod 目录…' });
@@ -293,6 +293,20 @@ describe('角色页 · 导入外观之后', () => {
     expect(window.location.hash).not.toContain('pane=look');
   });
 
+  it('stays where the user went during a long import instead of opening 模组设置', async () => {
+    const bridge = use(true);
+    const done = deferred<Import>();
+    vi.spyOn(bridge.character, 'importOutfit').mockReturnValue(done.promise);
+    const wear = vi.spyOn(bridge.avatar, 'setAppearance');
+    const { show } = await mount();
+    fireEvent.click(await key());
+    show('motion');
+    await act(async () => done.resolve(FIELD));
+    await waitFor(() => expect(wear).toHaveBeenCalledWith('imported_field'));
+    await act(() => new Promise((r) => setTimeout(r, 50)));
+    expect(window.location.hash).not.toContain('pane=look');
+  });
+
   it('keeps the newer of two mod-table reads', async () => {
     const bridge = use(true);
     const replies: Array<(id: string) => void> = [];
@@ -339,7 +353,7 @@ describe('角色页 · 删除导入的外观', () => {
     expect(dialog.textContent).toContain('恢复成导入前的样子');
     expect(remove).not.toHaveBeenCalled();
     fireEvent.click(within(dialog).getByRole('button', { name: '删除' }));
-    expect(remove).toHaveBeenCalledWith('mod_1a2b3c4d');
+    expect(remove).toHaveBeenCalledWith('si', 'mod_1a2b3c4d');
     await waitFor(() => expect(toast).toHaveBeenCalledWith('已删除「示例外观」'));
     await waitFor(() => expect(screen.queryByRole('button', { name: /^示例外观/ })).toBeNull());
   });
