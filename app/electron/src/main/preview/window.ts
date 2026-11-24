@@ -3,21 +3,32 @@
 // closing it ends the connection.
 import { type BrowserWindow, screen, sharedTexture } from 'electron';
 import { BridgeFailure } from '../../common/bridge.ts';
+import type { ShellPlatform } from '../../common/config.ts';
 import { PushSource } from '../../common/push.ts';
 import type { PreviewRect } from '../ops/preview.ts';
 import type { PreviewView } from './controller.ts';
 import { type CameraView, previewOutput, PreviewSession, type PreviewSelection, type PreviewSurface, type PreviewTransport } from './session.ts';
 
-/** The addon (native/mac/preview.m). */
+/** The preview's transport to the renderer: the macOS addon itself, or the Windows addon under PipeTransport (pipe.ts). */
 export interface PreviewAddon extends PreviewTransport<PreviewSurface> {
-  /** The Mach bootstrap name the renderer gets as `--agentic-complex-preview-rendezvous`; the same on every call. */
+  /** The name the renderer gets as `--agentic-complex-preview-rendezvous`, the same on every call; null when this process has
+   *  none, and no preview then. */
+  rendezvous(): string | null;
+}
+
+/** The macOS addon (native/mac/preview.m): the Mach bootstrap name, and windows that must not activate the app. */
+export interface MacAddon extends PreviewAddon {
   rendezvous(): string;
   mainBundle(): { identifier: string | null; path: string };
   setPreventsActivation(nativeWindowHandle: Buffer): boolean;
 }
 
 export interface WindowPreviewOptions {
-  addon: PreviewAddon;
+  addon: PreviewTransport<PreviewSurface>;
+  /** The addon's rendezvous. */
+  service: string;
+  /** Which handle a surface holds: an IOSurfaceRef on macOS, an NT handle on Windows. */
+  platform: ShellPlatform;
   /** The main window, null when it is not open. */
   window(): BrowserWindow | null;
   log(line: string): void;
@@ -37,7 +48,7 @@ export class WindowPreview implements PreviewView {
 
   constructor(options: WindowPreviewOptions) {
     this.options = options;
-    this.service = options.addon.rendezvous();
+    this.service = options.service;
   }
 
   place(rect: PreviewRect): void {
@@ -107,15 +118,16 @@ export class WindowPreview implements PreviewView {
     });
   }
 
-  /** Imports the frame's IOSurface and hands it to the page; `done` once the page and this process have released it. */
+  /** Imports the frame's surface and hands it to the page; `done` once the page and this process have released it. */
   private present(win: BrowserWindow, surface: PreviewSurface, done: (drawn: boolean) => void): void {
     let drawn = false;
     let imported: Electron.SharedTextureImported;
-    // Holding `surface` keeps its IOSurfaceRef alive until the GPU is through with the texture.
+    // Holding `surface` keeps its IOSurfaceRef alive until the GPU is through with the texture; an NT handle lives with its ring.
     this.inFlight.add(surface);
+    const handle = this.options.platform === 'windows' ? { ntHandle: surface.handle } : { ioSurface: surface.handle };
     try {
       imported = sharedTexture.importSharedTexture({
-        textureInfo: { pixelFormat: 'bgra', codedSize: { width: surface.width, height: surface.height }, handle: { ioSurface: surface.handle } },
+        textureInfo: { pixelFormat: 'bgra', codedSize: { width: surface.width, height: surface.height }, handle },
         allReferencesReleased: () => {
           this.inFlight.delete(surface);
           done(drawn);

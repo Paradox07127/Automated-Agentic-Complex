@@ -116,7 +116,7 @@ export interface LaunchInput {
   placement?: string | null;
   /** Absent is macOS. */
   platform?: ShellPlatform;
-  /** The preview addon's `rendezvous()`; absent without the addon. macOS only. */
+  /** The preview addon's `rendezvous()`; absent without the addon or its rendezvous. */
   previewRendezvous?: string;
 }
 
@@ -177,7 +177,7 @@ export function rendererArguments(o: LaunchInput): string[] {
   if (o.platform === 'windows') args.push('--agentic-complex-hide-on-screen-capture', settings.hide_on_screen_capture === true ? '1' : '0');
   args.push(...(config.characters.find((c) => c.id === character)?.avatarArgs ?? []));
   if (o.socketPath !== null) args.push('--agentic-complex-host-socket', o.socketPath);
-  if (o.previewRendezvous !== undefined && o.platform !== 'windows') args.push('--agentic-complex-preview-rendezvous', o.previewRendezvous);
+  if (o.previewRendezvous !== undefined) args.push('--agentic-complex-preview-rendezvous', o.previewRendezvous);
   return args;
 }
 

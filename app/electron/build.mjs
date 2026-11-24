@@ -1,11 +1,12 @@
-// Bundles the main process to dist/main.mjs and the preload to dist/preload.cjs (a sandboxed preload is one CommonJS file); on macOS
-// also compiles the preview addon to dist/native/preview.node.
+// Bundles the main process to dist/main.mjs and the preload to dist/preload.cjs (a sandboxed preload is one CommonJS file), and
+// compiles the platform's preview addon to dist/native/preview.node.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { buildPreviewAddon } from './native/mac/build.mjs';
+import { buildPreviewAddonWin } from './native/win/build.mjs';
 
 const repo = fileURLToPath(new URL('../..', import.meta.url));
 const git = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
@@ -21,3 +22,4 @@ await build({ ...shared, entryPoints: ['src/main/index.ts'], format: 'esm', outf
   define: { AAC_BUILD_GIT: JSON.stringify(git), AAC_UI_ART: JSON.stringify(uiArt) } });
 await build({ ...shared, entryPoints: ['src/preload/index.ts'], format: 'cjs', outfile: 'dist/preload.cjs' });
 if (process.platform === 'darwin') buildPreviewAddon('dist/native/preview.node');
+else if (process.platform === 'win32') buildPreviewAddonWin('dist/native/preview.node');

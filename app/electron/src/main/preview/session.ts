@@ -1,10 +1,10 @@
-// The character page's live preview from the desktop renderer over the Mach rendezvous (C3 CONTRACT 「附录：角色页预览」):
+// The character page's live preview from the desktop renderer over its rendezvous, Mach on macOS and a named pipe on Windows (C3 CONTRACT 「附录：角色页预览」):
 // one connection while the window lives and the preview was on screen within `releaseAfter`, `pause` while it is not on screen and
 // `resume` after, `ack` once the GPU is through with a frame, frames of an older `load_id` dropped (and acked).
 
-/** A frame's `surface` as the addon (native/mac/preview.m) hands it over. */
+/** A frame's `surface` as the transport (native/mac/preview.m, pipe.ts) hands it over. */
 export interface PreviewSurface {
-  /** Eight bytes: this process's IOSurfaceRef, for `sharedTexture.importSharedTexture`. */
+  /** Eight bytes, for `sharedTexture.importSharedTexture`: this process's IOSurfaceRef on macOS, its NT handle on Windows. */
   handle: Buffer;
   width: number;
   height: number;
@@ -13,7 +13,8 @@ export interface PreviewSurface {
   id: number;
 }
 
-/** The addon's client end of the service; a connection that fails or ends reports `{"event":"disconnected"}`. */
+/** The addon's client end of the service; a connection that fails or ends reports `{"event":"disconnected"}`, with a `reason`
+ *  for the page when the service is there but cannot serve this process. */
 export interface PreviewTransport<S> {
   start(service: string, onMessage: (json: string, surface: S | null, sequence: number) => void): void;
   send(json: string): boolean;
@@ -321,7 +322,7 @@ export class PreviewSession<S> {
       case 'disconnected':
         if (!this.connected) return;
         this.connected = false;
-        this.fail('预览服务断开了');
+        this.fail(typeof message.reason === 'string' ? message.reason : '预览服务断开了');
         return;
       case 'progress':
         if (this.selection === null || message.load_id !== this.loadID || this.phase.kind !== 'loading' || typeof message.fraction !== 'number') return;

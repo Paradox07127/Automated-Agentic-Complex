@@ -46,7 +46,8 @@ class PackageWindowsTests(unittest.TestCase):
         self.electron_dir = self.root / 'app/electron'; (self.electron_dir / 'dist').mkdir(parents=True)
         (self.electron_dir / 'package.json').write_text(json.dumps(dict(name='agentic-complex-electron', type='module',
                                                                         main='dist/main.mjs', devDependencies={})))
-        for name in ('main.mjs', 'main.mjs.map', 'preload.cjs'): (self.electron_dir / 'dist' / name).write_text('shell ' + name)
+        for name in ('main.mjs', 'main.mjs.map', 'preload.cjs', 'native/preview.node'):
+            (self.electron_dir / 'dist' / name).parent.mkdir(exist_ok=True); (self.electron_dir / 'dist' / name).write_text('shell ' + name)
         # npm ci's velopack, with the native modules of every platform, and its loader.
         for relative in (*package_windows.VELOPACK_SDK_FILES, 'node_modules/velopack/lib/index.d.ts',
                          'node_modules/velopack/lib/native/velopack_nodeffi_osx.node', 'node_modules/esbuild/package.json'):
@@ -122,7 +123,7 @@ class PackageWindowsTests(unittest.TestCase):
         self.assertNotIn('resources/default_app.asar', files)
         self.assertEqual({f for f in files if f.startswith('resources/app/')},
                          {'resources/app/package.json', 'resources/app/dist/main.mjs', 'resources/app/dist/preload.cjs',
-                          *('resources/app/' + f for f in package_windows.VELOPACK_SDK_FILES)})
+                          'resources/app/dist/native/preview.node', *('resources/app/' + f for f in package_windows.VELOPACK_SDK_FILES)})
         self.assertIn('resources/app/node_modules/velopack/lib/native/velopack_nodeffi_win_x64_msvc.node', files)
         app = json.loads((package / 'resources/app/package.json').read_text())
         self.assertEqual(app, dict(name='agentic-complex-electron', productName='Agentic Complex', version='0.2.0', private=True,

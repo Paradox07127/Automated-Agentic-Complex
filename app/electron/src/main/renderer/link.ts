@@ -39,6 +39,12 @@ export function hostPipePath(supportDir: string): string {
   return `\\\\.\\pipe\\agentic-complex-${sha16(supportDir.toLowerCase())}-avatar`;
 }
 
+/** The pipe of the character page's preview on Windows, which the shell's process `pid` creates; passed to the renderer as
+ *  `--agentic-complex-preview-rendezvous`. */
+export function previewPipePath(supportDir: string, pid: number): string {
+  return `\\\\.\\pipe\\agentic-complex-${sha16(supportDir.toLowerCase())}-preview-${pid}`;
+}
+
 export type LinkEvent =
   | { kind: 'hello'; hello: AvatarHello }
   | { kind: 'message'; message: C3Message }

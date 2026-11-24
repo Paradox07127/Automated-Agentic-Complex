@@ -119,7 +119,7 @@ test('on Windows the renderer always gets --agentic-complex-hide-on-screen-captu
   }
 });
 
-test('the preview rendezvous goes last on macOS, after the socket; never on Windows or without one', () => {
+test('the preview rendezvous goes last, after the socket; never without one', () => {
   const s = setup('');
   try {
     const args = (platform: 'mac' | 'windows' | undefined, previewRendezvous?: string) => rendererArguments({ config: s.config,
@@ -129,7 +129,7 @@ test('the preview rendezvous goes last on macOS, after the socket; never on Wind
     assert.deepEqual(args(undefined, 'local.agenticcomplex.companion.preview.42').slice(-4),
       ['--agentic-complex-host-socket', '/r/avatar.sock', flag, 'local.agenticcomplex.companion.preview.42']);
     assert.deepEqual(args('mac', 'n').slice(-2), [flag, 'n']);
-    assert.ok(!args('windows', 'n').includes(flag));
+    assert.deepEqual(args('windows', '\\\\.\\pipe\\agentic-complex-0-preview-42').slice(-2), [flag, '\\\\.\\pipe\\agentic-complex-0-preview-42']);
     assert.ok(!args('mac').includes(flag));
   } finally {
     s.done();

@@ -11,10 +11,10 @@ import { join } from 'node:path';
 import { after, before, test } from 'node:test';
 import { buildPreviewAddon } from '../native/mac/build.mjs';
 import type { PreviewSurface } from '../src/main/preview/session.ts';
-import type { PreviewAddon } from '../src/main/preview/window.ts';
+import type { MacAddon } from '../src/main/preview/window.ts';
 
 const mac = process.platform === 'darwin';
-let dir: string, addon: PreviewAddon, fakeHost: string;
+let dir: string, addon: MacAddon, fakeHost: string;
 const hosts: ChildProcess[] = [];
 
 const spin = async (ms: number, until: () => boolean = () => false) => {
@@ -26,7 +26,7 @@ before(() => {
   if (!mac) return;
   dir = mkdtempSync(join(tmpdir(), 'addon-'));
   buildPreviewAddon(join(dir, 'preview.node'));
-  addon = createRequire(import.meta.url)(join(dir, 'preview.node')) as PreviewAddon;
+  addon = createRequire(import.meta.url)(join(dir, 'preview.node')) as MacAddon;
   fakeHost = join(dir, 'fake-host');
   execFileSync('xcrun', ['clang', '-O2', '-Wall', '-Werror', '-framework', 'CoreFoundation', '-framework', 'IOSurface',
     join(import.meta.dirname, 'native/preview-fake-host.c'), '-o', fakeHost]);

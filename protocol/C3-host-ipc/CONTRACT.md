@@ -808,7 +808,7 @@ collision support.
 
 ## 附录：角色页预览（v25）
 
-App 角色页里的预览（`app/electron/src/main/preview/`）不走上面的 socket，由桌面渲染器进程在桌面角色之外再画一份：预览自己建渲染器和 actor，不改桌面角色的状态；同一进程里的渲染器共用不变的贴图、几何和管线。本附录旧名「预览 XPC」。「会合」「消息」「连接」两端共用；消息怎么在两个进程之间传、表面怎么交出，见「macOS 传输」「Windows 传输」。本版只有 macOS 实现了预览；Windows 的 efw 和外壳还没有，「Windows 传输」是它们要照的格式。
+App 角色页里的预览（`app/electron/src/main/preview/`）不走上面的 socket，由桌面渲染器进程在桌面角色之外再画一份：预览自己建渲染器和 actor，不改桌面角色的状态；同一进程里的渲染器共用不变的贴图、几何和管线。本附录旧名「预览 XPC」。「会合」「消息」「连接」两端共用；消息怎么在两个进程之间传、表面怎么交出，见「macOS 传输」「Windows 传输」。本版 macOS 两端都实现了预览；Windows 只有外壳实现了「Windows 传输」，efw 还没有。
 
 ### 会合
 
@@ -849,11 +849,11 @@ App 角色页里的预览（`app/electron/src/main/preview/`）不走上面的 s
 
 ### Windows 传输
 
-- 实现：本版没有。桌面 efw（「附录：Windows」）里的预览服务和外壳的 Windows 原生插件按本节做；外壳本版在 Windows 上不传 `--agentic-complex-preview-rendezvous`，efw 也不认它。
+- 实现：外壳一端是原生插件 `app/electron/native/win/preview.cpp`（建管道、收发、拉句柄、枚举适配器）和 `app/electron/src/main/preview/pipe.ts`（分行、`hello`、适配器比对、`ring`、`frame`），外壳在 Windows 上照常传 `--agentic-complex-preview-rendezvous`。桌面 efw（「附录：Windows」）里的预览服务本版还没有：efw 把这个参数当作不认识的渲染参数收下，不连管道，外壳的预览等首帧超时。
 - 会合：App 主进程的原生插件用 `CreateNamedPipeW` 建管道 `\\.\pipe\agentic-complex-<h>-preview-<App 主进程 pid>`（`<h>` 同「附录：Windows」的 C3 管道名），`FILE_FLAG_FIRST_PIPE_INSTANCE`（名字已被别的进程占着时建不成，不提供预览）、实例数 1、字节模式、`PIPE_REJECT_REMOTE_CLIENTS`，安全描述符和 C3 管道一样是 `D:P(A;;GA;;;<当前用户 SID>)`；Node 的 `net.Server` 设不了安全描述符、也不拒远程客户端，所以管道由插件建、插件收发。管道名作为 `--agentic-complex-preview-rendezvous` 的值传给桌面 efw。efw 启动好后读写打开这个管道，连上就发 `hello`；管道忙（上一个连接还没关）时每 0.5 s 再试，管道不存在时照常启动、不提供预览，记日志 `AAC_PREVIEW_RENDEZVOUS_UNAVAILABLE`。
 - 连接：同一时刻只有一个连接。App 读到 EOF 或读写出错就是上面「连接」的渲染器那一端失效：关掉这个连接、回到等待下一个连接（`DisconnectNamedPipe` 后 `ConnectNamedPipe`）；重启的 efw 连上来发的 `hello` 开始新的一条。App 用 `GetNamedPipeClientProcessId` 取 efw 的 pid。
 - 消息：UTF-8 NDJSON，一行一个 JSON 对象，每行 1–8192 字节（不含换行），没有消息头。发送方遇到更长的直接丢掉、不发；接收方丢掉超长的行（丢到下一个换行）和不是 JSON 对象的行，连接不断。
-- `hello` 另带 `luid`：efw 的 D3D11 设备所在适配器的 LUID，`"<HighPart>:<LowPart>"`，两段都是 8 位小写十六进制。App 拿它和自己 GPU 进程所在的适配器比（`app.getGPUInfo('basic')` 里 `active` 设备的 `vendorId`、`deviceId`、`subSysId`、`revision` 在 DXGI 适配器里唯一对上的那块）；对不上、或对不出唯一一块时不发 `connected`、不预览，记日志 `AAC_PREVIEW_ADAPTER_MISMATCH`，页面报预览用的显卡和界面不同。跨适配器打开共享纹理可能不报错、只是画不出。
+- `hello` 另带 `luid`：efw 的 D3D11 设备所在适配器的 LUID，`"<HighPart>:<LowPart>"`，两段都是 8 位小写十六进制。App 拿它和自己 GPU 进程所在的适配器比（`gpu-info-update` 之后 `app.getGPUInfo('complete')` 里 `active` 设备的 `vendorId`、`deviceId`、`subSysId`、`revision` 在 DXGI 适配器里唯一对上的那块；`basic` 里没有设备标 `active`；Chromium 报的 `subSysId` 是有符号 32 位整数，按无符号比）；对不上、或对不出唯一一块时不发 `connected`、不预览，记日志 `AAC_PREVIEW_ADAPTER_MISMATCH`，页面报预览用的显卡和界面不同。跨适配器打开共享纹理可能不报错、只是画不出。
 - 表面：一组 3 块 D3D11 纹理，`DXGI_FORMAT_B8G8R8A8_UNORM`（87）、预乘 alpha、第 0 行在上、宽高为 `output`，`D3D11_RESOURCE_MISC_SHARED | D3D11_RESOURCE_MISC_SHARED_NTHANDLE`、不带 keyed mutex，每块 `IDXGIResource1::CreateSharedHandle` 一次（不起名字）。
   - `ring`（只在 Windows）：`{"event":"ring","ring":<n>,"width":<w>,"height":<h>,"slots":[<句柄>, <句柄>, <句柄>]}`。efw 每建一组表面（连接后第一条 `load`、只有 `output` 变了、设备重建）就在这组的第一帧之前发一条；`ring` 在一条连接里从 1 起每次加 1；`slots` 是 3 个 NT 句柄在 efw 进程里的值（整数）。发出新的 `ring` 后不再有旧一组的 `frame`。
   - 句柄由 App 拉：插件对 efw 的 pid `OpenProcess(PROCESS_DUP_HANDLE)`（同一用户、同一完整性级别，efw 不另设自己的进程安全描述符），`DuplicateHandle` 把 `slots` 拉进主进程；来了新的 `ring` 和连接断开时关掉上一组。efw 换组和断开时关掉自己那份。

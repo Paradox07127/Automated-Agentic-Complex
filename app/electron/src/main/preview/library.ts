@@ -1,12 +1,15 @@
-// What a preview `load` needs of a character package: its native bundle, the bundle's sha256, and the
-// archive clip that plays an action. Each document is checked against its reference's size and sha256 and must stay in the package.
+// What a preview `load` needs of a character package: its native bundle and the bundle's sha256 (on Windows the character
+// directory efw takes as `--package` and its vulkan/frame.bin's sha256), and the archive clip that plays an action. Each
+// document is checked against its reference's size and sha256 and must stay in the package.
 import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
-import { parseCatalogDocument } from '../../common/config.ts';
+import { parseCatalogDocument, type ShellPlatform } from '../../common/config.ts';
 
 export interface MotionLibrary {
+  /** The native bundle; on Windows the character directory. */
   bundle: string;
+  /** The bundle's; on Windows its vulkan/frame.bin's, as the bundle entry's `vulkan_frame` records it. */
   sha256: string;
   character: string;
   /** The actor archive's clips in order, each with the first playable action that lists it. */
@@ -25,7 +28,7 @@ function parseDocument(text: string): Json {
 }
 
 /** The library entry's package, or null when the catalog has no such character. */
-export function loadMotionLibrary(catalog: string, characterID: string): MotionLibrary | null {
+export function loadMotionLibrary(catalog: string, characterID: string, platform: ShellPlatform = 'mac'): MotionLibrary | null {
   const entry = parseCatalogDocument(readFileSync(catalog, 'utf8')).entries.find((e) => e.id === characterID);
   if (!entry) return null;
   const definition = realpathSync(resolve(dirname(catalog), entry.definition));
@@ -81,5 +84,9 @@ export function loadMotionLibrary(catalog: string, characterID: string): MotionL
     const name = row.name;
     clips.push({ clip: name, actionID: firstAction.get(name) ?? null });
   }
-  return { bundle, sha256, character: characterID, clips };
+  if (platform !== 'windows') return { bundle, sha256, character: characterID, clips };
+  const frame = role.vulkan_frame;
+  if (!isObject(frame) || typeof frame.file !== 'string' || typeof frame.sha256 !== 'string') throw new MotionError('motion_vulkan_frame');
+  // The directory holding vulkan/, as config.ts's vulkanPackage.
+  return { bundle: dirname(dirname(contained(resolve(dirname(bundle), frame.file)))), sha256: frame.sha256, character: characterID, clips };
 }

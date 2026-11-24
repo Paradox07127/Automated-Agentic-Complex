@@ -35,8 +35,8 @@ HELPER_DLLS = ('sherpa-onnx-c-api.dll', 'onnxruntime.dll')
 HELPER_LICENSES = ROOT / 'app/helpers/windows/licenses'
 RENDERER = 'efw.exe'
 WINDOW_ENVELOPES = 'window-envelopes.json'
-# The built main process as app/electron/build.mjs writes it on Windows (no preview addon); source maps stay out.
-ELECTRON_APP_FILES = ('dist/main.mjs', 'dist/preload.cjs')
+# The built main process and the preview addon as app/electron/build.mjs writes them on Windows; source maps stay out.
+ELECTRON_APP_FILES = ('dist/main.mjs', 'dist/preload.cjs', 'dist/native/preview.node')
 # What main/velopack.ts imports from app/electron's node_modules at run time: the velopack package with its win-x64 module
 # and its loader @neon-rs/load.
 VELOPACK_SDK_FILES = ('node_modules/velopack/package.json', 'node_modules/velopack/lib/index.js', 'node_modules/velopack/lib/load.js',

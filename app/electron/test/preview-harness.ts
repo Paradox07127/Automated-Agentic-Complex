@@ -1,8 +1,9 @@
-// Electron main process for preview-window.test.ts, bundled by it: a page with the real preload calls avatar.preview.* through the
-// real bridge, previewOps, PreviewController, WindowPreview and the addon, against <host>, a child this process launches with
-// `--agentic-complex-preview-rendezvous` as the shell launches the renderer.
+// Electron main process for preview-window.test.ts and e2e-headless.test.ts's Windows preview, bundled by them: a page with the
+// real preload calls avatar.preview.* through the real bridge, previewOps, PreviewController, WindowPreview and the addon (on
+// Windows under PipeTransport, its adapter checked against this GPU process's), against <host>, a child this process launches
+// with `--agentic-complex-preview-rendezvous` as the shell launches the renderer.
 // Writes `<out dir>/e2c-<mode>-result.json` and a screenshot, then quits (stdout to a pipe would be cut off by the exit).
-// argv after the script: <addon> <preload> <out dir> <host> stub | real <catalog> <character> [<action>]
+// argv after the script: <addon> <preload> <out dir> <host> stub | pipe | real <catalog> <character> [<action>]
 import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -14,13 +15,16 @@ import type { OpsContext } from '../src/main/ops/context.ts';
 import { previewOps } from '../src/main/ops/preview.ts';
 import { PreviewController } from '../src/main/preview/controller.ts';
 import { loadMotionLibrary, type MotionLibrary } from '../src/main/preview/library.ts';
+import { activeDevice, type PipeAddon, PipeTransport } from '../src/main/preview/pipe.ts';
 import type { PreviewSurface } from '../src/main/preview/session.ts';
-import { type PreviewAddon, WindowPreview } from '../src/main/preview/window.ts';
+import { type MacAddon, type PreviewAddon, WindowPreview } from '../src/main/preview/window.ts';
+import { previewPipePath } from '../src/main/renderer/link.ts';
 
 const args = process.argv.slice(process.argv.findIndex((a) => a.endsWith('.mjs')) + 1);
 const [addonPath, preloadPath, outDir, hostPath, mode, catalog, character, action] = args as
   [string, string, string, string, string, string?, string?, string?];
 const real = mode === 'real';
+const pipe = mode === 'pipe';
 const started = performance.now();
 const events: string[] = [];
 const ms = () => Math.round(performance.now() - started);
@@ -32,23 +36,30 @@ const finish = (extra: Record<string, unknown>) => {
 };
 setTimeout(() => finish({ error: 'harness timeout' }), 90_000);
 
-const raw = createRequire(import.meta.url)(addonPath) as PreviewAddon;
+const loaded: unknown = createRequire(import.meta.url)(addonPath);
+const gpuReported = new Promise<void>((resolve) => app.once('gpu-info-update', () => resolve()));
+const raw: PreviewAddon = pipe ? new PipeTransport({ addon: loaded as PipeAddon, name: previewPipePath(outDir, process.pid),
+  log: (line) => events.push(`${ms()} log ${line}`),
+  gpu: async () => {
+    await gpuReported;
+    const info = await app.getGPUInfo('complete');
+    events.push(`${ms()} gpu ${JSON.stringify((info as { gpuDevice?: unknown }).gpuDevice)}`);
+    return activeDevice(info);
+  } }) : loaded as MacAddon;
+const service = raw.rendezvous()!;
 // The real renderer serves the preview beside its desktop character, so it starts as the desktop renderer does.
 const desktop = real ? (() => {
   const library = loadMotionLibrary(catalog!, character!)!;
   return ['--bundle', library.bundle, '--bundle-sha256', library.sha256, '--default-character', character!,
     '--agentic-complex-character', character!, '--agentic-complex-parent-pid', String(process.pid), '--resident'];
 })() : [];
-const host = spawn(hostPath, [...desktop, '--agentic-complex-preview-rendezvous', raw.rendezvous()], { stdio: ['ignore', 'ignore', 'inherit'] });
+const host = spawn(hostPath, [...desktop, '--agentic-complex-preview-rendezvous', service], { stdio: ['ignore', 'ignore', 'inherit'] });
 host.on('exit', (code, signal) => events.push(`${ms()} host exit ${code ?? signal}`));
 let frames = 0;
 const sizes = new Set<string>();
 /** The addon, with what it delivers counted. */
 const addon: PreviewAddon = {
-  ...raw,
   rendezvous: () => raw.rendezvous(),
-  mainBundle: () => raw.mainBundle(),
-  setPreventsActivation: (h) => raw.setPreventsActivation(h),
   send: (json) => raw.send(json),
   stop: () => raw.stop(),
   start: (service, onMessage) => {
@@ -68,7 +79,7 @@ const addon: PreviewAddon = {
 const stub: MotionLibrary = { bundle: '/stub/bundle.json', sha256: '0'.repeat(64), character: 'stub', clips: [{ clip: 'stub_wave', actionID: 'wave' }] };
 let win: BrowserWindow | null = null;
 const preview = new PreviewController({
-  view: new WindowPreview({ addon, window: () => win, log: (line) => events.push(`${ms()} log ${line}`) }),
+  view: new WindowPreview({ addon, service, platform: pipe ? 'windows' : 'mac', window: () => win, log: (line) => events.push(`${ms()} log ${line}`) }),
   avatar: () => ({ character: real ? character! : 'stub', appearance: null }),
   library: async (id) => (real ? loadMotionLibrary(catalog!, id) : stub),
 });
@@ -95,7 +106,7 @@ void app.whenReady().then(async () => {
   win.webContents.on('console-message', (e) => events.push(`${ms()} page ${e.message}`));
   await win.loadURL(`${ORIGIN}/main.html`);
   win.showInactive();
-  result.preventsActivation = raw.setPreventsActivation(win.getNativeWindowHandle());
+  if (!pipe) result.preventsActivation = (loaded as MacAddon).setPreventsActivation(win.getNativeWindowHandle());
   const rect = await js<{ x: number; y: number; w: number; h: number }>(
     `(() => { const r = document.getElementById('stage').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; })()`);
   const at = { ...rect, ...(action ? { action } : {}) };

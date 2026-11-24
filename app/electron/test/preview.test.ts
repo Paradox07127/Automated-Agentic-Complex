@@ -2,7 +2,7 @@
 // reads and the `avatar.preview.*` ops.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -626,6 +626,38 @@ test('the motion library takes the bundle and its sha256 from character.json and
   }
 });
 
+test('on Windows the motion library takes the character directory and the sha256 its bundle entry records for vulkan/frame.bin', () => {
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'library-')));
+  try {
+    const write = (path: string, value: unknown) => {
+      mkdirSync(dirname(join(dir, path)), { recursive: true });
+      const text = typeof value === 'string' ? value : JSON.stringify(value);
+      writeFileSync(join(dir, path), text);
+      return { file: path.split('/').at(-1)!, sha256: sha(text), byte_count: Buffer.byteLength(text) };
+    };
+    const pkg = 'packages/si/1';
+    const pack = write(`${pkg}/runtime/c7/pack.json`, {});
+    const archive = write(`${pkg}/runtime/actor/manifest.json`, { clips: [{ name: 'A_idle', length: 2 }] });
+    const frame = write(`${pkg}/runtime/characters/si/vulkan/frame.bin`, 'EFWVKP01');
+    const entry = { id: 'si', actor_archive: { ...archive, file: 'actor/manifest.json' }, c7: { ...pack, file: 'c7/pack.json' } };
+    const define = (vulkan: boolean) => {
+      const bundle = write(`${pkg}/runtime/bundle.json`, { characters: [vulkan ? { ...entry, vulkan_frame: { ...frame, file: 'characters/si/vulkan/frame.bin' } } : entry] });
+      write(`${pkg}/character.json`, { id: 'si', components: { render: { native_bundle: { ...bundle, file: 'runtime/bundle.json' } } } });
+    };
+    write('current.json', { schema: 'endfield-character-library/v1', characters: [{ id: 'si', definition: { file: `${pkg}/character.json` } }] });
+    define(true);
+    const got = loadMotionLibrary(join(dir, 'current.json'), 'si', 'windows')!;
+    assert.equal(got.bundle, join(dir, pkg, 'runtime', 'characters', 'si'));
+    assert.equal(got.sha256, frame.sha256);
+    assert.deepEqual(got.clips, [{ clip: 'A_idle', actionID: null }]);
+    define(false);
+    assert.throws(() => loadMotionLibrary(join(dir, 'current.json'), 'si', 'windows'), /motion_vulkan_frame/);
+    assert.equal(loadMotionLibrary(join(dir, 'current.json'), 'si')!.sha256.length, 64);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 const sender = { mainFrame: true, origin: ORIGIN };
 const call = (preview: PreviewHost | null, op: string, args: unknown[] = []) =>
   handle('main', sender, { op, args }, new Map(Object.entries(previewOps({ preview } as unknown as OpsContext))));
@@ -771,7 +803,7 @@ test('a view the page sends before the window has a preview reaches the service 
   const win = { isDestroyed: () => false, isVisible: () => true, isMinimized: () => false, on() {}, getBounds: () => ({ x: 0, y: 0, width: 800, height: 600 }),
     webContents: { send() {}, on() {}, getZoomFactor: () => 1 } };
   const addon = Object.assign(transport, { rendezvous: () => 'test.preview.1', setPreventsActivation: () => true });
-  const wp = new WindowPreview({ addon: addon as never, window: () => win as never, log: () => {} });
+  const wp = new WindowPreview({ addon: addon as never, service: addon.rendezvous(), platform: 'mac', window: () => win as never, log: () => {} });
   const v: CameraView = { turn: 20, tilt: 0, zoom: 0.8, pan: [0, 0], frame: [0.3, 0, 0.4, 1] };
   wp.view(v);
   wp.place({ x: 0, y: 0, w: 300, h: 400 });

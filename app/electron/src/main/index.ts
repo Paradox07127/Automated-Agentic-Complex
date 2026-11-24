@@ -102,9 +102,10 @@ import {
 import type { PlacementSpace } from './platform/screens.ts';
 import { PreviewController } from './preview/controller.ts';
 import { loadMotionLibrary } from './preview/library.ts';
-import { WindowPreview } from './preview/window.ts';
+import { activeDevice, PipeTransport } from './preview/pipe.ts';
+import { type PreviewAddon, WindowPreview } from './preview/window.ts';
 import { CAPTURE_OFFERS, linkAvatarHost, MOTION_OFFERS, resendStoredOverrides } from './renderer/avatar-host.ts';
-import { HostLink, hostPipePath, hostSocketPath } from './renderer/link.ts';
+import { HostLink, hostPipePath, hostSocketPath, previewPipePath } from './renderer/link.ts';
 import { AvatarLooks, linkSwitchPorts, rememberedLooks } from './renderer/looks.ts';
 import { quitOnSignals } from './quit.ts';
 import { rendererReports } from './renderer/reports.ts';
@@ -302,7 +303,7 @@ const camera = config && hostLink && shellCamera({ link: hostLink, configPath, a
     makeWindow: () => {
       const win = new BrowserWindow({ ...overlayOptions(), width: 100, height: 100,
         webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false } });
-      makeOverlay(win, 'camera', addon);
+      makeOverlay(win, 'camera', macAddon);
       guardWebContents(win.webContents, 'stack', webGuard);
       return win;
     },
@@ -330,7 +331,7 @@ const renderer = config && new RendererSupervisor({
   // The last character a switch remembered (rule 14), as at the app's launch.
   character: () => launchCharacter(config!, lastCharacter(config!.supportDir)),
   placement: (character) => placer?.launchPlacement(character) ?? null, link: hostLink,
-  captureDir: CAPTURE_DIR, platform: shellPlatform(), previewRendezvous: () => addon?.rendezvous(),
+  captureDir: CAPTURE_DIR, platform: shellPlatform(), previewRendezvous: () => addon?.rendezvous() ?? undefined,
   onStatus: (state) => {
     rendererState = state;
     // The sampler runs while she does.
@@ -393,17 +394,27 @@ const supervisor = config && new AgentdSupervisor({
 });
 /** shellPlan of the plug-ins agentd runs with: a 重启后台 after a plug-in changed applies it to what starts with agentd. */
 const plan = (): ReadonlySet<Subsystem> => shellPlan(supervisor?.plugins ?? DEFAULT_PLUGINS);
-/** The macOS addon: the preview's Mach rendezvous with the renderer and the desktop panels' `setPreventsActivation`. */
-const addon = config ? previewAddon(join(import.meta.dirname, 'native/preview.node')) : null;
-/** The character page's live preview; none on Windows yet or without a renderer link. */
+/** The platform addon: on macOS the preview's Mach rendezvous with the renderer and the desktop panels' `setPreventsActivation`,
+ *  on Windows the preview's named pipe. */
+const nativeAddon = config ? previewAddon(join(import.meta.dirname, 'native/preview.node')) : null;
+const macAddon = nativeAddon && 'mac' in nativeAddon ? nativeAddon.mac : null;
+/** The GPU process has reported its device: the Windows preview checks the renderer's adapter against it. */
+const gpuReported = new Promise<void>((resolve) => app.once('gpu-info-update', () => resolve()));
+/** The preview's transport to the renderer. */
+const addon: PreviewAddon | null = nativeAddon === null ? null : 'mac' in nativeAddon ? nativeAddon.mac : new PipeTransport({
+  addon: nativeAddon.pipe, name: previewPipePath(config!.supportDir, process.pid), log: (line) => log(line),
+  gpu: async () => { await gpuReported; return activeDevice(await app.getGPUInfo('complete')); },
+});
+/** The character page's live preview; none without a renderer link or the preview's rendezvous. */
 const preview = (() => {
-  if (!config || !hostLink || !addon) return null;
+  const service = addon?.rendezvous() ?? null;
+  if (!config || !hostLink || !addon || service === null) return null;
   const catalog = config.characterCatalog;
   return new PreviewController({
-    view: new WindowPreview({ addon, window: () => mainWindow, log: (line) => log(line) }),
+    view: new WindowPreview({ addon, service, platform: shellPlatform(), window: () => mainWindow, log: (line) => log(line) }),
     avatar: () => ({ character: currentCharacterOf(switcher, hostLink, launched), appearance: hostLink.currentAppearance,
       hiddenLayers: hostLink.hiddenLayers }),
-    library: async (id) => (catalog ? loadMotionLibrary(catalog, id) : null),
+    library: async (id) => (catalog ? loadMotionLibrary(catalog, id, shellPlatform()) : null),
     modSettings: (id) => looks?.modSettings(id) ?? {},
     renderArgs: () => [...lookArguments(readObject(configPath)), '--agentic-complex-scene-stage', 'charinfo'],
   });
@@ -438,7 +449,7 @@ const titleOverlay = config && new TitleOverlay({
   makeWindow: () => {
     const win = new BrowserWindow({ ...overlayOptions(), width: 100, height: 100,
       webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false } });
-    makeOverlay(win, 'title', addon);
+    makeOverlay(win, 'title', macAddon);
     guardWebContents(win.webContents, 'stack', webGuard);
     return win;
   },
@@ -1092,7 +1103,7 @@ function startDesktop(): void {
     makeWindow: (kind) => {
       const win = new BrowserWindow({ ...overlayOptions(), width: 100, height: 100,
         webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false } });
-      makeOverlay(win, kind, addon);
+      makeOverlay(win, kind, macAddon);
       return win;
     },
     url: (route) => `${ORIGIN}/stack.html#${route}`,
@@ -1289,7 +1300,7 @@ void app.whenReady().then(async () => {
       makeWindow: () => {
         const win = new BrowserWindow({ ...overlayOptions(), width: 100, height: 100,
           webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false } });
-        makeOverlay(win, 'resize', addon);
+        makeOverlay(win, 'resize', macAddon);
         guardWebContents(win.webContents, 'stack', webGuard);
         return win;
       },
@@ -1324,7 +1335,7 @@ void app.whenReady().then(async () => {
       makeWindow: () => {
         const win = new BrowserWindow({ ...overlayOptions(), ...CONTROL_PANEL_WINDOW,
           webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false } });
-        makeOverlay(win, 'control', addon);
+        makeOverlay(win, 'control', macAddon);
         win.setIgnoreMouseEvents(false);
         guardWebContents(win.webContents, 'stack', webGuard);
         return win;

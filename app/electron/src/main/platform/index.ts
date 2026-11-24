@@ -8,7 +8,8 @@ import { IDS, type ShellPlatform } from '../../common/config.ts';
 import type { PanelKind } from '../../common/desktop-layout.ts';
 import type { Rect } from '../../common/placement.ts';
 import { isLocalPath } from '../../common/routes.ts';
-import type { PreviewAddon } from '../preview/window.ts';
+import type { PipeAddon } from '../preview/pipe.ts';
+import type { MacAddon } from '../preview/window.ts';
 import { dipRect, type ElectronScreen, type PlacementSpace, placementSpace } from './screens.ts';
 
 const mac = process.platform === 'darwin';
@@ -81,9 +82,11 @@ export function c3Transport(): 'unix' | 'pipe' {
   return process.platform === 'win32' ? 'pipe' : 'unix';
 }
 
-/** The macOS addon built to `path` (native/mac/preview.m); null on Windows, whose preview channel is not there yet. */
-export function previewAddon(path: string): PreviewAddon | null {
-  return mac ? createRequire(import.meta.url)(path) as PreviewAddon : null;
+/** The addon built to `path`: native/mac/preview.m on macOS, native/win/preview.cpp (the preview's pipe, under PipeTransport)
+ *  on Windows. */
+export function previewAddon(path: string): { mac: MacAddon } | { pipe: PipeAddon } {
+  const addon: unknown = createRequire(import.meta.url)(path);
+  return mac ? { mac: addon as MacAddon } : { pipe: addon as PipeAddon };
 }
 
 /** How the shell asks agentd to stop: SIGTERM on macOS; Windows has none, so closing agentd's stdin (agentd_launcher.py). */
@@ -162,7 +165,7 @@ export const OVERLAY_LEVELS: Readonly<Record<Overlay, number>> = {
  * (`_setPreventsActivation:`; on Windows `overlayOptions` already made it unfocusable); `addon` is the macOS one, null
  * elsewhere.
  */
-export function makeOverlay(win: BrowserWindow, overlay: Overlay, addon: Pick<PreviewAddon, 'setPreventsActivation'> | null): void {
+export function makeOverlay(win: BrowserWindow, overlay: Overlay, addon: Pick<MacAddon, 'setPreventsActivation'> | null): void {
   win.setAlwaysOnTop(true, 'status', OVERLAY_LEVELS[overlay]);
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
   win.setIgnoreMouseEvents(true, { forward: true });
