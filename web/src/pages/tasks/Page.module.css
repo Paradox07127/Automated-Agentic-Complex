@@ -13,7 +13,7 @@
   background: linear-gradient(170deg, var(--ef-base), var(--ef-canvas) 55%);
 }
 
-/* deco_mission_botton_twill tiled @0.2 over the lower part, point grid @0.05 at the top right */
+/* A twill tiled @0.2 over the lower part, point grid @0.05 at the top right */
 .page::before {
   content: '';
   position: absolute;
@@ -88,7 +88,7 @@
   animation: infoIn 517ms var(--ef-ease-g-enter) both;
 }
 
-/* ListTitleNode: fading rule, count and the yellow right bracket (deco_mission_progress) */
+/* ListTitleNode: fading rule, count and the yellow right bracket */
 .lhead {
   position: relative;
   display: flex;

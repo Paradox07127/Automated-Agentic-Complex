@@ -309,8 +309,9 @@ class ClaudeRunnerTest(unittest.TestCase):
     def test_the_tool_reminder_is_validated_and_wired(self):
         sys.path.insert(0, str(AGENTD))
         from character_agent.harness.claude_transport import ClaudeConfig
-        fields = {"state_dir": "/fixture/state", "model": "", "cli_path": "/fixture/claude", "workspace_dir": "/fixture/w",
-                  "native_tools": False}
+        root = Path(tempfile.gettempdir()) / "fixture"
+        fields = {"state_dir": str(root / "state"), "model": "", "cli_path": str(root / "claude"),
+                  "workspace_dir": str(root / "w"), "native_tools": False}
         for value in ("", "x" * 1001, 5, b"remind"):
             with self.subTest(value=value):
                 with self.assertRaisesRegex(ValueError, "^invalid_tool_reminder$"):

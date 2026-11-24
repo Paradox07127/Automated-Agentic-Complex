@@ -48,7 +48,7 @@
   text-overflow: ellipsis;
 }
 
-/* deco_mission_location: pin and line in the accent */
+/* Location mark: pin and line in the accent */
 .where {
   display: flex;
   align-items: center;

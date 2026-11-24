@@ -98,7 +98,7 @@
   gap: 8px;
 }
 
-/* Quote block: left rule, the line, a meta line; the large closing mark stands for deco_sns_tweet_decorate_14. */
+/* Quote block: left rule, the line, a meta line; and a large closing mark. */
 .ev {
   position: relative;
   display: grid;

@@ -1,4 +1,4 @@
-/* 左栏：名牌（干员名带）和分类格；右缘一条两端带刻度的分栏线（deco_wiki_group_22）。 */
+/* 左栏：名牌（干员名带）和分类格；右缘一条两端带刻度的分栏线。 */
 .lcol {
   position: relative;
   display: grid;

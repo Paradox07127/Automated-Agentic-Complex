@@ -69,7 +69,7 @@
   font-weight: 500;
 }
 
-/* A row: 4 px category bar on the left (LeftLineImage 8@1920), right corners r5 (bg_common_00_10_10_00_p2). */
+/* A row: 4 px category bar on the left (LeftLineImage 8@1920), right corners r5. */
 .tr {
   position: relative;
   display: grid;

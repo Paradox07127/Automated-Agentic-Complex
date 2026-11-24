@@ -39,7 +39,7 @@
   scrollbar-color: var(--ef-text-3) transparent;
 }
 
-/* VoiceNode row: (49,49,49,.7) plate, a darker lead block, a barcode (deco_profile_10 at .1); picked, a white frame and a yellow end bar. */
+/* VoiceNode row: (49,49,49,.7) plate, a darker lead block, a barcode at .1; picked, a white frame and a yellow end bar. */
 .row {
   all: unset;
   position: relative;

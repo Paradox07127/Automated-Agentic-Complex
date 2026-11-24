@@ -22,7 +22,7 @@ export function TypeIcon({ kind }: { kind: 'role' | 'code' | 'sched' }) {
   );
 }
 
-/** deco_mission_left_01: a strip of bars, rules and boxes. */
+/** A strip of bars, rules and boxes. */
 export function Micro({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 60 8" fill="currentColor" aria-hidden="true">

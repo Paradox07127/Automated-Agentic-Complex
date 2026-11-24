@@ -1,4 +1,4 @@
-/* Wiki TabCell: rest = a raised plate with a hatch (deco_character_bg03) and ticks (deco_bg_side02); the pressed cell reads dark-theme tokens. */
+/* Wiki TabCell: rest = a raised plate with a hatch and ticks; the pressed cell reads dark-theme tokens. */
 .cell {
   --cell-deco: color-mix(in srgb, var(--ef-text-1) 11%, transparent);
 
