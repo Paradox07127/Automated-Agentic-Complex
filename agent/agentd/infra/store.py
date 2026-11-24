@@ -290,6 +290,18 @@ def open_store(path):
     return db
 
 
+def open_derived(path, version):
+    """A file agentd rebuilds from what it observes: one at another schema version (PRAGMA user_version) is emptied in
+    place and starts over at version. Bump version with every schema or stored-shape change; there is no migration."""
+    db = sqlite3.connect(str(path), check_same_thread=False)
+    if db.execute("PRAGMA user_version").fetchone()[0] != version:
+        db.setconfig(sqlite3.SQLITE_DBCONFIG_RESET_DATABASE, True)
+        db.execute("VACUUM")
+        db.setconfig(sqlite3.SQLITE_DBCONFIG_RESET_DATABASE, False)
+        db.execute(f"PRAGMA user_version = {int(version)}")
+    return db
+
+
 def path_of(db):
     """The file a connection has open."""
     return db.execute("PRAGMA database_list").fetchone()[2]

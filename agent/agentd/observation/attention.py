@@ -2,13 +2,14 @@
 from bisect import bisect_right
 import collections
 import json
-import sqlite3
 import threading
 import time
 
+from infra.store import open_derived
 from observation.blacklist import HIDDEN, TITLE_MAX, bare_host, normal_host
 from observation.browser_stats import valid_metrics
 
+SCHEMA_VERSION = 1  # of the tables and the JSON they hold
 PULSE = 5.0  # C6: POSTs more than 5 s apart leave an unknown gap, never filled from the last state
 AFK_AFTER = 180.0  # HID idle seconds
 GAZE_MIN = 5.0  # seconds on one window before it counts as a gaze
@@ -40,7 +41,7 @@ class AttentionStore:
     def __init__(self, path, blacklist, clock=time.time):
         self.blacklist, self.clock = blacklist, clock
         self.lock = threading.Lock()
-        self.db = sqlite3.connect(str(path), check_same_thread=False)
+        self.db = open_derived(path, SCHEMA_VERSION)
         self.db.execute("PRAGMA secure_delete=ON")  # deleted rows are zeroed, so free pages keep no copy of them
         self.db.execute("CREATE TABLE IF NOT EXISTS events (id INTEGER PRIMARY KEY, bucket TEXT NOT NULL,"
                         " start REAL NOT NULL, duration REAL NOT NULL, data TEXT NOT NULL)")

@@ -1,5 +1,6 @@
 """observation.timeline.Timeline and POST /context/timeline."""
 import json
+import sqlite3
 from pathlib import Path
 import sys
 import tempfile
@@ -11,7 +12,7 @@ import support
 from support import UI, deny_blacklist
 from observation.attention import AttentionStore  # noqa: E402
 from observation.blacklist import DEFAULTS, Blacklist  # noqa: E402
-from observation.timeline import KEEP_S, SEGMENT_S, Timeline  # noqa: E402
+from observation.timeline import KEEP_S, SCHEMA_VERSION, SEGMENT_S, Timeline  # noqa: E402
 from daemon.agentd_server import AgentdServer  # noqa: E402
 
 T0 = 1_800_000_000.0  # a segment start
@@ -76,6 +77,26 @@ class TimelineTest(unittest.TestCase):
         self.timeline.ingest([row(self.now - 10)])
         self.now += KEEP_S
         self.assertEqual(self.open(self.timeline.blacklist).segments(), [])
+
+    def test_a_file_of_another_schema_version_starts_over(self):
+        path = self.root / "old.sqlite"
+        db = sqlite3.connect(str(path))
+        db.execute("CREATE VIRTUAL TABLE summaries USING fts5(text, screen UNINDEXED, typed UNINDEXED, tokenize='unicode61')")
+        db.execute("INSERT INTO summaries (rowid, text, screen, typed) VALUES (?, '旧摘要', 0, 0)", (int(T0),))
+        db.execute("CREATE TABLE now (id INTEGER PRIMARY KEY CHECK (id = 1), state TEXT NOT NULL)")
+        db.execute("INSERT INTO now VALUES (1, ?)", (json.dumps({"app": "Code", "since": T0, "actions": []}),))
+        db.commit()
+        db.close()
+        timeline = Timeline(path, self.timeline.blacklist, clock=lambda: self.now)
+        self.addCleanup(timeline.close)
+        self.assertEqual(timeline.db.execute("PRAGMA user_version").fetchone()[0], SCHEMA_VERSION)
+        self.assertEqual(timeline.summaries(), [])
+        self.assertIsNone(timeline.now()["app"])
+        self.assertEqual(timeline.delete_hidden(lambda window: False), 0)
+
+    def test_a_file_of_this_schema_version_keeps_its_records(self):
+        self.timeline.ingest([row(self.now - 10)])
+        self.assertEqual(len(self.open(self.timeline.blacklist).records(int((self.now - 10) // 600) * 600)), 1)
 
     def test_clear_all_or_since(self):
         self.timeline.ingest([row(T0 + 10), row(T0 + 700), row(T0 + 1300)])

@@ -1,13 +1,14 @@
 """<state-dir>/timeline.sqlite: one timeline of the Companion's desktop records in 10-minute segments, the only input
 of the later local compaction, summaries and live understanding, and the one "now" state its records set."""
 import json
-import sqlite3
 import threading
 import time
 
+from infra.store import open_derived
 from observation import now as now_rules
 from observation.blacklist import HIDDEN
 
+SCHEMA_VERSION = 1  # of the tables and of the stored now state (observation.now.EMPTY)
 SEGMENT_S = 600
 KEEP_S = 24 * 3600  # raw records
 # A row that holds what clear_trees and clear_typed_text clear.
@@ -21,7 +22,7 @@ class Timeline:
     def __init__(self, path, blacklist, clock=time.time):
         self.blacklist, self.clock = blacklist, clock
         self.lock = threading.Lock()
-        self.db = sqlite3.connect(str(path), check_same_thread=False)
+        self.db = open_derived(path, SCHEMA_VERSION)
         self.db.execute("PRAGMA secure_delete=ON")  # deleted rows are zeroed, so free pages keep no copy of them
         self.db.execute("CREATE TABLE IF NOT EXISTS timeline (id INTEGER PRIMARY KEY, ts REAL, segment INTEGER,"
                         " kind TEXT, app TEXT, bundle_id TEXT, pid INTEGER, window_id INTEGER, window_title TEXT,"
