@@ -5,7 +5,9 @@ set -uo pipefail
 tests="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 src="$(cd "$tests/../.." && pwd)"
 mkdir -p "${TMPDIR:-/tmp}/companion-tests"
-tmp="$(cd "$(mktemp -d "${TMPDIR:-/tmp}/companion-tests/tgate.XXXXXX")" && pwd -P)"
+# Two steps: cd "" succeeds in place, so a failed mktemp inside $(cd ...) would make the trap remove the current directory.
+scratch="$(mktemp -d "${TMPDIR:-/tmp}/companion-tests/tgate.XXXXXX")" || exit 1
+tmp="$(cd "$scratch" && pwd -P)" || exit 1
 trap 'rm -rf "$tmp"' EXIT
 export AGENTD_PYTHON="$(command -v python3)"
 scripts="app/Tests/gate.sh tools/qa/mac_gate.sh tools/qa/web_gate.sh tools/qa/agentd_gate.sh"
