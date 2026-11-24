@@ -503,7 +503,10 @@ class Library:
         with tempfile.TemporaryDirectory(prefix="endfield-character-") as temporary:
             stage = Path(temporary)
             if directory:
-                need(not source.is_symlink(), "runtime_symlink")
+                need(not source.is_symlink() and not os.path.isjunction(source), "runtime_symlink")
+                # A Windows junction is no symlink to is_symlink, and copytree would copy what it points at.
+                for walked, names, _ in os.walk(source, followlinks=False):
+                    for name in names: need(not os.path.isjunction(os.path.join(walked, name)), "runtime_symlink")
                 # Finder and Explorer drop these into any folder the user browses; they are not package files.
                 shutil.copytree(source, stage, dirs_exist_ok=True, symlinks=True,
                                 ignore=shutil.ignore_patterns(".DS_Store", "Thumbs.db", "desktop.ini"))

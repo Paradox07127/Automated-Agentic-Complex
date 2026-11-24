@@ -1,5 +1,6 @@
 """The same package feeds the app roster, persona and native runtime catalog."""
 import copy
+import os
 import hashlib
 import json
 import subprocess
@@ -519,6 +520,15 @@ class CharacterLibraryTests(unittest.TestCase):
         (src / "runtime/extra.json").write_text("{}", encoding="utf-8")
         library = Library(self.root / "library")
         with self.assertRaisesRegex(PackageError, "archive_unindexed_payload"): library.import_path(src, validate_with=self.host())
+        self.assertEqual(library.entries(), [])
+
+    def test_folder_import_refuses_a_windows_junction_inside_the_folder(self):
+        src = self.root / "source"; fixture(src)
+        (src / "runtime/joined").mkdir(); (src / "runtime/joined/secret.json").write_text("{}", encoding="utf-8")
+        library = Library(self.root / "library")
+        real = os.path.isjunction
+        with mock.patch("os.path.isjunction", lambda p: Path(p).name == "joined" or real(p)):
+            with self.assertRaisesRegex(PackageError, "runtime_symlink"): library.import_path(src, validate_with=self.host())
         self.assertEqual(library.entries(), [])
 
     @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
