@@ -1,2 +1,2 @@
-{"v":1,"type":"hello","role":"companion","pid":777,"protocol":1,"capabilities":["render_live","filters"]}
+{"v":1,"type":"hello","role":"companion","pid":777,"protocol":1,"capabilities":["render_live"]}
 {"v":1,"type":"capture","req":10,"background":"transparent"}

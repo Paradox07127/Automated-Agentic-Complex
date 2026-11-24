@@ -83,7 +83,6 @@ CAMERA_FREE_FIELDS = ("zoom", "sway", "closeup", "live")
 CAMERA_FRAMINGS = ("full", "bust")  # rule 49 (i), camera_bust
 CAMERA_GESTURE_PHASES = ("began", "changed", "ended")
 RIGHT_DRAG_PHASES = ("down", "move", "up")  # rule 56 (v28)
-PHOTO_FILTERS = ("none", *(f"sp_filter_{i}" for i in range(1, 8)), *(f"filter_{i}" for i in range(1, 9)))
 CAPTURE_BACKGROUNDS = ("transparent",)
 DOF_MODES = ("off", "closeup")
 MAX_OVERRIDE_CHAINS = 512
@@ -923,8 +922,8 @@ def is_bool(x):
 
 
 # Rule 43 (v27): a group is a scalar check or an object of optional field checks; ranges follow the launch table.
-# Rule 49: yaw below -90 and the camera_free / camera_track fields are gated in check_capability; so are filter (filters),
-# dof and photo (photo).
+# Rule 49: yaw below -90 and the camera_free / camera_track fields are gated in check_capability; so are dof and photo
+# (photo).
 SET_RENDER_GROUPS = {
     "camera": {"mode": one_of(CAMERA_MODES), "yaw": within(-180, 180), "pitch": within(-20, 20),
                "zoom": within(1, 4), "sway": is_bool, "closeup": is_bool, "live": is_bool, "track": one_of(CAMERA_TRACKS),
@@ -934,7 +933,6 @@ SET_RENDER_GROUPS = {
     "facing": one_of(FACING_MODES),
     "grounding": {"mode": one_of(GROUNDING_MODES)},
     "ambient": {"mode": one_of(AMBIENT_MODES), "light_wrap": lambda x: isinstance(x, bool)},
-    "filter": one_of(PHOTO_FILTERS),
     "dof": {"mode": one_of(DOF_MODES)},
     "photo": {"active": is_bool, "aperture": within(1.4, 32), "focus": lambda x: x == "auto" or within(0.1, 10)(x)},
 }
@@ -947,7 +945,6 @@ PIPELINE_RENDER_GROUPS = {
     "facing": one_of(FACING_MODES),
     "grounding": {"mode": one_of(GROUNDING_MODES)},
     "ambient": {"mode": one_of(AMBIENT_MODES), "light_wrap": lambda x: isinstance(x, bool)},
-    "filter": one_of(PHOTO_FILTERS),
     "dof": {"mode": one_of(DOF_MODES)},
     "photo": {"active": is_bool},
 }
@@ -1179,7 +1176,7 @@ CAPABILITY_OF = {("a2c", "attach"): "layering", ("a2c", "drop"): "drop", ("c2a",
 
 
 def check_capability(m, direction, caps):
-    """v15-v27: a sender only uses opacity, layering, pointer, pipeline, drop, motion_request, pass_through, keep_clear, set_render, ambient_sample, touch_settings, click.region, play_action.loop, stop_action, actions[].media, set_layers, layers_changed(_failed), set_pose, pose_state, actions[].pose, the rule 49 set_render.camera fields, camera_gesture, set_render.filter, set_render.dof, set_render.photo, capture, captured, set_motion_overrides, motion_overrides, play_chain, action_played.chain, set_mod_settings, mod_settings, set_character.mod_settings, right_drag, moving, control_action and action_progress after listing them in its own hello."""
+    """v15-v27: a sender only uses opacity, layering, pointer, pipeline, drop, motion_request, pass_through, keep_clear, set_render, ambient_sample, touch_settings, click.region, play_action.loop, stop_action, actions[].media, set_layers, layers_changed(_failed), set_pose, pose_state, actions[].pose, the rule 49 set_render.camera fields, camera_gesture, set_render.dof, set_render.photo, capture, captured, set_motion_overrides, motion_overrides, play_chain, action_played.chain, set_mod_settings, mod_settings, set_character.mod_settings, right_drag, moving, control_action and action_progress after listing them in its own hello."""
     if not isinstance(m, dict) or caps is None:
         return []
     t = m.get("type")
@@ -1207,8 +1204,6 @@ def check_capability(m, direction, caps):
             needs.append("camera_track")
         if "framing" in cam:
             needs.append("camera_bust")
-    if t == "set_render" and "filter" in m:
-        needs.append("filters")
     if t == "set_render" and ("dof" in m or "photo" in m):
         needs.append("photo")
     return [f"{t} needs {n!r} in this side's hello.capabilities" for n in needs if n not in caps]
