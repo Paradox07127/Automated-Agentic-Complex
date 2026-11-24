@@ -2,6 +2,7 @@
 // as `control.request` events from the endpoint `control.listen` made, the grants and refusals are checked here
 // (src/common/computer-control.ts), and only then does the helper observe, act or read. One request runs at a time; a Stop, a cancel or the user's own input interrupts at once and is cleaned up after it.
 import type { BlacklistRules } from '../../common/attention.ts';
+import type { ShellPlatform } from '../../common/config.ts';
 import {
   ACTION_GAP_SECONDS, ACTIONS, actParams, appRefusal, canRequest, chooseApp, type ComputerUsePanelState, type ComputerUsePhase,
   computerUseState, ControlConsent, ControlError, ControlInterruption, type ControlPermission, type ControlRequest,
@@ -12,6 +13,7 @@ import {
 import type { HelperAnswer } from '../../common/push-to-talk.ts';
 import { PushSource } from '../../common/push.ts';
 import { decodeWindows } from '../../common/screen-context.ts';
+import { shellPlatform } from '../platform/index.ts';
 
 export interface ControlPorts {
   /** `signal`'s abort sends C12 `cancel` for the request in flight. */
@@ -52,6 +54,7 @@ export class ControlHost {
    *  never brings a hidden one forward. */
   onPanel: (state: ComputerUsePanelState, raise: boolean) => void = () => {};
   private readonly ports: ControlPorts;
+  private readonly actions: readonly string[];
   private readonly consent = new ControlConsent();
   private readonly interruption = new ControlInterruption();
   private pending: Challenge | null = null;
@@ -78,8 +81,9 @@ export class ControlHost {
   /** The `control.act` at the helper now; every interruption aborts it. */
   private acting: AbortController | null = null;
 
-  constructor(ports: ControlPorts) {
+  constructor(ports: ControlPorts, platform: ShellPlatform = shellPlatform()) {
     this.ports = ports;
+    this.actions = ACTIONS[platform];
   }
 
   /** What the panel shows now. */
@@ -184,6 +188,8 @@ export class ControlHost {
   resume(): Promise<void> {
     const ticket = this.interruption.ticket();
     return this.enqueue(async () => {
+      // A click queued behind the one that resumed.
+      if (!this.userPaused) return;
       const p = this.pending, c = this.consent;
       const giveUp = (message: string) => {
         c.revoke();
@@ -193,7 +199,7 @@ export class ControlHost {
         this.publish('paused', message);
         this.notify();
       };
-      if (!this.userPaused || !this.ports.enabled() || p === null || c.sessionId !== p.session || !sameTarget(c.target, p.target)
+      if (!this.ports.enabled() || p === null || c.sessionId !== p.session || !sameTarget(c.target, p.target)
         || c.stopped || !(this.now() < c.expiresAt)) return giveUp('授权已过期，请重新发起任务。');
       const fresh = await this.resolve({ pid: p.target.pid, window_id: p.target.windowId }).catch(() => null);
       if (fresh === null || !sameTarget(fresh.target, p.target)) return giveUp('窗口已改变，请重新发起任务并授权。');
@@ -365,26 +371,29 @@ export class ControlHost {
     const status: Record<string, unknown> = {
       enabled, ax_trusted: system.ax, screen_capture: system.screen, session_granted: live, paused: this.userPaused && c.sessionId === session,
       permissions: live ? PERMISSIONS.filter((p) => granted.has(p)) : [], input_monitor_ready: this.inputMonitorAvailable, driver: DRIVER,
-      actions: [...ACTIONS],
+      actions: [...this.actions],
     };
     const target = obj(params.target);
-    if (target) status.windows = await this.statusTargets(target);
+    if (enabled && target) status.windows = await this.statusTargets(target);
     return status;
   }
 
-  /** One app's windows, ids and geometry only, at most 32. */
+  /** One app's windows the rules let through, ids and geometry only, at most 32. */
   private async statusTargets(raw: Record<string, unknown>): Promise<Record<string, unknown>[]> {
     const pid = requestedInteger(raw, 'pid', PID_MAX), bundle = typeof raw.bundle_id === 'string' ? raw.bundle_id : null;
     if (pid === null && bundle === null) throw new ControlError('target_required', '请指定应用bundle_id或pid');
+    const ownPids = this.ports.ownPids();
     let app;
     try {
-      app = chooseApp(decodeApps(await this.call('apps.running', {})), pid, bundle, this.ports.ownPids());
+      app = chooseApp(decodeApps(await this.call('apps.running', {})), pid, bundle, ownPids);
     } catch (e) {
       if (e instanceof ControlError && e.code === 'target_ambiguous') throw new ControlError('target_ambiguous', '应用不唯一或尚未运行');
       throw e;
     }
-    const windows = decodeWindows(await this.call('windows.list', { pid: app.pid, layer0_only: true }));
-    return windows.filter((w) => w.pid === app.pid).slice(0, 32)
+    const refusal = appRefusal(app, this.ports.blacklist(), ownPids);
+    if (refusal) throw refusal;
+    const windows = decodeWindows(await this.call('windows.list', { pid: app.pid, layer0_only: true, include_titles: true }));
+    return windows.filter((w) => w.pid === app.pid && titleRefusal(app, w.title, this.ports.blacklist(), ownPids) === null).slice(0, 32)
       .map((w) => ({ window_id: w.windowId, pid: app.pid, bundle_id: app.appId, bounds: w.bounds }));
   }
 
@@ -480,6 +489,7 @@ export class ControlHost {
     if (this.now() - this.lastActionAt < ACTION_GAP_SECONDS) throw new ControlError('action_cooldown', '操作间隔太短，请先检查结果');
     const action = params.action;
     if (typeof action !== 'string') throw new ControlError('invalid_action', '缺少动作类型');
+    if (!this.actions.includes(action)) throw new ControlError('unsupported', `只支持${this.actions.join('/')}`);
     this.publish('executing', `正在执行 ${action}；你的输入可随时中止`);
     const text = action === 'set_value' || action === 'type';
     if (text) this.require('text', session, target);
@@ -670,8 +680,8 @@ export class ControlHost {
 }
 
 /** Over the helper: the endpoint, the input monitor and the system permissions are asked for. */
-export function startControl(ports: ControlPorts): ControlHost {
-  const host = new ControlHost(ports);
+export function startControl(ports: ControlPorts, platform: ShellPlatform = shellPlatform()): ControlHost {
+  const host = new ControlHost(ports, platform);
   void host.start();
   return host;
 }

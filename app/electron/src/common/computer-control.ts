@@ -1,6 +1,7 @@
 // Computer control's rules: the grants, their budget and lifetimes, the interruption tickets, the socket
 // request and answer shapes, and what each request asks of the platform helper (CONTRACT §7.8). Times are Unix seconds.
 import { type BlacklistRules, hides, isBrowser, type Rect, redactText } from './attention.ts';
+import type { ShellPlatform } from './config.ts';
 import type { Point, Rect as PlaceRect, ScreenInfo } from './placement.ts';
 
 export type ControlPermission = 'observation' | 'text' | 'image' | 'control';
@@ -356,7 +357,10 @@ export function scrollDelta(v: unknown): number {
   return Math.max(-600, Math.min(600, n));
 }
 
-export const ACTIONS = ['press', 'set_value', 'type', 'click', 'scroll'] as const;
+/** `desktop_act`'s actions per platform: the Windows helper sends no synthetic input, so it has no click or scroll. */
+export const ACTIONS: Readonly<Record<ShellPlatform, readonly string[]>> = {
+  mac: ['press', 'set_value', 'type', 'click', 'scroll'], windows: ['press', 'set_value', 'type'],
+};
 export const ACTION_GAP_SECONDS = 0.25;
 export const WAIT_SECONDS = 180;
 export const TEXT_BYTES = 4096;

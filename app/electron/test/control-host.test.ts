@@ -13,6 +13,7 @@ import type { HelperAnswer } from '../src/common/push-to-talk.ts';
 import type { StreamEvent } from '../src/common/page.ts';
 import type { BrowserWindow } from 'electron';
 import { controlEndpoint } from '../src/common/agentd.ts';
+import type { ShellPlatform } from '../src/common/config.ts';
 import { type ControlHost, startControl } from '../src/main/control/host.ts';
 import { ControlPanel } from '../src/main/control/panel.ts';
 import { computerUseOps } from '../src/main/ops/computer-use.ts';
@@ -47,7 +48,7 @@ const CONTROL_OPS = ['control.observe', 'control.act', 'control.read'];
 
 const settle = async () => { for (let i = 0; i < 40; i += 1) await new Promise((r) => setImmediate(r)); };
 
-async function setup(o: { helper?: Record<string, Answer>; enabled?: boolean; blacklist?: BlacklistRules } = {}) {
+async function setup(o: { helper?: Record<string, Answer>; enabled?: boolean; blacklist?: BlacklistRules; platform?: ShellPlatform } = {}) {
   const support = mkdtempSync(join(tmpdir(), 'cc-'));
   const endpoint = controlEndpoint(support, 'mac');
   let clock = 1_763_539_200_000;
@@ -140,7 +141,7 @@ async function setup(o: { helper?: Record<string, Answer>; enabled?: boolean; bl
     },
     newId: () => `id-${++ids}`,
     log: (line) => logs.push(line),
-  });
+  }, o.platform ?? 'mac');
   const states: unknown[] = [];
   host.events.subscribe(null, (e: StreamEvent) => states.push(JSON.parse(e.data)));
   await settle();
@@ -231,6 +232,26 @@ test('desktop_status while computer use is off: disabled, and the grant is revok
     assert.equal(h.host.state.phase, 'disabled');
     h.state.enabled = true;
     assert.equal((await h.ask('desktop_observe', TARGET)).error?.code, 'permission_required');
+  } finally { h.cleanup(); }
+});
+
+test('desktop_status while computer use is off lists no windows of the target', { skip: UNIX_SOCKET }, async () => {
+  const h = await setup({ enabled: false });
+  try {
+    const r = await h.ask('desktop_status', { target: { bundle_id: 'com.apple.TextEdit' } });
+    assert.equal(r.result?.enabled, false);
+    assert.equal('windows' in r.result!, false);
+    assert.deepEqual(h.sent('apps.running'), []);
+    assert.deepEqual(h.sent('windows.list'), []);
+  } finally { h.cleanup(); }
+});
+
+test('desktop_status lists no blacklisted app and no window whose title is refused', { skip: UNIX_SOCKET }, async () => {
+  const h = await setup({ blacklist: parseBlacklist({ mode: 'deny', bundle_ids: ['com.apple.Notes'], title_patterns: ['^notes\\.txt$'] }) });
+  try {
+    assert.equal((await h.ask('desktop_status', { target: { bundle_id: 'com.apple.Notes' } })).error?.code, 'blacklisted');
+    assert.equal((await h.ask('desktop_status', { target: { pid: 900 } })).error?.code, 'browser_driver_required');
+    assert.deepEqual((await h.ask('desktop_status', { target: TARGET })).result?.windows, []);
   } finally { h.cleanup(); }
 });
 
@@ -382,6 +403,25 @@ test('act: bad points and elements are refused before the helper', { skip: UNIX_
     assert.equal((await h.ask('desktop_act', { snapshot_id: id, action: 'press', element_id: 'e7' })).error?.code, 'element_required');
     assert.deepEqual(h.sent('control.act'), []);
     assert.equal(h.host.state.phase, 'failed');
+  } finally { h.cleanup(); }
+});
+
+test('Windows: no click or scroll is advertised, and one is refused before it spends the snapshot or the budget', { skip: UNIX_SOCKET }, async () => {
+  const h = await setup({ platform: 'windows' });
+  try {
+    assert.deepEqual((await h.ask('desktop_status')).result?.actions, ['press', 'set_value', 'type']);
+    await h.granted(['observation', 'control']);
+    const id = (await h.ask('desktop_observe', TARGET)).result!.snapshot_id as string;
+    for (const action of ['click', 'scroll']) {
+      assert.equal((await h.ask('desktop_act', { snapshot_id: id, action, x: 10, y: 10, delta_y: 5 })).error?.code, 'unsupported');
+    }
+    assert.deepEqual(h.sent('control.act'), []);
+    assert.ok((await h.ask('desktop_act', { snapshot_id: id, action: 'press', element_id: 'e1' })).result);
+    for (let i = 0; i < 4; i += 1) {
+      await h.advance(300);
+      const next = (await h.ask('desktop_observe', TARGET)).result!.snapshot_id as string;
+      assert.ok((await h.ask('desktop_act', { snapshot_id: next, action: 'press', element_id: 'e1' })).result);
+    }
   } finally { h.cleanup(); }
 });
 
@@ -557,6 +597,22 @@ test('the user\'s own input pauses the task; acts are user_paused until 继续, 
     assert.equal((await h.ask('desktop_act', { snapshot_id: id, action: 'press', element_id: 'e1' })).error?.code, 'stale_snapshot');
     const next = (await h.ask('desktop_observe', TARGET)).result!.snapshot_id as string;
     assert.ok((await h.ask('desktop_act', { snapshot_id: next, action: 'press', element_id: 'e1' })).result);
+  } finally { h.cleanup(); }
+});
+
+test('a second 继续 right after the first keeps the grant it resumed', { skip: UNIX_SOCKET }, async () => {
+  const h = await setup();
+  try {
+    await h.granted(['observation', 'control']);
+    h.host.event('input.activity', { kind: 'key' });
+    await h.advance(0);
+    const phases: string[] = [];
+    h.host.onPanel = (s) => phases.push(s.phase);
+    await Promise.all([h.host.resume(), h.host.resume()]);
+    assert.deepEqual(phases, ['ready']);
+    assert.deepEqual(h.states.at(-1), { granted: ['observation', 'control'], active: false });
+    const id = (await h.ask('desktop_observe', TARGET)).result!.snapshot_id as string;
+    assert.ok((await h.ask('desktop_act', { snapshot_id: id, action: 'press', element_id: 'e1' })).result);
   } finally { h.cleanup(); }
 });
 
