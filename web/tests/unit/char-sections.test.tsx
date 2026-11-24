@@ -13,7 +13,7 @@ import { setDevMode } from '../../src/shell/devMode';
 afterEach(cleanup);
 
 const draw = (n: Native, tab: CharTab, over: Partial<Parameters<typeof SettingRows>[0]> = {}) =>
-  render(<SettingRows n={n} tab={tab} set={vi.fn()} setMany={vi.fn()} pending={new Set()} failed={{}} offline={false} {...over} />);
+  render(<SettingRows n={n} tab={tab} set={vi.fn()} setMany={vi.fn(async () => true)} pending={new Set()} failed={{}} offline={false} {...over} />);
 
 /** Web ids of the settings the preview takes: supervisor.ts lookArguments' config keys through settings.ts's id table. */
 function previewIds(): Set<string> {
@@ -67,7 +67,7 @@ describe('SettingRows', () => {
 
   it('draws 主光水平 and 主光俯仰 as one 3×3 pad that saves both values in one go, the default cell hollow', async () => {
     const n = await demoNative(null);
-    const setMany = vi.fn();
+    const setMany = vi.fn(async () => true);
     draw(n, 'render', { setMany });
     expect(shown('主光水平微调')).toBe(false);
     const pad = screen.getByRole('radiogroup', { name: '主光方向' });
@@ -145,7 +145,7 @@ describe('SettingRows', () => {
     const set = vi.fn(async () => true);
     vi.useFakeTimers();
     try {
-      render(<SettingRows n={n} tab="render" set={set} setMany={vi.fn()} pending={new Set()} failed={{}} offline={false} />);
+      render(<SettingRows n={n} tab="render" set={set} setMany={vi.fn(async () => true)} pending={new Set()} failed={{}} offline={false} />);
       const yaw = screen.getByRole('slider', { name: '水平朝向' }) as HTMLInputElement;
       expect([yaw.min, yaw.max, yaw.step, yaw.value]).toEqual(['-180', '180', '0.5', '0']);
       for (const v of ['10', '20', '30.5']) fireEvent.change(yaw, { target: { value: v } });
