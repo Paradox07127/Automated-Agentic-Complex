@@ -141,10 +141,10 @@ def build(args,root=ROOT):
     if profile['schema']!='endfield-release-config/v1':raise ValueError('Unsupported release profile')
     if profile.get('notary_keychain_profile') and not signing_identity(root).startswith('Developer ID Application:'):
         raise ValueError('Notarization requires a Developer ID Application: identity. Set AAC_SIGN_IDENTITY to the full certificate name.')
-    # A profile's ui_art names the art directory; null or absent ships without game UI art and without an app icon.
+    # A profile's ui_art names the art directory; null or absent ships without UI art and without an app icon.
     art=None if profile.get('ui_art') is None else root/profile['ui_art']
-    if art is not None and not (art/'art-manifest.json').is_file():raise ValueError('UI art missing: '+str(art)+'. Build it with the local tool build_ui_art.py (not in the public repository).')
-    if art is not None and not (art/'brand/AppIcon.icns').is_file():raise ValueError('App icon missing: '+str(art/'brand/AppIcon.icns')+'. Build it with the local tool build_ui_art.py (not in the public repository).')
+    if art is not None and not (art/'art-manifest.json').is_file():raise ValueError('UI art missing: '+str(art)+'. Render it with tools/release/render_ui_art.py.')
+    if art is not None and not (art/'brand/AppIcon.icns').is_file():raise ValueError('App icon missing: '+str(art/'brand/AppIcon.icns')+'. Render it with tools/release/render_ui_art.py.')
     # A profile's photo_looks names the filter directory; null or absent ships without photo-mode filters.
     looks=None if profile.get('photo_looks') is None else root/profile['photo_looks']
     if looks is not None and not (looks/'looks.json').is_file():raise ValueError('Photo looks missing: '+str(looks)+'. Build them with the local tool build_photo_looks.py (not in the public repository).')

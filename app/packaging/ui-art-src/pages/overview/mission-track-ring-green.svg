@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <!-- tracked-mission ring: thin pale ring with a soft green glow on both sides, a little stronger along the top -->
+  <defs>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4.6"/></filter>
+    <linearGradient id="fall" x1="0" y1="14" x2="0" y2="108" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0.6"/>
+    </linearGradient>
+    <mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="120" height="120"><rect width="120" height="120" fill="url(#fall)"/><circle cx="59" cy="61.25" r="47.06" fill="none" stroke="#000" stroke-width="2"/></mask>
+  </defs>
+  <g mask="url(#m)">
+    <circle cx="59" cy="61.25" r="47.06" fill="none" stroke="#c7ff00" stroke-width="3" stroke-opacity="0.34" filter="url(#glow)"/>
+  </g>
+  <circle cx="59" cy="61.25" r="47.06" fill="none" stroke="#fff" stroke-width="2" stroke-opacity="0.385"/>
+</svg>

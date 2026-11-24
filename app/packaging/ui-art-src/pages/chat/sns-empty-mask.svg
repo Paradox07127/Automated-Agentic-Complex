@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 708" width="1080" height="708">
+  <!-- light grey sheet with faint vertical streaks, cut by a soft diagonal edge: solid top right, clear bottom left -->
+  <defs>
+    <pattern id="streaks" width="11" height="708" patternUnits="userSpaceOnUse">
+      <rect width="11" height="708" fill="#c4c4c4"/>
+      <rect x="1" width="1" height="708" fill="#c0c0c0"/>
+      <rect x="2" width="3" height="708" fill="#c7c7c7"/>
+      <rect x="5" width="1" height="708" fill="#c2c2c2"/>
+      <rect x="8" width="1" height="708" fill="#c2c2c2"/>
+    </pattern>
+    <!-- runs across the edge, which tilts down to the right at about 20 degrees -->
+    <linearGradient id="edge" x1="540" y1="51" x2="391" y2="467.2" gradientUnits="userSpaceOnUse">
+      <stop offset="0.0000" stop-color="#fff" stop-opacity="1.000"/>
+      <stop offset="0.1064" stop-color="#fff" stop-opacity="0.988"/>
+      <stop offset="0.1489" stop-color="#fff" stop-opacity="0.980"/>
+      <stop offset="0.1915" stop-color="#fff" stop-opacity="0.969"/>
+      <stop offset="0.2340" stop-color="#fff" stop-opacity="0.949"/>
+      <stop offset="0.2766" stop-color="#fff" stop-opacity="0.925"/>
+      <stop offset="0.3191" stop-color="#fff" stop-opacity="0.894"/>
+      <stop offset="0.3617" stop-color="#fff" stop-opacity="0.867"/>
+      <stop offset="0.4043" stop-color="#fff" stop-opacity="0.824"/>
+      <stop offset="0.4468" stop-color="#fff" stop-opacity="0.776"/>
+      <stop offset="0.4894" stop-color="#fff" stop-opacity="0.729"/>
+      <stop offset="0.5319" stop-color="#fff" stop-opacity="0.675"/>
+      <stop offset="0.5745" stop-color="#fff" stop-opacity="0.612"/>
+      <stop offset="0.6170" stop-color="#fff" stop-opacity="0.549"/>
+      <stop offset="0.6596" stop-color="#fff" stop-opacity="0.482"/>
+      <stop offset="0.7021" stop-color="#fff" stop-opacity="0.408"/>
+      <stop offset="0.7447" stop-color="#fff" stop-opacity="0.341"/>
+      <stop offset="0.7872" stop-color="#fff" stop-opacity="0.271"/>
+      <stop offset="0.8298" stop-color="#fff" stop-opacity="0.204"/>
+      <stop offset="0.8723" stop-color="#fff" stop-opacity="0.137"/>
+      <stop offset="0.9149" stop-color="#fff" stop-opacity="0.082"/>
+      <stop offset="0.9574" stop-color="#fff" stop-opacity="0.031"/>
+      <stop offset="0.9787" stop-color="#fff" stop-opacity="0.008"/>
+      <stop offset="1.0000" stop-color="#fff" stop-opacity="0.000"/>
+    </linearGradient>
+    <mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="1080" height="708">
+      <rect width="1080" height="708" fill="url(#edge)"/>
+    </mask>
+  </defs>
+  <rect width="1080" height="708" fill="url(#streaks)" mask="url(#m)"/>
+</svg>

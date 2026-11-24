@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 304 72" width="304" height="72">
+  <!-- completion band: a vertical light bar off-centre right, long soft rise from the left, quicker fall to the right -->
+  <defs>
+    <linearGradient id="band" x1="0" y1="0" x2="304" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0.0016" stop-color="#fff" stop-opacity="0.001"/>
+      <stop offset="0.0543" stop-color="#fff" stop-opacity="0.008"/>
+      <stop offset="0.1069" stop-color="#fff" stop-opacity="0.026"/>
+      <stop offset="0.1595" stop-color="#fff" stop-opacity="0.062"/>
+      <stop offset="0.2122" stop-color="#fff" stop-opacity="0.117"/>
+      <stop offset="0.2648" stop-color="#fff" stop-opacity="0.192"/>
+      <stop offset="0.3174" stop-color="#fff" stop-opacity="0.291"/>
+      <stop offset="0.3701" stop-color="#fff" stop-opacity="0.407"/>
+      <stop offset="0.4227" stop-color="#fff" stop-opacity="0.534"/>
+      <stop offset="0.4753" stop-color="#fff" stop-opacity="0.667"/>
+      <stop offset="0.5280" stop-color="#fff" stop-opacity="0.800"/>
+      <stop offset="0.5806" stop-color="#fff" stop-opacity="0.916"/>
+      <stop offset="0.6332" stop-color="#fff" stop-opacity="0.974"/>
+      <stop offset="0.6859" stop-color="#fff" stop-opacity="0.902"/>
+      <stop offset="0.7385" stop-color="#fff" stop-opacity="0.739"/>
+      <stop offset="0.7911" stop-color="#fff" stop-opacity="0.487"/>
+      <stop offset="0.8438" stop-color="#fff" stop-opacity="0.249"/>
+      <stop offset="0.8964" stop-color="#fff" stop-opacity="0.106"/>
+      <stop offset="0.9490" stop-color="#fff" stop-opacity="0.045"/>
+      <stop offset="0.9984" stop-color="#fff" stop-opacity="0.025"/>
+    </linearGradient>
+  </defs>
+  <rect width="304" height="72" fill="url(#band)"/>
+</svg>

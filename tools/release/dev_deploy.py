@@ -63,7 +63,7 @@ def stage_web(target, web_dist, ui_art):
     else:
         art = json.loads(default_profile(ROOT).read_text()).get('ui_art')
         art = ROOT / art if art else None
-        if art and not (art / 'art-manifest.json').is_file(): raise ValueError('UI art missing: ' + str(art) + '. Build it with the local tool build_ui_art.py (not in the public repository).')
+        if art and not (art / 'art-manifest.json').is_file(): raise ValueError('UI art missing: ' + str(art) + '. Render it with tools/release/render_ui_art.py.')
         with tempfile.TemporaryDirectory() as tmp:
             receipt = build_components.stage_ui(build_web(ROOT, Path(tmp) / 'ui'), art, target)
     return package_app.tree_sha256(target / 'ui'), receipt

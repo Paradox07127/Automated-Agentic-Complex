@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 188 108" width="188" height="108">
+  <!-- twill plate: grey "/" stripes on white (6px pitch), alpha falls from full at the left edge to nothing near x=178 -->
+  <defs>
+    <pattern id="twill" width="6" height="6" patternUnits="userSpaceOnUse">
+      <rect width="6" height="6" fill="#fff"/>
+      <path fill="#d5d5d5" d="M2.25,0 L4.55,0 L-1.4500000000000002,6 L-3.75,6 Z M8.25,0 L10.55,0 L4.550000000000001,6 L2.25,6 Z"/>
+    </pattern>
+    <linearGradient id="fade" x1="0" y1="0" x2="188" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0.000" stop-color="#fff" stop-opacity="1.000"/>
+      <stop offset="0.024" stop-color="#fff" stop-opacity="0.980"/>
+      <stop offset="0.056" stop-color="#fff" stop-opacity="0.933"/>
+      <stop offset="0.109" stop-color="#fff" stop-opacity="0.847"/>
+      <stop offset="0.162" stop-color="#fff" stop-opacity="0.753"/>
+      <stop offset="0.215" stop-color="#fff" stop-opacity="0.663"/>
+      <stop offset="0.269" stop-color="#fff" stop-opacity="0.573"/>
+      <stop offset="0.322" stop-color="#fff" stop-opacity="0.490"/>
+      <stop offset="0.375" stop-color="#fff" stop-opacity="0.404"/>
+      <stop offset="0.428" stop-color="#fff" stop-opacity="0.337"/>
+      <stop offset="0.481" stop-color="#fff" stop-opacity="0.278"/>
+      <stop offset="0.535" stop-color="#fff" stop-opacity="0.224"/>
+      <stop offset="0.588" stop-color="#fff" stop-opacity="0.173"/>
+      <stop offset="0.641" stop-color="#fff" stop-opacity="0.129"/>
+      <stop offset="0.694" stop-color="#fff" stop-opacity="0.094"/>
+      <stop offset="0.747" stop-color="#fff" stop-opacity="0.059"/>
+      <stop offset="0.801" stop-color="#fff" stop-opacity="0.035"/>
+      <stop offset="0.854" stop-color="#fff" stop-opacity="0.016"/>
+      <stop offset="0.907" stop-color="#fff" stop-opacity="0.008"/>
+      <stop offset="0.949" stop-color="#fff" stop-opacity="0.002"/>
+      <stop offset="1.003" stop-color="#fff" stop-opacity="0.000"/>
+    </linearGradient>
+    <mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="188" height="108">
+      <rect x="0" y="4" width="188" height="101" fill="url(#fade)"/>
+    </mask>
+  </defs>
+  <rect x="0" y="4" width="188" height="101" fill="url(#twill)" mask="url(#m)"/>
+</svg>

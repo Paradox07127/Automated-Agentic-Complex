@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 212" width="220" height="212">
+  <!-- soft white beam: a widening wedge from the left, brightening to the right edge, blurred -->
+  <defs>
+    <linearGradient id="ramp" x1="-40" y1="0" x2="300" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="0.1176" stop-color="#fff" stop-opacity="0.004"/>
+      <stop offset="0.1471" stop-color="#fff" stop-opacity="0.004"/>
+      <stop offset="0.1765" stop-color="#fff" stop-opacity="0.005"/>
+      <stop offset="0.2059" stop-color="#fff" stop-opacity="0.015"/>
+      <stop offset="0.2353" stop-color="#fff" stop-opacity="0.048"/>
+      <stop offset="0.2647" stop-color="#fff" stop-opacity="0.105"/>
+      <stop offset="0.2941" stop-color="#fff" stop-opacity="0.183"/>
+      <stop offset="0.3235" stop-color="#fff" stop-opacity="0.257"/>
+      <stop offset="0.3529" stop-color="#fff" stop-opacity="0.347"/>
+      <stop offset="0.3824" stop-color="#fff" stop-opacity="0.417"/>
+      <stop offset="0.4118" stop-color="#fff" stop-opacity="0.484"/>
+      <stop offset="0.4412" stop-color="#fff" stop-opacity="0.505"/>
+      <stop offset="0.4706" stop-color="#fff" stop-opacity="0.556"/>
+      <stop offset="0.5000" stop-color="#fff" stop-opacity="0.586"/>
+      <stop offset="0.5294" stop-color="#fff" stop-opacity="0.654"/>
+      <stop offset="0.5588" stop-color="#fff" stop-opacity="0.747"/>
+      <stop offset="0.5882" stop-color="#fff" stop-opacity="0.821"/>
+      <stop offset="0.6176" stop-color="#fff" stop-opacity="0.863"/>
+      <stop offset="0.6471" stop-color="#fff" stop-opacity="0.913"/>
+      <stop offset="0.6765" stop-color="#fff" stop-opacity="0.948"/>
+      <stop offset="0.7059" stop-color="#fff" stop-opacity="0.963"/>
+      <stop offset="0.7353" stop-color="#fff" stop-opacity="0.954"/>
+      <stop offset="0.7618" stop-color="#fff" stop-opacity="0.938"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0.938"/>
+    </linearGradient>
+    <filter id="soft" filterUnits="userSpaceOnUse" x="-100" y="-100" width="420" height="412">
+      <feGaussianBlur stdDeviation="22"/>
+    </filter>
+  </defs>
+  <path fill="url(#ramp)" filter="url(#soft)" d="M0,88 L300,38 V170 L0,120 Z"/>
+</svg>

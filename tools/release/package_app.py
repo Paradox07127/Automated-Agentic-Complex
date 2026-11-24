@@ -245,7 +245,7 @@ if __name__ == '__main__':
     parser.add_argument('--id')
     parser.add_argument('--port', type=int)
     parser.add_argument('--build-version', default='20261026.2')
-    parser.add_argument('--ui-art', type=Path, help='Derived game UI art directory with art-manifest.json')
+    parser.add_argument('--ui-art', type=Path, help='UI art directory with art-manifest.json')
     parser.add_argument('--photo-looks', type=Path, help='Built photo-mode filter directory with looks.json')
     parser.add_argument('--content-override', action='append', metavar='COMPONENT/PATH=SOURCE',
                         help='Copy SOURCE to PATH in the staged component COMPONENT before signing; repeatable')

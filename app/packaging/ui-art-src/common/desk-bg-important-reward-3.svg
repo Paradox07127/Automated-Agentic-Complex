@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 424 460" width="424" height="460" shape-rendering="crispEdges">
+  <defs>
+    <!-- black feather above and below the band -->
+    <linearGradient id="top" x1="0" y1="0" x2="0" y2="51" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#000" offset="0.0098" stop-opacity="0.0012"/>
+      <stop stop-color="#000" offset="0.1078" stop-opacity="0.0020"/>
+      <stop stop-color="#000" offset="0.2059" stop-opacity="0.0075"/>
+      <stop stop-color="#000" offset="0.3039" stop-opacity="0.0169"/>
+      <stop stop-color="#000" offset="0.4020" stop-opacity="0.0310"/>
+      <stop stop-color="#000" offset="0.5000" stop-opacity="0.0478"/>
+      <stop stop-color="#000" offset="0.5980" stop-opacity="0.0698"/>
+      <stop stop-color="#000" offset="0.6961" stop-opacity="0.0953"/>
+      <stop stop-color="#000" offset="0.7941" stop-opacity="0.1259"/>
+      <stop stop-color="#000" offset="0.8922" stop-opacity="0.1584"/>
+      <stop stop-color="#000" offset="0.9902" stop-opacity="0.1882"/>
+    </linearGradient>
+    <linearGradient id="bottom" x1="0" y1="411" x2="0" y2="460" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#000" offset="0.0102" stop-opacity="0.1886"/>
+      <stop stop-color="#000" offset="0.0918" stop-opacity="0.1659"/>
+      <stop stop-color="#000" offset="0.1735" stop-opacity="0.1380"/>
+      <stop stop-color="#000" offset="0.2551" stop-opacity="0.1129"/>
+      <stop stop-color="#000" offset="0.3367" stop-opacity="0.0898"/>
+      <stop stop-color="#000" offset="0.4184" stop-opacity="0.0710"/>
+      <stop stop-color="#000" offset="0.5000" stop-opacity="0.0518"/>
+      <stop stop-color="#000" offset="0.5816" stop-opacity="0.0365"/>
+      <stop stop-color="#000" offset="0.6633" stop-opacity="0.0251"/>
+      <stop stop-color="#000" offset="0.7449" stop-opacity="0.0145"/>
+      <stop stop-color="#000" offset="0.8265" stop-opacity="0.0075"/>
+      <stop stop-color="#000" offset="0.9082" stop-opacity="0.0024"/>
+      <stop stop-color="#000" offset="0.9898" stop-opacity="0.0012"/>
+    </linearGradient>
+    <!-- twill: one lighter pixel per row stepping left each row, 4px repeat -->
+    <pattern id="twill" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse">
+      <path fill="#131313" fill-opacity="0.8" d="M0 0h1v1h-1z M2 0h2v1h-2z M1 1h3v1h-3z M0 2h3v1h-3z M0 3h2v1h-2z M3 3h1v1h-1z"/>
+      <path fill="#303030" fill-opacity="0.8196" d="M1 0h1v1h-1z M0 1h1v1h-1z M3 2h1v1h-1z M2 3h1v1h-1z"/>
+    </pattern>
+  </defs>
+  <rect width="424" height="51" fill="url(#top)"/>
+  <rect y="51" width="424" height="360" fill="url(#twill)"/>
+  <rect y="411" width="424" height="49" fill="url(#bottom)"/>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 28" width="40" height="28">
+  <g fill="#fff">
+    <!-- hairline the arrow stands on -->
+    <rect x="20.83" y="0" width="0.58" height="28"/>
+    <!-- ring drawn to a point on the right (pin lying on its side) -->
+    <path fill-rule="evenodd" d="M15.65 8.53 L22.7 15 L15.65 21.47 A8.2 8.6 0 1 1 15.65 8.53z M10.2 10.84 A3.94 4.18 0 1 0 10.2 19.2 A3.94 4.18 0 1 0 10.2 10.84z"/>
+    <!-- thick chevron, flat back on the hairline -->
+    <path d="M21 4 H22.32 L35.18 15 L22.32 26 H21 V21.02 L27.83 15 L21 8.98z"/>
+  </g>
+</svg>

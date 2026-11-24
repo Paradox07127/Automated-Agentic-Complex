@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 445">
+  <!-- Agentic Complex mark: a heavy A chevron, a diamond node in its counter, a tilted orbit through it, bracket corners, wordmark. -->
+  <defs>
+    <pattern id="hatch" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(-62)">
+      <rect width="9" height="9" fill="#fff"/><rect width="2.4" height="9" fill="#000"/>
+    </pattern>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset=".5" stop-color="#000"/><stop offset=".86" stop-color="#fff"/></linearGradient>
+    <mask id="fadeMask"><rect width="512" height="445" fill="url(#fade)"/></mask>
+    <mask id="legs">
+      <rect width="512" height="445" fill="#fff"/>
+      <rect width="512" height="445" fill="url(#hatch)" mask="url(#fadeMask)"/>
+      <g transform="rotate(-9 256 300)"><path d="M34 300 C110 372 402 372 478 300" fill="none" stroke="#000" stroke-width="30"/></g>
+    </mask>
+  </defs>
+  <g fill="#f0f0f0">
+    <path d="M256 18 L440 380 L362 380 L256 168 L150 380 L72 380 Z" mask="url(#legs)"/>
+    <path d="M256 250 L288 282 L256 314 L224 282 Z"/>
+    <g transform="rotate(-9 256 300)" fill="none" stroke="#f0f0f0" stroke-width="11">
+      <path d="M34 300 C110 372 402 372 478 300"/>
+      <path d="M34 300 C62 270 112 250 164 243"/>
+      <path d="M348 243 C400 250 450 270 478 300"/>
+    </g>
+    <path d="M6 62 V8 H60 M452 8 H506 V62 M6 382 V437 H60 M452 437 H506 V382" fill="none" stroke="#f0f0f0" stroke-width="5"/>
+    <text x="256" y="429" text-anchor="middle" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-weight="700" font-size="27" letter-spacing="7">AGENTIC COMPLEX</text>
+  </g>
+</svg>

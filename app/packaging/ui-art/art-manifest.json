@@ -1,0 +1,185 @@
+{
+ "schema": "endfield-ui-art/v1",
+ "files": [
+  {
+   "file": "brand/AppIcon-1024.png",
+   "sha256": "0cce01e091a07952e9f00c7d5a81c35b2af9b35446ea76bedc54e517c096ac37"
+  },
+  {
+   "file": "brand/AppIcon.icns",
+   "sha256": "2784d3aa7e79b8530aacfa1152f090b4f0e86ab5efeabb0ab63bf697ef19ff79"
+  },
+  {
+   "file": "brand/emblem.png",
+   "sha256": "6d20d394b990a5c09689215938a009e9bd83d592587bd021a6e72f04b42113b6"
+  },
+  {
+   "file": "common/btn-contour-short.png",
+   "sha256": "4e6fb4e2ec72dfb25bb3003001dcc26b6db745ae4b7628dbc1612e6155841379"
+  },
+  {
+   "file": "common/btn-contour.png",
+   "sha256": "bf4bbf8d7a8c493f5b69167c96d87906b3bbb0ef09e236962977abe5b1ae96f4"
+  },
+  {
+   "file": "common/desk-bg-important-reward-3.png",
+   "sha256": "216deb5fc6a4cd7c513792d62344e7d43f434d98415e62d929a10fe6c6bb462f"
+  },
+  {
+   "file": "common/desk-deco-dialogsubtitle-cursor.png",
+   "sha256": "60cb25a7095797c0fd82989c8b0ffee0eaa317611eab77a307afc7e2e4b48d7e"
+  },
+  {
+   "file": "common/desk-deco-mission-hud-complete.png",
+   "sha256": "a70d310bc89acf6b4dc5287967d0aaa6323db6e4c4ce576e8bf592d1c7d91969"
+  },
+  {
+   "file": "common/desk-deco-mission-hud-go.png",
+   "sha256": "108e5df0a9842e17d954e9f16007c52c1f3e66413a8996538064c65a8c5f2615"
+  },
+  {
+   "file": "common/desk-deco-mission-hud-title.png",
+   "sha256": "616917130cae38ec94ed77155e1e4047571a0f624c2b27f4b0b3bbe68387a494"
+  },
+  {
+   "file": "common/desk-deco-readio-line.png",
+   "sha256": "18a1e46b6b19c6228ca9824fbf86ae2661145e3f7df1b196140845272504c1cc"
+  },
+  {
+   "file": "common/desk-deco-warntxt.png",
+   "sha256": "16b830ad5b5635cd0aa8310f2d3a074df6ffb7e78fe9ae060a4707363ba2ec08"
+  },
+  {
+   "file": "common/desk-icon-mission-blue.png",
+   "sha256": "c39dd89164153610ba01c1b018e8009ad36a2303f93cd3c788981683e32fb703"
+  },
+  {
+   "file": "common/desk-icon-mission-complet.png",
+   "sha256": "3e5474ae04008f5c89de51b4d591af6756e191c7aa27a71585ede5790bcac18f"
+  },
+  {
+   "file": "common/desk-icon-mission-hud-normal.png",
+   "sha256": "5e48b69322eaad0b5bec57d6d85fb54a38b2db906f2819f27932a0bdd1f37dbf"
+  },
+  {
+   "file": "common/desk-icon-radio01.png",
+   "sha256": "d44ec1bfc335c4065dada2926723d7a639e757d18121ca7b431a374123923b6c"
+  },
+  {
+   "file": "common/desk-icon-radio02.png",
+   "sha256": "4fcd5de81db0d64c1356db0e06539effe4fc71b3f543e4c1b1de4c07154af21a"
+  },
+  {
+   "file": "common/desk-icon-radio03.png",
+   "sha256": "0ae9aac98a73d740590877340c071ddae0b9472346c982907e9e14527407c292"
+  },
+  {
+   "file": "common/desk-mission-incomplete-icon.png",
+   "sha256": "63ae59ac8c06cb7dcc8c524056d22ef39eac1866005b5a452342d24a564731e3"
+  },
+  {
+   "file": "common/mission-bg-twill.png",
+   "sha256": "96ccf616776bf32d7a4df43ab3090a3c35900ebff729d103f4b266fe3947cc1c"
+  },
+  {
+   "file": "common/mission-twill.png",
+   "sha256": "0ecfbd5631a436baa43a565667982fd3eaf47d9d0c7764a4206877e2ad0a4291"
+  },
+  {
+   "file": "common/popup-logo.png",
+   "sha256": "0618579a7847b9ec6ec8b6c85f8670db6ed3e32327dd02b8fc5508fdf2728368"
+  },
+  {
+   "file": "common/popup-microtext.png",
+   "sha256": "36a804ac277829712abcbb39422d5d0a3bb8a0fa6f3d143e63fe54ba2d87c3e1"
+  },
+  {
+   "file": "common/popup-ticks.png",
+   "sha256": "5895890b14f80f17026ee891400df4f98d59c456390b430b9f9b7c4667293d84"
+  },
+  {
+   "file": "common/settings-row-contour.png",
+   "sha256": "e1d99ee17ea75e1994ded597efe8c1b30a4e89b8a8d88f1ae8f91e60ecb5b41e"
+  },
+  {
+   "file": "common/settings-row-texture.png",
+   "sha256": "7ce364e933c5b8121c893ddf23815679623306e727f9065676ac59bf60f63d52"
+  },
+  {
+   "file": "common/tab-pc-selected.png",
+   "sha256": "8fdda282b9f8c0b17e06a60515e5676151a43b46b424d411804dcfdd8815bf74"
+  },
+  {
+   "file": "common/tab2-selected.png",
+   "sha256": "1b3b00faaa69c1ae62be898ef531d710f73fa0ba6a2f71fb08b2de13ad709937"
+  },
+  {
+   "file": "pages/character/char-head-selected-side.png",
+   "sha256": "37839db4e742d1222b1ecfe28c6ddb0eb13b09727a8491150ff11e10de374f0c"
+  },
+  {
+   "file": "pages/chat/sns-empty-mask.png",
+   "sha256": "614650de2086c838e24612349d15d45158317c20065528bc10b8f839302945bc"
+  },
+  {
+   "file": "pages/common/popup-band.png",
+   "sha256": "f43a3e9d1ee52e6fdcb7b409746bcfc851ab1642a39bd8c66efe4016111bfabd"
+  },
+  {
+   "file": "pages/common/popup-shadow.png",
+   "sha256": "b90ee223ea15608b8232a258f26bda2f5e43edbd70603fade398047240ce36c2"
+  },
+  {
+   "file": "pages/common/toast-plate.png",
+   "sha256": "579a92733f28e016797f1fd721465e7ec0b44d730f5a276ca07855daa4dfddaa"
+  },
+  {
+   "file": "pages/common/toast-sys-icon.png",
+   "sha256": "2106ddff847daaee3322473328e16c190573c759c41baf0384fc491c5ef70dd2"
+  },
+  {
+   "file": "pages/overview/complete-band-bg.png",
+   "sha256": "2b1fe4e0bea427ae1ba83177e628a3ef9f7a19c07abcbc6970e984d88fdbcf4f"
+  },
+  {
+   "file": "pages/overview/complete-halo.png",
+   "sha256": "57869e9b82f4f160307c043983511f68f05f694da57301bdbbbe9eb08f9c990b"
+  },
+  {
+   "file": "pages/overview/mission-sel-glow-blue.png",
+   "sha256": "15872a6407e001765c0af80ba76f299ca12c526629785801e55c7be3d41bad38"
+  },
+  {
+   "file": "pages/overview/mission-sel-glow-green.png",
+   "sha256": "e1b41f8175c79bbc5fead98f7a367beecdf880db5750b6cb6d276677296265c8"
+  },
+  {
+   "file": "pages/overview/mission-sel-glow-yellow.png",
+   "sha256": "4d317de1b79e7bc39df27cc326364f0dbf2d9b45ea84708ebb484fa2eb12d697"
+  },
+  {
+   "file": "pages/overview/mission-sel-plate.png",
+   "sha256": "502cf3151780304a178227e8096b8bbd179b954a1e28c4abe7253e2a94cf87c7"
+  },
+  {
+   "file": "pages/overview/mission-track-ring-blue.png",
+   "sha256": "b8e0c8ba4be21a64d3da67897853dca55f8cef2f3b874cbb9cd34f352273eb7b"
+  },
+  {
+   "file": "pages/overview/mission-track-ring-green.png",
+   "sha256": "9ad677defb4d29141ea5f3dcecca8e76d9824df9d9e53d55ca6ad00ba2af1a33"
+  },
+  {
+   "file": "pages/overview/mission-track-ring-yellow.png",
+   "sha256": "ce3d929bf6c23a340223b09f2d2746c4bbc27301e87bdff8a777f6b1cdfab6f9"
+  },
+  {
+   "file": "watch/ui-main-menu-btn01-bloom.png",
+   "sha256": "5d8cb14cd919b3468cf2a444545cb4657c53ae765c58d612579c23c67274172d"
+  },
+  {
+   "file": "watch/ui-out-ring.png",
+   "sha256": "7266b4f71527ac1afb4bfa95351c48ed3f6b07c0a801debf46e5eb6a88cb9305"
+  }
+ ]
+}

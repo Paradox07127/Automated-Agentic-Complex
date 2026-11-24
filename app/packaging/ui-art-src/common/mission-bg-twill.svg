@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 400" width="460" height="400">
+  <!-- twill field: soft "/" stripes (6px pitch, about half lit) under a glow that rises to the bottom and peaks left of centre -->
+  <defs>
+    <pattern id="twill" width="6" height="6" patternUnits="userSpaceOnUse">
+      <path fill="#fff" fill-opacity="0.60" d="M0.3,0 L2.7,0 L-3.3,6 L-5.7,6 Z M6.3,0 L8.7,0 L2.6999999999999993,6 L0.2999999999999998,6 Z"/>
+    </pattern>
+    <linearGradient id="gx" x1="0" y1="0" x2="460" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0.013" stop-color="#fff" stop-opacity="0.628"/>
+      <stop offset="0.065" stop-color="#fff" stop-opacity="0.755"/>
+      <stop offset="0.117" stop-color="#fff" stop-opacity="0.858"/>
+      <stop offset="0.170" stop-color="#fff" stop-opacity="0.939"/>
+      <stop offset="0.222" stop-color="#fff" stop-opacity="0.992"/>
+      <stop offset="0.274" stop-color="#fff" stop-opacity="1.000"/>
+      <stop offset="0.326" stop-color="#fff" stop-opacity="0.973"/>
+      <stop offset="0.378" stop-color="#fff" stop-opacity="0.906"/>
+      <stop offset="0.430" stop-color="#fff" stop-opacity="0.808"/>
+      <stop offset="0.483" stop-color="#fff" stop-opacity="0.705"/>
+      <stop offset="0.535" stop-color="#fff" stop-opacity="0.567"/>
+      <stop offset="0.587" stop-color="#fff" stop-opacity="0.450"/>
+      <stop offset="0.639" stop-color="#fff" stop-opacity="0.332"/>
+      <stop offset="0.691" stop-color="#fff" stop-opacity="0.226"/>
+      <stop offset="0.743" stop-color="#fff" stop-opacity="0.146"/>
+      <stop offset="0.796" stop-color="#fff" stop-opacity="0.086"/>
+      <stop offset="0.848" stop-color="#fff" stop-opacity="0.048"/>
+      <stop offset="0.900" stop-color="#fff" stop-opacity="0.020"/>
+      <stop offset="0.952" stop-color="#fff" stop-opacity="0.006"/>
+      <stop offset="1.004" stop-color="#fff" stop-opacity="0.000"/>
+    </linearGradient>
+    <linearGradient id="gy" x1="0" y1="0" x2="0" y2="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0.0099" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="0.010" stop-color="#fff" stop-opacity="0.011"/>
+      <stop offset="0.085" stop-color="#fff" stop-opacity="0.029"/>
+      <stop offset="0.145" stop-color="#fff" stop-opacity="0.056"/>
+      <stop offset="0.205" stop-color="#fff" stop-opacity="0.097"/>
+      <stop offset="0.265" stop-color="#fff" stop-opacity="0.152"/>
+      <stop offset="0.325" stop-color="#fff" stop-opacity="0.224"/>
+      <stop offset="0.385" stop-color="#fff" stop-opacity="0.305"/>
+      <stop offset="0.445" stop-color="#fff" stop-opacity="0.393"/>
+      <stop offset="0.505" stop-color="#fff" stop-opacity="0.478"/>
+      <stop offset="0.565" stop-color="#fff" stop-opacity="0.558"/>
+      <stop offset="0.625" stop-color="#fff" stop-opacity="0.636"/>
+      <stop offset="0.685" stop-color="#fff" stop-opacity="0.699"/>
+      <stop offset="0.745" stop-color="#fff" stop-opacity="0.752"/>
+      <stop offset="0.805" stop-color="#fff" stop-opacity="0.788"/>
+      <stop offset="0.865" stop-color="#fff" stop-opacity="0.811"/>
+      <stop offset="0.925" stop-color="#fff" stop-opacity="0.822"/>
+      <stop offset="1.010" stop-color="#fff" stop-opacity="0.828"/>
+    </linearGradient>
+    <mask id="mx" maskUnits="userSpaceOnUse" x="0" y="0" width="460" height="400"><rect x="0" y="4" width="456" height="394" fill="url(#gx)"/></mask>
+    <mask id="my" maskUnits="userSpaceOnUse" x="0" y="0" width="460" height="400"><rect x="0" y="4" width="456" height="394" fill="url(#gy)"/></mask>
+  </defs>
+  <g mask="url(#mx)">
+    <rect x="0" y="4" width="456" height="394" fill="url(#twill)" mask="url(#my)"/>
+  </g>
+</svg>

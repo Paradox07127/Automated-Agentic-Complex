@@ -194,7 +194,7 @@ codesign --verify --strict --deep "app/build/releases/${release_dir}/Agentic Com
 
 - `python3 -I tools/release/release.py --print-profile` 打印实际用的发行配置路径。
 - 发行角色库由配置的 `character_catalog`（库的 `current.json`）指定，这个文件的 SHA-256 必须等于配置的 `catalog_sha256`。`character_catalog` 为 null 时发行不带角色，角色包之后在 app 里导入。`--library <目录>` 显式选另一个库，这时不比 SHA。
-- 公开 profile 不带角色库，也不带游戏 UI 美术和拍照滤镜（`ui_art`、`photo_looks` 为 null 或不写）。
+- 公开 profile 不带角色库和拍照滤镜（`photo_looks` 为 null 或不写）。`ui_art` 指仓库里的自绘 UI 美术 `app/packaging/ui-art`：源是 `app/packaging/ui-art-src/` 的 SVG，改完跑 `python3 -I tools/release/render_ui_art.py` 重出 PNG、`AppIcon.icns` 和 `art-manifest.json`。
 - `content_overrides`（`{组件内的相对路径: 仓库相对的源文件}`）在签名前把源文件放进对应组件，路径不能跳出组件目录。
 
 ### 准备内核运行时

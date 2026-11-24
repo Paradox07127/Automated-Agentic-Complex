@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- outer ring: one hairline white circle touching the left and top edges (the right and bottom keep a 1px margin) -->
+  <circle cx="511.5" cy="511.5" r="511.2" fill="none" stroke="#fff" stroke-width="1.05"/>
+</svg>

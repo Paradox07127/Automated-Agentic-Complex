@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 148" width="52" height="148">
+  <!-- selected-mission marker: white bar with a blue glow that falls off linearly to the sides and softly at both ends -->
+  <defs>
+    <linearGradient id="gx" x1="0" y1="0" x2="52" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0.0288" stop-color="#8ddcff" stop-opacity="0.000"/>
+      <stop offset="0.0673" stop-color="#8ddcff" stop-opacity="0.008"/>
+      <stop offset="0.1058" stop-color="#8ddcff" stop-opacity="0.027"/>
+      <stop offset="0.1442" stop-color="#8ddcff" stop-opacity="0.063"/>
+      <stop offset="0.1635" stop-color="#8ddcff" stop-opacity="0.086"/>
+      <stop offset="0.3942" stop-color="#8ddcff" stop-opacity="0.369"/>
+      <stop offset="0.4808" stop-color="#8ddcff" stop-opacity="0.369"/>
+      <stop offset="0.5673" stop-color="#8ddcff" stop-opacity="0.369"/>
+      <stop offset="0.7981" stop-color="#8ddcff" stop-opacity="0.086"/>
+      <stop offset="0.8173" stop-color="#8ddcff" stop-opacity="0.063"/>
+      <stop offset="0.8558" stop-color="#8ddcff" stop-opacity="0.027"/>
+      <stop offset="0.8942" stop-color="#8ddcff" stop-opacity="0.008"/>
+      <stop offset="0.9327" stop-color="#8ddcff" stop-opacity="0.000"/>
+    </linearGradient>
+    <linearGradient id="gy" x1="0" y1="0" x2="0" y2="148" gradientUnits="userSpaceOnUse">
+      <stop offset="0.0304" stop-color="#fff" stop-opacity="0.000"/>
+      <stop offset="0.0574" stop-color="#fff" stop-opacity="0.050"/>
+      <stop offset="0.0845" stop-color="#fff" stop-opacity="0.170"/>
+      <stop offset="0.1115" stop-color="#fff" stop-opacity="0.290"/>
+      <stop offset="0.1486" stop-color="#fff" stop-opacity="0.530"/>
+      <stop offset="0.1926" stop-color="#fff" stop-opacity="0.760"/>
+      <stop offset="0.2196" stop-color="#fff" stop-opacity="0.880"/>
+      <stop offset="0.2466" stop-color="#fff" stop-opacity="0.960"/>
+      <stop offset="0.2736" stop-color="#fff" stop-opacity="1.000"/>
+      <stop offset="0.5034" stop-color="#fff" stop-opacity="1.000"/>
+      <stop offset="0.7331" stop-color="#fff" stop-opacity="1.000"/>
+      <stop offset="0.7601" stop-color="#fff" stop-opacity="0.960"/>
+      <stop offset="0.7872" stop-color="#fff" stop-opacity="0.880"/>
+      <stop offset="0.8142" stop-color="#fff" stop-opacity="0.760"/>
+      <stop offset="0.8581" stop-color="#fff" stop-opacity="0.530"/>
+      <stop offset="0.8953" stop-color="#fff" stop-opacity="0.290"/>
+      <stop offset="0.9223" stop-color="#fff" stop-opacity="0.170"/>
+      <stop offset="0.9493" stop-color="#fff" stop-opacity="0.050"/>
+      <stop offset="0.9764" stop-color="#fff" stop-opacity="0.000"/>
+    </linearGradient>
+    <mask id="ends" maskUnits="userSpaceOnUse" x="0" y="0" width="52" height="148"><rect width="52" height="148" fill="url(#gy)"/></mask>
+  </defs>
+  <rect width="52" height="148" fill="url(#gx)" mask="url(#ends)"/>
+  <rect x="21" y="22" width="8" height="105" fill="#fff"/>
+</svg>

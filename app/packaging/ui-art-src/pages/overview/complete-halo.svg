@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 328 328" width="328" height="328">
+  <!-- completion halo: one soft round glow, flat core, long falloff; sits a little left of and below centre -->
+  <defs>
+    <radialGradient id="halo" cx="162.5" cy="165.5" r="170" gradientUnits="userSpaceOnUse">
+      <stop offset="0.0000" stop-color="#fff" stop-opacity="0.996"/>
+      <stop offset="0.0588" stop-color="#fff" stop-opacity="0.992"/>
+      <stop offset="0.1176" stop-color="#fff" stop-opacity="0.980"/>
+      <stop offset="0.1765" stop-color="#fff" stop-opacity="0.955"/>
+      <stop offset="0.2353" stop-color="#fff" stop-opacity="0.912"/>
+      <stop offset="0.2941" stop-color="#fff" stop-opacity="0.849"/>
+      <stop offset="0.3529" stop-color="#fff" stop-opacity="0.762"/>
+      <stop offset="0.4118" stop-color="#fff" stop-opacity="0.655"/>
+      <stop offset="0.4706" stop-color="#fff" stop-opacity="0.535"/>
+      <stop offset="0.5294" stop-color="#fff" stop-opacity="0.412"/>
+      <stop offset="0.5882" stop-color="#fff" stop-opacity="0.297"/>
+      <stop offset="0.6471" stop-color="#fff" stop-opacity="0.198"/>
+      <stop offset="0.7059" stop-color="#fff" stop-opacity="0.121"/>
+      <stop offset="0.7647" stop-color="#fff" stop-opacity="0.067"/>
+      <stop offset="0.8235" stop-color="#fff" stop-opacity="0.033"/>
+      <stop offset="0.8824" stop-color="#fff" stop-opacity="0.014"/>
+      <stop offset="0.9412" stop-color="#fff" stop-opacity="0.004"/>
+      <stop offset="1.0000" stop-color="#fff" stop-opacity="0.000"/>
+    </radialGradient>
+  </defs>
+  <rect width="328" height="328" fill="url(#halo)"/>
+</svg>

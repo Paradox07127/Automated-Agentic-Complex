@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 232 72" width="232" height="72">
+  <!-- selected tab plate: near-white body with a fine rotated dot screen, fading slightly downwards and into the
+       bottom corners; a narrow neck on top, feet that flare at the bottom, a faint dark shadow on the right -->
+  <defs>
+    <pattern id="dots" width="3.1" height="3.1" patternUnits="userSpaceOnUse" patternTransform="rotate(30)">
+      <rect width="3.1" height="3.1" fill="#eaeaea"/>
+      <circle cx="1.55" cy="1.55" r="0.85" fill="#d4d4d4"/>
+    </pattern>
+    <linearGradient id="down" x1="0" y1="0" x2="0" y2="72" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.992"/>
+      <stop offset="0.111" stop-color="#fff" stop-opacity="0.983"/>
+      <stop offset="0.278" stop-color="#fff" stop-opacity="0.961"/>
+      <stop offset="0.444" stop-color="#fff" stop-opacity="0.937"/>
+      <stop offset="0.556" stop-color="#fff" stop-opacity="0.914"/>
+      <stop offset="0.667" stop-color="#fff" stop-opacity="0.894"/>
+      <stop offset="0.778" stop-color="#fff" stop-opacity="0.872"/>
+      <stop offset="0.889" stop-color="#fff" stop-opacity="0.843"/>
+      <stop offset="0.944" stop-color="#fff" stop-opacity="0.808"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0.792"/>
+    </linearGradient>
+    <radialGradient id="corner" r="0.5" cx="0.5" cy="0.5">
+      <stop offset="0" stop-color="#000" stop-opacity="0.26"/>
+      <stop offset="0.5" stop-color="#000" stop-opacity="0.09"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sides" x1="4" y1="0" x2="219" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#000" stop-opacity="0.07"/>
+      <stop offset="0.05" stop-color="#000" stop-opacity="0"/>
+      <stop offset="0.95" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.07"/>
+    </linearGradient>
+    <mask id="fade" maskUnits="userSpaceOnUse" x="0" y="0" width="232" height="72">
+      <rect width="232" height="72" fill="url(#down)"/>
+      <ellipse cx="3" cy="73" rx="48" ry="32" fill="url(#corner)"/>
+      <ellipse cx="220" cy="73" rx="44" ry="30" fill="url(#corner)" fill-opacity="0.75"/>
+      <rect width="232" height="72" fill="url(#sides)"/>
+    </mask>
+    <linearGradient id="shade" x1="219" y1="0" x2="226.5" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#151d23" stop-opacity="0.115"/>
+      <stop offset="0.45" stop-color="#151d23" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#151d23" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="shadeTop" x1="0" y1="4" x2="0" y2="18" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#fff"/>
+    </linearGradient>
+    <mask id="shadeMask" maskUnits="userSpaceOnUse" x="0" y="0" width="232" height="72">
+      <rect x="210" y="0" width="22" height="72" fill="url(#shadeTop)"/>
+    </mask>
+  </defs>
+  <rect x="215" y="4" width="12" height="68" fill="url(#shade)" mask="url(#shadeMask)"/>
+  <path fill="url(#dots)" mask="url(#fade)"
+        d="M6.6,0 H216.4 V4 H216.5 A2.5,2.5 0 0 1 219,6.5 V66.5 C219,69 219.6,70.2 222.4,72 H0.8 C3.4,70.2 4,69 4,66.5 V6.5
+           A2.5,2.5 0 0 1 6.5,4 H6.6 Z"/>
+</svg>

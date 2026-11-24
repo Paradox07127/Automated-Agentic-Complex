@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 156 260" width="156" height="260">
+  <!-- button bloom: a crescent bowed to the left (one ellipse minus another), blurred into a soft white glow -->
+  <defs>
+    <filter id="bloom" filterUnits="userSpaceOnUse" x="0" y="0" width="156" height="260"><feGaussianBlur stdDeviation="15.1"/></filter>
+    <mask id="bite" maskUnits="userSpaceOnUse" x="0" y="0" width="156" height="260">
+      <rect width="156" height="260" fill="#fff"/>
+      <ellipse cx="153.9" cy="130" rx="55" ry="100.1" fill="#000"/>
+    </mask>
+  </defs>
+  <g filter="url(#bloom)">
+    <ellipse cx="90.25" cy="130.75" rx="51" ry="92.5" fill="#fff" fill-opacity="0.96" mask="url(#bite)"/>
+  </g>
+</svg>

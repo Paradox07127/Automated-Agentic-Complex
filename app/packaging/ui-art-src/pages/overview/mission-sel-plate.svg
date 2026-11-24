@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 524 84" width="524" height="84">
+  <!-- selected-mission plate: fine 45-degree twill (rising to the right), invisible at the left and strengthening to the right -->
+  <defs>
+    <pattern id="twill" width="12" height="3.375" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+      <rect y="0" width="12" height="1.2" fill="#fff"/>
+    </pattern>
+    <linearGradient id="fade" x1="0" y1="0" x2="524" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0.0000" stop-color="#fff" stop-opacity="0.000"/>
+      <stop offset="0.0305" stop-color="#fff" stop-opacity="0.002"/>
+      <stop offset="0.0916" stop-color="#fff" stop-opacity="0.006"/>
+      <stop offset="0.1527" stop-color="#fff" stop-opacity="0.018"/>
+      <stop offset="0.2137" stop-color="#fff" stop-opacity="0.034"/>
+      <stop offset="0.2748" stop-color="#fff" stop-opacity="0.061"/>
+      <stop offset="0.3359" stop-color="#fff" stop-opacity="0.094"/>
+      <stop offset="0.3969" stop-color="#fff" stop-opacity="0.129"/>
+      <stop offset="0.4580" stop-color="#fff" stop-opacity="0.175"/>
+      <stop offset="0.5191" stop-color="#fff" stop-opacity="0.222"/>
+      <stop offset="0.5802" stop-color="#fff" stop-opacity="0.273"/>
+      <stop offset="0.6412" stop-color="#fff" stop-opacity="0.339"/>
+      <stop offset="0.7023" stop-color="#fff" stop-opacity="0.409"/>
+      <stop offset="0.7634" stop-color="#fff" stop-opacity="0.479"/>
+      <stop offset="0.8244" stop-color="#fff" stop-opacity="0.562"/>
+      <stop offset="0.8855" stop-color="#fff" stop-opacity="0.642"/>
+      <stop offset="0.9466" stop-color="#fff" stop-opacity="0.726"/>
+      <stop offset="0.9885" stop-color="#fff" stop-opacity="0.698"/>
+      <stop offset="1.0000" stop-color="#fff" stop-opacity="0.686"/>
+    </linearGradient>
+    <mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="524" height="84"><rect width="524" height="84" fill="url(#fade)"/></mask>
+  </defs>
+  <rect width="524" height="84" fill="url(#twill)" mask="url(#m)"/>
+</svg>

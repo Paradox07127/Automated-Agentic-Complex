@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 88" width="88" height="88">
+  <defs>
+    <filter id="drop" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2.3"/>
+    </filter>
+  </defs>
+  <!-- faint black drop shadow of the frame, pushed down -->
+  <path transform="translate(0 8)" filter="url(#drop)" fill="#000" fill-opacity="0.045" fill-rule="evenodd" d="M24 24h38v38h-38z M27 27v32h32v-32z"/>
+  <!-- dim frame -->
+  <path fill="#8dddff" fill-opacity="0.231" fill-rule="evenodd" d="M24 24h38v38h-38z M27 27v32h32v-32z"/>
+  <!-- exclamation: bar and dot -->
+  <rect x="41.5" y="34.7" width="3" height="12.5" fill="#8ddfff"/>
+  <rect x="41.5" y="48.27" width="3" height="3.06" fill="#8ddfff"/>
+</svg>

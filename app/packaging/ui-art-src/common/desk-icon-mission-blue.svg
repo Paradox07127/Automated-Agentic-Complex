@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" width="72" height="72">
+  <defs>
+    <radialGradient id="shade" cx="35" cy="37" r="25" gradientUnits="userSpaceOnUse">
+      <stop offset="0.75" stop-color="#000" stop-opacity="0"/>
+      <stop offset="0.77" stop-color="#000" stop-opacity="0.04"/>
+      <stop offset="0.88" stop-color="#000" stop-opacity="0.018"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="halo" cx="35" cy="37" r="19" gradientUnits="userSpaceOnUse">
+      <stop offset="0.78" stop-color="#6fb0ca" stop-opacity="0.39"/>
+      <stop offset="0.95" stop-color="#7abbdc" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#7cbddf" stop-opacity="0.32"/>
+    </radialGradient>
+    <radialGradient id="well" cx="35" cy="37" r="9.8" gradientUnits="userSpaceOnUse">
+      <stop offset="0.5" stop-color="#64bee7" stop-opacity="0.29"/>
+      <stop offset="1" stop-color="#3a6e86" stop-opacity="0.215"/>
+    </radialGradient>
+  </defs>
+  <circle cx="35" cy="37" r="25" fill="url(#shade)"/>
+  <!-- outer soft halo band -->
+  <circle cx="35" cy="37" r="16.9" fill="none" stroke="url(#halo)" stroke-width="4"/>
+  <!-- dim well between ring and core -->
+  <circle cx="35" cy="37" r="9.8" fill="url(#well)"/>
+  <!-- bright ring and core -->
+  <circle cx="35" cy="37" r="12.35" fill="none" stroke="#8ddeff" stroke-width="5.1"/>
+  <circle cx="35" cy="37" r="4.9" fill="#8ddeff"/>
+</svg>

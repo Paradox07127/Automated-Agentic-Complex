@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 36" width="20" height="36">
+  <defs>
+    <filter id="soft" x="-50%" y="-30%" width="200%" height="160%">
+      <feGaussianBlur stdDeviation="1.6"/>
+    </filter>
+  </defs>
+  <!-- faint dark shade behind the arc -->
+  <path d="M2 5.5A14 14 0 1 1 2 33.5" fill="none" stroke="#000" stroke-width="6" opacity="0.13" filter="url(#soft)"/>
+  <!-- outer signal arc, cut square at both ends -->
+  <path fill="#fff" d="M2 5.41A14.1 14.1 0 1 1 2 33.59V30.18A10.7 10.7 0 1 0 2 8.82z"/>
+</svg>

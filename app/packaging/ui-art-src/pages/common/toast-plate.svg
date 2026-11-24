@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 44" width="108" height="44">
+  <!-- 9-slice plate (17 48 17 49 fill): flat smoked fill, four corner dots sit inside the corner slices -->
+  <path fill="#121212" fill-opacity="0.4" fill-rule="evenodd"
+        d="M0 0H108V44H0Z M29 7h3v3h-3Z M74 7h3v3h-3Z M29 34h3v3h-3Z M74 34h3v3h-3Z"/>
+  <g fill="#eaeaea" fill-opacity="0.878">
+    <rect x="29" y="7" width="3" height="3"/>
+    <rect x="74" y="7" width="3" height="3"/>
+    <rect x="29" y="34" width="3" height="3"/>
+    <rect x="74" y="34" width="3" height="3"/>
+  </g>
+</svg>

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 220" width="12" height="220">
+  <!-- grey cap rows 0-5, then a black shadow fading out downwards -->
+  <defs>
+    <linearGradient id="fade" x1="0" y1="5" x2="0" y2="220" gradientUnits="userSpaceOnUse">
+      <stop offset="0.002" stop-opacity="0.780"/>
+      <stop offset="0.072" stop-opacity="0.769"/>
+      <stop offset="0.142" stop-opacity="0.729"/>
+      <stop offset="0.212" stop-opacity="0.682"/>
+      <stop offset="0.281" stop-opacity="0.616"/>
+      <stop offset="0.351" stop-opacity="0.537"/>
+      <stop offset="0.421" stop-opacity="0.463"/>
+      <stop offset="0.491" stop-opacity="0.357"/>
+      <stop offset="0.560" stop-opacity="0.259"/>
+      <stop offset="0.630" stop-opacity="0.184"/>
+      <stop offset="0.700" stop-opacity="0.125"/>
+      <stop offset="0.770" stop-opacity="0.082"/>
+      <stop offset="0.840" stop-opacity="0.039"/>
+      <stop offset="0.909" stop-opacity="0.016"/>
+      <stop offset="0.956" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="12" height="5" fill="#626262" fill-opacity="0.855"/>
+  <rect x="0" y="5" width="12" height="215" fill="url(#fade)"/>
+</svg>

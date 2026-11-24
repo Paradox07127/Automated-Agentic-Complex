@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 32" width="128" height="32">
+  <defs>
+    <!-- even haze of the streak, rising steeply into the caret -->
+    <linearGradient id="haze" x1="0" x2="128" y1="0" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0.0312" stop-color="#2b2b2b" stop-opacity="0.011"/>
+      <stop offset="0.0938" stop-color="#2b2b2b" stop-opacity="0.020"/>
+      <stop offset="0.1562" stop-color="#2b2b2b" stop-opacity="0.027"/>
+      <stop offset="0.2188" stop-color="#2b2b2b" stop-opacity="0.038"/>
+      <stop offset="0.2812" stop-color="#2b2b2b" stop-opacity="0.044"/>
+      <stop offset="0.3438" stop-color="#2b2b2b" stop-opacity="0.049"/>
+      <stop offset="0.4062" stop-color="#636363" stop-opacity="0.069"/>
+      <stop offset="0.4688" stop-color="#707070" stop-opacity="0.095"/>
+      <stop offset="0.5312" stop-color="#808080" stop-opacity="0.109"/>
+      <stop offset="0.5938" stop-color="#909090" stop-opacity="0.136"/>
+      <stop offset="0.6562" stop-color="#a2a2a2" stop-opacity="0.161"/>
+      <stop offset="0.7188" stop-color="#b4b4b4" stop-opacity="0.208"/>
+      <stop offset="0.7812" stop-color="#c7c7c7" stop-opacity="0.260"/>
+      <stop offset="0.8438" stop-color="#dbdbdb" stop-opacity="0.365"/>
+      <stop offset="0.8906" stop-color="#eaeaea" stop-opacity="0.450"/>
+      <stop offset="0.9102" stop-color="#f1f1f1" stop-opacity="0.503"/>
+      <stop offset="0.9258" stop-color="#f6f6f6" stop-opacity="0.503"/>
+      <stop offset="0.9336" stop-color="#f8f8f8" stop-opacity="0.566"/>
+      <stop offset="0.9414" stop-color="#fbfbfb" stop-opacity="0.724"/>
+      <stop offset="0.9492" stop-color="#fefefe" stop-opacity="0.910"/>
+      <stop offset="0.9531" stop-color="#ffffff" stop-opacity="1.000"/>
+    </linearGradient>
+    <!-- strength of the scanline cadence along the streak -->
+    <linearGradient id="swell" x1="0" x2="128" y1="0" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0.0312" stop-color="#fff" stop-opacity="0.070"/>
+      <stop offset="0.0938" stop-color="#fff" stop-opacity="0.123"/>
+      <stop offset="0.1562" stop-color="#fff" stop-opacity="0.178"/>
+      <stop offset="0.2188" stop-color="#fff" stop-opacity="0.230"/>
+      <stop offset="0.2812" stop-color="#fff" stop-opacity="0.276"/>
+      <stop offset="0.3438" stop-color="#fff" stop-opacity="0.312"/>
+      <stop offset="0.4062" stop-color="#fff" stop-opacity="0.334"/>
+      <stop offset="0.4688" stop-color="#fff" stop-opacity="0.338"/>
+      <stop offset="0.5312" stop-color="#fff" stop-opacity="0.342"/>
+      <stop offset="0.5938" stop-color="#fff" stop-opacity="0.336"/>
+      <stop offset="0.6562" stop-color="#fff" stop-opacity="0.346"/>
+      <stop offset="0.7188" stop-color="#fff" stop-opacity="0.342"/>
+      <stop offset="0.7812" stop-color="#fff" stop-opacity="0.327"/>
+      <stop offset="0.8438" stop-color="#fff" stop-opacity="0.323"/>
+      <stop offset="0.8906" stop-color="#fff" stop-opacity="0.335"/>
+      <stop offset="0.9102" stop-color="#fff" stop-opacity="0.300"/>
+      <stop offset="0.9258" stop-color="#fff" stop-opacity="0.344"/>
+      <stop offset="0.9336" stop-color="#fff" stop-opacity="0.304"/>
+      <stop offset="0.9414" stop-color="#fff" stop-opacity="0.326"/>
+      <stop offset="0.9492" stop-color="#fff" stop-opacity="0.244"/>
+      <stop offset="0.9531" stop-color="#fff" stop-opacity="0.000"/>
+    </linearGradient>
+    <mask id="swellMask" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="32">
+      <rect width="128" height="32" fill="url(#swell)"/>
+    </mask>
+    <linearGradient id="ink" x1="0" x2="128" y1="0" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0.38" stop-color="#2b2b2b"/>
+      <stop offset="0.39" stop-color="#3a3a3a"/>
+      <stop offset="0.56" stop-color="#4c4c4c"/>
+      <stop offset="0.75" stop-color="#6a6a6a"/>
+      <stop offset="0.875" stop-color="#a0a0a0"/>
+      <stop offset="0.95" stop-color="#e6e6e6"/>
+    </linearGradient>
+    <!-- seven-row scanline cadence -->
+    <pattern id="scan" x="0" y="5" width="128" height="7" patternUnits="userSpaceOnUse">
+      <g fill="url(#ink)">
+      <rect y="0" width="128" height="1" opacity="0.84"/>
+      <rect y="1" width="128" height="1" opacity="0.36"/>
+      <rect y="2" width="128" height="1" opacity="0.52"/>
+      <rect y="3" width="128" height="1" opacity="0.7"/>
+      <rect y="4" width="128" height="1" opacity="0.2"/>
+      <rect y="5" width="128" height="1" opacity="1"/>
+      </g>
+    </pattern>
+    <linearGradient id="edge" x1="0" x2="128" y1="0" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2b2b2b" stop-opacity="0.025"/>
+      <stop offset="0.6" stop-color="#6a6a6a" stop-opacity="0.14"/>
+      <stop offset="0.93" stop-color="#ddd" stop-opacity="0.3"/>
+      <stop offset="0.95" stop-color="#fff" stop-opacity="1"/>
+    </linearGradient>
+    <linearGradient id="foot" x1="0" x2="128" y1="0" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2b2b2b" stop-opacity="0.012"/>
+      <stop offset="0.4" stop-color="#3a3a3a" stop-opacity="0.09"/>
+      <stop offset="0.85" stop-color="#606060" stop-opacity="0.13"/>
+      <stop offset="0.93" stop-color="#999" stop-opacity="0.2"/>
+      <stop offset="0.94" stop-color="#999" stop-opacity="0.18"/>
+    </linearGradient>
+    <linearGradient id="spill" x1="0" y1="0" x2="0" y2="4" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0.065"/>
+    </linearGradient>
+  </defs>
+  <!-- streak body: haze, then scanlines on top -->
+  <rect x="0" y="5" width="122" height="25" fill="url(#haze)"/>
+  <rect x="0" y="5" width="122" height="25" fill="url(#scan)" mask="url(#swellMask)"/>
+  <!-- top edge line and bottom foot -->
+  <rect x="0" y="4" width="122" height="1" fill="url(#edge)" opacity="0.9"/>
+  <rect x="0" y="30" width="128" height="2" fill="url(#foot)"/>
+  <!-- caret block and the faint spill above it -->
+  <rect x="122" y="4" width="6" height="26" fill="#fff"/>
+  <rect x="114" y="0" width="14" height="4" fill="url(#spill)"/>
+</svg>

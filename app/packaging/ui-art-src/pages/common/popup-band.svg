@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 136 264" width="136" height="264">
+  <!-- border-image 58 0 65: top fade rows 16-58, solid white core 58-199, bottom fade rows 199-241 -->
+  <defs>
+    <linearGradient id="top" x1="0" y1="16" x2="0" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f1f1f1" stop-opacity="0"/>
+      <stop offset="0.107" stop-color="#f1f1f1" stop-opacity="0.016"/>
+      <stop offset="0.250" stop-color="#f1f1f1" stop-opacity="0.047"/>
+      <stop offset="0.393" stop-color="#f1f1f1" stop-opacity="0.090"/>
+      <stop offset="0.536" stop-color="#f1f1f1" stop-opacity="0.141"/>
+      <stop offset="0.679" stop-color="#f1f1f1" stop-opacity="0.204"/>
+      <stop offset="0.821" stop-color="#f1f1f1" stop-opacity="0.271"/>
+      <stop offset="1" stop-color="#f1f1f1" stop-opacity="0.345"/>
+    </linearGradient>
+    <linearGradient id="bot" x1="0" y1="199" x2="0" y2="241" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f1f1f1" stop-opacity="0.352"/>
+      <stop offset="0.155" stop-color="#f1f1f1" stop-opacity="0.282"/>
+      <stop offset="0.298" stop-color="#f1f1f1" stop-opacity="0.216"/>
+      <stop offset="0.440" stop-color="#f1f1f1" stop-opacity="0.153"/>
+      <stop offset="0.583" stop-color="#f1f1f1" stop-opacity="0.098"/>
+      <stop offset="0.726" stop-color="#f1f1f1" stop-opacity="0.051"/>
+      <stop offset="0.869" stop-color="#f1f1f1" stop-opacity="0.020"/>
+      <stop offset="1" stop-color="#f1f1f1" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="16" width="136" height="42" fill="url(#top)"/>
+  <rect x="0" y="58" width="136" height="141" fill="#fff"/>
+  <rect x="0" y="199" width="136" height="42" fill="url(#bot)"/>
+</svg>

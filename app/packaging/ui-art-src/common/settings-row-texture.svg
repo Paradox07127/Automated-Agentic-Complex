@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 132 96" width="132" height="96">
+  <!-- soft "/" grating (6.9px across), black to white, seen through a glow centred on the left edge -->
+  <defs>
+    <linearGradient id="grating" x1="-2.2" y1="-2.2" x2="1.25" y2="1.25" gradientUnits="userSpaceOnUse" spreadMethod="repeat">
+      <stop offset="0.0000" stop-color="#292929"/>
+      <stop offset="0.0833" stop-color="#353535"/>
+      <stop offset="0.1667" stop-color="#545454"/>
+      <stop offset="0.2500" stop-color="#808080"/>
+      <stop offset="0.3333" stop-color="#acacac"/>
+      <stop offset="0.4167" stop-color="#cbcbcb"/>
+      <stop offset="0.5000" stop-color="#d7d7d7"/>
+      <stop offset="0.5833" stop-color="#cbcbcb"/>
+      <stop offset="0.6667" stop-color="#acacac"/>
+      <stop offset="0.7500" stop-color="#808080"/>
+      <stop offset="0.8333" stop-color="#545454"/>
+      <stop offset="0.9167" stop-color="#353535"/>
+      <stop offset="1.0000" stop-color="#292929"/>
+    </linearGradient>
+    <linearGradient id="bars" href="#grating" x1="-2.2" y1="0" x2="4.7" y2="0"/>
+    <linearGradient id="gx" x1="0" y1="0" x2="132" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0.0038" stop-color="#fff" stop-opacity="0.953"/>
+      <stop offset="0.0492" stop-color="#fff" stop-opacity="0.973"/>
+      <stop offset="0.0947" stop-color="#fff" stop-opacity="0.980"/>
+      <stop offset="0.1402" stop-color="#fff" stop-opacity="0.957"/>
+      <stop offset="0.1856" stop-color="#fff" stop-opacity="0.922"/>
+      <stop offset="0.2311" stop-color="#fff" stop-opacity="0.875"/>
+      <stop offset="0.2765" stop-color="#fff" stop-opacity="0.827"/>
+      <stop offset="0.3220" stop-color="#fff" stop-opacity="0.773"/>
+      <stop offset="0.3674" stop-color="#fff" stop-opacity="0.718"/>
+      <stop offset="0.4129" stop-color="#fff" stop-opacity="0.655"/>
+      <stop offset="0.4583" stop-color="#fff" stop-opacity="0.596"/>
+      <stop offset="0.5038" stop-color="#fff" stop-opacity="0.529"/>
+      <stop offset="0.5492" stop-color="#fff" stop-opacity="0.467"/>
+      <stop offset="0.5947" stop-color="#fff" stop-opacity="0.404"/>
+      <stop offset="0.6402" stop-color="#fff" stop-opacity="0.345"/>
+      <stop offset="0.6856" stop-color="#fff" stop-opacity="0.282"/>
+      <stop offset="0.7311" stop-color="#fff" stop-opacity="0.227"/>
+      <stop offset="0.7765" stop-color="#fff" stop-opacity="0.173"/>
+      <stop offset="0.8220" stop-color="#fff" stop-opacity="0.125"/>
+      <stop offset="0.8674" stop-color="#fff" stop-opacity="0.078"/>
+      <stop offset="0.9129" stop-color="#fff" stop-opacity="0.043"/>
+      <stop offset="0.9583" stop-color="#fff" stop-opacity="0.012"/>
+      <stop offset="0.9962" stop-color="#fff" stop-opacity="0.000"/>
+    </linearGradient>
+    <linearGradient id="gy" x1="0" y1="0" x2="0" y2="96" gradientUnits="userSpaceOnUse">
+      <stop offset="0.0052" stop-color="#fff" stop-opacity="0.663"/>
+      <stop offset="0.0677" stop-color="#fff" stop-opacity="0.694"/>
+      <stop offset="0.1302" stop-color="#fff" stop-opacity="0.751"/>
+      <stop offset="0.1927" stop-color="#fff" stop-opacity="0.807"/>
+      <stop offset="0.2552" stop-color="#fff" stop-opacity="0.858"/>
+      <stop offset="0.3177" stop-color="#fff" stop-opacity="0.910"/>
+      <stop offset="0.3802" stop-color="#fff" stop-opacity="0.951"/>
+      <stop offset="0.4427" stop-color="#fff" stop-opacity="0.984"/>
+      <stop offset="0.5052" stop-color="#fff" stop-opacity="1.000"/>
+      <stop offset="0.5677" stop-color="#fff" stop-opacity="0.985"/>
+      <stop offset="0.6302" stop-color="#fff" stop-opacity="0.952"/>
+      <stop offset="0.6927" stop-color="#fff" stop-opacity="0.909"/>
+      <stop offset="0.7552" stop-color="#fff" stop-opacity="0.863"/>
+      <stop offset="0.8177" stop-color="#fff" stop-opacity="0.809"/>
+      <stop offset="0.8802" stop-color="#fff" stop-opacity="0.752"/>
+      <stop offset="0.9427" stop-color="#fff" stop-opacity="0.691"/>
+      <stop offset="1.0000" stop-color="#fff" stop-opacity="0.656"/>
+    </linearGradient>
+    <mask id="mx" maskUnits="userSpaceOnUse" x="0" y="0" width="132" height="96"><rect width="132" height="96" fill="url(#gx)"/></mask>
+    <mask id="my" maskUnits="userSpaceOnUse" x="0" y="0" width="132" height="96"><rect width="132" height="96" fill="url(#gy)"/></mask>
+  </defs>
+  <g mask="url(#mx)">
+    <g mask="url(#my)">
+      <rect width="132" height="96" fill="url(#grating)"/>
+      <!-- the top four rows hold the grating as upright bars -->
+      <rect width="132" height="4" fill="url(#bars)"/>
+    </g>
+  </g>
+</svg>
