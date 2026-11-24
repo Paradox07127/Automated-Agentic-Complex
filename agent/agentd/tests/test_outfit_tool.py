@@ -298,6 +298,13 @@ class OutfitToolTests(unittest.TestCase):
             outfit_tool.clone(package.root, self.root / "clone")
         self.assertEqual(files(self.root / "clone"), files(package.root))
 
+    def test_the_importer_copies_the_package_without_a_shell_copy(self):
+        from agentic_complex_build import import_outfit
+        [package] = self.library.packages()
+        with mock.patch("subprocess.run", side_effect=FileNotFoundError("/bin/cp")):
+            import_outfit.import_outfit(package.root, self.mod, self.root / "out", mapping=self.map)
+        Package(self.root / "out")
+
     @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_strip_and_graft_refuse_a_file_name_that_leaves_the_package(self):
         import outfit_tool

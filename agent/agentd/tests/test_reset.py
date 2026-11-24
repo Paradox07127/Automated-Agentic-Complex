@@ -718,6 +718,28 @@ class ResetTest(unittest.TestCase):
         self.assertEqual(sorted(e["id"] for e in episodes.between(0, time.time())), kept)
         self.assert_gone(typed)
 
+    def test_a_sync_returns_after_a_revocation_the_ticker_is_still_applying(self):
+        """The ticker's sync_privacy can find the revocation first; a turn's sync_privacy then must not return before
+        the episodes are gone."""
+        typed = "typedmarker" + "5e07a3" * 8
+        self.consent(True, True)
+        self.server.sync_privacy()
+        episodes, _ = self.episodes_with(typed, typed=True)
+        entered, release = threading.Event(), threading.Event()
+
+        def cancel(*args, **kwargs):
+            if not entered.is_set():
+                entered.set()
+                release.wait(10)
+        try:
+            with patch.object(self.server.character_agent, "cancel", side_effect=cancel):
+                self.consent(True, False)
+                self.assertTrue(entered.wait(10))
+                self.server.sync_privacy()
+                self.assertEqual(episodes.between(0, time.time()), [])
+        finally:
+            release.set()
+
     def test_delete_attention_leaves_no_bytes_of_the_episodes(self):
         marker = "attentionmarker" + "e25d60" * 8
         episodes, _ = self.episodes_with(marker)

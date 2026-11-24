@@ -10,10 +10,10 @@ import argparse
 import datetime
 import json
 import shutil
-import subprocess
 import sys
 
 from character_library import Package, Library, read_json, write_json, need, export_package
+from resource_store import clone_or_copy
 from agentic_complex_build.motion_import import pipeline, take
 
 
@@ -49,7 +49,7 @@ def main():
             source=Package(selected.get(original.id,original.root))
             destination=library.root/'packages'/source.id/source.sha256
             destination.parent.mkdir(parents=True,exist_ok=True)
-            subprocess.run(['/bin/cp','-cR',str(source.root),str(destination)],check=True)
+            shutil.copytree(source.root,destination,symlinks=True,copy_function=clone_or_copy)
             built.append(Package(destination,deep=False))
         default=Library(a.library).snapshot()['default_character']
         library.publish(sorted(built,key=lambda package:(package.id!=default,package.id)))

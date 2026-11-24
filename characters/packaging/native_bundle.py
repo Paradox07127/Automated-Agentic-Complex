@@ -401,7 +401,7 @@ def verify(root,known=None):
         motion_media_faces(root,e)
     if 'scene' in manifest:visit(manifest['scene']['objects'],'scene_objects')
     # No symlink or unlisted asset may smuggle an external dependency into copy.
-    actual={str(p.relative_to(root)) for p in root.rglob('*') if p.is_file()};require(actual==set(indexed)|{'bundle.json'},'unlisted/absent bundle file')
+    actual={p.relative_to(root).as_posix() for p in root.rglob('*') if p.is_file()};require(actual==set(indexed)|{'bundle.json'},'unlisted/absent bundle file')
     return dict(schema='metal-native-bundle-verify/v1',bundle_sha256=digest(root/'bundle.json'),characters=[e['id'] for e in manifest['characters']],**({'scene':manifest['scene']} if 'scene' in manifest else {}),file_count=len(indexed),runtime_file_count=len(runtime),byte_count=bytes_total,all_runtime_dependencies_relative=True,unity_runtime_required=False)
 
 def verify_isolated(root):

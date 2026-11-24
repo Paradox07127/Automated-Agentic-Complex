@@ -17,7 +17,6 @@ import json
 import re
 import shutil
 import struct
-import subprocess
 import tempfile
 
 import numpy as np
@@ -25,6 +24,7 @@ import numpy as np
 from character_library import Package, read_json, write_json, need
 import native_bundle
 import pool_codec
+from resource_store import clone_or_copy
 import vulkan_outfit
 from .common import canonical_json, reference as ref, sha256_bytes, sha256_file
 from . import efmi_geometry, efmi_mod, mod_settings, outfit_compose, texture_dhash
@@ -883,7 +883,7 @@ def import_outfit(package_root, mod_dir, stage, name=None, mapping=None, progres
     output.parent.mkdir(parents=True, exist_ok=True)
     tmp = Path(tempfile.mkdtemp(prefix='.outfit-', dir=output.parent)); shutil.rmtree(tmp)
     try:
-        subprocess.run(['/bin/cp', '-cR', str(package.root), str(tmp)], check=True)
+        shutil.copytree(package.root, tmp, symlinks=True, copy_function=clone_or_copy)
         definition = read_json(tmp/'character.json')
         native_path = tmp/package.native_ref['file']; runtime = native_path.parent
         native = read_json(native_path); entry = native['characters'][0]

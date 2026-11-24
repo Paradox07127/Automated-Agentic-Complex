@@ -103,6 +103,7 @@ class DistributionSeedTests(unittest.TestCase):
             self.assertEqual((out / 'mmd-library/sources/dance.vmd').read_bytes(), b'vmd')
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_mmd_motions_wait_for_mmd_sync_to_bake_them_on_the_new_packages(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp); old, _ = self.imported_library(root); seed = self.seed_library(root)
@@ -115,6 +116,7 @@ class DistributionSeedTests(unittest.TestCase):
             self.assertEqual(shared['characters'], [dict(id='fixture', state='pending', reason=None), dict(id='second', state='pending', reason=None)])
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_a_motion_import_is_baked_again_onto_the_seed_package(self):
         from test_bvh_import import cmu_bvh_text
         from test_vmd_import import authored_rig

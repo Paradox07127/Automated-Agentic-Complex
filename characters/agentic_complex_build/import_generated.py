@@ -10,10 +10,10 @@ from pathlib import Path
 import argparse
 import json
 import shutil
-import subprocess
 
 import numpy as np
 from character_library import Package, Library, digest, read_json, write_json, need
+from resource_store import clone_or_copy
 from .common import canonical_json, sha256_bytes
 from .import_vmd import install_clips, package_rig
 from . import secondary_fit, style_retarget
@@ -244,7 +244,7 @@ def main():
         for original in packages:
             package = Package(target if original.id == a.character else original.root)
             destination = library.root/'packages'/package.id/package.sha256; destination.parent.mkdir(parents=True, exist_ok=True)
-            subprocess.run(['/bin/cp', '-cR', str(package.root), str(destination)], check=True)
+            shutil.copytree(package.root, destination, symlinks=True, copy_function=clone_or_copy)
             built.append(Package(destination, deep=False))
         default = Library(a.library).snapshot()['default_character']
         library.publish(sorted(built, key=lambda x: (x.id != default, x.id)))

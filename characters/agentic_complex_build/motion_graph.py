@@ -16,13 +16,13 @@ import argparse
 import json
 import re
 import shutil
-import subprocess
 import tempfile
 from collections import defaultdict
 from pathlib import Path
 
 from character_library import Library, Package, need, read_json, write_json
 import native_bundle
+from resource_store import clone_or_copy
 from .common import reference
 from .mmd.rig_math import pack_humanoid
 from .pose_family import Poses, gap_cm, nearest
@@ -996,7 +996,7 @@ def graft(package_path, output):
     need(not output.exists() and not output.is_relative_to(package.root), 'invalid_motion_graph_output')
     output.parent.mkdir(parents=True, exist_ok=True); stage = Path(tempfile.mkdtemp(prefix='.motion-graph-', dir=output.parent)); shutil.rmtree(stage)
     try:
-        subprocess.run(['/bin/cp', '-cR', str(package.root), str(stage)], check=True)
+        shutil.copytree(package.root, stage, symlinks=True, copy_function=clone_or_copy)
         native_path = stage/package.native_ref['file']; root = native_path.parent; native = read_json(native_path); entry = native['characters'][0]
         pack_path = root/entry['c7']['file']; animation = pack_path.parent/'animation'
         document = pack_graph(package.id, pack_path, root/entry['actor_archive']['file'])
@@ -1035,7 +1035,7 @@ def graft_library(catalog, output):
                 path = output/'packages-built'/original.id
                 counts[original.id] = graft(original.root, path)
             package = Package(path); dest = library.root/'packages'/package.id/package.sha256; dest.parent.mkdir(parents=True, exist_ok=True)
-            subprocess.run(['/bin/cp', '-cR', str(package.root), str(dest)], check=True); built.append(Package(dest, deep=False))
+            shutil.copytree(package.root, dest, symlinks=True, copy_function=clone_or_copy); built.append(Package(dest, deep=False))
         library.publish(built, default=source.snapshot()['default_character'])
         write_json(output/'result.json', dict(passed=True, characters=counts))
         return counts

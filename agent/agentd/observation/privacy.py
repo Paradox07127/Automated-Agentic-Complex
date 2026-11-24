@@ -75,10 +75,17 @@ class ConsentPolicy:
                 self.level = level
             return dict(permissions), self.epoch
 
-    def take_revocations(self):
+    def pending(self):
+        """The queued revocations and the epoch they were read at; they stay queued until applied, so a second
+        sync_privacy while one applies them applies them too instead of returning early."""
         with self.lock:
-            revoked, self.revoked = self.revoked, set()
-            return revoked
+            return set(self.revoked), self.epoch
+
+    def applied(self, kinds, epoch):
+        """kinds leave the queue unless consent changed since pending read them: a kind revoked again applies again."""
+        with self.lock:
+            if self.epoch == epoch:
+                self.revoked -= kinds
 
     def revoke(self, kinds):
         """A native save tombstone survives a quick off/on that a file poll could otherwise miss."""

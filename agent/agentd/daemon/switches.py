@@ -21,7 +21,7 @@ class SwitchesMixin:
         permissions, epoch = self.consent.snapshot()
         if self.capture is not None:
             self.capture.consent = self.consent.snapshot
-        revoked = self.consent.take_revocations()
+        revoked, read = self.consent.pending()
         if revoked:
             if self.character_agent is not None:
                 self.character_agent.cancel("context_changed")
@@ -50,6 +50,7 @@ class SwitchesMixin:
                 line.set()
             if self._live_lines:
                 self.cancel_turn("context_cleared")
+            self.consent.applied(revoked, read)
         return permissions, epoch
 
     def apply_live_settings(self, settings):

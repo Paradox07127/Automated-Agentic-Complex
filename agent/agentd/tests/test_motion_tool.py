@@ -151,6 +151,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual(self.files(), before)
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_synthetic_vmd_is_published_in_place_and_its_sources_kept(self):
         from test_vmd_import import authored_rig
         from agentic_complex_build.motion_import.take import check_mmd_index, check_result
@@ -179,6 +180,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual(imports[0]["created_at"], doc["created_at"])
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_vmd_import_prints_each_stage_before_the_result(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig())
@@ -188,6 +190,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual(list(dict.fromkeys(stages)), ["read", "sample", "retarget", "write", "validate", "publish"])
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_the_same_vmd_twice_is_already_imported(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig())
@@ -204,6 +207,7 @@ class MotionToolTests(unittest.TestCase):
                                    has_face=False, has_camera=False, warnings=[]))
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_list_shows_the_imported_vmd(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig())
@@ -246,6 +250,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual(self.files(), before)
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_host_rejection_leaves_the_library_and_removes_the_stage(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig()); snapshot = self.library.snapshot()
@@ -277,6 +282,7 @@ class MotionToolTests(unittest.TestCase):
         return self.library.snapshot(), sorted(p.relative_to(self.library.root) for p in (self.library.root / "packages").glob("*/*"))
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_an_installed_file_changed_after_install_fails_the_import_and_publishes_nothing(self):
         """Rewritten by the import, read and cloned, or only cloned: each changed file fails a VMD or a BVH import."""
         from test_bvh_import import cmu_bvh_text
@@ -292,6 +298,7 @@ class MotionToolTests(unittest.TestCase):
         for source in (self.vmd(), bvh): self.success(self.run_import(source, self.host()))
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_an_installed_file_changed_after_install_fails_a_rename_or_remove_and_publishes_nothing(self):
         """Rewritten by the edit, read and cloned, only cloned, or taken out by a remove: each changed file fails the edit."""
         self.install_with_report()
@@ -326,6 +333,7 @@ class MotionToolTests(unittest.TestCase):
         self.success(self.chain(package, self.host(), edits))
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_an_installed_file_changed_after_install_fails_an_mmd_sync_and_publishes_nothing(self):
         """A file the bake rewrites or verifies fails that entry; a file only cloned fails the whole sync."""
         from test_vmd_import import authored_rig
@@ -349,6 +357,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual(self.sync(self.host())["baked"], [action])
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_rename_shows_the_new_title_in_list(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig())
@@ -360,6 +369,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual([(x["title"], x["removed_at"]) for x in self.mmd_index()["entries"]], [("新舞", None)])
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_remove_empties_the_list_and_marks_the_shared_entry(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig())
@@ -373,6 +383,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertFalse((self.library.root / ".vmd-stage/fixture").exists())
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_host_rejection_of_a_remove_leaves_the_library_and_removes_the_stage(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig())
@@ -445,6 +456,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual([p.name for p in (self.library.root / ".vmd-stage").iterdir()], [".lock"])
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_remove_keeps_the_zip_of_another_import(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig())
@@ -458,6 +470,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual((kept / entry["zip"]["file"]).read_bytes(), archive.read_bytes())
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_extra_camera_vmd_is_recorded(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig())
@@ -498,6 +511,7 @@ class MotionToolTests(unittest.TestCase):
         return last
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_mmd_import_is_shared_across_characters(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig()); self.second_character(authored_rig())
@@ -536,6 +550,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertIsNotNone(report["camera"])
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_imports_and_mmd_sync_record_the_version_they_derive_from(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig()); self.second_character(authored_rig())
@@ -546,6 +561,7 @@ class MotionToolTests(unittest.TestCase):
                          dict(fixture=("1.0.2", "1.0.0"), second=("1.0.1", "1.0.0")))
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_mmd_sync_no_changes_keeps_version(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig())
@@ -556,6 +572,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual(self.library.snapshot(), before)
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_mmd_sync_failure_retries_only_after_package_changes(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig()); package = self.second_character()
@@ -589,6 +606,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual(self.mmd_list()["entries"][0]["characters"][1]["state"], "baked")
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_mmd_sync_keeps_a_reimported_live_id(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig()); self.second_character(authored_rig())
@@ -600,6 +618,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual(self.mmd_list()["entries"][0]["characters"][1]["state"], "baked")
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_mmd_rename_and_remove_propagate_on_sync(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig()); self.second_character(authored_rig())
@@ -618,6 +637,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertNotIn(action, [r["id"] for r in json.loads((second.root / "runtime/animation/actions.json").read_text(encoding="utf-8"))["actions"]])
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_mmd_edit_without_a_baked_row_only_updates_index(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig()); package = self.second_character()
@@ -631,6 +651,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertIsNotNone(self.mmd_index()["entries"][0]["removed_at"])
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_mmd_sync_sigterm_cleans_stage_without_publishing(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig()); self.second_character(authored_rig())
@@ -667,6 +688,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual(doc["reason"], "busy")
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_mmd_sync_records_an_entry_whose_bake_options_it_cannot_recover(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig()); self.second_character(authored_rig())
@@ -678,6 +700,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual(self.mmd_index()["entries"][0]["failures"]["second"]["reason"], "internal")
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_mmd_remove_reclaims_shared_sources_no_live_entry_names(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig())
@@ -702,6 +725,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual(doc["reason"], "unsupported_character")
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_mmd_sync_with_a_tombstone_beside_a_failing_live_entry_publishes_the_other_bake(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig()); self.second_character(authored_rig())
@@ -721,6 +745,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual(failure["package_sha256"], second.sha256)
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_list_dates_a_reimported_motion_by_its_live_import(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig())
@@ -805,6 +830,32 @@ class MotionToolTests(unittest.TestCase):
         with mock.patch("subprocess.run", side_effect=FileNotFoundError(2, "The system cannot find the file specified")):
             chain_package(package.root, self.root / "chained", proposal)
         Package(self.root / "chained")
+
+    @needs_numpy
+    def test_a_motion_import_builds_its_library_without_a_child_process(self):
+        import contextlib, io
+        from unittest import mock
+        from test_bvh_import import cmu_bvh_text
+        from test_vmd_import import authored_rig
+        from agentic_complex_build import import_motion
+        self.install(rig=authored_rig())
+        bvh = self.root / "walk.bvh"; bvh.write_text(cmu_bvh_text(), encoding="utf-8")
+        argv = ["import_motion", "--library", str(self.library.root), "--source", str(bvh), "--output", str(self.root / "built"), "--character", "fixture"]
+        with mock.patch("subprocess.run", side_effect=FileNotFoundError(2, "The system cannot find the file specified")), \
+                mock.patch.object(sys, "argv", argv), contextlib.redirect_stdout(io.StringIO()):
+            import_motion.main()
+        self.assertEqual([p.id for p in Library(self.root / "built/library").packages()], ["fixture"])
+
+    @needs_scipy
+    def test_a_motion_graph_and_its_library_copy_the_packages_without_a_child_process(self):
+        from unittest import mock
+        from agentic_complex_build.motion_graph import graft, graft_library
+        package = self.install_chains()
+        with mock.patch("subprocess.run", side_effect=FileNotFoundError(2, "The system cannot find the file specified")):
+            graft(package.root, self.root / "regraphed")
+            graft_library(self.library.root / "current.json", self.root / "graphed-library")
+        Package(self.root / "regraphed")
+        self.assertEqual([p.id for p in Library(self.root / "graphed-library/library").packages()], ["fixture"])
 
     @needs_numpy
     def test_a_bgm_import_on_windows_is_refused_before_the_package_is_copied(self):
