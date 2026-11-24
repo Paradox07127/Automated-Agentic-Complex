@@ -5,6 +5,10 @@ import os
 import shutil
 import subprocess
 
+# A checkout's own config can name programs git runs; agentd's read-only calls turn those off.
+HARDENED = ("-c", "core.fsmonitor=false", "-c", f"core.hooksPath={os.devnull}", "-c", "core.pager=cat",
+            "-c", "log.showSignature=false")
+
 
 @functools.cache
 def _available():
@@ -17,16 +21,28 @@ def _available():
         return False
 
 
-def _git(cwd, *args):
-    """(returncode, stdout) of git run in cwd, or None when it could not run."""
+def command(*args):
+    """(argv, environment) of an agentd-internal git call; the daemon's GIT_* variables are left out."""
+    env = {key: value for key, value in os.environ.items() if not key.upper().startswith("GIT_")}
+    return ["git", "--no-optional-locks", *HARDENED, *args], env
+
+
+def run(cwd, args, timeout, **options):
+    """The finished hardened git call in cwd, None when git is unavailable; raises what subprocess.run raises."""
     if not _available():
         return None
+    argv, env = command(*args)
+    return subprocess.run(argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL, capture_output=True, timeout=timeout,
+                          **options)
+
+
+def _git(cwd, *args):
+    """(returncode, stdout) of git run in cwd, or None when it could not run."""
     try:
-        done = subprocess.run(["git", "--no-optional-locks", "-C", cwd, *args], capture_output=True, text=True,
-                              timeout=5, encoding="utf-8")
+        done = run(cwd, args, 5, text=True, encoding="utf-8")
     except (OSError, subprocess.SubprocessError):
         return None
-    return done.returncode, done.stdout
+    return None if done is None else (done.returncode, done.stdout)
 
 
 def snapshot(cwd):

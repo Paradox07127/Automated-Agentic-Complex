@@ -1,12 +1,19 @@
 """Git state of a work segment's checkout and whether its HEAD landed in the main tree, on real small repositories."""
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from infra.store import open_store
+from sessions import git_state
+from sessions.day_summary import project_root
 from sessions.git_state import landed, snapshot
+from sessions.tasks import TaskLedger
+from tool_gateway.policy import READ_ONLY_PRESETS
 import test_worklog_l1 as l1
 
 GIT = ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"]
@@ -109,6 +116,62 @@ class LandedTest(unittest.TestCase):
         self.assertFalse(landed(str(repo.root), head))
         self.assertFalse(landed(str(repo.root), "0" * 40))
         self.assertFalse(landed(str(repo.base / "gone"), head))
+
+
+class HardenedGitTest(unittest.TestCase):
+    """agentd's own git calls run no program the checkout's config or the daemon's GIT_* variables name."""
+
+    def test_the_command_overrides_program_config_and_drops_daemon_git_variables(self):
+        daemon = {"GIT_DIR": "/x/.git", "GIT_CONFIG_PARAMETERS": "'core.fsmonitor=/x/run'",
+                  "GIT_EXTERNAL_DIFF": "/x/run", "GIT_PAGER": "/x/run", "PATH": os.environ.get("PATH", "")}
+        with mock.patch.dict(os.environ, daemon):
+            argv, env = git_state.command("status", "--short")
+        self.assertEqual(argv[:2], ["git", "--no-optional-locks"])
+        self.assertEqual(argv[-2:], ["status", "--short"])
+        options = [argv[i + 1] for i, word in enumerate(argv) if word == "-c"]
+        for setting in ("core.fsmonitor=false", f"core.hooksPath={os.devnull}", "core.pager=cat",
+                        "log.showSignature=false"):
+            self.assertIn(setting, options)
+        self.assertEqual([key for key in env if key.upper().startswith("GIT_")], [])
+        self.assertEqual(env["PATH"], daemon["PATH"])
+        # an empty diff.external does not reset it, so diffs refuse the external program themselves
+        for preset in READ_ONLY_PRESETS.values():
+            self.assertTrue(preset[0] not in ("diff", "log") or "--no-ext-diff" in preset, preset)
+
+    @unittest.skipIf(sys.platform == "win32", "the fsmonitor hook is a POSIX shell script")
+    def test_a_repository_fsmonitor_is_not_run(self):
+        repo = Repo(self)
+        marker = repo.base / "ran"
+        hook = repo.base / "fsmonitor.sh"
+        hook.write_text(f"#!/bin/sh\ntouch '{marker}'\nexit 1\n", encoding="utf-8")
+        hook.chmod(0o755)
+        with open(repo.root / ".git" / "config", "a", encoding="utf-8") as config:
+            config.write(f"[core]\n\tfsmonitor = {hook}\n")
+        (repo.root / "a.txt").write_text("changed\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(repo.root), "status", "--short"], check=True, capture_output=True)
+        self.assertTrue(marker.exists())  # control: a plain git status runs it
+        marker.unlink()
+        self.assertEqual(snapshot(str(repo.root))["dirty"], 1)
+        db = open_store(repo.base / "agentd.sqlite")
+        self.addCleanup(db.close)
+        ledger = TaskLedger(db)
+        for task_id, cmd in (("d-1", "git status --short"), ("d-2", "git diff --stat"), ("d-3", "git log -1 --stat")):
+            with self.subTest(cmd):
+                ledger.create(task_id, "claude", str(repo.root), "t", "read_only", cmd, now=1.0)
+                for state in ("approved", "running", "returned"):
+                    ledger.transition(task_id, state, now=2.0)
+                row = ledger.verify(task_id, now=3.0)
+                self.assertEqual(row["state"], "succeeded")
+        self.assertIn("a.txt", ledger.get("d-1")["result"]["output_tail"])
+        self.assertFalse(marker.exists())
+
+    def test_project_root_without_git_runs_nothing(self):
+        project_root.cache_clear()
+        self.addCleanup(project_root.cache_clear)
+        with mock.patch("sessions.git_state._available", return_value=False), \
+                mock.patch("subprocess.run") as run:
+            self.assertEqual(project_root(tempfile.gettempdir()), tempfile.gettempdir())
+        run.assert_not_called()
 
 
 class StoredSnapshotTest(unittest.TestCase):

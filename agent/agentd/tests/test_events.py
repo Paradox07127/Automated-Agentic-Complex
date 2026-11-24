@@ -160,21 +160,30 @@ class NormalizeTest(unittest.TestCase):
                 ("Write", {"content": "新" * 500}, "新" * 500),
                 ("Edit", {"old_string": "old", "new_string": "replacement"}, "replacement"),
                 ("MultiEdit", {"edits": [{"new_string": "first"}, {"new_string": "second"}]},
-                 "first\n(2 edits)"),
+                 "first\n---\nsecond\n(2 edits)"),
                 ("MultiEdit", {"edits": [{"new_string": "x" * 500}, {"new_string": "second"}]},
-                 "x" * 500 + "\n(2 edits)"),
+                 "x" * 500 + "\n---\nsecond\n(2 edits)"),
                 ("NotebookEdit", {"new_source": "cell"}, "cell"),
                 ("Write", {"content": ""}, ""),
                 ("Write", {"content": "x" * 400}, "x" * 400)):
             with self.subTest(tool=name, length=len(content)):
                 card = normalize_claude({**COMMON, "hook_event_name": "PermissionRequest", "tool_name": name,
                                          "tool_input": {"file_path": "/w/a", **tool_input}}).to_dict()
-                preview = tool_input["edits"][0]["new_string"][:400] + "\n(2 edits)" \
+                preview = content.removesuffix("\n(2 edits)")[:400] + "\n(2 edits)" \
                     if name == "MultiEdit" else content[:400]
                 self.assertEqual(card["content_preview"], preview)
                 self.assertEqual(card["content_preview_truncated"], len(content) > len(preview))
                 self.assertEqual(card["content_preview_length"], len(content))
                 self.assertEqual(card["content_preview_sha256"], hashlib.sha256(content.encode()).hexdigest())
+
+    def test_multi_edit_preview_covers_every_replacement(self):
+        card = normalize_claude({**COMMON, "hook_event_name": "PermissionRequest", "tool_name": "MultiEdit",
+                                 "tool_input": {"file_path": "/x", "edits": [
+                                     {"new_string": "a"}, {"new_string": "b" * 1000}]}}).to_dict()
+        content = "a\n---\n" + "b" * 1000 + "\n(2 edits)"
+        self.assertTrue(card["content_preview_truncated"])
+        self.assertEqual(card["content_preview_length"], len(content))
+        self.assertEqual(card["content_preview_sha256"], hashlib.sha256(content.encode()).hexdigest())
 
     def test_a_command_array_is_joined_and_judged(self):
         argv = ["bash", "-lc", "rm -rf ~"]

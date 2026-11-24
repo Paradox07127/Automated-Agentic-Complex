@@ -216,11 +216,10 @@ def _build(source, payload, kind, now):
             content = tool_input.get("new_source")
         elif tool_name == "MultiEdit":
             edits = tool_input.get("edits")
-            if isinstance(edits, list) and edits and isinstance(edits[0], dict):
-                first = edits[0].get("new_string")
-                if isinstance(first, str):
-                    content = first
-                    suffix = f"\n({len(edits)} edits)"
+            if isinstance(edits, list) and edits and all(
+                    isinstance(e, dict) and isinstance(e.get("new_string"), str) for e in edits):
+                content = "\n---\n".join(e["new_string"] for e in edits)
+                suffix = f"\n({len(edits)} edits)"
     if not isinstance(content, str):
         content = None
     preview = content[:400] + suffix if content is not None else None

@@ -203,6 +203,17 @@ class ApprovalBrokerTest(unittest.TestCase):
                                  (False, "scope_unavailable"))
                 self.assertEqual(b.decide(request.request_id, request.generation, "allow"), (True, None))
 
+    def test_multi_edit_with_a_hidden_replacement_allows_only_once(self):
+        event = normalize_claude({"session_id": "A", "tool_name": "MultiEdit", "tool_input": {
+            "file_path": "/x", "edits": [{"new_string": "ok"}, {"new_string": "b" * 2000}]}}).to_dict()
+        fields = {key: event[key] for key in ("content_preview", "content_preview_truncated",
+                                              "content_preview_length", "content_preview_sha256")}
+        b = broker(window=2.0)
+        b.open("claude", "A", "MultiEdit", tool_summary=event["tool_summary"], session_scope=self.scope("x"),
+               **fields)
+        [card] = b.pending()
+        self.assertEqual((card["options"], card["session_scope"]), (["allow", "deny"], None))
+
     @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
     def test_broad_suggestions_offer_no_session_scope(self):
         safe = self.scope("git status")["updates"][0]

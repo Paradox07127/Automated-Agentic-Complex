@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import subprocess
 
+from sessions import git_state
 from sessions.ledger import parse
 from character.proactive import WAITING
 from sessions.registry import own_app_wait
@@ -21,9 +22,11 @@ def project_root(cwd):
     while not probe.is_dir() and probe != probe.parent:
         probe = probe.parent
     try:
-        found = subprocess.run(["git", "-C", str(probe), "rev-parse", "--path-format=absolute", "--git-common-dir"],
-                               capture_output=True, text=True, timeout=5, encoding="utf-8")
+        found = git_state.run(str(probe), ("rev-parse", "--path-format=absolute", "--git-common-dir"), 5,
+                              text=True, encoding="utf-8")
     except (OSError, subprocess.SubprocessError):
+        return cwd
+    if found is None:
         return cwd
     common = found.stdout.strip()
     return os.path.dirname(common) if found.returncode == 0 and os.path.basename(common) == ".git" else cwd

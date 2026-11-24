@@ -6,7 +6,8 @@ import subprocess
 import threading
 import time
 
-from tool_gateway.policy import POLICY
+from sessions import git_state
+from tool_gateway.policy import POLICY, READ_ONLY_PRESETS
 
 TRANSITIONS = {
     "proposed": ("approved", "denied", "expired"),
@@ -44,8 +45,12 @@ def delivery_id(task_id):
 
 
 def run_verify(argv, cwd, timeout):
-    """(exit code, stdout + stderr); raises subprocess.TimeoutExpired."""
-    done = subprocess.run(argv, cwd=cwd, timeout=timeout, capture_output=True)
+    """(exit code, stdout + stderr); raises subprocess.TimeoutExpired. A read_only preset runs as hardened git."""
+    preset = READ_ONLY_PRESETS.get(shlex.join(argv))
+    done = subprocess.run(argv, cwd=cwd, timeout=timeout, capture_output=True) if preset is None \
+        else git_state.run(cwd, preset, timeout)
+    if done is None:  # git is unavailable
+        raise FileNotFoundError("git_unavailable")
     return done.returncode, done.stdout + done.stderr
 
 

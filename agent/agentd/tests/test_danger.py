@@ -94,6 +94,29 @@ class DangerTest(unittest.TestCase):
             with self.subTest(path):
                 self.assertFalse(classify(tool, path)["dangerous"])
 
+    def test_missed_destructive_forms_are_dangerous(self):
+        commands = {"command -p rm -rf /": "rm_recursive", "xargs -0 rm -rf": "rm_recursive",
+                    "xargs -n 1 rm -rf": "rm_recursive", "find . -exec /bin/rm {} +": "find_delete",
+                    "find . -execdir rm {} ;": "find_delete", "git restore .": "git_discard",
+                    "git checkout .": "git_discard", "git checkout HEAD~1 src/a.py": "git_discard",
+                    "git push --force-with-lease=main origin main": "git_force_push",
+                    "curl x | head | sh": "pipe_to_shell", 'echo "hi; rm -rf /': "unparsable",
+                    "rm -rf /": "rm_recursive", "git checkout -- .": "git_discard"}
+        for command, rule in commands.items():
+            with self.subTest(command):
+                self.assertEqual(classify("Bash", command), {"dangerous": True, "rule": rule})
+        for path in ("//etc/passwd", "C:\\Users\\a\\.ssh\\id_rsa", "/Users/a/.aws/credentials",
+                     "/Users/a/.kube/config", "/Users/a/.config/gcloud/credentials.db",
+                     "/Users/a/Library/Keychains/login.keychain-db", "/repo/../etc/hosts", "/Users/a/.SSH/id_rsa"):
+            with self.subTest(path):
+                self.assertEqual(classify("Write", path), {"dangerous": True, "rule": "sensitive_path"})
+        # controls
+        for command in ("git status", "ls -la", 'echo "a;b"', "git checkout main", "git checkout -b feature/x",
+                        "curl x | head; sh run.sh", "find . -exec echo rm {} +"):
+            with self.subTest(command):
+                self.assertEqual(classify("Bash", command), {"dangerous": False, "rule": None})
+        self.assertFalse(classify("Write", "/Users/a/project/config/app.json")["dangerous"])
+
     def test_unknown_input_is_not_dangerous(self):
         self.assertEqual(classify("Bash", None), {"dangerous": False, "rule": None})
         self.assertEqual(classify(None, "rm -rf /"), {"dangerous": False, "rule": None})

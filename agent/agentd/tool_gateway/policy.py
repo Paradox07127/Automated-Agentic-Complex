@@ -18,7 +18,9 @@ REVOKE_ON = {"native_panel": frozenset({"run_end", "turn_cancelled", "user_cance
                                         "conversation_idle", "conversation_switch"}),
              "exact_call": frozenset({"call_returned", "expired", "run_invalidated", "shutdown"}),
              "card": frozenset({"expired", "tool_event", "agent_stopped", "session_ended", "shutdown", "reset"})}
-READ_ONLY_PRESETS = ("git diff --stat", "git status --short", "git log -1 --stat")
+# verify command a read_only task may store -> the git arguments run for it (sessions.git_state.run)
+READ_ONLY_PRESETS = {"git diff --stat": ("diff", "--no-ext-diff", "--stat"), "git status --short": ("status", "--short"),
+                     "git log -1 --stat": ("log", "--no-ext-diff", "-1", "--stat")}
 
 
 @dataclass(frozen=True)
