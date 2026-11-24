@@ -1,7 +1,6 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { readVoiceBinding } from '../../bridge/agentd';
 import { Barcode, Diamond, WhiteCapsule } from '../../ui/game';
-import { Emblem } from './Figure';
 import { SWITCH_STAGE_LABELS, SWITCH_STAGES } from './tables';
 import type { SwitchState } from './useSwitch';
 import styles from './NameBlock.module.css';
@@ -56,21 +55,12 @@ const ems = (text: string) => [...text].reduce((w, c) => w + 0.02 + (/[⺀-鿿�
 /** A Latin name longer than this many characters goes on its own line under 在桌面. */
 const EN_INLINE = 12;
 
-/** 名字块（游戏 CharInfo 名字栏）：白方徽记、白色大名字、「在桌面」蓝标和拉丁名；下面是语音绑定和「在做」标签板。名字按长度缩到一行放下，最小一档时换行，从不截断。 */
+/** 名字块（游戏 CharInfo 名字栏）：白色大名字、「在桌面」蓝标和拉丁名；下面是语音绑定和「在做」标签板。名字按长度缩到一行放下，最小一档时换行，从不截断。 */
 export function NameBlock(p: NameBlockProps) {
   return (
     <div className={styles.block} data-nameplate="" data-g="root" style={{ '--nb-len': ems(p.name).toFixed(2) } as CSSProperties}>
       <span className={styles.band} aria-hidden="true" />
       <div className={styles.plate} data-g="nameplate">
-        <span className={styles.emb} aria-hidden="true">
-          <span className={styles.frame} />
-          <span className={styles.shadow} />
-          <span className={styles.box} />
-          <Emblem className={styles.mark} />
-          <span className={styles.tick}>
-            <Diamond tone="yellow" size={8} />
-          </span>
-        </span>
         <span className={styles.names}>
           <b className={styles.name}>{p.name}</b>
           {(p.active || p.en) && (

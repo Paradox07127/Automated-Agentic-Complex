@@ -61,6 +61,19 @@ afterEach(() => {
   delete window.agenticComplex;
 });
 
+describe('the name block', () => {
+  it('shows the names alone on the plate, with no emblem beside them', () => {
+    window.agenticComplex = {} as never;
+    render(<NameBlock name="示例乙" en="SI" active activity={null} offline={false} />);
+    const plate = document.querySelector('[data-nameplate] [data-g="nameplate"]') as HTMLElement;
+    expect(plate.children).toHaveLength(1);
+    expect(plate.querySelector('img')).toBeNull();
+    // The 在桌面 monitor is the plate's only drawing.
+    expect(plate.querySelectorAll('svg')).toHaveLength(1);
+    expect(plate.textContent).toBe('示例乙在桌面SI');
+  });
+});
+
 describe('a long character name', () => {
   it.each([LONG_CJK, LONG_LATIN])('shows %s whole on the name block, wrapping and sized down instead of cut', (name) => {
     render(<NameBlock name={name} en={LONG_EN} active activity={null} offline={false} />);
