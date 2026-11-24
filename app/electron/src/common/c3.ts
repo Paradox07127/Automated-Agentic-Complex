@@ -454,13 +454,16 @@ export const attachProblem = (m: Fields): string | null => (m.track_id === null 
 
 export const DROP_LIMITS = { items: 16, textBytes: 16384 } as const;
 
+/** Rule 38's `path`: POSIX absolute, or Win32 absolute, which begins with a drive (`X:\`) or with `\\` (UNC, `\\?\`). */
+const absolutePath = (p: string) => p.startsWith('/') || /^[A-Za-z]:\\/.test(p) || p.startsWith('\\\\');
+
 /** Rule 38's `drop`: 1–16 items of one field each. */
 export function dropProblem(m: Fields): string | null {
   if (!coordinate(m.x) || !coordinate(m.y)) return 'coordinate';
   const items = m.items;
   if (!Array.isArray(items) || items.length < 1 || items.length > DROP_LIMITS.items) return 'items';
   const fits = (i: unknown) => object(i) && (
-    (i.kind === 'file' && only(i, ['kind', 'path']) && typeof i.path === 'string' && i.path.startsWith('/'))
+    (i.kind === 'file' && only(i, ['kind', 'path']) && typeof i.path === 'string' && absolutePath(i.path))
     || (i.kind === 'url' && only(i, ['kind', 'url']) && typeof i.url === 'string' && i.url !== '')
     || (i.kind === 'text' && only(i, ['kind', 'text']) && text(i.text, DROP_LIMITS.textBytes)));
   if (!items.every(fits)) return 'item';

@@ -16,7 +16,7 @@
     "layering": {"mac": "yes", "windows": "no", "ref": "CONTRACT.md:953"},
     "pointer": {"mac": "yes", "windows": "yes"},
     "pipeline": {"mac": "yes", "windows": "yes"},
-    "drop": {"mac": "yes", "windows": "no", "ref": "CONTRACT.md:953"},
+    "drop": {"mac": "yes", "windows": "yes"},
     "motion_requests": {"mac": "yes", "windows": "no", "ref": "CONTRACT.md:953"},
     "pass_through": {"mac": "yes", "windows": "yes"},
     "keep_clear": {"mac": "yes", "windows": "yes"},

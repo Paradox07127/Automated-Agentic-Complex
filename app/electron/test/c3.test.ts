@@ -3,8 +3,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { test } from 'node:test';
 import {
-  behaviorCapabilities, type C3Message, companionHello, decodeLine, encodeLine, fpsTier, fpsTierFor, type Heartbeat, LineFramer, LineTooLong,
-  MAX_LINE, touchSettings, Watchdog,
+  behaviorCapabilities, type C3Message, companionHello, decodeLine, dropProblem, encodeLine, fpsTier, fpsTierFor, type Heartbeat, LineFramer,
+  LineTooLong, MAX_LINE, touchSettings, Watchdog,
 } from '../src/common/c3.ts';
 
 const EXAMPLES = resolve(import.meta.dirname, '../../../protocol/C3-host-ipc/examples');
@@ -143,4 +143,11 @@ test('rule 17 (v20): frames that stop growing while active for 4 s kill; idle do
     idle.heartbeat(beat(true, { frames: 5, render: 'idle' }), t);
     assert.equal(idle.check(t, false), null);
   }
+});
+
+test('rule 38: a drop path is POSIX absolute or Win32 absolute (a drive, UNC or \\\\?\\), nothing else', () => {
+  const drop = (path: string) => dropProblem({ v: 1, type: 'drop', x: 300, y: 350, items: [{ kind: 'file', path }] });
+  for (const path of ['/Users/someone/note.txt', 'C:\\Users\\someone\\note.txt', 'd:\\a b\\猫.txt', '\\\\server\\share\\note.txt',
+    '\\\\?\\C:\\very\\long\\path.txt']) assert.equal(drop(path), null, path);
+  for (const path of ['note.txt', 'C:note.txt', 'C:/Users/note.txt', '\\Users\\note.txt', '', '1:\\note.txt']) assert.equal(drop(path), 'item', path);
 });

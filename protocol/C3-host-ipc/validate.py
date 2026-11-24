@@ -51,6 +51,8 @@ PIPELINE_SUSPENDED = {"system_sleep", "screen_sleep", "session_inactive", "switc
 MAX_DROP_ITEMS = 16
 MAX_DROP_TEXT = 16384
 DROP_FIELDS = {"file": "path", "url": "url", "text": "text"}
+# Rule 38: a POSIX absolute path, or a Win32 one, which begins with a drive (X:\) or with \\ (UNC, \\?\).
+ABSOLUTE_PATH = re.compile(r"/|[A-Za-z]:\\|\\\\")
 ATTENTION_SOURCES = {"panel", "focus"}
 SIDES = ("left", "right")
 MAX_MOTION_REQUEST_LINE = 4096
@@ -1048,7 +1050,7 @@ def check_drop(m, _):
         field = DROP_FIELDS.get(item.get("kind")) if isinstance(item, dict) else None
         if field is None or set(item) != {"kind", field} or not is_str(item[field]):
             errors.append(f"drop.items[{i}] must be {{kind: file, path}}, {{kind: url, url}} or {{kind: text, text}} with a non-empty string")
-        elif field == "path" and not item["path"].startswith("/"):
+        elif field == "path" and not ABSOLUTE_PATH.match(item["path"]):
             errors.append(f"drop.items[{i}].path must be absolute")
         elif field == "text" and len(item["text"].encode("utf-8")) > MAX_DROP_TEXT:
             errors.append(f"drop.items[{i}].text longer than {MAX_DROP_TEXT} bytes")
