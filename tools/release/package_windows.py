@@ -5,7 +5,7 @@ Velopack release of it.
 Takes the official Electron win32-x64 root, app/electron after `npm run build`, ac-helper.exe, private\\renderer\\windows\\build
 (efw.exe and its product .spv), fbx-motion.exe, the web build, the prepared harness runtime, a CPython 3.12 base prefix,
 a character library, vpk and, optionally, the UI art (as release.py's ui_art: the pages' art and the
-exe's icon). `vpk pack` turns the directory into <output>/releases/ (Setup.exe, .nupkg, portable zip, feed files); no
+exe's icon) and the photo-mode filters (as package_app.py's --photo-looks). `vpk pack` turns the directory into <output>/releases/ (Setup.exe, .nupkg, portable zip, feed files); no
 signing. Prints one JSON line, the receipt, also written to <output>/pack-receipt.json.
 """
 import argparse
@@ -35,6 +35,8 @@ HELPER_DLLS = ('sherpa-onnx-c-api.dll', 'onnxruntime.dll')
 HELPER_LICENSES = ROOT / 'app/helpers/windows/licenses'
 RENDERER = 'efw.exe'
 WINDOW_ENVELOPES = 'window-envelopes.json'
+# Where efw.exe looks for the photo-mode filters, beside itself (the macOS app's Resources/looks/photomode-v1/).
+PHOTO_LOOKS = 'looks/photomode-v1'
 # The built main process and the preview addon as app/electron/build.mjs writes them on Windows; source maps stay out.
 ELECTRON_APP_FILES = ('dist/main.mjs', 'dist/preload.cjs', 'dist/native/preview.node')
 # What main/velopack.ts imports from app/electron's node_modules at run time: the velopack package with its win-x64 module
@@ -89,9 +91,10 @@ def stage_host(host, electron_runtime, electron_dir, helper, product_name, app_v
     return first + sorted(path for path in rest if path not in first)
 
 
-def stage_renderer(renderer, build, window_envelopes, library):
+def stage_renderer(renderer, build, window_envelopes, library, photo_looks=None):
     """Copy efw.exe, the product .spv and window-envelopes.json it loads from its own directory; the file needs a row at the
-    package version of each character of `library` that renders. Return their names, efw.exe first."""
+    package version of each character of `library` that renders. With photo_looks, looks.json and every file it lists go in
+    PHOTO_LOOKS after each file's SHA-256 is checked. Return their names, efw.exe first."""
     shaders = sorted(path.name for path in Path(build).glob('*.spv'))
     if not shaders: raise ValueError('renderer_shaders_missing: ' + str(build))
     rows = json.loads(Path(window_envelopes).read_text())['characters']
@@ -100,7 +103,18 @@ def stage_renderer(renderer, build, window_envelopes, library):
     renderer.mkdir(parents=True)
     for name in [RENDERER, *shaders]: shutil.copy2(Path(build) / name, renderer / name)
     shutil.copy2(window_envelopes, renderer / WINDOW_ENVELOPES)
-    return [RENDERER, *shaders, WINDOW_ENVELOPES]
+    looks = []
+    if photo_looks:
+        source = Path(photo_looks)
+        rows = json.loads((source / 'looks.json').read_text(encoding='utf-8'))['looks']
+        for row in rows: build_components.check_manifest_file(source, row['file'], 'Photo look')
+        for row in rows:
+            if digest(source / row['file']) != row['sha256']: raise ValueError('Photo look hash mismatch: ' + row['file'])
+        looks = [PHOTO_LOOKS + '/' + relative for relative in ['looks.json'] + [row['file'] for row in rows]]
+        for relative in looks:
+            (renderer / relative).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source / relative[len(PHOTO_LOOKS) + 1:], renderer / relative)
+    return [RENDERER, *shaders, WINDOW_ENVELOPES, *looks]
 
 
 def brand(executable, ui_art, product_name, app_version, build_version):
@@ -191,7 +205,8 @@ def check_runtime_python(python):
 
 
 def stage(*, library, python, harness_runtime, web_dist, electron_runtime, electron_dir, helper, renderer,
-          window_envelopes, fbx_tool, output, build_version, vpk, port=None, id=None, product_name=None, app_version=None, ui_art=None):
+          window_envelopes, fbx_tool, output, build_version, vpk, port=None, id=None, product_name=None, app_version=None, ui_art=None,
+          photo_looks=None):
     """Write output/Agentic Complex/, vpk pack it into output/releases/ and return the receipt: its path, file count, bytes,
     the fuses and the exe's resources read back per exe, the UI art shipped, contents(), the release version and files."""
     output = Path(output).resolve()
@@ -213,7 +228,7 @@ def stage(*, library, python, harness_runtime, web_dist, electron_runtime, elect
         host = component_stage / 'host/payload'
         product_name, app_version = product_name or 'Agentic Complex', app_version or '0.2.0'
         host_paths = stage_host(host, electron_runtime, electron_dir, helper, product_name, app_version)
-        renderer_paths = stage_renderer(component_stage / 'renderer/payload', renderer, window_envelopes, library)
+        renderer_paths = stage_renderer(component_stage / 'renderer/payload', renderer, window_envelopes, library, photo_looks)
         build_components.validate_canon_windows(component_stage / 'agentd/payload/agentd' / build_components.CANON_RELATIVE)
         # Before the fuses: the resource update rewrites the exe.
         branding = {path.name: brand(path, ui_art, product_name, app_version, build_version)
@@ -283,6 +298,7 @@ if __name__ == '__main__':
                       ('output', 'A new directory; Agentic Complex\\ is written in it')]:
         parser.add_argument('--' + key, type=Path, required=True, help=help)
     parser.add_argument('--ui-art', type=Path, help='The UI art: art-manifest.json, the files it lists and ' + ICON_SOURCE)
+    parser.add_argument('--photo-looks', type=Path, help='Built photo-mode filter directory with looks.json')
     parser.add_argument('--build-version', default='20261121.1')
     parser.add_argument('--port', type=int)
     parser.add_argument('--id')
