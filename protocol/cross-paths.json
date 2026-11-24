@@ -130,7 +130,7 @@
   {"row": "C9", "token": "distribution-seed.json", "files": ["app/electron/src/main/packaged.ts"]},
   {"row": "C9", "token": "install_hooks.py", "files": ["app/electron/src/common/onboarding.ts"]},
   {"row": "C9", "token": "runtime/agentd", "files": ["app/electron/src/common/config.ts"]},
-  {"row": "C9", "token": "ui-runtime.json", "files": ["app/electron/src/common/c6.ts", "app/electron/src/main/index.ts"]},
+  {"row": "C9", "token": "ui-runtime.json", "files": ["app/electron/src/common/c6.ts", "app/electron/src/main/agentd/client.ts", "app/electron/src/main/index.ts"]},
   {"row": "C9", "token": "events-runtime.json", "files": ["app/electron/src/main/renderer/supervisor.ts"]},
   {"row": "C10", "token": "blacklist.json", "files": ["app/electron/src/main/ambient/shell.ts", "app/electron/src/main/attention/shell.ts", "app/electron/src/main/attention/watchers.ts", "app/electron/src/main/context/shell.ts", "app/electron/src/main/control/shell.ts"]},
   {"row": "C10", "token": "tts-token", "files": ["app/electron/src/common/agentd.ts"]},
