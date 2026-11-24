@@ -125,9 +125,11 @@ test('the agentd command line follows C9 in a fixed order', () => {
 test('a proxy goes to agentd as HTTP_PROXY and HTTPS_PROXY in place of any case of the inherited ones; loopback and the services\' hosts go direct', () => {
   const base = { PATH: '/bin', http_proxy: 'http://old:1', HTTPS_PROXY: 'http://old:2', no_proxy: '.corp', ALL_PROXY: 'socks5://old:3' };
   assert.equal(agentdEnv(config(), base), base);
-  assert.deepEqual(agentdEnv(config({ proxy_url: 'http://u:p@proxy:7890' }), base), {
-    PATH: '/bin', HTTP_PROXY: 'http://u:p@proxy:7890', HTTPS_PROXY: 'http://u:p@proxy:7890', NO_PROXY: '.corp,localhost,127.0.0.1,::1',
+  assert.deepEqual(agentdEnv(config({ proxy_url: 'http://proxy:7890' }), base), {
+    PATH: '/bin', HTTP_PROXY: 'http://proxy:7890', HTTPS_PROXY: 'http://proxy:7890', NO_PROXY: '.corp,localhost,127.0.0.1,::1',
   });
+  // A proxy address with credentials is no proxy: they never reach agentd's environment.
+  assert.equal(agentdEnv(config({ proxy_url: 'http://u:p@proxy:7890' }), base), base);
   const services = { motion: { mode: 'url', url: 'http://gpu-box:48830' }, tts: { mode: 'ssh', url: 'http://127.0.0.1:9888', ssh_host: 'gpu' },
     llm: { mode: 'off', url: 'http://lan-llm:8000/v1' } };
   assert.deepEqual(agentdEnv(config({ proxy_url: 'http://proxy:8080', services }), { PATH: '/bin' }),

@@ -387,16 +387,15 @@ function describe(raw: unknown): string {
   return JSON.stringify(raw) ?? String(raw);
 }
 
-/** config.json `proxy_url`: empty for none, or `http(s)://[user:password@]host[:port]` with nothing after it but a slash. */
+/** config.json `proxy_url`: empty for none, or `http(s)://host[:port]` with nothing after it but a slash; no user or password. */
 export function validProxyUrl(v: string): boolean {
   if (v === '') return true;
-  if (!/^https?:\/\/[^/?#\s\p{Cc}]+\/?$/u.test(v)) return false;
-  try {
-    return new URL(v).hostname !== '';
-  } catch {
-    return false;
-  }
+  if (!/^https?:\/\/[^/?#@\\\s\p{Cc}]+\/?$/u.test(v)) return false;
+  return (URL.parse(v)?.hostname ?? '') !== '';
 }
+
+/** A valid `proxy_url` as it is kept: `scheme://host[:port]` in lower case, without the default port or a slash. */
+export const canonicalProxyUrl = (v: string) => (v === '' ? '' : new URL(v).origin);
 
 /** A `services` `ssh_host` ssh would read as an option, or one with a space or control character. */
 export const unsafeSshHost = (host: string) => /^-|[\s\p{Cc}]/u.test(host);
@@ -434,14 +433,14 @@ function parseValue(raw: unknown, row: Row, platform: ShellPlatform): SettingVal
         if (name !== null) return name;
       }
     } else if (accepts(row.item, value)) {
-      return value;
+      return row.item.key === 'proxy_url' ? canonicalProxyUrl(value as string) : value;
     }
   }
   let allowed: string;
   if (c.kind === 'choice' || c.kind === 'dropdown') allowed = '可选 ' + c.options.map(([k, l]) => `${k}（${l}）`).join(' / ');
   else if (c.kind === 'hotkey') allowed = '要用带 ⌃、⌥ 或 ⌘ 的组合键，或 F1–F12' + (allowsRightOption(row) ? '，或 右⌥' : '');
   else if (c.kind === 'slider') allowed = `范围 ${c.min.toFixed(1)}…${c.max.toFixed(1)}`;
-  else if (c.kind === 'text') allowed = '要以 http:// 或 https:// 开头，只写主机和端口，或留空';
+  else if (c.kind === 'text') allowed = '要以 http:// 或 https:// 开头，只写主机和端口，不带用户名和密码，或留空';
   else allowed = '可选 true / false';
   const shown = c.kind === 'hotkey' && platform === 'windows' ? windowsCaps : (s: string) => s;
   throw new Rejection(`「${row.item.label}」不能设成 ${shown(describe(raw))}：${shown(allowed)}`);
@@ -526,10 +525,10 @@ export function planSave(saved: Record<string, SettingValue>, login: boolean | n
     if (changes[row.item.key] === undefined) continue;
     const name = next[row.item.key];
     if (typeof name !== 'string' || name === '') continue;
-    const other = hotkeys.find((r) => r.item.key !== row.item.key && next[r.item.key] === name);
-    if (other) {
+    const other = name === PALETTE_HOTKEY[platform] ? '命令面板' : hotkeys.find((r) => r.item.key !== row.item.key && next[r.item.key] === name)?.item.label;
+    if (other !== undefined) {
       const caps = webHotkey(name) ?? name;
-      return { write: {}, effects: [], restart: 'none', error: `${platform === 'windows' ? windowsCaps(caps) : caps} 已被「${other.item.label}」占用` };
+      return { write: {}, effects: [], restart: 'none', error: `${platform === 'windows' ? windowsCaps(caps) : caps} 已被「${other}」占用` };
     }
   }
   const changed = Object.keys(next).filter((k) => old[k] !== next[k]);
@@ -563,7 +562,7 @@ export function planSave(saved: Record<string, SettingValue>, login: boolean | n
     });
     effects.push({ kind: 'hotkeys', saved: [...hotkeysChanged, ...retries].map((k) => [k, next[k] as string]) });
   }
-  const restartAvatar = ['render_ssaa', 'render_resolution', 'render_shadow', 'render_secondary_motion', 'speech_expressions'].some((k) => changed.includes(k))
+  const restartAvatar = changed.some((k) => k !== 'viewport' && rowByKey(k)?.item.restart === 'avatar')
     || resolveViewport(old.viewport) !== resolveViewport(next.viewport)
     || (platform === 'windows' && changed.includes('hide_on_screen_capture'));
   if (restartAvatar) effects.push({ kind: 'restartAvatar' });

@@ -172,6 +172,8 @@ test('defaults of Config', () => {
   assert.equal(c.proxyUrl, '');
   assert.equal(parse({ ...ASTER, proxy_url: 'http://127.0.0.1:7890' }).proxyUrl, 'http://127.0.0.1:7890');
   assert.equal(parse({ ...ASTER, proxy_url: 'socks5://127.0.0.1:1080' }).proxyUrl, '');
+  assert.equal(parse({ ...ASTER, proxy_url: 'http://u:p@proxy:8080' }).proxyUrl, '');
+  assert.equal(parse({ ...ASTER, proxy_url: 'http://Proxy:8080/' }).proxyUrl, 'http://proxy:8080');
 });
 
 test('services: an absent id or field is its default, the old TTS keys are ignored', () => {

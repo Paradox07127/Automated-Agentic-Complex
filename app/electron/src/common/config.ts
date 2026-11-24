@@ -1,6 +1,6 @@
 // config.json decoded: the keys the main process uses, with their defaults and error texts. Reading files is the caller's: `src/main/config.ts`.
 import { DEFAULT_PLUGINS, isPluginId, type Plugins } from './plugins.ts';
-import { unsafeSshHost, validProxyUrl } from './settings.ts';
+import { canonicalProxyUrl, unsafeSshHost, validProxyUrl } from './settings.ts';
 
 /** Paths under the home directory. */
 export const IDS = {
@@ -329,7 +329,7 @@ export function parseConfig(text: string, ctx: ConfigContext): Config {
   const redactSensitive = live.redact_sensitive;
   const proactiveSpeech = live.proactive_speech;
   const proxy = optional(o, 'proxy_url', str) ?? '';
-  const proxyUrl = validProxyUrl(proxy) ? proxy : '';
+  const proxyUrl = validProxyUrl(proxy) ? canonicalProxyUrl(proxy) : '';
   const mute = live.mute;
   const agentdStateDir = optional(o, 'agentd_state_dir', str) ?? ctx.agentdStateDir;
   const servicesOn = optional(o, 'services', services) ?? SERVICE_DEFAULTS;
