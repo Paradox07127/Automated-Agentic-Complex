@@ -94,6 +94,24 @@ describe('memory owner › page', () => {
     expect(setSub).not.toHaveBeenCalledWith(expect.stringContaining('示例'));
   });
 
+  it('导出 in her archive exports only her facts, and without an owner the whole memory', async () => {
+    const spy = vi.spyOn(getBridge().files, 'saveAgentdExport').mockResolvedValue(true);
+    for (const [at, path, label] of [['?still=1&view=about&owner=si', '/memory/export?owner=si', '导出示例乙的记忆'],
+      ['?still=1&view=about', '/memory/export', '导出全部记忆']] as const) {
+      window.location.hash = `#/memory${at}`;
+      const root = createRootRoute({ component: () => <MemoryPage /> });
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <RouterProvider router={createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: [`/${at}`] }) })} />
+        </QueryClientProvider>,
+      );
+      fireEvent.click(await screen.findByRole('button', { name: /^管理/ }));
+      fireEvent.click(await screen.findByRole('menuitem', { name: label })); // the name carries a reason while it is off
+      await waitFor(() => expect(spy).toHaveBeenLastCalledWith({ path, suggestedName: '记忆.json' }));
+      cleanup();
+    }
+  });
+
   it('清空记忆 in her archive counts and deletes only her facts, and the toast claims nothing about the rest', async () => {
     const spy = vi.spyOn(getBridge().agentd, 'request');
     window.location.hash = '#/memory?still=1&view=about&owner=si';

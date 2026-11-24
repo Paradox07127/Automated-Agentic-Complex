@@ -109,11 +109,12 @@ class Memory:
             self.db.executemany('INSERT OR REPLACE INTO agent_memory_processed VALUES(?,?)',[(v,'forgotten') for v in sources])
         return refs
 
-    def _tombstone(self, fact_id):
+    def _tombstone(self, fact_id, within=None):
         """Suppress existing sources as well as the deleted words (normalized_text).
 
         Automatic extraction must not replay the source into a fresh diagnostic
         log after the user erased a memory. All writes stay in the caller's transaction.
+        within, from clear(): the fact_ids being cleared; an episode a fact outside them cites stays, with that fact.
         """
         by_episode = {}
         for ident, evidence in self.db.execute("SELECT fact_id,evidence FROM facts WHERE state IN ('active','candidate')"):
@@ -128,6 +129,7 @@ class Memory:
             for ref in self._forget_words(current):
                 if _episode(ref):
                     ident=ref.split(':',1)[1].split('@',1)[0]
+                    if within is not None and not by_episode.get('episode:' + ident, set()) <= within: continue
                     row=self.db.execute('SELECT threads FROM episodes WHERE id=? AND version=3',(ident,)).fetchone()
                     if row:
                         sources.update(v for t in json.loads(row[0]) for v in t.get('evidence',[]) if isinstance(v,str))
@@ -577,7 +579,8 @@ class Memory:
         with self.lock:
             deleted = self.db.execute(f"SELECT COUNT(DISTINCT fact_id) FROM facts{where or ' WHERE 1'}"
                                       " AND state IN ('active', 'candidate')", args).fetchone()[0]
-            for fact_id, in self.db.execute(f"SELECT DISTINCT fact_id FROM facts{where}", args).fetchall(): self._tombstone(fact_id)
+            cleared = {fact_id for fact_id, in self.db.execute(f"SELECT DISTINCT fact_id FROM facts{where}", args)}
+            for fact_id in cleared: self._tombstone(fact_id, cleared)
             self._redact_agent_journal()
             self.db.execute("DELETE FROM fact_uses" + (f" WHERE fact_id IN (SELECT fact_id FROM facts{where})" if where else ""),
                             args)

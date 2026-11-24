@@ -158,7 +158,7 @@ REGISTRY = (
     Route("GET", re.compile(r"^/memory/days/(\d{4}-\d{2}-\d{2})$"), UI, "read", ("main",),
           templates=("/memory/days/:date",), owner=WORKLOG_HTTP, summary="One day or week summary", spec=C6),
     Route("GET", "/memory/export", UI, "read", ("main",),
-          owner=SERVER, action="_memory_get", summary="Export all active facts", spec=C6),
+          owner=SERVER, action="_memory_get", summary="Export the active facts, of one owner with ?owner=", spec=C6),
     Route("GET", re.compile(r"^/memory/facts/([^/]{1,64})/versions$"), UI, "read", ("main",),
           templates=("/memory/facts/:fact_id/versions",), owner=SERVER, action="_fact_versions_get",
           summary="Every kept version of a memory fact", spec=C6, response="memory-versions.json"),

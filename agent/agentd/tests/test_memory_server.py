@@ -864,6 +864,21 @@ class DerivedFactsTest(MemoryServerCase):
         self.request("PATCH", f"/memory/facts/{first}", {"expected_version": 1, "text": "我养了一只狗"})
         self.assertEqual({f["fact_id"] for f in self.facts()}, {first, alone})
 
+    def test_clearing_one_owner_keeps_the_others_facts_on_a_shared_episode(self):
+        shared, own = self.episode(self.now - 1800), self.episode(self.now - 1200)
+        mine = self.server.character
+        with self.memory.lock:
+            for fact_id, owner, evidence in (("mine", mine, [shared]), ("mine-alone", mine, [own]),
+                                             ("theirs", "other", [shared]), ("common", None, [shared])):
+                self.memory._insert(fact_id, 1, "fact", fact_id + " 的事", "inferred_hypothesis", json.dumps(evidence),
+                                    None, owner=owner, by="pipeline")
+            self.memory.db.commit()
+        self.assertEqual(self.request("DELETE", f"/memory?scope=facts&owner={mine}"),
+                         (200, {"facts_deleted": 2, "history_deleted": 0}))
+        self.assertEqual({f["fact_id"] for f in self.facts()}, {"theirs", "common"})
+        self.assertEqual(self.deleted(), set())  # no other fact is retracted along with them
+        self.assertEqual([e["id"] for e in self.episodes.between(0, self.now)], [int(shared.split(":")[1].split("@")[0])])
+
     def test_delete_attention_takes_every_episode_fact(self):
         facts, other, line_id, _ = self.derive([self.episode(self.now - 1200)], ["obs-1"])
         self.assertEqual(self.request("DELETE", "/attention")[0], 200)

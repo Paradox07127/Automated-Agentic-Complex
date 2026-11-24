@@ -147,8 +147,9 @@ export function MemoryPage() {
   };
   const onExport = async () => {
     try {
-      const saved = await getBridge().files.saveAgentdExport({ path: '/memory/export', suggestedName: '记忆.json' });
-      toast(saved ? '已导出全部记忆' : '没有导出：保存面板已取消');
+      const path = owner ? `/memory/export?owner=${encodeURIComponent(owner)}` as const : '/memory/export';
+      const saved = await getBridge().files.saveAgentdExport({ path, suggestedName: '记忆.json' });
+      toast(saved ? (who ? `已导出${who}的记忆` : '已导出全部记忆') : '没有导出：保存面板已取消');
     } catch (e) {
       const code = (e as BridgeError | null)?.code;
       if (code === 'not_implemented' || code === 'op_not_allowed') setExportOff('这个窗口还不能保存文件');
@@ -180,7 +181,7 @@ export function MemoryPage() {
         label="管理"
         align="right"
         items={[
-          { kind: 'item', label: '导出全部记忆', disabled: !any || exportOff != null, reason: exportOff ?? '还没有可导出的记忆', onSelect: () => void onExport() },
+          { kind: 'item', label: who ? `导出${who}的记忆` : '导出全部记忆', disabled: !any || exportOff != null, reason: exportOff ?? '还没有可导出的记忆', onSelect: () => void onExport() },
           ...(any ? [{ kind: 'sep' as const }, { kind: 'item' as const, label: '清空记忆…', danger: true, onSelect: () => setClearing(true) }] : []),
         ]}
       />

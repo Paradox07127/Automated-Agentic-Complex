@@ -354,7 +354,7 @@ export interface AgenticComplexBridge {
     pickFolder(o: { purpose: 'scope_root' | 'scope_output' | 'session_cwd' }): Promise<PickedHandle | null>;
     /** `with_text=1` on a trace turn asks natively first; false when declined or the save panel was cancelled. */
     saveAgentdExport(o: {
-      path: '/history/export' | '/memory/export' | `/trace/turns/${string}`;
+      path: '/history/export' | '/memory/export' | `/memory/export?owner=${string}` | `/trace/turns/${string}`;
       suggestedName: string;
     }): Promise<boolean>;
   };

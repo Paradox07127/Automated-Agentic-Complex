@@ -122,6 +122,12 @@ test('agentd.request and an export check the path the client sends: one that URL
   assert.equal(code('GET', `/observation/sources?${new URLSearchParams({ kind: 'work_events', query: '会议 纪要' })}`), 'ok');
   assert.equal(isExportPath('/trace/turns/t-1?with_text=1'), true);
   assert.equal(isExportPath('/trace/turns/%2e%2e\\%2e%2e\\memory'), false, 'would GET /memory');
+  assert.equal(isExportPath('/memory/export?owner=aster'), true);
+  assert.equal(isExportPath('/memory/export?owner=shared'), true);
+  assert.equal(isExportPath(`/memory/export?owner=${encodeURIComponent('own:a/b')}`), true);
+  assert.equal(isExportPath('/memory/export?owner='), false);
+  assert.equal(isExportPath('/memory/export?owner=a&scope=all'), false);
+  assert.equal(isExportPath('/memory/export?owner=a/b'), false);
 });
 
 test('hot keys convert between the page caps and config.json names', () => {
