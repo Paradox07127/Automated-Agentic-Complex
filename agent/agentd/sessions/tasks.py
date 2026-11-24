@@ -1,13 +1,12 @@
 """Persistent task ledger: one row per dispatched task and an event per state change, so a restart can explain it."""
 import hashlib
 import json
-import os
 import shlex
 import subprocess
 import threading
 import time
 
-from infra.platform import new_group_options, release_group, signal_group, track_group
+from infra.platform import command_line, new_group_options, release_group, signal_group, track_group
 from sessions import git_state
 from tool_gateway.policy import POLICY, READ_ONLY_PRESETS
 
@@ -46,10 +45,8 @@ def check_verify(mode, cmd):
 
 
 def verify_argv(cmd):
-    """What run_verify starts for a stored verify command; raises ValueError when it cannot be split.
-
-    Windows gets the command line whole: CreateProcess splits it as Windows programs expect, backslashes included."""
-    return cmd if os.name == "nt" else shlex.split(cmd)
+    """What run_verify starts for a stored verify command; raises ValueError when it cannot be split."""
+    return command_line(cmd)
 
 
 def delivery_id(task_id):

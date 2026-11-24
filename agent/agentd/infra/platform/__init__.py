@@ -39,9 +39,13 @@ long_path(path)                    the str to open path's files by: on Windows w
                                    past MAX_PATH without the system's long-path switch; elsewhere path unchanged.
 plain_path(path)                   the str of path without that prefix, for what leaves agentd (another process's
                                    argument, a log line, a response).
+command_line(cmd)                  what Popen starts for a stored command line: on Windows the line whole, which
+                                   CreateProcess splits as Windows programs expect, backslashes included; elsewhere
+                                   shlex.split(cmd), which raises ValueError when it cannot be split.
 """
 import ntpath
 import os
+import shlex
 import sys
 
 THIS_MACHINE, USER_MACHINE = ("这台电脑", "the user's computer") if sys.platform == "win32" else ("这台 Mac", "the user's Mac")
@@ -67,9 +71,11 @@ def windows_plain_path(path):
 
 if sys.platform == "win32":
     long_path, plain_path = windows_long_path, windows_plain_path
+    def command_line(cmd): return cmd
 else:
     def long_path(path): return os.fspath(path)
     def plain_path(path): return os.fspath(path)
+    def command_line(cmd): return shlex.split(cmd)
 
 if sys.platform == "win32":
     from infra.platform.windows import (child_environment, connect_ipc, lock_file, make_private_dir,
@@ -84,7 +90,7 @@ else:
                                       stop_own_group, store_app_folders, sync_directory, track_group, unlock_file,
                                       watch_parent)
 
-__all__ = ["child_environment", "connect_ipc", "lock_file", "long_path", "make_private_dir", "make_private_tree",
+__all__ = ["child_environment", "command_line", "connect_ipc", "lock_file", "long_path", "make_private_dir", "make_private_tree",
            "new_group_options", "on_stop_signals", "open_private_file", "owned_by_current_user", "plain_path", "private_mode",
            "release_group", "serve_ipc", "set_private_mode", "signal_group", "stop_own_group", "store_app_folders",
            "sync_directory", "track_group", "unlock_file", "watch_parent"]

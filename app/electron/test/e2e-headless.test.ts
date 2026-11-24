@@ -812,7 +812,7 @@ e2e('approval: a Claude PermissionRequest is pending in GET /approvals through t
   assert.deepEqual(await hook, { status: 200, body: { hookSpecificOutput: { hookEventName: 'PermissionRequest', decision: { behavior: 'allow' } } } });
   assert.deepEqual(await pending(), []);
   const again = await bridge('POST', `/approvals/${card.request_id as string}/decision`, { decision: 'deny', generation: card.generation });
-  assert.equal((again as { value: { status: number } }).value.status, 409, JSON.stringify(again));
+  assert.equal((again as { value: { error?: { code: string } } }).value.error?.code, 'stale', JSON.stringify(again));
 }, { config: { plugins: { coding_sessions: true } } });
 
 // Windows only, as above: the four processes of a Windows run (this one as the shell) in one go.
