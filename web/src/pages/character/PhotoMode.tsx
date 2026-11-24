@@ -1,47 +1,31 @@
-// 拍照：复刻游戏拍照面板（SnapshotCtrl.lua）。滤镜格只取 settings.schema 里 rnd.filter 的选项；光圈、对焦经 avatar.photo.set 下发。
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+// 拍照：复刻游戏拍照面板（SnapshotCtrl.lua）。光圈、对焦经 avatar.photo.set 下发。
+import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getBridge, type PhotoState } from '../../bridge';
-import { ErrBar, Skel, Slider } from '../../ui';
+import { Slider } from '../../ui';
 import { GameSeg, MicroLabel } from '../../ui/game';
-import type { Toast } from './feedback';
 import { SecHead } from './SettingRows';
-import { readFail, saveSettings, useCharSettings } from './settings';
 import styles from './PhotoMode.module.css';
 import shutter from './PhotoShutter.module.css';
 
-const FILTER = 'rnd.filter';
 /** The game's camera on opening: f/32 and focus on the character. */
 const OPEN: PhotoState = { active: true, aperture: 32, focus: 'auto' };
 /** Manual focus starts at the far end of 0.1–10 m. */
 const FOCUS_FAR = 10;
-const COLS = 4;
-/** The game filters of which only the colour grade is copied. */
-const GRADE_ONLY = new Set(['sp_filter_1', 'sp_filter_2', 'sp_filter_3']);
 
 /** `f/%.0f`, or `f/%.1f` when the tenths are not zero. */
 export const fNumber = (f: number) => `f/${f.toFixed(Math.round(f * 10) % 10 === 0 ? 0 : 1)}`;
 
-/** The cell's number: SP·01 for the game's special filters, F·01 for the rest; none for 无. */
-const code = (v: string) => {
-  const m = /^(sp_)?filter_(\d+)$/.exec(v);
-  return m ? `${m[1] ? 'SP' : 'F'}·${m[2]!.padStart(2, '0')}` : '';
-};
-
 const codeOf = (e: unknown) => (e as { code?: string } | null)?.code;
-
-const NEXT: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -COLS, ArrowDown: COLS };
 
 export interface PhotoModeProps {
   /** The shell has an avatar host: while the panel is open she walks clear of the main window. */
   avatar: boolean;
   offline: boolean;
-  toast: Toast;
 }
 
-/** 拍照列：滤镜格和所选滤镜一行，相机（光圈、对焦，只作用在桌面），右下圆形快门和上次结果；左边的舞台不动。 */
+/** 拍照列：相机（光圈、对焦，只作用在桌面），右下圆形快门和上次结果；左边的舞台不动。 */
 export function PhotoMode(p: PhotoModeProps) {
-  const { q, merge } = useCharSettings();
   const details = useQuery({ queryKey: ['character', 'avatarDetails'], queryFn: () => getBridge().avatar.details(), enabled: p.avatar });
   const photo = details.data?.photo === true;
   const canCapture = details.data?.capture === true;
@@ -49,10 +33,6 @@ export function PhotoMode(p: PhotoModeProps) {
   const [focus, setFocus] = useState(OPEN.focus);
   const [shot, setShot] = useState<{ busy: boolean; text: string | null }>({ busy: false, text: null });
   const photoOn = useRef(false);
-  const cells = useRef<Array<HTMLButtonElement | null>>([]);
-  // The filter picked last while its save is out, and the sequence of picks asked and merged.
-  const asked = useRef<string | null>(null);
-  const picks = useRef({ asked: 0, merged: 0 });
 
   useEffect(() => {
     if (!p.avatar) return;
@@ -95,82 +75,8 @@ export function PhotoMode(p: PhotoModeProps) {
       );
   };
 
-  const n = q.data;
-  const row = n?.rows[FILTER];
-  const options = row?.options ?? [];
-  const using = String(n?.saved[FILTER] ?? row?.default ?? 'none');
-  const sel = options.find((o) => o.value === using) ?? options[0];
-  const at = Math.max(0, options.findIndex((o) => o.value === using));
-  const pick = (id: string) => {
-    // A pick compares with the newest one asked, so going back to the saved filter while another saves is sent too.
-    if (!n || id === (asked.current ?? using)) return;
-    const k = ++picks.current.asked;
-    asked.current = id;
-    void saveSettings({ [FILTER]: id }, { ok: '已换滤镜', fail: '没有换滤镜' }, n.rows, p.toast).then((ok) => {
-      // An older answer does not land over a newer one.
-      if (ok && k > picks.current.merged) {
-        picks.current.merged = k;
-        merge({ [FILTER]: id });
-      }
-      if (k === picks.current.asked) asked.current = null;
-    });
-  };
-  const move = (e: KeyboardEvent, i: number) => {
-    const d = NEXT[e.key];
-    if (d === undefined) return;
-    e.preventDefault();
-    cells.current[Math.min(options.length - 1, Math.max(0, i + d))]?.focus();
-  };
-
-  let filters;
-  if (q.isError) filters = <ErrBar message={`读取滤镜失败：${readFail(q.error)}`} onRetry={() => void q.refetch()} />;
-  else if (!n) filters = <Skel rows={4} />;
-  else
-    filters = (
-      <>
-        <div className={styles.grid} role="radiogroup" aria-label="滤镜">
-          {options.map((o, i) => (
-            <button
-              key={o.value}
-              ref={(el) => {
-                cells.current[i] = el;
-              }}
-              type="button"
-              role="radio"
-              className={styles.cell}
-              aria-checked={o.value === using}
-              aria-label={o.label}
-              tabIndex={i === at ? 0 : -1}
-              onKeyDown={(e) => move(e, i)}
-              onClick={() => pick(o.value)}
-            >
-              <span className={styles.th} data-none={code(o.value) === '' || undefined} aria-hidden="true">
-                {code(o.value)}
-              </span>
-              {o.value.startsWith('sp_') && <span className={styles.sp}>SP</span>}
-              <span className={styles.name}>{o.label}</span>
-              {o.value === using && <i className={styles.ck} aria-hidden="true" />}
-            </button>
-          ))}
-        </div>
-        {sel && (
-          <div className={styles.info}>
-            <b>{sel.label}</b>
-            {GRADE_ONLY.has(sel.value) && <span>只复刻调色部分</span>}
-            <span className={styles.infoEn}>
-              <MicroLabel>{sel.value}</MicroLabel>
-            </span>
-          </div>
-        )}
-      </>
-    );
-
   return (
     <section className={styles.photo} data-g="detail" data-switch="panel" aria-label="拍照">
-      <section className={styles.part} aria-label="滤镜">
-        <SecHead title="滤镜" en="Filter" />
-        {filters}
-      </section>
       <section className={styles.part} aria-label="相机">
         <SecHead title="相机" en="Camera" desktopOnly />
         {!photo && (

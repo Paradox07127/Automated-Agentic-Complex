@@ -45,14 +45,6 @@ describe('settings search · 角色 rows', () => {
     expect(hashQuery().get('row')).toBe('rnd.outline');
   });
 
-  it('opens 滤镜 in the 拍照 panel, which is where the filter grid is', async () => {
-    await search('滤镜');
-    fireEvent.click(await screen.findByRole('button', { name: /滤镜/ }));
-    expect(window.location.hash.startsWith('#/character?')).toBe(true);
-    expect(hashQuery().get('view')).toBe('photo');
-    expect(hashQuery().get('tab')).toBeNull();
-  });
-
   it('lists the 画面 quality rows only in developer mode', async () => {
     setDevMode(false);
     await search('抗锯齿');

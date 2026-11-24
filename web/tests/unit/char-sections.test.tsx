@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEMO_SCHEMA, demoNative } from '../../src/mock/settings';
-import { CHAR_SECTIONS, isCharTab, PHOTO_ONLY_ROWS, placedTab, tabOf } from '../../src/pages/character/sections';
+import { CHAR_SECTIONS, isCharTab, placedTab, tabOf } from '../../src/pages/character/sections';
 import { presentTabs, SettingRows } from '../../src/pages/character/SettingRows';
 import type { CharTab } from '../../src/pages/character/sections';
 import type { Native } from '../../src/pages/settings/native';
@@ -33,13 +33,13 @@ describe('sections', () => {
     expect(new Set(CHAR_SECTIONS.map((s) => s.id)).size).toBe(CHAR_SECTIONS.length);
   });
 
-  it('places every @character row of the demo schema on a 设定 page, in 拍照 or on 调参 › 画面', () => {
-    for (const r of DEMO_SCHEMA.filter((r) => r.group === '@character')) expect(placedTab(r.id) !== null || PHOTO_ONLY_ROWS.has(r.id), r.id).toBe(true);
+  it('places every @character row of the demo schema on a 设定 page or on 调参 › 画面', () => {
+    for (const r of DEMO_SCHEMA.filter((r) => r.group === '@character')) expect(placedTab(r.id) !== null, r.id).toBe(true);
   });
 
   it('marks 仅桌面 exactly the 画面 sections the preview does not take (rnd.closeup goes to the desktop by host link)', () => {
     const look = previewIds();
-    expect(look.has('rnd.lightYaw') && look.has('rnd.dof') && look.has('rnd.filter')).toBe(true);
+    expect(look.has('rnd.lightYaw') && look.has('rnd.dof')).toBe(true);
     for (const s of CHAR_SECTIONS.filter((x) => x.tab === 'render'))
       for (const id of s.rows) expect([id, look.has(id)], s.title).toEqual([id, !s.desktopOnly]);
   });
@@ -59,9 +59,8 @@ describe('sections', () => {
 });
 
 describe('SettingRows', () => {
-  it('leaves rnd.filter to 拍照, also out of 其他', async () => {
+  it('leaves no 画面 row to 其他', async () => {
     draw(await demoNative(null), 'render');
-    expect(shown('滤镜')).toBe(false);
     expect(screen.queryByRole('region', { name: '其他' })).toBeNull();
   });
 

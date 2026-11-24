@@ -197,15 +197,15 @@ describe('useLivePreview', () => {
   it('shows again when a render setting is saved, and a failed reload offers the retry with the same settings', async () => {
     const qc = new QueryClient();
     // `saved` is keyed by row id (app/electron/src/common/settings.ts snapshot()).
-    qc.setQueryData(['character', 'settings'], { rows: {}, saved: { 'rnd.filter': 'none', 'beh.stay': false }, statuses: {} });
+    qc.setQueryData(['character', 'settings'], { rows: {}, saved: { 'rnd.outline': 'original', 'beh.stay': false }, statuses: {} });
     const { getByRole, getByTestId } = render(<QueryClientProvider client={qc}><Probe /></QueryClientProvider>);
     await waitFor(() => expect(getByTestId('stage').dataset.live).toBe('true'));
     // A setting that is not a render one shows nothing again.
-    act(() => qc.setQueryData(['character', 'settings'], { rows: {}, saved: { 'rnd.filter': 'none', 'beh.stay': true }, statuses: {} }));
+    act(() => qc.setQueryData(['character', 'settings'], { rows: {}, saved: { 'rnd.outline': 'original', 'beh.stay': true }, statuses: {} }));
     await new Promise((r) => setTimeout(r, 50));
     expect(show).toHaveBeenCalledTimes(1);
     show.mockRejectedValueOnce(Object.assign(new Error('failed'), { code: 'failed' }));
-    act(() => qc.setQueryData(['character', 'settings'], { rows: {}, saved: { 'rnd.filter': 'filter_1', 'beh.stay': true }, statuses: {} }));
+    act(() => qc.setQueryData(['character', 'settings'], { rows: {}, saved: { 'rnd.outline': 'subtle', 'beh.stay': true }, statuses: {} }));
     await waitFor(() => expect(getByRole('button', { name: '重试预览' })).toBeTruthy());
     expect(show).toHaveBeenCalledTimes(2);
     expect(getByTestId('stage').dataset.live).toBeUndefined();

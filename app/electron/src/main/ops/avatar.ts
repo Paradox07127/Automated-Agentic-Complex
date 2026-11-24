@@ -111,7 +111,7 @@ export function avatarDetails(host: AvatarHost): Record<string, unknown> {
   const both = (c: string) => listed.includes(c) && host.companionCapabilities.includes(c);
   return { renderer: typeof build.renderer === 'string' ? build.renderer : null, build: typeof build.git === 'string' ? build.git : null,
     pipeline, placement: place === null ? null : { x: num(place.x), y: num(place.y), scale: num(place.scale) },
-    photo: both('photo'), capture: both('capture'), filters: both('filters') };
+    photo: both('photo'), capture: both('capture') };
 }
 
 /** protocol.ts `AvatarStats` from the last C3 `stats` and the renderer's CPU as a share of one core (null when unread). */

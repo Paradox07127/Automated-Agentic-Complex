@@ -1,6 +1,6 @@
-// 角色页「拍照」: the game's photo panel — filter grid from settings.schema, aperture and focus, shutter.
+// 角色页「拍照」: the game's photo panel — aperture and focus, shutter.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getBridge, type AvatarDetails } from '../../src/bridge';
 import { PhotoMode } from '../../src/pages/character/PhotoMode';
@@ -10,63 +10,22 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const NAMES = ['无', '黑金', '温暖', '苍白', '胶片', '希望色彩', '血忆', '武陵印象', '明亮', '冷调', '清新', '暗色', '黑白', '春', '文艺', '蓝橙'];
-
 async function view(flags: { photo: boolean; capture: boolean }) {
   const bridge = getBridge();
   const base = await bridge.avatar.details();
-  vi.spyOn(bridge.avatar, 'details').mockResolvedValue({ ...base, ...flags, filters: true } satisfies AvatarDetails);
+  vi.spyOn(bridge.avatar, 'details').mockResolvedValue({ ...base, ...flags } satisfies AvatarDetails);
   const calls: string[] = [];
   vi.spyOn(bridge.avatar, 'keepClearOfMain').mockImplementation(async (on) => void calls.push(`keepClear ${on}`));
   const photo = vi.spyOn(bridge.avatar.photo, 'set').mockImplementation(async (s) => void calls.push(`photo ${JSON.stringify(s)}`));
   const r = render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <PhotoMode avatar offline={false} toast={vi.fn()} />
+      <PhotoMode avatar offline={false} />
     </QueryClientProvider>,
   );
-  const grid = await screen.findByRole('radiogroup', { name: '滤镜' });
-  await waitFor(() => expect(within(grid).getAllByRole('radio')).toHaveLength(16));
-  return { calls, photo, grid, unmount: r.unmount };
+  return { calls, photo, unmount: r.unmount };
 }
 
 describe('PhotoMode', () => {
-  it('draws the 16 filters of rnd.filter in schema order, 无 first, numbered on a drawn hatch rather than game art', async () => {
-    const v = await view({ photo: true, capture: true });
-    const cells = within(v.grid).getAllByRole('radio');
-    expect(cells.map((c) => c.getAttribute('aria-label'))).toEqual(NAMES);
-    expect(cells[0]!.getAttribute('aria-checked')).toBe('true');
-    expect(cells.map((c) => c.querySelector('[aria-hidden="true"]')?.textContent)).toEqual(['', 'SP·01', 'SP·02', 'SP·03', 'SP·04', 'SP·05', 'SP·06', 'SP·07', 'F·01', 'F·02', 'F·03', 'F·04', 'F·05', 'F·06', 'F·07', 'F·08']);
-    expect(v.grid.querySelector('img')).toBeNull();
-    expect(screen.queryByText('调整照片色彩的滤镜')).toBeNull();
-    expect(screen.queryByText('只复刻调色部分')).toBeNull();
-    fireEvent.keyDown(cells[0]!, { key: 'ArrowDown' });
-    expect(document.activeElement).toBe(cells[4]);
-  });
-
-  it('saves rnd.filter when a filter is picked', async () => {
-    const save = vi.spyOn(getBridge().settings, 'save');
-    const v = await view({ photo: true, capture: true });
-    fireEvent.click(within(v.grid).getByRole('radio', { name: '黑金' }));
-    await waitFor(() => expect(save).toHaveBeenCalledWith({ 'rnd.filter': 'sp_filter_1' }));
-    await waitFor(() => expect(within(v.grid).getByRole('radio', { name: '黑金' }).getAttribute('aria-checked')).toBe('true'));
-    expect(screen.getByText('只复刻调色部分')).toBeTruthy();
-  });
-
-  it('sends a pick back to the saved filter while the save of another is still out', async () => {
-    const real = getBridge().settings.save.bind(getBridge().settings);
-    let answer!: () => void;
-    const save = vi.spyOn(getBridge().settings, 'save').mockImplementationOnce((v) => new Promise((r) => (answer = () => void real(v).then(r))));
-    const v = await view({ photo: true, capture: true });
-    const cells = within(v.grid).getAllByRole('radio');
-    const saved = cells.find((c) => c.getAttribute('aria-checked') === 'true')!;
-    fireEvent.click(cells.find((c) => c !== saved)!);
-    await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
-    fireEvent.click(saved);
-    await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
-    answer();
-    await waitFor(() => expect(saved.getAttribute('aria-checked')).toBe('true'));
-  });
-
   it('shows aperture and focus disabled, with the reason, while depth of field is not connected', async () => {
     await view({ photo: false, capture: true });
     expect((screen.getByRole('slider', { name: '光圈' }) as HTMLInputElement).disabled).toBe(true);

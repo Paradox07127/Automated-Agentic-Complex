@@ -298,8 +298,8 @@ test('a rebuild for new render arguments or output does not replay a drawn one-s
     await draw(s, transport, presenter, first);
     s.load(selection({ clip: 'wave', request: 1, output: [960, 1152] })).catch(() => {});
     assert.deepEqual(transport.sent.at(-1), load({ load_id: 3, output: [960, 1152] }));
-    s.load(selection({ clip: 'wave', request: 1, output: [960, 1152], renderArgs: ['--agentic-complex-filter', 'mono'] })).catch(() => {});
-    assert.deepEqual(transport.sent.at(-1), load({ load_id: 4, output: [960, 1152], render_args: ['--agentic-complex-filter', 'mono'] }));
+    s.load(selection({ clip: 'wave', request: 1, output: [960, 1152], renderArgs: ['--agentic-complex-outline', 'subtle'] })).catch(() => {});
+    assert.deepEqual(transport.sent.at(-1), load({ load_id: 4, output: [960, 1152], render_args: ['--agentic-complex-outline', 'subtle'] }));
     // Asked again (a new revision), it plays again.
     s.load(selection({ clip: 'wave', request: 2, output: [960, 1152] })).catch(() => {});
     assert.deepEqual(transport.sent.at(-1), load({ load_id: 5, clip: 'wave', output: [960, 1152] }));
@@ -523,11 +523,11 @@ test('the show a settings save brings answers the page: a failed load rejects it
   const rect = { x: 0, y: 0, w: 300, h: 400 };
   await c.show(rect, null, false, 0);
   fail = true;
-  settings = { render_filter: 'filter_1' };
+  settings = { render_ground_shadow: 'contact' };
   await assert.rejects(c.show(rect, null, false, 0), new PreviewFailure('预览等待首帧超时'));
   fail = false;
   assert.equal(await c.show(rect, null, false, 0), true);
-  assert.deepEqual(view.loads.map((s) => s.renderArgs?.at(-3)), ['none', 'filter_1', 'filter_1']);
+  assert.deepEqual(view.loads.map((s) => s.renderArgs?.at(-3)), ['cast', 'contact', 'contact']);
 });
 
 test('a selection with render arguments and an output sends them as render_args and output; one without sends neither', async () => {

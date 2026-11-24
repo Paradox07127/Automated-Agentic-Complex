@@ -60,10 +60,6 @@ const hotkey = (key: string, label: string, value: string): Item => ({ key, labe
 const text = (key: string, label: string, value: string): Item => ({ key, label, control: { kind: 'text', value }, restart: 'backend' });
 
 const NOTIFY: [string, string][] = [['sound', '出声'], ['card', '只出卡'], ['silent', '不提示']];
-const FILTERS: [string, string][] = [['none', '无'], ['sp_filter_1', '黑金'], ['sp_filter_2', '温暖'], ['sp_filter_3', '苍白'],
-  ['sp_filter_4', '胶片'], ['sp_filter_5', '希望色彩'], ['sp_filter_6', '血忆'], ['sp_filter_7', '武陵印象'], ['filter_1', '明亮'],
-  ['filter_2', '冷调'], ['filter_3', '清新'], ['filter_4', '暗色'], ['filter_5', '黑白'], ['filter_6', '春'], ['filter_7', '文艺'],
-  ['filter_8', '蓝橙']];
 
 /** The items the web rows use (the first item of each key). */
 const ITEMS: Item[] = [
@@ -94,7 +90,6 @@ const ITEMS: Item[] = [
   dropdown('render_ground_shadow', '脚下阴影', [['off', '关'], ['contact', '接触阴影'], ['cast', '真实投影']], 'cast'),
   dropdown('render_ambient', '环境取色', [['off', '关'], ['wallpaper', '壁纸颜色'], ['screen', '屏幕取色']], 'off'),
   toggle('render_light_wrap', '边缘环境光', false),
-  dropdown('render_filter', '滤镜', FILTERS, 'none'),
   dropdown('render_dof', '景深', [['off', '关'], ['closeup', '近景时']], 'off'),
   dropdown('render_light_yaw', '主光水平微调', [['-15', '左偏 15°'], ['0', '原作'], ['15', '右偏 15°']], '0'),
   dropdown('render_light_pitch', '主光俯仰微调', [['-10', '降低 10°'], ['0', '原作'], ['10', '抬高 10°']], '0'),
@@ -183,7 +178,7 @@ const CHARACTER_ROWS: [string, string][] = [
   ['rnd.lightPitch', 'render_light_pitch'], ['rnd.lightStrength', 'render_light_strength'],
   ['avatar_click', 'avatar_click'], ['beh.physics', 'render_secondary_motion'],
   ['rnd.ground', 'render_ground_shadow'], ['rnd.ambient', 'render_ambient'], ['rnd.wrap', 'render_light_wrap'],
-  ['rnd.filter', 'render_filter'], ['rnd.dof', 'render_dof'],
+  ['rnd.dof', 'render_dof'],
   ['scn.mode', 'scene_mode'], ['scn.parallax', 'scene_parallax'],
   ['rnd.zoom', 'render_camera_zoom'], ['rnd.sway', 'render_camera_sway'], ['rnd.closeup', 'render_camera_auto_closeup'],
   ['rnd.track', 'render_camera_track'],
@@ -500,7 +495,7 @@ const AGENTD_LIVE_KEYS = ['mute', 'proactive_speech', 'interaction_preset', 'red
   'share_typed_text', 'share_agent_sessions', 'share_screenshots'];
 const LIVE_RENDER_KEYS = ['render_outline', 'render_light_yaw', 'render_light_pitch', 'render_light_strength', 'render_camera_mode',
   'render_camera_yaw', 'render_camera_pitch', 'render_facing_mode', 'render_ground_shadow', 'render_ambient', 'render_light_wrap',
-  'render_camera_zoom', 'render_camera_sway', 'render_camera_track', 'render_filter', 'render_dof'];
+  'render_camera_zoom', 'render_camera_sway', 'render_camera_track', 'render_dof'];
 
 export interface SavePlan {
   /** Changed values to write, as config.json keeps them; empty when nothing changed. */

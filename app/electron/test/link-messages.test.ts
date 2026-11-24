@@ -38,8 +38,8 @@ function invalid(prefix: 'a2c' | 'c2a', types: string[]): { file: string; lines:
 }
 
 const ALL_AVATAR = ['ack', 'actions', 'touch', 'presentation', 'drop', 'surfaces', 'opacity', 'layering', 'poses', 'capture', 'camera_gesture',
-  'motion_overrides', 'play_chain', 'pass_through', 'render_live', 'ambient', 'camera_free', 'camera_track', 'camera_bust', 'filters', 'photo', 'playback'];
-const OFFERS = ['pass_through', 'render_live', 'ambient', 'camera_free', 'camera_track', 'filters', 'capture', 'motion_overrides', 'play_chain',
+  'motion_overrides', 'play_chain', 'pass_through', 'render_live', 'ambient', 'camera_free', 'camera_track', 'camera_bust', 'photo', 'playback'];
+const OFFERS = ['pass_through', 'render_live', 'ambient', 'camera_free', 'camera_track', 'capture', 'motion_overrides', 'play_chain',
   'photo', 'camera_bust'] as const;
 const BASE = ['capsules_global', 'watchdog', 'actions', 'keep_clear', 'action_loop', 'layers', 'mod_settings'];
 
@@ -76,7 +76,7 @@ test('hello: without the new callbacks it is the same line as before; with them 
     touchSettings: () => ({ regions: true, pat: true, pinch: false, greet: true }) }, async (link) => {
     const a = await attach(link, { pid: 99, capabilities: ['touch'] });
     assert.deepEqual(a.got[0]!.capabilities, [...BASE, 'presentation', 'drop', 'pass_through', 'render_live', 'ambient', 'touch', 'poses',
-      'camera_free', 'camera_track', 'camera_gesture', 'filters', 'capture', 'motion_overrides', 'play_chain', 'photo', 'camera_bust',
+      'camera_free', 'camera_track', 'camera_gesture', 'capture', 'motion_overrides', 'play_chain', 'photo', 'camera_bust',
       'surfaces', 'opacity', 'layering']);
     // touch_settings comes right after the fps tier.
     assert.ok(await until(1, () => a.got.length >= 3));

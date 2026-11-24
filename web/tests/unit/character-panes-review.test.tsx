@@ -216,12 +216,12 @@ describe('名字块 · 语音绑定 (949c#7)', () => {
 describe('拍照 · 角色未运行 (949c#13)', () => {
   it('greys aperture and focus while she is not running, and opens the camera again when she is back', async () => {
     const base = await bridge.avatar.details();
-    vi.spyOn(bridge.avatar, 'details').mockResolvedValue({ ...base, photo: true, capture: true, filters: true } satisfies AvatarDetails);
+    vi.spyOn(bridge.avatar, 'details').mockResolvedValue({ ...base, photo: true, capture: true } satisfies AvatarDetails);
     const set = vi.spyOn(bridge.avatar.photo, 'set').mockResolvedValue(undefined as never);
     const qc = client();
     const at = (offline: boolean) => (
       <QueryClientProvider client={qc}>
-        <PhotoMode avatar offline={offline} toast={noop} />
+        <PhotoMode avatar offline={offline} />
       </QueryClientProvider>
     );
     const ui = render(at(false));

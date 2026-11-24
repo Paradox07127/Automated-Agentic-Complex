@@ -179,7 +179,7 @@ export function CharacterPage() {
           {...(isCharTab(tab)
             ? { side: { of: 'set' as const, tab: setTabs.includes(tab) ? tab : (setTabs[0] ?? tab), tabs: setTabs, node: <CharacterSettings tab={tab} row={row ?? undefined} offline={offline} onRestart={restart} avatar={canAvatar} onTab={(t) => navTo({ page: 'character', tab: t })} menu={false} toast={fb.toast} /> } }
             : photo
-              ? { side: { of: 'photo' as const, node: <PhotoMode avatar={canAvatar} offline={offline} toast={fb.toast} /> } }
+              ? { side: { of: 'photo' as const, node: <PhotoMode avatar={canAvatar} offline={offline} /> } }
               : mmdView
                 ? { side: mmd }
                 : {})}

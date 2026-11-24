@@ -55,8 +55,7 @@
         "scale": 1
       },
       "photo": false,
-      "capture": false,
-      "filters": true
+      "capture": false
     }
   },
   {

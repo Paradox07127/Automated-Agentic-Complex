@@ -45,8 +45,6 @@ export function readStartupStatus(path: string, pid: number): { character: strin
   }
 }
 
-const FILTERS = ['none', ...[1, 2, 3, 4, 5, 6, 7, 8].map((n) => `filter_${n}`), ...[1, 2, 3, 4, 5, 6, 7].map((n) => `sp_filter_${n}`)];
-
 const settingReaders = (s: Record<string, unknown>) => ({
   flag: (key: string, fallback: boolean) => (typeof s[key] === 'boolean' ? s[key] as boolean : fallback),
   option: (key: string, allowed: string[], fallback: string) => (allowed.includes(s[key] as string) ? s[key] as string : fallback),
@@ -65,7 +63,6 @@ export function lookArguments(s: Record<string, unknown>): string[] {
     '--agentic-complex-light-strength', option('render_light_strength', ['0.5', '0.75', '1', '1.25', '1.5'], '1'),
     '--agentic-complex-secondary-motion', flag('render_secondary_motion', true) ? '1' : '0',
     '--agentic-complex-ground-shadow', option('render_ground_shadow', ['off', 'contact', 'cast'], 'cast'),
-    '--agentic-complex-filter', option('render_filter', FILTERS, 'none'),
     '--agentic-complex-dof', option('render_dof', ['off', 'closeup'], 'off'),
   ];
 }

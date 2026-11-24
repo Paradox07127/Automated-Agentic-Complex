@@ -42,6 +42,6 @@ test('live render settings go as one set_render of the saved values; a failed or
   unsent.saved.renderLive(['render_dof']);
   assert.deepEqual([unsent.restarts(), unsent.log], [1, ['render live fallback keys=render_dof why=not_sent']]);
   const none = setup({ link: false });
-  none.saved.renderLive(['render_filter']);
-  assert.deepEqual([none.restarts(), none.log], [1, ['render live fallback keys=render_filter why=not_sent']]);
+  none.saved.renderLive(['render_ambient']);
+  assert.deepEqual([none.restarts(), none.log], [1, ['render live fallback keys=render_ambient why=not_sent']]);
 });

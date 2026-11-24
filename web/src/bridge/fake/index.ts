@@ -134,7 +134,7 @@ function fakeDetails(suspended: boolean): AvatarDetails {
       clip: 'idle_breathe',
       error: null,
     },
-    placement: { x: 1520, y: 84, scale: 1 }, photo: true, capture: true, filters: true,
+    placement: { x: 1520, y: 84, scale: 1 }, photo: true, capture: true,
   };
 }
 

@@ -70,7 +70,7 @@ const played = (playId: string) => {
   for (const l of [...linkListeners]) l({ kind: 'message', message: { v: 1, type: 'action_played', play_id: playId, id: 'x', phase: 'started', reason: null } });
 };
 const avatar: AvatarHost = {
-  hello: { v: 1, type: 'hello', role: 'avatar', pid: 1, protocol: 1, capabilities: ['actions', 'filters', 'ack', 'motion_overrides', 'play_chain'],
+  hello: { v: 1, type: 'hello', role: 'avatar', pid: 1, protocol: 1, capabilities: ['actions', 'ack', 'motion_overrides', 'play_chain'],
     build: { git: 'abc', renderer: 'metal' } },
   companionCapabilities: ['actions', 'motion_overrides', 'play_chain'],
   hidden: false, currentCharacter: 'si', currentAppearance: 'default', appearances: [], layers: [], hiddenLayers: [], lastStats: null,

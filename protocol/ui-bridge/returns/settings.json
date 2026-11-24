@@ -100,7 +100,6 @@
         "rnd.zoom": 1,
         "rnd.closeup": "off",
         "rnd.track": "stage",
-        "rnd.filter": "none",
         "rnd.dof": "off",
         "appTheme": "system",
         "winBg": "glass",

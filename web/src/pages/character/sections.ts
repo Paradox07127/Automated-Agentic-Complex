@@ -35,9 +35,6 @@ export const CHAR_SECTIONS: readonly CharSection[] = [
   { tab: 'scene', id: 'scene/scene', title: '场景', en: 'Scene', rows: ['scn.mode', 'scn.parallax'] },
 ];
 
-/** @character rows that belong to 拍照, not to any 设定 page. */
-export const PHOTO_ONLY_ROWS: ReadonlySet<string> = new Set(['rnd.filter']);
-
 /** 主光方向: one 3×3 pad for these two rows. */
 export const LIGHT_PAD = { yaw: 'rnd.lightYaw', pitch: 'rnd.lightPitch' } as const;
 

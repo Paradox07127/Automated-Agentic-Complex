@@ -72,7 +72,7 @@ test("the renderer's command line: fixed head, remembered state, render settings
   try {
     const args = rendererArguments({ config: s.config, character: 'aster', parentPid: 42, startupPath: '/r/startup-1.json',
       socketPath: '/r/avatar.sock', captureDir: '/p',
-      settings: { viewport: 'window', battery_low_fps: false, render_camera_yaw: 12.3, render_fps: '45', render_filter: 'bogus', stay_mode: 'bust' },
+      settings: { viewport: 'window', battery_low_fps: false, render_camera_yaw: 12.3, render_fps: '45', stay_mode: 'bust' },
       state: { last_appearance: { aster: 'toppotential' }, hidden_layers: { aster: ['coat', 'hat'] }, window_scale: { aster: 1.25 } } });
     assert.deepEqual(args.slice(0, 10), ['--agentic-complex-window-level', 'status', '--agentic-complex-parent-pid', '42',
       '--agentic-complex-agentd', `${s.config.agentdStateDir}/events-runtime.json`, '--agentic-complex-character', 'aster',
@@ -85,7 +85,6 @@ test("the renderer's command line: fixed head, remembered state, render settings
     assert.equal(value('--agentic-complex-battery-low-fps'), '0');
     assert.equal(value('--agentic-complex-camera-yaw'), '12.5');
     assert.equal(value('--agentic-complex-render-fps'), '45');
-    assert.equal(value('--agentic-complex-filter'), 'none');
     assert.equal(value('--agentic-complex-camera-framing'), 'bust');
     assert.equal(value('--agentic-complex-capture-dir'), '/p');
     assert.deepEqual(args.slice(-4), ['--character-catalog', '/c.json', '--agentic-complex-host-socket', '/r/avatar.sock']);
@@ -379,7 +378,7 @@ test('host link: hello handshake, fps_tier, avatar ops over C3, rule 17 kill, th
       assert.deepEqual(await call('avatar.state'), { ok: true, value: { running: true, visible: true, scale: 1.5, clickThroughAll: false,
         speaking: false, characterId: 'aster', appearanceId: 'default' } });
       assert.deepEqual(await call('avatar.details'), { ok: true, value: { renderer: 'metal', build: 'abc', pipeline: null,
-        placement: { x: 10, y: 20, scale: 1.5 }, photo: false, capture: false, filters: false } });
+        placement: { x: 10, y: 20, scale: 1.5 }, photo: false, capture: false } });
       const actions = await call('avatar.actions') as { ok: true; value: Record<string, unknown>[] };
       assert.deepEqual(actions.value.map((a) => [a.id, a.enabled, a.playable, a.defaultEnabled, a.requiredReason ?? null]),
         [['wave', true, true, true, null], ['walk', true, false, false, '移动']]);

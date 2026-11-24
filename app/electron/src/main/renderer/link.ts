@@ -135,7 +135,7 @@ export type AmbientColors = Record<'mean' | 'top' | 'bottom' | 'left' | 'right',
 export interface MotionOverrides { chains: Record<string, boolean>; pools: Record<string, { clip: string; weight: number }[]>;
   blend_in: Record<string, number> }
 /** The capabilities this shell lists only when its caller says it sends their messages. */
-export type OfferedCapability = 'pass_through' | 'render_live' | 'ambient' | 'camera_free' | 'camera_track' | 'filters' | 'capture'
+export type OfferedCapability = 'pass_through' | 'render_live' | 'ambient' | 'camera_free' | 'camera_track' | 'capture'
   | 'motion_overrides' | 'play_chain' | 'photo' | 'camera_bust' | 'action_transport';
 /** Queued output past this closes the connection; `trace` and `behavior_receipt` with `motion_state` lines a second (rules 22, 25, 54). */
 export const LINK_LIMITS = { outputBytes: 256 * 1024, traceRate: 20, receiptRate: 20, traceEvents: 50 } as const;
@@ -362,7 +362,7 @@ export class HostLink {
       poses: o.onPoseState, camera_gesture: o.onCameraGesture, surfaces: o.onSurfaceTrack, opacity: o.onSurfaceTrack, layering: o.onSurfaceTrack,
       right_drag: o.onRightDrag, moving: o.onMoving };
     const later = ['presentation', 'drop', 'reactions', 'pass_through', 'render_live', 'ambient', 'touch', 'poses', 'camera_free', 'camera_track',
-      'camera_gesture', 'filters', 'capture', 'motion_overrides', 'play_chain', 'action_transport', 'photo', 'camera_bust', 'surfaces', 'opacity',
+      'camera_gesture', 'capture', 'motion_overrides', 'play_chain', 'action_transport', 'photo', 'camera_bust', 'surfaces', 'opacity',
       'layering',
       'right_drag', 'moving'];
     return [...COMPANION_CAPABILITIES, ...(o.onTrace ? ['trace'] : []), ...(o.onBehaviorReceipt ? ['behavior_receipt'] : []),
@@ -1624,7 +1624,7 @@ export class HostLink {
   }
 
   /** Rules 43, 49: the groups in `payload`; camera fields of a capability she does
-   *  not list are left out and a `yaw` below −90 is raised to it without `camera_free`; `filter`, `dof`, `photo` are left
+   *  not list are left out and a `yaw` below −90 is raised to it without `camera_free`; `dof`, `photo` are left
    *  out without theirs. `onResult` as command's. */
   sendSetRender(payload: Record<string, unknown>, onResult?: (r: CommandResult) => void): boolean {
     const c = this.listing('render_live');
@@ -1642,7 +1642,6 @@ export class HostLink {
       // A live sample still waiting would land after this camera; its timer finds nothing and sends nothing.
       c.cameraLivePending = null;
     }
-    if (!this.both(c, 'filters')) delete m.filter;
     if (!this.both(c, 'photo')) {
       delete m.dof;
       delete m.photo;

@@ -678,8 +678,8 @@ test('a save of the touch switches or of live render settings reaches the runnin
     // 捏脸 is off by default, the others on.
     assert.deepEqual(planSave({}, null, { [key]: key === 'cheek_pinch' }, 'mac').effects, [{ kind: 'touch' }], key);
   }
-  assert.deepEqual(planSave({}, null, { render_outline: 'subtle', render_filter: 'filter_2', render_camera_yaw: 15 }, 'mac').effects,
-    [{ kind: 'renderLive', keys: ['render_outline', 'render_camera_yaw', 'render_filter'] }]);
+  assert.deepEqual(planSave({}, null, { render_outline: 'subtle', render_dof: 'closeup', render_camera_yaw: 15 }, 'mac').effects,
+    [{ kind: 'renderLive', keys: ['render_outline', 'render_camera_yaw', 'render_dof'] }]);
   // Into or out of 半身固定 changes the framing; a restart reads the new values itself.
   assert.deepEqual(planSave({}, null, { stay_mode: 'bust' }, 'mac').effects,
     [{ kind: 'behaviorSwitches', keys: ['stay_mode'] }, { kind: 'renderLive', keys: ['stay_mode'] }]);
@@ -932,11 +932,11 @@ test('hot key statuses and refusals name Ctrl, Alt and Win on Windows and keep t
   assert.equal(refusal('hk_quick', '⌘⌘K', 'windows'), '「快速输入」不能设成 Win+Win+K：要用带 Ctrl、Alt 或 Win 的组合键，或 F1–F12');
 });
 
-test('avatar.details: photo, capture and filters count when she and the link both list them (WebAvatarWatch.details)', () => {
-  const host = { hello: { v: 1, type: 'hello', role: 'avatar', pid: 1, protocol: 1, capabilities: ['photo', 'capture', 'filters'] },
-    companionCapabilities: ['capture', 'filters'], lastPipeline: null, lastPlacement: null } as unknown as AvatarHost;
+test('avatar.details: photo and capture count when she and the link both list them (WebAvatarWatch.details)', () => {
+  const host = { hello: { v: 1, type: 'hello', role: 'avatar', pid: 1, protocol: 1, capabilities: ['photo', 'capture'] },
+    companionCapabilities: ['capture'], lastPipeline: null, lastPlacement: null } as unknown as AvatarHost;
   const details = avatarDetails(host);
-  assert.deepEqual([details.photo, details.capture, details.filters], [false, true, true]);
+  assert.deepEqual([details.photo, details.capture], [false, true]);
 });
 
 test('app.look answers; without a look, offline 屏幕识读不可用（配置出错）', async () => {

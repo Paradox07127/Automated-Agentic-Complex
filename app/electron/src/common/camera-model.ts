@@ -150,8 +150,6 @@ const zoomOf = (s: Record<string, unknown>) => {
 export const savedCamera = (s: Record<string, unknown>): CameraValue =>
   ({ yaw: degrees(s.render_camera_yaw, YAW), pitch: degrees(s.render_camera_pitch, PITCH), zoom: zoomOf(s) });
 
-const FILTERS = ['none', ...Array.from({ length: 8 }, (_, i) => `filter_${i + 1}`), ...Array.from({ length: 7 }, (_, i) => `sp_filter_${i + 1}`)];
-
 /** The `set_render` groups (C3 rules 43, 49) with the values the renderer's launch arguments take from the same settings;
  *  HostLink.sendSetRender drops what the avatar does not list. */
 export function liveRenderPayload(s: Record<string, unknown>): Record<string, unknown> {
@@ -168,7 +166,6 @@ export function liveRenderPayload(s: Record<string, unknown>): Record<string, un
     facing: option('render_facing_mode', ['auto', 'front', 'side', 'back'], 'auto'),
     grounding: { mode: option('render_ground_shadow', ['off', 'contact', 'cast'], 'cast') },
     ambient: { mode: option('render_ambient', ['off', 'wallpaper', 'screen'], 'off'), light_wrap: flag('render_light_wrap', false) },
-    filter: option('render_filter', FILTERS, 'none'),
     dof: { mode: option('render_dof', ['off', 'closeup'], 'off') },
   };
 }

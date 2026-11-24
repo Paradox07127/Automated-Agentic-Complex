@@ -593,11 +593,9 @@ function surfaceWindowProblem(w: unknown, layering: boolean): string | null {
   return Array.isArray(w.above) && w.above.length <= 8 && w.above.every(rect) ? null : 'above';
 }
 
-const RENDER_FILTERS = ['none', ...Array.from({ length: 8 }, (_, i) => `filter_${i + 1}`), ...Array.from({ length: 7 }, (_, i) => `sp_filter_${i + 1}`)];
-
 /** Rules 43, 49 (b), (i): a `set_render` against what both sides list. */
 function setRenderProblem(m: Fields, both: (c: string) => boolean): string | null {
-  const groups = ['camera', 'light', 'outline', 'facing', 'grounding', 'ambient', 'filter', 'dof', 'photo'];
+  const groups = ['camera', 'light', 'outline', 'facing', 'grounding', 'ambient', 'dof', 'photo'];
   const present = Object.keys(m).filter((k) => !['v', 'type', 'req'].includes(k));
   if (present.length === 0) return 'empty';
   if (!present.every((k) => groups.includes(k))) return 'group';
@@ -618,7 +616,6 @@ function setRenderProblem(m: Fields, both: (c: string) => boolean): string | nul
   if (m.facing !== undefined && !oneOf('auto', 'front', 'side', 'back')(m.facing)) return 'facing';
   if (m.grounding !== undefined && !group(m.grounding, { mode: oneOf('off', 'contact', 'cast') })) return 'grounding';
   if (m.ambient !== undefined && !group(m.ambient, { mode: oneOf('off', 'wallpaper', 'screen'), light_wrap: bool })) return 'ambient';
-  if (m.filter !== undefined && (!both('filters') || !RENDER_FILTERS.includes(m.filter as string))) return 'filter';
   if ((m.dof !== undefined || m.photo !== undefined) && !both('photo')) return 'photo_capability';
   if (m.dof !== undefined && !group(m.dof, { mode: oneOf('off', 'closeup') })) return 'dof';
   if (m.photo !== undefined && !group(m.photo, { active: bool, aperture: (x) => inRange(x, 1.4, 32),
