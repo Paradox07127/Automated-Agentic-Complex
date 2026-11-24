@@ -4,8 +4,8 @@ Endfield tools reach the agent through tool_bridge.py, a stdio MCP server the
 agent launches itself; the bridge calls back into this process over a private IPC
 endpoint guarded by a per-process token. The agent gets no fs or terminal capability.
 With init.config.native_tools the agent keeps its own tools and the user's own configuration
-and works in init.config.workspace_dir. Every permission request except those for the
-bridge's own tools goes to agentd as a permission_request frame.
+and works in init.config.workspace_dir; then every permission request except those for the
+bridge's own tools goes to agentd as a permission_request frame. Without them every such request is rejected.
 """
 import asyncio
 import json
@@ -81,12 +81,9 @@ CANCELLED = {"outcome": {"outcome": "cancelled"}}
 
 
 def permission_outcome(options):
-    """Reject by option kind; without a reject option the only safe answer is cancelled."""
-    for kind in ("reject_once", "reject_always"):
-        option = option_of_kind(options, kind)
-        if option:
-            return selected(option)
-    return CANCELLED
+    """Reject once; reject_always would keep the denial, so without reject_once the only safe answer is cancelled."""
+    option = option_of_kind(options, "reject_once")
+    return selected(option) if option else CANCELLED
 
 
 def result_usage(usage):
@@ -430,11 +427,14 @@ class AcpRunner(Runner):
                 modes = session["modes"].get("availableModes") if isinstance(session.get("modes"), dict) else None
                 if found is not None:
                     options = await self.set_option(*found, options)
-                elif not session.get("configOptions") and isinstance(modes, list) and \
+                elif not _selects(options, "mode") and isinstance(modes, list) and \
                         any(isinstance(m, dict) and m.get("id") == mode for m in modes):
                     await self.client.request("session/set_mode", {"sessionId": self.session_id, "modeId": mode})
                     found = mode
-                extra["mode_applied"] = found is not None
+                # The mode is a lock's (acp_agents.LOCKS): without it the agent may use its own tools.
+                if found is None:
+                    raise RunnerFailure("acp_mode_not_applied")
+                extra["mode_applied"] = True
             effort = config.get("effort") or ""
             if effort:
                 found = select_option(options, "thought_level", nearest_effort(options, effort) or effort)
@@ -479,11 +479,15 @@ class AcpRunner(Runner):
         if params.get("sessionId") != self.session_id or not run:
             return permission_outcome(options)
         allow = option_of_kind(options, "allow_once")
-        # The bridge's own tools carry their own product approvals; claude-agent-acp names them mcp__agentic_complex__<tool>.
+        # The bridge's own tools carry their own product approvals; claude-agent-acp names them mcp__agentic_complex__<tool>
+        # with no kind. The title is the agent's display text, so an execute or edit request is never matched by it.
         title = tool_call.get("title")
-        if allow and isinstance(title, str) and title.startswith("mcp__agentic_complex__") and \
+        if allow and kind in (None, "other") and isinstance(title, str) and title.startswith("mcp__agentic_complex__") and \
                 title.removeprefix("mcp__agentic_complex__") in self.allowed_names:
             return selected(allow)
+        # Without native tools the agent has only Endfield's, so a request for any other tool is refused unasked.
+        if not self.config.get("native_tools"):
+            return permission_outcome(options)
 
         request_id = secrets.token_hex(12)
         future = asyncio.get_running_loop().create_future()
@@ -590,12 +594,15 @@ class AcpRunner(Runner):
             prompt = ask_user_prompt(prompt, message["ask_user_result"])
         prompt = history_prompt(prompt, message.get("history"))
         if self.prompt_prefix:
-            prompt, self.prompt_prefix = system_prompt_prefix(prompt, self.prompt_prefix), None
+            prompt = system_prompt_prefix(prompt, self.prompt_prefix)
         try:
             try:
                 response = await self.client.request("session/prompt", {"sessionId": self.session_id,
                     "prompt": [{"type": "text", "text": prompt}]}, timeout=None)
                 stop = response.get("stopReason")
+                # A cancelled prompt may not have reached the model, so the next one carries the instructions again.
+                if stop != "cancelled":
+                    self.prompt_prefix = None
                 usage = result_usage(response["usage"]) if isinstance(response.get("usage"), dict) else None
             except AcpError:
                 if not run["cancelled"]:

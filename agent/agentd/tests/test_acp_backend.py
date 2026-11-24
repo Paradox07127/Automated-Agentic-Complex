@@ -13,7 +13,9 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from character_agent.harness import acp_agents
+from character_agent.harness.codex_runner import classify_failure
 from character_agent.harness.registry import HARNESSES
+from character_agent.harness.transport import HarnessError
 from character_agent.integration import CharacterAgentController
 from character_agent.routes import http
 from character_agent.services.capabilities import describe
@@ -229,6 +231,17 @@ class AcpSessionTest(AcpHarnessCase):
                 self.assertEqual(self.agent_log("permission")[0]["answer"]["result"]["outcome"]["optionId"], agent_answer)
                 session.close()
 
+    @unittest.skipIf(sys.platform == "win32", "harness discovery and install look only in POSIX locations")
+    def test_a_prompt_rejected_for_its_login_clears_the_login_state(self):
+        self.agent("auth")
+        session = self.session()
+        with self.assertRaises(HarnessError) as raised:
+            self.run_turn(session)
+        self.assertEqual(raised.exception.code, "acp_auth_required")
+        self.assertEqual(self.controller._acp_logins, {"claude-acp": False})
+        self.assertIsNone(session.pid)
+        self.assertEqual(classify_failure("acp_auth_required", ["Auth required"])["code"], "auth_expired")
+
     def test_missing_agent(self):
         with self.assertRaisesRegex(ValueError, "acp_agent_missing"):
             self.session()
@@ -365,7 +378,10 @@ class AcpAgentsRouteTest(AcpHarnessCase):
         self.assertEqual(local, {"id": "claude-acp", "name": "Claude Agent", "version": None, "source": "local",
                                  "command": [command], "probe": None, "native_backend": "claude"})
         self.assertEqual((value["npx"], value["uvx"]), (True, False))
-        agents = {a["id"]: a for a in value["agents"]}
+        agents = {(a["id"], a["source"]): a for a in value["agents"]}
+        # The local install and the npx package of one agent are separate launchers.
+        self.assertEqual(agents["claude-acp", "npx"]["command"][0], str(npx))
+        agents = {a["id"]: a for a in value["agents"] if (a["id"], a["source"]) != ("claude-acp", "npx")}
         self.assertEqual(agents["claude-acp"], {"id": "claude-acp", "name": "Claude Agent", "version": "0.1.0",
             "source": "local", "command": [command], "probe": {"ok": True,
                 "agent_info": {"name": "fake-acp", "title": "Fake ACP", "version": "0.1.0"},

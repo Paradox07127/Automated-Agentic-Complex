@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Scripted ACP v1 agent for test_acp_runner.py; stdout is ACP JSON-RPC only.
 
-FAKE_ACP_SCRIPT picks the prompt turn (normal, cancel, exit, fs, permissions, edit, own_tool, json, thought, echo).
-json answers one JSON object, after calling observation_image when the bridge lists it.
+FAKE_ACP_SCRIPT picks the prompt turn (normal, cancel, exit, fs, permissions, edit, own_tool, json, thought, auth, echo).
+json answers one JSON object, after calling observation_image when the bridge lists it; auth rejects the prompt
+with ACP's auth_required error. FAKE_ACP_OWN_KIND is the kind own_tool's request carries (none by default).
+FAKE_ACP_OPTIONS=no_reject_once leaves reject_once out of the permission options.
 FAKE_ACP_SYSTEM_PROMPT is append (default), override or none.
 FAKE_ACP_SESSION is model (default: a model config option), levels (model, mode and
 thought_level config options), modes (no config options, session modes only) or dsh (DeepSeek
 Harness's grouped models with JSON-string values and off/low/high/max effort), dsh_signed_out or
 dsh_signed_in (dsh's DeepSeek account route: only deepseek-flash, or the account's own models besides it).
+Every session also lists the session modes default and plan, as claude-agent-acp does.
 FAKE_ACP_CLOSE=1 declares sessionCapabilities.close.
 FAKE_ACP_LOG names a JSON-lines file that records what the agent received.
 FAKE_ACP_AUTH is how authenticate answers: ok (default), deny, or hang (never). FAKE_ACP_LOGOUT=1 declares
@@ -40,6 +43,8 @@ PERMISSION_OPTIONS = [{"optionId": "allow-once", "name": "Allow once", "kind": "
                       {"optionId": "allow-always", "name": "Always allow", "kind": "allow_always"},
                       {"optionId": "reject-once", "name": "Reject", "kind": "reject_once"},
                       {"optionId": "reject-always", "name": "Always reject", "kind": "reject_always"}]
+if os.environ.get("FAKE_ACP_OPTIONS") == "no_reject_once":
+    PERMISSION_OPTIONS = [o for o in PERMISSION_OPTIONS if o["kind"] != "reject_once"]
 PERMISSION_CALLS = [
     {"toolCallId": "call_exec", "title": "ls -la", "kind": "execute"},
     {"toolCallId": "call_edit", "title": "Edit notes.txt", "kind": "edit",
@@ -190,6 +195,8 @@ def turn(request_id, params):
         # claude-agent-acp asks for the bridge's own tools as mcp__<server>__<tool> with no kind.
         call = {"toolCallId": "call_own", "title": f"mcp__agentic_complex__{state['tools'][0]['name']}",
                 "rawInput": {"path": "notes.txt"}}
+        if os.environ.get("FAKE_ACP_OWN_KIND"):
+            call["kind"] = os.environ["FAKE_ACP_OWN_KIND"]
         answer = request("session/request_permission", {"sessionId": state["session"], "toolCall": call,
                                                         "options": PERMISSION_OPTIONS})
         log("permission", tool="call_own", answer=answer)
@@ -206,6 +213,9 @@ def turn(request_id, params):
         send({"id": request_id, "result": {"stopReason": stop, "usage": {
             "totalTokens": 30, "inputTokens": 12, "outputTokens": 8, "thoughtTokens": 3,
             "cachedReadTokens": 7, "cachedWriteTokens": 3}}})
+        return
+    elif SCRIPT == "auth":
+        send({"id": request_id, "error": {"code": -32000, "message": "Authentication required"}})
         return
     else:
         chunk("echo")
@@ -246,10 +256,11 @@ def handle(message):
             state["tools"] = state["mcp"].call("tools/list")["result"]["tools"]
             log("tools", tools=state["tools"])
         state["options"] = session_options()
-        result = {"sessionId": state["session"], "configOptions": state["options"]}
+        modes = {"currentModeId": "default", "availableModes": [{"id": "default", "name": "Default"},
+                                                                 {"id": "plan", "name": "Plan"}]}
+        result = {"sessionId": state["session"], "configOptions": state["options"], "modes": modes}
         if SESSION == "modes":
-            result = {"sessionId": state["session"], "modes": {"currentModeId": "default", "availableModes": [
-                {"id": "default", "name": "Default"}, {"id": "plan", "name": "Plan"}]}}
+            result = {"sessionId": state["session"], "modes": modes}
         send({"id": request_id, "result": result})
     elif method == "session/set_config_option":
         log("set_config_option", params=params)

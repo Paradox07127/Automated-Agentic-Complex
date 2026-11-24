@@ -5,11 +5,13 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from character_agent.harness import acp_agents
-from character_agent.harness.acp_runner import CLIENT_CAPABILITIES
+from character_agent.harness.acp_runner import CLIENT_CAPABILITIES, RunnerFailure
 
 FAKE = Path(__file__).resolve().parent / "fixtures/fake_acp_agent.py"
 
@@ -86,12 +88,28 @@ class AcpAgentsTest(unittest.TestCase):
         self.assertTrue(set(env) <= {"CLAUDE_CODE_EXECUTABLE"})
         self.assertEqual(acp_agents.launch(claude, False)[2:], ({"claudeCode": {"options": {"settingSources": []}}}, "default"))
 
+    def test_semantic_launch_refuses_an_agent_without_a_lock(self):
+        for agent in ({"id": "goose", "command": ["/bin/goose", "acp"]}, {"id": "kimi", "command": ["/bin/kimi", "acp"]}):
+            with self.subTest(agent["id"]):
+                self.assertEqual(acp_agents.launch(agent, True)[0], agent["command"])
+                with self.assertRaisesRegex(ValueError, "acp_agent_unrestricted"):
+                    acp_agents.launch(agent, False)
+
     @unittest.skipIf(sys.platform == "win32", "harness discovery and install look only in POSIX locations")
-    def test_launchable_lists_registry_packages_not_found_locally(self):
+    def test_a_local_install_keeps_its_registry_env(self):
+        muse = self.executable("muse")
+        [found] = [a for a in acp_agents.find_local([str(self.bin)]) if a["id"] == "muse-code"]
+        self.assertEqual(found, {"id": "muse-code", "name": found["name"], "command": [muse, "acp"], "source": "local",
+                                 "env": {"MUSE_EXPERIMENTAL_ACP": "on"}})
+        self.assertEqual(acp_agents.launch(found, True)[1], {"MUSE_EXPERIMENTAL_ACP": "on"})
+
+    @unittest.skipIf(sys.platform == "win32", "harness discovery and install look only in POSIX locations")
+    def test_launchable_lists_registry_packages_also_found_locally(self):
         self.executable("claude-agent-acp")
         npx, uvx = self.executable("npx"), self.executable("uvx")
         entries = {entry["id"]: entry for entry in acp_agents.launchable([str(self.bin)])}
-        self.assertNotIn("claude-acp", entries)
+        # A saved npx launcher still resolves after the same agent is installed globally.
+        self.assertEqual((entries["claude-acp"]["source"], entries["claude-acp"]["command"][0]), ("npx", npx))
         self.assertNotIn("goose", entries)
         self.assertEqual(entries["codex-acp"], {"id": "codex-acp", "name": "Codex", "source": "npx",
                                                 "command": [npx, "-y", "@agentclientprotocol/codex-acp@2.7.0"], "env": {}})
@@ -122,6 +140,30 @@ class AcpAgentsTest(unittest.TestCase):
         self.assertEqual(acp_agents.probe([str(self.bin / "absent")])["error"], "acp_agent_unavailable")
         result = acp_agents.probe([self.executable("quits")], timeout=5)
         self.assertEqual((result["ok"], result["error"]), (False, "acp_agent_exited"))
+
+    def test_probe_sign_in_and_account_children_get_a_scrubbed_env_on_the_search_path(self):
+        seen = []
+
+        class Agent:
+            def __init__(self, argv, env, *_):
+                seen.append(env)
+
+            async def start(self):
+                raise RunnerFailure("acp_agent_unavailable")
+
+            async def disconnect(self):
+                pass
+
+        with mock.patch.dict(os.environ, {"AGENTD_HOOK_TOKEN": "t", "AAC_TTS_TOKEN": "t", "PATH": "/usr/bin"}, clear=True), \
+                mock.patch.object(acp_agents, "AcpAgent", Agent):
+            acp_agents.probe(["/bin/agent"], env={"A": "1"})
+            acp_agents.authenticate(["/bin/agent"], None, "login", 5, None)
+            acp_agents.deepseek_signed_in(["/bin/dsh"])
+        self.assertEqual(len(seen), 3)
+        for env in seen:
+            self.assertFalse({"AGENTD_HOOK_TOKEN", "AAC_TTS_TOKEN"} & set(env))
+            self.assertIn("/opt/homebrew/bin", env["PATH"].split(os.pathsep))
+        self.assertEqual(seen[0]["A"], "1")
 
     def test_native_backends_mark_the_bridges_of_harnesses_with_their_own_kernel(self):
         self.assertEqual(acp_agents.NATIVE_BACKENDS, {"claude-acp": "claude", "codex-acp": "codex"})
@@ -162,6 +204,16 @@ class AcpInstallTest(unittest.TestCase):
         self.assertEqual(result["command"], [uv, "tool", "install", "fast-agent-acp==0.10.1"])
         self.assertEqual(self.log.read_text(encoding="utf-8"), "uv tool install fast-agent-acp==0.10.1\n")
         self.assertIn("fast-agent", {a["id"] for a in acp_agents.find_local([str(self.bin)])})
+
+    @unittest.skipIf(sys.platform == "win32", "harness discovery and install look only in POSIX locations")
+    def test_install_runs_without_agentds_own_variables(self):
+        self.fake("npm")
+        with mock.patch.dict(os.environ, {"AGENTD_HOOK_TOKEN": "t", "PATH": "/usr/bin"}, clear=True), \
+                mock.patch.object(acp_agents.subprocess, "run", return_value=SimpleNamespace(returncode=0, stdout=b"")) as run:
+            acp_agents.install("qoder", [str(self.bin)])
+        env = run.call_args.kwargs["env"]
+        self.assertNotIn("AGENTD_HOOK_TOKEN", env)
+        self.assertEqual(env["PATH"], str(self.bin))
 
     @unittest.skipIf(sys.platform == "win32", "harness discovery and install look only in POSIX locations")
     def test_a_failed_install_reports_its_exit_and_output(self):

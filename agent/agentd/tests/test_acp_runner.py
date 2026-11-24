@@ -137,11 +137,11 @@ class AcpRunnerTest(unittest.TestCase):
         self.assertEqual([(f["kind"], f["status"], f["item_id"], f.get("phase")) for f in before if f["type"] == "item"],
                          [("assistant_text", "started", "msg_1", "final")])
         self.answer(runner, request, {"content": [{"type": "text", "text": "notes body"}, {"type": "resource", "uri": "x"}]})
-        permission, asked = runner.next("permission_request")
-        self.assertEqual((permission["kind"], permission["title"]), ("execute", "rm -rf build"))
-        self.permission_result(runner, permission, "reject-once")
         result, frames = runner.next("result")
-        frames = asked + frames
+        # Without native tools the execute request is rejected without asking.
+        self.assertNotIn("permission_request", [f["type"] for f in frames])
+        self.assertEqual(runner.agent_log("permission")[0]["answer"]["result"],
+                         {"outcome": {"outcome": "selected", "optionId": "reject-once"}})
         self.assertEqual((result["success"], result["subtype"], result["text"], result["final_text"]),
                          (True, "success", "Hello world", "Hello world"))
         reply = runner.agent_log("tool_result")[0]["reply"]["result"]
@@ -214,8 +214,48 @@ class AcpRunnerTest(unittest.TestCase):
         runner.close()
         self.assertIsNone(c8.check(runner.lines))
 
-    def test_without_native_tools_every_kind_is_asked_too_and_unknown_answers_reject(self):
+    def test_without_native_tools_every_kind_is_rejected_without_asking(self):
         runner = RunnerProcess(self, "permissions")
+        runner.next("ready")
+        runner.query("run-1")
+        _, frames = runner.next("result")
+        self.assertNotIn("permission_request", [f["type"] for f in frames])
+        self.assertEqual(self.permission_answers(runner),
+                         {"call_exec": "reject-once", "call_edit": "reject-once", "call_other": "reject-once"})
+        runner.close()
+        self.assertIsNone(c8.check(runner.lines))
+
+    def test_bridge_tool_title_with_a_native_kind_is_asked(self):
+        runner, _ = self.native_runner("own_tool", agent_env={"FAKE_ACP_OWN_KIND": "execute"})
+        runner.next("ready")
+        runner.query("run-1")
+        request, _ = runner.next("permission_request")
+        self.assertEqual((request["kind"], request["title"]), ("execute", "mcp__agentic_complex__fixture_read"))
+        self.permission_result(runner, request, "reject-once")
+        runner.next("result")
+        self.assertEqual(self.permission_answers(runner), {"call_own": "reject-once"})
+        runner.close()
+        restricted = RunnerProcess(self, "own_tool", agent_env={"FAKE_ACP_OWN_KIND": "execute"})
+        restricted.next("ready")
+        restricted.query("run-1")
+        _, frames = restricted.next("result")
+        self.assertNotIn("permission_request", [f["type"] for f in frames])
+        self.assertEqual(self.permission_answers(restricted), {"call_own": "reject-once"})
+        restricted.close()
+
+    def test_without_reject_once_no_answer_is_cancelled_not_rejected_always(self):
+        env = {"FAKE_ACP_OPTIONS": "no_reject_once"}
+        for runner in (self.native_runner("permissions", agent_env=env, permission_timeout=0.3)[0],
+                       RunnerProcess(self, "permissions", agent_env=env)):
+            runner.next("ready")
+            runner.query("run-1")
+            runner.next("result")
+            self.assertEqual({r["tool"]: r["answer"]["result"] for r in runner.agent_log("permission")},
+                             {call: {"outcome": {"outcome": "cancelled"}} for call in ("call_exec", "call_edit", "call_other")})
+            runner.close()
+
+    def test_native_tools_unknown_answers_reject(self):
+        runner, _ = self.native_runner("permissions")
         runner.next("ready")
         runner.query("run-1")
         for kind, option_id in (("execute", "allow-once"), ("edit", None), (None, "no-such-option")):
@@ -229,7 +269,7 @@ class AcpRunnerTest(unittest.TestCase):
         self.assertIsNone(c8.check(runner.lines))
 
     def test_unanswered_permission_times_out_as_reject(self):
-        runner = RunnerProcess(self, "permissions", permission_timeout=0.3)
+        runner, _ = self.native_runner("permissions", permission_timeout=0.3)
         runner.next("ready")
         runner.query("run-1")
         _, frames = runner.next("result")
@@ -240,7 +280,7 @@ class AcpRunnerTest(unittest.TestCase):
         self.assertIsNone(c8.check(runner.lines))
 
     def test_interrupt_answers_the_waiting_permission_cancelled(self):
-        runner = RunnerProcess(self, "permissions")
+        runner, _ = self.native_runner("permissions")
         runner.next("ready")
         runner.query("run-1")
         request, _ = runner.next("permission_request")
@@ -298,10 +338,25 @@ class AcpRunnerTest(unittest.TestCase):
         self.assertEqual(runner.agent_log("set_config_option"), [])
         runner.close()
 
-    def test_unknown_mode_is_not_applied(self):
-        runner = RunnerProcess(self, "echo", agent_env={"FAKE_ACP_SESSION": "levels"}, mode="yolo", effort="turbo")
+    def test_lock_mode_through_session_modes_beside_model_only_config_options(self):
+        runner = RunnerProcess(self, "echo", mode="default")
         ready, _ = runner.next("ready")
-        self.assertEqual((ready["mode_applied"], ready["effort_applied"]), (False, False))
+        self.assertEqual((ready["model_applied"], ready["mode_applied"]), (True, True))
+        self.assertEqual(runner.agent_log("set_mode")[0]["params"], {"sessionId": "sess_fake", "modeId": "default"})
+        runner.close()
+
+    def test_a_mode_that_cannot_be_applied_fails_startup(self):
+        runner = RunnerProcess(self, "echo", agent_env={"FAKE_ACP_SESSION": "levels"}, mode="yolo")
+        error, frames = runner.next("error")
+        self.assertEqual(error["code"], "acp_mode_not_applied")
+        self.assertNotIn("ready", [f["type"] for f in frames])
+        self.assertEqual(runner.agent_log("set_mode"), [])
+        self.assertEqual(runner.proc.wait(10), 0)
+
+    def test_unknown_effort_is_not_applied(self):
+        runner = RunnerProcess(self, "echo", agent_env={"FAKE_ACP_SESSION": "levels"}, effort="turbo")
+        ready, _ = runner.next("ready")
+        self.assertFalse(ready["effort_applied"])
         self.assertEqual([r["params"]["configId"] for r in runner.agent_log("set_config_option")], ["model"])
         runner.close()
 
@@ -456,6 +511,19 @@ class AcpRunnerTest(unittest.TestCase):
         first, second = [r["text"] for r in runner.agent_log("prompt")]
         self.assertLess(first.index(SYSTEM_PROMPT), first.index("First question"))
         self.assertEqual(second, "Second question")
+
+    def test_prompt_prefix_stays_until_a_prompt_is_not_cancelled(self):
+        runner = RunnerProcess(self, "cancel", system_prompt_mode="none")
+        runner.next("ready")
+        prefix = f"Session instructions from the application (system level):\n<system_instructions>\n{SYSTEM_PROMPT}\n"
+        for run_id in ("run-1", "run-2"):
+            runner.query(run_id, prompt="Question")
+            runner.next("tool_request")
+            runner.send({"type": "interrupt", "run_id": run_id})
+            result, _ = runner.next("result")
+            self.assertEqual(result["subtype"], "cancelled")
+        self.assertEqual([r["text"].startswith(prefix) for r in runner.agent_log("prompt")], [True, True])
+        runner.close()
 
     def test_override_mode_when_advertised(self):
         runner = RunnerProcess(self, "echo", system_prompt_mode="override")

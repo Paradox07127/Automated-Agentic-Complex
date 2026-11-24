@@ -115,7 +115,7 @@ class PythonRunnerExamplesTests(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as directory, \
                 patch.object(codex_runner, "AppServer", return_value=client), \
                 patch.object(subject, "_command", AsyncMock(side_effect=["codex-cli 0.166.0",
-                    json.dumps({"models": [{"slug": "gpt-6.1-sol"}]})])):
+                    json.dumps({"models": [{"slug": "gpt-6.1-sol"}]}), "[]"])):
             frames[0][1]["config"].update(state_dir=directory, cli_path=sys.executable)
             try:
                 await self.replay(subject, name, frames)
@@ -158,7 +158,7 @@ class CodexLogDatabaseTests(unittest.IsolatedAsyncioTestCase):
             with patch.object(codex_runner.sys, "stdout", stdout), \
                     patch.object(codex_runner, "AppServer", return_value=client), \
                     patch.object(subject, "_command", AsyncMock(side_effect=["codex-cli 0.166.0",
-                        json.dumps({"models": [{"slug": "gpt-6.1-sol"}]})])):
+                        json.dumps({"models": [{"slug": "gpt-6.1-sol"}]}), "[]"])):
                 await asyncio.wait_for(subject.main(), 5)
             self.assertEqual(seen["at_launch"], ["keep.txt"])
             self.assertTrue(seen["at_exit"])

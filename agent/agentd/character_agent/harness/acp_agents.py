@@ -93,10 +93,12 @@ LOCKS = {
 
 def launch(agent, native_tools):
     """(command, env, session _meta, mode) of an agent row: with native_tools the agent's own tools and the user's own
-    configuration, else only Endfield's tools."""
-    env = {**PROFILE_ENV.get(agent["id"], {}), **agent.get("env", {})}
+    configuration, else only Endfield's tools; ValueError for an agent that cannot be locked to them."""
+    env = {**(profile_env() if agent["id"] == "claude-acp" else {}), **agent.get("env", {})}
     if native_tools:
         return agent["command"], env, None, None
+    if agent["id"] not in LOCKS and str(DSH_PATCH) not in agent["command"]:
+        raise ValueError("acp_agent_unrestricted")
     lock = LOCKS.get(agent["id"], {})
     command = [str(DSH_LOCKED_PATCH) if arg == str(DSH_PATCH) else arg for arg in agent["command"]]
     return command, {**env, **lock.get("env", {})}, lock.get("session_meta"), lock.get("mode")
@@ -118,26 +120,46 @@ def _which(name, path):
     return os.path.abspath(found) if found else None
 
 
+def profile_env():
+    """The claude CLI that claude-agent-acp runs, looked up now: it may be installed while agentd runs."""
+    claude = _which("claude", search_path())
+    return {"CLAUDE_CODE_EXECUTABLE": claude} if claude else {}
+
+
+def acp_child_env(extra=None):
+    """The environment of an agent or installer this process starts: agentd's own AGENTD_* and AAC_* stay out, and
+    `#!/usr/bin/env node` scripts find their interpreter on the search path."""
+    env = {key: value for key, value in os.environ.items() if not key.startswith(("AGENTD_", "AAC_"))}
+    return {**env, "PATH": search_path(), **profile_env(), **(extra or {})}
+
+
+def registry_env(distribution):
+    """The env a registry distribution sets; binary entries use darwin-aarch64's, as LOCAL_COMMANDS does."""
+    for spec in (distribution.get("npx"), distribution.get("uvx"), (distribution.get("binary") or {}).get("darwin-aarch64")):
+        if spec and spec.get("env"):
+            return dict(spec["env"])
+    return {}
+
+
 def find_local(paths=None):
     path = search_path(paths)
-    names = {agent["id"]: agent["name"] for agent in registry()["agents"]}
+    agents = {agent["id"]: agent for agent in registry()["agents"]}
     found = []
     for agent_id, (command, args) in LOCAL_COMMANDS.items():
         executable = _which(command, path)
         if executable:
-            found.append({"id": agent_id, "name": names[agent_id], "command": [executable, *args], "source": "local"})
+            row = {"id": agent_id, "name": agents[agent_id]["name"], "command": [executable, *args], "source": "local"}
+            env = registry_env(agents[agent_id]["distribution"])
+            found.append({**row, "env": env} if env else row)
     return found
 
 
 def launchable(paths=None):
-    """Registry npx/uvx agents not installed here, as commands; nothing is run."""
+    """Registry npx/uvx agents, installed here or not, as commands; nothing is run."""
     path = search_path(paths)
     runners = {source: _which(source, path) for source in ("npx", "uvx")}
-    local = {agent["id"] for agent in find_local(paths)}
     entries = []
     for agent in registry()["agents"]:
-        if agent["id"] in local:
-            continue
         for source, prefix in (("npx", ["-y"]), ("uvx", [])):
             spec = agent["distribution"].get(source)
             if spec and runners[source]:
@@ -167,7 +189,7 @@ def install(agent_id, paths=None, timeout=INSTALL_TIMEOUT):
     """Run the global install of one registry agent; returns its exit code and the end of its output."""
     command = install_command(agent_id, paths)
     # npm and uv are scripts that find node or python on PATH.
-    env = {**os.environ, "PATH": search_path(paths)}
+    env = acp_child_env({"PATH": search_path(paths)})
     try:
         done = subprocess.run(command, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT, timeout=timeout)
@@ -183,7 +205,7 @@ async def _probe(command, env, timeout):
         return None
 
     with tempfile.TemporaryDirectory(prefix="efacp-probe-") as cwd:
-        agent = AcpAgent(command, {**os.environ, **(env or {})}, cwd, no_requests, lambda *_: None, lambda _code: None)
+        agent = AcpAgent(command, acp_child_env(env), cwd, no_requests, lambda *_: None, lambda _code: None)
         try:
             await agent.start()
             init = await agent.request("initialize", {"protocolVersion": 1, "clientCapabilities": CLIENT_CAPABILITIES,
@@ -211,7 +233,7 @@ async def _auth_call(command, env, method, params, timeout, cancel):
         return None
 
     with tempfile.TemporaryDirectory(prefix="efacp-auth-") as cwd:
-        agent = AcpAgent(command, {**os.environ, **(env or {})}, cwd, no_requests, lambda *_: None, lambda _code: None)
+        agent = AcpAgent(command, acp_child_env(env), cwd, no_requests, lambda *_: None, lambda _code: None)
         try:
             await agent.start()
             init = await agent.request("initialize", {"protocolVersion": 1, "clientCapabilities": CLIENT_CAPABILITIES,
@@ -250,7 +272,7 @@ async def _account_models(command, timeout):
         return None
 
     with tempfile.TemporaryDirectory(prefix="efacp-probe-") as cwd:
-        agent = AcpAgent(command, dict(os.environ), cwd, no_requests, lambda *_: None, lambda _code: None)
+        agent = AcpAgent(command, acp_child_env(), cwd, no_requests, lambda *_: None, lambda _code: None)
         try:
             await agent.start()
             await agent.request("initialize", {"protocolVersion": 1, "clientCapabilities": CLIENT_CAPABILITIES,

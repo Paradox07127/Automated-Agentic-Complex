@@ -100,3 +100,14 @@ class ManagedAcpSession(ManagedClaudeSession):
         if self.on_auth:
             self.on_auth(True)
         return ready
+
+    def stream(self, *args, **kwargs):
+        # The agent may accept session/new and still reject session/prompt for its login.
+        try:
+            yield from super().stream(*args, **kwargs)
+        except HarnessError as error:
+            if error.code == "acp_auth_required":
+                if self.on_auth:
+                    self.on_auth(False)
+                self.close()
+            raise

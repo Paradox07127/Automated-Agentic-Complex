@@ -164,6 +164,13 @@ class CodexPolicyTests(unittest.TestCase):
         self.assertFalse(policy["features"]["hooks"])
         self.assertFalse(config.public()["cost_limit_supported"])
 
+    def test_restricted_sessions_turn_off_each_user_mcp_server(self):
+        config = {"model": "m", "native_tools": False, "auth_mode": "existing_login"}
+        self.assertEqual(policy_settings(Path("/tmp/s"), Path("/tmp/c"), config)["mcp_servers"], {})
+        self.assertEqual(policy_settings(Path("/tmp/s"), Path("/tmp/c"), config, ["user.tools"])["mcp_servers"],
+                         {"user.tools": {"enabled": False}})
+        self.assertNotIn("mcp_servers", policy_settings(Path("/tmp/s"), None, {**config, "native_tools": True}, ["x"]))
+
     def test_product_login_unknown_runtime_and_nonprivate_urls_fail_before_execution(self):
         cli = str(Path(tempfile.gettempdir(), "fixture", "codex"))  # absolute on this platform
         CodexConfig("/tmp/a", "m", cli_path=cli, auth_mode="product_login", native_home="/tmp/home", **WORK).validate()
@@ -221,27 +228,27 @@ class CodexNativeConfigTests(unittest.IsolatedAsyncioTestCase):
         subject.emit = ready.append
         with tempfile.TemporaryDirectory() as directory, \
                 patch.object(codex_runner, "AppServer", return_value=client) as server, \
-                patch.object(subject, "_command", AsyncMock(side_effect=["codex-cli 0.166.0",
-                    json.dumps({"models": [{"slug": "gpt-6.1-sol"}]})])):
+                patch.object(subject, "_command", AsyncMock(side_effect=["codex-cli 0.166.0"])):
             await subject.initialize({"tools": [], "config": {"state_dir": directory, "model": "gpt-6.1-sol",
-                "cli_path": sys.executable, "auth_mode": "existing_login", "effort": "medium"}})
+                "cli_path": sys.executable, "auth_mode": "existing_login", "effort": "medium",
+                "native_tools": True, "workspace_dir": directory}})
         self.assertEqual(server.call_count, 1)
         argv = server.call_args.args[0]
         self.assertFalse([value for value in argv if value.startswith(("mcp_servers", "model_provider"))])
         self.assertEqual([event["type"] for event in ready], ["ready"])
         self.assertIsNone(dict(requests)["thread/start"]["modelProvider"])
 
-    async def start(self, directory, native_tools, workspace):
+    async def start(self, directory, native_tools, workspace, mcp_list="[]", effective=None):
         requests, ready = [], []
         async def request(method, params, timeout=15):
             requests.append((method, params))
-            return {"initialize": {}, "config/read": {"config": {}},
+            return {"initialize": {}, "config/read": {"config": effective or {}},
                     "thread/start": {"thread": {"id": "thread-1"}}}[method]
         client = SimpleNamespace(start=AsyncMock(), write=AsyncMock(), disconnect=AsyncMock(),
                                  proc=SimpleNamespace(pid=4343), request=AsyncMock(side_effect=request))
         subject = codex_runner.CodexRunner()
         subject.emit = ready.append
-        command = AsyncMock(side_effect=["codex-cli 0.171.0", json.dumps({"models": [{"slug": "gpt-6.1-sol"}]})])
+        command = AsyncMock(side_effect=["codex-cli 0.171.0", json.dumps({"models": [{"slug": "gpt-6.1-sol"}]}), mcp_list])
         with patch.object(codex_runner, "AppServer", return_value=client) as server, \
                 patch.object(subject, "_command", command):
             await subject.initialize({"tools": [], "system_prompt": "Persona fixture.", "config": {
@@ -271,12 +278,27 @@ class CodexNativeConfigTests(unittest.IsolatedAsyncioTestCase):
             "sandbox_mode", "project_doc_max_bytes", "skills.bundled.enabled", "skills.include_instructions",
             "developer_instructions", "history.persistence", "check_for_update_on_startup", "notify",
             "orchestrator.skills.enabled", "orchestrator.mcp.enabled", "analytics.enabled", "log_dir", "sqlite_home",
-            "features"])
-        self.assertEqual(commands, 2)
+            "features", "mcp_servers"])
+        self.assertEqual(commands, 3)
         self.assertEqual((thread["cwd"], thread["sandbox"], thread["baseInstructions"], thread["environments"]),
                          (str(Path(directory).resolve() / "workspace"), "read-only", "Persona fixture.", []))
         self.assertTrue(ready["tool_inventory_verified"])
         self.assertEqual(ready["capabilities"]["builtin_tools"], "disabled_verified")
+
+    async def test_semantic_tasks_turn_off_the_users_mcp_servers_or_do_not_start(self):
+        listed = json.dumps([{"name": "user.tools", "enabled": True}])
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(RunnerFailure, "codex_mcp_servers_not_disabled"):
+                await self.start(directory, False, directory, listed,
+                                 {"mcp_servers": {"user.tools": {"command": "/fixture/mcp", "enabled": True}}})
+        with tempfile.TemporaryDirectory() as directory:
+            keys, _, ready, _ = await self.start(directory, False, directory, listed,
+                                                 {"mcp_servers": {"user.tools": {"command": "/fixture/mcp", "enabled": False}}})
+        self.assertIn("mcp_servers", keys)
+        self.assertTrue(ready["tool_inventory_verified"])
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(RunnerFailure, "codex_mcp_list_unavailable"):
+                await self.start(directory, False, directory, json.dumps({"user.tools": {}}))
 
 
 @unittest.skipUnless(binaries(), "No verified Codex executable available")

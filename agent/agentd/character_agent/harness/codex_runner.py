@@ -39,7 +39,7 @@ def classify_failure(reason=None, errors=None, status=None, codex_info=None):
             'insufficient_quota', 'quota_exhausted', 'quota exceeded', 'credit balance', 'billing', 'usage limit', 'budget')):
         code = 'quota_exhausted'
     elif info == 'unauthorized' or status in (401, 403) or any(value in text for value in (
-            'auth_expired', 'authentication', 'unauthorized', 'token expired', 'token has expired', 'invalid api key', 'login required')):
+            'auth_expired', 'auth_required', 'authentication', 'unauthorized', 'token expired', 'token has expired', 'invalid api key', 'login required')):
         code = 'auth_expired'
     elif info in ('cyberPolicy', 'misalignmentPolicyViolation') or 'refusal' in text:
         code = 'refusal'
@@ -265,7 +265,9 @@ def restricted_catalog(catalog, selected):
     return result
 
 
-def policy_settings(root, catalog, config):
+def policy_settings(root, catalog, config, mcp_names=()):
+    """mcp_names: the MCP servers of the user's Codex config, which a restricted session turns off one by one;
+    an empty mcp_servers table does not replace the user's."""
     if config.get("native_tools"):
         # Native tools follow the user's Codex config; only keep role sessions out of the user's history and logs.
         settings = {"model": config["model"], "history.persistence": "none", "check_for_update_on_startup": False,
@@ -281,6 +283,7 @@ def policy_settings(root, catalog, config):
             "notify": [], "orchestrator.skills.enabled": False, "orchestrator.mcp.enabled": False,
             "analytics.enabled": False, "log_dir": str(root / "logs"), "sqlite_home": str(root / "isolated-state-v1" / "sqlite"),
             "features": {**{name: False for name in DISABLED_FEATURES}, "skip_host_skill_discovery": True},
+            "mcp_servers": {name: {"enabled": False} for name in mcp_names},
         }
     if config.get("auth_mode", "api_key") == "api_key":
         settings.update({"model_provider": "endfield_api", "model_providers.endfield_api": {
@@ -479,6 +482,7 @@ class CodexRunner(Runner):
         version = version_match.group(1) if version_match else None
         native = bool(config.get("native_tools"))
         catalog = None
+        mcp_names = []
         if not native:
             try:
                 original = json.loads(await self._command(cli, "debug", "models", "--bundled", env=env))
@@ -487,7 +491,14 @@ class CodexRunner(Runner):
             catalog = root / "codex-model-catalog.json"
             catalog.write_text(json.dumps(restricted_catalog(original, config["model"])), encoding="utf-8")
             catalog.chmod(0o600)
-        settings = policy_settings(root, catalog, config)
+            try:
+                servers = json.loads(await self._command(cli, "mcp", "list", "--json", env=env))
+                mcp_names = [server["name"] for server in servers]
+                if not isinstance(servers, list) or not all(isinstance(name, str) for name in mcp_names):
+                    raise ValueError("invalid mcp list")
+            except (ValueError, TypeError, KeyError, RunnerFailure) as error:
+                raise RunnerFailure("codex_mcp_list_unavailable") from error
+        settings = policy_settings(root, catalog, config, mcp_names)
 
         argv = [cli]
         for key, value in settings.items():
@@ -499,6 +510,10 @@ class CodexRunner(Runner):
                                                   "capabilities": {"experimentalApi": True}})
         await self.client.write({"method": "initialized"})
         effective = (await self.client.request("config/read", {"includeLayers": False})).get("config", {})
+        servers = effective.get("mcp_servers") or {}
+        if not native and (not isinstance(servers, dict) or any(
+                not isinstance(server, dict) or server.get("enabled", True) for server in servers.values())):
+            raise RunnerFailure("codex_mcp_servers_not_disabled")
         selected_model = config["model"]
         if selected_model == "default":
             available = (await self.client.request("model/list", {"includeHidden": False})).get("data", [])
