@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 TOOLS = Path(__file__).resolve().parent
-GENERATORS = ("gen_plugins.py", "gen_routes.py", "gen_bridge.py", "gen_c12.py", "gen_render_table.py")
+GENERATORS = ("gen_plugins.py", "gen_routes.py", "gen_bridge.py", "gen_c12.py", "gen_render_table.py", "gen_event_pools.py")
 
 
 def main(argv):
