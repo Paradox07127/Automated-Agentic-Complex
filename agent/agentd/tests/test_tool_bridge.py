@@ -13,7 +13,8 @@ import unittest
 
 AGENTD = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(AGENTD))
-from character_agent.harness.tool_bridge import BRIDGE, BridgeServer, Upstream  # noqa: E402
+from character_agent.harness.codex_runner import Runner  # noqa: E402
+from character_agent.harness.tool_bridge import BRIDGE, BridgeServer, Upstream, error_result  # noqa: E402
 from infra.platform import connect_ipc, serve_ipc  # noqa: E402
 
 TOOLS = [{"name": "fixture_read", "description": "Read a fixture", "inputSchema": {"type": "object"}}]
@@ -150,6 +151,21 @@ class BridgeTests(unittest.TestCase):
         results = self.run_bridge(client, call)
         self.assertEqual({n: r["content"][0]["text"] for n, r in results.items()}, {1: "1", 2: "2"})
 
+    def test_a_call_that_raises_still_gets_an_error_reply(self):
+        async def call(name, arguments):
+            raise RuntimeError("synthetic failure")
+
+        def client(server):
+            upstream = Upstream(server.address, server.token)
+            results = []
+            caller = threading.Thread(target=lambda: results.append(upstream.call("fixture_read", {})), daemon=True)
+            caller.start()
+            caller.join(1)
+            # A copy: closing the server would answer a call still waiting.
+            return list(results)
+
+        self.assertEqual(self.run_bridge(client, call), [error_result("tool_failed")])
+
     def test_stdio_mcp_process_lists_and_calls_the_runner_tools(self):
         def client(server):
             command, args = server.command()
@@ -175,6 +191,15 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(replies[1]["serverInfo"]["name"], "agentic_complex")
         self.assertEqual(replies[2]["tools"], TOOLS)
         self.assertEqual(replies[3]["content"], [{"type": "text", "text": 'fixture_read:{"path": "\\u00fc"}'}])
+
+
+class RunnerToolTests(unittest.IsolatedAsyncioTestCase):
+    async def test_arguments_that_cannot_be_framed_fail_the_call_and_leave_no_pending_id(self):
+        runner = Runner()
+        runner.active = {"id": "run-1", "cancelled": False}
+        result = await runner.tool("fixture_read", {"x": float("nan")}, "call-1")
+        self.assertTrue(result["isError"])
+        self.assertEqual(runner.pending, {})
 
 
 if __name__ == "__main__":

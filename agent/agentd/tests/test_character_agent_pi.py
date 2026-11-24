@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from character_agent.harness.pi_config import PI_VERSION, PiConfig, pi_runner_environment, resolve_pi_runtime
-from character_agent.harness.pi_transport import ManagedPiSession, list_models
+from character_agent.harness.pi_transport import RUNNER, ManagedPiSession, list_models
 from character_agent.harness.transport import HarnessError, join_reapers
 from character_agent.services.workspace import WorkspaceService
 from infra.platform import child_environment
@@ -168,7 +168,7 @@ class PiTransportFailureTests(unittest.TestCase):
     def queued(self, **fields):
         session = ManagedPiSession(PiConfig('/tmp/pi-test', 'openai', 'fixture', api_key='private-api-key'))
         session._queue({'type': 'result', 'run_id': 'run-1', 'success': False, 'subtype': 'model_error', **fields},
-                       session._generation)
+                       session._generation, None)
         return session._events.get_nowait()
 
     def test_length_stop_is_an_unretryable_truncation(self):
@@ -261,6 +261,17 @@ for line in sys.stdin:
     print(json.dumps({"jsonrpc": "2.0", "id": message["id"], "result": result}), flush=True)
 """
 
+
+# pi_runner.mjs whose setRuntimeApiKey takes 500 ms, the window an interrupt can land in before the prompt starts.
+SLOW_KEY_RUNNER = """
+const sdk = await import(SDK_URL);
+const setKey = sdk.ModelRuntime.prototype.setRuntimeApiKey;
+sdk.ModelRuntime.prototype.setRuntimeApiKey = async function (...args) {
+  await new Promise(resolve => setTimeout(resolve, 500));
+  return setKey.apply(this, args);
+};
+await import(RUNNER_URL);
+"""
 
 NODE, RUNTIME = resolve_pi_runtime()
 HAS_SDK = Path(NODE).is_file() and (Path(RUNTIME) / 'node_modules/@earendil-works/pi-coding-agent/package.json').is_file()
@@ -612,6 +623,23 @@ class PiSDKTests(unittest.TestCase):
         events = self.run_session(self.session(model), '!touch ' + str(marker))
         self.assertTrue(events[-1]['success']); self.assertFalse(marker.exists())
         self.assertIn('!touch', json.dumps(model.requests[0]))
+
+    def test_an_interrupt_while_the_query_sets_its_key_never_reaches_the_model(self):
+        model = self.model()
+        runner = self.root / 'slow_key_runner.mjs'
+        sdk = Path(RUNTIME) / 'node_modules/@earendil-works/pi-coding-agent/dist/index.js'
+        runner.write_text(SLOW_KEY_RUNNER.replace('SDK_URL', json.dumps(sdk.as_uri()))
+                          .replace('RUNNER_URL', json.dumps(RUNNER.as_uri())), encoding='utf-8')
+        config = PiConfig(self.root / 'private', 'endfield-fixture', 'fixture', node=NODE, runtime_dir=RUNTIME,
+                          auth_source='none', base_url=model.url)
+        session = ManagedPiSession(config, runner_path=runner, credential=lambda: 'fixture-key')
+        self.resources.append(session)
+        cancel = threading.Event()
+        stream = session.stream('Make a useful report.', system_prompt='You are Mira.', run_id='run-1', cancelled=cancel)
+        self.assertEqual(next(stream)['type'], 'ready')
+        threading.Timer(.2, cancel.set).start()
+        self.assertEqual(list(stream)[-1]['subtype'], 'cancelled')
+        self.assertEqual(model.requests, [])
 
     def test_model_error_cannot_be_reported_as_success(self):
         events = self.run_session(self.session(self.model(status=401)))

@@ -90,9 +90,9 @@ class ManagedAcpSession(ManagedClaudeSession):
         # (bool) -> None: whether a session start got past the agent's authentication.
         self.on_auth = on_auth
 
-    def _ensure(self, system_prompt):
+    def _ensure(self, system_prompt, cancelled=None):
         try:
-            ready = super()._ensure(system_prompt)
+            ready = super()._ensure(system_prompt, cancelled)
         except HarnessError as error:
             if error.code == "acp_auth_required" and self.on_auth:
                 self.on_auth(False)

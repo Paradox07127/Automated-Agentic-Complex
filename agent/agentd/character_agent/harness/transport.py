@@ -16,8 +16,8 @@ import subprocess
 import threading
 import time
 
-from infra.platform import (child_environment, make_private_dir, new_group_options, release_group, signal_group,
-                            track_group)
+from infra.platform import (child_environment, make_private_dir, new_group_options, open_private_file, release_group,
+                            signal_group, track_group)
 
 from .profile_cleanup import lock_runner_actor, release_runner_actor, remove_runner_actor
 
@@ -41,9 +41,11 @@ FRAME_LOG = os.environ.get("AGENTD_FRAME_LOG")
 FRAME_LOG_CHARS = 262144
 # A frame log past this many bytes becomes FRAME_LOG + ".1", replacing the one before, and a new file starts.
 FRAME_LOG_BYTES = 64 * 1024 * 1024
-# Keys whose values a recorded frame replaces with "[redacted]", compared lower-case.
+# Keys whose values a recorded frame replaces with "[redacted]", compared lower-case; so is every key ending in
+# SECRET_SUFFIXES and every agent_env value but PATH.
 SECRET_KEYS = {"api_key", "apikey", "token", "access_token", "refresh_token", "id_token", "authorization", "password",
                "secret", "cookie"}
+SECRET_SUFFIXES = ("_key", "_token", "_secret", "_password")
 _frame_log_lock = threading.Lock()
 _frame_log_failed = False
 # Job actor directory -> the thread reaping its last runner; the actor's next runner waits for it.
@@ -91,7 +93,15 @@ class HarnessError(RuntimeError):
 
 def redacted(value):
     if isinstance(value, dict):
-        return {k: "[redacted]" if k.lower() in SECRET_KEYS and v else redacted(v) for k, v in value.items()}
+        result = {}
+        for k, v in value.items():
+            if k == "agent_env" and isinstance(v, dict):
+                result[k] = {name: text if name == "PATH" else "[redacted]" for name, text in v.items()}
+            elif v and (k.lower() in SECRET_KEYS or k.lower().endswith(SECRET_SUFFIXES)):
+                result[k] = "[redacted]"
+            else:
+                result[k] = redacted(v)
+        return result
     if isinstance(value, list):
         return [redacted(v) for v in value]
     if isinstance(value, str) and len(value) > FRAME_LOG_CHARS:
@@ -106,15 +116,17 @@ def record_frame(direction, session, proc, message):
     if FRAME_LOG is None:
         return
     backend = type(session).__name__.removeprefix("Managed").removesuffix("Session")
-    line = json.dumps({"at": datetime.now().astimezone().isoformat(timespec="milliseconds"), "dir": direction,
-                       "backend": backend, "pid": proc.pid, "frame": redacted(message)}, ensure_ascii=False) + "\n"
+    # A model's error text may quote request content.
+    frame = {key: value for key, value in message.items() if key != "error_message"}
     try:
+        line = json.dumps({"at": datetime.now().astimezone().isoformat(timespec="milliseconds"), "dir": direction,
+                           "backend": backend, "pid": proc.pid, "frame": redacted(frame)}, ensure_ascii=False) + "\n"
         with _frame_log_lock:
             if os.path.exists(FRAME_LOG) and os.path.getsize(FRAME_LOG) > FRAME_LOG_BYTES:
                 os.replace(FRAME_LOG, FRAME_LOG + ".1")
-            with open(FRAME_LOG, "a", encoding="utf-8") as f:
-                f.write(line)
-    except OSError as error:
+            with os.fdopen(open_private_file(FRAME_LOG, os.O_WRONLY | os.O_APPEND | os.O_CREAT), "ab") as f:
+                f.write(line.encode("utf-8"))
+    except Exception as error:
         if not _frame_log_failed:
             _frame_log_failed = True
             logging.getLogger(__name__).warning("Frame log %s not written: %s", FRAME_LOG, error)
@@ -188,13 +200,14 @@ class ManagedClaudeSession:
         writer.start()
         return writer
 
-    def _queue(self, event, generation):
+    def _queue(self, event, generation, proc):
+        """proc: the runner the event came from, the one a full queue ends."""
         if generation != self._generation:
             return
         try:
             self._events.put(event, timeout=0.2)
         except queue.Full:
-            self._terminate(self._proc)
+            self._terminate(proc)
 
     def _read(self, proc, generation):
         last_seq = 0
@@ -222,12 +235,13 @@ class ManagedClaudeSession:
                 elif message.get("type") == "permission_request":
                     self._dispatch_permission(proc, generation, message)
                 else:
-                    self._queue(message, generation)
+                    self._queue(message, generation, proc)
         except (ValueError, OSError, TypeError):
-            self._queue({"type": "error", "code": "runner_protocol_error", "message": "Invalid harness response"}, generation)
+            self._queue({"type": "error", "code": "runner_protocol_error", "message": "Invalid harness response"},
+                        generation, proc)
             self._terminate(proc)
         finally:
-            self._queue({"type": "eof"}, generation)
+            self._queue({"type": "eof"}, generation, proc)
 
     def _dispatch_tool(self, proc, generation, message):
         call_id, run_id = message.get("tool_call_id"), message.get("run_id")
@@ -251,7 +265,7 @@ class ManagedClaudeSession:
                 if name not in {t["name"] for t in self.tool_definitions} or not isinstance(args, dict):
                     raise HarnessError("unknown_tool")
                 self._queue({"type": "tool_started", "run_id": run_id, "tool_call_id": call_id,
-                             "name": name, "args": args, **fields}, generation)
+                             "name": name, "args": args, **fields}, generation, proc)
                 handler = active["handler"]
                 if handler is None:
                     raise HarnessError("tool_unavailable")
@@ -274,13 +288,13 @@ class ManagedClaudeSession:
                     logging.getLogger(__name__).warning('character tool %s failed: %s', message.get('name'), error_type)
                 result, failed = {"error": code}, True
                 if code == 'interaction_pending':
-                    self._queue({'type': 'waiting_user', 'run_id': run_id}, generation)
+                    self._queue({'type': 'waiting_user', 'run_id': run_id}, generation, proc)
             finally:
                 self._tool_slots.release()
             self._queue({"type": "tool_finished", "run_id": run_id, "tool_call_id": call_id,
                          "name": message.get("name"), "result": result,
                          **({**fields, 'item_id': fields['item_id'] + ':result', 'kind': 'tool_result',
-                             'status': 'completed', 'parent_item_id': fields['item_id']} if fields.get('item_id') else {})}, generation)
+                             'status': 'completed', 'parent_item_id': fields['item_id']} if fields.get('item_id') else {})}, generation, proc)
             with self._state_lock:
                 current = self._active is active and not active["cancelled"] and generation == self._generation
             if not current or cancelled_now(active["cancel_signal"]):
@@ -303,7 +317,7 @@ class ManagedClaudeSession:
             return
         request = {key: message.get(key) for key in
                    ("run_id", "request_id", "title", "kind", "locations", "raw_input", "options")}
-        self._queue({"type": "permission_requested", **request}, generation)
+        self._queue({"type": "permission_requested", **request}, generation, proc)
         handler = active["permission_handler"]
         if handler is None:
             self._permission_result(proc, request_id, run_id, None)
@@ -336,9 +350,10 @@ class ManagedClaudeSession:
         except (HarnessError, ValueError, TypeError):
             pass
 
-    def _ensure(self, system_prompt):
+    def _ensure(self, system_prompt, cancelled=None):
         self.config.validate(require_key=False)
-        if self._proc is not None and self._proc.poll() is None and self._system_prompt == system_prompt:
+        if self._proc is not None and self._proc.poll() is None and self._system_prompt == system_prompt \
+                and self._ready is not None:
             return self._ready
         self.close()
         with _reaping_lock:
@@ -372,24 +387,33 @@ class ManagedClaudeSession:
             self._system_prompt = system_prompt
             self._first_query = True
             threading.Thread(target=self._read, args=(proc, generation), name="character-runner-reader", daemon=True).start()
-        self._write({"type": "init", "config": self.config.wire(), "system_prompt": system_prompt,
-                     "tools": self.tool_definitions})
-        deadline = time.monotonic() + self.config.startup_timeout
-        while time.monotonic() < deadline:
-            try:
-                event = self._events.get(timeout=min(0.1, max(0.001, deadline-time.monotonic())))
-            except queue.Empty:
-                continue
-            if event["type"] == "ready":
-                self._ready = event
-                self.session_id = event.get("session_id")
-                self.capabilities = event["capabilities"]
-                return event
-            if event["type"] in ("error", "eof"):
-                self.close()
-                raise HarnessError(event.get("code", "sdk_unavailable"), event.get("message"))
-        self.close()
-        raise HarnessError("sdk_startup_timeout")
+        # Until its ready frame is published the runner is provisional: any failure closes it.
+        try:
+            self._write({"type": "init", "config": self.config.wire(), "system_prompt": system_prompt,
+                         "tools": self.tool_definitions})
+            deadline = time.monotonic() + self.config.startup_timeout
+            while time.monotonic() < deadline:
+                if cancelled_now(cancelled):
+                    raise HarnessError("cancelled")
+                try:
+                    event = self._events.get(timeout=min(0.1, max(0.001, deadline-time.monotonic())))
+                except queue.Empty:
+                    continue
+                if event["type"] == "ready":
+                    with self._state_lock:
+                        # A close() during the wait has already let this runner go.
+                        if self._proc is not proc:
+                            raise HarnessError("runner_not_running")
+                        self._ready = event
+                        self.session_id = event.get("session_id")
+                        self.capabilities = event["capabilities"]
+                    return event
+                if event["type"] in ("error", "eof"):
+                    raise HarnessError(event.get("code", "sdk_unavailable"), event.get("message"))
+            raise HarnessError("sdk_startup_timeout")
+        except BaseException:
+            self.close()
+            raise
 
     def probe(self, system_prompt="You are a personal assistant."):
         """Start and initialize the actual SDK; does not query a model."""
@@ -409,12 +433,12 @@ class ManagedClaudeSession:
         elif not self._stream_lock.acquire(blocking=False):
             raise HarnessError("run_busy")
         run_id = run_id or secrets.token_hex(12)
-        started = False
+        started = finished = False
         try:
             if cancelled_now(cancelled):
                 yield {"type": "result", "success": False, "subtype": "cancelled", "run_id": run_id}
                 return
-            ready = self._ensure("", cancelled=cancelled) if replace_history else self._ensure(system_prompt)
+            ready = self._ensure("" if replace_history else system_prompt, cancelled=cancelled)
             yield {**ready, "run_id": run_id, "session_id": self.session_id}
             deadline = None if timeout is None else time.monotonic() + timeout
             # Tool and permission work runs on reader-spawned threads; the caller's context carries its turn's trace.
@@ -434,6 +458,11 @@ class ManagedClaudeSession:
                          **({"ask_user_result": ask_user_result} if ask_user_result else {})})
             self._first_query = False
             started = True
+            with self._state_lock:
+                # An interrupt() before the query was written reached a runner with no run to stop.
+                late, proc = active["cancelled"] and self._active is active, self._proc
+            if late and proc is not None:
+                self._send_control({"type": "interrupt", "run_id": run_id}, proc)
             interrupted_at = None
             while True:
                 if cancelled_now(cancelled) or active["cancelled"]:
@@ -462,6 +491,7 @@ class ManagedClaudeSession:
                     self.session_id = event.get("session_id", self.session_id)
                     if active["cancelled"] or cancelled_now(cancelled):
                         event = {**event, "success": False, "subtype": "cancelled"}
+                    finished = True
                     yield event
                     return
                 if not active["cancelled"]:
@@ -473,7 +503,7 @@ class ManagedClaudeSession:
                     self._active = None
             # A consumer that closes a generator early must not leave its SDK
             # response in the receive queue for the next user's input.
-            if started and 'event' in locals() and event.get("type") != "result":
+            if started and not finished:
                 self.close()
             self._stream_lock.release()
 
@@ -511,25 +541,30 @@ class ManagedClaudeSession:
                     signal_group(proc, force=True)
                 except (ProcessLookupError, PermissionError):
                     pass
-                proc.wait(timeout=2)
+                try:
+                    proc.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    logging.getLogger(__name__).warning("Runner %s outlived SIGKILL", proc.pid)
         finally:
             release_group(proc)
 
     def _reap(self, proc, lease, actor):
         try:
             try:
-                proc.wait(timeout=self.CLOSE_WAIT)
-            except subprocess.TimeoutExpired:
-                pass
-            # Also remove a CLI descendant left behind after a runner exited.
-            self._terminate(proc)
-            for handle in (proc.stdin, proc.stdout):
-                if handle is not None:
-                    handle.close()
-            try:
-                remove_runner_actor(self.config.state_dir, lease)
+                try:
+                    proc.wait(timeout=self.CLOSE_WAIT)
+                except subprocess.TimeoutExpired:
+                    pass
+                # Also remove a CLI descendant left behind after a runner exited.
+                self._terminate(proc)
             finally:
-                release_runner_actor(lease)
+                try:
+                    for handle in (proc.stdin, proc.stdout):
+                        if handle is not None:
+                            handle.close()
+                    remove_runner_actor(self.config.state_dir, lease)
+                finally:
+                    release_runner_actor(lease)
         finally:
             with _reaping_lock:
                 _reapers.discard(threading.current_thread())

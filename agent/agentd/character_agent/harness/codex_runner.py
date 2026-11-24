@@ -107,6 +107,25 @@ def preview_input(raw):
     return out
 
 
+async def end_child(proc, stop):
+    """Closes the child's stdin, gives it 1 s to exit, then calls stop(False) and 2 s later stop(True).
+    proc.wait() also waits for the child's pipes, which a descendant may hold open, so the exit is read from
+    returncode, and the pipes are closed at the end."""
+    if proc.stdin:
+        proc.stdin.close()
+    loop = asyncio.get_running_loop()
+    for grace, force in ((1, None), (2, False), (2, True)):
+        if force is not None and proc.returncode is None:
+            try:
+                stop(force)
+            except (ProcessLookupError, PermissionError):
+                pass
+        deadline = loop.time() + grace
+        while proc.returncode is None and loop.time() < deadline:
+            await asyncio.sleep(.05)
+    proc._transport.close()
+
+
 class Runner:
     """C8 stdio loop: frames, tool round-trips and shutdown; the subclass owns the native client."""
     def __init__(self):
@@ -167,9 +186,9 @@ class Runner:
             return {"isError": True, "content": [{"type": "text", "text": "duplicate_tool_call"}]}
         future = asyncio.get_running_loop().create_future()
         self.pending[call_id] = (run["id"], future)
-        self.emit({"type": "tool_request", "run_id": run["id"], "tool_call_id": call_id,
-                   "name": name, "args": args, "item_id": item_id or call_id, "kind": kind, "status": "started"})
         try:
+            self.emit({"type": "tool_request", "run_id": run["id"], "tool_call_id": call_id,
+                       "name": name, "args": args, "item_id": item_id or call_id, "kind": kind, "status": "started"})
             answer = await asyncio.wait_for(future, timeout=self.config.get("tool_timeout", 210))
             if self.active is not run or run["cancelled"]:
                 return {"isError": True, "content": [{"type": "text", "text": "run_cancelled"}]}
@@ -180,6 +199,9 @@ class Runner:
                 {"type": "text", "text": json.dumps(result, ensure_ascii=False, allow_nan=False)}]}
         except (asyncio.TimeoutError, asyncio.CancelledError):
             return {"isError": True, "content": [{"type": "text", "text": "tool_cancelled_or_timeout"}]}
+        except (RunnerFailure, ValueError):
+            # A request too large for a frame, or arguments JSON cannot carry (NaN).
+            return {"isError": True, "content": [{"type": "text", "text": "tool_failed"}]}
         finally:
             self.pending.pop(call_id, None)
 
@@ -315,10 +337,28 @@ class AppServer:
         self.proc = None
         self.pending = {}
         self.events = asyncio.Queue(maxsize=512)
+        # Why the reader stopped, set once it has; kept out of the full queue it may have stopped on.
+        self.failed = None
+        self.stopped = asyncio.Event()
         self.write_lock = asyncio.Lock()
         self.next_id = 0
         self.reader = None
         self.handlers = set()
+
+    async def next_event(self):
+        """The next notification; RunnerFailure(failed) once the reader has stopped and the queue is empty."""
+        get = asyncio.ensure_future(self.events.get())
+        stopped = asyncio.ensure_future(self.stopped.wait())
+        try:
+            await asyncio.wait((get, stopped), return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            stopped.cancel()
+            get.cancel()
+        if get.done() and not get.cancelled():
+            return get.result()
+        if not self.events.empty():
+            return self.events.get_nowait()
+        raise RunnerFailure(self.failed)
 
     async def start(self):
         self.proc = await asyncio.create_subprocess_exec(*self.argv, cwd=self.cwd, env=self.env,
@@ -382,10 +422,8 @@ class AppServer:
             for future in self.pending.values():
                 if not future.done():
                     future.set_exception(RunnerFailure(failure))
-            try:
-                self.events.put_nowait({"method": "endfield/disconnected", "params": {"code": failure}})
-            except asyncio.QueueFull:
-                pass
+            self.failed = failure
+            self.stopped.set()
 
     async def answer(self, message):
         try:
@@ -403,17 +441,8 @@ class AppServer:
         for task in list(self.handlers):
             task.cancel()
         if self.proc:
-            if self.proc.stdin:
-                self.proc.stdin.close()
-            try:
-                await asyncio.wait_for(self.proc.wait(), 1)
-            except asyncio.TimeoutError:
-                self.proc.terminate()
-                try:
-                    await asyncio.wait_for(self.proc.wait(), 2)
-                except asyncio.TimeoutError:
-                    self.proc.kill()
-                    await self.proc.wait()
+            await end_child(self.proc, (lambda force: signal_group(self.proc, force)) if self.process_group else
+                            (lambda force: self.proc.kill() if force else self.proc.terminate()))
         if self.proc and self.process_group:
             try: signal_group(self.proc, force=True)
             except ProcessLookupError: pass
@@ -672,14 +701,21 @@ class CodexRunner(Runner):
                      'arguments': json.dumps(pending['args'], ensure_ascii=False)},
                     {'type': 'function_call_output', 'call_id': pending['tool_call_id'],
                      'output': json.dumps(pending['result'], ensure_ascii=False)}]})
+            if run["cancelled"]:
+                raise asyncio.CancelledError
             result = await self.client.request("turn/start", {"threadId": self.thread_id,
                 "input": [] if pending else [{"type": "text", "text": history_prompt(message["prompt"], message.get("history"))}]})
             self.turn_id = result["turn"]["id"]
+            if run["cancelled"]:
+                # The cancel came while the turn started, when interrupt() had no turn id to send.
+                try:
+                    await self.client.request("turn/interrupt", {"threadId": self.thread_id, "turnId": self.turn_id},
+                                              timeout=2)
+                except Exception:
+                    raise asyncio.CancelledError from None
             while True:
-                notification = await self.client.events.get()
+                notification = await self.client.next_event()
                 method, params = notification.get("method"), notification.get("params", {})
-                if method == "endfield/disconnected":
-                    raise RunnerFailure(params.get("code", "codex_disconnected"))
                 if params.get("threadId") not in (None, self.thread_id) or params.get("turnId") not in (None, self.turn_id):
                     continue
                 if method == "turn/plan/updated" and params.get("turnId") == self.turn_id:
@@ -789,11 +825,13 @@ class CodexRunner(Runner):
             if pending_run == run_id and not future.done():
                 future.set_result(None)
         if self.turn_id:
+            # By the time the request fails, run_task may be the next run's.
+            task = self.run_task
             try:
                 await self.client.request("turn/interrupt", {"threadId": self.thread_id, "turnId": self.turn_id}, timeout=2)
             except Exception:
-                if self.run_task:
-                    self.run_task.cancel()
+                if task:
+                    task.cancel()
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from infra.secrets import MemorySecrets
 from character_agent.harness.pi_config import PiConfig
+from character_agent.harness.pi_transport import ManagedPiSession, list_models
 from character_agent.harness.registry import HARNESSES, pi_catalog
 from character_agent.harness.transport import HarnessError, join_reapers
 from character_agent.integration import CharacterAgentController
@@ -420,6 +421,28 @@ class SessionTests(PiConnectionCase):
         self.assertNotIn("auth_file", PiConfig("/tmp/pi", "anthropic", "m", api_key="k", **ABSOLUTE_RUNTIME).wire())
         with self.assertRaisesRegex(ValueError, "credentials_missing"):
             PiConfig("/tmp/pi", "anthropic", "m", auth_source="existing_login", **ABSOLUTE_RUNTIME).validate()
+
+
+class PiRunnerOutputTests(unittest.TestCase):
+    def test_a_catalog_runner_printing_a_non_object_fails_and_releases_its_process_tree(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runner = Path(directory) / "catalog_runner.py"
+            runner.write_text("import sys\nsys.stdin.readline()\nprint('[]', flush=True)\nsys.stdin.read()\n",
+                              encoding="utf-8")
+            with patch("character_agent.harness.pi_transport.RUNNER", runner), \
+                    patch("character_agent.harness.pi_transport.release_group") as release, \
+                    self.assertRaisesRegex(ValueError, "pi_runner_error"):
+                list_models(sys.executable, directory, Path(directory) / "state", "groq")
+        release.assert_called_once()
+
+    def test_pis_own_run_limits_are_not_reported_as_provider_quota(self):
+        session = ManagedPiSession(PiConfig("/tmp/pi-test", "openai", "fixture", api_key="k", **ABSOLUTE_RUNTIME))
+        for subtype, code in (("max_budget", "budget_limit"), ("max_turns", "turn_limit")):
+            with self.subTest(subtype):
+                session._queue({"type": "result", "run_id": "run-1", "success": False, "subtype": subtype,
+                                "error_message": ""}, session._generation, None)
+                failure = session._events.get_nowait()["failure"]
+                self.assertEqual((failure["code"], failure["retryable"]), (code, False))
 
 
 class AutoSelectTests(PiConnectionCase):

@@ -327,6 +327,8 @@ async function query(message) {
   try {
     // The connection's current key; a subscription token may have been refreshed since init.
     if (message.api_key) await modelRuntime.setRuntimeApiKey(config.provider, message.api_key);
+    // An interrupt during the await above found no prompt to abort.
+    if (run.cancelled) throw new Error("cancelled");
     if (message.system_prompt !== undefined) {
       // Product history replaces both the model's messages and Pi's in-memory transcript for each quick query.
       session.sessionManager.newSession({ id: session.sessionId });

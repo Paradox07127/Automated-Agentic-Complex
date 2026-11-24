@@ -86,6 +86,7 @@ class PythonRunnerExamplesTests(unittest.IsolatedAsyncioTestCase):
         subject = codex_runner.CodexRunner()
         client = SimpleNamespace(start=AsyncMock(), write=AsyncMock(), disconnect=AsyncMock(),
                                  proc=SimpleNamespace(pid=4343), events=asyncio.Queue())
+        client.next_event = client.events.get
 
         async def notifications():
             def send(method, **params):

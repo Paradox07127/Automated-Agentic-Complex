@@ -116,7 +116,7 @@ class RunItemTests(unittest.TestCase):
             runner.emit = frames.append
             events = asyncio.Queue()
             async def request(*args, **kw): return {'turn': {'id': 'turn'}}
-            runner.client = SimpleNamespace(request=request, events=events)
+            runner.client = SimpleNamespace(request=request, events=events, next_event=events.get)
             entries = [('comment', 'agentMessage', 'commentary', 'Checking'),
                        ('reason', 'reasoning', None, 'Short summary'),
                        ('command', 'commandExecution', None, None),

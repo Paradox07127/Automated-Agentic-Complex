@@ -4,6 +4,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import threading
@@ -12,10 +13,13 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from character_agent.harness import transport
 from character_agent.harness.acp_transport import AcpConfig, ManagedAcpSession
 from character_agent.harness.codex_transport import CodexConfig
+from character_agent.harness.pi_config import PiConfig
+from character_agent.harness.pi_transport import ManagedPiSession
 from character_agent.harness.transport import (CAPABILITIES, MAX_FRAME, PROTOCOL_VERSION, HarnessError,
-    ManagedClaudeSession, runner_environment)
+    ManagedClaudeSession, join_reapers, runner_environment)
 
 # Every bridged harness config names the directory its own tools work in.
 WORK = {"workspace_dir": tempfile.gettempdir(), "native_tools": True}
@@ -50,6 +54,7 @@ for raw in sys.stdin:
   if bad: caps['capabilities'][bad[0]]=bad[1]
   if m['system_prompt']=='missing-key': del caps['capabilities']['usage']
   if m['system_prompt']=='stubborn': signal.signal(signal.SIGTERM,signal.SIG_IGN)
+  if m['system_prompt']=='slow-ready': time.sleep(.5)
   stubborn=m['system_prompt']=='stubborn'
   send(dict(type='ready',session_id=None,tool_names=[x['name'] for x in m['tools']],**caps))
  elif m['type']=='query':
@@ -67,6 +72,10 @@ for raw in sys.stdin:
    ask(rid)
   elif m['prompt']=='permission-after-cancel':
    pending=late=rid
+  elif m['prompt']=='surrogate':
+   send(dict(type='text_delta',run_id=rid,text='\ud800'))
+   send(dict(type='result',run_id=rid,success=False,subtype='model_error',session_id='session',
+    error_message='quoted request text'))
   elif m['prompt']=='old-event':
    send(dict(type='text_delta',run_id='previous',text='must not show'))
    send(dict(type='result',run_id=rid,success=True,subtype='success',session_id='session'))
@@ -89,6 +98,9 @@ for raw in sys.stdin:
  elif m['type']=='interrupt':
   if late==m['run_id']:
    ask(late)
+   continue
+  # Like the real runners: an interrupt for a run it does not have stops nothing.
+  if pending!=m['run_id']:
    continue
   send(dict(type='result',run_id=m['run_id'],success=False,subtype='cancelled',session_id='session'))
   pending=None
@@ -341,6 +353,88 @@ class ManagedTransportTests(unittest.TestCase):
         self.assertTrue(events[-1]["success"])
         self.assertTrue((actor / ".session.lock").exists())
 
+    @unittest.skipIf(sys.platform == "win32", "the fake runner ignores SIGTERM")
+    def test_a_runner_that_outlasts_its_kill_still_releases_its_actor(self):
+        session = self.session()
+        session.config = CodexConfig(str(self.root / "character-agent/runner/codex/jobs/job-2"), "fixture-model",
+                                     "fixture-key", cli_path="/fixture/codex", **WORK)
+        list(session.stream("hello", system_prompt="stubborn"))
+        proc, lease = session._proc, session._runner_actor
+        self.assertIsNotNone(lease)
+        released = []
+        release = transport.release_runner_actor
+        with patch.object(proc, "wait", side_effect=subprocess.TimeoutExpired("runner", 2)), \
+                patch("character_agent.harness.transport.release_runner_actor",
+                      side_effect=lambda actor: released.append(actor) or release(actor)):
+            session.close()
+            join_reapers()
+        self.assertEqual(proc.wait(timeout=5), -9)
+        # join_reapers() also waits for the reapers of earlier tests.
+        self.assertIn(lease, released)
+
+    @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
+    def test_an_interrupt_before_the_query_is_written_cancels_it_in_the_same_runner(self):
+        def credential():
+            # The interrupt reaches the runner before the query does.
+            session.interrupt()
+            time.sleep(.2)
+            return "fixture-key"
+        config = PiConfig(str(self.root / "pi"), "anthropic", "fixture-model", api_key="fixture-key",
+                          node=sys.executable, runtime_dir=str(self.root))
+        session = ManagedPiSession(config, runner_path=self.runner, credential=credential)
+        self.sessions.append(session)
+        stream = session.stream("wait", system_prompt="persona", run_id="run-i")
+        self.assertEqual(next(stream)["type"], "ready")
+        pid, start = session.pid, time.monotonic()
+        self.assertEqual([e["subtype"] for e in stream], ["cancelled"])
+        self.assertLess(time.monotonic() - start, 2)
+        self.assertEqual(session.pid, pid)
+
+    @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
+    def test_a_cancel_during_startup_ends_the_wait_for_ready(self):
+        cancel = threading.Event()
+        threading.Timer(.1, cancel.set).start()
+        events, start = [], time.monotonic()
+        with self.assertRaisesRegex(HarnessError, "cancelled"):
+            events.extend(self.session().stream("hello", system_prompt="slow-ready", cancelled=cancel))
+        self.assertEqual(events, [])
+        self.assertLess(time.monotonic() - start, .4)
+
+    @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
+    def test_a_failed_init_write_leaves_no_runner_to_reuse(self):
+        session = self.session()
+        tools = session.tool_definitions
+        session.tool_definitions = [*tools, {"name": "large", "description": "x" * 8192, "input_schema": {"type": "object"}}]
+        with patch("character_agent.harness.transport.MAX_FRAME", 4096), \
+                self.assertRaisesRegex(HarnessError, "frame_too_large"):
+            session.probe("persona")
+        session.tool_definitions = tools
+        events = list(session.stream("hello", system_prompt="persona"))
+        self.assertTrue(events[-1]["success"])
+
+    @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
+    def test_a_close_while_startup_waits_for_ready_leaves_no_ready_runner(self):
+        session = self.session()
+        written, errors = threading.Event(), []
+        write = session._write
+        def record(message, *args):
+            write(message, *args)
+            if message["type"] == "init":
+                written.set()
+        session._write = record
+        def probe():
+            try:
+                session.probe("slow-ready")
+            except HarnessError as error:
+                errors.append(error.code)
+        worker = threading.Thread(target=probe)
+        worker.start()
+        self.assertTrue(written.wait(5))
+        session.close()
+        worker.join(5)
+        self.assertEqual(errors, ["runner_not_running"])
+        self.assertIsNone(session._ready)
+
     @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
     def test_closing_generator_discards_unconsumed_sdk_turn(self):
         session = self.session()
@@ -400,6 +494,24 @@ class ManagedTransportTests(unittest.TestCase):
         received = [r["frame"] for r in records if r["dir"] == "in"]
         self.assertEqual([f["type"] for f in received], [e["type"] for e in events])
         self.assertEqual({(r["backend"], r["pid"]) for r in records}, {("Claude", self.sessions[0].pid)})
+
+    @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
+    def test_frame_log_keeps_agent_env_and_model_errors_out_and_survives_a_lone_surrogate(self):
+        log = self.root / "frames.jsonl"
+        acp = AcpConfig(str(self.root / "acp"), "", "deepseek-harness", [sys.executable],
+                        agent_env={"DEEPSEEK_API_KEY": "sk-x", "SERVICE_TOKEN": "tok-x"}, python=sys.executable, **WORK)
+        session = ManagedAcpSession(acp, runner_path=self.runner)
+        self.sessions.append(session)
+        with patch("character_agent.harness.transport.FRAME_LOG", str(log)):
+            events = list(session.stream("surrogate", system_prompt="persona"))
+        self.assertEqual([e["type"] for e in events], ["ready", "text_delta", "result"])
+        text = log.read_text(encoding="utf-8")
+        for secret in ("sk-x", "tok-x", "quoted request text"):
+            self.assertNotIn(secret, text)
+        init = json.loads(text.splitlines()[0])["frame"]
+        self.assertEqual(init["config"]["agent_env"]["DEEPSEEK_API_KEY"], "[redacted]")
+        self.assertNotEqual(init["config"]["agent_env"]["PATH"], "[redacted]")
+        self.assertEqual(log.stat().st_mode & 0o777, 0o600)
 
     @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
     def test_a_full_frame_log_rotates_to_one_older_file(self):

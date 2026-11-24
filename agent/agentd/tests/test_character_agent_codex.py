@@ -1,4 +1,5 @@
 """Real Codex CLI against synthetic local Responses; no account/model charges."""
+import asyncio
 import importlib.util
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -299,6 +300,54 @@ class CodexNativeConfigTests(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(RunnerFailure, "codex_mcp_list_unavailable"):
                 await self.start(directory, False, directory, json.dumps({"user.tools": {}}))
+
+
+# An app server that answers turn/start late ("slow-start") or with 600 notifications behind it ("flood"), and ends the
+# turn once turn/interrupt names it.
+FAKE_APP_SERVER = r'''
+import json, sys, time
+def line(message): return json.dumps(message, separators=(",", ":")) + "\n"
+for raw in sys.stdin:
+    m = json.loads(raw)
+    if m.get("method") == "turn/start":
+        if sys.argv[1] == "slow-start": time.sleep(.3)
+        # Short notifications: the answer and all of them reach the runner in one pipe read.
+        flood = line({"method": "n"}) * 600 if sys.argv[1] == "flood" else ""
+        sys.stdout.write(line({"id": m["id"], "result": {"turn": {"id": "turn-1"}}}) + flood); sys.stdout.flush()
+    elif m.get("method") == "turn/interrupt" and m["params"]["turnId"] == "turn-1":
+        sys.stdout.write(line({"id": m["id"], "result": {}}) + line({"method": "turn/completed", "params": {
+            "threadId": "thread-1", "turn": {"id": "turn-1", "status": "interrupted"}}})); sys.stdout.flush()
+'''
+
+
+class CodexTurnTests(unittest.IsolatedAsyncioTestCase):
+    async def start(self, mode):
+        subject = codex_runner.CodexRunner()
+        frames = []
+        subject.emit = frames.append
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        subject.client = codex_runner.AppServer([sys.executable, "-I", "-c", FAKE_APP_SERVER, mode], dict(os.environ),
+                                                directory.name, subject.server_request)
+        await subject.client.start()
+        self.addAsyncCleanup(subject.client.disconnect)
+        subject.thread_id = "thread-1"
+        subject.active = {"id": "run-1", "cancelled": False}
+        subject.run_task = asyncio.create_task(subject.run({"prompt": "Synthetic", "history": None}))
+        return subject, frames
+
+    async def test_a_cancel_while_the_turn_starts_interrupts_the_new_turn(self):
+        subject, frames = await self.start("slow-start")
+        await asyncio.sleep(.1)
+        await subject.interrupt("run-1")
+        # wait_for would cancel the run, which then ends as cancelled anyway.
+        self.assertTrue((await asyncio.wait({subject.run_task}, timeout=2))[0])
+        self.assertEqual((frames[-1]["type"], frames[-1]["subtype"]), ("result", "cancelled"))
+
+    async def test_a_notification_flood_ends_the_run_with_an_error(self):
+        subject, frames = await self.start("flood")
+        self.assertTrue((await asyncio.wait({subject.run_task}, timeout=2))[0])
+        self.assertEqual((frames[-1]["type"], frames[-1]["code"]), ("error", "codex_notification_overflow"))
 
 
 @unittest.skipUnless(binaries(), "No verified Codex executable available")

@@ -21,13 +21,13 @@ import sys
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     from character_agent.harness.acp_runner import ask_user_prompt, mcp_result
-    from character_agent.harness.codex_runner import (Runner, RunnerFailure, TOOL_NAME, classify_failure, history_prompt,
-                                                      preview_input)
+    from character_agent.harness.codex_runner import (Runner, RunnerFailure, TOOL_NAME, classify_failure, end_child,
+                                                      history_prompt, preview_input)
     from character_agent.harness.tool_bridge import BridgeServer
     from character_agent.harness.transport import MAX_FRAME
 else:
     from .acp_runner import ask_user_prompt, mcp_result
-    from .codex_runner import Runner, RunnerFailure, TOOL_NAME, classify_failure, history_prompt, preview_input
+    from .codex_runner import Runner, RunnerFailure, TOOL_NAME, classify_failure, end_child, history_prompt, preview_input
     from .tool_bridge import BridgeServer
     from .transport import MAX_FRAME
 
@@ -179,17 +179,8 @@ class ClaudeCli:
 
     async def disconnect(self):
         if self.proc:
-            if self.proc.stdin:
-                self.proc.stdin.close()
-            try:
-                await asyncio.wait_for(self.proc.wait(), 1)
-            except asyncio.TimeoutError:
-                self.proc.terminate()
-                try:
-                    await asyncio.wait_for(self.proc.wait(), 2)
-                except asyncio.TimeoutError:
-                    self.proc.kill()
-                    await self.proc.wait()
+            # The CLI shares the runner's process group, which agentd ends.
+            await end_child(self.proc, lambda force: self.proc.kill() if force else self.proc.terminate())
         if self.reader and not self.reader.done():
             self.reader.cancel()
 
@@ -489,11 +480,13 @@ class ClaudeRunner(Runner):
         for pending_run, future in list(self.permissions.values()):
             if pending_run == run_id and not future.done():
                 future.set_result(None)
+        # By the time the request fails, run_task may be the next run's.
+        task = self.run_task
         try:
             await self.client.control({"subtype": "interrupt"}, timeout=2)
         except RunnerFailure:
-            if self.run_task:
-                self.run_task.cancel()
+            if task:
+                task.cancel()
 
     async def main(self):
         try:

@@ -1,4 +1,5 @@
 """acp_runner.py driven over C8 frames against the scripted fake ACP agent."""
+import asyncio
 import importlib.util
 import json
 import os
@@ -577,6 +578,31 @@ class AcpRunnerTest(unittest.TestCase):
         self.assertEqual(error["code"], "invalid_protocol")
         self.assertNotIn("run_id", error)
         self.assertEqual(runner.proc.wait(10), 0)
+
+
+@unittest.skipIf(sys.platform == "win32", "sh and POSIX process groups")
+class AcpAgentDisconnectTest(unittest.IsolatedAsyncioTestCase):
+    async def test_disconnect_ends_a_descendant_that_holds_stdout(self):
+        from character_agent.harness.acp_runner import AcpAgent
+        with tempfile.TemporaryDirectory() as directory:
+            pid_file = Path(directory) / "sleep.pid"
+            # Only SIGKILL ends the agent, after wait() is already pending; its child keeps stdout open.
+            agent = AcpAgent(["/bin/sh", "-c", f"trap '' TERM; sleep 30 & echo $! > '{pid_file}'; wait"],
+                             dict(os.environ), directory, None, None, lambda code: None)
+            await agent.start()
+            while not pid_file.exists() or not pid_file.read_text(encoding="utf-8").strip():
+                await asyncio.sleep(.05)
+            pid = int(pid_file.read_text(encoding="utf-8"))
+            await asyncio.wait_for(agent.disconnect(), 5)
+            deadline = time.monotonic() + 2
+            while time.monotonic() < deadline:
+                try:
+                    os.kill(pid, 0)
+                except ProcessLookupError:
+                    break
+                await asyncio.sleep(.05)
+            with self.assertRaises(ProcessLookupError):
+                os.kill(pid, 0)
 
 
 if __name__ == "__main__":

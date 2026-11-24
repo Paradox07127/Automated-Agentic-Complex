@@ -352,7 +352,7 @@ class AgentItemStreamTests(unittest.TestCase):
             runner.thread_id = 'thread'
             frames, queue = [], asyncio.Queue()
             async def request(*args, **kwargs): return {'turn': {'id': 'turn'}}
-            runner.client = SimpleNamespace(request=request, events=queue)
+            runner.client = SimpleNamespace(request=request, events=queue, next_event=queue.get)
             runner.emit = frames.append
             for ident, kind, phase, text in (('comment', 'agentMessage', 'commentary', 'Checking'),
                                              ('reason', 'reasoning', None, 'Summary'),
@@ -377,7 +377,7 @@ class AgentItemStreamTests(unittest.TestCase):
             runner.thread_id = 'thread'
             frames, queue = [], asyncio.Queue()
             async def request(*args, **kwargs): return {'turn': {'id': 'turn'}}
-            runner.client = SimpleNamespace(request=request, events=queue)
+            runner.client = SimpleNamespace(request=request, events=queue, next_event=queue.get)
             runner.emit = frames.append
             for params in plans:
                 queue.put_nowait({'method': 'turn/plan/updated', 'params': {'threadId': 'thread', **params}})

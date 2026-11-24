@@ -17,11 +17,11 @@ import sys
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-    from character_agent.harness.codex_runner import Runner, RunnerFailure, TOOL_NAME, classify_failure
+    from character_agent.harness.codex_runner import Runner, RunnerFailure, TOOL_NAME, classify_failure, end_child
     from character_agent.harness.tool_bridge import BridgeServer
     from character_agent.harness.transport import MAX_FRAME, PROTOCOL_VERSION
 else:
-    from .codex_runner import Runner, RunnerFailure, TOOL_NAME, classify_failure
+    from .codex_runner import Runner, RunnerFailure, TOOL_NAME, classify_failure, end_child
     from .tool_bridge import BridgeServer
     from .transport import MAX_FRAME, PROTOCOL_VERSION
 from infra.platform import new_group_options, release_group, signal_group, stop_own_group, track_group
@@ -291,17 +291,7 @@ class AcpAgent:
         for task in list(self.handlers):
             task.cancel()
         if self.proc:
-            if self.proc.stdin:
-                self.proc.stdin.close()
-            try:
-                await asyncio.wait_for(self.proc.wait(), 1)
-            except asyncio.TimeoutError:
-                self.proc.terminate()
-                try:
-                    await asyncio.wait_for(self.proc.wait(), 2)
-                except asyncio.TimeoutError:
-                    self.proc.kill()
-                    await self.proc.wait()
+            await end_child(self.proc, self.end_tree)
             # What the agent started, such as its MCP servers, may outlive it.
             self.end_tree(force=True)
         if self.reader and not self.reader.done():
@@ -645,11 +635,13 @@ class AcpRunner(Runner):
         for pending_run, future in list(self.permissions.values()):
             if pending_run == run_id and not future.done():
                 future.set_result(None)
+        # By the time the notification fails, run_task may be the next run's.
+        task = self.run_task
         try:
             await self.client.notify("session/cancel", {"sessionId": self.session_id})
         except RunnerFailure:
-            if self.run_task:
-                self.run_task.cancel()
+            if task:
+                task.cancel()
 
     async def main(self):
         try:

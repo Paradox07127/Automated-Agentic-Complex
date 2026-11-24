@@ -55,8 +55,15 @@ class BridgeServer:
                 await writer.drain()
 
         async def call(request):
-            result = await self.call(request.get("name"), request.get("arguments"))
-            await reply({"id": request.get("id"), "result": result})
+            try:
+                result = await self.call(request.get("name"), request.get("arguments"))
+                await reply({"id": request.get("id"), "result": result})
+            except Exception:
+                try:
+                    await reply({"id": request.get("id"), "result": error_result("tool_failed")})
+                except Exception:
+                    # Without a reply the bridge's call would wait forever; the closed connection ends it.
+                    writer.close()
 
         try:
             hello = json.loads(await reader.readline())

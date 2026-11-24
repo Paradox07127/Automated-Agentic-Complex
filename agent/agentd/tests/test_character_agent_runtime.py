@@ -1058,7 +1058,8 @@ class TurnAccountingTests(unittest.IsolatedAsyncioTestCase):
                     'tokenUsage': {'total': notification_total, 'last': totals[0]}}})
             queue.put_nowait({'method': 'turn/completed', 'params': {'threadId': 'thread',
                 'turn': {'id': str(index), 'status': 'completed'}}})
-            runner.client = SimpleNamespace(events=queue, request=AsyncMock(return_value={'turn': {'id': str(index)}}))
+            runner.client = SimpleNamespace(events=queue, next_event=queue.get,
+                                            request=AsyncMock(return_value={'turn': {'id': str(index)}}))
             await runner.run({'prompt': 'Hello'})
             result = events[-1]; self.assertEqual(result['type'], 'result')
             expected = {key: total[key] - previous[key] for key in previous}
