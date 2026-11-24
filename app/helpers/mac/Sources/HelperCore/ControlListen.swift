@@ -56,7 +56,7 @@ enum ControlListen {
         return nil
     }
 
-    static func listen(_ params: [String: Any]) -> Outcome {
+    static func listen(_ params: [String: Any], _ request: Request) -> Outcome {
         let endpoint = params["endpoint"] as! String, tokenFile = params["token_file"] as! String
         let first = lock.withLock { () -> Bool in
             guard listener == nil, !starting else { return false }
@@ -118,6 +118,14 @@ enum ControlListen {
         let made = Listener(fd: fd, source: source, endpoint: endpoint, tokenFile: tokenFile, token: text)
         source.setEventHandler { acceptAll(made) }
         source.setCancelHandler { close(fd) }
+        guard request.commit() else {
+            // Cancelled first, so that it takes no connection; a suspended source runs its cancel handler only once resumed.
+            source.cancel()
+            source.resume()
+            unlink(endpoint)
+            unlink(tokenFile)
+            return .cancelled
+        }
         lock.withLock { listener = made }
         return .success(["endpoint": endpoint])
     }

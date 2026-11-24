@@ -1,25 +1,40 @@
 import Foundation
 
+/// What a running handler asks its session about its request (CONTRACT §5).
+struct Request {
+    /// The request was cancelled meanwhile; its answer is dropped then.
+    let cancelled: () -> Bool
+    /// The handler's step right before a side effect: false when the request was cancelled, else a cancel is too late from
+    /// now on and the handler's own answer is written.
+    let commit: () -> Bool
+}
+
 /// An implemented op. `params` has passed the ops.json check, so required fields are there with their types.
 struct Handler {
     /// AppKit's ops (NSScreen, NSWorkspace, NSPasteboard), the push-to-talk key and the watches run on the main thread; the others on a
     /// concurrent queue.
     let onMain: Bool
-    /// The second argument tells whether the request was cancelled meanwhile; its answer is dropped then.
-    let run: ([String: Any], @escaping () -> Bool) -> Outcome
+    let run: ([String: Any], Request) -> Outcome
     /// Runs under the session's lock right after a success answer is written, so that events can follow it.
     var answered: (([String: Any]) -> Void)?
 
+    /// An op that does not stop part way commits as it starts.
     init(onMain: Bool, run: @escaping ([String: Any]) -> Outcome, answered: (([String: Any]) -> Void)? = nil) {
         self.onMain = onMain
-        self.run = { params, _ in run(params) }
+        self.run = { params, request in request.commit() ? run(params) : .cancelled }
         self.answered = answered
     }
 
-    init(onMain: Bool, cancellable: @escaping ([String: Any], @escaping () -> Bool) -> Outcome,
-         answered: (([String: Any]) -> Void)? = nil) {
+    /// An op without side effects, which stops when cancelled.
+    init(onMain: Bool, cancellable: @escaping ([String: Any], @escaping () -> Bool) -> Outcome) {
         self.onMain = onMain
-        run = cancellable
+        run = { params, request in cancellable(params, request.cancelled) }
+    }
+
+    /// An op that commits right before its side effect, or takes back what it opened when its commit finds it cancelled.
+    init(onMain: Bool, committing: @escaping ([String: Any], Request) -> Outcome, answered: (([String: Any]) -> Void)? = nil) {
+        self.onMain = onMain
+        run = committing
         self.answered = answered
     }
 }
@@ -46,7 +61,7 @@ enum Ops {
             "ax.window_tree": Handler(onMain: false, cancellable: WindowTree.read),
             "ax.selected_text": Handler(onMain: false, run: AXOps.selectedText),
             "ax.video_rect": Handler(onMain: false, cancellable: AXOps.videoRect),
-            "ax.watch": Handler(onMain: false, run: AXWatch.watch, answered: AXWatch.answered),
+            "ax.watch": Handler(onMain: false, committing: AXWatch.watch, answered: AXWatch.answered),
             "capture.window": Handler(onMain: false, cancellable: Capture.window),
             "capture.ambient": Handler(onMain: false, cancellable: Capture.ambient),
             "ocr.languages": Handler(onMain: false, run: OCR.languages),
@@ -54,9 +69,9 @@ enum Ops {
             "ptt.register": Handler(onMain: true, run: PushToTalk.register),
             "ptt.unregister": Handler(onMain: true, run: PushToTalk.unregister),
             "control.observe": Handler(onMain: false, cancellable: Control.observe),
-            "control.act": Handler(onMain: false, cancellable: Control.act),
+            "control.act": Handler(onMain: false, committing: Control.act),
             "control.read": Handler(onMain: false, cancellable: Control.read),
-            "control.listen": Handler(onMain: false, run: ControlListen.listen, answered: ControlListen.answered),
+            "control.listen": Handler(onMain: false, committing: ControlListen.listen, answered: ControlListen.answered),
             "control.respond": Handler(onMain: false, run: ControlListen.respond),
             "clipboard.read": Handler(onMain: true, run: Clipboard.read),
             "apps.running": Handler(onMain: true, run: Apps.running),
@@ -70,7 +85,7 @@ enum Ops {
         // SpeechAnalyzer is macOS 26 and later; below it hello leaves these ops out and they answer unsupported.
         if #available(macOS 26, *) {
             table["speech.locales"] = Handler(onMain: false, run: Mic.locales)
-            table["mic.start"] = Handler(onMain: false, cancellable: Mic.start, answered: Mic.answered)
+            table["mic.start"] = Handler(onMain: false, committing: Mic.start, answered: Mic.answered)
             table["mic.stop"] = Handler(onMain: false, run: Mic.stop)
         }
         return table

@@ -68,7 +68,7 @@
 ## 5. 超时和取消
 
 1. 每个 op 有一个 `timeout_ms`（`ops.json`）。到时没回包，主进程发 `cancel`，调用方得到 `helper_timeout`；之后迟到的回包丢弃。同一个 op 连续 3 次 `helper_timeout`，主进程按 helper 卡死处理（第 6 节第 3 条）。
-2. `cancel` 的回包 `cancelled: true` 表示目标还在执行、已中止，目标自己的回包是 `cancelled` 错误；`false` 表示目标已经回过包或 id 不认识。
+2. `cancel` 的回包 `cancelled: true` 表示目标还在执行、已中止，目标自己的回包是 `cancelled` 错误，它已经打开的监听、麦克风或端点都已撤掉；`false` 表示目标已经回过包、已过提交点（动作已发出，目标自己的真实回包随后到），或 id 不认识。
 3. helper 给每次 AX/UIA 调用设自己的上限，不靠主进程的超时：macOS 沿用现有的 `AXUIElementSetMessagingTimeout`（探测类 50 ms，读文字 250 ms）；Windows 把 UIA 的 `ConnectionTimeout`、`TransactionTimeout` 调到 2000 ms 以下，UIA 只在专用的 MTA 线程上调。某个 app 超时后 2 秒内对它的 AX 探测直接回 `ax_timeout`（沿用 `FocusProbe`、`UnderlayProbe` 的做法）。
 
 ## 6. 退出和重启

@@ -136,7 +136,7 @@ final class ControlTests: XCTestCase {
         }
         func refused(_ why: String, _ make: () throws -> Void, leaves path: String) throws {
             try make()
-            XCTAssertEqual(code(ControlListen.listen(["endpoint": endpoint, "token_file": tokenFile])), "endpoint_unavailable", why)
+            XCTAssertEqual(code(ControlListen.listen(["endpoint": endpoint, "token_file": tokenFile], liveRequest)), "endpoint_unavailable", why)
             ControlListen.stop()
             var info = stat()
             XCTAssertEqual(lstat(path, &info), 0, "\(why) is left alone")
@@ -157,7 +157,7 @@ final class ControlTests: XCTestCase {
         close(stale)
         XCTAssertEqual(bound, 0)
         try "old".write(toFile: tokenFile, atomically: false, encoding: .utf8)
-        guard case .success = ControlListen.listen(["endpoint": endpoint, "token_file": tokenFile]) else {
+        guard case .success = ControlListen.listen(["endpoint": endpoint, "token_file": tokenFile], liveRequest) else {
             return XCTFail("an old socket and token file are replaced")
         }
         ControlListen.stop()
@@ -169,13 +169,41 @@ final class ControlTests: XCTestCase {
         let lock = NSLock()
         var codes: [String] = []
         DispatchQueue.concurrentPerform(iterations: 2) { k in
-            let outcome = ControlListen.listen(["endpoint": "\(dir)/\(k)/cc.sock", "token_file": "\(dir)/\(k)/cc.token"])
+            let outcome = ControlListen.listen(["endpoint": "\(dir)/\(k)/cc.sock", "token_file": "\(dir)/\(k)/cc.token"], liveRequest)
             let code: String
             if case let .failure(failed, _, _) = outcome { code = failed } else { code = "ok" }
             lock.withLock { codes.append(code) }
         }
         ControlListen.stop()
         XCTAssertEqual(codes.sorted(), ["already_running", "ok"])
+    }
+
+    func testACancelledListenLeavesNoListener() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("c12-cancel-\(getpid())").path
+        defer { try? FileManager.default.removeItem(atPath: dir) }
+        let params = ["endpoint": "\(dir)/cc.sock", "token_file": "\(dir)/cc.token"]
+        guard case let .failure(code, _, _) = ControlListen.listen(params, cancelledRequest) else {
+            ControlListen.stop()
+            return XCTFail("a cancelled listen answered")
+        }
+        XCTAssertEqual(code, "cancelled")
+        var info = stat()
+        XCTAssertNotEqual(lstat("\(dir)/cc.sock", &info), 0, "the socket is left")
+        XCTAssertNotEqual(lstat("\(dir)/cc.token", &info), 0, "the token file is left")
+        guard case .success = ControlListen.listen(params, liveRequest) else { return XCTFail("the cancelled listen still listens") }
+        ControlListen.stop()
+    }
+
+    func testCommittedActionsGoAndCancelledOnesDoNot() {
+        var posted = 0
+        let action = { () -> Outcome in
+            posted += 1
+            return .success(["effect": "unverifiable"])
+        }
+        guard case .failure("cancelled", _, _) = Control.perform(cancelledRequest, action) else { return XCTFail("a cancelled action answered") }
+        XCTAssertEqual(posted, 0, "the action went after its cancel")
+        guard case .success = Control.perform(liveRequest, action) else { return XCTFail("a committed action did not answer") }
+        XCTAssertEqual(posted, 1)
     }
 
     func testTokensCompareByEveryByte() {

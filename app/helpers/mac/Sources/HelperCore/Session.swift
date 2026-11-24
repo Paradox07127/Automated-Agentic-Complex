@@ -6,6 +6,9 @@ import Foundation
 enum Outcome {
     case success([String: Any])
     case failure(code: String, message: String, retryable: Bool = false)
+
+    /// What a handler returns when its commit finds it cancelled; the session dropped its answer already.
+    static let cancelled = Outcome.failure(code: "cancelled", message: "the request was cancelled")
 }
 
 /// The session layer of ac-helper: NDJSON on stdin and stdout (CONTRACT §2), errors (§3), hello (§4), cancel (§5) and
@@ -16,8 +19,9 @@ public final class Session: @unchecked Sendable {
     static let protocolVersion = 1
     static let helperVersion = "0.1.0"
 
-    private let lock = NSLock()
+    private let lock = NSRecursiveLock()  // recursive: an event's `live` may ask whether a request was cancelled
     private var running: [Int: String] = [:]  // id -> op of each request whose handler has not answered yet
+    private var committed: Set<Int> = []      // the running requests past their commit, for which a cancel is too late
     private var ready = false                  // hello answered
     private var seq = 0                        // the last event's seq (CONTRACT §2.6)
     private var lastId = 0                     // the reading thread's last request id (CONTRACT §2.5)
@@ -90,7 +94,10 @@ public final class Session: @unchecked Sendable {
     }
 
     /// Callers hold the lock.
-    private func answer(_ id: Int, _ outcome: Outcome) {
+    private func answer(_ id: Int, _ outcome: Outcome) { _ = delivered(id, outcome) }
+
+    /// `answer`, false when `internal` went in place of the outcome. Callers hold the lock.
+    private func delivered(_ id: Int, _ outcome: Outcome) -> Bool {
         var message: [String: Any] = ["v": 1, "id": id]
         switch outcome {
         case let .success(result):
@@ -102,7 +109,9 @@ public final class Session: @unchecked Sendable {
             if retryable { error["retryable"] = true }
             message["error"] = error
         }
-        if let problem = write(message) { answer(id, .failure(code: "internal", message: "the answer \(problem)")) }
+        guard let problem = write(message) else { return true }
+        answer(id, .failure(code: "internal", message: "the answer \(problem)"))
+        return false
     }
 
     func emit(_ name: String, _ data: [String: Any], _ live: () -> Bool) {
@@ -155,14 +164,21 @@ public final class Session: @unchecked Sendable {
         }
         running[id] = name
         let cancelled = { [self] in lock.withLock { running[id] == nil } }
+        let commit = { [self] in
+            lock.withLock { () -> Bool in
+                guard running[id] != nil else { return false }
+                committed.insert(id)
+                return true
+            }
+        }
         let job = { [self] in
             if cancelled() { return }
-            let outcome = handler.run(params, cancelled)
+            let outcome = handler.run(params, Request(cancelled: cancelled, commit: commit))
             lock.lock()
             defer { lock.unlock() }
+            committed.remove(id)
             guard running.removeValue(forKey: id) != nil else { return }
-            answer(id, outcome)
-            if case .success = outcome { handler.answered?(params) }
+            if delivered(id, outcome), case .success = outcome { handler.answered?(params) }
         }
         if handler.onMain { DispatchQueue.main.async(execute: job) } else { work.async(execute: job) }
     }
@@ -191,9 +207,9 @@ public final class Session: @unchecked Sendable {
         ]))
     }
 
-    /// Callers hold the lock.
+    /// Callers hold the lock. A request past its commit is not cancelled: its own answer follows.
     private func cancel(_ id: Int, _ target: Int) {
-        let cancelled = running.removeValue(forKey: target) != nil
+        let cancelled = !committed.contains(target) && running.removeValue(forKey: target) != nil
         if cancelled { answer(target, .failure(code: "cancelled", message: "cancelled by request \(id)")) }
         answer(id, .success(["cancelled": cancelled]))
     }

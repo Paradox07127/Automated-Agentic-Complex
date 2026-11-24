@@ -101,6 +101,18 @@ final class AXWatchTests: XCTestCase {
         XCTAssertEqual(stopped as NSDictionary, ["watching": false, "pid": NSNull()] as NSDictionary)
     }
 
+    func testAWatchWhoseCommitFindsItCancelledIsTakenDown() throws {
+        try XCTSkipUnless(AX.trusted, "ax.watch subscribes only with the Accessibility grant")
+        let params: [String: Any] = ["pid": Int(getpid()), "notifications": ["focus"], "watch_id": "cancel-test"]
+        guard case let .failure(code, _, _) = AXWatch.watch(params, cancelledRequest) else { return XCTFail("a cancelled watch answered") }
+        XCTAssertEqual(code, "cancelled")
+        XCTAssertFalse(AXWatch.state("cancel-test").on, "the cancelled watch is still on")
+        guard case .success = AXWatch.watch(params, liveRequest) else { return XCTFail("a committed watch did not answer") }
+        XCTAssertTrue(AXWatch.state("cancel-test").on)
+        _ = AXWatch.watch(["pid": NSNull(), "notifications": [], "watch_id": "cancel-test"], liveRequest)
+        XCTAssertFalse(AXWatch.state("cancel-test").on)
+    }
+
     func testWorkspaceWatchAnswersTheFrontAppWhenTurnedOn() {
         XCTAssertEqual(Workspace.result(enabled: true, frontPid: 702) as NSDictionary, ["watching": true, "front_pid": 702] as NSDictionary)
         XCTAssertTrue(Workspace.result(enabled: true, frontPid: nil)["front_pid"] is NSNull)

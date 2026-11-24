@@ -102,13 +102,15 @@ enum Mic {
 
     private static func live(_ recording: Recording) -> Bool { lock.withLock { current === recording && recording.answered } }
 
-    /// speech.download goes only while mic.start has not answered (CONTRACT §8 `during`).
-    private static func downloading(_ recording: Recording) -> Bool { lock.withLock { current === recording && !recording.answered } }
+    /// speech.download goes only while mic.start has not answered (CONTRACT §8 `during`), also not as cancelled.
+    private static func downloading(_ recording: Recording, _ cancelled: () -> Bool) -> Bool {
+        !cancelled() && lock.withLock { current === recording && !recording.answered }
+    }
 
-    private static func progress(_ recording: Recording, _ p: Progress) {
+    private static func progress(_ recording: Recording, _ p: Progress, _ cancelled: @escaping () -> Bool) {
         Events.emit("speech.download", ["session": recording.id, "fraction": min(1, max(0, p.fractionCompleted)),
                                         "completed": max(0, Int(p.completedUnitCount)), "total": max(0, Int(p.totalUnitCount))],
-                    live: { downloading(recording) })
+                    live: { downloading(recording, cancelled) })
     }
 
     static func locales(_ params: [String: Any]) -> Outcome {
@@ -127,7 +129,7 @@ enum Mic {
         case localeUnsupported, noFormat, noConverter, noDevice
     }
 
-    static func start(_ params: [String: Any], cancelled: @escaping () -> Bool) -> Outcome {
+    static func start(_ params: [String: Any], _ request: Request) -> Outcome {
         let id = params["session"] as! String, asked = params["locale"] as! String
         let transcribe = JSON.bool(params["transcribe"]) ?? true, levels = flag(params, "level_events")
         guard let recording = reserve(id) else { return .failure(code: "mic_busy", message: "another session is recording") }
@@ -146,8 +148,8 @@ enum Mic {
             }
         }
         if transcribe, !SpeechTranscriber.isAvailable { return asrUnavailable("SpeechTranscriber is not available") }
-        let got = waitFor(115, cancelled: cancelled) {
-            try await begin(recording, locale: asked, transcribe: transcribe, levels: levels)
+        let got = waitFor(115, cancelled: request.cancelled) {
+            try await begin(recording, locale: asked, transcribe: transcribe, levels: levels, cancelled: request.cancelled)
         }
         switch got {
         case nil:
@@ -167,18 +169,23 @@ enum Mic {
                 return asrUnavailable("starting failed: \(error)", retryable: true)
             }
         case let .success(answer)?:
-            if cancelled() {
-                release(recording)
-                teardown(recording)
-            }
+            guard kept(recording, request) else { return .cancelled }
             started = true
             return .success(["session": id, "locale": answer.locale, "sample_rate": answer.sampleRate])
         }
     }
 
+    /// mic.start's last step: true when its answer is sure to go, else the start was cancelled and its input is closed.
+    static func kept(_ recording: Recording, _ request: Request) -> Bool {
+        if request.commit() { return true }
+        release(recording)
+        teardown(recording)
+        return false
+    }
+
     /// Prepares the transcriber (downloading its assets when they are missing) and opens the input.
     private static func begin(_ recording: Recording, locale asked: String, transcribe: Bool,
-                              levels: Bool) async throws -> (locale: String, sampleRate: Int) {
+                              levels: Bool, cancelled: @escaping () -> Bool) async throws -> (locale: String, sampleRate: Int) {
         // A start that was cancelled or timed out meanwhile closes what this task opened, also when it then throws.
         defer { if !isCurrent(recording) { teardown(recording) } }
         var locale = Locale(identifier: asked).identifier(.bcp47)
@@ -186,7 +193,7 @@ enum Mic {
         if downloadProbe {
             let probe = Progress(totalUnitCount: 2)
             probe.completedUnitCount = 1
-            progress(recording, probe)
+            progress(recording, probe, cancelled)
         }
         if transcribe {
             guard let supported = await SpeechTranscriber.supportedLocale(equivalentTo: Locale(identifier: asked)) else {
@@ -198,7 +205,7 @@ enum Mic {
             if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
                 let reader = Task {
                     while !Task.isCancelled {
-                        progress(recording, request.progress)
+                        progress(recording, request.progress, cancelled)
                         try? await Task.sleep(for: downloadInterval, tolerance: .milliseconds(10))
                     }
                 }

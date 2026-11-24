@@ -396,13 +396,14 @@ enum AXWatch {
 
     static func answered(_ params: [String: Any]) { state(watchId(params)).answered(params) }
 
-    static func watch(_ params: [String: Any]) -> Outcome {
-        replacing.withLock { replace(params) }
+    static func watch(_ params: [String: Any], _ request: Request) -> Outcome {
+        replacing.withLock { replace(params, request) }
     }
 
-    private static func replace(_ params: [String: Any]) -> Outcome {
+    private static func replace(_ params: [String: Any], _ request: Request) -> Outcome {
         let id = watchId(params)
         guard let asked = JSON.int(params["pid"]) else {
+            guard request.commit() else { return .cancelled }
             stop(id)
             return .success(result(pid: nil, watchId: id, element: nil, window: nil, manual: nil))
         }
@@ -438,6 +439,11 @@ enum AXWatch {
         let skipped = AX.skipped(pid)
         let element = skipped ? nil : focusedElement(subscription)
         let window = skipped ? nil : AXOps.focusedWindow(pid)
+        // Its answer is sure to go now, and `answered` to open it; a cancel that came first takes it down again.
+        guard request.commit() else {
+            stop(id)
+            return .cancelled
+        }
         return .success(result(pid: pid, watchId: id, element: JSON.optional(element), window: JSON.optional(window.map(windowJSON)),
                                manual: manual))
     }

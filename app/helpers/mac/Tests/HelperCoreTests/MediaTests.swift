@@ -130,6 +130,20 @@ final class MediaTests: XCTestCase {
         XCTAssertFalse(recording.running)
     }
 
+    /// A mic.start whose commit finds it cancelled closes the input it opened and leaves the microphone free.
+    @available(macOS 26, *)
+    func testACancelledStartLeavesNothingRecording() throws {
+        let recording = try XCTUnwrap(Mic.reserve("v-cancel"))
+        defer { Mic.release(recording) }
+        try Mic.open(recording) { (nil, Tone.start(Mic.feeder(recording, converter: nil, input: nil, levels: false))) }
+        XCTAssertTrue(recording.running)
+        XCTAssertFalse(Mic.kept(recording, cancelledRequest))
+        XCTAssertFalse(Mic.active, "the session still holds the microphone")
+        XCTAssertFalse(recording.lock.withLock { recording.running || recording.tone != nil }, "the input is still open")
+        let next = try XCTUnwrap(Mic.reserve("v-after"))
+        Mic.release(next)
+    }
+
     func testPartialsCarryTheFinalPiecesAndTheVolatileOne() {
         var transcript = Transcript()
         XCTAssertEqual(transcript.add("帮我", isFinal: false), "帮我")

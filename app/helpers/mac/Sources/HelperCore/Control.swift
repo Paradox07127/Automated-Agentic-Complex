@@ -288,7 +288,7 @@ enum Control {
         init(_ outcome: Outcome) { self.outcome = outcome }
     }
 
-    static func act(_ params: [String: Any], cancelled: @escaping () -> Bool) -> Outcome {
+    static func act(_ params: [String: Any], _ request: Request) -> Outcome {
         if let problem = paramsProblem(params) { return problem }
         guard AX.trusted else { return AX.denied }
         acting.lock()
@@ -309,17 +309,17 @@ enum Control {
         } else if self.target(pid: target.pid, windowId: target.windowId) != target {
             return fail("target_changed", "the window moved, changed or closed since the snapshot")
         }
-        guard !cancelled() else { return cancelledOutcome }
         let action = params["action"] as! String
         switch action {
         case "press":
             guard let element else { return fail("element_required", "press needs an element_id from the snapshot") }
-            begin()
-            AXUIElementSetMessagingTimeout(element, 0.15)
-            guard AXUIElementPerformAction(element, kAXPressAction as CFString) == .success else {
-                return fail("action_refused", "the element did not take AXPress")
+            return perform(request) {
+                AXUIElementSetMessagingTimeout(element, 0.15)
+                guard AXUIElementPerformAction(element, kAXPressAction as CFString) == .success else {
+                    return fail("action_refused", "the element did not take AXPress")
+                }
+                return .success(["effect": "unverifiable"])
             }
-            return .success(["effect": "unverifiable"])
         case "set_value", "type":
             guard let element else { return fail("element_required", "\(action) needs an element_id from the snapshot") }
             let text = params["text"] as! String
@@ -327,11 +327,12 @@ enum Control {
             guard AXUIElementIsAttributeSettable(element, kAXValueAttribute as CFString, &settable) == .success, settable.boolValue else {
                 return fail("action_refused", "the element's AXValue cannot be set")
             }
-            begin()
-            guard AXUIElementSetAttributeValue(element, kAXValueAttribute as CFString, text as CFString) == .success else {
-                return fail("action_refused", "the element did not take the text")
+            return perform(request) {
+                guard AXUIElementSetAttributeValue(element, kAXValueAttribute as CFString, text as CFString) == .success else {
+                    return fail("action_refused", "the element did not take the text")
+                }
+                return .success(["effect": reader.string(element, kAXValueAttribute) == text ? "confirmed" : "unverifiable"])
             }
-            return .success(["effect": reader.string(element, kAXValueAttribute) == text ? "confirmed" : "unverifiable"])
         default:
             let x = JSON.number(params["x"])!, y = JSON.number(params["y"])!
             guard CGRect(origin: .zero, size: target.bounds.size).contains(CGPoint(x: x, y: y)) else {
@@ -345,10 +346,19 @@ enum Control {
             guard let events = ControlInput.events(action, at: point, deltaY: JSON.int(params["delta_y"]) ?? 0) else {
                 return fail("internal", "the input events could not be made")
             }
-            begin()
-            ControlInput.post(events, to: target.pid)
-            return .success(["effect": "unverifiable"])
+            return perform(request) {
+                ControlInput.post(events, to: target.pid)
+                return .success(["effect": "unverifiable"])
+            }
         }
+    }
+
+    /// The action goes out after every check, unless the request was cancelled by then; once it goes, its answer is the
+    /// action's own.
+    static func perform(_ request: Request, _ action: () -> Outcome) -> Outcome {
+        guard request.commit() else { return cancelledOutcome }
+        begin()
+        return action()
     }
 
     /// An action goes out: every snapshot ends (CONTRACT §7.8) and the next action waits `actionGap`.

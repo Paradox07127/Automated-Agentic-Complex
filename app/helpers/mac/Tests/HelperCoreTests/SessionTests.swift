@@ -43,6 +43,10 @@ private final class Lines: @unchecked Sendable {
     }
 }
 
+/// A request as its handler sees it once cancelled, and one that is never cancelled.
+let cancelledRequest = Request(cancelled: { true }, commit: { false })
+let liveRequest = Request(cancelled: { false }, commit: { true })
+
 final class SessionTests: XCTestCase {
     private func started(_ handlers: [String: Handler]) -> (Session, Lines) {
         let lines = Lines()
@@ -85,6 +89,92 @@ final class SessionTests: XCTestCase {
         XCTAssertNil(lines.next(0.2), "one answer each")
     }
 
+    private let act: [String: Any] = ["snapshot_id": "o-t-1", "action": "click", "x": 1, "y": 2]
+
+    func testACancelAfterTheActionsCommitIsTooLateAndItsOwnAnswerGoes() {
+        let committed = DispatchSemaphore(value: 0), posting = DispatchSemaphore(value: 0)
+        let posted = Recorder()
+        let (session, lines) = started(["control.act": Handler(onMain: false, committing: { _, request in
+            Control.perform(request) {
+                committed.signal()
+                posting.wait()
+                posted.add("click")
+                return .success(["effect": "unverifiable"])
+            }
+        })])
+        send(session, ["v": 1, "id": 2, "op": "control.act", "params": act])
+        XCTAssertEqual(committed.wait(timeout: .now() + 5), .success, "the action did not go")
+        send(session, ["v": 1, "id": 3, "op": "cancel", "params": ["target": 2]])
+        let cancel = object(lines.next())
+        XCTAssertEqual(cancel["id"] as? Int, 3)
+        XCTAssertEqual(cancel["result"] as? [String: Bool], ["cancelled": false], "a cancel after the commit cancelled")
+        posting.signal()
+        let target = object(lines.next())
+        XCTAssertEqual(target["id"] as? Int, 2)
+        XCTAssertEqual(target["result"] as? [String: String], ["effect": "unverifiable"], "the action's own answer did not go")
+        XCTAssertEqual(posted.names, ["click"])
+        XCTAssertNil(lines.next(0.2), "one answer each")
+    }
+
+    func testACancelBeforeTheCommitStopsTheActionAndTakesBackWhatAWatchOpened() {
+        let checked = DispatchSemaphore(value: 0), go = DispatchSemaphore(value: 0), returned = DispatchSemaphore(value: 0)
+        let lock = NSLock()
+        var done: [String] = []
+        func add(_ name: String) { lock.withLock { done.append(name) } }
+        let (session, lines) = started([
+            "control.act": Handler(onMain: false, committing: { _, request in
+                defer { returned.signal() }
+                checked.signal()
+                go.wait()
+                return Control.perform(request) {
+                    add("click")
+                    return .success(["effect": "unverifiable"])
+                }
+            }),
+            "ax.watch": Handler(onMain: false, committing: { _, request in
+                defer { returned.signal() }
+                add("watch opened")
+                checked.signal()
+                go.wait()
+                guard request.commit() else {
+                    add("watch taken back")
+                    return .cancelled
+                }
+                return .success(["watching": true, "pid": 1])
+            }, answered: { _ in add("watch answered") }),
+        ])
+        for (id, op, params) in [(2, "control.act", act), (4, "ax.watch", ["pid": 1, "notifications": ["focus"]])] {
+            send(session, ["v": 1, "id": id, "op": op, "params": params])
+            XCTAssertEqual(checked.wait(timeout: .now() + 5), .success, "\(op) did not run")
+            send(session, ["v": 1, "id": id + 1, "op": "cancel", "params": ["target": id]])
+            XCTAssertEqual(code(object(lines.next())), "cancelled", op)
+            XCTAssertEqual(object(lines.next())["result"] as? [String: Bool], ["cancelled": true], op)
+            go.signal()
+            XCTAssertEqual(returned.wait(timeout: .now() + 5), .success, "\(op) did not return")
+        }
+        XCTAssertNil(lines.next(0.2), "a cancelled request answered twice")
+        XCTAssertEqual(lock.withLock { done }, ["watch opened", "watch taken back"], "the click went or the watch was not taken back once")
+    }
+
+    func testAnOpThatCannotStopCommitsAsItStartsAndItsAnswerGoes() {
+        let running = DispatchSemaphore(value: 0), go = DispatchSemaphore(value: 0)
+        let done = Recorder()
+        let (session, lines) = started(["workspace.watch": Handler(onMain: false, run: { _ in
+            running.signal()
+            go.wait()
+            return .success(["watching": true])
+        }, answered: { _ in done.add("answered") })])
+        send(session, ["v": 1, "id": 2, "op": "workspace.watch", "params": ["enabled": true]])
+        XCTAssertEqual(running.wait(timeout: .now() + 5), .success)
+        send(session, ["v": 1, "id": 3, "op": "cancel", "params": ["target": 2]])
+        XCTAssertEqual(object(lines.next())["result"] as? [String: Bool], ["cancelled": false])
+        go.signal()
+        XCTAssertEqual(object(lines.next())["result"] as? [String: Bool], ["watching": true])
+        send(session, ["v": 1, "id": 4, "op": "cancel", "params": ["target": 99]])
+        XCTAssertNotNil(lines.next())
+        XCTAssertEqual(done.names, ["answered"], "the watch that answered did not open")
+    }
+
     func testWaitForCancelsItsTaskWhenCancelledOrPastItsTime() {
         for (seconds, cancelled) in [(5.0, true), (0.2, false)] {
             let stopped = DispatchSemaphore(value: 0)
@@ -100,9 +190,9 @@ final class SessionTests: XCTestCase {
 
     func testTheCapturesStopWhenCancelled() throws {
         try XCTSkipUnless(ScreenGrant.granted, "the capture checks run only with the Screen Recording grant")
-        let window = Ops.handler("capture.window")!.run(["window_id": 2147483000], { true })
+        let window = Ops.handler("capture.window")!.run(["window_id": 2147483000], cancelledRequest)
         XCTAssertEqual(code(window), "timeout", "capture.window went on after its cancel")
-        let ambient = Ops.handler("capture.ambient")!.run(["source": "screen", "side": 2, "exclude_pids": [Int(getpid())]], { true })
+        let ambient = Ops.handler("capture.ambient")!.run(["source": "screen", "side": 2, "exclude_pids": [Int(getpid())]], cancelledRequest)
         XCTAssertEqual(code(ambient), "timeout", "capture.ambient went on after its cancel")
     }
 
@@ -112,8 +202,8 @@ final class SessionTests: XCTestCase {
                                 space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
         let png = Capture.encode(context.makeImage()!, jpeg: false, maxLongSide: nil)!
         let image: [String: Any] = ["format": "png", "width": 8, "height": 8, "data": png.data.base64EncodedString()]
-        XCTAssertNil(code(Ops.handler("ocr.recognize")!.run(["image": image], { false })), "an 8 px image is recognized")
-        XCTAssertEqual(code(Ops.handler("ocr.recognize")!.run(["image": image], { true })), "cancelled",
+        XCTAssertNil(code(Ops.handler("ocr.recognize")!.run(["image": image], liveRequest)), "an 8 px image is recognized")
+        XCTAssertEqual(code(Ops.handler("ocr.recognize")!.run(["image": image], cancelledRequest)), "cancelled",
                        "ocr.recognize went on after its cancel")
     }
 
@@ -121,9 +211,10 @@ final class SessionTests: XCTestCase {
         let around = JSON.dump(["v": 1, "id": 2, "ok": true, "result": ["pad": ""]])!.count
         let fits = Session.maxLineBytes - 1 - around  // the pad of a line of exactly max_line_bytes, newline included
         var pad = 0
+        let opened = Recorder()
         let (session, lines) = started(["screens.list": Handler(onMain: false, run: { _ in
             .success(["pad": String(repeating: "x", count: pad)])
-        })])
+        }, answered: { _ in opened.add("answered") })])
         pad = fits
         send(session, ["v": 1, "id": 2, "op": "screens.list", "params": [:]])
         let exact = lines.next()
@@ -136,6 +227,10 @@ final class SessionTests: XCTestCase {
         guard (over?.count ?? .max) < Session.maxLineBytes else { return }
         XCTAssertEqual(object(over)["id"] as? Int, 3)
         XCTAssertEqual(code(object(over)), "internal")
+        // The cancel is answered under the session's lock, so request 3 is through `answered` by then.
+        send(session, ["v": 1, "id": 4, "op": "cancel", "params": ["target": 99]])
+        XCTAssertNotNil(lines.next())
+        XCTAssertEqual(opened.names, ["answered"], "`answered` ran for the answer that did not go")
     }
 
     func testAnEventOverMaxLineBytesIsDropped() {
