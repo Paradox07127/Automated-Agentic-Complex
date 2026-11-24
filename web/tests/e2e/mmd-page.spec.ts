@@ -42,10 +42,3 @@ test('a dance added from its row shows as a card with 移出 on hover, its name 
   const cut = await row.getByText('示例舞蹈', { exact: true }).evaluate((e) => e.scrollWidth > e.clientWidth);
   expect(cut).toBe(false);
 });
-
-test('/mmd lands on the MMD section of 角色 with the rail', async ({ page }) => {
-  await page.goto('main.html#/mmd?still=1');
-  await expect(page).toHaveURL(/#\/character\?.*view=mmd/);
-  await expect(page.getByRole('region', { name: 'MMD 库' })).toBeVisible();
-  await expect(page.getByRole('navigation', { name: '角色分区' }).getByRole('button', { name: 'MMD' })).toHaveAttribute('aria-current', 'page');
-});

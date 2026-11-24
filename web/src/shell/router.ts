@@ -16,15 +16,6 @@ export function createAppRouter() {
       throw redirect({ to: home });
     },
   });
-  // MMD is a section of 角色: old links land there with the view flags.
-  const mmd = createRoute({
-    getParentRoute: () => root,
-    path: '/mmd',
-    beforeLoad: ({ search }) => {
-      const flags = Object.fromEntries(Object.entries(search as Record<string, unknown>).filter(([k]) => k === 'theme' || k === 'still'));
-      throw redirect({ to: '/character', search: { view: 'mmd', ...flags }, replace: true });
-    },
-  });
   const pages = pageRoutes.map((r) =>
     createRoute({
       getParentRoute: () => root,
@@ -33,7 +24,7 @@ export function createAppRouter() {
     }),
   );
   const router = createRouter({
-    routeTree: root.addChildren([index, mmd, ...pages]),
+    routeTree: root.addChildren([index, ...pages]),
     history: createHashHistory(),
     defaultErrorComponent: ErrorPage,
     // The hash is the route.

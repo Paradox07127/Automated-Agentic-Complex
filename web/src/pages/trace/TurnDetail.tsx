@@ -58,6 +58,15 @@ const unit = (text: string) => {
   );
 };
 
+/** The copied events keep no text: every {len, head} gets a blank head, and error_message goes. */
+function blankHeads(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(blankHeads);
+  if (v === null || typeof v !== 'object') return v;
+  const keys = Object.keys(v);
+  if (keys.length === 2 && 'len' in v && 'head' in v) return { len: v.len, head: '' };
+  return Object.fromEntries(Object.entries(v).filter(([k]) => k !== 'error_message').map(([k, x]) => [k, blankHeads(x)]));
+}
+
 export interface TurnDetailProps {
   row: WireTraceTurn | null;
   no: number;
@@ -213,7 +222,7 @@ export function TurnDetail({ row, no, turn, st, emptyText, convTitle, related, o
             count={turn.events.length}
             summary="含各进程回执"
             right={
-              <Btn variant="text" size="sm" icon="copy" onClick={() => onCopy(JSON.stringify(turn.events.map(({ text: _text, ...e }) => e), null, 2), '已复制这一轮的事件 JSON（不含原文）')}>
+              <Btn variant="text" size="sm" icon="copy" onClick={() => onCopy(JSON.stringify(turn.events.map(({ text: _text, ...e }) => blankHeads(e)), null, 2), '已复制这一轮的事件 JSON（不含原文）')}>
                 复制 JSON
               </Btn>
             }

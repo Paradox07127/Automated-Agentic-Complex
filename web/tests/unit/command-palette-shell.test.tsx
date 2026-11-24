@@ -1,6 +1,6 @@
 // Shell: ⌘K actions without an agentd route, stop by task id prefix, short Chinese failures, facts in agentd's shape.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getBridge } from '../../src/bridge';
 import { createDispatcher } from '../../src/bridge/fake/agentd';
@@ -15,6 +15,7 @@ import { loadPaletteIndex, paletteItems } from '../../src/shell/CmdPalette.data'
 import { look as runLook, openQuickInput as runQuickInput, resetDesktopOff } from '../../src/shell/desktopOps';
 import { pageRoutes } from '../../src/shell/registry';
 import { pluginsOn, pluginsReset } from './plugins';
+import { pluginKey, setPlugins } from '../../src/shell/plugins';
 
 // Every plug-in on, so each group shows all its rows.
 beforeEach(() => pluginsOn());
@@ -153,5 +154,54 @@ describe('⌘K search index', () => {
     const first = WIRE_FACTS[0]!;
     const hit = paletteItems(first.text.slice(0, 4), pageRoutes, index).find((i) => i.hint === '记忆');
     expect(hit?.run).toEqual({ kind: 'nav', target: { page: 'memory', view: 'about', sel: first.fact_id } });
+  });
+});
+
+describe('⌘K keys and reads', () => {
+  it('Enter that commits an IME candidate runs nothing', async () => {
+    serve();
+    const onClose = vi.fn();
+    mount(onClose);
+    const input = screen.getByRole('combobox', { name: '命令' });
+    await act(async () => fireEvent.keyDown(input, { key: 'Enter', isComposing: true }));
+    expect(onClose).not.toHaveBeenCalled();
+    await act(async () => fireEvent.keyDown(input, { key: 'Enter' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('重新检测内核 says the kernel is not ready, with the reason, when agentd answers ready:false', async () => {
+    const dispatch = createDispatcher([...exampleRoutes, ...mockRoutes]);
+    vi.spyOn(getBridge().agentd, 'request').mockImplementation(async (method, path, body) => {
+      const res = await dispatch(method, path, body);
+      return path.startsWith('/character/runtime') && method === 'GET' ? { ...res, body: { ...(res.body as object), ready: false, error: 'missing_api_key' } } : res;
+    });
+    mount();
+    const input = screen.getByRole('combobox', { name: '命令' });
+    fireEvent.change(input, { target: { value: '重新检测' } });
+    await act(async () => fireEvent.keyDown(input, { key: 'Enter' }));
+    await waitFor(() => expect(pushToast).toHaveBeenCalled());
+    const [msg, opts] = vi.mocked(pushToast).mock.calls[0]!;
+    expect(msg).toMatch(/尚未就绪 │ 还没有保存这个服务的 API Key$/);
+    expect(opts).toEqual({ severity: 'warning' });
+  });
+
+  it('reads the index again after 个人代理 flips', async () => {
+    const spy = serve();
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const open = () =>
+      render(
+        <QueryClientProvider client={qc}>
+          <CmdPalette routes={pageRoutes} onClose={() => {}} />
+        </QueryClientProvider>,
+      );
+    const taskReads = () => spy.mock.calls.filter(([m, p]) => m === 'GET' && p === '/agent/tasks').length;
+    const ui = open();
+    await waitFor(() => expect(taskReads()).toBe(1));
+    ui.unmount();
+    act(() => setPlugins({ [pluginKey('personal_agent')]: false }));
+    open();
+    await waitFor(() => expect(spy.mock.calls.filter(([m, p]) => m === 'GET' && p === '/memory').length).toBe(2));
+    expect(taskReads()).toBe(1);
+    expect(within(screen.getByRole('listbox')).queryByRole('option', { name: /停止任务/ })).toBeNull();
   });
 });

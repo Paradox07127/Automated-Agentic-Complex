@@ -8,6 +8,7 @@ import { fromRuntimePublic, quiet as quietBody, runCancel, splitCanonical, type 
 import { useHotkeyLabels } from '../domain/hotkeys';
 import { notStopped, resumeOf, StopConfirm } from '../features/task';
 import { errText } from '../pages/overview/errors';
+import { RUNTIME_ERROR, RUNTIME_ERROR_UNKNOWN } from '../pages/settings/fields';
 import { Icon, Kbd } from '../ui';
 import { paletteItems, usePaletteIndex, type PaletteItem } from './CmdPalette.data';
 import { look, openQuickInput, stopSpeech, useDesktopOff } from './desktopOps';
@@ -33,6 +34,7 @@ async function recheck(qc: QueryClient) {
     const rt = view.runtimes.find((x) => x.id === view.selected);
     if (!rt) toast('重新检测失败：没有选中的内核', { severity: 'danger' });
     else if (rt.authenticated === false) toast(`已重新检测：${rt.name} 未登录`, { severity: 'warning' });
+    else if (!view.ready) toast(`已重新检测：${rt.name} 尚未就绪${view.error ? ` │ ${(RUNTIME_ERROR[view.error] ?? RUNTIME_ERROR_UNKNOWN).label}` : ''}`, { severity: 'warning' });
     else toast(`已重新检测：${rt.name} 已就绪`, { severity: 'success' });
   } catch (e) {
     toast(`重新检测失败：${errText(e)}`, { severity: 'danger' });
@@ -88,6 +90,7 @@ export function CmdPalette({ routes, onClose }: { routes: PageRoute[]; onClose: 
   };
 
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.nativeEvent.isComposing) return;
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       const step = e.key === 'ArrowDown' ? 1 : -1;

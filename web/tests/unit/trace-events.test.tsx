@@ -9,7 +9,9 @@ import { demoTraceEvents } from '../../src/bridge/fake/traceEvents';
 import { traceEvents } from '../../src/bridge/traceEvents';
 import { isoToMs, isoWithOffset } from '../../src/domain';
 import type { MockHandler } from '../../src/mock/types';
+import type { WireTraceTurn } from '../../src/domain/wire';
 import { DiagPage } from '../../src/pages/diag/Page';
+import { buildTurn } from '../../src/pages/trace/steps';
 
 afterEach(() => {
   cleanup();
@@ -75,5 +77,30 @@ describe('运行记录 动作线 reads /trace/events', () => {
     mount(() => ({ status: 503, body: { error: 'no_trace' } }));
     expect(await screen.findByText('读不到这段时间的事件')).toBeTruthy();
     expect(screen.getAllByRole('status').map((s) => s.textContent)).toContain('读不到');
+  });
+});
+
+describe('经过 approval steps', () => {
+  const row = (result: string): WireTraceTurn => ({ trace_id: 't1', turn_id: 'u1', source: 'text', head: null, len: 2, producers: ['agentd'],
+    started_at: '2026-11-24T10:00:00.000Z', result, duration_ms: 5000 });
+  const at = (ms: number) => `2026-11-24T10:00:0${ms / 1000}Z`;
+  const ask = (id: string, ms: number) => ({ kind: 'approval.opened', status: 'ok', t_wall: at(ms), attrs: { request_id: id, tool: 'Bash' } });
+  const stepOf = (result: string, events: Parameters<typeof buildTurn>[0]['events']) => buildTurn({ row: row(result), events }).steps.filter((s) => s.icon === 'shield');
+
+  it('names and lamps each ask by what became of it', () => {
+    const steps = stepOf('ok', [
+      ask('a', 1000), { kind: 'approval.decided', status: 'ok', t_wall: at(2000), attrs: { request_id: 'a', tool: 'Bash', decision: 'allow', by: 'card' } },
+      ask('b', 1000), { kind: 'approval.decided', status: 'ok', t_wall: at(3000), attrs: { request_id: 'b', tool: 'Bash', decision: 'deny', by: 'native' } },
+      ask('c', 1000), { kind: 'approval.retired', status: 'ok', t_wall: at(4000), attrs: { request_id: 'c', tool: 'Bash', reason: 'expired' } },
+      ask('d', 1000),
+    ]);
+    expect(steps.map((s) => [s.id, s.name, s.st])).toEqual([
+      ['ask-a', '已允许', 'ok'], ['ask-b', '已拒绝', 'fail'], ['ask-c', '已收回', 'skip'], ['ask-d', '待批准', 'wait'],
+    ]);
+  });
+
+  it('an ask nobody decided in a closed turn waited until the turn ended', () => {
+    const [step] = stepOf('ok', [ask('d', 1000)]);
+    expect(step!.dur).toBe(4000);
   });
 });

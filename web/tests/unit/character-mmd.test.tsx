@@ -1,4 +1,4 @@
-// 角色页 and MMD: the rail's MMD item and `?view=mmd` open the MMD section beside the rail on the one stage, `/mmd` lands there;
+// 角色页 and MMD: the rail's MMD item and `?view=mmd` open the MMD section beside the rail on the one stage;
 // the 动作 tab and the 导入 pane leave its dances out.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
@@ -8,7 +8,6 @@ import { createFakeBridge } from '../../src/bridge/fake';
 import type { AvatarAction, AgenticComplexBridge } from '../../src/bridge/protocol';
 import { CharacterPage } from '../../src/pages/character/Page';
 import { setNavRouter } from '../../src/shell/nav';
-import { createAppRouter } from '../../src/shell/router';
 
 vi.mock('../../src/shell/toast', async (original) => ({ ...(await original<typeof import('../../src/shell/toast')>()), toast: vi.fn() }));
 
@@ -88,22 +87,6 @@ describe('MMD is a section of 角色', () => {
     await click(tab('动作'));
     await waitFor(() => expect(library()).toBeNull());
     expect(document.querySelector('[data-preview-stage]')).toBe(stage);
-  });
-});
-
-describe('/mmd', () => {
-  it('redirects (replace) to /character?view=mmd with theme and still kept', async () => {
-    window.location.hash = '#/mmd?theme=light&still=1&x=2';
-    const entries = window.history.length;
-    const router = createAppRouter();
-    await act(async () => void (await router.load()));
-    expect(router.state.location.pathname).toBe('/character');
-    const q = new URLSearchParams(router.state.location.searchStr);
-    expect(q.get('view')).toBe('mmd');
-    expect(q.get('theme')).toBe('light');
-    expect(q.get('still')).toBe('1');
-    expect(q.get('x')).toBeNull();
-    expect(window.history.length).toBe(entries);
   });
 });
 

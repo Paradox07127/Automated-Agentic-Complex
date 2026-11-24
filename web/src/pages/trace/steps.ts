@@ -202,13 +202,14 @@ export function buildTurn({ row, events, skew = {}, items = [], mems = [], learn
     const opened = mine.find((x) => x.e.kind === 'approval.opened');
     const done = mine.find((x) => x.e.kind !== 'approval.opened');
     const t0 = opened?.at ?? done!.at;
-    const wait = done ? done.at - t0 : open ? Math.max(0, row.duration_ms - t0) : 0;
+    const wait = done ? done.at - t0 : Math.max(0, row.duration_ms - t0);
     const tool = str(mine[0]?.e.attrs.tool);
     const decision = str(done?.e.attrs.decision) ?? str(done?.e.attrs.reason);
     const by = str(done?.e.attrs.by);
+    const [name, st]: [string, StepSt] = !done ? ['待批准', 'wait'] : done.e.kind === 'approval.retired' ? ['已收回', 'skip'] : decision === 'deny' ? ['已拒绝', 'fail'] : ['已允许', 'ok'];
     subs.push({
-      id: `ask-${id}`, icon: 'shield', name: '待批准', sub: true, t0, dur: wait, st: 'wait',
-      sum: [...(tool ? [m(tool)] : [{ t: '一次操作' }]), d(done ? ` │ ${decision === 'allow' ? '你点了「允许」' : decision === 'deny' ? '你点了「拒绝」' : decision ?? '收回了'}` : ' │ 还没批')],
+      id: `ask-${id}`, icon: 'shield', name, sub: true, t0, dur: wait, st,
+      sum: [...(tool ? [m(tool)] : [{ t: '一次操作' }]), d(done ? ` │ ${decision === 'allow' ? '你点了「允许」' : decision === 'allow_session' ? '你点了「本对话都允许」' : decision === 'deny' ? '你点了「拒绝」' : decision ?? '收回了'}` : ' │ 还没批')],
       kv: [['判定', [{ t: decision ?? '还没定' }]], ...(by ? [['谁批的', [{ t: by === 'card' ? '你，在桌面审批卡上' : '你，在系统弹窗上' }]] as [string, Part[]]] : []), ['等了', [{ t: fmtMs(wait) }]]],
     });
   }

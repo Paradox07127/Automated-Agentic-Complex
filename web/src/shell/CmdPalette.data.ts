@@ -7,7 +7,7 @@ import { settingPath } from '../pages/settings/groups';
 import type { DesktopOp } from './desktopOps';
 import { isDevMode } from './devMode';
 import type { NavTarget, PageId } from './nav';
-import { DEFAULT_PLUGINS, getPlugins, type PluginId, type PluginState } from './plugins';
+import { DEFAULT_PLUGINS, getPlugins, usePlugins, type PluginId, type PluginState } from './plugins';
 import { offReason, routeOff } from './registry';
 import type { IconName } from '../ui/Icon';
 import type { PageRoute } from './types';
@@ -51,7 +51,7 @@ export async function loadPaletteIndex(): Promise<PaletteIndex> {
 }
 
 export function usePaletteIndex() {
-  return useQuery({ queryKey: ['cmd-palette'], queryFn: loadPaletteIndex, retry: false, staleTime: 30_000 });
+  return useQuery({ queryKey: ['cmd-palette', usePlugins().personal_agent], queryFn: loadPaletteIndex, retry: false, staleTime: 30_000 });
 }
 
 export type PaletteGroup = '跳页' | '搜索' | '动作';

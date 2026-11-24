@@ -10,6 +10,8 @@ import type { AvatarAction, AgenticComplexBridge, MmdEntry, MmdSyncState } from 
 import { CharacterPage } from '../../src/pages/character/Page';
 import { Library } from '../../src/pages/mmd/Library';
 import { findRoute } from '../../src/shell/registry';
+import { createAppRouter } from '../../src/shell/router';
+import { stubMatchMedia } from './mediaStub';
 
 vi.mock('../../src/shell/toast', async (original) => ({ ...(await original<typeof import('../../src/shell/toast')>()), toast: vi.fn() }));
 
@@ -63,8 +65,19 @@ afterEach(() => {
 });
 
 describe('MMD section', () => {
-  it('is no page of its own: /mmd only redirects (router.ts)', () => {
+  it('is no page of its own: /mmd is not found', async () => {
     expect(findRoute('/mmd')).toBeUndefined();
+    stubMatchMedia();
+    window.location.hash = '#/mmd?still=1';
+    const router = createAppRouter();
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByRole('heading', { name: '没有这个页面' })).toBeTruthy();
+    expect(router.state.location.pathname).toBe('/mmd');
+    window.location.hash = '';
   });
 
   it('stands on the character area’s training room with its one live preview stage, beside the rail', async () => {

@@ -3,7 +3,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { WireTraceTurn } from '../../src/domain/wire';
 import { DiagPage } from '../../src/pages/diag/Page';
+import { buildTurn } from '../../src/pages/trace/steps';
+import { TurnDetail } from '../../src/pages/trace/TurnDetail';
 import { stubMatchMedia } from './mediaStub';
 import { pluginsOn, pluginsReset } from './plugins';
 
@@ -72,6 +75,30 @@ describe(' 运行记录 under 1200 px', () => {
     await screen.findByRole('listbox', { name: '近 24 小时的轮次' });
     expect(await screen.findByRole('region', { name: '这一轮' })).toBeTruthy();
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe(' 运行记录 复制 JSON', () => {
+  it('keeps no text: every {len, head} head is blank and error_message is gone', () => {
+    const row: WireTraceTurn = { trace_id: 't1', turn_id: 'u1', source: 'text', head: null, len: 4, producers: ['agentd'], started_at: '2026-11-24T10:00:00.000Z',
+      result: 'failed', duration_ms: 900 };
+    const events = [
+      { kind: 'input.received', status: 'ok', t_wall: '2026-11-24T10:00:00.000Z', attrs: { source: 'text', text: { len: 4, head: '你好世界' } }, text: { text: '你好世界' } },
+      { kind: 'context.assembled', status: 'ok', t_wall: '2026-11-24T10:00:00.100Z', attrs: { items: [{ type: 'note', note: { len: 3, head: '小纸条' } }] } },
+      { kind: 'turn.settled', status: 'failed', t_wall: '2026-11-24T10:00:00.900Z', attrs: { error_code: 'kernel_failed', error_message: '密钥过期了' } },
+    ];
+    const onCopy = vi.fn();
+    render(
+      <TurnDetail row={row} no={1} turn={buildTurn({ row, events })} st="ok" emptyText="" convTitle={null} related={[]} onRetry={() => {}} onOpenChat={null}
+        onLogs={() => {}} onCopy={onCopy} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: '复制 JSON' }));
+    const [json, toast] = onCopy.mock.calls[0]! as [string, string];
+    expect(toast).toBe('已复制这一轮的事件 JSON（不含原文）');
+    for (const gone of ['你好世界', '小纸条', '密钥过期了', 'error_message']) expect(json).not.toContain(gone);
+    const out = JSON.parse(json) as Array<{ attrs: Record<string, unknown> }>;
+    expect(out[0]!.attrs.text).toEqual({ len: 4, head: '' });
+    expect(out[2]!.attrs.error_code).toBe('kernel_failed');
   });
 });
 
