@@ -9,6 +9,7 @@ from unittest.mock import Mock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from brain.persona import PROMPT_USER  # noqa: E402
+from character_agent.runtime import PersonalAgentRuntime  # noqa: E402
 import test_dispatch_tool
 
 
@@ -60,8 +61,8 @@ class DispatchReportTests(unittest.TestCase):
                                                own_id=lambda session_id: session_id)
         announcement = {**self.announcement(task), 'origin': None, 'session_id': 'own:report',
                         'detail': 'CLI-RESULT alice@example.com ' + '字' * 4500 + 'END-OF-CLI'}
-        runtime = self.controller._ensure_runtime()
-        with patch.object(runtime, 'run', wraps=runtime.run) as run:
+        # A report line runs in a one-off runtime of its own.
+        with patch.object(PersonalAgentRuntime, 'run', autospec=True, side_effect=PersonalAgentRuntime.run) as run:
             self.server.announce(announcement)
             self.settled()
         lines = [e['data'] for e in self.server.feed.since(0) if e['event'] == 'line']

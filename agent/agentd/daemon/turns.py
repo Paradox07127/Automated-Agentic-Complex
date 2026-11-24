@@ -408,7 +408,7 @@ class TurnsMixin:
                 worker.join()
             # The foreground session's projection is its own; a side reply does not move it.
             if not side and not self._stale(cancel, generation):
-                self.character_agent.delivered(self.mouth.history)
+                self.character_agent.delivered(self.mouth.history, line_id)
         except Exception as error:
             code, trace["line_message"] = failure(error)
             trace["line_state"], trace["line_error"] = "failed", code

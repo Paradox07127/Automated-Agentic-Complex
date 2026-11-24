@@ -198,9 +198,10 @@ class PersonalAgentRuntime:
             self.event_sink({"run_id": run_id, "seq": seq, "phase": kind, **metadata, "at": time.time()})
 
     def run(self, *, run_id, text, system_prompt, history, character_id, generation,
-            scope_id=None, context="", before_input="", cancelled=None, is_current=lambda: True, expected_outputs=None, resume_run_id=None, allow_actions=True, knowledge_service=None, memory_session=None, orchestration_session=None, question_session=None, conversation_id=None, remember=True, mode=None,
+            scope_id=None, context="", unheard=None, before_input="", cancelled=None, is_current=lambda: True, expected_outputs=None, resume_run_id=None, allow_actions=True, knowledge_service=None, memory_session=None, orchestration_session=None, question_session=None, conversation_id=None, remember=True, mode=None,
             setup_ms=None, on_first_token=None, on_tool=None, language=None, quick_session=None, admitted=False, harness_tools=True):
         """before_input: lines the prompt carries after the context, right before the user's text.
+        unheard: context lines on the turns this session has not seen; only a reused session gets them, a new one replays history.
         harness_tools: whether the session factory turns the harness's own tools on for this turn.
         setup_ms: the caller's own preparation times in ms, recorded on the running event.
         on_first_token() runs when the harness reports the first text.
@@ -525,6 +526,8 @@ class PersonalAgentRuntime:
                            queue_ms=round((acquired_at-enqueued_at)*1000),
                            context_setup_ms=round((time.monotonic()-acquired_at)*1000),
                            work_kind='background' if mode == 'background' else 'foreground', **segments, **(setup_ms or {}))
+            if unheard and quick_session is None and session_reused:
+                context += unheard
             prompt = _turn_prompt(text, before_input, context)
             # An assistant-voice line replayed verbatim teaches the model to repeat it.
             replayed = [[{**m, "content": for_replay(m["content"])} if m.get("role") == "assistant" and out_of_voice(m["content"]) else m

@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from brain.events import cue  # noqa: E402
 from character_agent.services.interactions import QuestionTurn  # noqa: E402
 from tool_gateway.computer_use import TOOLS  # noqa: E402
 import test_character_agent_integration as integration  # noqa: E402
@@ -68,12 +69,51 @@ class RegistryOfferTests(integration.IntegrationFixture):
     def test_per_mode_names_match_head(self):
         self.assertEqual(self.offered(), HEAD)
 
-    def test_a_gift_runs_in_a_session_without_the_harness_tools(self):
+    def test_a_gift_runs_in_its_own_session_and_typing_keeps_its_session(self):
         self.line('整理资料')
         self.prepare('gift-1', 'gift')
         self.line('再整理一次')
-        # One runtime session slot: the gift's restricted session replaces the text one, which typing then reopens.
-        self.assertEqual(len(self.definitions), 3)
+        # The gift's session, without the harness tools, is its own and closes; typing keeps the one it opened.
+        typed, gift = self.sessions[0], self.sessions[-1]
+        self.assertEqual(len(self.sessions), 2)
+        self.assertEqual(len(typed.calls), 2)
+        self.assertFalse(typed.closed)
+        self.assertEqual(len(gift.calls), 1)
+        self.assertEqual(gift.closed, 1)
+
+    def proactive(self, reply):
+        """A proactive cue line whose kernel says reply; later runs say chat's reply again."""
+        def said(session, prompt, options):
+            yield {'type': 'text_delta', 'text': reply}
+            yield {'type': 'result', 'success': True, 'final_text': reply, 'session_id': 'sdk-test'}
+        self.script = said
+        conn, response = self.open_feed()
+        self.server.start_line('proactive-1', cue('greeting', '管理员 came back.', 'Greet them.'), source='proactive')
+        events = self.lines_until_final(response); conn.close()
+        self.assertFalse(events[-1].get('error'), events)
+        self.script = integration.chat
+
+    def test_typing_after_a_proactive_line_keeps_its_session_and_is_told_the_line(self):
+        self.line('整理资料')
+        self.proactive('欢迎回来，资料我还记着。')
+        self.line('再整理一次')
+        typed = self.sessions[0]
+        self.assertFalse(typed.closed)
+        self.assertEqual(len(typed.calls), 2)
+        self.assertNotIn('Turns this session has not seen', typed.calls[0]['prompt'])
+        unheard = typed.calls[1]['prompt'].split('Turns this session has not seen', 1)[1]
+        self.assertIn('<event', unheard)
+        self.assertIn('欢迎回来，资料我还记着。', unheard)
+
+    def test_a_reopened_typing_session_gets_the_proactive_line_only_from_history(self):
+        self.line('整理资料')
+        self.proactive('欢迎回来，资料我还记着。')
+        self.controller.runtime._session_key = None
+        self.line('再整理一次')
+        reopened = self.sessions[-1].calls[-1]
+        self.assertTrue(self.sessions[0].closed)
+        self.assertNotIn('Turns this session has not seen', reopened['prompt'])
+        self.assertIn('欢迎回来，资料我还记着。', json.dumps(reopened['history'], ensure_ascii=False))
 
     def test_a_tap_runs_in_its_own_session_and_typing_keeps_its_session(self):
         self.desktop_on()

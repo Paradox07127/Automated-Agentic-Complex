@@ -1307,7 +1307,7 @@ class KernelLines:
             self.server.context(text, wait, refused, []) if wait is not None or refused is not None else "")
         return MouthReply(self.server.mouth, material)
 
-    def delivered(self, history):
+    def delivered(self, history, line_id):
         pass
 
     def cancel(self, *args, **kwargs):
@@ -2718,7 +2718,7 @@ class RitualTapTest(FeedServerCase):
             return SimpleNamespace(final_item_id=None, stream=self.server.mouth.stream)
         self.server.mouth.history = []
         self.server.character_agent = SimpleNamespace(busy=lambda: False, prepare=prepare,
-            delivered=lambda history: None, cancel=lambda *args, **kwargs: None, close=lambda: None,
+            delivered=lambda history, line_id: None, cancel=lambda *args, **kwargs: None, close=lambda: None,
             public=lambda discover=False, *, wait=True: {"ready": True, "routes": {"chat": {"ready": True}}},
             settings=SimpleNamespace(snapshot=lambda: {"reply_language": "zh-Hans"}), reply_language=ReplyLanguage())
         for hour, kind in ((8, "morning"), (4, "tap")):

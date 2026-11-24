@@ -189,7 +189,8 @@ class CharacterAgentController:
         from character_agent.services.worklog import WorkLogService
         self.worklog = WorkLogService(self) if plugins.on("daily_brief") and server.memory is not None else None
         self._background_runtimes = {}
-        self._side_runtimes = {}  # line_id of a side or tap line -> (cancel event, its one-off runtime)
+        self._side_runtimes = {}  # line_id of a side line or one she starts herself -> (cancel event, its one-off runtime)
+        self._main_line, self._main_heard = None, []  # the latest line on self.runtime, and the turns its delivery left
         self._turn = threading.local()  # native_tools: False while this thread runs a side or unremembered role turn
         self._foreground_request = ''  # the start of the latest foreground input, for a side line's brief
         self.jobs = JobCoordinator(JobStore(server.memory), self._execute_job, self._cancel_job,
@@ -850,9 +851,11 @@ class CharacterAgentController:
             'run_id': active['run_id'], 'request': self._foreground_request,
             'task': {'title': task['title'], 'state': task['state']} if task else None, 'plan': plan}, ensure_ascii=False)
 
-    def delivered(self, history):
+    def delivered(self, history, line_id):
         if self.runtime:
             self.runtime.delivered(history)
+        if line_id == self._main_line:
+            self._main_heard = list(history)
 
     def configure(self, data):
         if not isinstance(data, dict):
@@ -1728,18 +1731,19 @@ class CharacterAgentController:
     def prepare(self, line_id, text, cancel, generation, source, trace, *, side=False, **options):
         """Run the harness outside server's mouth lock; return a presentation-only provider.
         side: answer this input in a new read-only session while the foreground run keeps working.
-        A tap also runs in a session of its own, so it does not close the typing session; its tools stay the foreground's."""
-        tap = source == 'tap' and not side
-        if not side and not tap:
+        A line she starts herself (any source but text and voice) also runs in a session of its own, so it does not
+        close the typing session; its tools stay the foreground's."""
+        one_off = source not in ('text', 'voice') and not side
+        if not side and not one_off:
             self._foreground_request = text[:300] if trace.get('remember', True) else ''
             return self._prepare(line_id, text, cancel, generation, source, trace, **options)
         self._auto_select()
         snapshot = self.settings.snapshot()
         config = RuntimeSettings.route(snapshot, 'chat')
         native = dict(native_tools=self.tools.registry.native_definitions(desktop=bool(self.server.computer_control),
-            desktop_task=self._computer_use_ready(snapshot)), native_handler=self._native) if tap else {}
+            desktop_task=self._computer_use_ready(snapshot)), native_handler=self._native) if one_off else {}
         runtime = PersonalAgentRuntime(self.state_dir / 'character-agent',
-            self._session_factory_bound(config, ('tap-' if tap else 'side-') + line_id, spoken=True),
+            self._session_factory_bound(config, ('line-' if one_off else 'side-') + line_id, spoken=True),
             self.knowledge, self.workspace, tasks=self.server.tasks, backend=config['backend'], model=self._model(config),
             event_sink=self._event, run_store=self.store, tools=self.tools, effort=config['_turn_effort'], **native)
         with self._lock:
@@ -1761,6 +1765,7 @@ class CharacterAgentController:
         current = lambda: not cancel.is_set() and server.turn_generation == generation and not server.resetting \
             and server.consent.snapshot()[1] == consent_epoch
         quick = trace.get("route") == "quick"
+        main = runtime is None and not quick
         runtime = runtime or self._ensure_runtime("quick" if quick else "chat", current=current)
         if runtime is None:
             return PreparedReply(server.mouth, "", "", error="cancelled")
@@ -1778,6 +1783,10 @@ class CharacterAgentController:
                 history = server.history.window(server.character, 8, names)
             else:
                 history = copy.deepcopy(mouth.history[-8:] if quick else mouth.history)
+            unheard = set()  # indexes in history of the turns since the last delivery of a line on self.runtime
+            if main:
+                self._main_line = line_id
+                unheard = {i for i, turn in enumerate(mouth.history) if not any(turn is t for t in self._main_heard)}
             card, motion = bound(server.characters.load_card(server.character), effective(server))
             embodied = server.characters.package(server.character).render_enabled
             lore = mouth.pick_lore(text) if hasattr(mouth, "pick_lore") else []
@@ -1798,8 +1807,8 @@ class CharacterAgentController:
         # The card's style note and the reply language come last, right before the user's words.
         before_input = "<reply_style>\n" + egress.authored("instructions", card["post_history_instructions"]) + "\n</reply_style>" + \
             ("\n" + self.reply_language.tag(setting) if setting != "harness" else "")
-        replayed = []
-        for turn in history:
+        replayed, missed = [], []
+        for index, turn in enumerate(history):
             try:
                 for message in turn:
                     # Her lines may retell the screen; the user's own words keep their contacts.
@@ -1808,9 +1817,13 @@ class CharacterAgentController:
             except OutboundBlocked:  # the whole turn stays out so user/assistant pairs remain intact
                 continue
             replayed.append(turn)
+            if index in unheard:
+                missed.append({'user': turn[0]['content'], 'you': turn[1]['content']})
         if len(replayed) < len(history):
             logging.getLogger(__name__).warning('role_history_turns_dropped %d', len(history) - len(replayed))
         history = replayed
+        unheard = '\nTurns this session has not seen, since its last reply here (oldest first; the user may answer them): ' + \
+            json.dumps(missed, ensure_ascii=False) if missed else None
         used = []
         server.sync_privacy()  # a consent revoked in the saved config holds for the observation context too
         observed = self.observations.context() if getattr(self,'observations',None) and trace.get('remember',True) else None
@@ -1940,7 +1953,7 @@ class CharacterAgentController:
                 with self.tools.session(SessionKey("character", line_id,
                         server.history.conversations.active if server.history else None)):
                     answer = runtime.run(run_id=line_id, text=egress.user_text(text), system_prompt=system, history=history,
-                        character_id=server.character, generation=generation, scope_id=scope_id, context=context, before_input=before_input, language=self.semantic.reply(),
+                        character_id=server.character, generation=generation, scope_id=scope_id, context=context, unheard=unheard, before_input=before_input, language=self.semantic.reply(),
                         cancelled=cancel, is_current=current, expected_outputs=expected_outputs, resume_run_id=resume_run_id,
                         allow_actions=main_session and source in ("text", "voice") and trace.get("remember", True),
                         mode='embodied_only' if not side and trace.get('remember', True) and source in ('gift', 'ritual', 'tap') else None,
@@ -2000,4 +2013,4 @@ class CharacterAgentController:
             runtime = self._ensure_runtime("chat", current=current)
             if runtime is None:
                 return PreparedReply(mouth, "", "", error="cancelled")
-            quick = False
+            quick, self._main_line = False, line_id
