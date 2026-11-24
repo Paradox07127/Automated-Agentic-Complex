@@ -1773,13 +1773,14 @@ class CharacterAgentController:
             else:
                 history = copy.deepcopy(mouth.history[-8:] if quick else mouth.history)
             card, motion = bound(server.characters.load_card(server.character), effective(server))
+            embodied = server.characters.package(server.character).render_enabled
             lore = mouth.pick_lore(text) if hasattr(mouth, "pick_lore") else []
         building = time.monotonic()
         if not current():
             return PreparedReply(mouth, "", runtime.model, error="cancelled")
         egress = server.egress or mouth.egress
         card = localized(card, self.reply_language.current(setting))
-        system = render_persona(card, motion, getattr(mouth, "motion_phrases", None)) + "\n\n" + \
+        system = render_persona(card, motion, getattr(mouth, "motion_phrases", None), embodied=embodied) + "\n\n" + \
             persona_personal_instructions(card) + "\n" + (SIDE_INSTRUCTIONS if side else FOREGROUND_INSTRUCTIONS)
         if not trace.get("remember", True):
             system += ("\nThis is a temporary conversation: nothing enters long-term memory, so propose no memory changes, write no files, "
@@ -1825,6 +1826,8 @@ class CharacterAgentController:
                         'Put the time words of their answer into reminder_create\'s time_quote, and after saving say the local date and time from the receipt.')
         if trace.get('surface'):
             context += '\nSent from: ' + SURFACE_NAMES[trace['surface']]
+        if source == 'voice':
+            context += '\nSent by voice: the text is speech recognition, so a word that makes no sense may be misheard; go by the likely meaning.'
         if trace.get('quote'):
             context += '\nQuoted selection (from ' + (trace['quote']['app'] or 'an unknown app') + '): "' + trace['quote']['text'] + '"'
         if trace.get('reply_to', {}).get('kind') == 'turn':
