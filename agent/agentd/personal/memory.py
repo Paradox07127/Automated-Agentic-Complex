@@ -68,6 +68,13 @@ def _episode(item):
     return isinstance(item, str) and item.startswith("episode:")
 
 
+def _clears(scope, owner):
+    """The WHERE clause and its arguments that pick the facts clear(scope, owner) deletes."""
+    if owner is None:
+        return CLEARS[scope], ()
+    return f"{CLEARS[scope] or ' WHERE 1'} AND owner IS ?", (None if owner == "shared" else owner,)
+
+
 def evidence_score(reinforcement, reinforced_at, now):
     """N.E.K.O. effective_reinforcement: the summed signals halve every REINFORCE_HALF_LIFE after the last one.
     It is shown, never used to confirm a fact."""
@@ -88,6 +95,20 @@ class Memory:
         self.content_epoch += 1
         self.db.execute("UPDATE memory_agent_runs SET detail=NULL,redacted_reason='memory_changed'")
 
+    def _forget_words(self, fact_id):
+        """Under lock: suppress every kept text of fact_id and the turns it came from; returns their evidence refs."""
+        refs = []
+        for text,evidence in self.db.execute('SELECT text,evidence FROM facts WHERE fact_id=? AND text IS NOT NULL',(fact_id,)).fetchall():
+            self.db.execute('INSERT OR REPLACE INTO memory_tombstones VALUES(?,?)',
+                (hashlib.sha256(normalized_text(text).encode()).hexdigest(), self.clock()))
+            sources = {'history:'+str(turn or ident) for ident,turn in self.db.execute(
+                'SELECT id,turn_id FROM history_turns WHERE instr(user_text,?)>0 OR instr(reply,?)>0',(text,text))}
+            cited = json.loads(evidence)
+            sources.update('history:'+ref[len('role_run:'):] for ref in cited if ref.startswith('role_run:'))
+            refs += cited
+            self.db.executemany('INSERT OR REPLACE INTO agent_memory_processed VALUES(?,?)',[(v,'forgotten') for v in sources])
+        return refs
+
     def _tombstone(self, fact_id):
         """Suppress existing sources as well as the deleted words (normalized_text).
 
@@ -103,21 +124,16 @@ class Memory:
             current = pending.pop()
             if current in affected: continue
             affected.add(current)
-            for text,evidence in self.db.execute('SELECT text,evidence FROM facts WHERE fact_id=? AND text IS NOT NULL',(current,)).fetchall():
-                self.db.execute('INSERT OR REPLACE INTO memory_tombstones VALUES(?,?)',
-                    (hashlib.sha256(normalized_text(text).encode()).hexdigest(), self.clock()))
-                sources = {'history:'+str(turn or ident) for ident,turn in self.db.execute(
-                    'SELECT id,turn_id FROM history_turns WHERE instr(user_text,?)>0 OR instr(reply,?)>0',(text,text))}
-                for ref in json.loads(evidence):
-                    if ref.startswith('role_run:'): sources.add('history:'+ref[len('role_run:'):])
-                    elif _episode(ref):
-                        ident=ref.split(':',1)[1].split('@',1)[0]
-                        row=self.db.execute('SELECT threads FROM episodes WHERE id=? AND version=3',(ident,)).fetchone()
-                        if row:
-                            sources.update(v for t in json.loads(row[0]) for v in t.get('evidence',[]) if isinstance(v,str))
-                            removed_episodes.add(ident)
-                            pending.extend(by_episode.get('episode:' + ident, set()) - affected)
-                self.db.executemany('INSERT OR REPLACE INTO agent_memory_processed VALUES(?,?)',[(v,'forgotten') for v in sources])
+            sources = set()
+            for ref in self._forget_words(current):
+                if _episode(ref):
+                    ident=ref.split(':',1)[1].split('@',1)[0]
+                    row=self.db.execute('SELECT threads FROM episodes WHERE id=? AND version=3',(ident,)).fetchone()
+                    if row:
+                        sources.update(v for t in json.loads(row[0]) for v in t.get('evidence',[]) if isinstance(v,str))
+                        removed_episodes.add(ident)
+                        pending.extend(by_episode.get('episode:' + ident, set()) - affected)
+            self.db.executemany('INSERT OR REPLACE INTO agent_memory_processed VALUES(?,?)',[(v,'forgotten') for v in sources])
         # A v3 summary is shared by a batch. Retiring it must retire every dependent
         # fact, including confirmed versions, rather than leave claims without evidence.
         # The requested fact is handled by the caller (which may replace it with a correction).
@@ -524,21 +540,25 @@ class Memory:
                 self.db.execute("INSERT OR REPLACE INTO memory_settings (key, value) VALUES (?, ?)", (key, value))
             self.db.commit()
 
-    def cleared(self, scope="facts"):
-        """The fact_ids clear(scope) would delete."""
+    def cleared(self, scope="facts", owner=None):
+        """The fact_ids clear(scope, owner) would delete."""
+        where, args = _clears(scope, owner)
         with self.lock:
-            rows = self.db.execute(f"SELECT DISTINCT fact_id FROM facts{CLEARS[scope]}").fetchall()
+            rows = self.db.execute(f"SELECT DISTINCT fact_id FROM facts{where}", args).fetchall()
         return [fact_id for fact_id, in rows]
 
-    def clear(self, scope="facts"):
-        """scope "facts" keeps the user's name and birthday; "all" deletes every row."""
-        where = CLEARS[scope]
+    def clear(self, scope="facts", owner=None):
+        """scope "facts" keeps the user's name and birthday; "all" deletes every row. owner, as in active(): only
+        that character's facts ("shared": only the shared ones). Returns how many active or candidate facts it deleted."""
+        where, args = _clears(scope, owner)
         with self.lock:
-            for fact_id, in self.db.execute(f"SELECT DISTINCT fact_id FROM facts{where}").fetchall(): self._tombstone(fact_id)
+            deleted = self.db.execute(f"SELECT COUNT(DISTINCT fact_id) FROM facts{where or ' WHERE 1'}"
+                                      " AND state IN ('active', 'candidate')", args).fetchone()[0]
+            for fact_id, in self.db.execute(f"SELECT DISTINCT fact_id FROM facts{where}", args).fetchall(): self._tombstone(fact_id)
             self._redact_agent_journal()
-            self.db.execute("DELETE FROM fact_uses" + (" WHERE fact_id IN (SELECT fact_id FROM facts" + where + ")"
-                                                       if scope != "all" else ""))
-            deleted = self.db.execute(f"DELETE FROM facts{where}").rowcount
+            self.db.execute("DELETE FROM fact_uses" + (f" WHERE fact_id IN (SELECT fact_id FROM facts{where})" if where else ""),
+                            args)
+            self.db.execute(f"DELETE FROM facts{where}", args)
             self.db.execute("DELETE FROM fact_marks WHERE fact_id NOT IN (SELECT fact_id FROM facts)")
             self.db.commit()
             self.revision += 1
@@ -605,10 +625,10 @@ class Memory:
             if source in ("inferred_hypothesis", "observed_context") or text is None:
                 source = "confirmed_by_user"
             if text is not None:
-                self._tombstone(fact_id)
-                # The user's replacement claim cannot cite a summary just erased.
-                evidence = json.dumps([ref for ref in json.loads(evidence) if not _episode(ref) or
-                    self.db.execute('SELECT 1 FROM episodes WHERE id=?', (ref.split(':', 1)[1].split('@', 1)[0],)).fetchone()])
+                # Only this fact's words go: the summary it cites stays for the other facts of its batch.
+                self._forget_words(fact_id)
+                self.db.execute('DELETE FROM fact_sightings WHERE fact_id=?', (fact_id,))
+                evidence = json.dumps([ref for ref in json.loads(evidence) if not _episode(ref)])
             self.db.execute("UPDATE facts SET state = 'corrected' WHERE id = ?", (row_id,))
             if text is not None: self._redact_agent_journal()
             # A corrected text is a new claim; confirming keeps the signals the same words already had.

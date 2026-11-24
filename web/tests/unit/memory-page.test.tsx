@@ -103,7 +103,7 @@ describe('memory › 档案', () => {
     const asks = screen.getByRole('region', { name: '待确认' });
     expect(within(asks).getByRole('heading', { name: '待确认' })).toBeTruthy();
     expect(asks.textContent).not.toContain('[3]');
-    expect(within(asks).getByRole('tooltip', { hidden: true }).textContent).toContain('你点「记住」之前');
+    expect(within(asks).getByRole('tooltip', { hidden: true }).textContent).toContain('同一件事在 3 个不同的日子都有把握地看到，就会记住');
     expect(document.body.textContent).not.toMatch(/USR|CONFIRM|FACTS|CHANGES/);
   });
 
@@ -259,6 +259,16 @@ describe('memory › 档案', () => {
     const reads = sent('GET', '/memory').filter(([, p]) => p === '/memory').length;
     act(() => emit?.({ event: 'memory', id: '9', data: JSON.stringify({ action: 'added', fact_id: 'f0live', text: '测试日志只看失败的几行' }) }));
     await waitFor(() => expect(sent('GET', '/memory').filter(([, p]) => p === '/memory').length).toBeGreaterThan(reads));
+  });
+
+  it('a /feed memory change other than an add re-reads the run a quote came from', async () => {
+    mount(`?still=1&sel=${v31Id('g2')}`);
+    const detail = await screen.findByRole('complementary', { name: '这条记忆' });
+    await within(detail).findByText(/以后提交前先跑一遍 swift test。/);
+    const runReads = () => sent('GET', '/memory/runs/').length;
+    const before = runReads();
+    act(() => emit?.({ event: 'memory', id: '9', data: JSON.stringify({ action: 'deleted', fact_id: v31Id('p5') }) }));
+    await waitFor(() => expect(runReads()).toBeGreaterThan(before));
   });
 
   it('⌘F focuses the search box', async () => {

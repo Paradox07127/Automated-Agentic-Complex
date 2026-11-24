@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import type { Fact } from '../../domain';
 import { Btn, Menu, Pill, TextArea } from '../../ui';
 import { useEvidence } from './data';
@@ -101,8 +101,8 @@ export interface DetailProps {
   now: number;
   editing: boolean;
   onEdit: (on: boolean) => void;
-  /** Resolves true when agentd took the new text. */
-  onSave: (text: string) => Promise<boolean>;
+  /** Writes text over `from`, the version the edit started from; resolves true when agentd took it. */
+  onSave: (text: string, from: Fact) => Promise<boolean>;
   onDelete: () => void;
   onMark: (mark: 'locked' | 'quiet', on: boolean) => void;
   onJump: (k: 'chat' | 'obs') => void;
@@ -113,24 +113,39 @@ export interface DetailProps {
 /** 这条记忆：标题条、正文（修改时是文本框）、来源和记下时间、出处、她用到它、版本历史；底部修改、锁定和不再提及、危险红删除。 */
 export function Detail({ fact: f, now, editing, onEdit, onSave, onDelete, onMark, onJump, onClose }: DetailProps) {
   const [draft, setDraft] = useState(f.text);
+  // The version the edit started from: a newer one read meanwhile is not silently written over.
+  const [base, setBase] = useState(f);
   const [saving, setSaving] = useState(false);
   // Each edit starts from the stored text, also when Enter on the list opened it.
   const [was, setWas] = useState(editing);
   if (was !== editing) {
     setWas(editing);
-    if (editing) setDraft(f.text);
+    if (editing) {
+      setDraft(f.text);
+      setBase(f);
+    }
   }
+  const typed = useRef(draft);
+  typed.current = draft;
   const cat = CATS.find((c) => c.id === catOf(f));
   const spark = useSpark(f, now);
   const versions = useVersions(f).data;
   const save = () => {
-    const text = draft.trim();
+    const sent = draft;
+    const text = sent.trim();
     if (!text || saving) return;
     setSaving(true);
-    void onSave(text).then((ok) => {
+    void onSave(text, base).then((ok) => {
       setSaving(false);
-      if (ok) onEdit(false);
+      if (!ok) return;
+      // Text typed while the save ran stays in the editor, now over the version just written.
+      if (typed.current === sent) onEdit(false);
+      else setBase({ ...base, text, version: base.version + 1 });
     });
+  };
+  const reload = () => {
+    setDraft(f.text);
+    setBase(f);
   };
   const foot = (
     <>
@@ -167,6 +182,11 @@ export function Detail({ fact: f, now, editing, onEdit, onSave, onDelete, onMark
   );
   return (
     <Frame id={f.id} head={<DetailHead title={cat?.label ?? ''} micro={`${cat?.en ?? ''} / ${f.id.slice(0, 6)}`} {...(onClose ? { onClose } : {})} />} foot={foot}>
+        {editing && base.version !== f.version && (
+          <Note>
+            已在别处更新为「{factText(f)}」 <Lnk onClick={reload}>载入最新版本</Lnk>
+          </Note>
+        )}
         {editing ? (
           <TextArea
             label="修改这条记忆"
@@ -248,7 +268,7 @@ export function Detail({ fact: f, now, editing, onEdit, onSave, onDelete, onMark
                 <Line
                   key={v.version}
                   at={v.by ? `${stamp(v.at * 1000, now)} │ ${BY[v.by]}` : stamp(v.at * 1000, now)}
-                  end={v.version === f.version ? <Note>当前</Note> : v.text !== f.text && <Lnk onClick={() => void onSave(v.text)}>恢复</Lnk>}
+                  end={v.version === f.version ? <Note>当前</Note> : v.text !== f.text && <Lnk onClick={() => void onSave(v.text, f)}>恢复</Lnk>}
                 >
                   {v.text}
                 </Line>

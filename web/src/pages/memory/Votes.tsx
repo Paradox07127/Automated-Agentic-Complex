@@ -74,6 +74,7 @@ export function Votes({ asks, now, still, onConfirm, onFix, onDeny, onJump }: Vo
         action: {
           label: '撤销',
           onClick: () => {
+            if (!denies.current.has(f.id)) return void toast('已经划掉了，撤销不了');
             clearTimeout(timers.current.get(f.id));
             denies.current.delete(f.id);
             put(f.id, null);
@@ -84,8 +85,12 @@ export function Votes({ asks, now, still, onConfirm, onFix, onDeny, onJump }: Vo
       return;
     }
     put(f.id, { fact: f, how, phase: 'wait' });
-    setEditing(({ [f.id]: _, ...rest }) => rest);
-    void (how === 'fix' && text != null ? onFix(f, text) : onConfirm(f)).then((ok) => (ok ? leave(f, how) : put(f.id, null)));
+    // A rewrite that agentd refused comes back in the editor.
+    void (how === 'fix' && text != null ? onFix(f, text) : onConfirm(f)).then((ok) => {
+      if (!ok) return put(f.id, null);
+      setEditing(({ [f.id]: _, ...rest }) => rest);
+      leave(f, how);
+    });
   };
 
   // Leaving the page within the undo window still sends the 不是这样 the user chose.
@@ -129,7 +134,7 @@ export function Votes({ asks, now, still, onConfirm, onFix, onDeny, onJump }: Vo
         title="待确认"
         right={
           <>
-            <InfoTip>猜的和看到的先放在这里；你点「记住」之前不会拿来用。</InfoTip>
+            <InfoTip>猜的和看到的先放在这里，记住之前不拿来用。你点「记住」，或者同一件事在 3 个不同的日子都有把握地看到，就会记住。</InfoTip>
             <Btn
               variant="primary"
               disabled={open.length === 0}

@@ -324,6 +324,22 @@ class ManualFactTest(MemoryServerCase):
         self.assertEqual(self.facts(), [])
         self.assertEqual((self.request("GET", "/history")[1]["turns"], self.server.mouth.history), ([], []))
 
+    def test_clearing_counts_facts_not_versions_and_keeps_to_the_owner(self):
+        fact_id = self.memory.add("我在上海", "asserted_by_user")
+        self.memory.correct(fact_id, "我在杭州")
+        self.memory.correct(fact_id, "我在苏州")
+        with self.memory.lock:
+            self.memory._insert("theirs", 1, "fact", "她记得的事", "asserted_by_user", "[]", None, owner="other", by="character")
+            self.memory._insert("mine", 1, "fact", "只有她记得", "asserted_by_user", "[]", None,
+                                owner=self.server.character, by="character")
+            self.memory.db.commit()
+        self.assertEqual(self.request("DELETE", f"/memory?scope=facts&owner={self.server.character}"),
+                         (200, {"facts_deleted": 1, "history_deleted": 0}))
+        self.assertEqual(sorted(f["fact_id"] for f in self.facts()), sorted([fact_id, "theirs"]))
+        self.assertEqual(self.request("DELETE", "/memory?scope=facts"),
+                         (200, {"facts_deleted": 2, "history_deleted": 0}))
+        self.assertEqual(self.facts(), [])
+
     def test_stale_fact_mutations_and_profile_creation_are_rejected(self):
         _, created = self.request('POST', '/memory/facts', {'text':'original'})
         path = '/memory/facts/' + created['fact_id']

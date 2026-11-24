@@ -14,7 +14,7 @@ import { Btn, Menu, Tabs } from '../../ui';
 import { PipelineView } from '../pipeline/Page';
 import { pageNow, useGo, usePageParams } from './api';
 import { Archive } from './Archive';
-import { RUNS_KEY, useLastConsolidation } from './data';
+import { EVIDENCE_KEYS, RUNS_KEY, useLastConsolidation } from './data';
 import { errorText } from './errors';
 import { factText, hm, isCandidate, SRC, SRC_ORDER } from './model';
 import { ClearCard } from './Papers';
@@ -38,9 +38,6 @@ function srcQuery(v: string | null): string | null {
   return s ? SRC[s].full : null;
 }
 
-/** An agentd without the work-memory routes: the bridge refuses the path, or agentd answers 404. */
-const noRoute = (e: unknown) => e instanceof AgentdCallError && (e.status === 404 || e.code === 'unclassified_route');
-
 /**
  * 记忆：页签 档案（默认）/ 项目 / 回顾，开发者模式里加 管线；插件关着的页签照常在，选中后整页已关闭。
  * 顶栏是记录状态和暂停（管线换上它自己的读数），底栏是各页签自己的键位说明和操作。
@@ -57,12 +54,10 @@ export function MemoryPage() {
   const roster = useQuery({ queryKey: ['character', 'list'], queryFn: () => getBridge().character.list(), enabled: owner != null });
   const runs = useLastConsolidation(state == null || state === 'error');
   const empty = state === 'empty';
-  // `?demo=absent` reaches the fake bridge only: an agentd without /memory/tasks.
-  const fake = !window.agenticComplex && demo ? `&demo=${encodeURIComponent(demo)}` : '';
   const plugins = usePlugins();
   const work = useQuery({
-    queryKey: ['memory', 'tasks', fake],
-    queryFn: async () => (await get<MemoryTasksResponse>(`/memory/tasks?status=active,parked,done,uncertain${fake}`)).tasks,
+    queryKey: ['memory', 'tasks'],
+    queryFn: async () => (await get<MemoryTasksResponse>('/memory/tasks?status=active,parked,done,uncertain')).tasks,
     enabled: state !== 'loading' && !empty && plugins.daily_brief,
     retry: false,
   });
@@ -95,6 +90,8 @@ export function MemoryPage() {
           d = {};
         }
         void qc.invalidateQueries({ queryKey: FACTS_KEY });
+        // Any change but an add redacts every run's quotes in agentd (memory.py `_redact_agent_journal`).
+        if (d.action !== 'added') for (const queryKey of EVIDENCE_KEYS) void qc.invalidateQueries({ queryKey });
         if (d.action === 'extracted') void qc.invalidateQueries({ queryKey: RUNS_KEY });
         if (d.action === 'added' && d.fact_id) setFresh((s) => new Set(s).add(d.fact_id ?? ''));
       },
@@ -147,7 +144,7 @@ export function MemoryPage() {
   };
   const onClear = () => {
     setClearing(false);
-    void del<{ facts_deleted: number }>('/memory?scope=facts')
+    void del<{ facts_deleted: number }>(owner ? `/memory?scope=facts&owner=${encodeURIComponent(owner)}` : '/memory?scope=facts')
       .then((r) => toast(`已清空 ${r.facts_deleted} 条记忆，称呼和生日保留`))
       .catch((e: unknown) => toast(`没有清空：${errorText(e)}`))
       .finally(() => void qc.invalidateQueries({ queryKey: ['memory'] }));
@@ -184,8 +181,8 @@ export function MemoryPage() {
   ];
   const projects = (
     <Projects
-      tasks={empty || !plugins.daily_brief || noRoute(work.error) ? [] : work.data}
-      error={work.isError && !noRoute(work.error) ? errorText(work.error) : null}
+      tasks={empty || !plugins.daily_brief ? [] : work.data}
+      error={work.isError ? errorText(work.error) : null}
       onRetry={() => void work.refetch()}
       initialQ={q}
       onSession={(id) => go({ page: 'overview', sel: id })}
@@ -251,10 +248,6 @@ export function MemoryPage() {
           <Off plugin="daily_brief" title="每日简报" reason="隐私设置里关掉了「每日简报」，不整理你的工作项目。">
             {projects}
           </Off>
-        ) : noRoute(work.error) ? (
-          <Unlinked title="工作项目" reason="后台没有工作项目的接口，重启后台后再读。">
-            {projects}
-          </Unlinked>
         ) : (
           projects
         )
@@ -273,7 +266,7 @@ export function MemoryPage() {
       ) : (
         archive
       )}
-      {clearing && <ClearCard count={facts?.filter((f) => f.kind !== 'name' && f.kind !== 'birthday').length ?? 0} onCancel={() => setClearing(false)} onConfirm={onClear} />}
+      {clearing && <ClearCard who={owner ? (roster.data?.find((c) => c.id === owner)?.name ?? '这个角色') : null} count={facts?.filter((f) => f.kind !== 'name' && f.kind !== 'birthday').length ?? 0} onCancel={() => setClearing(false)} onConfirm={onClear} />}
     </div>
   );
 }

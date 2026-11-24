@@ -261,12 +261,14 @@ export const routes: MockRoute[] = [
     path: '/memory',
     handler: ({ query }) => {
       const scope = query.get('scope');
-      if (scope !== 'facts' && scope !== 'history' && scope !== 'all') return bad('invalid_scope');
-      const before = facts().length;
-      if (scope !== 'history') setFacts(scope === 'all' ? [] : facts().filter((f) => f.kind === 'name' || f.kind === 'birthday'));
+      const owner = query.get('owner');
+      if ((scope !== 'facts' && scope !== 'history' && scope !== 'all') || (owner != null && scope !== 'facts')) return bad('invalid_scope');
+      // memory.py `clear`: owner as in GET /memory; the count is facts, not their versions.
+      const gone = scope === 'history' ? [] : ownedBy(owner).filter((f) => scope === 'all' || (f.kind !== 'name' && f.kind !== 'birthday'));
+      setFacts(facts().filter((f) => !gone.includes(f)));
       const history = scope === 'facts' || historyCleared ? 0 : HISTORY.length;
       historyCleared ||= scope !== 'facts';
-      return ok({ facts_deleted: before - facts().length, history_deleted: history });
+      return ok({ facts_deleted: gone.length, history_deleted: history });
     },
   },
   {

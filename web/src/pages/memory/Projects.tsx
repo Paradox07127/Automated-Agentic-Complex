@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { get, patch, seg } from '../../bridge/agentd';
 import type { MemoryTaskResponse, MemoryTasksResponse } from '../../bridge/agentd-routes.generated';
@@ -144,16 +144,27 @@ function ProjectDetail({ task, onSession, onClose }: { task: WorkTask; onSession
   const q = useQuery({ queryKey: ['memory', 'task', task.id], queryFn: () => get<MemoryTaskResponse>(`/memory/tasks/${seg(task.id)}`), retry: false });
   const t = q.data?.task ?? task;
   const [goal, setGoal] = useState<string | null>(null);
+  // The revision the goal edit started from, sent as expected_revision.
+  const [rev, setRev] = useState(t.revision);
+  const typed = useRef(goal);
+  typed.current = goal;
   const [busy, setBusy] = useState(false);
   const session = (s: WorkSession) => `${AGENT[s.agent ?? ''] ?? '角色'} │ ${hm(secToMs(s.start))}`;
+  const edit = () => {
+    setGoal(t.goal);
+    setRev(t.revision);
+  };
   const save = () => {
-    const text = goal?.trim();
+    const sent = goal;
+    const text = sent?.trim();
     if (!text || busy) return;
     setBusy(true);
-    patch(`/memory/tasks/${seg(t.id)}`, { expected_revision: t.revision, goal: text })
+    patch<{ revision: number }>(`/memory/tasks/${seg(t.id)}`, { expected_revision: rev, goal: text })
       .then(
-        () => {
-          setGoal(null);
+        (r) => {
+          // Text typed while the save ran stays in the editor, now over the revision just written.
+          if (typed.current === sent) setGoal(null);
+          else setRev(r.revision);
           toast('已改目标，下次接着这份做');
         },
         (e: unknown) => toast(isConflict(e) ? '没有改：已在别处更新，已重新读取' : `没有改：${errorText(e)}`),
@@ -176,7 +187,7 @@ function ProjectDetail({ task, onSession, onClose }: { task: WorkTask; onSession
       </>
     ) : (
       <>
-        <Btn onClick={() => setGoal(t.goal)}>改目标</Btn>
+        <Btn onClick={edit}>改目标</Btn>
         <Note>记错了就改，下次接着这份做</Note>
         <Spacer />
       </>
@@ -185,6 +196,11 @@ function ProjectDetail({ task, onSession, onClose }: { task: WorkTask; onSession
     <Frame id={t.id} head={<DetailHead title={t.title} micro={`Task / ${t.status}`} {...(onClose ? { onClose } : {})} />} foot={foot}>
       <div className={detail.kv}>
         <Kv k="目标">
+          {goal != null && rev !== t.revision && (
+            <Note>
+              已在别处更新为「{t.goal}」 <Lnk onClick={edit}>载入最新目标</Lnk>
+            </Note>
+          )}
           {goal != null ? (
             <TextArea
               label="目标"

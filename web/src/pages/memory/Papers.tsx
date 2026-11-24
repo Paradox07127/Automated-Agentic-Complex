@@ -65,8 +65,8 @@ export function DeleteCard({ fact, onCancel, onConfirm }: { fact: Fact; onCancel
   );
 }
 
-/** 清空记忆: the same danger card, armed by typing 删除. */
-export function ClearCard({ count, onCancel, onConfirm }: { count: number; onCancel: () => void; onConfirm: () => void }) {
+/** 清空记忆: the same danger card, armed by typing 删除. `who`: the character whose own facts alone are cleared; null clears every character's. */
+export function ClearCard({ who, count, onCancel, onConfirm }: { who: string | null; count: number; onCancel: () => void; onConfirm: () => void }) {
   const id = useId();
   const [word, setWord] = useState('');
   const armed = word.trim() === '删除';
@@ -76,10 +76,18 @@ export function ClearCard({ count, onCancel, onConfirm }: { count: number; onCan
         <span className={styles.wi} aria-hidden="true">
           !
         </span>
-        清空全部记忆？
+        {who ? `清空${who}的记忆？` : '清空全部记忆？'}
       </h4>
       <p>
-        删掉 <b className="num">{count}</b> 条记忆，称呼和生日保留。所有角色都会忘掉这些事，找不回。输入「删除」确认。
+        {who ? (
+          <>
+            删掉只有{who}知道的 <b className="num">{count}</b> 条记忆，共享的和其他角色的不动，找不回。输入「删除」确认。
+          </>
+        ) : (
+          <>
+            删掉 <b className="num">{count}</b> 条记忆，称呼和生日保留。所有角色都会忘掉这些事，找不回。输入「删除」确认。
+          </>
+        )}
       </p>
       <Field label="输入删除确认" value={word} placeholder="删除" onChange={setWord} />
       <div className={styles.btns}>

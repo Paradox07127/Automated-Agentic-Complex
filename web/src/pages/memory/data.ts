@@ -28,8 +28,13 @@ const RUNS_READ = 10;
 /** Background consolidation runs (memory_pipeline.py); conversation turns arrive on /feed instead. */
 const isExtract = (r: WireRun) => r.prompt_version.startsWith('memory_extract') && (r.state === 'committed' || r.state === 'completed');
 
+const RUN_KEY = ['memory', 'run'] as const;
+const EPISODES_KEY = ['memory', 'episodes'] as const;
+/** The reads a fact's 出处 quotes from. */
+export const EVIDENCE_KEYS = [RUN_KEY, EPISODES_KEY] as const;
+
 const readRun = (id: string) => get<WireRunDetail>(`/memory/runs/${seg(id)}`);
-const runKey = (id: string) => ['memory', 'run', id] as const;
+const runKey = (id: string) => [...RUN_KEY, id] as const;
 
 /** When the last consolidation batch finished; `pending` until the runs are read. */
 export function useLastConsolidation(enabled: boolean) {
@@ -58,7 +63,7 @@ export function useEvidence(f: Fact, now: number): { ev: Evidence | null; pendin
   const ep = EPISODE_REF.exec(ref);
   const runQ = useQuery({ queryKey: runKey(run ?? ''), queryFn: () => readRun(run ?? ''), enabled: run != null, retry: false, staleTime: Infinity });
   const epQ = useQuery({
-    queryKey: ['memory', 'episodes', ep?.[2] ?? ''],
+    queryKey: [...EPISODES_KEY, ep?.[2] ?? ''],
     queryFn: () => get<{ episodes: WireEpisode[] }>(`/episodes?date=${ep?.[2] ?? ''}`),
     enabled: ep != null,
     retry: false,

@@ -1,10 +1,11 @@
 // 记忆页的页签：档案（默认）、项目、回顾，开发者模式里还有管线；来源占比和整理批次去了管线。
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getBridge } from '../../src/bridge';
-import type { MemoryTasksResponse } from '../../src/bridge/agentd-routes.generated';
+import type { MemoryTaskResponse, MemoryTasksResponse } from '../../src/bridge/agentd-routes.generated';
+import { v31Id } from '../../src/mock/memory-v31';
 import { MemoryPage } from '../../src/pages/memory/Page';
 import { setDevMode } from '../../src/shell/devMode';
 import { ToastHost } from '../../src/shell/toast';
@@ -32,11 +33,13 @@ function mount(search = '') {
     ),
   });
   const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: [`/?still=1${search}`] }) });
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider client={qc}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
+  return qc;
 }
 
 const projects = () => [...document.querySelectorAll('[data-project]')].map((r) => r.getAttribute('data-project'));
@@ -137,12 +140,49 @@ describe('记忆页', () => {
     await waitFor(() => expect(projects()).toEqual(['task-hostlink']));
   });
 
-  it('keeps 项目 when /memory/tasks is not there; it reads 未接入 and offers 重启后台', async () => {
-    mount('&view=projects&demo=absent');
+  it('a 404 from /memory/tasks shows the standard error bar on 项目', async () => {
+    const bridge = getBridge();
+    const read = bridge.agentd.request.bind(bridge.agentd);
+    vi.spyOn(bridge.agentd, 'request').mockImplementation((async (method: 'GET', path: string, body?: unknown) =>
+      path.startsWith('/memory/tasks?') ? { status: 404, body: { error: 'not_found' } } : read(method, path, body)) as typeof bridge.agentd.request);
+    mount('&view=projects');
     expect((await tab('项目')).getAttribute('aria-selected')).toBe('true');
-    const status = await screen.findByRole('status', { name: '工作项目' }, { timeout: 3000 });
-    expect(within(status).getByText('未接入')).toBeTruthy();
-    expect(within(status).getByRole('button', { name: /重启后台/ })).toBeTruthy();
+    const bar = await screen.findByRole('alert', {}, { timeout: 3000 });
+    expect(bar.textContent).toContain('没有读到项目');
+    expect(within(bar).getByRole('button', { name: /重试/ })).toBeTruthy();
+    expect(screen.queryByText('未接入')).toBeNull();
+  });
+
+  it('改目标 sends the revision it started from; a newer one keeps the draft and offers to load it', async () => {
+    const bridge = getBridge();
+    const read = bridge.agentd.request.bind(bridge.agentd);
+    const { task } = (await read('GET', '/memory/tasks/task-hostlink')).body as MemoryTaskResponse;
+    // Another window rewrites the goal once 改目标 is open: one revision later.
+    let latest = { ...task };
+    const spy = vi.spyOn(bridge.agentd, 'request').mockImplementation((async (method: 'GET', path: string, body?: unknown) => {
+      if (path !== '/memory/tasks/task-hostlink') return read(method, path, body);
+      if (method === 'GET') return { status: 200, body: { ...((await read(method, path)).body as object), task: { ...latest } } };
+      const b = body as { expected_revision: number; goal: string };
+      return b.expected_revision === latest.revision ? { status: 200, body: { ...latest, goal: b.goal, revision: latest.revision + 1 } } : { status: 409, body: { error: 'revision_conflict', task: latest } };
+    }) as typeof bridge.agentd.request);
+    const qc = mount('&view=projects');
+    const detail = await screen.findByRole('complementary', { name: '这个项目' }, { timeout: 3000 });
+    await within(detail).findByText(/验证断线恢复/);
+    fireEvent.click(within(detail).getByRole('button', { name: /^改目标/ }));
+    latest = { ...task, goal: '断线后 10 秒内恢复', revision: task.revision + 1 };
+    await act(() => qc.invalidateQueries({ queryKey: ['memory', 'task', 'task-hostlink'] }));
+    await within(detail).findByText(/已在别处更新为/);
+    const box = within(detail).getByRole('textbox', { name: '目标' });
+    fireEvent.change(box, { target: { value: '断线 5 秒内恢复会话' } });
+    fireEvent.click(within(detail).getByRole('button', { name: /^保存/ }));
+    await waitFor(() => expect(spy.mock.calls.filter(([m]) => m === 'PATCH')).toEqual([['PATCH', '/memory/tasks/task-hostlink', { expected_revision: task.revision, goal: '断线 5 秒内恢复会话' }]]));
+    await screen.findByText('没有改：已在别处更新，已重新读取');
+    expect((within(detail).getByRole('textbox', { name: '目标' }) as HTMLTextAreaElement).value).toBe('断线 5 秒内恢复会话');
+    fireEvent.click(within(detail).getByRole('button', { name: '载入最新目标' }));
+    expect((within(detail).getByRole('textbox', { name: '目标' }) as HTMLTextAreaElement).value).toBe('断线后 10 秒内恢复');
+    fireEvent.click(within(detail).getByRole('button', { name: /^保存/ }));
+    await waitFor(() => expect(spy.mock.calls.filter(([m]) => m === 'PATCH').at(-1)?.[2]).toEqual({ expected_revision: task.revision + 1, goal: '断线后 10 秒内恢复' }));
+    await waitFor(() => expect(within(detail).queryByRole('textbox', { name: '目标' })).toBeNull());
   });
 
   it('has no 管线 tab with 开发者模式 off, and ?view=pipeline opens 档案', async () => {
@@ -151,6 +191,73 @@ describe('记忆页', () => {
     expect((await tab('档案')).getAttribute('aria-selected')).toBe('true');
     expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['档案', '项目', '回顾']);
     expect(screen.queryByRole('tablist', { name: '工位' })).toBeNull();
+  });
+
+  it('修改 saves over the version it started from; a newer one keeps the draft and offers to load it', async () => {
+    const bridge = getBridge();
+    const read = bridge.agentd.request.bind(bridge.agentd);
+    const spy = vi.spyOn(bridge.agentd, 'request');
+    const id = v31Id('p2');
+    const qc = mount(`&view=about&sel=${id}`);
+    const detail = await screen.findByRole('complementary', { name: '这条记忆' }, { timeout: 3000 });
+    fireEvent.click(within(detail).getByRole('button', { name: /^修改/ }));
+    await read('PATCH', `/memory/facts/${id}`, { expected_version: 1, text: '晚上 11 点后不主动提醒' });
+    await act(() => qc.invalidateQueries({ queryKey: ['memory', 'facts'] }));
+    await within(detail).findByText(/已在别处更新为「晚上 11 点后不主动提醒」/);
+    const box = within(detail).getByRole('textbox', { name: '修改这条记忆' });
+    fireEvent.change(box, { target: { value: '晚上 9 点后不主动提醒' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    await waitFor(() => expect(spy.mock.calls.filter(([m]) => m === 'PATCH')).toEqual([['PATCH', `/memory/facts/${id}`, { expected_version: 1, text: '晚上 9 点后不主动提醒' }]]));
+    await screen.findByText('没有修改：已在别处更新，已重新读取');
+    expect((within(detail).getByRole('textbox', { name: '修改这条记忆' }) as HTMLTextAreaElement).value).toBe('晚上 9 点后不主动提醒');
+    fireEvent.click(within(detail).getByRole('button', { name: '载入最新版本' }));
+    expect((within(detail).getByRole('textbox', { name: '修改这条记忆' }) as HTMLTextAreaElement).value).toBe('晚上 11 点后不主动提醒');
+  });
+
+  it('text typed while 修改 saves stays in the editor', async () => {
+    const bridge = getBridge();
+    const read = bridge.agentd.request.bind(bridge.agentd);
+    let reply: (r: { status: number; body: unknown }) => void = () => {};
+    vi.spyOn(bridge.agentd, 'request').mockImplementation(((method: string, path: string, body?: unknown) =>
+      method === 'PATCH' ? new Promise<{ status: number; body: unknown }>((r) => (reply = r)) : read(method as 'GET', path, body)) as typeof bridge.agentd.request);
+    mount(`&view=about&sel=${v31Id('p1')}`);
+    const detail = await screen.findByRole('complementary', { name: '这条记忆' }, { timeout: 3000 });
+    fireEvent.click(within(detail).getByRole('button', { name: /^修改/ }));
+    const box = within(detail).getByRole('textbox', { name: '修改这条记忆' });
+    fireEvent.change(box, { target: { value: '回答先给结论' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    fireEvent.change(box, { target: { value: '回答先给结论，再给理由' } });
+    await act(async () => reply({ status: 200, body: { version: 2 } }));
+    await screen.findByText('改好了，下一句起按新的说');
+    expect((within(detail).getByRole('textbox', { name: '修改这条记忆' }) as HTMLTextAreaElement).value).toBe('回答先给结论，再给理由');
+  });
+
+  it('a rewrite agentd refuses comes back in the vote card editor', async () => {
+    const bridge = getBridge();
+    const read = bridge.agentd.request.bind(bridge.agentd);
+    vi.spyOn(bridge.agentd, 'request').mockImplementation((async (method: string, path: string, body?: unknown) =>
+      method === 'PATCH' ? { status: 400, body: { error: 'invalid_text' } } : read(method as 'GET', path, body)) as typeof bridge.agentd.request);
+    mount('&view=about');
+    const c1 = await screen.findByRole('region', { name: '待确认：周报按项目分组，不按日期' }, { timeout: 3000 });
+    fireEvent.click(within(c1).getByRole('button', { name: '差不多，我来改' }));
+    fireEvent.change(within(c1).getByRole('textbox', { name: '改成' }), { target: { value: '周报按项目分组' } });
+    fireEvent.click(within(c1).getByRole('button', { name: /改好并记住/ }));
+    await screen.findByText(/^没有修改：/);
+    expect((within(c1).getByRole('textbox', { name: '改成' }) as HTMLTextAreaElement).value).toBe('周报按项目分组');
+  });
+
+  it('撤销 after the rejection was already sent says so instead of 撤销了', async () => {
+    const bridge = getBridge();
+    const spy = vi.spyOn(bridge.agentd, 'request');
+    mount('&view=about');
+    const c2 = await screen.findByRole('region', { name: '待确认：写代码时减少主动发言' }, { timeout: 3000 });
+    fireEvent.click(within(c2).getByRole('button', { name: '不是这样' }));
+    const undo = await screen.findByRole('button', { name: '撤销' });
+    fireEvent.click(screen.getByRole('button', { name: /^全部/ }));
+    await waitFor(() => expect(spy.mock.calls.filter(([m, p]) => m === 'POST' && String(p).endsWith('/reject'))).toHaveLength(1));
+    fireEvent.click(undo);
+    expect(await screen.findByText('已经划掉了，撤销不了')).toBeTruthy();
+    expect(screen.queryByText('撤销了，这条还在待确认里')).toBeNull();
   });
 
   it('?view=pipeline&station= opens 管线 at that station in 开发者模式', async () => {

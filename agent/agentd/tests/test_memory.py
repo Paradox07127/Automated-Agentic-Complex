@@ -215,7 +215,7 @@ class MemoryTest(unittest.TestCase):
         fact = self.memory.add("一", "asserted_by_user")
         self.memory.correct(fact, "二")
         self.memory.add("三", "observed_context")
-        self.assertEqual(self.memory.clear(), 3)
+        self.assertEqual(self.memory.clear(), 2)
         self.assertEqual((self.rows(), self.memory.active()), ([], []))
 
     def test_touch_marks_use_without_a_revision(self):
@@ -545,6 +545,23 @@ class ConsolidatedTest(unittest.TestCase):
         self.assertEqual(sorted(self.memory.delete_derived()), sorted([guess, candidate]))
         self.assertEqual([f["fact_id"] for f in self.memory.active()], [page])
         self.assertEqual(self.memory.delete_derived(), [])
+
+    def test_correcting_one_fact_of_a_batch_keeps_its_siblings_and_the_episode(self):
+        from personal.episodes import Episodes
+        from support import add_episode
+        episode = add_episode(Episodes(self.db, clock=lambda: self.now), self.now - 600, self.now, "写周报", "你在写周报。")
+        ref = f"episode:{episode}@2026-10-21"
+        one = self.memory.add("每周五写周报", "observed_context", evidence=[ref])
+        two = self.memory.add("周报按项目分组", "observed_context", evidence=[ref])
+        self.assertEqual(self.memory.correct(one, "每周四写周报"), 2)
+        self.assertEqual(self.rows(two), [(1, "周报按项目分组", "active")])
+        self.assertEqual(self.db.execute("SELECT COUNT(*) FROM episodes WHERE id = ?", (episode,)).fetchone()[0], 1)
+        self.assertEqual(self.db.execute("SELECT COUNT(*) FROM episodes_fts WHERE rowid = ?", (episode,)).fetchone()[0], 1)
+        [corrected] = [f for f in self.memory.active() if f["fact_id"] == one]
+        self.assertEqual((corrected["text"], corrected["evidence"]), ("每周四写周报", []))
+        self.assertTrue(self.memory._suppressed("每周五写周报"))
+        self.memory.delete(two)
+        self.assertEqual(self.rows(one)[-1], (2, "每周四写周报", "active"))
 
     def test_delete_since_takes_candidates_too(self):
         self.memory.add("以前猜的", "inferred_hypothesis", state="candidate")

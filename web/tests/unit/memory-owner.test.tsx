@@ -1,7 +1,7 @@
 // A character's own memory: `owner` on the domain fact, `GET /memory?owner=` in the fake bridge, and the page reading it from its address.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getBridge } from '../../src/bridge';
 import { fromFact } from '../../src/domain/adapt';
@@ -91,5 +91,28 @@ describe('memory owner › page', () => {
     await screen.findByText('小林');
     expect(reads(spy)).toEqual(['/memory']);
     expect(setSub).not.toHaveBeenCalledWith(expect.stringContaining('示例'));
+  });
+
+  it('清空记忆 in her archive counts and deletes only her facts', async () => {
+    const spy = vi.spyOn(getBridge().agentd, 'request');
+    window.location.hash = '#/memory?still=1&view=about&owner=si';
+    const root = createRootRoute({ component: () => <MemoryPage /> });
+    const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/?still=1&view=about&owner=si'] }) });
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    await waitFor(() => expect(document.querySelectorAll('[data-fact]').length).toBe(2));
+    fireEvent.click(screen.getByRole('button', { name: /^管理/ }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: /清空记忆/ }));
+    const ask = await screen.findByRole('alertdialog', { name: '清空示例乙的记忆？' });
+    expect(ask.querySelector('b.num')?.textContent).toBe('2');
+    fireEvent.change(within(ask).getByRole('textbox', { name: '输入删除确认' }), { target: { value: '删除' } });
+    fireEvent.click(within(ask).getByRole('button', { name: '清空' }));
+    await waitFor(() => expect(spy.mock.calls.filter(([m]) => m === 'DELETE').map(([, p]) => p)).toEqual(['/memory?scope=facts&owner=si']));
+    await expect(spy.mock.results.find((_, i) => spy.mock.calls[i]?.[0] === 'DELETE')?.value).resolves.toMatchObject({ body: { facts_deleted: 2 } });
+    expect((await read('?owner=si')).facts).toEqual([]);
+    expect((await read('?owner=shared')).facts.length).toBeGreaterThan(0);
   });
 });

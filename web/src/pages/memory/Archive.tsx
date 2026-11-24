@@ -256,7 +256,7 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, wri
             now={now}
             editing={editing}
             onEdit={setEditing}
-            onSave={(text) => write.correct(open, text)}
+            onSave={(text, from) => write.correct(from, text)}
             onDelete={() => setDeleting(open)}
             onMark={(mark, on) => void write.mark(open, mark, on)}
             onJump={onJump}

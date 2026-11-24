@@ -17,7 +17,6 @@ export const demos: Demo[] = [
   { name: 'review', params: { plugins: 'screen_awareness', view: 'activity' } }, // 回顾：工作片段和原始观察
   { name: 'projects-off', params: { view: 'projects' } }, // 每日简报关着：项目整页已关闭
   { name: 'review-off', params: { view: 'activity' } }, // 屏幕感知关着：回顾整页已关闭
-  { name: 'absent', params: { plugins: 'daily_brief', demo: 'absent', view: 'projects' } }, // agentd 没有 /memory/tasks：项目整页未接入
   { name: 'disconnected', params: { demo: 'disconnected' } }, // 后台断开：档案整页未接入
   { name: 'pipeline', params: { view: 'pipeline' } }, // 管线（开发者模式）：选中整理
   { name: 'pipeline-obs', params: { view: 'pipeline', station: 'obs' } }, // 管线 观察：额度和最近请求
