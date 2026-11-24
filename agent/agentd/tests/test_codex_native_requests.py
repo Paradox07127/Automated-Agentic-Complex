@@ -70,6 +70,27 @@ class NativeRequestTests(unittest.IsolatedAsyncioTestCase):
         await task
         self.assertEqual(self.client.writes, [{'id': 10, 'result': {'answers': {'q': {'answers': ['A']}}}}])
 
+    async def dynamic_tool_reply(self, ident):
+        self.runner.allowed_names.add('look')
+        task = asyncio.create_task(self.client.answer({'id': ident, 'method': 'item/tool/call', 'params': {
+            'threadId': 'thread', 'turnId': 'turn', 'callId': 'call-' + str(ident), 'itemId': 'item',
+            'tool': 'look', 'arguments': {}}}))
+        await asyncio.sleep(0)
+        self.runner.pending['call-' + str(ident)][1].set_result(
+            {'result': {'content': [{'type': 'text', 'text': 'a red door'}]}})
+        await task
+        return self.client.writes.pop()
+
+    async def test_tool_reminder_closes_each_dynamic_tool_result(self):
+        self.runner.config['tool_reminder'] = 'Stay in character.'
+        self.assertEqual(await self.dynamic_tool_reply(30), {'id': 30, 'result': {'success': True, 'contentItems': [
+            {'type': 'inputText', 'text': 'a red door'}, {'type': 'inputText', 'text': '\n\nStay in character.'}]}})
+
+    async def test_no_tool_reminder_leaves_the_dynamic_tool_result_alone(self):
+        self.runner.config['tool_reminder'] = None
+        self.assertEqual(await self.dynamic_tool_reply(31), {'id': 31, 'result': {'success': True, 'contentItems': [
+            {'type': 'inputText', 'text': 'a red door'}]}})
+
     async def approval(self, ident, method, params, option_id):
         task = asyncio.create_task(self.client.answer({'id': ident, 'method': method, 'params': {
             'threadId': 'thread', 'turnId': 'turn', 'itemId': 'item', 'startedAtMs': 0, **params}}))

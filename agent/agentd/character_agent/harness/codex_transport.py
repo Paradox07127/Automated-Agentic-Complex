@@ -26,6 +26,8 @@ class CodexConfig:
     native_home: str | None = None
     runtime_source: str = "local"
     effort: str | None = None
+    # Closes each result of the harness's own tools; None: results reach Codex unchanged.
+    tool_reminder: str | None = None
     backend: str = field(default="codex", init=False)
     # The directory the harness's own tools work in; native_tools False: the harness offers none of them.
     workspace_dir: str = field(kw_only=True)
@@ -45,6 +47,9 @@ class CodexConfig:
             raise ValueError("workspace_dir_must_be_absolute")
         if type(self.native_tools) is not bool:
             raise ValueError("invalid_native_tools")
+        if self.tool_reminder is not None and (not isinstance(self.tool_reminder, str) or not self.tool_reminder
+                                               or len(self.tool_reminder) > 1000):
+            raise ValueError("invalid_tool_reminder")
         for value in (self.startup_timeout, self.tool_timeout):
             if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
                 raise ValueError("invalid_budget")
@@ -70,7 +75,8 @@ class CodexConfig:
                 "api_key": self.api_key, "cli_path": self.cli_path,
                 "tool_timeout": self.tool_timeout, "persist_session": False,
                 "base_url": self.base_url, "auth_mode": self.auth_mode, "runtime_source": self.runtime_source,
-                "effort": self.effort, "workspace_dir": self.workspace_dir, "native_tools": self.native_tools}
+                "effort": self.effort, "workspace_dir": self.workspace_dir, "native_tools": self.native_tools,
+                "tool_reminder": self.tool_reminder}
 
     def public(self):
         return {"backend": self.backend, "runtime_source": self.runtime_source, "auth_mode": self.auth_mode,
