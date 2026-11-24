@@ -6,12 +6,14 @@ import { deriveView, type TasksLocal } from '../tasks/model';
 import { useReceipts } from '../tasks/live';
 import { usePlanSnapshot, type ChatTasks } from './useChatData';
 
-export function useChatReceipts(data: ChatTasks | undefined, conv: string | null, reload: () => void) {
+export function useChatReceipts(data: ChatTasks | undefined, reload: () => void) {
   const qc = useQueryClient();
   return useReceipts(data?.base.deliveries ?? [], (d: Delivery) => {
-    qc.setQueryData<ChatTasks>(['chat-tasks', conv], (data) => data ? { ...data, base: { ...data.base,
-      deliveries: data.base.deliveries.map((x) => x.id === d.id ? d : x),
-      tasks: data.base.tasks.map((t) => t.delivery?.id === d.id ? { ...t, delivery: d, revision: d.revision } : t),
+    // A reply may land after a topic switch, or after a read that brought a newer (or redacted) revision.
+    const newer = (x: Delivery) => x.id === d.id && d.revision > x.revision && !x.redacted;
+    qc.setQueriesData<ChatTasks>({ queryKey: ['chat-tasks'] }, (data) => data ? { ...data, base: { ...data.base,
+      deliveries: data.base.deliveries.map((x) => newer(x) ? d : x),
+      tasks: data.base.tasks.map((t) => t.delivery && newer(t.delivery) ? { ...t, delivery: d, revision: d.revision } : t),
     } } : data);
   }, reload);
 }

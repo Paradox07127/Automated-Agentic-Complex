@@ -282,6 +282,7 @@ describe('chat composer look / no_memory', () => {
       setAnswered: () => {},
       setCancelled: () => {},
       setFailed: () => {},
+      dropFailed: () => {},
       setSending: () => {},
       setBusyDecide: () => {},
       setNotice: () => {},

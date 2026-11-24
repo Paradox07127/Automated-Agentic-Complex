@@ -261,6 +261,15 @@ describe('injected text and drops are used once, by the topic they name', () => 
     expect(onDraftUsed).toHaveBeenCalledTimes(1);
   });
 
+  it('an example put in after the user typed leaves the typed text', () => {
+    const onDraftUsed = vi.fn();
+    const { rerender } = render(<Composer {...props({ topicId: 'inj-c', onDraftUsed })} />);
+    type('abc');
+    rerender(<Composer {...props({ topicId: 'inj-c', draft: { text: '你能帮我做些什么？', topic: 'inj-c' }, onDraftUsed })} />);
+    expect(box().value).toBe('abc');
+    expect(onDraftUsed).toHaveBeenCalledTimes(1);
+  });
+
   it('a remount with the same drop does not adopt it again once it was used', async () => {
     const base = createFakeBridge({ surface: 'main', still: true });
     const adoptDropped = vi.fn(async (files: File[]) => files.map((f, i) => ({ handle: `D${i}`, displayName: f.name, size: f.size })));

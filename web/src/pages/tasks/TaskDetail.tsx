@@ -239,8 +239,9 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
             </section>
           )
         )}
+        {/* A display: contents node has no box, so it would never be seen intersecting. */}
         {deliveries.length > 0 && (
-          <div ref={visible} style={{ display: 'contents' }}>
+          <div ref={visible} style={{ display: 'grid', gap: 'inherit' }}>
             <Artifacts
               deliveries={deliveries}
               canReveal={getBridge().capabilities.revealInFinder}

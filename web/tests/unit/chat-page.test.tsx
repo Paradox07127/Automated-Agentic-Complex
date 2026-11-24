@@ -2,9 +2,16 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createFakeBridge } from '../../src/bridge/fake';
+import { PLUGINS } from '../../src/bridge/plugins.generated';
 import type { WireTraceTurn } from '../../src/domain/wire';
 import { isoWithOffset } from '../../src/domain';
+import type { MockRoute } from '../../src/mock';
+import { NOW, WIRE_RUNS } from '../../src/mock/fixtures';
 import { at } from '../../src/mock/fixtures/clock';
+import { C1, T1 } from '../../src/mock/fixtures/ids';
+import { WIRE_CONVERSATIONS } from '../../src/mock/fixtures/wire/chat';
+import { WIRE_TASK_ROWS } from '../../src/mock/fixtures/wire/work';
 import { ChatPage } from '../../src/pages/chat/Page';
 import { TurnInspector } from '../../src/pages/chat/TurnInspector';
 import { useBottomPin } from '../../src/pages/chat/useBottomPin';
@@ -19,6 +26,8 @@ afterEach(() => pluginsReset());
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
+  delete window.agenticComplex;
 });
 
 async function mount(search = '') {
@@ -220,5 +229,62 @@ describe('chat page', () => {
     card.removeAttribute('data-pending');
     renderHook(() => useBottomPin({ current: el }, true, []));
     expect(top).toBe(2000);
+  });
+});
+
+describe('chat: 停止', () => {
+  /** A bridge over the mock routes plus `routes` that records each agentd POST. */
+  function recording(routes: MockRoute[] = []) {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(NOW);
+    const base = createFakeBridge({ surface: 'main', still: true, routes });
+    const posts: Array<{ path: string; body: unknown }> = [];
+    window.agenticComplex = {
+      ...base,
+      agentd: { ...base.agentd, request: (method, path, body) => (method === 'POST' && posts.push({ path, body }), base.agentd.request(method, path, body)) },
+      feed: { subscribe: () => () => {} },
+    };
+    return posts;
+  }
+  const idleList: MockRoute = { method: 'GET', path: '/conversations', handler: () => ({ status: 200, body: { conversations: WIRE_CONVERSATIONS, busy: false } }) };
+  const stop = async () => {
+    await screen.findByText(/^执行中/);
+    fireEvent.click(screen.getByRole('button', { name: '停止' }));
+  };
+  const confirm = () => fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '停止任务' }));
+
+  it('stops a topic whose only run is a background job through the job’s own cancel', async () => {
+    const bg = (r: { run_id: string | null }) => (r.run_id === 'run-8d03' ? { ...r, run_id: 'bg-8d03' } : r);
+    const job = WIRE_TASK_ROWS.find((r) => r.canonical_task_id === T1)!.job_id!;
+    const posts = recording([
+      { method: 'GET', path: '/agent/runs', handler: () => ({ status: 200, body: { runs: WIRE_RUNS.map(bg) } }) },
+      { method: 'GET', path: '/agent/tasks', handler: () => ({ status: 200, body: { tasks: WIRE_TASK_ROWS.map(bg), next_cursor: null } }) },
+    ]);
+    await mount();
+    await stop();
+    confirm();
+    await waitFor(() => expect(posts.map((p) => p.path)).toContain(`/agent/jobs/${job}/cancel`));
+    expect(posts.some((p) => p.path.endsWith('/cancel') && p.path.startsWith('/conversations/'))).toBe(false);
+  });
+
+  it('with 个人代理 off, stops the line that is being answered by its run', async () => {
+    pluginsOn(...PLUGINS.map((p) => p.id).filter((id) => id !== 'personal_agent'));
+    const posts = recording([{ method: 'POST', path: '/conversations/:id/messages', handler: () => ({ status: 202, body: { line_id: 'line-x', generation: 2, run_id: 'line-x' } }) }]);
+    const thread = await mount();
+    fireEvent.change(await within(thread).findByRole('textbox', { name: '消息' }), { target: { value: '在吗' } });
+    fireEvent.click(within(thread).getByRole('button', { name: '发送' }));
+    await stop();
+    confirm();
+    await waitFor(() => expect(posts.filter((p) => p.path === `/conversations/${C1}/cancel`).map((p) => p.body)).toEqual([{ run_id: 'line-x', generation: 2 }]));
+  });
+
+  it('stops the topic the dialog was opened in, though another one is shown by the time it is confirmed', async () => {
+    const posts = recording([idleList]);
+    await mount();
+    await stop();
+    fireEvent.click(within(screen.getByRole('navigation', { name: '话题' })).getByText('HostLink 断线排查'));
+    await screen.findByRole('button', { name: '继续此对话' });
+    confirm();
+    await waitFor(() => expect(posts.filter((p) => p.path.endsWith('/cancel')).map((p) => p.path)).toEqual([`/conversations/${C1}/cancel`]));
   });
 });

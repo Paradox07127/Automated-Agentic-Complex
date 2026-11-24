@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgenticComplexBridge, StreamEvent } from '../../src/bridge';
 import { createFakeBridge } from '../../src/bridge/fake';
@@ -11,6 +12,8 @@ import { C1, C2, Q1, Q_APPROVAL, T1 } from '../../src/mock/fixtures/ids';
 import { createChatActions, type ChatDeps } from '../../src/pages/chat/actions';
 import { reasonOf } from '../../src/pages/chat/reasons';
 import { ChatPage } from '../../src/pages/chat/Page';
+import type { ChatTasks } from '../../src/pages/chat/useChatData';
+import { useChatReceipts } from '../../src/pages/chat/useChatTaskView';
 import { chatStream } from '../../src/pages/chat/stream';
 import { ToastHost } from '../../src/shell/toast';
 import { AgentdCallError, get } from '../../src/bridge/agentd';
@@ -476,6 +479,7 @@ describe('chat actions', () => {
       setAnswered: () => {},
       setCancelled: () => {},
       setFailed: () => {},
+      dropFailed: () => {},
       setSending: () => {},
       setBusyDecide: () => {},
       setNotice: () => {},
@@ -514,6 +518,20 @@ describe('chat actions', () => {
     expect(b.of('POST', `/agent/interactions/${Q1}/dismiss`)[0]!.body).toEqual({ expected_version: q.revision });
   });
 
+  it('an answer saved with resume_required offers 继续, which posts the continue with the reply revision', async () => {
+    const actions: Array<{ label: string; onClick?: () => void }> = [];
+    const { fromInteraction } = await import('../../src/domain');
+    const q = fromInteraction(WIRE_INTERACTIONS[0]!, NOW);
+    const { b, a, pushes } = await actionsWith({ push: (m, o) => void (pushes.push(m), o?.action && actions.push(o.action)) }, [
+      { method: 'POST', path: '/agent/interactions/:id/answer', handler: () => ({ status: 200, body: { ...WIRE_INTERACTIONS[0]!, revision: 3, resume_required: true } }) },
+      { method: 'POST', path: '/agent/interactions/:id/continue', handler: () => ({ status: 202, body: {} }) },
+    ]);
+    await a.answer(q, { scope: ['包含'] });
+    expect(actions.map((x) => x.label)).toEqual(['继续']);
+    actions[0]!.onClick?.();
+    await waitFor(() => expect(b.of('POST', `/agent/interactions/${Q1}/continue`).map((c) => c.body)).toEqual([{ expected_version: 3 }]));
+  });
+
   it('a first line with no conversation opens one for her character with POST /conversations {character_id}', async () => {
     const { b, a } = await actionsWith({ conv: null });
     await a.send('你好');
@@ -538,7 +556,7 @@ describe('chat actions', () => {
     const failed: string[] = [];
     let lists = 0;
     const { a } = await actionsWith(
-      { setFailed: (f) => void (f && failed.push(f.reason)), reload: { list: () => void lists++, turns: () => {}, tasks: () => {}, present: () => {}, runtime: async () => undefined } },
+      { setFailed: (f) => void failed.push(f.reason), reload: { list: () => void lists++, turns: () => {}, tasks: () => {}, present: () => {}, runtime: async () => undefined } },
       [{ method: 'POST', path: '/conversations/:id/messages', handler: () => ({ status: 409, body: { error: code } }) }],
     );
     await a.send('停下');
@@ -561,6 +579,43 @@ describe('chat actions', () => {
     expect(reasonOf(new AgentdCallError(409, 'version_conflict', undefined, { error: 'version_conflict' }, 'x'))).toBe('已在别处更新');
     expect(reasonOf(new AgentdCallError(0, 'route_class', undefined, null, 'x'))).toBe('后台拒绝了这次操作');
     expect(reasonOf(new AgentdCallError(503, 'native_login_required', undefined, { error: 'native_login_required', runtime: 'codex' }, 'x'))).toBe('角色内核未就绪');
+  });
+});
+
+describe('chat delivery receipts', () => {
+  const wire = { ...WIRE_TASK_ROWS.find((r) => r.canonical_task_id === T1)!.delivery!, revision: 3, presented_at: null, viewed_at: null };
+
+  /** The receipt hook over a cache holding `wire` in C1; the presented POST waits for `answer`. */
+  async function receipts() {
+    const { fromDelivery } = await import('../../src/domain');
+    let answer: ((revision: number) => void) | null = null;
+    bridge([{ method: 'POST', path: '/agent/deliveries/:id/presented', handler: () => new Promise((r) => (answer = (revision) => r({ status: 200, body: { delivery: { ...wire, revision, presented_at: NOW / 1000 } } }))) }]);
+    const qc = new QueryClient();
+    const data = { base: { tasks: [], deliveries: [fromDelivery(wire)], sessions: [], approvals: [], questions: [], goals: [], activeRuns: {}, roleMissing: false }, runConversation: {}, frontRunning: false } as ChatTasks;
+    qc.setQueryData(['chat-tasks', C1], data);
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+    const hook = renderHook(({ conv }) => useChatReceipts(qc.getQueryData<ChatTasks>(['chat-tasks', conv]), () => {}), { wrapper, initialProps: { conv: C1 } });
+    const cached = () => qc.getQueryData<ChatTasks>(['chat-tasks', C1])!.base.deliveries[0]!;
+    const asked = () => waitFor(() => expect(answer).not.toBeNull());
+    return { qc, data, hook, cached, asked, answer: (revision: number) => act(async () => answer?.(revision)) };
+  }
+
+  it('a late receipt reply does not undo a newer redacted revision', async () => {
+    const r = await receipts();
+    r.hook.result.current(wire.delivery_id, 'presented');
+    await r.asked();
+    r.qc.setQueryData<ChatTasks>(['chat-tasks', C1], { ...r.data, base: { ...r.data.base, deliveries: [{ ...r.data.base.deliveries[0]!, revision: 5, redacted: true }] } });
+    await r.answer(4);
+    expect(r.cached()).toMatchObject({ revision: 5, redacted: true });
+  });
+
+  it('a reply that lands after a topic switch patches the topic the delivery is in', async () => {
+    const r = await receipts();
+    r.hook.result.current(wire.delivery_id, 'presented');
+    r.hook.rerender({ conv: C2 });
+    await r.asked();
+    await r.answer(4);
+    await waitFor(() => expect(r.cached().revision).toBe(4));
   });
 });
 

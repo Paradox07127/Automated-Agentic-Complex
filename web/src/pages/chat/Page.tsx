@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouterState } from '@tanstack/react-router';
-import type { ActiveRun, Conversation, Question, Task, WireTurn } from '../../domain';
+import type { Conversation, Question, Task, WireTurn } from '../../domain';
 import { resumeOf, StopConfirm } from '../../features/task';
 import { useToast } from '../../shell/toast';
 import { useDemo } from '../../shell/demo';
 import { Btn, Empty, ErrBar, Skel } from '../../ui';
 import { emptyLocal, type TasksLocal } from '../tasks/model';
 import { navigate } from '../../shell/nav';
-import { createChatActions } from './actions';
+import { createChatActions, type StopTarget } from './actions';
 import { CharTabs } from './CharTabs';
 import { ChatBar } from './ChatBar';
 import { ChatReadBanner } from './ChatReadBanner';
@@ -80,7 +80,7 @@ export function ChatPage() {
   const [cancelled, setCancelled] = useState<Record<string, boolean>>({});
   const [busyDecide, setBusyDecide] = useState(false);
   const [rp, setRp] = useState<Rp>(() => initialRp(demo));
-  const [stopAsk, setStopAsk] = useState<{ run: Pick<ActiveRun, 'run_id' | 'generation'>; task: Task | null; title: string } | null>(null);
+  const [stopAsk, setStopAsk] = useState<{ target: StopTarget; task: Task | null; title: string } | null>(null);
   const [deleting, setDeleting] = useState<Conversation | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const { folded, toggle, open } = useFold();
@@ -116,14 +116,16 @@ export function ChatPage() {
 
   const { view, convTasks, task, run, livePlan, headerRun, defaultTask } = useChatTaskView(tasksQ.data, local, conv, feed.plans, rp?.taskId ?? null);
   const activeTurn = tasksQ.data?.activeTurn;
-  const stopTarget = activeTurn ?? headerRun;
-  const stopTask = stopTarget?.run_id === headerRun?.run_id ? defaultTask : null;
-  const receipt = useChatReceipts(tasksQ.data, conv, () => refetchTasks());
+  const receipt = useChatReceipts(tasksQ.data, () => refetchTasks());
   const topBusy = convs.data?.busy ?? false;
   const owner = tasksQ.data?.runConversation ?? {};
   const requests: Question[] = (tasksQ.data?.base.questions ?? []).filter((r) => (r.conversation_id ?? owner[r.run_id ?? '']) === conv);
   const messages = chatStream(turns.messages, convTasks, requests, feed.allowedTools);
   const replies = feed.replies.filter((r) => r.conversation_id === conv && !turns.turnIds.has(r.line_id));
+  // The foreground line's run from its send reply: with 个人代理 off there is no /agent/runs to name it.
+  const liveTurn = replies.find((r) => r.run_id != null && !r.final && !r.side);
+  const stopRun = activeTurn ?? (liveTurn?.run_id != null ? { run_id: liveTurn.run_id, generation: liveTurn.generation } : null) ?? headerRun;
+  const stopTask = stopRun?.run_id === headerRun?.run_id ? defaultTask : null;
   const { selected, kernel } = kernelState(runtime.data);
   const findRequest = (id: string) => requests.find((r) => r.id === id);
 
@@ -131,7 +133,7 @@ export function ChatPage() {
   const rowOf = (turnId: string | null | undefined) => (turnId ? (traceRows.data?.get(turnId) ?? null) : null);
   const memsOf = (turnId: string | undefined) => ({ mems: (turnId && facts.data?.get(turnId)) || [], learned: turnId ? learnedOf(src, turnId) : [] });
 
-  const { failed, setFailed, notice, setNotice, sending, setSending, draft, setDraft, quote, setQuote, dropped, setDropped, quoteLine, quoteLive } = useSendState(q, demo, conv, character, wire, replies);
+  const { failed, setFailed, dropFailed, notice, setNotice, sending, setSending, draft, setDraft, quote, setQuote, dropped, setDropped, quoteLine, quoteLive } = useSendState(q, demo, conv, character, wire, replies);
   useStreamScroll(scroller, aim, wire, conv);
 
   const actions = createChatActions({
@@ -147,7 +149,8 @@ export function ChatPage() {
     setLocal,
     setAnswered,
     setCancelled,
-    setFailed: (f, c) => setFailed((cur) => (f ?? (c !== undefined && cur != null && cur.conv !== c ? cur : null))),
+    setFailed,
+    dropFailed,
     setSending,
     setBusyDecide,
     setNotice,
@@ -205,9 +208,7 @@ export function ChatPage() {
     void turns.query.refetch();
     refetchTasks();
   };
-  // A failed line shows in the topic it was for only.
-  const failedHere = failed != null && failed.conv === conv ? failed : null;
-  const modelError = (demo === 'nomodel' ? 'no_llm' : null) ?? failedHere?.code ?? replies.at(-1)?.error ?? rowOf(wire.at(-1)?.turn_id)?.error_code ?? (selected?.id === 'pi' && runtime.data?.info.error === 'pi_connection_missing' ? 'pi_connection_missing' : null);
+  const modelError = (demo === 'nomodel' ? 'no_llm' : null) ?? failed?.code ?? replies.at(-1)?.error ?? rowOf(wire.at(-1)?.turn_id)?.error_code ?? (selected?.id === 'pi' && runtime.data?.info.error === 'pi_connection_missing' ? 'pi_connection_missing' : null);
 
   const roleName = who?.name ?? '角色';
   const headUrl = who?.head ? { headUrl: who.head } : {};
@@ -303,14 +304,12 @@ export function ChatPage() {
       <ChatBar
         tabs={<CharTabs chars={charList} selected={character} present={present} onPick={pickChar} menuFor={tabMenuFor} />}
         status={current != null && !empty && state == null}
-        elsewhere={topBusy && !stopTarget}
+        elsewhere={topBusy && !stopRun}
         run={empty ? null : headerRun}
-        canStop={stopTarget != null}
+        canStop={stopRun != null && conv != null}
         doneSteps={headerRun?.plan?.steps.filter((s) => s.status === 'completed').length ?? 0}
         totalSteps={headerRun?.plan?.steps.length ?? 0}
-        onStop={() => {
-          if (stopTarget) setStopAsk({ run: stopTarget, task: stopTask, title: stopTask?.title ?? current?.title ?? '当前对话' });
-        }}
+        onStop={() => stopRun && conv && setStopAsk({ target: { conv, run_id: stopRun.run_id, generation: stopRun.generation, job_id: stopRun.run_id.startsWith('bg-') ? (stopTask?.job_id ?? null) : null }, task: stopTask, title: stopTask?.title ?? current?.title ?? '当前对话' })}
       />
       <aside className={styles.list} data-g="list">
         {/* A failed list read shows once, in the message area. */}
@@ -364,13 +363,13 @@ export function ChatPage() {
               sideHint={(tasksQ.data?.frontRunning ?? false) && !right}
               quietSend={right != null}
               kernel={kernel}
-              failed={failedHere} sending={sending} notice={notice}
+              failed={failed} sending={sending} notice={notice}
               lookOff={lookOff.data ?? null}
               topicId={current?.id}
               quote={quote} onClearQuote={() => setQuote(null)}
               onSend={(t, o) => actions.send(t, o)}
-              onResend={() => failedHere && void actions.resend(failedHere.text, failedHere.options, { conv: failedHere.conv, character: failedHere.character })}
-              onDiscardFailed={() => setFailed(null)}
+              onResend={() => failed && void actions.resend(failed.text, failed.options, { conv: failed.conv, character: failed.character, failed: failed.id })}
+              onDiscardFailed={() => failed && dropFailed(failed.id)}
               onContinue={() => current && void actions.activate(current)}
               onRestore={() => current && void actions.restore(current)}
               onRecheck={() => void actions.recheck()}
@@ -390,7 +389,7 @@ export function ChatPage() {
         onCancel={() => setStopAsk(null)}
         onConfirm={() => {
           setStopAsk(null);
-          if (stopAsk) void actions.stop(stopAsk.run, stopAsk.title);
+          if (stopAsk) void actions.stop(stopAsk.target, stopAsk.title);
         }}
       />
       <DeleteCard conv={deleting} onClose={() => setDeleting(null)} onArchive={(c) => void actions.archive(c)} onDelete={(c) => void actions.remove(c)} />

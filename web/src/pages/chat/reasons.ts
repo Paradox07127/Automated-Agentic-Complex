@@ -34,6 +34,7 @@ const REASONS: Record<string, string> = {
   character_not_present: '角色不在桌面上',
   switch_refused: '没能换角色出来',
   switch_timeout: '换角色超时，还没出来',
+  not_stopped: '后台没有停下这个任务：它的状态已经变了',
 };
 
 /** 409 codes that say what the request lacked, not that something changed elsewhere: no conflict text, no reload. */

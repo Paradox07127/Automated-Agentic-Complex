@@ -198,6 +198,8 @@ describe('chat: kernel not ready', () => {
     loggedIn = true;
     fireEvent.click(within(notice).getByRole('button', { name: '重新检测' }));
     await waitFor(() => expect(spy.mock.calls.some(([m, p]) => m === 'GET' && p === '/character/runtime?refresh=1')).toBe(true));
+    // The failed line outlives the page; the next case starts without it.
+    fireEvent.click(within(thread).getByRole('button', { name: '放弃' }));
   });
 
   it('rereads an unready runtime when the window regains focus', async () => {

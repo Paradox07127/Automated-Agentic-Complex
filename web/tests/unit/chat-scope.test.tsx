@@ -26,14 +26,19 @@ const scope = (id: string) => ({
 });
 
 /** The bodies sent to `/messages` and `POST /agent/scopes`, the picker call, and `emit` for a feed event. */
-function bridge() {
+function bridge(refuse = 0) {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(NOW);
   let n = 0;
   const bodies: unknown[] = [];
   const made: unknown[] = [];
   const routes: MockRoute[] = [
-    { method: 'POST', path: '/conversations/:id/messages', handler: ({ body }) => (++n, bodies.push(body), { status: 202, body: { line_id: `line-${n}`, generation: 43, run_id: `run-${n}`, runtime: 'codex' } }) },
+    {
+      method: 'POST',
+      path: '/conversations/:id/messages',
+      // The first `refuse` lines are refused as if her character had left the desktop.
+      handler: ({ body }) => (bodies.push(body), bodies.length <= refuse ? { status: 409, body: { error: 'character_not_present' } } : (++n, { status: 202, body: { line_id: `line-${n}`, generation: 43, run_id: `run-${n}`, runtime: 'codex' } })),
+    },
     { method: 'POST', path: '/agent/scopes', handler: ({ body }): MockResponse => (made.push(body), { status: 201, body: scope(`scope-${made.length}`) }) },
   ];
   const base = createFakeBridge({ surface: 'main', still: true, routes });
@@ -111,6 +116,20 @@ describe('files on the chat composer', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     await send(thread, '只说一次', 1);
     expect(b.bodies).toEqual([{ text: '只说一次', no_memory: true }]);
+  });
+
+  it('a send whose swap card was declined after its scope was made keeps the scope for the next send', async () => {
+    const b = bridge(1);
+    const thread = await mount();
+    await attach(thread);
+    fireEvent.change(within(thread).getByRole('textbox', { name: '消息' }), { target: { value: '汇总一下' } });
+    fireEvent.click(within(thread).getByRole('button', { name: /发送/ }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '先不换' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(b.made).toHaveLength(1);
+    await send(thread, '汇总一下', 1);
+    expect(b.made).toHaveLength(1);
+    expect(b.bodies).toEqual([{ text: '汇总一下', scope_id: 'scope-1' }, { text: '汇总一下', scope_id: 'scope-1' }]);
   });
 
   it('重试 sends the same scope_id again, without making another scope', async () => {

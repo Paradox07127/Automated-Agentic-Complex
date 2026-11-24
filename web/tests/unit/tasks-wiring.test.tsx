@@ -4,8 +4,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AgentdCallError } from '../../src/bridge/agentd';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgentdResponse, StreamEvent } from '../../src/bridge/protocol';
-import { fromDelivery, type Delivery } from '../../src/domain';
-import { APPROVALS, atS, GOALS, NOW, pick, QUESTIONS, TASKS, WIRE_DELIVERIES, WIRE_RUNTIME, WIRE_TASK_ROWS } from '../../src/mock/fixtures';
+import { formatClock, fromDelivery, type Delivery, type Task } from '../../src/domain';
+import { TaskDrawer } from '../../src/features/task';
+import { APPROVALS, atS, DELIVERIES, GOALS, NOW, pick, QUESTIONS, TASKS, WIRE_DELIVERIES, WIRE_RUNTIME, WIRE_TASK_ROWS } from '../../src/mock/fixtures';
 import { A2, DLV_T1_V2, G1, Q1, S_C07A, S_5E10, T1, T2, T3, T5, T6 } from '../../src/mock/fixtures/ids';
 import { createTasksActions, failMessage, NATIVE_OFF, type ActionDeps } from '../../src/pages/tasks/actions';
 import { sendReceipt } from '../../src/pages/tasks/deliveryCalls';
@@ -592,3 +593,39 @@ describe('tasks: own coding session rename, archive, delete (⋯)', () => {
   });
 });
 
+
+describe('chat TaskDrawer: what it offers', () => {
+  const t1 = pick(TASKS, T1);
+  const v2 = pick(DELIVERIES, DLV_T1_V2);
+  const continueBox = () => document.querySelector('[data-stub="RejectBox"][data-mode="continue"]');
+
+  it('a failed role job whose latest version was decided still offers 继续', () => {
+    const decided: Delivery = { ...v2, state: 'rejected', decided_at: NOW - 60_000 };
+    render(<TaskDrawer task={{ ...t1, status: 'failed' }} effective="failed" now={NOW} delivery={decided} />);
+    expect(screen.getByText(/这一版已退回/)).toBeTruthy();
+    expect(continueBox()).not.toBeNull();
+  });
+
+  it('a running foreground ledger task offers no 继续 agentd would refuse as character_busy', () => {
+    const ledger: Task = { ...t1, id: 'task:character-run-77a2', job_id: null, task_id: 'character-run-77a2', target: 'character', status: 'running' };
+    render(<TaskDrawer task={ledger} effective="running" now={NOW} />);
+    expect(continueBox()).toBeNull();
+  });
+
+  it('while a reject is being sent, 接受这一版 and the reject toggle are locked', () => {
+    const onAction = vi.fn();
+    render(<TaskDrawer task={t1} effective="waiting" now={NOW} delivery={v2} rejecting busy onAction={onAction} />);
+    const accept = screen.getByText('接受这一版').closest('button')!;
+    expect(accept.getAttribute('aria-disabled') === 'true' || accept.disabled).toBe(true);
+    fireEvent.click(accept);
+    fireEvent.click(screen.getByText('收起').closest('button')!);
+    expect(onAction).not.toHaveBeenCalled();
+    expect(screen.getByText('驳回并继续')).toBeTruthy();
+  });
+
+  it('a cancelled task with no stop time given shows when it ended', () => {
+    const ended = NOW - 5 * 60_000;
+    render(<TaskDrawer task={{ ...t1, status: 'cancelled', ended_at: ended }} effective="stopped" now={NOW} />);
+    expect(screen.getByRole('status').textContent).toContain(formatClock(ended));
+  });
+});

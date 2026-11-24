@@ -16,6 +16,7 @@ import {
   type Question,
   type Task,
   type WireConversation,
+  type WireInteraction,
 } from '../../domain';
 import type { TaskAction } from '../../features/task';
 import type { PushToast } from '../../shell/toast';
@@ -31,6 +32,8 @@ import type { LiveReply } from './useChatFeed';
 
 /** A line that failed to send, with where it was going: 「重新发送」 goes there, and only that topic shows it. */
 export interface Failed {
+  /** The send it came from; a resend that fails again keeps it. */
+  id: string;
   text: string;
   reason: string;
   code?: string;
@@ -43,6 +46,16 @@ export interface Failed {
 export interface SendTarget {
   conv: string | null;
   character: string | null;
+  /** The failed line this send retries. */
+  failed?: string;
+}
+
+/** What 停止 stops, fixed when its dialog opens: a background job through its own cancel, else the run of `conv`. */
+export interface StopTarget {
+  conv: string;
+  run_id: string;
+  generation: number;
+  job_id: string | null;
 }
 
 export interface ChatDeps {
@@ -63,8 +76,10 @@ export interface ChatDeps {
   setLocal: Dispatch<SetStateAction<TasksLocal>>;
   setAnswered: Dispatch<SetStateAction<Record<string, string>>>;
   setCancelled: Dispatch<SetStateAction<Record<string, boolean>>>;
-  /** `null` with `conv` takes back only the failure that topic holds. */
-  setFailed: (f: Failed | null, conv?: string | null) => void;
+  /** Keeps a failed line in its topic, in place of the one with its id. */
+  setFailed: (f: Failed) => void;
+  /** Takes back the failed line with this id. */
+  dropFailed: (id: string) => void;
   setSending: (b: boolean) => void;
   setBusyDecide: (b: boolean) => void;
   setNotice: (n: string | null) => void;
@@ -112,21 +127,31 @@ export function createChatActions(d: ChatDeps) {
     send: (text: string, options: Partial<SendOptions> = {}) => deliver(text, options, d.failSend),
     resend: (text: string, options: Partial<SendOptions> = {}, to?: SendTarget) => deliver(text, options, false, to),
 
-    stop: (target: Pick<ActiveRun, 'run_id' | 'generation'> | null = d.run, title = d.task?.title) =>
+    stop: (t: StopTarget, title: string) =>
       attempt('停止失败', async () => {
-        if (!d.conv || !target) return;
-        await post(`/conversations/${seg(d.conv.id)}/cancel`, conversationCancel(target));
-        d.push(`已请求停止「${title ?? d.conv.title}」`);
+        // agentd's conversation cancel leaves the conversation's jobs running (integration.py _cancel_conversation).
+        if (t.job_id) {
+          const { cancelled } = await post<{ cancelled: boolean }>(`/agent/jobs/${seg(t.job_id)}/cancel`, {});
+          if (!cancelled) throw { code: 'not_stopped' };
+        } else await post(`/conversations/${seg(t.conv)}/cancel`, conversationCancel(t));
+        d.push(`已请求停止「${title}」`);
         d.reload.tasks();
       }),
 
     answer: (q: Question, answers: Record<string, string[]>) =>
       attempt('回答没有送达', async () => {
-        await post(`/agent/interactions/${seg(q.id)}/answer`, interactionAnswer(q, answers));
+        const reply = await post<WireInteraction & { resume_required?: boolean }>(`/agent/interactions/${seg(q.id)}/answer`, interactionAnswer(q, answers));
         const txt = Object.values(answers).flat().join(' │ ');
         d.setLocal((l) => ({ ...l, resolved: { ...l.resolved, [q.id]: true } }));
         d.setAnswered((m) => ({ ...m, [q.id]: txt }));
-        d.push(`已回答：${txt}`);
+        // An answer that lands while another turn runs waits for an explicit 继续 (interactions.py respond).
+        const resume = () =>
+          attempt('没有继续', async () => {
+            await post(`/agent/interactions/${seg(q.id)}/continue`, { expected_version: reply.revision });
+            d.push('角色已继续');
+            d.reload.tasks();
+          });
+        d.push(`已回答：${txt}`, reply.resume_required ? { action: { label: '继续', onClick: () => void resume() } } : undefined);
         d.reload.tasks();
       }),
 

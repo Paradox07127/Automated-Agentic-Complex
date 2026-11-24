@@ -56,16 +56,19 @@ export function TaskDrawer({ task, effective, now, delivery: latest = null, deli
   const versions = deliveries ?? (latest ? [latest] : []);
   // The picked version replaces the latest one in 产物, 版本 and the decision row, as in DeliveryBox.
   const delivery = versions.find((d) => d.id === shown) ?? latest;
-  const visible = useDeliveryVisibility<HTMLElement>(delivery, onReceipt, 'viewed');
+  const visible = useDeliveryVisibility<HTMLDivElement>(delivery, onReceipt, 'viewed');
   const stopped = stoppedAt != null || task.status === 'cancelled';
   const resumable = canContinue(task);
   const jobRunning = task.job_id != null && task.status === 'running';
+  // A running foreground task takes no note: agentd answers character_busy (routes/http.py).
+  const carryOn = task.source === 'role' && (task.job_id || task.task_id) && ['failed', 'interrupted', 'rejected'].includes(task.status);
+  const stopTime = stoppedAt ?? task.ended_at;
   const undecided = delivery != null && delivery.id === latest?.id && isReviewableDelivery(delivery, task);
   // Only a task waiting on the user keeps the yellow block; every other state is a lamp.
   const status = statusKey(task, effective, stoppedAt);
   const statusText = statusLabel(task, effective, pending, stoppedAt);
   return (
-    <aside ref={visible} data-stub="TaskDrawer" data-effective={effective} data-rejecting={rej || undefined} data-in-sheet={inSheet || undefined} className={styles.root} aria-label={`任务 │ ${task.title}`}>
+    <aside data-stub="TaskDrawer" data-effective={effective} data-rejecting={rej || undefined} data-in-sheet={inSheet || undefined} className={styles.root} aria-label={`任务 │ ${task.title}`}>
       {!inSheet && (
         <header className={styles.head}>
           <h2 className={styles.title}>{task.title}</h2>
@@ -93,7 +96,8 @@ export function TaskDrawer({ task, effective, now, delivery: latest = null, deli
         </div>
         {delivery && (
           <>
-            <div className={styles.reward}>
+            {/* 'viewed' goes when the delivery's own rows are on screen, not the drawer's head. */}
+            <div ref={visible} className={styles.reward}>
               <dt>产物</dt>
               <dd>
                 <ArtifactList
@@ -123,7 +127,7 @@ export function TaskDrawer({ task, effective, now, delivery: latest = null, deli
               <Icon name="stop" size={14} />
             </span>
             <span>
-              已停止 │ <span className="num">{stoppedAt != null ? formatClock(stoppedAt) : '—'}</span> │ 已写出的产物保留。这一版不能再接受或驳回。
+              已停止 │ <span className="num">{stopTime != null ? formatClock(stopTime) : '—'}</span> │ 已写出的产物保留。这一版不能再接受或驳回。
             </span>
           </div>
           {resumable && <RejectBox mode="continue" kernelName={kernelName} onSubmit={(note, useCurrentKernel) => onAction?.({ kind: 'continue', note, useCurrentKernel })} />}
@@ -132,8 +136,8 @@ export function TaskDrawer({ task, effective, now, delivery: latest = null, deli
         <>
           <DecisionBar
             kind="review"
-            primary={{ label: '接受这一版', loading: busy && !rej, onClick: () => onAction?.({ kind: 'accept', deliveryId: delivery.id }) }}
-            secondary={[{ label: rej ? '收起' : '驳回…', onClick: () => setRej(!rej) }]}
+            primary={{ label: '接受这一版', loading: busy && !rej, disabled: busy, onClick: () => onAction?.({ kind: 'accept', deliveryId: delivery.id }) }}
+            secondary={[{ label: rej ? '收起' : '驳回…', disabled: busy, onClick: () => setRej(!rej) }]}
           />
           {rej && (
             <RejectBox
@@ -144,20 +148,26 @@ export function TaskDrawer({ task, effective, now, delivery: latest = null, deli
             />
           )}
         </>
-      ) : delivery?.decided_at != null ? (
-        <p className={styles.done} role="status">
-          ✓ 这一版{delivery.state === 'accepted' ? '已接受' : '已退回'}
-        </p>
-      ) : jobRunning ? (
-        <p className={styles.timer}>
-          <span className={styles.timerIc} aria-hidden="true">
-            <Icon name="clock" size={14} />
-          </span>
-          后台任务执行中，结束后可以补充要求。
-        </p>
-      ) : task.source === 'role' && (task.job_id || task.task_id) && ['running', 'failed', 'interrupted', 'rejected'].includes(task.status) ? (
-        <RejectBox mode="continue" kernelName={kernelName} onSubmit={(note, useCurrentKernel) => onAction?.({ kind: 'continue', note, useCurrentKernel })} />
-      ) : null}
+      ) : (
+        <>
+          {/* The picked version's decision; running and 继续 are the task's, whatever version is shown. */}
+          {delivery?.decided_at != null && (
+            <p className={styles.done} role="status">
+              ✓ 这一版{delivery.state === 'accepted' ? '已接受' : '已退回'}
+            </p>
+          )}
+          {jobRunning ? (
+            <p className={styles.timer}>
+              <span className={styles.timerIc} aria-hidden="true">
+                <Icon name="clock" size={14} />
+              </span>
+              后台任务执行中，结束后可以补充要求。
+            </p>
+          ) : carryOn ? (
+            <RejectBox mode="continue" kernelName={kernelName} onSubmit={(note, useCurrentKernel) => onAction?.({ kind: 'continue', note, useCurrentKernel })} />
+          ) : null}
+        </>
+      )}
       {onOpenTask && (
         <div className={styles.foot}>
           <Btn size="sm" variant="quiet" icon="ext" onClick={onOpenTask}>

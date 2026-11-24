@@ -33,8 +33,9 @@ export interface Quote {
   part: 'user' | 'reply';
 }
 
-/** What `onSend` settled: `sent` the line left the input (agentd took it, or the failure card holds it now); `kept` nothing left it; `spent` the file handles were tried and are gone, the text stays. */
-export type SendResult = 'sent' | 'kept' | 'spent';
+/** What `onSend` settled: `sent` the line left the input (agentd took it, or the failure card holds it now); `kept` nothing left it; `spent` the file handles were tried and are gone, the text stays.
+ * `{ message: 'kept', scope_id }`: the line stayed, but its files were already made into that scope, which the next send takes in their place. */
+export type SendResult = 'sent' | 'kept' | 'spent' | { message: 'kept'; scope_id: string };
 
 export interface ComposerProps {
   roleName: string;
@@ -83,6 +84,8 @@ interface Draft {
   files: PickedHandle[];
   look: boolean;
   noMem: boolean;
+  /** The scope the files of a kept line were made into; their handles are spent. */
+  scope?: string;
 }
 
 const EMPTY: Draft = { text: '', files: [], look: false, noMem: false };
@@ -147,7 +150,8 @@ export function Composer(p: ComposerProps) {
   }, [d.text]);
   useEffect(() => {
     if (!p.draft || p.draft.topic !== key) return;
-    edit({ text: p.draft.text });
+    // An example never replaces what the user typed.
+    if (d.text.trim() === '') edit({ text: p.draft.text });
     p.onDraftUsed?.();
   }, [p.draft]);
   useEffect(() => {
@@ -181,17 +185,19 @@ export function Composer(p: ComposerProps) {
   const send = async () => {
     if (said === '' || p.sending || inflight.current) return;
     if ([...said].length > MAX_TEXT) return setNote(`超过 ${MAX_TEXT} 字，删减后再发`);
-    const from = d;
+    // A kept scope goes in place of files; files picked since wait in the tray for the next line.
+    const from = d.scope ? { ...d, files: [] } : d;
     const k = key;
     inflight.current = true;
     try {
       const result = await p.onSend(said, {
         look,
         no_memory: from.noMem,
-        ...(from.files.length > 0 && !from.noMem ? { files: from.files } : {}),
+        ...(from.scope && !from.noMem ? { scope_id: from.scope } : from.files.length > 0 && !from.noMem ? { files: from.files } : {}),
         ...(p.quote ? { quote_turn: { turn_id: p.quote.turn_id, part: p.quote.part } } : {}),
       });
       if (result === 'kept') return;
+      if (typeof result === 'object') return update(k, (cur) => ({ ...cur, scope: result.scope_id, files: cur.files.filter((f) => !from.files.some((s) => s.handle === f.handle)) }));
       update(k, (cur) => (result === 'sent' ? without(cur, from) : { ...cur, files: cur.files.filter((f) => !from.files.some((s) => s.handle === f.handle)) }));
       if (result === 'sent' && k === now.current.key) {
         setNote(null);

@@ -13,6 +13,7 @@ import { draftFor } from '../../src/pages/tasks/CreateForm';
 import { deriveView, emptyLocal, type TasksView } from '../../src/pages/tasks/model';
 import { ApprovalPaper } from '../../src/pages/tasks/Papers';
 import { TaskDetail } from '../../src/pages/tasks/TaskDetail';
+import { TaskDrawer } from '../../src/features/task';
 import type { TaskDesk } from '../../src/pages/tasks/useTaskDesk';
 import type { TasksBase } from '../../src/pages/tasks/useTasksData';
 
@@ -20,6 +21,7 @@ afterEach(() => {
   cleanup();
   delete window.agenticComplex;
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 const noop = () => {};
@@ -153,6 +155,38 @@ describe('task detail: 产物', () => {
     expect(spy).toHaveBeenCalledWith('POST', '/agent/artifacts/revert', { run_id: v2.run_id, path: file.path, expected_version: 2 });
     expect(d.push).toHaveBeenCalledWith('已撤回：2026-W44 周报.md 现在是 v3，内容同 v1');
     expect(d.reload).toHaveBeenCalled();
+  });
+});
+
+describe('the viewed receipt watches the delivery itself', () => {
+  /** The nodes the 'viewed' receipt asks IntersectionObserver about. */
+  const observed = () => {
+    const nodes: Element[] = [];
+    vi.stubGlobal('IntersectionObserver', class {
+      observe(n: Element) {
+        nodes.push(n);
+      }
+      disconnect() {}
+    });
+    return nodes;
+  };
+
+  it('on the task page, a box with layout that holds the 产物', () => {
+    const nodes = observed();
+    mount(T1);
+    expect(nodes).toHaveLength(1);
+    const node = nodes[0] as HTMLElement;
+    expect(getComputedStyle(node).display).not.toBe('contents');
+    expect(within(node).getByRole('group', { name: '产物' })).toBeTruthy();
+  });
+
+  it('in the chat drawer, the 产物 rows, not the whole drawer', () => {
+    const nodes = observed();
+    render(<TaskDrawer task={pick(TASKS, T1)} effective="waiting" now={NOW} delivery={pick(DELIVERIES, DLV_T1_V2)} onReceipt={vi.fn()} />);
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]!.tagName).not.toBe('ASIDE');
+    expect(nodes[0]!.textContent).toContain('产物');
+    expect(nodes[0]!.closest('aside')).not.toBeNull();
   });
 });
 

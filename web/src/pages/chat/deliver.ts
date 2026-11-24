@@ -102,7 +102,7 @@ export const createDeliver = (d: ChatDeps) => async (text: string, options: Part
           // A flag goes out only when on: an explicit look:false would also stop agentd's own 看一下 keyword.
           const body = { text, ...(sent.look ? { look: true } : {}), ...(sent.no_memory ? { no_memory: true } : {}), ...(scope_id ? { scope_id } : {}), ...(sent.quote_turn ? { quote_turn: sent.quote_turn } : {}) };
           const r = await post<SayReply>(`/conversations/${seg(convId)}/messages${demoQuery(fail, '?fail=1')}`, body);
-          d.setFailed(null, convId);
+          if (to.failed) d.dropFailed(to.failed);
           if (r.line_id) d.settleReply(local, { line_id: r.line_id, conversation_id: convId, run_id: r.run_id ?? null, generation: r.generation });
           else d.settleReply(local, { conversation_id: convId, side: false, note: commandNote(r) });
           if (d.shown() === convId) d.setNotice(r.scope_warning ? '工作目录已不可用，这次没有带上' : r.runtime_reason === 'temporary_read_only' ? '这次只读，不记入历史' : null);
@@ -111,13 +111,13 @@ export const createDeliver = (d: ChatDeps) => async (text: string, options: Part
           if (!(e instanceof AgentdCallError && e.code === 'character_not_present') || swapped || !who) throw e;
           if (!(await d.askSwap(text))) {
             d.settleReply(local, null);
-            return 'kept';
+            return scope_id ? { message: 'kept', scope_id } : 'kept';
           }
         }
       }
     } catch (e) {
       d.settleReply(local, null);
-      d.setFailed({ text, reason: reasonOf(e), ...(e instanceof AgentdCallError ? { code: e.code } : {}), options: sent, conv: convId, character: who });
+      d.setFailed({ id: to.failed ?? local, text, reason: reasonOf(e), ...(e instanceof AgentdCallError ? { code: e.code } : {}), options: sent, conv: convId, character: who });
       if (e instanceof AgentdCallError && e.status === 503) void d.reload.runtime();
       if (e instanceof AgentdCallError && e.status === 409 && conflict(e)) d.reload.list();
       return 'sent';

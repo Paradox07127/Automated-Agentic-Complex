@@ -5,25 +5,42 @@ import type { Quote } from './Composer';
 import type { QuoteFrom } from './MessageList';
 import type { LiveReply } from './useChatFeed';
 
-/** What the page keeps for its input: the failed line, the receipt notice, the quote, and the text and files put into the input of one topic (the input reports them used). */
+/** Lines that failed to send, by topic ('' for none yet), for the life of the page; an entry goes only when its resend went or the user dropped it. */
+const failures = new Map<string, Failed[]>();
+const DEMO_FAILED = 'demo-sendfail';
+
+/** What the page keeps for its input: the failed lines, the receipt notice, the quote, and the text and files put into the input of one topic (the input reports them used). */
 export function useSendState(q: URLSearchParams, demo: string | null, conv: string | null, character: string | null, wire: WireTurn[], replies: LiveReply[]) {
-  const [failed, setFailed] = useState<Failed | null>(null);
+  const [, setFailures] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState<{ text: string; topic: string | null } | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [dropped, setDropped] = useState<{ files: File[]; topic: string | null } | null>(null);
+  /** Puts `f` in its topic's list, in place of the entry with its id. */
+  const setFailed = (f: Failed) => {
+    const k = f.conv ?? '';
+    const list = failures.get(k) ?? [];
+    failures.set(k, list.some((x) => x.id === f.id) ? list.map((x) => (x.id === f.id ? f : x)) : [...list, f]);
+    setFailures((n) => n + 1);
+  };
+  const dropFailed = (id: string) => {
+    for (const [k, list] of failures) failures.set(k, list.filter((x) => x.id !== id));
+    setFailures((n) => n + 1);
+  };
   const seeded = useRef(false);
   useEffect(() => {
-    setFailed(null);
+    dropFailed(DEMO_FAILED);
     seeded.current = false;
   }, [q, demo]);
   // The sendfail demo starts with a failed line in the topic that opens.
   useEffect(() => {
     if (demo !== 'sendfail' || conv == null || seeded.current) return;
     seeded.current = true;
-    setFailed({ text: 'HostLink 断线那次提交，能把 diff 发我看看吗？', reason: '后台服务无响应', conv, character });
+    setFailed({ id: DEMO_FAILED, text: 'HostLink 断线那次提交，能把 diff 发我看看吗？', reason: '后台服务无响应', conv, character });
   }, [q, demo, conv]);
+  // The newest failure of the topic on screen; the next one shows once it is resent or dropped.
+  const failed = failures.get(conv ?? '')?.at(-1) ?? null;
   // The notice, the quote and what was put into the input belong to the conversation they were made in; null → id is the first line opening one.
   const shownConv = useRef(conv);
   useEffect(() => {
@@ -45,5 +62,5 @@ export function useSendState(q: URLSearchParams, demo: string | null, conv: stri
     const r = replies.find((x) => x.said === text || (x.text || x.items) === text);
     if (r && !r.line_id.startsWith('local-')) setQuote({ text, turn_id: r.line_id, part: r.said === text ? 'user' : 'reply' });
   };
-  return { failed, setFailed, notice, setNotice, sending, setSending, draft, setDraft, quote, setQuote, dropped, setDropped, quoteLine, quoteLive };
+  return { failed, setFailed, dropFailed, notice, setNotice, sending, setSending, draft, setDraft, quote, setQuote, dropped, setDropped, quoteLine, quoteLive };
 }

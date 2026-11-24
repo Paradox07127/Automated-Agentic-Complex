@@ -86,6 +86,8 @@ describe('a chat line shows the moment it is sent', () => {
     await reply(1, { status: 503, body: { error: { code: 'unavailable', message: 'down' } } });
     expect(await within(thread).findByText(/发送失败/)).toBeTruthy();
     expect(live(thread)).toHaveLength(0);
+    // The failed line outlives the page; the next case starts without it.
+    fireEvent.click(within(thread).getByRole('button', { name: '放弃' }));
   });
 
   it('retains chunks and final status when the event stream wins the race with the 202', async () => {
@@ -133,6 +135,7 @@ describe('a chat line shows the moment it is sent', () => {
       setAnswered: () => {},
       setCancelled: () => {},
       setFailed: () => {},
+      dropFailed: () => {},
       setSending: () => {},
       setBusyDecide: () => {},
       setNotice: () => {},

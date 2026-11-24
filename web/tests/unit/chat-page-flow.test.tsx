@@ -153,6 +153,41 @@ describe('what a late answer may touch', () => {
     await waitFor(() => expect(b.of('POST', `/conversations/${C1}/messages`)).toHaveLength(2));
     expect(b.of('POST', `/conversations/${HANDOVER}/messages`)).toHaveLength(0);
   });
+
+  const refused: MockRoute = { method: 'POST', path: '/conversations/:id/messages', handler: () => ({ status: 503, body: { error: 'no_llm' } }) };
+
+  it('a failed line outlives a failure in another topic', async () => {
+    bridge([refused]);
+    const thread = await mount();
+    type(thread, '统计表好了吗？');
+    press(thread);
+    await within(thread).findByText(/发送失败/);
+    await goToHer(thread);
+    type(thread, '我看完了');
+    press(thread);
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '换出来并发送' }));
+    await within(thread).findByText('我看完了', { selector: 'span' });
+    fireEvent.click(tab('示例乙'));
+    await within(thread).findByText('统计表好了吗？', { selector: 'span' });
+    expect(within(thread).getByRole('button', { name: '重新发送' })).toBeTruthy();
+    fireEvent.click(within(thread).getByRole('button', { name: '放弃' }));
+    await goToHer(thread);
+    fireEvent.click(within(thread).getByRole('button', { name: '放弃' }));
+    expect(within(thread).queryByText(/发送失败/)).toBeNull();
+  });
+
+  it('a failed line is still there after the page was left and opened again', async () => {
+    bridge([refused]);
+    let thread = await mount();
+    type(thread, '统计表好了吗？');
+    press(thread);
+    await within(thread).findByText(/发送失败/);
+    cleanup();
+    thread = await mount();
+    expect(within(thread).getByText('统计表好了吗？', { selector: 'span' })).toBeTruthy();
+    fireEvent.click(within(thread).getByRole('button', { name: '放弃' }));
+    expect(within(thread).queryByText(/发送失败/)).toBeNull();
+  });
 });
 
 describe('opening topics', () => {
@@ -269,6 +304,7 @@ describe('deliver', () => {
       setAnswered: () => {},
       setCancelled: () => {},
       setFailed: (f) => void failed.push(f),
+      dropFailed: () => {},
       setSending: () => {},
       setBusyDecide: () => {},
       setNotice: () => {},
@@ -372,7 +408,7 @@ describe('the page and agentd are told about the swap', () => {
       const { fromConversation } = await import('../../src/domain');
       const d: ChatDeps = {
         conv: fromConversation(WIRE_CONVERSATIONS[0]!, NOW), character: 'voice_a', present: 'si', askSwap: async () => true, shown: () => C1, task: null, run: null, view: null, busy: false,
-        setLocal: () => {}, setAnswered: () => {}, setCancelled: () => {}, setFailed: () => {}, setSending: () => {}, setBusyDecide: () => {}, setNotice: () => {}, select: () => {}, editTitle: () => {},
+        setLocal: () => {}, setAnswered: () => {}, setCancelled: () => {}, setFailed: () => {}, dropFailed: () => {}, setSending: () => {}, setBusyDecide: () => {}, setNotice: () => {}, select: () => {}, editTitle: () => {},
         addReply: () => {}, settleReply: () => {}, push: () => {}, failSend: false,
         reload: { list: () => void lists.push('list'), turns: () => {}, tasks: () => {}, present: () => void lists.push('present'), runtime: async () => undefined },
       };
