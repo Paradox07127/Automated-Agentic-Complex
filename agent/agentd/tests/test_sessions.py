@@ -918,7 +918,7 @@ class SessionsTest(unittest.TestCase):
         self.server.sessions.create("codex", self.tmp.name, "写文件")
         [card] = self.wait(lambda: broker.pending(), timeout=3.0)
         self.assertEqual((card["dangerous"], card["danger_rule"], card["options"]),
-                         (True, "sensitive_path", ["allow", "allow_session", "deny"]))
+                         (True, "sensitive_path", ["allow", "deny"]))
         self.assertEqual(broker.decide(card["request_id"], card["generation"], "deny"), (True, None))
         go.touch()
 

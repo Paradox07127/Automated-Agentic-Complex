@@ -711,11 +711,12 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(self.decide(card, "deny")[0], 200)
         hook.join(5)
 
-    def test_dangerous_command_is_marked_and_may_allow_for_the_session(self):
+    def test_dangerous_command_is_marked_and_allowed_only_once(self):
         rule = {"type": "addRules", "rules": [{"toolName": "Bash", "ruleContent": "git push --force"}],
                 "behavior": "allow", "destination": "localSettings"}
         hook, result, card = self.ask_in_background("git push --force", [rule])
-        self.assertEqual((card["dangerous"], card["options"]), (True, ["allow", "allow_session", "deny"]))
+        self.assertEqual((card["dangerous"], card["options"], card["session_scope"]), (True, ["allow", "deny"], None))
+        self.assertEqual(self.decide(card, "allow_session"), (400, {"ok": False, "error": "scope_unavailable"}))
         self.assertEqual(self.decide(card, "yes"), (400, {"ok": False, "error": "invalid_decision"}))
         status, body = self.request("POST", f"/approvals/{card['request_id']}/decision",
                                     {"decision": "allow", "generation": card["generation"], "mode": "read_only"})

@@ -25,6 +25,13 @@ def _broad_rule(content):
     return content in ("", ".", "~", "$HOME", "${HOME}", f"/{Path.home()}")
 
 
+def _broad_directory(directory):
+    """True for a filesystem root, the home directory or one of its ancestors."""
+    path = Path(os.path.normcase(os.path.abspath(os.path.expandvars(os.path.expanduser(directory)))))
+    home = Path(os.path.normcase(os.path.abspath(os.path.expanduser("~"))))
+    return path.anchor == str(path) or home.is_relative_to(path)
+
+
 def session_scope(suggestions):
     """A card's session scope from an event's session-only permission updates; None when there are none."""
     if not suggestions:
@@ -35,8 +42,7 @@ def session_scope(suggestions):
     rules = [f"{r['toolName']}({r['ruleContent']})" if "ruleContent" in r else r["toolName"]
              for s in suggestions if s["type"] == "addRules" for r in s["rules"]]
     directories = [d for s in suggestions if s["type"] == "addDirectories" for d in s["directories"]]
-    if any(os.path.abspath(os.path.expandvars(os.path.expanduser(d))) in ("/", os.path.expanduser("~"))
-           for d in directories):
+    if any(_broad_directory(d) for d in directories):
         return None
     # detail names every rule and directory the updates grant, beside acceptEdits too
     detail = "; ".join(rules + directories) or None

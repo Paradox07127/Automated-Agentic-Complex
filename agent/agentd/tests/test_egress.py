@@ -122,6 +122,35 @@ print('complete long body and email redaction verified')
                 self.assertEqual(counts, {"key": 1, "email": 0, "phone": 0})
                 self.assertEqual(redact(masked), (masked, {"key": 0, "email": 0, "phone": 0}))
 
+    def test_prefixed_and_suffixed_secret_names_are_masked(self):
+        from brain.egress import redact
+        cases = {
+            "SECRET_KEY=abcd1234efgh": "SECRET_KEY=[已遮蔽:密钥]",
+            "PRIVATE_KEY=abc": "PRIVATE_KEY=[已遮蔽:密钥]",
+            "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY":
+                "AWS_SECRET_ACCESS_KEY=[已遮蔽:密钥]",
+        }
+        for value, expected in cases.items():
+            with self.subTest(value=value):
+                masked, counts = redact(value)
+                self.assertEqual(masked, expected)
+                self.assertEqual(counts, {"key": 1, "email": 0, "phone": 0})
+        for value in ("token_count=5", "secretary: Alice"):
+            with self.subTest(value=value):
+                self.assertEqual(redact(value), (value, {"key": 0, "email": 0, "phone": 0}))
+
+    def test_international_phone_followed_by_more_digits_is_masked(self):
+        from brain.egress import redact
+        cases = {
+            "call +1 650 555 0199 94043": "call [已遮蔽:电话] 94043",
+            "+86 138 0013 8000 2026": "[已遮蔽:电话] 2026",
+        }
+        for value, expected in cases.items():
+            with self.subTest(value=value):
+                masked, counts = redact(value)
+                self.assertEqual(masked, expected)
+                self.assertEqual(counts, {"key": 0, "email": 0, "phone": 1})
+
     def test_quoted_secret_value_cut_before_its_closing_quote_is_masked(self):
         from brain.egress import redact
         cases = {

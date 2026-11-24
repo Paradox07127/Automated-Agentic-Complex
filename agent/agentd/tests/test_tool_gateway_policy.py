@@ -52,9 +52,10 @@ class PolicyTest(unittest.TestCase):
             request = broker.open("claude", "A", "Bash", tool_summary="echo hi", session_scope=scope)
         card = request.to_dict(broker.clock())
         self.assertEqual((card["dangerous"], card["danger_rule"], card["options"]),
-                         (True, "patched", ["allow", "allow_session", "deny"]))
+                         (True, "patched", ["allow", "deny"]))
         self.assertEqual((request.verdict.method, request.verdict.single_only), ("card", False))
-        self.assertEqual(broker.decide(request.request_id, request.generation, "allow_session"), (True, None))
+        self.assertEqual(broker.decide(request.request_id, request.generation, "allow_session"),
+                         (False, "scope_unavailable"))
         plain = broker.open("claude", "A", "Bash", tool_summary="echo hi", session_scope=scope)
         self.assertEqual(plain.to_dict(broker.clock())["options"], ["allow", "allow_session", "deny"])
 

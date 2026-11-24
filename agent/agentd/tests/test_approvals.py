@@ -169,14 +169,18 @@ class ApprovalBrokerTest(unittest.TestCase):
             {"type": "addRules", "rules": [{"toolName": "Bash", "ruleContent": command}], "behavior": "allow",
              "destination": "session"}]}
 
-    def test_dangerous_card_is_marked_and_may_allow_for_the_session(self):
-        b = broker(window=2.0)
-        risky = b.open("claude", "A", "Bash", tool_summary="git push --force", session_scope=self.scope("git push"))
-        [card] = b.pending()
-        self.assertEqual((card["dangerous"], card["options"], card["session_scope"]),
-                         (True, ["allow", "allow_session", "deny"], {"kind": "rule", "detail": "Bash(git push)"}))
-        self.assertEqual(b.decide(risky.request_id, risky.generation, "allow_session"), (True, None))
-        self.assertEqual(b.wait(risky.request_id), "allow_session")
+    def test_dangerous_card_is_marked_and_allows_only_once(self):
+        for summary, command in (("git push --force", "git push"), ("rm -rf x", "rm:*")):
+            with self.subTest(summary=summary):
+                b = broker(window=2.0)
+                risky = b.open("claude", "A", "Bash", tool_summary=summary, session_scope=self.scope(command))
+                [card] = b.pending()
+                self.assertEqual((card["dangerous"], card["options"], card["session_scope"]),
+                                 (True, ["allow", "deny"], None))
+                self.assertEqual(b.decide(risky.request_id, risky.generation, "allow_session"),
+                                 (False, "scope_unavailable"))
+                self.assertEqual(b.decide(risky.request_id, risky.generation, "allow"), (True, None))
+                self.assertEqual(b.wait(risky.request_id), "allow")
 
     def test_plain_card_with_a_scope_allows_for_the_session(self):
         b = broker(window=2.0)
@@ -222,6 +226,14 @@ class ApprovalBrokerTest(unittest.TestCase):
                 b = broker(window=2.0)
                 b.open("claude", "A", "Bash", tool_summary="git status", session_scope=scope)
                 self.assertEqual(b.pending()[0]["options"], ["allow", "deny"])
+
+    def test_roots_and_ancestors_of_home_offer_no_session_scope(self):
+        home = Path.home()
+        for directory in (home.anchor, str(home.parent), str(home.parent) + "/"):
+            with self.subTest(directory=directory):
+                self.assertIsNone(session_scope([{"type": "addDirectories", "directories": [directory]}]))
+        inside = str(home / "code")
+        self.assertEqual(session_scope([{"type": "addDirectories", "directories": [inside]}])["detail"], inside)
 
     def test_narrow_rules_offer_a_session_scope(self):
         for tool, value in (("Bash", "npm run test:*"), ("Bash", "git status"),

@@ -40,12 +40,13 @@ class ApprovalRequest:
         self.cwd = cwd  # where the tool runs; None on dispatch cards, whose dispatch["cwd"] says it
         self.display = display or f"{source}:{session_id}"  # own sessions show their "own:<hex>" id
         self.trace_id = TURN_TRACE.get()  # the turn the card was opened in; None outside a turn
-        # {"kind", "detail", "updates"} when the agent itself offers allowing this for the rest of the session.
-        self.session_scope = session_scope if not (summary_truncated or content_preview_truncated) else None
         # targets: the paths or commands to judge one by one when the summary joins several; None judges the summary.
         self.verdict = POLICY.card(kind, tool_name, (tool_summary,) if targets is None else targets,
                                    window=deadline - created)
         self.danger = {"dangerous": self.verdict.dangerous, "rule": self.verdict.rule}
+        # {"kind", "detail", "updates"} when the agent itself offers allowing this for the rest of the session.
+        self.session_scope = session_scope if not (summary_truncated or content_preview_truncated
+                                                   or self.verdict.dangerous) else None
         self.created = created
         self.created_at = time.time()  # epoch seconds; created is on the broker clock
         self.deadline = deadline

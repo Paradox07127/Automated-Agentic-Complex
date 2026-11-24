@@ -6,7 +6,9 @@ import re
 import threading
 
 
-_SECRET_NAME = r"(?i:api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|token|passwd|password|secret|authorization)"
+# A secret, private, access or API key name may carry more name parts after it: `SECRET_KEY`, `api_key_v2`.
+_SECRET_NAME = (r"(?i:(?:client[_-]?secret|secret|private[_-]?key|access[_-]?key|api[_-]?key)(?:[_-][A-Za-z0-9]+)*|"
+                r"access[_-]?token|refresh[_-]?token|token|passwd|password|authorization)")
 _KEY = re.compile(
     # A named value: `password=…`, `api_key: …`, `"token": "…"`; an Authorization scheme is left to the branch below.
     # A capture may end inside a quoted value or its final escape: the value then runs to the end of the text.
@@ -26,7 +28,7 @@ _KEY = re.compile(
 _EMAIL = re.compile(r"(?<![A-Za-z0-9.!#$%&'*+/=?^_`{|}~-])[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?"
                     r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+")
 _PHONE = re.compile(r"(?P<uuid>[0-9A-Fa-f]{8}-(?:[0-9A-Fa-f]{4}-){3}[0-9A-Fa-f]{12})|"
-                    r"(?<![0-9+])(?:\+[0-9](?:[ -]*[0-9]){7,}|"
+                    r"(?<![0-9+])(?:\+[0-9](?:[ -]*[0-9]){7,14}|"
                     r"(?:86[ -]*)?1[3-9](?:[ -]*[0-9]){9})(?![0-9])")
 
 
@@ -63,8 +65,6 @@ def _redact_text(text, contacts=True):
     def phone(match):
         value = match.group()
         if match.group('uuid'):
-            return value
-        if value.startswith("+") and not 8 <= sum(c.isdigit() for c in value) <= 15:
             return value
         counts["phone"] += 1
         return "[已遮蔽:电话]"
