@@ -521,6 +521,7 @@ class CharacterLibraryTests(unittest.TestCase):
         with self.assertRaisesRegex(PackageError, "archive_unindexed_payload"): library.import_path(src, validate_with=self.host())
         self.assertEqual(library.entries(), [])
 
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_folder_import_skips_file_manager_metadata(self):
         src = self.root / "source"; fixture(src)
         for name in (".DS_Store", "runtime/Thumbs.db", "runtime/desktop.ini"):
