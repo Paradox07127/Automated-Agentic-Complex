@@ -406,6 +406,13 @@ Outcome listen(const std::wstring& name, const std::wstring& token_file) {
         LocalFree(security);
         return unavailable("the token file could not be written");
     }
+    if (!commit(*this_request())) {
+        DeleteFileW(token_file.c_str());
+        CloseHandle(pipe);
+        CloseHandle(stop);
+        LocalFree(security);
+        return failure("cancelled", "the request was answered before the endpoint took effect");
+    }
     std::lock_guard<std::mutex> hold(g_lock);
     g_name = name;
     g_token_file = token_file;

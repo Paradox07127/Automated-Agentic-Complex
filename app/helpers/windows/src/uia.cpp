@@ -722,28 +722,35 @@ Outcome ax_watch(const json::Value& params) {
     std::lock_guard<std::mutex> hold(uia::g_watch_lock);
     if (!stop && !pid) return uia::gone();
     if (!stop && !uia::available()) return failure("internal", "UI Automation could not start");
+    json::Value result = json::object();
+    result.set("watching", json::boolean(!stop));
+    result.set("pid", stop ? json::null() : json::integer(pid));
+    if (!id.empty()) result.set("watch_id", json::str(id));
+    // The watch_id's old subscription keeps sending until the new one passes the commit point.
+    std::shared_ptr<uia::Watch> watch;
+    if (!stop) {
+        watch = uia::subscribe(pid, *params.get("notifications"), win32::flag(params, "read_selected_text"),
+                               win32::flag(params, "read_value"), id);
+        if (!watch) return failure("internal", "UI Automation did not take the event handlers");
+        // The focus as the watch starts; a read that does not finish in time leaves it null.
+        auto read = std::make_shared<json::Value>();
+        bool done = !uia::skipped(pid) && uia::call(uia::kWatchReadMs, pid, [watch, read](IUIAutomation* automation) {
+            *read = uia::watch_element(automation, *watch);
+        });
+        result.set("element", done ? *read : json::null());
+        result.set("window", uia::window_json(pid));
+        if (win32::flag(params, "manual_accessibility")) result.set("manual_accessibility", json::boolean(false));
+    }
+    if (!commit(*this_request())) {
+        if (watch) uia::unsubscribe(watch);
+        return failure("cancelled", "the request was answered before the watch took effect");
+    }
     auto old = uia::g_watches.find(id);
     if (old != uia::g_watches.end()) {
         uia::unsubscribe(old->second);
         uia::g_watches.erase(old);
     }
-    json::Value result = json::object();
-    result.set("watching", json::boolean(!stop));
-    result.set("pid", stop ? json::null() : json::integer(pid));
-    if (!id.empty()) result.set("watch_id", json::str(id));
     if (stop) return success(std::move(result));
-    std::shared_ptr<uia::Watch> watch = uia::subscribe(pid, *params.get("notifications"),
-                                                       win32::flag(params, "read_selected_text"),
-                                                       win32::flag(params, "read_value"), id);
-    if (!watch) return failure("internal", "UI Automation did not take the event handlers");
-    // The focus as the watch starts; a read that does not finish in time leaves it null.
-    auto read = std::make_shared<json::Value>();
-    bool done = !uia::skipped(pid) && uia::call(uia::kWatchReadMs, pid, [watch, read](IUIAutomation* automation) {
-        *read = uia::watch_element(automation, *watch);
-    });
-    result.set("element", done ? *read : json::null());
-    result.set("window", uia::window_json(pid));
-    if (win32::flag(params, "manual_accessibility")) result.set("manual_accessibility", json::boolean(false));
     uia::g_watches[id] = watch;
     uia::t_starting = watch;
     Outcome out = success(std::move(result));

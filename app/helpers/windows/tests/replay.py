@@ -22,6 +22,13 @@ Usage: python -I app/helpers/windows/tests/replay.py [--exe PATH]   (after build
   control.request; one with the token gets its request out without the token, and control.respond's answer back;
   answering it again is conn_gone; the token file goes when the helper exits. In ok-control.ndjson no client connects,
   so its control.respond answers conn_gone.
+- cancel on each side of a request's commit point (CONTRACT §5.2): a control.listen held in its token file's delete by
+  the replay's oplock, cancelled, leaves no token file and no endpoint, so the next one is not already_running; a
+  mic.start cancelled while a fresh helper loads the recognizer leaves no session, so the next one records. With a
+  desktop: a control.act press cancelled while the test window's thread sleeps never presses; a set_value cancelled
+  while the edit's text change sleeps (after the action went out) answers its effect and cancel answers false; an
+  ax.watch replacement cancelled while its focus read waits leaves the old watch sending; ax.focused, which commits as
+  it starts, is not stopped by a cancel.
 - control.observe of the fixtures is aimed at the test window: without a desktop it answers window_gone. Their
   control.act and control.read name snapshot ids no helper gave, which are stale_snapshot; click is unsupported_action
   and a press without element_id element_required before that.
@@ -148,6 +155,7 @@ NAMED_LABEL = '密码'
 NAMED_TEXT = 'c12-replay-named-4Kp'
 NAMED_LABEL_ID, NAMED_ID = 104, 105
 WM_FOCUS_CONTROL = 0x8000  # WM_APP; wParam is EDIT_ID or PASSWORD_ID
+WM_HANG = 0x8001  # wParam: milliseconds the window's thread sleeps, answering no message meanwhile
 
 
 def load_validate():
@@ -170,7 +178,8 @@ class Checks:
         self.total += 1
         if not ok:
             self.failed += 1
-            print(f'FAIL {name}: {detail}', flush=True)
+            # ASCII: the console session's stdout is cp1252.
+            print(ascii(f'FAIL {name}: {detail}')[1:-1], flush=True)
         return ok
 
 
@@ -221,6 +230,24 @@ class Helper:
             if not answer or 'event' not in answer:
                 return answer
             self.events.append(answer)
+
+    def send_request(self, message):
+        """Sends message without waiting for its answer."""
+        line = json.dumps(message, ensure_ascii=False, separators=(',', ':'))
+        self.transcript.append(line + '\n')
+        self.send(line.encode('utf-8') + b'\n')
+
+    def answers(self, ids, timeout):
+        """{id: answer} of the requests ids, reading for up to timeout seconds; events go to events."""
+        deadline, got = time.monotonic() + timeout, {}
+        while set(ids) - set(got) and time.monotonic() < deadline:
+            line = self.next_line(deadline - time.monotonic())
+            message = json.loads(line) if line else {}
+            if 'event' in message:
+                self.events.append(message)
+            elif message.get('id') in ids:
+                got[message['id']] = message
+        return got
 
     def wait_event(self, match, timeout):
         """The first event match accepts, reading for up to timeout seconds; None when none came."""
@@ -300,6 +327,7 @@ class TestWindow:
     def __init__(self):
         self.hwnd = self.second = self.edit = self.password = self.button = self.named = None
         self.clicks = 0
+        self.slow_change = 0  # seconds the window's thread sleeps on each change of the edit's text
         self.gone = None  # the id of a window created and destroyed at once
         self.text = None  # lines label paints over the first window, black on white
         self.ready = threading.Event()
@@ -345,6 +373,11 @@ class TestWindow:
                 return 0
             if msg == 0x0111 and hwnd == self.hwnd and wparam == BUTTON_ID:  # WM_COMMAND, BN_CLICKED (0) << 16
                 self.clicks += 1
+            if msg == 0x0111 and hwnd == self.hwnd and wparam == 0x0300 << 16 | EDIT_ID and self.slow_change:
+                time.sleep(self.slow_change)  # EN_CHANGE: the edit's WM_SETTEXT returns after this
+            if msg == WM_HANG and hwnd == self.hwnd:
+                time.sleep(wparam / 1000)
+                return 0
             if msg == WM_FOCUS_CONTROL and hwnd == self.hwnd:
                 # SetFocus works on this thread's windows only. EM_SETSEL: SELECTED in the edit, all of the password.
                 target = self.edit if wparam == EDIT_ID else self.password
@@ -439,6 +472,16 @@ class TestWindow:
     def focus_control(self, control):
         """Moves the keyboard focus to the edit (EDIT_ID) or the password edit (PASSWORD_ID) and sets its selection."""
         user32().SendMessageW(self.hwnd, WM_FOCUS_CONTROL, control, 0)
+
+    def hang(self, seconds):
+        """The windows' thread sleeps for seconds from now: UIA's calls into the test window wait meanwhile."""
+        user32().PostMessageW(self.hwnd, WM_HANG, int(seconds * 1000), 0)
+
+    def edit_text(self):
+        """The edit's text (WM_GETTEXT, answered on the window's thread)."""
+        buffer = ctypes.create_unicode_buffer(1024)
+        user32().SendMessageW(self.edit, 0x000D, 1024, ctypes.addressof(buffer))
+        return buffer.value
 
     def set_edit_text(self, text):
         """Replaces the edit's text (WM_SETTEXT, handled on the window's thread)."""
@@ -1118,6 +1161,51 @@ def voice_spoken(exe, checks, wavs):
         spoken_session(exe, checks, wavs[culture], words, os.environ, 'spoken')
 
 
+def voice_cancel(exe, checks, wavs):
+    """A mic.start cancelled while a fresh helper loads the recognizer (the Chinese WAV as the microphone): the cancel
+    answers true and, once the helper's CPU time goes flat (the load is over), the session it opened is gone: a new
+    mic.start records at once instead of mic_busy."""
+    culture = SPEECH[0][0]
+    if culture not in wavs:
+        return
+    helper = Helper(exe, env=dict(os.environ, AC_HELPER_MIC_WAV=str(wavs[culture])))
+    ids = iter(range(4, 1000))
+
+    def ask(op, **params):
+        return helper.request({'v': 1, 'id': next(ids), 'op': op, 'params': params}) or {}
+
+    def cpu_ns():
+        got = ask('process.usage', pids=[helper.proc.pid])
+        return next((u['cpu_time_ns'] for u in got.get('result', {}).get('usage', [])), 0)
+
+    helper.request(HELLO)
+    helper.send_request({'v': 1, 'id': 2, 'op': 'mic.start', 'params': {'session': 'c-1', 'locale': 'zh-CN'}})
+    time.sleep(0.1)
+    helper.send_request({'v': 1, 'id': 3, 'op': 'cancel', 'params': {'target': 2}})
+    got = helper.answers({2, 3}, 10)
+    checks.expect((got.get(3) or {}).get('result') == {'cancelled': True}
+                  and (got.get(2) or {}).get('error', {}).get('code') == 'cancelled',
+                  'voice mic.start cancelled while the recognizer loads answers cancelled', f'answers {got!a:.300}')
+    started, before = time.monotonic(), cpu_ns()
+    while time.monotonic() - started < 60:
+        time.sleep(0.3)
+        now = cpu_ns()
+        if now - before < 30_000_000:
+            break
+        before = now
+    print(f'note: the cancelled mic.start\'s helper went flat after {time.monotonic() - started:.1f} s', flush=True)
+    again = ask('mic.start', session='c-2', locale='zh-CN', transcribe=False)
+    checks.expect((again.get('result') or {}).get('session') == 'c-2',
+                  'voice: a cancelled mic.start leaves no session recording, and the next one records',
+                  f'answer {again!a:.300}')
+    stop = ask('mic.stop', session='c-2')
+    checks.expect((stop.get('result') or {}).get('session') == 'c-2', 'voice cancel: mic.stop of the next session',
+                  f'answer {stop!a:.300}')
+    checks.expect(helper.exit_code() == 0, 'voice cancel session exit', '')
+    problem = validate.check(helper.transcript, SPEC)
+    checks.expect(problem is None, 'voice cancel session validate.check', problem)
+
+
 def voice_download(exe, checks, wavs):
     """From an empty models directory mic.start downloads the model: speech.download only before its answer (each
     mic.start that has to answer first is asr_unavailable, retryable, and the next joins the download), then the files
@@ -1432,6 +1520,7 @@ def desktop_ax(exe, checks, window, target):
     window.focus_control(EDIT_ID)
     checks.expect(focus_event(None) is not None, 'desktop ax.watch sends a focus ax.notification back on the edit',
                   f'events {helper.events!r:.400}')
+    cancel_watch(helper, checks, ids, window, me)
     got = ask('ax.watch', pid=None, notifications=[], watch_id='replay')
     checks.expect(got.get('result') == {'watching': False, 'pid': None, 'watch_id': 'replay'}, 'desktop ax.watch stops',
                   f'answer {got!r:.300}')
@@ -1448,6 +1537,43 @@ def desktop_ax(exe, checks, window, target):
                   f'{len(leaked)} lines')
     problem = validate.check(helper.transcript, SPEC)
     checks.expect(problem is None, 'desktop ax session validate.check', problem)
+
+
+def cancel_watch(helper, checks, ids, window, me):
+    """With the test window's thread asleep: a replacement ax.watch of watch_id replay, cancelled while its focus read
+    waits, takes down its own subscription and leaves the old one sending; ax.focused, which commits as it starts, is
+    not stopped by a cancel and answers for itself (CONTRACT §5.2)."""
+    def cancelled(op, params):
+        request, stop = next(ids), next(ids)
+        helper.send_request({'v': 1, 'id': request, 'op': op, 'params': params})
+        time.sleep(0.1)
+        helper.send_request({'v': 1, 'id': stop, 'op': 'cancel', 'params': {'target': request}})
+        got = helper.answers({request, stop}, 5)
+        return (got.get(stop) or {}).get('result', {}).get('cancelled'), got.get(request) or {}
+
+    window.hang(0.6)
+    flag, got = cancelled('ax.watch', {'pid': me, 'notifications': ['focus'], 'watch_id': 'replay'})
+    checks.expect(flag is True and got.get('error', {}).get('code') == 'cancelled',
+                  'desktop ax.watch cancelled before its commit point answers cancelled',
+                  f'cancelled {flag}, answer {got!r:.200}')
+    # Past the sleep and the 2 s back-off its focus read started.
+    helper.wait_event(lambda e: False, 2.8)
+    last = max((e['seq'] for e in helper.events), default=0)
+    window.focus_control(PASSWORD_ID)
+    event = helper.wait_event(lambda e: e['seq'] > last and e['event'] == 'ax.notification'
+                              and e['data'].get('notification') == 'focus', 5)
+    checks.expect(event is not None and event['data'].get('watch_id') == 'replay'
+                  and 'subrole' in (event['data'].get('element') or {}),
+                  'desktop ax.watch: the subscription a cancelled replacement found keeps sending',
+                  f'event {event!r:.300}')
+    window.focus_control(EDIT_ID)
+    helper.wait_event(lambda e: False, 0.5)
+    window.hang(0.5)
+    flag, got = cancelled('ax.focused', {'pid': me})
+    checks.expect(flag is False and (got.get('ok') is True or got.get('error', {}).get('code') == 'ax_timeout'),
+                  'desktop ax.focused, cancelled once started, answers for itself and cancel is false',
+                  f'cancelled {flag}, answer {got!r:.200}')
+    helper.wait_event(lambda e: False, 2.5)
 
 
 def desktop_tree(ask, checks, window, me, bounds):
@@ -1574,6 +1700,7 @@ def desktop_control(exe, checks, window, target):
     checks.expect((got.get('result') or {}).get('effect') in ('confirmed', 'unverifiable') and window.clicks > before,
                   'desktop control.act press on the button reaches the window as WM_COMMAND',
                   f'answer {got!r:.300}, clicks {before} -> {window.clicks}')
+    cancel_act(helper, checks, ids, window, observe, element)
     _, result = observe()
     other = Helper(exe)
     other.request(HELLO)
@@ -1588,6 +1715,51 @@ def desktop_control(exe, checks, window, target):
                   f'{len(leaked)} lines')
     problem = validate.check(helper.transcript, SPEC)
     checks.expect(problem is None, 'desktop control session validate.check', problem)
+
+
+def cancelled_act(helper, ids, params, delay):
+    """control.act with params and a cancel of it delay seconds later: (cancel's cancelled, the act's answer)."""
+    act, stop = next(ids), next(ids)
+    helper.send_request({'v': 1, 'id': act, 'op': 'control.act', 'params': params})
+    time.sleep(delay)
+    helper.send_request({'v': 1, 'id': stop, 'op': 'cancel', 'params': {'target': act}})
+    got = helper.answers({act, stop}, 6)
+    return (got.get(stop) or {}).get('result', {}).get('cancelled'), got.get(act) or {}
+
+
+def cancel_act(helper, checks, ids, window, observe, element):
+    """A cancel on each side of control.act's commit point (CONTRACT §5.2). Before it: the test window's thread
+    sleeps, so the press's reads wait, and the cancel comes first; the act answers cancelled and the press never
+    reaches the window, not even once the thread wakes. After it: the edit's change of text sleeps inside the
+    SetValue that went out; cancel answers false and the act answers its real effect, with the new text in the edit."""
+    _, result = observe()
+    button = element(result, window.button)
+    before = window.clicks
+    window.hang(0.7)
+    cancelled, got = cancelled_act(helper, ids, {'snapshot_id': result.get('snapshot_id', 'o-missing'),
+                                                 'action': 'press', 'element_id': button.get('element_id', 'e-missing')},
+                                   0.2)
+    helper.wait_event(lambda e: False, 1.5)  # past the sleep: a press that still went out has arrived
+    checks.expect(cancelled is True and got.get('error', {}).get('code') == 'cancelled' and window.clicks == before,
+                  'desktop control.act cancelled before its commit point answers cancelled and never presses',
+                  f'cancelled {cancelled}, answer {got!r:.200}, clicks {before} -> {window.clicks}')
+    _, result = observe()
+    edit = element(result, window.edit)
+    later = EDIT_TEXT + ' and tea'
+    window.slow_change = 0.7
+    params = {'snapshot_id': result.get('snapshot_id', 'o-missing'), 'action': 'set_value',
+              'element_id': edit.get('element_id', 'e-missing'), 'text': later}
+    try:
+        cancelled, got = cancelled_act(helper, ids, params, 0.25)
+        helper.wait_event(lambda e: False, 1)
+        text = window.edit_text()
+    finally:
+        window.slow_change = 0
+        window.set_edit_text(EDIT_TEXT)
+    checks.expect(cancelled is False and (got.get('result') or {}).get('effect') in ('confirmed', 'unverifiable')
+                  and text == later,
+                  'desktop control.act cancelled after its commit point: cancel is false, the act answers its effect',
+                  f'cancelled {cancelled}, answer {got!r:.200}, text {text!r}')
 
 
 def desktop_named(exe, checks, window):
@@ -1822,6 +1994,98 @@ def control_endpoint(exe, checks):
         pass
 
 
+class HeldFile:
+    """A file of this process with a read-handle oplock (FSCTL_REQUEST_OPLOCK): another process's delete of it waits
+    until close() acknowledges the break."""
+
+    def __init__(self, path):
+        from ctypes import wintypes
+        path.write_bytes(b'held')
+        k = self.kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+        k.CreateFileW.restype = k.CreateEventW.restype = wintypes.HANDLE
+        k.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p, wintypes.DWORD,
+                                  wintypes.DWORD, wintypes.HANDLE]
+        k.CreateEventW.argtypes = [ctypes.c_void_p, wintypes.BOOL, wintypes.BOOL, wintypes.LPCWSTR]
+        k.DeviceIoControl.argtypes = [wintypes.HANDLE, wintypes.DWORD, ctypes.c_void_p, wintypes.DWORD,
+                                      ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD), ctypes.c_void_p]
+        k.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+        k.CloseHandle.argtypes = [wintypes.HANDLE]
+
+        class OVERLAPPED(ctypes.Structure):
+            _fields_ = [('Internal', ctypes.c_size_t), ('InternalHigh', ctypes.c_size_t), ('Offset', wintypes.DWORD),
+                        ('OffsetHigh', wintypes.DWORD), ('hEvent', wintypes.HANDLE)]
+
+        class OplockIn(ctypes.Structure):  # REQUEST_OPLOCK_INPUT_BUFFER
+            _fields_ = [('StructureVersion', wintypes.WORD), ('StructureLength', wintypes.WORD),
+                        ('RequestedOplockLevel', wintypes.DWORD), ('Flags', wintypes.DWORD)]
+
+        class OplockOut(ctypes.Structure):  # REQUEST_OPLOCK_OUTPUT_BUFFER
+            _fields_ = [('StructureVersion', wintypes.WORD), ('StructureLength', wintypes.WORD),
+                        ('OriginalOplockLevel', wintypes.DWORD), ('NewOplockLevel', wintypes.DWORD),
+                        ('Flags', wintypes.DWORD), ('AccessMode', wintypes.DWORD), ('ShareMode', wintypes.WORD)]
+
+        # GENERIC_READ, FILE_SHARE_READ | WRITE | DELETE, OPEN_EXISTING, FILE_FLAG_OVERLAPPED
+        self.handle = k.CreateFileW(str(path), 0x80000000, 7, None, 3, 0x40000000, None)
+        self.event = k.CreateEventW(None, True, False, None)
+        # Kept alive: the system writes them when the break comes.
+        self.io = OVERLAPPED(hEvent=self.event)
+        self.request = OplockIn(1, ctypes.sizeof(OplockIn), 1 | 2, 1)  # CACHE_READ | CACHE_HANDLE, FLAG_REQUEST
+        self.reply = OplockOut(StructureVersion=1, StructureLength=ctypes.sizeof(OplockOut))
+        done = k.DeviceIoControl(self.handle, 0x00090240, ctypes.byref(self.request), ctypes.sizeof(self.request),
+                                 ctypes.byref(self.reply), ctypes.sizeof(self.reply), None, ctypes.byref(self.io))
+        self.granted = not done and ctypes.get_last_error() == 997  # ERROR_IO_PENDING until a break
+
+    def broken(self, timeout):
+        return self.granted and self.kernel32.WaitForSingleObject(self.event, int(timeout * 1000)) == 0
+
+    def close(self):
+        if self.handle not in (None, ctypes.c_void_p(-1).value):
+            self.kernel32.CloseHandle(self.handle)
+        self.kernel32.CloseHandle(self.event)
+        self.handle = None
+
+
+def control_listen_cancel(exe, checks):
+    """A control.listen cancelled before its commit point: its handler waits in the delete of a token file the replay
+    holds with an oplock, the cancel answers true, and once the oplock lets go the helper takes down what it made:
+    the token file is gone and a later control.listen of the same pipe is not already_running."""
+    name = rf'\\.\pipe\c12-replay-{os.getpid()}-cancel'
+    folder = Path(tempfile.gettempdir()) / f'c12-replay-{os.getpid()}-cancel'
+    folder.mkdir(exist_ok=True)
+    held_path, second = folder / 'held.token', folder / 'second.token'
+    held = HeldFile(held_path)
+    helper = Helper(exe)
+    helper.request(HELLO)
+    try:
+        checks.expect(held.granted, 'control.listen cancel: the replay holds an oplock on the token file', '')
+        helper.send_request({'v': 1, 'id': 2, 'op': 'control.listen',
+                             'params': {'endpoint': name, 'token_file': str(held_path)}})
+        waiting = held.broken(5)
+        helper.send_request({'v': 1, 'id': 3, 'op': 'cancel', 'params': {'target': 2}})
+        got = helper.answers({2, 3}, 5)
+    finally:
+        held.close()
+    checks.expect(waiting and (got.get(3) or {}).get('result') == {'cancelled': True}
+                  and (got.get(2) or {}).get('error', {}).get('code') == 'cancelled',
+                  'control.listen cancelled while its handler waits on the token file answers cancelled',
+                  f'waited {waiting}, answers {got!r:.300}')
+    deadline, n, again = time.monotonic() + 5, 4, {}
+    while time.monotonic() < deadline:
+        again = helper.request({'v': 1, 'id': n, 'op': 'control.listen',
+                                'params': {'endpoint': name, 'token_file': str(second)}}) or {}
+        n += 1
+        if again.get('error', {}).get('code') != 'already_running':
+            break
+        time.sleep(0.1)
+    checks.expect(again.get('result') == {'endpoint': name} and not held_path.exists(),
+                  'a cancelled control.listen leaves no token file, and a later one is not already_running',
+                  f'answer {again!r:.300}, held token file {"left" if held_path.exists() else "gone"}')
+    checks.expect(helper.exit_code() == 0, 'control.listen cancel session exit', '')
+    problem = validate.check(helper.transcript, SPEC)
+    checks.expect(problem is None, 'control.listen cancel session validate.check', problem)
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def replay_ok(exe, checks, target, window):
     for path in sorted((C12 / 'examples').glob('ok-*.ndjson')):
         helper, hello = Helper(exe), None
@@ -2008,8 +2272,10 @@ def main(argv=None):
         # Before replay_ok and voice_spoken, which then find the model in MODELS.
         recognizer(args.exe, checks, wavs)
         voice_spoken(args.exe, checks, wavs)
+        voice_cancel(args.exe, checks, wavs)
         replay_ok(args.exe, checks, target, window)
         control_endpoint(args.exe, checks)
+        control_listen_cancel(args.exe, checks)
         permission_requests(args.exe, checks)
         replay_bad(args.exe, checks)
         edge_cases(args.exe, checks)

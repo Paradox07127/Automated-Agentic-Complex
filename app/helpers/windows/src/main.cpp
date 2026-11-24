@@ -27,7 +27,8 @@ HANDLE g_stdout = nullptr;
 // Held while writing to stdout and while reading or changing g_running and g_ready, so that an answer is written
 // at most once and nothing follows the shutdown answer.
 std::mutex g_lock;
-std::map<int64_t, std::string> g_running;  // id -> op of each request whose handler has not answered yet
+std::map<int64_t, std::shared_ptr<Request>> g_running;  // each request whose handler has not answered yet
+thread_local std::shared_ptr<Request> t_request;
 bool g_ready = false;                      // hello answered
 int64_t g_seq = 0;                         // the last event's seq
 int64_t g_last_id = 0;                     // the highest request id read so far; only the stdin loop uses it
@@ -128,28 +129,51 @@ void hello(int64_t id, const json::Value& params) {
     answer(id, success(std::move(result)));
 }
 
-// Callers hold g_lock.
+// CONTRACT §5.2: the ops without side effects, which a cancel stops until they answer, and those whose handler
+// commit()s right before its side effect. Every other op commits as it starts.
+bool commits_itself(const std::string& op) {
+    static const char* const names[] = {"ax.window_text",  "ax.window_tree", "capture.window", "capture.ambient",
+                                        "ocr.recognize",   "control.observe", "control.read",  "control.act",
+                                        "control.listen", "ax.watch",        "mic.start"};
+    for (const char* name : names) {
+        if (op == name) return true;
+    }
+    return false;
+}
+
+// Callers hold g_lock. A target past its commit point is not stopped: it answers its real result after this.
 void cancel(int64_t id, int64_t target) {
-    bool running = g_running.erase(target) > 0;
-    if (running) answer(target, failure("cancelled", "cancelled by request " + std::to_string(id)));
+    auto found = g_running.find(target);
+    bool stopped = found != g_running.end() && !found->second->committed;
+    if (stopped) {
+        found->second->open = false;
+        g_running.erase(found);
+        answer(target, failure("cancelled", "cancelled by request " + std::to_string(id)));
+    }
     json::Value result = json::object();
-    result.set("cancelled", json::boolean(running));
+    result.set("cancelled", json::boolean(stopped));
     answer(id, success(std::move(result)));
 }
 
 // Callers hold g_lock. Every request in flight gets its one answer before the shutdown answer (CONTRACT §6.1).
 [[noreturn]] void shutdown(int64_t id) {
-    for (const auto& running : g_running) answer(running.first, failure("cancelled", "the helper is shutting down"));
+    for (const auto& running : g_running) {
+        running.second->open = false;
+        answer(running.first, failure("cancelled", "the helper is shutting down"));
+    }
     g_running.clear();
     answer(id, success(json::object()));
     control_stop();
     ExitProcess(0);
 }
 
-void run(int64_t id, Handler handler, json::Value params) {
+void run(int64_t id, Handler handler, json::Value params, bool commits) {
     {
         std::lock_guard<std::mutex> hold(g_lock);
-        if (!g_running.count(id)) return;  // cancelled before it started
+        auto found = g_running.find(id);
+        if (found == g_running.end()) return;  // cancelled before it started
+        t_request = found->second;
+        if (!commits) t_request->committed = true;
     }
     Outcome out;
     try {
@@ -159,6 +183,7 @@ void run(int64_t id, Handler handler, json::Value params) {
     }
     std::lock_guard<std::mutex> hold(g_lock);
     if (!g_running.erase(id)) return;
+    t_request->open = false;
     answer(id, out);
     if (out.ok && out.answered) out.answered();
 }
@@ -177,9 +202,9 @@ void dispatch(int64_t id, const std::string& name, const json::Value* params) {
     if (!on_windows(*op)) return answer(id, failure("unsupported", name + " is macOS only"));
     Handler handler = find_handler(name);
     if (!handler) return answer(id, failure("unsupported", name + " is not implemented in the Windows helper yet"));
-    g_running[id] = name;
+    g_running[id] = std::make_shared<Request>();
     try {
-        std::thread(run, id, handler, *params).detach();
+        std::thread(run, id, handler, *params, commits_itself(name)).detach();
     } catch (const std::exception&) {
         g_running.erase(id);
         answer(id, failure("internal", "cannot start a thread for the op"));
@@ -205,6 +230,15 @@ void handle_line(const std::string& line) {
 }
 
 }  // namespace
+
+std::shared_ptr<Request> this_request() { return t_request; }
+
+bool commit(Request& request) {
+    std::lock_guard<std::mutex> hold(g_lock);
+    if (!request.open) return false;
+    request.committed = true;
+    return true;
+}
 
 void send_event(const char* name, json::Value data, const std::atomic<bool>& live) {
     std::lock_guard<std::mutex> hold(g_lock);

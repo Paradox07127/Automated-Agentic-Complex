@@ -2,6 +2,7 @@
 #pragma once
 
 #include <atomic>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -23,6 +24,22 @@ Outcome failure(std::string code, std::string message, bool retryable = false);
 
 // Runs on its own thread; params already passed params_error.
 using Handler = Outcome (*)(const json::Value& params);
+
+// One request in flight (main.cpp), from dispatch to its one answer.
+struct Request {
+    // Until it is answered, by its handler, a cancel or the shutdown; events of this request alone (speech.download)
+    // go out while it holds.
+    std::atomic<bool> open{true};
+    bool committed = false;  // past its commit point, from which a cancel no longer stops it; under the session lock
+};
+
+// The request of the handler running on this thread; work the handler hands to another thread takes it along.
+std::shared_ptr<Request> this_request();
+// The commit point of an op that main.cpp's commits_itself names, right before its side effect (CONTRACT §5.2). True:
+// no cancel stops the request from now on, and it answers what its handler returns. False: it has been answered
+// already (cancelled, shut down, or given up by its handler); the effect must not happen and what the handler opened
+// is taken down. Every other op commits as it starts.
+bool commit(Request& request);
 
 using Field = c12_generated::Field;
 // One op of protocol/C12-platform-helper/ops.json, from the generated table.

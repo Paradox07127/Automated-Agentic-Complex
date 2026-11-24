@@ -44,7 +44,6 @@ using namespace win32;
 constexpr int kSampleRate = 16000;
 constexpr uint64_t kMaxSessionSamples = 60ull * kSampleRate;  // neither the contract nor the shell caps a session
 constexpr uint64_t kStartBudgetMs = 110000;                    // under mic.start's timeout_ms of 120 s
-constexpr uint64_t kStaleStartMs = 2000;
 constexpr DWORD kLevelMs = 50;                                 // CONTRACT §7.7: at most 20 mic.level a second
 constexpr DWORD kPartialMs = 600;
 constexpr DWORD kDownloadMs = 250;
@@ -360,7 +359,8 @@ std::string ensure_model(const std::wstring& dir, uint64_t deadline, const std::
             }
         }
     }
-    std::atomic<bool> during{true};  // only this mic.start's thread sends, before it answers
+    // Only this mic.start sends, until it is answered or cancelled.
+    std::shared_ptr<Request> request = session ? this_request() : nullptr;
     for (;;) {
         std::unique_lock<std::mutex> hold(g_download.lock);
         g_download.ended.wait_for(hold, std::chrono::milliseconds(kDownloadMs), [] { return !g_download.running; });
@@ -377,7 +377,7 @@ std::string ensure_model(const std::wstring& dir, uint64_t deadline, const std::
             data.set("fraction", json::number(total ? static_cast<double>(completed) / static_cast<double>(total) : 0));
             data.set("completed", json::integer(static_cast<int64_t>(completed)));
             data.set("total", json::integer(static_cast<int64_t>(total)));
-            send_event("speech.download", std::move(data), during);
+            send_event("speech.download", std::move(data), request->open);
         }
         if (GetTickCount64() >= deadline) {
             retryable = true;
@@ -455,9 +455,7 @@ struct Session {
     double squares = 0;  // since the last mic.level
     size_t squared = 0;
     uint64_t started_ms = 0;
-    // Guarded by g_mic_lock.
-    bool answered = false;
-    uint64_t returned_ms = 0;  // when mic.start returned its success to the session layer
+    bool answered = false;  // guarded by g_mic_lock
 
     ~Session() {
         CloseHandle(go);
@@ -766,20 +764,11 @@ Outcome mic_start(const json::Value& params) {
         return asr_unavailable("the sherpa-onnx DLLs beside ac-helper.exe are missing or do not load");
     }
     if (!s->go || !s->done) return failure("internal", "cannot create the session's events");
-    std::shared_ptr<Session> stale;
     {
         std::lock_guard<std::mutex> hold(g_mic_lock);
-        if (g_current) {
-            // A session whose mic.start answered nobody (it was cancelled) holds the microphone no longer.
-            uint64_t now = GetTickCount64();
-            if (g_current->answered || !g_current->returned_ms || now - g_current->returned_ms < kStaleStartMs) {
-                return failure("mic_busy", "another session is recording");
-            }
-            stale = g_current;
-        }
+        if (g_current) return failure("mic_busy", "another session is recording");
         g_current = s;
     }
-    if (stale) finish(stale);
     std::promise<Opened> promise;
     std::future<Opened> opened = promise.get_future();
     try {
@@ -795,6 +784,8 @@ Outcome mic_start(const json::Value& params) {
         std::string problem = ensure_model(dir, deadline, &s->id, retryable);
         if (!problem.empty()) return abandon(s, asr_unavailable(problem, retryable));
     }
+    // A cancel during the download leaves the microphone unstarted.
+    if (!this_request()->open) return abandon(s, failure("cancelled", "the request was answered before recording"));
     // Recording starts before the recognizer's first load, which takes seconds.
     SetEvent(s->go);
     if (s->transcribe) {
@@ -807,9 +798,9 @@ Outcome mic_start(const json::Value& params) {
     } catch (const std::exception&) {
         return abandon(s, failure("internal", "cannot start the session's threads"));
     }
+    if (!commit(*this_request())) return abandon(s, failure("cancelled", "the request was answered before it started"));
     {
         std::lock_guard<std::mutex> hold(g_mic_lock);
-        s->returned_ms = GetTickCount64();
         g_answering = s;
     }
     json::Value result = json::object();

@@ -360,11 +360,13 @@ ComPtr<IUIAutomationElement> checked(IUIAutomation* automation, const Snapshot& 
 }
 
 Outcome effect(const char* name) { return success(uia::result_with("effect", json::str(name))); }
+// A cancel, the shutdown or the handler's own timeout answered the request first; nobody reads this.
+Outcome answered_before() { return failure("cancelled", "the request was answered before its action went out"); }
 
 // press is InvokePattern.Invoke, unverifiable; set_value and type are ValuePattern.SetValue, confirmed when the value
 // reads back the same. Once the action is out a UIA timeout leaves it unverifiable.
 Outcome act_on(IUIAutomation* automation, const Snapshot& snapshot, const std::string& id, bool press,
-               const std::wstring& text) {
+               const std::wstring& text, Request& request) {
     Reads reads;
     reads.pid = snapshot.target.pid;
     Outcome why;
@@ -376,6 +378,7 @@ Outcome act_on(IUIAutomation* automation, const Snapshot& snapshot, const std::s
             !reads.ok(element->GetCurrentPatternAs(UIA_InvokePatternId, IID_PPV_ARGS(&invoke))) || !invoke) {
             return reads.timed_out ? late(true) : failure("action_refused", "the element has no InvokePattern");
         }
+        if (!commit(request)) return answered_before();
         action_out();
         if (!reads.ok(invoke->Invoke()) && !reads.timed_out) {
             return failure("action_refused", "the element did not take Invoke");
@@ -389,6 +392,10 @@ Outcome act_on(IUIAutomation* automation, const Snapshot& snapshot, const std::s
     }
     BSTR value = SysAllocStringLen(text.data(), static_cast<UINT>(text.size()));
     if (!value) return failure("internal", "out of memory");
+    if (!commit(request)) {
+        SysFreeString(value);
+        return answered_before();
+    }
     action_out();
     HRESULT hr = pattern->SetValue(value);
     SysFreeString(value);
@@ -493,8 +500,9 @@ Outcome control_act(const json::Value& params) {
     std::string id = element_id->s;
     std::wstring value = press ? std::wstring() : wide(text->s);
     auto out = std::make_shared<Outcome>();
+    std::shared_ptr<Request> request = this_request();
     if (!uia::call(kActMs, snapshot->target.pid, [=](IUIAutomation* automation) {
-            *out = act_on(automation, *snapshot, id, press, value);
+            *out = act_on(automation, *snapshot, id, press, value, *request);
         })) {
         return late(false);
     }
