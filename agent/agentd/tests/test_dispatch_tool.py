@@ -122,6 +122,15 @@ class DispatchToolTests(unittest.TestCase):
                 self.assertEqual(self.dispatch(cwd=cwd).get('error', {}).get('code'), 'invalid_cwd')
         self.assertEqual(self.server.broker.pending(), [])
 
+    def test_a_multi_part_secret_directory_and_a_link_to_it_are_rejected(self):
+        gcloud = self.root / '.config' / 'gcloud'; gcloud.mkdir(parents=True)
+        inner = gcloud / 'configurations'; inner.mkdir()
+        link = self.root / 'cloud-link'; link.symlink_to(gcloud, target_is_directory=True)
+        for cwd in (str(gcloud), str(inner), str(self.root / '.CONFIG' / 'GCloud'), str(link)):
+            with self.subTest(cwd=cwd):
+                self.assertEqual(self.dispatch(cwd=cwd).get('error', {}).get('code'), 'invalid_cwd')
+        self.assertEqual(self.server.broker.pending(), [])
+
     def test_project_is_case_insensitive_and_deduplicates_known_directories(self):
         self.known([self.project, self.project])
         value = self.dispatch(project='endFIELD')

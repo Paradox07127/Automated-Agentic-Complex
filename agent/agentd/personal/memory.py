@@ -39,6 +39,13 @@ class VersionConflict(ValueError):
         self.current_version = current_version
 
 
+class CascadeChanged(ValueError):
+    """The other facts a correction or deletion retires are no longer the ones its preview showed."""
+    def __init__(self, fact_ids):
+        super().__init__("cascade_changed")
+        self.fact_ids = fact_ids
+
+
 def bigrams(text):
     """Character bigrams of each run of word characters; a one-character run stands for itself."""
     return {run[i:i + 2] for run in re.findall(r"\w+", text.lower()) for i in range(max(len(run) - 1, 1))}
@@ -152,22 +159,31 @@ class Memory:
         with self.lock:
             if not self._live(fact_id):
                 raise KeyError(fact_id)
-            by_episode = {}
-            for ident, evidence in self.db.execute("SELECT fact_id,evidence FROM facts WHERE state IN ('active','candidate')"):
+            return self._cascade(fact_id)
+
+    def _cascade(self, fact_id):
+        """Under lock: tombstoned(fact_id) without the liveness check."""
+        by_episode = {}
+        for ident, evidence in self.db.execute("SELECT fact_id,evidence FROM facts WHERE state IN ('active','candidate')"):
+            for ref in json.loads(evidence):
+                if _episode(ref): by_episode.setdefault(ref.split('@', 1)[0], set()).add(ident)
+        pending, affected = [fact_id], set()
+        while pending:
+            current = pending.pop()
+            if current in affected: continue
+            affected.add(current)
+            for evidence, in self.db.execute('SELECT evidence FROM facts WHERE fact_id=? AND text IS NOT NULL', (current,)).fetchall():
                 for ref in json.loads(evidence):
-                    if _episode(ref): by_episode.setdefault(ref.split('@', 1)[0], set()).add(ident)
-            pending, affected = [fact_id], set()
-            while pending:
-                current = pending.pop()
-                if current in affected: continue
-                affected.add(current)
-                for evidence, in self.db.execute('SELECT evidence FROM facts WHERE fact_id=? AND text IS NOT NULL', (current,)).fetchall():
-                    for ref in json.loads(evidence):
-                        if _episode(ref):
-                            ident = ref.split(':', 1)[1].split('@', 1)[0]
-                            if self.db.execute('SELECT 1 FROM episodes WHERE id=? AND version=3', (ident,)).fetchone():
-                                pending.extend(by_episode.get('episode:' + ident, set()) - affected)
+                    if _episode(ref):
+                        ident = ref.split(':', 1)[1].split('@', 1)[0]
+                        if self.db.execute('SELECT 1 FROM episodes WHERE id=? AND version=3', (ident,)).fetchone():
+                            pending.extend(by_episode.get('episode:' + ident, set()) - affected)
         return sorted(affected - {fact_id})
+
+    def _check_cascade(self, fact_id, cascade):
+        """Under lock: raises CascadeChanged unless cascade (the previewed ids; None: unchecked) is what it retires."""
+        if cascade is not None and sorted(set(cascade)) != (current := self._cascade(fact_id)):
+            raise CascadeChanged(current)
 
     def revoked_with(self, fact_ids):
         """Content-free closure of retired facts sharing the requested facts' evidence.
@@ -231,8 +247,9 @@ class Memory:
             self.db.commit()
         return row[1]
 
-    def correct(self, fact_id, text, *, expected_version=None):
-        return self._revise(fact_id, text, expected_version=expected_version)
+    def correct(self, fact_id, text, *, expected_version=None, cascade=None):
+        """cascade: the other fact_ids its preview (tombstoned) showed; CascadeChanged when they differ now."""
+        return self._revise(fact_id, text, expected_version=expected_version, cascade=cascade)
 
     def confirm(self, fact_id, *, expected_version=None):
         return self._revise(fact_id, None, expected_version=expected_version)
@@ -266,12 +283,14 @@ class Memory:
         if days >= 3:
             self.db.execute("UPDATE facts SET state='active' WHERE fact_id=? AND state='candidate'", (fact_id,))
 
-    def delete(self, fact_id, *, expected_version=None):
+    def delete(self, fact_id, *, expected_version=None, cascade=None):
+        """cascade as in correct()."""
         with self.lock:
             if expected_version is not None:
                 row = self.db.execute("SELECT version FROM facts WHERE fact_id=? AND state IN ('active','candidate')", (fact_id,)).fetchone()
                 if row is None: raise KeyError(fact_id)
                 if row[0] != expected_version: raise VersionConflict(row[0])
+            self._check_cascade(fact_id, cascade)
             self._tombstone(fact_id)
             changed = self.db.execute("UPDATE facts SET state = 'deleted', text = NULL WHERE fact_id = ?",
                                       (fact_id,)).rowcount
@@ -635,7 +654,7 @@ class Memory:
                         (fact_id, version, kind, text, source, evidence, occurred_at, self.clock(), state,
                          reinforcement, reinforced_at, owner, by))
 
-    def _revise(self, fact_id, text, *, expected_version=None):
+    def _revise(self, fact_id, text, *, expected_version=None, cascade=None):
         """Supersede the active version with one the user has touched; text None keeps the old text."""
         if text is not None and not text.strip():
             raise ValueError("blank text")
@@ -651,6 +670,7 @@ class Memory:
             if source in ("inferred_hypothesis", "observed_context") or text is None:
                 source = "confirmed_by_user"
             if text is not None:
+                self._check_cascade(fact_id, cascade)
                 self._tombstone(fact_id)
                 # The user's replacement claim cannot cite a summary just erased.
                 evidence = json.dumps([ref for ref in json.loads(evidence) if not _episode(ref) or

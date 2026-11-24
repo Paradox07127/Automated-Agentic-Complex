@@ -597,11 +597,16 @@ class Handler(BaseHTTPRequestHandler, HooksMixin, SessionsMixin, MemoryMixin, Ep
             return self._json(400, {"error": "invalid_text"})
         if not isinstance(body, dict) or type(body.get('expected_version')) is not int:
             return self._json(400, {'error':'expected_version_required'})
-        from personal.memory import VersionConflict
+        cascade = body.get('cascade')  # the fact_ids GET /memory/facts/<id>/cascade showed
+        if not isinstance(cascade, list) or not all(isinstance(ident, str) for ident in cascade):
+            return self._json(400, {'error':'cascade_required'})
+        from personal.memory import CascadeChanged, VersionConflict
         try:
-            version = memory.correct(fact_id, text, expected_version=body['expected_version'])
+            version = memory.correct(fact_id, text, expected_version=body['expected_version'], cascade=cascade)
         except VersionConflict as error:
             return self._json(409, {'error':'version_conflict', 'current_version':error.current_version})
+        except CascadeChanged as error:
+            return self._json(409, {'error':'cascade_changed', 'fact_ids':error.fact_ids})
         except KeyError:
             return self._json(404, {"error": "unknown_fact"})
         self.server._memory_changed(fact_id)

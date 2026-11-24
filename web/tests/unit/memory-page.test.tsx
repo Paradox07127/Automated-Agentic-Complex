@@ -133,7 +133,7 @@ describe('memory › 档案', () => {
     fireEvent.click(within(c3).getByRole('button', { name: /改好并记住/ }));
     // c3 shares its observation with other facts, so the correction asks first.
     fireEvent.click(within(await screen.findByRole('alertdialog', { name: /^修改这条会删掉另外/ })).getByRole('button', { name: '仍然修改' }));
-    await waitFor(() => expect(sent('PATCH', '/memory/facts/')).toEqual([['PATCH', `/memory/facts/${v31Id('c3')}`, { expected_version: 1, text: '发布构建用 swift build -c release' }]]));
+    await waitFor(() => expect(sent('PATCH', '/memory/facts/')).toEqual([['PATCH', `/memory/facts/${v31Id('c3')}`, { expected_version: 1, text: '发布构建用 swift build -c release', cascade: [v31Id('a3'), v31Id('c2')].sort() }]]));
   });
 
   it('不是这样 rejects only after the 4-second undo window; 撤销 keeps the card', async () => {
@@ -220,7 +220,20 @@ describe('memory › 档案', () => {
     expect(sent('DELETE', '/memory/facts/')).toEqual([]);
     const ask = await screen.findByRole('alertdialog', { name: '删除这条记忆？' });
     fireEvent.click(within(ask).getByRole('button', { name: '删除' }));
-    await waitFor(() => expect(sent('DELETE', '/memory/facts/')).toEqual([['DELETE', `/memory/facts/${v31Id('p5')}?expected_version=1`, undefined]]));
+    await waitFor(() => expect(sent('DELETE', '/memory/facts/')).toEqual([['DELETE', `/memory/facts/${v31Id('p5')}?expected_version=1&cascade=`, undefined]]));
+  });
+
+  it('删除 of a fact that shares an observation lists what else goes and sends those ids', async () => {
+    mount(`?still=1&sel=${v31Id('a3')}`);
+    const detail = await screen.findByRole('complementary', { name: '这条记忆' });
+    fireEvent.click(within(detail).getByRole('button', { name: '删除' }));
+    const ask = await screen.findByRole('alertdialog', { name: '删除这条记忆？' });
+    const items = [...ask.querySelectorAll('li')].map((li) => li.textContent);
+    expect(items).toContain('写代码时减少主动发言');
+    expect(items).toContain('构建习惯用 swift build -c release');
+    fireEvent.click(within(ask).getByRole('button', { name: '删除' }));
+    const gone = [v31Id('c2'), v31Id('c3')].sort().join(',');
+    await waitFor(() => expect(sent('DELETE', '/memory/facts/').map(([, p]) => p)).toEqual([expect.stringMatching(new RegExp(`^/memory/facts/${v31Id('a3')}\\?expected_version=\\d+&cascade=${gone}$`))]));
   });
 
   it('修改 edits in the detail column; Enter saves with the row version', async () => {
@@ -230,7 +243,7 @@ describe('memory › 档案', () => {
     const input = within(detail).getByRole('textbox', { name: '修改这条记忆' });
     fireEvent.change(input, { target: { value: '晚上 11 点后不主动提醒' } });
     fireEvent.keyDown(input, { key: 'Enter' });
-    await waitFor(() => expect(sent('PATCH', '/memory/facts/')).toEqual([['PATCH', `/memory/facts/${v31Id('p2')}`, { expected_version: 1, text: '晚上 11 点后不主动提醒' }]]));
+    await waitFor(() => expect(sent('PATCH', '/memory/facts/')).toEqual([['PATCH', `/memory/facts/${v31Id('p2')}`, { expected_version: 1, text: '晚上 11 点后不主动提醒', cascade: [] }]]));
   });
 
   it('below 1200 px a row opens the detail as a drawer, and Esc closes it', async () => {

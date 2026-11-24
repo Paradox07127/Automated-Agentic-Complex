@@ -347,7 +347,7 @@ class CutLineFactTest(PlaybackCase):
         self.assertEqual((row["state"], row["reply"]), ("interrupted", self.FIRST))
         self.line("再说一句")
         self.assertTrue(wait_for(lambda: not self.server._live_lines))
-        self.assertEqual(self.request("DELETE", f"/memory/facts/{self.fact_id}?expected_version=1"), (200, {"deleted": True}))
+        self.assertEqual(self.request("DELETE", f"/memory/facts/{self.fact_id}?expected_version=1&cascade="), (200, {"deleted": True}))
         [row] = [r for r in self.rows() if r["turn_id"] == line_id]
         self.assertEqual(row["state"], "cancelled")
         self.assertEqual([turn[0]["content"] for turn in self.server.mouth.history], ["再说一句"])
@@ -393,7 +393,7 @@ class CutLineFactTest(PlaybackCase):
         self.receipt(first, "started")
         self.cut()
         self.played("下一句", REPLY)
-        self.assertEqual(self.request("DELETE", f"/memory/facts/{self.fact_id}?expected_version=1"), (200, {"deleted": True}))
+        self.assertEqual(self.request("DELETE", f"/memory/facts/{self.fact_id}?expected_version=1&cascade="), (200, {"deleted": True}))
         self.assertEqual(self.users(), ["第一轮", "下一句"])
         self.assertEqual(self.receipt(first, "ended", 2 * HALF)[1]["applied"], True)
         self.assertEqual(self.users(), ["第一轮", "你好", "下一句"])
@@ -409,7 +409,7 @@ class CutLineFactTest(PlaybackCase):
             return retract(turn_id, blank)
 
         self.server.history.retract = settle_then_retract
-        self.assertEqual(self.request("DELETE", f"/memory/facts/{self.fact_id}?expected_version=1"), (200, {"deleted": True}))
+        self.assertEqual(self.request("DELETE", f"/memory/facts/{self.fact_id}?expected_version=1&cascade="), (200, {"deleted": True}))
         self.server._settle(line_id, self.FIRST[:3])
         [row] = [r for r in self.rows() if r["turn_id"] == line_id]
         self.assertEqual((row["state"], self.users(), line_id in self.server._cut_lines), ("cancelled", [], False))
@@ -430,7 +430,7 @@ class CutLineFactTest(PlaybackCase):
                 sent.append(self.receipt(first, "ended", 2 * HALF))
 
         self.server._memories_changed, self.server._apply_window_ops = taking_back, apply_then_receipt
-        self.assertEqual(self.request("DELETE", f"/memory/facts/{self.fact_id}?expected_version=1"), (200, {"deleted": True}))
+        self.assertEqual(self.request("DELETE", f"/memory/facts/{self.fact_id}?expected_version=1&cascade="), (200, {"deleted": True}))
         self.assertEqual(sent[0][1]["applied"], True)
         self.line("再说一句")
         self.assertTrue(wait_for(lambda: not self.server._live_lines))
@@ -532,7 +532,7 @@ class CutAfterStreamingTest(PlaybackCase):
         fact_id = self.server.memory.add("阿砚", "confirmed_by_user", kind="name")
         self.announced_after(self.two_clauses())
         generation = self.server.turn_generation
-        self.assertEqual(self.request("PATCH", f"/memory/facts/{fact_id}", {"expected_version": 1, "text": "阿岩"})[0], 200)
+        self.assertEqual(self.request("PATCH", f"/memory/facts/{fact_id}", {"expected_version": 1, "text": "阿岩", "cascade": []})[0], 200)
         self.assertEqual((self.speech_cancelled(), self.server.turn_generation, self.relay.busy()),
                          ([], generation, True))
         [row] = self.rows()

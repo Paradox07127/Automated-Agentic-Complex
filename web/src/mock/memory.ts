@@ -171,6 +171,14 @@ const counts = (rows: WireFact[]) => {
   return out;
 };
 
+/** memory.py `tombstoned`: the other facts citing one of f's episodes, by id. */
+function cascadeOf(f: WireFact): WireFact[] {
+  const ep = (ref: string) => (ref.startsWith('episode:') ? ref.split('@')[0] : null);
+  return facts()
+    .filter((x) => x !== f && x.evidence.some((r) => ep(r) != null && f.evidence.map(ep).includes(ep(r))))
+    .sort((a, b) => (a.fact_id < b.fact_id ? -1 : 1));
+}
+
 /** memory.py `_revise`: version check, then the new version (touched by the user, so observed and inferred become confirmed). */
 function revise(id: string | undefined, body: unknown, newText?: string): MockResponse {
   const b = obj(body);
@@ -223,11 +231,10 @@ export const routes: MockRoute[] = [
     },
   },
   { method: 'POST', path: '/memory/facts/:id/confirm', handler: ({ params, body }) => revise(params.id, body) },
-  // memory.py `tombstoned`: the other facts citing one of its episodes. PATCH here keeps them, so a demo can correct each.
+  // PATCH here keeps the cascade, so a demo can correct each; DELETE takes it.
   { method: 'GET', path: '/memory/facts/:id/cascade', handler: ({ params }) => {
-    const f = facts().find((x) => x.fact_id === params.id), ep = (ref: string) => (ref.startsWith('episode:') ? ref.split('@')[0] : null);
-    if (!f) return bad('unknown_fact', 404);
-    return ok({ fact_ids: facts().filter((x) => x !== f && x.evidence.some((r) => ep(r) != null && f.evidence.map(ep).includes(ep(r)))).map((x) => x.fact_id).sort() });
+    const f = facts().find((x) => x.fact_id === params.id);
+    return f ? ok({ fact_ids: cascadeOf(f).map((x) => x.fact_id) }) : bad('unknown_fact', 404);
   } },
   ...factVersionRoutes(facts),
   {
@@ -245,8 +252,14 @@ export const routes: MockRoute[] = [
     method: 'PATCH',
     path: '/memory/facts/:id',
     handler: ({ params, body }) => {
-      const t = text(obj(body).text, 500);
-      return t == null ? bad('invalid_text') : revise(params.id, body, t);
+      const t = text(obj(body).text, 500), seen = obj(body).cascade;
+      if (t == null) return bad('invalid_text');
+      if (!isInt(obj(body).expected_version)) return bad('expected_version_required');
+      if (!Array.isArray(seen) || !seen.every((x) => typeof x === 'string')) return bad('cascade_required');
+      const f = facts().find((x) => x.fact_id === params.id);
+      const ids = f ? cascadeOf(f).map((x) => x.fact_id) : [];
+      if (f && f.version === obj(body).expected_version && [...new Set(seen as string[])].sort().join(',') !== ids.join(',')) return bad('cascade_changed', 409, { fact_ids: ids });
+      return revise(params.id, body, t);
     },
   },
   {
@@ -255,10 +268,15 @@ export const routes: MockRoute[] = [
     handler: ({ params, query }) => {
       const v = Number(query.get('expected_version') ?? 'x');
       if (!Number.isInteger(v)) return bad('expected_version_required');
+      const seen = query.get('cascade');
+      if (seen == null) return bad('cascade_required');
       const f = facts().find((x) => x.fact_id === params.id);
       if (!f) return bad('unknown_fact', 404);
       if (f.version !== v) return bad('version_conflict', 409, { current_version: f.version });
-      setFacts(facts().filter((x) => x !== f));
+      const gone = cascadeOf(f);
+      const ids = gone.map((x) => x.fact_id);
+      if ([...new Set(seen.split(',').filter(Boolean))].sort().join(',') !== ids.join(',')) return bad('cascade_changed', 409, { fact_ids: ids });
+      setFacts(facts().filter((x) => x !== f && !gone.includes(x)));
       return ok({ deleted: true });
     },
   },

@@ -117,10 +117,10 @@ export function MemoryPage() {
         return false;
       }
       if (gone.length > 0 && !(await new Promise<boolean>((done) => setFixing({ fact: f, gone, done })))) return false;
-      return report(await model.correct(f, text), isCandidate(f) ? `已按修改记住：${text}` : '改好了，下一句起按新的说', '修改');
+      return report(await model.correct(f, text, gone), isCandidate(f) ? `已按修改记住：${text}` : '改好了，下一句起按新的说', '修改');
     },
     reject: async (f: Fact) => report(await model.reject(f), `已划掉：${f.text}`, '划掉'),
-    forget: async (f: Fact) => report(await model.forget(f), `已删除：${factText(f)}`, '删除'),
+    forget: async (f: Fact, gone: string[]) => report(await model.forget(f, gone), `已删除：${factText(f)}`, '删除'),
     mark: async (f: Fact, mark: 'locked' | 'quiet', on: boolean) =>
       report(
         await model.mark(f, mark, on),

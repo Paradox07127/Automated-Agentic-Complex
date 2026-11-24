@@ -2,7 +2,7 @@
 from pathlib import Path
 
 from character_agent.services.workspace import _validate_arguments
-from tool_gateway.protected_paths import SECRET_PARTS
+from tool_gateway.protected_paths import secret_path
 
 
 class DispatchTurn:
@@ -39,13 +39,12 @@ class DispatchTurn:
     @staticmethod
     def _directory(value):
         path = Path(value)
-        secret = {part.casefold() for part in SECRET_PARTS}
-        if not path.is_absolute() or any(part.casefold() in secret for part in path.parts):
+        if not path.is_absolute() or secret_path(path.as_posix()):
             raise ValueError('invalid_cwd')
         try:
             resolved = path.resolve(strict=True)
             if not resolved.is_dir() or resolved in (Path('/'), Path.home().resolve()) \
-                    or any(part.casefold() in secret for part in resolved.parts):
+                    or secret_path(resolved.as_posix()):
                 raise ValueError('invalid_cwd')
         except (OSError, RuntimeError):
             raise ValueError('invalid_cwd') from None

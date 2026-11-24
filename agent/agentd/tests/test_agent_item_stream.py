@@ -286,7 +286,7 @@ class AgentItemStreamTests(unittest.TestCase):
         handler = Handler.__new__(Handler)
         handler.server = self.server
         handler._json = lambda status, data: replies.append((status, data))
-        handler.path = '/memory/facts/' + fact + '?expected_version=1'
+        handler.path = '/memory/facts/' + fact + '?expected_version=1&cascade='
         handler._memory_delete(SimpleNamespace(group=lambda _: fact))
         self.assertEqual(replies[-1], (200, {'deleted': True}))
         for run in ('run', 'older'):
@@ -318,7 +318,7 @@ class AgentItemStreamTests(unittest.TestCase):
             handler = Handler.__new__(Handler)
             handler.server = self.server
             handler._json = lambda status, data: replies.append((status, data))
-            handler.path = '/memory/facts/' + fact + '?expected_version=1'
+            handler.path = '/memory/facts/' + fact + '?expected_version=1&cascade='
             handler._memory_delete(SimpleNamespace(group=lambda _: fact))
             self.assertEqual(replies[-1], (200, {'deleted': True}))
         finally:

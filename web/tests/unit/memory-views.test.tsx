@@ -201,13 +201,13 @@ describe('记忆页', () => {
     const qc = mount(`&view=about&sel=${id}`);
     const detail = await screen.findByRole('complementary', { name: '这条记忆' }, { timeout: 3000 });
     fireEvent.click(within(detail).getByRole('button', { name: /^修改/ }));
-    await read('PATCH', `/memory/facts/${id}`, { expected_version: 1, text: '晚上 11 点后不主动提醒' });
+    await read('PATCH', `/memory/facts/${id}`, { expected_version: 1, text: '晚上 11 点后不主动提醒', cascade: [] });
     await act(() => qc.invalidateQueries({ queryKey: ['memory', 'facts'] }));
     await within(detail).findByText(/已在别处更新为「晚上 11 点后不主动提醒」/);
     const box = within(detail).getByRole('textbox', { name: '修改这条记忆' });
     fireEvent.change(box, { target: { value: '晚上 9 点后不主动提醒' } });
     fireEvent.keyDown(box, { key: 'Enter' });
-    await waitFor(() => expect(spy.mock.calls.filter(([m]) => m === 'PATCH')).toEqual([['PATCH', `/memory/facts/${id}`, { expected_version: 1, text: '晚上 9 点后不主动提醒' }]]));
+    await waitFor(() => expect(spy.mock.calls.filter(([m]) => m === 'PATCH')).toEqual([['PATCH', `/memory/facts/${id}`, { expected_version: 1, text: '晚上 9 点后不主动提醒', cascade: [] }]]));
     await screen.findByText('没有修改：已在别处更新，已重新读取');
     expect((within(detail).getByRole('textbox', { name: '修改这条记忆' }) as HTMLTextAreaElement).value).toBe('晚上 9 点后不主动提醒');
     fireEvent.click(within(detail).getByRole('button', { name: '载入最新版本' }));
@@ -299,6 +299,35 @@ describe('记忆页', () => {
     expect(spy.mock.calls.filter(([m]) => m === 'PATCH')).toEqual([]);
     fireEvent.click(within(ask).getByRole('button', { name: '仍然修改' }));
     await screen.findByText('改好了，下一句起按新的说');
-    expect(spy.mock.calls.filter(([m]) => m === 'PATCH')).toEqual([['PATCH', `/memory/facts/${id}`, expect.objectContaining({ text: '在 Endfield 仓库开发角色应用' })]]);
+    expect(spy.mock.calls.filter(([m]) => m === 'PATCH')).toEqual([['PATCH', `/memory/facts/${id}`, expect.objectContaining({ text: '在 Endfield 仓库开发角色应用', cascade: expect.arrayContaining([v31Id('c3')]) })]]);
+  });
+
+  it('修改 in the mock names the cascade its preview listed, as agentd does', async () => {
+    const bridge = getBridge().agentd;
+    const id = v31Id('a3');
+    mount(`&view=about&sel=${id}`);
+    await screen.findByRole('complementary', { name: '这条记忆' }, { timeout: 3000 });
+    const version = ((await bridge.request('GET', '/memory')).body as { facts: Array<{ fact_id: string; version: number }> }).facts.find((f) => f.fact_id === id)!.version;
+    const gone = ((await bridge.request('GET', `/memory/facts/${id}/cascade`)).body as { fact_ids: string[] }).fact_ids;
+    expect(gone).toContain(v31Id('c3'));
+    const body = { expected_version: version, text: '在 Endfield 仓库开发角色应用' };
+    expect(await bridge.request('PATCH', `/memory/facts/${id}`, body)).toMatchObject({ status: 400, body: { error: 'cascade_required' } });
+    expect(await bridge.request('PATCH', `/memory/facts/${id}`, { ...body, cascade: [] })).toMatchObject({ status: 409, body: { error: 'cascade_changed', fact_ids: gone } });
+    expect(((await bridge.request('GET', '/memory')).body as { facts: Array<{ fact_id: string; version: number }> }).facts.find((f) => f.fact_id === id)!.version).toBe(version);
+  });
+
+  // Last: it deletes a3 and what shares its observation from the mock's rows.
+  it('删除 in the mock takes the facts its cascade preview listed, and refuses a stale preview', async () => {
+    const bridge = getBridge().agentd;
+    const id = v31Id('a3');
+    mount(`&view=about&sel=${id}`);
+    await screen.findByRole('complementary', { name: '这条记忆' }, { timeout: 3000 });
+    const ids = async () => (await bridge.request('GET', '/memory')).body as { facts: Array<{ fact_id: string; version: number }> };
+    const version = (await ids()).facts.find((f) => f.fact_id === id)!.version;
+    const gone = ((await bridge.request('GET', `/memory/facts/${id}/cascade`)).body as { fact_ids: string[] }).fact_ids;
+    expect(gone).toContain(v31Id('c3'));
+    expect(await bridge.request('DELETE', `/memory/facts/${id}?expected_version=${version}&cascade=`)).toMatchObject({ status: 409, body: { error: 'cascade_changed', fact_ids: gone } });
+    expect((await bridge.request('DELETE', `/memory/facts/${id}?expected_version=${version}&cascade=${gone.join(',')}`)).body).toEqual({ deleted: true });
+    expect((await ids()).facts.map((f) => f.fact_id).filter((f) => [id, ...gone].includes(f))).toEqual([]);
   });
 });

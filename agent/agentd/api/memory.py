@@ -125,15 +125,21 @@ class MemoryMixin:
         if memory is None:
             return self._json(503, NO_MEMORY)
         if fact_match:
+            fact_query = parse_qs(urlparse(self.path).query, keep_blank_values=True)
             try:
-                version = int(parse_qs(urlparse(self.path).query).get('expected_version', [''])[0])
+                version = int(fact_query.get('expected_version', [''])[0])
             except ValueError:
                 return self._json(400, {'error':'expected_version_required'})
-            from personal.memory import VersionConflict
+            if 'cascade' not in fact_query:  # the ids GET /memory/facts/<id>/cascade showed, comma-separated
+                return self._json(400, {'error':'cascade_required'})
+            cascade = [ident for ident in fact_query['cascade'][0].split(',') if ident]
+            from personal.memory import CascadeChanged, VersionConflict
             try:
-                memory.delete(fact_match.group(1), expected_version=version)
+                memory.delete(fact_match.group(1), expected_version=version, cascade=cascade)
             except VersionConflict as error:
                 return self._json(409, {'error':'version_conflict', 'current_version':error.current_version})
+            except CascadeChanged as error:
+                return self._json(409, {'error':'cascade_changed', 'fact_ids':error.fact_ids})
             except KeyError:
                 return self._json(404, {"error": "unknown_fact"})
             self.server._memory_changed(fact_match.group(1), deleted=True)

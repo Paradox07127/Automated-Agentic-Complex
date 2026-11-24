@@ -639,7 +639,7 @@ class ResetTest(unittest.TestCase):
             self.turn(marker)
         self.server.memory.record_uses([(body["fact_id"], 1)], "t", "mentioned")
         self.assertIn(marker.encode(), self.db.read_bytes() + Path(f"{self.db}-wal").read_bytes())
-        self.assertEqual(self.request("DELETE", f"/memory/facts/{body['fact_id']}?expected_version=1"), (200, {"deleted": True}))
+        self.assertEqual(self.request("DELETE", f"/memory/facts/{body['fact_id']}?expected_version=1&cascade="), (200, {"deleted": True}))
         self.assert_gone(marker)
 
     def test_a_blacklisted_app_leaves_no_bytes_of_its_episodes(self):

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { keyText } from '../../bridge/platformText';
 import type { Fact, FactKind } from '../../domain';
 import { BottomBarSlot } from '../../shell/headerSlot';
+import { toast } from '../../shell/toast';
 import { Btn, Empty, ErrBar, Pill, SearchField, SecHead, Select, Skel } from '../../ui';
 import { IndexCell } from '../../ui/game';
 import { Detail } from './Detail';
@@ -10,6 +11,8 @@ import { LeftCol, Plate } from './Index';
 import { catOf, CATS, factText, isCandidate, isDormant, matches, plateOf, recentText, SORTERS, SORTS, SRC, ymd, type Cat, type Sort } from './model';
 import { AddPop, DeleteCard } from './Papers';
 import { DetailCol, Glyph, List, Lnk, Panel, Row, Sep, SrcMark, useNarrow, type GlyphName } from './parts';
+import { errorText } from './errors';
+import { readCascade } from './useFacts';
 import { Votes } from './Votes';
 import styles from './Cols.module.css';
 
@@ -32,7 +35,7 @@ export interface ArchiveProps {
     confirm: (f: Fact) => Promise<boolean>;
     correct: (f: Fact, text: string) => Promise<boolean>;
     reject: (f: Fact) => Promise<boolean>;
-    forget: (f: Fact) => Promise<boolean>;
+    forget: (f: Fact, gone: string[]) => Promise<boolean>;
     mark: (f: Fact, mark: 'locked' | 'quiet', on: boolean) => Promise<boolean>;
     add: (text: string, kind: FactKind) => Promise<boolean>;
   };
@@ -57,7 +60,13 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, wri
   const [sel, setSel] = useState<string | null>(initial.sel);
   const [drawer, setDrawer] = useState(initial.sel != null);
   const [editing, setEditing] = useState(false);
-  const [deleting, setDeleting] = useState<Fact | null>(null);
+  const [deleting, setDeleting] = useState<{ fact: Fact; gone: string[] } | null>(null);
+  // The card lists what agentd retires with f (memory.py `_tombstone`), and the delete names the same ids.
+  const askDelete = (f: Fact) =>
+    void readCascade(f).then(
+      (gone) => setDeleting({ fact: f, gone }),
+      (e: unknown) => toast(`没有删除：${errorText(e)}`),
+    );
   const [adding, setAdding] = useState(false);
 
   // A selected candidate opens 待确认; any other selection opens 全部.
@@ -110,7 +119,7 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, wri
         setDrawer(drawn);
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && cur && onRow) {
         e.preventDefault();
-        setDeleting(cur);
+        askDelete(cur);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -257,7 +266,7 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, wri
             editing={editing}
             onEdit={setEditing}
             onSave={(text, from) => write.correct(from, text)}
-            onDelete={() => setDeleting(open)}
+            onDelete={() => askDelete(open)}
             onMark={(mark, on) => void write.mark(open, mark, on)}
             onJump={onJump}
             {...(narrow ? { onClose: () => (setDrawer(false), setEditing(false)) } : {})}
@@ -266,12 +275,13 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, wri
       )}
       {deleting && (
         <DeleteCard
-          fact={deleting}
+          fact={deleting.fact}
+          gone={deleting.gone.map((id) => all.find((f) => f.id === id) ?? null)}
           onCancel={() => setDeleting(null)}
           onConfirm={() => {
-            const f = deleting;
+            const { fact: f, gone } = deleting;
             setDeleting(null);
-            void write.forget(f).then((ok) => {
+            void write.forget(f, gone).then((ok) => {
               if (ok && sel === f.id) setSel(null);
               if (ok) setDrawer(false);
             });

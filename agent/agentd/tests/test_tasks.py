@@ -6,6 +6,7 @@ import sys
 import tempfile
 import time
 import unittest
+import unittest.mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -189,6 +190,19 @@ class TaskLedgerTest(unittest.TestCase):
                                   self.tmp.name, 10)
         self.assertEqual((code, len(output)), (0, TAIL_BYTES))
         self.assertTrue(output.endswith(b"END"))
+
+    def test_a_read_only_preset_runs_as_hardened_git_when_the_platform_keeps_the_command_a_string(self):
+        self.returned(verify_cmd="git status --short")
+        calls = []
+
+        def hardened(cwd, args, timeout):
+            calls.append(args)
+            return subprocess.CompletedProcess(args, 0, b"ok", b"")
+        with unittest.mock.patch("sessions.tasks.command_line", lambda cmd: cmd), \
+                unittest.mock.patch("sessions.tasks.git_state.run", hardened):
+            row = self.ledger.verify("d-1")
+        self.assertEqual(calls, [("status", "--short")])
+        self.assertEqual((row["state"], row["result"]["output_tail"]), ("succeeded", "ok"))
 
     @unittest.skipIf(sys.platform == "win32", "POSIX process groups")
     def test_a_verifier_past_its_timeout_takes_what_it_started(self):

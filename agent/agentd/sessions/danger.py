@@ -6,7 +6,7 @@ import posixpath
 import re
 import shlex
 
-from tool_gateway.protected_paths import SECRET_PARTS
+from tool_gateway.protected_paths import secret_path
 
 COMMAND_TOOLS = {"Bash", "command", "commandExecution", "shell"}
 FILE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit", "fileChange"}
@@ -166,7 +166,7 @@ def _git(sub, args):
 def _path(path):
     # both separators, no repeated slashes or dot segments, casefolded as on the default macOS and Windows volumes
     path = posixpath.normpath(re.sub(r"/+", "/", os.path.expanduser(path).replace("\\", "/"))).casefold()
-    if path.startswith(SYSTEM_DIRS) or any(f"/{part.casefold()}/" in f"/{path}/" for part in SECRET_PARTS) \
+    if path.startswith(SYSTEM_DIRS) or secret_path(path) \
             or posixpath.basename(path) in RC_FILES or "/.git/hooks/" in path or path.endswith("/.git/config"):
         return "sensitive_path"
     return None

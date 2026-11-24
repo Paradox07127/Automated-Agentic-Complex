@@ -120,7 +120,7 @@ TRIGGERS = {"barge_in": ("POST", "/turn/cancel", {"reason": "barge_in"}, 202),
             "stop": ("POST", "/say", {"text": "停下"}, 200),
             "supersede": ("POST", "/say", {"text": NEW}, 202),
             "switch": ("POST", "/character", {"id": "birch"}, 200),
-            "memory_changed": ("PATCH", "/memory/facts/{}", {"expected_version": 1, "text": "阿岩"}, 200),
+            "memory_changed": ("PATCH", "/memory/facts/{}", {"expected_version": 1, "text": "阿岩", "cascade": []}, 200),
             "context_cleared": ("DELETE", "/attention", None, 200),
             "mute": ("POST", "/say", {"text": "静音"}, 200),
             "hide": ("PUT", "/avatar/visibility", {"visible": False, "reason": "user"}, 200)}

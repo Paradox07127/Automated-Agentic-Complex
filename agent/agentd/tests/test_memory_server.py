@@ -21,7 +21,7 @@ from support import add_episode, deny_blacklist  # noqa: E402
 from observation.capture import CaptureManager  # noqa: E402
 from personal.episodes import Episodes  # noqa: E402
 from personal.history import History  # noqa: E402
-from personal.memory import SOURCES, Memory  # noqa: E402
+from personal.memory import SOURCES, CascadeChanged, Memory  # noqa: E402
 from infra.store import open_store  # noqa: E402
 import test_capture  # noqa: E402
 import test_server  # noqa: E402
@@ -343,9 +343,9 @@ class ManualFactTest(MemoryServerCase):
     def test_stale_fact_mutations_and_profile_creation_are_rejected(self):
         _, created = self.request('POST', '/memory/facts', {'text':'original'})
         path = '/memory/facts/' + created['fact_id']
-        self.assertEqual(self.request('PATCH', path, {'text':'latest','expected_version':1})[0], 200)
-        for method, target, body in [('PATCH',path,{'text':'stale','expected_version':1}),
-                ('POST',path+'/confirm',{'expected_version':1}), ('DELETE',path+'?expected_version=1',None)]:
+        self.assertEqual(self.request('PATCH', path, {'text':'latest','expected_version':1,'cascade':[]})[0], 200)
+        for method, target, body in [('PATCH',path,{'text':'stale','expected_version':1,'cascade':[]}),
+                ('POST',path+'/confirm',{'expected_version':1}), ('DELETE',path+'?expected_version=1&cascade=',None)]:
             self.assertEqual(self.request(method,target,body), (409, {'error':'version_conflict','current_version':2}))
         self.assertEqual(self.request('PATCH',path,{'text':'unversioned'})[0], 400)
         self.assertEqual(self.request('DELETE',path)[0], 400)
@@ -355,7 +355,7 @@ class ManualFactTest(MemoryServerCase):
 
     def test_edit_confirm_and_export(self):
         fact_id = self.memory.add("可能喜欢猫", "inferred_hypothesis")
-        self.assertEqual(self.request("PATCH", f"/memory/facts/{fact_id}", {"expected_version": 1, "text": "喜欢狗"}), (200, {"version": 2}))
+        self.assertEqual(self.request("PATCH", f"/memory/facts/{fact_id}", {"expected_version": 1, "text": "喜欢狗", "cascade": []}), (200, {"version": 2}))
         self.assertEqual(self.request("POST", f"/memory/facts/{fact_id}/confirm", {"expected_version": 2}), (200, {"version": 3}))
         status, body = self.request("GET", "/memory/export")
         self.assertEqual(status, 200)
@@ -377,7 +377,7 @@ class ChangedSourceTest(MemoryServerCase):
         while first["event"] != "line":
             first = self.next_event(response)
         self.assertEqual(json.loads(first["data"])["text_delta"], "第一段")
-        self.assertEqual(self.request("DELETE", f"/memory/facts/{fact_id}?expected_version=1"), (200, {"deleted": True}))
+        self.assertEqual(self.request("DELETE", f"/memory/facts/{fact_id}?expected_version=1&cascade="), (200, {"deleted": True}))
         events = [json.loads(first["data"])] + self.lines_until_final(response)
         conn.close()
         self.assertTrue(wait_for(lambda: not self.server._live_lines))
@@ -392,7 +392,7 @@ class ChangedSourceTest(MemoryServerCase):
         said, _ = self.line(CAT)
         self.assertEqual(len(self.spoken()), 1)
         self.assertTrue(self.in_window(CAT))
-        self.assertEqual(self.request("DELETE", f"/memory/facts/{fact_id}?expected_version=1"), (200, {"deleted": True}))
+        self.assertEqual(self.request("DELETE", f"/memory/facts/{fact_id}?expected_version=1&cascade="), (200, {"deleted": True}))
         self.assertEqual(self.row(said["line_id"])["state"], "cancelled")
         self.assertFalse(self.in_window(CAT))
         self.line("再说一句")
@@ -403,7 +403,7 @@ class ChangedSourceTest(MemoryServerCase):
         self.use_mouth(["[intent:greet]你养了一只猫", "啊。"])
         older, _ = self.line(CAT)
         latest, _ = self.line("我养了一只猫，再说一句")
-        self.request("DELETE", f"/memory/facts/{fact_id}?expected_version=1")
+        self.request("DELETE", f"/memory/facts/{fact_id}?expected_version=1&cascade=")
         for said in (older, latest):
             row = self.row(said["line_id"])
             self.assertEqual((row["state"], row["user_text"], row["reply"], row["raw_reply"]),
@@ -419,7 +419,7 @@ class ChangedSourceTest(MemoryServerCase):
         self.use_mouth(REPLY)
         other, _ = self.line("你好")
         counts = [len(self.traced(s["line_id"])) for s in (older, latest)]
-        self.assertEqual(self.request("DELETE", f"/memory/facts/{fact_id}?expected_version=1"), (200, {"deleted": True}))
+        self.assertEqual(self.request("DELETE", f"/memory/facts/{fact_id}?expected_version=1&cascade="), (200, {"deleted": True}))
         for said, count in zip((older, latest), counts):
             self.assertForgotten(said["line_id"], count)
         self.assertIn(("input.received", '{"text": "你好"}'),
@@ -433,7 +433,7 @@ class ChangedSourceTest(MemoryServerCase):
         self.server._line_entries.clear()
         self.server.load_window()
         self.assertTrue(self.in_window(CAT))
-        self.request("DELETE", f"/memory/facts/{fact_id}?expected_version=1")
+        self.request("DELETE", f"/memory/facts/{fact_id}?expected_version=1&cascade=")
         self.assertFalse(self.in_window(CAT))
 
     def test_correcting_a_fact_takes_back_every_turn_that_said_it(self):
@@ -442,7 +442,7 @@ class ChangedSourceTest(MemoryServerCase):
         self.use_mouth(["[intent:greet]你养了一只猫", "啊。"])
         older, _ = self.line(CAT)
         latest, _ = self.line("我养了一只猫，再说一句")
-        self.assertEqual(self.request("PATCH", f"/memory/facts/{fact_id}", {"expected_version": 1, "text": "我养了一只狗"}),
+        self.assertEqual(self.request("PATCH", f"/memory/facts/{fact_id}", {"expected_version": 1, "text": "我养了一只狗", "cascade": []}),
                          (200, {"version": 2}))
         self.assertEqual([(self.row(s["line_id"])["state"], self.row(s["line_id"])["user_text"])
                           for s in (older, latest)], [("cancelled", CAT), ("cancelled", "我养了一只猫，再说一句")])
@@ -457,7 +457,7 @@ class ChangedSourceTest(MemoryServerCase):
         self.assertEqual(status, 201)
         older, _ = self.line("你好")
         latest, _ = self.line("再说一句")
-        self.request("DELETE", f"/memory/facts/{name['fact_id']}?expected_version=1")
+        self.request("DELETE", f"/memory/facts/{name['fact_id']}?expected_version=1&cascade=")
         self.assertEqual((self.row(older["line_id"])["state"], self.row(latest["line_id"])["state"]),
                          ("completed", "cancelled"))
         self.assertEqual((self.in_window("你好"), self.in_window("再说一句")), (True, False))
@@ -465,7 +465,7 @@ class ChangedSourceTest(MemoryServerCase):
     def test_an_unused_fact_leaves_the_turn_alone(self):
         said, _ = self.line(CAT)
         fact_id = self.memory.add("我养了一只猫", "asserted_by_user")
-        self.request("DELETE", f"/memory/facts/{fact_id}?expected_version=1")
+        self.request("DELETE", f"/memory/facts/{fact_id}?expected_version=1&cascade=")
         self.assertEqual(self.row(said["line_id"])["state"], "completed")
         self.assertTrue(self.in_window(CAT))
 
@@ -498,7 +498,7 @@ class ChangedSourceTest(MemoryServerCase):
             for n, delta in enumerate(stream(text, context)):
                 if n == 0:
                     threading.Thread(target=lambda: patched.append(self.request(
-                        "PATCH", f"/memory/facts/{fact_id}", {"expected_version": 1, "text": "我养了一只狗"}))).start()
+                        "PATCH", f"/memory/facts/{fact_id}", {"expected_version": 1, "text": "我养了一只狗", "cascade": []}))).start()
                     wait_for(lambda: self.memory.text(fact_id) == "我养了一只狗")
                 yield delta
 
@@ -634,7 +634,7 @@ class InjectionTest(MemoryServerCase):
         first = self.next_event(response)
         while first["event"] != "line":
             first = self.next_event(response)
-        self.assertEqual(self.request("DELETE", f"/memory/facts/{place}?expected_version=1"), (200, {"deleted": True}))
+        self.assertEqual(self.request("DELETE", f"/memory/facts/{place}?expected_version=1&cascade="), (200, {"deleted": True}))
         events = [json.loads(first["data"])] + self.lines_until_final(response)
         conn.close()
         self.assertTrue(wait_for(lambda: not self.server._live_lines))
@@ -861,8 +861,65 @@ class DerivedFactsTest(MemoryServerCase):
         self.assertEqual(self.request("GET", "/memory/facts/missing/cascade"), (404, {"error": "unknown_fact"}))
         self.assertEqual({f["fact_id"] for f in self.facts()}, {first, sibling, alone})
         self.assertEqual(len(self.episodes.between(0, self.now)), 1)
-        self.request("PATCH", f"/memory/facts/{first}", {"expected_version": 1, "text": "我养了一只狗"})
+        self.request("PATCH", f"/memory/facts/{first}", {"expected_version": 1, "text": "我养了一只狗", "cascade": [sibling]})
         self.assertEqual({f["fact_id"] for f in self.facts()}, {first, alone})
+
+    def grown_cascade(self):
+        """A and B share an episode; after the preview of A shows B, consolidation links B to a new episode C cites.
+        (A, B, C)."""
+        shared = self.episode(self.now - 1800)
+        first = self.memory.add("我养了一只猫", "inferred_hypothesis", evidence=[shared])
+        sibling = self.memory.add("可能常在晚上写代码", "inferred_hypothesis", evidence=[shared])
+        self.assertEqual(self.request("GET", f"/memory/facts/{first}/cascade"), (200, {"fact_ids": [sibling]}))
+        later = self.episode(self.now - 1200)
+        third = self.memory.add("周末去爬山", "inferred_hypothesis", evidence=[later])
+        self.assertTrue(self.memory.support(sibling, [later]))
+        return first, sibling, third
+
+    def test_a_delete_refuses_a_cascade_that_grew_after_its_preview(self):
+        first, sibling, third = self.grown_cascade()
+        self.assertEqual(self.request("DELETE", f"/memory/facts/{first}?expected_version=1&cascade={sibling}"),
+                         (409, {"error": "cascade_changed", "fact_ids": sorted([sibling, third])}))
+        self.assertEqual({f["fact_id"] for f in self.facts()}, {first, sibling, third})
+        self.assertEqual(len(self.episodes.between(0, self.now)), 2)
+        both = ",".join(sorted([sibling, third]))
+        self.assertEqual(self.request("DELETE", f"/memory/facts/{first}?expected_version=1&cascade={both}"),
+                         (200, {"deleted": True}))
+        self.assertEqual(self.facts(), [])
+
+    def test_a_delete_names_the_cascade_it_previewed(self):
+        alone = self.memory.add("在写 agentd", "asserted_by_user")
+        self.assertEqual(self.request("DELETE", f"/memory/facts/{alone}?expected_version=1"),
+                         (400, {"error": "cascade_required"}))
+        self.assertEqual(self.request("DELETE", f"/memory/facts/{alone}?expected_version=1&cascade="),
+                         (200, {"deleted": True}))
+
+    def test_a_correction_refuses_a_cascade_that_grew_after_its_preview(self):
+        first, sibling, third = self.grown_cascade()
+        with self.assertRaises(CascadeChanged) as raised:
+            self.memory.correct(first, "我养了一只狗", expected_version=1, cascade=[sibling])
+        self.assertEqual(raised.exception.fact_ids, sorted([sibling, third]))
+        self.assertEqual({f["fact_id"] for f in self.facts()}, {first, sibling, third})
+        self.assertEqual(self.memory.correct(first, "我养了一只狗", expected_version=1, cascade=[third, sibling]), 2)
+        self.assertEqual([f["fact_id"] for f in self.facts()], [first])
+
+    def test_a_patch_refuses_a_cascade_that_grew_after_its_preview(self):
+        first, sibling, third = self.grown_cascade()
+        body = {"expected_version": 1, "text": "我养了一只狗"}
+        self.assertEqual(self.request("PATCH", f"/memory/facts/{first}", {**body, "cascade": [sibling]}),
+                         (409, {"error": "cascade_changed", "fact_ids": sorted([sibling, third])}))
+        self.assertEqual({f["fact_id"] for f in self.facts()}, {first, sibling, third})
+        self.assertEqual(self.request("PATCH", f"/memory/facts/{first}", {**body, "cascade": [third, sibling]}),
+                         (200, {"version": 2}))
+        self.assertEqual([f["fact_id"] for f in self.facts()], [first])
+
+    def test_a_patch_names_the_cascade_it_previewed(self):
+        alone = self.memory.add("在写 agentd", "asserted_by_user")
+        for cascade in (None, "x", [1]):
+            body = {"expected_version": 1, "text": "在写 web"} | ({} if cascade is None else {"cascade": cascade})
+            self.assertEqual(self.request("PATCH", f"/memory/facts/{alone}", body), (400, {"error": "cascade_required"}))
+        self.assertEqual(self.request("PATCH", f"/memory/facts/{alone}", {"expected_version": 1, "text": "在写 web",
+                                                                         "cascade": []}), (200, {"version": 2}))
 
     def test_clearing_one_owner_keeps_the_others_facts_on_a_shared_episode(self):
         shared, own = self.episode(self.now - 1800), self.episode(self.now - 1200)
@@ -888,16 +945,16 @@ class DerivedFactsTest(MemoryServerCase):
 
 class MemoryErrorTest(MemoryServerCase):
     def test_bad_requests(self):
-        for method, path, body in (("PATCH", "/memory/facts/missing", {"expected_version": 1, "text": "x"}),
+        for method, path, body in (("PATCH", "/memory/facts/missing", {"expected_version": 1, "text": "x", "cascade": []}),
                                    ("POST", "/memory/facts/missing/confirm", {"expected_version": 1}),
-                                   ("DELETE", "/memory/facts/missing?expected_version=1", None)):
+                                   ("DELETE", "/memory/facts/missing?expected_version=1&cascade=", None)):
             self.assertEqual(self.request(method, path, body), (404, {"error": "unknown_fact"}), path)
         for text in ("", "  ", "字" * 501, None):
             self.assertEqual(self.request("POST", "/memory/facts", {"text": text}), (400, {"error": "invalid_text"}))
         self.assertEqual(self.request("POST", "/memory/facts", {"text": "a", "kind": "mood"}),
                          (400, {"error": "invalid_kind"}))
         fact_id = self.memory.add("我在上海", "asserted_by_user")
-        self.assertEqual(self.request("PATCH", f"/memory/facts/{fact_id}", {"expected_version": 1, "text": " "}),
+        self.assertEqual(self.request("PATCH", f"/memory/facts/{fact_id}", {"expected_version": 1, "text": " ", "cascade": []}),
                          (400, {"error": "invalid_text"}))
         for path in ("/memory?scope=everything", "/memory", "/memory?scope=facts&owner=", "/memory?scope=all&owner="):
             self.assertEqual(self.request("DELETE", path), (400, {"error": "invalid_scope"}), path)
@@ -906,7 +963,7 @@ class MemoryErrorTest(MemoryServerCase):
         self.assertFalse(self.memory.paused())
         for method, path, body in (("GET", "/memory", None), ("GET", "/memory/export", None),
                                    ("POST", "/memory/facts", {"text": "x"}), ("PUT", "/memory/paused", {"paused": True}),
-                                   ("DELETE", f"/memory/facts/{fact_id}?expected_version=1", None), ("DELETE", "/memory", None)):
+                                   ("DELETE", f"/memory/facts/{fact_id}?expected_version=1&cascade=", None), ("DELETE", "/memory", None)):
             self.assertEqual(self.request(method, path, body, token=EVENTS)[0], 401, path)
         self.assertEqual([f["fact_id"] for f in self.memory.active()], [fact_id])
 
@@ -914,11 +971,11 @@ class MemoryErrorTest(MemoryServerCase):
         self.server.memory = None
         for method, path, body in (("GET", "/memory", None), ("GET", "/memory/export", None),
                                    ("POST", "/memory/facts", {"text": "x"}),
-                                   ("PATCH", "/memory/facts/a", {"expected_version": 1, "text": "x"}),
+                                   ("PATCH", "/memory/facts/a", {"expected_version": 1, "text": "x", "cascade": []}),
                                    ("POST", "/memory/facts/a/confirm", {"expected_version": 1}),
                                    ("GET", "/memory/facts/a/cascade", None),
                                    ("PUT", "/memory/paused", {"paused": True}),
-                                   ("DELETE", "/memory/facts/a?expected_version=1", None), ("DELETE", "/memory?scope=all", None)):
+                                   ("DELETE", "/memory/facts/a?expected_version=1&cascade=", None), ("DELETE", "/memory?scope=all", None)):
             self.assertEqual(self.request(method, path, body), (503, {"error": "no_memory", "detail": "记忆没有开启"}),
                              path)
 

@@ -30,15 +30,17 @@ export const useVersions = (f: Fact) =>
     queryFn: async () => (await get<{ versions: WireFactVersion[] }>(`/memory/facts/${seg(f.id)}/versions`)).versions,
   });
 
-/** `GET /memory/facts/{id}/cascade`: the other facts that correcting f deletes with it, those citing the same observation summary. */
+/** `GET /memory/facts/{id}/cascade`: the other facts that correcting or deleting f deletes with it, those citing the same observation summary. */
 export const readCascade = async (f: Fact) => (await get<{ fact_ids: string[] }>(`/memory/facts/${seg(f.id)}/cascade`)).fact_ids;
 
 export interface FactsModel {
   facts: Fact[];
   confirm: (f: Fact) => Promise<WriteResult>;
   reject: (f: Fact) => Promise<WriteResult>;
-  forget: (f: Fact) => Promise<WriteResult>;
-  correct: (f: Fact, text: string) => Promise<WriteResult>;
+  /** `gone`: the ids readCascade showed; agentd refuses with 409 when it would now delete others. */
+  forget: (f: Fact, gone: string[]) => Promise<WriteResult>;
+  /** `gone` as in forget. */
+  correct: (f: Fact, text: string, gone: string[]) => Promise<WriteResult>;
   /** `locked`: consolidation and her memory tool leave it alone; `quiet` (不再提及): kept, never brought up unasked. */
   mark: (f: Fact, mark: 'locked' | 'quiet', on: boolean) => Promise<WriteResult>;
   /** `reinforced`: agentd already had this text and strengthened it instead of adding a row. */
@@ -81,14 +83,14 @@ export function useFacts(facts: Fact[], owner: string | null = null): FactsModel
         await post(`/memory/facts/${seg(f.id)}/reject`, factWrite(f));
         setRow(f.id, () => null);
       }),
-    forget: (f) =>
+    forget: (f, gone) =>
       run(async () => {
-        await del(`/memory/facts/${seg(f.id)}?expected_version=${f.version}`);
+        await del(`/memory/facts/${seg(f.id)}?expected_version=${f.version}&cascade=${gone.map(seg).join(',')}`);
         setRow(f.id, () => null);
       }),
-    correct: (f, text) =>
+    correct: (f, text, gone) =>
       run(async () => {
-        const r = await patch<{ version: number }>(`/memory/facts/${seg(f.id)}`, factWrite(f, text));
+        const r = await patch<{ version: number }>(`/memory/facts/${seg(f.id)}`, { ...factWrite(f, text), cascade: gone });
         setRow(f.id, (x) => ({ ...x, text, version: r.version }));
       }),
     mark: (f, mark, on) =>

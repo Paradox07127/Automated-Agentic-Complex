@@ -59,7 +59,7 @@ def run_verify(argv, cwd, timeout):
 
     No stdin, and its own process group: what the verifier starts ends with it, or at the timeout. A read_only
     preset runs as hardened git."""
-    preset = READ_ONLY_PRESETS.get(shlex.join(argv))
+    preset = READ_ONLY_PRESETS.get(argv if isinstance(argv, str) else shlex.join(argv))  # Windows keeps the string
     if preset is not None:
         done = git_state.run(cwd, preset, timeout)
         if done is None:  # git is unavailable

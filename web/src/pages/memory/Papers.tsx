@@ -35,10 +35,10 @@ function Overlay({ labelledBy, alert, onClose, children, pop }: { labelledBy: st
   );
 }
 
-/** White danger card: red-black hatch along the top, a red triangle, the quoted fact and what deleting it does. */
-export function DeleteCard({ fact, onCancel, onConfirm }: { fact: Fact; onCancel: () => void; onConfirm: () => void }) {
+/** White danger card: red-black hatch along the top, a red triangle, the quoted fact and what deleting it does;
+ * `gone`: the other memories that go with it, null for one this view did not read. */
+export function DeleteCard({ fact, gone, onCancel, onConfirm }: { fact: Fact; gone: Array<Fact | null>; onCancel: () => void; onConfirm: () => void }) {
   const id = useId();
-  const seen = fact.evidence.some((r) => r.startsWith('episode:'));
   return (
     <Overlay labelledBy={id} alert onClose={onCancel}>
       <h4 id={id}>
@@ -50,9 +50,9 @@ export function DeleteCard({ fact, onCancel, onConfirm }: { fact: Fact; onCancel
       <q>{factText(fact)}</q>
       <ul>
         <li>以后不会再引用它，也不会从同一出处再记一次。</li>
-        {seen && <li>这条来自一段观察；那段观察整理出的其他记忆会一起删除。</li>}
         <li>删除后找不回。</li>
       </ul>
+      {gone.length > 0 && <Gone gone={gone} what="删了它" />}
       <div className={styles.btns}>
         <Btn variant="secondary" onClick={onCancel}>
           取消
@@ -65,20 +65,12 @@ export function DeleteCard({ fact, onCancel, onConfirm }: { fact: Fact; onCancel
   );
 }
 
-/** The danger card before a correction that also deletes other memories; `gone` holds null for one this view did not read. */
-export function CorrectCard({ fact, gone, onCancel, onConfirm }: { fact: Fact; gone: Array<Fact | null>; onCancel: () => void; onConfirm: () => void }) {
-  const id = useId();
+/** The other memories a correction or deletion takes with it; null for one this view did not read. */
+function Gone({ gone, what }: { gone: Array<Fact | null>; what: string }) {
   const shown = gone.filter((f): f is Fact => f != null);
   return (
-    <Overlay labelledBy={id} alert onClose={onCancel}>
-      <h4 id={id}>
-        <span className={styles.wi} aria-hidden="true">
-          !
-        </span>
-        修改这条会删掉另外 {gone.length} 条记忆
-      </h4>
-      <q>{factText(fact)}</q>
-      <p>它和下面这些出自同一段观察的总结；改了它，那段总结和这些记忆会一起删除，找不回。</p>
+    <>
+      <p>它和下面这些出自同一段观察的总结；{what}，那段总结和这些记忆会一起删除，找不回。</p>
       <ul>
         {shown.map((f) => (
           <li key={f.id}>{factText(f)}</li>
@@ -89,6 +81,23 @@ export function CorrectCard({ fact, gone, onCancel, onConfirm }: { fact: Fact; g
           </li>
         )}
       </ul>
+    </>
+  );
+}
+
+/** The danger card before a correction that also deletes other memories; `gone` holds null for one this view did not read. */
+export function CorrectCard({ fact, gone, onCancel, onConfirm }: { fact: Fact; gone: Array<Fact | null>; onCancel: () => void; onConfirm: () => void }) {
+  const id = useId();
+  return (
+    <Overlay labelledBy={id} alert onClose={onCancel}>
+      <h4 id={id}>
+        <span className={styles.wi} aria-hidden="true">
+          !
+        </span>
+        修改这条会删掉另外 {gone.length} 条记忆
+      </h4>
+      <q>{factText(fact)}</q>
+      <Gone gone={gone} what="改了它" />
       <div className={styles.btns}>
         <Btn variant="secondary" onClick={onCancel}>
           取消
