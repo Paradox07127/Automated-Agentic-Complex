@@ -83,6 +83,13 @@ test('filter: a clicked static text is named by its text, which is window text',
   assert.equal(filterRecord(text, open(), NO_RULES, [], ALL)!.target!.title, 'Count 2');
   assert.equal(filterRecord(text, open(), NO_RULES, [], { ...ALL, allowWindowText: false })!.target!.title, null);
   assert.equal(filterRecord(record(), open(), NO_RULES, [], { ...ALL, allowWindowText: false })!.target!.title, 'Save');
+  assert.equal(filterRecord({ ...text, target: { ...text.target!, title: 'secret' } }, open({ secureInput: true }), NO_RULES, [], ALL)!
+    .target!.title, null, 'secure input keeps no shown text either');
+});
+
+test('filter: without share_actions every record is dropped', () => {
+  assert.equal(filterRecord(record(), open(), NO_RULES, [], { ...ALL, allowActions: false }), null);
+  assert.equal(filterRecord(record({ kind: 'window', target: null }), open(), NO_RULES, [], { ...ALL, allowActions: false }), null);
 });
 
 test('filter: redact masks the target\'s title and description too', () => {

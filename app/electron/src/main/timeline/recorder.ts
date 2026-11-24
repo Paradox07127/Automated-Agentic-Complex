@@ -39,7 +39,20 @@ const READ_KINDS = new Set(['click', 'context_menu', 'submit']);
 /** A record and the window it was made in, which it is filtered against; `retried` once its read found no change. */
 interface Pending { record: TimelineRecord; window: CaptureWindow; retried?: boolean }
 
+/** A front window as recorded: a tab switch keeps the pid and window id. */
+interface Shown { pid: number; windowId: number | null; title: string | null; urlHost: string | null; incognito: boolean | null }
+
 const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
+
+const sameShown = (a: Shown | null, b: Shown | null): boolean => a === b || (a !== null && b !== null && a.pid === b.pid
+  && a.windowId === b.windowId && a.title === b.title && a.urlHost === b.urlHost && a.incognito === b.incognito);
+
+/** `s` shows `w` in front, down to the title and URL host its record is filtered on, unlocked and without secure input. */
+function shows(s: AttentionSample | null, w: CaptureWindow): boolean {
+  const f = s?.front;
+  return !!s && !!f && !s.locked && !s.secureInput && f.pid === w.window.pid && f.windowId === w.window.windowId
+    && f.title === w.window.title && f.urlHost === w.window.urlHost && s.frontIncognito === w.incognito;
+}
 
 function base(kind: TimelineKind, ts: number, w: AttentionWindow): TimelineRecord {
   return { ts, kind, app: w.app, bundle_id: w.bundleId, pid: w.pid, window_id: w.windowId, window_title: w.title, url_host: w.urlHost,
@@ -51,10 +64,12 @@ export class TimelineRecorder {
   private readonly queue = new TimelineQueue();
   private latestSample: AttentionSample | null = null;
   private cancelTick: (() => void) | null = null;
-  /** `input.actions` as last asked for. */
+  /** `input.actions` as last asked for; `actionsFailed` once the helper refused it, asked again at the next tick. */
   private actions = false;
-  /** The front window recorded last. */
-  private shown: { pid: number; windowId: number | null } | null = null;
+  private actionsFailed = false;
+  private loggedActions: string | null = null;
+  /** The front window recorded last, blocked or not. */
+  private shown: Shown | null = null;
   /** The tree agentd last took for `shown`, which the helper diffs against. */
   private treeId: string | null = null;
   /** The record with the tree queued last for `shown`, whose id becomes `treeId` when a post of it succeeds. */
@@ -62,6 +77,10 @@ export class TimelineRecorder {
   /** Bumped by each window change and stop, so an older window's tree is dropped. */
   private generation = 0;
   private reading = false;
+  /** The answer of the read for `inflight`, held until a sample taken `after` it; `readClean` while every sample since the
+   *  read began showed the batch's window. */
+  private held: { reply: HelperAnswer; windowRead: boolean; after: number } | null = null;
+  private readClean = true;
   private windowPending: Pending | null = null;
   /** Actions waiting for the next read, and the ones the read in flight is for. */
   private waiting: Pending[] = [];
@@ -103,6 +122,16 @@ export class TimelineRecorder {
    *  actions of the app it shows in front. */
   update(sample: AttentionSample): void {
     this.latestSample = sample;
+    const reading = this.inflight.at(-1);
+    if (reading && !shows(sample, reading.window)) this.readClean = false;
+    const held = this.held;
+    if (reading && held && sample.ts >= held.after) {
+      const batch = this.inflight;
+      this.held = null;
+      this.inflight = [];
+      this.carry(batch, this.readClean && this.ports.policy().allowWindowText ? held.reply : null, held.windowRead);
+      this.next(false);
+    }
     const early = this.early;
     this.early = [];
     if (!this.running || !this.actions || sample.locked || sample.asleep) return;
@@ -113,8 +142,9 @@ export class TimelineRecorder {
 
   private showWindow(sample: AttentionSample): void {
     const f = sample.front;
-    const next = f && f.pid !== null ? { pid: f.pid, windowId: f.windowId } : null;
-    if (next?.pid === this.shown?.pid && next?.windowId === this.shown?.windowId) return;
+    const next = f && f.pid !== null ? { pid: f.pid, windowId: f.windowId, title: f.title, urlHost: f.urlHost, incognito: sample.frontIncognito }
+      : null;
+    if (sameShown(next, this.shown)) return;
     this.leaveWindow();
     this.shown = next;
     if (!f || !next) return;
@@ -146,6 +176,9 @@ export class TimelineRecorder {
   private act(data: Record<string, unknown>, s: AttentionSample, f: AttentionWindow, ts: number): void {
     const kind = data.kind;
     if (kind !== 'click' && kind !== 'context_menu' && kind !== 'shortcut' && kind !== 'submit') return;
+    // The helper names the window the action was in: another window or tab than the sampled one is not recorded as this one.
+    const own = typeof data.target === 'object' && data.target !== null ? (data.target as Record<string, unknown>).window_title : null;
+    if (typeof own === 'string' && own !== f.title) return;
     const window = this.frontWindow(s, f);
     const reason = captureBlockReason(window, this.ports.blacklist(), this.ports.ownPids());
     if (reason !== null && reason !== 'secure_input') return;
@@ -177,21 +210,21 @@ export class TimelineRecorder {
     return { window: f, incognito: s.frontIncognito, secureInput: s.secureInput };
   }
 
-  /** The latest sample's front is `w`, down to the title and URL host its record is filtered on. */
-  private inFront(w: CaptureWindow): boolean {
-    const s = this.latestSample, f = s?.front;
-    return s !== null && !!f && f.pid === w.window.pid && f.windowId === w.window.windowId && f.title === w.window.title
-      && f.urlHost === w.window.urlHost && s.frontIncognito === w.incognito;
-  }
-
   private setActions(on: boolean): void {
     this.actions = on;
+    this.actionsFailed = false;
     if (!on) {
       this.leaveWindow();
       this.shown = null;
     }
     void this.ports.helper.request('input.actions', { enabled: on }).then((reply) => {
-      if (!reply.ok) this.ports.log(`TIMELINE input.actions failed code=${reply.error.code}`);
+      if (reply.ok) {
+        this.loggedActions = null;
+        return;
+      }
+      if (reply.error.code !== this.loggedActions) this.ports.log(`TIMELINE input.actions failed code=${reply.error.code}`);
+      this.loggedActions = reply.error.code;
+      if (this.actions === on) this.actionsFailed = true;
     });
   }
 
@@ -200,6 +233,7 @@ export class TimelineRecorder {
     this.generation += 1;
     this.treeId = null;
     this.unsent = null;
+    this.held = null;
     this.cancelRead?.();
     this.cancelRead = null;
     for (const p of [...(this.windowPending ? [this.windowPending] : []), ...this.inflight, ...this.waiting]) this.enqueue(p);
@@ -209,7 +243,7 @@ export class TimelineRecorder {
   }
 
   private scheduleRead(ms = READ_DELAY_MS): void {
-    if (this.cancelRead !== null || this.reading) return;
+    if (this.cancelRead !== null || this.reading || this.held !== null) return;
     // A one-shot on the periodic port.
     const cancel = this.ports.every(ms, () => {
       cancel();
@@ -219,42 +253,53 @@ export class TimelineRecorder {
     this.cancelRead = cancel;
   }
 
-  /** One `ax.window_tree` at a time: the pending window's whole tree first, else the waiting actions' diff. */
+  /** One `ax.window_tree` at a time: the pending window's whole tree first, else the waiting actions' diff. A tree is
+   *  carried once a sample taken after the read shows the batch's window still in front (`update`). */
   private async read(): Promise<void> {
-    const shown = this.shown;
-    if (this.reading || !shown) return;
+    const shown = this.shown, s = this.latestSample;
+    if (this.reading || this.held !== null || !shown) return;
     const windowRead = this.windowPending;
     const batch = windowRead ? [windowRead] : this.waiting.splice(0);
     if (batch.length === 0) return;
     this.windowPending = null;
-    const window = batch.at(-1)!.window;
-    // A tab switch keeps the pid and window id, so the front is compared with the batch's window before and after the read.
-    const reads = () => this.ports.policy().allowWindowText && this.inFront(window);
     let retry = false;
-    if (!reads()) {
+    if (!this.ports.policy().allowWindowText || !shows(s, batch.at(-1)!.window)) {
       this.carry(batch, null, windowRead !== null);
     } else {
       this.reading = true;
+      this.readClean = true;
       this.inflight = batch;
       const generation = this.generation;
-      const params = windowRead || this.treeId === null ? { pid: shown.pid } : { pid: shown.pid, previous: this.treeId };
+      const params = {
+        pid: shown.pid, ...(windowRead || this.treeId === null ? {} : { previous: this.treeId }),
+        ...(s?.frontBounds ? { window_bounds: s.frontBounds } : {}),
+      };
       const reply = await this.ports.helper.request('ax.window_tree', params);
       this.reading = false;
       if (generation === this.generation) {
+        if (reply.ok && reply.result.mode !== 'no_change') {
+          this.held = { reply, windowRead: windowRead !== null, after: this.seconds() };
+          return;
+        }
         this.inflight = [];
-        retry = this.carry(batch, reads() ? reply : null, windowRead !== null);
+        retry = this.carry(batch, reply, windowRead !== null);
       }
     }
+    this.next(retry);
+  }
+
+  private next(retry: boolean): void {
     if (this.windowPending) void this.read();
     else if (this.waiting.length > 0) this.scheduleRead(retry ? RETRY_DELAY_MS : READ_DELAY_MS);
   }
 
-  /** The tree goes on the last record of the batch; the helper diffs against it next only when agentd gets it. An
-   *  action batch's first no_change puts it back to wait for one more read instead; true then. A null `reply`, no tree
-   *  read for the batch's window, sends the batch without one. */
+  /** The tree goes on the last record of the batch; the helper diffs against it next only when agentd gets it and it is
+   *  complete. An action batch's first no_change puts its first-read actions back to wait for one more read instead; true
+   *  then. A null `reply`, no tree read for the batch's window, sends the batch without one. */
   private carry(batch: Pending[], reply: HelperAnswer | null, windowRead: boolean): boolean {
     if (reply?.ok && reply.result.mode === 'no_change' && !windowRead && batch.some((p) => !p.retried)) {
-      this.waiting.unshift(...batch.map((p) => ({ ...p, retried: true })));
+      for (const p of batch) if (p.retried) this.enqueue(p);
+      this.waiting.unshift(...batch.filter((p) => !p.retried).map((p) => ({ ...p, retried: true })));
       return true;
     }
     let tree: TimelineTree | null = null;
@@ -274,7 +319,9 @@ export class TimelineRecorder {
     if (tree && kept?.tree) {
       // Until agentd takes this tree, a diff would have no base there.
       this.treeId = null;
-      this.unsent = reply?.ok && typeof reply.result.tree_id === 'string' ? { record: kept, treeId: reply.result.tree_id } : null;
+      // A truncated tree misses lines a diff against it would give as added.
+      this.unsent = reply?.ok && typeof reply.result.tree_id === 'string' && reply.result.truncated === false
+        ? { record: kept, treeId: reply.result.tree_id } : null;
     }
     return false;
   }
@@ -287,7 +334,8 @@ export class TimelineRecorder {
 
   private tick(): void {
     const policy = this.ports.policy();
-    if (policy.allowActions !== this.actions) this.setActions(policy.allowActions);
+    if (policy.allowActions !== this.actions || this.actionsFailed) this.setActions(policy.allowActions);
+    if (!policy.allowActions) this.queue.drain(TimelineQueue.CAPACITY);
     const now = this.seconds();
     if (!this.actions || this.posting || this.queue.count === 0
       || (this.queue.count < TimelineQueue.BATCH && now - this.lastPost < POST_SECONDS)) return;

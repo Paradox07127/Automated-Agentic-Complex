@@ -54,6 +54,7 @@ export const DEFAULT_TIMELINE_POLICY: TimelinePolicy = { allowActions: false, al
 /** The record as it may be queued, or null when it is dropped. Secure input keeps the record without what was typed or shown. */
 export function filterRecord(record: TimelineRecord, window: CaptureWindow, rules: BlacklistRules, ownPids: readonly number[],
   policy: TimelinePolicy): TimelineRecord | null {
+  if (!policy.allowActions) return null;
   const reason = captureBlockReason(window, rules, ownPids);
   if (reason !== null && reason !== 'secure_input') return null;
   const target = record.target && { ...record.target };
@@ -63,6 +64,7 @@ export function filterRecord(record: TimelineRecord, window: CaptureWindow, rule
     out.text = null;
     out.tree = null;
     if (target) target.value = null;
+    if (target?.role === 'AXStaticText') target.title = null;
   }
   if (!policy.allowWindowText) {
     out.tree = null;

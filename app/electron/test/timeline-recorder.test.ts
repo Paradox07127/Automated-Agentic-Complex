@@ -77,11 +77,20 @@ function setup(o: { helper?: Record<string, Answer>; post?: () => Promise<number
     log: (line) => logs.push(line),
   };
   const recorder = new TimelineRecorder(ports);
+  /** What the sampler sees, sent each second from start as a sample taken then. */
+  let current: AttentionSample | null = null;
+  const started = clock;
+  const show = (s: AttentionSample) => {
+    current = s;
+    recorder.update({ ...s, ts: clock / 1000 });
+  };
   return {
     recorder, helper, requests, posts, logs,
     get intervals() { return timers.filter((t) => t.live).map((t) => t.ms); },
     set policy(p: TimelinePolicy) { policy = p; },
-    async start(s: AttentionSample | null = sample()) { recorder.start(); await settle(); if (s) recorder.update(s); await settle(); },
+    async start(s: AttentionSample | null = sample()) { recorder.start(); await settle(); if (s) show(s); await settle(); },
+    /** A sample of `s` now, and each second after. */
+    show,
     /** 100 ms steps for `ms`. */
     async run(ms: number) {
       for (let i = 0; i < ms / 100; i += 1) {
@@ -91,6 +100,7 @@ function setup(o: { helper?: Record<string, Answer>; post?: () => Promise<number
           t.due += t.ms;
           t.fn();
         }
+        if (current && (clock - started) % 1000 === 0) recorder.update({ ...current, ts: clock / 1000 });
         await settle();
       }
     },
@@ -134,12 +144,12 @@ test('a new front window is one window record with the full tree, every key sent
   const t = setup();
   await t.start();
   assert.deepEqual(t.ops('ax.window_tree'), [{ pid: 702 }]);
-  t.recorder.update(sample({ ts: 1 }));
+  t.show(sample());
   await t.run(5000);
   assert.deepEqual(t.records(), [{ ts: 1_763_539_200, kind: 'window', app: 'TextEdit', bundle_id: 'com.apple.TextEdit', pid: 702,
     window_id: 640, window_title: 'notes.txt', url_host: null, target: null, keys: null, text: null, tree: { mode: 'full', text: FULL } }]);
   assert.deepEqual(t.ops('ax.window_tree'), [{ pid: 702 }], 'the same window is not read again');
-  t.recorder.update(sample({ front: NOTES }));
+  t.show(sample({ front: NOTES }));
   await settle();
   assert.deepEqual(t.ops('ax.window_tree').at(-1), { pid: 800 });
 });
@@ -205,9 +215,9 @@ test('no_change twice leaves the click without a tree; a full answer is carried 
 test('a click in an app the sampler has not seen in front yet is recorded with the next sample that shows it', async () => {
   const t = setup();
   await t.start();
-  t.recorder.event('input.action', { kind: 'click', pid: 800, target: button });
+  t.recorder.event('input.action', { kind: 'click', pid: 800, target: { ...button, window_title: 'Groceries' } });
   await t.run(600);
-  t.recorder.update(sample({ front: NOTES }));
+  t.show(sample({ front: NOTES }));
   await t.run(5000);
   const [, window, click] = t.records();
   assert.deepEqual(t.records().map((r) => [r.kind, r.app, r.window_id]), [['window', 'TextEdit', 640], ['window', 'Notes', 900],
@@ -215,7 +225,7 @@ test('a click in an app the sampler has not seen in front yet is recorded with t
   assert.equal(Math.round((window!.ts - click!.ts) * 1000), 600, 'the click keeps its own time');
   t.recorder.event('input.action', { kind: 'click', pid: 702, target: button });
   await t.run(1600);
-  t.recorder.update(sample());
+  t.show(sample());
   await t.run(5000);
   assert.deepEqual(t.records().map((r) => r.kind), ['window', 'window', 'click', 'window'], 'past 1.5 s the click is dropped');
 });
@@ -223,6 +233,7 @@ test('a click in an app the sampler has not seen in front yet is recorded with t
 test('a shortcut reads no tree and carries its keys', async () => {
   const t = setup();
   await t.start();
+  await t.run(1000);
   t.act('shortcut', { keys: 'command+s', target: null });
   await t.run(5000);
   assert.equal(t.ops('ax.window_tree').length, 1);
@@ -243,7 +254,7 @@ test('one read at a time: an action during a read is read after it', async () =>
   assert.equal(t.ops('ax.window_tree').length, 2);
   pending.resolve(tree('diff', 't2'));
   await settle();
-  await t.run(300);
+  await t.run(1000);
   assert.deepEqual(t.ops('ax.window_tree').map((p) => p.previous), [undefined, 't1', undefined], 't2 is not posted yet');
   await t.run(5000);
   assert.deepEqual(t.records().map((r) => [r.kind, r.tree?.text]), [['window', FULL], ['click', 'diff t2'], ['submit', 'full t3']]);
@@ -254,9 +265,10 @@ test('a tree answer that comes after the window changed is dropped; its click go
   const answers: (HelperAnswer | Promise<HelperAnswer>)[] = [tree('full', 't1', FULL), pending.promise, tree('full', 'n1', 'notes tree')];
   const t = setup({ helper: { 'ax.window_tree': () => answers.shift()! } });
   await t.start();
+  await t.run(1000);
   t.act('click');
   await t.run(300);
-  t.recorder.update(sample({ front: NOTES }));
+  t.show(sample({ front: NOTES }));
   await settle();
   assert.equal(t.ops('ax.window_tree').length, 2, 'the new window waits for the read in flight');
   pending.resolve(tree('diff', 't2'));
@@ -271,7 +283,7 @@ test('allowWindowText off: the window and the click are recorded and no tree is 
   const t = setup({ policy: { ...ON, allowWindowText: false } });
   await t.start();
   t.act('click');
-  t.recorder.update(sample({ front: NOTES }));
+  t.show(sample({ front: NOTES }));
   await t.run(5000);
   assert.deepEqual(t.ops('ax.window_tree'), []);
   assert.deepEqual(t.ops('input.actions'), [{ enabled: true }]);
@@ -286,15 +298,87 @@ test('a tree read that returns after a switch to a blocked tab in the same windo
   const t = setup({ helper: { 'ax.window_tree': () => answers.shift()! },
     blacklist: parseBlacklist({ mode: 'deny', domains: ['bank.example'] }) });
   await t.start(sample({ front: SAFARI }));
-  t.act('click');
+  await t.run(1000);
+  t.act('click', { target: { ...button, window_title: 'Docs' } });
   await t.run(300);
   assert.equal(t.ops('ax.window_tree').length, 2);
-  t.recorder.update(sample({ front: { ...SAFARI, title: 'Account', urlHost: 'bank.example' } }));
+  t.show(sample({ front: { ...SAFARI, title: 'Account', urlHost: 'bank.example' } }));
   pending.resolve(tree('diff', 't2', 'MARKER balance'));
   await t.run(5000);
   assert.deepEqual(t.records().filter((r) => r.tree?.text.includes('MARKER')).map((r) => r.url_host), []);
   assert.deepEqual(t.records().map((r) => [r.kind, r.url_host, r.tree?.mode ?? null]), [['window', 'docs.example', 'full'],
     ['click', 'docs.example', null]]);
+});
+
+test('an action whose own window is not the sampled one is not recorded and reads no tree', async () => {
+  const SAFARI = { app: 'Safari', bundleId: 'com.apple.Safari', pid: 702, windowId: 640, title: 'Docs', urlHost: 'docs.example' };
+  const t = setup({ blacklist: parseBlacklist({ mode: 'deny', domains: ['bank.example'] }) });
+  await t.start(sample({ front: SAFARI }));
+  await t.run(5000);
+  t.act('click', { target: { ...button, label: 'Transfer', window_title: 'Account' } });
+  await t.run(5000);
+  assert.equal(t.ops('ax.window_tree').length, 1);
+  assert.deepEqual(t.records().filter((r) => r.tree !== null).map((r) => r.kind), ['window']);
+  assert.deepEqual(t.records().filter((r) => r.target?.title === 'Transfer'), []);
+});
+
+test('a tree is kept only when a sample after the read still shows its window without secure input', async () => {
+  const pending = [later<HelperAnswer>(), later<HelperAnswer>()];
+  const answers: (HelperAnswer | Promise<HelperAnswer>)[] = [tree('full', 't1', FULL), pending[0]!.promise, pending[1]!.promise];
+  const t = setup({ helper: { 'ax.window_tree': () => answers.shift()! } });
+  await t.start();
+  await t.run(1000);
+  t.act('click');
+  await t.run(300);
+  assert.equal(t.ops('ax.window_tree').length, 2);
+  t.show(sample({ secureInput: true }));
+  pending[0]!.resolve(tree('diff', 't2', 'MARKER typed'));
+  await t.run(5000);
+  t.show(sample());
+  t.act('click');
+  await t.run(300);
+  assert.equal(t.ops('ax.window_tree').length, 3);
+  t.show(sample({ secureInput: true }));
+  t.show(sample());
+  pending[1]!.resolve(tree('diff', 't3', 'MARKER again'));
+  await t.run(5000);
+  assert.deepEqual(t.records().map((r) => [r.kind, r.tree?.text ?? null]), [['window', FULL], ['click', null], ['click', null]],
+    'secure input after the click, during the read or after it keeps the tree out');
+});
+
+test('a tree is kept only once a sample taken after the read came', async () => {
+  const pending = later<HelperAnswer>();
+  const answers: (HelperAnswer | Promise<HelperAnswer>)[] = [tree('full', 't1', FULL), pending.promise, tree('full', 'n1')];
+  const t = setup({ helper: { 'ax.window_tree': () => answers.shift()! } });
+  await t.start();
+  await t.run(1000);
+  t.act('click');
+  await t.run(300);
+  pending.resolve(tree('diff', 't2', 'MARKER'));
+  await settle();
+  t.recorder.update(sample({ ts: 0 }));
+  await t.run(100);
+  t.show(sample({ front: NOTES }));
+  await t.run(5000);
+  assert.deepEqual(t.records().filter((r) => r.app === 'TextEdit').map((r) => [r.kind, r.tree?.text ?? null]),
+    [['window', FULL], ['click', null]]);
+});
+
+test('the tree is read from the sampled window by its bounds, not whichever window of the app has focus', async () => {
+  const bounds = { x: 0, y: 25, width: 800, height: 600 };
+  const t = setup();
+  await t.start(sample({ frontBounds: bounds }));
+  assert.deepEqual(t.ops('ax.window_tree'), [{ pid: 702, window_bounds: bounds }]);
+});
+
+test('a tab switch in one window is a new window: the first allowed tab after a blocked one is recorded', async () => {
+  const SAFARI = { app: 'Safari', bundleId: 'com.apple.Safari', pid: 702, windowId: 640, title: 'Account', urlHost: 'bank.example' };
+  const t = setup({ blacklist: parseBlacklist({ mode: 'deny', domains: ['bank.example'] }) });
+  await t.start(sample({ front: SAFARI }));
+  t.show(sample({ front: { ...SAFARI, title: 'Docs', urlHost: 'docs.example' } }));
+  await t.run(5000);
+  assert.deepEqual(t.records().map((r) => [r.kind, r.url_host, r.tree?.mode ?? null]), [['window', 'docs.example', 'full']]);
+  assert.deepEqual(t.ops('ax.window_tree'), [{ pid: 702 }]);
 });
 
 test('our own process, another app\'s pid and a blacklisted window are not recorded or read', async () => {
@@ -369,6 +453,56 @@ test('the helper diffs against a tree only once agentd took it; a refused full t
   assert.deepEqual(t.ops('ax.window_tree').at(-1), { pid: 702, previous: 't2' });
 });
 
+test('a truncated tree is no diff base, even once agentd took it', async () => {
+  const t = setup({ helper: { 'ax.window_tree': (p) => ok({ ...(trees()(p) as { result: Record<string, unknown> }).result, truncated: true }) } });
+  await t.start();
+  await t.run(5000);
+  assert.deepEqual(t.posts.map((b) => b.map((r) => r.tree?.mode ?? null)), [['full']]);
+  t.act('click');
+  await t.run(300);
+  assert.deepEqual(t.ops('ax.window_tree').at(-1), { pid: 702 });
+});
+
+test('a failed input.actions is asked again at the next tick', async () => {
+  const replies = [err('ax_denied')];
+  const t = setup({ helper: { 'input.actions': (p) => replies.shift() ?? ok({ watching: p.enabled }) } });
+  await t.start();
+  assert.deepEqual(t.ops('input.actions'), [{ enabled: true }]);
+  await t.run(500);
+  assert.deepEqual(t.ops('input.actions'), [{ enabled: true }, { enabled: true }]);
+  await t.run(1000);
+  assert.equal(t.ops('input.actions').length, 2);
+  assert.deepEqual(t.logs, ['TIMELINE input.actions failed code=ax_denied']);
+});
+
+test('a click read twice with no change goes without a tree while a newer click waits for its own second read', async () => {
+  const third = later<HelperAnswer>();
+  const answers: (HelperAnswer | Promise<HelperAnswer>)[] = [tree('full', 't1', FULL), tree('no_change', 't2'), tree('no_change', 't3'),
+    third.promise];
+  const t = setup({ helper: { 'ax.window_tree': () => answers.shift()! } });
+  await t.start();
+  await t.run(5000);
+  t.act('click', { target: { ...button, label: 'First' } });
+  await t.run(500);
+  t.act('click', { target: { ...button, label: 'Second' } });
+  await t.run(500);
+  assert.equal(t.ops('ax.window_tree').length, 3);
+  await t.run(5000);
+  assert.deepEqual(t.records().map((r) => [r.kind, r.target?.title ?? null, r.tree?.mode ?? null]), [['window', null, 'full'],
+    ['click', 'First', null]]);
+});
+
+test('records queued while share_actions is on are dropped when it turns off', async () => {
+  const t = setup();
+  await t.start();
+  t.act('shortcut', { keys: 'command+s', target: null });
+  t.policy = { ...ON, allowActions: false };
+  await t.run(500);
+  t.policy = ON;
+  await t.run(5000);
+  assert.deepEqual(t.records().map((r) => r.kind), ['window'], 'only the window sampled again once share_actions is back');
+});
+
 test('50 records are posted at the next tick', async () => {
   const t = setup();
   await t.start();
@@ -386,6 +520,7 @@ const activityEvent = (over: Partial<ActivityEvent>): ActivityEvent => ({ ts: 1_
 test('mirror: a value event is a text_input, a selection a selection; other kinds are not the timeline\'s', async () => {
   const t = setup();
   await t.start();
+  await t.run(1000);
   t.recorder.mirror(activityEvent({}));
   t.recorder.mirror(activityEvent({ kind: 'selection', value: 'mil' }));
   t.recorder.mirror(activityEvent({ kind: 'focus', value: null }));
