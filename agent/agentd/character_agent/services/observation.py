@@ -1171,6 +1171,29 @@ class ObservationService:
                 self.db.execute('DELETE FROM ' + table + ' WHERE at>=?', (cutoff,))
         self.last_signature = None
 
+    def forget_hidden(self, hides, delete_existing):
+        """The blacklist changed: a running analysis is dropped; with delete_existing the frames whose metadata hides()
+        matches go, with the analyses and work events made from them."""
+        self.epoch += 1
+        if not delete_existing: return
+        with self.input_replay_lock:
+            self.input_replays.clear()
+        with self.lock, self.db:
+            frames = {ident: sha for ident, meta, sha in self.db.execute('SELECT id,metadata,content_hash FROM observation_frames') if hides(json.loads(meta))}
+            if not frames: return
+            made = {table: [ident for ident, raw in self.db.execute('SELECT id,dependencies FROM ' + table) if any(d['id'] in frames for d in json.loads(raw))]
+                    for table in ('observation_analyses', 'observation_work_events')}
+            ids, analyses, hashes = dump(list(frames)), dump(made['observation_analyses']), dump(list(set(frames.values())))
+            among = ' IN (SELECT value FROM json_each(?))'
+            self.db.execute('DELETE FROM observation_processed WHERE id' + among + ' OR analysis_id' + among, (ids, analyses))
+            self.db.execute('DELETE FROM observation_input_identity WHERE observation_id' + among, (ids,))
+            self.db.execute('DELETE FROM observation_aliases WHERE id' + among + ' OR canonical_id' + among, (ids, ids))
+            for table, gone in (('observation_frames', ids), *((t, dump(v)) for t, v in made.items())):
+                self.db.execute('DELETE FROM ' + table + ' WHERE id' + among, (gone,))
+            self.db.execute('DELETE FROM observation_content WHERE hash' + among + ' AND hash NOT IN (SELECT content_hash FROM observation_frames)', (hashes,))
+        self.last_signature = None
+        self.server.feed.publish('task_understanding', {'action': 'deleted'})
+
     def clear(self):
         self.epoch+=1
         with self.input_replay_lock:self.input_replays.clear()

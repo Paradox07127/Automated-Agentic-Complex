@@ -3,12 +3,14 @@ import base64
 import json
 from pathlib import Path
 import sys
+import time
 import unittest
 from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import test_server
 import test_observation_briefs_http as fixture
+from observation.attention import AttentionStore
 from observation.capture import CaptureManager
 from observation.blacklist import Blacklist
 from support import deny_blacklist  # noqa: E402
@@ -62,5 +64,24 @@ class ObservationHTTPTests(fixture.BriefHTTPFixture):
             self.assertEqual(self.request('GET',path)[0],404)
         for ident in (['x'],{'a':1},7):
             self.assertEqual(self.request('POST','/observation/refresh',{'observation_id':ident}),(400,{'error':'invalid_observation_request'}))
+
+    def test_excluding_an_app_keeps_records_or_deletes_only_that_apps(self):
+        self.ready();o=self.c.observations;now=time.time()
+        self.server.attention=AttentionStore(self.root/'attention.sqlite',self.server.capture.blacklist)
+        self.addCleanup(self.server.attention.close)
+        frames={app:o.ingest('native_ax','notes of '+app,metadata={'app':app,'bundle_id':'x.'+app,'title':app},source_key='k-'+app,at=now-10)
+                for app in ('Xapp','Yapp')}
+        with self.db:
+            self.db.executemany('INSERT INTO observation_work_events VALUES(?,?,?,?,?,?,?)',
+                [('work-'+app,self.server.character,now-5,app,json.dumps({'title':app}),json.dumps([o.dependency(o.get(ident))]),'analysis')
+                 for app,ident in frames.items()])
+        rows=lambda:(sorted(r[0] for r in self.db.execute('SELECT id FROM observation_frames')),  # noqa: E731
+                     sorted(r[0] for r in self.db.execute('SELECT id FROM observation_work_events')))
+        kept=rows();self.assertEqual(len(kept[0]),2)
+        exclude=lambda delete:self.request('POST','/blacklist',{'field':'app_names','value':'Xapp','delete_existing':delete})[0]  # noqa: E731
+        self.assertEqual(exclude(False),200)
+        self.assertEqual(rows(),kept)
+        self.assertEqual(exclude(True),200)
+        self.assertEqual(rows(),([frames['Yapp']],['work-Yapp']))
 
 if __name__=='__main__':unittest.main()

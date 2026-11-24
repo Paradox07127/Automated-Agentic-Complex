@@ -73,7 +73,7 @@ describe('overview reads', () => {
   it('shows pending from the snapshot parts: approvals, the open question and the unreviewed delivery', async () => {
     serve();
     const s = await loadOverview(null, false);
-    expect(s.seq).toBe('18422');
+    expect(s.seq).toBe('7c1e0a42-18422');
     expect(sortPending(s.pending).map((p) => p.id)).toEqual([A1, A2, A3, Q1, `r-${DLV_T1_V2}`]);
     const a2 = s.pending.find((p) => p.id === A2) as Approval;
     // seconds_left 23 of a 55 s window, read at NOW: it opened 32 s ago.
@@ -268,10 +268,10 @@ describe('overview feed', () => {
     return { hook, spy, feed, snapshots, send, reload: () => act(() => reload()), diag: (data: unknown) => act(() => diag({ event: 'decision', id: null, data: JSON.stringify(data) })) };
   }
 
-  it('subscribes after the snapshot seq and lays plans and tools over the live runs', async () => {
+  it('subscribes after the snapshot cursor <stream_epoch>-<seq> and lays plans and tools over the live runs', async () => {
     const { hook, feed, send } = live();
     await waitFor(() => expect(hook.result.current.q.data).toBeDefined());
-    await waitFor(() => expect(feed).toHaveBeenCalledWith(expect.any(Function), expect.any(Function), '18422'));
+    await waitFor(() => expect(feed).toHaveBeenCalledWith(expect.any(Function), expect.any(Function), '7c1e0a42-18422'));
     send('plan', { run_id: 'run-8d03', revision: 3, title: '周报', status: 'in_progress', steps: [{ text: '按项目重写', status: 'completed' }, { text: '生成统计表', status: 'in_progress' }] });
     const item = { run_id: 'run-8d03', item_id: 'i1', kind: 'tool_call', phase: null, name: 'Bash · python 统计', summary: null, parent_item_id: null, conversation_id: 'conv-1', generation: 1, item_seq: 4, at: 1 };
     send('agent_item', { ...item, status: 'started' });

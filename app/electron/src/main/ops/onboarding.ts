@@ -29,16 +29,7 @@ function skipping(input: unknown): boolean {
 
 export function onboardingOps(ctx: OpsContext): Ops {
   const log = (line: string) => ctx.log(`ONBOARDING ${line}`);
-
-  /** An unreadable config.json reads as empty, so the guide still answers. */
-  const raw = (): Record<string, unknown> => {
-    try {
-      return readObject(ctx.config.path);
-    } catch {
-      return {};
-    }
-  };
-  const done = () => raw().onboarding_done === true;
+  // One guide per registry: the window builds a new one each time it opens.
   const model = new OnboardingModel();
   model.characterName = ctx.library?.characterName ?? '';
 
@@ -87,6 +78,6 @@ export function onboardingOps(ctx: OpsContext): Ops {
 
   return Object.fromEntries(Object.entries(steps).map(([op, step]) => [op, (args: unknown[]) => {
     step(args);
-    return model.json(done());
+    return model.json();
   }]));
 }

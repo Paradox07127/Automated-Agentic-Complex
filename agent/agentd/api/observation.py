@@ -148,14 +148,15 @@ class ObservationMixin:
         self._json(200, {"removed": removed})
 
     def _forget_hidden(self, hides, field=None, delete_existing=False):
-        """Drops what hides matches from capture and the judge, and all derived context; returns capture requests dropped."""
+        """Stops capture and the judge using what hides matches; with delete_existing its records go too. Returns
+        capture requests dropped."""
         dropped = 0
         if self.server.capture is not None:
             dropped = self.server.capture.forget_hidden(hides, field, delete_existing)
         if self.server.proactive is not None and self.server.proactive.judge is not None:
             self.server.proactive.judge.forget_hidden(hides, field)
         observations=getattr(getattr(self.server,'character_agent',None),'observations',None)
-        if observations: observations.clear()
+        if observations: observations.forget_hidden(hides, delete_existing)
         return dropped
 
     def _blacklist_add(self, body):

@@ -44,20 +44,18 @@ function planOf(d: FeedPlan): Plan {
   };
 }
 
-/** Plans and the current tool per run, from the feed (agentd's run rows carry neither); `lost` after a feed reset or gap. */
+/** Plans and the current tool per run, from the feed (agentd's run rows carry neither); `lost` after a feed reset or gap.
+ *  `seq` is the snapshot's feed cursor; each new snapshot subscribes after its own. */
 function useLive(seq: string | null, reload: (reset?: boolean) => void, lostAtStart: boolean) {
   const [plans, setPlans] = useState<Record<string, Plan>>({});
   const [tools, setTools] = useState<Record<string, string>>({});
   const [lost, setLost] = useState(lostAtStart);
-  const after = useRef(seq);
-  after.current = seq;
   const again = useRef(reload);
   again.current = reload;
   const ready = seq != null;
 
   useEffect(() => {
-    if (!ready) return;
-    const bridge = getBridge();
+    if (seq == null) return;
     const onFeed = (e: StreamEvent) => {
       if (e.event === 'plan') {
         const d = JSON.parse(e.data) as FeedPlan;
@@ -74,7 +72,7 @@ function useLive(seq: string | null, reload: (reset?: boolean) => void, lostAtSt
         });
       } else if (RELOAD_ON.has(e.event)) again.current();
     };
-    const offFeed = bridge.feed.subscribe(
+    return getBridge().feed.subscribe(
       onFeed,
       () => {
         // Reset or gap: plans are not replayed, so rows fall back to their state until the next plan event.
@@ -83,19 +81,19 @@ function useLive(seq: string | null, reload: (reset?: boolean) => void, lostAtSt
         setLost(true);
         again.current(true);
       },
-      after.current ?? undefined,
+      seq,
     );
+  }, [seq]);
+
+  useEffect(() => {
+    if (!ready) return;
     // Hook approvals are not on the feed; the broker's approval.* decisions are on the diag stream.
-    const offDiag = bridge.diag.subscribe(
+    return getBridge().diag.subscribe(
       (e) => {
         if (e.event === 'decision' && String((JSON.parse(e.data) as { kind?: unknown }).kind).startsWith('approval.')) again.current();
       },
       () => again.current(),
     );
-    return () => {
-      offFeed();
-      offDiag();
-    };
   }, [ready]);
 
   return { plans, tools, lost };
@@ -170,12 +168,12 @@ export function useOverview(demo: string | null, state: DemoState | null, today 
     [all, client, work],
   );
 
-  const live = useLive(q.data ? String(q.data.wire.seq) : null, reload, demo === 'plan-lost');
   const data = useMemo(() => {
     const parts = { snapshot: q.data, running: running.data, runningError: running.error?.message, role: role.data, day: day.data, dayError: day.error?.message };
     const s = withRuntime(overviewOf(parts), kernel.data);
     return state === 'empty' ? emptyWork(s) : sparseDemo(demo) ? sparseWork(s) : s;
   }, [q.data, running.data, running.error, role.data, day.data, day.error, kernel.data, state, demo]);
+  const live = useLive(q.data ? data.seq : null, reload, demo === 'plan-lost');
   const brief = useMemo(() => {
     const b = bq.data;
     if (!b) return b;

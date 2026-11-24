@@ -31,7 +31,11 @@ export function useBriefs() {
     () =>
       getBridge().feed.subscribe(
         (e) => {
-          if (e.event === 'observation_brief') void qc.invalidateQueries({ queryKey: LIST });
+          if (e.event !== 'observation_brief') return;
+          void qc.invalidateQueries({ queryKey: LIST });
+          // An invalidated, dismissed or deleted report's text must not stay on screen; `deleted` names no id.
+          const { id } = JSON.parse(e.data) as { id?: string };
+          void qc.resetQueries({ queryKey: id ? ['observe', 'brief', id] : ['observe', 'brief'] });
         },
         () => void qc.invalidateQueries({ queryKey: LIST }),
       ),

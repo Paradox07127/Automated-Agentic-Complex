@@ -608,10 +608,10 @@ class CaptureManager:
         with self._lock:
             self._sync_policy()
             hidden = {w for w, state in self.windows.items() if hides(state["meta"])}
-            rewrite_jsonl(self.log_path, lambda row: row.get("window_id") not in hidden)
             self.judge.forget_hidden(hides, field)
             if not delete_existing:
                 return 0
+            rewrite_jsonl(self.log_path, lambda row: row.get("window_id") not in hidden)
             return self._drop([r for r, record in self.observations.items() if record["window_id"] in hidden])
 
     def _drop(self, request_ids):

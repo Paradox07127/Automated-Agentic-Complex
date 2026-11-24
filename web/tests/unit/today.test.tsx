@@ -1,10 +1,12 @@
 // 今天：sel 跳到任务页、当前任务（回退：按目标或项目分组）、开发者模式关闭时不露内部读数、待处理落点。
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, QueryObserver } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { A1, T1 } from '../../src/mock/fixtures/ids';
+import type { SettingsChange } from '../../src/bridge/protocol';
 import { OverviewPage } from '../../src/pages/overview/Page';
+import { resetOnAccessChange } from '../../src/pages/overview/useToday';
 import { setDevMode } from '../../src/shell/devMode';
 import { useLandingFocus } from '../../src/shell/nav';
 import { ToastHost } from '../../src/shell/toast';
@@ -138,5 +140,38 @@ describe('今天', () => {
   it('focus=item-<id> lands on the pending item', async () => {
     mount(`&focus=item-${A1}`);
     await waitFor(() => expect(document.querySelector(`[data-nav-target="item-${A1}"]`)?.hasAttribute('data-nav-hl')).toBe(true), { timeout: 3000 });
+  });
+});
+
+describe('a consent change', () => {
+  it('drops the cached work-memory reads and reads /memory/sessions again; other settings leave them', async () => {
+    const client = new QueryClient();
+    let push: (c: SettingsChange) => void = () => {};
+    resetOnAccessChange(client, (cb) => {
+      push = cb;
+      return () => {};
+    });
+    let reads = 0;
+    let rows = ['写了 HostLink 重连'];
+    const observer = new QueryObserver(client, {
+      queryKey: ['today', null, 'l1', '2026-10-31'],
+      queryFn: async () => {
+        reads += 1;
+        return rows;
+      },
+      retry: false,
+    });
+    const off = observer.subscribe(() => {});
+    await waitFor(() => expect(observer.getCurrentResult().data).toEqual(['写了 HostLink 重连']));
+    client.setQueryData(['memory', 'run', 'r1'], { detail: '引用' });
+    push({ ids: ['beh.sit'] });
+    expect(client.getQueryData(['memory', 'run', 'r1'])).toEqual({ detail: '引用' });
+    rows = [];
+    push({ ids: ['agent_sessions'] });
+    expect(observer.getCurrentResult().data).toBeUndefined();
+    expect(client.getQueryData(['memory', 'run', 'r1'])).toBeUndefined();
+    await waitFor(() => expect(observer.getCurrentResult().data).toEqual([]));
+    expect(reads).toBe(2);
+    off();
   });
 });

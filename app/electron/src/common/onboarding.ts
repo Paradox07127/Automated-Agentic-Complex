@@ -116,9 +116,9 @@ export class OnboardingModel {
     this.completionError = '配置没有存上，请检查配置文件权限后再点完成重试';
   }
 
-  /** The `onboarding.*` value. */
-  json(done: boolean): Record<string, unknown> {
+  /** The `onboarding.*` value; `done` is this guide's own end, not config.json's mark. */
+  json(): Record<string, unknown> {
     const steps = STEPS.map((s) => ({ ...s, result: this.results.get(s.id) ?? 'todo' }));
-    return { steps, step: this.step, done, canAdvance: this.canAdvance, characterName: this.characterName, completionError: this.completionError };
+    return { steps, step: this.step, done: this.completed, canAdvance: this.canAdvance, characterName: this.characterName, completionError: this.completionError };
   }
 }

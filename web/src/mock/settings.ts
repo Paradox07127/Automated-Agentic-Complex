@@ -268,14 +268,16 @@ export const routes: MockRoute[] = [
       if (b.list === 'allow') {
         if (!ALLOW_FIELDS.includes(b.field as AllowField) || typeof b.value !== 'string') return bad('invalid_payload');
         const list = BLACKLIST.allow[b.field as AllowField];
-        if (!list.includes(b.value)) list.push(b.value);
-        return ok({ added: true, deleted: { events: 0, context: 0, observations: 0 } });
+        const added = !list.includes(b.value);
+        if (added) list.push(b.value);
+        return ok({ added, deleted: { events: 0, context: 0, observations: 0 } });
       }
       if (!FIELDS.includes(b.field as BlacklistField) || typeof b.value !== 'string' || typeof b.delete_existing !== 'boolean') return bad('invalid_payload');
       const list = BLACKLIST[b.field as BlacklistField];
-      if (!list.includes(b.value)) list.push(b.value);
+      const added = !list.includes(b.value);
+      if (added) list.push(b.value);
       const n = b.delete_existing ? 3 : 0;
-      return ok({ added: true, deleted: { events: n, context: 0, observations: n ? 1 : 0 } });
+      return ok({ added, deleted: { events: n, context: 0, observations: n ? 1 : 0 } });
     },
   },
   {

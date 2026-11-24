@@ -154,6 +154,8 @@ function BriefSheet({ id, onClose, onDismiss }: { id: string | null; onClose: ()
 export function BriefsSec({ no }: { no: string }) {
   const b = useBriefs();
   const [open, setOpen] = useState<string | null>(null);
+  // A report agentd no longer lists closes its sheet.
+  const shown = open != null && b.reports.some((r) => r.id === open) ? open : null;
   const [busy, setBusy] = useState(false);
   const hour = `${String(b.settings?.hour ?? 9).padStart(2, '0')}:00`;
   const generate = async () => {
@@ -197,7 +199,7 @@ export function BriefsSec({ no }: { no: string }) {
         )}
       </Region>
       <BriefHealth attempts={b.list.data?.attempts} onRetry={b.generate} />
-      <BriefSheet id={open} onClose={() => setOpen(null)} onDismiss={b.dismiss} />
+      <BriefSheet id={shown} onClose={() => setOpen(null)} onDismiss={b.dismiss} />
     </OpenSec>
   );
 }

@@ -377,6 +377,22 @@ test('the guide runs 角色 → 对话 → 声音 → 完成; 下一步 records 
   }
 });
 
+test('a guide run again after onboarding_done is a new guide: not done, at step 1, and it advances, skips and completes', async () => {
+  const dir = tempDir();
+  try {
+    const g = closing(dir, { onboarding_done: true });
+    const first = stateOf(await call(g.ops, 'onboarding.state'));
+    assert.deepEqual([first.step, first.done, first.canAdvance], [1, false, true]);
+    assert.equal(stateOf(await g.complete()).done, true);
+    assert.deepEqual(g.ends, [null]);
+    const again = closing(dir, { onboarding_done: true });
+    assert.equal(stateOf(await call(again.ops, 'onboarding.advance')).step, 2);
+    assert.equal(stateOf(await call(again.ops, 'onboarding.skip')).done, true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('完成 stores only onboarding_done, closes the guide and has her greet; 和她说句话 opens 快速输入, 打开主窗口 the main window at 主页', async () => {
   const dir = tempDir();
   try {

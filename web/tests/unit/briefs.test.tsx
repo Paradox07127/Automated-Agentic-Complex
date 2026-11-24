@@ -190,6 +190,43 @@ describe('简报 section', () => {
     act(() => subs.forEach((on) => on(done)));
     await waitFor(() => expect(within(sec).getAllByRole('button', { name: /^(日报|周报) │ / })).toHaveLength(3));
   });
+
+  it('drops the open brief text when agentd invalidates it and closes the sheet once it is no longer listed', async () => {
+    const open = 'brief-060021117a99a52a5f7164e80ab20970';
+    const list = observeRoutes.find((r) => r.method === 'GET' && r.path === '/observation/briefs')!;
+    const one = observeRoutes.find((r) => r.method === 'GET' && r.path === '/observation/briefs/:id')!;
+    let invalid = false;
+    let unlisted = false;
+    install([
+      {
+        method: 'GET',
+        path: '/observation/briefs',
+        handler: (req) => {
+          const r = list.handler(req) as { status: number; body: ObservationBriefsResponse };
+          return unlisted ? { ...r, body: { ...r.body, reports: r.body.reports.filter((x) => x.id !== open) } } : r;
+        },
+      },
+      { method: 'GET', path: '/observation/briefs/:id', handler: (req) => (invalid ? { status: 200, body: { id: open, state: 'invalidated' } } : one.handler(req)) },
+    ]);
+    const subs: Array<(e: StreamEvent) => void> = [];
+    vi.spyOn(window.agenticComplex!.feed, 'subscribe').mockImplementation((on) => {
+      subs.push(on);
+      return () => {};
+    });
+    mountObserve();
+    const sec = await screen.findByRole('region', { name: '简报' });
+    fireEvent.click((await within(sec).findAllByRole('button', { name: /^(日报|周报) │ / }))[0]!);
+    const sheet = await screen.findByRole('dialog', { name: '简报' });
+    expect(await within(sheet).findByText('在改预算报告')).toBeTruthy();
+    const invalidated: StreamEvent = { event: 'observation_brief', id: null, data: JSON.stringify({ id: open, state: 'invalidated' }) };
+    invalid = true;
+    act(() => subs.forEach((on) => on(invalidated)));
+    await waitFor(() => expect(screen.queryByText('在改预算报告')).toBeNull());
+    expect(screen.getByRole('dialog', { name: '简报' })).toBeTruthy();
+    unlisted = true;
+    act(() => subs.forEach((on) => on(invalidated)));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '简报' })).toBeNull());
+  });
 });
 
 describe('简报生成状态', () => {

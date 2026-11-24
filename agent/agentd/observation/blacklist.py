@@ -1,7 +1,7 @@
 """<state-dir>/blacklist.json (C10): windows, domains and titles that never leave the collector.
 
 Collectors drop matches before sending; agentd checks again on receive. In "allow" mode (the default) only the
-windows and hosts on the allow lists are read."""
+windows and hosts on the allow lists are read; a deny entry hides a window in both modes."""
 import json
 import os
 import re
@@ -149,22 +149,18 @@ class Blacklist:
     def hides(self, window):
         rules = self._load()
         app = window.get("app")
-        if window.get("bundle_id") in CONTROL_PANEL_BUNDLES:
-            return True
-        if rules["mode"] == "allow":
-            host = window.get("url_host")
-            if host:
-                return _hides_host(rules, host)
-            return window.get("bundle_id") not in rules["allow_bundles"] \
-                and not (isinstance(app, str) and app and app.casefold() in rules["allow_names"])
-        if window.get("bundle_id") in rules["bundles"] \
+        # The deny entries win in both modes.
+        if window.get("bundle_id") in CONTROL_PANEL_BUNDLES or window.get("bundle_id") in rules["bundles"] \
                 or isinstance(app, str) and app and app.casefold() in rules["names"]:
             return True
         host = window.get("url_host")
         if host and _hides_host(rules, host):
             return True
         title = window.get("title") or ""
-        return any(p.search(title) for p in rules["titles"])
+        if any(p.search(title) for p in rules["titles"]):
+            return True
+        return rules["mode"] == "allow" and not host and window.get("bundle_id") not in rules["allow_bundles"] \
+            and not (isinstance(app, str) and app and app.casefold() in rules["allow_names"])
 
     def hides_domain(self, host):
         return _hides_host(self._load(), host)
@@ -198,9 +194,9 @@ def entry_hides(field, value, window):
 
 def _hides_host(rules, name):
     name = normal_host(name)
-    if rules["mode"] == "allow":
-        return not any(name == d or name.endswith("." + d) for d in rules["allow_domains"])
-    return any(name == d or name.endswith("." + d) for d in rules["domains"])
+    if any(name == d or name.endswith("." + d) for d in rules["domains"]):
+        return True
+    return rules["mode"] == "allow" and not any(name == d or name.endswith("." + d) for d in rules["allow_domains"])
 
 
 def bare_host(value):

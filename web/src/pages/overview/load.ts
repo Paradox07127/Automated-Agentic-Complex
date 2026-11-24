@@ -77,7 +77,7 @@ export interface OverviewSnapshot {
   /** Clock when `/agent/snapshot` was read; approval countdowns count from it. */
   now: number;
   connection: AgentdConnection;
-  /** `/agent/snapshot` seq: the feed is read after it. */
+  /** `/agent/snapshot` cursor `<stream_epoch>-<seq>`: the feed is read after it. */
   seq: string;
   pending: PendingItem[];
   tasks: Task[];
@@ -332,7 +332,7 @@ export function overviewOf(p: OverviewParts): OverviewSnapshot {
   return {
     now,
     connection,
-    seq: s ? String(s.seq) : '',
+    seq: s ? `${s.stream_epoch}-${s.seq}` : '',
     pending,
     tasks,
     active_runs: { ...indexActiveRuns(wireRuns, tasks), ...sessionRuns(sessions, tasks) },

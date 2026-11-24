@@ -39,10 +39,11 @@ export function useActions(setPausedDemo: (v: number | null | undefined) => void
   const qc = useQueryClient();
   const [confirm, setConfirm] = useState<ConfirmSpec | null>(null);
   const refresh = (...keys: ReadonlyArray<readonly unknown[]>) => keys.forEach((queryKey) => void qc.invalidateQueries({ queryKey }));
-  const run = async (what: string, write: () => Promise<unknown>, done: string, keys: ReadonlyArray<readonly unknown[]>, undo?: () => void) => {
+  /** `undo` gets the reply and returns the undo, or undefined when this write changed nothing to take back. */
+  const run = async <R,>(what: string, write: () => Promise<R>, done: string, keys: ReadonlyArray<readonly unknown[]>, undo?: (r: R) => (() => void) | undefined) => {
     try {
-      await write();
-      toast(done, undo ? { action: { label: '撤销', onClick: undo } } : {});
+      const back = undo?.(await write());
+      toast(done, back ? { action: { label: '撤销', onClick: back } } : {});
     } catch (e) {
       toast(`没有${what}：${errorText(e)}`);
     }
@@ -62,10 +63,10 @@ export function useActions(setPausedDemo: (v: number | null | undefined) => void
     const field = FIELD_OF[kind];
     void run(
       what,
-      () => post('/blacklist', { field, value, delete_existing: false }),
+      () => post<{ added: boolean }>('/blacklist', { field, value, delete_existing: false }),
       `已加入排除名单：${ruleLabel({ field, kind, value })}`,
       [KEY.blacklist],
-      () => void run('撤销', () => del('/blacklist', { field, value }), '已撤销', [KEY.blacklist]),
+      (r) => (r.added === true ? () => void run('撤销', () => del('/blacklist', { field, value }), '已撤销', [KEY.blacklist]) : undefined),
     );
   };
 
@@ -83,7 +84,7 @@ export function useActions(setPausedDemo: (v: number | null | undefined) => void
 
   return {
     confirmNode,
-    pause: (minutes, until) => void run('暂停', () => setPause(minutes), `观察已暂停 │ ${until}`, [], resume),
+    pause: (minutes, until) => void run('暂停', () => setPause(minutes), `观察已暂停 │ ${until}`, [], () => resume),
     resume,
     clear: (range) =>
       setConfirm({
@@ -106,7 +107,10 @@ export function useActions(setPausedDemo: (v: number | null | undefined) => void
     deleteEpisode: (e, memories, done) =>
       setConfirm({
         title: `删除片段「${e.title}」？`,
-        note: `这段时间的截图和窗口文字将被删除。${memories > 0 ? `由该片段生成的 ${memories} 条记忆也会一并删除。` : ''}`,
+        // `memories` counts the facts of /memory, which reads 0 until it answers.
+        note: `这个片段的摘要将被删除${
+          qc.getQueryData(KEY.memory) === undefined ? '，相关记忆也会删除。' : memories > 0 ? `，由它生成的 ${memories} 条记忆也会一并删除。` : '。'
+        }`,
         warning: '删除后无法恢复',
         danger: true,
         confirmLabel: '删除片段',
@@ -133,21 +137,24 @@ export function useActions(setPausedDemo: (v: number | null | undefined) => void
     removeRule: (r) =>
       void run(
         '移除',
-        () => del('/blacklist', { field: r.field, value: r.value }),
+        () => del<{ removed: boolean }>('/blacklist', { field: r.field, value: r.value }),
         `已移除：${ruleLabel(r)}`,
         [KEY.blacklist],
-        () =>
-          void run(
-            '撤销',
-            () =>
-              post('/blacklist', {
-                field: r.field,
-                value: r.value,
-                delete_existing: false,
-              }),
-            '已撤销',
-            [KEY.blacklist],
-          ),
+        (reply) =>
+          reply.removed === true
+            ? () =>
+                void run(
+                  '撤销',
+                  () =>
+                    post('/blacklist', {
+                      field: r.field,
+                      value: r.value,
+                      delete_existing: false,
+                    }),
+                  '已撤销',
+                  [KEY.blacklist],
+                )
+            : undefined,
       ),
     correct: (code, label) =>
       void run(

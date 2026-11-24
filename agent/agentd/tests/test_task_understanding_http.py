@@ -96,7 +96,7 @@ class TaskHTTPTests(test_server.FeedServerCase):
         self.assertTrue(any(event['event']=='task_understanding' and event['data'].get('action')=='deleted'
                             for event in self.server.feed.since(0)))
 
-    def test_allow_list_removal_and_mode_switch_remove_derived_context(self):
+    def test_allow_list_removal_and_mode_switch_keep_records_and_drop_the_running_analysis(self):
         observations=self.controller.observations
         count=lambda db,table:db.execute('SELECT COUNT(*) FROM '+table).fetchone()[0]  # noqa: E731
         def fill():
@@ -107,12 +107,11 @@ class TaskHTTPTests(test_server.FeedServerCase):
             self.assertTrue(count(observations.db,'observation_frames'))
         allow={'list':'allow','field':'bundle_ids','value':'example.editor'}
         self.assertEqual(self.request('POST','/blacklist',allow)[0],200)
-        fill()
+        fill();kept,generation=count(observations.db,'observation_frames'),observations.generation
         self.assertEqual(self.request('DELETE','/blacklist',allow),(200,{'removed':True}))
-        self.assertEqual(count(observations.db,'observation_frames'),0)
-        fill()
+        self.assertEqual((count(observations.db,'observation_frames'),observations.generation),(kept,generation+1))
         self.assertEqual(self.request('POST','/blacklist/mode',{'mode':'allow'}),(200,{'mode':'allow'}))
-        self.assertEqual(count(observations.db,'observation_frames'),0)
+        self.assertEqual((count(observations.db,'observation_frames'),observations.generation),(kept,generation+2))
 
 
 if __name__=='__main__':unittest.main()

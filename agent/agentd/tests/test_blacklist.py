@@ -231,12 +231,13 @@ class BlacklistTest(unittest.TestCase):
         self.path.write_text(json.dumps({**DEFAULTS, "title_patterns": ["工资"], "allow": allow}), encoding="utf-8")
         bl = Blacklist(self.path)
         for window, hidden in (
-                ({"app": "Code", "bundle_id": "com.microsoft.VSCode", "title": "工资"}, False),
+                ({"app": "Code", "bundle_id": "com.microsoft.VSCode", "title": "日志"}, False),
+                ({"app": "Code", "bundle_id": "com.microsoft.VSCode", "title": "工资"}, True),
                 ({"app": "terminal", "bundle_id": "com.apple.Terminal"}, False),
                 ({"app": "Notes", "bundle_id": "com.apple.Notes"}, True),
                 ({"app": "Safari", "bundle_id": "com.apple.Safari"}, True),
                 ({"app": "Safari", "bundle_id": "com.apple.Safari", "url_host": "gist.GITHUB.com"}, False),
-                ({"app": "Safari", "bundle_id": "com.apple.Safari", "url_host": "mybank.icbc.com.cn"}, False),
+                ({"app": "Safari", "bundle_id": "com.apple.Safari", "url_host": "mybank.icbc.com.cn"}, True),
                 ({"app": "Safari", "bundle_id": "com.apple.Safari", "url_host": "notgithub.com"}, True),
                 ({"app": "Code", "bundle_id": "com.microsoft.VSCode", "url_host": "example.com"}, True),
                 ({"app": "Code", "bundle_id": "com.microsoft.VSCode", "url_host": ""}, False),
@@ -247,6 +248,14 @@ class BlacklistTest(unittest.TestCase):
                              ("hubgithub.com", True)):
             with self.subTest(host=host):
                 self.assertEqual(bl.hides_domain(host), hidden)
+
+    def test_a_deny_entry_hides_an_allowed_app_in_allow_mode(self):
+        bl = Blacklist(self.path)
+        window = {"app": "Code", "bundle_id": "com.microsoft.VSCode"}
+        bl.allow_add("app_names", "Code")
+        self.assertFalse(bl.hides(window))
+        self.assertTrue(bl.add("app_names", "Code"))
+        self.assertTrue(bl.hides(window))
 
     def test_a_missing_or_unknown_mode_reads_as_allow(self):
         for mode in (None, "block", 1):

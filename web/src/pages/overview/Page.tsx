@@ -100,7 +100,6 @@ export function OverviewPage() {
     queryFn: () => loadBrief(new Date(`${date}T12:00:00`).getTime()),
     enabled: state !== 'loading' && !isToday,
     retry: false,
-    staleTime: Number.POSITIVE_INFINITY,
   });
   const pending = useMemo(() => sortPending(snap.pending.filter((p) => !p.resolved && !a.decided[p.id])), [snap, a.decided]);
   const { setDecided, setLast } = a;
