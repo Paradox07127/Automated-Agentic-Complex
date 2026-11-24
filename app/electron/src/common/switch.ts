@@ -106,6 +106,9 @@ export class CharacterSwitch {
   /** GET /state fails until agentd writes ui-runtime.json; tried every 0.5 s for 10 s. */
   readRetry = 0.5;
   readAttempts = 20;
+  /** Seconds before a refused `POST /character` is tried again, doubled per refusal up to `agentdRetryMax`. */
+  agentdRetry = 1;
+  agentdRetryMax = 30;
   /** While true `select` drops the choice: a motion import is rewriting the current character's package. */
   held = false;
   /** The renderer takes no `set_character` (efw, C3 附录「Windows」): every switch restarts it as the new character. */
@@ -117,6 +120,8 @@ export class CharacterSwitch {
   private waiter: { id: string; resolve(r: Reply): void } | null = null;
   private helloWaiter: { resolve(id: string | null): void; timer: ReturnType<typeof setTimeout> } | null = null;
   private idle: (() => void)[] = [];
+  /** Set while agentd's character is unknown after a refused POST: `next` posts `current` again once `timer` has run. */
+  private reconcile: { refusals: number; timer: ReturnType<typeof setTimeout> | null } | null = null;
 
   constructor(ports: SwitchPorts) {
     this.ports = ports;
@@ -131,7 +136,11 @@ export class CharacterSwitch {
   private set pending(id: string | null) { this.change({ pending: id }); }
   /** The last character agentd confirmed; null while unknown (not reported yet, or the last POST failed). */
   get agentd(): string | null { return this.values.agentd; }
-  private set agentd(id: string | null) { this.change({ agentd: id }); }
+  private set agentd(id: string | null) {
+    if (this.reconcile !== null) clearTimeout(this.reconcile.timer ?? undefined);
+    this.reconcile = null;
+    this.change({ agentd: id });
+  }
   get view(): CharacterView { return { ...this.values }; }
 
   private get _current(): string | null { return this.values.current; }
@@ -221,7 +230,8 @@ export class CharacterSwitch {
       if (target !== current) return this.begin(() => this.run(current, target));
     }
     if (this.shown !== null && this.shown !== current && this.ports.renderable(current)) return this.begin(() => this.restore(current));
-    if (this.ports.agentdRunning() && this.agentd !== null && this.agentd !== current) this.begin(() => this.setAgentd(current));
+    if (!this.ports.agentdRunning()) return;
+    if (this.reconcile !== null ? this.reconcile.timer === null : this.agentd !== null && this.agentd !== current) this.begin(() => this.setAgentd(current));
   }
 
   private begin(body: () => Promise<void>): void {
@@ -244,6 +254,7 @@ export class CharacterSwitch {
     if (this.ports.agentdRunning()) {
       const prepared = await this.ports.prepare(x);
       if (prepared.kind === 'prepared') switchId = prepared.switchId;
+      else if (prepared.kind === 'rejected' && prepared.status === 409 && prepared.reason === 'same_character') this.agentd = x;
       else {
         this._failure = { target: x, stage: 'prepare', reason: prepared.reason };
         return this.ports.log(`character prepare ${x}: ${text(prepared)}`);
@@ -329,11 +340,24 @@ export class CharacterSwitch {
     w.resolve(id);
   }
 
-  /** The old `POST /character`; a refusal leaves agentd's character unknown. */
+  /** The old `POST /character`; a refusal leaves agentd's character unknown until a later POST, or agentd's report, settles it. */
   private async setAgentd(id: string): Promise<void> {
     const result = await this.ports.setAgentdCharacter(id);
     this.ports.log(`agentd character=${id} ${text(result)}`);
-    this.agentd = result.kind === 'changed' ? id : null;
+    if (result.kind === 'changed') {
+      this.agentd = id;
+      return;
+    }
+    const refusals = (this.reconcile?.refusals ?? 0) + 1;
+    this.agentd = null;
+    const timer = setTimeout(() => {
+      if (this.reconcile?.timer !== timer) return;
+      this.reconcile.timer = null;
+      this.next();
+    }, Math.min(this.agentdRetry * 2 ** (refusals - 1), this.agentdRetryMax) * 1000);
+    // The retry runs only while the shell does; it does not keep the process alive.
+    timer.unref();
+    this.reconcile = { refusals, timer };
   }
 
   /** Step 5, tried once more with the same switch id; null when committed, else the last refusal's reason. */
