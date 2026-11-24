@@ -404,6 +404,20 @@ describe('variants the pages asked for', () => {
     rerender(<Stepper label="保持" value={1.5} min={0} max={600} step={0.5} digits={1} onChange={onChange} />);
     expect((screen.getByRole('spinbutton', { name: '保持' }) as HTMLInputElement).value).toBe('1.5');
   });
+
+  it('Stepper with a format: focusing and leaving an off-grid value without typing keeps it', () => {
+    const onChange = vi.fn();
+    render(<Stepper label="上下文长度" value={262144} min={16000} max={2000000} step={16000} format={String} onChange={onChange} />);
+    const box = screen.getByRole('textbox', { name: '上下文长度' });
+    fireEvent.focus(box);
+    fireEvent.blur(box);
+    fireEvent.focus(box);
+    key(box, 'Enter');
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.change(box, { target: { value: '262000' } });
+    key(box, 'Enter');
+    expect(onChange).toHaveBeenLastCalledWith(256000);
+  });
 });
 
 describe('LoadBar', () => {

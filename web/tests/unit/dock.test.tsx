@@ -106,6 +106,18 @@ describe('her hover buttons', () => {
     expect(within(group()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['对话', '说话', '给角色看', '隐藏']);
   });
 
+  it('说话 cancelled before a tap would count stops recording, and the next Enter on it starts afresh', async () => {
+    const d = mount();
+    await flush(async () => {});
+    const now = vi.spyOn(performance, 'now').mockReturnValue(1000);
+    await flush(async () => fireEvent.pointerDown(row(/^说话$/), { button: 0, pointerId: 1 }));
+    now.mockReturnValue(1000 + TAP_MS - 50);
+    await flush(async () => fireEvent.pointerCancel(row(/^在听/), { pointerId: 1 }));
+    expect(d.action.mock.calls).toEqual([['talk', 'start'], ['talk', 'stop']]);
+    await flush(async () => fireEvent.click(row(/^说话$/)));
+    expect(d.action.mock.calls).toEqual([['talk', 'start'], ['talk', 'stop'], ['talk', 'start']]);
+  });
+
   it('a press on 对话 records nothing; its click picks it', async () => {
     const d = mount();
     await flush(async () => {});

@@ -185,6 +185,32 @@ describe('status bar rows', () => {
   });
 });
 
+describe('toasts', () => {
+  it('a notice set while the one before it plays out or lingers still shows', async () => {
+    const m = await mount();
+    vi.spyOn(m.bridge.open, 'jumpToSession').mockResolvedValue();
+    vi.spyOn(m.bridge.agentd, 'request').mockResolvedValue({ status: 200, body: { seen: true } });
+    m.push([], [wireRow('s-a'), wireRow('s-b')]);
+    await waitFor(() => expect(rows().length).toBe(1));
+    expand();
+    vi.useFakeTimers();
+    const open = async (id: string) => {
+      fireEvent.click(within(rows().find((r) => r.dataset.hudRow === id)!).getByRole('button', { name: `会话 ${id}` }));
+      await act(async () => {});
+    };
+    await open('s-a');
+    expect(document.querySelector('[data-hud-toast]')?.textContent).toContain('已打开会话：会话 s-a');
+    act(() => vi.advanceTimersByTime(2700));
+    await open('s-b');
+    expect(document.querySelector('[data-hud-toast]')?.textContent).toContain('已打开会话：会话 s-b');
+    // One set while the one before it plays its exit outlasts that exit.
+    act(() => vi.advanceTimersByTime(2550));
+    await open('s-a');
+    act(() => vi.advanceTimersByTime(300));
+    expect(document.querySelector('[data-hud-toast]')?.textContent).toContain('已打开会话：会话 s-a');
+  });
+});
+
 describe('folded and expanded', () => {
   it('folded shows only the top line, two edges, the total and 处理 when the top one waits', async () => {
     const m = await mount();

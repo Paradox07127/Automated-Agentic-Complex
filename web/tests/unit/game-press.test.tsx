@@ -2,9 +2,9 @@
 // onto their shadow; selection out clips run on the cell or tab that loses it.
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { act, cleanup, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { GameTabs, RailCell } from '../../src/ui/game';
+import { GameTabs, OptionStack, RailCell } from '../../src/ui/game';
 
 const KIT = resolve(__dirname, '../../src/ui/game');
 const css = (f: string) => readFileSync(resolve(KIT, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
@@ -93,5 +93,25 @@ describe('selection clips', () => {
       for (const r of runs) r.finish();
     });
     expect(tab('look')?.querySelector('[data-leaving]')).toBeNull();
+  });
+});
+
+describe('OptionStack presses', () => {
+  afterEach(cleanup);
+
+  it('reports a release as an end and a cancelled or lost press as a cancel, once each', () => {
+    const onPressEnd = vi.fn();
+    render(<OptionStack items={[{ id: 'talk', label: '说话', icon: 'mic' }]} onPick={() => {}} onPressEnd={onPressEnd} />);
+    const row = screen.getByRole('button', { name: '说话' });
+    fireEvent.pointerDown(row, { button: 0, pointerId: 1 });
+    fireEvent.pointerUp(row, { pointerId: 1 });
+    fireEvent.lostPointerCapture(row, { pointerId: 1 });
+    expect(onPressEnd.mock.calls).toEqual([['talk', 'up']]);
+    fireEvent.pointerDown(row, { button: 0, pointerId: 1 });
+    fireEvent.pointerCancel(row, { pointerId: 1 });
+    fireEvent.lostPointerCapture(row, { pointerId: 1 });
+    fireEvent.pointerDown(row, { button: 0, pointerId: 1 });
+    fireEvent.lostPointerCapture(row, { pointerId: 1 });
+    expect(onPressEnd.mock.calls).toEqual([['talk', 'up'], ['talk', 'cancel'], ['talk', 'cancel']]);
   });
 });

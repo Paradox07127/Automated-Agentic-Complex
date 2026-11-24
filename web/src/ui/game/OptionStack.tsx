@@ -31,8 +31,8 @@ export interface OptionStackProps {
   onPickOff?: (id: string) => void;
   /** 指针按下一行（按住说话）；做不了的行不报 */
   onPressStart?: (id: string) => void;
-  /** 按下的那行松开或被打断 */
-  onPressEnd?: (id: string) => void;
+  /** 按下的那行松开（up）或被打断（cancel：之后没有 click） */
+  onPressEnd?: (id: string, end: 'up' | 'cancel') => void;
 }
 
 export function OptionStack({ items, side = 'right', compact, hot, note, label, onPick, onPickOff, onPressStart, onPressEnd }: OptionStackProps) {
@@ -43,10 +43,10 @@ export function OptionStack({ items, side = 'right', compact, hot, note, label, 
     pressed.current = it.id;
     onPressStart?.(it.id);
   };
-  const up = () => {
+  const end = (how: 'up' | 'cancel') => () => {
     const id = pressed.current;
     pressed.current = null;
-    if (id != null) onPressEnd?.(id);
+    if (id != null) onPressEnd?.(id, how);
   };
   return (
     <div className={styles.stack} data-stub="OptionStack" data-side={side} data-compact={compact || undefined} role="group" aria-label={label}>
@@ -65,8 +65,9 @@ export function OptionStack({ items, side = 'right', compact, hot, note, label, 
           title={compact ? [it.label, it.off].filter(Boolean).join('  ') : it.off}
           onClick={() => (it.off ? onPickOff?.(it.id) : onPick(it.id))}
           onPointerDown={(e) => down(it, e)}
-          onPointerUp={up}
-          onPointerCancel={up}
+          onPointerUp={end('up')}
+          onPointerCancel={end('cancel')}
+          onLostPointerCapture={end('cancel')}
         >
           <span className={styles.key} aria-hidden="true">
             <Icon name={it.icon} size={16} />

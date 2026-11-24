@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { useState } from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BracketMeter, LineChart, type Pt } from '../../src/charts';
 import * as game from '../../src/ui/game';
 import { DeviceRow, GameFrame, GameTable, LoadBar, ReadTick, ReadoutPlate, StationCard, type GameTableColumn, type GameTableRow } from '../../src/ui/game';
@@ -33,6 +33,19 @@ describe('GameTable controlled rows', () => {
     rerender(<GameTable label="记录" columns={COLS} rows={ROWS} expanded={['a']} onExpandedChange={(ids) => seen.push(ids)} />);
     expect(screen.getByText('甲的展开体')).toBeTruthy();
     expect(screen.queryByText('乙的展开体')).toBeNull();
+  });
+
+  it('selects a row without a body by a click, and one with a body as it toggles', () => {
+    const onSelect = vi.fn();
+    const rows: GameTableRow[] = [{ id: 'plain', cells: { what: '没有展开体' } }, ...ROWS];
+    render(<GameTable label="记录" columns={COLS} rows={rows} onSelect={onSelect} />);
+    fireEvent.click(screen.getByText('没有展开体'));
+    expect(onSelect).toHaveBeenLastCalledWith('plain');
+    expect(screen.getByText('没有展开体').closest('[aria-expanded]')).toBeNull();
+    fireEvent.click(screen.getByText('第一行'));
+    expect(onSelect).toHaveBeenLastCalledWith('a');
+    expect(screen.getByText('甲的展开体')).toBeTruthy();
+    expect(onSelect).toHaveBeenCalledTimes(2);
   });
 
   it('follows its owner when the owner keeps the ids', () => {

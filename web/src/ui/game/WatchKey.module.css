@@ -11,9 +11,15 @@
   position: absolute;
 }
 
-/* In a scrolling list each layer fades by its own mask: a mask on the key would flatten its raised face. */
+/* In a scrolling list each layer fades by its own mask: a mask on the key would flatten its raised face. The same window
+   cuts each layer's hit area (a mask does not), and the key's own box, which no layer can cut, takes no pointer. */
 .slot[data-clip] [data-tone] > * {
   mask-image: linear-gradient(transparent var(--clip-top), #000 calc(var(--clip-top) + var(--clip-fade)), #000 calc(var(--clip-bottom) - var(--clip-fade)), transparent var(--clip-bottom));
+  clip-path: inset(var(--clip-top) 0 calc(100% - var(--clip-bottom)) 0);
+}
+
+.slot[data-clip] .key {
+  pointer-events: none;
 }
 
 /* Scrolled out of the list's window: the faces too (they take the pointer by their shape) let it through. */

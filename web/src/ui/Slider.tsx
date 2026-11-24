@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { useControlled } from './useControlled';
 import styles from './Slider.module.css';
 
@@ -30,11 +30,15 @@ export function Slider({ value, min, max, label, step = 1, defaultValue, unit, d
   const [current, setCurrent] = useControlled(value, onChange);
   const [draft, setDraft] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (disabled) setDraft(null);
+  }, [disabled]);
+
   const commit = () => {
     if (draft === null) return;
     const n = Number(draft);
     setDraft(null);
-    if (draft.trim() === '' || !Number.isFinite(n)) return;
+    if (disabled || draft.trim() === '' || !Number.isFinite(n)) return;
     const snapped = Math.round((n - min) / step) * step + min;
     setCurrent(Math.min(max, Math.max(min, Number(snapped.toFixed(6)))));
   };

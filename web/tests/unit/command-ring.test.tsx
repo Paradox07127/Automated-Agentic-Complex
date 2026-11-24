@@ -246,6 +246,49 @@ describe('the wheel', () => {
     expect(onRun.mock.calls.map((c) => c[0].id)).toEqual(['actions', 'poses']);
   });
 
+  it('a release still on the slot whose rest opened the level picks nothing there; the pointer must leave it first', async () => {
+    const onRun = vi.fn();
+    const rest = (ms: number) => flush(() => new Promise((r) => setTimeout(r, ms)));
+    const props = { center, onClose: () => {}, onRun };
+    const view = render(<CommandRing {...props} items={wheelItems(STATE, 0)} press={{ phase: 'move', x: -100, y: 0 }} />);
+    await rest(350);
+    const level2 = actionItems({ ...STATE, poses: POSES }, ['mmd_jile'], DANCES);
+    view.rerender(<CommandRing {...props} items={level2} level="actions" press={{ phase: 'move', x: -100, y: 0 }} />);
+    view.rerender(<CommandRing {...props} items={level2} level="actions" press={{ phase: 'up', x: -100, y: 0, ms: 900 }} />);
+    expect(onRun.mock.calls.map((c) => c[0].id)).toEqual(['actions']);
+    expect(screen.getByRole('menu', { name: '角色的轮盘' })).toBeTruthy();
+  });
+
+  it('a rest armed before Esc goes back up opens nothing once the wait ends', async () => {
+    const onRun = vi.fn();
+    const rest = (ms: number) => flush(() => new Promise((r) => setTimeout(r, ms)));
+    const level2 = actionItems({ ...STATE, poses: POSES }, ['mmd_jile'], DANCES);
+    const props = { center, onClose: () => {}, onRun };
+    const press = { phase: 'move', x: -100, y: 0 } as const;
+    const view = render(<CommandRing {...props} items={level2} level="actions" onBack={() => {}} press={press} />);
+    await rest(100);
+    fireEvent.keyDown(screen.getByRole('menu', { name: '角色的轮盘' }), { key: 'Escape' });
+    view.rerender(<CommandRing {...props} items={wheelItems(STATE, 0)} press={press} />);
+    await rest(350);
+    expect(onRun).not.toHaveBeenCalled();
+  });
+
+  it('Enter on a slot that opened a level does not run the slot in its place on the new level; held keys do not repeat', () => {
+    const onRun = vi.fn();
+    const props = { center, onClose: () => {}, onRun };
+    const view = render(<CommandRing {...props} items={wheelItems(STATE, 0)} />);
+    const wheel = () => screen.getByRole('menu', { name: '角色的轮盘' });
+    fireEvent.keyDown(wheel(), { key: '4', repeat: true });
+    fireEvent.keyDown(wheel(), { key: 'ArrowLeft' });
+    fireEvent.keyDown(wheel(), { key: 'ArrowLeft' });
+    fireEvent.keyDown(wheel(), { key: 'Enter' });
+    expect(onRun.mock.calls.map((c) => c[0].id)).toEqual(['actions']);
+    view.rerender(<CommandRing {...props} items={actionItems({ ...STATE, poses: POSES }, ['mmd_jile'], DANCES)} level="actions" />);
+    fireEvent.keyDown(wheel(), { key: 'Enter', repeat: true });
+    fireEvent.keyDown(wheel(), { key: 'Enter' });
+    expect(onRun.mock.calls.map((c) => c[0].id)).toEqual(['actions']);
+  });
+
   it('on Windows the key help shows while Ctrl is held, not the Windows key', () => {
     window.agenticComplex = { ...createFakeBridge({ surface: 'stack', still: true }), platform: 'windows' };
     render(<CommandRing items={wheelItems(STATE, 0)} center={center} onRun={() => {}} onClose={() => {}} />);

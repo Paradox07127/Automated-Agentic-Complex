@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Btn, IconBtn, Row, SecHead, Seg, Slider, SRow, Tabs, Toggle } from '../../src/ui';
 import { MOUSE_ONLY_HINT } from '../../src/ui/Btn';
+import { Select } from '../../src/ui/Select';
 
 afterEach(() => {
   cleanup();
@@ -201,6 +202,35 @@ describe('Slider', () => {
     fireEvent.click(screen.getByRole('button', { name: /大小/ }));
     expect(screen.queryByRole('spinbutton')).toBeNull();
     expect((screen.getByRole('slider') as HTMLInputElement).disabled).toBe(true);
+  });
+});
+
+describe('disabled while open', () => {
+  it('a Select list closes when the Select is disabled, and an option picked from it changes nothing', () => {
+    const onChange = vi.fn();
+    const options = [
+      { value: '8', label: '08:00' },
+      { value: '9', label: '09:00' },
+    ];
+    const { rerender } = render(<Select label="简报时间" value="8" options={options} onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: '简报时间' }));
+    const option = screen.getByRole('option', { name: '09:00' });
+    rerender(<Select label="简报时间" value="8" options={options} onChange={onChange} disabled />);
+    fireEvent.click(option);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.queryByRole('listbox')).toBeNull();
+  });
+
+  it('a Slider drops what was typed when it is disabled, and Enter changes nothing', () => {
+    const onChange = vi.fn();
+    const { rerender } = render(<Slider label="光圈" value={2} min={1} max={16} onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: /光圈：2/ }));
+    const input = screen.getByRole('spinbutton');
+    fireEvent.change(input, { target: { value: '8' } });
+    rerender(<Slider label="光圈" value={2} min={1} max={16} onChange={onChange} disabled />);
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.queryByRole('spinbutton')).toBeNull();
   });
 });
 

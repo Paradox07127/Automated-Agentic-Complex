@@ -104,13 +104,17 @@ export function GameWheel({ items, center, origin, bounds, held = false, press, 
   const moved = !!(origin && c && (c.x !== origin.x || c.y !== origin.y));
   // Live values the window listeners read.
   // `left`: the forwarded press has been outside the centre; `released`: its release, or the window's, was taken;
-  // `rest`: the slot the forwarded press last moved onto, and `resting` its timer.
+  // `rest`: the slot the forwarded press last moved onto, and `resting` its timer; `opener`: the slot whose rest opened
+  // this level, which neither picks nor rests again until the pointer leaves it.
   const live = useRef({
-    sel, held, opened: 0, settled: !moved, left: false, released: false, rest: null as Sel,
+    sel, held, opened: 0, settled: !moved, left: false, released: false, rest: null as Sel, opener: null as Sel,
     resting: undefined as ReturnType<typeof setTimeout> | undefined, origin, items, onRun, onBack, onClose,
   });
   live.current = { ...live.current, sel, items, onRun, onBack, onClose, origin };
-  const back = () => (live.current.onBack ?? live.current.onClose)();
+  const back = () => {
+    clearTimeout(live.current.resting);
+    (live.current.onBack ?? live.current.onClose)();
+  };
 
   const run = (i: number) => {
     const it = live.current.items[i];
@@ -138,6 +142,13 @@ export function GameWheel({ items, center, origin, bounds, held = false, press, 
 
   useEffect(() => () => clearTimeout(live.current.resting), []);
 
+  // A new level starts with nothing selected and no rest running.
+  useEffect(() => {
+    clearTimeout(live.current.resting);
+    live.current.rest = null;
+    setSel(null);
+  }, [level]);
+
   useEffect(() => {
     const l = live.current;
     if (!press || l.released) return;
@@ -156,13 +167,20 @@ export function GameWheel({ items, center, origin, bounds, held = false, press, 
       if (s === l.rest) return;
       l.rest = s;
       clearTimeout(l.resting);
+      if (s === l.opener) return;
+      l.opener = null;
       const it = typeof s === 'number' ? l.items[s] : undefined;
-      if (it?.deeper && !it.off) l.resting = setTimeout(() => runRef.current(s as number), REST_MS);
+      if (it?.deeper && !it.off)
+        l.resting = setTimeout(() => {
+          live.current.opener = s;
+          runRef.current(s as number);
+        }, REST_MS);
       return;
     }
     clearTimeout(l.resting);
     l.released = true;
     l.held = false;
+    if (s === l.opener) return;
     const then = wheelRelease(s, press.ms, l.left);
     if (then === 'run') runRef.current(s as number);
     else if (then === 'close') l.onClose();
@@ -231,6 +249,7 @@ export function GameWheel({ items, center, origin, bounds, held = false, press, 
   };
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     const k = Number(e.key);
+    if (e.repeat && (e.key === 'Enter' || (k >= 1 && k <= n))) return;
     if (e.key === 'Escape' || (e.key === 'Backspace' && onBack)) back();
     else if (k >= 1 && k <= n) run(k - 1);
     else if ((e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'Tab') && !e.shiftKey) setSel((s) => step(s, 1));

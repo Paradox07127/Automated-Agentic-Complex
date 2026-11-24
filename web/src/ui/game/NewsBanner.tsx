@@ -38,11 +38,26 @@ export function NewsBanner({ box, items, still = false, count, onReadAll }: News
   const [i, setI] = useState(0);
   // Turning by hand restarts the wait, so the item just picked stays its full time.
   const [turned, setTurned] = useState(0);
+  // Under the pointer, a press or focus it holds still, so a click opens the item it was aimed at; leaving restarts the wait.
+  const [hover, setHover] = useState(false);
+  const [press, setPress] = useState(false);
+  const [focus, setFocus] = useState(false);
+  const held = hover || press || focus;
   useEffect(() => {
-    if (still || items.length < 2) return;
+    if (!press) return;
+    const up = () => setPress(false);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    return () => {
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+    };
+  }, [press]);
+  useEffect(() => {
+    if (still || held || items.length < 2) return;
     const t = window.setInterval(() => setI((v) => v + 1), NEWS_MS);
     return () => window.clearInterval(t);
-  }, [still, items.length, turned]);
+  }, [still, held, items.length, turned]);
   const n = Math.max(items.length, 1);
   const at0 = ((i % n) + n) % n;
   const item = items[at0];
@@ -52,7 +67,17 @@ export function NewsBanner({ box, items, still = false, count, onReadAll }: News
   };
   const unread = count == null ? null : count > 1 ? `${at0 + 1} / ${count} 未读` : '未读';
   return (
-    <div className={styles.bannerNode} {...placeAt(box)} data-g="banner" data-stub="NewsBanner">
+    <div
+      className={styles.bannerNode}
+      {...placeAt(box)}
+      data-g="banner"
+      data-stub="NewsBanner"
+      onPointerEnter={() => setHover(true)}
+      onPointerLeave={() => setHover(false)}
+      onPointerDown={() => setPress(true)}
+      onFocus={() => setFocus(true)}
+      onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setFocus(false)}
+    >
       <Slab pts={unit(OUTLINE, box.width, box.height)} w={box.width} h={box.height} depth={7} tone="dark" accent>
         <button type="button" className={styles.banner} onClick={item?.go} disabled={!item} aria-label={item ? `${item.kind}：${item.title} ${item.at}${unread ? ` ${unread}` : ''}` : '没有新消息'}>
           <span className={styles.bannerIn} aria-hidden="true">

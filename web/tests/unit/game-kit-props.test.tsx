@@ -133,9 +133,10 @@ describe('OptionStack press start and end', () => {
     expect(start).toHaveBeenCalledWith('talk');
     expect(end).not.toHaveBeenCalled();
     fireEvent.pointerUp(talk, { button: 0, pointerId: 1 });
-    expect(end).toHaveBeenCalledWith('talk');
+    expect(end).toHaveBeenCalledWith('talk', 'up');
     fireEvent.pointerDown(talk, { button: 0, pointerId: 2 });
     fireEvent.pointerCancel(talk, { pointerId: 2 });
+    expect(end).toHaveBeenLastCalledWith('talk', 'cancel');
     expect(end).toHaveBeenCalledTimes(2);
     const look = screen.getByRole('button', { name: '给角色看' });
     fireEvent.pointerDown(look, { button: 0, pointerId: 3 });

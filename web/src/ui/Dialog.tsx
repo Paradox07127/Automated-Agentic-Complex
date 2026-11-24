@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { Btn } from './Btn';
 import { IconBtn } from './IconBtn';
@@ -69,7 +69,8 @@ export function useOverlayFocus(panel: RefObject<HTMLElement | null>, onClose: (
     // Mount-only: focus once when the overlay opens.
   }, []);
 
-  return (e: KeyboardEvent<HTMLElement>) => {
+  // React's and the DOM's key events alike: Sheet listens natively.
+  return (e: Pick<globalThis.KeyboardEvent, 'key' | 'shiftKey' | 'target' | 'defaultPrevented' | 'preventDefault'>) => {
     if (e.key !== 'Tab' || !panel.current) return;
     // A nested overlay bubbles through this one in the React tree; it has already moved focus.
     if (e.defaultPrevented || !panel.current.contains(e.target as Node)) return;

@@ -55,7 +55,9 @@ const RowCtx = createContext<RowState>({ selected: null, tabStop: null, select: 
 
 export function Table({ label, head, children, selected = null, onSelect, onOpen, maxHeight }: TableProps) {
   const [current, select] = useControlled<string | null>(selected, onSelect as ((id: string | null) => void) | undefined);
-  const first = Children.toArray(children).find(isValidElement)?.props as { id?: string } | undefined;
+  const ids = Children.toArray(children).flatMap((c) => (isValidElement<{ id?: string }>(c) && c.props.id != null ? [c.props.id] : []));
+  // A selection none of these rows has (a sibling table's) must not take the Tab stop from them.
+  const tabStop = current != null && ids.includes(current) ? current : (ids[0] ?? null);
 
   const onKeyDown = (e: KeyboardEvent<HTMLTableSectionElement>) => {
     const row = e.target instanceof HTMLTableRowElement ? e.target : null;
@@ -76,7 +78,7 @@ export function Table({ label, head, children, selected = null, onSelect, onOpen
 
   return (
     <div className={styles.wrap} data-stub="Table" data-scroll={maxHeight ? '' : undefined} style={maxHeight ? { maxHeight } : undefined}>
-      <RowCtx.Provider value={{ selected: current, tabStop: current ?? first?.id ?? null, select: (id) => select(id) }}>
+      <RowCtx.Provider value={{ selected: current, tabStop, select: (id) => select(id) }}>
         <table className={styles.table} role="grid" aria-label={label}>
           {head}
           <tbody onKeyDown={onKeyDown}>{children}</tbody>

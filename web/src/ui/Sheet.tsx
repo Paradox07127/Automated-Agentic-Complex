@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { KV } from './KV';
 import { IconBtn } from './IconBtn';
 import { OverlayPortal, useOverlayFocus } from './Dialog';
@@ -47,21 +48,33 @@ function useMinWidth(px: number | undefined): boolean {
 export function Sheet(props: SheetProps) {
   const docked = useMinWidth(props.dockFrom);
   const titleId = useId();
+  // The children live in one element of their own that each form's body takes in, so crossing dockFrom keeps them mounted.
+  const [host] = useState(() => document.createElement('div'));
+  const take = useCallback((el: HTMLDivElement | null) => void el?.appendChild(host), [host]);
+  const children = docked || props.open ? createPortal(props.children, host) : null;
   if (docked) {
     const { label, hidden } = named(props.title, titleId, (props.head ?? 'title') === 'title');
     return (
-      <aside className={styles.dock} data-stub="Sheet" data-docked="" data-width={props.width ?? 360} {...label}>
-        <Head {...props} titleId={titleId} />
-        {hidden}
-        <div className={styles.body}>{props.children}</div>
-      </aside>
+      <>
+        {children}
+        <aside className={styles.dock} data-stub="Sheet" data-docked="" data-width={props.width ?? 360} {...label}>
+          <Head {...props} titleId={titleId} />
+          {hidden}
+          <div className={styles.body} ref={take} />
+        </aside>
+      </>
     );
   }
-  return props.open ? (
-    <OverlayPortal>
-      <SheetBody {...props} />
-    </OverlayPortal>
-  ) : null;
+  return (
+    <>
+      {children}
+      {props.open && (
+        <OverlayPortal>
+          <SheetBody {...props} take={take} />
+        </OverlayPortal>
+      )}
+    </>
+  );
 }
 
 function Head({ title, head = 'title', onClose, titleId, closeLabel = '关闭' }: SheetProps & { titleId?: string }) {
@@ -78,11 +91,17 @@ function Head({ title, head = 'title', onClose, titleId, closeLabel = '关闭' }
   );
 }
 
-function SheetBody(props: SheetProps) {
-  const { title, width = 360, children, onClose, head = 'title' } = props;
+function SheetBody(props: SheetProps & { take: (el: HTMLDivElement | null) => void }) {
+  const { title, width = 360, take, onClose, head = 'title' } = props;
   const panel = useRef<HTMLElement>(null);
   const titleId = useId();
   const trap = useOverlayFocus(panel, onClose);
+  // A native listener: the children's keys reach the panel in the DOM, not through it in the React tree.
+  useEffect(() => {
+    const el = panel.current;
+    el?.addEventListener('keydown', trap);
+    return () => el?.removeEventListener('keydown', trap);
+  });
   const { label, hidden } = head === 'title' ? { label: { 'aria-labelledby': titleId }, hidden: null } : named(title, titleId, false);
   return (
     <div
@@ -100,11 +119,10 @@ function SheetBody(props: SheetProps) {
         tabIndex={-1}
         className={styles.panel}
         data-width={width}
-        onKeyDown={trap}
       >
         <Head {...props} titleId={titleId} />
         {hidden}
-        <div className={styles.body}>{children}</div>
+        <div className={styles.body} ref={take} />
       </aside>
     </div>
   );

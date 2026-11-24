@@ -2,6 +2,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LIST, listKey, ROW } from '../../src/pages/home/geometry';
 import { HomePage } from '../../src/pages/home/Page';
@@ -52,6 +54,18 @@ describe('home right list', () => {
     expect(top(keys[0]!)).toBe(listKey(0, 0).box.top);
     expect(keys.slice(0, 10).every((b) => !slot(b).hasAttribute('data-out'))).toBe(true);
     expect(keys.slice(10).every((b) => slot(b).hasAttribute('data-out'))).toBe(true);
+  });
+
+  it('takes the pointer only inside the list\'s window: a key\'s faces are cut where they fade out, its own box takes none', async () => {
+    const list = await mount();
+    const s = slot(key(list, '档案'));
+    expect(s.hasAttribute('data-clip')).toBe(true);
+    expect(s.style.getPropertyValue('--clip-top')).toMatch(/px$/);
+    expect(s.style.getPropertyValue('--clip-bottom')).toMatch(/px$/);
+    const text = readFileSync(resolve(__dirname, '../../src/ui/game/WatchKey.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const rule = (sel: string) => [...text.matchAll(/([^{}]+)\{([^{}]*)\}/g)].find((m) => m[1]!.trim() === sel)?.[2] ?? '';
+    expect(rule('.slot[data-clip] [data-tone] > *')).toContain('clip-path: inset(var(--clip-top) 0 calc(100% - var(--clip-bottom)) 0)');
+    expect(rule('.slot[data-clip] .key')).toContain('pointer-events: none');
   });
 
   it('scrolls 22.5 px a wheel notch and stops at either end', async () => {

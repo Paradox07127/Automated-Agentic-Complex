@@ -81,9 +81,16 @@ export function DockRoot() {
     if (talk === 'tap') stop();
     else if (!talk) start('hold');
   };
-  const onPressEnd = (id: string) => {
+  const onPressEnd = (id: string, end: 'up' | 'cancel') => {
     const p = press.current;
-    if (id !== 'talk' || !p?.pointer || talk !== 'hold') return;
+    if (id !== 'talk' || !p?.pointer) return;
+    if (end === 'cancel') {
+      // No click follows a cancelled press, so pick() has nothing to swallow.
+      press.current = null;
+      if (talk) stop();
+      return;
+    }
+    if (talk !== 'hold') return;
     if (performance.now() - p.at < TAP_MS) setTalk('tap');
     else stop();
   };

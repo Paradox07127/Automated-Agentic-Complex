@@ -69,6 +69,10 @@ export function Select({ value, options, label, prefix, defaultValue, open: forc
   }, [openState]);
 
   useEffect(() => {
+    if (disabled) setOpen(false);
+  }, [disabled]);
+
+  useEffect(() => {
     list.current?.querySelector(`[data-index="${active}"]`)?.scrollIntoView?.({ block: 'nearest' });
   }, [active]);
 
@@ -83,7 +87,7 @@ export function Select({ value, options, label, prefix, defaultValue, open: forc
   };
   const choose = (i: number) => {
     const o = options[i];
-    if (!o) return;
+    if (!o || disabled) return;
     setCurrent(o.value);
     close(true);
   };

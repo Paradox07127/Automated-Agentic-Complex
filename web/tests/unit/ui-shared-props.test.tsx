@@ -1,5 +1,5 @@
 // The shared components' added props; without them each component renders as before (the other suites cover that).
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -14,6 +14,7 @@ import { ICON_PATHS } from '../../src/ui/iconPaths';
 import { Menu, type MenuItem } from '../../src/ui/Menu';
 import { SearchField } from '../../src/ui/SearchField';
 import { Sheet } from '../../src/ui/Sheet';
+import { stubMatchMedia } from './mediaStub';
 
 const css = (name: string) => readFileSync(resolve(__dirname, '../../src/ui', name), 'utf8');
 /** The declarations of the first rule whose selector list is exactly `sel`. */
@@ -49,6 +50,24 @@ describe('Sheet', () => {
     cleanup();
     render(<Sheet open={false} title={title} head="none" dockFrom={0} />);
     expect(screen.getByRole('complementary', { name: '生成记录 12' })).toBeTruthy();
+  });
+
+  it('keeps its children, and what was typed in them, when the window crosses dockFrom either way', () => {
+    const media = stubMatchMedia(new Set(['(min-width: 1100px)']));
+    render(
+      <Sheet open title="详情" dockFrom={1100}>
+        <input aria-label="备注" defaultValue="" />
+      </Sheet>,
+    );
+    const box = screen.getByRole<HTMLInputElement>('textbox', { name: '备注' });
+    fireEvent.change(box, { target: { value: 'abc' } });
+    act(() => media.set('(min-width: 1100px)', false));
+    expect(screen.getByRole('dialog', { name: '详情' }).contains(box)).toBe(true);
+    expect(box.value).toBe('abc');
+    act(() => media.set('(min-width: 1100px)', true));
+    expect(screen.getByRole('complementary', { name: '详情' }).contains(box)).toBe(true);
+    expect(box.value).toBe('abc');
+    vi.unstubAllGlobals();
   });
 
   it('fades the docked column in with the motion tokens, and not under either reduced-motion switch', () => {

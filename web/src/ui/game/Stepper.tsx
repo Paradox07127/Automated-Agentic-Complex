@@ -75,6 +75,8 @@ function NumberStepper({ label, value, min, max, step, big = step, digits, chang
   const commit = () => {
     if (text === null) return;
     setText(null);
+    // Focus seeds the draft with the value itself: left as it was, it changes nothing, not even onto the grid.
+    if (text === String(value)) return;
     const n = Number(text);
     if (text.trim() !== '' && Number.isFinite(n)) put(n);
   };

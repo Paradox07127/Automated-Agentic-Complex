@@ -17,6 +17,8 @@ export interface ExpandRowProps {
   /** 不受控时的初始开合 */
   defaultOpen?: boolean;
   onToggle?: (open: boolean) => void;
+  /** 点了这一行（有没有展开体都算），开合之前 */
+  onActivate?: () => void;
   /** fail：红底红左条；run：蓝左条 */
   tone?: 'fail' | 'run';
   /** 选中：黄左条 */
@@ -28,7 +30,7 @@ export interface ExpandRowProps {
 /** Set by GameTable: its rows lay their cells on the table's columns. */
 export const InTable = createContext(false);
 
-export function ExpandRow({ children, body, end, open: openProp, defaultOpen = false, onToggle, tone, selected, label }: ExpandRowProps) {
+export function ExpandRow({ children, body, end, open: openProp, defaultOpen = false, onToggle, onActivate, tone, selected, label }: ExpandRowProps) {
   const [inner, setInner] = useState(defaultOpen);
   const open = openProp ?? inner;
   const bodyId = useId();
@@ -44,6 +46,7 @@ export function ExpandRow({ children, body, end, open: openProp, defaultOpen = f
     const next = e.key === 'Enter' || e.key === ' ' ? !open : e.key === 'ArrowRight' ? true : e.key === 'ArrowLeft' ? false : null;
     if (next == null) return;
     e.preventDefault();
+    onActivate?.();
     set(next);
   };
   const content = (
@@ -56,11 +59,13 @@ export function ExpandRow({ children, body, end, open: openProp, defaultOpen = f
     <div className={styles.item} data-stub="ExpandRow" data-tone={tone} data-selected={selected || undefined} data-open={(expandable && open) || undefined}>
       <div className={styles.line}>
         {expandable ? (
-          <div role="button" tabIndex={0} className={styles.row} aria-expanded={open} aria-controls={open ? bodyId : undefined} aria-label={label} onClick={() => set(!open)} onKeyDown={onKeyDown}>
+          <div role="button" tabIndex={0} className={styles.row} aria-expanded={open} aria-controls={open ? bodyId : undefined} aria-label={label} onClick={() => { onActivate?.(); set(!open); }} onKeyDown={onKeyDown}>
             {content}
           </div>
         ) : (
-          <div className={styles.row}>{content}</div>
+          <div className={styles.row} onClick={onActivate}>
+            {content}
+          </div>
         )}
         <span className={styles.end}>{end}</span>
       </div>

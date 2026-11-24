@@ -54,12 +54,15 @@ export function HudRoot() {
   const offset = useRef(0);
   const frozen = useRef<number | null>(null);
   const clock = useCallback(() => frozen.current ?? Date.now() + offset.current, []);
-  const [toast, setToast] = useState<StackToast | null>(null);
+  // Each notice gets its own id: a Toast that already left never takes the next one.
+  const [toast, setToast] = useState<(StackToast & { id: number }) | null>(null);
+  const toasts = useRef(0);
+  const say = (t: StackToast | null) => setToast(t && { ...t, id: ++toasts.current });
   const cardsRef = useRef(state.cards);
   useLayoutEffect(() => {
     cardsRef.current = state.cards;
   });
-  const { act, schedule } = useStackActions(dispatch, clock, still, { toast: setToast, setPause: () => {} }, (id) => cardsRef.current.find((c) => c.id === id));
+  const { act, schedule } = useStackActions(dispatch, clock, still, { toast: say, setPause: () => {} }, (id) => cardsRef.current.find((c) => c.id === id));
 
   useEffect(() => {
     if (!data) return;
@@ -262,7 +265,7 @@ export function HudRoot() {
       )}
       {toast && (
         <div className={styles.toast} data-hud-toast="" data-region="">
-          <Toast message={toast.text} severity={toast.tone} action={toast.action && { label: toast.action.label, onClick: () => { setToast(null); toast.action?.onClick(); } }} persistent={!!toast.action} />
+          <Toast key={toast.id} message={toast.text} severity={toast.tone} action={toast.action && { label: toast.action.label, onClick: () => { setToast(null); toast.action?.onClick(); } }} persistent={!!toast.action} onClose={() => setToast((t) => (t?.id === toast.id ? null : t))} />
         </div>
       )}
     </div>

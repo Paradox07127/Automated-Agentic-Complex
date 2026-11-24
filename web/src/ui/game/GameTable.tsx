@@ -50,7 +50,6 @@ export function GameTable({ label, columns, endWidth = 'auto', rows, selected = 
     '--gt-end': endWidth,
   } as CSSProperties;
   const toggle = (id: string, next: boolean) => {
-    onSelect?.(id);
     const n = new Set(open);
     if (next) n.add(id);
     else n.delete(id);
@@ -74,6 +73,7 @@ export function GameTable({ label, columns, endWidth = 'auto', rows, selected = 
             key={r.id}
             open={open.has(r.id)}
             onToggle={(next) => toggle(r.id, next)}
+            onActivate={onSelect && (() => onSelect(r.id))}
             body={r.body}
             end={r.end}
             tone={r.tone}

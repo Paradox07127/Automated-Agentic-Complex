@@ -143,6 +143,7 @@ export function Toast({ message, kind = 'normal', severity = 'neutral', icon, ac
       data-icon={icon}
       data-persistent={sticky || undefined}
       data-leaving={leaving || undefined}
+      inert={leaving}
       data-g={sys ? 'sysToast' : 'toast'}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
@@ -171,8 +172,10 @@ export function Toast({ message, kind = 'normal', severity = 'neutral', icon, ac
             variant="quiet"
             size="sm"
             onClick={() => {
-              action.onClick?.();
+              // One shot: a second press during the exit finds the toast already leaving.
+              if (left.current) return;
               close();
+              action.onClick?.();
             }}
           >
             {action.label}

@@ -92,6 +92,12 @@ describe('Table', () => {
     expect(c?.getAttribute('aria-selected')).toBe('false');
   });
 
+  it('selected on a row it does not have, its first row is the Tab stop', () => {
+    render(table({ selected: 'missing' }));
+    const [a, b, c] = rowEls();
+    expect([a?.tabIndex, b?.tabIndex, c?.tabIndex]).toEqual([0, -1, -1]);
+  });
+
   it('leaves ↵ on the row-end ⋯ to the button', () => {
     const onOpen = vi.fn();
     render(table({ onOpen }));

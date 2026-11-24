@@ -1,7 +1,7 @@
 // 主页：手表菜单的按键取自路由表，圆盘取自每日简报的待处理和今日任务，每个可点元素跳到对应页面或位置。
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getBridge } from '../../src/bridge';
 import { createFakeBridge } from '../../src/bridge/fake';
@@ -14,6 +14,7 @@ import { HomePage } from '../../src/pages/home/Page';
 import { setDevMode } from '../../src/shell/devMode';
 import { OPEN_PALETTE } from '../../src/shell/Layout';
 import { pageRoutes } from '../../src/shell/registry';
+import { NewsBanner } from '../../src/ui/game';
 import { pluginsOn, pluginsReset } from './plugins';
 
 // Every plug-in on, so each group shows all its rows.
@@ -338,6 +339,33 @@ describe('home disc', () => {
     expect(await screen.findByRole('button', { name: '今日任务 完成 0 / 0' })).toBeTruthy();
     expect(screen.queryAllByRole('group', { name: /^(审批|提问|复核)：/ })).toEqual([]);
     expect(screen.getByText('没有要你批准的事')).toBeTruthy();
+  });
+});
+
+describe('home banner turning', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('does not turn under a press, so the click opens the item pressed; the full wait starts again once it is let go', () => {
+    vi.useFakeTimers();
+    const first = vi.fn();
+    const second = vi.fn();
+    const items = [
+      { kind: '提醒', title: '交房租', at: '09:00', go: first },
+      { kind: '交付', title: '周报', at: '10:00', go: second },
+    ];
+    render(<NewsBanner box={{ width: 300, height: 80 }} items={items} />);
+    const banner = () => screen.getByRole('button', { name: /^(提醒|交付)：/ });
+    fireEvent.pointerDown(banner());
+    act(() => vi.advanceTimersByTime(6000));
+    fireEvent.pointerUp(banner());
+    fireEvent.click(banner());
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(second).not.toHaveBeenCalled();
+    fireEvent.blur(banner());
+    act(() => vi.advanceTimersByTime(5999));
+    expect(banner().getAttribute('aria-label')).toMatch(/^提醒：/);
+    act(() => vi.advanceTimersByTime(1));
+    expect(banner().getAttribute('aria-label')).toMatch(/^交付：/);
   });
 });
 
