@@ -12,6 +12,7 @@ import tempfile
 import time
 
 from fsutil import atomic_write_json, read_json
+from infra.platform import store_app_folders
 
 
 def _probe(argv, backend, timeout, env=None):
@@ -169,6 +170,8 @@ class DiscoveryService:
         for directory in (Path("/Applications"), home / "Applications"):
             result.append(("codex", "app_cli", directory / "Codex.app/Contents/Resources/codex"))
             result.append(("codex", "app_cli", directory / "ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"))
+        # The Store Codex app has no `codex` alias; its CLI sits in a package folder renamed on every update.
+        result.extend(("codex", "app_cli", Path(root) / "app/resources/codex.exe") for root in store_app_folders("OpenAI.Codex_"))
         return result
 
     def scan(self, refresh=False, *, wait=True):

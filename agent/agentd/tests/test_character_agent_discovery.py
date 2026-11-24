@@ -320,6 +320,13 @@ class DiscoveryTests(unittest.TestCase):
                 self.assertEqual(service.inspect_runtime(str(cli),'claude')['backend'],'claude')
                 status.assert_called_with(cli,'claude')
 
+    def test_store_codex_cli_is_a_candidate(self):
+        root = r"C:\WindowsApps\OpenAI.Codex_26.1117.4957.0_x64__2p2nqsd0c76g0"
+        with patch("character_agent.harness.discovery.store_app_folders", return_value=[root]) as folders:
+            candidates = DiscoveryService()._local_candidates()
+        folders.assert_called_once_with("OpenAI.Codex_")
+        self.assertIn(("codex", "app_cli", Path(root) / "app/resources/codex.exe"), candidates)
+
 
 if __name__ == "__main__":
     unittest.main()

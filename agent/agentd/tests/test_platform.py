@@ -7,6 +7,7 @@ import sys
 import tempfile
 import time
 import unittest
+import unittest.mock
 import warnings
 
 AGENTD = Path(__file__).resolve().parents[1]
@@ -103,6 +104,29 @@ class EnvironmentTests(unittest.TestCase):
             self.assertEqual(env[key], os.environ[key], key)
         self.assertEqual((env["TEMP"], env["TMP"]), (r"C:\x\tmp", r"C:\x\tmp"))
         self.assertTrue(env["PATH"].lower().startswith(os.environ["SystemRoot"].lower() + "\\system32"))
+
+    @unittest.skipUnless(sys.platform == "win32", "the Store package registry")
+    def test_store_app_folders_match_the_package_name_prefix(self):
+        import infra.platform.windows as windows
+        packages = {"OpenAI.CodexPrimaryRuntime.v26_26.1119.907.0_x64__3k8sg7r9htsxt": r"C:\Apps\Runtime",
+                    "OpenAI.Codex_26.1117.4957.0_x64__2p2nqsd0c76g0": r"C:\Apps\Codex"}
+        class Key:
+            def __init__(self, name=None): self.name = name
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+        registry = type(sys)("winreg")
+        registry.HKEY_CURRENT_USER = Key()
+        registry.OpenKey = lambda parent, name: Key(name)
+        registry.QueryInfoKey = lambda key: (len(packages), 0, 0)
+        registry.EnumKey = lambda key, i: list(packages)[i]
+        registry.QueryValueEx = lambda key, value: (packages[key.name], 1)
+        with unittest.mock.patch.object(windows, "winreg", registry):
+            self.assertEqual(windows.store_app_folders("OpenAI.Codex_"), [r"C:\Apps\Codex"])
+
+    @unittest.skipIf(sys.platform == "win32", "POSIX has no Store packages")
+    def test_posix_has_no_store_app_folders(self):
+        from infra.platform import store_app_folders
+        self.assertEqual(store_app_folders("OpenAI.Codex_"), [])
 
 
 class PathTests(unittest.TestCase):

@@ -142,6 +142,10 @@ def child_environment(tmp):
     return {"PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "TMPDIR": str(tmp)}
 
 
+def store_app_folders(prefix):
+    return []
+
+
 def watch_parent(pid, stop):
     kq = select.kqueue()
     event = select.kevent(pid, filter=select.KQ_FILTER_PROC,

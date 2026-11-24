@@ -31,6 +31,8 @@ watch_parent(pid, stop)            for a process whose parent pid supervises it:
                                    already exited. Later, from a daemon thread: on POSIX os._exit(0) once pid exits,
                                    without cleanup (the parent stops it with SIGTERM); on Windows, which has no
                                    SIGTERM, stop() once, when pid exits or stdin reaches EOF, the parent's stop request.
+store_app_folders(prefix)          the install folders of the current user's Microsoft Store packages whose full name starts
+                                   with prefix, from the registry; [] on POSIX.
 THIS_MACHINE, USER_MACHINE         how prompts name the machine she runs on: 这台 Mac / the user's Mac on macOS,
                                    这台电脑 / the user's computer on Windows.
 long_path(path)                    the str to open path's files by: on Windows windows_long_path(path), which opens
@@ -73,15 +75,16 @@ if sys.platform == "win32":
     from infra.platform.windows import (child_environment, connect_ipc, lock_file, make_private_dir,
                                         make_private_tree, new_group_options, on_stop_signals, open_private_file,
                                         owned_by_current_user, private_mode, release_group, serve_ipc,
-                                        set_private_mode, signal_group, stop_own_group, sync_directory, track_group,
-                                        unlock_file, watch_parent)
+                                        set_private_mode, signal_group, stop_own_group, store_app_folders, sync_directory,
+                                        track_group, unlock_file, watch_parent)
 else:
     from infra.platform.posix import (child_environment, connect_ipc, lock_file, make_private_dir, make_private_tree,
                                       new_group_options, on_stop_signals, open_private_file, owned_by_current_user,
                                       private_mode, release_group, serve_ipc, set_private_mode, signal_group,
-                                      stop_own_group, sync_directory, track_group, unlock_file, watch_parent)
+                                      stop_own_group, store_app_folders, sync_directory, track_group, unlock_file,
+                                      watch_parent)
 
 __all__ = ["child_environment", "connect_ipc", "lock_file", "long_path", "make_private_dir", "make_private_tree",
            "new_group_options", "on_stop_signals", "open_private_file", "owned_by_current_user", "plain_path", "private_mode",
-           "release_group", "serve_ipc", "set_private_mode", "signal_group", "stop_own_group", "sync_directory",
-           "track_group", "unlock_file", "watch_parent"]
+           "release_group", "serve_ipc", "set_private_mode", "signal_group", "stop_own_group", "store_app_folders",
+           "sync_directory", "track_group", "unlock_file", "watch_parent"]

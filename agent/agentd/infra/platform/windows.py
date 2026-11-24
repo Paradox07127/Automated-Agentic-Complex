@@ -31,6 +31,7 @@ import signal
 import stat
 import subprocess
 import threading
+import winreg
 
 _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 _advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
@@ -365,6 +366,20 @@ def _created(process):
     times = [wintypes.FILETIME() for _ in range(4)]
     _check(_kernel32.GetProcessTimes(process, *map(ctypes.byref, times)))
     return times[0].dwHighDateTime << 32 | times[0].dwLowDateTime
+
+
+def store_app_folders(prefix):
+    packages = r"Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\Repository\Packages"
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, packages) as key:
+            folders = []
+            for name in [winreg.EnumKey(key, i) for i in range(winreg.QueryInfoKey(key)[0])]:
+                if name.startswith(prefix):
+                    with winreg.OpenKey(key, name) as package:
+                        folders.append(winreg.QueryValueEx(package, "PackageRootFolder")[0])
+            return folders
+    except OSError:
+        return []
 
 
 def watch_parent(pid, stop):
