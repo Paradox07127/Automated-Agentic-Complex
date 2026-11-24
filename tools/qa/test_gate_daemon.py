@@ -283,19 +283,6 @@ class GateDaemonTest(unittest.TestCase):
         self.assertEqual(gate_daemon.with_requires(self.repo, ['renderer']), ['renderer', 'core'])
         self.assertEqual(gate_daemon.with_requires(self.repo, ['gone']), ['gone'], 'a suite an older commit lacks')
 
-    def test_a_checkout_with_its_own_receipts_moves_them_to_the_main_store_and_links_it(self):
-        gr = self.repo / '.claude/worktrees/gr'
-        self.daemon.prepare(gr)
-        old = gr / '.local/gate-receipts/commit'
-        old.mkdir(parents=True)
-        (old / '20261117T000000Z-abc.json').write_text('{"run": 1}')
-        (old / 'gate-receipt.json').write_text('{"latest": 1}')
-        self.daemon.tick()
-        self.assertTrue((gr / '.local/gate-receipts').is_symlink())
-        store = self.repo / '.local/gate-receipts/commit'
-        self.assertEqual((store / '20261117T000000Z-abc.json').read_text(), '{"run": 1}')
-        self.assertFalse((store / 'gate-receipt.json').exists())
-
     def test_pack_reinstalls_web_and_electron_packages_before_building(self):
         bin_dir = self.tmp / 'bin'
         bin_dir.mkdir()
@@ -466,12 +453,16 @@ class GateDaemonTest(unittest.TestCase):
             self.assertEqual((wt / name).resolve(), self.repo / name)
         self.assertNotEqual(subprocess.run(daemon + [str(self.repo)], capture_output=True).returncode, 0)
 
-    def test_link_replaces_a_private_dir_left_with_only_ignored_build_output(self):
-        wt = self.tmp / 'old-wt'
+    def test_link_keeps_a_worktree_s_own_private_copy_and_links_the_rest(self):
+        wt = self.tmp / 'own-private-wt'
         self.git('worktree', 'add', '-q', '--detach', str(wt), 'main')
-        (wt / 'private/renderer/host/.build').mkdir(parents=True)
+        shutil.copytree(self.repo / 'private', wt / 'private')
+        (wt / 'private/renderer').mkdir(parents=True)
+        (wt / 'private/renderer/x.swift').write_text('edited')
         self.daemon.link(wt)
-        self.assertEqual((wt / 'private').resolve(), self.repo / 'private')
+        self.assertFalse((wt / 'private').is_symlink())
+        self.assertEqual((wt / 'private/renderer/x.swift').read_text(), 'edited')
+        self.assertTrue((wt / '.local/gate-receipts').is_symlink())
 
     def test_link_gives_the_whole_fixed_library_when_the_profile_names_it(self):
         self.write('private/release/release.json', json.dumps(dict(character_catalog='.local/library/current.json', ui_art=None, photo_looks=None)))
@@ -481,16 +472,6 @@ class GateDaemonTest(unittest.TestCase):
         self.daemon.link(wt)
         self.assertEqual(os.readlink(wt / '.local/library'), str(self.repo / '.local/library'))
         self.assertTrue((wt / '.local/library/packages/si').is_dir())
-
-    def test_link_replaces_a_library_dir_that_holds_only_links(self):
-        self.write('private/release/release.json', json.dumps(dict(character_catalog='.local/library/current.json', ui_art=None, photo_looks=None)))
-        (self.repo / '.local/library/packages/si').mkdir(parents=True)
-        wt = self.tmp / 'stale-library-wt'
-        self.git('worktree', 'add', '-q', '--detach', str(wt), 'main')
-        (wt / '.local/library').mkdir(parents=True)
-        (wt / '.local/library/current.json').symlink_to(self.repo / '.local/library/current.json')
-        self.daemon.link(wt)
-        self.assertEqual(os.readlink(wt / '.local/library'), str(self.repo / '.local/library'))
 
     def test_link_keeps_a_library_dir_with_real_files(self):
         self.write('private/release/release.json', json.dumps(dict(character_catalog='.local/library/current.json', ui_art=None, photo_looks=None)))

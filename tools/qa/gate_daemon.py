@@ -271,32 +271,17 @@ class Daemon:
         checkout = Path(checkout)
         names = list(LINKS)
         private = checkout / 'private'
-        if (self.root / 'private').is_dir() and not private.is_symlink():
-            # A checkout made while that directory was tracked keeps only its ignored build output there; replace it.
-            if private.exists() and not git(checkout, 'ls-files', 'private'):
-                shutil.rmtree(private)
-            if not private.exists():
-                private.symlink_to(self.root / 'private')
+        # A worktree's own copy of that directory has no history anywhere else; it is kept, never replaced.
+        if (self.root / 'private').is_dir() and not os.path.lexists(private):
+            private.symlink_to(self.root / 'private')
         # Read after the link: the local profile is private/release/release.json.
         profile = json.loads(default_profile(checkout).read_text())
         for path in [profile['character_catalog'], profile.get('ui_art'), profile.get('photo_looks')]:
             # A build output's whole .local/output/<name>, else its top directory (.local/library).
             if path: names.append(str(Path(*Path(path).parts[:3 if Path(path).parts[1] == 'output' else 2])))
-        receipts = checkout / RECEIPTS
-        if receipts.is_dir() and not receipts.is_symlink():
-            # A checkout from before the link: move its per-run receipts into the main store, then link.
-            for run in receipts.glob('*/*.json'):
-                target = self.root / RECEIPTS / run.parent.name / run.name
-                if run.name != 'gate-receipt.json' and not target.exists():
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(run, target)
-            shutil.rmtree(receipts)
         (self.root / RECEIPTS).mkdir(parents=True, exist_ok=True)
         for name in names:
             link = checkout / name
-            # A directory the older per-file links left (.local/library holding only a current.json link): replace it.
-            if link.is_dir() and not link.is_symlink() and all(p.is_symlink() for p in link.iterdir()):
-                shutil.rmtree(link)
             if not os.path.lexists(link):
                 link.parent.mkdir(parents=True, exist_ok=True)
                 link.symlink_to(self.root / name)
