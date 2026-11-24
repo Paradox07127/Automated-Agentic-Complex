@@ -67,7 +67,8 @@ def upstream_lines(body, segments=2, end="complete", cues=False):
 
 class FakeTTS(ThreadingHTTPServer):
     def __init__(self, segments=2, end="complete", delay=0.0, cues=False, status=200, fail=None):
-        """fail: request number (from 0) -> 500 (refused) or "drop" (the stream stops without an end)."""
+        """fail: request number (from 0) -> 500 (refused), "drop" (the stream stops without an end), or a callable
+        that rewrites the lines sent."""
         self.segments, self.end, self.delay, self.cues, self.bodies = segments, end, delay, cues, []
         self.status, self.auth = status, []
         self.fail = fail or {}
@@ -112,6 +113,8 @@ class _TTSHandler(BaseHTTPRequestHandler):
         self.end_headers()
         lines = upstream_lines(echoed, self.server.segments, None if fail == "drop" else self.server.end,
                                self.server.cues)
+        if callable(fail):
+            lines = fail(lines)
         try:
             for n, line in enumerate(lines):
                 if n == len(lines) - 1:
@@ -269,6 +272,25 @@ class SpeechRelayTest(unittest.TestCase):
         lines = self.collect(relay, 1)
         self.assertEqual((lines[-1]["event"], lines[-1]["reason"]), ("cancelled", "error"))
         self.assertIsNone(c2.check([json.dumps(l) for l in lines]))
+
+    def test_a_stream_line_that_is_no_c2_line_ends_the_stream_as_error(self):
+        bad = {"not an object": [], "text seq": {"seq": "1"}, "text samples": {"samples": "480"},
+               "skipped seq": {"seq": 2}, "unknown event": {"event": "chunk"}}
+        for name, change in bad.items():
+            with self.subTest(name):
+                edit = (lambda c: lambda lines: [lines[0], c if isinstance(c, list) else {**lines[2], "seq": 1, **c}])(change)
+                _, relay = self.relay(fail={0: edit})
+                speech_id = relay.speak("line-1", "x")
+                lines = self.collect(relay, 1)
+                self.assertTrue(relay._speeches[speech_id].done.is_set())
+                self.assertEqual([l["event"] for l in lines], ["speech.begin", "cancelled"])
+                self.assertEqual((lines[-1]["seq"], lines[-1]["reason"]), (1, "error"))
+                self.assertIsNone(c2.check([json.dumps(l) for l in lines]))
+
+    def test_a_foreign_speech_id_from_the_tts_is_replaced_by_ours(self):
+        _, relay = self.relay(fail={0: lambda lines: [{**l, "speech_id": "foreign"} for l in lines]})
+        speech_id = relay.speak("line-1", "x")
+        self.assertEqual({l["speech_id"] for l in self.collect(relay, 1)}, {speech_id})
 
     def test_cancel_by_speech_id(self):
         _, relay = self.relay(segments=20, delay=0.05)
@@ -492,6 +514,13 @@ class ReceiptTest(unittest.TestCase):
         relay.receipt(speech_id, "interrupted", 22400, 48000, "barge_in")
         self.assertEqual(relay.heard(speech_id), ("一二三", "一二三四五六"))
 
+    def test_heard_of_a_speech_cut_while_synthesizing_is_not_the_whole_text(self):
+        relay, speech_id = self.spoken(text="一二三四五六七八九十" * 2)
+        speech = relay._speeches[speech_id]
+        speech.total_samples, speech.sent_samples = None, 4800  # interrupted before `complete`
+        relay.receipt(speech_id, "interrupted", 4800, 48000, "barge_in")
+        self.assertNotEqual(relay.heard(speech_id)[0], speech.text)
+
 
 TRACE = "7d0c2f1e-5a3b-4c6d-8e9f-0a1b2c3d4e5f"
 
@@ -547,6 +576,14 @@ class UtteranceTest(unittest.TestCase):
         self.assertEqual(tts.max_active, 1)
         self.assertEqual(self.states(relay, utterance_id, 3), ["ready"] * 3)
         self.assertEqual([c["text"] for c in relay.utterance(utterance_id)], texts)
+
+    def test_a_bad_stream_line_ends_the_utterance_and_the_next_one_still_synthesizes(self):
+        tts, relay = self.relay(fail={0: lambda lines: [lines[0], []]})
+        first, _ = self.spoken(relay, ["甲乙丙丁，"])
+        self.assertIn(self.states(relay, first, 1)[0], ("failed", "cancelled"))
+        second, _ = self.spoken(relay, ["一二三四五六"])
+        self.assertEqual(self.states(relay, second, 1), ["ready"])
+        self.assertEqual(len(tts.bodies), 2)
 
     def test_clause_ref_names_a_clause_as_c1_clause_intent_does(self):
         _, relay = self.relay()

@@ -48,6 +48,21 @@ class ClauseSplitterTest(unittest.TestCase):
         self.assertEqual(whole(text, "ja"), ["うん、そうですね、", "すぐに確認します。"])
         self.assertEqual(whole("そうだね、すぐに確認します。", "ja"), ["そうだね、", "すぐに確認します。"])
 
+    def test_a_grouped_number_or_a_time_stays_in_one_clause(self):
+        for split in (whole, char_by_char):
+            with self.subTest(split.__name__):
+                self.assertEqual(split("目前一共有1,024个测试通过。"), ["目前一共有1,024个测试通过。"])
+                self.assertEqual(split("我们约在下午3:30见面吧。"), ["我们约在下午3:30见面吧。"])
+                self.assertEqual(split("一共有三个测试, 然后再说。"), ["一共有三个测试, ", "然后再说。"])
+
+    def test_english_sentences_end_at_a_full_stop(self):
+        splitter = ClauseSplitter("en")
+        self.assertEqual(splitter.feed("The build passed. I ran all the tests. Then I wrote the report. "),
+                         ["The build passed. ", "I ran all the tests. ", "Then I wrote the report. "])
+        self.assertEqual(splitter.close(), [])
+        self.assertEqual(char_by_char("Pi is 3.14 today. Version 1.2. Then more.", "en"),
+                         ["Pi is 3.14 today. ", "Version 1.2. Then more."])
+
     def test_nothing_more_once_the_limit_would_be_passed(self):
         clause = "甲" * 19 + "，"
         splitter = ClauseSplitter("zh")

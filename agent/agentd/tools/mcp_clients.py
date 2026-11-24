@@ -51,20 +51,36 @@ def toml_string(value):
     return json.dumps(value, ensure_ascii=False)  # a JSON string is a TOML basic string
 
 
+def _others(text):
+    """config.toml parsed, without our server."""
+    data = tomllib.loads(text)
+    servers = data.get("mcp_servers", {})
+    servers.pop(NAME, None)
+    if not servers:
+        data.pop("mcp_servers", None)
+    return data
+
+
 def codex_text(old, entry):
-    """config.toml with our [mcp_servers.agentic-complex] table (and its subtables) replaced or appended."""
+    """config.toml with our [mcp_servers.agentic-complex] table (and its subtables) replaced or appended;
+    ValueError when that would change any other setting."""
     block = (f"[mcp_servers.{NAME}]\ncommand = {toml_string(entry['command'])}\n"
              f"args = [{', '.join(map(toml_string, entry['args']))}]\n")
-    header = re.compile(rf"^\[\s*mcp_servers\.(?:{re.escape(NAME)}|\"{re.escape(NAME)}\")\s*(?:\]|\.)", re.M)
+    header = re.compile(rf"^[ \t]*\[\s*mcp_servers\.(?:{re.escape(NAME)}|\"{re.escape(NAME)}\")\s*(?:\]|\.)", re.M)
     found = header.search(old)
     if found is None:
-        return old + ("\n" if old and not old.endswith("\n") else "") + ("\n" if old else "") + block
-    rest = re.compile(r"^\[", re.M)
-    end = found.end()
-    while (following := rest.search(old, end)) is not None and header.match(old, following.start()):
-        end = following.end()
-    stop = following.start() if following else len(old)
-    return old[:found.start()] + block + ("\n" if following else "") + old[stop:]
+        new = old + ("\n" if old and not old.endswith("\n") else "") + ("\n" if old else "") + block
+    else:
+        rest = re.compile(r"^[ \t]*\[", re.M)
+        end = found.end()
+        while (following := rest.search(old, end)) is not None and header.match(old, following.start()):
+            end = following.end()
+        stop = following.start() if following else len(old)
+        new = old[:found.start()] + block + ("\n" if following else "") + old[stop:]
+    # A header-like line inside a multiline string can still end the table early.
+    if _others(new) != _others(old):
+        raise ValueError(f"replacing [mcp_servers.{NAME}] would change other settings")
+    return new
 
 
 def json_text(old, entry):
@@ -90,9 +106,7 @@ def run(args):
             summary["commands"] = commands
         else:
             if args.client == "codex":
-                tomllib.loads(old)
                 new = codex_text(old, entry)
-                tomllib.loads(new)
             else:
                 new = json_text(old, {"type": "stdio", **entry} if args.client == "cursor" else entry)
             before, after = old, new
@@ -107,8 +121,15 @@ def run(args):
             if shutil.which("claude") is None:
                 print(json.dumps({**summary, "error": "claude_not_found"}, ensure_ascii=False))
                 return 1
-            for command in commands:
-                subprocess.run(command, check=True, stdout=subprocess.DEVNULL)
+            try:
+                for command in commands:
+                    subprocess.run(command, check=True, stdout=subprocess.DEVNULL)
+            except subprocess.CalledProcessError as error:
+                if current is not None and command is commands[-1]:  # removed, not added again: put it back
+                    subprocess.run(["claude", "mcp", "add-json", "--scope", "user", NAME, json.dumps(current)],
+                                   stdout=subprocess.DEVNULL)
+                print(json.dumps({**summary, "error": "claude_failed", "detail": str(error)}, ensure_ascii=False))
+                return 1
         else:
             path.parent.mkdir(parents=True, exist_ok=True)
             atomic_write_text(path, after, mode=path.stat().st_mode & 0o777 if path.exists() else None)

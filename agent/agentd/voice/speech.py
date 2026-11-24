@@ -1,6 +1,6 @@
 """C2 speech relay:agentd is the only ws TTS client and forwards each stream to the avatar host.
 
-Only session_epoch and turn_id are rewritten, and in a C2 v2 begin turn_generation and trace_id.
+Only session_epoch, turn_id and speech_id are rewritten, and in a C2 v2 begin turn_generation and trace_id.
 A stream that agentd cuts short (cancel, superseded, upstream drop) is closed with one synthesized
 `cancelled` line, so the avatar host always sees an end."""
 from collections import OrderedDict, deque
@@ -21,6 +21,7 @@ CONNECT_S = 5
 # Seconds without a byte from a connected TTS before its stream counts as lost.
 STREAM_S = 120
 ENDS = ("complete", "cancelled")
+EVENTS = ("speech.begin", "segment", "audio", "cues") + ENDS
 REASONS = ("client_cancel", "superseded", "error")
 # Recent speeches kept for cancel-by-id.
 HISTORY = 256
@@ -44,6 +45,18 @@ def spoken_part(text, limit=SPOKEN_LIMIT):
         return first.group()
     comma = text.rfind("，", 0, limit)
     return text[:comma + 1] if comma > 0 else text[:limit]
+
+
+def _line(raw, last_seq):
+    """One TTS stream line once it is a C2 line that follows last_seq; ValueError otherwise."""
+    line = json.loads(raw)
+    if not isinstance(line, dict) or line.get("event") not in EVENTS or type(line.get("seq")) is not int \
+            or line["seq"] != (0 if last_seq is None else last_seq + 1):
+        raise ValueError("not the next C2 line")
+    count = {"audio": "samples", "complete": "total_samples"}.get(line["event"])
+    if count is not None and (type(line.get(count)) is not int or line[count] < 0):
+        raise ValueError(f"{count} is not a sample count")
+    return line
 
 
 class _Speech:
@@ -274,15 +287,17 @@ class SpeechRelay:
             elif utterance.stopped is not None:
                 utterance.waits_on = before
                 break
-        while True:
-            with self._wake:
-                while not utterance.queue and not utterance.closed and utterance.stopped is None:
-                    self._wake.wait()
-                if utterance.stopped is not None or not utterance.queue:
-                    break
-                speech = self._current = utterance.queue.popleft()
-            self._run(speech, speech.text)
-        utterance.finished.set()
+        try:
+            while True:
+                with self._wake:
+                    while not utterance.queue and not utterance.closed and utterance.stopped is None:
+                        self._wake.wait()
+                    if utterance.stopped is not None or not utterance.queue:
+                        break
+                    speech = self._current = utterance.queue.popleft()
+                self._run(speech, speech.text)
+        finally:
+            utterance.finished.set()
 
     def cancel(self, reason="client_cancel", immediate=False):
         """Cancel the speech playing now: the speech_id cut (True when only clauses still to come were),
@@ -358,8 +373,9 @@ class SpeechRelay:
         speech = self._speeches[speech_id]
         if not speech.interrupted:
             return speech.text, speech.text
-        total = speech.total_samples if speech.total_samples is not None else speech.sent_samples
-        share = min(1.0, speech.played_samples / total) if total else 0.0
+        if speech.total_samples is None:  # cut while synthesizing: which part of the text was voiced is unknown
+            return "", speech.text
+        share = min(1.0, speech.played_samples / speech.total_samples) if speech.total_samples else 0.0
         return speech.text[:round(len(speech.text) * share)], speech.text
 
     def _expire(self, speech):
@@ -517,7 +533,7 @@ class SpeechRelay:
                     speech.reason = speech.reason or "superseded"
                 if speech.reason:
                     break
-                line = {**json.loads(raw), "session_epoch": self.epoch, "turn_id": speech.turn_id}
+                line = {**_line(raw, last_seq), **ids}
                 if line["event"] == "speech.begin" and speech.v2 is not None:
                     line.update(turn_generation=speech.v2["turn_generation"], trace_id=speech.v2["trace_id"])
                 last_seq = line["seq"]

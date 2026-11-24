@@ -2,6 +2,7 @@ import contextlib
 import io
 import json
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import time
@@ -16,7 +17,7 @@ from daemon.agentd_server import AgentdServer  # noqa: E402
 from infra.store import open_store  # noqa: E402
 from infra.tokens import write_secret  # noqa: E402
 from personal.commitments import Commitments  # noqa: E402
-from tools import agentic_complex  # noqa: E402
+from tools import agentic_complex, mcp_clients  # noqa: E402
 import support  # noqa: E402
 
 
@@ -170,6 +171,33 @@ class InstallMcpTest(unittest.TestCase):
                                                   "other": {"command": "o"}})
         self.assertEqual(written["model"], "gpt-5")
         self.assertEqual(self.install("codex", "--write")[1]["changed"], False)
+
+    def test_codex_keeps_an_indented_table_after_ours(self):
+        old = ('[mcp_servers.agentic-complex]\ncommand = "/old"\n\n  [profiles.fast]\n  model = "m"\n'
+               '\n[mcp_servers.other]\ncommand = "o"\n')
+        new = mcp_clients.codex_text(old, {"command": "/new", "args": ["mcp"]})
+        self.assertEqual(tomllib.loads(new), {"mcp_servers": {"agentic-complex": {"command": "/new", "args": ["mcp"]},
+                                                              "other": {"command": "o"}},
+                                              "profiles": {"fast": {"model": "m"}}})
+
+    def test_claude_restores_the_old_entry_when_add_json_fails(self):
+        old = {"command": "/old"}
+        (self.home / ".claude.json").write_text(json.dumps({"mcpServers": {"agentic-complex": old}}), encoding="utf-8")
+        ran = []
+
+        def run(command, check=False, **_kwargs):
+            ran.append(command)
+            code = 1 if command[2] == "add-json" and json.loads(command[-1]) != old else 0
+            if check and code:
+                raise subprocess.CalledProcessError(code, command)
+            return subprocess.CompletedProcess(command, code)
+
+        with unittest.mock.patch("tools.mcp_clients.subprocess.run", side_effect=run), \
+                unittest.mock.patch("tools.mcp_clients.shutil.which", return_value="/bin/claude"):
+            code, summary, _ = self.install("claude", "--write")
+        self.assertEqual((code, summary["error"], summary["written"]), (1, "claude_failed", False))
+        self.assertEqual([c[2] for c in ran], ["remove", "add-json", "add-json"])
+        self.assertEqual(json.loads(ran[-1][-1]), old)
 
     def test_codex_table_is_appended_to_a_new_file(self):
         self.install("codex", "--write")

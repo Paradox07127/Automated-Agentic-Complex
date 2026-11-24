@@ -5,12 +5,14 @@ from voice.speech import SPOKEN_LIMIT
 
 PUNCT = "。！？!?…" + "，、；：,;:" + "」』”’）)"  # sentence ends, clause pauses, closers; a clause keeps its punctuation
 # A shorter clause joins the next: zh (under about 0.8 s of audio leaves a gap); ja (a 1-4 kana clause alone
-# leaves at most 0.07 s). Counted in characters other than punctuation and
+# leaves at most 0.07 s); en (about 0.8 s of letters). Counted in characters other than punctuation and
 # spaces; for ja a kanji counts as one kana.
-MIN_CLAUSE = {"zh": 5, "ja": 4}
+MIN_CLAUSE = {"zh": 5, "ja": 4, "en": 12}
 # A sentence end, with the closers fed along with it, is a boundary at once, whatever follows goes to the next
-# clause; a run of pauses (and …) is one once a character other than punctuation or space follows it.
-_BOUNDARY = re.compile(rf"[。！？!?][」』”’）)]*|[…，、；：,;:][…，、；：,;:」』”’）)\s]*(?=[^{PUNCT}\s])")
+# clause; a full stop is one with the space after it, unless it ends a decimal (1.2.); a run of pauses (and …)
+# is one once a character other than punctuation or space follows it. A , or : between digits (1,024, 3:30) is none.
+_BOUNDARY = re.compile(rf"[。！？!?][」』”’）)]*|(?<![0-9]\.[0-9])\.[」』”’）)]*\s+"
+                       rf"|(?:[…，、；：;]|(?<![0-9])[,:]|[,:](?![0-9]))[…，、；：,;:」』”’）)\s]*(?=[^{PUNCT}\s])")
 # One unit of the spoken limit: an ASCII word or number, or any other character but punctuation and space.
 _WORD = re.compile(rf"[A-Za-z0-9]+|[^{PUNCT}\s]")
 # Markdown that is shown but not spoken: a bare address runs to a space or a Chinese punctuation mark.
