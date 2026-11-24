@@ -1,5 +1,5 @@
 import type { KeyboardEvent } from 'react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { stateVisual, type VisualShape, type VisualStateKey } from '../domain';
 import { useChartLabel } from './ChartLabel';
 import { ShapeGlyph } from './StateMark';
@@ -66,6 +66,7 @@ export function segmentVisual(tone: SegmentTone): { token: string; shape: Visual
 
 export function CompositionBar({ segments, label, value = null, height = 10, dividerAfter, note, onPick, emph }: CompositionBarProps) {
   const [local, setLocal] = useState<string | null>(value);
+  const radios = useRef(new Map<string, HTMLButtonElement>());
   const sel = onPick ? value : local;
   const total = segments.reduce((n, s) => n + Math.max(0, s.count), 0);
   const shown = segments.filter((s) => s.count > 0);
@@ -80,8 +81,12 @@ export function CompositionBar({ segments, label, value = null, height = 10, div
     const i = shown.findIndex((s) => s.key === sel);
     const j = i < 0 ? 0 : Math.max(0, Math.min(shown.length - 1, i + (e.key === 'ArrowRight' ? 1 : -1)));
     const k = shown[j]?.key;
-    if (k != null) (onPick ?? setLocal)(k);
+    if (k == null) return;
+    (onPick ?? setLocal)(k);
+    radios.current.get(k)?.focus();
   };
+  // The selected key can have no radio (its count fell to 0); the first radio then holds the tab stop.
+  const stop = shown.some((s) => s.key === sel) ? sel : shown[0]?.key;
   const summary = segments.map((s) => `${s.label} ${s.count}`).join('，');
   const lbl = useChartLabel(label, summary);
   if (total === 0) {
@@ -147,7 +152,11 @@ export function CompositionBar({ segments, label, value = null, height = 10, div
               role="radio"
               aria-checked={on}
               aria-label={`${s.label} ${s.count}${hatch ? `，待确认 ${hatch}` : ''}`}
-              tabIndex={on || (sel == null && s === shown[0]) ? 0 : -1}
+              tabIndex={s.key === stop ? 0 : -1}
+              ref={(el) => {
+                if (el) radios.current.set(s.key, el);
+                else radios.current.delete(s.key);
+              }}
               className={styles.lg}
               data-on={on || undefined}
               data-tone={s.tone}

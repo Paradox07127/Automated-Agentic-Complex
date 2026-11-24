@@ -1,5 +1,5 @@
 import { ChartBox, useChart, type ChartCommonProps } from './ChartBox';
-import { cx, EMPH, fmtN, INK, paint, sum } from './v3';
+import { cx, EMPH, fmtN, INK, paint, pressable, sum } from './v3';
 import s from './ChartBox.module.css';
 import m from './Treemap.module.css';
 
@@ -100,7 +100,7 @@ export function Treemap({ items, w, h = 180, fmt = fmtN, onPick, sel, label = '�
           const mid = !big && k.w >= 34 && k.h >= 18;
           const em = k.id === emph;
           return (
-            <g key={k.id} className={m.cell} data-cell={k.id} data-emph={em || undefined} onClick={onPick ? () => onPick(sel === k.id ? null : k.id) : undefined} onMouseMove={(e) => c.show(e, `${k.label}\n${fmt(k.v)} │ ${pct(k.v)}`)}>
+            <g key={k.id} className={m.cell} data-cell={k.id} data-emph={em || undefined} {...(onPick && { ...pressable(`${k.label} ${fmt(k.v)} ${pct(k.v)}`, () => onPick(sel === k.id ? null : k.id)), 'aria-pressed': sel === k.id })} onMouseMove={(e) => c.show(e, `${k.label}\n${fmt(k.v)} │ ${pct(k.v)}`)}>
               <rect x={k.x + 1} y={k.y + 1} width={Math.max(0, k.w - 2)} height={Math.max(0, k.h - 2)} fill={paint(k.color) ?? INK[0]} fillOpacity={k.color ? 0.75 : Math.max(0.12, 0.42 - i * 0.05)} />
               {em && (
                 <>

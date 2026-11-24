@@ -41,6 +41,18 @@ export const hm = (t: number) => formatClock(t);
 export const hms = (t: number) => formatClock(t, { seconds: true });
 export const dur = (ms: number) => formatDuration(ms);
 export const clampN = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+/** Props that make a drawn mark a keyboard button: focusable, named, pressed by click, Enter or Space. */
+export const pressable = (label: string, press: () => void) => ({
+  role: 'button' as const,
+  tabIndex: 0,
+  'aria-label': label,
+  onClick: press,
+  onKeyDown: (e: { key: string; preventDefault: () => void }) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    press();
+  },
+});
 /** Chinese SVG text is set at 12 px, numbers at 11 px. */
 export const isZh = (s: unknown) => /[^\x00-\x7F]/.test(String(s));
 

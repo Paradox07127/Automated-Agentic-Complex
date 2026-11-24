@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import styles from './chart.module.css';
 
 /** 「以表格查看」/「以图查看」 switch shown by every axis chart; `icon` is the corner button. */
@@ -32,6 +32,11 @@ export interface TableRow {
 
 /** Table view of a chart: one row per mark, same data as the drawing. */
 export function DataTable({ caption, columns, rows, selected, onRow }: { caption: string; columns: TableColumn[]; rows: TableRow[]; selected?: string | null; onRow?: (key: string) => void }) {
+  const rowKey = (e: KeyboardEvent, key: string) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    onRow?.(key);
+  };
   return (
     <div className={styles.tableWrap}>
       <table className={styles.table} data-chart-table="">
@@ -47,7 +52,7 @@ export function DataTable({ caption, columns, rows, selected, onRow }: { caption
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.key} data-row={r.key} aria-selected={selected != null ? r.key === selected : undefined} className={onRow ? styles.clickRow : undefined} onClick={onRow ? () => onRow(r.key) : undefined}>
+            <tr key={r.key} data-row={r.key} aria-selected={selected != null ? r.key === selected : undefined} className={onRow ? styles.clickRow : undefined} tabIndex={onRow ? 0 : undefined} onClick={onRow ? () => onRow(r.key) : undefined} onKeyDown={onRow ? (e) => rowKey(e, r.key) : undefined}>
               {r.cells.map((c, i) => (
                 <td key={i} className={columns[i]?.align === 'right' ? styles.right : undefined}>
                   {c}

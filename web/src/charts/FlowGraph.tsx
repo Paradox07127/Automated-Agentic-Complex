@@ -1,5 +1,5 @@
 import { ChartBox, useChart, type ChartCommonProps } from './ChartBox';
-import { calm, clampN, cx, pad2 } from './v3';
+import { calm, clampN, cx, pad2, pressable } from './v3';
 import { formatMs } from '../domain';
 import f from './FlowGraph.module.css';
 
@@ -154,7 +154,7 @@ export function FlowGraph({ nodes, edges, pulses = [], hl = [], onPick, sel, w =
           const flag = n.stat?.fail ? `✕${n.stat.fail}` : n.state ? ST[n.state][1] : '';
           const fw = 8 + flag.length * 7;
           return (
-            <g key={n.id} className={cx(f.node, n.tone === 'paper' ? f.paper : f.dark, n.state && f[`st${n.state}`], dim && f.dimNode, hlSet.has(n.id) && f.hlNode, (sel === n.id || emph === n.id) && f.sel)} transform={`translate(${n.x - nodeW / 2} ${n.y - nodeH / 2})`} onClick={onPick ? () => onPick(n.id) : undefined} onMouseMove={(e) => c.show(e, tipOf(n))} data-node={n.id} data-press={onPick ? '' : undefined}>
+            <g key={n.id} className={cx(f.node, n.tone === 'paper' ? f.paper : f.dark, n.state && f[`st${n.state}`], dim && f.dimNode, hlSet.has(n.id) && f.hlNode, (sel === n.id || emph === n.id) && f.sel)} transform={`translate(${n.x - nodeW / 2} ${n.y - nodeH / 2})`} {...(onPick && pressable(tipOf(n).replace(/\n/g, ' '), () => onPick(n.id)))} onMouseMove={(e) => c.show(e, tipOf(n))} data-node={n.id} data-press={onPick ? '' : undefined}>
               <path d={onPick ? `M0 0H${nodeW}V${nodeH - CUT}L${nodeW - CUT} ${nodeH}H0Z` : `M0 0H${nodeW}V${nodeH}H0Z`} className={f.box} />
               {onPick && <rect width={nodeW} height="3" className={f.tab} />}
               <rect width="22" height="14" className={f.nb} />

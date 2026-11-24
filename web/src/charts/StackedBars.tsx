@@ -1,7 +1,7 @@
 import { useState, type MouseEvent } from 'react';
 import { ChartBox, Hatch, useChart, useSvgId, zh, type ChartCommonProps } from './ChartBox';
 import { APPS, CHANNELS, HOURS, HOUR_TOTAL, TOK } from './v3demo';
-import { cx, EMPH, fmtN, niceMax, seriesColors, sum, svgFill, ticks } from './v3';
+import { cx, EMPH, fmtN, niceMax, pressable, seriesColors, sum, svgFill, ticks } from './v3';
 import s from './ChartBox.module.css';
 import b from './StackedBars.module.css';
 
@@ -53,7 +53,7 @@ export function StackedBars({ buckets, cats, h = 140, w, horizontal, fmt = fmtN,
     </div>
   );
   const table = { cols: ['', ...cats.map((k) => k.label), '合计'], rows: buckets.map((x) => [x.label, ...cats.map((k) => fmt(x.parts[k.id] ?? 0)), fmt(tot(x))]) };
-  const pick = (x: StackBucket) => (onPick ? () => onPick(sel === x.key ? null : x.key) : undefined);
+  const pick = (x: StackBucket) => onPick && { ...pressable(tipOf(x).replace(/\n/g, ' '), () => onPick(sel === x.key ? null : x.key)), 'aria-pressed': sel === x.key };
   const hover = (x: StackBucket) => (e: MouseEvent) => {
     setHb(x.key);
     c.show(e, tipOf(x));
@@ -70,7 +70,7 @@ export function StackedBars({ buckets, cats, h = 140, w, horizontal, fmt = fmtN,
           {buckets.map((x) => {
             let at = 0;
             return (
-              <div key={x.key} className={cx(b.hbr, sel === x.key && b.on, hb && hb !== x.key && b.dim)} onClick={pick(x)} onMouseMove={hover(x)} onMouseLeave={() => setHb(null)} data-bucket={x.key}>
+              <div key={x.key} className={cx(b.hbr, sel === x.key && b.on, hb && hb !== x.key && b.dim)} {...pick(x)} onMouseMove={hover(x)} onMouseLeave={() => setHb(null)} data-bucket={x.key}>
                 <span className={b.hbl} style={{ width: LW }}>
                   {x.label}
                 </span>
@@ -125,7 +125,7 @@ export function StackedBars({ buckets, cats, h = 140, w, horizontal, fmt = fmtN,
           let first = true;
           const x0 = L + i * bw + (bw - barW) / 2;
           return (
-            <g key={x.key} className={cx(b.col, hb && hb !== x.key && b.dim)} onMouseMove={hover(x)} onMouseLeave={() => setHb(null)} onClick={pick(x)} data-bucket={x.key}>
+            <g key={x.key} className={cx(b.col, hb && hb !== x.key && b.dim)} onMouseMove={hover(x)} onMouseLeave={() => setHb(null)} {...pick(x)} data-bucket={x.key}>
               <rect x={L + i * bw} width={bw} y={T} height={PH} fill="transparent" />
               {cats.map((k, ci) => {
                 const v = x.parts[k.id] ?? 0;

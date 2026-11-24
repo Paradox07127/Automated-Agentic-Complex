@@ -50,7 +50,8 @@ export function Timeline({ lanes, t0, t1, now, zoom, onPick, sel, labelW = 64, l
   const [view, setView] = useState<[number, number]>([t0, t1]);
   const [hov, setHov] = useState<{ f: number; t: number } | null>(null);
   useEffect(() => setView([t0, t1]), [t0, t1]);
-  const trk = useRef<HTMLDivElement>(null);
+  // State, not a ref: the table view and ChartState remount the track, and the wheel listener must follow it.
+  const [trk, setTrk] = useState<HTMLDivElement | null>(null);
   const drag = useRef<{ x: number; v: [number, number]; w: number; moved: boolean } | null>(null);
   const hovIt = useRef<Hover | null>(null);
   if (!lanes.some((x) => x.items.length) && st === 'ok') st = 'empty';
@@ -68,7 +69,7 @@ export function Timeline({ lanes, t0, t1, now, zoom, onPick, sel, labelW = 64, l
     setView([na, na + ns]);
   };
   useEffect(() => {
-    const el = trk.current;
+    const el = trk;
     if (!zoom || !el) return;
     const wheel = (e: WheelEvent) => {
       e.preventDefault();
@@ -83,9 +84,9 @@ export function Timeline({ lanes, t0, t1, now, zoom, onPick, sel, labelW = 64, l
     };
     el.addEventListener('wheel', wheel, { passive: false });
     return () => el.removeEventListener('wheel', wheel);
-  }, [zoom, t0, t1, lw]);
+  }, [zoom, t0, t1, lw, trk]);
   const tAt = (e: MouseEvent) => {
-    const r = trk.current?.getBoundingClientRect();
+    const r = trk?.getBoundingClientRect();
     if (!r) return null;
     const f = (e.clientX - r.left - lw) / (r.width - lw || 1);
     return f < 0 || f > 1 ? null : { f, t: v0 + f * span };
@@ -102,7 +103,7 @@ export function Timeline({ lanes, t0, t1, now, zoom, onPick, sel, labelW = 64, l
   };
   const down = (e: MouseEvent) => {
     if (!zoom) return;
-    drag.current = { x: e.clientX, v: view, w: (trk.current?.getBoundingClientRect().width ?? lw + 1) - lw, moved: false };
+    drag.current = { x: e.clientX, v: view, w: (trk?.getBoundingClientRect().width ?? lw + 1) - lw, moved: false };
   };
   const move = (e: MouseEvent) => {
     const d = drag.current;
@@ -179,7 +180,7 @@ export function Timeline({ lanes, t0, t1, now, zoom, onPick, sel, labelW = 64, l
   return (
     <ChartBox name="Timeline" c={c} st={st} empty={empty} stoppedAt={stoppedAt} onRetry={onRetry} label={label} foot={foot} h={lanes.length * 22 + 24} table={table} frame={frame}>
       <div className={t.trk} role="group" aria-label={aria} style={{ ['--lw' as string]: `${lw}px` }}>
-        <div className={l.body} ref={trk} data-v0={v0} data-v1={v1} onMouseDown={down} onMouseMove={move} onMouseUp={up} onMouseLeave={leave} onDoubleClick={() => zoom && setView([t0, t1])}>
+        <div className={l.body} ref={setTrk}data-v0={v0} data-v1={v1} onMouseDown={down} onMouseMove={move} onMouseUp={up} onMouseLeave={leave} onDoubleClick={() => zoom && setView([t0, t1])}>
           <div className={cx(t.row, t.ax)}>
             <span />
             <TrackRuler v0={v0} v1={v1} px={TW} now={now} marks={axm} />

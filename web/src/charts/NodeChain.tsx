@@ -56,7 +56,16 @@ export function NodeChain({ nodes, label, segments, size = 'main', category, rec
   // Narrow chains: a span label between two close nodes would be clipped, so durations go on a second line.
   const segBelow = size !== 'main';
   const segLabels = (segments ?? []).map((s) => s.label).filter((l): l is string => !!l);
-  const lbl = useChartLabel(label, nodes.map((n, i) => nodeText(n, states[i] ?? n.state)).join('；'));
+  // Main-size span labels sit inside the aria-hidden links, so the description carries them between the nodes.
+  const lbl = useChartLabel(
+    label,
+    nodes
+      .flatMap((n, i) => {
+        const span = segBelow ? undefined : segments?.[i - 1]?.label;
+        return span ? [span, nodeText(n, states[i] ?? n.state)] : [nodeText(n, states[i] ?? n.state)];
+      })
+      .join('；'),
+  );
   // Nodes with a tip are focusable: role=img would hide them from assistive tech.
   const named = nodes.some((n) => n.tip) ? { 'aria-labelledby': lbl.img['aria-labelledby'], 'aria-describedby': lbl.img['aria-describedby'] } : lbl.img;
   return (

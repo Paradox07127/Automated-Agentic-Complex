@@ -131,6 +131,18 @@ describe('monochrome plus one emphasis', () => {
   });
 });
 
+describe('Donut with one live part', () => {
+  it('draws the full ring as two half arcs per edge, each with distinct endpoints', () => {
+    const { container } = render(<Donut label="占比" parts={[{ id: 'a', label: 'A', v: 5 }, { id: 'b', label: 'B', v: 0 }]} />);
+    const d = container.querySelector('path[data-part="a"]')?.getAttribute('d') ?? '';
+    expect(d.match(/A/g)).toHaveLength(4);
+    // Each arc's start is the point just before its A; SVG drops an arc that ends where it starts.
+    const starts = d.split('A').slice(0, -1).map((seg) => seg.match(/(-?[\d.]+ -?[\d.]+)$/)?.[1]);
+    const ends = d.split('A').slice(1).map((seg) => seg.match(/^[\d.]+ [\d.]+ 0 [01] [01] (-?[\d.]+ -?[\d.]+)/)?.[1]);
+    ends.forEach((e, i) => expect(e).not.toBe(starts[i]));
+  });
+});
+
 describe('Timeline zoom', () => {
   const zoomed = () => render(<Timeline label="今日时间线" lanes={TIMELINE_LANES} t0={at(9, 0)} t1={at(15, 30)} now={at(14, 32)} zoom />);
   const view = (c: HTMLElement) => {
@@ -159,6 +171,16 @@ describe('Timeline zoom', () => {
     fireEvent.wheel(body, { deltaY: -800, clientX: 300 });
     fireEvent.doubleClick(body);
     expect(view(container)).toEqual([at(9, 0), at(15, 30)]);
+  });
+
+  it('keeps wheel zoom after the table view replaces the track and gives it back', () => {
+    const { container } = zoomed();
+    const toggle = () => fireEvent.click(container.querySelector('[data-table-toggle]') as Element);
+    toggle();
+    toggle();
+    const body = container.querySelector('[data-v0]') as HTMLElement;
+    fireEvent.wheel(body, { deltaY: -800, clientX: 300 });
+    expect(view(container)[1] - view(container)[0]).toBeLessThan(at(15, 30) - at(9, 0));
   });
 
   it('densifies the ruler as the view narrows', () => {

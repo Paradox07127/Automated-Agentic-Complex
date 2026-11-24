@@ -94,7 +94,7 @@ export function BarList({ rows, label, top = 3, series = 'muted', selected = nul
           return (
             <li key={r.key} aria-current={r.key === selected || undefined} data-value={r.value} data-other={other || undefined} data-dim={(selected != null && r.key !== selected) || undefined} data-emph={r.key === emph || undefined} className={`${styles.row} ${common.tip}`} data-tip={tip}>
               {onPick && !other ? (
-                <button type="button" className={styles.btn} onClick={() => onPick(r.key)}>
+                <button type="button" className={styles.btn} aria-label={`${r.label} ${readout}`} onClick={() => onPick(r.key)}>
                   {body}
                 </button>
               ) : (

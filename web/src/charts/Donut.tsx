@@ -39,6 +39,11 @@ export function Donut({ parts, size = 120, center, fmt = fmtN, legend = true, la
   const gapA = live.length > 1 ? 2.5 / r : 0;
   const P = (rr: number, a: number) => `${(m + rr * Math.cos(a)).toFixed(2)} ${(m + rr * Math.sin(a)).toFixed(2)}`;
   const arc = (a1: number, a2: number, ro: number, ri: number) => {
+    // A full turn is two half arcs per edge: SVG drops an arc whose endpoints coincide.
+    if (a2 - a1 >= Math.PI * 2 - 1e-6) {
+      const h = a1 + Math.PI;
+      return `M${P(ro, a1)}A${ro} ${ro} 0 0 1 ${P(ro, h)}A${ro} ${ro} 0 0 1 ${P(ro, a1)}ZM${P(ri, a1)}A${ri} ${ri} 0 0 0 ${P(ri, h)}A${ri} ${ri} 0 0 0 ${P(ri, a1)}Z`;
+    }
     const big = a2 - a1 > Math.PI ? 1 : 0;
     return `M${P(ro, a1)}A${ro} ${ro} 0 ${big} 1 ${P(ro, a2)}L${P(ri, a2)}A${ri} ${ri} 0 ${big} 0 ${P(ri, a1)}Z`;
   };

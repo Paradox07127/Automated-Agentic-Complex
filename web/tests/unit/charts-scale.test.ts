@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clockTickLabel, fraction, logPos, niceStep, niceTicks, offsetTickLabel, offsetTicks, timeStep, timeTicks, usageLevel } from '../../src/charts/scale';
+import { clockTickLabel, fraction, linePath, logPos, niceStep, niceTicks, offsetTickLabel, offsetTicks, timeStep, timeTicks, usageLevel } from '../../src/charts/scale';
 import { meterLevel } from '../../src/charts/BracketMeter';
 import { barListRows } from '../../src/charts/BarList';
 import { chainStates } from '../../src/charts/NodeChain';
@@ -55,6 +55,12 @@ describe('tick calculation', () => {
     expect(logPos(10)).toBe(0);
     expect(logPos(10 ** 6)).toBe(1);
     expect(logPos(1000)).toBeGreaterThan(logPos(900));
+  });
+
+  it('paints an isolated value of a broken line as a zero-length dot', () => {
+    expect(linePath([1, null, 5, null, 9], (i) => i, (v) => v)).toBe('M0.0 1.0h0M2.0 5.0h0M4.0 9.0h0');
+    expect(linePath([1, 2, null, 4], (i) => i, (v) => v)).toBe('M0.0 1.0L1.0 2.0M3.0 4.0h0');
+    expect(linePath([1, null, 3], (i) => i, (v) => v, true)).toBe('M0.0 1.0h0M2.0 3.0h0');
   });
 
   it('clamps fractions at 0 and 1', () => {

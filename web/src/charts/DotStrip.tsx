@@ -122,7 +122,7 @@ export function DotStrip({ dots, start, end, label, failuresPerHour = [], brush 
     const p = toView(e);
     if (from.current != null) {
       const t = timeAt(p.vx);
-      if (Math.abs(X(t) - X(from.current)) > 4) setDrag([Math.min(t, from.current), Math.max(t, from.current)]);
+      setDrag(Math.abs(X(t) - X(from.current)) > 4 ? [Math.min(t, from.current), Math.max(t, from.current)] : null);
       return;
     }
     const d = nearest(p.vx, p.vy);
@@ -130,11 +130,15 @@ export function DotStrip({ dots, start, end, label, failuresPerHour = [], brush 
   };
   const onUp = (e: MouseEvent<SVGSVGElement>) => {
     const p = toView(e);
+    const f = from.current;
+    const t = timeAt(p.vx);
     from.current = null;
-    if (drag) {
-      setRange(drag);
-      onBrush?.(drag);
-      setDrag(null);
+    setDrag(null);
+    // The release point decides: back within 4 px of the press is a click.
+    if (f != null && Math.abs(X(t) - X(f)) > 4) {
+      const r: [number, number] = [Math.min(t, f), Math.max(t, f)];
+      setRange(r);
+      onBrush?.(r);
       return;
     }
     const d = nearest(p.vx, p.vy);

@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
-import { BracketMeter, CompositionBar, DotStrip, DotStripDemos, NodeChain, RunRing, SegMeter, SmallMultiplesDemos, SmallMultiples, Sparkline, Swimlane, SwimlaneDemos, Waterfall, WaterfallDemos } from '../../src/charts';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { BracketMeter, CompositionBar, CumulativeStep, DotStrip, DotStripDemos, HourArea, NodeChain, RunRing, SegMeter, SmallMultiplesDemos, SmallMultiples, Sparkline, Swimlane, SwimlaneDemos, Waterfall, WaterfallDemos } from '../../src/charts';
 import { StateMark } from '../../src/charts/StateMark';
 import { stageDuration } from '../../src/charts/Waterfall';
 import { stateVisual, type VisualStateKey } from '../../src/domain';
@@ -122,6 +122,47 @@ describe('three state channels: colour + shape + text', () => {
     expect(container.querySelectorAll('[role="radio"]')).toHaveLength(1);
     expect(container.textContent).toContain('失败 0');
     expect(within(container).getByRole('radiogroup').getAttribute('aria-label')).toBe('任务：等你 2，失败 0');
+  });
+});
+
+describe('chart readouts', () => {
+  it('DotStrip treats a drag that returns to its start as a click, not a brush', () => {
+    const onBrush = vi.fn();
+    const { container } = render(<DotStrip {...demo(DotStripDemos, 'day')} onBrush={onBrush} />);
+    const svg = container.querySelector('svg[role="img"]') as Element;
+    fireEvent.mouseDown(svg, { clientX: 200, clientY: 30 });
+    fireEvent.mouseMove(svg, { clientX: 230, clientY: 30 });
+    fireEvent.mouseMove(svg, { clientX: 202, clientY: 30 });
+    fireEvent.mouseUp(svg, { clientX: 202, clientY: 30 });
+    expect(onBrush).not.toHaveBeenCalled();
+  });
+
+  it('CumulativeStep counts same-time events one after the other', () => {
+    const t = new Date(2026, 9, 29, 10, 0).getTime();
+    const { container } = render(<CumulativeStep label="累计" events={[{ t }, { t }]} t0={t - 3_600_000} t1={t + 3_600_000} w={400} />);
+    toggleTable(container);
+    expect(tableRows(container).map((r) => r[2])).toEqual(['1', '2']);
+  });
+
+  it('SmallMultiples reads a missing sample outside a pause as —, not 暂停', () => {
+    const props = demo(SmallMultiplesDemos, 'render');
+    const { container } = render(<SmallMultiples {...props} suspended={[]} series={[{ key: 'fps', label: '帧率', unit: 'fps', min: 0, max: 60, values: [59, null, 60] }]} cursor={1} />);
+    const desc = container.querySelector('[data-chart-desc]')?.textContent ?? '';
+    expect(desc).toMatch(/ —$/);
+    expect(container.querySelector('text[class*="value"]')?.textContent).toBe('—');
+  });
+
+  it('SmallMultiples draws the pause band when the whole window is paused', () => {
+    const props = demo(SmallMultiplesDemos, 'render');
+    const { container } = render(<SmallMultiples {...props} suspended={[[0, 4]]} series={[{ key: 'fps', label: '帧率', unit: 'fps', min: 0, max: 60, values: [null, null, null, null, null] }]} />);
+    expect(container.querySelector('[data-empty]')).toBeNull();
+    expect(container.querySelector('svg rect[class*="suspended"]')).not.toBeNull();
+  });
+
+  it('HourArea writes the now plate at the exact minute', () => {
+    const { container } = render(<HourArea label="每小时" name="在电脑前" unit="分钟 / 小时" hours={Array.from({ length: 24 }, () => 10)} max={60} now={14 + 36 / 60} tip={(v) => String(v)} w={480} />);
+    // (14 + 36/60) % 1 * 60 is 35.99…, which floored to 14:35.
+    expect(container.querySelector('[data-now] text')?.textContent).toBe('14:36');
   });
 });
 

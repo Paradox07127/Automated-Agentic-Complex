@@ -118,7 +118,7 @@ export function usageText(value: number, max: number): string {
   return level === 'high' ? '偏高' : '正常';
 }
 
-/** SVG path through the points; null values break the line. `step` holds each value until the next point. */
+/** SVG path through the points; null values break the line, and a value alone between breaks is a zero-length dot (needs a round or square linecap). `step` holds each value until the next point. */
 export function linePath(values: ReadonlyArray<number | null>, x: (i: number) => number, y: (v: number) => number, step = false): string {
   let d = '';
   let pen = false;
@@ -129,6 +129,7 @@ export function linePath(values: ReadonlyArray<number | null>, x: (i: number) =>
     }
     if (pen && step) d += `H${x(i).toFixed(1)}V${y(v).toFixed(1)}`;
     else d += `${pen ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`;
+    if (!pen && values[i + 1] == null) d += 'h0';
     pen = true;
   });
   return d;

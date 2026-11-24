@@ -1,4 +1,4 @@
-import { useRef, type MouseEvent } from 'react';
+import { useRef, type KeyboardEvent, type MouseEvent } from 'react';
 import type { TimelineLaneSpec } from './TimelineLane';
 import { clampN, hm } from './v3';
 import m from './TimelineMinimap.module.css';
@@ -48,11 +48,19 @@ export function TimelineMinimap({ t0, t1, view, min, lanes, pauses, now, setWind
     window.addEventListener('mousemove', mv);
     window.addEventListener('mouseup', up);
   };
+  // Arrows pan by a tenth of the window, Home and End jump to the ends of the day.
+  const key = (e: KeyboardEvent) => {
+    const sp = v1 - v0;
+    const to = e.key === 'ArrowLeft' ? v0 - sp / 10 : e.key === 'ArrowRight' ? v0 + sp / 10 : e.key === 'Home' ? t0 : e.key === 'End' ? t1 - sp : null;
+    if (to == null) return;
+    e.preventDefault();
+    setWindow(to, sp);
+  };
   const rails = lanes.filter((l) => l.kind === 'blocks' || l.kind === 'spans' || l.kind === 'strip').slice(0, 3);
   return (
     <div className={m.mm}>
       <span className={m.label}>全日</span>
-      <div ref={ref} className={m.track} onMouseDown={down('bg')} role="slider" tabIndex={-1} aria-label="全日缩略带" aria-valuemin={t0} aria-valuemax={t1} aria-valuenow={v0} aria-valuetext={`${hm(v0)}–${hm(v1)}`} data-minimap="">
+      <div ref={ref} className={m.track} onMouseDown={down('bg')} onKeyDown={key} role="slider" tabIndex={0} aria-label="全日缩略带" aria-valuemin={t0} aria-valuemax={t1} aria-valuenow={v0} aria-valuetext={`${hm(v0)}–${hm(v1)}`} data-minimap="">
         {rails.map((l, li) => l.items.map((it, i) => it.t0 != null && it.t1 != null && <i key={`${l.id}${i}`} style={{ left: `${MP(it.t0)}%`, width: `max(1px, ${MP(it.t1) - MP(it.t0)}%)`, top: 3 + li * 4 }} />))}
         {pauses.map((p, i) => (
           <span key={`z${i}`} className={m.pz} style={{ left: `${MP(p.t0)}%`, width: `${MP(p.t1) - MP(p.t0)}%` }} />

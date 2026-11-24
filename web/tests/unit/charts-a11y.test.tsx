@@ -1,9 +1,12 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cleanup, render } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
-import { BarList, CompositionBar, CompositionBarDemos, CountdownRing, DotStrip, DotStripDemos, SmallMultiples, SmallMultiplesDemos, Swimlane, SwimlaneDemos, Waterfall, WaterfallDemos } from '../../src/charts';
+import { cleanup, fireEvent, render } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { BarList, CompositionBar, CompositionBarDemos, CountdownRing, DotStrip, DotStripDemos, FlowGraph, FlowGraphDemos, SmallMultiples, SmallMultiplesDemos, StackedBars, StackedBarsDemos, Swimlane, SwimlaneDemos, Timeline, TimelineDemos, Treemap, TreemapDemos, Waterfall, WaterfallDemos } from '../../src/charts';
+import { DataTable } from '../../src/charts/ChartTable';
+import { Gantt, GANTT_ROWS, GANTT_STATES } from '../../src/charts/Gantt';
+import { NodeChain, NodeChainDemos } from '../../src/charts/NodeChain';
 import { chartCatalog } from '../fixtures/catalog/catalog';
 
 afterEach(cleanup);
@@ -87,6 +90,135 @@ describe('every chart is a role=img with a title', () => {
     const el = container.querySelector('[role="timer"]') as Element;
     expect(titleOf(el)).toContain('窗口 55 秒');
     expect(titleOf(el)).toMatch(/^剩余 23 秒/);
+  });
+});
+
+describe('pick targets are keyboard buttons', () => {
+  const press = (el: Element, key: string) => fireEvent.keyDown(el, { key });
+
+  it('FlowGraph nodes', () => {
+    const onPick = vi.fn();
+    const { container } = render(<FlowGraph {...demo(FlowGraphDemos, 'live')} onPick={onPick} />);
+    const nodes = [...container.querySelectorAll('[data-node]')];
+    expect(nodes.length).toBeGreaterThan(0);
+    for (const n of nodes) {
+      expect(n.getAttribute('role')).toBe('button');
+      expect(n.getAttribute('tabindex')).toBe('0');
+      expect(n.getAttribute('aria-label')).toMatch(/^\d\d \S/);
+    }
+    press(nodes[1]!, 'Enter');
+    expect(onPick).toHaveBeenLastCalledWith(nodes[1]!.getAttribute('data-node'));
+    press(nodes[2]!, ' ');
+    expect(onPick).toHaveBeenLastCalledWith(nodes[2]!.getAttribute('data-node'));
+  });
+
+  for (const horizontal of [false, true]) {
+    it(`StackedBars ${horizontal ? 'horizontal' : 'vertical'} bars`, () => {
+      const onPick = vi.fn();
+      const { container } = render(<StackedBars {...demo(StackedBarsDemos, 'categories')} horizontal={horizontal} onPick={onPick} />);
+      const bars = [...container.querySelectorAll('[data-bucket]')];
+      expect(bars.length).toBeGreaterThan(0);
+      for (const b of bars) {
+        expect(b.getAttribute('role')).toBe('button');
+        expect(b.getAttribute('tabindex')).toBe('0');
+        expect(b.getAttribute('aria-label')).toMatch(/合计/);
+      }
+      press(bars[0]!, 'Enter');
+      expect(onPick).toHaveBeenCalledWith(bars[0]!.getAttribute('data-bucket'));
+    });
+  }
+
+  it('Treemap cells', () => {
+    const onPick = vi.fn();
+    const { container } = render(<Treemap {...demo(TreemapDemos, 'pick')} onPick={onPick} />);
+    const cells = [...container.querySelectorAll('[data-cell]')];
+    expect(cells.length).toBeGreaterThan(0);
+    for (const c of cells) {
+      expect(c.getAttribute('role')).toBe('button');
+      expect(c.getAttribute('tabindex')).toBe('0');
+      expect(c.getAttribute('aria-label')).toMatch(/%$/);
+    }
+    press(cells[0]!, 'Enter');
+    expect(onPick).toHaveBeenCalledWith(cells[0]!.getAttribute('data-cell'));
+  });
+
+  it('marks stay out of the tab order without onPick', () => {
+    const { container } = render(<Treemap {...demo(TreemapDemos, 'emph')} />);
+    expect(container.querySelector('[data-cell][tabindex]')).toBeNull();
+  });
+
+  it('DataTable rows with onRow', () => {
+    const onRow = vi.fn();
+    const { container } = render(<DataTable caption="表" columns={[{ label: '名' }]} rows={[{ key: 'a', cells: ['A'] }, { key: 'b', cells: ['B'] }]} onRow={onRow} />);
+    const rows = [...container.querySelectorAll('tbody tr')];
+    for (const r of rows) expect(r.getAttribute('tabindex')).toBe('0');
+    press(rows[1]!, 'Enter');
+    expect(onRow).toHaveBeenCalledWith('b');
+    cleanup();
+    const still = render(<DataTable caption="表" columns={[{ label: '名' }]} rows={[{ key: 'a', cells: ['A'] }]} />);
+    expect(still.container.querySelector('tbody tr[tabindex]')).toBeNull();
+  });
+
+  it('TimelineMinimap is a focusable slider that pans with the arrow keys', () => {
+    const { container } = render(<Timeline {...demo(TimelineDemos, 'observe')} />);
+    const body = container.querySelector('[data-v0]') as HTMLElement;
+    fireEvent.wheel(body, { deltaY: -800, clientX: 300 });
+    const v0 = Number(body.dataset.v0);
+    const mm = container.querySelector('[data-minimap]') as HTMLElement;
+    expect(mm.getAttribute('role')).toBe('slider');
+    expect(mm.getAttribute('tabindex')).toBe('0');
+    press(mm, 'ArrowRight');
+    expect(Number(body.dataset.v0)).toBeGreaterThan(v0);
+    press(mm, 'Home');
+    expect(Number(body.dataset.v0)).toBe(demo(TimelineDemos, 'observe').t0);
+  });
+});
+
+describe('chart text reaches assistive tech whole', () => {
+  it('Gantt with fold buttons is a group, not a role=img around them', () => {
+    const rows = [...GANTT_ROWS, ...GANTT_ROWS.map((r) => ({ ...r, id: `${r.id}b` }))];
+    const { container } = render(<Gantt label="甘特" rows={rows} t0={GANTT_ROWS[0]!.segs[0]!.t0} t1={GANTT_ROWS[0]!.segs[0]!.t0 + 6 * 3_600_000} states={GANTT_STATES} maxRows={6} />);
+    expect(container.querySelector('[data-more]')).not.toBeNull();
+    expect(container.querySelector('[role="img"] button')).toBeNull();
+    expect(container.querySelector('[data-more]')?.closest('[role="group"][aria-label]')).not.toBeNull();
+  });
+
+  it('BarList row buttons carry the full label and readout', () => {
+    const label = 'api.example-service.internal';
+    const { container } = render(<BarList label="今日调用" rows={[{ key: 'a', label, value: 12, readout: '12 次' }]} onPick={() => undefined} />);
+    const btn = container.querySelector('li button') as Element;
+    expect(btn.textContent).toContain('…');
+    expect(btn.getAttribute('aria-label')).toBe(`${label} 12 次`);
+  });
+
+  it('NodeChain at main size names its segment durations in the description', () => {
+    const { container } = render(<NodeChain {...demo(NodeChainDemos, 'delivery')} />);
+    const ol = container.querySelector('ol') as Element;
+    const desc = ref(ol, 'aria-describedby');
+    for (const l of ['1 m', '3 m', '等待 2 m']) expect(desc).toContain(l);
+  });
+});
+
+describe('CompositionBar radios keep focus and one tab stop', () => {
+  const segments = [
+    { key: 'w', label: '等你', count: 2, tone: 'waiting' as const },
+    { key: 'r', label: '进行中', count: 3, tone: 'running' as const },
+    { key: 'f', label: '失败', count: 1, tone: 'failed' as const },
+  ];
+
+  it('moves DOM focus with the arrow keys', () => {
+    const { container } = render(<CompositionBar label="任务" segments={segments} value="w" />);
+    const radios = () => [...container.querySelectorAll<HTMLElement>('[role="radio"]')];
+    radios()[0]!.focus();
+    fireEvent.keyDown(radios()[0]!, { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(radios()[1]);
+    expect(radios()[1]!.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('gives the tab stop to the first radio when the selected key has no count', () => {
+    const { container } = render(<CompositionBar label="任务" segments={segments.map((s) => (s.key === 'f' ? { ...s, count: 0 } : s))} value="f" onPick={() => undefined} />);
+    const stops = [...container.querySelectorAll('[role="radio"]')].filter((r) => r.getAttribute('tabindex') === '0');
+    expect(stops.map((r) => r.textContent)).toEqual(['等你 2']);
   });
 });
 

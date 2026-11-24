@@ -84,7 +84,7 @@ export function Gantt({ rows, t0, t1, now, states, onPick, sel, labelW = 148, ro
   const table = { cols: ['行', '状态', '开始', '结束', '时长'], rows: rows.flatMap((r) => r.segs.map((x) => [r.label, stLabel(x.state), hm(x.t0), x.t1 == null ? '现在' : hm(x.t1), dur(end(x) - x.t0)])) };
   return (
     <ChartBox name="Gantt" c={c} st={st} empty={empty} stoppedAt={stoppedAt} onRetry={onRetry} label={label} foot={foot} h={shown.length * rh + 24} table={table} frame={frame}>
-      <div className={cx(t.trk, g.gantt)} role={onPick ? 'group' : 'img'} aria-label={aria} style={{ ['--lw' as string]: `${lw}px`, ['--rh' as string]: `${rh}px` }}>
+      <div className={cx(t.trk, g.gantt)} role={onPick || (maxRows && rows.length > maxRows) ? 'group' : 'img'} aria-label={aria} style={{ ['--lw' as string]: `${lw}px`, ['--rh' as string]: `${rh}px` }}>
         <div className={cx(t.row, t.ax)}>
           <span />
           <TrackRuler v0={t0} v1={t1} px={TW} now={now} />

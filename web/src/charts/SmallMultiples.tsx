@@ -58,7 +58,8 @@ export function overBudget(s: Pick<MultipleSeries, 'values' | 'budget'>): number
   return s.values.flatMap((v, i) => (v != null && v > b ? [i] : []));
 }
 
-const fmtV = (v: number | null | undefined, unit: string) => (v == null ? '暂停' : `${Number.isInteger(v) ? v : v.toFixed(1)} ${unit}`);
+/** A missing value is 暂停 only inside a suspended span, — otherwise. */
+const fmtV = (v: number | null | undefined, unit: string, paused: boolean) => (v == null ? (paused ? '暂停' : '—') : `${Number.isInteger(v) ? v : v.toFixed(1)} ${unit}`);
 
 export function SmallMultiples({ series, start, stepMs, label, suspended = [], cursor = null, onPick, table = false, emph }: SmallMultiplesProps) {
   const [tbl, setTbl] = useState(table);
@@ -99,7 +100,7 @@ export function SmallMultiples({ series, start, stepMs, label, suspended = [], c
     const over = overs[row] ?? [];
     const tid = `${uid}${s.key}t`;
     const did = `${uid}${s.key}d`;
-    const desc = `${formatClock(timeOf(idx), { seconds: true })} ${fmtV(v, s.unit)}${s.budget != null ? `，预算 ${s.budget}` : s.target != null ? `，目标 ${s.target}` : ''}${over.length ? `，超预算 ${over.length} 点` : ''}`;
+    const desc = `${formatClock(timeOf(idx), { seconds: true })} ${fmtV(v, s.unit, isSuspended(idx))}${s.budget != null ? `，预算 ${s.budget}` : s.target != null ? `，目标 ${s.target}` : ''}${over.length ? `，超预算 ${over.length} 点` : ''}`;
     return (
       <Fragment key={s.key}>
         <span hidden>
@@ -143,7 +144,7 @@ export function SmallMultiples({ series, start, stepMs, label, suspended = [], c
           </text>
           <text className={styles.value} x={W} y={H / 2 + 5} textAnchor="end" data-over={(v != null && s.budget != null && v > s.budget) || undefined}>
             {v != null && s.budget != null && v > s.budget ? '▲ ' : ''}
-            {fmtV(v, s.unit)}
+            {fmtV(v, s.unit, isSuspended(idx))}
           </text>
         </svg>
       </Fragment>
@@ -151,7 +152,8 @@ export function SmallMultiples({ series, start, stepMs, label, suspended = [], c
   };
 
   const overTotal = overs.reduce((a, o) => a + o.length, 0);
-  if (series.every((s) => lastIndex(s.values) < 0)) {
+  // A window without values still draws when a pause covers part of it.
+  if (!suspended.some(([a, b]) => a < n && b >= 0) && series.every((s) => lastIndex(s.values) < 0)) {
     return (
       <figure ref={box} data-stub="SmallMultiples" data-start={start} data-step={stepMs} data-empty="" className={styles.root}>
         <p className={common.emptyLine}>{label}：没有数据</p>
@@ -200,7 +202,7 @@ export function SmallMultiples({ series, start, stepMs, label, suspended = [], c
             })}
           </svg>
           {hover != null && (
-            <ChartTip x={`${(x(idx) / W) * 100}%`} y={tipY} lines={[formatClock(timeOf(idx), { seconds: true }), ...series.slice(0, 3).map((s) => `${s.label} ${fmtV(s.values[idx], s.unit)}`)]} />
+            <ChartTip x={`${(x(idx) / W) * 100}%`} y={tipY} lines={[formatClock(timeOf(idx), { seconds: true }), ...series.slice(0, 3).map((s) => `${s.label} ${fmtV(s.values[idx], s.unit, isSuspended(idx))}`)]} />
           )}
         </div>
       )}

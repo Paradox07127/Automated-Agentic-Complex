@@ -42,7 +42,11 @@ export interface HourAreaProps extends ChartCommonProps {
   w?: number;
 }
 
-const clock = (t: number) => `${pad2(Math.floor(t))}:${pad2(Math.floor((t % 1) * 60))}`;
+// Whole minutes first: (t % 1) * 60 lands just under the minute for many h + m/60.
+const clock = (t: number) => {
+  const m = Math.floor(t * 60 + 1e-9);
+  return `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`;
+};
 
 export function HourArea({ hours, max, unit, name, tip, now, pauses = [], marks = [], lines = [], lineRange = [0, 1], h = 200, w, label = '每小时', st = 'ok', empty, stoppedAt, onRetry, frame }: HourAreaProps) {
   const c = useChart(w);

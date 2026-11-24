@@ -39,11 +39,14 @@ export function CumulativeStep({ events, t0, t1, now, limit, reserve = 0, h = 12
   let cum = 0;
   const steps: Array<[number, number]> = [[t0, 0]];
   const cumAt: Array<[number, number]> = [];
+  // Running total after each event, so events at one time read 1, 2, … rather than the total at that time.
+  const after = new Map<StepEvent, number>();
   for (const e of ok) {
     steps.push([e.t, cum]);
     cum += e.n ?? 1;
     steps.push([e.t, cum]);
     cumAt.push([e.t, cum]);
+    after.set(e, cum);
   }
   steps.push([tEnd, cum]);
   const valAt = (t: number) => cumAt.reduce((v, [tt, cc]) => (tt <= t ? cc : v), 0);
@@ -67,7 +70,7 @@ export function CumulativeStep({ events, t0, t1, now, limit, reserve = 0, h = 12
     const t = t0 + (clampN(((e.clientX - r.left) * W) / (r.width || W) - L, 0, PW) / PW) * (t1 - t0);
     const near = events.reduce<StepEvent | null>((b, ev) => (!b || Math.abs(ev.t - t) < Math.abs(b.t - t) ? ev : b), null);
     if (!near || Math.abs(X(near.t) - X(t)) > 12) c.show(e, `${hm(t)}\n累计 ${valAt(t)} ${unit}${of}`);
-    else c.show(e, `${hm(near.t)}\n${near.kind === 'blocked' ? '✕ 已拦截，不计入' : `+${near.n ?? 1} │ 累计 ${valAt(near.t)} ${unit}${of}`}`);
+    else c.show(e, `${hm(near.t)}\n${near.kind === 'blocked' ? '✕ 已拦截，不计入' : `+${near.n ?? 1} │ 累计 ${after.get(near)} ${unit}${of}`}`);
   };
   const aria = `${label}：已用 ${cum} ${unit}${limit != null ? `，上限 ${limit}` : ''}${reserve ? `，预留 ${reserve}` : ''}${blocked.length ? `，已拦截 ${blocked.length} 次` : ''}`;
   const foot = (
@@ -90,7 +93,7 @@ export function CumulativeStep({ events, t0, t1, now, limit, reserve = 0, h = 12
       )}
     </div>
   );
-  const table = { cols: ['时间', '事件', '累计'], rows: [...events].sort((a, b) => a.t - b.t).map((e) => [hm(e.t), e.kind === 'blocked' ? '已拦截' : `+${e.n ?? 1}`, e.kind === 'blocked' ? '—' : String(valAt(e.t))]) };
+  const table = { cols: ['时间', '事件', '累计'], rows: [...events].sort((a, b) => a.t - b.t).map((e) => [hm(e.t), e.kind === 'blocked' ? '已拦截' : `+${e.n ?? 1}`, e.kind === 'blocked' ? '—' : String(after.get(e))]) };
   return (
     <ChartBox name="CumulativeStep" c={c} w={w} h={h} st={st} empty={empty} stoppedAt={stoppedAt} onRetry={onRetry} label={label} foot={foot} table={table} frame={frame}>
       <svg width={W} height={h} viewBox={`0 0 ${W} ${h}`} role="img" aria-label={aria} onMouseMove={move}>
