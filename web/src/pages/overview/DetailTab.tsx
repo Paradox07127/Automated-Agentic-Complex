@@ -17,7 +17,7 @@ const SWITCH_AT: Record<BriefSwitch, { group: string; item?: string }> = {
   read: { group: 'privacy' },
   shot: { group: 'privacy' },
   code: { group: 'privacy' },
-  agent: { group: 'kernel', item: 'plugins.harness_bridge' },
+  agent: { group: 'kernel', item: 'kernel' },
   voice: { group: 'speak' },
 };
 

@@ -38,7 +38,7 @@ describe('chat: AI 对话 off', () => {
     expect(board.textContent).toContain('已关闭');
     fireEvent.click(within(board).getByRole('button', { name: /前往设置打开/ }));
     expect(window.location.hash.startsWith('#/settings?')).toBe(true);
-    expect(hashQuery().get('group')).toBe('model');
+    expect(hashQuery().get('group')).toBe('kernel');
     expect(hashQuery().get('item')).toBe('plugins.light_ai');
   });
 
@@ -64,7 +64,7 @@ describe('chat: no model account', () => {
     expect(strip.textContent).toContain('未接入');
     expect(thread.closest('[inert]')).toBeNull();
     fireEvent.click(within(strip).getByRole('button', { name: /前往设置连接/ }));
-    expect(hashQuery().get('group')).toBe('model');
+    expect(hashQuery().get('group')).toBe('kernel');
     expect(hashQuery().get('item')).toBe('svc');
   });
 });

@@ -240,7 +240,9 @@ export const routes: MockRoute[] = [
     handler: ({ body }) => {
       const b = obj(body);
       if (typeof b.provider !== 'string' || !(b.provider in MODELS.backends)) return bad('invalid_provider');
-      return ok({ ...MODELS, provider: b.provider });
+      // agentd: a body of only the provider and a key writes that key slot and keeps the active provider.
+      const keyOnly = ('api_key' in b || b.clear_key === true) && Object.keys(b).every((k) => ['provider', 'pi_provider', 'api_key', 'clear_key'].includes(k));
+      return ok(keyOnly ? MODELS : { ...MODELS, provider: b.provider });
     },
   },
   { method: 'POST', path: '/model/test', handler: ({ query }) => ok(modelTest(runtime(query.get('demo')).backend)) },

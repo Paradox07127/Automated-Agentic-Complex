@@ -25,7 +25,7 @@ describe('turn model identity', () => {
     expect(strip.textContent).toContain('登录 Claude Code 或 Codex，或在设置里给 pi 填一个 API key');
     fireEvent.click(within(strip).getByRole('button', { name: /前往设置连接/ }));
     const q = new URLSearchParams(window.location.hash.slice(window.location.hash.indexOf('?') + 1));
-    expect(q.get('group')).toBe('model');
+    expect(q.get('group')).toBe('kernel');
     expect(q.get('item')).toBe('svc');
   });
 });

@@ -13,7 +13,7 @@ function collectErrors(page: Page): string[] {
 
 test('model group lists every saved ChatGPT account', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('main.html#/settings?plugins=all&group=model&demo=chatgpt&still=1');
+  await page.goto('main.html#/settings?plugins=all&group=kernel&demo=chatgpt&still=1');
   const list = page.getByRole('list', { name: 'ChatGPT 账号' });
   await expect(list.getByRole('listitem')).toHaveCount(3);
   await expect(list.getByRole('button', { name: '使用' })).toHaveCount(1);

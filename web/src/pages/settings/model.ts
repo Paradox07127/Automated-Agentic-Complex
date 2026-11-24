@@ -5,6 +5,7 @@ import type { WireRuntimePublic } from '../../domain/wire';
 import { clock, failure, saveModels, saveRuntime } from './api';
 import { modelsBody, modelVals, runtimeBody, runtimeVals, targetOf, type Handles, type Target, type Vals } from './fields';
 import type { Native } from './native';
+import { loadPending, PENDING_KEY, type Pending } from './pendingRestart';
 import { DELETE_WHAT, DRAFT_SECTION, labelOf } from './registry';
 import { applyService, serviceOf, TOKEN_CLEARED, type ServiceDraft, type ServiceRejected } from './servicesDraft';
 import type { WireModelSettings } from './wire';
@@ -65,25 +66,6 @@ export function deleteConfirm(id: string, onConfirm: ConfirmSpec['onConfirm'], c
 }
 
 const NO_READ: Record<Target, string> = { runtime: '还没读到角色内核设置', models: '还没读到模型设置' };
-
-/** A row saved but waiting for a backend restart: when it was last saved, and the value the running backend has (`old`). */
-export interface Pending {
-  at: number;
-  old: SettingValue;
-}
-
-/** The rows waiting for a backend restart; kept across pages and reloads. */
-const PENDING_KEY = 'ef.settings.pendingRestart';
-
-function loadPending(): Record<string, Pending> {
-  try {
-    const v: unknown = JSON.parse(localStorage.getItem(PENDING_KEY) ?? '{}');
-    if (!v || typeof v !== 'object') return {};
-    return Object.fromEntries(Object.entries(v).filter((e): e is [string, Pending] => typeof e[1]?.at === 'number' && e[1].old != null));
-  } catch {
-    return {};
-  }
-}
 
 export function useSettingsModel(init: ModelInit = {}, src: Sources = {}) {
   const bridge = getBridge();

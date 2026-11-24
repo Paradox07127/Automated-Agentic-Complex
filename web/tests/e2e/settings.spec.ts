@@ -112,7 +112,7 @@ for (const [w, h] of [
 ] as const) {
   test(`no horizontal overflow at ${w}×${h}`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
-    for (const q of ['', '&group=perm', '&group=privacy', '&group=kernel', '&group=model', '&group=keys', '&group=data', '&group=about']) {
+    for (const q of ['', '&group=perm', '&group=privacy', '&group=kernel', '&group=keys', '&group=data', '&group=about']) {
       await page.goto(`main.html#/settings?plugins=all&still=1${q}`);
       await expect(page.getByRole('tablist', { name: '设置分组' })).toBeVisible();
       expect(await noOverflow(page)).toBeLessThanOrEqual(0);

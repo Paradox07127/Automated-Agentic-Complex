@@ -168,7 +168,7 @@ describe('快速输入', () => {
     const status = await screen.findByRole('status', { name: '没有可用的模型' });
     fireEvent.click(within(status).getByRole('button', { name: /前往设置连接/ }));
     expect(m.openMain).toHaveBeenCalledTimes(1);
-    expect(m.openMain.mock.calls[0]![0]).toMatch(/^\/settings\?.*group=model.*item=svc/);
+    expect(m.openMain.mock.calls[0]![0]).toMatch(/^\/settings\?.*group=kernel.*item=svc/);
   });
 
   it('keeps 附上当前窗口 with 屏幕识读 off, as 已关闭, and a click opens its switch', async () => {

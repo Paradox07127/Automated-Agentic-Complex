@@ -11,7 +11,7 @@ export function ChatGate() {
   const on = usePlugins().light_ai && demo !== 'ai-off';
   if (on) return <ChatPage />;
   return (
-    <PowerState state="off" mode="page" title="AI 对话" reason="设置 › 内核 里关掉了「AI 对话」，角色不回消息，也不记新的对话。" action={{ label: '前往设置打开', onClick: () => navigate({ page: 'settings', group: 'model', item: 'plugins.light_ai' }) }}>
+    <PowerState state="off" mode="page" title="AI 对话" reason="设置 › 内核 里关掉了「AI 对话」，角色不回消息，也不记新的对话。" action={{ label: '前往设置打开', onClick: () => navigate({ page: 'settings', group: 'kernel', item: 'plugins.light_ai' }) }}>
       <SlotsOff>
         <ChatPage />
       </SlotsOff>

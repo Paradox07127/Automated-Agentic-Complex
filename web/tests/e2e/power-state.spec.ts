@@ -53,7 +53,7 @@ test('chat ai-off: the page is greyed and inert, the board leads to the AI 对�
   await expect(page.locator('[inert] [data-page="chat"]')).toHaveCount(1);
   await shot(page, 'chat-ai-off');
   await board.getByRole('button', { name: /前往设置打开/ }).click();
-  await expect(page).toHaveURL(/#\/settings\?.*group=model.*item=plugins\.light_ai/);
+  await expect(page).toHaveURL(/#\/settings\?.*group=kernel.*item=plugins\.light_ai/);
   expect(errors).toEqual([]);
 });
 
@@ -65,7 +65,7 @@ test('chat nomodel: 未接入 over the input leads to the model account row', as
   await expect(page.getByRole('textbox', { name: '消息' })).toBeEditable();
   await shot(page, 'chat-nomodel');
   await strip.getByRole('button', { name: /前往设置连接/ }).click();
-  await expect(page).toHaveURL(/#\/settings\?.*group=model.*item=svc/);
+  await expect(page).toHaveURL(/#\/settings\?.*group=kernel.*item=svc/);
   expect(errors).toEqual([]);
 });
 

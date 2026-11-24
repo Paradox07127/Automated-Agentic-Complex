@@ -340,7 +340,7 @@ export function Composer(p: ComposerProps) {
       mode="block"
       title="没有可用的模型"
       reason="登录 Claude Code 或 Codex，或在设置里给 pi 填一个 API key"
-      action={{ label: '前往设置连接', onClick: () => navigate({ page: 'settings', group: 'model', item: 'svc' }) }}
+      action={{ label: '前往设置连接', onClick: () => navigate({ page: 'settings', group: 'kernel', item: 'svc' }) }}
       more={
         <Btn size="sm" variant="ghost" icon="refresh" onClick={p.onRecheck}>
           重新检测
