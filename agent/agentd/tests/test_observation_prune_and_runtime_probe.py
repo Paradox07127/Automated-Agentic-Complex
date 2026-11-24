@@ -122,7 +122,7 @@ class PruneTests(unittest.TestCase):
                 self.assertTrue(all('LIMIT' in sql for sql in batches if sql.startswith('DELETE FROM observation_frames')))
                 self.assertEqual(db.execute("SELECT text,image FROM observation_content WHERE hash='31'").fetchone(), ('body 31', b'pixels'))
                 self.assertEqual(json.loads(db.execute("SELECT metadata FROM observation_frames WHERE id='9'").fetchone()[0]),
-                                 {'app':'Xcode', 'kind':'live_hook', 'nodes_sha256':digest([{'value':'9'}]), 'nodes_count':1})
+                                 {'app':'Xcode', 'kind':'live_hook', 'title':'private', 'nodes_sha256':digest([{'value':'9'}]), 'nodes_count':1})
                 steps = [0]
                 def progress(): steps[0] += 100; return 0
                 db.set_progress_handler(progress, 100)

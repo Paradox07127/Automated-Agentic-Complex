@@ -15,7 +15,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import test_character_agent_semantic as fixture
 from observation.capture import CaptureManager
 from observation.attention import AttentionStore
-from observation.blacklist import Blacklist
+from observation.blacklist import Blacklist, entry_hides
 from support import deny_blacklist  # noqa: E402
 from sessions.events import normalize_codex
 from character_agent.services.observation import CHANGED_PENDING, FIRST_PENDING, FRAME_KEEP_S, FRESH, IMAGE_KEEP_S, ObservationService, TEXT_KEEP_S, dump
@@ -192,6 +192,43 @@ class ObservationTests(unittest.TestCase):
         self.assertEqual(self.o.events(),[])
         for t in ('observation_content','observation_frames','observation_analyses','observation_work_events'):
             self.assertEqual(self.db.execute('SELECT count(*) FROM '+t).fetchone()[0],0)
+
+    def test_a_domain_or_title_entry_added_after_the_metadata_strip_still_forgets_the_frame_and_its_events(self):
+        self.ready();start=time.time()
+        for now,field,value in ((start,'domains','secret.example'),(start+60,'title_patterns','Quarterly')):
+            with self.subTest(field=field):
+                self.o.clock=lambda:now
+                ident=self.source(url_host='docs.secret.example',title='Quarterly plan')
+                self.reply=self.finding(ident);self.o.run_once();self.assertEqual(len(self.o.events()),1)
+                self.o.clock=lambda:now+TEXT_KEEP_S+3600;self.o.prune()
+                self.o.forget_hidden(lambda window:entry_hides(field,value,window),True)
+                self.assertEqual(self.o.events(),[]);self.assertIsNone(self.o.get(ident))
+                self.o.clear()
+
+    def test_an_input_frame_is_judged_by_its_window_title(self):
+        self.ready();attention=self.server.attention=AttentionStore(self.root/'attention.sqlite',Blacklist(deny_blacklist(self.root/'blacklist.json')))
+        event={'id':1,'ts':time.time(),'kind':'value','app':'Editor','bundle_id':'fixture','window':'Secret Doc','value':'typed words'}
+        frames=lambda:[r[0] for r in self.db.execute('SELECT id FROM observation_frames')]  # noqa: E731
+        self.o.ingest_inputs([event]);[ident]=frames()
+        attention.blacklist.add('title_patterns','Secret')
+        self.assertIsNone(self.o.get(ident))
+        self.o.forget_hidden(lambda window:entry_hides('title_patterns','Secret',window),True)
+        self.assertEqual(frames(),[])
+        self.o.ingest_inputs([{**event,'id':2,'value':'more typed words'}])
+        self.assertEqual(frames(),[])
+
+    def test_forgetting_a_frame_drops_the_carried_task_that_cites_it(self):
+        # An hour old, so the second batch no longer reads it as a current source.
+        self.ready();first=self.o.ingest('native_ax','Compile failed: missing RenderTarget declaration',source_key='editor',
+            at=time.time()-3600,metadata={'app':'Xcode','coverage':{'status':'complete','scope':'window'}})
+        self.reply=self.finding(first);self.o.run_once()
+        second=self.source('Build succeeded; tests not run',key='terminal',app='Terminal')
+        self.reply=self.finding(second,'Build succeeded',key='deploy',state='result_observed');self.o.run_once()
+        cited=lambda:[e['observation_id'] for t in self.o.understanding()['tasks'] for e in t.get('evidence',[])]  # noqa: E731
+        self.assertIn(first,cited())
+        self.o.forget_hidden(lambda window:window.get('app')=='Xcode',True)
+        self.assertNotIn(first,cited())
+        self.assertEqual([e['task_key'] for e in self.o.events()],['deploy'])
 
     def test_continuous_events_feed_memory_and_daily_weekly_briefs(self):
         self.ready();ident=self.source();self.reply=self.finding(ident);self.o.run_once()
@@ -893,8 +930,8 @@ class ObservationTests(unittest.TestCase):
         self.assertEqual(stored(text)[0],body)
         at(TEXT_KEEP_S-1);self.assertEqual(stored(text)[0],body);self.assertIn('nodes',stored(text)[2])
         at(TEXT_KEEP_S+1)
-        self.assertEqual(stored(text),('',None,{'app':'Xcode','bundle_id':'fixture.editor','nodes_sha256':hashlib.sha256(dump(nodes).encode()).hexdigest(),'nodes_count':3}))
-        self.assertEqual(stored(image)[2],{'app':'Canvas','bundle_id':'fixture.canvas'})
+        self.assertEqual(stored(text),('',None,{'app':'Xcode','bundle_id':'fixture.editor','title':'Private title','nodes_sha256':hashlib.sha256(dump(nodes).encode()).hexdigest(),'nodes_count':3}))
+        self.assertEqual(stored(image)[2],{'app':'Canvas','bundle_id':'fixture.canvas','title':'Private board'})
         self.assertEqual(stored(hook),('',None,{'kind':'live_hook','app':'claude','label':'s1','doc':'/repo','role':'tool_end','subrole':'Bash','ts':now}))
         self.assertEqual((self.o.get(text)['text'],self.o.get(text)['content_hash']),('',content_hash))
         # An unchanged recapture brings back the text the frame had lost.
@@ -928,6 +965,24 @@ class ObservationTests(unittest.TestCase):
             self.assertEqual((clipped['stderr'],clipped['is_error']),('',True))
             self.assertEqual(clipped['stdout'],log[:2048]+f'…[truncated {len(log)-4096} chars]…'+log[-2048:])
             self.assertEqual(json.loads(rows['long-edit']['text'])['tool_response']['files'],['app/Render.swift'])
+        finally: attention.db.close();self.server.attention=None
+
+    def test_a_hook_revoked_after_its_entry_check_writes_no_frame(self):
+        self.ready();attention=self.server.attention=AttentionStore(self.root/'attention.sqlite',Blacklist(deny_blacklist(self.root/'blacklist.json')))
+        hooks=lambda:self.db.execute("SELECT count(*) FROM observation_frames WHERE json_extract(metadata,'$.kind')='live_hook'").fetchone()[0]  # noqa: E731
+        def revoke(call):
+            def revoked(*args,**kwargs):
+                self.server.share_agent_sessions=False
+                return call(*args,**kwargs)
+            return revoked
+        try:
+            # Before ingest(), and inside it after its own consent check.
+            for name,target in (('ingest',self.o),('knowledge',self.c)):
+                with self.subTest(at=name), patch.object(target,name,revoke(getattr(target,name))):
+                    self.server.share_agent_sessions=True;self.server.sync_privacy()
+                    body={'session_id':'revoked-'+name,'cwd':str(self.root),'tool_name':'exec_command','tool_input':{'command':'make'},'tool_response':'ok'}
+                    self.o.ingest_hook(normalize_codex({**body,'hook_event_name':'PostToolUse'}),body,typed_generation=attention.typed_generation)
+                    self.assertEqual(hooks(),0)
         finally: attention.db.close();self.server.attention=None
 
     def test_the_scheduler_reuses_its_due_time_until_a_frame_arrives(self):

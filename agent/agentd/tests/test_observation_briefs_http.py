@@ -92,7 +92,7 @@ class BriefHTTPTests(BriefHTTPFixture):
         self.assertEqual(self.request('GET','/observation/briefs')[1]['reports'],[])
         self.assertIsNone(self.db.execute('SELECT body FROM observation_briefs').fetchone()[0])
 
-    def test_episode_edits_and_deletes_dismiss_only_the_briefs_that_read_the_episode(self):
+    def test_episode_edits_and_deletes_invalidate_only_the_briefs_that_read_the_episode(self):
         self.release.set()
         def episode(date):
             start=window('daily',date,'America/New_York')[1]+3600;run='run-'+date
@@ -103,13 +103,18 @@ class BriefHTTPTests(BriefHTTPFixture):
         other,unread=episode('2026-10-29'),episode('2026-10-24')
         first,second=(self.service.run_once('daily',date)['id'] for date in ('2026-10-30','2026-10-29'))
         states=lambda:dict(self.db.execute('SELECT id,state FROM observation_briefs').fetchall())  # noqa: E731
-        edit=lambda ident:self.request('PATCH',f'/episodes/{ident}',{'title':'改过的标题','description':'改过的描述'})[0]  # noqa: E731
+        edit=lambda ident:self.request('PATCH',f'/episodes/{ident}',{'title':'改过的标题','description':'渲染测试失败，改过的描述'})[0]  # noqa: E731
         self.assertEqual(edit(unread),200)
         self.assertEqual(states(),{first:'completed',second:'completed'})
         self.assertEqual(edit(self.episode_id),200)
-        self.assertEqual(states(),{first:'dismissed',second:'completed'})
+        self.assertEqual(states(),{first:'invalidated',second:'completed'})
         self.assertEqual(self.request('DELETE',f'/episodes/{other}')[0],200)
-        self.assertEqual(states(),{first:'dismissed',second:'dismissed'})
+        self.assertEqual(states(),{first:'invalidated',second:'invalidated'})
+        self.assertIsNone(self.db.execute('SELECT body FROM observation_briefs WHERE id=?',(first,)).fetchone()[0])
+        self.assertTrue(next(a for a in self.service.attempts() if a['id']==first)['can_retry'])
+        self.assertEqual(self.request('POST','/observation/briefs',{'period':'daily','date':'2026-10-30','retry':True})[0],202)
+        self.assertTrue(self.service.worker_lock.acquire(timeout=3)); self.service.worker_lock.release()
+        self.assertEqual(states()[first],'completed')
 
     def test_evidence_of_a_trimmed_run_detail_is_expired(self):
         for detail in ({'request':''},{'request':'{'},{}):

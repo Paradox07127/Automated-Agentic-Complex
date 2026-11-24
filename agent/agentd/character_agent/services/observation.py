@@ -27,8 +27,9 @@ FRAME_KEEP_S = 30*86400
 # Rows each retention UPDATE or DELETE touches per transaction.
 PRUNE_BATCH = 500
 # Metadata a frame keeps past TEXT_KEEP_S: keys SQL reads by json_extract (kind, transport_page), the
-# worklog's session grouping (app, label, doc, role, subrole, ts), the blacklist's app ids and the tree's hash.
-KEPT_METADATA = ('app','bundle_id','kind','label','doc','role','subrole','ts','transport_page','nodes_sha256','nodes_count')
+# worklog's session grouping (app, label, doc, role, subrole, ts), what the blacklist judges (app ids, url_host, the
+# title or an input's window) and the tree's hash.
+KEPT_METADATA = ('app','bundle_id','url_host','title','window','kind','label','doc','role','subrole','ts','transport_page','nodes_sha256','nodes_count')
 # Hook result strings longer than HOOK_CHARS keep HOOK_EDGE characters at each end.
 HOOK_CHARS = 4096
 HOOK_EDGE = 2048
@@ -81,6 +82,8 @@ CHANGED_PENDING = "WITH pending AS MATERIALIZED (SELECT f.id FROM observation_fr
 
 def dump(value): return json.dumps(value,ensure_ascii=False,sort_keys=True,allow_nan=False)
 def digest(value): return hashlib.sha256(dump(value).encode()).hexdigest()
+# The frame metadata as the window the blacklist judges: an input event's window title is under 'window'.
+def judged(meta): return {**meta,'title':meta.get('title') or meta.get('window')}
 
 
 def edits(before, after):
@@ -545,7 +548,7 @@ class ObservationService:
 
     def _allowed_row(self, row):
         attention=getattr(self.server,'attention',None)
-        return row['character_id']==self.character and row['consent_epoch']==self.server.consent.snapshot()[1] and self.allowed(row['requires']) and not (attention and attention.blacklist.hides(row['metadata']))
+        return row['character_id']==self.character and row['consent_epoch']==self.server.consent.snapshot()[1] and self.allowed(row['requires']) and not (attention and attention.blacklist.hides(judged(row['metadata'])))
 
     def ingest(self, origin, text='', *, metadata=None, image=None, at=None, source_key=None,capture_valid=lambda:True):
         if origin not in ORIGINS: raise ValueError('invalid_observation_origin')
@@ -563,7 +566,7 @@ class ObservationService:
         meta = dict(metadata or {})
         if meta.get('secure_input') or meta.get('incognito'): return None
         attention = getattr(self.server,'attention',None)
-        if attention is not None and attention.blacklist.hides(meta): return None
+        if attention is not None and attention.blacklist.hides(judged(meta)): return None
         # Sanitize complete content before storage, not merely a preview.
         egress=self.controller.knowledge().egress
         def source_sanitize(value):
@@ -1060,12 +1063,15 @@ class ObservationService:
             for key,correction in corrections.items():
                 if key in prior and correction['action']=='correct': prior[key].update(title=correction['text'],current_step='the user corrected this task',state='unknown',authority='user_correction_of_hypothesis')
                 if correction['action']=='reject': prior.pop(key,None)
-            body={**body,'task_corrections':corrections,'task_updates':list(prior.values())[-32:],'input_signature':signature,
+            # A carried task keeps its quotes: the analysis depends on the frames they cite, and goes without one.
+            updates=[(task,cited) for task in prior.values() if None not in (cited:=[self.get(e.get('observation_id')) for e in task.get('evidence',[])])][-32:]
+            analysis_dependencies=list({d['id']:d for d in [*dependencies,*(self.dependency(r) for _,cited in updates for r in cited)]}.values())
+            body={**body,'task_corrections':corrections,'task_updates':[task for task,_ in updates],'input_signature':signature,
                 'as_of_observations':[r['id'] for r in rows],
                 'batch':{**evidence['batch'],'duration_ms':round((time.monotonic()-started)*1000)}}
             with self.lock:
                 if not valid(): raise ValueError('observation_source_changed')
-                self.db.execute('INSERT INTO observation_analyses VALUES(?,?,?,?,?,?)',(ident,character,now,run['run_id'],dump(body),dump(dependencies)))
+                self.db.execute('INSERT INTO observation_analyses VALUES(?,?,?,?,?,?)',(ident,character,now,run['run_id'],dump(body),dump(analysis_dependencies)))
                 for frame in [i for row in rows for i in (row['id'],*row.get('merged',()))]:
                     self.db.execute('INSERT OR REPLACE INTO observation_processed VALUES(?,?,?)',(frame,ident,now))
                 self._settle_aliases()
@@ -1179,7 +1185,7 @@ class ObservationService:
         with self.input_replay_lock:
             self.input_replays.clear()
         with self.lock, self.db:
-            frames = {ident: sha for ident, meta, sha in self.db.execute('SELECT id,metadata,content_hash FROM observation_frames') if hides(json.loads(meta))}
+            frames = {ident: sha for ident, meta, sha in self.db.execute('SELECT id,metadata,content_hash FROM observation_frames') if hides(judged(json.loads(meta)))}
             if not frames: return
             made = {table: [ident for ident, raw in self.db.execute('SELECT id,dependencies FROM ' + table) if any(d['id'] in frames for d in json.loads(raw))]
                     for table in ('observation_analyses', 'observation_work_events')}
