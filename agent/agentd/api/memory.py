@@ -85,6 +85,15 @@ class MemoryMixin:
         except KeyError:
             return self._json(404, {"error": "unknown_fact"})
 
+    def _fact_cascade_get(self, fact_id):
+        memory = self.server.memory
+        if memory is None:
+            return self._json(503, NO_MEMORY)
+        try:
+            return self._json(200, {"fact_ids": memory.tombstoned(fact_id)})
+        except KeyError:
+            return self._json(404, {"error": "unknown_fact"})
+
     def _fact_mark_put(self, fact_id, mark):
         found = self._memory_body()
         if found is None:

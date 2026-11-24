@@ -199,6 +199,13 @@
   ],
   [
     "GET",
+    "^/memory/facts/([^/]{1,64})/cascade$",
+    [
+      "ui_token"
+    ]
+  ],
+  [
+    "GET",
     "/diag/state",
     [
       "ui_token"

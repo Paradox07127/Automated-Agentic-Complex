@@ -30,6 +30,9 @@ export const useVersions = (f: Fact) =>
     queryFn: async () => (await get<{ versions: WireFactVersion[] }>(`/memory/facts/${seg(f.id)}/versions`)).versions,
   });
 
+/** `GET /memory/facts/{id}/cascade`: the other facts that correcting f deletes with it, those citing the same observation summary. */
+export const readCascade = async (f: Fact) => (await get<{ fact_ids: string[] }>(`/memory/facts/${seg(f.id)}/cascade`)).fact_ids;
+
 export interface FactsModel {
   facts: Fact[];
   confirm: (f: Fact) => Promise<WriteResult>;

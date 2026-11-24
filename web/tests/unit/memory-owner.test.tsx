@@ -9,6 +9,7 @@ import { NOW, WIRE_FACTS } from '../../src/mock/fixtures';
 import { v31Id } from '../../src/mock/memory-v31';
 import { MemoryPage } from '../../src/pages/memory/Page';
 import { HeaderSlotContext } from '../../src/shell/headerSlot';
+import { ToastHost } from '../../src/shell/toast';
 import { pluginsOn, pluginsReset } from './plugins';
 
 beforeEach(() => {
@@ -93,10 +94,17 @@ describe('memory owner › page', () => {
     expect(setSub).not.toHaveBeenCalledWith(expect.stringContaining('示例'));
   });
 
-  it('清空记忆 in her archive counts and deletes only her facts', async () => {
+  it('清空记忆 in her archive counts and deletes only her facts, and the toast claims nothing about the rest', async () => {
     const spy = vi.spyOn(getBridge().agentd, 'request');
     window.location.hash = '#/memory?still=1&view=about&owner=si';
-    const root = createRootRoute({ component: () => <MemoryPage /> });
+    const root = createRootRoute({
+      component: () => (
+        <>
+          <MemoryPage />
+          <ToastHost />
+        </>
+      ),
+    });
     const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/?still=1&view=about&owner=si'] }) });
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
@@ -112,6 +120,8 @@ describe('memory owner › page', () => {
     fireEvent.click(within(ask).getByRole('button', { name: '清空' }));
     await waitFor(() => expect(spy.mock.calls.filter(([m]) => m === 'DELETE').map(([, p]) => p)).toEqual(['/memory?scope=facts&owner=si']));
     await expect(spy.mock.results.find((_, i) => spy.mock.calls[i]?.[0] === 'DELETE')?.value).resolves.toMatchObject({ body: { facts_deleted: 2 } });
+    expect(await screen.findByText('已清空示例乙的 2 条记忆')).toBeTruthy();
+    expect(screen.queryByText(/称呼和生日保留/)).toBeNull();
     expect((await read('?owner=si')).facts).toEqual([]);
     expect((await read('?owner=shared')).facts.length).toBeGreaterThan(0);
   });

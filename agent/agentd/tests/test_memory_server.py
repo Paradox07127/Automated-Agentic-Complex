@@ -851,6 +851,19 @@ class DerivedFactsTest(MemoryServerCase):
             time.sleep(0.01)
         self.assertDerivedGone(facts, other, line_id, count)
 
+    def test_cascade_lists_the_facts_a_correction_deletes_and_changes_nothing(self):
+        shared = self.episode(self.now - 1200)
+        first = self.memory.add("我养了一只猫", "inferred_hypothesis", evidence=[shared])
+        sibling = self.memory.add("可能常在晚上写代码", "inferred_hypothesis", evidence=[shared], state="candidate")
+        alone = self.memory.add("在写 agentd", "asserted_by_user")
+        self.assertEqual(self.request("GET", f"/memory/facts/{first}/cascade"), (200, {"fact_ids": [sibling]}))
+        self.assertEqual(self.request("GET", f"/memory/facts/{alone}/cascade"), (200, {"fact_ids": []}))
+        self.assertEqual(self.request("GET", "/memory/facts/missing/cascade"), (404, {"error": "unknown_fact"}))
+        self.assertEqual({f["fact_id"] for f in self.facts()}, {first, sibling, alone})
+        self.assertEqual(len(self.episodes.between(0, self.now)), 1)
+        self.request("PATCH", f"/memory/facts/{first}", {"expected_version": 1, "text": "我养了一只狗"})
+        self.assertEqual({f["fact_id"] for f in self.facts()}, {first, alone})
+
     def test_delete_attention_takes_every_episode_fact(self):
         facts, other, line_id, _ = self.derive([self.episode(self.now - 1200)], ["obs-1"])
         self.assertEqual(self.request("DELETE", "/attention")[0], 200)
@@ -887,6 +900,7 @@ class MemoryErrorTest(MemoryServerCase):
                                    ("POST", "/memory/facts", {"text": "x"}),
                                    ("PATCH", "/memory/facts/a", {"expected_version": 1, "text": "x"}),
                                    ("POST", "/memory/facts/a/confirm", {"expected_version": 1}),
+                                   ("GET", "/memory/facts/a/cascade", None),
                                    ("PUT", "/memory/paused", {"paused": True}),
                                    ("DELETE", "/memory/facts/a?expected_version=1", None), ("DELETE", "/memory?scope=all", None)):
             self.assertEqual(self.request(method, path, body), (503, {"error": "no_memory", "detail": "记忆没有开启"}),

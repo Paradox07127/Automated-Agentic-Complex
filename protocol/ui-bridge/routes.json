@@ -27,6 +27,7 @@
   {"method": "GET", "path": "^/memory/days/(\\d{4}-\\d{2}-\\d{2})$", "class": "read", "surfaces": ["main"], "plugin": "daily_brief"},
   {"method": "GET", "path": "/memory/export", "class": "read", "surfaces": ["main"], "plugin": "light_ai"},
   {"method": "GET", "path": "^/memory/facts/([^/]{1,64})/versions$", "class": "read", "surfaces": ["main"], "plugin": "light_ai"},
+  {"method": "GET", "path": "^/memory/facts/([^/]{1,64})/cascade$", "class": "read", "surfaces": ["main"], "plugin": "light_ai"},
   {"method": "GET", "path": "/diag/state", "class": "read", "surfaces": ["main", "onboarding"]},
   {"method": "GET", "path": "/diag/stream", "class": "stream", "surfaces": []},
   {"method": "GET", "path": "/blacklist", "class": "read", "surfaces": ["main"], "plugin": "screen_awareness"},

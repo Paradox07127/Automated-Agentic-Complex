@@ -65,6 +65,42 @@ export function DeleteCard({ fact, onCancel, onConfirm }: { fact: Fact; onCancel
   );
 }
 
+/** The danger card before a correction that also deletes other memories; `gone` holds null for one this view did not read. */
+export function CorrectCard({ fact, gone, onCancel, onConfirm }: { fact: Fact; gone: Array<Fact | null>; onCancel: () => void; onConfirm: () => void }) {
+  const id = useId();
+  const shown = gone.filter((f): f is Fact => f != null);
+  return (
+    <Overlay labelledBy={id} alert onClose={onCancel}>
+      <h4 id={id}>
+        <span className={styles.wi} aria-hidden="true">
+          !
+        </span>
+        修改这条会删掉另外 {gone.length} 条记忆
+      </h4>
+      <q>{factText(fact)}</q>
+      <p>它和下面这些出自同一段观察的总结；改了它，那段总结和这些记忆会一起删除，找不回。</p>
+      <ul>
+        {shown.map((f) => (
+          <li key={f.id}>{factText(f)}</li>
+        ))}
+        {shown.length < gone.length && (
+          <li>
+            另有 <span className="num">{gone.length - shown.length}</span> 条不在当前列表里
+          </li>
+        )}
+      </ul>
+      <div className={styles.btns}>
+        <Btn variant="secondary" onClick={onCancel}>
+          取消
+        </Btn>
+        <Btn variant="danger" onClick={onConfirm}>
+          仍然修改
+        </Btn>
+      </div>
+    </Overlay>
+  );
+}
+
 /** 清空记忆: the same danger card, armed by typing 删除. `who`: the character whose own facts alone are cleared; null clears every character's. */
 export function ClearCard({ who, count, onCancel, onConfirm }: { who: string | null; count: number; onCancel: () => void; onConfirm: () => void }) {
   const id = useId();

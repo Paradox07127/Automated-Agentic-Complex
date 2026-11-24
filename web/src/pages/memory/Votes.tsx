@@ -117,7 +117,7 @@ export function Votes({ asks, now, still, onConfirm, onFix, onDeny, onJump }: Vo
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented || !/^[123]$/.test(e.key)) return;
       const el = e.target instanceof Element ? e.target : null;
-      if (el?.closest('input, textarea, select, [contenteditable], [role="dialog"]')) return;
+      if (el?.closest('input, textarea, select, [contenteditable], [role="dialog"], [role="alertdialog"]')) return;
       const f = first.current;
       if (!f) return;
       e.preventDefault();

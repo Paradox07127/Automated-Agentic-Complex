@@ -131,6 +131,8 @@ describe('memory › 档案', () => {
     fireEvent.click(within(c3).getByRole('button', { name: '差不多，我来改' }));
     fireEvent.change(within(c3).getByRole('textbox', { name: '改成' }), { target: { value: '发布构建用 swift build -c release' } });
     fireEvent.click(within(c3).getByRole('button', { name: /改好并记住/ }));
+    // c3 shares its observation with other facts, so the correction asks first.
+    fireEvent.click(within(await screen.findByRole('alertdialog', { name: /^修改这条会删掉另外/ })).getByRole('button', { name: '仍然修改' }));
     await waitFor(() => expect(sent('PATCH', '/memory/facts/')).toEqual([['PATCH', `/memory/facts/${v31Id('c3')}`, { expected_version: 1, text: '发布构建用 swift build -c release' }]]));
   });
 

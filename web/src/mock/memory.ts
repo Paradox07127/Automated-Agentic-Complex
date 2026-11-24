@@ -223,6 +223,12 @@ export const routes: MockRoute[] = [
     },
   },
   { method: 'POST', path: '/memory/facts/:id/confirm', handler: ({ params, body }) => revise(params.id, body) },
+  // memory.py `tombstoned`: the other facts citing one of its episodes. PATCH here keeps them, so a demo can correct each.
+  { method: 'GET', path: '/memory/facts/:id/cascade', handler: ({ params }) => {
+    const f = facts().find((x) => x.fact_id === params.id), ep = (ref: string) => (ref.startsWith('episode:') ? ref.split('@')[0] : null);
+    if (!f) return bad('unknown_fact', 404);
+    return ok({ fact_ids: facts().filter((x) => x !== f && x.evidence.some((r) => ep(r) != null && f.evidence.map(ep).includes(ep(r)))).map((x) => x.fact_id).sort() });
+  } },
   ...factVersionRoutes(facts),
   {
     method: 'POST', path: '/memory/facts/:id/reject',

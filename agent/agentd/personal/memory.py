@@ -144,6 +144,29 @@ class Memory:
             self.db.executemany(f'DELETE FROM {table} WHERE {key}=?',[(v,) for v in removed_episodes])
         return affected
 
+    def tombstoned(self, fact_id):
+        """The other fact_ids correcting or deleting fact_id retires (the walk of _tombstone), sorted; KeyError unless
+        fact_id is active or a candidate. Writes nothing."""
+        with self.lock:
+            if not self._live(fact_id):
+                raise KeyError(fact_id)
+            by_episode = {}
+            for ident, evidence in self.db.execute("SELECT fact_id,evidence FROM facts WHERE state IN ('active','candidate')"):
+                for ref in json.loads(evidence):
+                    if _episode(ref): by_episode.setdefault(ref.split('@', 1)[0], set()).add(ident)
+            pending, affected = [fact_id], set()
+            while pending:
+                current = pending.pop()
+                if current in affected: continue
+                affected.add(current)
+                for evidence, in self.db.execute('SELECT evidence FROM facts WHERE fact_id=? AND text IS NOT NULL', (current,)).fetchall():
+                    for ref in json.loads(evidence):
+                        if _episode(ref):
+                            ident = ref.split(':', 1)[1].split('@', 1)[0]
+                            if self.db.execute('SELECT 1 FROM episodes WHERE id=? AND version=3', (ident,)).fetchone():
+                                pending.extend(by_episode.get('episode:' + ident, set()) - affected)
+        return sorted(affected - {fact_id})
+
     def revoked_with(self, fact_ids):
         """Content-free closure of retired facts sharing the requested facts' evidence.
 

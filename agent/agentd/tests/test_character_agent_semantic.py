@@ -353,6 +353,8 @@ class SemanticTests(unittest.TestCase):
     def test_correcting_shared_episode_keeps_new_user_claim_and_erases_sibling_versions(self):
         result, sibling, independent, separate = self.shared_memory_batch()
         original = result['memories'][0]['fact_id']
+        self.assertEqual(self.server.memory.tombstoned(original), [sibling])
+        self.assertIsNotNone(self.server.episodes.get(result['episode_id']))
         self.server.memory.correct(original, '报告改为先给结论')
         self.assertEqual(self.server.memory.text(original), '报告改为先给结论')
         self.assertEqual(self.db.execute('SELECT text,state FROM facts WHERE fact_id=?', (sibling,)).fetchall(),

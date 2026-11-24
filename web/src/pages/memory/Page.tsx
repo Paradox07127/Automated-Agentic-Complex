@@ -17,11 +17,11 @@ import { Archive } from './Archive';
 import { EVIDENCE_KEYS, RUNS_KEY, useLastConsolidation } from './data';
 import { errorText } from './errors';
 import { factText, hm, isCandidate, SRC, SRC_ORDER } from './model';
-import { ClearCard } from './Papers';
+import { ClearCard, CorrectCard } from './Papers';
 import { Off, Unlinked } from './Power';
 import { Projects } from './Projects';
 import { Review } from './Review';
-import { FACTS_KEY, factsKey, readMemory, useFacts, type MemoryView, type WriteResult } from './useFacts';
+import { FACTS_KEY, factsKey, readCascade, readMemory, useFacts, type MemoryView, type WriteResult } from './useFacts';
 import styles from './Page.module.css';
 
 type View = 'about' | 'projects' | 'activity' | 'pipeline';
@@ -52,6 +52,7 @@ export function MemoryPage() {
   const owner = params.get('owner');
   const mem = useQuery({ queryKey: factsKey(owner), queryFn: () => readMemory(pageNow(), owner), enabled: state !== 'loading' && state !== 'error' });
   const roster = useQuery({ queryKey: ['character', 'list'], queryFn: () => getBridge().character.list(), enabled: owner != null });
+  const who = owner ? (roster.data?.find((c) => c.id === owner)?.name ?? '这个角色') : null;
   const runs = useLastConsolidation(state == null || state === 'error');
   const empty = state === 'empty';
   const plugins = usePlugins();
@@ -70,6 +71,7 @@ export function MemoryPage() {
   const [picked, setPicked] = useState<View | null>(viewParam(params));
   const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set());
   const [clearing, setClearing] = useState(false);
+  const [fixing, setFixing] = useState<{ fact: Fact; gone: string[]; done: (go: boolean) => void } | null>(null);
   const [exportOff, setExportOff] = useState<string | null>(null);
   const view: View = picked === 'pipeline' && !dev ? 'about' : (picked ?? 'about');
   const sel = params.get('sel');
@@ -105,7 +107,18 @@ export function MemoryPage() {
   };
   const write = {
     confirm: async (f: Fact) => report(await model.confirm(f), `已记住：${f.text}`, '记住'),
-    correct: async (f: Fact, text: string) => report(await model.correct(f, text), isCandidate(f) ? `已按修改记住：${text}` : '改好了，下一句起按新的说', '修改'),
+    correct: async (f: Fact, text: string) => {
+      // agentd retires every fact citing the same observation summary with the corrected one (memory.py `_tombstone`).
+      let gone: string[];
+      try {
+        gone = await readCascade(f);
+      } catch (e) {
+        toast(`没有修改：${errorText(e)}`);
+        return false;
+      }
+      if (gone.length > 0 && !(await new Promise<boolean>((done) => setFixing({ fact: f, gone, done })))) return false;
+      return report(await model.correct(f, text), isCandidate(f) ? `已按修改记住：${text}` : '改好了，下一句起按新的说', '修改');
+    },
     reject: async (f: Fact) => report(await model.reject(f), `已划掉：${f.text}`, '划掉'),
     forget: async (f: Fact) => report(await model.forget(f), `已删除：${factText(f)}`, '删除'),
     mark: async (f: Fact, mark: 'locked' | 'quiet', on: boolean) =>
@@ -145,7 +158,7 @@ export function MemoryPage() {
   const onClear = () => {
     setClearing(false);
     void del<{ facts_deleted: number }>(owner ? `/memory?scope=facts&owner=${encodeURIComponent(owner)}` : '/memory?scope=facts')
-      .then((r) => toast(`已清空 ${r.facts_deleted} 条记忆，称呼和生日保留`))
+      .then((r) => toast(who ? `已清空${who}的 ${r.facts_deleted} 条记忆` : `已清空 ${r.facts_deleted} 条记忆，称呼和生日保留`))
       .catch((e: unknown) => toast(`没有清空：${errorText(e)}`))
       .finally(() => void qc.invalidateQueries({ queryKey: ['memory'] }));
   };
@@ -266,7 +279,21 @@ export function MemoryPage() {
       ) : (
         archive
       )}
-      {clearing && <ClearCard who={owner ? (roster.data?.find((c) => c.id === owner)?.name ?? '这个角色') : null} count={facts?.filter((f) => f.kind !== 'name' && f.kind !== 'birthday').length ?? 0} onCancel={() => setClearing(false)} onConfirm={onClear} />}
+      {clearing && <ClearCard who={who} count={facts?.filter((f) => f.kind !== 'name' && f.kind !== 'birthday').length ?? 0} onCancel={() => setClearing(false)} onConfirm={onClear} />}
+      {fixing && (
+        <CorrectCard
+          fact={fixing.fact}
+          gone={fixing.gone.map((id) => facts?.find((f) => f.id === id) ?? null)}
+          onCancel={() => {
+            setFixing(null);
+            fixing.done(false);
+          }}
+          onConfirm={() => {
+            setFixing(null);
+            fixing.done(true);
+          }}
+        />
+      )}
     </div>
   );
 }

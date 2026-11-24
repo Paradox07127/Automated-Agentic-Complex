@@ -47,6 +47,7 @@ export const AGENTD_ROUTES: readonly AgentdRoute[] = [
   { method: 'GET', path: '^/memory/days/(\\d{4}-\\d{2}-\\d{2})$', templates: ['/memory/days/:date'], class: 'read', surfaces: ['main'], plugin: 'daily_brief' },
   { method: 'GET', path: '/memory/export', templates: ['/memory/export'], class: 'read', surfaces: ['main'], plugin: 'light_ai' },
   { method: 'GET', path: '^/memory/facts/([^/]{1,64})/versions$', templates: ['/memory/facts/:fact_id/versions'], class: 'read', surfaces: ['main'], plugin: 'light_ai', response: 'memory-versions.json' },
+  { method: 'GET', path: '^/memory/facts/([^/]{1,64})/cascade$', templates: ['/memory/facts/:fact_id/cascade'], class: 'read', surfaces: ['main'], plugin: 'light_ai' },
   { method: 'GET', path: '/diag/state', templates: ['/diag/state'], class: 'read', surfaces: ['main', 'onboarding'] },
   { method: 'GET', path: '/diag/stream', templates: ['/diag/stream'], class: 'stream', surfaces: [] },
   { method: 'GET', path: '/blacklist', templates: ['/blacklist'], class: 'read', surfaces: ['main'], plugin: 'screen_awareness' },
@@ -241,9 +242,9 @@ export type AgentdRouteKey =
   | 'GET /attention/summary' | 'GET /attention/browser' | 'GET /sessions' | 'GET /history' | 'GET /history/export'
   | 'GET /memory' | 'GET /memory/sessions' | 'GET /memory/tasks' | `GET /memory/tasks/${string}`
   | `PATCH /memory/tasks/${string}` | 'GET /memory/days' | `GET /memory/days/${string}` | 'GET /memory/export'
-  | `GET /memory/facts/${string}/versions` | 'GET /diag/state' | 'GET /diag/stream' | 'GET /blacklist'
-  | 'GET /desktop/presence' | 'GET /user/now' | 'POST /desktop/sessions/seen' | 'GET /model/settings'
-  | 'GET /motion/settings' | `GET /motions/${string}/meta` | `GET /motions/${string}/keys`
+  | `GET /memory/facts/${string}/versions` | `GET /memory/facts/${string}/cascade` | 'GET /diag/state'
+  | 'GET /diag/stream' | 'GET /blacklist' | 'GET /desktop/presence' | 'GET /user/now' | 'POST /desktop/sessions/seen'
+  | 'GET /model/settings' | 'GET /motion/settings' | `GET /motions/${string}/meta` | `GET /motions/${string}/keys`
   | `GET /motions/${string}/tracks` | 'GET /tasks' | 'GET /capabilities' | 'GET /day/segments' | 'GET /episodes'
   | 'GET /commitments' | 'GET /schedules' | 'POST /schedules' | `PUT /schedules/${string}`
   | `DELETE /schedules/${string}` | `POST /schedules/${string}/run` | 'GET /focus' | 'GET /proactive/mutes'
