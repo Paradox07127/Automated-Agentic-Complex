@@ -12,11 +12,11 @@ import copy
 import math
 from pathlib import Path
 import shutil
-import subprocess
 import tempfile
 
 from character_library import Package, PackageError, need, read_json, write_json
 import native_bundle
+from resource_store import clone_or_copy
 from ..common import canonical_json, reference as ref, sha256_bytes
 from ..motion_families import chain_timing, check_families, pooled
 from ..motion_graph import FILE as GRAPH, pack_graph, policy_chain, text
@@ -177,7 +177,7 @@ def chain_package(package_root, output, proposal):
     output.parent.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix='.edit-', dir=output.parent)); shutil.rmtree(stage)
     try:
-        subprocess.run(['/bin/cp', '-cR', str(package.root), str(stage)], check=True)
+        shutil.copytree(package.root, stage, symlinks=True, copy_function=clone_or_copy)
         definition = read_json(stage/'character.json'); runtime = stage/Path(package.native_ref['file']).parent
         native_path = stage/package.native_ref['file']; native = read_json(native_path); entry = native['characters'][0]
         pack_path = runtime/entry['c7']['file']; pack = read_json(pack_path)

@@ -13,11 +13,13 @@ import math
 import shutil
 import struct
 import subprocess
+import sys
 import tempfile
 import wave
 
 from character_library import Package, Library, digest, read_json, write_json, need, export_package
 import native_bundle
+from resource_store import clone_or_copy
 from .common import canonical_json, reference as ref, sha256_bytes
 from .stance import stances
 from .motion_import.edit import write_document
@@ -420,6 +422,8 @@ def install_clips(package,output,clips,report_name,report):
     bgm (None or source/start/file), and optionally face (its facial-animation document and mapping summary) and camera (its camera document). report(installed, rig_unchanged) returns the provenance/<report_name>.json
     document, installed being each clip's (metadata, music info)."""
     from .mmd.native_rig import package_humanoid
+    # prepare_music decodes with macOS afconvert; Windows ships no audio decoder program.
+    need(sys.platform!='win32' or not any(clip['bgm'] for clip in clips),'bgm_unsupported_on_windows')
     output=Path(output).resolve()
     need(not output.exists(), 'output_already_exists')
     need(not output.is_relative_to(package.root),'output_inside_input_package')
@@ -427,7 +431,7 @@ def install_clips(package,output,clips,report_name,report):
     output.parent.mkdir(parents=True,exist_ok=True)
     stage=Path(tempfile.mkdtemp(prefix='.vmd-',dir=output.parent)); shutil.rmtree(stage)
     try:
-        subprocess.run(['/bin/cp','-cR',str(package.root),str(stage)],check=True)
+        shutil.copytree(package.root,stage,symlinks=True,copy_function=clone_or_copy)
         definition=read_json(stage/'character.json'); runtime=stage/Path(package.native_ref['file']).parent
         native_path=stage/package.native_ref['file']; native=read_json(native_path); entry=native['characters'][0]
         archive_path=runtime/entry['actor_archive']['file']; archive=read_json(archive_path)
@@ -437,7 +441,7 @@ def install_clips(package,output,clips,report_name,report):
         def change(folder,file,fn):
             p=folder/file; d=read_json(p);fn(d);write_document(p,d)
         def reference(p,root):
-            """ref(p,root); a file still as cloned (cp -c keeps size and mtime) keeps the hash of the package's inventory, which the
+            """ref(p,root); a file still as cloned (an APFS clone keeps size and mtime) keeps the hash of the package's inventory, which the
             library checks in the copy it publishes; a file the import rewrote was read from a package file that must match it."""
             # String slices: p lies under root and root under stage, and relative_to is slow over every file of a package.
             key=str(p)[len(str(stage))+1:];known=package.inventory.get(key)
@@ -541,7 +545,7 @@ def main():
             source=Package(selected.get(original.id,original.root))
             destination=library.root/'packages'/source.id/source.sha256
             destination.parent.mkdir(parents=True,exist_ok=True)
-            subprocess.run(['/bin/cp','-cR',str(source.root),str(destination)],check=True)
+            shutil.copytree(source.root,destination,symlinks=True,copy_function=clone_or_copy)
             built.append(Package(destination,deep=False))
         default=Library(a.library).snapshot()['default_character']
         library.publish(sorted(built,key=lambda package:(package.id!=default,package.id)))

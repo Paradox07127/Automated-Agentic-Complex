@@ -2,11 +2,11 @@
 import json
 from pathlib import Path
 import shutil
-import subprocess
 import tempfile
 
 from character_library import Package, digest, need, read_json, write_json
 import native_bundle
+from resource_store import clone_or_copy
 from ..common import canonical_json, reference as ref, sha256_bytes
 from ..motion_graph import FILE as GRAPH, pack_graph, text
 
@@ -21,7 +21,7 @@ def write_document(path, value):
 
 
 def cloned_ref(package, stage, p, root):
-    """ref(p, root) for p in stage, a cp -c clone of package; a file still as cloned (cp -c keeps size and mtime) keeps the hash of
+    """ref(p, root) for p in stage, a clone_or_copy copy of package; a file still as cloned (an APFS clone keeps size and mtime) keeps the hash of
     the package's inventory, which the library checks in the copy it publishes; a file the edit rewrote was read from a package
     file that must match it."""
     # String slices: p lies under root and root under stage, and relative_to is slow over every file of a package.
@@ -61,7 +61,7 @@ def edit_package(package_root, output, *, action, title=None, remove=False):
     output.parent.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix='.edit-', dir=output.parent)); shutil.rmtree(stage)
     try:
-        subprocess.run(['/bin/cp', '-cR', str(package.root), str(stage)], check=True)
+        shutil.copytree(package.root, stage, symlinks=True, copy_function=clone_or_copy)
         definition = read_json(stage/'character.json'); runtime = stage/Path(package.native_ref['file']).parent
         native_path = stage/package.native_ref['file']; native = read_json(native_path); entry = native['characters'][0]
         archive_path = runtime/entry['actor_archive']['file']

@@ -423,6 +423,7 @@ class MotionToolTests(unittest.TestCase):
         return path
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "Windows refuses a bgm import: test_a_bgm_import_on_windows_is_refused_before_the_package_is_copied")
     def test_zip_with_vmd_and_wav_imports_with_bgm(self):
         from test_vmd_import import authored_rig
         from agentic_complex_build.motion_import.take import check_mmd_index, check_result
@@ -510,6 +511,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual(self.mmd_index()["entries"], [entry])
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "Windows refuses a bgm import: test_a_bgm_import_on_windows_is_refused_before_the_package_is_copied")
     def test_mmd_sync_bakes_once_and_lists_both_characters(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig()); self.second_character(authored_rig())
@@ -573,6 +575,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual(self.mmd_index()["entries"][0]["failures"], {})
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "Windows refuses a bgm import: test_a_bgm_import_on_windows_is_refused_before_the_package_is_copied")
     def test_mmd_sync_uses_shared_sources_without_an_existing_bake(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig()); self.second_character(authored_rig())
@@ -774,6 +777,49 @@ class MotionToolTests(unittest.TestCase):
         doc = self.failure(self.run_import(self.vmd(), self.host(), "--extra", str(self.wav("a.wav")), "--extra", str(self.wav("b.wav"))))
         self.assertEqual((doc["reason"], doc["detail"]), ("ambiguous_motion", "a.wav,b.wav"))
         self.assertEqual(self.files(), before)
+
+    @needs_numpy
+    def test_an_import_its_rename_and_the_library_build_copy_the_package_without_a_child_process(self):
+        """Windows has no /bin/cp: the importer, an edit and import_vmd's library build copy the package in this process."""
+        import contextlib, io
+        from unittest import mock
+        from test_vmd_import import authored_rig
+        from agentic_complex_build import import_vmd
+        from agentic_complex_build.motion_import.edit import edit_package
+        package = self.install(rig=authored_rig())
+        argv = ["import_vmd", "--library", str(self.library.root), "--vmd", str(self.vmd()), "--output", str(self.root / "built"), "--character", "fixture"]
+        with mock.patch("subprocess.run", side_effect=FileNotFoundError(2, "The system cannot find the file specified")):
+            report = import_vmd.import_motion(package.root, self.vmd(), self.root / "imported", title="舞蹈")
+            edit_package(self.root / "imported", self.root / "renamed", action=report["action"], title="新舞")
+            with mock.patch.object(sys, "argv", argv), contextlib.redirect_stdout(io.StringIO()): import_vmd.main()
+        for root in (self.root / "imported", self.root / "renamed"): Package(root)
+        self.assertEqual([p.version for p in Library(self.root / "built/library").packages()], ["1.0.1"])
+
+    @needs_scipy
+    def test_a_chain_copies_the_package_without_a_child_process(self):
+        from unittest import mock
+        from agentic_complex_build.motion_import.chain_edit import chain_package
+        package = self.install_chains()
+        proposal = dict(schema="endfield-motion-chain-proposal/v1", character="fixture", package_sha256=package.sha256,
+                        edits=[dict(op="insert", chain="wave_start", index=1, clip="nod")])
+        with mock.patch("subprocess.run", side_effect=FileNotFoundError(2, "The system cannot find the file specified")):
+            chain_package(package.root, self.root / "chained", proposal)
+        Package(self.root / "chained")
+
+    @needs_numpy
+    def test_a_bgm_import_on_windows_is_refused_before_the_package_is_copied(self):
+        """Windows ships no audio decoder program as macOS ships afconvert."""
+        from unittest import mock
+        from character_library import PackageError
+        from test_vmd_import import authored_rig
+        from agentic_complex_build import import_vmd
+        from agentic_complex_build.mmd import io, native_rig, reference, retarget, rig_math, skeleton  # imported before sys.platform changes
+        package = self.install(rig=authored_rig()); song = self.wav("song.wav"); before = sorted(self.root.iterdir())
+        with mock.patch.object(sys, "platform", "win32"), \
+                mock.patch("subprocess.run", side_effect=FileNotFoundError(2, "The system cannot find the file specified")), \
+                self.assertRaisesRegex(PackageError, "^bgm_unsupported_on_windows$"):
+            import_vmd.import_motion(package.root, self.vmd(), self.root / "imported", bgm=song)
+        self.assertEqual(sorted(self.root.iterdir()), sorted(before + [self.root / "dance.vmd"]))
 
 
 

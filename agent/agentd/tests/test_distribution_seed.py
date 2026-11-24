@@ -139,6 +139,7 @@ class DistributionSeedTests(unittest.TestCase):
             self.assertEqual((entry['action'], entry['removed_at']), (action, None))
 
     @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "Windows refuses a bgm import: test_a_bgm_import_on_windows_is_refused_before_the_package_is_copied")
     def test_a_two_file_gltf_and_a_bgm_start_of_zero_are_baked_again_with_their_ids(self):
         from test_bvh_import import cmu_bvh_text, cmu_joints
         from test_vmd_import import authored_rig
