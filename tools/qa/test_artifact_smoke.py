@@ -77,7 +77,7 @@ def stub_app(root, fingerprint=F, hello=True, reap=True, layout='portable', sock
     write(service / 'agentd_launcher.py', 'import os, sys\nfrom pathlib import Path\n'
         'os.execv(sys.executable, [sys.executable, "-I", "-B", str(Path(__file__).parent / "agentd/server.py"), *sys.argv[1:]])\n')
     for name in ('character_tool.py', 'character_library.py', 'resource_store.py', 'pool_codec.py', 'fsutil.py',
-                 'brain/__init__.py', 'brain/persona.py', 'brain/language.py', 'brain/lorebook.py',
+                 'brain/__init__.py', 'brain/persona.py', 'brain/language.py', 'brain/lorebook.py', 'brain/markers.py',
                  'infra/__init__.py', 'infra/platform/__init__.py', 'infra/platform/posix.py', 'infra/platform/windows.py'):
         write(service / 'agentd' / name, (ROOT / 'agent/agentd' / name).read_text())
     # Synthetic numpy and importer; content_import_error only proves they resolve from the bundle's import roots.
