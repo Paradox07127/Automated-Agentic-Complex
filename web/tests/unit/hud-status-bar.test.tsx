@@ -90,6 +90,9 @@ async function mount(hash = '#/hud') {
     presence(raw: unknown) {
       act(() => pushPresence!(raw));
     },
+    payload(p: StackPayload) {
+      act(() => pushCards!(p));
+    },
   };
 }
 
@@ -344,6 +347,24 @@ describe('agentd offline', () => {
     m.push([approval], [wireRow('s-run'), wireRow('s-wait', { status: 'needs_you', approvals: [A2] })]);
     expect(root().hasAttribute('data-offline')).toBe(false);
     expect(attached().hasAttribute('inert')).toBe(false);
+  });
+});
+
+describe('offline stack payload', () => {
+  it('greys the lines while the pushed cards say the shell has lost agentd, and clears when they stop saying it', async () => {
+    const m = await mount();
+    const root = () => document.querySelector<HTMLElement>('[data-surface-root="hud"]')!;
+    const attached = () => rows()[0]!.querySelector(`[data-card-id="${A2}"]`)!.parentElement!;
+    const sessions = [wireRow('s-run'), wireRow('s-wait', { status: 'needs_you', approvals: [A2] })];
+    m.push([approval], sessions);
+    await waitFor(() => expect(rows().length).toBe(1));
+    expand();
+    expect(root().hasAttribute('data-offline')).toBe(false);
+    m.payload({ now: NOW, cards: [approval], history: [], offline: true });
+    expect(root().hasAttribute('data-offline')).toBe(true);
+    expect(attached().hasAttribute('inert')).toBe(true);
+    m.payload({ now: NOW, cards: [approval], history: [] });
+    expect(root().hasAttribute('data-offline')).toBe(false);
   });
 });
 

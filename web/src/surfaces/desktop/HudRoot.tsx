@@ -45,9 +45,9 @@ export function HudRoot() {
   const pushed = usePresence();
   const settings = useDesktopState();
   const presence = demo ? demo.presence : pushed;
-  const offline = readPresence(presence).offline;
   const stack = useStackCards(null);
   const data = demo ? demo.payload : stack.data;
+  const offline = readPresence(presence).offline || data?.offline === true;
   const anchor = useAnchor();
 
   const [state, dispatch] = useReducer(stackReducer, initialStack);

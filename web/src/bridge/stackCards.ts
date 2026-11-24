@@ -56,7 +56,12 @@ export type DesktopStackCard =
 export type StackHistoryEntry = Omit<DomainStackHistoryEntry, 'card'> & { card: DomainStackCard | DesktopStackCard };
 
 /** Card set the stack receives: the domain cards and the native ones. */
-export type StackPayload = Omit<DomainStackPayload, 'cards' | 'history'> & { cards: (DomainStackCard | DesktopStackCard)[]; history: StackHistoryEntry[] };
+export type StackPayload = Omit<DomainStackPayload, 'cards' | 'history'> & {
+  cards: (DomainStackCard | DesktopStackCard)[];
+  history: StackHistoryEntry[];
+  /** The shell has lost agentd: the cards are the ones it raised itself. */
+  offline?: boolean;
+};
 
 /** `confirmed`: the second click of a dangerous approval's in-card 确认批准. */
 export interface DecideOptions {

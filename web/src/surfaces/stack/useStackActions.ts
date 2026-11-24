@@ -67,15 +67,7 @@ export function useStackActions(
   /** `approval`: a role approval's answer, which also writes the card's outcome. */
   const send = async (id: string, decision: StackDecision, receipt: string, approval?: { kind: 'approved' | 'denied'; confirmed: boolean }) => {
     try {
-      if (decision.kind === 'answer' && decision.answers.decision?.[0] === 'allow_session') {
-        // The existing native answer validator only knows single allow/deny. This registered write route
-        // accepts stack callers; agentd checks the offer, danger verdict, revision and live owner.
-        const card = cardOf(id);
-        if (!card || !isStackApproval(card) || !approvalView(card).allowSession) throw new Error('这张卡未提供本对话授权');
-        await call('POST', `/agent/interactions/${seg(id)}/answer`, { expected_version: decision.expected_version, answers: decision.answers });
-      } else {
-        await (approval?.confirmed ? bridge.stack.decide(id, decision, { confirmed: true }) : bridge.stack.decide(id, decision));
-      }
+      await (approval?.confirmed ? bridge.stack.decide(id, decision, { confirmed: true }) : bridge.stack.decide(id, decision));
       if (approval) dispatch({ type: 'patch', id, patch: { outcome: { kind: approval.kind, at: clock(), text: receipt } } });
       settle(id, receipt);
     } catch (e) {

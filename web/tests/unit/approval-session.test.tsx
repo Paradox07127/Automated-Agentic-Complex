@@ -31,7 +31,7 @@ describe('conversation tool allowance', () => {
       if (button) {
         fireEvent.click(button);
         expect(decide).toHaveBeenCalledWith('allow_session', undefined);
-        expect(view().action('allow_session')).toMatchObject({ type: 'answer', answers: { decision: ['allow_session'] } });
+        expect(view().action('allow_session')).toMatchObject({ type: 'answer', answers: { decision: ['本对话都允许'] } });
       } else expect(view(offered, dangerous).action('allow_session')).toBeNull();
       cleanup();
     }

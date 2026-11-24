@@ -118,12 +118,12 @@ export function approvalView(card: ApprovalStackItem): ApprovalView {
   // The current native stack projection preserves option labels but drops new data fields.
   const offered = item.approval_answers?.includes('allow_session') ?? item.questions.some((q) => q.options.some((o) => o.label === '本对话都允许'));
   const allowSession = offered && !item.dangerous && !item.danger_rule;
-  const answer = (label: '允许' | '拒绝' | 'allow_session'): CardAction => ({
+  const answer = (label: '允许' | '拒绝' | '本对话都允许'): CardAction => ({
     type: 'answer',
     id: card.id,
     expected_version: item.revision,
     answers: Object.fromEntries(item.questions.map((q) => [q.id, [label]])),
-    text: label === 'allow_session' ? '本对话都允许' : label,
+    text: label,
   });
   const cancel: CardAction = { type: 'cancel-question', id: card.id, expected_version: item.revision };
   const harness = harnessPreview(item.preview_text);
@@ -158,6 +158,6 @@ export function approvalView(card: ApprovalStackItem): ApprovalView {
       { label: '取消这个请求', action: cancel },
     ],
     token: item.revision,
-    action: (verdict) => (verdict === 'allow' ? answer('允许') : verdict === 'deny' ? answer('拒绝') : verdict === 'cancel' ? cancel : verdict === 'allow_session' && allowSession ? answer('allow_session') : null),
+    action: (verdict) => (verdict === 'allow' ? answer('允许') : verdict === 'deny' ? answer('拒绝') : verdict === 'cancel' ? cancel : verdict === 'allow_session' && allowSession ? answer('本对话都允许') : null),
   };
 }
