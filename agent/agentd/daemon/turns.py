@@ -11,6 +11,7 @@ import time
 from voice.clauses import MIN_CLAUSE, ClauseSplitter
 from daemon.error_record import failure
 from infra import plugins
+from brain.events import recorded
 from brain.language import mismatch
 from brain.markers import MarkerStream
 from character.binding import effective
@@ -45,6 +46,11 @@ TOOL_REQUEST = re.compile(
     r"|(?:(?:今天|明天|明早|今晚|后天|[一二三四五六七八九十两半\d]+(?:分钟|小时|天|点|:\d+)(?:后)?)[^，。！？]*?)?(?:提醒我|叫我)"
     r"|(?:设置|添加|取消|撤销|更改|推迟|延后|提前).*提醒|(?:把.*)?提醒.*(?:取消|删除|撤销|改|推迟|延后|提前))"
     r"|リマインドして", re.I)
+
+
+def _kept(source, text):
+    """What history and the mouth's turns keep of a turn's text: the user's own words whole, else events.recorded."""
+    return text if source in ("text", "voice") else recorded(text)
 
 
 def foreground_route(text, *, command=None, scope_id=None, look=False, reply_to=None):
@@ -298,7 +304,7 @@ class TurnsMixin:
         recheck: () -> bool, asked once before the first clause is voiced; False cancels the line.
         reason: why it is said, on each of its /feed line items. source "ritual" or "tap": a tap's line (see tap),
         which neither the gate nor /feedback counts. material: observed text for this line's live context only, never
-        its text, which history, the mouth's turns and the trace keep.
+        its text, which the trace keeps and history and the mouth's turns keep as _kept.
         conversation_id: the conversation its row and /feed items go to, not the active one.
         resume_run_id: the run its row follows; the UI then shows the row without its text (History.record).
         scripted: (card event, localized text) to deliver directly.
@@ -598,6 +604,7 @@ class TurnsMixin:
                     context += f"{material}。" if material else ""
                     if hasattr(mouth, "dispatch_allowed"):
                         mouth.dispatch_allowed = lambda: not self._stale(cancel, generation)
+                        mouth.history_text = _kept(source, text)
                 if cancel not in self._side_lines:  # a main line's context replaces the last main line's
                     for key in [key for key in tuple(self._line_context) if key not in self._side_lines]:
                         self._line_context.pop(key, None)
@@ -766,7 +773,7 @@ class TurnsMixin:
             try:
                 character = trace.get("character_id", self.character)
                 self.history.record(turn_id=trace["turn_id"], source=source, character_id=character,
-                                    persona_revision=self.characters.revision(character), user_text=text,
+                                    persona_revision=self.characters.revision(character), user_text=_kept(source, text),
                                     reply=reply, state=state, started_at=started_at, raw_reply=raw_reply,
                                     conversation_id=trace.get("conversation_id"), resume_run_id=trace.get("resume_run_id"))
             except sqlite3.Error:

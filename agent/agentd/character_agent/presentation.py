@@ -5,6 +5,8 @@ from character_agent.harness.transport import HarnessError
 
 
 class PreparedReply:
+    history_text = None  # what the mouth's history keeps of the turn's text, when not the text stream gets
+
     def __init__(self, mouth, text, model, usage=None, facts=None, error=None, *, final_item_id=None, remember=True):
         """remember False: the line is delivered but its turn stays out of the mouth's history."""
         self.history = mouth.history
@@ -34,7 +36,7 @@ class PreparedReply:
         if self.dispatch_allowed():
             self.usage = self.result_usage
             if self.remember:
-                self.history.append([{"role": "user", "content": text},
+                self.history.append([{"role": "user", "content": text if self.history_text is None else self.history_text},
                                      {"role": "assistant", "content": self.text}])
                 del self.history[:-self.max_turns]
 
@@ -151,6 +153,6 @@ class StreamedReply(PreparedReply):
         if self.dispatch_allowed():
             self.usage = self.result_usage
             if self.remember:
-                self.history.append([{"role": "user", "content": text},
+                self.history.append([{"role": "user", "content": text if self.history_text is None else self.history_text},
                                      {"role": "assistant", "content": "".join(said)}])
                 del self.history[:-self.max_turns]
