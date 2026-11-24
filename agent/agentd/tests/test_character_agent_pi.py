@@ -96,6 +96,13 @@ class PiConfigTests(unittest.TestCase):
         for changes in ({'context_window': 512}, {'context_window': True}, {'reasoning': 'yes'}):
             with self.subTest(changes=changes), self.assertRaises(ValueError): self.config(**changes).validate()
 
+    def test_tool_reminder_reaches_the_runner_and_rejects_bad_values(self):
+        self.assertIsNone(self.config().wire()['tool_reminder'])
+        self.assertEqual(self.config(tool_reminder='Stay in voice.').wire()['tool_reminder'], 'Stay in voice.')
+        for value in ('', 'x' * 1001, 42, b'Stay in voice.'):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, 'invalid_tool_reminder'):
+                self.config(tool_reminder=value).validate()
+
     @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
     def test_app_resolution_never_uses_development_runtime(self):
         site = '/Applications/Agentic Complex.app/Contents/Resources/components/harness.pi'
@@ -389,6 +396,33 @@ class PiSDKTests(unittest.TestCase):
         self.assertEqual(events[-1]['usage']['output_tokens'], 10)
         self.assertEqual(events[-1]['context_tokens'], 10)
         self.assertIsNone(events[-1]['cost_usd'])
+
+    def reminder_run(self, reminder):
+        model = self.model([{'name': 'receipt_check', 'args': {'id': 'e1'}}, 'Checked.', 'Again.'])
+        definitions = [{'name': 'receipt_check', 'description': 'Check receipt.', 'input_schema': {
+            'type': 'object', 'properties': {'id': {'type': 'string'}}, 'required': ['id']}}]
+        session = self.session(model, definitions, lambda *_: {'content': [{'type': 'text', 'text': 'Readback confirmed.'}]},
+                               tool_reminder=reminder)
+        self.assertTrue(self.run_session(session)[-1]['success'])
+        # A later run sends the session's transcript again.
+        self.assertTrue(list(session.stream('Next.', system_prompt='You are Mira, a concise personal companion.', run_id='run-2'))[-1]['success'])
+        return model.requests
+
+    def test_tool_reminder_rides_only_the_call_after_a_tool_result_and_stays_out_of_the_transcript(self):
+        reminder = 'Speak as Mira in your own voice.'
+        first, after_tool, next_run = self.reminder_run(reminder)
+        self.assertNotIn(reminder, json.dumps(first))
+        self.assertEqual(after_tool['messages'][-1], {'role': 'tool', 'tool_call_id': 'call-0',
+                                                      'content': 'Readback confirmed.\n' + reminder})
+        self.assertNotIn(reminder, json.dumps(next_run))
+        self.assertIn('Readback confirmed.', json.dumps(next_run))
+
+    def test_without_tool_reminder_the_requests_are_unchanged(self):
+        reminder = 'Speak as Mira in your own voice.'
+        on, off = self.reminder_run(reminder), self.reminder_run(None)
+        self.assertEqual(off[1]['messages'][-1], {'role': 'tool', 'tool_call_id': 'call-0', 'content': 'Readback confirmed.'})
+        on[1]['messages'][-1]['content'] = on[1]['messages'][-1]['content'].removesuffix('\n' + reminder)
+        self.assertEqual(off, on)
 
     def test_runner_frames_follow_c8(self):
         model = self.model([{'name': 'receipt_check', 'args': {'id': 'e1'}}, 'Checked.'])

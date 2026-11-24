@@ -65,6 +65,8 @@ class PiConfig:
     # With native_tools: the user's own Pi agent directory (its mcp.json) and the Skill directories Pi reads.
     user_agent_dir: str | Path | None = None
     skill_dirs: tuple = ()
+    # Joined to the tool result the model reads next, in that request only; None leaves requests as they are.
+    tool_reminder: str | None = None
 
     def validate(self, require_key=True):
         if self.auth_source not in ("api_key", "existing_login", "none"):
@@ -109,6 +111,8 @@ class PiConfig:
                 raise ValueError("pi_path_must_be_absolute")
         if self.runtime_source not in ("bundled", "local"):
             raise ValueError("invalid_runtime_source")
+        if self.tool_reminder is not None and (not isinstance(self.tool_reminder, str) or not self.tool_reminder or len(self.tool_reminder) > 1000):
+            raise ValueError("invalid_tool_reminder")
         return self
 
     def wire(self):
@@ -125,7 +129,7 @@ class PiConfig:
                 "native_tools": self.native_tools, "tool_approval": self.tool_approval,
                 "permission_timeout": self.permission_timeout,
                 "user_agent_dir": str(self.user_agent_dir) if self.user_agent_dir else None,
-                "skill_dirs": [str(path) for path in self.skill_dirs]}
+                "skill_dirs": [str(path) for path in self.skill_dirs], "tool_reminder": self.tool_reminder}
 
     def public(self):
         return {"backend": "pi", "sdk_version": PI_VERSION, "entry_kind": "node_sdk",

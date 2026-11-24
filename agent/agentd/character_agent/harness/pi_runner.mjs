@@ -250,6 +250,17 @@ async function init(message) {
   const actual = session.getActiveToolNames().sort();
   if (JSON.stringify(actual) !== JSON.stringify([...expected].sort())) throw new Error("tool_inventory_mismatch");
   if (config.native_tools) await session.bindExtensions({});
+  if (config.tool_reminder) {
+    const stream = session.agent.streamFunction;
+    // Pi's Anthropic conversion would send a user message after a tool result as a second user turn, so the
+    // reminder joins a copy of the tool result; the transcript keeps the original.
+    session.agent.streamFunction = (model, context, options) => {
+      const last = context.messages.at(-1);
+      if (!active || active.quick || last?.role !== "toolResult") return stream(model, context, options);
+      const reminded = { ...last, content: [...last.content, { type: "text", text: config.tool_reminder }] };
+      return stream(model, { ...context, messages: [...context.messages.slice(0, -1), reminded] }, options);
+    };
+  }
   session.subscribe(event => {
     const run = active;
     if (!run || run.cancelled || run.limit) return;
@@ -309,7 +320,7 @@ function usage(run) {
 async function query(message) {
   if (!initialized) return fail("pi_not_initialized", message.run_id);
   if (active) return fail("run_busy", message.run_id);
-  const run = { id: message.run_id, cancelled: false, turns: 0, cost: 0, text: [], textItem: null,
+  const run = { id: message.run_id, quick: message.system_prompt !== undefined, cancelled: false, turns: 0, cost: 0, text: [], textItem: null,
     usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0 } };
   active = run;
   const stream = message.system_prompt !== undefined ? session.agent.streamFunction : undefined;
