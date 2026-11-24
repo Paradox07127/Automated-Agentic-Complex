@@ -88,7 +88,7 @@ class RuntimeRouteTests(unittest.TestCase):
         jobs = SimpleNamespace(start=lambda: None, store=SimpleNamespace(
             submit=lambda title, payload, goal_id, **_: payloads.append(payload) or {'job_id': 'job-1'}))
         with patch.object(self.controller, '_session_factory_bound',
-                          side_effect=lambda config, actor_id=None: configs.append(config)), \
+                          side_effect=lambda config, actor_id=None, spoken=False: configs.append(config)), \
              patch('character_agent.integration.PersonalAgentRuntime', Runtime), \
              patch.object(self.controller, '_prepare', side_effect=lambda *args, runtime, **options: None), \
              patch.object(self.controller, 'jobs', jobs):
