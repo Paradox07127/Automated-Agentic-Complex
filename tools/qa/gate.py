@@ -624,15 +624,23 @@ def cache_keys(doc, phases, repo, ctx, tools):
     not run on the Windows host.
 
     A key covers the resolved suite, the gate's own files, the toolchain, the AAC_* and AGENTD_PYTHON
-    environment and the files under the suite's paths."""
+    environment, the files under the suite's paths and the key of each suite it requires, transitively."""
     suites = [e[1] for lanes in phases for items in lanes for e in items
               if e[0] == 'suite' and e[1].get('paths') and not e[1].get('fatal') and not e[1].get('host')]
     if not suites:
         return {}
-    files = blobs(repo, sorted({path for suite in suites for path in suite['paths'] if path != '.'}))
+    resolved = {s['id']: s for lanes in phases for items in lanes for e in items
+                for s in (e[2] if e[0] == 'block' else [e[1]])}
+    needed, todo = {}, list(suites)
+    while todo:
+        suite = todo.pop()
+        if suite['id'] not in needed:
+            needed[suite['id']] = suite
+            todo += [resolved.get(sid, doc['suites'][sid]) for sid in suite.get('requires', [])]
+    files = blobs(repo, sorted({path for suite in needed.values() for path in suite.get('paths', []) if path != '.'}))
     # "." adds the working-tree bytes of every tracked file, including paths outside any component.
     tracked = {}
-    if any('.' in suite['paths'] for suite in suites):
+    if any('.' in suite.get('paths', []) for suite in needed.values()):
         names = subprocess.check_output(['git', '-C', str(repo), 'ls-files', '-z']).decode().split('\0')
         for name in filter(None, names):
             path = Path(repo, name)
@@ -643,11 +651,16 @@ def cache_keys(doc, phases, repo, ctx, tools):
                   runner=sha256(*suites_files(), Path(__file__).resolve(), Path(source_fingerprint.__file__),
                                 Path(gate_receipt.__file__)),
                   env=sorted((k, v) for k, v in env.items() if k.startswith('AAC_') or k == 'AGENTD_PYTHON'))
-    return {suite['id']: hashlib.sha256(json.dumps(dict(
-                common, suite=suite, tracked=tracked if '.' in suite['paths'] else None,
-                files=[[p, b] for p, b in files.items() if _under(p, suite['paths'])]),
+    own = {sid: hashlib.sha256(json.dumps(dict(
+                common, suite=suite, tracked=tracked if '.' in suite.get('paths', []) else None,
+                files=[[p, b] for p, b in files.items() if _under(p, suite.get('paths', []))]),
                 sort_keys=True).encode()).hexdigest()
-            for suite in suites}
+           for sid, suite in needed.items()}
+
+    def key(sid):
+        return hashlib.sha256(json.dumps([own[sid], [key(need) for need in sorted(needed[sid].get('requires', []))]])
+                              .encode()).hexdigest()
+    return {suite['id']: key(suite['id']) for suite in suites}
 
 
 def cache_hits(phases, keys, folder):
@@ -717,64 +730,66 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.exec_block:
         return exec_block(args.exec_block)
-    doc = load_suites()
     if args.list:
+        doc = load_suites()
         for name, profile in doc['profiles'].items():
             ids = [s['id'] for lanes in plan(doc, name, True, None) for items in lanes for e in items
                    for s in ([e[1]] if e[0] != 'block' else e[2])]
             print(f'{name}: {" ".join(ids)}')
         return 0
-    if args.profile not in doc['profiles']:
-        parser.error(f'--profile must be one of {", ".join(doc["profiles"])}')
     if args.only and args.changed:
         parser.error('--only and --changed exclude each other')
     repo = args.checkout.resolve()
-    only = set(args.only.split(',')) if args.only else None
-    selection = None
-    if args.changed:
-        if subprocess.run(['git', '-C', str(repo), 'rev-parse', '--verify', '-q', f'{args.changed}^{{commit}}'],
-                          capture_output=True).returncode:
-            parser.error(f'--changed: {args.changed} is not a commit in {repo}')
-        changed_files = sorted({path for listing in (git(repo, 'diff', '--name-only', f'{args.changed}...HEAD'),
-                                                     git(repo, 'diff', '--name-only', 'HEAD'),
-                                                     git(repo, 'ls-files', '--others', '--exclude-standard'))
-                                for path in listing.splitlines() if path})
-        only, full = select(doc, changed_files)
-        if not changed_files and doc['profiles'][args.profile].get('empty_changes') == 'none':
-            only, full = set(), None
-        selection = dict(base=args.changed, changed=changed_files[:200], full=full)
-    phases = plan(doc, args.profile, args.perf, only, 'not reached by the changes' if args.changed else 'not in --only')
-    known = {e[1]['id'] for lanes in phases for items in lanes for e in items if e[0] != 'block'}
-    known |= {s['id'] for lanes in phases for items in lanes for e in items if e[0] == 'block' for s in e[2]}
-    if args.only and only - known:
-        parser.error(f'--only names suites not in {args.profile}: {", ".join(sorted(only - known))}')
-    head = []
-    if selection:
-        head = [f'SELECT: full profile, {selection["full"]}' if selection['full'] else
-                f'SELECT: {len(only & known)} of {len(known)} suites for {len(changed_files)} changed files since {args.changed}']
-    keep = args.logs is not None
-    logs = args.logs.resolve() if keep else Path(tempfile.mkdtemp(prefix='host-gate.'))
-    logs.mkdir(parents=True, exist_ok=True)
-    # As agentd-python.sh does first; Windows has no bash to run it.
-    agentd_python = os.environ.get('AGENTD_PYTHON') or subprocess.run(
-        ['bash', str(RUNNER_ROOT / 'tools/platform/agentd-python.sh')], capture_output=True, text=True, check=True).stdout.strip()
-    ctx = dict(repo=str(repo), logs=str(logs), agentd_python=agentd_python,
-               jobs=args.jobs, name=repo.name, runner=str(Path(__file__).resolve()))
-    tools = toolchain()
-    keys, folder = cache_keys(doc, phases, repo, ctx, tools), cache_dir(repo)
-    hits = {} if args.no_cache else cache_hits(phases, keys, folder)
-    if hits:
-        planned = [s for lanes in phases for items in lanes for e in items if e[0] != 'skip'
-                   for s in ([e[1]] if e[0] == 'suite' else e[2])]
-        head.append(f'CACHE: {len(hits)} of {len(planned)} suites reused')
-    if args.dry_run:
-        for line in head:
-            print(line)
-        print_plan(phases, ctx, hits)
-        if not keep:
-            shutil.rmtree(logs)
-        return 0
-    with checkout_lock(repo, args.profile) as queued:
+    # The plan and the cache keys read the sources the run tests, so they wait for the lock with it.
+    with contextlib.nullcontext(0.0) if args.dry_run else checkout_lock(repo, args.profile) as queued:
+        doc = load_suites()
+        if args.profile not in doc['profiles']:
+            parser.error(f'--profile must be one of {", ".join(doc["profiles"])}')
+        only = set(args.only.split(',')) if args.only else None
+        selection = None
+        if args.changed:
+            if subprocess.run(['git', '-C', str(repo), 'rev-parse', '--verify', '-q', f'{args.changed}^{{commit}}'],
+                              capture_output=True).returncode:
+                parser.error(f'--changed: {args.changed} is not a commit in {repo}')
+            changed_files = sorted({path for listing in (git(repo, 'diff', '--name-only', f'{args.changed}...HEAD'),
+                                                         git(repo, 'diff', '--name-only', 'HEAD'),
+                                                         git(repo, 'ls-files', '--others', '--exclude-standard'))
+                                    for path in listing.splitlines() if path})
+            only, full = select(doc, changed_files)
+            if not changed_files and doc['profiles'][args.profile].get('empty_changes') == 'none':
+                only, full = set(), None
+            selection = dict(base=args.changed, changed=changed_files[:200], full=full)
+        phases = plan(doc, args.profile, args.perf, only, 'not reached by the changes' if args.changed else 'not in --only')
+        known = {e[1]['id'] for lanes in phases for items in lanes for e in items if e[0] != 'block'}
+        known |= {s['id'] for lanes in phases for items in lanes for e in items if e[0] == 'block' for s in e[2]}
+        if args.only and only - known:
+            parser.error(f'--only names suites not in {args.profile}: {", ".join(sorted(only - known))}')
+        head = []
+        if selection:
+            head = [f'SELECT: full profile, {selection["full"]}' if selection['full'] else
+                    f'SELECT: {len(only & known)} of {len(known)} suites for {len(changed_files)} changed files since {args.changed}']
+        keep = args.logs is not None
+        logs = args.logs.resolve() if keep else Path(tempfile.mkdtemp(prefix='host-gate.'))
+        logs.mkdir(parents=True, exist_ok=True)
+        # As agentd-python.sh does first; Windows has no bash to run it.
+        agentd_python = os.environ.get('AGENTD_PYTHON') or subprocess.run(
+            ['bash', str(RUNNER_ROOT / 'tools/platform/agentd-python.sh')], capture_output=True, text=True, check=True).stdout.strip()
+        ctx = dict(repo=str(repo), logs=str(logs), agentd_python=agentd_python,
+                   jobs=args.jobs, name=repo.name, runner=str(Path(__file__).resolve()))
+        tools = toolchain()
+        keys, folder = cache_keys(doc, phases, repo, ctx, tools), cache_dir(repo)
+        hits = {} if args.no_cache else cache_hits(phases, keys, folder)
+        if hits:
+            planned = [s for lanes in phases for items in lanes for e in items if e[0] != 'skip'
+                       for s in ([e[1]] if e[0] == 'suite' else e[2])]
+            head.append(f'CACHE: {len(hits)} of {len(planned)} suites reused')
+        if args.dry_run:
+            for line in head:
+                print(line)
+            print_plan(phases, ctx, hits)
+            if not keep:
+                shutil.rmtree(logs)
+            return 0
         started = datetime.datetime.now(datetime.timezone.utc)
         files, f0 = source_fingerprint.compute(repo)
         guard = release.source_state(repo)
@@ -786,11 +801,13 @@ def main(argv=None):
         ended = time.monotonic()
         lines = head + lines
         f1 = source_fingerprint.compute(repo)[1]
-        if f1 != f0:
+        # The keys also cover test inputs outside the shipping fingerprint.
+        same = f1 == f0 and cache_keys(doc, phases, repo, ctx, tools) == keys
+        if not same:
             lines.append('SOURCES-CHANGED FAIL')
         store_results(results, keys, folder,
-                      dict(checkout=str(repo), started_at=utc(started), head=guard['head'], profile=args.profile), f1 == f0)
-        passed = passed and f1 == f0
+                      dict(checkout=str(repo), started_at=utc(started), head=guard['head'], profile=args.profile), same)
+        passed = passed and same
         finished = datetime.datetime.now(datetime.timezone.utc)
         receipt = gate_receipt.build(
             profile=args.profile, result='PASS' if passed else 'FAIL', partial=only is not None,

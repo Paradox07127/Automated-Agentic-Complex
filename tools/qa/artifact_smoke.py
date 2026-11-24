@@ -10,6 +10,7 @@ directory is kept on FAIL for its logs.
 """
 import argparse
 import hashlib
+import http.client
 import json
 import os
 from pathlib import Path
@@ -21,7 +22,6 @@ import subprocess
 import sys
 import tempfile
 import time
-import urllib.request
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / 'tools/release'))
@@ -157,11 +157,16 @@ def wait_log(log, pattern, seconds, proc=None):
 
 
 def health_ok(port):
+    """A direct connection, whatever the proxy variables say."""
+    connection = http.client.HTTPConnection('127.0.0.1', port, timeout=5)
     try:
-        with urllib.request.urlopen('http://127.0.0.1:%d/health' % port, timeout=5) as response:
-            return json.loads(response.read()).get('status') == 'ok'
+        connection.request('GET', '/health')
+        response = connection.getresponse()
+        return response.status == 200 and json.loads(response.read()).get('status') == 'ok'
     except (OSError, ValueError):
         return False
+    finally:
+        connection.close()
 
 
 def processes(support):

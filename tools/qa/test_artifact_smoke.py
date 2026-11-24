@@ -1,5 +1,6 @@
 """artifact_smoke.py against an ad-hoc signed stub .app; no real Companion is launched."""
 import hashlib
+import http.server
 import json
 import os
 from pathlib import Path
@@ -9,6 +10,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 from unittest import mock
 
@@ -333,6 +335,37 @@ class ArtifactSmokeTests(unittest.TestCase):
     def test_companion_port_is_refused(self):
         with self.assertRaisesRegex(ValueError, '48800'):
             artifact_smoke.smoke(self.root / 'Agentic Complex.app', F, port=48800)
+
+
+class HealthProbeTests(unittest.TestCase):
+    def serve(self, requests):
+        """Port of a server that notes each request path and answers status ok."""
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                requests.append(self.path)
+                body = json.dumps({'status': 'ok'}).encode()
+                self.send_response(200); self.send_header('Content-Length', str(len(body))); self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args): pass
+        server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        return server.server_address[1]
+
+    def test_the_probe_goes_to_the_port_and_never_to_the_proxy(self):
+        proxied, served = [], []
+        proxy = self.serve(proxied)
+        environ = {k: v for k, v in os.environ.items() if k.lower() != 'no_proxy'}
+        environ['http_proxy'] = environ['HTTP_PROXY'] = 'http://127.0.0.1:%d' % proxy
+        with socket.socket() as probe:
+            probe.bind(('127.0.0.1', 0))
+            closed = probe.getsockname()[1]
+        with mock.patch.dict(os.environ, environ, clear=True):
+            self.assertFalse(artifact_smoke.health_ok(closed))
+            self.assertTrue(artifact_smoke.health_ok(self.serve(served)))
+        self.assertEqual((proxied, served), ([], ['/health']))
 
 
 if __name__ == '__main__':

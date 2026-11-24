@@ -1,4 +1,7 @@
 """gate.py's per-suite result cache against a stub tree with its own suites.json."""
+import contextlib
+import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -33,11 +36,14 @@ SUITES = {
         'l': stub_suite('l', paths=['l/']),
         'e': dict(stub_suite('e', paths=['e/']),
                   run=['bash', '-c', 'echo e >> {repo}/../ran; echo "x = $RANDOM" > agent/agentd/edited.py']),
+        't': dict(stub_suite('t', paths=['t/']),
+                  run=['bash', '-c', 'echo t >> {repo}/../ran; echo "$RANDOM" > t/x.txt']),
     },
     'profiles': {
         'p': {'phases': [{'lanes': [['a', 'b', 'n', 'f'], ['dep', 'user']]},
                          {'lanes': [[{'lock': 'stub', 'label': 'stub-{name}', 'suites': ['l']}]]}]},
         'edit': {'phases': [{'lanes': [['a', 'e']]}]},
+        'inputs': {'phases': [{'lanes': [['a', 't']]}]},
     },
 }
 STORED = {'a', 'b', 'dep', 'user'}
@@ -51,7 +57,7 @@ class Cache(unittest.TestCase):
         self.logs = Path(self.tmp.name, 'logs').resolve()
         tree(self.root)
         write(self.root / 'tools/qa/suites.json', json.dumps(SUITES, indent=1))
-        for folder in ('a', 'b', 'f', 'd', 'u', 'l', 'e'):
+        for folder in ('a', 'b', 'f', 'd', 'u', 'l', 'e', 't'):
             write(self.root / folder / 'x.txt', f'{folder}\n')
         for args in (['add', '-A'], ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'suites']):
             subprocess.run(['git', '-C', str(self.root), *args], check=True, capture_output=True)
@@ -69,6 +75,27 @@ class Cache(unittest.TestCase):
         ran = Path(self.tmp.name, 'ran')
         self.ran = set(ran.read_text().split()) if ran.exists() else set()
         return result
+
+    def gate_after_lock(self, edit):
+        """(exit code, stdout) of the stub tree's gate.py run in this process; its checkout lock calls edit, then yields."""
+        Path(self.tmp.name, 'ran').unlink(missing_ok=True)
+        spec = importlib.util.spec_from_file_location('stub_gate', self.root / 'tools/qa/gate.py')
+        stub = importlib.util.module_from_spec(spec)
+        with mock.patch.object(sys, 'path', list(sys.path)):
+            spec.loader.exec_module(stub)
+
+        @contextlib.contextmanager
+        def lock(repo, profile):
+            edit()
+            yield 0.0
+
+        out = io.StringIO()
+        with mock.patch.object(stub, 'checkout_lock', lock), mock.patch.dict(os.environ, AGENTD_PYTHON=sys.executable), \
+                contextlib.redirect_stdout(out):
+            code = stub.main(['--checkout', str(self.root), '--logs', str(self.logs), '--profile', 'p'])
+        ran = Path(self.tmp.name, 'ran')
+        self.ran = set(ran.read_text().split()) if ran.exists() else set()
+        return code, out.getvalue()
 
     def receipt(self):
         return json.loads((self.logs / 'gate-receipt.json').read_text())
@@ -198,6 +225,36 @@ class Cache(unittest.TestCase):
         self.assertEqual(self.stored(), set())
         self.gate(profile='edit')
         self.assertIn('a', self.ran)
+
+    def test_a_run_that_edits_a_suite_input_fails_and_stores_nothing(self):
+        result = self.gate(profile='inputs')
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn('SOURCES-CHANGED FAIL', result.stdout.splitlines())
+        self.assertEqual(self.stored(), set())
+
+    def test_an_edit_while_the_run_waits_for_the_lock_is_not_answered_from_the_cache(self):
+        self.gate()
+        code, out = self.gate_after_lock(lambda: write(self.root / 'a/x.txt', 'changed\n'))
+        self.assertEqual(code, 0, out)
+        self.assertIn('a', self.ran)
+        self.assertNotIn('a', self.reused())
+
+    def test_an_edit_while_the_run_waits_for_the_lock_is_stored_under_the_edited_key(self):
+        code, out = self.gate_after_lock(lambda: write(self.root / 'a/x.txt', 'changed\n'))
+        self.assertEqual(code, 0, out)
+        self.gate()
+        self.assertNotIn('a', self.ran)
+        write(self.root / 'a/x.txt', 'a\n')
+        self.gate()
+        self.assertIn('a', self.ran)
+
+    def test_a_changed_prerequisite_input_reruns_its_dependent(self):
+        self.gate()
+        write(self.root / 'd/x.txt', 'changed\n')
+        result = self.gate()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.ran, {'dep', 'user'} | ALWAYS)
+        self.assertEqual(self.reused(), {'a', 'b'})
 
     def test_a_suite_required_by_a_running_suite_runs_and_a_locked_suite_is_never_stored(self):
         self.gate()

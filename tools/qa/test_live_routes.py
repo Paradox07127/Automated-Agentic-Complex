@@ -2,10 +2,12 @@ import contextlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import io
 import json
+import os
 from pathlib import Path
 import tempfile
 import threading
 import unittest
+from unittest import mock
 
 import live_routes
 
@@ -52,6 +54,18 @@ class Handler(BaseHTTPRequestHandler):
         return self.reply(404, {'error': 'not_found'})
 
 
+class Proxy(BaseHTTPRequestHandler):
+    """Answers every request 200, as a proxy that forwards it would."""
+    requests = []
+
+    def log_message(self, *args):
+        pass
+
+    def do_GET(self):
+        Proxy.requests.append((self.path, self.headers.get('Authorization')))
+        Handler.reply(self, 200, {})
+
+
 class LiveRoutesTest(unittest.TestCase):
     def setUp(self):
         Handler.requests = []
@@ -64,6 +78,19 @@ class LiveRoutesTest(unittest.TestCase):
         self.runtime = Path(directory.name) / 'ui-runtime.json'
         self.runtime.write_text(json.dumps({'base_url': f'http://127.0.0.1:{self.server.server_address[1]}',
                                             'ui_token': TOKEN}))
+
+    def proxied(self):
+        """Points http_proxy at a recording server for the rest of the test."""
+        Proxy.requests = []
+        proxy = ThreadingHTTPServer(('127.0.0.1', 0), Proxy)
+        threading.Thread(target=proxy.serve_forever, daemon=True).start()
+        self.addCleanup(proxy.server_close)
+        self.addCleanup(proxy.shutdown)
+        environ = {k: v for k, v in os.environ.items() if k.lower() != 'no_proxy'}
+        environ['http_proxy'] = environ['HTTP_PROXY'] = f'http://127.0.0.1:{proxy.server_address[1]}'
+        patch = mock.patch.dict(os.environ, environ, clear=True)
+        patch.start()
+        self.addCleanup(patch.stop)
 
     def run_script(self):
         out = io.StringIO()
@@ -90,6 +117,21 @@ class LiveRoutesTest(unittest.TestCase):
         self.assertNotIn('/stream', Handler.requests)
         self.assertEqual(set(Handler.requests),
                          {'/ok', '/closed', '/broken', '/things', '/things/abc123/detail', '/empty'})
+
+    def test_the_proxy_variables_never_see_the_token(self):
+        self.proxied()
+        code, lines = self.run_script()
+        self.assertEqual(lines[-1], '汇总：通过 3，失败 2，跳过 1')
+        self.assertEqual(Proxy.requests, [])
+        self.assertIn('/ok', Handler.requests)
+
+    def test_a_base_url_off_loopback_is_refused_before_any_request(self):
+        self.proxied()
+        self.runtime.write_text(json.dumps({'base_url': 'http://10.255.255.1:48800', 'ui_token': TOKEN}))
+        with self.assertRaises(SystemExit) as raised:
+            self.run_script()
+        self.assertEqual(raised.exception.code, 2)
+        self.assertEqual(Proxy.requests, [])
 
 
 if __name__ == '__main__':

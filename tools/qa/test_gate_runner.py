@@ -179,6 +179,45 @@ class StubTree(unittest.TestCase):
         self.assertEqual(self.receipt()['suites'], [])
 
 
+class Wrappers(unittest.TestCase):
+    """agentd_gate.sh, mac_gate.sh and web_gate.sh beside a gate.py that only notes that it started."""
+    SCRIPTS = ['agentd_gate.sh', 'mac_gate.sh', 'web_gate.sh']
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.qa = Path(self.tmp.name, 'qa')
+        for name in self.SCRIPTS:
+            write(self.qa / name, (REPO / 'tools/qa' / name).read_text())
+        self.started = Path(self.tmp.name, 'started')
+        write(self.qa / 'gate.py', f'open({str(self.started)!r}, "w").close()\n')
+
+    def run_script(self, name, *args):
+        return subprocess.run(['bash', str(self.qa / name), *args], capture_output=True, text=True, timeout=60)
+
+    def test_a_missing_checkout_exits_nonzero_before_the_gate_starts(self):
+        for name in self.SCRIPTS:
+            with self.subTest(name):
+                result = self.run_script(name, str(Path(self.tmp.name, 'missing')), str(Path(self.tmp.name, 'logs')))
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(self.started.exists())
+
+    def test_too_few_arguments_exit_nonzero_before_the_gate_starts(self):
+        for name in self.SCRIPTS:
+            with self.subTest(name):
+                result = self.run_script(name, self.tmp.name)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(self.started.exists())
+
+    def test_a_checkout_and_a_log_dir_start_the_gate(self):
+        for name in self.SCRIPTS:
+            with self.subTest(name):
+                result = self.run_script(name, self.tmp.name, str(Path(self.tmp.name, 'logs')))
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertTrue(self.started.exists())
+                self.started.unlink()
+
+
 class CheckoutLock(unittest.TestCase):
     """gate.py in a worktree waits on the gate runner's checkout lock of the main checkout."""
     SUITES = {'schema': 'endfield-gate-suites/v1', 'full_on': [], 'no_suite': [],

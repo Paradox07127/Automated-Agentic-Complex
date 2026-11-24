@@ -8,9 +8,7 @@ import re
 import socket
 import sys
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
 
 ROOT = Path(__file__).resolve().parents[2]
 ROUTES = ROOT / 'protocol/ui-bridge/routes.json'
@@ -18,6 +16,7 @@ RUNTIME = Path.home() / 'Library/Application Support/AgenticComplex/agentd/ui-ru
 TIMEOUT = 20
 REGEX_CHARS = set('^$()[]{}?*+|\\.')
 NO_SAMPLE = '跳过：没有样本 id'
+LOOPBACK = {'127.0.0.1', '::1', 'localhost'}
 
 
 def ui_routes(routes):
@@ -26,31 +25,23 @@ def ui_routes(routes):
 
 
 def fetch(base, token, path):
-    """(status or error text, body bytes, milliseconds)."""
-    url = base.rstrip('/') + urllib.parse.quote(path, safe="/:@-._~!$&'()*+,;=")
-    request = urllib.request.Request(url, headers={'Authorization': 'Bearer ' + token})
+    """(status or error text, body bytes, milliseconds); a direct connection, whatever the proxy variables say."""
+    url = urllib.parse.urlsplit(base)
+    target = url.path.rstrip('/') + urllib.parse.quote(path, safe="/:@-._~!$&'()*+,;=")
+    connection = http.client.HTTPConnection(url.hostname, url.port, timeout=TIMEOUT)
     started = time.monotonic()
     try:
-        with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
-            status, body = response.status, response.read()
-    except urllib.error.HTTPError as e:
-        with e:
-            status, body = e.code, e.read()
+        connection.request('GET', target, headers={'Authorization': 'Bearer ' + token})
+        response = connection.getresponse()
+        status, body = response.status, response.read()
     except (http.client.RemoteDisconnected, ConnectionResetError, http.client.IncompleteRead):
         status, body = '连接被关', b''
     except (socket.timeout, TimeoutError):
         status, body = '超时', b''
-    except urllib.error.URLError as e:
-        reason = e.reason
-        if isinstance(reason, (socket.timeout, TimeoutError)):
-            status = '超时'
-        elif isinstance(reason, (http.client.RemoteDisconnected, ConnectionResetError)):
-            status = '连接被关'
-        else:
-            status = '错误 ' + str(reason)
-        body = b''
     except OSError as e:
         status, body = '错误 ' + str(e), b''
+    finally:
+        connection.close()
     return status, body, (time.monotonic() - started) * 1000
 
 
@@ -120,6 +111,8 @@ def main(argv=None, routes=None):
     args = parser.parse_args(argv)
     runtime = json.loads(args.runtime.read_text())
     base, token = runtime['base_url'], runtime['ui_token']
+    if urllib.parse.urlsplit(base).hostname not in LOOPBACK:
+        parser.error(f'base_url {base} is not on loopback; the UI token goes only there')
     if routes is None:
         routes = json.loads(ROUTES.read_text())
     passed = failed = skipped = 0
