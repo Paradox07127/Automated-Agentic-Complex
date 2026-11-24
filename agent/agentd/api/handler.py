@@ -648,7 +648,8 @@ class Handler(BaseHTTPRequestHandler, HooksMixin, SessionsMixin, MemoryMixin, Ep
             self.server.episodes.clear()
             self.server._forget_derived(None)
             checkpoint(self.server.episodes)
-        any(self.server._context_changed(kind) for kind in SEEN)
+        for kind in SEEN:
+            self.server._context_changed(kind)
         with self.server._write_lock:  # what was written before the +1 is cleared, what comes after it is not stored
             self.server.trace_generation += 1
             trace_deleted = trace.clear() if trace is not None else 0

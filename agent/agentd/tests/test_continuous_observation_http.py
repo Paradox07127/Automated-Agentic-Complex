@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import test_server
@@ -51,5 +52,15 @@ class ObservationHTTPTests(fixture.BriefHTTPFixture):
         self.server.share_page_text=False;self.server.share_typed_text=False;self.server.capture.share_text=False;self.server.capture.vision=None;self.server.sync_privacy()
         self.assertFalse(self.request('GET','/observation/state')[1]['available'])
         self.assertEqual(self.request('GET','/observation/sources')[1]['items'],[])
+
+    def test_timeline_summary_ids_read_and_bad_refresh_ids_are_rejected(self):
+        self.ready()
+        with patch.object(self.c.observations,'read',return_value={'observation_id':'tl-123'}) as read:
+            self.assertEqual(self.request('GET','/observation/sources/tl-123'),(200,{'observation_id':'tl-123'}))
+        self.assertEqual(read.call_args.args[0],'tl-123')
+        for path in ('/observation/sources/tl-123/changes','/observation/sources/tl-123/image'):
+            self.assertEqual(self.request('GET',path)[0],404)
+        for ident in (['x'],{'a':1},7):
+            self.assertEqual(self.request('POST','/observation/refresh',{'observation_id':ident}),(400,{'error':'invalid_observation_request'}))
 
 if __name__=='__main__':unittest.main()

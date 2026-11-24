@@ -47,8 +47,10 @@ class EpisodesMixin:
             controller = server.character_agent
             if not controller._permitted('episodes',episode): return self._json(403, {'error':'source_permission_revoked'})
             run = controller.memory_run_details(episode['run_id'])
-            if not run or not run['detail']: return self._json(410, {'error':'evidence_expired'})
-            request = json.loads(run['detail']['request'])
+            raw = run['detail'].get('request') if run and run['detail'] else None
+            try: request = json.loads(raw) if isinstance(raw, str) and raw else None
+            except ValueError: request = None
+            if not isinstance(request, dict): return self._json(410, {'error':'evidence_expired'})
             sources = request.get('evidence',{}).get('evidence',{}).get('sources',[])
             by_id = {item['source_id']:item for item in sources}
             ids = list(dict.fromkeys(v for t in episode['threads'] for v in t.get('evidence',[])))
@@ -87,7 +89,7 @@ class EpisodesMixin:
         if episode is None:
             return self._json(404, {"error": "unknown_episode"})
         briefs = getattr(controller, 'observation_briefs', None)
-        if briefs is not None: briefs.clear()
+        if briefs is not None: briefs.forget_episodes([int(raw_id)])
         self._json(200, {"episode": _episode_json(episode)})
 
     def _summary_runs(self, day):

@@ -69,6 +69,14 @@ class TaskHTTPTests(test_server.FeedServerCase):
         self.assertEqual(self.request('GET','/task-understanding')[1]['hypotheses'],[])
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM facts').fetchone()[0],0)
 
+    def test_correction_text_must_be_a_string_and_reject_takes_none(self):
+        path='/task-understanding/'+self.service.task_understanding_context()['hypotheses'][0]['id']+'/correct'
+        for body in ({'revision':1,'action':'reject','text':123},{'revision':1,'action':'reject','text':'x'},
+                     {'revision':1,'action':'correct','text':123},{'revision':1,'action':'correct'}):
+            with self.subTest(body=body):
+                self.assertEqual(self.request('POST',path,body)[0],400)
+        self.assertEqual(self.request('POST',path,{'revision':1,'action':'reject'})[0],200)
+
     def test_epoch_revocation_and_role_switch_reject_stale_correction(self):
         # Else the tick thread can take the revocation and still be clearing when the GET returns.
         self.server._stopped.set();self.server._ticker.join(2)

@@ -227,7 +227,8 @@ class AttentionStore:
 
     def ingest_browser(self, message):
         """One extension message: a heartbeat for the timeline, page / selection text kept locally, or a
-        selection_cleared kept as a context row with empty text."""
+        selection_cleared kept as a context row with empty text. Returns the page or selection it admitted, with
+        its whole text, else None."""
         ts, kind = float(message["ts"]), message["type"]
         ids = {f: message.get(f) for f in IDENTITY}
         host = message.get("url_host")
@@ -236,9 +237,10 @@ class AttentionStore:
         title = title if isinstance(title, str) else None
         hidden = host == HIDDEN["app"] or self.blacklist.hides({"url_host": host, "title": title})
         title = title[:TITLE_MAX] if title is not None and not hidden else None
+        admitted = None
         with self.lock:
             if not self.browser_capture_allowed() or ts < self._browser_after:
-                return
+                return None
             self._prune()
             if kind == "heartbeat":
                 audible = bool(message.get("audible"))
@@ -263,7 +265,10 @@ class AttentionStore:
                 self.db.execute("INSERT INTO context (ts, kind, url_host, title, text, browser_session, tab_id,"
                                 " document_id, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                                 (ts, kind, host, title, text, *(ids[f] for f in IDENTITY)))
+                if kind != "selection_cleared":
+                    admitted = {"ts": ts, "type": kind, "url_host": host, "title": title, **ids, "text": message["text"]}
             self.db.commit()
+        return admitted
 
     def context(self):
         with self.lock:

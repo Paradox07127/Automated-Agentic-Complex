@@ -106,7 +106,7 @@ export const AGENTD_ROUTES: readonly AgentdRoute[] = [
   { method: 'GET', path: '/task-understanding', templates: ['/task-understanding'], class: 'read', surfaces: ['main'], plugin: 'screen_awareness', response: 'task-understanding.json' },
   { method: 'GET', path: '/observation/state', templates: ['/observation/state'], class: 'read', surfaces: ['main'], plugin: 'screen_awareness', response: 'observation-state.json' },
   { method: 'GET', path: '/observation/sources', templates: ['/observation/sources'], class: 'read', surfaces: ['main'], plugin: 'screen_awareness', response: 'observation-sources.json' },
-  { method: 'GET', path: '^/observation/sources/(?:obs-|work-)[a-f0-9]{32}(?:/(?:changes|image))?$', templates: ['/observation/sources/:source_id', '/observation/sources/:source_id/changes', '/observation/sources/:source_id/image'], class: 'read', surfaces: ['main'], plugin: 'screen_awareness' },
+  { method: 'GET', path: '^/observation/sources/(?:(?:obs-|work-)[a-f0-9]{32}(?:/(?:changes|image))?|tl-[0-9]{1,18})$', templates: ['/observation/sources/:source_id', '/observation/sources/:source_id/changes', '/observation/sources/:source_id/image'], class: 'read', surfaces: ['main'], plugin: 'screen_awareness' },
   { method: 'POST', path: '/observation/analyze', templates: ['/observation/analyze'], class: 'write', surfaces: ['main'], plugin: 'screen_awareness' },
   { method: 'POST', path: '/observation/refresh', templates: ['/observation/refresh'], class: 'write', surfaces: ['main'], plugin: 'screen_awareness' },
   { method: 'GET', path: '/observation/briefs', templates: ['/observation/briefs'], class: 'read', surfaces: ['main'], plugin: 'daily_brief', response: 'observation-briefs.json' },

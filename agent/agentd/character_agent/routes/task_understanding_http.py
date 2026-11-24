@@ -19,7 +19,9 @@ def route(handler, method, path):
     if method != 'POST' or path == '/task-understanding': return reply(405, {'error':'method_not_allowed'})
     try:
         body = handler.body()
-        if not isinstance(body, dict) or set(body)-{'revision','action','text'} or type(body.get('revision')) is not int:
+        if not isinstance(body, dict) or set(body)-{'revision','action','text'} or type(body.get('revision')) is not int \
+                or body.get('action')=='correct' and not isinstance(body.get('text'), str) \
+                or body.get('action')=='reject' and 'text' in body:
             raise ValueError('invalid_payload')
         return reply(200, service.correct_task(path.split('/')[2], body['revision'], action=body.get('action'), text=body.get('text')))
     except ValueError as error:

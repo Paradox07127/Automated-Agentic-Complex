@@ -251,6 +251,19 @@ class TimelineServerTest(unittest.TestCase):
         [stored] = self.stored()
         self.assertEqual((stored["tree"], stored["text"]), (None, "写一半"))
 
+    def test_without_window_text_a_static_text_title_goes_with_the_tree(self):
+        target = {**self.record()["target"], "role": "AXStaticText", "title": "secret"}
+        for secure in (False, True):
+            with self.subTest(secure=secure):
+                self.server.timeline.clear()
+                self.now += 1
+                if secure:
+                    self.share_window_text()
+                self.server.attention._secure = secure
+                self.assertEqual(self.post(self.record(kind="click", target=target)), (200, {"stored": 1, "dropped": 0}))
+                [stored] = self.stored()
+                self.assertEqual((stored["tree"], stored["target"]["title"]), (None, None))
+
     def test_the_focused_level_keeps_no_tree(self):
         self.share_window_text("focused")
         self.assertEqual(self.post(self.record()), (200, {"stored": 1, "dropped": 0}))

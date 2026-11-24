@@ -304,7 +304,7 @@ REGISTRY = (
     Route("GET", "/observation/sources", UI, "read", ("main",),
           owner=OBSERVATION_HTTP, summary="Search observation sources", spec=C6,
           response="observation-sources.json"),
-    Route("GET", re.compile(r"^/observation/sources/(?:obs-|work-)[a-f0-9]{32}(?:/(?:changes|image))?$"), UI, "read", ("main",),
+    Route("GET", re.compile(r"^/observation/sources/(?:(?:obs-|work-)[a-f0-9]{32}(?:/(?:changes|image))?|tl-[0-9]{1,18})$"), UI, "read", ("main",),
           templates=("/observation/sources/:source_id", "/observation/sources/:source_id/changes", "/observation/sources/:source_id/image"),
           owner=OBSERVATION_HTTP, summary="One observation source, its changes or image", spec=C6),
     Route("POST", "/observation/analyze", UI, "write", ("main",),

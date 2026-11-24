@@ -68,7 +68,8 @@ class MemorySyncMixin:
         if self.memory is None:
             return []
         briefs = getattr(self.character_agent, 'observation_briefs', None)
-        if briefs is not None and (episode_ids is None or episode_ids): briefs.clear()
+        if briefs is not None and episode_ids is None: briefs.clear()
+        elif briefs is not None and episode_ids: briefs.forget_episodes(episode_ids)
         facts = self.memory.delete_derived(episode_ids)
         for fact_id in facts:
             self.feed.publish("memory", {"action": "deleted", "fact_id": fact_id})

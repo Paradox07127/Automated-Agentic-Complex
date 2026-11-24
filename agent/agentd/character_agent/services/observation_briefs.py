@@ -321,6 +321,20 @@ class ObservationBriefs:
             self.db.execute('DELETE FROM observation_brief_failures WHERE brief_id NOT IN (SELECT id FROM observation_briefs)')
             self.db.commit()
 
+    def forget_episodes(self, episode_ids):
+        """Dismiss the completed briefs that read any of episode_ids."""
+        wanted = [str(ident) for ident in episode_ids]
+        with self.lock:
+            ids = [r[0] for r in self.db.execute(
+                "SELECT id FROM observation_briefs b WHERE state='completed' AND EXISTS (SELECT 1 FROM json_each(b.dependencies) d"
+                f" WHERE json_extract(d.value,'$.kind')='episode' AND json_extract(d.value,'$.id') IN ({','.join('?'*len(wanted))}))",
+                wanted)]
+            for ident in ids:
+                self.db.execute("UPDATE observation_briefs SET state='dismissed',body=NULL,dependencies=NULL WHERE id=?", (ident,))
+            self.db.commit()
+        for ident in ids:
+            self.server.feed.publish('observation_brief',{'id':ident,'state':'dismissed'})
+
     def clear(self):
         self.epoch += 1
         with self.lock:

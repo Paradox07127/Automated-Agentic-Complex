@@ -86,7 +86,7 @@
   {"method": "GET", "path": "/task-understanding", "class": "read", "surfaces": ["main"], "plugin": "screen_awareness"},
   {"method": "GET", "path": "/observation/state", "class": "read", "surfaces": ["main"], "plugin": "screen_awareness"},
   {"method": "GET", "path": "/observation/sources", "class": "read", "surfaces": ["main"], "plugin": "screen_awareness"},
-  {"method": "GET", "path": "^/observation/sources/(?:obs-|work-)[a-f0-9]{32}(?:/(?:changes|image))?$", "class": "read", "surfaces": ["main"], "plugin": "screen_awareness"},
+  {"method": "GET", "path": "^/observation/sources/(?:(?:obs-|work-)[a-f0-9]{32}(?:/(?:changes|image))?|tl-[0-9]{1,18})$", "class": "read", "surfaces": ["main"], "plugin": "screen_awareness"},
   {"method": "POST", "path": "/observation/analyze", "class": "write", "surfaces": ["main"], "plugin": "screen_awareness"},
   {"method": "POST", "path": "/observation/refresh", "class": "write", "surfaces": ["main"], "plugin": "screen_awareness"},
   {"method": "GET", "path": "/observation/briefs", "class": "read", "surfaces": ["main"], "plugin": "daily_brief"},

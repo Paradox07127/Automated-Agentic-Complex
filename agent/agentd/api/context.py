@@ -88,6 +88,9 @@ class ContextInputMixin:
                 and isinstance(body.get("screen_captured"), (bool, type(None)))
                 and body.get("edge") in (None, "lock", "unlock", "sleep", "wake")):
             return self._json(400, {"error": "invalid_attention"})
+        config = self.server.privacy_config  # None: no saved settings, the startup flags alone decide
+        if "input" in body and config is not None and not saved_switch(config, "sense_input_counts", default=True):
+            body = {k: v for k, v in body.items() if k != "input"}
         store.ingest(body)
         self.server.focus.beat(category(body["front"]), body["ts"],
                                self.server.user_now.snapshot()["presence"] == "present")
@@ -147,6 +150,8 @@ class ContextInputMixin:
         for row in kept:
             if secure or not consent["window_text"] or level != "window":
                 row["tree"] = None  # a tree is the window's text
+                if row["target"] is not None and row["target"]["role"] == "AXStaticText":
+                    row["target"]["title"] = None  # a static text's title is its visible text
             if secure or not typed:
                 row["text"] = None
                 if row["target"] is not None:
@@ -262,11 +267,14 @@ class ContextInputMixin:
         # Enforce the switch again: an older extension or a policy response in flight cannot bypass it.
         if body["type"] in ("page", "selection") and not self.server.page_text_allowed():
             return self._json(200, {})
-        store.ingest_browser(body)
+        record = store.ingest_browser(body)
         observations=getattr(getattr(self.server,'character_agent',None),'observations',None)
-        if observations and body['type'] in ('page','selection'):
-            observations.ingest('browser',body['text'],metadata={k:v for k,v in body.items() if k!='text'},at=body['ts'],
-                source_key='browser:'+str(body.get('browser_session'))+':'+str(body.get('tab_id'))+':'+body['type'])
+        if observations and record is not None:
+            # Secure input, a lock or sleep that starts before the commit drops it too.
+            capture_valid=lambda:store.browser_capture_allowed() and record['ts']>=store._browser_after
+            observations.ingest('browser',record['text'],metadata={k:v for k,v in record.items() if k!='text'},at=record['ts'],
+                capture_valid=capture_valid,
+                source_key='browser:'+str(record['browser_session'])+':'+str(record['tab_id'])+':'+record['type'])
         self.server._browser_at = time.time()
         self._json(200, {})
 

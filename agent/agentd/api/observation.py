@@ -94,7 +94,8 @@ class ObservationMixin:
         derived = server._forget_derived(ids, reason="observations_deleted")
         if server.trace is not None:  # one file with the episodes' in main()
             checkpoint(server.trace)
-        any(server._context_changed(kind, reason="observations_deleted") for kind in SEEN)
+        for kind in SEEN:
+            server._context_changed(kind, reason="observations_deleted")
         body = {"events": events, "context": context, "observations": observations,
                 "facts": len(set(facts) | set(derived))}
         self._json(200, body if server.episodes is None else {**body, "episodes": len(ids)})

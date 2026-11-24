@@ -91,3 +91,27 @@ class BriefHTTPTests(BriefHTTPFixture):
         self.db.execute('DELETE FROM episodes WHERE id=?', (self.episode_id,)); self.db.commit()
         self.assertEqual(self.request('GET','/observation/briefs')[1]['reports'],[])
         self.assertIsNone(self.db.execute('SELECT body FROM observation_briefs').fetchone()[0])
+
+    def test_episode_edits_and_deletes_dismiss_only_the_briefs_that_read_the_episode(self):
+        self.release.set()
+        def episode(date):
+            start=window('daily',date,'America/New_York')[1]+3600;run='run-'+date
+            self.db.execute("INSERT INTO memory_agent_runs(run_id,backend,model,character_id,started_at,state,prompt_version,input_sha256) VALUES(?,?,?,?,?,'completed','fixture','fixture')",
+                (run,'codex','fixture',self.server.character,start))
+            self.db.commit()
+            return add_episode(self.server.episodes,start,start+120,'渲染测试失败','渲染测试失败，需要核验',run_id=run)
+        other,unread=episode('2026-10-29'),episode('2026-10-24')
+        first,second=(self.service.run_once('daily',date)['id'] for date in ('2026-10-30','2026-10-29'))
+        states=lambda:dict(self.db.execute('SELECT id,state FROM observation_briefs').fetchall())  # noqa: E731
+        edit=lambda ident:self.request('PATCH',f'/episodes/{ident}',{'title':'改过的标题','description':'改过的描述'})[0]  # noqa: E731
+        self.assertEqual(edit(unread),200)
+        self.assertEqual(states(),{first:'completed',second:'completed'})
+        self.assertEqual(edit(self.episode_id),200)
+        self.assertEqual(states(),{first:'dismissed',second:'completed'})
+        self.assertEqual(self.request('DELETE',f'/episodes/{other}')[0],200)
+        self.assertEqual(states(),{first:'dismissed',second:'dismissed'})
+
+    def test_evidence_of_a_trimmed_run_detail_is_expired(self):
+        for detail in ({'request':''},{'request':'{'},{}):
+            with self.subTest(detail=detail), patch.object(self.c,'memory_run_details',return_value={'detail':{**detail,'response':'x'}}):
+                self.assertEqual(self.request('GET',f'/episodes/{self.episode_id}/evidence'),(410,{'error':'evidence_expired'}))
