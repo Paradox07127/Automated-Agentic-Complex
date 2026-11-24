@@ -36,6 +36,7 @@ CLI_EXITED = "claude_cli_exited"
 CLI_ENV = {"CLAUDE_CODE_SKIP_PROMPT_HISTORY": "1"}
 ISOLATED_ENV = {"CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1", "ENABLE_TOOL_SEARCH": "false"}
 PERMISSION_TOOL = "endfield_permission"
+REMINDER_HOOK = "endfield_tool_reminder"
 # --permission-prompt-tool is called with {tool_name, input, tool_use_id} and answers one text block of
 # {"behavior": "allow"} or {"behavior": "deny", "message": ...}.
 PERMISSION_SCHEMA = {"type": "object", "properties": {"tool_name": {"type": "string"}, "input": {"type": "object"},
@@ -80,9 +81,9 @@ def tool_key(name, args):
 class ClaudeCli:
     """stream-json over the CLI's stdio, one JSON message per line each way; control requests carry a request_id."""
 
-    def __init__(self, argv, env, cwd, on_message, on_exit):
+    def __init__(self, argv, env, cwd, on_message, on_exit, on_hook):
         self.argv, self.env, self.cwd = argv, env, cwd
-        self.on_message, self.on_exit = on_message, on_exit
+        self.on_message, self.on_exit, self.on_hook = on_message, on_exit, on_hook
         self.proc = None
         self.pending = {}
         self.write_lock = asyncio.Lock()
@@ -146,8 +147,11 @@ class ClaudeCli:
                     else:
                         future.set_exception(RunnerFailure("claude_control_rejected"))
                 elif kind == "control_request":
-                    # Permission prompts are off and no hooks are registered; anything asked is refused.
-                    asyncio.create_task(self.refuse(message.get("request_id")))
+                    # Permission prompts are off; a hook the runner did not register and anything else asked is refused.
+                    request = message.get("request") if isinstance(message.get("request"), dict) else {}
+                    output = self.on_hook(request) if request.get("subtype") == "hook_callback" else None
+                    asyncio.create_task(self.refuse(message.get("request_id")) if output is None else
+                                        self.answer(message.get("request_id"), output))
                 elif kind != "control_cancel_request":
                     self.on_message(message)
         except ValueError:
@@ -163,6 +167,13 @@ class ClaudeCli:
         try:
             await self.write({"type": "control_response", "response": {"subtype": "error", "request_id": request_id,
                                                                        "error": "Agentic Complex does not answer this request"}})
+        except RunnerFailure:
+            pass
+
+    async def answer(self, request_id, response):
+        try:
+            await self.write({"type": "control_response", "response": {"subtype": "success", "request_id": request_id,
+                                                                       "response": response}})
         except RunnerFailure:
             pass
 
@@ -200,6 +211,7 @@ class ClaudeRunner(Runner):
         self.bridge = None
         self.native = False
         self.permissions = {}
+        self.tool_reminder = None
 
     def capabilities(self):
         return {"cancel": "native", "tool_injection": "mcp_stdio", "builtin_tools": "unverified",
@@ -246,9 +258,15 @@ class ClaudeRunner(Runner):
         mcp = {"mcpServers": {"agentic_complex": {"type": "stdio", "command": command, "args": args, "env": {}}}}
         env = {**os.environ, **CLI_ENV, **({} if self.native else ISOLATED_ENV)}
         argv = cli_argv(str(Path(cli).resolve()), config, message.get("system_prompt", ""), mcp, self.allowed_names)
-        self.client = ClaudeCli(argv, env, str(cwd), self.cli_message, self.cli_exited)
+        self.client = ClaudeCli(argv, env, str(cwd), self.cli_message, self.cli_exited, self.hook)
         await self.client.start()
-        info = await self.client.control({"subtype": "initialize"}, timeout=120)
+        request = {"subtype": "initialize"}
+        reminder = config.get("tool_reminder")
+        if isinstance(reminder, str) and reminder:
+            self.tool_reminder = reminder
+            # A null matcher matches every tool, built-in and MCP alike.
+            request["hooks"] = {"PostToolUse": [{"matcher": None, "hookCallbackIds": [REMINDER_HOOK]}]}
+        info = await self.client.control(request, timeout=120)
         if self.failure:
             raise RunnerFailure(self.failure)
         extra = {"effort_applied": True} if config.get("effort") else {}
@@ -258,6 +276,11 @@ class ClaudeRunner(Runner):
                    "cli_version": info.get("claude_code_version") if isinstance(info.get("claude_code_version"), str) else None,
                    "cli_pid": self.client.proc.pid, **extra})
         self.ready_sent = True
+
+    def hook(self, request):
+        if not self.tool_reminder or request.get("callback_id") != REMINDER_HOOK:
+            return None
+        return {"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": self.tool_reminder}}
 
     async def mcp_call(self, name, args):
         if self.native and name == PERMISSION_TOOL and isinstance(args, dict):

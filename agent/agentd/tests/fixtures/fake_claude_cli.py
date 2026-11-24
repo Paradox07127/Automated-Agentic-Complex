@@ -6,11 +6,14 @@ comma-separated) and answers control requests. FAKE_CLAUDE_SCRIPT picks the turn
 normal  streams "Hello ", calls the first MCP tool as toolu_1, streams "world", then a result with usage and cost;
 auth    the CLI's authentication_failed notice and an is_error result;
 rate    the CLI's rate_limit notice and an is_error result with api_error_status 429;
-permission  asks the --permission-prompt-tool about a Bash call and answers with the behavior it returned.
+permission  asks the --permission-prompt-tool about a Bash call and answers with the behavior it returned;
+hook    sends a PostToolUse hook_callback for the first hook initialize registered (or "hook_0") and answers with the
+        reply's additionalContext, or "refused" when the reply is an error.
 FAKE_CLAUDE_LOG names a JSON-lines file that records argv and cwd, the MCP tool replies and each stdin message.
 """
 import json
 import os
+import queue
 import subprocess
 import sys
 import threading
@@ -20,7 +23,7 @@ LOG = os.environ.get("FAKE_CLAUDE_LOG")
 EXTRA_TOOLS = [name for name in os.environ.get("FAKE_CLAUDE_EXTRA_TOOLS", "").split(",") if name]
 SESSION = "11111111-2222-3333-4444-555555555555"
 write_lock = threading.Lock()
-state = {"mcp": None, "tools": [], "costs": 0.0}
+state = {"mcp": None, "tools": [], "costs": 0.0, "hooks": None, "replies": queue.Queue()}
 
 
 def log(event, **fields):
@@ -120,6 +123,17 @@ def turn(prompt):
         behavior = json.loads(reply["result"]["content"][0]["text"])["behavior"]
         text_message("msg_1", behavior)
         result(result=behavior)
+    elif SCRIPT == "hook":
+        ids = [i for matcher in (state["hooks"] or {}).get("PostToolUse", []) for i in matcher["hookCallbackIds"]]
+        send({"type": "control_request", "request_id": "cli_1", "request": {
+            "subtype": "hook_callback", "callback_id": ids[0] if ids else "hook_0", "tool_use_id": "toolu_1",
+            "input": {"hook_event_name": "PostToolUse", "tool_name": "Read", "tool_input": {"file_path": "notes.txt"},
+                      "tool_response": "fixture", "tool_use_id": "toolu_1"}}})
+        reply = state["replies"].get(timeout=10)
+        log("hook_reply", reply=reply)
+        text = reply["response"]["hookSpecificOutput"]["additionalContext"] if reply["subtype"] == "success" else "refused"
+        text_message("msg_1", text)
+        result(result=text)
 
 
 def main():
@@ -137,7 +151,11 @@ def main():
     for line in sys.stdin:
         message = json.loads(line)
         log("stdin", message=message)
-        if message.get("type") == "control_request":
+        if message.get("type") == "control_response":
+            state["replies"].put(message["response"])
+        elif message.get("type") == "control_request":
+            if message["request"].get("subtype") == "initialize":
+                state["hooks"] = message["request"].get("hooks")
             response = {"commands": [], "models": [], "pid": os.getpid(), "claude_code_version": "2.1.327-fake"} \
                 if message["request"].get("subtype") == "initialize" else {}
             send({"type": "control_response", "response": {"subtype": "success", "request_id": message["request_id"],
