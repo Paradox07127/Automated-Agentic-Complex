@@ -27,9 +27,14 @@ def contract_renderer_capabilities():
     return names
 
 
+def efw_host():
+    """efw's host session, which host.cpp and the host_*.cpp beside it make up."""
+    return '\n'.join(p.read_text(encoding='utf-8') for p in sorted(EFW.glob('host*.cpp')))
+
+
 def efw_hello():
     """Static read of the names efw's hello can list: the base list, capture and HostSpeech::capabilities."""
-    host = (EFW / 'host.cpp').read_text(encoding='utf-8')
+    host = efw_host()
     names = strings(re.search(r'std::vector<Json> capabilities = \{(.*?)\};', host, re.S).group(1))
     names += re.findall(r'capabilities\.push_back\("([a-z_]+)"\)', host)
     speech = (EFW / 'host_speech.cpp').read_text(encoding='utf-8')
@@ -93,7 +98,7 @@ class RendererSourceTests(unittest.TestCase):
 
     def test_efw_reports_unsupported_settings_by_the_table(self):
         # host-common's generated table (protocol/tools/gen_render_table.py) is the only list of what efw draws fixed.
-        host = (EFW / 'host.cpp').read_text(encoding='utf-8')
+        host = efw_host()
         self.assertNotIn('kFixed', host)
         self.assertIn('hc_render_settings_unsupported(HC_RENDER_WINDOWS', host)
 
