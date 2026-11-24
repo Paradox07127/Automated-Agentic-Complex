@@ -18,7 +18,7 @@ import uuid
 from brain.markers import MarkerStream
 from brain.outbound import OutboundBlocked
 from brain.language import SYSTEM_RULE
-from brain.persona import localized, render_persona
+from brain.persona import TOOL_REMINDER, localized, render_brief_persona, render_persona
 from character.binding import bound, effective
 from character_agent.services.knowledge import KnowledgeService
 from character_agent.services.interactions import InteractionService, QuestionTurn
@@ -359,7 +359,7 @@ class CharacterAgentController:
         card, motion = bound(s.characters.load_card(cid), effective(s, cid))
         setting = self.settings.snapshot()['reply_language']
         card = localized(card, self.reply_language.current(setting))
-        system = render_persona(card, motion) + '\n' + card['post_history_instructions'] + '\n' + persona_personal_instructions(card)
+        system = render_brief_persona(card) + '\n' + persona_personal_instructions(card)
         system += ('\n<background_job>\n'
                    'Background job: the user handed you this work and is not waiting on your words; they will read your result directly and '
                    'the character will report it, so it must stand on its own.\n'
@@ -1152,8 +1152,10 @@ class CharacterAgentController:
             self._pi_prices[provider] = {m["id"]: m["priced"] for m in models}
         return self._pi_prices[provider].get(self._model(config), False)
 
-    def _session_factory(self, definitions, config, actor_id=None, native_tools=True, max_turns=None, private_workspace=False):
+    def _session_factory(self, definitions, config, actor_id=None, native_tools=True, max_turns=None, private_workspace=False,
+                         spoken=False):
         """native_tools False: the harness's own tools stay off (semantic work, read-only role turns).
+        spoken: the user reads the run's text as her lines, so tool results are followed by TOOL_REMINDER.
         max_turns: a semantic purpose's turn ceiling; None keeps the harness default."""
         if not plugins.on("light_ai" if config["backend"] == "pi" else "harness_bridge"):
             raise ValueError("plugin_off")
@@ -1168,6 +1170,8 @@ class CharacterAgentController:
         # Only Pi's config has a turn ceiling; the semantic service counts tool calls for every harness.
         if max_turns is not None and config["backend"] == "pi":
             common["max_turns"] = max_turns
+        if spoken and config["backend"] in ("pi", "claude", "codex"):
+            common["tool_reminder"] = TOOL_REMINDER
         return HARNESSES[config["backend"]].session(self, config, common, definitions)
 
     def quick_session(self):
@@ -1222,7 +1226,7 @@ class CharacterAgentController:
             if runtime is None or config != previous or native != runtime.native_tools:
                 if runtime:
                     runtime.close()
-                runtime = PersonalAgentRuntime(self.state_dir / "character-agent", self._session_factory_bound(config),
+                runtime = PersonalAgentRuntime(self.state_dir / "character-agent", self._session_factory_bound(config, spoken=not quick),
                     self.knowledge, self.workspace, tasks=self.server.tasks, backend=config["backend"],
                     model=self._model(config), event_sink=self._event, run_store=self.store, tools=self.tools,
                     native_tools=native, native_handler=self._native, effort=config['_turn_effort'])
@@ -1234,9 +1238,9 @@ class CharacterAgentController:
                     self.runtime, self._runtime_config = runtime, config
             return runtime
 
-    def _session_factory_bound(self, config, actor_id=None):
+    def _session_factory_bound(self, config, actor_id=None, spoken=False):
         return lambda definitions: self._session_factory(definitions, config, actor_id,
-            native_tools=getattr(self._turn, 'native_tools', True))
+            native_tools=getattr(self._turn, 'native_tools', True), spoken=spoken)
 
     def _event(self, event, *, work_kind='foreground', job_id=None):
         event = {**event, 'work_kind': 'semantic' if str(event.get('phase', '')).startswith('semantic_') else work_kind}
@@ -1694,7 +1698,7 @@ class CharacterAgentController:
             return self._prepare(line_id, text, cancel, generation, source, trace, **options)
         self._auto_select()
         config = RuntimeSettings.route(self.settings.snapshot(), 'chat')
-        runtime = PersonalAgentRuntime(self.state_dir / 'character-agent', self._session_factory_bound(config, 'side-' + line_id),
+        runtime = PersonalAgentRuntime(self.state_dir / 'character-agent', self._session_factory_bound(config, 'side-' + line_id, spoken=True),
             self.knowledge, self.workspace, tasks=self.server.tasks, backend=config['backend'], model=self._model(config),
             event_sink=self._event, run_store=self.store, tools=self.tools, effort=config['_turn_effort'])
         with self._lock:

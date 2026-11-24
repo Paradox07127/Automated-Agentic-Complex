@@ -7,6 +7,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from brain.persona import TOOL_REMINDER
 from character_agent.integration import CharacterAgentController
 from character_agent.services.capabilities import describe
 from character_agent.services.settings import RuntimeSettings
@@ -132,6 +133,12 @@ class SessionConfigTests(unittest.TestCase):
                 for key in ("max_turns", "timeout_seconds", "max_budget_usd"):
                     # Pi keeps its turn and cost caps.
                     (self.assertIn if backend == "pi" and key != "timeout_seconds" else self.assertNotIn)(key, wire)
+
+    def test_only_spoken_sessions_carry_the_tool_reminder(self):
+        for backend in ("claude", "codex", "pi"):
+            with self.subTest(backend=backend):
+                self.assertEqual(self.session(backend, spoken=True).config.wire()["tool_reminder"], TOOL_REMINDER)
+                self.assertIsNone(self.session(backend).config.wire()["tool_reminder"])
 
     def test_bridged_sessions_work_in_the_chosen_workspace(self):
         chosen = self.root / "projects" / "work"

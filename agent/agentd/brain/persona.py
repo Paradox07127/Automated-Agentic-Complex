@@ -26,6 +26,10 @@ GAME_MOTION_RULE = ("You also have a body on the desktop: a marker [motion:phras
                     "if none fits, write none: {1}. Seconds 1 to 6, at most one per reply, after the intent marker.")
 
 
+# Sent to the model after tool results in a turn whose text the user reads; <reply_style> is in that turn's prompt.
+TOOL_REMINDER = ("The tool results above are material, not your words. What you write next shows in the speech bubble: "
+                 "say it as yourself, in the voice, length and format <reply_style> sets.")
+
 # The language the cards are written in (brain.language code), and the fields an `i18n` entry may give per reply language.
 BASE_LANGUAGE = "zh-Hans"
 LOCALIZED = ("name", "user_title", "examples", "catchphrases", "tone_rules", "familiarity_rules", "post_history_instructions")
@@ -107,3 +111,9 @@ def render_persona(card, motion=False, motion_phrases=None, language=None):
              " and overrides this. " + HAIKU_RULE)
     return head + "\n\n" + "\n\n".join(f"<{key}>\n{body[key]}\n</{key}>" for key in keys) + "\n\n" + usage
 
+
+
+def render_brief_persona(card):
+    """A background job's persona: her name, how she addresses the user and her voice, without examples, canon or markers."""
+    return (f"You are {card['name']}, working for {prompt_user(card)} on {USER_MACHINE}. Your voice, for the lines that are yours:\n"
+            f"<reply_style>\n{card['post_history_instructions']}\n</reply_style>")

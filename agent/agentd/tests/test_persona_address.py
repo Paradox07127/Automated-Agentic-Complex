@@ -9,7 +9,7 @@ import unittest
 import support  # noqa: F401
 
 from brain import characters  # noqa: E402
-from brain.persona import addressed, render_persona  # noqa: E402
+from brain.persona import addressed, render_brief_persona, render_persona  # noqa: E402
 from character.behavior import prompt  # noqa: E402
 from character.gate import Gate  # noqa: E402
 from infra.store import open_store  # noqa: E402
@@ -27,6 +27,15 @@ def card(**fields):
 
 
 class RenderTest(unittest.TestCase):
+    def test_brief_persona_keeps_name_title_and_voice_only(self):
+        full = card(user_title="Warden")
+        brief = render_brief_persona(full)
+        self.assertIn(full["name"], brief)
+        self.assertIn("Warden", brief)
+        self.assertIn(full["post_history_instructions"], brief)
+        for section in ("<examples>", "<canon>", "<markers>", "<catchphrases>"):
+            self.assertNotIn(section, brief)
+
     def test_examples_label_the_user_with_the_cards_title(self):
         text = render_persona(card(user_title="博士"))
         self.assertIn("<example>\n博士: ", text)
