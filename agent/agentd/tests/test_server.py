@@ -1701,7 +1701,7 @@ class SayTest(FeedServerCase):
         status, body = self.request("POST", "/say", {"text": heard, "source": "voice"})
         self.assertEqual((status, body["command"]), (202, "dispatch"))
         [card] = self.request("GET", "/approvals")[1]["approvals"]
-        self.assertEqual(card["dispatch"], {"target": "codex", "cwd": "/repo", "prompt": "查一下测试怎么跑",
+        self.assertEqual(card["dispatch"], {"target": "codex", "cwd": "/repo", "prompt": "查一下测试怎么跑。",
                                             "source": "voice", "utterance": heard,
                                             "modes": ["read_only", "workspace_write"], "mode": "read_only",
                                             "verify_cmd": None,
