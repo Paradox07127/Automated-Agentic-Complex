@@ -10,7 +10,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from infra.store import open_store  # noqa: E402
-from sessions.tasks import TAIL_BYTES, TaskLedger, check_verify, delivery_id, run_verify  # noqa: E402
+from sessions.tasks import TAIL_BYTES, TaskLedger, check_verify, delivery_id, run_verify, verify_argv  # noqa: E402
 
 
 class TaskLedgerTest(unittest.TestCase):
@@ -52,7 +52,7 @@ class TaskLedgerTest(unittest.TestCase):
             return 1, b"x" * 5000 + b"END"
 
         row = self.ledger.verify("d-1", runner=runner)
-        self.assertEqual(calls, [(["python3", "-m", "pytest"], self.tmp.name, 120)])
+        self.assertEqual(calls, [(verify_argv("python3 -m pytest"), self.tmp.name, 120)])
         self.assertEqual(row["state"], "failed")
         self.assertEqual(row["result"]["exit_code"], 1)
         self.assertEqual(len(row["result"]["output_tail"]), 4096)

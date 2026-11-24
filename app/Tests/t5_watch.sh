@@ -29,7 +29,7 @@ if pgrep -f "sleep 300 $tag-b" >/dev/null; then echo "command survived SIGTERM t
 
 # A command that ignores TERM and forks a worker that inherits that: writes "<sh pid> <sleep pid>" to its argument.
 scratch="$(mktemp -d)" || exit 1
-trap 'pkill -9 -f "sleep 300 $tag" 2>/dev/null || true; for f in "$scratch"/*.pids; do [ -s "$f" ] && kill -9 $(cat "$f") 2>/dev/null; done; rm -rf "$scratch"' EXIT
+trap 'pkill -9 -f "sleep 300 $tag" 2>/dev/null || true; for f in "$scratch"/*.pids; do [ -s "$f" ] && kill -9 $(cat "$f") 2>/dev/null || true; done; rm -rf "$scratch"' EXIT
 stubborn=(sh -c 'trap "" TERM; sleep 300 & echo $$ $! > "$1.tmp"; mv "$1.tmp" "$1"; wait' _)
 started() { for i in 1 2 3; do [ -s "$1" ] && return 0; tick; done; echo "$2: command did not start"; fail=1; return 1; }
 # Within 3 s (under the supervisor's 4 s before its SIGKILL), neither the sh nor its sleep is alive.

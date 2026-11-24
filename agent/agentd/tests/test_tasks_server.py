@@ -16,6 +16,7 @@ from personal.rituals import Rituals  # noqa: E402
 from sessions import day_summary  # noqa: E402
 from sessions.events import normalize_claude  # noqa: E402
 from sessions.own import SessionManager  # noqa: E402
+from sessions.tasks import verify_argv  # noqa: E402
 from infra.store import open_store  # noqa: E402
 from sessions.tasks import TaskLedger  # noqa: E402
 import test_server  # noqa: E402
@@ -127,7 +128,7 @@ class TaskServerTest(unittest.TestCase):
                 if self.announced():
                     break
                 time.sleep(0.01)
-        self.assertEqual(calls, [(["git", "status", "--short"], self.tmp.name)])
+        self.assertEqual(calls, [(verify_argv("git status --short"), self.tmp.name)])
         return task, self.announced()
 
     def test_a_passing_verify_cmd_succeeds_and_is_announced_done(self):
