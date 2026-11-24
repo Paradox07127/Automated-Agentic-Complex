@@ -2501,7 +2501,7 @@ class JobReportTests(IntegrationFixture):
         def work(session, prompt, options):
             if 'background_assignment' in prompt:
                 yield {'type': 'result', 'success': True, 'final_text': '资料整理好了，写在 notes.md。', 'usage': {}}
-            elif 'the work you handed to the background earlier is done' in prompt:
+            elif '<event kind="job_report">' in prompt:
                 yield from chat(session, prompt, options)
             else:
                 yield from session.use(options, 'background_start', {'title': '整理资料', 'instruction': '只读整理已授权资料'})
@@ -2533,7 +2533,8 @@ class JobReportTests(IntegrationFixture):
             self.server._schedules_due()
         claim.assert_called_once()
         args, kwargs = claim.call_args
-        self.assertIn('the work you handed to the background earlier is done', args[1])
+        self.assertTrue(args[1].startswith('<event kind="job_report">\nThe work you handed to the background earlier '
+                                           f'for {self.server.user_title()} is done'))
         self.assertIn('帮我在后台整理一下资料', kwargs['material'])
         self.assertIn('好，我交给后台整理了。', kwargs['material'])
         self.assertIn('资料整理好了', kwargs['material'])

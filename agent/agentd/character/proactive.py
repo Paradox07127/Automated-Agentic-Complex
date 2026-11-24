@@ -7,6 +7,7 @@ import secrets
 import threading
 import time
 
+from brain.events import cue
 from brain.persona import PROMPT_USER
 from character.behavior import CATEGORY_NAMES, category
 from observation.activity import INTERPRETED_FRESH
@@ -298,19 +299,21 @@ class Proactive:
         user = self.user()
         was = before and (f"Before leaving, {user} was {MODE_NAMES[before['mode']]}"
                           + (". What exactly they were doing before leaving is in the live material" if material else ""))
-        head = (f"(Situation, not something {user} said: {user} was away for {round(away_s / 60)} minutes and just came "
-                f"back to the computer. ")
+        head = f"{user} was away for {round(away_s / 60)} minutes and just came back to the computer."
         if not news:
-            text = (f"{head}{was}. Welcome them back naturally in one sentence; you may pick up what they were doing "
-                    f"before leaving in passing, like \"you were just…\", to help them get their train of thought back; "
-                    f"do not ask where they went or say how long they were away.)")
+            text = cue("back", f"{head} {was}.",
+                       "Welcome them back in one sentence; you may pick up what they were doing before leaving in "
+                       "passing, like \"you were just…\", to help them get their train of thought back; do not ask "
+                       "where they went or say how long they were away.")
         else:
             report = "; ".join(f"{names.get(session, session)} {state}" for session, state in news.items())
-            text = (f"{head}While away: {report}. {was}. Welcome them back in one short sentence: first the names and "
-                    f"states of these sessions, then a few words on what they were doing before leaving; like a message "
-                    f"handed over in passing, not a list read out.)" if before else
-                    f"{head}While away: {report}. Welcome them back in one short sentence, giving only the names and "
-                    f"states of these sessions, like a message handed over in passing.)")
+            text = (cue("back", f"{head} While away: {report}. {was}.",
+                        "Welcome them back in one short sentence: first the names and states of these sessions, then a "
+                        "few words on what they were doing before leaving; like a message handed over in passing, not "
+                        "a list read out.") if before else
+                    cue("back", f"{head} While away: {report}.",
+                        "Welcome them back in one short sentence, giving only the names and states of these sessions, "
+                        "like a message handed over in passing."))
         line_reason = {"code": "back", "kind": "back", "text": self._reason("back", minutes=round(away_s / 60)),
                        "away_min": round(away_s / 60), "before": before is not None}
 
@@ -360,9 +363,9 @@ class Proactive:
             return
         self._break_retry_at = now + 30
         user = self.user()
-        text = (f"(Situation, not something {user} said: {user} has been at the computer for {minutes} minutes straight. "
-                f"Tell them this length of time in one caring sentence, like someone nearby mentioning it in passing, "
-                f"not announcing the time; do not push, do not lecture.)")
+        text = cue("break", f"{user} has been at the computer for {minutes} minutes straight.",
+                   "Tell them this length of time in one caring sentence, like someone nearby mentioning it in "
+                   "passing, not announcing the time; do not push, do not lecture.")
         line_reason = {"code": "break", "kind": "break", "text": self._reason("break", minutes=minutes),
                        "minutes": minutes}
         if self._offer_rest(now, text, line_reason):
@@ -427,9 +430,10 @@ class Proactive:
             return
         self._water_retry_at = now + 30
         user = self.user()
-        text = (f"(Situation, not something {user} said: {user} has been sitting for quite a while, and you remember it is "
-                f"time they had some water. Gently remind them to drink water in one sentence, like a passing word of "
-                f"care; do not give the time, do not ask questions.)")
+        text = cue("water", f"{user} has been sitting for quite a while, and you remember it is time they had some "
+                            "water.",
+                   "Gently remind them to drink water in one sentence, like a passing word of care; do not give the "
+                   "time, do not ask questions.")
         if self._offer_rest(now, text, {"code": "water", "kind": "water", "text": self._reason("water")}):
             self._water_s = 0.0
 
@@ -463,10 +467,10 @@ class Proactive:
         key = secrets.token_hex(6)
         # thread and blocker reach the model through the scene in the line's live context, as consent allows.
         user = self.user()
-        text = (f"(Situation, not something {user} said: {user} seems to have been stuck on a problem for a while; "
-                "where is in the live material. In one short sentence, gently ask whether they want you to help take a "
-                "look; you may name the sticking point from the material in a few words so they know what you are "
-                "looking at; do not guess the cause, do not lecture, do not push.)")
+        text = cue("stuck", f"{user} seems to have been stuck on a problem for a while; where is in the live material.",
+                   "In one short sentence, gently ask whether they want you to help take a look; you may name the "
+                   "sticking point from the material in a few words so they know what you are looking at; do not "
+                   "guess the cause, do not lecture, do not push.")
         material = work and f"What continuous observation saw them stuck on: {work['title']} — {work['summary']}"
         minutes = round((now - since) / 60)
         line_reason = {"code": "stuck", "kind": "stuck", "text": self._reason("stuck", minutes=minutes),
@@ -570,9 +574,9 @@ class Proactive:
                 and self.gate.check("comment") is None
 
         user = self.user()
-        text = (f"(Situation, not something {user} said: something {user} was waiting for just got a result; what it "
-                "is is in the live material. In one short sentence be glad for them, or mention in passing what they "
-                "could do next; name only that thing from the material, do not retell it, do not take credit.)")
+        text = cue("result", f"Something {user} was waiting for just got a result; what it is is in the live material.",
+                   "In one short sentence be glad for them, or mention in passing what they could do next; name only "
+                   "that thing from the material, do not retell it, do not take credit.")
         material = f"Result continuous observation saw: {event['title']} — {event['summary']}"
         line_reason = {"code": "result", "kind": "comment", "text": self._reason("result")}
         speak = False
@@ -724,10 +728,11 @@ class Proactive:
         scene = self._scene()
         subject = scene and (scene["subject"] or scene["focus_id"])
         user = self.user()
-        text = (f"(Situation, not something {user} said: {user} has stayed in the same window for {state['dwell_min']} "
-                f"minutes, activity: {CATEGORY_NAMES[state['category']]}. You want to speak up on your own: pick one "
-                f"concrete thing from the live material tied to what they are doing right now and say it; one short "
-                f"sentence is enough; do not say how long they have stayed.)")
+        text = cue("long_dwell", f"{user} has stayed in the same window for {state['dwell_min']} minutes, activity: "
+                                 f"{CATEGORY_NAMES[state['category']]}.",
+                   "You want to speak up on your own: pick one concrete thing from the live material tied to what they "
+                   "are doing right now and say it; one short sentence is enough; do not say how long they have "
+                   "stayed.")
         line_reason = {"code": "long_dwell", "kind": "comment",
                        "text": self._reason("long_dwell", minutes=state["dwell_min"]),
                        "activity": state["activity"], "dwell_min": state["dwell_min"]}

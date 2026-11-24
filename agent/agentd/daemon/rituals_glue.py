@@ -2,6 +2,7 @@
 import datetime
 import secrets
 
+from brain.events import cue
 from brain.outbound import OutboundBlocked
 from brain.persona import BASE_LANGUAGE
 from daemon.constants import FEEDBACK
@@ -11,21 +12,21 @@ from api.views import _iso
 
 # C3 rule 45(a)'s regions; left and right are hers.
 TAP_REGION_TEXT = {
-    "head_top": "Where you were touched: the top of your head",
-    "head": "Where you were touched: your head",
-    "face": "Where you were touched: your face",
-    "cheek_l": "Where you were touched: your left cheek",
-    "cheek_r": "Where you were touched: your right cheek",
-    "hair": "Where you were touched: your hair",
-    "accessory": "Where you were touched: an accessory you wear",
-    "chest": "Where you were touched: your chest",
-    "waist": "Where you were touched: your waist",
-    "arm": "Where you were touched: your arm",
-    "hand_l": "Where you were touched: your left hand",
-    "hand_r": "Where you were touched: your right hand",
-    "leg": "Where you were touched: your leg",
-    "skirt": "Where you were touched: your skirt hem",
-    "body": "Where you were touched: your body",
+    "head_top": "the top of your head",
+    "head": "your head",
+    "face": "your face",
+    "cheek_l": "your left cheek",
+    "cheek_r": "your right cheek",
+    "hair": "your hair",
+    "accessory": "an accessory you wear",
+    "chest": "your chest",
+    "waist": "your waist",
+    "arm": "your arm",
+    "hand_l": "your left hand",
+    "hand_r": "your right hand",
+    "leg": "your leg",
+    "skirt": "your skirt hem",
+    "body": "your body",
 }
 # The gift line's text, one gift and several, by reply language code: the model hears it and the chat shows it as
 # the user's turn. "harness" (None) takes the Chinese one.
@@ -72,26 +73,28 @@ class RitualsGlueMixin:
             if scripted is None and self.rituals is not None:
                 picked = self.rituals.pick()
             if picked is None:
-                template = TAP if count == 1 else TAPS
+                facts, aim = TAP if count == 1 else TAPS
                 if scripted is None and self.egress is not None:
                     try:
-                        self.egress.authored("tap", template)
+                        self.egress.authored("tap", f"{facts}\n{aim}")
                     except OutboundBlocked:
                         return 200, {"kind": None}
                 line_id = secrets.token_hex(6)
-                self.start_line(line_id, template.format(count=count, user_title=self.user_title()),
-                                reason={"code": "tap"}, source="tap",
-                                material=TAP_REGION_TEXT[region] if region is not None else None, scripted=scripted)
+                place = TAP_REGION_TEXT[region] if region is not None else "you"
+                facts = facts.format(count=count, place=place, user_title=self.user_title())
+                self.start_line(line_id, cue("tap", facts, aim, region=region, count=count),
+                                reason={"code": "tap"}, source="tap", scripted=scripted)
                 return 202, {"line_id": line_id, "kind": "tap"}
             kind, data = picked
+            facts, aim = TEMPLATES[kind]
             if scripted is None and self.egress is not None:
                 try:
-                    self.egress.authored("ritual", TEMPLATES[kind])
+                    self.egress.authored("ritual", f"{facts}\n{aim}")
                 except OutboundBlocked:  # not said; the guard logged the hit
                     return 200, {"kind": None}
             line_id = secrets.token_hex(6)
             self.rituals.begin(kind, line_id)  # before the line: it may settle before start_line returns
-            self.start_line(line_id, TEMPLATES[kind].format(**data, user_title=self.user_title()),
+            self.start_line(line_id, cue(kind, facts.format(**data, user_title=self.user_title()), aim),
                             reason={"code": "ritual", "kind": kind}, source="ritual", scripted=scripted,
                             material=f"Today so far: {data['arc']}" if kind == "report" else None)
         return 202, {"line_id": line_id, "kind": kind}
@@ -108,13 +111,14 @@ class RitualsGlueMixin:
                 return (503, {"error": "no_llm"}) if self.mouth is None else (200, {"line_id": None})
             if self.resetting or self.busy() or self._live_lines:
                 return 409, {"error": "busy"}
+            facts, aim = GREETING
             if scripted is None and self.egress is not None:
                 try:
-                    self.egress.authored("ritual", GREETING)
+                    self.egress.authored("ritual", f"{facts}\n{aim}")
                 except OutboundBlocked:
                     return 200, {"line_id": None}
             line_id = secrets.token_hex(6)
-            self.start_line(line_id, GREETING.format(user_title=self.user_title()),
+            self.start_line(line_id, cue("first_meeting", facts.format(user_title=self.user_title()), aim),
                             reason={"code": "ritual", "kind": "greeting"}, source="ritual", scripted=scripted)
         return 202, {"line_id": line_id}
 

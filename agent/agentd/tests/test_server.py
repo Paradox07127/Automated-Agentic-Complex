@@ -2508,9 +2508,11 @@ class RitualTapTest(FeedServerCase):
         self.assertEqual({line["speak"] for line in lines}, {True})
         self.assertIn(("speak", body["line_id"], "早上好，管理员。"), self.server.speech.calls)
         from personal.rituals import TEMPLATES
-        self.assertEqual(egress, [("ritual", TEMPLATES["morning"])])
+        self.assertEqual(egress, [("ritual", "\n".join(TEMPLATES["morning"]))])
         [(text, _)] = self.server.mouth.calls
-        self.assertTrue(text.startswith("(Situation, not words from 管理员:"))
+        self.assertTrue(text.startswith('<event kind="morning">\nThis is the first time 管理员 has touched you today'))
+        self.assertTrue(text.endswith(f"\n</event>\n{TEMPLATES['morning'][1]}"))
+        self.assertNotIn("Situation", text)
         self.assertEqual([(row["turn_id"], row["source"], row["state"]) for row in self.rows],
                          [(body["line_id"], "ritual", "completed")])
         # Not a proactive line: the gate counted nothing and /feedback does not know it.
@@ -2622,8 +2624,10 @@ class RitualTapTest(FeedServerCase):
         lines = [i["data"] for i in self.server.feed.since(0) if i["event"] == "line"]
         self.assertEqual({json.dumps(line["reason"]) for line in lines}, {json.dumps({"code": "tap"})})
         self.assertIn(("speak", body["line_id"], "早上好，管理员。"), self.server.speech.calls)
-        self.assertEqual(egress, [("tap", TAP)])
-        self.assertEqual([text for text, _ in self.server.mouth.calls], [TAP.format(count=1, user_title=self.server.user_title())])
+        self.assertEqual(egress, [("tap", "\n".join(TAP))])
+        self.assertEqual([text for text, _ in self.server.mouth.calls],
+                         [f'<event kind="tap" count="1">\n{self.server.user_title()} reached out and lightly touched '
+                          f'you.\n</event>\n{TAP[1]}'])
         self.assertEqual([(row["turn_id"], row["source"]) for row in self.rows], [(body["line_id"], "tap")])
         self.assertEqual((self.server.gate._count, self.server.gate._last), (0, {}))
         self.assertNotIn(body["line_id"], self.server._proactive_lines)
@@ -2643,8 +2647,10 @@ class RitualTapTest(FeedServerCase):
                 self.assertEqual(self.tap(count=count), (400, {"error": "invalid_payload", "field": "count"}))
         self.assertEqual(self.tap(count=3)[1]["kind"], "tap")
         self.assertTrue(self.wait_for(lambda: not self.server._live_lines and self.rows))
-        self.assertEqual(egress, [("tap", TAPS)])
-        self.assertEqual([text for text, _ in self.server.mouth.calls], [TAPS.format(count=3, user_title=self.server.user_title())])
+        self.assertEqual(egress, [("tap", "\n".join(TAPS))])
+        self.assertEqual([text for text, _ in self.server.mouth.calls],
+                         [f'<event kind="tap" count="3">\n{self.server.user_title()} touched you 3 times in a row.\n'
+                          f'</event>\n{TAPS[1]}'])
 
     def tap_region_line(self, **extra):
         self.now = time.mktime(datetime.datetime.now().replace(hour=4, minute=0, second=0, microsecond=0).timetuple())
@@ -2654,15 +2660,23 @@ class RitualTapTest(FeedServerCase):
         self.assertTrue(self.wait_for(lambda: not self.server._live_lines and self.rows))
         [call] = start_line.call_args_list
         self.assertEqual(call.kwargs["reason"], {"code": "tap"})
-        return body, call.kwargs.get("material")
+        self.assertIsNone(call.kwargs.get("material"))  # the region is on the tag and in the facts
+        return body, call.args[1]
 
     def test_a_tap_region_tells_the_mouth_where(self):
-        _, material = self.tap_region_line(region="head_top")
-        self.assertIn("the top of your head", material)
+        _, text = self.tap_region_line(region="head_top")
+        self.assertTrue(text.startswith(f'<event kind="tap" region="head_top" count="1">\n{self.server.user_title()} '
+                                        'reached out and lightly touched the top of your head.\n</event>\n'))
+
+    def test_taps_on_a_region_name_it_with_the_count(self):
+        _, text = self.tap_region_line(region="hand_l", count=2)
+        self.assertIn('<event kind="tap" region="hand_l" count="2">\n', text)
+        self.assertIn("touched your left hand 2 times in a row.", text)
 
     def test_an_unknown_tap_region_is_ignored(self):
-        _, material = self.tap_region_line(region="bad")
-        self.assertIsNone(material)
+        _, text = self.tap_region_line(region="bad")
+        self.assertTrue(text.startswith('<event kind="tap" count="1">\n'))
+        self.assertNotIn("bad", text)
 
     def test_a_tap_region_keeps_the_reply_shape(self):
         with_region, _ = self.tap_region_line(region="hand_l")

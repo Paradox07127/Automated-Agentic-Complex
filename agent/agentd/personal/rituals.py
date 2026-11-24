@@ -15,51 +15,46 @@ RETRY_AFTER = 60.0  # seconds a cancelled or failed ritual line waits before it 
 WATER_STALE = 2 * 3600  # seconds a water reminder stays pending
 WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 BIRTHDAY = (re.compile(r"(\d{1,2})\s*月\s*(\d{1,2})\s*[日号]"), re.compile(r"(?:\d{4}[-/.])?(\d{1,2})[-/.](\d{1,2})"))
-# The text before .format goes through egress.authored; the fields filled in are observed, but {user_title} is the
-# card's user_title.
+# Each is the (facts, aim) of an events.cue. Both texts before .format go through egress.authored; the fields filled
+# in are observed, but {user_title} is the card's user_title.
 TEMPLATES = {
-    "break": "(Situation, not words from {user_title}: {user_title} touched you. They have been at the computer for "
-             "{minutes} minutes straight. Use this touch to tell them how long it has been in one caring line, the way "
-             "someone nearby mentions it in passing, not like a clock; do not push, do not lecture.)",
-    "water": "(Situation, not words from {user_title}: {user_title} touched you. They have sat at the computer for "
-             "{minutes} minutes in all, and you remember they should drink some water. Gently remind them to drink "
-             "water in one line, like a passing bit of care; the time need not be mentioned.)",
-    "birthday": "(Situation, not words from {user_title}: {user_title} touched you, and today is their birthday. Wish "
-                "them a happy birthday in a line of your own: sincere, not too grand.)",
-    "morning": "(Situation, not words from {user_title}: this is the first time {user_title} has touched you today; it "
-               "is {weekday} {time}. Give them the first greeting of the day in one line: good morning before noon, "
-               "and once past noon a greeting that fits the hour; you may add a little care about their day; do not "
-               "announce the time.)",
-    "report": "(Situation, not words from {user_title}: {user_title} touched you, and it is time for today's end-of-day "
-              "report. What happened today is in the live material. Today {sessions} sessions were opened, "
-              "sub-agents finished {agents_done} and failed {agents_failed}, "
-              "and you opened {own_sessions} sessions for them; still waiting: {waiting}. "
-              "Tell them in two or three sentences: first the main things done today and how far each got, then one "
-              "sentence with the session count; if something is still waiting, mention it. "
-              "Say it in your usual voice; do not read out times one by one, do not judge.)",
+    "break": ("{user_title} touched you. They have been at the computer for {minutes} minutes straight.",
+              "Use this touch to tell them how long it has been in one caring line, the way someone nearby mentions it "
+              "in passing, not like a clock; do not push, do not lecture."),
+    "water": ("{user_title} touched you. They have sat at the computer for {minutes} minutes in all, and you remember "
+              "they should drink some water.",
+              "Gently remind them to drink water in one line, like a passing bit of care; the time need not be "
+              "mentioned."),
+    "birthday": ("{user_title} touched you, and today is their birthday.",
+                 "Wish them a happy birthday in one line: sincere, not too grand."),
+    "morning": ("This is the first time {user_title} has touched you today; it is {weekday} {time}.",
+                "Give them the first greeting of the day in one line: good morning before noon, and once past noon a "
+                "greeting that fits the hour; you may add a little care about their day; do not announce the time."),
+    "report": ("{user_title} touched you, and it is time for today's end-of-day report. What happened today is in the "
+               "live material. Today {sessions} sessions were opened, sub-agents finished {agents_done} and failed "
+               "{agents_failed}, and you opened {own_sessions} sessions for them; still waiting: {waiting}.",
+               "Tell them in two or three sentences: first the main things done today and how far each got, then one "
+               "sentence with the session count; if something is still waiting, mention it. Do not read out times one "
+               "by one, do not judge."),
 }
-# A tap with no ritual pending; it goes through egress.authored too. Its region, if known, is the line's material.
-TAP = ("(Situation, not words from {user_title}: {user_title} reached out and touched you lightly. You felt it; answer "
-       "with a line or two in your own usual voice: if the earlier topic is not finished, carry on with that topic; "
-       "with no topic, they most likely just want to see you and say hello, not hand you a task. React the way "
-       "someone nearby would to a light touch, naturally and in keeping with your character; a light touch is "
-       "nothing to make a fuss about. Where you were touched may shape your reaction but need not be said, and you "
-       "may also just turn and talk to them; mention live details such as the time or sessions only when they truly "
-       "matter. "
-       "What you say is only your reaction; do not describe what they just did; vary your reaction each time, and "
-       "do not ask every time what they want to do.)")
+# A tap with no ritual pending; it goes through egress.authored too. {place}: its region's TAP_REGION_TEXT, else "you".
+TAP = ("{user_title} reached out and lightly touched {place}.",
+       "Answer with a line or two: if the earlier topic is not finished, carry on with that topic; with no topic, they "
+       "most likely just want to see you and say hello, not hand you a task. React as someone nearby would to a light "
+       "touch, which is nothing to make a fuss about. Where you were touched may shape your reaction but need not be "
+       "said, and you may also just turn and talk to them; mention live details such as the time or sessions only "
+       "when they truly matter.")
 # TAP for count > 1 clicks since the last tap request.
-TAPS = ("(Situation, not words from {user_title}: {user_title} touched you {count} times in a row. React in a line or "
-        "two of short words, by the count: two or three touches feel like teasing you or wanting your attention, so "
-        "you may ask curiously; "
-        "the more touches, the more you may sound a little exasperated, or tease them back, still within your usual "
-        "bounds. If the earlier topic is not finished, pick it up. "
-        "What you say is only your reaction; do not state the count, do not describe what they just did.)")
+TAPS = ("{user_title} touched {place} {count} times in a row.",
+        "React in a line or two of short words, by the count: two or three touches feel like teasing you or wanting "
+        "your attention, so you may ask curiously; the more touches, the more you may sound a little exasperated, or "
+        "tease them back, still within your usual bounds. If the earlier topic is not finished, pick it up. Do not "
+        "state the count.")
 # Her opening line on the desktop once the first-run guide is done (RitualsGlueMixin.greet); through egress.authored.
-GREETING = ("(Situation, not words from {user_title}: {user_title} has just finished setting you up on this computer "
-            "and chose to talk with you; you now stand on their desktop for the first time. Give them your opening "
-            "line: one or two short sentences in your own usual voice, as a first hello. Do not describe the setup, do "
-            "not list what you can do, and do not ask them for a task.)")
+GREETING = ("{user_title} has just finished setting you up on this computer and chose to talk with you; you now stand "
+            "on their desktop for the first time.",
+            "Give them your opening line: one or two short sentences as a first hello. Do not describe the setup, do "
+            "not list what you can do, and do not ask them for a task.")
 COUNTS = ("sessions","agents_done", "agents_failed", "gates_green", "gates_red", "guard_blocks", "own_sessions")
 
 

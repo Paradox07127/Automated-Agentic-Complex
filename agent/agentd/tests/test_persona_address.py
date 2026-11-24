@@ -129,7 +129,7 @@ class ServerAddressTest(test_server.FeedServerCase):
 
     def test_the_cards_title_names_the_user(self):
         self.use(card(user_title="博士", pronoun="他"))
-        self.assertEqual(self.ritual_text()[:30], "(Situation, not words from 博士:")
+        self.assertTrue(self.ritual_text().startswith('<event kind="morning">\nThis is the first time 博士 has '))
         context = self.state_context()
         self.assertIn("This is your state, not 博士's; do not ask anything of 博士 because of it.", context)
         self.assertNotIn("管理员", context)
@@ -137,12 +137,12 @@ class ServerAddressTest(test_server.FeedServerCase):
     def test_the_reply_languages_title_names_the_user(self):
         self.use(card(user_title="管理员", i18n={"en": {"user_title": "Endmin"}}))
         self.server.character_agent.settings = SimpleNamespace(snapshot=lambda: {"reply_language": "en"})
-        self.assertTrue(self.ritual_text().startswith("(Situation, not words from Endmin:"))
+        self.assertTrue(self.ritual_text().startswith('<event kind="morning">\nThis is the first time Endmin has '))
         self.assertNotIn("管理员", self.state_context())
 
     def test_without_a_title_the_user_is_the_user(self):
         self.use(card())
-        self.assertEqual(self.ritual_text()[:36], "(Situation, not words from the user:")
+        self.assertTrue(self.ritual_text().startswith('<event kind="morning">\nThis is the first time the user has '))
         context = self.state_context()
         self.assertIn("This is your state, not the user's; do not ask anything of the user because of it.", context)
         self.assertNotIn("用户", context)

@@ -67,11 +67,14 @@ class RitualsTest(unittest.TestCase):
         self.assertEqual(set(TEMPLATES), set(KINDS))
 
     def test_a_tap_line_says_how_many_clicks(self):
-        for text in (TAP.format(count=1, user_title=PROMPT_USER), TAPS.format(count=3, user_title=PROMPT_USER)):
-            self.assertTrue(text.startswith(f"(Situation, not words from {PROMPT_USER}:"), "a cue she perceives, not his words")
-            self.assertIn("topic", text)  # an ongoing conversation goes on
-        self.assertIn("touched you 3 times in a row", TAPS.format(count=3, user_title=PROMPT_USER))
-        self.assertNotIn("{", TAP.format(count=1, user_title=PROMPT_USER))  # tap formats TAP with count too
+        for facts, aim in (TAP, TAPS):
+            self.assertTrue(facts.startswith("{user_title} "), "the facts name the user")
+            self.assertIn("topic", aim)  # an ongoing conversation goes on
+        for facts, aim in (*TEMPLATES.values(), TAP, TAPS):
+            self.assertNotIn("Situation", facts + aim)
+        self.assertEqual(TAPS[0].format(count=3, place="you", user_title=PROMPT_USER),
+                         f"{PROMPT_USER} touched you 3 times in a row.")
+        self.assertNotIn("{", TAP[0].format(count=1, place="you", user_title=PROMPT_USER))  # tap formats TAP with count too
 
     def test_ritual_is_a_history_and_trace_source(self):
         from personal import history
@@ -82,8 +85,8 @@ class RitualsTest(unittest.TestCase):
 
     def test_first_tap_of_the_day_says_good_morning_then_nothing(self):
         data = self.say("morning")
-        self.assertIn("{weekday}", TEMPLATES["morning"])
-        TEMPLATES["morning"].format(**data, user_title=PROMPT_USER)
+        self.assertIn("{weekday}", TEMPLATES["morning"][0])
+        TEMPLATES["morning"][0].format(**data, user_title=PROMPT_USER)
         self.now += 10
         self.assertIsNone(self.r.pick())
         self.assertEqual(self.r.pending(), [])
@@ -100,7 +103,7 @@ class RitualsTest(unittest.TestCase):
         self.assertIsNone(self.r.pick())
         self.now = at(17, 30)
         data = self.say("report")
-        text = TEMPLATES["report"].format(**data, user_title=PROMPT_USER)
+        text = TEMPLATES["report"][0].format(**data, user_title=PROMPT_USER)
         self.assertIn("repo-x", text)
         self.assertIn("repo-x waiting for approval", text)
         self.assertIn("repo-y waiting for confirmation in Claude Code", text, "an observed session waits in its own app")
@@ -131,7 +134,7 @@ class RitualsTest(unittest.TestCase):
                 kind, data = self.r.pick()
                 self.assertEqual(kind, "report")
                 self.assertEqual((data["sessions"], data["own_sessions"], data["waiting"]), (0, 0, "none"))
-                text = TEMPLATES["report"].format(**data, user_title=PROMPT_USER)
+                text = TEMPLATES["report"][0].format(**data, user_title=PROMPT_USER)
                 self.assertEqual(data["arc"], "10:00–10:40 调试服务器；10:40–11:00 看文档")
                 self.assertNotIn("调试服务器", text)  # observed: the line's live material carries it
                 self.assertIn("What happened today is in the live material", text)
@@ -159,7 +162,7 @@ class RitualsTest(unittest.TestCase):
         self.r.set_pending("break", {"minutes": 50})
         self.assertEqual(self.r.pending(), ["break", "morning"])
         data = self.say("break")
-        self.assertIn("50", TEMPLATES["break"].format(**data, user_title=PROMPT_USER))
+        self.assertIn("50", TEMPLATES["break"][0].format(**data, user_title=PROMPT_USER))
         self.assertEqual(self.r.pending(), ["morning"])
         self.say("morning")
 
