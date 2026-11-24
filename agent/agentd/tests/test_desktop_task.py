@@ -207,18 +207,32 @@ class DesktopTaskTests(unittest.TestCase):
                 self.assertEqual(result['effect'], 'unverifiable' if len(script) == 3 else 'not_executed')
         self.assertEqual(self.run_task(args={'target': TARGET, 'goal': ''})['effect'], 'not_executed')
 
-    def test_sub_run_session_has_no_harness_tools_or_workspace(self):
+    def test_sub_run_session_has_no_harness_tools_and_an_empty_workspace_of_its_own(self):
+        import tempfile
+        from character_agent.harness.claude_transport import ClaudeConfig
+        from character_agent.harness.codex_transport import CodexConfig
         from character_agent.integration import CharacterAgentController
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
         enable = patch('character_agent.integration.plugins.on', return_value=True)
-        harness = Mock()
-        controller = Mock(session_factory_override=None, state_dir=Path('/state'))
-        controller._model.return_value = 'model'
-        config = {'backend': 'pi', 'auth_source': 'existing_login', 'runtime_source': 'local'}
-        with enable, patch.dict('character_agent.integration.HARNESSES', {'pi': harness}):
-            CharacterAgentController._session_factory(controller, ['tool'], config, 'desktop-task-x',
-                                                      native_tools=False, private_workspace=True, max_turns=9)
-        common = harness.session.call_args.args[2]
-        self.assertEqual((common['native_tools'], common['workspace_dir'], common['max_turns']), (False, None, 9))
+        for backend, check in (('pi', None), ('codex', CodexConfig), ('claude', ClaudeConfig)):
+            with self.subTest(backend=backend):
+                harness = Mock()
+                controller = Mock(session_factory_override=None, state_dir=Path(tmp.name))
+                controller._model.return_value = 'model'
+                controller.settings.workspace.return_value = '/shared'
+                config = {'backend': backend, 'auth_source': 'existing_login', 'runtime_source': 'local'}
+                with enable, patch.dict('character_agent.integration.HARNESSES', {backend: harness}):
+                    CharacterAgentController._session_factory(controller, ['tool'], config, 'desktop-task-x',
+                                                              native_tools=False, private_workspace=True, max_turns=9)
+                common = harness.session.call_args.args[2]
+                self.assertFalse(common['native_tools'])
+                self.assertEqual(common.get('max_turns'), 9 if backend == 'pi' else None)
+                if check is not None:
+                    check(**common, cli_path='/usr/local/bin/' + backend, auth_mode='existing_login').validate()
+                workspace = Path(common['workspace_dir'])
+                self.assertEqual(workspace.parent, Path(tmp.name, 'character-agent', 'runner', backend, 'jobs', 'desktop-task-x'))
+                self.assertEqual((list(workspace.iterdir()), workspace.stat().st_mode & 0o777), ([], 0o700))
 
     def test_kernel_ending_without_done_or_success(self):
         session = Session([])

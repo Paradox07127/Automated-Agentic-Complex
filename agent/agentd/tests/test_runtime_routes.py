@@ -161,6 +161,29 @@ class RuntimeRouteTests(unittest.TestCase):
         self.assertNotIn('front_model', reply)
         self.assertLessEqual(set(DEFAULTS), set(reply))
 
+    def test_a_route_that_keeps_the_agents_own_tools_off_needs_an_acp_agent_that_can_be_locked(self):
+        agents = [{'id': agent, 'name': agent, 'source': 'local', 'command': ['/synthetic/' + agent, 'acp']}
+                  for agent in ('goose', 'opencode')]
+        found = patch('character_agent.harness.acp_agents.find_local', return_value=agents)
+        found.start(); self.addCleanup(found.stop)
+        unrestricted = {'ready': False, 'error': 'acp_agent_unrestricted'}
+        ready = {'ready': True, 'error': None}
+        reply = self.put({'routes': {purpose: route('acp', acp_agent='goose') for purpose in ROUTES if purpose != 'quick'}})
+        self.assertEqual({purpose: {key: value[key] for key in ('ready', 'error')} for purpose, value in reply['routes'].items()
+                          if purpose != 'quick'},
+                         {'chat': ready, 'background': ready, 'judge': unrestricted, 'understand': unrestricted,
+                          'memory': unrestricted, 'computer': unrestricted})
+        with self.assertRaisesRegex(ValueError, '^acp_agent_unrestricted$'):
+            raise ValueError(self.controller.route_error(RuntimeSettings.route(self.controller.settings.snapshot(), 'judge')))
+        reply = self.put({'routes': {'judge': route('acp', acp_agent='opencode')}})
+        self.assertEqual({key: reply['routes']['judge'][key] for key in ('acp_agent', 'ready', 'error')},
+                         {'acp_agent': 'opencode', **ready})
+        reply = self.put({'backend': 'acp', 'acp_agent': 'goose', 'runtime_source': 'local', 'auth_source': 'existing_login',
+                          'routes': {}})
+        self.assertEqual((reply['ready'], reply['routes']['chat']['ready']), (True, True))
+        self.assertEqual({key: reply['routes']['memory'][key] for key in ('follows_main', 'ready', 'error')},
+                         {'follows_main': True, **unrestricted})
+
     def test_a_background_job_waits_for_the_background_route_not_the_main_kernel(self):
         self.rows.append(self.found('claude', True))
         self.put({'backend': 'codex', 'runtime_source': 'local', 'routes': {'background': route('claude')}})

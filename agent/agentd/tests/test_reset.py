@@ -328,10 +328,13 @@ class ResetTest(unittest.TestCase):
         self.assertFalse(server.focus.running())
         self.assertFalse(paths.focus(self.state).exists())
         self.assertFalse(server.gate.focus)
+        reset_at = clock[0]
+        server.desk.tick()  # the span still visible starts again on a fresh row
         server.desk.count("pat")
         clock[0] += TICK
         server.desk.tick()
-        self.assertEqual(server.desk.db.execute("SELECT kind, until FROM desk_log").fetchall(), [("pat", None)])
+        self.assertEqual(server.desk.db.execute("SELECT kind, at, until FROM desk_log ORDER BY id").fetchall(),
+                         [("visible", reset_at, clock[0]), ("pat", reset_at, None)])
 
     def test_reset_empties_the_history_index(self):
         self.seed()

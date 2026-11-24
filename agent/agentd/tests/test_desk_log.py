@@ -64,6 +64,16 @@ class DeskLogTest(unittest.TestCase):
         self.desk.tick()
         self.assertEqual(self.rows(), [('edge', self.at, self.at)])
 
+    def test_a_span_running_through_a_reset_starts_again_at_the_next_tick(self):
+        self.desk.span('visible', True)
+        self.desk.span('edge', True)
+        self.at += 1
+        self.desk.reset(DataLifecycle([self.desk.db]).clear)
+        self.assertEqual((self.rows(), self.desk.running()), ([], set()))
+        self.desk.span('edge', False)
+        self.desk.tick()
+        self.assertEqual(self.rows(), [('visible', self.at, self.at)])
+
 
 class EdgeParkingTest(unittest.TestCase):
     def setUp(self):

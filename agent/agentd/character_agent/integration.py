@@ -92,6 +92,7 @@ LORE_LABELS = {"official": "Lore (game canon: your own life and world, not the u
 JOB_FAILURE_REASONS = frozenset({'auth_expired', 'rate_limited', 'quota_exhausted', 'native_login_required'})
 # A model span's model while the harness runs its own default: the trace format refuses an empty one.
 DEFAULT_MODEL = "default"
+LOCKED_ROUTES = ("judge", "understand", "memory", "computer")  # their runs keep the harness's own tools off
 RELATED_FACTS = 4  # confirmed memory facts a turn's context carries beside the profile, matched on the user's words
 RELATED_FACTS_CHARS = 1200  # characters of those facts' JSON (summed per item), the introducing sentence excluded
 _INFER_CONVERSATION = object()
@@ -609,10 +610,13 @@ class CharacterAgentController:
                                    "effort": entry["effort"] if entry else None, "follows_main": False,
                                    "ready": failure is None, "error": failure}
             elif entry is None:
+                failure = (self._readiness(config, available, pending, wait, self.settings.error, locked=True)[0]
+                           if purpose in LOCKED_ROUTES and config["backend"] == "acp" else error)
                 routes[purpose] = {"backend": config["backend"], "acp_agent": config["acp_agent"] if config["backend"] == "acp" else None,
-                                   "model": None, "effort": None, "follows_main": True, "ready": error is None, "error": error}
+                                   "model": None, "effort": None, "follows_main": True, "ready": failure is None, "error": failure}
             else:
-                failure = self._readiness(RuntimeSettings.route(config, purpose), available, pending, wait)[0]
+                failure = self._readiness(RuntimeSettings.route(config, purpose), available, pending, wait,
+                                          locked=purpose in LOCKED_ROUTES)[0]
                 routes[purpose] = {**entry, "follows_main": False, "ready": failure is None, "error": failure}
         value = {**config, "routes": routes, "ready": error is None, "error": error, "auto_selected": auto_selected, "available_backends": available,
                 "installed_runtimes": self.installed_runtimes() if discover else [],
@@ -630,12 +634,14 @@ class CharacterAgentController:
         return value
 
     def route_error(self, config):
-        """The readiness error of a routed kernel config (RuntimeSettings.route); None when it can run."""
+        """The readiness error of a routed kernel config (RuntimeSettings.route) for a run that keeps the harness's own
+        tools off; None when it can run."""
         available = [self._pi_backend()] if config["backend"] == "pi" else self.available_backends()
-        return self._readiness(config, available, False, True)[0]
+        return self._readiness(config, available, False, True, locked=True)[0]
 
-    def _readiness(self, config, available, pending, wait, error=None):
-        """(error, selected runtime) of a kernel config as /character/runtime reports them; error None is ready."""
+    def _readiness(self, config, available, pending, wait, error=None, locked=False):
+        """(error, selected runtime) of a kernel config as /character/runtime reports them; error None is ready.
+        locked: its runs keep the harness's own tools off."""
         selected = None
         h = harness(config["backend"])
         if h:
@@ -659,7 +665,7 @@ class CharacterAgentController:
                         signed_in = self.logins.signed_in(config["backend"], selected["path"], wait)
                         error = "product_login_checking" if signed_in is None else None if signed_in else "product_login_required"
                 elif config["backend"] == "acp":
-                    error = self._acp_error(config, wait)
+                    error = self._acp_error(config, wait, locked)
                 elif h.provider is None:
                     if config["runtime_source"] == "local" and (not config["executable"] or
                             not os.access(config["executable"], os.X_OK)):
@@ -680,10 +686,13 @@ class CharacterAgentController:
                         error = str(failure)
         return error, selected
 
-    def _acp_error(self, config, wait):
+    def _acp_error(self, config, wait, locked):
+        from character_agent.harness.acp_agents import lockable
         agent = acp_agent(config)
         if agent is None:
             return "acp_agent_missing"
+        if locked and not lockable(agent):
+            return "acp_agent_unrestricted"
         if agent["id"] == "deepseek-harness":
             if config["auth_source"] == "api_key":
                 return None if self.deepseek_key() else "missing_provider_api_key"
@@ -1176,9 +1185,13 @@ class CharacterAgentController:
         key = self._credential(config) if config["auth_source"] == "api_key" else ""
         runner_root = self.state_dir / "character-agent" / "runner" / config["backend"]
         if actor_id: runner_root = runner_root / 'jobs' / actor_id
+        # private: an empty directory of the actor's own, never the user's workspace
+        workspace = runner_root / "workspace" if private_workspace else self.settings.workspace()
+        if private_workspace:
+            workspace.mkdir(mode=0o700, parents=True, exist_ok=True)
         common = dict(state_dir=runner_root,
             api_key=key, model=self._model(config), runtime_source=config["runtime_source"],
-            workspace_dir=None if private_workspace else str(self.settings.workspace()), native_tools=native_tools)
+            workspace_dir=str(workspace), native_tools=native_tools)
         # Only Pi's config has a turn ceiling; the semantic service counts tool calls for every harness.
         if max_turns is not None and config["backend"] == "pi":
             common["max_turns"] = max_turns

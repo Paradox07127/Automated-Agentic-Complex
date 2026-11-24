@@ -27,11 +27,11 @@ class DeskLog:
     def span(self, kind, on):
         """Starts the span of kind (one of SPANS) when on and none runs; ends the running one when not on."""
         with self.lock:
-            now, row = self.clock(), self._running.get(kind)
-            if on and row is None:
+            now, running = self.clock(), kind in self._running
+            if on and not running:
                 self._purge(now)
                 self._running[kind] = self._start(kind, now)
-            elif not on and row is not None:
+            elif not on and running:
                 self.db.execute("UPDATE desk_log SET until = ? WHERE id = ?", (now, self._running.pop(kind)))
             else:
                 return
@@ -51,16 +51,17 @@ class DeskLog:
             self.db.commit()
 
     def reset(self, clear):
-        """POST /reset: clear() deletes the rows under the lock, and no running span keeps a deleted row's id, which a
-        later insert could take."""
+        """POST /reset: clear() deletes the rows under the lock; each running span keeps running without a row (a later
+        insert could take a deleted row's id), and the next tick starts it again."""
         with self.lock:
             clear()
-            self._running.clear()
+            self._running = dict.fromkeys(self._running)
+            self._ticked = None
 
     def running(self):
         """The row ids of the spans that run now."""
         with self.lock:
-            return set(self._running.values())
+            return {row for row in self._running.values() if row is not None}
 
     def _start(self, kind, now):
         return self.db.execute("INSERT INTO desk_log (kind, at, until) VALUES (?, ?, ?)", (kind, now, now)).lastrowid

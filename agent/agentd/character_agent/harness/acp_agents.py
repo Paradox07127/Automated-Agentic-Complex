@@ -97,11 +97,16 @@ def launch(agent, native_tools):
     env = {**(profile_env() if agent["id"] == "claude-acp" else {}), **agent.get("env", {})}
     if native_tools:
         return agent["command"], env, None, None
-    if agent["id"] not in LOCKS and str(DSH_PATCH) not in agent["command"]:
+    if not lockable(agent):
         raise ValueError("acp_agent_unrestricted")
     lock = LOCKS.get(agent["id"], {})
     command = [str(DSH_LOCKED_PATCH) if arg == str(DSH_PATCH) else arg for arg in agent["command"]]
     return command, {**env, **lock.get("env", {})}, lock.get("session_meta"), lock.get("mode")
+
+
+def lockable(agent):
+    """Whether launch can lock an agent row to Endfield's tools."""
+    return agent["id"] in LOCKS or str(DSH_PATCH) in agent["command"]
 
 
 def registry():

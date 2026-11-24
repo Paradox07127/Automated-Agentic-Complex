@@ -103,7 +103,7 @@ class StreamedReply(PreparedReply):
         self.used_facts = [(f["fact_id"], f["version"]) for f in self.facts["trusted"] + self.facts["low_trust"]]
 
     def stream(self, text, _context):
-        said, final_said, taken, item = [], [], 0, None
+        said, final_said, final_parts, taken, item = [], [], [], 0, None
         while True:
             with self._cv:
                 ready = lambda: len(self._parts) > taken or self._done or self._ended and self.memory_changed
@@ -123,13 +123,14 @@ class StreamedReply(PreparedReply):
                     gap = "\n" * max(0, 2 - (len(told) - len(told.rstrip("\n"))) - (len(part) - len(part.lstrip("\n"))))
                     if gap:
                         said.append(gap)
-                        if final and final_said:  # the final text joins its items with the same gap
+                        if final and final_said:  # a final text may join its items with the same gap
                             final_said.append(gap)
                         yield gap
                 item = part_item
                 said.append(part)
                 if final:
                     final_said.append(part)
+                    final_parts.append(part)
                 yield part
             if last and not parts:
                 break
@@ -138,7 +139,10 @@ class StreamedReply(PreparedReply):
         if self.error:
             raise HarnessError(self.error)
         self.settled()
-        rest = _rest("".join(final_said), self.text)
+        told, gapless = "".join(final_said), "".join(final_parts)
+        if not self.text.startswith(told) and self.text.startswith(gapless):
+            told = gapless  # the Claude and ACP runners and pi join the final items without the gap
+        rest = _rest(told, self.text)
         if rest and said and not final_said and not rest.startswith("\n\n"):
             rest = "\n\n" + rest  # the final answer is a new paragraph after the commentary
         if rest:

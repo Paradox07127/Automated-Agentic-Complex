@@ -1039,6 +1039,13 @@ class PreparedReplyTests(unittest.TestCase):
         self.assertEqual(''.join(streamed.stream('Question', '')), 'A\n\nB')
         self.assertEqual(mouth.history[-1][1]['content'], 'A\n\nB')
 
+    def test_two_final_items_joined_without_the_gap_stream_the_answer_once(self):
+        from character_agent.presentation import StreamedReply
+        mouth = self.mouth(); streamed = StreamedReply(mouth)
+        streamed.delta('Let me check.', 'i1'); streamed.delta('It is sunny.', 'i2')
+        streamed.prepared(PreparedReply(mouth, 'Let me check.It is sunny.', 'test'))
+        self.assertEqual(''.join(streamed.stream('Question', '')), 'Let me check.\n\nIt is sunny.')
+
 
 class TurnAccountingTests(unittest.IsolatedAsyncioTestCase):
     async def test_k03_codex_total_deltas_ignore_repeated_last_and_map_cache(self):
