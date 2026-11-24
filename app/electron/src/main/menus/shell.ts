@@ -36,7 +36,6 @@ export interface ShellMenusOptions {
   restartChildren(): void;
   openMain(route: string): void;
   quit(): void;
-  settingsChanged(keys: string[]): void;
   /** companion.log. */
   log(line: string): void;
   /** Puts the icon in the menu bar or the notification area. */
@@ -115,7 +114,6 @@ export function shellMenus(o: ShellMenusOptions): ShellMenus {
         refreshIcon();
       } : undefined,
       toggleFreeRoam: interaction ? () => interaction.actions.freeRoam() : undefined,
-      settingsChanged: o.settingsChanged,
       resetPosition: placer ? () => placer.resetPosition() : undefined,
       resetPanels: desktop ? () => desktop.resetOffsets() : undefined,
       switchCharacter: switcher ? (id) => switcher.select(id) : undefined,

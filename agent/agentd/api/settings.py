@@ -17,6 +17,16 @@ LIVE_SETTINGS = {
 }
 
 
+def _backends_read(agent, saved):
+    """The 「AI 账号」 backends the character agent's kernels read: the saved provider, the main config's provider and
+    the provider of each routed kernel; an ACP kernel may run dsh on the DeepSeek key."""
+    from character_agent.harness.registry import harness
+    config = agent.settings.snapshot()
+    kernels = [config["backend"], *(entry["backend"] for entry in config["routes"].values() if entry)]
+    return {saved["provider"], config["provider"]} | {
+        "deepseek" if h.provider == "acp" else h.provider for h in filter(None, map(harness, kernels))}
+
+
 class SettingsMixin:
     def _models_post(self, path, body):
         from models.model_auth import ModelError
@@ -28,9 +38,15 @@ class SettingsMixin:
             return self._json(400, {"error": "invalid_payload"})
         try:
             if path == "/model/settings":
+                before = models.snapshot()
                 result = models.save(body)
-                if self.server.character_agent is not None:
-                    self.server.character_agent.cancel("credentials_changed")
+                agent = self.server.character_agent
+                if agent is not None:
+                    after = models.snapshot()
+                    read = _backends_read(agent, before) | {after["provider"]}
+                    if before["provider"] != after["provider"] or any(
+                            before["backends"][name] != after["backends"][name] for name in read & after["backends"].keys()):
+                        agent.cancel("credentials_changed")
             elif path == "/model/catalog":
                 from character_agent.harness import registry
                 agent = self.server.character_agent

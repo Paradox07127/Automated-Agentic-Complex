@@ -134,7 +134,7 @@ export interface OpsContext {
   saved?: { fps(): void; hotkey(key: string, name: string): void; touch?(): void; renderLive?(keys: string[]): void; appearance?(): void } | null;
   /** Native changes to saved settings (`settings.onChange`). */
   settingsChanges: EventSource;
-  /** Tells `settingsChanges` that a window other than the settings pages saved these config keys; absent tells no one. */
+  /** Tells `settingsChanges` which config keys a save wrote; absent tells no one. */
   settingsChanged?: ((keys: string[]) => void) | null;
   /** `app.runtime`'s wire and `app.onRuntime`'s source; null or absent leaves both unimplemented. */
   runtime?: { snapshot(): unknown; events: EventSource } | null;

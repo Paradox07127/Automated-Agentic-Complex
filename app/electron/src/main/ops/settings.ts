@@ -191,6 +191,7 @@ export function settingsOps(ctx: OpsContext): Ops {
       else if (effect.kind === 'appearance') ctx.saved?.appearance?.();
     }
     const failed = plan.effects.length === 0 || !ctx.agentd ? [] : await apply(plan.effects);
+    ctx.settingsChanged?.(Object.keys(plan.write));
     return { restart: plan.restart, notApplied: idsOfKeys(failed) };
   };
   return {
@@ -213,7 +214,6 @@ export function settingsOps(ctx: OpsContext): Ops {
       // The guide has no 重启后台 button: a row it saves that the backend takes only at start restarts it at once.
       const task = saving.then(() => write(parsed)).then((r) => {
         if (guide && r.restart === 'backend') ctx.supervisor?.restart();
-        if (guide && r.error === undefined) ctx.settingsChanged?.(Object.keys(parsed));
         return r;
       });
       // The page gets this save's failure from `task`; the next save waits for it but not on it.

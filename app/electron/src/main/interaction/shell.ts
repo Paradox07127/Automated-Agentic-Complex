@@ -13,8 +13,6 @@ export interface InteractionOptions {
   settings(): Record<string, unknown>;
   /** `settings.save` of the main window: free roam saves `beh.stay` as the settings page does, with its effects. */
   saveSettings(changes: Record<string, string>): Promise<{ error?: string }>;
-  /** Tells open settings pages which config.json keys changed. */
-  settingsChanged(keys: string[]): void;
   /** The renderer link; null without one. */
   link: {
     clickThroughAll: boolean;
@@ -134,7 +132,6 @@ export function interactionShell(o: InteractionOptions): Interaction {
         void o.saveSettings({ 'beh.stay': stay ? 'stay' : 'roam' }).then((r) => {
           if (r.error !== undefined) return o.log(`free roam not saved: ${r.error}`);
           o.desktop()?.pushState();
-          o.settingsChanged(['stay_mode']);
         });
       },
       clickThroughAll: () => {

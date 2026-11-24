@@ -52,7 +52,7 @@ function setup(over: Partial<ShellMenusOptions> = {}) {
     desktop: () => desktop, placer: () => null,
     restartChildren: () => calls.push('restartChildren'),
     openMain: (route) => calls.push(`openMain ${route}`), quit: () => calls.push('quit'),
-    settingsChanged: (keys) => calls.push(`settingsChanged ${keys.join(',')}`), log: (line) => calls.push(`log ${line}`),
+    log: (line) => calls.push(`log ${line}`),
     setIcon: (icon) => icons.push(icon),
     ...over,
   };

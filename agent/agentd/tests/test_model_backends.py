@@ -469,7 +469,7 @@ class ModelEndpointsTest(unittest.TestCase):
             server.models = ModelSettings(directory, MemorySecrets())
             pings = []
             server.character_agent = NS(semantic=NS(run=lambda purpose, prompt, context: pings.append(purpose) or {
-                "backend": "codex", "model": "kernel-model"}), settings=NS(snapshot=lambda: {"backend": "codex"}),
+                "backend": "codex", "model": "kernel-model"}), settings=NS(snapshot=lambda: {"backend": "codex", "provider": "", "routes": {}}),
                 cancel=lambda reason: None, close=lambda: None)
             thread = serve_in_thread(server)
             try:
@@ -498,6 +498,32 @@ class ModelEndpointsTest(unittest.TestCase):
                     self.assertEqual(call("POST", "/model/test", "ui", {}), (502, {"error": "provider_request_failed"}))
             finally:
                 server.shutdown(); server.server_close(); server.models.auth.cancel()
+
+    def test_settings_save_cancels_the_turn_only_when_a_backend_it_reads_changes(self):
+        from api.settings import SettingsMixin
+        main = {"backend": "pi", "provider": "", "routes": {}}
+        cancels = []
+        with tempfile.TemporaryDirectory() as directory:
+            handler = SettingsMixin()
+            handler._json = lambda status, data: self.assertEqual(status, 200, data)
+            handler.server = NS(models=ModelSettings(directory, MemorySecrets()), character_agent=NS(
+                settings=NS(snapshot=lambda: main), cancel=cancels.append))
+            self.addCleanup(handler.server.models.auth.cancel)
+
+            def save(body):
+                cancels.clear()
+                handler._models_post("/model/settings", body)
+                return len(cancels)
+            self.assertEqual(save({"provider": "deepseek", "api_key": "first", "model": "deepseek-flash"}), 1)  # the active provider changes
+            self.assertEqual(save({"provider": "deepseek", "api_key": "first"}), 0)  # nothing changes
+            self.assertEqual(save({"provider": "openai", "api_key": "other"}), 0)  # a key slot no kernel reads
+            self.assertEqual(save({"provider": "xai", "api_key": "other"}), 0)
+            self.assertEqual(save({"provider": "deepseek", "api_key": "second"}), 1)
+            self.assertEqual(save({"provider": "deepseek", "model": "deepseek-pro"}), 1)
+            self.assertEqual(save({"provider": "deepseek", "max_output_tokens": 8192}), 1)
+            main["routes"] = {"judge": {"backend": "codex", "acp_agent": None, "model": None, "effort": None}}
+            self.assertEqual(save({"provider": "openai", "api_key": "third"}), 1)  # Codex reads the OpenAI key
+            self.assertEqual(save({"provider": "xai", "api_key": "third"}), 0)
 
     def test_catalog_of_a_pi_service_comes_from_the_pi_runner(self):
         listing = {"providers": [{"id": "deepseek", "name": "DeepSeek"}], "models": [{

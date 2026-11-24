@@ -136,7 +136,7 @@ export interface SettingsSaveResult {
   error?: string;
 }
 
-/** `settings.onChange`: saved values changed outside the settings pages (a menu, another window). */
+/** `settings.onChange`: saved values changed, by any page, window or menu. */
 export interface SettingsChange {
   ids: SettingId[];
 }

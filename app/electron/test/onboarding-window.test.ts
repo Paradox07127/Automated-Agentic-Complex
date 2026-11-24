@@ -468,10 +468,24 @@ test('the guide saves only its own rows, at once, restarts agentd for a row the 
     }
     assert.deepEqual(g.config(), { plugins: { light_ai: true }, voice_hotkey: 'control+option+v' });
     assert.deepEqual(g.told, [['plugins.light_ai'], ['voice_hotkey']], 'refused saves tell no one');
-    const main = registry(context(dir, { surface: 'main', settingsChanged: () => assert.fail('the settings pages read their own save'),
+    const main = registry(context(dir, { surface: 'main',
       supervisor: { state: () => ({ kind: 'running' }), pid: () => 1, restart: () => assert.fail('main restarts from its own bar'), avatar: () => ({ kind: 'stopped' }) } }));
     assert.deepEqual(await call(main, 'settings.save', [{ 'plugins.computer_use': true }], undefined, 'main'),
       { ok: true, value: { restart: 'backend', notApplied: [] } });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a save from the main window tells the other windows once, and a save that changes nothing tells no one', async () => {
+  const dir = tempDir();
+  try {
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({}));
+    const told: string[][] = [];
+    const main = registry(context(dir, { surface: 'main', settingsChanged: (keys) => { told.push(keys); } }));
+    assert.deepEqual(await call(main, 'settings.save', [{ mute: true }], undefined, 'main'), { ok: true, value: { restart: 'none', notApplied: [] } });
+    assert.deepEqual(await call(main, 'settings.save', [{ mute: true }], undefined, 'main'), { ok: true, value: { restart: 'none', notApplied: [] } });
+    assert.deepEqual(told, [['mute']]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

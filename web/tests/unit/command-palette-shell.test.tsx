@@ -135,6 +135,13 @@ describe('⌘K stop', () => {
     expect(stops).toHaveLength(3);
   });
 
+  it('does not offer stop for a job waiting for review, which jobs.py would not cancel', () => {
+    const review = { ...job, status: 'needs_review' as const };
+    const index = { tasks: [review, { ...character, status: 'needs_review' as const }], deliveries: [], facts: [], missing: [] };
+    const stops = paletteItems('停止', pageRoutes, index).filter((i) => i.run.kind === 'stop');
+    expect(stops.map((i) => i.key)).toEqual([`stop-${character.id}`]);
+  });
+
   it('a failure says a short Chinese reason, never the backend detail', async () => {
     const toast = vi.mocked(pushToast);
     const spy = vi.spyOn(getBridge().agentd, 'request');

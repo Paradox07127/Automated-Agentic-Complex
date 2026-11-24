@@ -33,7 +33,7 @@ function ports(without: (keyof MenuPorts)[] = []) {
     openMain: rec('openMain'), quit: rec('quit'), log: rec('log'),
     openAnnouncement: rec('openAnnouncement'), markAllAnnouncementsRead: rec('markAllAnnouncementsRead'),
     setQuiet: async (until) => { calls.push(`setQuiet ${until}`); },
-    toggleFreeRoam: rec('toggleFreeRoam'), settingsChanged: rec('settingsChanged'),
+    toggleFreeRoam: rec('toggleFreeRoam'),
     resetPosition: rec('resetPosition'), switchCharacter: rec('switchCharacter'), switchAppearance: rec('switchAppearance'),
     restartChildren: rec('restartChildren'), resetPanels: rec('resetPanels'),
     now: () => Date.UTC(2026, 10, 20, 6, 0, 0),
@@ -132,7 +132,7 @@ test('menus: each tray item calls its port; a missing port greys its item', asyn
   click(find(sub(menu, '切换角色'), '示例乙'));
   click(find(sub(menu, '切换角色'), '角色卡…'));
   click(find(sub(menu, '外观'), '外勤'));
-  assert.deepEqual(h.calls, ['openMain "/home"', 'openMain "/chat"', 'toggleFreeRoam', 'settingsChanged ["stay_mode"]', 'resetPosition',
+  assert.deepEqual(h.calls, ['openMain "/home"', 'openMain "/chat"', 'toggleFreeRoam', 'resetPosition',
     'resetPanels', 'openMain "/settings"', 'openMain "/diag"', 'openMain "/diag?tab=turns"', 'restartChildren', 'quit',
     'openAnnouncement "a2"', 'markAllAnnouncementsRead', 'switchCharacter "birch"', 'openMain "/character"', 'switchAppearance "field"']);
 
@@ -179,17 +179,14 @@ test('menus: 到明早 7:00 is the next local 07:00 strictly after now', () => {
   assert.equal(quietUntil('halfHour', at(12)), at(12) / 1000 + 1800);
 });
 
-test('menus: 自由活动 from a menu tells the settings page (settings.onChange `change` with its ids)', () => {
+test('settings.onChange sends the setting ids of known config keys until cancelled', () => {
   const changes = new SettingsChanges();
   const events: string[] = [];
   const cancel = changes.subscribe(null, (e) => events.push(`${e.event} ${e.data}`));
-  const h = ports();
-  h.ports.settingsChanged = (keys) => changes.changed(keys);
-  click(find(trayMenu(SAMPLE, h.ports), '自由活动'));
+  changes.changed(['stay_mode']);
   changes.changed(['no_such_key']);
   cancel();
   changes.changed(['stay_mode']);
-  assert.deepEqual(h.calls, ['toggleFreeRoam']);
   assert.deepEqual(events, ['change {"ids":["beh.stay"]}']);
 });
 

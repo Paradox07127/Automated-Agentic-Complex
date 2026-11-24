@@ -19,8 +19,6 @@ export interface MenuPorts {
   setQuiet?(until: number | null): Promise<void>;
   /** Flips config.json's `stay_mode` and PUTs the switches. */
   toggleFreeRoam?(): void;
-  /** `settings.onChange`: config.json keys a menu changed. */
-  settingsChanged?(keys: string[]): void;
   resetPosition?(): void;
   switchCharacter?(id: string): void;
   switchAppearance?(id: string): void;
@@ -77,14 +75,11 @@ export function quietItem(s: MenuState, ports: MenuPorts): MenuItem {
   ], { checked: s.quiet });
 }
 
-/** 自由活动; the settings page hears of the `stay_mode` it changed. */
+/** 自由活动. */
 export function freeRoamItem(s: MenuState, ports: MenuPorts): MenuItem | null {
   if (ABSENT_FEATURES.has('freeRoam')) return null;
   const toggle = ports.toggleFreeRoam;
-  return item('freeRoam', '自由活动', toggle && (() => {
-    toggle();
-    ports.settingsChanged?.(['stay_mode']);
-  }), { checked: s.freeRoam });
+  return item('freeRoam', '自由活动', toggle, { checked: s.freeRoam });
 }
 
 /** The character list and 角色卡…, under 切换角色. */

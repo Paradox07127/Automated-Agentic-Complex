@@ -54,7 +54,6 @@ function harness(o: { status?: number; body?: unknown; offline?: boolean; settin
     request,
     settings: () => { try { return JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>; } catch { return o.settings ?? {}; } },
     saveSettings: async (changes) => (await save([changes], new PageSession(() => {}))) as { error?: string },
-    settingsChanged: (keys) => calls.push(`settingsChanged ${keys.join(',')}`),
     link: o.noLink ? null : link,
     desktop: () => (o.noDesktop ? null : desktop),
     openSessions: () => calls.push('sessions'),
@@ -220,7 +219,7 @@ test('free roam flips stay_mode between stay and roam through the settings save:
   h.shell.actions.freeRoam();
   await settle();
   assert.deepEqual(JSON.parse(readFileSync(h.configPath, 'utf8')), { character: 'aster', sit_on_windows: false, stay_mode: 'roam' });
-  assert.deepEqual(h.calls, ['renderLive stay_mode', 'pushState', 'settingsChanged stay_mode']);
+  assert.deepEqual(h.calls, ['renderLive stay_mode', 'pushState']);
   assert.deepEqual(h.requests.map((r) => [r.method, r.path, r.json]), [['PUT', '/behavior/switches',
     { stay_in_place: false, sit_window_top: false, hold_window_edge: true, fullscreen_give_way: true }]]);
   assert.deepEqual(h.lines, ['behavior switches put status=503']);

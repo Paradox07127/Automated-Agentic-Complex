@@ -4,6 +4,7 @@ import { appNow } from '../bridge/clock';
 import { fromDelivery, fromFact, fromLedgerTask, fromTaskRow, mergeTasks, type Delivery, type Fact, type Task, type WireFact, type WireLedgerTask, type WireTaskRow } from '../domain';
 import type { HotkeyLabels } from '../domain/hotkeys';
 import { settingPath } from '../pages/settings/groups';
+import { stoppable as canStop } from '../pages/tasks/model';
 import type { DesktopOp } from './desktopOps';
 import { isDevMode } from './devMode';
 import type { NavTarget, PageId } from './nav';
@@ -80,9 +81,9 @@ export interface PaletteItem {
 
 const MAX_HITS = 5;
 
-/** Same rule as the task page: external sessions and finished tasks cannot be stopped; a task stops through its job, its character ledger row or its run. */
+/** The task page's rule, without own sessions (the index has none); a task stops through its job, its character ledger row or its run. */
 const stoppable = (t: Task) =>
-  t.source !== 'ext' && ['running', 'queued', 'needs_review'].includes(t.status) && (t.id.startsWith('job:') || (t.target === 'character' && t.task_id != null) || t.run_id != null);
+  canStop(t, { sessions: [] }) && (t.id.startsWith('job:') || (t.target === 'character' && t.task_id != null) || t.run_id != null);
 
 const desktop = (op: DesktopOp, hint: string, off: Partial<Record<DesktopOp, string>>) => {
   const reason = off[op];

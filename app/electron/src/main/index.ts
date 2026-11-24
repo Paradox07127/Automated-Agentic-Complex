@@ -725,7 +725,6 @@ const interaction = config && runtimePath !== null ? (() => {
     },
     settings: () => readObject(configPath), link: hostLink, desktop: () => desktop,
     saveSettings: async (changes) => (await settingsOps(opsContext('main'))['settings.save']!([changes], new PageSession(() => {}))) as { error?: string },
-    settingsChanged: (keys) => settingsChanges.changed(keys),
     openSessions: () => openMainAt(sessionsRoute()),
     // The wheel opens with its centre at the click.
     onContextMenu: (at, held) => {
@@ -1088,7 +1087,7 @@ const menus = shellMenus({
     restartServices('children');
     void renderer?.restart();
   },
-  openMain: openMainAt, quit: () => app.quit(), settingsChanged: (keys) => settingsChanges.changed(keys),
+  openMain: openMainAt, quit: () => app.quit(),
   log: (line) => appendLog(config?.supportDir ?? supportDir, 'companion', line),
   setIcon: (icon: IconBitmap) => tray?.setImage(trayIcon(icon)),
 });
