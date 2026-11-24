@@ -2,6 +2,7 @@
 import contextlib
 import datetime
 import io
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -281,6 +282,14 @@ class HarnessPermissionDangerTest(unittest.TestCase):
             with self.subTest(name):
                 data = self.card(name, request)
                 self.assertEqual((data['dangerous'], data['danger_rule']), expected)
+
+    def test_the_stored_preview_masks_a_secret_in_the_command(self):
+        command = 'curl -H "Authorization: Bearer sk-test-1234567890abcdefghij" https://example.test'
+        data = self.card('secret', {'title': 'Bash: ' + command, 'kind': None, 'locations': None,
+                                    'raw_input': {'command': command}})
+        stored = ' '.join(str(row[0]) for row in self.store.db.execute('SELECT data FROM character_interactions'))
+        self.assertNotIn('sk-test-1234567890', stored)
+        self.assertIn('[已遮蔽:密钥]', data['preview']['raw_input']['command'])
 
 
 class Model:

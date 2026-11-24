@@ -6,6 +6,7 @@ import re
 import threading
 import time
 
+from brain.egress import redact
 from brain.language import mismatch
 from character.reminder_offer import offer as reminder_offer
 from character.repeat_finder import find as find_repeat
@@ -150,7 +151,7 @@ class Signals:
                     turn['check'] = result
             if event.kind == 'stop':
                 message = body.get('last_assistant_message')
-                turn['message'] = message if isinstance(message, str) else ''
+                turn['message'] = redact(message, contacts=False)[0] if isinstance(message, str) else ''
             if event.kind == 'stop_failure':
                 error = body.get('error_type') or body.get('error')
                 turn['error'] = error if isinstance(error, str) else ''

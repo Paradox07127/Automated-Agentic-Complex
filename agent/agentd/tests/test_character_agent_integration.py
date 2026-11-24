@@ -425,6 +425,17 @@ class IntegrationTests(IntegrationFixture):
         self.controller.cancel('context_changed')
         self.assertIsNone(self.controller.memory_journal.get(ident)['detail'])
 
+    def test_context_change_redacts_a_run_that_read_observations_without_deliveries(self):
+        self.controller.deliveries = None
+        store = self.controller.store
+        store.begin('observed-run', 'c' * 32, self.server.character, 0)
+        store.item({'run_id': 'observed-run', 'item_id': 'said', 'seq': 1, 'kind': 'assistant_text', 'status': 'completed',
+                    'summary': 'the editor shows a failing build', 'text': 'the editor shows a failing build'})
+        store.finish('observed-run', 'completed', dependencies=[{'source': 'observations', 'id': 'frame-1', 'version': 1, 'hash': ''}])
+        self.controller.cancel('context_changed')
+        [item] = store.items('observed-run')
+        self.assertEqual((item['text'], item['summary']), ('', None))
+
     def parent_background(self):
         release, started = threading.Event(), threading.Event()
         def work(session, prompt, options):
@@ -560,6 +571,28 @@ class IntegrationTests(IntegrationFixture):
                 self.assertEqual((row['result']['error'], row['result']['reason']), ('api_error', reason))
         finally: self.controller.jobs.close()
 
+    def settled(self, job):
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline and self.controller.jobs.store.get(job['job_id'])['state'] in ('queued', 'running'):
+            time.sleep(.01)
+        return self.controller.jobs.store.get(job['job_id'])
+
+    def test_a_job_whose_run_never_began_settles_failed_with_its_error(self):
+        from character_agent.runtime import AgentReply
+        with patch('character_agent.integration.PersonalAgentRuntime.run', return_value=AgentReply(error='checkpoint_inputs_changed')):
+            row = self.settled(self.controller.submit_job('核对', '核对资料', '核对资料'))
+        self.assertEqual((row['state'], row['result']['error']), ('failed', 'checkpoint_inputs_changed'))
+
+    def test_a_goal_whose_accepted_job_delivered_text_can_be_completed(self):
+        goal = self.controller.jobs.store.create_goal('成本', '比较成本')
+        job = self.controller.submit_job('核对成本', '仅回复文字', '比较成本并给出建议', goal_id=goal['goal_id'])
+        self.assertEqual(self.settled(job)['state'], 'needs_review')
+        store = self.controller.jobs.store
+        with store.lock:
+            store.db.execute("UPDATE personal_jobs SET state='accepted' WHERE job_id=?", (job['job_id'],)); store.db.commit()
+        revision = store.goal(goal['goal_id'])['revision']
+        self.assertEqual(self.controller.update_goal(goal['goal_id'], revision, 'completed')['state'], 'completed')
+
     def test_job_endpoint_rejects_malformed_goal_ids_and_action_gets(self):
         for value in ([],{},True,42,'','x'*129):
             status,body=self.request('POST','/agent/jobs',{'title':'资料核对','text':'核对资料','goal_id':value})
@@ -611,6 +644,23 @@ class IntegrationTests(IntegrationFixture):
             time.sleep(.01)
         self.assertTrue(seen)
         self.assertIn(str(self.inputs), seen[0])
+
+    def test_background_assignment_and_bridged_paths_pass_egress(self):
+        seen = []
+        def script(session, prompt, options):
+            seen.append(prompt + options['system_prompt'])
+            yield {'type': 'result', 'success': True, 'final_text': '已核对'}
+        self.script = script
+        self.controller.configure({'backend': 'codex', 'runtime_source': 'local'})
+        folder = self.root / 'token=folder-secret-1234'; folder.mkdir()
+        scope = self.controller.workspace.create_scope([str(folder)], str(self.root / 'outputs'))['scope_id']
+        job = self.controller.submit_job('核对', '核对资料', '计划：用 sk-abcdefghijklmnopqrstuvwx 登录', scope)
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline and self.controller.jobs.store.get(job['job_id'])['state'] in ('running', 'queued'):
+            time.sleep(.01)
+        self.assertTrue(seen)
+        self.assertIn('计划：用 [已遮蔽:密钥] 登录', seen[0])
+        self.assertNotIn('sk-abcdefghijklmnopqrstuvwx', seen[0]); self.assertNotIn('folder-secret-1234', seen[0])
 
     def test_background_without_a_folder_delivers_text_without_file_planning(self):
         seen = []
@@ -901,6 +951,17 @@ class IntegrationTests(IntegrationFixture):
         self.assertEqual(results['task_plan']['error'], {'code': 'tool_not_allowed_in_mode', 'mode': 'read_only',
                                                           'message': "task_plan is not available in this run's read_only mode."})
         self.assertNotIn('private-synthetic-turn', json.dumps(self.controller.store.list()))
+
+    def test_a_temporary_turn_stays_out_of_the_next_prompt_and_the_side_brief(self):
+        # Tool words take the chat route, whose prompt carries the mouth's history.
+        self.line('search private-temporary-words', no_memory=True)
+        self.assertEqual(self.controller._foreground_request, '')
+        self.line('search a remembered turn')
+        history = json.dumps(self.sessions[-1].calls[-1]['history'], ensure_ascii=False)
+        self.assertNotIn('private-temporary-words', history)
+        self.assertEqual(self.controller._foreground_request, 'search a remembered turn')
+        self.controller.forget()
+        self.assertEqual(self.controller._foreground_request, '')
 
     def test_pi_anonymous_endpoint_only_allows_explicit_loopback(self):
         snapshot = lambda: {'backends': {'compatible': dict(MODEL_DEFAULTS['compatible'])}}
@@ -2041,6 +2102,26 @@ class ScopedCancelTests(unittest.TestCase):
         self.assertEqual(options['ask_user_result']['result'], {'answers': {'q': ['real-answer']}})
         self.assertNotIn('private-question', options['prompt'])
 
+    def test_a_resumed_ask_user_answer_reaches_the_harness_masked(self):
+        def factory(definitions):
+            def work(session, prompt, options):
+                self.sessions[options['run_id']] = session
+                if 'ask-first' in prompt and not options.get('ask_user_result'):
+                    yield from session.use(options, 'ask_user', {'questions': [{'id': 'q', 'question': 'which key?'}]})
+                yield from chat(session, prompt, options)
+            return FakeSession(work)
+        self.c.session_factory_override = factory
+        first = self.c.submit_job('first', 'ask-first', 'ask-first')
+        self.wait(lambda: bool(self.c.interactions.list()))
+        self.wait(lambda: self.c.jobs.store.get(first['job_id'])['state'] == 'waiting_user')
+        card = self.c.interactions.list()[0]
+        self.assertEqual(self.request('/agent/interactions/' + card['request_id'] + '/answer',
+            {'expected_version': card['revision'], 'answers': {'q': ['use sk-abcdefghijklmnopqrstuvwx']}})[0], 200)
+        self.wait(lambda: self.c.jobs.store.get(first['job_id'])['state'] == 'needs_review')
+        resumed = self.c.jobs.store.get(first['job_id'])
+        options = self.sessions[resumed['run_id']].calls[0]
+        self.assertEqual(options['ask_user_result']['result'], {'answers': {'q': ['use [已遮蔽:密钥]']}})
+
     def test_k06_conversation_cancel_stops_the_foreground_and_leaves_its_jobs_running(self):
         one = self.job(self.a); queued = self.job(self.a, running=False)
         runtime = self.foreground()
@@ -2214,6 +2295,41 @@ class ScopedCancelTests(unittest.TestCase):
         self.assertEqual(job['source_turn_id'], 'correction-turn')
         self.assertEqual(job['state'], 'running')
         self.assertEqual(self.sessions[job['run_id']].interrupted, 0)
+
+    def test_cancelling_a_goal_cancels_its_waiting_job_and_card(self):
+        def factory(definitions):
+            def work(session, prompt, options):
+                yield from session.use(options, 'ask_user', {'questions': [{'id': 'q', 'question': '用途？'}]})
+                yield from chat(session, prompt, options)
+            return FakeSession(work)
+        self.c.session_factory_override = factory
+        goal = self.c.jobs.store.create_goal('事项', '整理')
+        job = self.c.submit_job('work', 'synthetic work', 'synthetic work', goal_id=goal['goal_id'])
+        self.wait(lambda: self.c.jobs.store.get(job['job_id'])['state'] == 'waiting_user')
+        self.c.update_goal(goal['goal_id'], self.c.jobs.store.goal(goal['goal_id'])['revision'], 'cancelled')
+        self.wait(lambda: self.c.jobs.store.get(job['job_id'])['state'] == 'cancelled')
+        self.assertEqual(self.c.interactions.list(), [])
+
+    def test_a_turn_that_corrects_a_fact_keeps_its_own_items_and_the_observations(self):
+        fact = self.server.memory.add('报告使用旧格式', 'asserted_by_user')
+        def factory(definitions):
+            def work(session, prompt, options):
+                yield from session.use(options, 'knowledge_read', {'source': 'memory', 'id': fact})
+                receipt = yield from session.use(options, 'memory_propose', {'operation': 'correct',
+                    'fact_id': fact, 'expected_version': 1, 'target_quote': '报告使用旧格式',
+                    'text': '报告使用新格式', 'evidence_quote': '报告使用新格式'})
+                self.assertEqual(receipt['outcome'], 'corrected')
+                yield {'type': 'item', 'item_id': 'said', 'kind': 'assistant_text', 'status': 'completed', 'summary': '记下了'}
+                yield from chat(session, prompt, options)
+            return FakeSession(work)
+        self.c.session_factory_override = factory
+        with patch.object(self.c.observations, 'clear') as observations, patch.object(self.c.observation_briefs, 'clear') as briefs:
+            answer = self.c.prepare('correction-turn', '更正报告使用旧格式，报告使用新格式',
+                threading.Event(), self.server.turn_generation, 'text', {'remember': True, 'reset': -1})
+        self.assertIsNone(answer.error)
+        observations.assert_not_called(); briefs.assert_not_called()
+        said = next(i for i in self.c.store.items('correction-turn') if i['item_id'] == 'said')
+        self.assertEqual(said['summary'], '记下了')
 
     def test_w004_used_memory_interrupts_only_dependent_job_and_cards(self):
         fact = self.server.memory.add('旧资料', 'asserted_by_user')

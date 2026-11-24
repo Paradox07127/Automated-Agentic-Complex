@@ -15,12 +15,13 @@ import threading
 import time
 import uuid
 
+from brain.egress import redact
 from brain.markers import MarkerStream
 from brain.outbound import OutboundBlocked
 from brain.language import SYSTEM_RULE
 from brain.persona import TOOL_REMINDER, localized, render_brief_persona, render_persona
 from character.binding import bound, effective
-from character_agent.services.knowledge import KnowledgeService
+from character_agent.services.knowledge import DERIVED, KnowledgeService
 from character_agent.services.interactions import InteractionService, QuestionTurn
 from character_agent.services.memory_service import MemoryJournal
 from character_agent.services.capabilities import describe as describe_capabilities
@@ -375,14 +376,14 @@ class CharacterAgentController:
         if p['scope_id'] and config['backend'] in BRIDGED:
             scope = self.workspace.get_scope(p['scope_id'])
             system += ('\nAuthorized material, to read with your own file tools: '
-                       + ', '.join([f['path'] for f in scope.get('files', [])] + [r['path'] + '/' for r in scope['roots']]) + '.')
+                       + s.egress.observed(', '.join([f['path'] for f in scope.get('files', [])] + [r['path'] + '/' for r in scope['roots']])) + '.')
         if p['scope_id']:
             system += '\nYou may read the authorized material as needed. Use task_plan only when the job must produce files: list them in outputs, write them, and check each with artifact_verify. When you answer from material, put the answer in the result.'
         else:
             system += '\nThis job has no authorized folder: deliver text in the result, without task_plan or file tools. If files were asked for, deliver the content as text and say the user must pick folders in settings before it can be written to files.'
         if setting != 'harness':
             system += '\n' + SYSTEM_RULE
-        context = {'local_time': local_time(datetime.now().astimezone()), 'background_assignment': p['instruction']}
+        context = {'local_time': local_time(datetime.now().astimezone()), 'background_assignment': s.egress.user_text(p['instruction'])}
         conversations = s.history.conversations if s.history else None
         if conversations and conversations.get(job['conversation_id']):
             context['recent_conversation'] = [{'user': s.egress.user_text(turn['user_text']), 'reply': s.egress.observed(turn['reply'])}
@@ -417,8 +418,10 @@ class CharacterAgentController:
                         "output_tokens": answer.usage.get("output_tokens") or 0, "stop_reason": answer.error or "end_turn",
                         **finished_usage(answer)})
             task = s.tasks.get(answer.task_id) if answer.task_id and s.tasks else None
-            failure = ((self.store.get(job['run_id']) or {}).get('result') or {}).get('failure') or {} if answer.error else {}
-            return {'job_state': 'cancelled' if not current() else 'waiting_user' if self.store.get(job['run_id'])['state'] == 'waiting_user' else 'failed' if answer.error else task['state'] if task else 'needs_review',
+            # A run refused before it began (checkpoint_inputs_changed, scope_changed, effect_unknown) has no row.
+            run = self.store.get(job['run_id']) or {}
+            failure = (run.get('result') or {}).get('failure') or {} if answer.error else {}
+            return {'job_state': 'cancelled' if not current() else 'waiting_user' if run.get('state') == 'waiting_user' else 'failed' if answer.error else task['state'] if task else 'needs_review',
                     'run_id': job['run_id'], 'task_id': answer.task_id, 'reply': answer.text,
                     'error': answer.error, 'reason': failure.get('code') if failure.get('code') in JOB_FAILURE_REASONS else None,
                     'validation': answer.result}
@@ -466,11 +469,13 @@ class CharacterAgentController:
     def update_goal(self, ident, revision, state):
         if state == 'completed':
             for job in self.jobs.store.list(goal_id=ident, states=('succeeded', 'accepted'), limit=None, private=True):
+                # A text-only result has no files to check again.
+                if job['payload'].get('expected_outputs') is None and not self.workspace.run_artifacts(job['run_id']): continue
                 check = self.workspace.verify_run(job['run_id'], job['payload']['scope_id'])
                 if not check.get('ok'): raise ValueError('goal_results_not_current')
         value = self.jobs.store.update_goal(ident, revision, state)
         if state in ('paused', 'cancelled'):
-            for job in self.jobs.store.list(goal_id=ident, states=('running', 'queued'), limit=None):
+            for job in self.jobs.store.list(goal_id=ident, states=('running', 'queued', 'waiting_user'), limit=None):
                 self.jobs.cancel(job['job_id'], 'goal_' + state, interrupted=state == 'paused')
         return value
 
@@ -779,8 +784,11 @@ class CharacterAgentController:
                       if isinstance(o, dict) and o.get("kind") == "allow_once"), None)
         if run is None or allow is None:
             return None
+        # The card is stored and shown: its command may carry a credential.
         preview = {"source": source, "agent": agent_name, "title": request.get("title"), "kind": request.get("kind"),
-                   "locations": request.get("locations"), "raw_input": request.get("raw_input")}
+                   "locations": request.get("locations"),
+                   "raw_input": json.loads(redact(json.dumps(request.get("raw_input"), ensure_ascii=False), contacts=False)[0])}
+        if isinstance(preview["title"], str): preview["title"] = redact(preview["title"], contacts=False)[0]
         dangerous, rule = harness_danger(request)
         try:
             self.interactions.approve(run_id, preview,
@@ -904,7 +912,9 @@ class CharacterAgentController:
             checkpoint = self.store.load_checkpoint(run_id=row['run_id'])
             if checkpoint is None: raise ValueError('checkpoint_missing')
             if not checkpoint.get('pending_tool'): raise ValueError('checkpoint_question_missing')
-            checkpoint['pending_tool']['result'] = row['answer']
+            # The checkpoint hands the answer to the resumed harness prompt.
+            checkpoint['pending_tool']['result'] = {'answers': {key: [self.server.egress.user_text(value) for value in values]
+                                                                for key, values in row['answer']['answers'].items()}}
             if not self.store.checkpoint(row['run_id'], checkpoint['task_id'], checkpoint):
                 raise ValueError('interaction_cancelled')
             # Includes synchronous privacy invalidation during checkpoint validation.
@@ -1494,18 +1504,23 @@ class CharacterAgentController:
         return found
 
     def _cancel(self, reason="cancelled", *, fact_ids=None, context_kind=None):
-        if reason in ('context_changed','scope_revoked','memory_changed','history_cleared') and getattr(self,'observations',None):
+        if reason in ('context_changed','scope_revoked') and getattr(self,'observations',None):
             self.observations.clear()
-        if reason in ('context_changed', 'scope_revoked', 'memory_changed', 'history_cleared', 'observations_deleted') and getattr(self, 'observation_briefs', None):
+        if reason in ('context_changed', 'scope_revoked', 'observations_deleted') and getattr(self, 'observation_briefs', None):
             self.observation_briefs.clear()
         if fact_ids is not None or context_kind is not None:
             affected = set()
             if fact_ids is not None:
                 fact_ids = set(fact_ids)
+                current = {}
+                for fact_id in fact_ids:
+                    try: current[fact_id] = self.server.memory.versions(fact_id)[-1]['version']
+                    except KeyError: current[fact_id] = None
+                # A run that read the version the change made, as the correcting run itself does, still holds.
+                stale = lambda d: d.get('source') == 'memory' and d.get('id') in fact_ids and d.get('version') != current[d['id']]
                 with self.store.lock:
                     rows = self.store.db.execute('SELECT run_id,dependencies FROM character_runs').fetchall()
-                affected.update(run_id for run_id, raw in rows if any(
-                    d.get('source') == 'memory' and d.get('id') in fact_ids for d in json.loads(raw)))
+                affected.update(run_id for run_id, raw in rows if any(stale(d) for d in json.loads(raw)))
             if context_kind is not None:
                 affected.update(run_id for run_id, kinds in tuple(self.server._line_context.values()) if context_kind in kinds)
             continued = self._continued_runs(affected)
@@ -1522,11 +1537,12 @@ class CharacterAgentController:
             for runtime in runtimes:
                 with runtime._lock:
                     active = runtime._active
-                    if active and fact_ids is not None and any(d.get('source') == 'memory' and d.get('id') in fact_ids
-                            for d in active['knowledge'].dependencies()):
+                    if active and fact_ids is not None and any(stale(d) for d in active['knowledge'].dependencies()):
                         affected.add(active['run_id'])
-                    if (runtime in (foreground, self._quick_runtime) or runtime in sides) and active and active['run_id'] in affected:
-                        runtime.invalidate(reason, run_id=active['run_id'], interrupted=True)
+                    if runtime in (foreground, self._quick_runtime) or runtime in sides:
+                        # An ended run's words stay in the session it ran on; invalidate ends that session too.
+                        for run_id in affected:
+                            runtime.invalidate(reason, run_id=run_id, interrupted=True)
             if self.jobs:
                 for job in self.jobs.store.list(states=('queued', 'running', 'waiting_user'), limit=None):
                     if job['run_id'] in affected or job['previous_run_id'] in affected:
@@ -1540,12 +1556,12 @@ class CharacterAgentController:
             if self.memory_journal:
                 self.memory_journal.redact(reason)
             return
-        if reason == 'context_changed' and self.deliveries:
+        if reason == 'context_changed':
             with self.store.lock:
                 observed = [row[0] for row in self.store.db.execute('SELECT run_id,dependencies FROM character_runs')
-                    if any(d.get('source') in ('episodes','behavior','task_context','briefs','tasks','days') for d in json.loads(row[1]))]
+                    if any(d.get('source') in DERIVED for d in json.loads(row[1]))]
             self.store.redact_items(observed)
-            self.deliveries.revoke(observed)
+            if self.deliveries: self.deliveries.revoke(observed)
         if reason in ("credentials_changed", "runtime_changed", "history_cleared", "shutdown"):
             with self._lock:
                 if reason == "shutdown":
@@ -1614,6 +1630,7 @@ class CharacterAgentController:
     def forget(self):
         self.interactions.invalidate()
         self.cancel("history_cleared")
+        self._foreground_request = ''
         if self.memory_journal is not None:
             self.memory_journal.clear()
         if getattr(self, "deliveries", None): self.deliveries.forget()
@@ -1696,7 +1713,7 @@ class CharacterAgentController:
         """Run the harness outside server's mouth lock; return a presentation-only provider.
         side: answer this input in a new read-only session while the foreground run keeps working."""
         if not side:
-            self._foreground_request = text[:300]
+            self._foreground_request = text[:300] if trace.get('remember', True) else ''
             return self._prepare(line_id, text, cancel, generation, source, trace, **options)
         self._auto_select()
         config = RuntimeSettings.route(self.settings.snapshot(), 'chat')
@@ -1885,7 +1902,7 @@ class CharacterAgentController:
                 server.character, {"system_prompt": system, "history": history, "context": context},
                 allowed=source in ("text", "voice") and trace.get("remember", True)) if self.memory_journal and main_session else None
             pending = (self.store.load_checkpoint(run_id=resume_run_id) or {}).get('pending_tool') if resume_run_id else None
-            answers = tuple(egress.user_text(value) for values in pending['result']['answers'].values() for value in values) \
+            answers = tuple(value for values in pending['result']['answers'].values() for value in values) \
                 if pending and pending['name'] == 'ask_user' and pending.get('result') else ()
             session = self.quick_session() if quick else None
             span, started = new_span_id(), time.monotonic()
@@ -1948,7 +1965,7 @@ class CharacterAgentController:
                                     cost_usd=answer.cost_usd, cost_source="sdk_estimate" if answer.cost_usd is not None else None)
             if not result.get("handoff"):
                 return PreparedReply(mouth, answer.text, answer.model, answer.usage, answer.facts, answer.error,
-                                     final_item_id=answer.final_item_id)
+                                     final_item_id=answer.final_item_id, remember=trace.get("remember", True))
             trace["route"] = "chat"
             if not current():
                 return PreparedReply(mouth, "", runtime.model, error="cancelled")

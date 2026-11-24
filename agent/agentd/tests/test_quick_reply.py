@@ -239,13 +239,15 @@ class QuickTests(unittest.TestCase):
         self.assertIs(self.c.runtime, runtime)
         self.assertFalse(runtime._closed)
 
-    def test_quick_uses_temporary_history(self):
-        self.say('first', remember=False)
-        self.say('second', remember=False)
-        self.assertEqual(self.sessions[0].calls[-1]['history'][0][0]['content'], 'first')
+    def test_quick_temporary_turns_read_the_window_but_stay_out_of_it(self):
         with patch.object(self.server, 'history', None):
-            self.say('third')
-        self.assertEqual([turn[0]['content'] for turn in self.sessions[0].calls[-1]['history']], ['first', 'second'])
+            self.say('first')
+        self.say('second', remember=False)
+        self.say('third', remember=False)
+        self.assertEqual([turn[0]['content'] for turn in self.sessions[0].calls[-1]['history']], ['first'])
+        with patch.object(self.server, 'history', None):
+            self.say('fourth')
+        self.assertEqual([turn[0]['content'] for turn in self.sessions[0].calls[-1]['history']], ['first'])
 
     def test_quick_validates_scope_before_dispatch(self):
         (self.root / 'in').mkdir()

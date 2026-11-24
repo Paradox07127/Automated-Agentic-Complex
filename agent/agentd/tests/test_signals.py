@@ -350,6 +350,12 @@ class SignalsTest(unittest.TestCase):
         self.hook('Stop', last_assistant_message='又修好了。')
         self.assertEqual(len(self.posts), 1)
 
+    def test_a_done_line_never_quotes_a_secret_from_the_assistant_message(self):
+        self.hook('UserPromptSubmit')
+        self.now += 600
+        self.hook('Stop', last_assistant_message='sk-test-1234567890abcdefghij 已经配好。')
+        self.assertEqual(self.posts[0]['text'], 'Claude Code 在 Endfield 做完了：[已遮蔽:密钥] 已经配好。')
+
     def test_failed_long_turn_has_no_done_message_and_daily_cap_is_separate(self):
         self.gate._count = self.gate.daily_limit
         self.gate._day = datetime.date.fromtimestamp(self.now)

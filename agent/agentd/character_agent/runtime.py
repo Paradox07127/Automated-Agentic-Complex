@@ -8,6 +8,7 @@ import threading
 import time
 import uuid
 
+from brain.egress import redact
 from brain.voice_check import for_replay, out_of_voice
 from character_agent.services.store import RunStore
 from character_agent.services.workspace import WorkspaceError
@@ -134,7 +135,8 @@ class PersonalAgentRuntime:
         self._session_key = None
         self._last_projection = None
         self._previous_knowledge = None
-        self._previous_dependencies = []
+        self._previous_dependencies = []  # what every run on the current session read
+        self._session_runs = set()  # the runs whose words the current session holds
         self._closed = False
         self.conversation_id = self.store.conversation_id
 
@@ -168,7 +170,7 @@ class PersonalAgentRuntime:
     def invalidate(self, reason="context_changed", *, run_id=None, interrupted=False):
         with self._lock:
             cancelled = self.cancel(reason, run_id=run_id, interrupted=interrupted)
-            if run_id is not None and cancelled is None: return
+            if run_id is not None and cancelled is None and run_id not in self._session_runs: return
             self._session_key = None
             self._last_projection = None
 
@@ -374,6 +376,8 @@ class PersonalAgentRuntime:
                         self._session.close()
                     self._session = self.session_factory(definitions)
                     self._session_key = session_key
+                    self._previous_dependencies, self._session_runs = [], set()
+                self._session_runs.add(run_id)
 
             def begin_task(title=None):
                 nonlocal task_id
@@ -570,7 +574,7 @@ class PersonalAgentRuntime:
                         if event.get(key) is not None:
                             item[key] = event[key]
                     if summary is not None:
-                        item['summary'] = summary[:200]
+                        item['summary'] = redact(summary, contacts=False)[0][:200]
                     # A tool the agent runs itself (a command, an edit) never passes the tool handler, so its item is
                     # the only report of that work; Endfield's own tools are reported by the transport's events.
                     native = event.get('type') == 'item' and item['kind'] == 'tool_call' and item['name'] not in own_tools
@@ -713,7 +717,8 @@ class PersonalAgentRuntime:
                     if fact["fact_id"] in ids or "memory:" + fact["fact_id"] in ids:
                         key = "trusted" if fact["source"] in ("asserted_by_user", "confirmed_by_user") else "low_trust"
                         facts[key].append(fact)
-            self._previous_knowledge, self._previous_dependencies = knowledge, dependencies
+            self._previous_knowledge = knowledge
+            self._previous_dependencies += [d for d in dependencies if d not in self._previous_dependencies]
             # Delivery updates the projection; caller supplies it using delivered().
             self._last_projection = None
             if (sdk_result.get("context_tokens") or 0) >= SESSION_CONTEXT_TOKENS:

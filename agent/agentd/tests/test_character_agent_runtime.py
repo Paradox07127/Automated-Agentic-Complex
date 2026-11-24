@@ -848,6 +848,43 @@ class RuntimeTests(unittest.TestCase):
                 self.assertTrue(rows)
                 self.assertTrue(all(isinstance(e.get('at'), float) for e in rows))
 
+    def test_a_native_command_summary_is_stored_and_published_without_its_secret(self):
+        def commanded(session, prompt, options):
+            yield {'type': 'item', 'item_id': 'cmd', 'kind': 'tool_call', 'status': 'completed', 'name': 'shell',
+                   'summary': 'curl -H "Authorization: Bearer sk-test-1234567890abcdefghij" https://example.test'}
+            yield from chat(session, prompt, options)
+        self.script = commanded
+        self.assertIsNone(self.run_agent(scope_id=None).error)
+        row = next(r for r in self.runtime.store.items('run-1') if r['item_id'] == 'cmd')
+        published = [e['summary'] for e in self.events if e.get('item_id') == 'cmd']
+        self.assertTrue(published)
+        for summary in [row['summary'], *published]:
+            self.assertIn('[已遮蔽:密钥]', summary); self.assertNotIn('sk-test-1234567890', summary)
+
+    def test_a_fact_read_two_turns_ago_still_ends_the_reused_session(self):
+        fact = self.memory.add('The meeting room is on floor 3', 'asserted_by_user')
+        def reads(session, prompt, options):
+            if 'read the fact' in prompt:
+                yield from session.use(options, 'knowledge_read', {'source': 'memory', 'id': fact})
+            yield from chat(session, prompt, options)
+        self.script = reads
+        self.assertIsNone(self.run_agent(text='read the fact', scope_id=None).error)
+        self.assertIsNone(self.run_agent('run-2', scope_id=None).error)
+        self.assertEqual(len(self.sessions), 1)
+        self.memory.delete(fact)
+        self.run_agent('run-3', scope_id=None)
+        self.assertEqual(len(self.sessions), 2)
+
+    def test_invalidating_an_ended_run_of_the_session_ends_the_session(self):
+        self.run_agent(scope_id=None)
+        self.run_agent('run-2', scope_id=None)
+        self.runtime.invalidate('context_changed', run_id='run-2')
+        self.run_agent('run-3', scope_id=None)
+        self.assertEqual(len(self.sessions), 2)
+        self.runtime.invalidate('context_changed', run_id='run-1')
+        self.run_agent('run-4', scope_id=None)
+        self.assertEqual(len(self.sessions), 2)
+
     def test_a_turn_without_the_harness_tools_never_reuses_a_session_with_them(self):
         self.run_agent()
         self.run_agent('run-2', harness_tools=False)
@@ -983,6 +1020,24 @@ class PreparedReplyTests(unittest.TestCase):
         failed = PreparedReply(mouth, '', 'test', error='provider_failed')
         with self.assertRaisesRegex(RuntimeError, 'provider_failed'): list(failed.stream('Question', ''))
         self.assertEqual(mouth.history, [])
+
+    def test_an_unremembered_reply_is_delivered_but_kept_out_of_history(self):
+        from character_agent.presentation import StreamedReply
+        mouth = self.mouth()
+        self.assertEqual(list(PreparedReply(mouth, 'Once', 'test', remember=False).stream('Question', '')), ['Once'])
+        streamed = StreamedReply(mouth)
+        streamed.delta('Once', 'i1')
+        streamed.prepared(PreparedReply(mouth, 'Once', 'test', remember=False))
+        self.assertEqual(''.join(streamed.stream('Question', '')), 'Once')
+        self.assertEqual(mouth.history, [])
+
+    def test_two_final_items_stream_the_answer_once(self):
+        from character_agent.presentation import StreamedReply
+        mouth = self.mouth(); streamed = StreamedReply(mouth)
+        streamed.delta('A', 'i1'); streamed.delta('', 'i2'); streamed.delta('B', 'i2')
+        streamed.prepared(PreparedReply(mouth, 'A\n\nB', 'test'))
+        self.assertEqual(''.join(streamed.stream('Question', '')), 'A\n\nB')
+        self.assertEqual(mouth.history[-1][1]['content'], 'A\n\nB')
 
 
 class TurnAccountingTests(unittest.IsolatedAsyncioTestCase):

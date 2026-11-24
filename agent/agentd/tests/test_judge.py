@@ -101,10 +101,11 @@ class JudgeTest(unittest.TestCase):
         self.assertFalse(self.log.exists())
 
     def test_a_backend_error_answers_none_and_the_log_keeps_the_error(self):
-        self.assertIsNone(Judge(FakeBackend(error=OSError("offline")), self.log).ask("s", QUESTIONS))
+        self.assertIsNone(Judge(FakeBackend(error=OSError("offline, key sk-test-1234567890abcdefghij")), self.log)
+                          .ask("s", QUESTIONS))
         [logged] = self.lines()
         self.assertEqual((logged["backend"], logged["answers"]), ("fake", []))
-        self.assertIn("offline", logged["error"])
+        self.assertEqual(logged["error"], "OSError: decision_failed")
 
     def test_invalid_answers_answer_none(self):
         backend = FakeBackend([{"id": "speak", "value": "yes", "prob": 0.9},

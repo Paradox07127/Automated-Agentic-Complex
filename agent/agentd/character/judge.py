@@ -105,7 +105,8 @@ class Judge:
                 answers = backend.answer(state if private is None else {**state, **private}, questions)
             validate_answers(questions, answers)
         except Exception as e:  # any backend failure skips the decision
-            error, failure_reason, answers = f"{type(e).__name__}: {e}", trace_failure_reason(e), []
+            failure_reason, answers = trace_failure_reason(e), []
+            error = f"{type(e).__name__}: {failure_reason}"
         result = {"judge_id": secrets.token_hex(8),
                   "answers": [{"id": a["id"], "value": a["value"], "prob": a["prob"]} for a in answers],
                   "backend": backend.name,

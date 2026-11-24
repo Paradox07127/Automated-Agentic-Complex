@@ -5,8 +5,10 @@ from character_agent.harness.transport import HarnessError
 
 
 class PreparedReply:
-    def __init__(self, mouth, text, model, usage=None, facts=None, error=None, *, final_item_id=None):
+    def __init__(self, mouth, text, model, usage=None, facts=None, error=None, *, final_item_id=None, remember=True):
+        """remember False: the line is delivered but its turn stays out of the mouth's history."""
         self.history = mouth.history
+        self.remember = remember
         self.max_turns = mouth.max_turns
         self.model = model
         self.usage = None
@@ -31,9 +33,10 @@ class PreparedReply:
         yield self.text
         if self.dispatch_allowed():
             self.usage = self.result_usage
-            self.history.append([{"role": "user", "content": text},
-                                 {"role": "assistant", "content": self.text}])
-            del self.history[:-self.max_turns]
+            if self.remember:
+                self.history.append([{"role": "user", "content": text},
+                                     {"role": "assistant", "content": self.text}])
+                del self.history[:-self.max_turns]
 
 
 def _rest(said, final):
@@ -56,6 +59,7 @@ class StreamedReply(PreparedReply):
 
     def __init__(self, mouth):
         self._mouth, self.model, self.usage = mouth, None, None
+        self.remember = True  # prepare's reply sets it
         self._take("", None, None, None, None)
         self.dispatch_allowed = lambda: True
         self.settled = lambda: None  # run in stream() once the final text, facts and final_item_id are known
@@ -82,7 +86,7 @@ class StreamedReply(PreparedReply):
             if reply is not None and self._parts:  # with no delta yet, the line gets reply itself as before
                 if not self._ended:
                     self._take(reply.text, reply.error, vars(reply.result_usage), reply.facts, reply.final_item_id)
-                self.model = reply.model
+                self.model, self.remember = reply.model, reply.remember
             self.reply, self.failure, self._done = reply, failure, True
             self._cv.notify_all()
 
@@ -111,12 +115,16 @@ class StreamedReply(PreparedReply):
                 return
             taken += len(parts)
             for part, part_item, final in parts:
+                if not part:
+                    continue
                 if said and part_item != item:
                     # one blank line between items, counting the newlines either side already has
                     told = "".join(said)
                     gap = "\n" * max(0, 2 - (len(told) - len(told.rstrip("\n"))) - (len(part) - len(part.lstrip("\n"))))
                     if gap:
                         said.append(gap)
+                        if final and final_said:  # the final text joins its items with the same gap
+                            final_said.append(gap)
                         yield gap
                 item = part_item
                 said.append(part)
@@ -138,6 +146,7 @@ class StreamedReply(PreparedReply):
             yield rest
         if self.dispatch_allowed():
             self.usage = self.result_usage
-            self.history.append([{"role": "user", "content": text},
-                                 {"role": "assistant", "content": "".join(said)}])
-            del self.history[:-self.max_turns]
+            if self.remember:
+                self.history.append([{"role": "user", "content": text},
+                                     {"role": "assistant", "content": "".join(said)}])
+                del self.history[:-self.max_turns]
