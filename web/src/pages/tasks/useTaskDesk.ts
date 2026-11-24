@@ -35,6 +35,8 @@ export function useTaskDesk(state: DemoState | null, demo: string | null, select
       queryClient.invalidateQueries({ queryKey: ['task-extras'] }),
       queryClient.invalidateQueries({ queryKey: ['session-lines'] }),
       queryClient.invalidateQueries({ queryKey: ['tasks-board'] }),
+      // A schedule's occurrences start and settle as jobs; their feed events land here.
+      queryClient.invalidateQueries({ queryKey: ['schedules'] }),
     ]);
   }, [queryClient, key]);
   const selectedRun = useRef<(runId: string) => boolean>(() => false);
@@ -46,12 +48,14 @@ export function useTaskDesk(state: DemoState | null, demo: string | null, select
   const listData = loading ? undefined : state === 'empty' ? EMPTY_LIST : list.data;
   const pendData = loading ? undefined : state === 'empty' ? NO_PENDING : pend.data;
   const data = useMemo(() => (listData || pendData ? withPlans(joinTasks(listData ?? EMPTY_LIST, pendData ?? NO_PENDING), plans) : null), [listData, pendData, plans]);
-  // A receipt's reply carries the delivery's next revision; put it where the next decision reads it.
+  // A receipt's reply carries the delivery's next revision; put it where the next decision reads it, unless a newer or redacted copy is there.
   const patchDelivery = useCallback(
-    (d: Delivery) =>
+    (d: Delivery) => {
+      const older = (x: Delivery) => x.id === d.id && d.revision > x.revision && !x.redacted;
       queryClient.setQueriesData<TasksListPage>({ queryKey: ['tasks-page', roleFail, demo] }, (b) =>
-        b ? { ...b, deliveries: b.deliveries.map((x) => (x.id === d.id ? d : x)), tasks: b.tasks.map((t) => (t.delivery?.id === d.id ? { ...t, delivery: d, revision: d.revision } : t)) } : b,
-      ),
+        b ? { ...b, deliveries: b.deliveries.map((x) => (older(x) ? d : x)), tasks: b.tasks.map((t) => (t.delivery && older(t.delivery) ? { ...t, delivery: d } : t)) } : b,
+      );
+    },
     [queryClient, roleFail, demo],
   );
   const receipt = useReceipts(data?.deliveries ?? [], patchDelivery, reload);

@@ -4,8 +4,9 @@ import { keyText } from '../../bridge/platformText';
 import type { Goal } from '../../domain';
 import type { PushToast } from '../../shell/toast';
 import { Btn, Dialog } from '../../ui';
+import { isPluginOff } from '../../shell/plugins';
 import { failMessage } from './actions';
-import { draftProblem, submitDraft } from './create';
+import { draftProblem, offText, submitDraft } from './create';
 import { CreateForm, type CreateDraft } from './CreateForm';
 
 export interface CreateDialogProps {
@@ -25,7 +26,7 @@ export function CreateDialog({ draft, setDraft, goals, push, onCreated }: Create
   useEffect(() => {
     if (!draft) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Enter' || !(e.metaKey || e.ctrlKey)) return;
+      if (e.key !== 'Enter' || !(e.metaKey || e.ctrlKey) || e.isComposing) return;
       e.preventDefault();
       submitRef.current();
     };
@@ -53,7 +54,7 @@ export function CreateDialog({ draft, setDraft, goals, push, onCreated }: Create
       push(`已交派：${r.label}`);
       onCreated(r.select);
     } catch (e) {
-      const text = failMessage(e);
+      const text = isPluginOff(e) ? offText(draft.kind) : failMessage(e);
       if (text !== null) push(`交派失败：${text}`, { severity: 'danger' });
     } finally {
       setBusy(false);

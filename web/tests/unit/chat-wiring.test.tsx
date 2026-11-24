@@ -473,7 +473,7 @@ describe('chat actions', () => {
       shown: () => null,
       task,
       run: null,
-      view: { tasks: [task], deliveries: [delivery], pending: [], activeRuns: {}, sessions: [], ctx: { activeRuns: {}, sessions: [], pending: [] }, effective: {}, waiting: { tasks: 0, items: 0 }, goals: [] },
+      view: { tasks: [task], deliveries: [delivery], pending: [], activeRuns: {}, sessions: [], ctx: { activeRuns: {}, sessions: [], pending: [] }, effective: {}, stopped: {}, waiting: { tasks: 0, items: 0 }, goals: [] },
       busy: false,
       setLocal: () => {},
       setAnswered: () => {},

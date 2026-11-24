@@ -15,6 +15,7 @@ import { TasksLoadError } from '../../data/tasksBase';
 import { useCharacters } from '../chat/useChatData';
 import { failMessage } from './actions';
 import { BottomBar, NewButton } from './Bottom';
+import { offText } from './create';
 import { draftFromSchedule, newDraft, problemOf, schedulePayload, sendNow, type EditDraft } from './draft';
 import { Editor } from './Editor';
 import { Logo, TypeIcon, Warn } from './Glyphs';
@@ -85,6 +86,8 @@ export function TasksPage() {
   const task = tab !== 'sched' && sel ? (view?.tasks.find((t) => t.id === sel) ?? null) : null;
   const schedule = tab === 'sched' && sel ? (scheds.find((s) => s.schedule_id === sel) ?? null) : null;
   const waiting = view ? runGroups(view, desk.cards, who, now).some((g) => g.key === 'wait') : false;
+  // 立即运行 waits only on what blocks it now: a scope no longer in force, not the last run's error.
+  const scopeGone = !!schedule?.scope_id && !!opts.data && !opts.data.scopes.some((x) => x.id === schedule.scope_id);
 
   const readError = tab === 'sched' ? sched.error : desk.list.first.error;
   // agentd still has 个人代理 off: nothing to list and nothing to create.
@@ -125,7 +128,7 @@ export function TasksPage() {
         push(`已交派：${r.label}`);
         close();
         void desk.reload();
-        put({ tab: 'run', sel: r.select ?? undefined });
+        put({ tab: 'run', sel: r.select });
       } else {
         const body = schedulePayload(draft);
         const id = body ? await writes.save(draft.scheduleId, body) : null;
@@ -135,7 +138,7 @@ export function TasksPage() {
         }
       }
     } catch (e) {
-      const text = failMessage(e);
+      const text = isPluginOff(e) ? offText(draft.type) : failMessage(e);
       if (text !== null) push(`交派失败：${text}`, { severity: 'danger' });
     } finally {
       setBusy(false);
@@ -159,7 +162,7 @@ export function TasksPage() {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
         e.preventDefault();
         l.openNew(l.tab === 'sched' ? 'sched' : 'role');
-      } else if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && l.draft) {
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && l.draft && !e.isComposing) {
         e.preventDefault();
         void l.submit();
       } else if (e.key === 'Escape' && (l.draft || l.note)) {
@@ -299,6 +302,8 @@ export function TasksPage() {
             onGoChat={(c) => go({ page: 'chat', conv: c })}
             onEdit={() => schedule && open(draftFromSchedule(schedule))}
             onRunNow={() => schedule && void writes.runNow(schedule)}
+            runOff={scopeGone ? '先重新选资料' : null}
+            runBusy={!!schedule && writes.running(schedule.schedule_id)}
             onDelete={() => schedule && setDel(schedule.schedule_id)}
           />
         }

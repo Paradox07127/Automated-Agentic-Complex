@@ -1,6 +1,7 @@
 // The editor in the detail column: 派发任务 (role task or coding session, now or on a schedule), 新建 / 编辑定时任务.
 import type { ReactNode } from 'react';
 import { WEEKDAYS } from '../../domain/schedules';
+import { usePlugins } from '../../shell/plugins';
 import { Btn, Field, Fold, TextArea } from '../../ui';
 import { GameSeg, MicroLabel } from '../../ui/game';
 import { draftNext, type EditDraft } from './draft';
@@ -60,6 +61,7 @@ function Pick({ label, value, options, onChange, missing }: { label: string; val
 
 export function Editor({ draft: d, onChange, who, scopes, conversations, canPick, onPickFolder, problem, now }: EditorProps) {
   const set = (patch: Partial<EditDraft>) => onChange({ ...d, ...patch });
+  const codeOn = usePlugins().coding_sessions;
   const repeat = d.when === 'repeat';
   const role = d.type === 'role';
   const title = d.scheduleId ? '编辑定时任务' : repeat ? '新建定时任务' : '派发任务';
@@ -89,7 +91,7 @@ export function Editor({ draft: d, onChange, who, scopes, conversations, canPick
         <div className={styles.form} role="form" aria-label={title} data-nav-target="task-create">
           {!d.scheduleId && (
             <Row label="交给谁">
-              <GameSeg label="交给谁" value={d.type} options={[{ value: 'role', label: `${who}（角色任务）` }, { value: 'code', label: '编码会话' }]} onChange={(v) => set({ type: v as EditDraft['type'], ...(v === 'code' ? { when: 'now' as const } : {}) })} />
+              <GameSeg label="交给谁" value={d.type} options={[{ value: 'role', label: `${who}（角色任务）` }, ...(codeOn ? [{ value: 'code', label: '编码会话' }] : [])]} onChange={(v) => set({ type: v as EditDraft['type'], ...(v === 'code' ? { when: 'now' as const } : {}) })} />
             </Row>
           )}
           {role && !d.scheduleId && (

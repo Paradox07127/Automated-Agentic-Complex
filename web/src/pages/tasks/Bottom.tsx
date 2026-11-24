@@ -12,6 +12,9 @@ import type { TasksTab } from './params';
 import type { TaskDesk } from './useTaskDesk';
 import styles from './Bar.module.css';
 
+/** jobs.py resume takes a note only in these states. */
+const RESUMABLE = ['interrupted', 'needs_review', 'failed', 'waiting_user', 'rejected'];
+
 export function NewButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <Btn variant="ghost" icon="plus" kbd={keyText('⌘N')} onClick={onClick}>
@@ -39,6 +42,10 @@ export interface BottomBarProps {
   onGoChat: (conversationId: string) => void;
   onEdit: () => void;
   onRunNow: () => void;
+  /** Why 立即运行 cannot run now; null when it can. */
+  runOff: string | null;
+  /** The schedule's run request is on its way. */
+  runBusy: boolean;
   onDelete: () => void;
 }
 
@@ -75,7 +82,7 @@ export function BottomBar(p: BottomBarProps) {
         对话轮次
       </Btn>
     ) : null;
-    const stopped = task.status === 'cancelled' || desk.local.stopped[task.id] != null;
+    const stopped = task.status === 'cancelled' || desk.view.stopped[task.id] != null;
     if (ended) {
       tip = '再派一次：同样的标题新派一个任务';
       const more = task.source === 'role' && !stopped && ['failed', 'rejected', 'interrupted'].includes(task.status) || (stopped && canContinue(task));
@@ -95,13 +102,13 @@ export function BottomBar(p: BottomBarProps) {
         </>
       );
     } else {
-      const live = stoppable(task) && !stopped;
+      const live = stoppable(task, desk.view) && !stopped;
       right = (
         <>
           {chat}
           {term}
           {trace}
-          {task.source === 'role' && task.status === 'running' && (
+          {task.source === 'role' && task.job_id && RESUMABLE.includes(task.status) && (
             <Btn variant="ghost" onClick={p.onNote}>
               补一句…
             </Btn>
@@ -125,7 +132,7 @@ export function BottomBar(p: BottomBarProps) {
         <Btn variant="ghost" icon="tune" onClick={p.onEdit}>
           编辑
         </Btn>
-        <Btn variant="ghost" tail="play" disabled={!!schedule.last_error} disabledReason="先重新选资料" onClick={p.onRunNow}>
+        <Btn variant="ghost" tail="play" loading={p.runBusy} disabled={p.runOff != null} disabledReason={p.runOff ?? undefined} onClick={p.onRunNow}>
           立即运行
         </Btn>
       </>

@@ -22,7 +22,7 @@ import { DECIDE_FAIL, notStopped, type DecideFailCode, type TaskAction } from '.
 import { codeText, failureText } from '../../domain/errorText';
 import { isPluginOff } from '../../shell/plugins';
 import type { PushToast } from '../../shell/toast';
-import { nextAfter, type TasksLocal, type TasksView } from './model';
+import { nextAfter, stopMark, type TasksLocal, type TasksView } from './model';
 import { navigate } from './params';
 import { sendOpened } from './deliveryCalls';
 
@@ -178,7 +178,7 @@ export function createTasksActions(d: ActionDeps) {
     const bad = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
     const at = d.now();
     if (ok.length > 0) {
-      d.setLocal((l) => ({ ...l, stopped: { ...l.stopped, ...Object.fromEntries(ok.map((t) => [t.id, at])) } }));
+      d.setLocal((l) => ({ ...l, stopped: { ...l.stopped, ...Object.fromEntries(ok.map((t) => [t.id, at])) }, stopMark: { ...l.stopMark, ...Object.fromEntries(ok.map((t) => [t.id, stopMark(t, d.view)])) } }));
       const name = ok.length === 1 && ok[0] ? `「${ok[0].title}」` : `选中的 ${ok.length} 个任务`;
       d.push(`已停止${name} │ ${formatClock(at)}`);
     }
@@ -237,7 +237,8 @@ export function createTasksActions(d: ActionDeps) {
     d.reload();
   };
 
-  const onTask = (task: Task) => async (a: TaskAction) => {
+  /** Resolves true once a note or a session message was taken, so its composer can clear. */
+  const onTask = (task: Task) => async (a: TaskAction): Promise<boolean | void> => {
     const bridge = getBridge();
     switch (a.kind) {
       case 'accept':
@@ -249,6 +250,7 @@ export function createTasksActions(d: ActionDeps) {
           await sendNote(task, a.note, a.useCurrentKernel);
           d.push('已把补充要求发给角色');
           d.reload();
+          return true;
         } catch (e) {
           fail(e);
         }
@@ -300,6 +302,7 @@ export function createTasksActions(d: ActionDeps) {
           await post(`/sessions/${seg(session.id)}/messages`, { text: a.text });
           d.push('已发送到编码会话');
           d.reload();
+          return true;
         } catch (e) {
           // 409 busy: the session is still running its turn (own.py message), not someone else's change.
           if (e instanceof AgentdCallError && e.code === 'busy') d.push('会话正在执行这一轮，等它结束再发', { severity: 'danger' });

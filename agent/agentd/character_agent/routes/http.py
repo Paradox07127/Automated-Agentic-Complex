@@ -168,7 +168,7 @@ def route(handler, method, path):
                 validate_say(body)
                 try:
                     value = controller.submit_job(body['title'], body['text'], body['text'],
-                        body.get('scope_id') or controller.settings.snapshot().get('scope_id'), goal_id=body.get('goal_id'),
+                        body['scope_id'] if 'scope_id' in body else controller.settings.snapshot().get('scope_id'), goal_id=body.get('goal_id'),
                         expected_outputs=body.get('expected_outputs'))
                 except KernelNotReady as error:
                     return reply(503, {'error': error.code, 'runtime': error.runtime})

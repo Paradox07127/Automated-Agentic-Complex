@@ -8,6 +8,7 @@ import { APPROVALS, DELIVERIES, GOALS, NOW, pick, QUESTIONS, TASKS } from '../..
 import { A2, DLV_T1_V1, DLV_T1_V2, Q1, S_C07A, T1, T2, T3, T6 } from '../../src/mock/fixtures/ids';
 import { createTasksActions, type ActionDeps } from '../../src/pages/tasks/actions';
 import { Artifacts } from '../../src/pages/tasks/Artifacts';
+import { BottomBar, type BottomBarProps } from '../../src/pages/tasks/Bottom';
 import { CreateDialog } from '../../src/pages/tasks/CreateDialog';
 import { draftFor } from '../../src/pages/tasks/CreateForm';
 import { deriveView, emptyLocal, type TasksView } from '../../src/pages/tasks/model';
@@ -27,7 +28,7 @@ afterEach(() => {
 const noop = () => {};
 const OWN = { id: S_C07A, task_id: T2, kind: 'code' as const, own: true, target: 'codex' as const, display_session: null, agent: 'Codex', title: 'companion', state: 'running' as const, since: NOW, cwd: '~/Endfield/app' };
 /** A role call approval of T3 that may be let through for the rest of the task. */
-const ROLE_ASK: Question & { interaction_kind: 'approval' } = { ...pick(QUESTIONS, Q1), id: 'q-role-ask', task_id: T3, interaction_kind: 'approval', approval_answers: ['allow', 'allow_session', 'deny'], preview_text: '{"tool": "read_file"}' };
+const ROLE_ASK: Question & { interaction_kind: 'approval' } = { ...pick(QUESTIONS, Q1), id: 'q-role-ask', task_id: T3, conversation_id: null, interaction_kind: 'approval', approval_answers: ['allow', 'allow_session', 'deny'], preview_text: '{"tool": "read_file"}' };
 
 function view(over: Partial<TasksBase> = {}): TasksView {
   const base: TasksBase = { tasks: TASKS, deliveries: DELIVERIES, sessions: [OWN], approvals: APPROVALS, questions: QUESTIONS, goals: GOALS, activeRuns: {}, roleMissing: false, ...over };
@@ -61,6 +62,12 @@ describe('task detail: a decision sits in the step she waits on', () => {
     mount(T3, view({ questions: [...QUESTIONS, ROLE_ASK] }));
     expect(screen.getByRole('button', { name: '这个任务里都允许' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '这次会话都允许' })).toBeNull();
+  });
+
+  it('a role approval whose run belongs to a conversation offers 本对话都允许, the grant agentd keys by conversation', () => {
+    mount(T3, view({ questions: [...QUESTIONS, { ...ROLE_ASK, conversation_id: 'conv-1' }] }));
+    expect(screen.getByRole('button', { name: '本对话都允许' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '这个任务里都允许' })).toBeNull();
   });
 
   it('Esc on an approval paper denies nothing; ⏎ approves, and on a dangerous call it only says to use the mouse', () => {
@@ -97,6 +104,39 @@ describe('task detail: a decision sits in the step she waits on', () => {
     expect(scroll.firstElementChild?.getAttribute('role')).toBe('status');
     expect(scroll.firstElementChild?.textContent).toContain('资料授权已撤销');
     expect(container.textContent).not.toContain('/agent/tasks');
+  });
+});
+
+describe('task detail: notes and messages', () => {
+  const bottom = (task: TasksView['tasks'][number], v: TasksView) => {
+    const desk = { view: v, actions: createTasksActions(deps(v)), local: emptyLocal(), nativeOff: {} } as unknown as TaskDesk;
+    const p = { tab: 'run', empty: false, newLabel: '派发任务', onNew: noop, draft: null, problem: null, busy: false, onCancel: noop, onSubmit: noop, task, desk, dev: false, schedule: null, onNote: noop, onAgain: noop, onGoChat: noop, onEdit: noop, onRunNow: noop, onDelete: noop } as unknown as BottomBarProps;
+    return render(<BottomBar {...p} />);
+  };
+
+  it('a running role job offers no 补一句, which agentd would refuse as job_not_resumable; a job waiting on her question does', () => {
+    const v = view();
+    const t3 = pick(v.tasks, T3);
+    bottom({ ...t3, status: 'running' }, v);
+    expect(screen.queryByRole('button', { name: /补一句/ })).toBeNull();
+    cleanup();
+    bottom({ ...t3, status: 'waiting_user' }, v);
+    expect(screen.getByRole('button', { name: /补一句/ })).toBeTruthy();
+  });
+
+  it('a message the coding session refused stays in the field', async () => {
+    const bridge = createFakeBridge({ surface: 'main', still: true });
+    const real = bridge.agentd.request.bind(bridge.agentd);
+    vi.spyOn(bridge.agentd, 'request').mockImplementation(async (method, path, body) =>
+      (path.endsWith('/messages') ? { status: 409, body: { error: 'busy' }, error: { code: 'busy' } } : await real(method, path, body)) as never);
+    window.agenticComplex = bridge;
+    mount(T2);
+    const field = screen.getByRole('textbox', { name: '给编码会话发消息' }) as HTMLInputElement;
+    fireEvent.change(field, { target: { value: '先跑测试' } });
+    fireEvent.click(screen.getByRole('button', { name: '发送' }));
+    await waitFor(() => expect(bridge.agentd.request).toHaveBeenCalledWith('POST', `/sessions/${S_C07A}/messages`, { text: '先跑测试' }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(field.value).toBe('先跑测试');
   });
 });
 
@@ -207,5 +247,21 @@ describe('create dialog', () => {
     expect(dialog.textContent).not.toContain('NEW');
     fireEvent.keyDown(within(dialog).getByDisplayValue(draft.brief), { key: 'Enter', metaKey: true });
     await waitFor(() => expect(onCreated).toHaveBeenCalled());
+  });
+
+  it('⌘↵ that commits an IME candidate does not submit', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const onCreated = vi.fn();
+    const draft = { ...draftFor('code'), brief: '验证报表差异', cwd: { handle: 'h-1', displayName: 'agent' } };
+    render(
+      <QueryClientProvider client={client}>
+        <CreateDialog draft={draft} setDraft={() => {}} goals={[]} push={() => {}} onCreated={onCreated} />
+      </QueryClientProvider>,
+    );
+    const field = within(screen.getByRole('dialog')).getByDisplayValue(draft.brief);
+    const ime = fireEvent.keyDown(field, { key: 'Enter', metaKey: true, isComposing: true });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(ime).toBe(true);
+    expect(onCreated).not.toHaveBeenCalled();
   });
 });

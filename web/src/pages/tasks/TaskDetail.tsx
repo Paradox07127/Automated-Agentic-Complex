@@ -62,7 +62,7 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
   const latest = deliveries.at(-1) ?? null;
   const visible = useDeliveryVisibility<HTMLDivElement>(latest, desk.receipt, 'viewed');
   const eff = view.effective[task.id] ?? 'running';
-  const stoppedAt = desk.local.stopped[task.id] ?? null;
+  const stoppedAt = view.stopped[task.id] ?? null;
   const stopped = task.status === 'cancelled' || stoppedAt != null;
   const session = view.sessions.find((s) => s.task_id === task.id) ?? null;
   const codeLive = task.source === 'code' && task.status === 'running' && !stopped;
@@ -78,7 +78,8 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
   const ended = ['done', 'failed', 'stopped'].includes(eff);
   const end = endState(task, view);
   const code = task.source === 'code';
-  const scopeLabel = code ? '这次会话都允许' : '这个任务里都允许';
+  // A role grant is keyed by the run's conversation when it has one (interactions.py), else by the run.
+  const scopeLabel = (a: AskItem) => (code ? '这次会话都允许' : a.kind === 'question' && a.conversation_id ? '本对话都允许' : '这个任务里都允许');
 
   const decide = (a: AskItem, v: Verdict, mode?: string) => {
     if (a.kind === 'approval') void actions.approve([a.id], v, mode);
@@ -87,7 +88,7 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
   const mouseOnly = () => desk.push('危险操作只能用鼠标点「批准」；回车不会批准');
   const papers: ReactNode[] = [
     // One yellow button: a question's 提交 first, then the first approval, then the review.
-    ...asks.map((a, i) => <ApprovalPaper key={a.id} item={a} kernelName={desk.kernel.data ?? undefined} scopeLabel={scopeLabel} onDecide={(v, m) => decide(a, v, m)} onMouseOnly={mouseOnly} quiet={i > 0 || questions.length > 0} />),
+    ...asks.map((a, i) => <ApprovalPaper key={a.id} item={a} kernelName={desk.kernel.data ?? undefined} scopeLabel={scopeLabel(a)} onDecide={(v, m) => decide(a, v, m)} onMouseOnly={mouseOnly} quiet={i > 0 || questions.length > 0} />),
     ...questions.map((q) => <QuestionPaper key={q.id} question={q} now={desk.now} onAnswer={(ans) => void actions.answer(q, ans)} onCancel={() => void actions.cancelQuestion(q)} />),
   ];
   const first = asks[0] ?? questions[0];
@@ -218,9 +219,8 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
             <pre className={styles.logs}>{lines.isError ? '会话输出没读到' : lines.data == null ? '正在读取会话输出…' : lines.data.length ? lines.data.slice(-6).map((l) => `› ${l}`).join('\n') : '还没有输出'}</pre>
             <div className={styles.send}>
               <Field label="给编码会话发消息" placeholder="给这个会话补一句…" value={msg} onChange={setMsg} />
-              <Btn size="sm" variant="ghost" disabled={!msg.trim()} disabledReason="先写要发的话" onClick={() => {
-                actions.onTask(task)({ kind: 'send_session', text: msg.trim() });
-                setMsg('');
+              <Btn size="sm" variant="ghost" disabled={!msg.trim()} disabledReason="先写要发的话" onClick={async () => {
+                if (await actions.onTask(task)({ kind: 'send_session', text: msg.trim() })) setMsg('');
               }}>
                 发送
               </Btn>
@@ -260,9 +260,8 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
             <RejectBox
               mode="continue"
               kernelName={desk.kernel.data ?? undefined}
-              onSubmit={(text, useCurrentKernel) => {
-                actions.onTask(task)({ kind: 'continue', note: text, useCurrentKernel });
-                onNote(false);
+              onSubmit={async (text, useCurrentKernel) => {
+                if (await actions.onTask(task)({ kind: 'continue', note: text, useCurrentKernel })) onNote(false);
               }}
             />
           </div>

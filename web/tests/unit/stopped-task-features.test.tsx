@@ -79,7 +79,7 @@ describe('ApprovalCard: why the session link is off', () => {
     const view = deriveView({ tasks: TASKS, deliveries: [], sessions: [own], approvals: [], questions: [], goals: [], activeRuns: {}, roleMissing: false }, emptyLocal());
     const desk = { view, actions: { onTask: () => noop }, local: emptyLocal(), nativeOff: { jump: '这台电脑的外壳暂不支持跳到终端' } } as unknown as TaskDesk;
     render(
-      <BottomBar tab="run" empty={false} newLabel="派发任务" onNew={noop} draft={null} problem={null} busy={false} onCancel={noop} onSubmit={noop} task={pick(view.tasks, T2)} desk={desk} dev={false} schedule={null} onNote={noop} onAgain={noop} onGoChat={noop} onEdit={noop} onRunNow={noop} onDelete={noop} />,
+      <BottomBar tab="run" empty={false} newLabel="派发任务" onNew={noop} draft={null} problem={null} busy={false} onCancel={noop} onSubmit={noop} task={pick(view.tasks, T2)} desk={desk} dev={false} schedule={null} onNote={noop} onAgain={noop} onGoChat={noop} onEdit={noop} onRunNow={noop} runOff={null} runBusy={false} onDelete={noop} />,
     );
     const jump = screen.getByRole('button', { name: '跳到终端' });
     expect(jump.getAttribute('aria-disabled')).toBe('true');

@@ -603,6 +603,14 @@ class IntegrationTests(IntegrationFixture):
             self.assertEqual((status,body['error']),(404,'not_found'))
         self.assertEqual(self.controller.jobs.store.get(job['job_id'])['state'],'queued')
 
+    def test_job_endpoint_takes_a_null_scope_and_falls_back_only_when_the_key_is_absent(self):
+        snapshot = self.controller.settings.snapshot
+        with patch.object(self.controller.settings, 'snapshot', lambda: {**snapshot(), 'scope_id': 'default-scope'}), \
+                patch.object(self.controller, 'submit_job', return_value={'job_id': 'j'}) as submit:
+            for body, scope in (({'scope_id': None}, None), ({}, 'default-scope'), ({'scope_id': 'picked'}, 'picked')):
+                status, _ = self.request('POST', '/agent/jobs', {'title': '资料核对', 'text': '核对资料', **body})
+                self.assertEqual((status, submit.call_args.args[3]), (202, scope))
+
     def test_goal_tool_binds_direction_and_respects_explicit_negation(self):
         from character_agent.services.orchestration import OrchestrationTurn
         goal=self.controller.jobs.store.create_goal('事项维护','整理证据')

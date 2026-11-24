@@ -31,7 +31,7 @@ export interface ApprovalPaperProps {
   item: AskItem;
   /** Who asks: the coding tool, or the role kernel's name. */
   kernelName?: string | undefined;
-  /** 「这个任务里都允许」 for a role task, 「这次会话都允许」 for a coding session. */
+  /** 「本对话都允许」 for a role run of a conversation, 「这个任务里都允许」 for another role run, 「这次会话都允许」 for a coding session. */
   scopeLabel: string;
   onDecide: (verdict: Verdict, mode?: string) => void;
   /** ⏎ on a dangerous card. */

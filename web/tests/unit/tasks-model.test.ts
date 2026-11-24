@@ -3,9 +3,9 @@ import { countWaiting, effectiveState } from '../../src/domain';
 import { buildLanes } from '../../src/features/task/waterfall';
 import { ACTIVE_RUNS, APPROVALS, DELIVERIES, GOALS, NOW, PENDING, QUESTIONS, SESSIONS, STEP_EVENTS, TASKS, TOOL_ITEMS } from '../../src/mock/fixtures';
 import { routes } from '../../src/mock/tasks';
-import { deriveView, emptyLocal, nextAfter } from '../../src/pages/tasks/model';
+import { deriveView, emptyLocal, nextAfter, pendingOf, stopMark, stoppable } from '../../src/pages/tasks/model';
 import type { TasksBase } from '../../src/pages/tasks/useTasksData';
-import { A1, A2, A3, DLV_T1_V2, T1, T2, T4, T6 } from '../../src/mock/fixtures/ids';
+import { A1, A2, A3, DLV_T1_V2, S_C07A, T1, T2, T4, T6 } from '../../src/mock/fixtures/ids';
 
 const base: TasksBase = {
   tasks: TASKS,
@@ -50,11 +50,34 @@ describe('task page model', () => {
   });
 
   it('a stopped task drops its pending items and live run', () => {
-    const view = deriveView(base, { ...emptyLocal(), stopped: { [T2]: NOW } });
+    const t2 = TASKS.find((t) => t.id === T2)!;
+    const view = deriveView(base, { ...emptyLocal(), stopped: { [T2]: NOW }, stopMark: { [T2]: stopMark(t2, base) } });
     expect(view.effective[T2]).toBe('stopped');
     expect(view.pending.some((p) => p.task_id === T2)).toBe(false);
     expect(view.activeRuns[T2]).toBeUndefined();
     expect(effectiveState(view.tasks.find((t) => t.id === T2)!, view.ctx)).toBe('stopped');
+  });
+
+  it('a stop no longer masks the task once its session runs a newer turn: the session and its approval show', () => {
+    const t2 = TASKS.find((t) => t.id === T2)!;
+    const before = { ...base, sessions: SESSIONS.map((s) => (s.id === S_C07A ? { ...s, state: 'running' as const, since: NOW - 120_000 } : s)) };
+    const local = { ...emptyLocal(), stopped: { [T2]: NOW - 60_000 }, stopMark: { [T2]: stopMark(t2, before) } };
+    const view = deriveView(base, local);
+    expect(view.tasks.find((t) => t.id === T2)?.status).not.toBe('cancelled');
+    expect(view.sessions.some((s) => s.id === S_C07A)).toBe(true);
+    expect(pendingOf(view, T2).map((p) => p.id)).toContain(A2);
+    expect(view.stopped[T2]).toBeUndefined();
+  });
+
+  it('stop is offered only where agentd can stop: not on a role job waiting for review, not on an idle own session', () => {
+    const view = deriveView(base, emptyLocal());
+    const job = TASKS.find((t) => t.id === T1)!;
+    expect(job.status).toBe('needs_review');
+    expect(stoppable(job, view)).toBe(false);
+    expect(stoppable({ ...job, status: 'running' }, view)).toBe(true);
+    const code = TASKS.find((t) => t.id === T2)!;
+    expect(stoppable(code, view)).toBe(true);
+    expect(stoppable(code, { sessions: view.sessions.map((s) => (s.id === S_C07A ? { ...s, state: 'idle' as const } : s)) })).toBe(false);
   });
 });
 

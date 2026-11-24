@@ -1,5 +1,6 @@
 import type { PickedHandle } from '../../bridge/protocol';
 import type { Goal } from '../../domain';
+import { usePlugins } from '../../shell/plugins';
 import { Btn, Field, Fold, InfoTip, Seg, Select, TextArea } from '../../ui';
 import styles from './CreateForm.module.css';
 
@@ -59,16 +60,14 @@ export interface CreateFormProps {
 /** 新建：类型由菜单项预选；角色任务写标题、要求和验收条件，编码任务选工具、目录和权限。 */
 export function CreateForm({ draft, onChange, goals, canPick, onPickFolder }: CreateFormProps) {
   const set = (patch: Partial<CreateDraft>) => onChange({ ...draft, ...patch });
+  const codeOn = usePlugins().coding_sessions;
   return (
     <div className={styles.root} data-nav-target="task-create">
       <Seg
         label="新建类型"
         value={draft.kind}
         onChange={(v) => set({ kind: v as CreateKind })}
-        options={[
-          { value: 'role', label: '角色任务' },
-          { value: 'code', label: '编码会话' },
-        ]}
+        options={[{ value: 'role', label: '角色任务' }, ...(codeOn ? [{ value: 'code', label: '编码会话' }] : [])]}
       />
       {draft.kind === 'role' && (
         <label className={styles.field}>

@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AgentdCallError } from '../../src/bridge/agentd';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgentdResponse, StreamEvent } from '../../src/bridge/protocol';
@@ -8,6 +9,13 @@ import { formatClock, fromDelivery, type Delivery, type Task } from '../../src/d
 import { TaskDrawer } from '../../src/features/task';
 import { APPROVALS, atS, DELIVERIES, GOALS, NOW, pick, QUESTIONS, TASKS, WIRE_DELIVERIES, WIRE_RUNTIME, WIRE_TASK_ROWS } from '../../src/mock/fixtures';
 import { A2, DLV_T1_V2, G1, Q1, S_C07A, S_5E10, T1, T2, T3, T5, T6 } from '../../src/mock/fixtures/ids';
+import { WIRE_SESSIONS } from '../../src/mock/fixtures/wire/work';
+import { resetSchedules } from '../../src/mock/schedules';
+import type { WireSchedule } from '../../src/domain/schedules';
+import type { WireSession } from '../../src/domain/wire';
+import { TasksPage } from '../../src/pages/tasks/Page';
+import type { TasksListPage } from '../../src/data/tasksBase';
+import { pluginsOn, pluginsReset } from './plugins';
 import { createTasksActions, failMessage, NATIVE_OFF, type ActionDeps } from '../../src/pages/tasks/actions';
 import { sendReceipt } from '../../src/pages/tasks/deliveryCalls';
 import { Artifacts } from '../../src/pages/tasks/Artifacts';
@@ -40,7 +48,52 @@ afterEach(() => {
   cleanup();
   delete window.agenticComplex;
   vi.restoreAllMocks();
+  pluginsReset();
 });
+
+/** The whole tasks page at `/tasks?still=1<search>`, its feeds quiet; the bottom bar renders in place. */
+function mountPage(bridge: ReturnType<typeof createFakeBridge>, search: string) {
+  resetSchedules();
+  vi.spyOn(bridge.feed, 'subscribe').mockImplementation(() => () => {});
+  vi.spyOn(bridge.diag, 'subscribe').mockImplementation(() => () => {});
+  const root = createRootRoute({
+    component: () => (
+      <>
+        <TasksPage />
+        <ToastHost />
+      </>
+    ),
+  });
+  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: [`/tasks?still=1${search}`] }) });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+}
+
+const SCOPE = '5c0be1f2a3d4e5f60718293a4b5c6d7e';
+const NOW_S = NOW / 1000;
+const SCHED: WireSchedule = {
+  schedule_id: 'schedule-9',
+  title: '周报汇总',
+  instruction: '汇总本周资料',
+  trigger: { kind: 'session_done', target: null, project: null },
+  enabled: false,
+  created_from: 'user',
+  conversation_id: null,
+  scope_id: SCOPE,
+  next_run_at: null,
+  last_run_at: NOW_S - 600,
+  last_job_id: null,
+  last_error: 'scope_revoked',
+  created_at: NOW_S - 86_400,
+  updated_at: NOW_S - 600,
+};
+const listed = (s: WireSchedule = SCHED) => ({ status: 200, body: { schedules: [s] } });
+const runBtn = () => screen.findByRole('button', { name: '立即运行' });
+const off = (el: HTMLElement) => el.getAttribute('aria-disabled') === 'true';
 
 const hexOf = (id: string) => id.slice(id.indexOf(':') + 1);
 const delivery = (id: string): Delivery => fromDelivery(WIRE_DELIVERIES.find((d) => d.delivery_id === id)!);
@@ -256,12 +309,12 @@ describe('tasks: continue, session message, approvals, questions, goals', () => 
 });
 
 describe('tasks: create', () => {
-  it('role → POST /agent/jobs {title, text, expected_outputs}', async () => {
+  it('role with 不读资料 → POST /agent/jobs {title, text, scope_id: null, expected_outputs}', async () => {
     const { calls } = install();
     const draft: CreateDraft = { ...draftFor('role'), title: '汇总纪要', brief: '合成一份', artifact: '会议/汇总.md', sections: '待办、负责人' };
     const r = await submitDraft(draft);
     expect(writes(calls)).toEqual([
-      { method: 'POST', path: '/agent/jobs', body: { title: '汇总纪要', text: '合成一份', expected_outputs: { artifacts: [{ path: '会议/汇总.md', checks: { required_sections: ['待办', '负责人'] } }] } } },
+      { method: 'POST', path: '/agent/jobs', body: { title: '汇总纪要', text: '合成一份', scope_id: null, expected_outputs: { artifacts: [{ path: '会议/汇总.md', checks: { required_sections: ['待办', '负责人'] } }] } } },
     ]);
     expect(r.select).toMatch(/^job:[a-f0-9]{32}$/);
   });
@@ -627,5 +680,116 @@ describe('chat TaskDrawer: what it offers', () => {
     const ended = NOW - 5 * 60_000;
     render(<TaskDrawer task={{ ...t1, status: 'cancelled', ended_at: ended }} effective="stopped" now={NOW} />);
     expect(screen.getByRole('status').textContent).toContain(formatClock(ended));
+  });
+});
+
+describe('tasks: 立即运行 on a schedule', () => {
+  // Under a bridge the page clock is the wall clock; the fixture scope is in force at NOW.
+  beforeEach(() => void vi.spyOn(Date, 'now').mockReturnValue(NOW));
+
+  it('a schedule whose last run failed but whose scope is in force can run now; a scope gone now blocks it', async () => {
+    const { bridge } = install((m, p) => (m === 'GET' && p === '/schedules' ? listed() : null));
+    mountPage(bridge, `&tab=sched&sel=${SCHED.schedule_id}`);
+    await waitFor(async () => expect(off(await runBtn())).toBe(false));
+    cleanup();
+    const gone = install((m, p) => (m === 'GET' && p === '/schedules' ? listed({ ...SCHED, scope_id: 'f'.repeat(32) }) : null));
+    mountPage(gone.bridge, `&tab=sched&sel=${SCHED.schedule_id}`);
+    await screen.findByText('原授权当前不可用');
+    expect(off(await runBtn())).toBe(true);
+  });
+
+  it('a refused run still reads /schedules again', async () => {
+    const { bridge, calls } = install((m, p) =>
+      m === 'GET' && p === '/schedules' ? listed() : m === 'POST' && p.endsWith('/run') ? { status: 409, body: { error: 'scope_revoked' }, error: { code: 'scope_revoked' } } : null,
+    );
+    mountPage(bridge, `&tab=sched&sel=${SCHED.schedule_id}`);
+    await waitFor(async () => expect(off(await runBtn())).toBe(false));
+    const reads = () => calls.filter((c) => c.method === 'GET' && c.path === '/schedules').length;
+    const before = reads();
+    await act(async () => fireEvent.click(await runBtn()));
+    await waitFor(() => expect(reads()).toBeGreaterThan(before));
+  });
+
+  it('two clicks before agentd answers send one run', async () => {
+    let answer: (r: unknown) => void = () => {};
+    const { bridge, calls } = install((m, p) =>
+      m === 'GET' && p === '/schedules' ? listed() : m === 'POST' && p.endsWith('/run') ? (new Promise((r) => (answer = r)) as never) : null,
+    );
+    mountPage(bridge, `&tab=sched&sel=${SCHED.schedule_id}`);
+    await waitFor(async () => expect(off(await runBtn())).toBe(false));
+    const btn = await runBtn();
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    await act(async () => answer({ status: 202, body: { schedule_id: SCHED.schedule_id, job_id: 'j' } }));
+    expect(writes(calls).filter((c) => c.path.endsWith('/run'))).toHaveLength(1);
+  });
+});
+
+describe('tasks: a coding session made from the editor', () => {
+  const OWN: WireSession = { ...WIRE_SESSIONS.find((w) => w.own)!, session_id: 'own:0f1e2d3c4b5a', cwd: '/Users/me/agent', title: '补测试', state: 'accepted', last_line: null, started_at: NOW_S, updated_at: NOW_S, task_id: null };
+  const send = async (bridge: ReturnType<typeof createFakeBridge>) => {
+    vi.spyOn(bridge.files, 'pickFolder').mockResolvedValue({ handle: 'h-1', displayName: 'agent' } as never);
+    mountPage(bridge, '&create=code');
+    const form = await screen.findByRole('form', { name: '派发任务' });
+    fireEvent.change(within(form).getByLabelText('要求'), { target: { value: '补测试' } });
+    fireEvent.click(within(form).getByRole('button', { name: '选择…' }));
+    await waitFor(() => expect((within(form).getByLabelText('目录') as HTMLInputElement).value).toBe('agent'));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '派出去' })));
+  };
+
+  it('gets its own row in 进行中, selected', async () => {
+    pluginsOn('personal_agent', 'coding_sessions');
+    let made = false;
+    const { bridge } = install((m, p) => {
+      if (m === 'POST' && p === '/sessions') made = true;
+      return m === 'GET' && p === '/sessions' && made ? { status: 200, body: { sessions: [...WIRE_SESSIONS, OWN] } } : null;
+    });
+    await send(bridge);
+    const row = await waitFor(() => {
+      const r = document.querySelector(`[data-row="${OWN.session_id}"]`);
+      expect(r).not.toBeNull();
+      return r!;
+    });
+    expect(row.getAttribute('aria-selected')).toBe('true');
+    expect(await screen.findByRole('heading', { name: '补测试' })).toBeTruthy();
+  });
+
+  it('with 编码会话 off the editor offers no 编码会话', async () => {
+    pluginsOn('personal_agent');
+    const { bridge } = install();
+    mountPage(bridge, '&create=role');
+    const form = await screen.findByRole('form', { name: '派发任务' });
+    expect(within(form).getByRole('radio', { name: /角色任务/ })).toBeTruthy();
+    expect(within(form).queryByRole('radio', { name: '编码会话' })).toBeNull();
+  });
+
+  it('a plugin_off refusal says the switch is off', async () => {
+    const { bridge } = install((m, p) => (m === 'POST' && p === '/sessions' ? { status: 409, body: { error: 'plugin_off', plugin: 'coding_sessions' }, error: { code: 'plugin_off' } } : null));
+    await send(bridge);
+    expect(await screen.findByText('交派失败：设置里关着「编码会话」')).toBeTruthy();
+  });
+});
+
+describe('tasks: a receipt reply against a newer delivery', () => {
+  it('does not put an older, unredacted revision over a redacted newer one', async () => {
+    const wire = WIRE_DELIVERIES.find((x) => x.delivery_id === DLV_T1_V2)!;
+    let answer: (r: unknown) => void = () => {};
+    const rows = WIRE_TASK_ROWS.map((t) => (t.delivery?.delivery_id === DLV_T1_V2 ? { ...t, delivery: { ...t.delivery, viewed_at: null } } : t));
+    const { calls } = install((m, p) =>
+      m === 'POST' && p.endsWith('/viewed') ? (new Promise((r) => (answer = r)) as never) : m === 'GET' && p.startsWith('/agent/tasks?') ? { status: 200, body: { tasks: rows, next_cursor: null } } : null,
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+    const desk = renderHook(() => useTaskDesk(null, null, null), { wrapper });
+    await waitFor(() => expect(desk.result.current.view?.deliveries.find((d) => d.id === DLV_T1_V2)?.viewed_at).toBeNull());
+    act(() => desk.result.current.receipt(DLV_T1_V2, 'viewed'));
+    await waitFor(() => expect(writes(calls).map((c) => c.path)).toEqual([`/agent/deliveries/${DLV_T1_V2}/viewed`]));
+    const r = wire.revision;
+    const redact = (b: TasksListPage | undefined) => b && { ...b, deliveries: b.deliveries.map((x) => (x.id === DLV_T1_V2 ? { ...x, revision: r + 2, redacted: true, artifacts: [] } : x)) };
+    act(() => void client.setQueriesData<TasksListPage>({ queryKey: ['tasks-page'] }, redact));
+    await act(async () => answer({ status: 200, body: { delivery: { ...wire, revision: r + 1, viewed_at: atS(14, 32) } } }));
+    const cached = client.getQueriesData<TasksListPage>({ queryKey: ['tasks-page'] }).flatMap(([, b]) => b?.deliveries ?? []).filter((x) => x.id === DLV_T1_V2);
+    expect(cached.length).toBeGreaterThan(0);
+    expect(cached.every((x) => x.revision === r + 2 && x.redacted)).toBe(true);
   });
 });

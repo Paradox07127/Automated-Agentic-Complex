@@ -255,10 +255,10 @@ export function fromCodingReview(t: Task & { task_id: string; delivery_id: Deliv
   };
 }
 
-/** External session as a task row `ext:<display_session>`; only the web uses this id. */
-function extTask(s: Session): Task {
+/** A session as its own task row: an external one as `ext:<display_session>`, an own one no dispatch card names under its session id. */
+function sessionTask(s: Session): Task {
   return {
-    id: `ext:${s.display_session ?? s.id}`,
+    id: s.own ? (s.id as TaskKey) : `ext:${s.display_session ?? s.id}`,
     task_id: null,
     job_id: null,
     run_id: null,
@@ -270,7 +270,8 @@ function extTask(s: Session): Task {
     character_id: null,
     updated_at: s.since,
     title: s.title,
-    source: 'ext',
+    source: s.own ? 'code' : 'ext',
+    ...(s.own ? { target: s.target === 'codex' ? ('codex' as const) : ('claude' as const) } : {}),
     agent: s.agent,
     status: 'running',
     created_at: s.since,
@@ -286,24 +287,24 @@ function extTask(s: Session): Task {
 
 /**
  * One task list: `/agent/tasks` rows first; a ledger row already listed there as `task:<id>` is dropped (tk:11);
- * every external session adds an `ext:` row.
+ * every external session adds an `ext:` row, and every own session no dispatch card names a row of its own.
  */
 export function mergeTasks(agentTasks: readonly Task[], ledger: readonly Task[], sessions: readonly Session[] = []): Task[] {
   // A job row carries its run's ledger id (`character-<run_id>`) as task_id; that ledger row is the same task.
   const seen = new Set<string>(agentTasks.flatMap((t) => (t.task_id ? [t.id, `task:${t.task_id}`] : [t.id])));
-  return [...agentTasks, ...ledger.filter((t) => !seen.has(t.id)), ...sessions.filter((s) => !s.own).map(extTask)];
+  return [...agentTasks, ...ledger.filter((t) => !seen.has(t.id)), ...sessions.filter((s) => !s.own || s.task_id === s.id).map(sessionTask)];
 }
 
 const SESSION_STATES: ReadonlySet<string> = new Set(['running', 'awaiting_approval', 'awaiting_input', 'error', 'idle', 'accepted', 'thinking', 'running_tool']);
 /** registry.py states with no work in progress. */
 const IDLE_STATES: ReadonlySet<string> = new Set(['done', 'stale']);
 
-/** `/sessions` row. An own session's task is the ledger row of its dispatch card; an external one maps to its `ext:` row. */
+/** `/sessions` row. An own session's task is the ledger row of its dispatch card, else its own row; an external one maps to its `ext:` row. */
 export function fromSession(w: WireSession): Session {
   // An external row's session_id is the registry's display_session.
   const display = w.own ? null : w.session_id;
   let task: TaskKey | null = null;
-  if (w.own) task = w.task_id ? toCanonical(w.task_id) : null;
+  if (w.own) task = w.task_id ? toCanonical(w.task_id) : (w.session_id as TaskKey);
   else task = `ext:${display}`;
   return {
     id: w.session_id,

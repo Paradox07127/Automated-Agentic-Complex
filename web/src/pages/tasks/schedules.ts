@@ -1,4 +1,5 @@
 // 定时 tab data: GET /schedules and its writes, the scopes and conversations a task can use, and the trigger wording.
+import { useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AgentdCallError, del, get, post, put, seg } from '../../bridge/agentd';
 import { appNow } from '../../bridge/clock';
@@ -78,24 +79,41 @@ export interface SchedulePayload {
   conversation_id: string | null;
 }
 
-/** PUT enabled, POST run, DELETE, POST / PUT a schedule; each toasts its outcome and reads the list again. */
+/** PUT enabled, POST run, DELETE, POST / PUT a schedule; each toasts its outcome and reads the list again, failed or not. */
 export function useScheduleWrites(push: PushToast) {
   const client = useQueryClient();
   const refresh = () => void client.invalidateQueries({ queryKey: ['schedules'] });
+  // Each run request claims a fresh occurrence, so one schedule has at most one on its way.
+  const sending = useRef(new Set<string>());
+  const [running, setRunning] = useState<ReadonlySet<string>>(new Set());
   const run = async <T,>(op: () => Promise<T>, done: string): Promise<T | null> => {
     try {
       const r = await op();
-      refresh();
       push(done);
       return r;
     } catch (e) {
       push(scheduleErrMsg(e), { severity: 'danger' });
       return null;
+    } finally {
+      refresh();
+    }
+  };
+  const runNow = async (s: Schedule) => {
+    const id = s.schedule_id;
+    if (sending.current.has(id)) return null;
+    sending.current.add(id);
+    setRunning(new Set(sending.current));
+    try {
+      return await run(() => post(`/schedules/${seg(id)}/run`, {}), `已开始运行「${s.title}」，在「进行中」里看`);
+    } finally {
+      sending.current.delete(id);
+      setRunning(new Set(sending.current));
     }
   };
   return {
     toggle: (s: Schedule, on: boolean) => run(() => put(`/schedules/${seg(s.schedule_id)}`, { enabled: on }), on ? `已启用「${s.title}」` : `已暂停「${s.title}」`),
-    runNow: (s: Schedule) => run(() => post(`/schedules/${seg(s.schedule_id)}/run`, {}), `已开始运行「${s.title}」，在「进行中」里看`),
+    runNow,
+    running: (id: string) => running.has(id),
     remove: (s: Schedule) => run(() => del(`/schedules/${seg(s.schedule_id)}`), `已删除「${s.title}」`),
     /** Resolves with the schedule's id; null when it failed. */
     save: async (id: string | null, body: SchedulePayload) => {
