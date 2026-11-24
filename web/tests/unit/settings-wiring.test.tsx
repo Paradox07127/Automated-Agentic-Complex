@@ -401,9 +401,10 @@ describe('隐私 and 数据 through agentd', () => {
     expect(sent('POST', '/blacklist')).toBeUndefined();
     const ask = screen.getByRole('dialog', { name: '添加「微信」并删掉已记下的？' });
     expect(ask.textContent).toContain('不能恢复');
+    expect(ask.textContent).toContain('删除从这些窗口记下的活动、上下文、观察记录和操作时间线，连同由它们生成的活动摘要、工作记录和记忆，不能恢复。');
     await click(within(ask).getByRole('button', { name: '添加并删除' }));
     expect(sent('POST', '/blacklist')).toEqual({ field: 'app_names', value: '微信', delete_existing: true });
-    expect(screen.getByTestId('toast').textContent).toBe('已添加「微信」，删掉已记下的 4 条');
+    expect(screen.getByTestId('toast').textContent).toBe('已添加「微信」，删掉已记下的 4 条，连同相关的活动摘要、工作记录和记忆');
     await click(screen.getByRole('button', { name: '恢复默认排除' }));
     await click(within(screen.getByRole('dialog')).getByRole('button', { name: '恢复默认' }));
     expect(sent('POST', '/blacklist/defaults')).toEqual({});
@@ -465,10 +466,13 @@ describe('隐私 and 数据 through agentd', () => {
     await click(within(screen.getByRole('dialog')).getByRole('button', { name: '删除' }));
     expect(request).toHaveBeenCalledWith('DELETE', '/observation?range=1h', undefined);
     expect(screen.getByTestId('toast').textContent).toBe('已删掉最近 1 小时 看到的 28 条');
+    expect(document.querySelector('[data-row="delact"]')?.textContent).toContain('Trace 事件');
     await click(screen.getByRole('button', { name: '清空…' }));
-    await click(within(screen.getByRole('dialog')).getByRole('button', { name: '清空' }));
+    const ask = screen.getByRole('dialog');
+    expect(ask.textContent).toContain('删除全部观察记录、操作时间线、活动摘要和由它推出的记忆，以及全部 Trace 事件。');
+    await click(within(ask).getByRole('button', { name: '清空' }));
     expect(request).toHaveBeenCalledWith('DELETE', '/attention', undefined);
-    expect(screen.getByTestId('toast').textContent).toBe('已清空活动记录 1180 条');
+    expect(screen.getByTestId('toast').textContent).toBe('已清空活动记录 1180 条、Trace 事件 96 条');
   });
 
   it('shows redactions and the voice state from /diag/state; the gate is on the diag page only', () => {

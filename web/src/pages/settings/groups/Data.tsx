@@ -16,7 +16,7 @@ export function dataConfirm(id: 'delrecent' | 'delact', span?: string): Omit<Con
   if (id === 'delrecent') {
     return { title: `删掉最近 ${span ?? ''} 看到的？`, danger: true, warning: '删除后不能恢复', note: `删除最近 ${span ?? ''} 的观察记录，连同活动摘要和由它推出的记忆。`, confirmLabel: '删除' };
   }
-  return { title: '清空活动记录？', danger: true, warning: '删除后不能恢复', note: '删除全部观察记录，连同活动摘要和由它推出的记忆。', confirmLabel: '清空' };
+  return { title: '清空活动记录？', danger: true, warning: '删除后不能恢复', note: '删除全部观察记录、操作时间线、活动摘要和由它推出的记忆，以及全部 Trace 事件。', confirmLabel: '清空' };
 }
 
 /** What 删除所有本地数据 removes and keeps (main/ops/settings.ts wipeLocalData). */
@@ -128,9 +128,9 @@ export function DataGroup() {
         <SetRow
           id="delact"
           title={labelOf('delact')}
-          desc="全部观察记录、活动摘要和由它推出的记忆"
+          desc="全部观察记录、操作时间线、活动摘要、由它推出的记忆和 Trace 事件"
           control={
-            <Btn variant="danger" disabled={ro} disabledReason="后台服务没有运行" onClick={() => ask(dataConfirm('delact'), async () => `已清空活动记录 ${(await clearAttention()).deleted} 条`, '没能清空')}>
+            <Btn variant="danger" disabled={ro} disabledReason="后台服务没有运行" onClick={() => ask(dataConfirm('delact'), () => clearAttention().then((r) => `已清空活动记录 ${r.deleted} 条、Trace 事件 ${r.trace_deleted} 条`), '没能清空')}>
               清空…
             </Btn>
           }

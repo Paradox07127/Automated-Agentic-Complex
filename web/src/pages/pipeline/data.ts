@@ -27,10 +27,7 @@ export function useInterp(enabled: boolean, day: string) {
   const runs = useQuery({
     queryKey: ['pipeline', 'interp', day],
     queryFn: async () =>
-      (await get<{ runs: WireSummaryRun[] }>(`/summary/runs?date=${day}`)).runs
-        .map(fromSummaryRun)
-        .filter((r) => r.kind === 'observation_interpret')
-        .sort((a, b) => b.at - a.at),
+      (await get<{ runs: WireSummaryRun[] }>(`/summary/runs?date=${day}&kinds=observation_interpret`)).runs.map(fromSummaryRun).sort((a, b) => b.at - a.at),
     enabled,
   });
   const eps = useQuery({
@@ -56,6 +53,7 @@ interface WireRun {
   finished_at: number | null;
   state: string;
   prompt_version: string;
+  redacted_reason: string | null;
 }
 
 /** GET /memory/runs/{id}: only what the table needs is kept from it. */
@@ -82,6 +80,8 @@ export interface Run {
   end: number | null;
   backend: string;
   model: string;
+  /** Set once agentd dropped the run's detail (expired, memory changed, context revoked). */
+  redacted: string | null;
 }
 
 /** One change a run wrote: 新增 / 更新 / 删除, the earlier text, and whether it waits for the user. */
@@ -98,14 +98,15 @@ export interface Digest {
   code: string | null;
 }
 
-const OP: Readonly<Record<string, Change['op']>> = { add: 'add', correct: 'upd', forget: 'del' };
+/** Receipt outcomes that wrote something (memory_service.py); `unchanged`, `rejected` and the rest wrote nothing. */
+const OP: Readonly<Record<string, Change['op']>> = { stored: 'add', candidate: 'add', corrected: 'upd', forgotten: 'del' };
 const RUNS_READ = 12;
 
-function digestOf(d: WireRunDetail): Digest {
+export function digestOf(d: WireRunDetail): Digest {
   const changes = (d.detail?.proposals ?? []).flatMap(({ proposal: p, receipt: r }): Change[] => {
-    const op = OP[p.operation];
+    const op = r.outcome == null ? undefined : OP[r.outcome];
     const text = p.text || p.target_quote || '';
-    if (!op || r.error != null || r.outcome === 'rejected' || !text) return [];
+    if (!op || !text) return [];
     return [{ op, text, ...(op === 'upd' && p.target_quote && p.target_quote !== text ? { was: p.target_quote } : {}), cand: r.outcome === 'candidate' }];
   });
   const code = [...d.events].reverse().find((e) => typeof e.reason === 'string' && e.reason)?.reason;
@@ -120,6 +121,7 @@ const runOf = (w: WireRun): Run => ({
   end: w.finished_at == null ? null : secToMs(w.finished_at),
   backend: w.backend,
   model: w.model,
+  redacted: w.redacted_reason,
 });
 
 export const RUNS_KEY = ['pipeline', 'runs'] as const;
@@ -133,9 +135,10 @@ export function useRuns(enabled: boolean) {
   });
   const details = useQueries({
     queries: (runs.data ?? []).map((r) => ({
-      queryKey: ['pipeline', 'run', r.id, r.state],
+      queryKey: ['pipeline', 'run', r.id, r.state, r.redacted],
       queryFn: async () => digestOf(await get<WireRunDetail>(`/memory/runs/${seg(r.id)}`)),
-      staleTime: r.state === 'running' ? 0 : Number.POSITIVE_INFINITY,
+      staleTime: r.state === 'running' ? 0 : 60_000,
+      gcTime: 0,
       retry: false,
     })),
   });

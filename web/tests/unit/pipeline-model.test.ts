@@ -1,6 +1,7 @@
 // 记忆管线的状态推导：工位状态、传送带、出事的工位、顶栏一句话。
 import { describe, expect, it } from 'vitest';
-import { belts, interpState, lineWord, memState, obsState, PHASE, storeState, troubled, type States } from '../../src/pages/pipeline/model';
+import { digestOf } from '../../src/pages/pipeline/data';
+import { belts, interpState, lineWord, median, memState, obsState, PHASE, storeState, troubled, type States } from '../../src/pages/pipeline/model';
 
 const idle = { phase: 'idle' as const, why: null };
 const all = (over: Partial<States>): States => ({ obs: idle, interp: idle, mem: idle, store: idle, ...over });
@@ -50,5 +51,31 @@ describe('the line', () => {
     expect(PHASE.pause).toEqual({ key: 'paused', label: '已暂停' });
     expect(lineWord(all({ obs: { phase: 'block', why: null } }))?.text).toBe('1 处堵住');
     expect(lineWord(all({ mem: { phase: 'pause', why: null } }))?.text).toBe('1 处已暂停');
+  });
+});
+
+describe('what a run wrote', () => {
+  it('reads each change from its receipt; an unchanged or rejected proposal wrote nothing', () => {
+    const run = { run_id: 'r', backend: 'codex', model: 'm', started_at: 0, finished_at: 1, state: 'committed', prompt_version: 'memory_extract-v2', redacted_reason: null, events: [] };
+    const proposals = [
+      { proposal: { operation: 'add', text: '已经记得的' }, receipt: { outcome: 'unchanged', fact_id: 'f1' } },
+      { proposal: { operation: 'add', text: '新的' }, receipt: { outcome: 'stored', fact_id: 'f2' } },
+      { proposal: { operation: 'add', text: '待定的' }, receipt: { outcome: 'candidate', fact_id: 'f3' } },
+      { proposal: { operation: 'correct', text: '改后', target_quote: '改前' }, receipt: { outcome: 'corrected', fact_id: 'f4' } },
+      { proposal: { operation: 'forget', target_quote: '忘掉的' }, receipt: { outcome: 'forgotten', fact_id: 'f5' } },
+      { proposal: { operation: 'add', text: '被拒的' }, receipt: { outcome: 'rejected', error: { code: 'x' } } },
+    ];
+    expect(digestOf({ ...run, detail: { proposals } }).changes).toEqual([
+      { op: 'add', text: '新的', cand: false },
+      { op: 'add', text: '待定的', cand: true },
+      { op: 'upd', text: '改后', was: '改前', cand: false },
+      { op: 'del', text: '忘掉的', cand: false },
+    ]);
+  });
+
+  it('the median of an even count is the mean of the two middle values', () => {
+    expect(median([1, 9])).toBe(5);
+    expect(median([9, 1, 3])).toBe(3);
+    expect(median([])).toBeNull();
   });
 });

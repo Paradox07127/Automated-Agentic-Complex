@@ -44,14 +44,14 @@ export function ExcludeList() {
         setValue('');
         reload('blacklist');
         const n = Object.values(r.deleted).reduce((a, b) => a + b, 0);
-        model.notify({ message: purge ? `已添加「${v}」，删掉已记下的 ${n} 条` : `已添加「${v}」` });
+        model.notify({ message: purge ? `已添加「${v}」，删掉已记下的 ${n} 条，连同相关的活动摘要、工作记录和记忆` : `已添加「${v}」` });
       }, fail(`没能添加「${v}」`));
     if (!purge) return void send();
     model.ask({
       title: `添加「${v}」并删掉已记下的？`,
       danger: true,
       warning: '不能恢复',
-      note: '删除从这些窗口记下的活动、上下文和观察记录，不能恢复。',
+      note: '删除从这些窗口记下的活动、上下文、观察记录和操作时间线，连同由它们生成的活动摘要、工作记录和记忆，不能恢复。',
       confirmLabel: '添加并删除',
       onConfirm: send,
     });

@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider, type RouteComponent } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { getBridge } from '../../src/bridge';
 import { PipelineView } from '../../src/pages/pipeline/Page';
 import { CommandBar } from '../../src/shell/CommandBar';
 import { setDevMode } from '../../src/shell/devMode';
@@ -14,18 +15,30 @@ beforeEach(() => localStorage.clear());
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   localStorage.clear();
   window.location.hash = '';
 });
 
-function mountAt(component: RouteComponent, search = '') {
+function mountAt(component: RouteComponent, search = '', client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   const root = createRootRoute({ component });
   const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: [`/?still=1${search}`] }) });
   render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider client={client}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
+}
+
+type Request = ReturnType<typeof getBridge>['agentd']['request'];
+/** Answers through `answer` where it returns a response, else through the fake bridge. */
+function serve(answer: (method: string, path: string) => Awaited<ReturnType<Request>> | undefined) {
+  const agentd = getBridge().agentd;
+  const real = agentd.request.bind(agentd);
+  return vi.spyOn(agentd, 'request').mockImplementation(((method, path, body) => {
+    const r = answer(method, path);
+    return r ? Promise.resolve(r) : real(method, path, body);
+  }) as Request);
 }
 
 const noop = () => {};
@@ -112,6 +125,44 @@ describe('管线页签', () => {
     const nav = await screen.findByRole('navigation', { name: '主导航' });
     fireEvent.click(within(nav).getByRole('button', { name: '每日简报' }));
     expect(screen.queryByRole('menuitem', { name: /记忆管线/ })).toBeNull();
+  });
+
+  it('理解 asks /summary/runs for observation_interpret runs, which agentd leaves out by default', async () => {
+    const run = (id: string, kind: string) => ({ run_id: id, kind, started_at: '2026-10-29T14:02:05+08:00', span_start: null, span_end: null, outcome: 'failed', error: '模型超时', attempt: 1, duration_ms: 1200, backend: 'codex', model: 'gpt-5-mini', episode_id: null, reasons: [] });
+    serve((method, path) => {
+      if (method !== 'GET' || !path.startsWith('/summary/runs')) return undefined;
+      const kinds = new URLSearchParams(path.split('?')[1]).get('kinds')?.split(',') ?? ['memory_extract'];
+      const runs = [run('oi-x', 'observation_interpret'), run('mr-x', 'memory_extract')].filter((r) => kinds.includes(r.kind));
+      return { status: 200, body: { date: '2026-10-29', runs } };
+    });
+    mountAt(PipelineView, '&station=interp');
+    const log = await screen.findByRole('region', { name: '最近理解' }, T);
+    expect(await within(log).findByText('模型超时', {}, T)).toBeTruthy();
+    expect(within(log).getAllByText('失败').length).toBe(1);
+  });
+
+  it('a batch whose detail was redacted meanwhile no longer shows what it wrote', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    mountAt(PipelineView, '', client);
+    const table = await screen.findByRole('group', { name: '整理记录' }, T);
+    await waitFor(() => expect(table.textContent).toMatch(/\+\d+新增/), T);
+    cleanup();
+    let redacted = 0;
+    const real = getBridge().agentd.request.bind(getBridge().agentd);
+    vi.spyOn(getBridge().agentd, 'request').mockImplementation((async (method: string, path: string, body?: unknown) => {
+      const r = await real(method as 'GET', path, body);
+      if (method !== 'GET' || !path.startsWith('/memory/runs')) return r;
+      const b = r.body as { runs?: Array<Record<string, unknown>> } & Record<string, unknown>;
+      if (b.runs) return { ...r, body: { runs: b.runs.map((x) => ({ ...x, redacted_reason: 'memory_changed' })) } };
+      redacted += 1;
+      return { ...r, body: { ...b, detail: null, redacted_reason: 'memory_changed' } };
+    }) as Request);
+    mountAt(PipelineView, '', client);
+    const again = await screen.findByRole('group', { name: '整理记录' }, T);
+    await waitFor(() => {
+      expect(again.textContent).not.toMatch(/\+\d+新增/);
+      expect(redacted).toBeGreaterThan(0);
+    }, T);
   });
 
   it('a jump to a station lands on the 管线 tab of 记忆', () => {
