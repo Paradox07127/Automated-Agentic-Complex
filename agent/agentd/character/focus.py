@@ -68,6 +68,11 @@ class Focus:
         with self.lock:
             return self._end(self.clock())
 
+    def reset(self):
+        """POST /reset: the running session ends without a recap and its file goes."""
+        with self.lock:
+            self._end(self.clock())
+
     def due(self):
         """The ended session once its time is up, else None."""
         with self.lock:

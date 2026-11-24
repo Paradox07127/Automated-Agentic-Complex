@@ -535,7 +535,9 @@ def main(secret_store=None):
     if light:
         server.thoughts = Thoughts(server.gate, server._proactive_publish, server.character_agent.semantic,
                                    scene=server.activity, context=server._attention_context,
-                                   sessions=server.registry.snapshot, consent=server.page_text_allowed,
+                                   sessions=lambda: {"sessions": [row for row in server.registry.snapshot()["sessions"]
+                                                                  if server._signals_allowed(row)]},
+                                   consent=server.page_text_allowed,
                                    egress=egress, work=(lambda cwds: thought_work(server, work_signal_allowed, cwds)) if server.worklog else None,
                                    log=server.proactive_log, user=server.user_title,
                                    presence=lambda: server.user_now.snapshot()["presence"])

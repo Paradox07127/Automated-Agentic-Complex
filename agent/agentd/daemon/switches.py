@@ -37,6 +37,8 @@ class SwitchesMixin:
                 self.timeline.clear_trees()
             if revoked:
                 self.forget_user_state()
+            if self.proactive is not None:
+                self.proactive.reset()
             if self.worklog is not None:
                 self.worklog.delete_permissions(set(revoked))
             if set(revoked).intersection(('page_text','typed_text','window_text','screenshots','agent_sessions')) and self.episodes is not None:

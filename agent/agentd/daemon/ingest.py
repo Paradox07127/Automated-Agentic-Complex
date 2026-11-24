@@ -58,8 +58,10 @@ class IngestMixin:
             for kind in ended:
                 self.behavior.event(kind)
         signals = getattr(self, "signals", None)
-        handled = signals is not None and self._signals_allowed(event.to_dict()) and signals.on_transition(was, row, event)
-        if turned and not handled and self.thoughts is not None:
+        # The coding-session consent, pause and blacklist hold both a signal and a thought naming the session.
+        allowed = self._signals_allowed(event.to_dict())
+        handled = signals is not None and allowed and signals.on_transition(was, row, event)
+        if turned and allowed and not handled and self.thoughts is not None:
             self.thoughts.notice(turned, {"session_id": after.display_id, "state": after.state})
 
     def _signals_allowed(self, row):

@@ -249,7 +249,7 @@ class EgressPolicyTest(unittest.TestCase):
             semantic.replies.append('{"thought":"想法", "offer":null}')
             thoughts = Thoughts(None, None, semantic, consent=lambda: True,
                                 context=lambda: line + ' alice@example.com Bearer secret-value', egress=policy)
-            self.assertEqual(thoughts._ask('activity', {}, None, []), {'thought': '想法', 'offer': None, 'reply': None})
+            self.assertEqual(thoughts._ask('activity', {}, None, [], 0), {'thought': '想法', 'offer': None, 'reply': None})
             [sent] = semantic.calls
             self.assertNotIn('alice@example.com', sent['evidence']['observed'])
             self.assertEqual(policy.redactions, {'key': 1, 'email': 1, 'phone': 0})

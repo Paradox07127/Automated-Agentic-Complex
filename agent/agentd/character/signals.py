@@ -17,6 +17,7 @@ from sessions.registry import APPS, HISTORY, own_app_wait
 EVERY = 5.0
 DAILY_CAP = 12
 TASK_EVERY = 60
+REPEAT_RECHECK = 300  # seconds between evidence counts once a day is short of the three days a repeat needs
 HOLD = 120  # seconds a signal held for typing waits for the pause; then it is dropped
 RUNNING = ('running_tool', 'thinking', 'compacting', 'subagent')
 # Error code -> reason, by reply language code; "harness" (None) takes the Chinese ones.
@@ -48,9 +49,8 @@ LINES = {'zh-Hans': {'check_exit': '{agent} 的 {label} 没过（退出码 {exit
                      'error_reply': '帮我看看 {project} 那个会话为什么停了', 'done': '{agent} 在 {project} 做完了：{sentence}',
                      'task': '任务', 'approval': '{agent} 在等你批准 {target}，{minutes} 分钟了',
                      'quiet': '{agent} 的 {target} {minutes} 分钟没动静了', 'quiet_offer': '要我看看是不是卡住了？',
-                     'quiet_reply': '帮我看看 {project} 那个会话是不是卡住了', 'due': '「{title}」的下一步该做了：{step}',
-                     'due_offer': '开个会话做', 'due_reply': '帮我开一个会话做「{title}」的下一步：{step}',
-                     'stalled': '「{title}」一天没动了，上次停在：{step}'},
+                     'quiet_reply': '帮我看看 {project} 那个会话是不是卡住了',
+                     'stalled': '「{title}」一天没动了，上次停在：{step}', 'stalled_bare': '「{title}」一天没动了'},
          'en': {'check_exit': "{agent}'s {label} did not pass (exit code {exit})",
                 'check_one': "{agent}'s {label} has {n} failing, all in {suite}",
                 'check_some': "{agent}'s {label} has {n} failing: {suites} and more",
@@ -65,9 +65,8 @@ LINES = {'zh-Hans': {'check_exit': '{agent} 的 {label} 没过（退出码 {exit
                 'quiet': "{agent}'s {target} has been quiet for {minutes} min",
                 'quiet_offer': 'Want me to check whether it is stuck?',
                 'quiet_reply': 'Check whether that session in {project} is stuck',
-                'due': 'Time for the next step of "{title}": {step}', 'due_offer': 'Open a session for it',
-                'due_reply': 'Open a session for the next step of "{title}": {step}',
-                'stalled': '"{title}" has not moved for a day; it last stopped at: {step}'},
+                'stalled': '"{title}" has not moved for a day; it last stopped at: {step}',
+                'stalled_bare': '"{title}" has not moved for a day'},
          'ja': {'check_exit': '{agent} の {label} が通らなかった（終了コード {exit}）',
                 'check_one': '{agent} の {label} で {n} 件失敗、すべて {suite}',
                 'check_some': '{agent} の {label} で {n} 件失敗：{suites} など', 'check_n': '{agent} の {label} で {n} 件失敗',
@@ -81,9 +80,7 @@ LINES = {'zh-Hans': {'check_exit': '{agent} 的 {label} 没过（退出码 {exit
                 'approval': '{agent} が {target} の承認を {minutes} 分待っている',
                 'quiet': '{agent} の {target} が {minutes} 分動いていない', 'quiet_offer': '止まっていないか見てみようか？',
                 'quiet_reply': '{project} のあのセッションが止まっていないか見て',
-                'due': '「{title}」の次の一歩の時間：{step}', 'due_offer': 'セッションを開いてやる',
-                'due_reply': 'セッションを開いて「{title}」の次の一歩をやって：{step}',
-                'stalled': '「{title}」が一日止まっている。前回は：{step}'}}
+                'stalled': '「{title}」が一日止まっている。前回は：{step}', 'stalled_bare': '「{title}」が一日止まっている'}}
 # The repeat line by reply language code; "harness" (None) takes the Chinese one.
 REPEAT = {'zh-Hans': '这周你有 {days} 天都在{what}', 'en': 'This week, on {days} days, you were {what}',
           'ja': '今週は {days} 日、「{what}」をしていたね'}
@@ -113,8 +110,21 @@ class Signals:
         self.worklog, self.semantic, self.report_time = worklog, semantic, report_time
         self.egress, self.spawn, self.work_allowed = egress, spawn, work_allowed
         self._task_at = self._present_since = self._repeat_day = None
+        self._repeat_checked = None  # clock time of the last evidence count that found too few days
         self._category_days = {}
         self._repeat_running = False
+        self._generation = 0  # each reset() adds 1, so a repeat found before it is dropped
+
+    def reset(self):
+        """POST /reset: the turns, the held signal and what the cooldowns and day counts remember go."""
+        with self._lock:
+            self._generation += 1
+            self._turns.clear()
+            self._seen.clear()
+            self._cooldowns.clear()
+            self._held = self._held_at = None
+            self._day, self._count = None, 0
+            self._category_days.clear()
 
     def _own(self, sid):
         return sid.startswith('own:') or self.sessions is not None and self.sessions.own_id(sid) != sid
@@ -271,8 +281,6 @@ class Signals:
             valid = current is not None and current['effective_state'] == 'stale' \
                 and current['observed_at'] == held_row['observed_at']
         if valid:
-            if reason == 'task_due':
-                self._seen.pop((reason, args[5]), None)
             self._emit(*args, now=now)
 
     def _language(self):
@@ -286,14 +294,13 @@ class Signals:
         return not self._own(sid) and self.work_allowed(summary) and self.allowed(
             {'source': summary.get('agent') or 'worklog', 'session_id': sid, 'cwd': summary.get('cwd')})
 
-    def _task_eligible(self, reason, card, now, rows):
+    def _task_eligible(self, card, now, rows):
+        """Whether card is a stalled task: active, allowed, untouched for a day while the user has been present."""
         if card['status'] != 'active' or not self.work_allowed(card):
             return False
         linked = self.worklog.sessions_for_task(card['id'])
         if any(not self._summary_allowed(s) for s in linked):
             return False
-        if reason == 'task_due':
-            return card.get('next_due_at') is not None and card['next_due_at'] <= now
         running = {(r['source'], r['session_id']) for r in rows if r['effective_state'] in RUNNING}
         return self._present_since is not None and now - self._present_since >= 300 \
             and card['last_at'] < now - 86400 \
@@ -303,49 +310,43 @@ class Signals:
         language = self._language()
         lines = LINES.get(language, LINES['zh-Hans'])
         for card in self.worklog.tasks(('active',)):
+            if not self._task_eligible(card, now, rows):
+                continue
             title, step = card['title'], card['next_step']
-            for reason in ('task_due', 'task_stalled'):
-                if not self._task_eligible(reason, card, now, rows):
-                    continue
-                due = card.get('next_due_at')
-                row = {'category': 'task', 'source': 'task', 'session_id': card['id'],
-                       'display_session': f"task:{card['id']}", 'observed_at': due if reason == 'task_due' else now,
-                       'card': card, 'version': self._version()}
-                if reason == 'task_due':
-                    self._emit(reason, row, lines['due'].format(title=title, step=step), lines['due_offer'],
-                               lines['due_reply'].format(title=title, step=step), subject=(card['id'], due), now=now)
-                else:
-                    offer, reply = reminder_offer(title, step, now, language=language) or (None, None)
-                    self._emit(reason, row, lines['stalled'].format(title=title, step=step), offer, reply,
-                               cooldown=72 * 3600, now=now)
+            row = {'category': 'task', 'source': 'task', 'session_id': card['id'],
+                   'display_session': f"task:{card['id']}", 'observed_at': now, 'card': card, 'version': self._version()}
+            offer, reply = reminder_offer(title, step, now, language=language) or (None, None)
+            self._emit('task_stalled', row, lines['stalled' if step else 'stalled_bare'].format(title=title, step=step),
+                       offer, reply, cooldown=72 * 3600, now=now)
 
-    def _work_valid(self, reason, row, now):
+    def _work_valid(self, row, now):
         if self.worklog is None or row['version'] != self._version():
             return False
         if row['category'] == 'task':
             card = next((c for c in self.worklog.tasks(('active',)) if c['id'] == row['card']['id']), None)
-            return card == row['card'] and self._task_eligible(reason, card, now,
-                                                              self.registry.snapshot(now)['sessions'])
+            return card == row['card'] and self._task_eligible(card, now, self.registry.snapshot(now)['sessions'])
         return all(self._summary_allowed(s) for s in row['evidence'])
 
     def _repeat(self, now):
         moment = datetime.datetime.fromtimestamp(now)
         if self.semantic is None or self._repeat_running or self._repeat_day == moment.date() \
-                or (moment.hour, moment.minute) < self.report_time:
+                or (moment.hour, moment.minute) < self.report_time \
+                or self._repeat_checked is not None and now - self._repeat_checked < REPEAT_RECHECK:
             return
         if any(self.gate.check(category, moment, 'P2') not in OWN_BUDGET for category in ('repeat', 'thought')):
             return
-        self._repeat_day = moment.date()
-        version = self._version()
+        version, generation = self._version(), self._generation
         summaries = [s for n in range(7)
                      for s in self.worklog.sessions_on((moment.date() - datetime.timedelta(days=n)).isoformat())
                      if s['state'] == 'completed' and self._summary_allowed(s)]
         if len({s['day'] for s in summaries}) < 3:
+            self._repeat_checked = now
             return
+        self._repeat_day, self._repeat_checked = moment.date(), None
         self._repeat_running = True
-        self.spawn(lambda: self._find_repeat(summaries, version))
+        self.spawn(lambda: self._find_repeat(summaries, version, generation))
 
-    def _find_repeat(self, summaries, version):
+    def _find_repeat(self, summaries, version, generation):
         try:
             if version != self._version() or not all(self._summary_allowed(s) for s in summaries):
                 return
@@ -363,11 +364,13 @@ class Signals:
             now = self.clock()
             row = {'category': 'repeat', 'source': 'repeat', 'session_id': what,
                    'display_session': f'repeat:{what}', 'observed_at': now, 'version': version, 'evidence': evidence}
-            offer, reply = reminder_offer(what, '', now, repeat='daily', language=language) or (None, None)
+            # Reminders repeat only daily: a weekday or unclear routine gets no reminder chip.
+            offer, reply = found['cadence'] == 'daily' and reminder_offer(what, '', now, repeat='daily',
+                                                                          language=language) or (None, None)
             text = REPEAT.get(language, REPEAT['zh-Hans']).format(days=days, what=what)
             with self._lock:
-                self._emit('repeat', row, text, offer, reply,
-                           cooldown=14 * 86400, now=now)
+                if generation == self._generation:
+                    self._emit('repeat', row, text, offer, reply, cooldown=14 * 86400, now=now)
         finally:
             with self._lock:
                 self._repeat_running = False
@@ -376,7 +379,7 @@ class Signals:
         now = self.clock() if now is None else now
         category = row.get('category', 'session')
         if not self.allowed(row) or (self._own(row['session_id']) if category == 'session'
-                                     else not self._work_valid(reason, row, now)):
+                                     else not self._work_valid(row, now)):
             return False
         turn = self._turns.get((row['source'], row['session_id']))
         if category == 'session' and (turn is None or reason in ('approval_wait', 'run_quiet') and reason in turn['sent']):
@@ -386,7 +389,11 @@ class Signals:
         if key in self._seen or now - self._cooldowns.get(cool_key, float('-inf')) < cooldown:
             return False
         moment = datetime.datetime.fromtimestamp(now)
-        if any(self.gate.check(kind, moment, 'P2') not in OWN_BUDGET for kind in (category, 'thought')):
+        away = self.absent()
+        typing = not away and _typing(self.gate)
+        # The stage an absence (offstage) or typing (quiet) puts the gate in holds the signal; its release rechecks.
+        held = ('offstage',) if away else ('quiet',) if typing else ()
+        if any(self.gate.check(kind, moment, 'P2') not in OWN_BUDGET + held for kind in (category, 'thought')):
             return False
         if self._day != moment.date():
             self._day, self._count = moment.date(), 0
@@ -402,15 +409,9 @@ class Signals:
             # A reason without a cooldown, mostly unheard, shows once a day.
             if not cooldown and unheard >= UNHEARD and self._category_days.get(reason) == moment.date():
                 return False
-        away = self.absent()
-        if away or _typing(self.gate):
+        if held:
             if turn is not None:
                 turn['sent'].add(reason)
-            # A replaced due signal must not be rediscovered on return.
-            if reason == 'task_due':
-                self._seen[key] = True
-                while len(self._seen) > HISTORY:
-                    self._seen.popitem(last=False)
             if self._held is None or row['observed_at'] >= self._held[1]['observed_at']:
                 self._held = (reason, row, text, offer, reply, subject, cooldown)
                 self._held_at = None if away else now

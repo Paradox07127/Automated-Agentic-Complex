@@ -7,7 +7,7 @@ from types import SimpleNamespace as NS
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from character.gate import Gate  # noqa: E402
-from character.signals import Signals  # noqa: E402
+from character.signals import REPEAT_RECHECK, Signals  # noqa: E402
 from daemon.ingest import IngestMixin  # noqa: E402
 from sessions.events import normalize_claude  # noqa: E402
 from sessions.registry import Registry  # noqa: E402
@@ -214,6 +214,43 @@ class SignalsTest(unittest.TestCase):
         self.gate.typing = False
         self.signals.tick(self.now)
         self.assertEqual([p['reason'] for p in self.posts], ['signal.check_failed'])
+
+    def test_a_signal_in_the_quiet_stage_typing_brings_waits_for_the_pause(self):
+        for stage, after, posted in (('quiet', {}, ['signal.check_failed']), ('offstage', {}, []),
+                                     ('quiet', {'meeting': True}, [])):
+            with self.subTest(stage=stage, after=after):
+                self.setUp()
+                self.gate.typing, self.gate.stage = True, stage
+                self.failed()
+                self.assertEqual(self.posts, [])
+                self.now += 5
+                self.gate.typing, self.gate.stage = False, 'normal'
+                for flag, value in after.items():
+                    setattr(self.gate, flag, value)
+                self.signals.tick(self.now)
+                self.assertEqual([p['reason'] for p in self.posts], posted)
+
+    def test_a_signal_in_the_offstage_stage_an_absence_brings_waits_for_the_return(self):
+        self.leave()
+        self.gate.stage = 'offstage'
+        self.failed()
+        self.assertEqual(self.posts, [])
+        self.gate.stage = 'normal'
+        self.back()
+        self.assertEqual([p['reason'] for p in self.posts], ['signal.check_failed'])
+
+    def test_reset_drops_the_held_signal_and_what_the_cooldowns_remember(self):
+        self.gate.typing = True
+        self.failed()
+        self.signals.reset()
+        self.gate.typing = False
+        self.now += 5
+        self.signals.tick(self.now)
+        self.assertEqual(self.posts, [])
+        self.failed()
+        self.signals.reset()
+        self.failed()
+        self.assertEqual(len(self.posts), 2)
 
     def test_signal_typed_through_for_120_seconds_is_dropped(self):
         self.gate.typing = True
@@ -426,20 +463,27 @@ class WorkSignalsTest(unittest.TestCase):
         self.tick(60)
         self.assertEqual(len(self.posts), 1)
 
-    def test_task_daily_cap_shared_by_due_and_stalled_and_due_identity(self):
-        self.cards[0]['next_due_at'] = T0
+    def test_one_task_signal_a_day(self):
+        self.cards.append(dict(self.cards[0], id='task-B', title='修材质'))
         self.tick()
-        self.assertEqual([p['reason'] for p in self.posts], ['signal.task_due'])
-        self.assertEqual(self.posts[0]['offer'], '开个会话做')
-        self.cards[0]['last_at'] = self.now
-        self.tick(86400)
+        self.tick(300)
+        self.assertEqual([p['text'] for p in self.posts], ['「修渲染」一天没动了，上次停在：检查材质'])
+        self.tick(3600)
         self.assertEqual(len(self.posts), 1)
-        self.cards[0]['next_due_at'] = self.now
-        self.tick(60)
-        self.assertEqual(len(self.posts), 2)
-        self.cards.append(dict(self.cards[0], id='task-B', next_due_at=self.now))
-        self.tick(60)
-        self.assertEqual(len(self.posts), 2)
+
+    def test_a_stalled_task_without_a_next_step_names_none(self):
+        for language, text, reply in (
+                ('zh-Hans', '「修渲染」一天没动了', '提醒我明天9点接着做修渲染'),
+                ('en', '"修渲染" has not moved for a day', 'Remind me tomorrow at 9:00 to continue "修渲染"'),
+                ('ja', '「修渲染」が一日止まっている', '明日 9 時に「修渲染」の続きをリマインドして')):
+            for step in (None, ''):
+                with self.subTest(language=language, step=step):
+                    self.setUp()
+                    self.client.language = language
+                    self.cards[0]['next_step'] = step
+                    self.tick()
+                    self.tick(300)
+                    self.assertEqual([(p['text'], p['reply']) for p in self.posts], [(text, reply)])
 
     def test_task_and_thought_mutes_and_global_cap(self):
         self.tick()
@@ -470,24 +514,18 @@ class WorkSignalsTest(unittest.TestCase):
         self.assertIsNone(self.posts[0]['offer'])
         self.assertIsNone(self.posts[0]['reply'])
 
-    def test_due_away_keeps_only_latest_and_discards_finished_task(self):
-        self.cards[0]['next_due_at'] = T0
-        self.leave()
-        self.tick()
-        self.cards.append(dict(self.cards[0], id='task-B', title='新任务', next_due_at=T0 + 60))
-        self.tick(60)
-        self.assertEqual(self.posts, [])
-        self.back()
-        self.tick(5)
-        self.assertIn('新任务', self.posts[0]['text'])
-        self.setUp()
-        self.cards[0]['next_due_at'] = T0
-        self.leave()
-        self.tick()
-        self.cards[0]['status'] = 'done'
-        self.back()
-        self.tick(5)
-        self.assertEqual(self.posts, [])
+    def test_a_stalled_task_held_for_typing_is_dropped_once_done(self):
+        for status, posted in (('active', 1), ('done', 0)):
+            with self.subTest(status=status):
+                self.setUp()
+                self.tick()
+                self.gate.typing = True
+                self.tick(300)
+                self.assertEqual(self.posts, [])
+                self.cards[0]['status'] = status
+                self.gate.typing = False
+                self.tick(5)
+                self.assertEqual(len(self.posts), posted)
 
     def test_repeat_report_time_daily_attempt_and_fourteen_day_cooldown(self):
         from personal.commitments import parse_reminder
@@ -509,6 +547,47 @@ class WorkSignalsTest(unittest.TestCase):
                 summary['day'] = (today - datetime.timedelta(days=index)).isoformat()
             self.tick()
             self.assertEqual(len(self.posts), 2 if days == 14 else 1)
+
+    def test_a_third_day_done_after_the_report_time_is_analyzed_that_day(self):
+        self.repeat_data()
+        third = self.summaries.pop()
+        self.tick(6 * 3600)
+        self.assertEqual(self.client.calls, [])
+        self.summaries.append(third)
+        self.tick(REPEAT_RECHECK)
+        self.assertEqual(len(self.client.calls), 1)
+        self.assertEqual([p['reason'] for p in self.posts], ['signal.repeat'])
+        self.tick(60)
+        self.assertEqual(len(self.client.calls), 1)
+
+    def test_too_little_evidence_is_rechecked_only_every_few_minutes(self):
+        self.repeat_data()
+        self.summaries.pop()
+        days = []
+        sessions_on = self.worklog.sessions_on
+        self.worklog.sessions_on = lambda day: days.append(day) or sessions_on(day)
+        self.tick(6 * 3600)
+        for _ in range(10):
+            self.tick(5)
+        self.assertEqual(len(days), 7)
+
+    def test_only_a_daily_repeat_gets_a_reminder_chip(self):
+        for cadence, offer in (('daily', '每天 9 点提醒我'), ('weekdays', None), (None, None)):
+            with self.subTest(cadence=cadence):
+                self.setUp()
+                self.repeat_data()
+                self.client.answer['cadence'] = cadence
+                self.tick(6 * 3600)
+                self.assertEqual([(p['reason'], p['offer'], p['reply'] is None) for p in self.posts],
+                                 [('signal.repeat', offer, offer is None)])
+
+    def test_a_repeat_found_across_a_reset_is_dropped(self):
+        self.repeat_data()
+        self.signals.spawn = self.jobs.append
+        self.tick(6 * 3600)
+        self.signals.reset()
+        self.jobs.pop()()
+        self.assertEqual(self.posts, [])
 
     def test_repeat_line_is_written_in_the_reply_language(self):
         long = 'checking the vendor sheet and the nightly build report of HostLink'
@@ -575,10 +654,9 @@ class WorkSignalsTest(unittest.TestCase):
         self.tick(5)
         self.assertEqual(self.posts, [])
         self.setUp()
-        self.cards[0]['next_due_at'] = T0
-        due_card = self.cards[0]
+        stalled = self.cards[0]
         self.repeat_data()
-        self.cards = [due_card]
+        self.cards = [stalled]
         self.leave()
         self.tick(6 * 3600)
         self.back()

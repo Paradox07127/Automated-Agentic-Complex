@@ -1,6 +1,7 @@
 """Her short first-person thoughts at task boundaries and activity changes, on /feed as `thought`."""
 import collections
 import datetime
+from pathlib import PureWindowsPath
 import secrets
 import threading
 import time
@@ -140,8 +141,8 @@ class Thoughts:
         self._lock = threading.Lock()
         self._running = False
         self._pending = None  # the newest trigger that came while a thought ran; observe() runs it after GAP
-        self._deferred = None  # (reason, detail, clock time) of the newest trigger that came while the user typed
-        self._unsent = None  # (clock time, feed data) of a thought made as the user began typing
+        self._deferred = None  # (reason, detail, generation, clock time) of the newest trigger that came while the user typed
+        self._unsent = None  # (clock time, feed data, facts) of a thought made as the user began typing
         self._last = None  # clock time of the last thought
         self._facts = None  # (activity, session states) the last thought was on
         self._gap = GAP
@@ -167,14 +168,13 @@ class Thoughts:
             now = self.clock()
             typing = _typing(self.gate)
             if self._unsent is not None and (not typing or now - self._unsent[0] >= HOLD):
-                (at, data), self._unsent = self._unsent, None
-                if now - at < HOLD and not self._signal_fresh() \
-                        and self.gate.check(CATEGORY, datetime.datetime.fromtimestamp(now), LEVEL) in OWN_BUDGET:
-                    self._show(now, {**data, "at": _iso(now)})
-            if self._deferred is not None and now - self._deferred[2] >= HOLD:
+                (at, data, facts), self._unsent = self._unsent, None
+                if now - at < HOLD and self._showable(now):
+                    self._show(now, data, facts)
+            if self._deferred is not None and now - self._deferred[3] >= HOLD:
                 self._deferred = None
             if self._deferred is not None and not typing and not self._running:
-                run, self._deferred, self._running = self._deferred[:2], None, True
+                run, self._deferred, self._running = self._deferred[:3], None, True
             else:
                 run = self._pending
                 if run is None or self._running or self._last is not None and now - self._last < GAP:
@@ -187,13 +187,14 @@ class Thoughts:
         with self._lock:
             if self._signal_fresh():
                 return
+            generation = self._generation
             if self._running:
-                self._pending = (reason, detail or {})
+                self._pending = (reason, detail or {}, generation)
                 return
             if self._last is not None and self.clock() - self._last < GAP:
                 return
             self._running = True
-        self.spawn(lambda: self._think(reason, detail or {}))
+        self.spawn(lambda: self._think(reason, detail or {}, generation))
 
     def interpreted(self, body):
         """A committed analysis of the continuous interpreter. A new blocked work event, a result_observed event of a
@@ -248,14 +249,17 @@ class Thoughts:
             return dict(self._kept[-1][1])
 
     def reset(self):
-        """POST /reset: the kept thoughts and a waiting trigger go."""
+        """POST /reset: the kept thoughts, a waiting trigger and what earlier thoughts and analyses left go."""
         with self._lock:
             self._generation += 1
             self._kept.clear()
             self._pending = self._deferred = self._unsent = None
+            self._facts = self._day = None
+            self._count, self._gap = 0, GAP
+            self._rest, self._tasks, self._studying = {}, {}, {}
 
-    def _think(self, reason, detail):
-        generation = self._generation
+    def _think(self, reason, detail, generation):
+        """generation: the one the trigger came in; a reset since drops it."""
         try:
             with self._lock:
                 if self._signal_fresh():
@@ -278,42 +282,55 @@ class Thoughts:
                 return
             if self._day == day and self._count >= DAILY_CAP:
                 return
-            if self.gate.check(CATEGORY, datetime.datetime.fromtimestamp(now), LEVEL) not in OWN_BUDGET:
+            typing = _typing(self.gate)
+            # The quiet stage typing puts the gate in holds the trigger for the pause instead of dropping it.
+            if self.gate.check(CATEGORY, datetime.datetime.fromtimestamp(now), LEVEL) \
+                    not in OWN_BUDGET + (("quiet",) if typing else ()):
                 return
-            if _typing(self.gate):
+            if typing:
                 with self._lock:
-                    self._deferred = (reason, detail, now)
+                    if generation == self._generation:
+                        self._deferred = (reason, detail, generation, now)
                 return
-            result = self._ask(reason, detail, scene, rows)
+            result = self._ask(reason, detail, scene, rows, generation)
             if result is None:
                 return
-            if self._day != day:
-                self._day, self._count = day, 0
-            self._count += 1
-            self._last, self._facts = now, facts
-            self._gap = GAP if new else min(self._gap * 2, MAX_GAP)
             data = {"id": secrets.token_hex(6), "text": result["thought"], "offer": result["offer"],
-                    "reply": result["reply"],
-                    "reason": reason, "at": _iso(now), "session_id": detail.get("session_id")}
+                    "reply": result["reply"], "reason": reason, "session_id": detail.get("session_id")}
             with self._lock:
                 if generation != self._generation or self._signal_fresh():
                     return
                 later = self.clock()
                 if _typing(self.gate):
-                    self._unsent = (later, data)
+                    self._unsent = (later, data, facts)
                     return
-                self._show(now, data)
+                if self._showable(later):
+                    self._show(later, data, facts)
         finally:
             with self._lock:
                 pending = self._pending
-                self._running = pending is not None and (self._last is None or self.clock() - self._last >= GAP)
-                if self._running:
+                run_next = self._running = pending is not None and (self._last is None
+                                                                    or self.clock() - self._last >= GAP)
+                if run_next:
                     self._pending = None
-            if self._running:
+            if run_next:
                 self.spawn(lambda: self._think(*pending))
 
-    def _show(self, now, data):
-        """Keeps and publishes a made thought; the caller holds the lock."""
+    def _showable(self, now):
+        """Whether a made thought may still go out now: no fresh signal, the user not away, the gate letting it;
+        the caller holds the lock."""
+        return not self._signal_fresh() and self.presence() not in ABSENT \
+            and self.gate.check(CATEGORY, datetime.datetime.fromtimestamp(now), LEVEL) in OWN_BUDGET
+
+    def _show(self, now, data, facts):
+        """Keeps and publishes a made thought at now, counting it in the gap and daily cap; the caller holds the lock."""
+        day = datetime.date.fromtimestamp(now)
+        if self._day != day:
+            self._day, self._count = day, 0
+        self._count += 1
+        self._gap = GAP if facts != self._facts else min(self._gap * 2, MAX_GAP)
+        self._last, self._facts = now, facts
+        data = {**data, "at": _iso(now)}
         self._kept.append((now, data))
         self.publish("thought", data)
         if data["reason"] in self._rest:  # the probe after a rest: the next one waits for its answer or REST
@@ -339,7 +356,8 @@ class Thoughts:
             if "title" in detail:  # an interpreter trigger names its event or task
                 seen = f"\nSeen by continuous observation: {detail['title']}: {detail['summary']}"
             observed = self.context()[:OBSERVED_CHARS]
-            listed = "; ".join(f"{(s['cwd'] or '').rstrip('/').rsplit('/', 1)[-1] or s['display_session']}"
+            # PureWindowsPath splits a POSIX and a Windows cwd alike.
+            listed = "; ".join(f"{PureWindowsPath(s['cwd'] or '').name or s['display_session']}"
                                f" ({s['effective_state']})" for s in rows[:8])
             where = detail.get("session_id")
             trigger = REASONS[reason].format(user_title=self.user()) + (f": {where}" if where else "")
@@ -357,10 +375,10 @@ class Thoughts:
         ask = f"{ASK}{WORK_ASK}" if work else ASK
         return f"<thought>\n{HEAD}{ask}\n</thought>".replace(USER_SLOT, self.user()), {"observed": observed, "reason": trigger}
 
-    def _ask(self, reason, detail, scene, rows):
+    def _ask(self, reason, detail, scene, rows, generation):
         """The parsed reply, or None; every call is one "thought" semantic run, which meters it."""
         instructions, evidence = self._prompt(reason, detail, scene, rows)
-        generation, deadline = self._generation, time.monotonic() + TIMEOUT
+        deadline = time.monotonic() + TIMEOUT
         most = room(MAX_CHARS, self.semantic.reply())
         try:
             result = self.semantic.run(CATEGORY, instructions, evidence, validate_output=lambda value: _checked(value, most),

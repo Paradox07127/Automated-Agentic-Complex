@@ -220,6 +220,13 @@ class Proactive:
             self._pending = self._open = None
             self._subjects.clear()
 
+    def reset(self):
+        """POST /reset and a consent revocation: the interpreter's work and the stuck run, window-derived, go."""
+        with self._lock:
+            self._work_states, self._work_blocked = {}, {}
+            self._stuck_since = self._stuck_key = self._stuck_retry_at = None
+            self._stuck_asked.clear()
+
     def _close(self):
         """The open line is a miss once RESPONSE_WINDOW has passed since its speech ended."""
         if self._open is None:

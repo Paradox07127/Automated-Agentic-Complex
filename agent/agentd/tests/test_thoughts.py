@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 from types import SimpleNamespace as NS
@@ -158,6 +159,9 @@ class ThoughtsTest(unittest.TestCase):
 
         self.client.run = making
         self.t.notice("started")
+        self.assertEqual(len(self.client.calls), 1)
+        self.now += GAP  # the gap counts from the thought's delivery, at the end of the call
+        self.t.observe(None)
 
     def test_trigger_during_model_runs_after_it(self):
         self.during_model(["finished"])
@@ -180,6 +184,9 @@ class ThoughtsTest(unittest.TestCase):
         self.t.observe(self.scene)
         self.assertEqual(len(self.client.calls), 1)
         self.now = T0 + GAP
+        self.t.observe(self.scene)
+        self.assertEqual(len(self.client.calls), 1)  # the first thought went out at T0 + 5
+        self.now = T0 + 5 + GAP
         self.t.observe(self.scene)
         self.assertEqual([d["reason"] for d in self.thoughts()], ["started", "finished"])
         self.now += GAP
@@ -390,13 +397,68 @@ class ThoughtsTest(unittest.TestCase):
         self.assertEqual(self.thoughts(), [])
         self.assertEqual(len(self.client.calls), 1)
 
+    def test_a_trigger_in_the_quiet_stage_typing_brings_waits_for_the_pause(self):
+        self.gate.typing, self.gate.stage = True, "quiet"
+        self.assertFalse(self.notice(0))
+        self.assertEqual(self.client.calls, [])
+        self.now += 5
+        self.gate.typing, self.gate.stage = False, "normal"
+        self.t.observe(None)
+        self.assertEqual([d["reason"] for d in self.thoughts()], ["started"])
+
+    def test_a_thought_whose_moment_passed_during_the_call_is_not_shown(self):
+        for name, change, undo in (
+                ("meeting", lambda: setattr(self.gate, "meeting", True), lambda: setattr(self.gate, "meeting", False)),
+                ("fullscreen", lambda: setattr(self.gate, "fullscreen", True),
+                 lambda: setattr(self.gate, "fullscreen", False)),
+                ("mute", lambda: self.gate.set_muted({"thought"}), lambda: self.gate.set_muted(set())),
+                ("locked", lambda: setattr(self, "presence", "locked"), lambda: setattr(self, "presence", "present"))):
+            with self.subTest(name):
+                self.setUp()
+                create = self.client.run
+
+                def making(*args, change=change, create=create, **options):
+                    change()
+                    return create(*args, **options)
+
+                self.client.run = making
+                self.assertFalse(self.notice(0))
+                self.assertEqual(len(self.client.calls), 1)
+                undo()
+                self.client.run = create
+                self.assertTrue(self.notice(1))  # the dropped thought used up no gap
+
+    def test_a_thought_asked_for_before_a_reset_is_never_shown(self):
+        jobs = []
+        self.t.spawn = jobs.append
+        self.t.notice("started", {"session_id": "claude:A"})
+        self.t.reset()
+        jobs.pop()()
+        self.assertEqual(self.thoughts(), [])
+
+    def test_reset_forgets_the_gap_and_the_daily_count(self):
+        self.notice(0)
+        self.notice(GAP)
+        self.notice(3 * GAP)  # no new facts: the gap is now 4 x GAP
+        self.assertFalse(self.notice(4 * GAP))
+        self.t._day, self.t._count = datetime.date.fromtimestamp(self.now), DAILY_CAP
+        self.t.reset()
+        self.assertTrue(self.notice(4 * GAP))
+
+    def test_a_windows_cwd_is_named_by_its_last_part(self):
+        self.rows = [session("claude:A", "thinking", "C:\\Users\\sam\\Proj")]
+        self.assertTrue(self.notice(0))
+        observed = self.client.calls[0]["evidence"]["observed"]
+        self.assertIn("Tracked sessions: Proj (thinking)", observed)
+        self.assertNotIn("Users", observed)
+
     def test_while_the_user_does_not_type_a_thought_is_immediate(self):
         self.assertFalse(self.gate.typing)
         self.assertTrue(self.notice(0))
         self.assertTrue(self.notice(GAP, "done", "finished"))
 
     def test_observe_runs_a_pending_trigger_before_any_thought(self):
-        self.t._pending = ("started", {"session_id": "claude:A", "state": "thinking"})
+        self.t._pending = ("started", {"session_id": "claude:A", "state": "thinking"}, 0)
         self.t.observe(None)
         self.assertEqual(len(self.thoughts()), 1)
 
@@ -638,11 +700,20 @@ class ThoughtWiringTest(unittest.TestCase):
         self.server.thoughts = NS(notice=lambda reason, detail: self.noticed.append((reason, detail)),
                                   observe=lambda scene: self.noticed.append(("observe", scene)))
 
-    def test_session_transitions_notice_thoughts(self):
-        def hook(name, ts, **extra):
-            self.server.ingest(normalize_claude({"hook_event_name": name, "session_id": "A", "cwd": "/a", **extra},
-                                                now=ts))
+    def hook(self, name, ts, sessions_shared=True, **extra):
+        """A hook event, with page text shared and coding sessions as sessions_shared."""
+        self.server.consent = NS(snapshot=lambda: ({"agent_sessions": sessions_shared, "page_text": True}, 0))
+        self.server.attention = NS(lock=threading.Lock(), _secure=False, _raw_hidden=lambda metadata: False)
+        self.server.ingest(normalize_claude({"hook_event_name": name, "session_id": "A", "cwd": "/work/SECRET-PROJECT",
+                                             **extra}, now=ts))
 
+    def test_without_coding_session_sharing_a_session_is_no_trigger(self):
+        self.hook("UserPromptSubmit", T0, sessions_shared=False)
+        self.hook("Stop", T0 + 1, sessions_shared=False)
+        self.assertEqual(self.noticed, [])
+
+    def test_session_transitions_notice_thoughts(self):
+        hook = self.hook
         hook("SessionStart", T0)
         hook("UserPromptSubmit", T0 + 1)
         hook("PreToolUse", T0 + 2, tool_name="Bash", tool_input={"command": "ls"})

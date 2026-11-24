@@ -259,6 +259,57 @@ class ResetTest(unittest.TestCase):
         self.assertEqual([i["event"] for i in items], ["reset"])
         self.assertIn("at", items[0]["data"])
 
+    def test_reset_leaves_no_character_state_that_comes_back(self):
+        from types import SimpleNamespace as NS
+        from character.desk_log import TICK, DeskLog
+        from character.focus import Focus
+        from character.signals import Signals
+        from character.thoughts import Thoughts
+        from infra import paths
+        from sessions.events import normalize_claude
+        from sessions.registry import Registry
+        from test_check_result import SWIFT
+        from test_proactive import analysis, work_event
+        from test_thoughts import FakeSemantic
+        server, now, clock = self.server, time.time(), [time.time()]
+        server.desk = DeskLog(open_store(self.db), clock=lambda: clock[0])
+        server.desk.span("visible", True)
+        server.focus = Focus(paths.focus(self.state))
+        server.focus_start(25)
+        for _ in range(2):  # found blocked twice: stuck
+            server.proactive.interpreted(analysis(now, [work_event("render", "blocked")], [("render", "blocked")]))
+        self.assertIsNotNone(server.proactive._work_stuck(now))
+        gate, registry, posts = Gate(enabled=True), Registry(coalesce=0), []
+        signals = server.signals = Signals(gate, NS(post=posts.append, log=None), registry)
+        gate.typing = True
+        for name, body in (("UserPromptSubmit", {}), ("PostToolUseFailure", {"tool_name": "Bash",
+                           "tool_input": {"command": "swift test"}, **SWIFT}), ("Stop", {})):
+            event = normalize_claude({"hook_event_name": name, "session_id": "A", "cwd": "/work/Endfield", **body})
+            before = registry.sessions.get(event.key)
+            signals.on_hook(event, body)
+            registry.ingest(event)
+            signals.on_transition(before and before.state, registry.sessions[event.key].to_dict(), event)
+        self.assertIsNotNone(signals._held)
+        jobs, published = [], []
+        server.thoughts = Thoughts(Gate(enabled=True), lambda event, data: published.append(data), FakeSemantic(),
+                                   spawn=jobs.append, presence=lambda: "present")
+        server.thoughts.notice("started")
+        status, body = self.request("POST", "/reset", CONFIRM)
+        self.assertEqual(status, 200, body)
+        jobs.pop()()  # the thought asked for before the reset
+        self.assertEqual(published, [])
+        gate.typing = False
+        signals.tick(time.time() + 10)
+        self.assertEqual(posts, [])
+        self.assertIsNone(server.proactive._work_stuck(now))
+        self.assertFalse(server.focus.running())
+        self.assertFalse(paths.focus(self.state).exists())
+        self.assertFalse(server.gate.focus)
+        server.desk.count("pat")
+        clock[0] += TICK
+        server.desk.tick()
+        self.assertEqual(server.desk.db.execute("SELECT kind, until FROM desk_log").fetchall(), [("pat", None)])
+
     def test_reset_empties_the_history_index(self):
         self.seed()
         self.assertGreater(self.count("agentd.sqlite", "history_fts"), 0)
@@ -621,6 +672,18 @@ class ResetTest(unittest.TestCase):
         self.consent(False, True)
         self.server.sync_privacy()
         self.assertEqual([r[0] for r in db.execute("SELECT id FROM session_summaries")], [kept])
+
+    def test_revoking_page_text_takes_the_stuck_work_proactive_kept(self):
+        from test_proactive import analysis, work_event
+        self.consent(True, True)
+        self.server.sync_privacy()
+        now = time.time()
+        for _ in range(2):
+            self.server.proactive.interpreted(analysis(now, [work_event("render", "blocked")], [("render", "blocked")]))
+        self.assertIsNotNone(self.server.proactive._work_stuck(now))
+        self.consent(False, True)
+        self.server.sync_privacy()
+        self.assertIsNone(self.server.proactive._work_stuck(now))
 
     def test_revoking_typed_text_takes_only_the_episodes_with_typed_text(self):
         typed, plain = "typedmarker" + "81c3e2" * 8, "plainmarker" + "0b9f47" * 8

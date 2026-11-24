@@ -102,6 +102,9 @@ class LifecycleMixin:
                 self.sessions.stop_all(max(0.0, deadline - time.monotonic()))
             self.broker.cancel_all(reason="reset")
             self.broker.forget()
+            self.focus.reset()  # before the trace clears: user_now traces the timer's end
+            self.gate.focus = False
+            self.user_now.set_overrides(focus_timer=False)
             with self._write_lock:  # a line still running past the deadline stores nothing from here
                 self.reset_generation += 1
                 self._cut_lines.clear()
@@ -135,7 +138,10 @@ class LifecycleMixin:
             if self.episodes is not None:  # its generation drops an episode still being written
                 self.episodes.clear()
             self._ritual_kinds = []
-            lifecycle.clear()
+            if self.desk is not None:
+                self.desk.reset(lifecycle.clear)
+            else:
+                lifecycle.clear()
             if self.character_agent is not None:
                 deleted.update(self.character_agent.data_counts())
             self._forget_agent_data()
@@ -186,6 +192,10 @@ class LifecycleMixin:
                 self._decision_traces.clear()
             if self.thoughts is not None:  # before the feed resets, so a thought it publishes is cleared too
                 self.thoughts.reset()
+            if self.signals is not None:
+                self.signals.reset()
+            if self.proactive is not None:
+                self.proactive.reset()
             for buffer in (self.feed, self.diag, self.speech):
                 if buffer is not None:
                     buffer.reset()

@@ -50,6 +50,13 @@ class DeskLog:
                     self._running[kind] = self._start(kind, now)
             self.db.commit()
 
+    def reset(self, clear):
+        """POST /reset: clear() deletes the rows under the lock, and no running span keeps a deleted row's id, which a
+        later insert could take."""
+        with self.lock:
+            clear()
+            self._running.clear()
+
     def running(self):
         """The row ids of the spans that run now."""
         with self.lock:
