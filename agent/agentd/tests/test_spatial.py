@@ -1861,6 +1861,7 @@ class ReceiptServerTest(ServerCase):
         db = Path(tempfile.mkdtemp()) / "trace.sqlite3"
         self.addCleanup(shutil.rmtree, db.parent)
         self.server.trace = TraceStore(open_store(db), producer_epoch=self.server.registry.epoch)
+        self.addCleanup(self.server.trace.db.close)
         self.server.registry.tick()
         self.server.turn_generation = 3
         self.server.spatial.poll()
@@ -1876,6 +1877,7 @@ class ReceiptServerTest(ServerCase):
         db = Path(tempfile.mkdtemp()) / "trace.sqlite3"
         self.addCleanup(shutil.rmtree, db.parent)
         self.server.trace = TraceStore(open_store(db), producer_epoch=self.server.registry.epoch)
+        self.addCleanup(self.server.trace.db.close)
         self.server.registry.tick()
         self.server.turn_generation = 3
         self.server.spatial.poll()
@@ -1923,6 +1925,7 @@ class MotionLaneServerTest(ServerCase):
         db = Path(tempfile.mkdtemp()) / "trace.sqlite3"
         self.addCleanup(shutil.rmtree, db.parent)
         self.server.trace = TraceStore(open_store(db), producer_epoch=self.server.registry.epoch)
+        self.addCleanup(self.server.trace.db.close)
 
     def events(self, *kinds):
         rows = self.server.trace.db.execute("SELECT event FROM trace_events ORDER BY id").fetchall()

@@ -817,17 +817,18 @@ e2e('approval: a Claude PermissionRequest is pending in GET /approvals through t
 
 // Windows only, as above: the four processes of a Windows run (this one as the shell) in one go.
 if (process.platform === 'win32') test('Windows: agentd, the real efw.exe and the real ac-helper.exe run and connect together, and none is left after the stop',
-  { skip: SKIP || REAL_EFW || REAL_HELPER, timeout: 180_000 }, async () => {
+  { skip: SKIP || REAL_SWITCH_LIBRARY || (FULL_LIBRARY ? false : `no complete library at AAC_EFW_LIBRARY_FULL (${EFW_LIBRARY_FULL || 'unset'})`)
+    || REAL_HELPER, timeout: 180_000 }, async () => {
     const stack = new Stack();
-    // agentd's library (AGENTD_DEV_CATALOG, the agentd test library) has the character the package is named after.
-    const character = basename(EFW_PACKAGE);
-    await stack.init({ config: { avatar_executable: EFW,
-      characters: [{ id: character, name: character, avatar_app: dirname(EFW), avatar_args: ['--package', EFW_PACKAGE, '--offscreen'] }] } });
+    // As a packaged run: agentd and efw both take the character from the library; the agentd test library has no character efw draws,
+    // and agentd checks every file a character.json inventory lists, which only the complete library has.
+    await stack.init({ catalog: EFW_LIBRARY_FULL, config: { avatar_executable: EFW } });
+    const character = stack.config.character;
     const support = stack.support, states: string[] = [], helperStates: string[] = [];
     const link = new HostLink({ path: hostPipePath(support), transport: 'pipe', pid: process.pid, build: { version: 'e2e' },
       fps: () => ({ idleLowFps: true, userFps: 60, batteryLow: true }), log: (line) => writeFileSync(join(stack.dir, 'hostlink.log'), `${line}\n`, { flag: 'a' }) });
     const renderer = new RendererSupervisor({ config: stack.config, settings: () => ({}), state: () => ({}), character: () => character, link,
-      captureDir: join(stack.dir, 'captures'), platform: 'windows', onStatus: (s) => states.push(stateText(s)) });
+      captureDir: join(stack.dir, 'captures'), platform: 'windows', prefix: ['--offscreen'], onStatus: (s) => states.push(stateText(s)) });
     link.on((e) => { if (e.kind === 'watchdog' && e.pid === renderer.pid) renderer.kill(e.reason); });
     const helper = new HelperSupervisor({ executable: HELPER, supportDir: support, clientVersion: 'e2e',
       onStatus: (s) => helperStates.push(stateText(s)) });

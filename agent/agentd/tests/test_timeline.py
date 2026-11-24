@@ -189,7 +189,7 @@ class TimelineServerTest(unittest.TestCase):
         self.server.privacy_config = str(path)
 
     def share_window_text(self, level="window"):
-        self.server.capture = types.SimpleNamespace(share_text=True, vision=None)
+        self.server.capture = types.SimpleNamespace(share_text=True, vision=None, tick=lambda: None)
         self.save(share_window_text=True, screen_context_level=level, share_typed_text=True, share_actions=True)
 
     def stored(self):

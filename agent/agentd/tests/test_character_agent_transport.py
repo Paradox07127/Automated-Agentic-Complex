@@ -436,9 +436,11 @@ class ManagedTransportTests(unittest.TestCase):
         self.assertLessEqual(user.items(), env.items())
         for key in ("AGENTD_HOOK_TOKEN", "AAC_CODEX_API_KEY", "AAC_TTS_TOKEN_FILE", "CODEX_HOME"):
             self.assertNotIn(key, env)
-        self.assertEqual(Path(env["TMPDIR"]), (self.root / "isolated/tmp").resolve())
-        for child in ("tmp", "workspace"):
-            self.assertEqual((self.root / "isolated" / child).stat().st_mode & 0o777, 0o700)
+        for key in ("TEMP", "TMP") if sys.platform == "win32" else ("TMPDIR",):
+            self.assertEqual(Path(env[key]), (self.root / "isolated/tmp").resolve())
+        if sys.platform != "win32":  # Windows has no file modes; make_private_dir restricts the ACL there
+            for child in ("tmp", "workspace"):
+                self.assertEqual((self.root / "isolated" / child).stat().st_mode & 0o777, 0o700)
 
     def test_invalid_credentials_and_api_url_are_rejected_before_spawn(self):
         with self.assertRaisesRegex(ValueError, "credentials_missing"):

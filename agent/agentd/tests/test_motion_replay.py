@@ -162,6 +162,7 @@ class MotionReplayTest(unittest.TestCase):
         self.root = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.root)
         self.recording = r = Recording(self.root)
+        self.addCleanup(r.store.db.close)
         r.run(150, {
             4041: r.set(typing=True), 6041: r.set(typing=False),  # the user types: she accompanies it
             7041: lambda: r.registry.set_role_focus(role("thinking"), generation=3),  # an intent

@@ -557,7 +557,7 @@ class FactMarksTest(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=sys.platform == "win32")
         self.path = Path(self.tmp.name) / "agentd.db"
         self.db = open_store(self.path)
-        self.now = 1000.0
+        self.now = datetime.datetime(2026, 10, 22, 12).timestamp()  # Windows cannot convert a local midnight before 1970
         self.memory = Memory(self.db, clock=self.tick)
 
     def tearDown(self):
