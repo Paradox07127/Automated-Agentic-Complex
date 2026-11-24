@@ -332,11 +332,27 @@ class DesktopTaskTests(unittest.TestCase):
     def test_acp_readiness_reads_the_probed_prompt_capabilities(self):
         from character_agent.integration import CharacterAgentController
         capabilities = {'promptCapabilities': {'image': True}}
-        controller = SimpleNamespace(_acp_probes={'gemini': {'ok': True, 'capabilities': capabilities}})
+        controller = SimpleNamespace(_acp_probes={'gemini': {'ok': True, 'capabilities': capabilities}},
+                                     _acp_error=lambda *args: None)
         with patch('tool_gateway.computer_toolset.available', return_value=True) as available:
             CharacterAgentController._can_run_desktop_task(controller, {'backend': 'acp', 'acp_agent': 'gemini'}, 'bridge')
             CharacterAgentController._can_run_desktop_task(controller, {'backend': 'acp', 'acp_agent': 'other'}, 'bridge')
         self.assertEqual([c.args[2] for c in available.call_args_list], [capabilities, None])
+
+    def test_not_offered_on_a_computer_route_whose_acp_agent_cannot_be_locked(self):
+        from character_agent.integration import CharacterAgentController
+        capabilities = {'promptCapabilities': {'image': True}}
+        agents = [{'id': agent, 'name': agent, 'source': 'local', 'command': ['/synthetic/' + agent, 'acp']}
+                  for agent in ('goose', 'opencode')]
+        controller = SimpleNamespace(_acp_probes={agent['id']: {'ok': True, 'capabilities': capabilities}
+                                                  for agent in agents}, _acp_logins={})
+        controller._acp_error = lambda *args: CharacterAgentController._acp_error(controller, *args)
+        config = {'backend': 'acp', 'acp_launcher': 'local', 'acp_agent': 'goose'}
+        with patch('character_agent.harness.acp_agents.find_local', return_value=agents), \
+             patch('tool_gateway.desktop.status', return_value={'enabled': True}):
+            self.assertFalse(CharacterAgentController._can_run_desktop_task(controller, config, 'bridge'))
+            self.assertTrue(CharacterAgentController._can_run_desktop_task(controller, {**config, 'acp_agent': 'opencode'},
+                                                                           'bridge'))
 
     def test_task_run_end_releases_even_a_conversation_lease(self):
         from tool_gateway.desktop import DesktopLeases

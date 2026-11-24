@@ -1036,6 +1036,9 @@ class CharacterAgentController:
 
     def _can_run_desktop_task(self, config, bridge):
         from tool_gateway.computer_toolset import available
+        # The computer route's own readiness (locked: the sub-run keeps the agent's tools off); never waits on a login.
+        if config['backend'] == 'acp' and self._acp_error(config, False, True):
+            return False
         probe = self._acp_probes.get(config['acp_agent']) if config['backend'] == 'acp' else None
         return available(config, bridge, probe and probe['capabilities'])
 

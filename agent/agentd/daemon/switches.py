@@ -22,7 +22,8 @@ class SwitchesMixin:
         if self.capture is not None:
             self.capture.consent = self.consent.snapshot
         # One sync applies at a time: a second one read under it would clear what arrived after sharing came back.
-        with self.consent.applying:
+        # The turn lock first: the run cancel takes it, and a job continuation syncs while holding it.
+        with self._turn_lock, self.consent.applying:
             revoked, read = self.consent.pending()
             if revoked:
                 if self.character_agent is not None:

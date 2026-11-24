@@ -431,6 +431,7 @@ class TurnsMixin:
         if on_voiced is not None and not trace.get("voiced"):
             with self._announce_lock:
                 self._reported_tasks.discard(line_id)
+                self._reports_marker = None  # the next tick reports it again
 
     def _prepare_streamed(self, prepare, line_id, text, cancel, source, trace, reason):
         """prepare() on a thread of its own: (its reply, None) when it ends before its run's final answer begins,

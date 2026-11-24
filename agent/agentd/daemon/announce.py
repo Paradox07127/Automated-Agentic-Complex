@@ -200,8 +200,10 @@ class AnnounceMixin:
                 self._submit_schedule(store, run)
             except Exception:
                 pass  # each failed submission is recorded; other schedules still run
-        untold = [self._schedule_reports(store), self._job_reports(store)]
-        self._reports_marker = None if any(untold) else marker
+        # Kept before the reports: a claimed line that ends unvoiced meanwhile clears it (_unvoiced).
+        self._reports_marker = marker
+        if any([self._schedule_reports(store), self._job_reports(store)]):
+            self._reports_marker = None
 
     def _schedules_session_done(self, announcement):
         if self.resetting or self.closing:

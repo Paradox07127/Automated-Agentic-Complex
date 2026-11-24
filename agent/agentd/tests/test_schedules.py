@@ -350,6 +350,19 @@ class ScheduleTests(unittest.TestCase):
         self.server.claim_line.call_args.kwargs['on_voiced']()
         self.controller.deliveries.told.assert_called_once_with('delivery-1')
 
+    def test_a_report_whose_line_ends_unvoiced_is_told_on_the_next_tick(self):
+        self.scheduled_result()
+        self.controller.jobs.store.revision = 0
+        marker = self.server._schedules_waiting(); self.server._schedules_due(marker)
+        self.server.claim_line.assert_called_once()
+        self.assertIsNone(self.server._schedules_waiting())
+        args, kwargs = self.server.claim_line.call_args
+        self.server._unvoiced({}, args[0], kwargs['on_voiced'])  # the line ended before its first clause
+        marker = self.server._schedules_waiting()
+        self.assertIsNotNone(marker)
+        self.server._schedules_due(marker)
+        self.assertEqual(self.server.claim_line.call_count, 2)
+
     def test_a_told_report_is_not_told_again_after_a_restart(self):
         self.scheduled_result()
         self.server.claim_line.side_effect = lambda *args, on_voiced, **kwargs: on_voiced() or True

@@ -165,6 +165,23 @@ class PrivacyRevocationTest(unittest.TestCase):
             page_sent.set();second.join(3)
         self.assertEqual([c['text'] for c in self.attention.context()],["new page"])
 
+    def test_a_sync_under_the_turn_lock_and_a_sync_cancelling_the_run_both_finish(self):
+        """A job continuation syncs under the turn lock while another sync's revocation cancels the run, which takes it."""
+        cancelling,turn_held=threading.Event(),threading.Event()
+        def cancel(*args,**kwargs):
+            cancelling.set();turn_held.wait(.5)
+            with self.server._turn_lock: pass
+        def continuation():
+            self.assertTrue(cancelling.wait(2))
+            with self.server._turn_lock:
+                turn_held.set();self.server.sync_privacy()
+        self.save(share_page_text=False)
+        with patch.object(self.server.character_agent,'cancel',cancel):
+            revoking=threading.Thread(target=self.server.sync_privacy,daemon=True)
+            resuming=threading.Thread(target=continuation,daemon=True)
+            revoking.start();resuming.start();revoking.join(2);resuming.join(2)
+        self.assertFalse(revoking.is_alive());self.assertFalse(resuming.is_alive())
+
     def test_page_permission_is_rechecked_without_waiting_for_the_tick(self):
         self.server.sync_privacy()
         self.save(share_page_text=False)
