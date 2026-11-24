@@ -223,7 +223,7 @@ def prepare_music(source, output, start, duration):
     source = Path(source); need(source.is_file() and source.stat().st_size <= 256*1024**2, 'bgm_file_limit')
     with tempfile.TemporaryDirectory(prefix='endfield-bgm-') as tmp:
         decoded = Path(tmp)/'decoded.wav'
-        result = subprocess.run(['/usr/bin/afconvert','-f','WAVE','-d','LEI16@48000','-c','2',str(source),str(decoded)], capture_output=True, text=True, timeout=120)
+        result = subprocess.run(['/usr/bin/afconvert','-f','WAVE','-d','LEI16@48000','-c','2',str(source),str(decoded)], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=120)
         need(result.returncode == 0, 'bgm_decode_failed: '+result.stderr[-800:])
         with wave.open(str(decoded),'rb') as audio:
             need(audio.getnchannels()==2 and audio.getframerate()==48000 and audio.getsampwidth()==2, 'unexpected_bgm_format')
