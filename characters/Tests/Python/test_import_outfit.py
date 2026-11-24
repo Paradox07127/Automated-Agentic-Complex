@@ -14,7 +14,7 @@ from unittest import mock
 
 CHARACTERS = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(CHARACTERS), str(CHARACTERS.parent/'agent/agentd/tests')]
-from agentic_complex_build import import_outfit, texture_dhash
+from agentic_complex_build import efmi_mod, import_outfit, texture_dhash
 from character_library import Package, read_json, write_json
 import native_bundle
 import package_format
@@ -347,6 +347,33 @@ def geometry_mod(root):
     (mod/'Meshes/IB.buf').write_bytes(struct.pack('<6H', 0, 1, 2, 2, 1, 3))
     (mod/'Meshes/Position.buf').write_bytes(b''.join(struct.pack('<3fI', *p, 0) for p in MOVED_POSITIONS))
     return mod
+
+
+# Si-Series2's Cutout.ini, its rewrite only: where a draw binds t110 and sets x220, a pixel whose t110 alpha is below 0.5 is dropped.
+CUTOUT_INI = r"""namespace = Cutout
+
+[ShaderRegexCutout]
+shader_model = ps_5_0
+temps = ccflag ccsize ccuv
+
+[ShaderRegexCutout.Pattern.Replace]
+${header}dcl_resource_texture2d (float,float,float,float) t110\n
+ld_indexable(texture1d)(float,float,float,float) ${ccflag}.xyzw, l(220, 0, 0, 0), t120.xyzw\n
+eq ${ccflag}.x, ${ccflag}.x, l(220713.000000)\n
+if_nz ${ccflag}.x\n
+  resinfo_indexable(texture2d)(float,float,float,float) ${ccsize}.xy, l(0), t110.xyzw\n
+  add ${ccsize}.z, ${ccsize}.x, ${ccsize}.y\n
+  if_nz ${ccsize}.z\n
+    frc ${ccuv}.xy, v1.xyxx\n
+    mul ${ccuv}.xy, ${ccuv}.xyxx, ${ccsize}.xyxx\n
+    ftou ${ccuv}.xy, ${ccuv}.xyxx\n
+    mov ${ccuv}.zw, l(0,0,0,0)\n
+    ld_indexable(texture2d)(float,float,float,float) ${ccflag}.w, ${ccuv}.xyzz, t110.xyzw\n
+    lt ${ccflag}.x, ${ccflag}.w, l(0.500000)\n
+    discard_nz ${ccflag}.x\n
+  endif\n
+endif\n
+"""
 
 
 # Two sub-draws of CLOTH bind one slot: first the template's own _MetallicGlossMap (filled with its binding 2), then a new texture.
@@ -1026,6 +1053,31 @@ this = ref ResourceZero
         self.assertIn('shader_patch_ignored:Cutout.ini:Textures/mask.dds', warnings)
         self.assertIn('shader_patch_ignored:Finish.ini', warnings)
         self.assertNotIn('texture_unbound:Textures/mask.dds', warnings)
+
+    def test_a_cutout_patch_puts_its_mask_on_the_draws_of_the_geometry_groups_that_bind_it(self):
+        sections = '\n[Resource_IB]\ntype = Buffer\nformat = DXGI_FORMAT_R16_UINT\nfilename = Meshes/IB.buf\n\n' \
+                   '[ResourceNew]\nfilename = Textures/new.dds\n\n[ResourceMask]\nfilename = Textures/mask.dds\n'
+        draw = 'ib = Resource_IB\nps-t17 = ResourceNew\nps-t110 = ResourceMask\nx220 = 220713\ndrawindexed = 3, 0, 0\n' \
+               'ps-t110 = null\nx220 = 0\ndrawindexed = 3, 3, 0'
+        mask = dds(2, 2, 28, fill=9)
+        mod = cloth_mod(self.root/'mod', draw, {'Textures/new.dds': dds(8, 8, 99), 'Textures/mask.dds': mask}, sections)
+        (mod/'Meshes/IB.buf').write_bytes(struct.pack('<6H', 0, 1, 2, 2, 1, 3))
+        (mod/'Meshes/Position.buf').write_bytes(b''.join(struct.pack('<3fI', *p, 0) for p in MOVED_POSITIONS))
+        (mod/'Cutout.ini').write_text(CUTOUT_INI)
+        report = import_outfit.import_outfit(self.package.root, mod, self.root/'out')
+        self.assertEqual([w for w in report['warnings'] if 'Cutout' in w or 'mask' in w], [])
+        *_, source, _, _ = self.staged(self.root/'out')
+        clone = [d for d in source['draws'] if d['mesh'] == 'outfit:'+report['appearance']['id']+'/'+CLOTH]
+        cut = [d['cutout'] for d in clone if 'cutout' in d]
+        self.assertTrue(cut and len(cut) < len(clone))
+        self.assertEqual({(c['sha256'], c['channel'], c['threshold'], c['texture']['rd_format_name'], c['texture']['width']) for c in cut},
+                         {(hashlib.sha256(mask[148:]).hexdigest(), 3, 0.5, 'R8G8B8A8_UNORM', 2)})
+
+    def test_a_patch_that_drops_pixels_by_another_test_is_no_cutout(self):
+        self.assertIsNotNone(efmi_mod.cutout(CUTOUT_INI.lower()))
+        self.assertIsNone(efmi_mod.cutout(CUTOUT_INI.lower().replace('lt ${ccflag}.x', 'ge ${ccflag}.x')))
+        self.assertIsNone(efmi_mod.cutout(CUTOUT_INI.lower().replace('discard_nz ${ccflag}.x', 'mov ${ccflag}.x, l(0)')))
+        self.assertIsNone(efmi_mod.cutout(CUTOUT_INI.lower().replace('v1.xyxx', 'v2.xyxx')))
 
     def test_a_resource_s_color_space_sets_the_format_its_file_is_read_in(self):
         draw = 'ps-t17 = ResourceNew\ndrawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'

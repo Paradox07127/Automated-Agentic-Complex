@@ -566,7 +566,10 @@ def texture_targets(mod, drawn, hidden, by_component, values, components=None, g
     groups = groups or {}
     shown = {c: m for c, m in by_component.items() if m not in hidden}
     targets, slots, hashes, warnings = {}, {}, {}, []
+    masks = {f'ps-t{register}' for register, _, _ in mod.cutouts.values()}
     def bind(filename, place, slot):
+        # A cutout patch's mask is the patch's own resource, no texture of the template.
+        if slot in masks:return
         targets.setdefault(filename, set()).add(place); slots.setdefault((filename, place[0]), set()).add(slot)
         if slot in RABBITFX_SLOTS:slots[filename, place[0]].add(RABBITFX_SLOTS[slot])
     for c, mesh in shown.items():
@@ -1042,6 +1045,21 @@ def import_outfit(package_root, mod_dir, stage, name=None, mapping=None, progres
             group_blocks.update({(c, k): sha for c, shas in zip(owners, clones[-1]['blocks']) for k, sha in enumerate(shas)})
         if not clones:pack['appearances'].append({k: appearance[k] for k in ('id', 'name', 'kind', 'source')})
         segments = [s for c in clones for s in c['segments']]
+        # A cutout patch is reproduced on the draws of each group of mod geometry that binds its mask.
+        cut = set()
+        for patch, (register, channel, threshold) in mod.cutouts.items():
+            for (c, k), sha in group_blocks.items():
+                if not (mask := results[c].group_textures[k].get(f'ps-t{register}')):continue
+                blob = texture(mask); level = blob.mips[0]
+                if blob.rd_format_name not in outfit_compose.TEXTURE_FORMATS:continue
+                record = dict(**put(blob.data[level['offset']:level['offset']+level['size']]), channel=channel, threshold=threshold,
+                              texture=dict(width=level['width'], height=level['height'], rd_format_name=blob.rd_format_name, mip_count=1,
+                                           mips=[dict(level, offset=0)]))
+                new = 'outfit:'+appearance['id']+'/'+results[c].replacement.mesh
+                for d in source['draws']:
+                    if d['mesh'] == new and d['indices']['sha256'] == sha:d['cutout'] = record
+                cut.add(patch)
+        warnings = [w for w in warnings if not (w.startswith('shader_patch_ignored:') and w.split(':')[1] in cut)]
         blocks = {(d['mesh'], d['indices']['sha256']) for d in source['draws']}
         for cid, (sha, runs) in sorted(template_runs.items()):
             new = 'outfit:'+appearance['id']+'/'+shown[cid]

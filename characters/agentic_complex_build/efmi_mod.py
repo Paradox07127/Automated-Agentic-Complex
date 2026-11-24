@@ -225,6 +225,8 @@ class EfmiMod:
     color_spaces: dict = field(default_factory=dict)
     # Ini file name -> the ps-t registers its ShaderRegex sections name, for each ini that patches the game's shaders.
     shader_patches: dict = field(default_factory=dict)
+    # Ini file name -> (register, channel, threshold) of each patch `cutout` reads as a mask that drops pixels.
+    cutouts: dict = field(default_factory=dict)
 
 
 def parse_ini(text):
@@ -913,17 +915,19 @@ def load_mod(root):
         bones = constants.get(given, given)
     color_spaces = {resources[s.name.lower()]: space for s in sections if s.name.lower().startswith('resource') and s.name.lower() in resources
                     and (space := (s.get('color_space') or '').strip().lower()) in ('srgb', 'linear')}
-    patches = {}
+    patches, texts = {}, {}
     for s in sections:
         if s.name.lower().startswith('shaderregex'):
             patches.setdefault(owner[s.name.lower()].name, set()).update(
                 int(n) for e in s.entries for n in re.findall(r'\bt(\d+)\b', e.key+' '+e.value))
+            texts[owner[s.name.lower()].name] = texts.get(owner[s.name.lower()].name, '')+'\n'.join(e.key+' '+e.value for e in s.entries)+'\n'
+    cutouts = {name: c for name, text in texts.items() if (c := cutout(text))}
     warnings = ['shader_patch_ignored:'+name for name in patches]
     mod = EfmiMod(root=root, ini=inis[0], inis=inis, sections=sections, name=name, buffers=buffers, entry_points=entry_points, draws=draws,
                   textures=textures, files=files, merged_skeleton=merged, overrides=overrides, slot_textures=slots,
                   external_textures=external, constants=constants, keys=keys, skeleton=skeleton,
                   bones_count=int(bones) if bones and bones.isdigit() else None, layouts=layouts if isinstance(layouts, dict) else {},
-                  warnings=warnings, color_spaces=color_spaces, shader_patches=patches)
+                  warnings=warnings, color_spaces=color_spaces, shader_patches=patches, cutouts=cutouts)
     scene = Scene(mod)
     mod.custom_shaders = {by_name[n].name: kind for n, kind in scene.kinds.items()}
     mod.defaults = startup(scene)
@@ -942,6 +946,17 @@ def read_buffer(mod, name):
 def mip_size(rd_format_name, width, height):
     if rd_format_name.endswith('_BLOCK'):return ((width+3)//4)*((height+3)//4)*16
     return width*height*4
+
+
+def cutout(text):
+    """(register, channel, threshold) of a shader patch that drops a pixel where one channel of a texture it declares, read at the
+    texel frac(v1.xy) falls in, is below a constant; None for any other patch. `text` is the patch's lines, lower case."""
+    declared = re.search(r'dcl_resource_texture2d\s*\([^)]*\)\s*t(\d+)', text)
+    if not declared or not re.search(r'\bfrc\s+\S+,\s*v1\.xy', text):return None
+    load = re.search(r'ld_indexable\(texture2d\)\([^)]*\)\s*(\S+)\.([xyzw]),\s*\S+,\s*t'+declared.group(1)+r'\.xyzw', text)
+    test = load and re.search(r'\blt\s+(\S+)\.x,\s*'+re.escape(load.group(1))+r'\.'+load.group(2)+r',\s*l\(([0-9.]+)\)', text)
+    if not test or not re.search(r'\bdiscard_nz\s+'+re.escape(test.group(1))+r'\.x\b', text):return None
+    return int(declared.group(1)), 'xyzw'.index(load.group(2)), float(test.group(2))
 
 
 def read_dds(path, color_space=None):
