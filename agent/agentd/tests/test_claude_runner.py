@@ -360,3 +360,28 @@ class PermissionPreviewTest(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ContextTokensTest(unittest.IsolatedAsyncioTestCase):
+    async def test_result_reports_the_last_message_starts_input_tokens(self):
+        sys.path.insert(0, str(AGENTD))
+        from character_agent.harness.claude_runner import ClaudeRunner
+        from types import SimpleNamespace
+
+        async def write(_):
+            pass
+        runner = ClaudeRunner()
+        runner.client = SimpleNamespace(write=write)
+        runner.active = {"id": "run-1", "cancelled": False}
+        frames = []
+        runner.emit = frames.append
+        task = asyncio.create_task(runner.run({"prompt": "Hi"}))
+        await asyncio.sleep(0)
+        run = runner.active
+        for usage in ({"input_tokens": 5, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 1000},
+                      {"input_tokens": 7, "cache_creation_input_tokens": 20, "cache_read_input_tokens": "x"}):
+            runner.stream_event(run, {"type": "message_start", "message": {"id": "m", "usage": usage}})
+        run["done"].set_result({"type": "result", "subtype": "success", "is_error": False})
+        await task
+        result = [f for f in frames if f["type"] == "result"][-1]
+        self.assertEqual(result["context_tokens"], 27)

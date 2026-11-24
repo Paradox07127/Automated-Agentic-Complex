@@ -1076,6 +1076,7 @@ class TurnAccountingTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result['usage']['cache_creation_input_tokens'], 0)
             self.assertEqual(result['usage']['reasoning_output_tokens'], expected['reasoningOutputTokens'])
             self.assertEqual(result['usage']['total_tokens'], expected['totalTokens'])
+            self.assertEqual(result['context_tokens'], totals[0]['inputTokens'])
             previous = total
 
 

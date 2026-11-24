@@ -688,7 +688,7 @@ class CodexRunner(Runner):
 
     async def run(self, message):
         run = self.active
-        final_text, usage = "", {}
+        final_text, usage, context_tokens = "", {}, None
         previous_usage = self.token_usage
         items, streamed_items = {}, set()
         try:
@@ -782,6 +782,8 @@ class CodexRunner(Runner):
                     total = params.get("tokenUsage", {}).get("total", {})
                     tokens = {name: value - previous_usage.get(name, 0) for name, value in total.items()}
                     self.token_usage = total
+                    last = params["tokenUsage"].get("last", {}).get("inputTokens")
+                    context_tokens = last if isinstance(last, int) else context_tokens
                     # Codex input includes cache hits; the meter counts fresh input and cache reads separately.
                     usage = {"input_tokens": tokens.get("inputTokens", 0) - tokens.get("cachedInputTokens", 0),
                              "output_tokens": tokens.get("outputTokens", 0),
@@ -796,7 +798,8 @@ class CodexRunner(Runner):
                     self.emit({"type": "result", "run_id": run["id"], "session_id": self.thread_id,
                                "model": self.model,
                                "success": success, "subtype": "success" if success else "cancelled" if run["cancelled"] else "failed",
-                               "text": final_text, "final_text": final_text, "usage": usage, "total_cost_usd": None,
+                               "text": final_text, "final_text": final_text, "usage": usage, "context_tokens": context_tokens,
+                               "total_cost_usd": None,
                                "cost_usd": None, "model_usage": {},
                                "failure": None if success or run['cancelled'] else classify_failure(
                                    errors=[(turn.get('error') or {}).get('message', '')],

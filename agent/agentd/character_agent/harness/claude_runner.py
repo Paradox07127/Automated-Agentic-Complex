@@ -359,6 +359,9 @@ class ClaudeRunner(Runner):
         if kind == "message_start":
             native = event.get("message") if isinstance(event.get("message"), dict) else {}
             run["message"] = native["id"] if isinstance(native.get("id"), str) else run["id"] + ":" + str(len(run["text_items"]))
+            usage = native.get("usage") if isinstance(native.get("usage"), dict) else {}
+            run["context_tokens"] = sum(usage[k] for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
+                                        if isinstance(usage.get(k), int) and not isinstance(usage[k], bool))
         elif kind == "content_block_delta":
             delta = event.get("delta") if isinstance(event.get("delta"), dict) else {}
             if delta.get("type") == "text_delta" and isinstance(delta.get("text"), str):
@@ -449,7 +452,8 @@ class ClaudeRunner(Runner):
                 subtype if subtype != "success" else "failed"
             self.emit({"type": "result", "run_id": run["id"], "session_id": self.session_id, "model": self.model,
                        "success": success, "subtype": outcome, "text": text, "final_text": text,
-                       "usage": result_usage(result.get("usage")), "total_cost_usd": total if cost is not None else None,
+                       "usage": result_usage(result.get("usage")), "context_tokens": run.get("context_tokens"),
+                       "total_cost_usd": total if cost is not None else None,
                        "cost_usd": cost, "cost_source": "sdk_estimate" if cost is not None else None,
                        "num_turns": result.get("num_turns") if isinstance(result.get("num_turns"), int) else None,
                        "model_usage": result.get("modelUsage") if isinstance(result.get("modelUsage"), dict) else {},
