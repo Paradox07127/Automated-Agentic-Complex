@@ -161,7 +161,7 @@
   mask: url('/art/pages/overview/complete-band-bg.png') center / 100% 100% no-repeat;
 }
 
-/* light2 (recipe complete-light, 322x277 g) rising behind the check mark. */
+/* light2: a soft glow rising behind the check mark. */
 .light {
   position: absolute;
   top: 50%;
@@ -171,12 +171,6 @@
   margin-top: -69.25px;
   background: radial-gradient(closest-side, var(--ef-mission-row-text), transparent);
   opacity: 0;
-}
-
-:global(html[data-art]) .light {
-  background: var(--ef-mission-row-text);
-  -webkit-mask: url('/art/pages/overview/complete-light.png') center / 100% 100% no-repeat;
-  mask: url('/art/pages/overview/complete-light.png') center / 100% 100% no-repeat;
 }
 
 /* Halo (additive) centred on the check mark. */
