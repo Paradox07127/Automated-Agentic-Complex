@@ -38,16 +38,18 @@ def outcome(status, code=0):
 
 
 class NotarizeTests(unittest.TestCase):
-    @unittest.expectedFailure  # Split releases currently submit only the app.
     def test_split_submission_covers_the_external_runtime(self):
         with tempfile.TemporaryDirectory() as tmp:
             app = Path(tmp) / "Agentic Complex.app"; app.mkdir()
             runtime = app.parent / "components/runtime.python/payload/bin/python"
             runtime.parent.mkdir(parents=True); runtime.touch()
             run = FakeRun(outcome("Accepted"))
-            notarize.notarize(app, "release-profile", run=run)
+            result = notarize.notarize(app, "release-profile", run=run)
             archived = [Path(source) for command in run.calls if command[0] == "ditto" for source in command[4:-1]]
             self.assertTrue(any(runtime.is_relative_to(source) for source in archived), "external runtime missing from submission")
+            self.assertEqual([command[0] for command in run.calls].count("ditto"), 1)
+            self.assertEqual(result, {"id": SUBMISSION, "status": "Accepted", "covers": ["Agentic Complex.app", "components"]})
+            self.assertIn(["xcrun", "stapler", "staple", str(app)], run.calls)
 
     def assert_profile_only(self, run):
         for command in run.calls:
@@ -61,7 +63,7 @@ class NotarizeTests(unittest.TestCase):
 
         result = notarize.notarize(APP, "release-profile", run=run)
 
-        self.assertEqual(result, {"id": SUBMISSION, "status": "Accepted"})
+        self.assertEqual(result, {"id": SUBMISSION, "status": "Accepted", "covers": ["Agentic Complex.app"]})
         archive = str(run.archive)
         self.assertEqual(run.archive.name, "Agentic Complex.zip")
         self.assertEqual(run.calls, [

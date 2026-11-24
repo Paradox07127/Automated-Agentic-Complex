@@ -265,6 +265,17 @@ class BuildComponentsTests(unittest.TestCase):
                 self.assertEqual(mac.document['components']['render']['native_bundle'], mac.inventory[mac.native_ref['file']])
                 self.assertEqual('vulkan_frame' in mac.native_entry, False)
 
+    def test_a_pool_already_stored_as_containers_is_left_as_it_is(self):
+        # A container of this pool file is itself compressible, so a second encode would nest it.
+        pool = b'a' * 200000
+        source = self.root / 'role'; character_fixture(source, pool=[pool])
+        target = self.root / 'once'; shutil.copytree(source, target)
+        self.assertEqual(build_components.compress_pool(target), 1)
+        once = self.files(target)
+        self.assertEqual(build_components.compress_pool(target), 0)
+        self.assertEqual(self.files(target), once)
+        Package(target)
+
     def test_manifests_hash_changed_payloads_and_pass_c11_validation(self):
         components = self.stage_components()
         self.assertEqual(list(self.stage.rglob('component.json')), [])
@@ -318,6 +329,25 @@ class BuildComponentsTests(unittest.TestCase):
             with self.subTest(relative=relative), self.assertRaisesRegex(ValueError, 'content_override_outside_component'):
                 build_components.apply_content_overrides(dict(agentd=payload), {relative: source})
         self.assertEqual([p for name in ('x.json', 'escaped.json') for p in self.root.rglob(name)], [])
+
+    def test_release_content_ships_the_guard_override_and_refuses_a_library_with_local_paths(self):
+        payload = self.stage / 'agentd/payload'; (payload / 'agentd/brain').mkdir(parents=True)
+        shutil.copy2(ROOT / 'agent/agentd/brain/canon-windows.json', payload / 'agentd/brain/canon-windows.json')
+        guard = self.root / 'guard.json'
+        guard.write_text(json.dumps(dict(n=7, hashes=['0123456789abcdef', 'fedcba9876543210', '00000000000000ff'])))
+        overrides = {build_components.GUARD_OVERRIDE: guard}
+        library = self.root / 'library'; shutil.copytree(LIBRARY, library)
+        self.assertEqual(build_components.stage_release_content(dict(agentd=payload), overrides, library),
+                         [('agentd', 'agentd/brain/canon-windows.json')])
+        self.assertEqual((payload / 'agentd/brain/canon-windows.json').read_bytes(), guard.read_bytes())
+        # The staged guard is the override's bytes, not only a guard of the right shape.
+        shutil.copy2(ROOT / 'agent/agentd/brain/canon-windows.json', payload / 'agentd/brain/canon-windows.json')
+        with patch.object(build_components, 'apply_content_overrides', return_value=[]), \
+                self.assertRaisesRegex(ValueError, 'outbound_guard_not_the_override'):
+            build_components.stage_release_content(dict(agentd=payload), overrides, library)
+        (library / 'notes.txt').write_text('built in /Users/someone/library')
+        with self.assertRaisesRegex(ValueError, 'release library holds 1 local absolute paths: notes.txt'):
+            build_components.stage_release_content(dict(agentd=payload), overrides, library)
 
 
 if __name__ == '__main__': unittest.main()

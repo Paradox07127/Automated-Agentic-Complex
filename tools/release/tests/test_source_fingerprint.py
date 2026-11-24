@@ -42,6 +42,33 @@ class SourceFingerprintTests(unittest.TestCase):
                     (root / relative).write_text('changed')
                     self.assertNotEqual(before, source_fingerprint.compute(root)[1])
 
+    def test_renderer_core_and_common_sources_and_the_profiles_art_and_looks_change_the_fingerprint(self):
+        # Each ships: the core and common libraries link into the renderer, the art and looks are copied into the app.
+        inputs = ['private/renderer/core/src/deform.cpp', 'private/renderer/core/src/deform.h', 'private/renderer/core/include/core.hpp',
+                  'private/renderer/core/third_party/lzfse/lzfse_decode.c', 'private/renderer/core/build.sh',
+                  'private/renderer/common/src/host.cpp', 'private/renderer/common/include/host.h', 'private/renderer/common/build.sh',
+                  'app/packaging/ui-art/common/tab.png', 'app/packaging/ui-art/brand/AppIcon.icns',
+                  '.local/output/looks/lut/sp_filter_1.rgba8']
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for relative in inputs + source_fingerprint.EXTRA_FILES:
+                (root / relative).parent.mkdir(parents=True, exist_ok=True)
+                (root / relative).touch()
+            profile = root / 'private/release/release.json'; profile.parent.mkdir(parents=True)
+            profile.write_text(json.dumps(dict(schema='endfield-release-config/v1', ui_art='app/packaging/ui-art',
+                                               photo_looks='.local/output/looks')))
+            with patch.dict(os.environ, AAC_RELEASE_PROFILE=''):
+                for relative in inputs:
+                    with self.subTest(source=relative):
+                        before = source_fingerprint.compute(root)[1]
+                        (root / relative).write_text('changed')
+                        self.assertNotEqual(before, source_fingerprint.compute(root)[1])
+        import release
+        for relative in inputs[:8]: self.assertTrue(release.shipping_path(relative), relative)
+        for relative in ('private/renderer/core/tests/deform_tests.cpp', 'private/renderer/core/compare/face/golden.json',
+                         'private/renderer/core/build/libplayer_core.a'):
+            self.assertFalse(release.shipping_path(relative), relative)
+
     def test_compute_hashes_scoped_sources_and_extra_files_only(self):
         inside = ['agent/agentd/server.py', 'web/src/main.tsx', 'protocol/ui-bridge/routes.json']
         outside = ['agent/agentd/notes.bin', 'agent/agentd/__pycache__/server.py',

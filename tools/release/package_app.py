@@ -164,9 +164,9 @@ def stage(args):
         payloads = {component['id']: component_stage / component['id'] / 'payload' for component in components}
         placed = dict(host=host_paths, **(dict(renderer=renderer_paths) if renderer else {}))
         overrides = dict(item.split('=', 1) for item in getattr(args, 'content_override', None) or [])
-        for component, relative in build_components.apply_content_overrides(dict(payloads, host=host, **(dict(renderer=renderer) if renderer else {})), overrides):
+        for component, relative in build_components.stage_release_content(dict(payloads, host=host, **(dict(renderer=renderer) if renderer else {})),
+                                                                           overrides, args.library):
             if component in placed and relative not in placed[component]: placed[component].append(relative)
-        build_components.validate_canon_windows(payloads['agentd'] / 'agentd' / build_components.CANON_RELATIVE)
         if renderer and getattr(args, 'photo_looks', None):
             looks = 'Resources/looks/photomode-v1/'
             renderer_paths += [looks + path for path in copy_photo_looks(args.photo_looks, renderer / looks)]

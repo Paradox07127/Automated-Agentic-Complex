@@ -12,11 +12,14 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'agent/agentd'))
 from character_library import Library, Package, digest, json_bytes
 import component_manifest
+import local_paths
 import pool_codec
 from harness_runtime import LAYOUT, copy_python_site, python_pins, validate_runtime
-from release import CONTENT_PACKAGES, CONTENT_SOURCES
+from release import CONTENT_PACKAGES, CONTENT_SOURCES, check_no_imported_appearance
 
 CANON_RELATIVE = Path('brain/canon-windows.json')
+# The content override key of the outbound guard in the agentd payload.
+GUARD_OVERRIDE = 'agentd/agentd/' + CANON_RELATIVE.as_posix()
 UFBX_LICENSE = ROOT / 'characters/agentic_complex_build/motion_import/native/UFBX-LICENSE'
 # native_bundle.py's own repo-root import path; the staged copy imports resource_store from agentd.
 NATIVE_BUNDLE_ROOT = "sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[2]/'agent/agentd'))\n"
@@ -120,6 +123,21 @@ def apply_content_overrides(payloads, overrides):
     return applied
 
 
+def stage_release_content(payloads, overrides, library):
+    """apply_content_overrides, then check the staged outbound guard, which must be the override's bytes when overrides
+    names one, and refuse a library that holds a local absolute path or an imported appearance; return the applied pairs."""
+    applied = apply_content_overrides(payloads, overrides)
+    guard = Path(payloads['agentd']) / 'agentd' / CANON_RELATIVE
+    validate_canon_windows(guard)
+    if GUARD_OVERRIDE in overrides and guard.read_bytes() != Path(overrides[GUARD_OVERRIDE]).read_bytes():
+        raise ValueError('outbound_guard_not_the_override: ' + str(overrides[GUARD_OVERRIDE]))
+    local_paths.require_none(library)
+    # An empty directory is a library without characters.
+    catalog = Path(library) / 'current.json'
+    if catalog.is_file(): check_no_imported_appearance(catalog)
+    return applied
+
+
 def python_version(executable):
     return subprocess.check_output([str(executable), '-I', '-B', '-c', 'import platform; print(platform.python_version())'],
                                    text=True).strip()
@@ -210,7 +228,8 @@ def seal(package, target, native, stored, dropped=()):
 
 def compress_pool(target):
     """Replace each pool file bundle.json lists in the package at target (Files/ beside its source manifest) by its
-    pool_codec container where that is smaller, seal the package again and check it; return the files replaced."""
+    pool_codec container where that is smaller, seal the package again and check it; return the files replaced. A file
+    already stored as the container of its raw identity (its name) stays as it is."""
     package = Package(target, deep=False)
     prefix = PurePosixPath(package.native_ref['file']).parent
     pool = PurePosixPath(package.native_entry['source']['file']).parent / 'Files'
@@ -218,6 +237,9 @@ def compress_pool(target):
     for ref in package.native['files']:
         if PurePosixPath(ref['file']).parent != pool: continue
         path = target / prefix / ref['file']
+        try: raw_sha256 = pool_codec.raw_identity(path, ref['byte_count'])[0]
+        except ValueError: raw_sha256 = None
+        if raw_sha256 == PurePosixPath(ref['file']).stem: continue
         container = pool_codec.encode(path.read_bytes())
         if container is None: continue
         path.write_bytes(container)

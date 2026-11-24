@@ -10,13 +10,16 @@ from pathlib import Path
 
 # The renderer's sources: a local checkout has them, a public one does not and builds an app without the renderer.
 RENDERER = 'private/renderer'
+# The player core's and host-common's static libraries, which core/build.sh and common/build.sh build and the host links.
+RENDERER_LIBRARIES = [f'{RENDERER}/core/src', f'{RENDERER}/core/include', f'{RENDERER}/core/third_party',
+    f'{RENDERER}/common/src', f'{RENDERER}/common/include']
 SCOPES = ['app/electron', 'app/helpers/mac', 'app/Resources', 'app/packaging', 'agent/agentd',
     'characters', f'{RENDERER}/host/Sources', f'{RENDERER}/runtime/Sources', f'{RENDERER}/preview/Sources',
-    f'{RENDERER}/character-assets/Sources', 'web', 'protocol/ui-bridge']
+    f'{RENDERER}/character-assets/Sources', *RENDERER_LIBRARIES, 'web', 'protocol/ui-bridge']
 # The Electron shell's own tests stay out.
 ELECTRON_TESTS = ('app', 'electron', 'test')
 EXCLUDED_PARTS = ('.build', '__pycache__', '.swiftpm', 'node_modules', 'dist', 'test-results', '.shots', 'playwright-report')
-SUFFIXES = ('.swift', '.py', '.json', '.h', '.c', '.m', '.metal', '.txt', '.md', '.mjs', '.lock',
+SUFFIXES = ('.swift', '.py', '.json', '.h', '.hpp', '.c', '.cpp', '.m', '.metal', '.sh', '.txt', '.md', '.mjs', '.lock',
             '.ts', '.tsx', '.css', '.html', '.plist')
 RELEASE_TOOLS = ['tools/release/' + name for name in (
     'release.py', 'package_app.py', 'package_windows.py', 'windows_exe.py', 'build_components.py',
@@ -28,7 +31,10 @@ RELEASE_TOOLS = ['tools/release/' + name for name in (
     'app/build_app.sh', 'app/package_release.sh', 'characters/agentic_complex_build/motion_import/native/build.sh']
 PROFILE_KEY = '@release-profile'
 EXTRA_FILES = [f'{RENDERER}/host/Package.swift', f'{RENDERER}/runtime/Package.swift', f'{RENDERER}/preview/Package.swift',
-               f'{RENDERER}/character-assets/Package.swift', 'characters/packaging/native_bundle.py', *RELEASE_TOOLS]
+               f'{RENDERER}/character-assets/Package.swift', f'{RENDERER}/core/build.sh', f'{RENDERER}/common/build.sh',
+               'characters/packaging/native_bundle.py', *RELEASE_TOOLS]
+# The profile's directories whose every file the app ships.
+PROFILE_DIRECTORIES = {'ui_art': '@ui-art/', 'photo_looks': '@photo-looks/'}
 
 
 def digest(path):
@@ -46,9 +52,15 @@ def profile_inputs(root):
     if not profile.is_file():
         return {}
     data = profile.read_bytes()
+    document = json.loads(data)
     inputs = {PROFILE_KEY: hashlib.sha256(data).hexdigest()}
-    for target, source in json.loads(data).get('content_overrides', {}).items():
+    for target, source in document.get('content_overrides', {}).items():
         inputs['@content-override/' + target] = digest(Path(root) / source)
+    for key, prefix in PROFILE_DIRECTORIES.items():
+        if document.get(key) is None: continue
+        directory = Path(root) / document[key]
+        for path in sorted(directory.rglob('*')):
+            if path.is_file(): inputs[prefix + path.relative_to(directory).as_posix()] = digest(path)
     return inputs
 
 

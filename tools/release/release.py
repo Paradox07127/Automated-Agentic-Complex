@@ -57,7 +57,8 @@ def shipping_path(path):
     if path.startswith(('app/Resources/','app/packaging/','web/','agent/agentd/',
         'tools/release/','characters/sample-library/','protocol/ui-bridge/')):return True
     if path.startswith(source_fingerprint.RENDERER+'/'):
-        return '/Sources/' in path or path.endswith('/Package.swift')
+        return ('/Sources/' in path or path.endswith('/Package.swift') or path in source_fingerprint.EXTRA_FILES
+                or path.startswith(tuple(scope+'/' for scope in source_fingerprint.RENDERER_LIBRARIES)))
     return path in ['AGENTS.md','tools/platform/sign_bundle.sh'] or path.startswith('app/') and path.endswith('.sh') and '/' not in path[len('app/'):]
 
 

@@ -4,7 +4,7 @@ Velopack release of it.
 
 Takes the official Electron win32-x64 root, app/electron after `npm run build`, ac-helper.exe, private\\renderer\\windows\\build
 (efw.exe and its product .spv), fbx-motion.exe, the web build, the prepared harness runtime, a CPython 3.12 base prefix,
-a character library, vpk and, optionally, the UI art (as release.py's ui_art: the pages' art and the
+a character library, vpk, the release profile whose content_overrides apply and, optionally, the UI art (as release.py's ui_art: the pages' art and the
 exe's icon) and the photo-mode filters (as package_app.py's --photo-looks). `vpk pack` turns the directory into <output>/releases/ (Setup.exe, .nupkg, portable zip, feed files); no
 signing. Prints one JSON line, the receipt, also written to <output>/pack-receipt.json.
 """
@@ -205,13 +205,19 @@ def check_runtime_python(python):
 
 
 def stage(*, library, python, harness_runtime, web_dist, electron_runtime, electron_dir, helper, renderer,
-          window_envelopes, fbx_tool, output, build_version, vpk, port=None, id=None, product_name=None, app_version=None, ui_art=None,
-          photo_looks=None):
-    """Write output/Agentic Complex/, vpk pack it into output/releases/ and return the receipt: its path, file count, bytes,
-    the fuses and the exe's resources read back per exe, the UI art shipped, contents(), the release version and files."""
+          window_envelopes, fbx_tool, output, build_version, vpk, profile, port=None, id=None, product_name=None, app_version=None,
+          ui_art=None, photo_looks=None):
+    """Write output/Agentic Complex/ with the release profile's content overrides, vpk pack it into output/releases/ and
+    return the receipt: its path, file count, bytes, the fuses and the exe's resources read back per exe, the UI art shipped,
+    contents(), the release version and files."""
     output = Path(output).resolve()
     if output.exists(): raise ValueError('output already exists')
     version = release_version(app_version or '0.2.0', build_version)
+    settings = json.loads(Path(profile).read_text(encoding='utf-8'))
+    if settings['schema'] != 'endfield-release-config/v1': raise ValueError('Unsupported release profile')
+    # Host and renderer overrides name macOS payload paths; efw.exe's window envelopes are window_envelopes.
+    overrides = {relative: ROOT / source for relative, source in settings.get('content_overrides', {}).items()
+                 if relative.partition('/')[0] not in ('host', 'renderer')}
     identity = id or 'local.agenticcomplex.companion'
     library = Path(library).resolve()
     catalog = Library(library).snapshot()
@@ -223,13 +229,14 @@ def stage(*, library, python, harness_runtime, web_dist, electron_runtime, elect
         components = build_components.stage_components(component_stage, python=python,
             harness_runtime=harness_runtime, web_dist=web_dist, ui_art=ui_art, library=library, build_version=build_version,
             fbx_tool=fbx_tool, platform=PLATFORM)
+        build_components.stage_release_content({component['id']: component_stage / component['id'] / 'payload' for component in components},
+                                               overrides, library)
         browser = component_stage / 'agentd/payload/browser'; browser.mkdir()
         for name in BROWSER_HOST_FILES: shutil.copy2(ROOT / 'agent/browser' / name, browser / name)
         host = component_stage / 'host/payload'
         product_name, app_version = product_name or 'Agentic Complex', app_version or '0.2.0'
         host_paths = stage_host(host, electron_runtime, electron_dir, helper, product_name, app_version)
         renderer_paths = stage_renderer(component_stage / 'renderer/payload', renderer, window_envelopes, library, photo_looks)
-        build_components.validate_canon_windows(component_stage / 'agentd/payload/agentd' / build_components.CANON_RELATIVE)
         # Before the fuses: the resource update rewrites the exe.
         branding = {path.name: brand(path, ui_art, product_name, app_version, build_version)
                     for path in (host / EXECUTABLE, host / HELPER, component_stage / 'renderer/payload' / RENDERER)}
@@ -295,11 +302,12 @@ if __name__ == '__main__':
                       ('renderer', 'private\\renderer\\windows\\build: efw.exe and its .spv'),
                       ('window-envelopes', "The release profile's renderer/Resources/window-envelopes.json"), ('fbx-tool', 'fbx-motion.exe'),
                       ('vpk', "vpk.exe, Velopack's packer, at app/packaging/velopack.lock.json's version"),
-                      ('output', 'A new directory; Agentic Complex\\ is written in it')]:
+                      ('output', 'A new directory; Agentic Complex\\ is written in it'),
+                      ('profile', "The release config whose content_overrides apply, as release.py's --profile")]:
         parser.add_argument('--' + key, type=Path, required=True, help=help)
     parser.add_argument('--ui-art', type=Path, help='The UI art: art-manifest.json, the files it lists and ' + ICON_SOURCE)
     parser.add_argument('--photo-looks', type=Path, help='Built photo-mode filter directory with looks.json')
-    parser.add_argument('--build-version', default='20261121.1')
+    parser.add_argument('--build-version', required=True, help='Dot-separated numbers, greater for each later build: the prerelease of the version vpk packs')
     parser.add_argument('--port', type=int)
     parser.add_argument('--id')
     parser.add_argument('--product-name')

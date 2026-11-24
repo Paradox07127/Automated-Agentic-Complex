@@ -4,6 +4,7 @@ import os
 import shutil
 from pathlib import Path
 import struct
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -17,6 +18,9 @@ import windows_exe
 from test_harness_runtime import prepared_fixture
 
 ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT / 'agent/agentd/tests'))
+from test_character_library import fixture as character_fixture
+from character_library import Library, Package
 LIBRARY = ROOT / 'protocol/character-library/fixtures/library'
 FUSES = {'file': '', 'version': '1', 'fuses': {'RunAsNode': 'disabled'}}
 PACK_ID = 'AgenticComplex'
@@ -63,12 +67,15 @@ class PackageWindowsTests(unittest.TestCase):
         self.envelopes.write_text(json.dumps(dict(schema='endfield-window-envelopes/v1', guard_pt=16, characters=dict(
             fixture=dict(package_version='1.0.0', extents_pt=dict(left=1, right=1, top=1, bottom=1), clips_pt={})))))
         self.output = self.root / 'pack out'
+        self.profile = self.root / 'release.json'
+        self.profile.write_text(json.dumps(dict(schema='endfield-release-config/v1')))
 
     def stage(self, **changes):
         args = dict(library=LIBRARY, python=self.python, harness_runtime=self.prepared,
                     web_dist=self.web, electron_runtime=self.electron_runtime, electron_dir=self.electron_dir,
                     helper=self.helper, renderer=self.renderer, window_envelopes=self.envelopes, fbx_tool=self.fbx_tool, output=self.output,
-                    build_version='20261121.1', vpk=self.root / 'vpk/vpk.exe', port=None, id=None, product_name=None, app_version=None)
+                    build_version='20261121.1', vpk=self.root / 'vpk/vpk.exe', profile=self.profile, port=None, id=None,
+                    product_name=None, app_version=None)
         args.update(changes)
         order, self.icon = [], None
 
@@ -244,6 +251,44 @@ class PackageWindowsTests(unittest.TestCase):
         (looks / 'lut/sp_filter_1.rgba8').write_bytes(strip[::-1])
         with self.assertRaisesRegex(ValueError, 'Photo look hash mismatch: lut/sp_filter_1.rgba8'): self.stage(photo_looks=looks)
 
+    def test_the_profiles_guard_override_ships_its_exact_bytes(self):
+        guard = self.root / 'canon-windows.json'
+        guard.write_text(json.dumps(dict(n=7, hashes=['0123456789abcdef', 'fedcba9876543210', '00000000000000ff'])))
+        # The macOS renderer payload's path; efw.exe reads the envelopes window_envelopes names.
+        mac_envelopes = self.root / 'mac-envelopes.json'; mac_envelopes.write_text('{}')
+        self.profile.write_text(json.dumps(dict(schema='endfield-release-config/v1', content_overrides={
+            'agentd/agentd/brain/canon-windows.json': str(guard), 'renderer/Resources/window-envelopes.json': str(mac_envelopes)})))
+        self.stage()
+        package = self.output / 'Agentic Complex'
+        self.assertEqual((package / 'resources/components/agentd/payload/agentd/brain/canon-windows.json').read_bytes(), guard.read_bytes())
+        self.assertEqual((package / 'window-envelopes.json').read_bytes(), self.envelopes.read_bytes())
+        self.assertFalse([f for f in self.files(package) if f.lower().endswith('resources/window-envelopes.json')])
+        shutil.rmtree(self.output)
+        self.profile.write_text(json.dumps(dict(schema='endfield-release-config/v0')))
+        with self.assertRaisesRegex(ValueError, 'Unsupported release profile'): self.stage()
+        self.assertFalse(self.output.exists())
+
+    def test_a_library_with_an_imported_appearance_or_a_local_path_is_refused(self):
+        source = self.root / 'role'; character_fixture(source)
+        package = Package(source, deep=False)
+        pack_ref = package.native_entry['c7']
+        doc = json.loads((source / 'runtime' / pack_ref['file']).read_text())
+        doc['appearances'].append(dict(id='mod_1a2b3c4d', name='示例外观', kind='imported',
+                                       source=dict(format='efmi', fingerprint='0' * 64, imported_at='2026-11-16T00:00:00+00:00')))
+        data = json.dumps(doc).encode(); (source / 'runtime' / pack_ref['file']).write_bytes(data)
+        identity = dict(sha256=build_components.hashlib.sha256(data).hexdigest(), byte_count=len(data))
+        native = dict(package.native, files=[dict(ref, **identity) if ref['file'] == pack_ref['file'] else ref for ref in package.native['files']],
+                      characters=[dict(package.native_entry, c7=dict(pack_ref, **identity))])
+        build_components.seal(package, source, native, {'runtime/' + pack_ref['file']: identity})
+        library = Library(self.root / 'imported library'); library.install(source)
+        with self.assertRaisesRegex(ValueError, '^release_contains_imported_appearance: fixture/mod_1a2b3c4d$'):
+            self.stage(library=library.root)
+        shutil.rmtree(self.output)
+        local = self.root / 'local library'; shutil.copytree(LIBRARY, local)
+        (local / 'notes.txt').write_text('built in /Users/someone/library')
+        with self.assertRaisesRegex(ValueError, 'release library holds 1 local absolute paths: notes.txt'):
+            self.stage(library=local)
+
     def test_a_helper_without_its_speech_dlls_beside_it_is_refused(self):
         (self.root / 'onnxruntime.dll').unlink()
         with self.assertRaisesRegex(ValueError, 'helper_dll_missing: onnxruntime.dll'): self.stage()
@@ -387,6 +432,11 @@ class PackageWindowsTests(unittest.TestCase):
         # Refused before anything is written.
         with self.assertRaisesRegex(ValueError, 'build_version_not_numeric'): self.stage(build_version='x')
         self.assertFalse(self.output.exists())
+        # No default: two builds of one app_version must not publish the same version.
+        done = subprocess.run([sys.executable, '-I', str(ROOT / 'tools/release/package_windows.py')], capture_output=True, text=True)
+        self.assertEqual(done.returncode, 2)
+        required = done.stderr.splitlines()[-1].split('required: ')[1].split(', ')
+        self.assertTrue({'--build-version', '--profile'} <= set(required), required)
 
     def test_the_velopack_lock_pins_the_sdk_zip_by_sha512_and_vpk_to_the_shell_package(self):
         lock = json.loads((ROOT / 'app/packaging/velopack.lock.json').read_text())
