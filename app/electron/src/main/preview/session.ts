@@ -1,4 +1,4 @@
-// The character page's live preview from the desktop renderer over the Mach rendezvous (C3 CONTRACT 「附录：预览 XPC」):
+// The character page's live preview from the desktop renderer over the Mach rendezvous (C3 CONTRACT 「附录：角色页预览」):
 // one connection while the window lives and the preview was on screen within `releaseAfter`, `pause` while it is not on screen and
 // `resume` after, `ack` once the GPU is through with a frame, frames of an older `load_id` dropped (and acked).
 
@@ -50,7 +50,7 @@ export interface PreviewSelection {
   hiddenLayers?: string[];
 }
 
-/** Preview XPC `view`: `turn` degrees on her camera yaw, `tilt` degrees on its pitch (±80), `zoom` the share 0.1–2 of the fitted
+/** Preview `view`: `turn` degrees on her camera yaw, `tilt` degrees on its pitch (±80), `zoom` the share 0.1–2 of the fitted
  *  frame shown, `pan` the shown centre's offset from the fit's in fitted-frame sizes (y down), `frame` where the fit sits in the
  *  output as x, y, w, h shares of it (y down). */
 export interface CameraView {
@@ -163,7 +163,7 @@ export class PreviewSession<S> {
     return this.settled();
   }
 
-  /** Preview XPC `sequence` on top of the drawn load. */
+  /** Preview `sequence` on top of the drawn load. */
   async sequence(clips: string[], blendSeconds: number[]): Promise<void> {
     if (!this.connected || this.selection === null || this.phase.kind !== 'live') throw new PreviewFailure('预览还没有载入');
     this.phase = { kind: 'loading' };
@@ -181,7 +181,7 @@ export class PreviewSession<S> {
     return this.settled();
   }
 
-  /** Preview XPC `view`; kept for a new connection. */
+  /** Preview `view`; kept for a new connection. */
   view(v: CameraView): void {
     this.lastView = v;
     if (this.connected) this.send({ op: 'view', ...v });

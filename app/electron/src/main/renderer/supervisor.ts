@@ -53,7 +53,7 @@ const settingReaders = (s: Record<string, unknown>) => ({
 });
 
 /** The settings that decide how she is drawn, which the character page's preview takes as its `load.render_args` too
- *  (CONTRACT 「附录：预览 XPC」); each value out of its range falls back to its default. */
+ *  (CONTRACT 「附录：角色页预览」); each value out of its range falls back to its default. */
 export function lookArguments(s: Record<string, unknown>): string[] {
   const { flag, option } = settingReaders(s);
   return [

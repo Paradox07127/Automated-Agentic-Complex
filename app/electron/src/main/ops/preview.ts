@@ -13,11 +13,11 @@ export interface PreviewHost {
   /** Viewport rect, optional action id, whether the action loops, and a selection revision that can replay the same action. */
   show(rect: PreviewRect, action: string | null, loop: boolean, revision: number): Promise<boolean>;
   hide(): void;
-  /** Preview XPC v2 `sequence`: clips and the blend seconds between them; resolves once its first frame is drawn. */
+  /** Preview `sequence`: clips and the blend seconds between them; resolves once its first frame is drawn. */
   sequence(clips: string[], blendSeconds: number[]): Promise<void>;
   /** `avatar.preview.onProgress`: `{fraction}` while a load builds anew, null once none does. */
   readonly progress: EventSource;
-  /** Preview XPC `view`, its zoom and tilt clamped and its defaults filled in. */
+  /** Preview `view`, its zoom and tilt clamped and its defaults filled in. */
   view(v: CameraView): void;
 }
 
@@ -51,7 +51,7 @@ export function previewOps(ctx: OpsContext): Ops {
       return null;
     },
     'avatar.preview.sequence': async ([s]) => {
-      // Preview XPC v2 `sequence` limits.
+      // Preview `sequence` limits.
       const clips = isObject(s) ? s.clips : undefined, blends = isObject(s) ? s.blend_s : undefined;
       if (!Array.isArray(clips) || clips.length < 1 || clips.length > 32
         || !clips.every((c) => typeof c === 'string' && bytes(c) >= 1 && bytes(c) <= 128)

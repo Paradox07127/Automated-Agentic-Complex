@@ -115,7 +115,7 @@ v16.1（2026-10-22，用户授权第一批修复）：补规则 17 的首心跳�
 
 ### `--describe`
 
-- 渲染器只要在参数里见到 `--describe`，就在做任何别的事之前（包括进入预览服务模式）向 stdout 写一行 JSON、以 0 退出；不建窗口、不连 socket、不写 startup-status、不碰 GPU，其他参数都忽略。宿主可以在启动前用它问版本。
+- 渲染器只要在参数里见到 `--describe`，就在做任何别的事之前向 stdout 写一行 JSON、以 0 退出；不建窗口、不连 socket、不写 startup-status、不碰 GPU，其他参数都忽略。宿主可以在启动前用它问版本。
 - 格式（一行，键排序，以 `\n` 结尾）：`{"c3_contract":"v28","c3_protocol":1,"component":"renderer","version":"0.0.1"}`。
   - `component`：固定 `renderer`。
   - `version`：主 bundle Info.plist 的 `CFBundleShortVersionString`，没有就用 `CFBundleVersion`，都没有（`swift build` 出的裸可执行文件）写 `unknown`。

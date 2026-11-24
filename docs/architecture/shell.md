@@ -20,7 +20,7 @@
 | `src/main/desktop/` | 桌面浮层的面板窗口和装配 |
 | `src/main/preview/` | 角色页预览的会话、取片段和窗口一侧 |
 | `src/main/platform/` | 平台差异：默认目录、浮层窗口选项、坐标换算、helper 路径 |
-| `native/mac/` | macOS 的 Node-API 插件 `preview.m`：预览 XPC 的客户端和 `setPreventsActivation` |
+| `native/mac/` | macOS 的 Node-API 插件 `preview.m`：角色页预览的客户端和 `setPreventsActivation` |
 | `src/preload/` | 在页面世界里装桥；主窗口里还接收预览帧 |
 | `test/` | `node --test` 单测；`e2e-headless.test.ts` 只在设了 `AAC_ELECTRON_E2E=1` 时运行 |
 

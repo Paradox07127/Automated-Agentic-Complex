@@ -12,9 +12,9 @@ export interface PreviewView {
   place(rect: PreviewRect): void;
   /** Plays `selection` in the placed preview; true once it is drawn, false without a preview. */
   load(selection: PreviewSelection): Promise<boolean>;
-  /** Preview XPC v2 `sequence` in the drawn preview; `unavailable` without one. */
+  /** Preview `sequence` in the drawn preview; `unavailable` without one. */
   sequence(clips: string[], blendSeconds: number[]): Promise<void>;
-  /** Preview XPC `view`; nothing without a preview. */
+  /** Preview `view`; nothing without a preview. */
   view(v: CameraView): void;
   hide(): void;
   /** `{fraction}` while a load builds anew, null once none does. */

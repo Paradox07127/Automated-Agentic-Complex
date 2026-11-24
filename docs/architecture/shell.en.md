@@ -20,7 +20,7 @@
 | `src/main/desktop/` | The desktop panel windows and their assembly |
 | `src/main/preview/` | The character page preview: session, clip choice and the window side |
 | `src/main/platform/` | Platform differences: default directories, overlay window options, coordinate maps, helper paths |
-| `native/mac/` | The macOS Node-API addon `preview.m`: the preview XPC client and `setPreventsActivation` |
+| `native/mac/` | The macOS Node-API addon `preview.m`: the character page preview client and `setPreventsActivation` |
 | `src/preload/` | Installs the bridge in the page world; in the main window it also receives preview frames |
 | `test/` | `node --test` unit tests; `e2e-headless.test.ts` runs only with `AAC_ELECTRON_E2E=1` |
 

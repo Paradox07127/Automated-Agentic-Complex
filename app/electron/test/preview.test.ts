@@ -1,4 +1,4 @@
-// The character page's live preview: the session over the preview XPC service, the show logic, the motion library it
+// The character page's live preview: the session over the preview wire of the desktop renderer, the show logic, the motion library it
 // reads and the `avatar.preview.*` ops.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
