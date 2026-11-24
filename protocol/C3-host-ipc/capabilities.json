@@ -27,10 +27,10 @@
     "action_loop": {"mac": "yes", "windows": "yes"},
     "layers": {"mac": "yes", "windows": "yes"},
     "poses": {"mac": "yes", "windows": "yes"},
-    "camera_free": {"mac": "yes", "windows": "no", "ref": "CONTRACT.md:953"},
+    "camera_free": {"mac": "yes", "windows": "yes"},
     "camera_track": {"mac": "yes", "windows": "no", "ref": "CONTRACT.md:953"},
-    "camera_gesture": {"mac": "yes", "windows": "no", "ref": "CONTRACT.md:953"},
-    "camera_bust": {"mac": "yes", "windows": "no", "ref": "CONTRACT.md:953"},
+    "camera_gesture": {"mac": "yes", "windows": "yes"},
+    "camera_bust": {"mac": "yes", "windows": "yes"},
     "filters": {"mac": "yes", "windows": "yes"},
     "capture": {"mac": "yes", "windows": "yes"},
     "photo": {"mac": "yes", "windows": "yes"},
@@ -62,11 +62,11 @@
     "--agentic-complex-ambient": {"mac": "applied", "windows": "applied"},
     "--agentic-complex-light-wrap": {"mac": "applied", "windows": "applied"},
     "--agentic-complex-speech-expressions": {"mac": "applied", "windows": "ignored", "ref": "CONTRACT.md:940"},
-    "--agentic-complex-camera-zoom": {"mac": "applied", "windows": "fixed", "ref": "CONTRACT.md:895"},
-    "--agentic-complex-camera-sway": {"mac": "applied", "windows": "fixed", "ref": "CONTRACT.md:895"},
+    "--agentic-complex-camera-zoom": {"mac": "applied", "windows": "applied"},
+    "--agentic-complex-camera-sway": {"mac": "applied", "windows": "applied"},
     "--agentic-complex-camera-track": {"mac": "applied", "windows": "fixed", "ref": "CONTRACT.md:895"},
     "--agentic-complex-capture-dir": {"mac": "applied", "windows": "applied"},
-    "--agentic-complex-camera-framing": {"mac": "applied", "windows": "fixed", "ref": "CONTRACT.md:895"}
+    "--agentic-complex-camera-framing": {"mac": "applied", "windows": "applied"}
   },
   "services": {
     "preview": {"mac": "yes", "windows": "yes"}

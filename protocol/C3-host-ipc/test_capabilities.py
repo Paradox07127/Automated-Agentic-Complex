@@ -83,7 +83,7 @@ class CapabilityTableTests(unittest.TestCase):
         self.assertEqual(sorted(contract_renderer_capabilities() - set(TABLE['capabilities'])), [])
 
     def test_a_capability_the_source_adds_is_caught(self):
-        self.assertEqual(mismatch(listed('windows'), listed('windows') | {'camera_free'})['only in the source'], ['camera_free'])
+        self.assertEqual(mismatch(listed('windows'), listed('windows') | {'camera_track'})['only in the source'], ['camera_track'])
 
 
 @unittest.skipUnless(PRIVATE.is_dir(), NO_PRIVATE)
