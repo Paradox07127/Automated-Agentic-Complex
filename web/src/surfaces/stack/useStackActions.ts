@@ -28,6 +28,8 @@ export const DANGER_HINT = '危险操作只能用鼠标点击「批准」';
 
 /** Native rejects a decision with `stale` when agentd says the card is gone or changed (404/409). */
 const STALE_RECEIPT = '已在别处处理';
+/** Native rejects with `declined` when the user said no to its confirm dialog. */
+export const DECLINED_TOAST = '没有确认，这个决定没发出';
 /** Native rejects with `partial` when the reject went through but the note's resume / continue did not. */
 const PARTIAL_REJECT = '已退回，补充要求没送达';
 
@@ -58,6 +60,7 @@ export function useStackActions(
   );
   const archiveSoon = (id: string, title?: string) => schedule(() => dispatch({ type: 'archive', id, at: clock(), title }), title === STALE_RECEIPT ? ELSEWHERE_RECEIPT_MS : 1500);
   const say = (text: string, tone: Severity = 'neutral') => ui.toast({ text, tone });
+  const notSent = (e: unknown) => say(codeOf(e) === 'declined' ? DECLINED_TOAST : `没能送达：${e instanceof Error ? e.message : String(e)}`, 'danger');
 
   const settle = (id: string, receipt: string) => {
     dispatch({ type: 'patch', id, patch: { receipt } });
@@ -82,7 +85,7 @@ export function useStackActions(
         settle(id, '已退回');
         return say(PARTIAL_REJECT, 'warning');
       }
-      say(`没能送达：${e instanceof Error ? e.message : String(e)}`, 'danger');
+      notSent(e);
     }
   };
 
@@ -102,17 +105,15 @@ export function useStackActions(
     switch (a.type) {
       case 'decide': {
         const label = a.decision === 'deny' ? '已拒绝' : a.decision === 'allow_session' ? '已批准（本会话同类操作）' : '已批准';
-        // A dangerous allow only comes from the card's second click (确认批准); native then skips its own dialog.
-        const card = cardOf(a.id);
-        const confirmed = a.decision === 'allow' && card?.kind === 'approval' && card.item.dangerous;
         const decision: StackDecision = { kind: 'approval', verdict: a.decision, generation: a.generation, ...(a.mode ? { mode: a.mode } : {}) };
-        (confirmed ? bridge.stack.decide(a.id, decision, { confirmed: true }) : bridge.stack.decide(a.id, decision)).then(
+        (a.confirmed ? bridge.stack.decide(a.id, decision, { confirmed: true }) : bridge.stack.decide(a.id, decision)).then(
           () => {
             dispatch({ type: 'patch', id: a.id, patch: { outcome: { kind: a.decision === 'deny' ? 'denied' : 'approved', at: clock(), text: label } } });
             archiveSoon(a.id, label);
           },
           (e: unknown) => {
-            if (codeOf(e) !== 'stale') return dispatch({ type: 'patch', id: a.id, patch: { outcome: { kind: 'failed', at: clock(), text: e instanceof Error ? e.message : String(e) } } });
+            // Only stale settles the card; anything else leaves the approval live in agentd and its buttons here.
+            if (codeOf(e) !== 'stale') return notSent(e);
             dispatch({ type: 'patch', id: a.id, patch: { outcome: { kind: 'elsewhere', at: clock(), text: STALE_RECEIPT } } });
             archiveSoon(a.id, STALE_RECEIPT);
           },
@@ -122,9 +123,8 @@ export function useStackActions(
       case 'answer': {
         const card = cardOf(a.id);
         const view = card && isStackApproval(card) ? approvalView(card) : null;
-        // As with 'decide': a dangerous 允许 only comes from the card's second click.
         const allowed = a.text === '允许' || a.text === '本对话都允许';
-        const approval = view ? { kind: allowed ? ('approved' as const) : ('denied' as const), confirmed: a.text === '允许' && view.dangerous } : undefined;
+        const approval = view ? { kind: allowed ? ('approved' as const) : ('denied' as const), confirmed: a.confirmed === true } : undefined;
         return void send(a.id, { kind: 'answer', expected_version: a.expected_version, answers: a.answers }, `已回答：${a.text}`, approval);
       }
       case 'cancel-question':

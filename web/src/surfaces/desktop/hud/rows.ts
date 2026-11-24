@@ -129,7 +129,8 @@ export function hudRows(cards: readonly StackCard[], presence: unknown, now: num
       action: x?.doing ?? actionText(g.row),
       meta,
       session: g.row,
-      cards: g.cards,
+      // A folded card leaves the bar here too; `g.status`, from all its cards, still says it waits.
+      cards: g.cards.filter((c) => !c.collapsed),
       task: null,
       waitRank: g.status === 'needs_you' ? sessionWait(g, x?.state ?? null) : WAIT_OTHER,
     };

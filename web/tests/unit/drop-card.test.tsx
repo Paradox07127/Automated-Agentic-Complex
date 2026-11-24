@@ -153,6 +153,15 @@ describe('drop card', () => {
     expect(request).not.toHaveBeenCalled();
   });
 
+  it('提醒 keeps the whole name inside one 「…」, which agentd reads as what to look at and never as when', async () => {
+    agentd({});
+    const say = vi.spyOn(getBridge().desktop, 'say').mockResolvedValue({ ok: true });
+    const el = mount({ ...FILES, id: 'drop-q', items: [{ kind: 'file', path: '/Users/me/计划」每天「.md', name: '计划」每天「.md', handle: 'H:q' }] });
+    await flush(async () => fireEvent.click(within(el).getByRole('button', { name: '提醒' })));
+    await flush(async () => fireEvent.click(within(el).getByRole('button', { name: '半小时后' })));
+    expect(say).toHaveBeenLastCalledWith({ text: '提醒我半小时后看「计划每天.md」', attachWindow: false, noMemory: false });
+  });
+
   it('a file drop offers no 记住', () => {
     mount(FILES);
     expect(screen.queryByRole('button', { name: '记住' })).toBeNull();

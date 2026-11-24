@@ -19,6 +19,7 @@ DIGITS = {"零": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, 
 NUM = r"[0-9]+|[零一二两三四五六七八九十]+"
 RELATIVE = re.compile(rf"(?:({NUM})\s*(分钟|个?小时|个半小时)|半小时)后")
 REPEAT = {"每天": "daily", "每个工作日": "weekdays", "工作日": "weekdays"}
+QUOTED = re.compile(r"「[^「」]*」")
 SNOOZE_DELIVERED = 86400  # seconds after delivery a fulfilled reminder may still be snoozed back to armed
 TRIGGER_TTL = 86400  # seconds an unfired trigger stays armed before it is missed
 WAIT = re.compile(r"^(?:等\s*)?(claude|codex)\s*(?:做完|跑完)(?:了|以后|之后)?[，,]?\s*提醒我[\s：:，,]*(.*)$", re.I | re.S)
@@ -110,16 +111,19 @@ def parse_reminder(text, now):
     or "weekdays"; None when the time or what is missing."""
     if ASK not in text:
         return None
-    word = next((w for w in REPEAT if w in text), None)
+    # A 「…」 span is a name (a dropped file's) and part of what; no repeat or time is read from inside it.
+    masked = QUOTED.sub(lambda m: "\0" * len(m.group()), text)
+    word = next((w for w in REPEAT if w in masked), None)
     repeat = REPEAT.get(word)
     if word is not None:
-        text = text.replace(word, "", 1)
-    match = RELATIVE.search(text) or CLOCK.search(text) or DATE.search(text)
+        at = masked.index(word)
+        text, masked = text[:at] + text[at + len(word):], masked[:at] + masked[at + len(word):]
+    match = RELATIVE.search(masked) or CLOCK.search(masked) or DATE.search(masked)
     if match is None:
         return None
     due_at = _due(match, now)
     what = (text[:match.start()] + text[match.end():]).replace(ASK, "", 1).strip().strip("：，").strip()
-    before, after = text[:match.start()].replace(ASK, "").rstrip(), text[match.end():].replace(ASK, "").lstrip()
+    before, after = masked[:match.start()].replace(ASK, "").rstrip(), masked[match.end():].replace(ASK, "").lstrip()
     # A second time expression touching the used one makes the time ambiguous; one inside the body is content.
     if due_at is None or not what or any(w.match(after) or any(m.end() == len(before) for m in w.finditer(before))
                                          for w in (RELATIVE, CLOCK, DATE, UNPARSED_TIME)):

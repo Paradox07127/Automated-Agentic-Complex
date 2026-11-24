@@ -1,4 +1,5 @@
-import { approvalView, type ApprovalStackItem } from '../../../features/approval';
+import { useEffect, useRef, useState } from 'react';
+import { approvalView, CONFIRM_MS, type ApprovalStackItem } from '../../../features/approval';
 import { Btn } from '../../../ui/Btn';
 import { Icon } from '../../../ui/Icon';
 import type { CardAction } from '../../stack/actions';
@@ -12,6 +13,8 @@ export interface ConfirmCardProps {
   act: (a: CardAction) => void;
   /** 详情: the task or session it came from. */
   onDetails: () => void;
+  /** Why the last decision did not go out; the buttons stay. */
+  note?: string | null;
 }
 
 /**
@@ -19,10 +22,25 @@ export interface ConfirmCardProps {
  * where it came from, the command, the time-left line, 详情 and 拒绝 / 批准. It does not go by itself; ✕ folds it into the
  * status mark's 待批准 n.
  */
-export function ConfirmCard({ card, more, tail = null, act, onDetails }: ConfirmCardProps) {
+export function ConfirmCard({ card, more, tail = null, act, onDetails, note = null }: ConfirmCardProps) {
   const v = approvalView(card);
   const allow = v.action('allow');
   const deny = v.action('deny');
+  // A dangerous 批准 turns into 确认批准; only a second click within CONFIRM_MS decides.
+  const [confirming, setConfirming] = useState(false);
+  const confirmTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(confirmTimer.current), []);
+  const approve = (a: CardAction) => {
+    if (!v.dangerous) return act(a);
+    clearTimeout(confirmTimer.current);
+    if (!confirming) {
+      setConfirming(true);
+      confirmTimer.current = setTimeout(() => setConfirming(false), CONFIRM_MS);
+      return;
+    }
+    setConfirming(false);
+    act({ ...a, confirmed: true } as CardAction);
+  };
   const left = v.secondsLeft != null && v.windowS ? Math.max(0, Math.min(1, v.secondsLeft / v.windowS)) : null;
   const shown = v.cmd ?? v.previewText;
   return (
@@ -52,6 +70,7 @@ export function ConfirmCard({ card, more, tail = null, act, onDetails }: Confirm
           <i style={{ transform: `scaleX(${left})` }} />
         </div>
       )}
+      {note && <p className={styles.err} role="alert">{note}</p>}
       <div className={styles.row}>
         <button type="button" className={styles.link} onClick={onDetails}>
           详情
@@ -62,8 +81,8 @@ export function ConfirmCard({ card, more, tail = null, act, onDetails }: Confirm
           </Btn>
         )}
         {allow && (
-          <Btn variant="primary" size="sm" mouseOnly={v.dangerous} onClick={() => act(allow)}>
-            批准
+          <Btn variant="primary" size="sm" mouseOnly={v.dangerous} onClick={() => approve(allow)}>
+            {v.dangerous && confirming ? '确认批准' : '批准'}
           </Btn>
         )}
       </div>

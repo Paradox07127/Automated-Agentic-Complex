@@ -110,7 +110,8 @@ export function DropCard({ card, top, highlight, act }: DropCardProps) {
   const remember = () => run('没能记住', '已让角色记住', () => say(`记住 ${words.map(label).join('\n')}`));
   const remind = (when: string) => {
     setPicking(false);
-    return run('没能设提醒', '已让角色提醒你', () => say(`提醒我${when}看「${subject}」`));
+    // agentd's reminder parser reads no repeat or time inside 「…」, so the name must not close it early.
+    return run('没能设提醒', '已让角色提醒你', () => say(`提醒我${when}看「${subject.replace(/[「」]/g, '')}」`));
   };
   const revoke = (id: string) =>
     run('没能撤销', null, async () => {

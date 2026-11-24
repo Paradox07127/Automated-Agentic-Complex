@@ -106,7 +106,14 @@ export function BubbleRoot() {
   const hint = cards.voice ?? (cards.loading?.phase === 'failed' ? cards.loading : null);
   const { bar, dispatch } = useSpeech(demoLine, still, hovered);
   const all = cards.all;
-  const { act } = useStackActions(() => {}, Date.now, still, { toast: () => {}, setPause: () => {} }, (id) => all.find((c) => c.id === id));
+  // A decision that did not go out (a declined native confirm, busy, offline) shows on the approval card for NOTICE_MS.
+  const [decideNote, setDecideNote] = useState<{ text: string } | null>(null);
+  useEffect(() => {
+    if (!decideNote) return;
+    const t = setTimeout(() => setDecideNote(null), NOTICE_MS);
+    return () => clearTimeout(t);
+  }, [decideNote]);
+  const { act } = useStackActions(() => {}, Date.now, still, { toast: (t) => setDecideNote(t && { text: t.text }), setPause: () => {} }, (id) => all.find((c) => c.id === id));
 
   // 去处理 from the status mark unfolds the approval ✕ put away, until the next one is folded.
   const [unfolded, setUnfolded] = useState(0);
@@ -138,7 +145,6 @@ export function BubbleRoot() {
   const due = cards.reminder;
   // A `reminder_due` announce card may merge several commitments.
   const dueIds = due?.commitment_ids ?? (due?.commitment_id ? [due.commitment_id] : []);
-  useSeenReceipt(dueIds, !demoCards && due != null && !docked);
 
   // A thought pops up once: a thought already shown, or put away, does not come back.
   const [goneThoughts, setGoneThoughts] = useState<ReadonlySet<string>>(new Set());
@@ -243,6 +249,8 @@ export function BubbleRoot() {
   }, [gone, awayKey, card, demoCards, dispatch]);
 
   const said = main != null && !gone;
+  // The reminder is seen only where a body below draws `main`: in the input, or when no approval covers it and she is on screen.
+  useSeenReceipt(dueIds, !demoCards && due != null && said && (input.open != null || (!confirm && !docked)));
   // A thought shown once, then replaced or put away, does not come back.
   const showingThought = said && !docked && !confirm && awayKey?.startsWith('thought:') ? awayKey.slice('thought:'.length) : null;
   const lastThought = useRef<string | null>(null);
@@ -271,7 +279,7 @@ export function BubbleRoot() {
   } else if (confirm) {
     // Docked, it shows under the subtitle bar.
     body = (
-      <ConfirmCard card={confirm} more={waiting} tail={tail} act={(a) => {
+      <ConfirmCard key={confirm.id} card={confirm} more={waiting} tail={tail} note={decideNote?.text ?? null} act={(a) => {
         if (a.type === 'collapse') setUnfolded(0);
         act(a);
       }} onDetails={() => bridge.window.openMain(navRoute({ page: 'overview', sel: confirm.id, focus: `item-${confirm.id}` }))} />

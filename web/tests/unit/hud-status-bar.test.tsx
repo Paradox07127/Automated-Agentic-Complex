@@ -7,7 +7,7 @@ import { stackScenario } from '../../src/mock/stack';
 import { NOW } from '../../src/mock/fixtures';
 import { A2, Q1 } from '../../src/mock/fixtures/ids';
 import { HudRoot } from '../../src/surfaces/desktop/HudRoot';
-import { HUD_DONE_MS } from '../../src/surfaces/desktop/hud/rows';
+import { HUD_DONE_MS, hudRows } from '../../src/surfaces/desktop/hud/rows';
 import { nextPresence, readPresence } from '../../src/surfaces/desktop/tags/presence';
 import type { StackCard } from '../../src/surfaces/stack/model';
 import { stubMatchMedia } from './mediaStub';
@@ -234,6 +234,13 @@ describe('folded and expanded', () => {
     await waitFor(() => expect(rows().length).toBe(1));
     expand();
     expect(ids().sort()).toEqual([errorCard.id, 's-run'].sort());
+  });
+
+  it('a collapsed approval a session claims leaves the session line, which still waits', () => {
+    const presence = { sampled_at: S, sessions: [wireRow('s-run', { approvals: [A2] })], additional_sessions: 0, thought: null };
+    const [row, ...rest] = hudRows([{ ...approval, collapsed: true }], presence, NOW);
+    expect(rest).toEqual([]);
+    expect(row).toMatchObject({ id: 's-run', status: 'waiting', cards: [] });
   });
 
   it('收起 and Escape fold it back; a title opens its session', async () => {

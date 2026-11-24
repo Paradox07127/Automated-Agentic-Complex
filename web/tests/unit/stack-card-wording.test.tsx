@@ -142,4 +142,31 @@ describe('cancel request undo', () => {
     flush(() => void vi.advanceTimersByTime(600));
     expect(act).toHaveBeenCalledWith({ type: 'cancel-question', id: card.id, expected_version: card.item.revision });
   });
+
+  it('a card that goes away during the undo still sends the cancel, with the revision clicked', () => {
+    vi.useFakeTimers();
+    const act = vi.fn();
+    const card = cardOf('question', 'question');
+    const view = render(<QuestionStackCard card={card} index={1} top now={stackScenario('question').now} act={act} />);
+    fireEvent.click(screen.getByRole('button', { name: '取消请求' }));
+    flush(() => void vi.advanceTimersByTime(2000));
+    view.unmount();
+    flush(() => void vi.advanceTimersByTime(6000));
+    expect(act).toHaveBeenCalledTimes(1);
+    expect(act).toHaveBeenCalledWith({ type: 'cancel-question', id: card.id, expected_version: card.item.revision });
+  });
+
+  it('a new revision of the question during the undo drops the cancel', () => {
+    vi.useFakeTimers();
+    const act = vi.fn();
+    const card = cardOf('question', 'question');
+    const view = render(<QuestionStackCard card={card} index={1} top now={stackScenario('question').now} act={act} />);
+    fireEvent.click(screen.getByRole('button', { name: '取消请求' }));
+    const next = { ...card, item: { ...card.item, revision: card.item.revision + 1 } };
+    view.rerender(<QuestionStackCard card={next} index={1} top now={stackScenario('question').now} act={act} />);
+    flush(() => void vi.advanceTimersByTime(6000));
+    view.unmount();
+    expect(act).not.toHaveBeenCalled();
+    expect(screen.queryByText(/已取消这次提问/)).toBeNull();
+  });
 });

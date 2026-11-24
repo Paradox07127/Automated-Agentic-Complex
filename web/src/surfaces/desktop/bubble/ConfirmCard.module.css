@@ -110,6 +110,14 @@
   transform-origin: left;
 }
 
+/* The card is always on white (data-theme="light"). */
+.err {
+  margin: 8px 0 0;
+  color: var(--ef-danger-text);
+  font-size: 13px;
+  line-height: 18px;
+}
+
 .row {
   display: flex;
   gap: 2px;

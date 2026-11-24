@@ -1,4 +1,5 @@
 import { act as flush, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { DesktopCommand } from '../../src/bridge/protocol';
@@ -78,5 +79,38 @@ describe('window attachment', () => {
     expect(toggle).toHaveProperty('disabled', true);
     await flush(async () => fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' }));
     expect(say).toHaveBeenCalledWith({ text: '看看这个窗口', attachWindow: false, noMemory: false, lookWindow: { windowId: 77, pid: 123 }, surface: 'quick_input' });
+  });
+
+  describe('重新检测 after a kernel failure sends what the box holds now', () => {
+    function Box() {
+      const [attachment, setAttachment] = useState<typeof WINDOW | null>(WINDOW);
+      return <QuickInput role="她" autoFocus={false} look attachment={attachment} surface="quick_input" onDrop={() => setAttachment(null)} onClose={() => {}} />;
+    }
+    async function failOnce() {
+      const { bridge } = withCommands();
+      const say = vi.spyOn(bridge.desktop, 'say').mockResolvedValue({ ok: false, reason: 'kernel' });
+      render(<Box />);
+      fireEvent.change(screen.getByRole('textbox'), { target: { value: '这是什么' } });
+      await flush(async () => fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' }));
+      expect(say.mock.calls[0]![0]).toMatchObject({ text: '这是什么', lookWindow: { windowId: 77, pid: 123 }, noMemory: false });
+      return say;
+    }
+    const recheck = () => flush(async () => fireEvent.click(screen.getByRole('button', { name: '重新检测' })));
+
+    it('without the window ✕ took off', async () => {
+      const say = await failOnce();
+      fireEvent.click(screen.getByRole('button', { name: '不读这个窗口' }));
+      await recheck();
+      expect(say).toHaveBeenCalledTimes(2);
+      expect(say.mock.calls[1]![0]).not.toHaveProperty('lookWindow');
+      expect(say.mock.calls[1]![0]).toMatchObject({ text: '这是什么' });
+    });
+
+    it('with 这一轮不记 turned on after the failure', async () => {
+      const say = await failOnce();
+      fireEvent.click(screen.getByRole('button', { name: /这一轮不记/ }));
+      await recheck();
+      expect(say.mock.calls[1]![0]).toMatchObject({ text: '这是什么', noMemory: true, lookWindow: { windowId: 77, pid: 123 } });
+    });
   });
 });

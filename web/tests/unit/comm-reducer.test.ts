@@ -29,6 +29,20 @@ const run = (s: CommState, ...lines: LineEvent[]) => lines.reduce((st, line) => 
 const tick = (s: CommState, ms: number) => commReducer(s, { type: 'tick', dt: ms });
 
 describe('comm reducer', () => {
+  it('a line closed while streaming stays closed for its later deltas, and its id is forgotten at the final', () => {
+    let s = run(INITIAL, ev('a', 'ab'));
+    s = commReducer(s, { type: 'close', id: 'a' });
+    expect(s.bars).toEqual([]);
+    s = run(s, ev('a', 'cd'));
+    expect(s.bars).toEqual([]);
+    s = run(s, ev('a', '', { final: true }));
+    expect(s.bars).toEqual([]);
+    expect(s.closed).toEqual([]);
+    // A line closed after its final leaves nothing behind.
+    s = commReducer(run(s, ev('b', 'x', { final: true })), { type: 'close', id: 'b' });
+    expect(s.closed).toEqual([]);
+  });
+
   it('streams, lingers for the clamped time, fades, then is idle', () => {
     let s = run(INITIAL, ev('a', '你好'), ev('a', '，世界'));
     expect(s.bars).toHaveLength(1);

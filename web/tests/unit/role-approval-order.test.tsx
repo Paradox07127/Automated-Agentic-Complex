@@ -7,6 +7,7 @@ import { approvalView, isApprovalCard } from '../../src/features/approval';
 import { NOW, WIRE_INTERACTION_APPROVAL, WIRE_INTERACTION_APPROVAL_DANGER } from '../../src/mock/fixtures';
 import { A1, A2 } from '../../src/mock/fixtures/ids';
 import { stackScenario } from '../../src/mock/stack';
+import type { CardAction } from '../../src/surfaces/stack/actions';
 import { keyActionFor } from '../../src/surfaces/stack/keys';
 import { orderCards, priorityOf } from '../../src/surfaces/stack/model';
 import { useStackActions } from '../../src/surfaces/stack/useStackActions';
@@ -81,10 +82,10 @@ describe(' answering a role approval', () => {
     return approvalView(c).action('allow')!;
   };
 
-  it('a dangerous allow carries { confirmed: true } and writes outcome approved', async () => {
+  it('a dangerous allow from the card\'s second click carries { confirmed: true } and writes outcome approved', async () => {
     const decide = vi.spyOn(getBridge().stack, 'decide').mockResolvedValue(undefined);
     const { dispatch, result } = hook(danger);
-    result.current.act(allow(danger));
+    result.current.act({ ...allow(danger), confirmed: true } as CardAction);
     await waitFor(() => expect(dispatch).toHaveBeenCalled());
     expect(decide.mock.calls[0]?.[2]).toEqual({ confirmed: true });
     expect(dispatch).toHaveBeenCalledWith({ type: 'patch', id: danger.id, patch: expect.objectContaining({ outcome: expect.objectContaining({ kind: 'approved' }) }) });

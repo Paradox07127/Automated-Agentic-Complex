@@ -322,7 +322,7 @@ test('a role approval takes the options it offers: 本对话都允许 goes to ag
   assert.deepEqual(h.card('q2')!.outcome, { kind: 'approved', at: h.now, text: '已允许（本对话）' });
 });
 
-test('StackDecisionsTests.testADangerousRoleAllowNeedsAConfirmedClick', async () => {
+test('StackDecisionsTests.testADangerousRoleAllowAlwaysAsksNatively', async () => {
   const h = new Harness();
   await h.load({ requests: [interaction('q2', { kind: 'approval', expires: 1_000_030, questions: roleQuestion, preview: 'rm -rf build',
     danger: [true, 'rm_recursive'] })] });
@@ -330,21 +330,18 @@ test('StackDecisionsTests.testADangerousRoleAllowNeedsAConfirmedClick', async ()
   const allow = { kind: 'answer', expected_version: 2, answers: { decision: ['允许'] } };
   const confirmed = { ...allow, confirmed: true };
   const asked: string[] = [];
-  let click: number | null = null;
-  const d = h.decisions({ asked, confirm: () => false, click: () => click });
-  await assert.rejects(d.decide('q2', confirmed), { code: 'declined' });
-  click = h.now - 1200;
-  await assert.rejects(d.decide('q2', confirmed), { code: 'declined' });
-  assert.equal(asked.length, 0);
-  // Without confirmed, a click too old asks natively.
-  click = h.now - 2000;
+  let yes = false;
+  const d = h.decisions({ asked, confirm: () => yes, click: () => h.now - 500 });
+  // A fresh region click is no confirmation of a dangerous call, with or without the card's own second click.
   await assert.rejects(d.decide('q2', allow), { code: 'declined' });
   assert.equal(asked.length, 1);
   assert.ok(asked[0]!.includes('rm -rf build'));
+  await assert.rejects(d.decide('q2', confirmed), { code: 'declined' });
+  assert.equal(asked.length, 2);
   assert.equal(h.posts.length, 0);
-  click = h.now - 500;
+  yes = true;
   await d.decide('q2', confirmed);
-  assert.equal(asked.length, 1);
+  assert.equal(asked.length, 3);
   assert.deepEqual(h.posts[0]!.json, { expected_version: 2, answers: { decision: ['允许'] } }, 'agentd gets the answer only');
   assert.deepEqual(h.card('q2')!.outcome, { kind: 'approved', at: h.now, text: '已允许' });
 });

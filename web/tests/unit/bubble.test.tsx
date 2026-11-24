@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgentdResponse, DesktopCommand, AgenticComplexBridge, StackPayload, StreamEvent } from '../../src/bridge/protocol';
 import { BubbleRoot } from '../../src/surfaces/desktop/BubbleRoot';
+import { bubbleCards } from '../../src/surfaces/desktop/bubble/demo';
 import { sayMs } from '../../src/surfaces/desktop/bubble/sayTime';
 import { lingerMs } from '../../src/surfaces/desktop/comm/commReducer';
 import { stubMatchMedia } from './mediaStub';
@@ -686,5 +687,21 @@ describe('the bubble’s thought and mute', () => {
     await b.cards([{ id: 'rem-c1', kind: 'notice', variant: 'reminder', at: SAMPLED * 1000, title: 'c1 组会', commitment_id: 'c1' }]);
     expect(said('c1 组会')).toBeNull();
     expect(request.mock.calls.filter(([, path]) => String(path).endsWith('/seen'))).toHaveLength(0);
+  });
+
+  it('a due reminder under an approval card posts no seen until the approval goes and it is drawn', async () => {
+    const approval = bubbleCards('confirm')!.cards[0]!;
+    const reminder = { id: 'rem-c1', kind: 'notice', variant: 'reminder', at: SAMPLED * 1000, title: 'c1 组会', commitment_id: 'c1' } as const;
+    const b = mountBubble();
+    const request = vi.spyOn(b.bridge.agentd, 'request').mockResolvedValue({ status: 200, body: {} });
+    const seen = () => request.mock.calls.filter(([, path]) => String(path).endsWith('/seen'));
+    await b.presence(presenceOf());
+    await b.cards([approval, reminder]);
+    expect(screen.getByRole('alertdialog', { name: /^要你批准：/ })).toBeTruthy();
+    expect(screen.queryByText('c1 组会')).toBeNull();
+    expect(seen()).toHaveLength(0);
+    await b.cards([reminder]);
+    screen.getByText('c1 组会');
+    expect(seen()).toEqual([['POST', '/commitments/c1/seen', {}]]);
   });
 });

@@ -307,20 +307,25 @@ test('an old generation is stale, and agentd replies map to stale, failed and of
   await assert.rejects(decisions.decide('a3', { kind: 'approval', verdict: 'deny', generation: 3 }), { code: 'offline' });
 });
 
-test('a dangerous allow needs a recent click or the native confirm', async () => {
+test('a dangerous allow always asks the native confirm, however fresh the click', async () => {
   const h = new Harness();
   h.transport.set('GET', '/approvals', { approvals: [approval({ dangerous: true })] });
   await h.source.refresh();
   h.transport.set('POST', '/approvals/a1/decision', { ok: true });
   const asked: string[] = [];
-  let click: number | null = null;
-  const decisions = new StackDecisions(h.source, h.transport.request, async (t) => { asked.push(t); return false; }, () => click, () => h.now);
+  let yes = false;
+  const click = h.now - 500;
+  const decisions = new StackDecisions(h.source, h.transport.request, async (t) => { asked.push(t); return yes; }, () => click, () => h.now);
+  const posts = () => h.transport.calls.filter((c) => c.method === 'POST').length;
   await assert.rejects(decisions.decide('a1', { kind: 'approval', verdict: 'allow', generation: 3 }), { code: 'declined' });
   assert.equal(asked.length, 1);
   await assert.rejects(decisions.decide('a1', { kind: 'approval', verdict: 'allow', generation: 3, confirmed: true }), { code: 'declined' });
-  click = h.now - 500;
+  assert.equal(asked.length, 2);
+  assert.equal(posts(), 0);
+  yes = true;
   await decisions.decide('a1', { kind: 'approval', verdict: 'allow', generation: 3, confirmed: true });
-  assert.equal(asked.length, 1);
+  assert.equal(asked.length, 3);
+  assert.equal(posts(), 1);
 });
 
 test('collapse sends notices and errors to history and only folds waiting cards', async () => {

@@ -48,6 +48,13 @@ class ParseReminderTest(unittest.TestCase):
         self.assertEqual(parse_reminder("工作日下午6点提醒我下班", self.now), (local(23, 18), "下班", "weekdays"))
         self.assertEqual(parse_reminder("提醒我每个工作日9点打卡", self.now), (local(26, 9), "打卡", "weekdays"))
 
+    def test_a_quoted_name_sets_neither_the_repeat_nor_the_time(self):
+        # The desktop drop card quotes the file name: 「…」 is what to look at, not when.
+        self.assertEqual(parse_reminder("提醒我半小时后看「每天计划.md」", self.now), (self.now + 1800, "看「每天计划.md」", None))
+        self.assertEqual(parse_reminder("提醒我半小时后看「2小时后备份.md」", self.now), (self.now + 1800, "看「2小时后备份.md」", None))
+        self.assertEqual(parse_reminder("提醒我明天9点看「工作日3点.md」", self.now), (local(24, 9), "看「工作日3点.md」", None))
+        self.assertIsNone(parse_reminder("提醒我看「半小时后.md」", self.now))
+
     def test_no_reminder_or_nothing_to_remind(self):
         self.assertIsNone(parse_reminder("我等会儿喝水", self.now))
         self.assertIsNone(parse_reminder("提醒我", self.now))

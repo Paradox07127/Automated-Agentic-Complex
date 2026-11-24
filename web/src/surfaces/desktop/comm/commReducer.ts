@@ -50,6 +50,8 @@ export interface CommState {
   /** line_id of the foreground run's line until its final. */
   run: string | null;
   seq: number;
+  /** Lines closed before their final: their later deltas are dropped, and the id is forgotten at the final. */
+  closed: readonly string[];
 }
 
 export type CommAction =
@@ -67,7 +69,7 @@ export const FADE_MS = 200;
 export const THINKING_MAX_MS = 120_000;
 export const MAX_BARS = 2;
 
-export const INITIAL: CommState = { bars: [], run: null, seq: 0 };
+export const INITIAL: CommState = { bars: [], run: null, seq: 0, closed: [] };
 
 /** How long a finished line stays: clamp(3.5 s + 70 ms × characters, 4 s, 15 s). */
 export function lingerMs(text: string): number {
@@ -133,6 +135,7 @@ function add(old: Bar[], fresh: Bar): Bar[] {
 
 function onLine(s: CommState, e: LineEvent): CommState {
   const run = e.lane === 'agent' ? (e.final ? (s.run === e.id ? null : s.run) : e.id) : s.run;
+  if (s.closed.includes(e.id)) return { ...s, run, closed: e.final ? s.closed.filter((id) => id !== e.id) : s.closed };
   const at = s.bars.findIndex((b) => b.id === e.id);
   const old = s.bars[at];
   if (old) {
@@ -145,7 +148,7 @@ function onLine(s: CommState, e: LineEvent): CommState {
   const seq = kind === 'main' ? s.seq + 1 : s.seq;
   const fresh = settle({ id: e.id, kind, text: e.delta, phase: 'streaming', reason: e.reason, pinned: false, held: false, left: 0, total: 0, seq }, e);
   if (!fresh) return { ...s, run };
-  return { bars: add(s.bars, fresh), run, seq };
+  return { ...s, bars: add(s.bars, fresh), run, seq };
 }
 
 function onAccepted(s: CommState, id: string, side: boolean): CommState {
@@ -187,8 +190,12 @@ export function commReducer(s: CommState, a: CommAction): CommState {
       if (!s.bars.some((b) => b.id === a.id && b[key] !== value)) return s;
       return { ...s, bars: s.bars.map((b) => (b.id === a.id ? { ...b, [key]: value } : b)) };
     }
-    case 'close':
-      return { ...s, bars: s.bars.filter((b) => b.id !== a.id) };
+    case 'close': {
+      const bar = s.bars.find((b) => b.id === a.id);
+      if (!bar) return s;
+      const open = bar.phase === 'thinking' || bar.phase === 'streaming';
+      return { ...s, bars: s.bars.filter((b) => b.id !== a.id), closed: open ? [...s.closed, a.id] : s.closed };
+    }
   }
 }
 

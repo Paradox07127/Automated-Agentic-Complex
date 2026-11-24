@@ -83,6 +83,11 @@ export function QuickInput({ role, prefill, talkKey, autoFocus, look, initial, a
     return () => clearTimeout(t);
   }, [echo]);
 
+  // A removed attachment or a changed toggle makes the last request stale: 重新检测 then builds one from the box.
+  useEffect(() => {
+    last.current = null;
+  }, [attachment, attach, noMemory]);
+
   const typed = (r: SayRequest): SayRequest => dropSay(r, attachment);
 
   const send = async (sent: SayRequest) => {

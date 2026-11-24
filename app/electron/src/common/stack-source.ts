@@ -963,7 +963,6 @@ export class StackSource implements EventSource {
 /** agentd's option on an exact-call approval that allows the same tool for the rest of the conversation. */
 const SESSION_ALLOW = '本对话都允许';
 const GESTURE_MS = 1_500;
-const CONFIRM_MS = 1_000;
 
 /** `stack.decide` and `collapse`. Each request is built from the record of the card
  *  the source last pushed under that id, and only for the generation or revision it showed; the page's own strings never
@@ -987,7 +986,7 @@ export class StackDecisions {
     this.clock = clock;
   }
 
-  /** `decision` is protocol.ts `StackDecision` as the page sent it, with `confirmed` from its `DecideOptions`. */
+  /** `decision` is protocol.ts `StackDecision` as the page sent it; its `DecideOptions.confirmed` spares no native confirm. */
   async decide(id: string, decision: unknown): Promise<void> {
     const d = decision as Json | null;
     if (!d || typeof d !== 'object' || typeof d.kind !== 'string') throw invalid('a StackDecision');
@@ -1036,8 +1035,7 @@ export class StackDecisions {
     if (generation !== a.generation) throw new BridgeFailure('stale', 'generation_changed');
     if (id === TEST_APPROVAL_ID && part === 'native') return this.source.decideTestApproval(id, verdict);
     const question = approvalQuestion(a, verdict, mode);
-    // Only the dangerous call's question takes a confirmed click.
-    if (question !== null) await this.gesture(question, a.dangerous && d.confirmed === true);
+    if (question !== null) await this.gesture(question, a.dangerous && verdict !== 'deny');
     const body: Json = { decision: verdict, generation: a.generation };
     if (typeof mode === 'string') body.mode = mode;
     await this.post(id, `/approvals/${seg(a.request_id)}/decision`, body);
@@ -1045,15 +1043,14 @@ export class StackDecisions {
     this.source.settle(id, verdict === 'deny' ? 'denied' : 'approved', receipt);
   }
 
-  /** A recent click in a region is the user's gesture, anything else asks natively. A `confirmed` decision counts only a
-   *  click within `CONFIRM_MS` and never asks natively. */
-  private async gesture(message: string, confirmed: boolean): Promise<void> {
+  /** A recent click in a region is the user's gesture, anything else asks natively. A `dangerous` call always asks
+   *  natively: the page's own two-step (`confirmed`) and a click come from the renderer and the panel, not from this dialog. */
+  private async gesture(message: string, dangerous: boolean): Promise<void> {
     const click = this.lastRegionClick();
-    if (click !== null) {
+    if (click !== null && !dangerous) {
       const age = this.clock() - click;
-      if (age >= 0 && age <= (confirmed ? CONFIRM_MS : GESTURE_MS)) return;
+      if (age >= 0 && age <= GESTURE_MS) return;
     }
-    if (confirmed) throw new BridgeFailure('declined', 'no click within the confirm window');
     if (!(await this.confirm(message))) throw new BridgeFailure('declined', 'native confirmation');
   }
 
@@ -1081,7 +1078,8 @@ export class StackDecisions {
     if (expected !== q.revision) throw new BridgeFailure('stale', 'interaction_version_changed');
     const refused = Object.values(answers).some((a) => only(a, '拒绝'));
     const question = answerQuestion(q, answers);
-    if (question !== null) await this.gesture(question, d.confirmed === true);
+    // answerQuestion asks only for a dangerous allow.
+    if (question !== null) await this.gesture(question, true);
     const reply = await this.post(id, `/agent/interactions/${seg(q.request_id)}/answer`, { expected_version: expected, answers });
     const session = Object.values(answers).some((a) => only(a, SESSION_ALLOW));
     const receipt = !approval ? '已回答' : refused ? '已拒绝' : session ? '已允许（本对话）' : '已允许';

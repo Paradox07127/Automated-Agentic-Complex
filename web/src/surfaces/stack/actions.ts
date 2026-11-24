@@ -9,9 +9,10 @@ export interface DeliveryRef {
   generation: number;
 }
 
+/** `confirmed` on a decide or answer: set only by the second click of a dangerous 批准 (确认批准). */
 export type CardAction =
-  | { type: 'decide'; id: string; decision: 'allow' | 'deny' | 'allow_session'; generation: number; mode?: string }
-  | { type: 'answer'; id: string; expected_version: number; answers: Record<string, string[]>; text: string }
+  | { type: 'decide'; id: string; decision: 'allow' | 'deny' | 'allow_session'; generation: number; mode?: string; confirmed?: true }
+  | { type: 'answer'; id: string; expected_version: number; answers: Record<string, string[]>; text: string; confirmed?: true }
   | { type: 'cancel-question'; id: string; expected_version: number }
   | ({ type: 'accept'; id: string } & DeliveryRef)
   | ({ type: 'reject'; id: string; note: string } & DeliveryRef)
