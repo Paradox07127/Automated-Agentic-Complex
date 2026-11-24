@@ -52,16 +52,25 @@ export class FeedStatusError extends Error {
   }
 }
 
+/** agentd never got the request: the runtime file could not be read, or the connection failed before it opened. Any other
+ *  error of `request` leaves open whether agentd took it. */
+export class NotSentError extends Error {}
+
 function send(url: URL, method: string, headers: Record<string, string>, idleTimeout: number, body?: Buffer): Promise<Reply> {
   return new Promise((resolve, reject) => {
+    let opened = false;
     const req = httpRequest(url, { method, headers, timeout: idleTimeout * 1000 }, (res) => {
       const chunks: Buffer[] = [];
       res.on('data', (c: Buffer) => chunks.push(c));
       res.on('end', () => resolve({ status: res.statusCode ?? 0, body: Buffer.concat(chunks) }));
       res.on('error', reject);
     });
+    req.on('socket', (socket) => {
+      if (socket.connecting) socket.once('connect', () => { opened = true; });
+      else opened = true;
+    });
     req.on('timeout', () => req.destroy(new Error(`agentd ${method} ${url.pathname}: timed out after ${idleTimeout} s without a byte`)));
-    req.on('error', reject);
+    req.on('error', (e) => reject(opened ? e : new NotSentError(e.message, { cause: e })));
     req.end(body);
   });
 }
@@ -107,13 +116,17 @@ export class AgentdClient {
   }
 
   private target(path: string, fresh: boolean): { url: URL; auth: string } {
-    const runtime = this.runtime(fresh);
-    return { url: new URL(runtime.baseUrl + path), auth: `Bearer ${runtime.uiToken}` };
+    try {
+      const runtime = this.runtime(fresh);
+      return { url: new URL(runtime.baseUrl + path), auth: `Bearer ${runtime.uiToken}` };
+    } catch (e) {
+      throw new NotSentError(e instanceof Error ? e.message : String(e), { cause: e });
+    }
   }
 
   /** `path` includes the query; `json` undefined sends no body; `extra` headers go with both sends. A non-2xx reply is
    *  returned; throws only when the runtime file cannot be read, agentd cannot be reached or sends nothing for
-   *  `idleTimeout`. A 401 reads the runtime file again and sends once more. */
+   *  `idleTimeout`, with a `NotSentError` when agentd never got it. A 401 reads the runtime file again and sends once more. */
   async request(method: string, path: string, json?: unknown, extra: Record<string, string> = {}): Promise<Reply> {
     const body = json === undefined ? undefined : Buffer.from(JSON.stringify(json));
     const headers = (auth: string): Record<string, string> =>

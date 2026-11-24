@@ -3,7 +3,7 @@ import { agentdError, checkRequest, HandleRequired, rejected, RouteTable, swapHa
 import type { Interaction } from '../../common/stack-cards.ts';
 import { type Approval, answerQuestion, approvalQuestion } from '../../common/stack-source.ts';
 import { markNow } from '../../common/turn-marks.ts';
-import type { AgentdClient } from '../agentd/client.ts';
+import { type AgentdClient, NotSentError } from '../agentd/client.ts';
 import type { Ops, OpsContext } from './context.ts';
 
 const DECISION = /^\/approvals\/([^/]+)\/decision$/u;
@@ -70,10 +70,10 @@ export function agentdOps(ctx: OpsContext): Ops {
       let status: number, data: Buffer;
       try {
         ({ status, body: data } = await ctx.agentd.request(checked.method, checked.path, swapped.body));
-      } catch {
-        // It never arrived: the page may send them again, unless its document ended meanwhile.
+      } catch (e) {
+        // Never sent, the page may send them again unless its document ended meanwhile; otherwise agentd may have taken them.
         for (const [handle, entry] of taken) {
-          if (page.generation === generation) page.picked.set(handle, entry);
+          if (e instanceof NotSentError && page.generation === generation) page.picked.set(handle, entry);
           else entry.discard?.();
         }
         return rejected('offline', 'agentd is unreachable');

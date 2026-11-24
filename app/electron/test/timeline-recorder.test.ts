@@ -371,6 +371,28 @@ test('the tree is read from the sampled window by its bounds, not whichever wind
   assert.deepEqual(t.ops('ax.window_tree'), [{ pid: 702, window_bounds: bounds }]);
 });
 
+test('a tree read at bounds the front window has left is no tree of it: a later sample of the window elsewhere keeps it out', async () => {
+  const bounds = { x: 0, y: 25, width: 800, height: 600 };
+  const pending = later<HelperAnswer>();
+  const answers: (HelperAnswer | Promise<HelperAnswer>)[] = [pending.promise];
+  const t = setup({ helper: { 'ax.window_tree': () => answers.shift()! }, blacklist: parseBlacklist({ mode: 'deny', title_patterns: ['secret'] }) });
+  await t.start(sample({ frontBounds: bounds }));
+  t.show(sample({ frontBounds: { ...bounds, x: 400 } }));
+  pending.resolve(tree('full', 't1', 'window "secret.txt"\n  text "MARKER"'));
+  await t.run(5000);
+  assert.deepEqual(t.records().map((r) => [r.kind, r.window_title, r.tree]), [['window', 'notes.txt', null]]);
+});
+
+test('a click in another window of the front app is recorded with the next sample that shows that window', async () => {
+  const t = setup();
+  await t.start();
+  t.act('click', { target: { ...button, window_title: 'todo.txt' } });
+  await t.run(600);
+  t.show(sample({ front: { ...sample().front!, windowId: 641, title: 'todo.txt' } }));
+  await t.run(5000);
+  assert.deepEqual(t.records().map((r) => `${r.kind}:${r.window_title}`), ['window:notes.txt', 'window:todo.txt', 'click:todo.txt']);
+});
+
 test('a tab switch in one window is a new window: the first allowed tab after a blocked one is recorded', async () => {
   const SAFARI = { app: 'Safari', bundleId: 'com.apple.Safari', pid: 702, windowId: 640, title: 'Account', urlHost: 'bank.example' };
   const t = setup({ blacklist: parseBlacklist({ mode: 'deny', domains: ['bank.example'] }) });

@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -11,6 +13,7 @@ import { checkRequest, isExportPath, RouteTable, swapHandles } from '../src/comm
 import { current, desktopHotkeys, hotkeyName, parseChanges, planSave, schema, snapshot, webHotkey } from '../src/common/settings.ts';
 import type { HandedItem } from '../src/common/stack-cards.ts';
 import { ORIGIN } from '../src/common/ui.ts';
+import { AgentdClient } from '../src/main/agentd/client.ts';
 import { DropHandover } from '../src/main/handover/drop.ts';
 import { avatarDetails, type AvatarHost } from '../src/main/ops/avatar.ts';
 import { reloadAvatar } from '../src/main/ops/holding.ts';
@@ -452,31 +455,74 @@ test('services.save writes over config.json as it is once the start script is co
   }
 });
 
+/** A loopback agentd stand-in that hands each request and its body to `serve`. */
+function fakeAgentd(serve: (body: string, req: IncomingMessage, res: ServerResponse) => void): Server {
+  return createServer((req, res) => {
+    const chunks: Buffer[] = [];
+    req.on('data', (c: Buffer) => chunks.push(c));
+    req.on('end', () => serve(Buffer.concat(chunks).toString('utf8'), req, res));
+  });
+}
+
+const listen = (server: Server, port = 0) => new Promise<number>((resolve) =>
+  server.listen(port, '127.0.0.1', () => resolve((server.address() as AddressInfo).port)));
+
 test('a picked handle whose request never reached agentd stays the page\'s to send again', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'resend-'));
+  const sent: unknown[] = [];
+  const server = fakeAgentd((body, _req, res) => {
+    sent.push(JSON.parse(body));
+    res.writeHead(201, { 'Content-Type': 'application/json' }).end('{}');
+  });
   try {
-    let down = true;
-    const sent: unknown[] = [];
-    const agentd = {
-      request: async (_method: string, _path: string, body: unknown) => {
-        if (down) throw new Error('ECONNREFUSED');
-        sent.push(body);
-        return { status: 201, body: Buffer.from('{}') };
-      },
-    } as unknown as OpsContext['agentd'];
-    const ops = registry({ ...context(dir), agentd }), page = new PageSession(() => {});
+    const runtime = join(dir, 'ui-runtime.json');
+    const ops = registry({ ...context(dir), agentd: new AgentdClient(runtime) }), page = new PageSession(() => {});
+    const picked = await handle('main', page0, { op: 'files.pickFolder', args: [{ purpose: 'session_cwd' }] }, ops, page);
+    assert.ok(picked.ok);
+    const h = (picked.value as { handle: string }).handle;
+    const send = async () => ((await handle('main', page0, { op: 'agentd.request', args: ['POST', '/sessions', { cwd: { handle: h } }] }, ops, page)) as
+      { ok: true; value: { status: number; error?: { code: string } } }).value;
+    assert.equal((await send()).error?.code, 'offline', 'no runtime file');
+    assert.ok(page.picked.has(h));
+    const port = await listen(server);
+    await new Promise((resolve) => server.close(resolve));
+    writeFileSync(runtime, JSON.stringify({ base_url: `http://127.0.0.1:${port}`, ui_token: 't' }));
+    assert.equal((await send()).error?.code, 'offline', 'connection refused');
+    assert.ok(page.picked.has(h));
+    await listen(server, port);
+    assert.equal((await send()).status, 201);
+    assert.deepEqual(sent, [{ cwd: '/picked' }]);
+    assert.ok(!page.picked.has(h), 'used once it arrived');
+  } finally {
+    server.closeAllConnections();
+    server.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a picked handle whose request agentd read before the connection dropped is used: sending it again needs a new pick', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'dropped-'));
+  const sent: unknown[] = [];
+  const server = fakeAgentd((body, req) => {
+    sent.push(JSON.parse(body));
+    req.socket.destroy();
+  });
+  try {
+    const runtime = join(dir, 'ui-runtime.json');
+    writeFileSync(runtime, JSON.stringify({ base_url: `http://127.0.0.1:${await listen(server)}`, ui_token: 't' }));
+    const ops = registry({ ...context(dir), agentd: new AgentdClient(runtime) }), page = new PageSession(() => {});
     const picked = await handle('main', page0, { op: 'files.pickFolder', args: [{ purpose: 'session_cwd' }] }, ops, page);
     assert.ok(picked.ok);
     const h = (picked.value as { handle: string }).handle;
     const send = async () => ((await handle('main', page0, { op: 'agentd.request', args: ['POST', '/sessions', { cwd: { handle: h } }] }, ops, page)) as
       { ok: true; value: { status: number; error?: { code: string } } }).value;
     assert.equal((await send()).error?.code, 'offline');
-    assert.ok(page.picked.has(h));
-    down = false;
-    assert.equal((await send()).status, 201);
+    assert.ok(!page.picked.has(h));
+    assert.equal((await send()).error?.code, 'handle_required');
     assert.deepEqual(sent, [{ cwd: '/picked' }]);
-    assert.ok(!page.picked.has(h), 'used once it arrived');
   } finally {
+    server.closeAllConnections();
+    server.close();
     rmSync(dir, { recursive: true, force: true });
   }
 });

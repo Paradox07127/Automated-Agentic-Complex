@@ -2,7 +2,7 @@
 // context menu, shortcut and submit of the user's becomes a `POST /context/timeline` record, the window with its whole
 // tree and the actions with what changed in it, while agentd runs and plugins.screen_awareness and share_actions are on.
 import { type ActivityEvent, captureWindow } from '../../common/activity.ts';
-import type { AttentionSample, AttentionWindow, BlacklistRules } from '../../common/attention.ts';
+import type { AttentionSample, AttentionWindow, BlacklistRules, Rect } from '../../common/attention.ts';
 import { type CaptureWindow, captureBlockReason } from '../../common/capture-rules.ts';
 import type { HelperAnswer } from '../../common/push-to-talk.ts';
 import {
@@ -54,6 +54,15 @@ function shows(s: AttentionSample | null, w: CaptureWindow): boolean {
     && f.title === w.window.title && f.urlHost === w.window.urlHost && s.frontIncognito === w.incognito;
 }
 
+const sameRect = (a: Rect | null, b: Rect | null): boolean => a === b || (a !== null && b !== null && a.x === b.x && a.y === b.y
+  && a.width === b.width && a.height === b.height);
+
+/** The helper names the window an action was in: another window or tab than `f` is not recorded as `f`. */
+function inWindow(data: Record<string, unknown>, f: AttentionWindow): boolean {
+  const own = typeof data.target === 'object' && data.target !== null ? (data.target as Record<string, unknown>).window_title : null;
+  return typeof own !== 'string' || own === f.title;
+}
+
 function base(kind: TimelineKind, ts: number, w: AttentionWindow): TimelineRecord {
   return { ts, kind, app: w.app, bundle_id: w.bundleId, pid: w.pid, window_id: w.windowId, window_title: w.title, url_host: w.urlHost,
     target: null, keys: null, text: null, tree: null };
@@ -78,14 +87,16 @@ export class TimelineRecorder {
   private generation = 0;
   private reading = false;
   /** The answer of the read for `inflight`, held until a sample taken `after` it; `readClean` while every sample since the
-   *  read began showed the batch's window. */
+   *  read began showed the batch's window at `readBounds`, the bounds the helper read the window at. */
   private held: { reply: HelperAnswer; windowRead: boolean; after: number } | null = null;
   private readClean = true;
+  private readBounds: Rect | null = null;
   private windowPending: Pending | null = null;
   /** Actions waiting for the next read, and the ones the read in flight is for. */
   private waiting: Pending[] = [];
   private inflight: Pending[] = [];
-  /** `input.action`s whose pid was not the sampled front, with their time: an app switched to before the next beat. */
+  /** `input.action`s whose pid or window title was not the sampled front's, with their time: an app or window switched to
+   *  before the next beat. */
   private early: { data: Record<string, unknown>; ts: number }[] = [];
   private cancelRead: (() => void) | null = null;
   private posting = false;
@@ -123,7 +134,7 @@ export class TimelineRecorder {
   update(sample: AttentionSample): void {
     this.latestSample = sample;
     const reading = this.inflight.at(-1);
-    if (reading && !shows(sample, reading.window)) this.readClean = false;
+    if (reading && (!shows(sample, reading.window) || !sameRect(sample.frontBounds, this.readBounds))) this.readClean = false;
     const held = this.held;
     if (reading && held && sample.ts >= held.after) {
       const batch = this.inflight;
@@ -137,7 +148,9 @@ export class TimelineRecorder {
     if (!this.running || !this.actions || sample.locked || sample.asleep) return;
     this.showWindow(sample);
     const f = sample.front;
-    for (const e of early) if (f !== null && e.data.pid === f.pid && this.seconds() - e.ts <= EARLY_S) this.act(e.data, sample, f, e.ts);
+    for (const e of early) {
+      if (f !== null && e.data.pid === f.pid && inWindow(e.data, f) && this.seconds() - e.ts <= EARLY_S) this.act(e.data, sample, f, e.ts);
+    }
   }
 
   private showWindow(sample: AttentionSample): void {
@@ -165,7 +178,7 @@ export class TimelineRecorder {
     if (name !== 'input.action' || !this.running || !this.actions) return;
     const s = this.latestSample;
     if (!s || s.locked || s.asleep || typeof data.pid !== 'number') return;
-    if (s.front === null || data.pid !== s.front.pid) {
+    if (s.front === null || data.pid !== s.front.pid || !inWindow(data, s.front)) {
       this.early.push({ data, ts: this.seconds() });
       return;
     }
@@ -176,9 +189,6 @@ export class TimelineRecorder {
   private act(data: Record<string, unknown>, s: AttentionSample, f: AttentionWindow, ts: number): void {
     const kind = data.kind;
     if (kind !== 'click' && kind !== 'context_menu' && kind !== 'shortcut' && kind !== 'submit') return;
-    // The helper names the window the action was in: another window or tab than the sampled one is not recorded as this one.
-    const own = typeof data.target === 'object' && data.target !== null ? (data.target as Record<string, unknown>).window_title : null;
-    if (typeof own === 'string' && own !== f.title) return;
     const window = this.frontWindow(s, f);
     const reason = captureBlockReason(window, this.ports.blacklist(), this.ports.ownPids());
     if (reason !== null && reason !== 'secure_input') return;
@@ -269,6 +279,7 @@ export class TimelineRecorder {
       this.reading = true;
       this.readClean = true;
       this.inflight = batch;
+      this.readBounds = s?.frontBounds ?? null;
       const generation = this.generation;
       const params = {
         pid: shown.pid, ...(windowRead || this.treeId === null ? {} : { previous: this.treeId }),

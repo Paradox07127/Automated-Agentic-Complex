@@ -74,7 +74,8 @@ type Record_ =
   | { kind: 'notice' }
   | { kind: 'computerUse' }
   | { kind: 'voiceHint'; hint: VoiceHint };
-/** `native`: cards the shell raises itself (computer use, voice hint, avatar loading). */
+/** `native`: cards the shell raises itself (computer use, voice hint, avatar loading, its notices, the test approval); `stop`
+ *  keeps them. */
 type Part = 'approvals' | 'questions' | 'deliveries' | 'coding' | 'reminders' | 'announce' | 'native';
 interface Entry {
   record: Record_; card: Json; at: number; title: string; part: Part; key: string; live: boolean; collapsed: boolean;
@@ -193,7 +194,7 @@ export class StackSource implements EventSource {
   /** Whether a panel that shows the cards is up; while none is, `/approvals` and `/tasks` are read every `HIDDEN_POLL_MS`. */
   shown: () => boolean = () => true;
   onCount: (n: number) => void = () => {};
-  /** The ids of the stack page's cards (no chat window cards) on each push; none once stopped. */
+  /** The ids of the stack page's cards (no chat window cards) on each push; once stopped only the shell's own. */
   onPush: (ids: string[]) => void = () => {};
 
   private readonly options: StackSourceOptions;
@@ -283,7 +284,8 @@ export class StackSource implements EventSource {
     this.poll(false);
   }
 
-  /** agentd is gone: drops the cards and pushes the `offline` error, once until a read answers again. */
+  /** agentd is gone: drops agentd's cards and keeps the shell's own; with none of those it pushes the `offline` error, once
+   *  until a read answers again. */
   stop(): void {
     this.running = false;
     this.pollGen += 1;
@@ -292,8 +294,8 @@ export class StackSource implements EventSource {
     this.feedCancel?.();
     this.feedCancel = null;
     this.epoch += 1;
-    this.entries.clear();
-    this.order = [];
+    this.order = this.order.filter((id) => this.entries.get(id)?.part === 'native');
+    for (const id of [...this.entries.keys()]) if (!this.order.includes(id)) this.entries.delete(id);
     this.announced.clear();
     this.progress.clear();
     this.presented.clear();
@@ -304,9 +306,10 @@ export class StackSource implements EventSource {
     const wasOffline = this.offline;
     this.offline = true;
     this.loaded = false;
+    if (wasOffline) return this.publish();
     this.lastBody = null;
+    if (this.order.length > 0) return this.publish();
     this.updateCount();
-    if (wasOffline) return;
     const event = this.errorEvent();
     for (const s of this.subscribers.values()) s(event);
     this.onPush([]);
@@ -777,7 +780,7 @@ export class StackSource implements EventSource {
   addNotice(id: string, variant: string, title: string, extra: Json = {}, lifeMs: number | null = null): void {
     const now = this.clock();
     if (!this.entries.has(id)) this.order.push(id);
-    const entry = this.entry({ kind: 'notice' }, { ...extra, id, kind: 'notice', variant, title }, now, title, 'announce', id);
+    const entry = this.entry({ kind: 'notice' }, { ...extra, id, kind: 'notice', variant, title }, now, title, 'native', id);
     entry.until = lifeMs === null ? null : now + lifeMs;
     this.entries.set(id, entry);
     this.publish();

@@ -209,6 +209,34 @@ test('stop pushes offline once', async () => {
   assert.equal(h.pushes.filter((p) => p.error).length, 1);
 });
 
+test('a stop while already offline keeps the shell\'s own cards: the last push and a new page agree', async () => {
+  const h = new Harness();
+  await h.source.refresh();
+  h.source.announce(announce(1, { level: 'P1', state: null }));
+  h.listen();
+  h.source.stop();
+  h.source.setAvatarLoading({ kind: 'failed', message: '角色启动失败' });
+  h.source.addNotice('n1', 'resume', '回答已保存');
+  h.source.stop();
+  const late: Json[] = [];
+  h.source.subscribe(null, (e) => late.push(JSON.parse(e.data) as Json), () => {});
+  assert.deepEqual(late[0], h.pushes.at(-1));
+  assert.deepEqual((late[0]!.cards as Json[] | undefined)?.map((c) => c.id), ['avatar-loading', 'n1']);
+});
+
+test('the first stop drops agentd\'s cards and keeps the shell\'s, pushed marked offline', async () => {
+  const h = new Harness();
+  h.transport.set('GET', '/approvals', { approvals: [approval()] });
+  await h.source.refresh();
+  h.source.setAvatarLoading({ kind: 'loading', character: 'c', title: '正在加载角色' });
+  h.listen();
+  h.source.stop();
+  const last = h.pushes.at(-1)!;
+  assert.equal(last.offline, true);
+  assert.deepEqual((last.cards as Json[]).map((c) => c.id), ['avatar-loading']);
+  assert.equal(h.source.pendingCount, 0);
+});
+
 test('while agentd is gone the shell\'s own cards still push, marked offline; with none left the offline error stands', async () => {
   const h = new Harness();
   await h.source.refresh();
