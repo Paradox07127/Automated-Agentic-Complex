@@ -35,6 +35,8 @@ const TEXTEDIT = { window_id: 640, pid: 702, bounds: { x: 0, y: 25, width: 800, 
 const NOTES = { window_id: 77, pid: 800, bounds: { x: 40, y: 60, width: 900, height: 700 }, layer: 0, alpha: 1, title: 'Groceries',
   app_name: 'Notes', app_id: 'com.apple.Notes' };
 const list = (...windows: Record<string, unknown>[]) => ok({ windows });
+/** CONTRACT §7.12 `front` as `attention.sample` gives it. */
+const TEXTEDIT_FRONT = { pid: 702, name: 'TextEdit', app_id: 'com.apple.TextEdit', window: TEXTEDIT };
 
 /** CONTRACT §7.4 `ax.window_text`. */
 const axText = (text: string, over: Record<string, unknown> = {}) => ok({
@@ -48,6 +50,7 @@ const settle = async () => { for (let i = 0; i < 30; i += 1) await new Promise((
 
 const TEXT_ON: ContextPolicy = { ...DEFAULT_CONTEXT_POLICY, allowText: true };
 const ALL_ON: ContextPolicy = { allowText: true, allowImages: true, level: 'window', redact: true };
+const WINDOW_TEXT: ContextPolicy = { ...TEXT_ON, level: 'window' };
 
 function setup(o: { helper?: Record<string, Answer>; policy?: ContextPolicy; blacklist?: BlacklistRules;
   post?: (path: string, body: Record<string, unknown>) => AgentdReply; platform?: ShellPlatform } = {}) {
@@ -60,7 +63,7 @@ function setup(o: { helper?: Record<string, Answer>; policy?: ContextPolicy; bla
   const logs: string[] = [];
   const helper: Record<string, Answer> = {
     'windows.list': list(TEXTEDIT, NOTES),
-    'attention.sample': ok({ ts: 0, locked: false, secure_input: false, front: null }),
+    'attention.sample': ok({ ts: 0, locked: false, secure_input: false, front: TEXTEDIT_FRONT }),
     'permissions.status': ok({ accessibility: 'granted', screenRecording: 'granted', microphone: 'denied', automation: 'notDetermined',
       inputMonitoring: 'denied' }),
     'ax.window_text': axText('hello'),
@@ -366,6 +369,20 @@ test('image request: capture errors and a helper timeout are reported as agentd 
   }
 });
 
+test('image request: a background browser window reads as unknown, whatever it showed while in front', async () => {
+  const chrome = { window_id: 90, pid: 900, bounds: { x: 0, y: 25, width: 800, height: 600 }, layer: 0, alpha: 1, title: 'Docs',
+    app_name: 'Google Chrome', app_id: 'com.google.Chrome' };
+  const s = await running({ policy: ALL_ON, helper: { 'windows.list': list(TEXTEDIT, chrome) } });
+  await s.beat(sample({ front: win({ app: 'Google Chrome', bundleId: 'com.google.Chrome', pid: 900, windowId: 90, title: 'Docs',
+    urlHost: 'allowed.com' }) }));
+  await s.tick();
+  await s.beat();
+  await s.beat();
+  await s.request('image', 90);
+  assert.ok(!s.ops().includes('capture.window'));
+  assert.deepEqual(imagePosts(s.posts), [{ request_id: 'r1', window_id: 90, url_host: null, error: 'permission_denied' }]);
+});
+
 test('image request: the window changed after the capture is reported, the image is not sent', async () => {
   let calls = 0;
   const s = await running({ policy: ALL_ON, helper: { 'windows.list': () => (calls++ === 0 ? list(TEXTEDIT) : list({ ...TEXTEDIT, pid: 703 })) } });
@@ -383,7 +400,8 @@ test('ocr request: the helper recognizes the window and the text is posted redac
   const [body] = textPosts(s.posts);
   assert.equal(body?.text, 'mail [邮箱已遮蔽]');
   assert.equal(body?.snapshot_id, 'ocr-snap');
-  assert.deepEqual(body?.nodes, [{ id: 0, parent: -1, role: 'OCRText', value: 'mail a@b.com', bounds: [0, 0.5, 1, 0.5] }]);
+  assert.deepEqual(body?.nodes, [{ id: 0, parent: -1, role: 'OCRText', value: 'mail [邮箱已遮蔽]', bounds: [0, 0.5, 1, 0.5] }]);
+  assert.ok(!JSON.stringify(textPosts(s.posts)).includes('a@b.com'));
 });
 
 test('ocr request: not allowed below the window level; a helper failure is only logged', async () => {
@@ -399,7 +417,7 @@ test('ocr request: not allowed below the window level; a helper failure is only 
 // ---- look_window text requests
 
 test('look_window: the named window’s AX text by its bounds, front or not', async () => {
-  const s = await running();
+  const s = await running({ policy: WINDOW_TEXT });
   await s.request('text', 77, 'look_window');
   assert.deepEqual(s.requests.find(([op]) => op === 'ax.window_text')?.[1],
     { pid: 800, level: 'window', window_bounds: { x: 40, y: 60, width: 900, height: 700 } });
@@ -407,6 +425,26 @@ test('look_window: the named window’s AX text by its bounds, front or not', as
   assert.equal(body?.request_id, 'r1');
   assert.equal(body?.window_id, 77);
   assert.equal(body?.app, 'Notes');
+});
+
+test('look_window: at the focused level only the front window is read, and only its focused part', async () => {
+  const s = await running();
+  await s.request('text', 77, 'look_window');
+  assert.ok(!s.ops().includes('ax.window_text'));
+  assert.deepEqual(imagePosts(s.posts), [{ request_id: 'r1', window_id: 77, url_host: null, error: 'permission_denied' }]);
+  const t = await running();
+  await t.request('text', 640, 'look_window');
+  assert.deepEqual(t.requests.find(([op]) => op === 'ax.window_text')?.[1],
+    { pid: 702, level: 'focused', window_bounds: { x: 0, y: 25, width: 800, height: 600 } });
+  assert.equal(textPosts(t.posts)[0]?.request_id, 'r1');
+});
+
+test('look_window: a window listed without its title is refused while a title rule exists', async () => {
+  const s = await running({ policy: WINDOW_TEXT, blacklist: parseBlacklist({ mode: 'deny', title_patterns: ['^Private'] }),
+    helper: { 'windows.list': list(TEXTEDIT, { ...NOTES, title: null }) } });
+  await s.request('text', 77, 'look_window');
+  assert.ok(!s.ops().includes('ax.window_text'));
+  assert.deepEqual(imagePosts(s.posts), [{ request_id: 'r1', window_id: 77, url_host: null, error: 'permission_denied' }]);
 });
 
 test('look_window: every refusal is reported so agentd can ask for an image', async () => {
@@ -420,7 +458,7 @@ test('look_window: every refusal is reported so agentd can ask for an image', as
     [{ helper: { 'ax.window_text': axText('  \n') } }, 'ax_empty'],
   ];
   for (const [o, failure] of cases) {
-    const s = await running(o);
+    const s = await running({ policy: WINDOW_TEXT, ...o });
     await s.request('text', 77, 'look_window');
     assert.ok(s.logs.includes(`CAPTURE request_blocked id=r1 reason=${failure}`), failure);
     assert.deepEqual(imagePosts(s.posts), [{ request_id: 'r1', window_id: 77, url_host: null, error: failure }], failure);
@@ -563,7 +601,7 @@ test('selection: secure input, incognito and the blacklist refuse before reading
     [{ helper: { 'attention.sample': ok({ secure_input: true }) } }, sample(), '安全输入中，没有读取'],
     [{}, sample({ frontIncognito: true }), '无痕窗口，没有读取'],
     [{ blacklist: parseBlacklist({ mode: 'deny', app_names: ['TextEdit'] }) }, sample(), '这个窗口在黑名单里，没有读取'],
-    [{}, sample({ front: null }), '没找到前台窗口，没有读取'],
+    [{ helper: { 'attention.sample': ok({ secure_input: false, front: null }) } }, sample({ front: null }), '没找到前台窗口，没有读取'],
   ];
   for (const [o, s0, message] of cases) {
     const s = setup(o);
@@ -571,4 +609,39 @@ test('selection: secure input, incognito and the blacklist refuse before reading
     assert.deepEqual((await s.c.readSelection()).decision, { kind: 'refused', message });
     assert.ok(!s.ops().includes('ax.selected_text') && !s.ops().includes('clipboard.read'));
   }
+});
+
+const CHROME_FRONT = (windowId: number) => ({ pid: 900, name: 'Google Chrome', app_id: 'com.google.Chrome',
+  window: { window_id: windowId, pid: 900, bounds: { x: 0, y: 25, width: 800, height: 600 }, title: null, app_name: 'Google Chrome',
+    app_id: 'com.google.Chrome' } });
+const chromeWindow = (windowId: number) => win({ app: 'Google Chrome', bundleId: 'com.google.Chrome', pid: 900, windowId, title: null,
+  urlHost: 'example.com' });
+
+test('selection: the window in front when the hotkey is pressed decides, not the last beat', async () => {
+  const s = setup({ helper: { 'attention.sample': ok({ secure_input: false, front: CHROME_FRONT(91) }),
+    'ax.selected_text': ok({ text: 'secret' }), 'clipboard.read': ok({ items: [{ types: ['public.utf8-plain-text'], text: 'copied' }] }) } });
+  await s.beat(sample({ front: chromeWindow(90), frontIncognito: false }));
+  const pending = s.c.readSelection();
+  await settle();
+  await s.beat(sample({ front: chromeWindow(91), frontIncognito: true }));
+  assert.deepEqual((await pending).decision, { kind: 'refused', message: '无痕窗口，没有读取' });
+  assert.ok(!s.ops().includes('ax.selected_text') && !s.ops().includes('clipboard.read'));
+  const t = setup({ helper: { 'attention.sample': ok({ secure_input: false, front: CHROME_FRONT(91) }) } });
+  await t.beat(sample({ front: chromeWindow(90), frontIncognito: false }));
+  const unconfirmed = t.c.readSelection();
+  await settle();
+  await t.advance(2500);
+  assert.equal((await unconfirmed).decision.kind, 'refused');
+  assert.ok(!t.ops().includes('ax.selected_text') && !t.ops().includes('clipboard.read'));
+});
+
+test('selection: the front window is checked again before the clipboard is read', async () => {
+  const s = setup({ helper: { 'clipboard.read': ok({ items: [{ types: ['public.utf8-plain-text'], text: 'copied' }] }) } });
+  s.helper['ax.selected_text'] = () => {
+    s.helper['attention.sample'] = ok({ secure_input: true, front: TEXTEDIT_FRONT });
+    return ok({ text: null });
+  };
+  await s.beat();
+  assert.deepEqual((await s.c.readSelection()).decision, { kind: 'refused', message: '安全输入中，没有读取' });
+  assert.ok(!s.ops().includes('clipboard.read'));
 });

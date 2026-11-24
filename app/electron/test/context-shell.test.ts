@@ -211,15 +211,15 @@ test('the automatic reads follow the attention sampler\'s answer; without a samp
     s.context!.agentd(true);
     await s.beat();
     await s.tick();
-    assert.equal(reads(), 1, 'the first read of the window');
+    assert.equal(reads(), 0, 'not even the first read of the window while locked');
     await s.beat();
     await s.advance(60_000);
     await s.tick();
-    assert.equal(reads(), 1, 'locked');
+    assert.equal(reads(), 0, 'locked');
     s.state.attention = null;
     await s.advance(1000);
     await s.tick();
-    assert.equal(reads(), 2, 'no sampler: present, and the absence it saw is over');
+    assert.equal(reads(), 1, 'no sampler: present, and the absence it saw is over');
   } finally {
     s.context!.stop();
     s.done();

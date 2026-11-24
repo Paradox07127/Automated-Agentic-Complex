@@ -70,7 +70,8 @@ function setup(o: { argv?: string[]; capturer?: boolean; settings?: Record<strin
     helper: {
       request: async (op) => {
         requests.push(op);
-        if (op === 'attention.sample') return ok({ secure_input: o.secure ?? false });
+        if (op === 'attention.sample') return ok({ secure_input: o.secure ?? false, front: { pid: 702, name: 'TextEdit', app_id: 'com.apple.TextEdit',
+          window: { window_id: 640, pid: 702, bounds: { x: 0, y: 25, width: 800, height: 600 }, title: 'notes.txt' } } });
         if (op === 'ax.selected_text') return ok({ text: o.selected === undefined ? 'selected words' : o.selected });
         if (op === 'clipboard.read') return ok({ items: [] });
         return { ok: false, error: { code: 'unsupported' } };

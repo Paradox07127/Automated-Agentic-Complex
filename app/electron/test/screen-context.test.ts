@@ -4,9 +4,9 @@ import { test } from 'node:test';
 import { type AttentionSample, type AttentionWindow, parseBlacklist } from '../src/common/attention.ts';
 import type { CaptureWindow } from '../src/common/capture-rules.ts';
 import {
-  allowsAutomaticText, allowsOCR, allowsRequest, axObservation, BrowserWindowMemory, captureFailure, captureTargetChange,
+  allowsAutomaticText, allowsOCR, allowsRequest, axObservation, captureFailure, captureTargetChange,
   CaptureTriggers, ContextConsent, contextImageBody, contextPolicy, contextTextBodies, DEFAULT_CONTEXT_POLICY, decideSelection,
-  decodeWindows, feedRequest, firstClipItem, imageFailureBody, imageResult, lookResult, lookTitle, type Observation, ocrObservation,
+  decodeWindows, feedRequest, firstClipItem, imageFailureBody, imageResult, listedBlockReason, lookResult, lookTitle, type Observation, ocrObservation,
   OwnCapture, revokedKinds, selectionBlockReason, textPages, textResult, windowNow, windowReadPlan,
 } from '../src/common/screen-context.ts';
 
@@ -109,6 +109,14 @@ test('CaptureTriggers: no reads while agentd says the user is away, locked or as
   }
 });
 
+test('CaptureTriggers: while the user is away not even a window or focus change reads', () => {
+  const t = new CaptureTriggers();
+  t.update(0, 1, 'a', null, HERE);
+  assert.equal(t.update(1, 2, 'b', 'f', gone('away')), false);
+  assert.equal(t.update(2, 2, 'b', 'f2', gone('away')), false);
+  assert.equal(t.update(3, 2, 'b', 'f2', HERE), true, 'the return');
+});
+
 test('CaptureTriggers: an AX notification reads 2 s after it, 5 s after the last read', () => {
   const t = new CaptureTriggers();
   t.update(0, 1, 'a', null, HERE);
@@ -121,18 +129,6 @@ test('CaptureTriggers: an AX notification reads 2 s after it, 5 s after the last
   assert.equal(t.update(15, 1, 'a', null, HERE), true);
 });
 
-test('BrowserWindowMemory: a browser window never seen in front is unknown, another app is not incognito', () => {
-  const m = new BrowserWindowMemory();
-  assert.deepEqual(m.lookup(9, 'com.google.Chrome'), { incognito: null, urlHost: null });
-  assert.deepEqual(m.lookup(9, 'com.apple.TextEdit'), { incognito: false, urlHost: null });
-  m.record(9, true, 'example.com');
-  assert.deepEqual(m.lookup(9, 'com.google.Chrome'), { incognito: true, urlHost: 'example.com' });
-});
-
-test('BrowserWindowMemory: a Windows packaged app\'s window never seen in front is unknown', () => {
-  assert.deepEqual(new BrowserWindowMemory().lookup(9, 'Vendor.Browser_abc123!App'), { incognito: null, urlHost: null });
-});
-
 // ---- Windows
 
 const listed = {
@@ -143,19 +139,22 @@ const listed = {
   ],
 };
 
-test('captureWindowNow: the listed window with the front sample’s browser state, else the remembered one', () => {
+test('captureWindowNow: the listed window with the front sample’s browser state; a background browser window is unknown', () => {
   const windows = decodeWindows(listed);
   assert.equal(windows.length, 2);
-  const m = new BrowserWindowMemory();
-  const front = windowNow(windows, 640, sample({ front: win({ urlHost: null }) }), m, false);
+  const front = windowNow(windows, 640, sample({ front: win({ urlHost: null }) }), false);
   assert.deepEqual(front?.window, cw());
   assert.deepEqual(front?.bounds, { x: 0, y: 25, width: 800, height: 600 });
-  const chrome = windowNow(windows, 77, sample(), m, true);
-  assert.equal(chrome?.window.incognito, null, 'a browser window never seen in front');
+  const chromeFront = sample({ front: win({ app: 'Google Chrome', bundleId: 'com.google.Chrome', pid: 900, windowId: 77, urlHost: 'bank.com' }) });
+  assert.equal(windowNow(windows, 77, chromeFront, false)?.window.window.urlHost, 'bank.com');
+  const chrome = windowNow(windows, 77, sample(), true);
+  assert.equal(chrome?.window.incognito, null, 'whatever it showed while in front');
+  assert.equal(chrome?.window.window.urlHost, null);
   assert.equal(chrome?.window.secureInput, true);
-  m.record(77, false, 'bank.com');
-  assert.equal(windowNow(windows, 77, sample(), m, false)?.window.window.urlHost, 'bank.com');
-  assert.equal(windowNow(windows, 5, sample(), m, false), null);
+  assert.equal(windowNow(windows, 640, sample({ front: null }), false)?.window.incognito, false, 'not a browser');
+  const packaged = decodeWindows({ windows: [{ ...listed.windows[0], app_id: 'Vendor.Browser_abc123!App' }] });
+  assert.equal(windowNow(packaged, 640, sample({ front: null }), false)?.window.incognito, null, 'a Windows packaged app');
+  assert.equal(windowNow(windows, 5, sample(), false), null);
 });
 
 test('captureTargetChange: gone, now blocked, incognito changed, another page', () => {
@@ -170,12 +169,25 @@ test('captureTargetChange: gone, now blocked, incognito changed, another page', 
   assert.equal(captureTargetChange(pinned, cw({ urlHost: 'other.com' }), NO_RULES, []), 'capture_failed');
 });
 
-test('WindowReadPlan.decide: gone, not allowed or blocked, no Accessibility, else AX', () => {
-  assert.equal(windowReadPlan(false, true, null, true), 'window_gone');
-  assert.equal(windowReadPlan(true, false, null, true), 'permission_denied');
-  assert.equal(windowReadPlan(true, true, 'blacklisted', true), 'permission_denied');
-  assert.equal(windowReadPlan(true, true, null, false), 'ax_unavailable');
-  assert.equal(windowReadPlan(true, true, null, true), 'ax');
+test('WindowReadPlan.decide: gone, not allowed, blocked or a background window at the focused level, no Accessibility, else the level', () => {
+  const focused = policy({ allowText: true }), whole = policy({ allowText: true, level: 'window' });
+  assert.equal(windowReadPlan(false, whole, true, null, true), 'window_gone');
+  assert.equal(windowReadPlan(true, policy(), true, null, true), 'permission_denied');
+  assert.equal(windowReadPlan(true, policy({ allowText: true, level: 'status' }), true, null, true), 'permission_denied');
+  assert.equal(windowReadPlan(true, whole, true, 'blacklisted', true), 'permission_denied');
+  assert.equal(windowReadPlan(true, focused, false, null, true), 'permission_denied');
+  assert.equal(windowReadPlan(true, whole, true, null, false), 'ax_unavailable');
+  assert.deepEqual(windowReadPlan(true, focused, true, null, true), { level: 'focused' });
+  assert.deepEqual(windowReadPlan(true, whole, false, null, true), { level: 'window' });
+});
+
+test('listedBlockReason: a listed window without its title is blocked while a title rule exists', () => {
+  assert.equal(listedBlockReason(cw({ title: null }), rules, []), 'blacklisted');
+  assert.equal(listedBlockReason(cw({ title: 'notes.txt' }), rules, []), null);
+  assert.equal(listedBlockReason(cw({ title: null }), NO_RULES, []), null);
+  assert.equal(listedBlockReason(cw({ title: null }), parseBlacklist({ mode: 'allow', title_patterns: ['^Private'],
+    allow: { bundle_ids: ['com.apple.TextEdit'] } }), []), null, 'allow mode reads no title rule');
+  assert.equal(listedBlockReason(cw({ bundleId: 'com.secret' }), rules, []), 'blacklisted');
 });
 
 test('captureFailure: capture.window errors as agentd failures', () => {
@@ -238,12 +250,23 @@ test('OCR.recognizeObservation: lines as OCRText nodes, boxes moved to a bottom-
   const o = ocrObservation({ text: 'Hello\nWorld', languages: ['en-US'], lines: [
     { text: 'Hello', bounds: { x: 0.1, y: 0.1, width: 0.5, height: 0.2 }, confidence: 0.9 },
     { text: 'World', bounds: { x: 0.1, y: 0.5, width: 0.4, height: 0.1 } },
-  ] }, 'ocr-1');
+  ] }, 'ocr-1', false);
   assert.equal(o.text, 'Hello\nWorld');
   assert.deepEqual(o.nodes.map((n) => [n.id, n.parent, n.role, n.value]), [[0, -1, 'OCRText', 'Hello'], [1, -1, 'OCRText', 'World']]);
   assert.deepEqual(o.nodes[0]?.bounds?.map((v) => Math.round(v * 100) / 100), [0.1, 0.7, 0.5, 0.2]);
   assert.deepEqual(o.coverage, { status: 'partial', scope: 'window_image_ocr_normalized_bottom_left', reasons: ['ocr_can_miss_visual_content'],
     capturedNodes: 2, capturedChars: 11, nextCursor: null });
+});
+
+test('OCR.recognizeObservation: the text and each line redacted when redact_sensitive is on, chars counted after', () => {
+  const result = { text: 'mail a@b.com', lines: [{ text: 'mail a@b.com', bounds: { x: 0, y: 0, width: 1, height: 0.5 } }] };
+  const on = ocrObservation(result, 'ocr-1', true);
+  assert.equal(on.nodes[0]?.value, 'mail [邮箱已遮蔽]');
+  assert.equal(on.text, 'mail [邮箱已遮蔽]');
+  assert.equal(on.coverage.capturedChars, [...'mail [邮箱已遮蔽]'].length);
+  const built = contextTextBodies(cw(), on.text, 'ocr', 'r1', on, true, NO_RULES, []);
+  assert.ok(built && !JSON.stringify(built.bodies).includes('a@b.com'));
+  assert.equal(ocrObservation(result, 'ocr-1', false).nodes[0]?.value, 'mail a@b.com');
 });
 
 test('observationTextPages: 64000-scalar pages, an empty text as one page', () => {
@@ -333,6 +356,8 @@ test('lookNow: the front title, else its app', () => {
 
 // ---- Selection
 
+const pass = async () => null;
+
 test('SelectionReadPolicy.blockReason: no window, blocked, and incognito whatever the blacklist says', () => {
   assert.equal(selectionBlockReason(null, NO_RULES, []), 'no_window');
   assert.equal(selectionBlockReason(cw({ bundleId: 'com.secret' }), rules, []), 'blacklisted');
@@ -345,25 +370,35 @@ test('SelectionReadPolicy.decide: secure input and a block refuse before anythin
   let reads = 0;
   const ax = async () => { reads += 1; return 'x'; };
   const clip = async () => { reads += 1; return { types: ['public.utf8-plain-text'], text: 'y' }; };
-  assert.deepEqual(await decideSelection(true, null, ax, clip, 10), { kind: 'refused', message: '安全输入中，没有读取' });
-  assert.deepEqual(await decideSelection(false, 'incognito', ax, clip, 10), { kind: 'refused', message: '无痕窗口，没有读取' });
+  assert.deepEqual(await decideSelection(true, null, ax, pass, clip, 10), { kind: 'refused', message: '安全输入中，没有读取' });
+  assert.deepEqual(await decideSelection(false, 'incognito', ax, pass, clip, 10), { kind: 'refused', message: '无痕窗口，没有读取' });
   assert.equal(reads, 0);
 });
 
 test('SelectionReadPolicy.decide: the selection, else the clipboard, cut to the limit; concealed items are not read', async () => {
   const none = async () => null;
-  assert.deepEqual(await decideSelection(false, null, async () => 'abcdef', none, 4),
+  assert.deepEqual(await decideSelection(false, null, async () => 'abcdef', pass, none, 4),
     { kind: 'read', read: { source: 'selection', text: 'abcd', truncated: true } });
   let clipboardRead = false;
-  await decideSelection(false, null, async () => 'sel', async () => { clipboardRead = true; return null; }, 10);
+  await decideSelection(false, null, async () => 'sel', pass, async () => { clipboardRead = true; return null; }, 10);
   assert.equal(clipboardRead, false, 'the clipboard is read only without a selection');
-  assert.deepEqual(await decideSelection(false, null, async () => '  ', async () => ({ types: ['public.utf8-plain-text'], text: 'clip' }), 10),
+  assert.deepEqual(await decideSelection(false, null, async () => '  ', pass, async () => ({ types: ['public.utf8-plain-text'], text: 'clip' }), 10),
     { kind: 'read', read: { source: 'clipboard', text: 'clip', truncated: false } });
-  assert.deepEqual(await decideSelection(false, null, none, async () => ({ types: ['public.utf8-plain-text', 'org.nspasteboard.ConcealedType'], text: 'pw' }), 10),
+  assert.deepEqual(await decideSelection(false, null, none, pass, async () => ({ types: ['public.utf8-plain-text', 'org.nspasteboard.ConcealedType'], text: 'pw' }), 10),
     { kind: 'empty' });
-  assert.deepEqual(await decideSelection(false, null, none, async () => ({ types: ['org.nspasteboard.TransientType'], text: 'otp' }), 10),
+  assert.deepEqual(await decideSelection(false, null, none, pass, async () => ({ types: ['org.nspasteboard.TransientType'], text: 'otp' }), 10),
     { kind: 'empty' });
-  assert.deepEqual(await decideSelection(false, null, none, none, 10), { kind: 'empty' });
+  assert.deepEqual(await decideSelection(false, null, none, pass, none, 10), { kind: 'empty' });
+});
+
+test('SelectionReadPolicy.decide: a block found after the selection read refuses before the clipboard', async () => {
+  let clipboardRead = false;
+  const clip = async () => { clipboardRead = true; return { types: ['public.utf8-plain-text'], text: 'y' }; };
+  assert.deepEqual(await decideSelection(false, null, async () => null, async () => 'secure_input', clip, 10),
+    { kind: 'refused', message: '安全输入中，没有读取' });
+  assert.deepEqual(await decideSelection(false, null, async () => 'sel', async () => 'incognito', clip, 10),
+    { kind: 'refused', message: '无痕窗口，没有读取' });
+  assert.equal(clipboardRead, false);
 });
 
 test('clipboard.read: the first clip_item; a concealed clipboard has none', () => {

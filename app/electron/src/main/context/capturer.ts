@@ -2,15 +2,16 @@
 // runs, the front window's AX text goes to `POST /context/text` on its own triggers, and the feed's `request`s are answered
 // with a window's text, OCR text or screenshot (`/context/text`, `/context/image`). Logs metadata only, never window text,
 // titles or URLs.
-import type { AttentionSample, BlacklistRules, Rect } from '../../common/attention.ts';
+import { type AttentionSample, type BlacklistRules, decodeAttention, type Rect } from '../../common/attention.ts';
 import { type CaptureWindow, captureBlockReason } from '../../common/capture-rules.ts';
 import type { ShellPlatform } from '../../common/config.ts';
 import type { HelperAnswer } from '../../common/push-to-talk.ts';
 import {
-  type AgentdReply, allowsAutomaticText, allowsOCR, allowsRequest, axObservation, BrowserWindowMemory, type CaptureFailure,
+  type AgentdReply, allowsAutomaticText, allowsOCR, allowsRequest, axObservation, type CaptureFailure,
   captureFailure, captureTargetChange, CaptureTriggers, ContextConsent, type ContextPolicy, type ContextResult, contextImageBody,
   contextTextBodies, decideSelection, decodeWindows, type FeedRequest, feedRequest, firstClipItem, frontWindow, imageFailureBody,
-  imageResult, type LookResult, lookResult, lookTitle, namedWindow, type Observation, ocrObservation, OwnCapture, resultText,
+  imageResult, listedBlockReason, type LookResult, lookResult, lookTitle, namedWindow, type Observation, ocrObservation, OwnCapture,
+  resultText,
   revokedKinds, scalarCount, SELECTION_LIMIT, selectionBlockReason, type SelectionDecision, textResult, windowNow, windowReadPlan,
 } from '../../common/screen-context.ts';
 import type { UserAnswer } from '../attention/sampler.ts';
@@ -49,7 +50,6 @@ const WATCH_ID = 'context';
 export class ContextCapturer {
   private readonly ports: ContextPorts;
   private readonly consent: ContextConsent;
-  private readonly memory = new BrowserWindowMemory();
   private readonly own = new OwnCapture();
   private triggers = new CaptureTriggers();
   /** The last accepted signature per window, for automatic reads. */
@@ -141,11 +141,10 @@ export class ContextCapturer {
   }
 
   /** For `hotkey_selection`: the front app's selected text, else the clipboard's, after the secure
-   *  input, blacklist and incognito checks; and the front app's name. */
+   *  input, blacklist and incognito checks of the window in front now, made again after the selection read; and the front
+   *  app's name. */
   async readSelection(): Promise<{ decision: SelectionDecision; app: string | null }> {
-    const secureInput = await this.secureInputNow();
-    const sample = secureInput ? null : this.sample;
-    const front = sample?.front ? { window: sample.front, incognito: sample.frontIncognito, secureInput } : null;
+    const { secureInput, front } = await this.frontNow();
     const pid = front?.window.pid ?? null;
     const decision = await decideSelection(secureInput,
       secureInput ? null : selectionBlockReason(front, this.ports.blacklist(), this.ports.ownPids()),
@@ -153,6 +152,12 @@ export class ContextCapturer {
         if (pid === null) return null;
         const r = await this.ports.helper.request('ax.selected_text', { pid });
         return r.ok && typeof r.result.text === 'string' ? r.result.text : null;
+      },
+      async () => {
+        const again = await this.frontNow();
+        if (again.secureInput) return 'secure_input';
+        if (again.front?.window.windowId !== front?.window.windowId || again.front?.window.pid !== pid) return 'no_window';
+        return selectionBlockReason(again.front, this.ports.blacklist(), this.ports.ownPids());
       },
       async () => {
         const r = await this.ports.helper.request('clipboard.read', { first_only: true });
@@ -198,6 +203,20 @@ export class ContextCapturer {
     if (!r.ok && pid !== null) this.ports.log(`CAPTURE ax.watch failed pid=${pid} code=${r.error.code}`);
   }
 
+  /** The window in front now by the helper's `attention.sample`, with the browser state of the attention beat that shows
+   *  the same window (the last one, else the next); null when no beat does. A helper that does not answer counts as
+   *  secure input. */
+  private async frontNow(): Promise<{ secureInput: boolean; front: CaptureWindow | null }> {
+    const r = await this.ports.helper.request('attention.sample', {});
+    if (!r.ok) return { secureInput: true, front: null };
+    const raw = decodeAttention(r.result);
+    if (raw.secureInput) return { secureInput: true, front: null };
+    const pid = raw.front?.pid ?? null, windowId = raw.front?.window?.windowId ?? null;
+    const shows = (s: AttentionSample | null) => s !== null && (s.front?.pid ?? null) === pid && (s.front?.windowId ?? null) === windowId;
+    const s = shows(this.sample) ? this.sample : await this.nextSample();
+    return { secureInput: false, front: s !== null && shows(s) ? frontWindow({ ...s, secureInput: false }) : null };
+  }
+
   /** IsSecureEventInputEnabled through `attention.sample`; a helper that does not answer counts as secure input. */
   private async secureInputNow(): Promise<boolean> {
     const r = await this.ports.helper.request('attention.sample', {});
@@ -224,7 +243,7 @@ export class ContextCapturer {
     const list = await this.ports.helper.request('windows.list', { include_titles: true });
     if (!list.ok) return null;
     const secureInput = await this.secureInputNow();
-    return windowNow(decodeWindows(list.result), windowId, this.sample, this.memory, secureInput);
+    return windowNow(decodeWindows(list.result), windowId, this.sample, secureInput);
   }
 
   /** The next attention beat; null when none comes in time (locked, asleep or the sampler stopped). */
@@ -276,7 +295,6 @@ export class ContextCapturer {
       return;
     }
     const windowId = front.windowId;
-    this.memory.record(windowId, sample.frontIncognito, front.urlHost);
     const window: CaptureWindow = { window: front, incognito: sample.frontIncognito, secureInput: sample.secureInput };
     void this.observe(captureBlockReason(window, this.ports.blacklist(), this.ports.ownPids()) === null ? front.pid : null);
     if (this.sampling) return;
@@ -333,10 +351,10 @@ export class ContextCapturer {
     return read.observation;
   }
 
-  /** The window whose CG bounds are `bounds`, front or not; `matched` is false when the helper found no single such window. */
-  private async axWindowText(pid: number, bounds: unknown, redact: boolean): Promise<{ matched: boolean; observation: Observation | null }> {
+  /** The window whose CG bounds are `bounds` at `level`; `matched` is false when the helper found no single such window. */
+  private async axWindowText(pid: number, bounds: unknown, level: string, redact: boolean): Promise<{ matched: boolean; observation: Observation | null }> {
     if (this.ports.ownPids().includes(pid)) return { matched: false, observation: null };
-    const r = await this.ports.helper.request('ax.window_text', { pid, level: 'window', window_bounds: bounds });
+    const r = await this.ports.helper.request('ax.window_text', { pid, level, window_bounds: bounds });
     if (!r.ok) return { matched: false, observation: null };
     const read = axObservation(r.result, redact);
     return read.matched ? read : { matched: false, observation: null };
@@ -371,7 +389,7 @@ export class ContextCapturer {
     }
     const window = found.window, pid = found.window.window.pid!;
     const isFront = this.sample?.front?.windowId === request.windowId;
-    const reason = captureBlockReason(window, this.ports.blacklist(), this.ports.ownPids());
+    const reason = listedBlockReason(window, this.ports.blacklist(), this.ports.ownPids());
     if (reason !== null) {
       log(`CAPTURE request_blocked id=${id} reason=${reason}`);
       if (request.mode === 'image') this.reportFailure(request, window, 'permission_denied');
@@ -468,7 +486,7 @@ export class ContextCapturer {
         return;
       }
       if (generation !== this.consent.generation || !allowsOCR(this.policy)) return;
-      const observation = ocrObservation(r.result, this.ports.newId());
+      const observation = ocrObservation(r.result, this.ports.newId(), this.policy.redact);
       // /context/text has no failure report, so a changed target only drops the text.
       const change = captureTargetChange(window, (await this.windowNow(request.windowId))?.window ?? null, this.ports.blacklist(),
         this.ports.ownPids());
@@ -487,20 +505,21 @@ export class ContextCapturer {
     }
   }
 
-  /** Reads the whole window agentd named, front or not, and reports every refusal so agentd can ask for an image. */
+  /** Reads the window agentd named at the level the policy allows for it, and reports every refusal so agentd can ask
+   *  for an image. */
   private async readWindowText(request: FeedRequest): Promise<void> {
     const id = request.requestId, rules = this.ports.blacklist(), ownPids = this.ports.ownPids();
     const found = await this.windowNow(request.windowId);
     const window = found?.window ?? namedWindow(request.windowId);
-    const plan = windowReadPlan(found !== null, allowsRequest(this.policy, 'text'),
-      found ? captureBlockReason(found.window, rules, ownPids) : null, await this.axTrusted());
-    if (plan !== 'ax' || !found) {
-      const failure = plan === 'ax' ? 'window_gone' : plan;
+    const plan = windowReadPlan(found !== null, this.policy, this.sample?.front?.windowId === request.windowId,
+      found ? listedBlockReason(found.window, rules, ownPids) : null, await this.axTrusted());
+    if (typeof plan === 'string' || !found) {
+      const failure = typeof plan === 'string' ? plan : 'window_gone';
       this.ports.log(`CAPTURE request_blocked id=${id} reason=${failure}`);
       return this.reportFailure(request, window, failure);
     }
     const generation = this.consent.generation;
-    const read = await this.axWindowText(found.window.window.pid!, found.bounds, this.policy.redact);
+    const read = await this.axWindowText(found.window.window.pid!, found.bounds, plan.level, this.policy.redact);
     let refusal: CaptureFailure | null;
     if (!read.matched) refusal = 'ax_unavailable';
     else if (read.observation === null || read.observation.text.trim() === '') refusal = 'ax_empty';

@@ -1,7 +1,7 @@
 // The screen context capture's rules over the platform helper's answers (CONTRACT §7.2, §7.4–7.6, §7.10), and the bodies of agentd's `/context/text`, `/context/image` and `/look`.
 // The privacy rules are attention.ts's and capture-rules.ts's; this file only applies them.
 import { type AttentionSample, type BlacklistRules, decodeRect, mayBePrivate, type RawWindow, type Rect, redactText } from './attention.ts';
-import { type CaptureWindow, captureBlockReason, isSecureNode } from './capture-rules.ts';
+import { type BlockReason, type CaptureWindow, captureBlockReason, isSecureNode } from './capture-rules.ts';
 
 type Obj = Record<string, unknown>;
 const obj = (v: unknown): Obj | null => (typeof v === 'object' && v !== null && !Array.isArray(v) ? v as Obj : null);
@@ -113,19 +113,20 @@ export class CaptureTriggers {
     this.app = frontApp;
     this.focus = focusedElement;
     this.absent = user.absence !== null;
+    if (nowAway) return false;
     if (changed) {
       this.lastRead = now;
       this.step = 0;
       this.notifiedAt = null;
       return true;
     }
-    if (!nowAway && this.notifiedAt !== null && now - this.notifiedAt >= NOTIFICATION_DELAY && now - this.lastRead >= BACKOFF[0]!) {
+    if (this.notifiedAt !== null && now - this.notifiedAt >= NOTIFICATION_DELAY && now - this.lastRead >= BACKOFF[0]!) {
       this.lastRead = now;
       this.step = 0;
       this.notifiedAt = null;
       return true;
     }
-    if (!nowAway && now - this.lastRead >= BACKOFF[this.step]!) {
+    if (now - this.lastRead >= BACKOFF[this.step]!) {
       this.lastRead = now;
       this.step = Math.min(this.step + 1, BACKOFF.length - 1);
       this.notifiedAt = null;
@@ -145,22 +146,6 @@ export class CaptureTriggers {
   }
 }
 
-/** Incognito state and URL host per window id, learned from front-window samples, because only the front window's can be read. */
-export class BrowserWindowMemory {
-  private readonly seen = new Map<number, { incognito: boolean | null; urlHost: string | null }>();
-
-  record(windowId: number, incognito: boolean | null, urlHost: string | null): void {
-    // Window ids only grow; forgetting all of them errs towards blocking.
-    if (this.seen.size >= 1000) this.seen.clear();
-    this.seen.set(windowId, { incognito, urlHost });
-  }
-
-  /** A browser window never seen in front reads as unknown, which blocks it. */
-  lookup(windowId: number, bundleId: string | null): { incognito: boolean | null; urlHost: string | null } {
-    return this.seen.get(windowId) ?? { incognito: mayBePrivate(bundleId) ? null : false, urlHost: null };
-  }
-}
-
 // ---- The window a request names
 
 /** `windows.list`'s windows (CONTRACT §7.12 `window`), front to back; malformed entries are skipped. */
@@ -177,19 +162,19 @@ export function decodeWindows(result: Obj): RawWindow[] {
   return out;
 }
 
-/** ContextCapturer.captureWindowNow: the listed window `windowId` with the browser state the front sample gives, or the
- *  one last seen for it; null when it is not on screen. `bounds` is CG global, as `ax.window_text`'s `window_bounds`. */
+/** ContextCapturer.captureWindowNow: the listed window `windowId` with the browser state the front sample gives; null
+ *  when it is not on screen. Only the front tab can be read, so a background window that may be private reads as unknown.
+ *  `bounds` is CG global, as `ax.window_text`'s `window_bounds`. */
 export function windowNow(windows: readonly RawWindow[], windowId: number, sample: AttentionSample | null,
-  memory: BrowserWindowMemory, secureInput: boolean): { window: CaptureWindow; bounds: Rect } | null {
+  secureInput: boolean): { window: CaptureWindow; bounds: Rect } | null {
   const w = windows.find((x) => x.windowId === windowId);
   if (!w) return null;
   const isFront = sample?.front?.windowId === windowId;
-  const remembered = memory.lookup(windowId, w.appId);
   return {
     window: {
       window: { app: w.appName, bundleId: w.appId, pid: w.pid, windowId, title: w.title,
-        urlHost: isFront ? sample?.front?.urlHost ?? null : remembered.urlHost },
-      incognito: isFront ? sample?.frontIncognito ?? null : remembered.incognito,
+        urlHost: isFront ? sample?.front?.urlHost ?? null : null },
+      incognito: isFront ? sample?.frontIncognito ?? null : mayBePrivate(w.appId) ? null : false,
       secureInput,
     },
     bounds: w.bounds,
@@ -225,13 +210,22 @@ export function captureFailure(code: string): CaptureFailure {
   return code === 'permission_denied' || code === 'window_gone' ? code : 'capture_failed';
 }
 
-/** For a `look_window` text request: `ax`, or the failure to report. Never OCR: agentd asks for an
- *  image itself when AX can't read the window. `block` is captureBlockReason's result. */
-export function windowReadPlan(windowFound: boolean, allowsText: boolean, block: string | null, axTrusted: boolean): 'ax' | CaptureFailure {
+/** captureBlockReason for a `windows.list` window, which has no title without the Screen Recording permission: a title
+ *  rule that can't be checked blocks it. */
+export function listedBlockReason(w: CaptureWindow, rules: BlacklistRules, ownPids: readonly number[]): BlockReason | null {
+  return captureBlockReason(w, rules, ownPids)
+    ?? (rules.mode === 'deny' && rules.titles.length > 0 && w.window.title === null ? 'blacklisted' : null);
+}
+
+/** For a `look_window` text request: the AX level the policy allows for it, or the failure to report. The focused level
+ *  reads only the front window. Never OCR: agentd asks for an image itself when AX can't read the window. `block` is
+ *  listedBlockReason's result. */
+export function windowReadPlan(windowFound: boolean, p: ContextPolicy, isFront: boolean, block: string | null,
+  axTrusted: boolean): { level: 'focused' | 'window' } | CaptureFailure {
   if (!windowFound) return 'window_gone';
-  if (!allowsText || block !== null) return 'permission_denied';
+  if (!p.allowText || p.level === 'status' || block !== null || (p.level === 'focused' && !isFront)) return 'permission_denied';
   if (!axTrusted) return 'ax_unavailable';
-  return 'ax';
+  return { level: p.level };
 }
 
 // ---- Feed requests
@@ -303,19 +297,19 @@ export function axObservation(result: Obj, redact: boolean): { matched: boolean;
   };
 }
 
-/** An `ocr.recognize` answer. The helper's line boxes are normalized with the
- *  origin at the top left; agentd reads them with the origin at the bottom left (CONTRACT §7.6). The text is not redacted
- *  here. */
-export function ocrObservation(result: Obj, snapshotId: string): Observation {
+/** An `ocr.recognize` answer: the text and each line redacted when `redact`, the counts taken after. The helper's line
+ *  boxes are normalized with the origin at the top left; agentd reads them with the origin at the bottom left (CONTRACT §7.6). */
+export function ocrObservation(result: Obj, snapshotId: string, redact: boolean): Observation {
+  const safe = (v: string) => (redact ? redactText(v) : v);
   const nodes: ObservationNode[] = [];
   for (const v of Array.isArray(result.lines) ? result.lines : []) {
     const o = obj(v);
     const text = o && str(o.text), b = o && decodeRect(o.bounds);
     if (text === null) continue;
-    nodes.push({ id: nodes.length, parent: -1, role: 'OCRText', label: null, value: text, selection: null,
+    nodes.push({ id: nodes.length, parent: -1, role: 'OCRText', label: null, value: safe(text), selection: null,
       bounds: b === null ? null : [b.x, 1 - b.y - b.height, b.width, b.height] });
   }
-  const text = str(result.text) ?? '';
+  const text = safe(str(result.text) ?? '');
   return {
     snapshotId, text, nodes,
     coverage: { status: 'partial', scope: 'window_image_ocr_normalized_bottom_left', reasons: ['ocr_can_miss_visual_content'],
@@ -488,12 +482,15 @@ function clip(text: string, source: SelectionRead['source'], limit: number): Sel
   return scalarCount(text) > limit ? { source, text: prefix(text, limit), truncated: true } : { source, text, truncated: false };
 }
 
-/** `axText` and `clipboard` are called only once the checks before them pass, each at most once. */
+/** `axText`, `recheck` and `clipboard` are called only once the checks before them pass, each at most once. `recheck`
+ *  gives the block reason of the front window after the selection read, as selectionBlockReason or `secure_input`. */
 export async function decideSelection(secureInput: boolean, blockReason: string | null, axText: () => Promise<string | null>,
-  clipboard: () => Promise<ClipItem | null>, limit: number): Promise<SelectionDecision> {
+  recheck: () => Promise<string | null>, clipboard: () => Promise<ClipItem | null>, limit: number): Promise<SelectionDecision> {
   if (secureInput) return { kind: 'refused', message: selectionMessage('secure_input') };
   if (blockReason !== null) return { kind: 'refused', message: selectionMessage(blockReason) };
   const text = await axText();
+  const again = await recheck();
+  if (again !== null) return { kind: 'refused', message: selectionMessage(again) };
   if (text !== null && !blank(text)) return { kind: 'read', read: clip(text, 'selection', limit) };
   const item = await clipboard();
   if (!item || item.types.some((t) => SKIPPED_TYPES.includes(t)) || item.text === null || blank(item.text)) return { kind: 'empty' };
