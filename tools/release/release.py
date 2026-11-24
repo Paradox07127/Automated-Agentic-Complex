@@ -157,9 +157,7 @@ def build(args,root=ROOT):
         raise ValueError('Release profile differs from the fingerprinted profile; set '+PROFILE_ENV+'='+str(profile_path))
     gate=gate_error=None
     try:gate=gate_receipt.require(root,fingerprint,getattr(args,'gate_receipt',None))
-    except ValueError as e:
-        if not args.check:raise
-        gate_error=str(e)
+    except ValueError as e:gate_error=str(e)
     gated=dict(source_fingerprint=fingerprint,gate_receipt=str(gate[0]) if gate else None,
         gate_profile=gate[1]['profile'] if gate else None,gate_result=gate[1]['result'] if gate else None)
     # A profile's character_catalog null ships an empty library; characters are imported later.
