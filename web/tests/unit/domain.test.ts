@@ -31,6 +31,7 @@ describe('effectiveState', () => {
     expect(effectiveState({ id: X, status: 'needs_review' })).toBe('waiting');
     expect(effectiveState({ id: X, status: 'running' }, { activeRuns: { [X]: { state: 'awaiting_input' } } })).toBe('waiting');
     expect(effectiveState({ id: X, status: 'running' }, { sessions: [{ task_id: X, state: 'awaiting_approval' }] })).toBe('waiting');
+    expect(effectiveState({ id: X, status: 'running' }, { sessions: [{ task_id: X, state: 'awaiting_input' }] })).toBe('waiting');
     expect(effectiveState({ id: X, status: 'running' }, { pending: [{ task_id: X }] })).toBe('waiting');
     expect(effectiveState({ id: X, status: 'running' }, { pending: [{ task_id: X, resolved: true }] })).toBe('running');
   });

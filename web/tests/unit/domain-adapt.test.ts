@@ -209,13 +209,19 @@ describe('steps and conversation', () => {
     expect(steps[3]?.name).toBeNull();
   });
 
-  it('fromToolItem: tool calls only; an open call has no end; unknown status counts as completed', () => {
+  it('fromToolItem: tool calls only; an open call has no end; only a terminal status ends it', () => {
     const items = WIRE_ITEMS['run-8d03'] ?? [];
     const open = items.find((i) => i.status === 'in_progress');
     if (!open) throw new Error('fixture missing');
     expect(fromToolItem(open)).toMatchObject({ kind: 'tool_call', name: 'Bash · python 统计', status: 'in_progress', created_at: at(14, 31, 30), updated_at: null });
     expect(fromToolItem({ ...open, kind: 'assistant_text' } as WireRunItem)).toBeNull();
-    expect(fromToolItem({ ...open, status: 'denied' })?.status).toBe('completed');
+    expect(fromToolItem({ ...open, status: 'denied' })?.status).toBe('in_progress');
+    expect(fromToolItem({ ...open, status: 'failed' })?.status).toBe('failed');
+  });
+
+  it('fromToolItem: a started call (RunStore sets updated_at on insert) is in progress', () => {
+    const started = fromToolItem({ ...(WIRE_ITEMS['run-8d03'] ?? [])[0]!, kind: 'tool_call', status: 'started', created_at: 1, updated_at: 1 });
+    expect(started).toMatchObject({ status: 'in_progress', updated_at: null });
   });
 
   it('fromConversation: group from pinned and the clock', () => {
@@ -269,6 +275,17 @@ describe('character, diagnostics, kernel', () => {
     expect(r.runtimes.map((x) => x.id)).toEqual(['codex', 'pi']);
     expect(r.runtimes[0]).toMatchObject({ name: 'Codex', path: '/opt/homebrew/bin/codex', authenticated: true });
     expect(r.runtimes[1]).toMatchObject({ name: 'Pi', path: null, authenticated: null, available: true, reason: null });
+  });
+
+  it('fromRuntimePublic: under product_login the kernel sign-in is the app profile, not the terminal CLI', () => {
+    const installed = WIRE_RUNTIME.installed_runtimes.map((x) => (x.backend === 'codex' ? { ...x, authenticated: false } : x));
+    const base = { ...WIRE_RUNTIME, backend: 'codex' as const, auth_source: 'product_login' as const, selected_runtime: null, installed_runtimes: installed };
+    const codex = (w: typeof base) => fromRuntimePublic(w).runtimes.find((x) => x.id === 'codex');
+    const signedIn = { ...base, product_login: { ...base.product_login, accounts: { codex: { signed_in: true, email: null, plan: null } } } };
+    expect(codex(signedIn)?.authenticated).toBe(true);
+    const signedOut = { ...signedIn, installed_runtimes: WIRE_RUNTIME.installed_runtimes, product_login: { ...base.product_login, accounts: { codex: { signed_in: false, email: null, plan: null } } } };
+    expect(codex(signedOut)?.authenticated).toBe(false);
+    expect(codex({ ...base, product_login: { ...base.product_login, accounts: {} } })?.authenticated).toBeNull();
   });
 
   it('fromTraceTurn: trace id as id, ISO start, result mapped', () => {

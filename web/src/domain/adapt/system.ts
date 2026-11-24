@@ -73,7 +73,10 @@ export function fromRuntimePublic(w: WireRuntimePublic): {
       version: b.id === 'pi' ? (w.pi_session?.sdk_version ?? null) : (found?.version ?? null),
       entry_supported: cli ? (found?.entry_supported ?? false) : b.available,
       boundary_verified: found?.boundary_verified ?? null,
-      authenticated: cli && !(w.backend === b.id && w.auth_source === 'api_key') ? (found?.authenticated ?? false) : null,
+      // product_login runs the kernel in agentd's own profile; an account not probed yet is absent.
+      authenticated: !cli || (w.backend === b.id && w.auth_source === 'api_key') ? null
+        : w.backend === b.id && w.auth_source === 'product_login' ? (w.product_login.accounts[b.id]?.signed_in ?? null)
+        : (found?.authenticated ?? false),
       ...(found ? { runtime_source: found.runtime_source === 'bundled' ? 'bundled' : 'local' } : {}),
       ...(found && found.auth_method !== undefined ? { auth_method: found.auth_method } : {}),
       login_command: typeof found?.login_command === 'string' ? found.login_command : null,

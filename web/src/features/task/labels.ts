@@ -1,5 +1,5 @@
 // Text for task source and status, shared by the task list, detail and drawer.
-import { formatClock, stateVisual, type EffectiveState, type PendingItem, type Task, type VisualStateKey } from '../../domain';
+import { formatClock, pendingKind, stateVisual, type EffectiveState, type PendingItem, type Task, type VisualStateKey } from '../../domain';
 
 export function sourceLabel(task: Pick<Task, 'source' | 'agent'>): string {
   if (task.source === 'role') return '角色任务';
@@ -19,7 +19,7 @@ export function statusLabel(task: Pick<Task, 'status'>, effective: EffectiveStat
   if (key === 'stopped') return stoppedAt != null ? `已取消 │ ${formatClock(stoppedAt)}` : stateVisual('cancelled').label;
   if (effective === 'waiting') {
     const open = pending.filter((p) => !p.resolved);
-    const approvals = open.filter((p) => p.kind === 'approval').length;
+    const approvals = open.filter((p) => pendingKind(p) === 'approval').length;
     if (approvals > 0) return `待批准 │ ${approvals} 张`;
     if (task.status === 'needs_review' || open.some((p) => p.kind === 'review')) return '待复核';
     if (open.some((p) => p.kind === 'question')) return '待回答';

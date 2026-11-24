@@ -56,12 +56,10 @@ export function fromStep(w: WireStep): StepEvent {
   };
 }
 
-const ITEM_STATUS: ReadonlySet<string> = new Set(['in_progress', 'completed', 'failed']);
-
-/** Tool call item; other kinds give null. Unknown statuses count as completed once the row has an update time. */
+/** Tool call item; other kinds give null. Only a terminal status ends the call: RunStore sets updated_at on insert. */
 export function fromToolItem(w: WireRunItem): ToolItem | null {
   if (w.kind !== 'tool_call') return null;
-  const status = (ITEM_STATUS.has(w.status) ? w.status : w.updated_at != null ? 'completed' : 'in_progress') as ItemStatus;
+  const status: ItemStatus = w.status === 'completed' || w.status === 'failed' ? w.status : 'in_progress';
   return {
     kind: 'tool_call',
     name: w.name ?? '工具',

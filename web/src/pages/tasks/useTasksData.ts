@@ -147,9 +147,16 @@ export async function loadTaskExtras(task: Pick<Task, 'id'>, stepsFail: boolean,
   const items = await Promise.allSettled(runIds.map((r) => get<{ items: WireRunItem[] }>(`/agent/runs/${seg(r)}/items`)));
   const wireItems = items.flatMap((x) => (x.status === 'fulfilled' ? x.value.items : []));
   const taskRuns = runs.status === 'fulfilled' ? runs.value.runs.filter((r) => runIds.includes(r.run_id)).sort((a, b) => a.started_at - b.started_at) : [];
+  // A call still open when its run ended was cut off: agentd stores it as it was, never as finished.
+  const ended = new Set(taskRuns.flatMap((r) => (r.ended_at != null ? [r.run_id] : [])));
+  const tools = items.flatMap((x, k) => (x.status === 'fulfilled' ? x.value.items.flatMap((i) => {
+    const tool = fromToolItem(i);
+    if (!tool) return [];
+    return tool.status === 'in_progress' && ended.has(runIds[k]!) ? [{ ...tool, status: 'failed' as const }] : [tool];
+  }) : []));
   return {
     steps: wireSteps.map(fromStep),
-    tools: wireItems.flatMap((i) => fromToolItem(i) ?? []),
+    tools,
     files: files.status === 'fulfilled' ? files.value.files.map((f) => ({ path: f.path, op: f.op, added: f.added, removed: f.removed })) : [],
     plan: planOf(wireItems),
     runs: taskRuns.map(outcomeOf),

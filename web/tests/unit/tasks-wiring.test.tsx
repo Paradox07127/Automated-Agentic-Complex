@@ -314,6 +314,15 @@ describe('tasks: reads', () => {
     expect(t1.files[0]?.path.startsWith('/')).toBe(true);
   });
 
+  it('extras: a tool call still open when its run ended shows as failed, not running', async () => {
+    const real = createFakeBridge({ surface: 'main', still: true });
+    const listed = (await real.agentd.request('GET', '/agent/runs/run-0f11/items', undefined)) as AgentdResponse<{ items: Record<string, unknown>[] }>;
+    const open = { ...listed.body!.items[0]!, status: 'started' };
+    install((method, path) => (method === 'GET' && path === '/agent/runs/run-0f11/items' ? { status: 200, body: { items: [open] } } as never : null));
+    const x = await loadTaskExtras(pick(TASKS, T6), false);
+    expect(x.tools.map((t) => t.status)).toEqual(['failed']);
+  });
+
   it('an external task reads nothing', async () => {
     const { calls } = install();
     const x = await loadTaskExtras(pick(TASKS, T5), false);

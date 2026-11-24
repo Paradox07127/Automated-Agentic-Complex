@@ -18,10 +18,11 @@ export interface EffectiveContext {
 }
 
 const awaitingRun = (state: RunState | undefined) => state != null && (state.startsWith('awaiting') || state === 'waiting_user');
+const awaitingSession = (state: SessionState | undefined) => state === 'awaiting_approval' || state === 'awaiting_input';
 
 /**
  * Task group: proposed / waiting_user / needs_review, an awaiting run, an external session
- * awaiting approval, or any unresolved pending item make the task "等你"; otherwise the status decides.
+ * awaiting approval or input, or any unresolved pending item make the task "等你"; otherwise the status decides.
  */
 export function effectiveState(task: Pick<Task, 'id' | 'status'>, ctx: EffectiveContext = {}): EffectiveState {
   if (['failed', 'rejected', 'denied'].includes(task.status)) return 'failed';
@@ -33,7 +34,7 @@ export function effectiveState(task: Pick<Task, 'id' | 'status'>, ctx: Effective
     task.status === 'proposed' ||
     task.status === 'waiting_user' ||
     awaitingRun(ctx.activeRuns?.[task.id]?.state) ||
-    session?.state === 'awaiting_approval' ||
+    awaitingSession(session?.state) ||
     ctx.pending?.some((p) => p.task_id === task.id && !p.resolved)
   ) {
     return 'waiting';

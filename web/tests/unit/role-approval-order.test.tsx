@@ -1,7 +1,8 @@
 import { cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getBridge } from '../../src/bridge';
-import { fromInteraction, type StackCard } from '../../src/domain';
+import { fromInteraction, sortPending, type StackCard } from '../../src/domain';
+import { statusLabel } from '../../src/features/task/labels';
 import { approvalView, isApprovalCard } from '../../src/features/approval';
 import { NOW, WIRE_INTERACTION_APPROVAL, WIRE_INTERACTION_APPROVAL_DANGER } from '../../src/mock/fixtures';
 import { A1, A2 } from '../../src/mock/fixtures/ids';
@@ -114,5 +115,19 @@ describe(' answering a role approval', () => {
     const { dispatch, result } = hook(plain);
     result.current.act(allow(plain));
     await waitFor(() => expect(dispatch).toHaveBeenCalledWith({ type: 'patch', id: plain.id, patch: { receipt: '已在别处处理' } }));
+  });
+});
+
+describe('an exact-call approval is an approval outside the stack too', () => {
+  it('sortPending puts an exact call about to expire before a dangerous broker approval', () => {
+    const exact = { id: 'exact', kind: 'question' as const, interaction_kind: 'approval' as const, seconds_left: 8, since: 2 };
+    const brokerDanger = { id: 'broker', kind: 'approval' as const, dangerous: true, seconds_left: 40, since: 1 };
+    expect(sortPending([brokerDanger, exact]).map((x) => x.id)).toEqual(['exact', 'broker']);
+  });
+
+  it('statusLabel counts it as an approval', () => {
+    const item = fromInteraction(WIRE_INTERACTION_APPROVAL, NOW);
+    expect(item.kind).toBe('question');
+    expect(statusLabel({ status: 'running' }, 'waiting', [item])).toBe('待批准 │ 1 张');
   });
 });

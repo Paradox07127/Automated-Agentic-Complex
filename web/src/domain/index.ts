@@ -6,7 +6,7 @@ export type * from './system';
 export type * from './stack';
 export { effectiveState, countByEffectiveState, countWaiting, stateVisual, isReviewableDelivery } from './status';
 export type { EffectiveContext, StateVisual } from './status';
-export { sortPending } from './pending';
+export { pendingKind, sortPending } from './pending';
 export type { PendingSortable } from './pending';
 export { formatClock, formatDuration, formatElapsed, formatMs, formatRemaining, isUrgent, runTiming } from './time';
 export { fpsReadout, msReadout } from './num';
