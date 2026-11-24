@@ -1073,6 +1073,20 @@ this = ref ResourceZero
         self.assertEqual({(c['sha256'], c['channel'], c['threshold'], c['texture']['rd_format_name'], c['texture']['width']) for c in cut},
                          {(hashlib.sha256(mask[148:]).hexdigest(), 3, 0.5, 'R8G8B8A8_UNORM', 2)})
 
+    def test_a_cutout_s_mask_is_a_texture_of_the_windows_frame_table(self):
+        self.package = package_fixture(self.root/'windows', skinned=True, vulkan=True)
+        sections = '\n[Resource_IB]\ntype = Buffer\nformat = DXGI_FORMAT_R16_UINT\nfilename = Meshes/IB.buf\n\n[ResourceMask]\nfilename = Textures/mask.dds\n'
+        mask = dds(2, 2, 28, fill=9)
+        mod = cloth_mod(self.root/'mod', 'ib = Resource_IB\nps-t110 = ResourceMask\ndrawindexed = 3, 0, 0', {'Textures/mask.dds': mask}, sections)
+        (mod/'Meshes/IB.buf').write_bytes(struct.pack('<3H', 0, 1, 2))
+        (mod/'Meshes/Position.buf').write_bytes(b''.join(struct.pack('<3fI', *p, 0) for p in MOVED_POSITIONS))
+        (mod/'Cutout.ini').write_text(CUTOUT_INI)
+        import_outfit.import_outfit(self.package.root, mod, self.root/'out')
+        package, runtime, *_ = self.staged(self.root/'out')
+        _, t = vulkan_outfit.read_table((runtime/package.native_entry['vulkan_frame']['file']).read_bytes())
+        rows = [x for x in t['textures'] if t['blobs'][x['blob']]['sha256'].hex() == hashlib.sha256(mask[148:]).hexdigest()]
+        self.assertEqual([(x['format'], x['width'], x['height'], x['mip_count']) for x in rows], [(28, 2, 2, 1)])
+
     def test_a_patch_that_drops_pixels_by_another_test_is_no_cutout(self):
         self.assertIsNotNone(efmi_mod.cutout(CUTOUT_INI.lower()))
         self.assertIsNone(efmi_mod.cutout(CUTOUT_INI.lower().replace('lt ${ccflag}.x', 'ge ${ccflag}.x')))

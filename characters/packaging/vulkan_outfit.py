@@ -172,7 +172,7 @@ def template_of(candidates, new, label):
 
 
 def extend(character_dir, data, manifest, manifest_sha256, scene_sha256, graph, palette, pack, rig, read):
-    """The bytes of frame table `data` with the clones, appearances and texture variants the import added, bound to the manifest
+    """The bytes of frame table `data` with the clones, appearances, texture variants and cutout masks the import added, bound to the manifest
     and scene, and {sha256: bytes} of the blobs to write under vulkan/blobs/. read(ref, 'source' | 'graph') returns a blob's bytes."""
     t = Table(data, character_dir, read); draws, passes = t.t['draws'], t.t['passes']; K = E['DrawKind']
     mesh_of = {i: d['mesh'] for i, d in enumerate(manifest['draws'])}
@@ -214,6 +214,8 @@ def extend(character_dir, data, manifest, manifest_sha256, scene_sha256, graph, 
     for p, order in zip(passes, rebuilt):p.update(first_draw=len(t.t['draws']), draw_count=len(order)); t.t['draws'] += order
     actors(t, palette, pack, rig)
     for v in manifest.get('texture_variants') or []:t.texture(v, 'source')
+    for d in manifest['draws']:
+        if 'cutout' in d:t.texture(d['cutout'], 'source')
     t.header.update(manifest_sha256=bytes.fromhex(manifest_sha256), scene_sha256=bytes.fromhex(scene_sha256))
     return write_table(t.header, t.t), t.written
 
