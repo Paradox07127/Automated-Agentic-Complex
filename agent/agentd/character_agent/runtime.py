@@ -2,11 +2,13 @@
 from dataclasses import dataclass, field
 import hashlib
 import json
+import logging
 from pathlib import Path
 import threading
 import time
 import uuid
 
+from brain.voice_check import for_replay, out_of_voice
 from character_agent.services.store import RunStore
 from character_agent.services.workspace import WorkspaceError
 from tool_gateway.gateway import ToolGateway
@@ -505,9 +507,12 @@ class PersonalAgentRuntime:
                            context_setup_ms=round((time.monotonic()-acquired_at)*1000),
                            work_kind='background' if mode == 'background' else 'foreground', **segments, **(setup_ms or {}))
             prompt = _turn_prompt(text, before_input, context)
+            # An assistant-voice line replayed verbatim teaches the model to repeat it.
+            replayed = [[{**m, "content": for_replay(m["content"])} if m.get("role") == "assistant" and out_of_voice(m["content"]) else m
+                         for m in turn] for turn in history]
             resume_options = {'ask_user_result': previous['pending_tool']} if previous and (previous.get('pending_tool') or {}).get('result') else {}
             if memory_session is not None:
-                memory_session.assembled(prompt=prompt, system_prompt=system_prompt, history=history, tools=definitions,
+                memory_session.assembled(prompt=prompt, system_prompt=system_prompt, history=replayed, tools=definitions,
                                          continuation=resume_options)
             requested_at = time.monotonic()
             if quick_session is not None:
@@ -517,10 +522,10 @@ class PersonalAgentRuntime:
                     active["quick_session"] = quick_session
                 if scope_id:
                     self.workspace.validate_scope(scope_id)
-                events = quick_events = _quick_events(quick_session, prompt, system_prompt=system_prompt, history=history,
+                events = quick_events = _quick_events(quick_session, prompt, system_prompt=system_prompt, history=replayed,
                     cancelled=lambda: not current(), run_id=run_id)
             else:
-                events = self._session.stream(prompt, system_prompt=system_prompt, history=history, cancelled=lambda: not current(),
+                events = self._session.stream(prompt, system_prompt=system_prompt, history=replayed, cancelled=lambda: not current(),
                                               run_id=run_id, tool_handler=call, **resume_options)
             knowledge.record_prompt_uses(run_id)
             own_tools, native_open = {d['name'] for d in definitions}, set()
@@ -692,6 +697,10 @@ class PersonalAgentRuntime:
             self._last_projection = None
             if (sdk_result.get("context_tokens") or 0) >= SESSION_CONTEXT_TOKENS:
                 self._session_key = None
+            # The kernel keeps this reply verbatim; a new session replays its rewritten form instead.
+            if voice := out_of_voice(final_text):
+                self._session_key = None
+                logging.getLogger(__name__).info("reply_out_of_voice %s", ",".join(voice))
             with self._lock:
                 if not current(): raise ValueError(active["reason"] or "cancelled")
                 self.store.finish(run_id, "completed", task_id=task_id, sdk_session_id=sdk_result.get("session_id"),

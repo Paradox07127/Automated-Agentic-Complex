@@ -748,6 +748,29 @@ class RuntimeTests(unittest.TestCase):
         self.run_agent('run-2', history=projection)
         self.assertEqual(len(self.sessions), 2); self.assertGreater(self.sessions[0].closed, 0)
 
+    def test_out_of_voice_history_reply_is_replayed_rewritten(self):
+        history = [[{'role': 'user', 'content': 'plan?'},
+                    {'role': 'assistant', 'content': 'Sure.\n- one\n- two\n- three'}]]
+        quick = FakeSession(chat)
+        for options in ({}, {'quick_session': quick}):
+            with self.subTest(quick='quick_session' in options):
+                self.run_agent('run-' + str(len(options)), history=history, **options)
+                sent = (quick if options else self.sessions[-1]).calls[-1]['history']
+                self.assertEqual(sent, [[{'role': 'user', 'content': 'plan?'},
+                                         {'role': 'assistant', 'content': 'Sure.\none; two; three'}]])
+                self.assertEqual(history[0][1]['content'], 'Sure.\n- one\n- two\n- three')
+
+    def test_out_of_voice_final_reply_rebuilds_session_next_turn(self):
+        self.script = lambda session, prompt, options: iter([
+            {'type': 'result', 'success': True, 'final_text': '# Plan\nGo now.'}])
+        self.run_agent(); self.run_agent('run-2')
+        self.assertEqual(len(self.sessions), 2)
+        self.assertEqual([e['session_reused'] for e in self.events if e['phase'] == 'running'], [False, False])
+
+    def test_in_voice_final_reply_keeps_session(self):
+        self.run_agent(); self.run_agent('run-2')
+        self.assertEqual(len(self.sessions), 1)
+
     def test_deleted_prior_dependency_rebuilds_session_before_next_turn(self):
         ident = self.memory.add('Quiet rooms', 'asserted_by_user', kind='preference')
         def script(session, prompt, options):
