@@ -123,7 +123,7 @@ test("blacklisted pages and paused policy disable DOM sampling, incognito tabs e
   assert.equal(h.out.filter(m => m.type === "metrics").length, count);
 });
 
-test("allow mode samples only allowed hosts, ignores the blacklist and still leaves incognito tabs out", async () => {
+test("allow mode samples only allowed hosts, keeps a denied allowed host out and still leaves incognito tabs out", async () => {
   const h = await harness();
   h.setTabs([h.tab, { ...h.tab, id: 2, incognito: true, audible: true }, { ...h.tab, id: 3, url: "https://bank.test", audible: true },
     { ...h.tab, id: 4, url: "https://m.example.com", audible: true }]);
@@ -133,11 +133,12 @@ test("allow mode samples only allowed hosts, ignores the blacklist and still lea
   assert.equal(h.requests.at(-1).enabled, false);
   assert.equal(h.out.filter(m => m.type === "heartbeat").at(-1).url_host, "<hidden>");
   assert.equal(sampled(), before);
-  h.setPolicy({ mode: undefined, allow_domains: ["EXAMPLE.com"], domains: ["example.com"], title_patterns: ["Article"] });
+  h.setPolicy({ mode: undefined, allow_domains: ["EXAMPLE.com"], domains: ["m.example.com"], title_patterns: ["Article"] });
   await h.tick(); await h.tick();
   assert.equal(h.requests.at(-1).enabled, true);
   assert.equal(h.out.filter(m => m.type === "page").at(-1).url_host, "example.com");
-  assert.equal(h.out.filter(m => m.type === "metrics").at(-1).metrics.audible_tab_count, 1);
+  // m.example.com is allowed through example.com but denied itself: the deny entry wins.
+  assert.equal(h.out.filter(m => m.type === "metrics").at(-1).metrics.audible_tab_count, 0);
   h.emit("selection", { text: "allowed selection" }); await h.flush();
   assert.ok(h.out.some(m => m.type === "selection" && m.text === "allowed selection"));
 });

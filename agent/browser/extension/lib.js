@@ -22,10 +22,11 @@ function listed(host, domains) {
   });
 }
 
-// policy: { mode, domains, allow_domains }; any mode but "deny" shows only the allowed hosts.
+// policy: { mode, domains, allow_domains }; a denied host is blocked in every mode, and any mode but "deny" shows only
+// the allowed hosts.
 export function blocked(host, policy) {
   if (!host) return false;
-  return policy.mode === "deny" ? listed(host, policy.domains) : !listed(host, policy.allow_domains);
+  return listed(host, policy.domains) || (policy.mode !== "deny" && !listed(host, policy.allow_domains));
 }
 
 // ids: { browser_session, document_id, revision }; a missing one is sent as null.

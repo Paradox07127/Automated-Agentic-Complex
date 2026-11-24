@@ -28,8 +28,9 @@ test("blocked compares the A-label without the root dot, as agentd stores and ma
 });
 
 test("allow mode blocks every host but the allowed ones and their subdomains; a missing mode is allow", () => {
-  const allow = { mode: "allow", domains: ["github.com"], allow_domains: ["GitHub.com"] };
+  const allow = { mode: "allow", domains: [], allow_domains: ["GitHub.com"] };
   assert.equal(blocked("gist.github.COM", allow), false);
+  assert.equal(blocked("gist.github.com", { ...allow, domains: ["gist.github.com"] }), true, "a deny entry wins over an allowed host");
   assert.equal(blocked("github.com", allow), false);
   assert.equal(blocked("notgithub.com", allow), true);
   assert.equal(blocked("example.com", allow), true);

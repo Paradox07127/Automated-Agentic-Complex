@@ -49,14 +49,16 @@ class Blacklist:
 
     def hides(self, window):
         host = (window.get("url_host") or "").casefold().removesuffix(".")  # agentd's normal_host
-        if self.mode == "allow":  # only allowed hosts; a message without a host is hidden
-            return not (host and any(host == d.casefold() or host.endswith("." + d.casefold())
-                                     for d in self.allow_domains))
+        # The deny entries win in both modes, as in agentd's Blacklist.
         if host and any(host == d.casefold() or host.endswith("." + d.casefold())
                         for d in self.data.get("domains", [])):
             return True
         title = window.get("title") or ""
-        return any(p.search(title) for p in self.titles)
+        if any(p.search(title) for p in self.titles):
+            return True
+        # allow mode: only allowed hosts; a message without a host is hidden
+        return self.mode == "allow" and not (host and any(host == d.casefold() or host.endswith("." + d.casefold())
+                                                          for d in self.allow_domains))
 
 
 def read_token(path):
