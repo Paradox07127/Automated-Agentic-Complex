@@ -777,6 +777,21 @@ filename = Textures/new.dds
         self.assertEqual(mine['_MetallicGlossMap'], theirs['_MetallicGlossMap'])
         self.assertEqual(mine['_ClearCoatMask'], hashlib.sha256(dds(8, 8, 98)[148:]).hexdigest())
 
+    def test_a_this_texture_unchanged_on_the_mesh_of_its_hash_is_placed_on_no_other_mesh_its_texture_check_runs_at(self):
+        # EFMI-Tools ships every original texture of a character as a `this` override; the texture check of each component's
+        # draw binds all of them, also on meshes without a texture of their hash.
+        package = package_fixture(self.root/'hair', cloth_extra=[('_HairMask', 'BC7_SRGB_BLOCK', True, 9)])
+        desc = struct.pack('<11I', 4, 4, 2, 1, 99, 1, 0, 0, 8, 0, 0)
+        hair = '%08x' % import_outfit.crc32c(desc, import_outfit.crc32c(bytes([9])*16))
+        old, new = f'Textures/Components-0 t={hair} BC7-Linear.dds', 'Textures/Components-0 t=67d578ae BC7-Linear.dds'
+        body = ('\n[TextureOverride_EntryPoint_Body]\nhash = ad2ae6dc\nmatch_first_index = 0\nmatch_index_count = 3\n'
+                '$\\EFMIv1\\component_id = 1\nrun = CommandList_DrawBody\n\n[CommandList_DrawBody]\n'+CHECKED_DRAW.replace('6,', '3,')+'\n')
+        mod = cloth_mod(self.root/'mod', CHECKED_DRAW, {old: dds(4, 4, 99, fill=9), new: dds(8, 8, 98)}, this_sections(hair, '67d578ae')+body)
+        report = import_outfit.import_outfit(package.root, mod, self.root/'out')
+        self.assertEqual(report['textures'], [dict(index=0, file=new, meshes=[CLOTH], resource='_ClearCoatMask'),
+                                              dict(index=1, file=old, meshes=[], resource=None, unchanged={CLOTH: '_HairMask'})])
+        self.assertFalse([w for w in report['warnings'] if w.startswith('texture_unbound')])
+
     def test_a_slot_that_bound_an_unchanged_texture_places_the_next_one(self):
         mod = cloth_mod(self.root/'mod', SLOT_DRAW, {'Textures/old.dds': dds(4, 4, 98, fill=2), 'Textures/new.dds': dds(8, 8, 98)}, SLOT_SECTIONS)
         report = import_outfit.import_outfit(self.package.root, mod, self.root/'out')

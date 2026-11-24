@@ -749,11 +749,12 @@ def match_textures(mod, source, read_blob, drawn, hidden, by_component, mapping,
     warnings += [('texture_unbound:' if all(unread(f, m) for m, _ in places) else 'texture_unsupported:')+f for f, places in unsupported.items()]
     rows, assigned, placing = [], {}, []
     for i, filename in enumerate(sorted(targets)):
-        places = sorted((p for p in targets[filename] if p[0] not in unchanged.get(filename, {})), key=place_key)
-        # A hash override or a filter replaces a texture only on the meshes whose template has it.
+        places = sorted(targets[filename], key=place_key)
+        # A hash override or a filter replaces a texture only on the meshes whose template has it, also where the file equals it.
         if any(hashed(filename, m) for m, _ in places):
             places = [p for p in places if hashed(filename, p[0]) or
                       any(not s.startswith(('hash:', 'filter:')) for s in slots.get((filename, p[0]), ()))]
+        places = [p for p in places if p[0] not in unchanged.get(filename, {})]
         meshes = sorted({m for m, _ in places})
         row = dict(index=i, file=filename, meshes=meshes, resource=None); rows.append(row)
         if filename in unchanged:row['unchanged'] = dict(sorted(unchanged[filename].items()))
