@@ -950,7 +950,7 @@ Windows 上渲染器是 `private/renderer/windows` 的 `efw.exe`（下称 efw）
 
 ### efw 本版没有的能力
 
-`trace`、`surfaces`、`layering`、`drop`、`motion_requests`、`keep_clear`、`ambient`、`motion_media`、`camera_free`、`camera_track`、`camera_gesture`、`camera_bust`、`photo`、`moving`。`camera_free`、`camera_bust` 按规则 49 只在全屏视口列；efw 本版有全屏视口，但还没有镜头放大和半身固定，所以不列。规则 35 的让开和规则 42 的 `keep_clear` 要等走路，本版不做；efw 不走路，所以也不列规则 57 的 `moving`。
+`trace`、`surfaces`、`layering`、`drop`、`motion_requests`、`keep_clear`、`ambient`、`motion_media`、`camera_free`、`camera_track`、`camera_gesture`、`camera_bust`。`camera_free`、`camera_bust` 按规则 49 只在全屏视口列；efw 本版有全屏视口，但还没有镜头放大和半身固定，所以不列。efw 本版会走（见上面「走动」），但还没接规则 35 的让开和规则 42 的 `keep_clear`。
 
 说话时的嘴型：`vulkan\frame.bin` 的 Actor 表有 `face_control`、`face_delta` 和 a/i/u/e/o 五条 `vowel` 记录（`windows_actor_export.py` 的 `face_records` 从 `original-face-controls.json`、`original-audio-face-controls.json`、`emotion-lipsync.json` 导出默认口型组）。efw 把 C2 cue 的元音权重按 40 ms 升、80 ms 落平滑，按这些记录把关节增量叠在片段姿势上；没有这些记录的帧包嘴不动，`playback` 照发。
 
