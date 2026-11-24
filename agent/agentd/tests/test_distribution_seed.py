@@ -1,9 +1,12 @@
 import hashlib
 import json
 from pathlib import Path
+import struct
 import sys
 import tempfile
 import unittest
+from unittest import mock
+import wave
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from character_library import Library, PackageError, digest, read_json, write_json
@@ -135,6 +138,41 @@ class DistributionSeedTests(unittest.TestCase):
             [entry] = read_json(out / 'motion-imports/fixture/imports.json')['imports']
             self.assertEqual((entry['action'], entry['removed_at']), (action, None))
 
+    @needs_numpy
+    def test_a_two_file_gltf_and_a_bgm_start_of_zero_are_baked_again_with_their_ids(self):
+        from test_bvh_import import cmu_bvh_text, cmu_joints
+        from test_vmd_import import authored_rig
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); old = Library(root / 'old'); seed = Library(root / 'seed')
+            packaged(root / 'old-fixture', 'fixture', '1.0.0', 'A', rig=authored_rig()); old.install(root / 'old-fixture')
+            packaged(root / 'seed-fixture', 'fixture', '1.0.5', 'B', rig=authored_rig()); seed.install(root / 'seed-fixture')
+            # A CMU-like skeleton whose hips move over three frames, its keys and values in walk.bin beside walk.gltf.
+            joints = cmu_joints(); names = [name for name, _, _ in joints]
+            times, moves = struct.pack('<3f', 0, 1 / 30, 2 / 30), struct.pack('<9f', 0, .9, 0, .1, .9, .2, .2, .9, .4)
+            (root / 'walk.bin').write_bytes(times + moves)
+            nodes = [dict(name=name, translation=[c / 10 for c in offset], children=[names.index(n) for n, p, _ in joints if p == name])
+                     for name, _, offset in joints]
+            write_json(root / 'walk.gltf', dict(asset=dict(version='2.0'), nodes=nodes, scenes=[dict(nodes=[0])],
+                buffers=[dict(uri='walk.bin', byteLength=48)],
+                bufferViews=[dict(buffer=0, byteOffset=0, byteLength=12), dict(buffer=0, byteOffset=12, byteLength=36)],
+                accessors=[dict(bufferView=0, componentType=5126, count=3, type='SCALAR', min=[0], max=[2 / 30]),
+                           dict(bufferView=1, componentType=5126, count=3, type='VEC3')],
+                animations=[dict(samplers=[dict(input=0, output=1)], channels=[dict(sampler=0, target=dict(node=0, path='translation'))])]))
+            bvh = root / 'walk.bvh'; bvh.write_text(cmu_bvh_text(), encoding='utf-8')
+            with wave.open(str(root / 'song.wav'), 'wb') as audio:
+                audio.setparams((2, 2, 48000, 0, 'NONE', 'not compressed')); audio.writeframes(bytes(4 * 48000))
+            actions = []
+            for args in (['--source', str(root / 'walk.gltf')], ['--source', str(bvh), '--bgm', str(root / 'song.wav'), '--bgm-start', '0']):
+                result = tool_command('motion_tool.py', 'import', '--library', str(old.root), '--character', 'fixture', *args,
+                                      '--validate-with', str(self.host(root)))
+                self.assertEqual(result.returncode, 0, result.stderr)
+                actions.append(json.loads(result.stdout.splitlines()[-1])['action']['id'])
+            self.merge(seed, old, root / 'next', self.host(root))
+            entries = read_json(root / 'next/motion-imports/fixture/imports.json')['imports']
+            self.assertEqual([(e['action'], e['removed_at']) for e in entries], [(action, None) for action in actions])
+            package = Library(root / 'next').package('fixture')
+            self.assertEqual((package.version, package.document['base_package_version']), ('1.0.6', '1.0.5'))
+
     @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_an_import_the_seed_cannot_take_keeps_the_seed_package_and_marks_its_record(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -153,6 +191,40 @@ class DistributionSeedTests(unittest.TestCase):
             self.assertIn('template_changed:' + CLOTH, entry['migration_failure'])
             self.assertEqual(read_json(out / 'distribution-seed.json')['imports_not_carried_over'], dict(fixture=[entry['migration_failure']]))
 
+    def merge(self, seed, old, out, host):
+        return merge_seed(seed.root / 'current.json', digest(seed.root / 'current.json'), old.root / 'current.json',
+                          digest(old.root / 'current.json'), out, validate_with=host)
+
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
+    def test_a_missing_validator_aborts_the_merge(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); old, _ = self.imported_library(root); seed = self.seed_library(root)
+            with self.assertRaisesRegex(PackageError, 'host executable is missing'): self.merge(seed, old, root / 'next', root / 'missing')
+            self.assertFalse((root / 'next').exists())
+
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
+    def test_an_os_error_while_rebuilding_aborts_the_merge_and_keeps_the_records(self):
+        import outfit_tool
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); old, _ = self.imported_library(root); seed = self.seed_library(root)
+            before = read_json(old.root / 'outfit-imports/fixture/imports.json')
+            with mock.patch.object(outfit_tool, 'graft', side_effect=OSError('disk full')), self.assertRaises(OSError):
+                self.merge(seed, old, root / 'next', self.host(root))
+            self.assertFalse((root / 'next').exists())
+            self.assertEqual([p.name for p in root.iterdir() if p.name.startswith('.seed-')], [])
+            self.assertEqual(read_json(old.root / 'outfit-imports/fixture/imports.json'), before)
+
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
+    def test_a_validator_that_rejects_the_rebuilt_package_marks_its_records(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); old, aid = self.imported_library(root); seed = self.seed_library(root)
+            reject = root / 'reject'; reject.write_text('#!' + sys.executable + "\nimport sys\nsys.exit(1)\n", encoding='utf-8'); reject.chmod(0o700)
+            self.merge(seed, old, root / 'next', reject)
+            self.assertEqual(Library(root / 'next').package('fixture').sha256, seed.package('fixture').sha256)
+            [entry] = read_json(root / 'next/outfit-imports/fixture/imports.json')['imports']
+            self.assertEqual(entry['appearance'], aid); self.assertIsNotNone(entry['removed_at'])
+            self.assertIn('validate_failed', entry['migration_failure'])
+
     def test_offline_generation_takes_every_seed_package_and_retains_custom_roles_and_default(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp); old = Library(root/'old'); seed = Library(root/'seed')
@@ -165,6 +237,18 @@ class DistributionSeedTests(unittest.TestCase):
             result=run();self.assertEqual(result['default_character'],'custom')
             self.assertEqual({p.id:p.version for p in Library(out).packages()},dict(custom='1.0.0',one='2.0.0',two='1.0.0',newer='2.0.0'))
             self.assertEqual(digest(old.root/'current.json'),before);self.assertEqual(run(),result)
+
+    def test_import_records_are_copied_without_a_shell_copy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); old = Library(root/'old'); seed = Library(root/'seed')
+            source = root/'custom'; fixture(source, 'custom'); old.install(source)
+            source = root/'one'; fixture(source, 'one'); seed.install(source)
+            records = old.root/'outfit-imports/custom'; records.mkdir(parents=True); write_json(records/'imports.json', dict(imports=[]))
+            out = root/'next'
+            with mock.patch('subprocess.run', side_effect=FileNotFoundError('/bin/cp')):
+                merge_seed(seed.root/'current.json', digest(seed.root/'current.json'), old.root/'current.json',
+                           digest(old.root/'current.json'), out)
+            self.assertEqual(read_json(out/'outfit-imports/custom/imports.json'), dict(imports=[]))
 
     def test_same_version_user_content_without_imports_becomes_the_seeds_and_live_import_still_refuses_update(self):
         with tempfile.TemporaryDirectory() as tmp:

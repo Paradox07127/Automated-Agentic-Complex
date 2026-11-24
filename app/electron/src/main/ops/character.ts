@@ -387,7 +387,7 @@ export function characterOps(ctx: OpsContext, picker: ImportPicker = electronPic
       if (action === null || name === null) throw new BridgeFailure('bad_args', 'character.renameMotion');
       return onCurrent(async (library, character) => {
         ctx.mmdSync?.sync.checkIdle();
-        const line = await tool(['rename', '--library', library, '--character', character, '--action', action, '--title', name,
+        const line = await tool(['rename', '--library', library, '--character', character, '--action', action, `--title=${name}`,
           '--validate-with', host()]);
         if (typeof line.title !== 'string') throw new MotionFailureError({ reason: 'internal', detail: `motion_tool printed no result: ${JSON.stringify(line)}` });
         if (ctx.avatar) await reloadAvatar(ctx, ctx.avatar);

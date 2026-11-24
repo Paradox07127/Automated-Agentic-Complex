@@ -6,21 +6,22 @@ The mod's files are never kept: the library records only its fingerprint, name a
 """
 import argparse
 import datetime
+import hashlib
 import importlib
 import json
 import os
 from pathlib import Path
 import shutil
-import subprocess
 import sys
 from types import SimpleNamespace
 
 AGENTD = Path(__file__).resolve().parent
 sys.path.insert(0, str(AGENTD))  # -I leaves the script's folder off the path
-from character_library import Library, Package, PackageError, digest, read_json, validate_pack, write_json
+from character_library import Library, Package, PackageError, contained, digest, read_json, relative, validate_pack, write_json
 from infra.platform import lock_file
 from motion.zip_import import Failure, fail
 from motion_tool import Progress
+from resource_store import clone_or_copy
 
 INDEX_SCHEMA = "endfield-outfit-imports/v1"
 # Each stage's share of the import's progress bar, in order: roughly its share of a timed outfit import.
@@ -74,6 +75,14 @@ def named_files(value):
     return set().union({value["file"]} if isinstance(value.get("file"), str) else set(), *map(named_files, value.values()))
 
 
+def inside(folder, name):
+    """folder / name for a name a package document gives: one that could leave folder fails as unsupported_mod."""
+    try:
+        relative(name)
+        return contained(folder, name) if os.path.lexists(folder / name) else folder / name
+    except PackageError as error: fail("unsupported_mod", "%s: %r" % (error, name))
+
+
 def documents(root, package):
     """The documents package's appearances live in, read from root: package's directory or a clone of it."""
     d = SimpleNamespace(native_path=root / package.native_ref["file"]); d.runtime = d.native_path.parent
@@ -96,7 +105,7 @@ def clone(package_root, output):
     file of the copy not rewritten since keeps its package file's verified digest, which Package(output) checks again."""
     ref = outfit_module("common").reference
     package = Package(package_root)
-    subprocess.run(["/bin/cp", "-cR", str(package.root), str(output)], check=True)
+    shutil.copytree(package.root, output, symlinks=True, copy_function=clone_or_copy)
     def stamp(path): s = path.stat(); return s.st_ino, s.st_size, s.st_mtime_ns, s.st_ctime_ns
     cloned = {p: stamp(p) for p in output.rglob("*") if p.is_file()}
     def reference(path, root):
@@ -106,11 +115,38 @@ def clone(package_root, output):
     return documents(output, package), reference
 
 
+def extend_frame(d, frame_path):
+    """Carry the appearances d's documents gained into the Windows frame table at frame_path, as import_outfit does, and delete
+    the vulkan/blobs files the table no longer names; returns its new reference."""
+    native_bundle, pool_codec, vulkan_outfit = map(importlib.import_module, ("native_bundle", "pool_codec", "vulkan_outfit"))
+    character_dir = frame_path.parent.parent
+    def read(r, where):
+        path = inside(d.source_path.parent if where == "source" else d.graph_path.parent, r["file"])
+        if not path.is_file(): path = d.source_path.parent / "Files" / (r["sha256"] + ".bytes")
+        stored = path.read_bytes(); raw = stored if len(stored) == r["byte_count"] else pool_codec.decode(stored)
+        if hashlib.sha256(raw).hexdigest() != r["sha256"]: raise PackageError("file_sha_mismatch")
+        return raw
+    archive = d.runtime / d.entry["actor_archive"]["file"]
+    rig = read_json(archive.parent / read_json(archive)["rig"]["file"])
+    scene = d.entry["neutral_scene"]["sha256"]
+    table, written = vulkan_outfit.extend(character_dir, frame_path.read_bytes(), d.source, d.entry["source"]["sha256"], scene,
+                                          d.graph, d.palette, d.pack, rig, read)
+    blobs = character_dir / vulkan_outfit.OWN; blobs.mkdir(parents=True, exist_ok=True)
+    for name, raw in written.items(): (blobs / name).write_bytes(raw)
+    named = {name for name, _, _ in native_bundle.vulkan_blobs(table, scene)}
+    for path in blobs.iterdir():
+        if vulkan_outfit.OWN + path.name not in named: path.unlink()
+    frame_path.write_bytes(table)
+    return outfit_module("common").reference(frame_path, d.runtime)
+
+
 def finish(output, d, definition, reference):
     """Write the changed documents d of the copy output and index it again: its native bundle, coverage and inventory."""
     ref = outfit_module("common").reference
     native_bundle = importlib.import_module("native_bundle")  # the importer package puts it on sys.path
     runtime, entry, native, animation, pack = d.runtime, d.entry, d.native, d.animation, d.pack
+    # write_neutral drops the Windows frame table, which is bound to the old neutral scene.
+    frame = entry.get(native_bundle.VULKAN[0])
     write_json(d.source_path, d.source)
     d.graph["manifest_sha256"] = digest(d.source_path); native_bundle.write_neutral(runtime, entry, d.graph)
     write_json(d.palette_path, d.palette); pack["animation"]["palette_contract"] = ref(d.palette_path, animation)
@@ -122,6 +158,7 @@ def finish(output, d, definition, reference):
         pack[section]["data"] = [dict(x, **ref(folder / x["file"], folder)) for x in pack[section]["data"]]
     pack["render"]["manifest"] = ref(d.source_path, d.source_path.parent); write_json(d.pack_path, pack)
     for key, path in (("source", d.source_path), ("graph", d.graph_path), ("c7", d.pack_path)): entry[key] = ref(path, runtime)
+    if frame is not None: entry[native_bundle.VULKAN[0]] = extend_frame(d, runtime / frame["file"])
     cp = runtime / entry["coverage"]["file"]; write_json(cp, native_bundle.character_coverage(runtime, entry)); entry["coverage"] = ref(cp, runtime)
     roles = {x["file"]: x.get("roles", ["runtime_imported_outfit"]) for x in native["files"]}
     native["files"] = [dict(**reference(p, runtime), roles=roles.get(p.relative_to(runtime).as_posix(), ["runtime_imported_outfit"]))
@@ -138,15 +175,17 @@ def strip(package_root, output, appearances, bump):
     and their import reports; bump raises the patch version so the result can replace the package in its library."""
     compose = outfit_module("outfit_compose")
     output = Path(output); d, reference = clone(package_root, output)
+    # vulkan_outfit can only add an appearance to the Windows frame table.
+    if "vulkan_frame" in d.entry: fail("unsupported_character", "the Windows frame table of %s cannot drop an appearance" % package_root)
     before = {folder: named_files(docs) for folder, docs in d.folders.items()}
     settings = d.settings
     for appearance in appearances:
         state = compose.remove_appearance(d.source, d.graph, d.palette, d.pack, appearance, mod_settings=settings)["mod_settings"]
-        (output / "provenance" / ("outfit-" + appearance + ".json")).unlink(missing_ok=True)
+        inside(output / "provenance", "outfit-" + appearance + ".json").unlink(missing_ok=True)
         if state == "removed": d.settings_path.unlink(); settings = None
     if settings is not None: write_json(d.settings_path, settings)
     for folder, docs in d.folders.items():
-        for name in before[folder] - named_files(docs): (folder / name).unlink(missing_ok=True)
+        for name in before[folder] - named_files(docs): inside(folder, name).unlink(missing_ok=True)
     definition = read_json(output / "character.json")
     if bump:
         major, minor, patch = map(int, definition["version"].split(".")); definition["version"] = f"{major}.{minor}.{patch+1}"
@@ -167,11 +206,11 @@ def graft(package_root, donor_root, output, appearances, version):
         settings = compose.graft_appearance(d.source, d.graph, d.palette, d.pack, (old.source, old.graph, old.palette, old.pack), appearance,
                                             mod_settings=settings, old_settings=old.settings)["mod_settings"]
         report = "outfit-" + appearance + ".json"
-        shutil.copyfile(donor.root / "provenance" / report, output / "provenance" / report)
+        shutil.copyfile(inside(donor.root / "provenance", report), inside(output / "provenance", report))
     if settings is not None: write_json(d.settings_path, settings)
     for folder, docs in d.folders.items():
         for name in named_files(docs) - before[folder]:
-            origin, target = origins[folder] / name, folder / name
+            origin, target = inside(origins[folder], name), inside(folder, name)
             # A graph blob absent beside the donor's graph is one the runtime reads from its source Files by SHA.
             if not origin.exists(): origin, target = (f / "Files" / Path(name).name for f in (old.source_path.parent, d.source_path.parent))
             if not target.exists(): target.parent.mkdir(exist_ok=True); shutil.copyfile(origin, target)

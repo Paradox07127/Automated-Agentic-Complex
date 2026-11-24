@@ -77,6 +77,22 @@ def read(path):
     return {'json': doc, 'buffers': buffers, 'base': path.parent}
 
 
+def packed(path, folder):
+    """path when its buffers are all inside it, else a GLB of it in folder with every buffer in the BIN chunk: the library keeps
+    one file of an import, which must bake again alone."""
+    source = read(path); doc = source['json']
+    if all(b.get('uri') is None or b['uri'].startswith('data:') for b in doc.get('buffers', [])): return Path(path)
+    blob, offsets = bytearray(), []
+    for content in source['buffers']: offsets.append(len(blob)); blob += content + bytes(-len(content) % 4)
+    doc = dict(doc, buffers=[{'byteLength': len(blob)}],
+               bufferViews=[dict(v, buffer=0, byteOffset=v.get('byteOffset', 0) + offsets[v['buffer']]) for v in doc.get('bufferViews', [])])
+    text = json.dumps(doc, separators=(',', ':')).encode(); text += b' ' * (-len(text) % 4)
+    out = Path(folder) / (Path(path).stem + '.glb')
+    out.write_bytes(struct.pack('<4sII', b'glTF', 2, 28 + len(text) + len(blob)) + struct.pack('<I4s', len(text), b'JSON') + text
+                    + struct.pack('<I4s', len(blob), b'BIN\0') + bytes(blob))
+    return out
+
+
 def accessor(doc, buffers, i):
     """(count,) for SCALAR, else (count, width), as float64; normalized integers per the glTF 2.0 formulas."""
     a = doc['accessors'][i]

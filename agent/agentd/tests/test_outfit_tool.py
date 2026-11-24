@@ -290,6 +290,52 @@ class OutfitToolTests(unittest.TestCase):
         [package] = Library(self.library.root).packages()
         self.assertEqual(draws(package), [0, 1, 2, 3])
 
+    def test_clone_copies_the_package_without_a_shell_copy(self):
+        import outfit_tool
+        [package] = self.library.packages()
+        def files(root): return {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+        with mock.patch("subprocess.run", side_effect=FileNotFoundError("/bin/cp")):
+            outfit_tool.clone(package.root, self.root / "clone")
+        self.assertEqual(files(self.root / "clone"), files(package.root))
+
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
+    def test_strip_and_graft_refuse_a_file_name_that_leaves_the_package(self):
+        import outfit_tool
+        from motion.zip_import import Failure
+        [original] = self.library.packages()
+        aid = self.success(tool_command("outfit_tool.py", *self.import_args(self.host())))["appearance"]["id"]
+        [imported] = Library(self.library.root).packages()
+        # The imported package rebuilt with one of the appearance's draws naming a file three folders above the copy.
+        evil = self.root / "evil" / "package"; evil.parent.mkdir(); d, reference = outfit_tool.clone(imported.root, evil)
+        next(x for x in d.source["draws"] if x["mesh"].startswith("outfit:" + aid + "/"))["file"] = "../../../sentinel.txt"
+        outfit_tool.finish(evil, d, read_json(evil / "character.json"), reference)
+        for name, call in (("strip", lambda out: outfit_tool.strip(evil, out, [aid], bump=True)),
+                           ("graft", lambda out: outfit_tool.graft(original.root, evil, out, [aid], "1.0.1"))):
+            with self.subTest(name=name):
+                output = self.root / name / "package"; output.parent.mkdir()
+                sentinel = output.parent / "sentinel.txt"; sentinel.write_text("keep", encoding="utf-8")
+                with self.assertRaises(Failure) as caught: call(output)
+                self.assertEqual(caught.exception.reason, "unsupported_mod")
+                self.assertEqual(sentinel.read_text(encoding="utf-8"), "keep")
+
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
+    def test_graft_rebuilds_the_windows_frame_table_and_strip_refuses_one(self):
+        import outfit_tool
+        from motion.zip_import import Failure
+        package_fixture(self.root / "windows", skinned=True, vulkan=True)
+        library = Library(self.root / "windows-library"); library.install(self.root / "windows")
+        [original] = library.packages()
+        args = ["import", "--library", str(library.root), "--character", "fixture", "--source", str(self.mod),
+                "--map", str(write_map(self.root / "windows-map.json", textures={"1": "_MetallicGlossMap"})), "--validate-with", str(self.host())]
+        aid = self.success(tool_command("outfit_tool.py", *args))["appearance"]["id"]
+        [imported] = Library(library.root).packages()
+        self.assertIn("vulkan_frame", imported.native_entry)
+        grafted = outfit_tool.graft(original.root, imported.root, self.root / "grafted", [aid], "1.0.1")
+        def files(root): return {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+        self.assertEqual(files(grafted.root), files(imported.root))
+        with self.assertRaises(Failure) as caught: outfit_tool.strip(imported.root, self.root / "stripped", [aid], bump=True)
+        self.assertEqual(caught.exception.reason, "unsupported_character")
+
     def test_remove_of_an_original_appearance_is_not_imported(self):
         snapshot = self.library.snapshot()
         doc = self.failure(tool_command("outfit_tool.py", *self.remove_args(self.host(), "top")))

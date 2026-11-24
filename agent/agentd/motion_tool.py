@@ -90,6 +90,7 @@ def source_failure(error):
 def find(library, character):
     package = library.package(character)
     if package is None: fail("internal", "unknown_character: " + character)
+    if not package.render_enabled: fail("unsupported_character", character + " is text-only: it has no body to move")
     return package
 
 
@@ -185,7 +186,7 @@ def mmd_list(args):
         try: lock_file(lock, blocking=False)
         except BlockingIOError: fail("busy", "another motion import is running in " + str(library.root))
         doc = load_mmd(library)
-        packages = [(package, mmd_rows(package)) for package in library.packages()]
+        packages = [(package, mmd_rows(package)) for package in library.packages() if package.render_enabled]
         entries = []
         for entry in sorted(doc["entries"], key=lambda e: e["created_at"]):
             if entry["removed_at"] is not None: continue
@@ -221,6 +222,7 @@ def mmd_sync(args):
             current = package
             rows = mmd_rows(package)
             result = dict(ok=True, character=package.id, version=package.version, baked=[], renamed=[], removed=[], failed=[])
+            failed = []
             total = len(doc["entries"])
             live = {entry["id"] for entry in doc["entries"] if entry["removed_at"] is None}
             bar = Progress(total=total, done=0); bar.show("read", 0)
@@ -264,6 +266,7 @@ def mmd_sync(args):
                     except (Failure, PackageError) as error:
                         reason = error.reason if isinstance(error, Failure) else str(error)
                         entry["failures"][package.id] = dict(reason=reason, detail=str(error), package_sha256=package.sha256)
+                        failed.append(entry)
                         result["failed"].append(dict(id=action, reason=reason, detail=str(error)))
                         shutil.rmtree(output, ignore_errors=True)
                     else:
@@ -280,9 +283,7 @@ def mmd_sync(args):
                 write_json(current.root / "character.json", definition)
                 # library.upgrade checks every file's SHA-256 in the copy it publishes.
                 current = Package(current.root, deep=False)
-                for entry in doc["entries"]:
-                    if any(failure["id"] == entry["id"] for failure in result["failed"]):
-                        entry["failures"][package.id]["package_sha256"] = current.sha256
+                for entry in failed: entry["failures"][package.id]["package_sha256"] = current.sha256
                 bar.show("validate", SYNC_ENTRIES)
                 try: validate_pack(host, current)
                 except PackageError as error: fail("validate_failed", error)
@@ -315,12 +316,18 @@ def run(args):
         except BlockingIOError: fail("busy", "another motion import is running in " + str(library.root))
         stage = stages / package.id
         unpacked = stages / (package.id + "-inputs")
+        glb = stages / (package.id + "-glb")
         shutil.rmtree(stage, ignore_errors=True)  # left by a killed import
-        shutil.rmtree(unpacked, ignore_errors=True)
+        shutil.rmtree(unpacked, ignore_errors=True); shutil.rmtree(glb, ignore_errors=True)
         try:
             if zipped:
                 body, camera, bgm, ignored = inputs(args, [*extract(args.source, unpacked), *args.extra])
                 fmt = precheck(package, body, args.format, args.take)
+            if fmt == "gltf":
+                # The kept source is one file: buffers beside a .gltf go into a GLB, which is baked and kept.
+                glb.mkdir()
+                try: body = motion_import(".gltf").packed(body, glb)
+                except ValueError as error: source_failure(error)
             progress = bar.span(VMD_STAGES if fmt == "vmd" else TAKE_STAGES)
             progress("read", 1)
             try:
@@ -344,13 +351,13 @@ def run(args):
             music = keep(bgm, sources) if bgm else None
             record = dict(action=parts["action"]["id"], clip=parts["action"]["clip"], format=parts["format"], title=title,
                           source=kept(body),
-                          bgm=dict(file=music, sha256=Path(music).stem, offset_s=args.bgm_start or 0.0) if music else None,
+                          bgm=dict(file=music, sha256=Path(music).stem, offset_s=args.bgm_start) if music else None,
                           camera=kept(camera), zip=kept(args.source) if zipped else None, morphs_mapped=[], morphs_unmapped=[],
                           created_at=datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"), removed_at=None)
             library.upgrade(stage, package.sha256)
         finally:
             shutil.rmtree(stage, ignore_errors=True)
-            shutil.rmtree(unpacked, ignore_errors=True)
+            shutil.rmtree(unpacked, ignore_errors=True); shutil.rmtree(glb, ignore_errors=True)
         if fmt == "vmd":
             entry = next((e for e in shared["entries"] if e["id"] == record["action"] and e["removed_at"] is None), None)
             if entry is None:
@@ -483,9 +490,11 @@ def list_motions(args):
     index = library.root / "motion-imports" / package.id / "imports.json"
     imports = read_json(index) if index.exists() else dict(imports=[])
     created = {}
-    for entry in imports["imports"]: created.setdefault(entry["action"], entry["created_at"])
+    for entry in imports["imports"]:
+        if entry["removed_at"] is None: created.setdefault(entry["action"], entry["created_at"])
     shared = library.root / "mmd-library/index.json"
-    for entry in read_json(shared)["entries"] if shared.exists() else []: created.setdefault(entry["id"], entry["created_at"])
+    for entry in read_json(shared)["entries"] if shared.exists() else []:
+        if entry["removed_at"] is None: created.setdefault(entry["id"], entry["created_at"])
     rows = read_json(pack_folder(package)[1] / "animation/actions.json")["actions"]
     motions = [dict(id=row["id"], clip=reports[row["id"]]["clip"], title=row["name"], format=reports[row["id"]]["format"],
                     duration_s=row["duration"], has_bgm=reports[row["id"]]["has_bgm"], created_at=created.get(row["id"]),

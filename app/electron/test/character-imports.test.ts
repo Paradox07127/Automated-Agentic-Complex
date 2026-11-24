@@ -516,7 +516,7 @@ test('while the shared MMD library bakes, the motion imports, mmd.import, rename
 test('character.renameMotion and removeMotion restart the renderer while holding the switch and answer once she is back', async () => {
   const f = fixture();
   try {
-    f.tool = (_script, args) => ({ last: JSON.stringify({ id: 'm', title: args[args.indexOf('--title') + 1] }), status: 0, stderr: '' });
+    f.tool = (_script, args) => ({ last: JSON.stringify({ id: 'm', title: args.find((a) => a.startsWith('--title='))?.slice(8) }), status: 0, stderr: '' });
     assert.deepEqual(await f.call('character.renameMotion', 'm', '慢舞'), { ok: true, id: 'm', title: '慢舞' });
     assert.deepEqual(f.calls, ['tool held=true', 'restartAvatar held=true']);
     assert.notEqual(f.link.hello, null, 'the reply waits for her new hello');

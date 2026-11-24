@@ -7,14 +7,16 @@ Live import still cannot replace an ID underneath an active character-switch/C3 
 import argparse
 import datetime
 import json
+import os
 from pathlib import Path
 import shutil
-import subprocess
 import sys
 import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from character_library import Library, Package, digest, need, read_json, validate_pack, write_json
+from motion.zip_import import Failure
+from resource_store import clone_or_copy
 
 # The library's import records and kept sources, carried to the new generation.
 RECORDS = ("outfit-imports", "mmd-library", "motion-imports")
@@ -23,7 +25,8 @@ RECORDS = ("outfit-imports", "mmd-library", "motion-imports")
 def reapply(target, base, previous, host, work):
     """Publish base, the seed package installed in target, rebuilt with the live imports of previous, the old library's package of
     its character; returns their failures as (record, reason). An import that cannot be rebuilt is left out and its record marked;
-    a validation failure keeps base and marks every record. MMD motions are left to mmd-sync, which bakes them again later."""
+    a validation failure keeps base and marks every record. Only a ValueError or Failure verdict marks a record: any other error
+    (OSError, a host that cannot run) aborts the merge. MMD motions are left to mmd-sync, which bakes them again later."""
     outfits = target.root / "outfit-imports" / base.id / "imports.json"
     motions = target.root / "motion-imports" / base.id / "imports.json"
     if not outfits.exists() and not motions.exists(): return []
@@ -43,7 +46,7 @@ def reapply(target, base, previous, host, work):
     for n, appearance in enumerate(appearances):
         output = work / ("outfit-%d" % n)
         try: current = outfit_tool.graft(current.root, previous.root, output, [appearance], current.version)
-        except Exception as error:
+        except (Failure, ValueError) as error:
             shutil.rmtree(output, ignore_errors=True); failures.append((("outfit", appearance), "%s: %s" % (type(error).__name__, error)))
         else: applied.append(("outfit", appearance))
     for n, entry in enumerate(takes):
@@ -56,9 +59,9 @@ def reapply(target, base, previous, host, work):
                 current.root, sources / entry["source"]["file"], entry["format"], output,
                 take=options["source"]["take"] if options else 0, title=entry["title"],
                 bgm=sources / entry["bgm"]["file"] if entry["bgm"] else None,
-                bgm_start=(entry["bgm"]["offset_s"] or None) if entry["bgm"] else None,
+                bgm_start=entry["bgm"]["offset_s"] if entry["bgm"] else None,
                 foot_lock=options["tracks"]["body"]["foot_lock"] if options else True)
-        except Exception as error:
+        except (Failure, ValueError) as error:
             shutil.rmtree(output, ignore_errors=True); failures.append((("motion", entry), "%s: %s" % (type(error).__name__, error)))
         else:
             current = Package(output, deep=False); applied.append(("motion", entry))
@@ -72,7 +75,7 @@ def reapply(target, base, previous, host, work):
             staged = Package(current.root, deep=False)
             if host is not None: validate_pack(host, staged)
             target.upgrade(staged.root, base.sha256)
-        except Exception as error:
+        except ValueError as error:
             failures += [(record, "validate_failed: %s" % error) for record in applied]
     when = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     for (kind, record), reason in failures:
@@ -90,6 +93,7 @@ def merge_seed(seed_catalog, seed_sha256, existing_catalog, existing_sha256, out
     """validate_with: the host executable that must load each rebuilt package; None skips that check."""
     seed_catalog, existing_catalog, output = map(lambda p: Path(p).resolve(), (seed_catalog, existing_catalog, output))
     host = None if validate_with is None else Path(validate_with).resolve()
+    need(host is None or (host.is_file() and os.access(host, os.X_OK)), "load_failed: host executable is missing or not executable: " + str(host))
     need(digest(seed_catalog) == seed_sha256, 'seed_catalog_sha_mismatch')
     need(digest(existing_catalog) == existing_sha256, 'existing_catalog_changed')
     if output.exists():
@@ -111,7 +115,7 @@ def merge_seed(seed_catalog, seed_sha256, existing_catalog, existing_sha256, out
         target = Library(stage)
         for cid in [default] + sorted(set(selected) - {default}): target.install(selected[cid].root)
         for name in RECORDS:
-            if (existing.root / name).is_dir(): subprocess.run(['/bin/cp', '-cR', str(existing.root / name), str(stage / name)], check=True)
+            if (existing.root / name).is_dir(): shutil.copytree(existing.root / name, stage / name, symlinks=True, copy_function=clone_or_copy)
         work = stage / '.reapply'; failed = {}
         for package in target.packages():
             old = previous.get(package.id)

@@ -183,10 +183,13 @@ test('motion ops check ids and titles, run motion_tool on the current character 
   assert.deepEqual(await call('character.renameMotion', 'x'.repeat(65), 'ok'), bad);
   assert.deepEqual(await call('character.renameMotion', 'm', '字'.repeat(65)), bad);
   assert.deepEqual(await call('character.removeMotion', ''), { ok: false, error: { code: 'bad_args', detail: 'character.removeMotion' } });
-  fake.tool = (args) => ({ last: JSON.stringify({ id: 'm', title: args[args.indexOf('--title') + 1] }), status: 0, stderr: '' });
+  fake.tool = (args) => ({ last: JSON.stringify({ id: 'm', title: args.find((a) => a.startsWith('--title='))?.slice(8) }), status: 0, stderr: '' });
   assert.deepEqual(await call('character.renameMotion', 'm', '  慢舞 '), { ok: true, value: { ok: true, id: 'm', title: '慢舞' } });
   assert.deepEqual(fake.tools.at(-1), ['motion_tool.py', 'rename', '--library', join(dir, 'library'), '--character', 'si', '--action', 'm',
-    '--title', '慢舞', '--validate-with', '/host']);
+    '--title=慢舞', '--validate-with', '/host']);
+  // A title starting with "-" stays the value of --title for argparse.
+  assert.deepEqual(await call('character.renameMotion', 'm', '-intro'), { ok: true, value: { ok: true, id: 'm', title: '-intro' } });
+  assert.ok(fake.tools.at(-1)!.includes('--title=-intro'));
   writeFileSync(join(dir, 'config.json'), JSON.stringify({ action_switches: { si: { m: true, n: false } } }));
   assert.deepEqual(await call('character.removeMotion', 'm'), { ok: true, value: { ok: true, id: 'm' } });
   assert.deepEqual(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')), { action_switches: { si: { n: false } } });

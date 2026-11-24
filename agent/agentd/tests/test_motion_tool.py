@@ -685,6 +685,50 @@ class MotionToolTests(unittest.TestCase):
         live = next(e for e in self.mmd_index()["entries"] if e["id"] == kept)["source"]["file"]
         self.assertEqual([p.name for p in sources.iterdir()], [live])
 
+    def test_mmd_list_leaves_out_text_only_characters_which_motion_commands_refuse(self):
+        from test_character_library import text_fixture
+        self.install(); text_fixture(self.root / "aide"); self.library.install(self.root / "aide")
+        sources = self.library.root / "mmd-library/sources"; sources.mkdir(parents=True); (sources / "dance.vmd").write_bytes(b"vmd")
+        write_json(self.library.root / "mmd-library/index.json", dict(schema="endfield-mmd-library/v1", entries=[dict(
+            id="mmd_0123456789abcdef", title="dance", duration_s=1.0, created_at="2026-11-01T00:00:00+00:00", removed_at=None,
+            source=dict(file="dance.vmd", sha256=hashlib.sha256(b"vmd").hexdigest(), name="dance.vmd"), camera=None, bgm=None, zip=None,
+            failures={})]))
+        [entry] = self.mmd_list()["entries"]
+        self.assertEqual(entry["characters"], [dict(id="fixture", state="pending", reason=None)])
+        doc = self.failure(tool_command("motion_tool.py", "list", "--library", str(self.library.root), "--character", "aide"))
+        self.assertEqual(doc["reason"], "unsupported_character")
+
+    @needs_numpy
+    def test_mmd_sync_with_a_tombstone_beside_a_failing_live_entry_publishes_the_other_bake(self):
+        from test_vmd_import import authored_rig
+        self.install(rig=authored_rig()); self.second_character(authored_rig())
+        action = self.success(self.run_import(self.vmd(), self.host()))["action"]["id"]
+        self.success(self.edit("remove", self.host(), action))
+        self.success(self.run_import(self.vmd(), self.host()))
+        other = self.success(self.run_import(self.vmd(seconds=2), self.host()))["action"]["id"]
+        index = self.mmd_index(); live = [e for e in index["entries"] if e["id"] == action and e["removed_at"] is None]
+        self.assertEqual(len([e for e in index["entries"] if e["id"] == action]), 2)
+        # No bake options reproduce the live entry's id, so its bake fails.
+        live[0]["duration_s"] = 9.0; write_json(self.library.root / "mmd-library/index.json", index)
+        result = self.sync(self.host())
+        self.assertEqual((result["baked"], [f["id"] for f in result["failed"]]), ([other], [action]))
+        second = next(p for p in self.library.packages() if p.id == "second")
+        self.assertEqual(result["version"], second.version)
+        failure = next(e for e in self.mmd_index()["entries"] if e["id"] == action and e["removed_at"] is None)["failures"]["second"]
+        self.assertEqual(failure["package_sha256"], second.sha256)
+
+    @needs_numpy
+    def test_list_dates_a_reimported_motion_by_its_live_import(self):
+        from test_vmd_import import authored_rig
+        self.install(rig=authored_rig())
+        action = self.success(self.run_import(self.vmd(), self.host()))["action"]["id"]
+        self.success(self.edit("remove", self.host(), action))
+        again = self.success(self.run_import(self.vmd(), self.host()))
+        index = self.mmd_index(); next(e for e in index["entries"] if e["removed_at"] is not None)["created_at"] = "2026-01-01T00:00:00+00:00"
+        write_json(self.library.root / "mmd-library/index.json", index)
+        [motion] = self.listed()["motions"]
+        self.assertEqual(motion["created_at"], again["created_at"])
+
     def install_chains(self):
         """test_chain_edit's wave chain with its motion graph, installed."""
         from agentic_complex_build.motion_graph import graft
