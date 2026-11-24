@@ -75,6 +75,19 @@ class RegistryOfferTests(integration.IntegrationFixture):
         # One runtime session slot: the gift's restricted session replaces the text one, which typing then reopens.
         self.assertEqual(len(self.definitions), 3)
 
+    def test_a_tap_runs_in_its_own_session_and_typing_keeps_its_session(self):
+        self.desktop_on()
+        self.line('整理资料')
+        self.prepare('tap-1', 'tap')
+        self.line('再整理一次')
+        typed, tap = self.sessions[0], self.sessions[1]
+        self.assertEqual(len(self.sessions), 2)
+        self.assertEqual(len(typed.calls), 2)
+        self.assertFalse(typed.closed)
+        self.assertEqual(len(tap.calls), 1)
+        self.assertEqual(tap.closed, 1)
+        self.assertEqual([d['name'] for d in self.definitions[1]], HEAD['embodied_only'])
+
     def test_every_offered_tool_is_registered(self):
         from tool_gateway.registry import BUILTIN
         for mode, names in self.offered().items():

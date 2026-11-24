@@ -189,7 +189,7 @@ class CharacterAgentController:
         from character_agent.services.worklog import WorkLogService
         self.worklog = WorkLogService(self) if plugins.on("daily_brief") and server.memory is not None else None
         self._background_runtimes = {}
-        self._side_runtimes = {}  # side line_id (its run_id) -> (cancel event, runtime)
+        self._side_runtimes = {}  # line_id of a side or tap line -> (cancel event, its one-off runtime)
         self._turn = threading.local()  # native_tools: False while this thread runs a side or unremembered role turn
         self._foreground_request = ''  # the start of the latest foreground input, for a side line's brief
         self.jobs = JobCoordinator(JobStore(server.memory), self._execute_job, self._cancel_job,
@@ -1727,19 +1727,25 @@ class CharacterAgentController:
 
     def prepare(self, line_id, text, cancel, generation, source, trace, *, side=False, **options):
         """Run the harness outside server's mouth lock; return a presentation-only provider.
-        side: answer this input in a new read-only session while the foreground run keeps working."""
-        if not side:
+        side: answer this input in a new read-only session while the foreground run keeps working.
+        A tap also runs in a session of its own, so it does not close the typing session; its tools stay the foreground's."""
+        tap = source == 'tap' and not side
+        if not side and not tap:
             self._foreground_request = text[:300] if trace.get('remember', True) else ''
             return self._prepare(line_id, text, cancel, generation, source, trace, **options)
         self._auto_select()
-        config = RuntimeSettings.route(self.settings.snapshot(), 'chat')
-        runtime = PersonalAgentRuntime(self.state_dir / 'character-agent', self._session_factory_bound(config, 'side-' + line_id, spoken=True),
+        snapshot = self.settings.snapshot()
+        config = RuntimeSettings.route(snapshot, 'chat')
+        native = dict(native_tools=self.tools.registry.native_definitions(desktop=bool(self.server.computer_control),
+            desktop_task=self._computer_use_ready(snapshot)), native_handler=self._native) if tap else {}
+        runtime = PersonalAgentRuntime(self.state_dir / 'character-agent',
+            self._session_factory_bound(config, ('tap-' if tap else 'side-') + line_id, spoken=True),
             self.knowledge, self.workspace, tasks=self.server.tasks, backend=config['backend'], model=self._model(config),
-            event_sink=self._event, run_store=self.store, tools=self.tools, effort=config['_turn_effort'])
+            event_sink=self._event, run_store=self.store, tools=self.tools, effort=config['_turn_effort'], **native)
         with self._lock:
             self._side_runtimes[line_id] = (cancel, runtime)
         try:
-            return self._prepare(line_id, text, cancel, generation, source, trace, runtime=runtime, side=True, **options)
+            return self._prepare(line_id, text, cancel, generation, source, trace, runtime=runtime, side=side, **options)
         finally:
             with self._lock:
                 self._side_runtimes.pop(line_id, None)

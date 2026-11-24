@@ -7,6 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from brain.events import cue, recorded  # noqa: E402
 from character_agent.presentation import PreparedReply  # noqa: E402
+import test_playback_server  # noqa: E402
 import test_server  # noqa: E402
 from test_history_server import HistoryServerCase  # noqa: E402
 from test_turn import wait_for  # noqa: E402
@@ -62,6 +63,24 @@ class EventHistoryTest(HistoryServerCase):
         self.assertEqual([r["user_text"] for r in self.rows()], [CUE])
         self.assertTrue(wait_for(lambda: self.server.mouth.history))
         self.assertEqual(self.server.mouth.history[-1][0]["content"], CUE)
+
+
+class CutCueLineTest(test_playback_server.PlaybackCase):
+    FIRST = "第一句话说完了。"
+
+    def test_a_cue_line_cut_while_it_plays_keeps_only_its_event(self):
+        self.server.character_agent = test_server.KernelLines(self.server)
+        self.fake.chunks, self.fake.delay = [self.FIRST] + ["二"] * 20, 0.1
+        self.server.start_line("l-tap", CUE, source="tap")
+        self.collect(self.relay, 1)
+        first = self.tts.bodies[0][1]["speech_id"]
+        self.receipt(first, "started")
+        self.receipt(first, "ended", 2 * test_playback_server.HALF)
+        self.assertTrue(self.server._live_lines)  # still streaming
+        self.assertEqual(self.request("POST", "/turn/cancel", {"reason": "barge_in"})[0], 202)
+        self.assertTrue(wait_for(lambda: not self.server._live_lines))
+        self.assertTrue(wait_for(lambda: self.server.mouth.history))
+        self.assertEqual([m["content"] for m in self.server.mouth.history[-1]], [recorded(CUE), self.FIRST])
 
 
 if __name__ == "__main__":

@@ -724,7 +724,7 @@ class TurnsMixin:
                     if cut:
                         with self._write_lock:
                             if self._current(trace):
-                                user = {"role": "user", "content": text}
+                                user = {"role": "user", "content": _kept(source, text)}
                                 if kept:
                                     self._keep_turn(line_id, user, earlier, kept)
                                 else:
