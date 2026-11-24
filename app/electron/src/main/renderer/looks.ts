@@ -14,7 +14,7 @@ type LooksLink = Pick<HostLink, 'on' | 'currentCharacter' | 'currentAppearance' 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const failed = (text: string) => new ActionFailure('failed', text);
 
-/** config.json as an object; `{}` when it does not read as one. */
+/** config.json as an object; `{}` when it does not read as one. For reads only: a write goes over `readObject`. */
 function readConfig(path: string): Record<string, unknown> {
   try {
     return readObject(path);
@@ -86,12 +86,12 @@ export class AvatarLooks {
 
   private event(e: LinkEvent): void {
     const { link, supportDir } = this.o;
-    if (e.kind === 'modSettings') return this.record(e.receipt);
+    if (e.kind === 'modSettings') return this.unattended(e.receipt.character, () => this.record(e.receipt));
     if (e.kind === 'appearance') {
       const a = e.event;
       if (a.kind === 'list') {
         // An imported appearance deleted from her package takes its mod settings with it.
-        if (a.options.length > 0) this.prune(a.character, a.options.map((x) => x.id));
+        if (a.options.length > 0) this.unattended(a.character, () => this.prune(a.character, a.options.map((x) => x.id)));
         const remembered = lastAppearance(supportDir, a.character);
         if (a.atHello && remembered !== null && remembered !== a.current && a.options.some((x) => x.id === remembered)) {
           this.o.log(`AVATAR hello appearance=${a.current ?? '-'} differs from remembered ${remembered}`);
@@ -164,8 +164,8 @@ export class AvatarLooks {
   }
 
   /** Stores the user's table, then sends it; the store stays when this throws. */
-  saveSwitches(character: string, switches: Record<string, boolean>): Promise<SwitchReply> {
-    writeObject(this.o.configPath, withSwitches(readConfig(this.o.configPath), character, switches));
+  async saveSwitches(character: string, switches: Record<string, boolean>): Promise<SwitchReply> {
+    writeObject(this.o.configPath, withSwitches(readObject(this.o.configPath), character, switches));
     return this.o.link.saveSwitches(character, switches);
   }
 
@@ -184,14 +184,23 @@ export class AvatarLooks {
   private record(receipt: ModReceipt): void {
     const all = { ...this.modSettings(receipt.character), [receipt.appearance]: receipt.values };
     if (modArgument(all) === null) return;
-    writeObject(this.o.configPath, withModSettings(readConfig(this.o.configPath), receipt.character, all));
+    writeObject(this.o.configPath, withModSettings(readObject(this.o.configPath), receipt.character, all));
   }
 
   private prune(character: string, keeping: string[]): void {
     const stored = this.modSettings(character);
     const kept = Object.fromEntries(Object.entries(stored).filter(([a]) => keeping.includes(a)));
     if (Object.keys(kept).length !== Object.keys(stored).length) {
-      writeObject(this.o.configPath, withModSettings(readConfig(this.o.configPath), character, kept));
+      writeObject(this.o.configPath, withModSettings(readObject(this.o.configPath), character, kept));
+    }
+  }
+
+  /** A write her report asks for, with no one to tell when config.json does not read or write. */
+  private unattended(character: string, write: () => void): void {
+    try {
+      write();
+    } catch (e) {
+      this.o.log(`AVATAR mod settings of ${character} not stored: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 }

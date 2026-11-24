@@ -529,3 +529,50 @@ test('a reply remembers what she wears; a failed one only logs and remembers not
     rmSync(support, { recursive: true, force: true });
   }
 });
+
+test('a config.json that does not parse is never written over: saveSwitches throws, her mod-settings reports only log', async () => {
+  const support = mkdtempSync(join(tmpdir(), 'looks-unreadable-'));
+  try {
+    const configPath = join(support, 'config.json'), bad = '{"services":{},';
+    writeFileSync(configPath, bad);
+    let emit: (e: LinkEvent) => void = () => {};
+    const logs: string[] = [], sent: unknown[] = [];
+    const receipt = { req: null, character: 'aster', appearance: 'summer', values: { coat: 1 }, adjusted: [] };
+    const link = { on: (fn: (e: LinkEvent) => void) => { emit = fn; return () => {}; }, currentCharacter: 'aster',
+      saveSwitches: async (character: string, switches: Record<string, boolean>) => (sent.push(switches), { character, switches, adjusted: [] }),
+      setModSettings: async () => receipt } as unknown as LooksOptions['link'];
+    const looks = new AvatarLooks({ link, supportDir: support, configPath, log: (l) => logs.push(l) });
+    looks.start();
+    await assert.rejects(async () => looks.saveSwitches('aster', { wave: false }));
+    assert.deepEqual(sent, [], 'the table that was not stored is not sent');
+    emit({ kind: 'modSettings', receipt });
+    await assert.rejects(looks.saveModSettings('aster', 'summer', { coat: 1 }));
+    assert.equal(readFileSync(configPath, 'utf8'), bad);
+    assert.equal(logs.length, 1);
+    assert.match(logs[0]!, /^AVATAR mod settings of aster not stored: /);
+    assert.deepEqual(looks.modSettings('aster'), {}, 'a read takes the unreadable file as empty');
+  } finally {
+    rmSync(support, { recursive: true, force: true });
+  }
+});
+
+test('avatar.setActionSwitches: two overlapping saves keep both changes; an id that is only an Object property is unknown', async () => {
+  let table: Record<string, boolean> = { wave: true, idle: true };
+  const saved: Record<string, boolean>[] = [];
+  const avatar = { currentCharacter: 'aster', actions: async () => {
+    const now = { ...table };
+    await sleep(0.02);
+    return { switches: now };
+  } };
+  const looks = { saveSwitches: async (character: string, switches: Record<string, boolean>) => {
+    saved.push(switches);
+    table = switches;
+    return { character, switches, adjusted: [] };
+  } };
+  const ops = new Map(Object.entries(avatarOps({ surface: 'main', routes, avatar, looks } as unknown as OpsContext))), page = new PageSession(() => {});
+  const call = (...args: unknown[]) => handle('main', { mainFrame: true, origin: ORIGIN }, { op: 'avatar.setActionSwitches', args }, ops, page);
+  const [a, b] = await Promise.all([call({ wave: false }), call({ idle: false })]);
+  assert.ok(a.ok && b.ok, JSON.stringify([a, b]));
+  assert.deepEqual(saved.at(-1), { wave: false, idle: false });
+  assert.deepEqual(await call({ toString: true }), { ok: false, error: { code: 'invalid_args', detail: 'unknown action' } });
+});

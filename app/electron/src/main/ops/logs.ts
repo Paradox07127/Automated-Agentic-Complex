@@ -72,7 +72,7 @@ export function logsOps(ctx: OpsContext): Ops {
       const d = dirs();
       const budget = Math.floor(MAX_BYTES / ids.length), share = Math.floor(MAX_LINES / ids.length);
       const cursor: Partial<Record<LogSourceId, number>> = {}, truncated: LogSourceId[] = [];
-      const lines: LogLine[] = [];
+      const lines: LogLine[] = [], read: { id: LogSourceId; lines: LogLine[]; next: number }[] = [];
       for (const id of ids) {
         const s = LOG_SOURCES.find((x) => x.id === id)!;
         const path = join(d[s.dir], s.file);
@@ -92,13 +92,20 @@ export function logsOps(ctx: OpsContext): Ops {
           cursor[id] = asked === undefined || asked > size ? size : asked;
           continue;
         }
-        const read = readLines(path, start, size, tail ? start > 0 : start > from);
-        cursor[id] = read.next;
-        const parsed = parseLog(id, read.rows, tail ? null : Date.now());
-        lines.push(...(tail ? parsed.slice(-share) : parsed));
+        const got = readLines(path, start, size, tail ? start > 0 : start > from);
+        const parsed = parseLog(id, got.rows, tail ? null : Date.now());
+        read.push({ id, lines: tail ? parsed.slice(-share) : parsed, next: got.next });
+        lines.push(...read.at(-1)!.lines);
       }
       lines.sort((a, b) => (a.at ?? -Infinity) - (b.at ?? -Infinity));
-      return { lines: lines.slice(-MAX_LINES), cursor, truncated };
+      // The oldest MAX_LINES go out; each cursor ends at its source's last line sent, so the next read returns the rest.
+      const out = lines.slice(0, MAX_LINES), sent = new Set(out);
+      for (const r of read) {
+        const last = r.lines.findLastIndex((l) => sent.has(l));
+        cursor[r.id] = last + 1 < r.lines.length ? r.lines[last + 1]!.off : r.next;
+        if (r.lines.slice(0, last).some((l) => !sent.has(l)) && !truncated.includes(r.id)) truncated.push(r.id);
+      }
+      return { lines: out, cursor, truncated };
     },
     // 诊断's 错误: the last records of the shell's and agentd's error files (common/error-record.ts), newest first.
     'logs.errors': () => {

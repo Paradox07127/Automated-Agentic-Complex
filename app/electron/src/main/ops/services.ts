@@ -38,29 +38,35 @@ export function servicesOps(ctx: OpsContext): Ops {
       }
     };
     if (!read()) return { ok: false, error: 'config_unreadable' };
-    if (record.mode === 'ssh' && record.start_script !== ''
-      && (old.mode !== 'ssh' || old.start_script !== record.start_script || old.ssh_host !== record.ssh_host)) {
-      if (!(await ctx.confirm(`保存后，按需启动脚本 ${record.start_script} 会经 SSH 在 ${record.ssh_host} 上执行。确定保存？`))) {
-        return { ok: false, error: 'declined' };
-      }
+    const ask = record.mode === 'ssh' && record.start_script !== ''
+      && (old.mode !== 'ssh' || old.start_script !== record.start_script || old.ssh_host !== record.ssh_host)
+      ? `保存后，按需启动脚本 ${record.start_script} 会经 SSH 在 ${record.ssh_host} 上执行。确定保存？`
+      : record.mode === 'local' && (old.mode !== 'local' || JSON.stringify(old.command) !== JSON.stringify(record.command) || old.cwd !== record.cwd)
+        ? `保存后，命令 ${record.command.join(' ')} 会在这台电脑上${record.cwd === '' ? '' : `的 ${record.cwd} 里`}执行。确定保存？`
+        : null;
+    if (ask !== null) {
+      if (!(await ctx.confirm(ask))) return { ok: false, error: 'declined' };
       // config.json may have changed while the dialog was open.
       if (!read()) return { ok: false, error: 'config_unreadable' };
-    }
-    // The token installed for the old TTS service is not sent to another one.
-    const ttsTokenCleared = id === 'tts' && old.mode !== 'off' && (record.mode === 'off' || endpoint(old) !== endpoint(record));
-    if (ttsTokenCleared && ctx.config.supportDir !== null) {
-      try {
-        const token = ttsTokenFile(ctx.config.supportDir);
-        if (existsSync(token + '.ref')) renameSync(token + '.ref', token + '.revoked');
-      } catch (e) {
-        return { ok: false, error: 'token_not_cleared', message: e instanceof Error ? e.message : String(e) };
-      }
     }
     const services = typeof raw.services === 'object' && raw.services !== null && !Array.isArray(raw.services) ? raw.services : {};
     try {
       writeObject(path, { ...raw, services: { ...services, [id]: record } });
     } catch (e) {
       return { ok: false, error: 'write_failed', message: e instanceof Error ? e.message : String(e) };
+    }
+    // The token installed for the old TTS service is not sent to another one; the old record goes back when it stays.
+    const ttsTokenCleared = id === 'tts' && old.mode !== 'off' && (record.mode === 'off' || endpoint(old) !== endpoint(record));
+    if (ttsTokenCleared && ctx.config.supportDir !== null) {
+      try {
+        const token = ttsTokenFile(ctx.config.supportDir);
+        if (existsSync(token + '.ref')) renameSync(token + '.ref', token + '.revoked');
+      } catch (e) {
+        try {
+          writeObject(path, raw);
+        } catch { /* reported as not cleared */ }
+        return { ok: false, error: 'token_not_cleared', message: e instanceof Error ? e.message : String(e) };
+      }
     }
     ctx.log(`services save ${id} mode=${record.mode}`);
     ctx.services?.saved(id);

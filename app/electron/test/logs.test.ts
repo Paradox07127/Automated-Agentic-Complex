@@ -138,6 +138,24 @@ test('logs.read caps a big file: the last 2 MiB, partial first line dropped, at 
   assert.deepEqual(got.truncated, ['agentd']);
 });
 
+test('logs.read over MAX_LINES new lines in two sources returns the rest at the next read, none lost', () => {
+  const at = (ms: number) => new Date(Date.UTC(2026, 10, 22, 7, 0, 0) + ms).toISOString();
+  const text = (source: string, parity: number) =>
+    Array.from({ length: MAX_LINES }, (_, i) => `${at(i * 2 + parity)} pid=1 ${source}: n${i}\n`).join('');
+  writeFileSync(join(logs, 'agentd.log'), '');
+  writeFileSync(join(logs, 'companion.log'), '');
+  const start = read({ sources: ['agentd', 'companion'] });
+  writeFileSync(join(logs, 'agentd.log'), text('agentd', 0));
+  writeFileSync(join(logs, 'companion.log'), text('supervisor', 1));
+  const first = read({ sources: ['agentd', 'companion'], after: start.cursor });
+  assert.equal(first.lines.length, MAX_LINES);
+  const second = read({ sources: ['agentd', 'companion'], after: first.cursor });
+  const seen = [...first.lines, ...second.lines].map((l) => `${l.source} ${l.off}`);
+  assert.equal(new Set(seen).size, 2 * MAX_LINES, 'every line once');
+  assert.deepEqual([first.truncated, second.truncated], [[], []]);
+  assert.deepEqual(read({ sources: ['agentd', 'companion'], after: second.cursor }).lines, []);
+});
+
 test('logs.read takes source ids only: a path, an unknown id or a bad cursor is refused', () => {
   for (const req of [{ sources: ['../config.json'] }, { sources: ['/etc/hosts'] }, { sources: [] }, {}, { sources: ['agentd'], after: { agentd: -1 } },
     { sources: ['agentd'], after: { 'config.json': 0 } }]) {

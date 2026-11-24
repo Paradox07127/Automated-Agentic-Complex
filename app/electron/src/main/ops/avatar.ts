@@ -358,6 +358,7 @@ export function avatarOps(ctx: OpsContext): Ops {
     if (!ctx.placement) throw new BridgeFailure('failed', '角色还没连上（配置出错）');
     return ctx.placement;
   };
+  let switchSaving: Promise<unknown> = Promise.resolve();
   const fallback = () => (ctx.library?.launched ? ctx.library.launched : null);
   const renderer = (): ChildState => ctx.supervisor?.avatar() ?? { kind: 'stopped' };
   const stateSource = new TickSource('state', true, () => (ctx.avatar ? avatarState(ctx.avatar, renderer(), fallback()) : null));
@@ -568,25 +569,30 @@ export function avatarOps(ctx: OpsContext): Ops {
         return null;
       });
     },
-    'avatar.setActionSwitches': async ([raw]) => {
+    'avatar.setActionSwitches': ([raw]) => {
       if (typeof raw !== 'object' || raw === null || Array.isArray(raw) || !Object.values(raw).every((v) => typeof v === 'boolean')) {
         throw new BridgeFailure('invalid_args', 'switches');
       }
       const changes = raw as Record<string, boolean>;
-      try {
-        // The page sends only what it changed; the avatar stores the table it gets as the user's whole table.
-        const character = current();
-        const switches = (await host().actions(character)).switches;
-        if (host().currentCharacter !== character) throw new BridgeFailure('failed', '角色刚换过，请重新设置');
-        if (!Object.keys(changes).every((id) => id in switches)) throw new BridgeFailure('invalid_args', 'unknown action');
-        const reply = await looks('avatar.setActionSwitches').saveSwitches(character, { ...switches, ...changes });
-        const value: Record<string, unknown> = { switches: reply.switches, adjusted: reply.adjusted };
-        if (reply.error !== undefined) value.error = reply.error;
-        return value;
-      } catch (e) {
-        if (e instanceof BridgeFailure) throw e;
-        throw new BridgeFailure('failed', e instanceof Error ? e.message : String(e));
-      }
+      // Each save merges into the table the one before it stored.
+      const task = switchSaving.then(async () => {
+        try {
+          // The page sends only what it changed; the avatar stores the table it gets as the user's whole table.
+          const character = current();
+          const switches = (await host().actions(character)).switches;
+          if (host().currentCharacter !== character) throw new BridgeFailure('failed', '角色刚换过，请重新设置');
+          if (!Object.keys(changes).every((id) => Object.hasOwn(switches, id))) throw new BridgeFailure('invalid_args', 'unknown action');
+          const reply = await looks('avatar.setActionSwitches').saveSwitches(character, { ...switches, ...changes });
+          const value: Record<string, unknown> = { switches: reply.switches, adjusted: reply.adjusted };
+          if (reply.error !== undefined) value.error = reply.error;
+          return value;
+        } catch (e) {
+          if (e instanceof BridgeFailure) throw e;
+          throw new BridgeFailure('failed', e instanceof Error ? e.message : String(e));
+        }
+      });
+      switchSaving = task.catch(() => {});
+      return task;
     },
     'avatar.modSettings.get': ([o]) => {
       const store = looks('avatar.modSettings.get');

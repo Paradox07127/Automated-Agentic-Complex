@@ -392,12 +392,12 @@ test('a TTS address saved with another origin deletes the token installed for th
     const save = (url: string, mode = 'url') => handle('main', page0, { op: 'services.save', args: ['tts', { mode, url }] }, ops, page);
     assert.deepEqual(await save('http://127.0.0.1:19888/v2'), { ok: true, value: { ok: true } });
     assert.ok(existsSync(token), 'the same service');
-    assert.deepEqual(await save('http://gpu-box:19888'), { ok: true, value: { ok: true, ttsTokenCleared: true } });
+    assert.deepEqual(await save('https://127.0.0.1:19888'), { ok: true, value: { ok: true, ttsTokenCleared: true } }, 'another scheme');
     assert.equal(readFileSync(join(dir, 'tts-token.revoked'), 'utf8').trim(), 'first-reference');
     assert.ok(!existsSync(token), 'the next start sends the first service\'s token to no one');
-    assert.equal(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')).services.tts.url, 'http://gpu-box:19888');
+    assert.equal(JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')).services.tts.url, 'https://127.0.0.1:19888');
     writeFileSync(token, 'second-reference\n', { mode: 0o600 });
-    assert.deepEqual(await save('https://gpu-box:19888'), { ok: true, value: { ok: true, ttsTokenCleared: true } }, 'another scheme');
+    assert.deepEqual(await save('https://gpu-box:19888'), { ok: true, value: { ok: true, ttsTokenCleared: true } }, 'another host');
     assert.ok(!existsSync(token));
     assert.deepEqual(await save('https://gpu-box:19888', 'off'), { ok: true, value: { ok: true, ttsTokenCleared: true } }, 'off');
   } finally {
@@ -632,6 +632,56 @@ test('services.save asks before a new start script, and a no writes nothing; an 
     assert.deepEqual(await call('services.save', 'tts', ssh), { ok: true, value: { ok: true } });
     assert.deepEqual(await call('services.save', 'tts', { ...ssh, start_script: '' }), { ok: true, value: { ok: true } });
     assert.deepEqual(asked, []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('services.save asks before a new local command or cwd, and a no writes nothing and starts nothing', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'local-'));
+  try {
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({ services: { llm: { mode: 'off', command: ['/bin/sh', '-c', 'x'] } } }));
+    const asked: string[] = [], saved: string[] = [];
+    let answer = false;
+    const ops = registry({ ...context(dir), confirm: async (text: string) => { asked.push(text); return answer; },
+      services: { view: () => ({ mode: 'off', state: null, pid: null, detail: null }), start: async () => ({ ok: true, line: null }),
+        stop: async () => ({ ok: true, line: null }), restart: async () => ({ ok: true, line: null }), saved: (id) => { saved.push(id); } } });
+    const call = (op: string, ...args: unknown[]) => handle('main', page0, { op, args }, ops, new PageSession(() => {}));
+    const local = { mode: 'local', url: 'http://127.0.0.1:11434/v1', command: ['/bin/sh', '-c', 'x'], cwd: '/srv' };
+    const before = readFileSync(join(dir, 'config.json'), 'utf8');
+    assert.deepEqual(await call('services.save', 'llm', local), { ok: true, value: { ok: false, error: 'declined' } }, 'off to local');
+    assert.match(asked[0]!, /\/bin\/sh -c x.*\/srv/);
+    assert.equal(readFileSync(join(dir, 'config.json'), 'utf8'), before);
+    assert.deepEqual(saved, []);
+    answer = true;
+    assert.deepEqual(await call('services.save', 'llm', local), { ok: true, value: { ok: true } });
+    asked.length = 0;
+    answer = false;
+    assert.deepEqual(await call('services.save', 'llm', local), { ok: true, value: { ok: true } }, 'unchanged');
+    assert.deepEqual(asked, []);
+    assert.deepEqual(await call('services.save', 'llm', { ...local, command: ['/bin/sh', '-c', 'y'] }), { ok: true, value: { ok: false, error: 'declined' } });
+    assert.deepEqual(await call('services.save', 'llm', { ...local, cwd: '/tmp' }), { ok: true, value: { ok: false, error: 'declined' } });
+    assert.equal(asked.length, 2);
+    assert.deepEqual(saved, ['llm', 'llm']);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a TTS token is revoked only once config.json holds the new address', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'services-'));
+  try {
+    const token = join(dir, 'tts-token.ref'), path = join(dir, 'config.json');
+    writeFileSync(path, JSON.stringify({ services: { tts: { mode: 'url', url: 'http://127.0.0.1:19888' } } }));
+    writeFileSync(token, 'reference\n', { mode: 0o600 });
+    // The temporary file config.json is written through cannot be made.
+    mkdirSync(`${path}.tmp-${process.pid}`);
+    const ops = registry(context(dir));
+    const reply = await handle('main', page0, { op: 'services.save', args: ['tts', { mode: 'url', url: 'https://gpu-box:19888' }] }, ops, new PageSession(() => {}));
+    assert.ok(reply.ok);
+    assert.equal((reply.value as { error: string }).error, 'write_failed');
+    assert.ok(existsSync(token), 'config.json still names the old service');
+    assert.equal(JSON.parse(readFileSync(path, 'utf8')).services.tts.url, 'http://127.0.0.1:19888');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
