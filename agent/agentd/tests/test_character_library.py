@@ -522,6 +522,15 @@ class CharacterLibraryTests(unittest.TestCase):
         self.assertEqual(library.entries(), [])
 
     @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
+    def test_folder_import_refuses_a_linked_directory_inside_the_folder(self):
+        src = self.root / "source"; fixture(src)
+        outside = self.root / "outside"; outside.mkdir(); (outside / "secret.json").write_text("{}", encoding="utf-8")
+        (src / "runtime/linked").symlink_to(outside, target_is_directory=True)
+        library = Library(self.root / "library")
+        with self.assertRaisesRegex(PackageError, "runtime_symlink"): library.import_path(src, validate_with=self.host())
+        self.assertEqual(library.entries(), [])
+
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_folder_import_skips_file_manager_metadata(self):
         src = self.root / "source"; fixture(src)
         for name in (".DS_Store", "runtime/Thumbs.db", "runtime/desktop.ini"):

@@ -507,6 +507,8 @@ class Library:
                 # Finder and Explorer drop these into any folder the user browses; they are not package files.
                 shutil.copytree(source, stage, dirs_exist_ok=True, symlinks=True,
                                 ignore=shutil.ignore_patterns(".DS_Store", "Thumbs.db", "desktop.ini"))
+                for walked, names, files in os.walk(stage, followlinks=False):
+                    for name in names + files: need(not (Path(walked) / name).is_symlink(), "runtime_symlink")
             else:
                 safe_extract_zip(source, stage, max_files=MAX_FILES, max_bytes=MAX_BYTES)
             package = Package(stage)
