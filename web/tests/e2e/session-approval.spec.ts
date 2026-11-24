@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 import { saveShot } from './shots.ts';
 
-// An approval or question on a HUD session line is a compact block of about 88–110 px.
+// An approval or question on a HUD session line is a compact block of about 88–110 px; the line saying what 本对话都允许 covers adds one row.
 
 const shotsDir = fileURLToPath(new URL('../../.shots/', import.meta.url));
 
@@ -42,9 +42,10 @@ for (const theme of ['dark', 'light'] as const) {
     await expect(block.locator('[data-danger-mark]')).toHaveCount(0);
     await expect(block.getByRole('button', { name: '本对话都允许' })).toBeVisible();
     await expect(page.locator('[data-stub="CountdownRing"]')).toHaveCount(0);
+    await expect(block).toContainText('之后不再问');
     const h = await heightOf(page, '[data-stub="SessionApproval"]');
     expect(h).toBeGreaterThanOrEqual(88);
-    expect(h).toBeLessThanOrEqual(110);
+    expect(h).toBeLessThanOrEqual(130);
     await shot(page, info.project.name, `${theme}-session-approval`);
     await block.getByRole('button', { name: /^差异/ }).click();
     await expect(block).toContainText('let timeout: TimeInterval = 3.0');
