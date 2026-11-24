@@ -17,6 +17,8 @@ export interface Schedule {
     | { kind: 'session_done'; target: 'claude' | 'codex' | null; project: string | null };
   enabled: boolean;
   created_from: 'user' | 'agent_proposal';
+  /** First enable, ms; null while it was never on, the only time a proposal waits for the user. */
+  accepted_at: number | null;
   next_run_at: number | null;
   last_run_at: number | null;
   last_job_id: string | null;
@@ -30,8 +32,9 @@ export type WireScheduleTrigger =
   | ScheduleTrigger
   | { kind: string; at?: string; weekdays?: number[]; weekday?: number; target?: string | null; project?: string | null };
 
-export type WireSchedule = Omit<SchedulesResponse['schedules'][number], 'trigger' | 'scope_id' | 'last_error'> & {
+export type WireSchedule = Omit<SchedulesResponse['schedules'][number], 'trigger' | 'scope_id' | 'last_error' | 'accepted_at'> & {
   trigger: WireScheduleTrigger;
+  accepted_at: number | null;
   scope_id?: string | null;
   last_error?: string | null;
 };
@@ -86,6 +89,7 @@ export function fromSchedule(w: WireSchedule): Schedule {
     trigger: adaptTrigger(w.trigger),
     enabled: Boolean(w.enabled),
     created_from: w.created_from === 'agent_proposal' ? 'agent_proposal' : 'user',
+    accepted_at: secToMsOrNull(w.accepted_at),
     next_run_at: secToMsOrNull(w.next_run_at),
     last_run_at: secToMsOrNull(w.last_run_at),
     last_job_id: w.last_job_id ?? null,

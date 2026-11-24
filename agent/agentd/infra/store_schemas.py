@@ -73,7 +73,8 @@ SCHEDULE_SCHEMA = (
     "CREATE TABLE IF NOT EXISTS schedules (schedule_id TEXT PRIMARY KEY, title TEXT NOT NULL, instruction TEXT NOT NULL,"
     " trigger_kind TEXT NOT NULL CHECK (trigger_kind IN ('daily','weekly','session_done')), trigger_json TEXT NOT NULL,"
     " enabled INTEGER NOT NULL DEFAULT 0, created_from TEXT NOT NULL CHECK (created_from IN ('user','agent_proposal')),"
-    " conversation_id TEXT, next_run_at REAL, last_run_at REAL, last_job_id TEXT, created_at REAL NOT NULL, updated_at REAL NOT NULL, scope_id TEXT)",
+    " conversation_id TEXT, next_run_at REAL, last_run_at REAL, last_job_id TEXT, created_at REAL NOT NULL, updated_at REAL NOT NULL, scope_id TEXT,"
+    " accepted_at REAL)",
     "CREATE INDEX IF NOT EXISTS schedules_due ON schedules(enabled,next_run_at)",
     "CREATE TABLE IF NOT EXISTS schedule_runs (run_id TEXT PRIMARY KEY, schedule_id TEXT NOT NULL, due_at REAL NOT NULL,"
     " started_at REAL, job_id TEXT, state TEXT NOT NULL CHECK (state IN ('started','skipped','missed','failed')), error TEXT)",

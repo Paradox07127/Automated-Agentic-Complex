@@ -24,6 +24,7 @@ const INITIAL_SCHEDULES: readonly WireSchedule[] = [
     last_error: null,
     created_at: BASE_S,
     updated_at: BASE_S,
+    accepted_at: BASE_S,
   },
   {
     schedule_id: 'schedule-2',
@@ -40,6 +41,7 @@ const INITIAL_SCHEDULES: readonly WireSchedule[] = [
     last_error: null,
     created_at: BASE_S,
     updated_at: BASE_S,
+    accepted_at: null,
   },
 ];
 
@@ -129,6 +131,7 @@ export const routes: MockRoute[] = [
         last_error: null,
         created_at: NOW_S,
         updated_at: NOW_S,
+        accepted_at: enabled ? NOW_S : null,
       };
       schedules = [...schedules, item];
       return ok({ schedule: item }, 201);
@@ -169,6 +172,7 @@ export const routes: MockRoute[] = [
         scope_id: scopeId,
         next_run_at: next,
         updated_at: NOW_S,
+        accepted_at: current.accepted_at ?? (enabled ? NOW_S : null),
       };
       schedules = schedules.map((s, i) => (i === idx ? updated : s));
       return ok({ schedule: updated });

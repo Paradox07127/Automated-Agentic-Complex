@@ -116,7 +116,7 @@ export const matches = (t: Task, q: string) => !q || t.title.includes(q) || (t.s
 
 /** 她提议的 (proposals not yet on), 开着, 暂停. */
 export function schedGroups(list: readonly Schedule[], now: number): RowGroup[] {
-  const proposal = (s: Schedule) => s.created_from === 'agent_proposal' && !s.enabled;
+  const proposal = (s: Schedule) => s.created_from === 'agent_proposal' && s.accepted_at == null;
   const row = (s: Schedule): ListRow => ({
     id: s.schedule_id,
     title: s.title,

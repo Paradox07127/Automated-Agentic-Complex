@@ -1045,6 +1045,7 @@ export interface SchedulesResponse {
     last_error: null;
     created_at: number;
     updated_at: number;
+    accepted_at: number;
   }>;
 }
 

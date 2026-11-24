@@ -9,7 +9,7 @@ import time
 import uuid
 
 COLUMNS = ('schedule_id', 'title', 'instruction', 'trigger_kind', 'trigger_json', 'enabled', 'created_from',
-           'conversation_id', 'next_run_at', 'last_run_at', 'last_job_id', 'created_at', 'updated_at', 'scope_id')
+           'conversation_id', 'next_run_at', 'last_run_at', 'last_job_id', 'created_at', 'updated_at', 'scope_id', 'accepted_at')
 SELECT = 'SELECT ' + ','.join(COLUMNS) + ',(SELECT error FROM schedule_runs AS r WHERE ' \
     'r.schedule_id=schedules.schedule_id ORDER BY r.rowid DESC LIMIT 1) FROM schedules'
 GRACE = 6 * 3600
@@ -111,9 +111,10 @@ class Schedules:
         ident, now = uuid.uuid4().hex, self.clock()
         with self.lock, self.db:
             self._changed()
-            self.db.execute('INSERT INTO schedules (' + ','.join(COLUMNS) + ') VALUES(?,?,?,?,?,?,?,?,?,NULL,NULL,?,?,?)',
+            self.db.execute('INSERT INTO schedules (' + ','.join(COLUMNS) + ') VALUES(?,?,?,?,?,?,?,?,?,NULL,NULL,?,?,?,?)',
                 (ident, title, instruction, trigger['kind'], json.dumps({k: v for k, v in trigger.items() if k != 'kind'}),
-                 int(enabled), created_from, conversation_id, next_run(trigger, now) if enabled else None, now, now, scope_id))
+                 int(enabled), created_from, conversation_id, next_run(trigger, now) if enabled else None, now, now, scope_id,
+                 now if enabled else None))
         return self.get(ident)
 
     def update(self, ident, changes):
@@ -134,10 +135,12 @@ class Schedules:
             due = next_run(trigger, now) if item['enabled'] else None
             if trigger == saved['trigger'] and item['enabled'] == saved['enabled']:
                 due = item['next_run_at']
+            # The first enable accepts it for good: a paused accepted proposal is no proposal any more.
+            accepted = saved['accepted_at'] if saved['accepted_at'] is not None or not item['enabled'] else now
             self.db.execute('UPDATE schedules SET title=?,instruction=?,trigger_kind=?,trigger_json=?,enabled=?,next_run_at=?,'
-                            'updated_at=?,conversation_id=?,scope_id=? WHERE schedule_id=?',
+                            'updated_at=?,conversation_id=?,scope_id=?,accepted_at=? WHERE schedule_id=?',
                 (item['title'], item['instruction'], trigger['kind'], json.dumps({k: v for k, v in trigger.items() if k != 'kind'}),
-                 int(item['enabled']), due, now, item['conversation_id'], item['scope_id'], ident))
+                 int(item['enabled']), due, now, item['conversation_id'], item['scope_id'], accepted, ident))
         return self.get(ident)
 
     def delete(self, ident):

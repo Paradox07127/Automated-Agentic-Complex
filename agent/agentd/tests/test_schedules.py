@@ -163,6 +163,35 @@ class ScheduleTests(unittest.TestCase):
         self.assertIn('error', result)
         self.assertEqual(turn.call('schedules_list', {})['schedules'], [item])
 
+    def test_enabling_a_proposal_marks_it_accepted_and_pausing_keeps_the_mark(self):
+        store = self.store()
+        item = store.add('日报', '总结', DAILY, created_from='agent_proposal')
+        self.assertIsNone(item['accepted_at'])
+        ident = item['schedule_id']
+        accepted = self.now
+        code, body = self.request('PUT', f'/schedules/{ident}', {'enabled': True})
+        self.assertEqual(code, 200); self.assertEqual(body['schedule']['accepted_at'], accepted)
+        self.now += 60
+        code, body = self.request('PUT', f'/schedules/{ident}', {'enabled': False})
+        self.assertEqual(code, 200); self.assertFalse(body['schedule']['enabled'])
+        self.assertEqual(body['schedule']['accepted_at'], accepted)
+        self.assertEqual(body['schedule']['created_from'], 'agent_proposal')
+        self.assertEqual(self.request('PUT', f'/schedules/{ident}', {'enabled': True})[1]['schedule']['accepted_at'], accepted)
+        self.assertEqual(store.add('日报', '总结', DAILY, enabled=True)['accepted_at'], self.now)
+
+    def test_an_existing_database_gains_the_acceptance_column(self):
+        import sqlite3
+        path = Path(self.tmp.name) / 'old.sqlite'
+        old = sqlite3.connect(str(path))
+        old.execute('CREATE TABLE schedules (schedule_id TEXT PRIMARY KEY, title TEXT NOT NULL, instruction TEXT NOT NULL,'
+                    ' trigger_kind TEXT NOT NULL, trigger_json TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 0,'
+                    ' created_from TEXT NOT NULL, conversation_id TEXT, next_run_at REAL, last_run_at REAL, last_job_id TEXT,'
+                    ' created_at REAL NOT NULL, updated_at REAL NOT NULL, scope_id TEXT)')
+        old.close()
+        db = open_store(path)
+        self.addCleanup(db.close)
+        self.assertIn('accepted_at', [r[1] for r in db.execute('PRAGMA table_info(schedules)')])
+
     def test_all_routes_reject_non_ui_tokens(self):
         for method, path in [('GET', '/schedules'), ('POST', '/schedules'), ('PUT', '/schedules/a'),
                              ('DELETE', '/schedules/a'), ('POST', '/schedules/a/run')]:

@@ -73,7 +73,9 @@ describe('domain/schedules adapt and formatting', () => {
       last_job_id: null,
       created_at: 1793811600,
       updated_at: 1793811600,
+      accepted_at: null,
     });
+    expect(proposal.accepted_at).toBeNull();
     expect(proposal.created_from).toBe('agent_proposal');
     expect(proposal.enabled).toBe(false);
     const view = scheduleItemView(proposal);
@@ -94,12 +96,14 @@ describe('domain/schedules adapt and formatting', () => {
       last_job_id: 'job-1',
       created_at: 1793811600,
       updated_at: 1793811600,
+      accepted_at: 1793811600,
     });
     const enabledView = scheduleItemView(userEnabled);
     expect(enabledView.proposalTag).toBeNull();
     expect(enabledView.actionKind).toBe('toggle');
     expect(userEnabled.next_run_at).toBe(1793835000 * 1000);
     expect(userEnabled.last_run_at).toBe(1793811600 * 1000);
+    expect(userEnabled.accepted_at).toBe(1793811600 * 1000);
   });
 
   it('formats weekdays as 一…日 and local trigger descriptions', () => {

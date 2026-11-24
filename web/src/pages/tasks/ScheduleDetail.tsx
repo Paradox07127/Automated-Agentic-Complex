@@ -22,7 +22,7 @@ export interface ScheduleDetailProps {
 }
 
 export function ScheduleDetail({ s, now, scopes, convTitle, onToggle, onEdit, onDecline, onOpenJob, onGoChat }: ScheduleDetailProps) {
-  const proposal = s.created_from === 'agent_proposal' && !s.enabled;
+  const proposal = s.created_from === 'agent_proposal' && s.accepted_at == null;
   const scope = s.scope_id ? scopes?.find((x) => x.id === s.scope_id) : null;
   const t = s.trigger;
   return (

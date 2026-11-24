@@ -24,7 +24,8 @@
       "last_job_id": "job-1",
       "last_error": null,
       "created_at": 1793811600.0,
-      "updated_at": 1793811600.0
+      "updated_at": 1793811600.0,
+      "accepted_at": 1793811600.0
     }
   ]
 }

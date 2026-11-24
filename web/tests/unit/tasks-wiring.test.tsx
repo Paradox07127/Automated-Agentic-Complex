@@ -90,6 +90,7 @@ const SCHED: WireSchedule = {
   last_error: 'scope_revoked',
   created_at: NOW_S - 86_400,
   updated_at: NOW_S - 600,
+  accepted_at: NOW_S - 86_400,
 };
 const listed = (s: WireSchedule = SCHED) => ({ status: 200, body: { schedules: [s] } });
 const runBtn = () => screen.findByRole('button', { name: '立即运行' });
@@ -742,6 +743,21 @@ describe('tasks: 看那次任务 opens that job where it is', () => {
     mountPage(bridge, `&tab=done&sel=${T3}`);
     expect(await screen.findByText('不在这个列表里')).toBeTruthy();
     expect(document.querySelector('[data-row][aria-selected="true"]')).toBeNull();
+  });
+});
+
+describe('tasks: an accepted proposal that was paused', () => {
+  beforeEach(() => void vi.spyOn(Date, 'now').mockReturnValue(NOW));
+
+  it('is listed under 暂停 with its ON/OFF switch, not as a proposal to decline', async () => {
+    const paused: WireSchedule = { ...SCHED, created_from: 'agent_proposal', enabled: false, accepted_at: NOW_S - 3600, last_error: null, scope_id: null };
+    const { bridge } = install((m, p) => (m === 'GET' && p === '/schedules' ? listed(paused) : null));
+    mountPage(bridge, `&tab=sched&sel=${SCHED.schedule_id}`);
+    const group = await screen.findByRole('listbox', { name: '暂停' });
+    expect(within(group).getByRole('option', { name: `${SCHED.title}，暂停` })).toBeTruthy();
+    expect(screen.queryByRole('listbox', { name: '角色提议的' })).toBeNull();
+    expect(screen.getByRole('radiogroup', { name: `启用「${SCHED.title}」` })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '不要' })).toBeNull();
   });
 });
 
