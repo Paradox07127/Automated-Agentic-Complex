@@ -614,7 +614,7 @@
   ],
   [
     "GET",
-    "^/observation/sources/(?:obs-|work-)[a-f0-9]{32}(?:/(?:changes|image))?$",
+    "^/observation/sources/(?:(?:obs-|work-)[a-f0-9]{32}(?:/(?:changes|image))?|tl-[0-9]{1,18})$",
     [
       "ui_token"
     ]
