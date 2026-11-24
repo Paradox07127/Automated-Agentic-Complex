@@ -1,13 +1,12 @@
-// The capture ops of CONTRACT §7.5. capture.window takes one frame through Windows.Graphics.Capture;
-// capture.ambient reads the screen through the Magnification API, the one Windows capture that can leave another
-// process's windows out, or decodes the wallpaper file. WIC scales and encodes; no pixel leaves the process except
+// The capture ops of CONTRACT §7.5. capture.window takes one frame of the window through Windows.Graphics.Capture;
+// capture.ambient takes one frame of the display with another process's windows left out (the display session's
+// window exclusion list), or decodes the wallpaper file. WIC scales and encodes; no pixel leaves the process except
 // in the answer.
 #define NOMINMAX
 #include <windows.h>
 #include <d3d11.h>
 #include <dxgi.h>
 #include <inspectable.h>
-#include <magnification.h>
 #include <roapi.h>
 #include <shobjidl.h>
 #include <wincodec.h>
@@ -16,12 +15,13 @@
 #include <windows.graphics.capture.interop.h>
 #include <windows.graphics.directx.direct3d11.interop.h>
 #include <wrl/client.h>
+#include <wrl/ftm.h>
+#include <wrl/implements.h>
 #include <wrl/wrappers/corewrappers.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <mutex>
 #include <set>
 #include <string>
 #include <utility>
@@ -40,7 +40,80 @@ namespace wgc = ABI::Windows::Graphics::Capture;
 constexpr ULONGLONG kFrameWaitMs = 2000;  // inside capture.window's timeout_ms of 5000
 // capture.window's max_bytes when the request gives none: base64 of it leaves 64 KiB of max_line_bytes for the rest.
 constexpr int64_t kDefaultMaxBytes = (16777216 - 65536) / 4 * 3;
-constexpr const wchar_t* kHostClass = L"ACHelperMagnifierHost";
+constexpr const char* kNoExclusion = "window exclusion unavailable";
+
+// The SDK headers lack IDisplayGraphicsCaptureSession and IDirect3D11CaptureFrame3, so these declare them with the
+// metadata's IIDs and the collections of WindowId with the IIDs derived for them; a Windows.UI.WindowId travels as its
+// one UINT64 field, the HWND.
+MIDL_INTERFACE("ba0a30a1-c082-5671-ac07-7aaa4f269670")  // IIterator<Windows.UI.WindowId>
+IWindowIdIterator : public IInspectable {
+    virtual HRESULT STDMETHODCALLTYPE get_Current(UINT64* current) = 0;
+    virtual HRESULT STDMETHODCALLTYPE get_HasCurrent(boolean* has) = 0;
+    virtual HRESULT STDMETHODCALLTYPE MoveNext(boolean* has) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetMany(UINT32 capacity, UINT64* items, UINT32* actual) = 0;
+};
+MIDL_INTERFACE("745698bf-22ad-5c0d-b0e0-07d35a1c9719")  // IIterable<Windows.UI.WindowId>
+IWindowIdIterable : public IInspectable {
+    virtual HRESULT STDMETHODCALLTYPE First(IWindowIdIterator** first) = 0;
+};
+MIDL_INTERFACE("bb91f61b-218a-587d-8580-2701a74c0525")
+IDisplayGraphicsCaptureSession : public IInspectable {
+    virtual HRESULT STDMETHODCALLTYPE SetWindowExclusionList(IWindowIdIterable* windows, UINT64* iteration) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetWindowExclusionList(IInspectable** windows) = 0;
+};
+MIDL_INTERFACE("71616dc8-fea5-5741-a3d8-591acc39a9ee")
+IDirect3D11CaptureFrame3 : public IInspectable {
+    virtual HRESULT STDMETHODCALLTYPE get_ConfigurationIteration(UINT64* iteration) = 0;
+};
+
+class WindowIdCursor
+    : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::WinRt>, IWindowIdIterator,
+                                          Microsoft::WRL::FtmBase> {
+    InspectableClass(L"Windows.Foundation.Collections.IIterator`1<Windows.UI.WindowId>", BaseTrust)
+
+public:
+    explicit WindowIdCursor(std::vector<UINT64> ids) : ids_(std::move(ids)) {}
+    IFACEMETHODIMP get_Current(UINT64* current) override {
+        if (at_ >= ids_.size()) return E_BOUNDS;
+        *current = ids_[at_];
+        return S_OK;
+    }
+    IFACEMETHODIMP get_HasCurrent(boolean* has) override {
+        *has = at_ < ids_.size();
+        return S_OK;
+    }
+    IFACEMETHODIMP MoveNext(boolean* has) override {
+        if (at_ < ids_.size()) ++at_;
+        return get_HasCurrent(has);
+    }
+    IFACEMETHODIMP GetMany(UINT32 capacity, UINT64* items, UINT32* actual) override {
+        UINT32 n = 0;
+        while (n < capacity && at_ < ids_.size()) items[n++] = ids_[at_++];
+        *actual = n;
+        return S_OK;
+    }
+
+private:
+    std::vector<UINT64> ids_;
+    size_t at_ = 0;
+};
+
+class WindowIds
+    : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::WinRt>, IWindowIdIterable,
+                                          Microsoft::WRL::FtmBase> {
+    InspectableClass(L"Windows.Foundation.Collections.IIterable`1<Windows.UI.WindowId>", BaseTrust)
+
+public:
+    explicit WindowIds(std::vector<UINT64> ids) : ids_(std::move(ids)) {}
+    IFACEMETHODIMP First(IWindowIdIterator** first) override {
+        ComPtr<WindowIdCursor> cursor = Microsoft::WRL::Make<WindowIdCursor>(ids_);
+        *first = cursor.Detach();
+        return *first ? S_OK : E_OUTOFMEMORY;
+    }
+
+private:
+    std::vector<UINT64> ids_;
+};
 
 // COM for one op thread, joined to the multithreaded apartment; declare it before the objects it outlives.
 class Com {
@@ -170,8 +243,11 @@ bool encode(IWICImagingFactory* factory, const Pixels& pixels, bool jpeg, std::v
     return true;
 }
 
-// One frame of the window without the cursor, premultiplied BGRA; empty on success, else why not.
-std::string grab_window(HWND hwnd, Pixels& out) {
+// One frame of item (size big) without the cursor, premultiplied BGRA, cut to crop (frame pixels) when given. excluded,
+// when given, is left out through the display session's exclusion list; empty on success, else why not (kNoExclusion
+// when this Windows cannot leave windows out).
+std::string grab_item(wgc::IGraphicsCaptureItem* item, ABI::Windows::Graphics::SizeInt32 size,
+                      const std::vector<HWND>* excluded, const RECT* crop, Pixels& out) {
     ComPtr<ID3D11Device> device;
     ComPtr<ID3D11DeviceContext> context;
     ComPtr<IDXGIDevice> dxgi;
@@ -182,15 +258,6 @@ std::string grab_window(HWND hwnd, Pixels& out) {
         FAILED(device.As(&dxgi)) || FAILED(CreateDirect3D11DeviceFromDXGIDevice(dxgi.Get(), &inspectable)) ||
         FAILED(inspectable.As(&direct3d))) {
         return "no Direct3D 11 device for Windows.Graphics.Capture";
-    }
-    ComPtr<IGraphicsCaptureItemInterop> interop;
-    ComPtr<wgc::IGraphicsCaptureItem> item;
-    ABI::Windows::Graphics::SizeInt32 size{};
-    if (FAILED(RoGetActivationFactory(HStringReference(RuntimeClass_Windows_Graphics_Capture_GraphicsCaptureItem).Get(),
-                                      IID_PPV_ARGS(&interop))) ||
-        FAILED(interop->CreateForWindow(hwnd, IID_PPV_ARGS(&item))) || FAILED(item->get_Size(&size)) ||
-        size.Width <= 0 || size.Height <= 0) {
-        return "Windows.Graphics.Capture cannot capture the window";
     }
     ComPtr<wgc::IDirect3D11CaptureFramePoolStatics2> pools;
     ComPtr<wgc::IDirect3D11CaptureFramePool> pool;
@@ -206,18 +273,38 @@ std::string grab_window(HWND hwnd, Pixels& out) {
         return "cannot create a capture frame pool";
     }
     pool_closing.object = pool;
-    if (FAILED(pool->CreateCaptureSession(item.Get(), &session))) return "cannot create a capture session";
+    if (FAILED(pool->CreateCaptureSession(item, &session))) return "cannot create a capture session";
     session_closing.object = session;
     ComPtr<wgc::IGraphicsCaptureSession2> cursor;
     if (SUCCEEDED(session.As(&cursor))) cursor->put_IsCursorCaptureEnabled(false);
     // Where the OS lacks IsBorderRequired or refuses it, the yellow border stays (CONTRACT §7.5).
     ComPtr<wgc::IGraphicsCaptureSession3> border;
     if (SUCCEEDED(session.As(&border))) border->put_IsBorderRequired(false);
+    UINT64 iteration = 0;
+    if (excluded) {
+        std::vector<UINT64> ids;
+        for (HWND hwnd : *excluded) ids.push_back(static_cast<UINT64>(reinterpret_cast<uintptr_t>(hwnd)));
+        ComPtr<WindowIds> list = Microsoft::WRL::Make<WindowIds>(std::move(ids));
+        ComPtr<IDisplayGraphicsCaptureSession> display;
+        if (!list || FAILED(session.As(&display)) || FAILED(display->SetWindowExclusionList(list.Get(), &iteration))) {
+            return kNoExclusion;
+        }
+    }
     if (FAILED(session->StartCapture())) return "the capture session did not start";
+    // A frame composed before the exclusion list took effect still shows the excluded windows.
+    auto usable = [&](wgc::IDirect3D11CaptureFrame* frame) {
+        ComPtr<IDirect3D11CaptureFrame3> configured;
+        UINT64 at = 0;
+        return !excluded || (SUCCEEDED(frame->QueryInterface(IID_PPV_ARGS(&configured))) &&
+                             SUCCEEDED(configured->get_ConfigurationIteration(&at)) && at >= iteration);
+    };
     ComPtr<wgc::IDirect3D11CaptureFrame> frame;
     ULONGLONG until = GetTickCount64() + kFrameWaitMs;
-    while (SUCCEEDED(pool->TryGetNextFrame(&frame)) && !frame && GetTickCount64() < until) Sleep(10);
-    if (!frame) return "no frame came within the wait";
+    while (SUCCEEDED(pool->TryGetNextFrame(&frame)) && !(frame && usable(frame.Get())) && GetTickCount64() < until) {
+        Closing skipped{frame};  // gives the pool's one buffer back
+        Sleep(10);
+    }
+    if (!frame || !usable(frame.Get())) return "no frame came within the wait";
     Closing frame_closing{frame};
     ABI::Windows::Graphics::SizeInt32 content{};
     ComPtr<ABI::Windows::Graphics::DirectX::Direct3D11::IDirect3DSurface> surface;
@@ -230,8 +317,10 @@ std::string grab_window(HWND hwnd, Pixels& out) {
     D3D11_TEXTURE2D_DESC desc{};
     texture->GetDesc(&desc);
     // The pool's buffer keeps the size at the start; a window that has shrunk since fills only part of it.
-    UINT width = std::min(desc.Width, static_cast<UINT>(std::max(content.Width, 1)));
-    UINT height = std::min(desc.Height, static_cast<UINT>(std::max(content.Height, 1)));
+    RECT cut{0, 0, static_cast<LONG>(std::min(desc.Width, static_cast<UINT>(std::max(content.Width, 1)))),
+             static_cast<LONG>(std::min(desc.Height, static_cast<UINT>(std::max(content.Height, 1))))};
+    if (crop && !IntersectRect(&cut, &cut, crop)) return "the rect is outside the frame";
+    UINT width = cut.right - cut.left, height = cut.bottom - cut.top;
     desc.Width = width;
     desc.Height = height;
     desc.MipLevels = 1;
@@ -242,7 +331,8 @@ std::string grab_window(HWND hwnd, Pixels& out) {
     desc.MiscFlags = 0;
     ComPtr<ID3D11Texture2D> staging;
     if (FAILED(device->CreateTexture2D(&desc, nullptr, &staging))) return "cannot create a staging texture";
-    D3D11_BOX box{0, 0, 0, width, height, 1};
+    D3D11_BOX box{static_cast<UINT>(cut.left), static_cast<UINT>(cut.top), 0, static_cast<UINT>(cut.right),
+                  static_cast<UINT>(cut.bottom), 1};
     context->CopySubresourceRegion(staging.Get(), 0, 0, 0, 0, texture.Get(), 0, &box);
     D3D11_MAPPED_SUBRESOURCE mapped{};
     if (FAILED(context->Map(staging.Get(), 0, D3D11_MAP_READ, 0, &mapped))) return "cannot map the staging texture";
@@ -255,6 +345,20 @@ std::string grab_window(HWND hwnd, Pixels& out) {
     }
     context->Unmap(staging.Get(), 0);
     return {};
+}
+
+// One frame of the window without the cursor, premultiplied BGRA; empty on success, else why not.
+std::string grab_window(HWND hwnd, Pixels& out) {
+    ComPtr<IGraphicsCaptureItemInterop> interop;
+    ComPtr<wgc::IGraphicsCaptureItem> item;
+    ABI::Windows::Graphics::SizeInt32 size{};
+    if (FAILED(RoGetActivationFactory(HStringReference(RuntimeClass_Windows_Graphics_Capture_GraphicsCaptureItem).Get(),
+                                      IID_PPV_ARGS(&interop))) ||
+        FAILED(interop->CreateForWindow(hwnd, IID_PPV_ARGS(&item))) || FAILED(item->get_Size(&size)) ||
+        size.Width <= 0 || size.Height <= 0) {
+        return "Windows.Graphics.Capture cannot capture the window";
+    }
+    return grab_item(item.Get(), size, nullptr, nullptr, out);
 }
 
 // The long side scaled down to max_long_side when it is longer, the other side rounded to nearest (as on macOS).
@@ -360,26 +464,6 @@ std::wstring wallpaper_path(HMONITOR monitor) {
     return path;
 }
 
-std::mutex g_magnifier;              // MagInitialize and MagUninitialize act on the whole process
-thread_local Pixels* t_grab = nullptr;  // where the scaling callback copies the screen, during MagSetWindowSource
-
-BOOL CALLBACK magnified(HWND, void* source, MAGIMAGEHEADER header, void*, MAGIMAGEHEADER, RECT, RECT, HRGN) {
-    if (!t_grab || header.width == 0 || header.height == 0 || header.stride < header.width * 4 ||
-        header.cbSize < header.offset + static_cast<SIZE_T>(header.stride) * (header.height - 1) + header.width * 4) {
-        return FALSE;
-    }
-    // Read as the screen's BGRA byte order, whichever 32-bit format the header names.
-    t_grab->width = header.width;
-    t_grab->height = header.height;
-    t_grab->data.resize(static_cast<size_t>(header.width) * header.height * 4);
-    const BYTE* rows = static_cast<const BYTE*>(source) + header.offset;
-    for (UINT y = 0; y < header.height; ++y) {
-        const BYTE* row = rows + static_cast<size_t>(y) * header.stride;
-        std::copy(row, row + header.width * 4, t_grab->data.begin() + static_cast<ptrdiff_t>(y) * header.width * 4);
-    }
-    return TRUE;
-}
-
 // The visible top-level windows of pids.
 std::vector<HWND> windows_of(const std::set<DWORD>& pids) {
     std::pair<const std::set<DWORD>*, std::vector<HWND>> search{&pids, {}};
@@ -391,42 +475,28 @@ std::vector<HWND> windows_of(const std::set<DWORD>& pids) {
     return search.second;
 }
 
-// The screen inside area with the windows of pids left out, through a magnifier control in a host window that is
-// never shown; empty on success, else why not.
+// The screen inside area, cut to the display its centre is on, with the windows of pids left out; empty on success,
+// else why not (kNoExclusion when this Windows cannot leave windows out).
 std::string grab_screen(const RECT& area, const std::set<DWORD>& pids, Pixels& out) {
-    std::lock_guard<std::mutex> hold(g_magnifier);
-    if (!MagInitialize()) return "MagInitialize failed";
-    HINSTANCE instance = GetModuleHandleW(nullptr);
-    WNDCLASSEXW host_class{};
-    host_class.cbSize = sizeof host_class;
-    host_class.lpfnWndProc = DefWindowProcW;
-    host_class.hInstance = instance;
-    host_class.lpszClassName = kHostClass;
-    RegisterClassExW(&host_class);  // fails harmlessly once the class exists
-    int width = area.right - area.left, height = area.bottom - area.top;
-    HWND host = CreateWindowExW(WS_EX_LAYERED | WS_EX_TOOLWINDOW, kHostClass, L"", WS_POPUP, 0, 0, width, height,
-                                nullptr, nullptr, instance, nullptr);
-    HWND magnifier = host ? CreateWindowExW(0, WC_MAGNIFIERW, L"", WS_CHILD | WS_VISIBLE, 0, 0, width, height, host,
-                                            nullptr, instance, nullptr)
-                          : nullptr;
-    std::vector<HWND> excluded = windows_of(pids);
-    std::string problem;
-    if (!magnifier) {
-        problem = "cannot create the magnifier window";
-    } else if (!MagSetImageScalingCallback(magnifier, magnified)) {
-        problem = "MagSetImageScalingCallback failed";
-    } else if (!excluded.empty() &&
-               !MagSetWindowFilterList(magnifier, MW_FILTERMODE_EXCLUDE, static_cast<int>(excluded.size()),
-                                       excluded.data())) {
-        problem = "MagSetWindowFilterList failed";
-    } else {
-        t_grab = &out;
-        if (!MagSetWindowSource(magnifier, area) || out.data.empty()) problem = "the magnifier returned no image";
-        t_grab = nullptr;
+    HMONITOR monitor = MonitorFromPoint(POINT{area.left + (area.right - area.left) / 2,
+                                              area.top + (area.bottom - area.top) / 2},
+                                        MONITOR_DEFAULTTONEAREST);
+    MONITORINFO info{};
+    info.cbSize = sizeof info;
+    ComPtr<IGraphicsCaptureItemInterop> interop;
+    ComPtr<wgc::IGraphicsCaptureItem> item;
+    ABI::Windows::Graphics::SizeInt32 size{};
+    if (!GetMonitorInfoW(monitor, &info) ||
+        FAILED(RoGetActivationFactory(HStringReference(RuntimeClass_Windows_Graphics_Capture_GraphicsCaptureItem).Get(),
+                                      IID_PPV_ARGS(&interop))) ||
+        FAILED(interop->CreateForMonitor(monitor, IID_PPV_ARGS(&item))) || FAILED(item->get_Size(&size)) ||
+        size.Width <= 0 || size.Height <= 0) {
+        return "Windows.Graphics.Capture cannot capture the display";
     }
-    if (host) DestroyWindow(host);
-    MagUninitialize();
-    return problem;
+    RECT crop = area;
+    OffsetRect(&crop, -info.rcMonitor.left, -info.rcMonitor.top);
+    std::vector<HWND> excluded = windows_of(pids);
+    return grab_item(item.Get(), size, &excluded, &crop, out);
 }
 
 // rect in physical pixels clipped to the virtual screen, else the whole of display_id's (or the primary) monitor;
@@ -489,7 +559,7 @@ Outcome capture_ambient(const json::Value& params) {
         }
         Pixels screen;
         std::string problem = grab_screen(area, pids, screen);
-        if (!problem.empty()) return failure("capture_failed", problem);
+        if (!problem.empty()) return failure(problem == kNoExclusion ? "unsupported" : "capture_failed", problem);
         ComPtr<IWICBitmap> bitmap;
         if (FAILED(factory->CreateBitmapFromMemory(screen.width, screen.height, GUID_WICPixelFormat32bppBGR,
                                                    screen.width * 4, static_cast<UINT>(screen.data.size()),
