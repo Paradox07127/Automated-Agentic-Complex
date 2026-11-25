@@ -2,9 +2,10 @@
 """Persona drift eval: play fixed scripts to a real character through an in-process agentd, check every reply by rule
 and by a Claude Haiku judge, and compare the first and last turns of each scenario.
 
-usage: persona_eval.py --backend claude --model haiku [--scenarios chat,task] [--turns N] [--judge on|off]
+usage: persona_eval.py --backend claude|codex --model haiku|gpt-6-luna [--scenarios chat,task] [--turns N] [--judge on|off]
                        [--budget-usd 2] [--character ID] [--character-catalog PATH] [--out DIR]"""
 import argparse
+import collections
 import datetime
 import http.client
 import json
@@ -37,7 +38,9 @@ ASSISTANT_PHRASES = ("有什么可以帮你", "有什么我可以帮", "希望�
                      "如有其他问题", "随时告诉我", "很高兴为你服务",
                      "how can i help", "how can i assist", "i hope this helps", "let me know if you have any other",
                      "feel free to ask", "happy to help")
-RULES = ("ai_self_reference", "markdown_layout", "assistant_phrase", "same_opening", "intent_marker")
+# Names of the model or its maker behind her, matched lowercased.
+KERNEL_NAMES = ("claude", "codex", "gpt", "anthropic", "openai", "gemini", "deepseek", "大模型", "语言模型")
+RULES = ("ai_self_reference", "markdown_layout", "assistant_phrase", "same_opening", "intent_marker", "kernel_name")
 DIMENSIONS = ("voice", "canon", "no_assistant", "length")
 JUDGE_MODEL = "haiku"
 JUDGE_RUBRIC = ("你是角色扮演对话的评审。下面 <persona> 是一个桌面角色的设定，她和用户用中文聊天。"
@@ -50,6 +53,8 @@ JUDGE_RUBRIC = ("你是角色扮演对话的评审。下面 <persona> 是一个�
 JUDGE_SCHEMA = {"type": "object", "additionalProperties": False, "required": [*DIMENSIONS, "reason"],
                 "properties": {**{d: {"type": "integer", "minimum": 1, "maximum": 5} for d in DIMENSIONS},
                                "reason": {"type": "string"}}}
+# The workspace's files before the task scenario starts; its script reads them by these names.
+WORKSPACE_FILES = {"weekly-report.md": "# 周报草稿\n\n- 本周完成：整理仓库盘点表\n- 进行中：新人培训材料\n- 下周：交季度预算初稿\n"}
 _INTENT = re.compile(r"\s*\[intent:[^\]\n]*\]")
 
 
@@ -76,11 +81,12 @@ def rule_check(raw, previous=None):
     phrases = [p for p in ASSISTANT_PHRASES if p in lowered]
     same = bool(previous) and bool(text) and text[:OPENING] == previous[:OPENING]
     intent = intent_marker(raw)
+    names = [n for n in KERNEL_NAMES if n in lowered]
     violations = [r for r, hit in zip(RULES, ("ai_self_reference" in voice, "markdown_layout" in voice, bool(phrases),
-                                               same, intent != "ok")) if hit]
+                                               same, intent != "ok", bool(names))) if hit]
     return {"out_of_voice": voice, "chars": len(text), "markdown": "markdown_layout" in voice,
             "assistant_phrases": phrases, "same_opening": same,
-            "opening": text[:OPENING], "intent_marker": intent, "violations": violations}
+            "opening": text[:OPENING], "intent_marker": intent, "kernel_names": names, "violations": violations}
 
 
 def _segment(rows):
@@ -101,10 +107,12 @@ def summarize(rows):
         turns = sorted((r for r in rows if r["scenario"] == name and r["rules"] is not None), key=lambda r: r["turn"])
         scenarios[name] = {"turns": len(turns), "first": _segment([r for r in turns if r["turn"] <= SEGMENT]),
                            "last": _segment(turns[-SEGMENT:]),
+                           "routes": dict(collections.Counter(r.get("route") for r in turns)),
                            "errors": sum(1 for r in rows if r["scenario"] == name and r.get("error"))}
     seconds = [r["seconds"] for r in rows if r.get("seconds") is not None]
+    kernel = [r["kernel_cost_usd"] for r in rows if r.get("kernel_cost_usd") is not None]
     return {"scenarios": scenarios,
-            "kernel_cost_usd": round(sum(r.get("kernel_cost_usd") or 0 for r in rows), 6),
+            "kernel_cost_usd": round(sum(kernel), 6) if kernel else None,
             "judge_cost_usd": round(sum(r.get("judge_cost_usd") or 0 for r in rows), 6),
             "mean_turn_seconds": round(statistics.mean(seconds), 2) if seconds else None, "rows": len(rows)}
 
@@ -128,10 +136,12 @@ def judge(persona, history, user, reply, workdir):
 class Agentd:
     """HTTP access to the in-process agentd: the feed and /say."""
 
-    def __init__(self, base, token, state_dir):
+    def __init__(self, base, token, state_dir, workspace):
         self.host, self.port = base.split("//")[1].split(":")
         self.token, self.db = token, agentd_db(state_dir)
+        self.workspace = os.path.realpath(workspace)
         self.feed = None
+        self.approvals = []  # the approval cards answered during the current line
 
     def request(self, method, path, body=None, timeout=60):
         conn = http.client.HTTPConnection(self.host, int(self.port), timeout=timeout)
@@ -164,6 +174,11 @@ class Agentd:
         text = []
         while True:
             event = self.next_event()
+            if event.get("event") == "agent_interaction":
+                data = json.loads(event["data"])
+                if data.get("kind") == "approval" and data.get("state") == "pending":
+                    self.approve(data["request_id"])
+                continue
             if event.get("event") != "line":
                 continue
             data = json.loads(event["data"])
@@ -172,6 +187,20 @@ class Agentd:
             text.append(data["text_delta"])
             if data["final"]:
                 return "".join(text), data
+
+    def approve(self, request_id):
+        """Answer an approval card as the user would: allow edits of files inside the workspace, deny anything else."""
+        _, listed = self.request("GET", "/agent/interactions")
+        row = next((r for r in listed["requests"] if r["request_id"] == request_id), None)
+        if row is None:
+            return
+        preview = row["data"].get("preview") or {}
+        locations = preview.get("locations") or []
+        allow = bool(locations) and all(os.path.realpath(p).startswith(self.workspace + os.sep) for p in locations)
+        code, _ = self.request("POST", f"/agent/interactions/{request_id}/answer",
+                               {"expected_version": row["revision"], "answers": {"decision": ["允许" if allow else "拒绝"]}})
+        self.approvals.append({"title": preview.get("title"), "locations": locations,
+                               "decision": "allow" if allow else "deny", "status": code})
 
     def query(self, sql, args=()):
         conn = sqlite3.connect(f"file:{self.db}?mode=ro", uri=True, timeout=10)
@@ -203,7 +232,7 @@ def run_eval(args, state_dir, out, persona, status):
                 raise RuntimeError("agentd did not start")
             time.sleep(0.2)
         values = json.loads(runtime.read_text(encoding="utf-8"))
-        agent = Agentd(values["base_url"], values["ui_token"], state_dir)
+        agent = Agentd(values["base_url"], values["ui_token"], state_dir, Path(state_dir) / "workspace")
         code, kernel = agent.request("GET", "/character/runtime?refresh=1", timeout=120)
         routes = {k: {"backend": v["backend"], "ready": v["ready"], "error": v["error"]} for k, v in kernel["routes"].items()}
         status["kernel"] = {"backend": kernel.get("backend"), "model": kernel.get("model"), "routes": routes}
@@ -226,7 +255,8 @@ def run_eval(args, state_dir, out, persona, status):
                     before, started = agent.kernel_cost(), time.monotonic()
                     row = {"scenario": name, "turn": number, "user": user, "reply": None, "raw_reply": None,
                            "rules": None, "judge": None, "kernel_cost_usd": None, "judge_cost_usd": None,
-                           "seconds": None, "route": None, "error": None}
+                           "seconds": None, "route": None, "approvals": None, "error": None}
+                    agent.approvals = []
                     code, said = agent.request("POST", "/say", {"text": user, "source": "text"})
                     if code != 202:
                         row["error"] = f"say {code}: {said}"
@@ -235,13 +265,14 @@ def run_eval(args, state_dir, out, persona, status):
                         text, final = agent.line(said["line_id"])
                         row["seconds"] = round(time.monotonic() - started, 2)
                         raw, _, state = agent.turn(said["line_id"])
-                        row.update(reply=text, raw_reply=raw, state=state)
+                        row.update(reply=text, raw_reply=raw, state=state, approvals=agent.approvals)
                         if final.get("error") or final.get("cancelled"):
                             row["error"] = f"line {final.get('error') or 'cancelled'}"
                         row["rules"] = rule_check(raw if raw is not None else text,
                                                   history[-1]["reply"] if history else None)
-                    row["kernel_cost_usd"] = round(agent.kernel_cost() - before, 6)
-                    spent += row["kernel_cost_usd"]
+                    # Codex reports no USD cost, so --budget-usd bounds only the judge there.
+                    row["kernel_cost_usd"] = None if args.backend == "codex" else round(agent.kernel_cost() - before, 6)
+                    spent += row["kernel_cost_usd"] or 0
                     if args.judge == "on" and row["reply"] and spent < args.budget_usd:
                         try:
                             row["judge"], row["judge_cost_usd"] = judge(persona, history[-2:], user, row["reply"],
@@ -260,7 +291,8 @@ def run_eval(args, state_dir, out, persona, status):
                 if "stopped" in status:
                     break
         summary = summarize(rows)
-        summary["kernel_cost_usd_total"] = round(agent.kernel_cost(), 6)  # background calls included
+        # background calls included
+        summary["kernel_cost_usd_total"] = None if args.backend == "codex" else round(agent.kernel_cost(), 6)
         summary.update(kernel=status["kernel"], stopped=status.get("stopped"), character=args.character,
                        scenarios_run=args.scenarios, turns=args.turns, judge=args.judge, budget_usd=args.budget_usd)
         (out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -274,7 +306,7 @@ def run_eval(args, state_dir, out, persona, status):
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--backend", required=True, choices=("claude",), help="the kernel under test")
+    parser.add_argument("--backend", required=True, choices=("claude", "codex"), help="the kernel under test")
     parser.add_argument("--model", required=True, help="kernel model; the judge is always JUDGE_MODEL")
     parser.add_argument("--scenarios", default="chat,task,venting,break_character,out_of_world")
     parser.add_argument("--turns", type=int, default=40, help="the first N lines of each scenario")
@@ -305,6 +337,8 @@ def main():
     state_dir = tempfile.mkdtemp(prefix="persona-eval-")
     workspace = Path(state_dir) / "workspace"
     workspace.mkdir()
+    for name, content in WORKSPACE_FILES.items():
+        (workspace / name).write_text(content, encoding="utf-8")
     RuntimeSettings(state_dir).save({"backend": args.backend, "runtime_source": "local", "auth_source": "existing_login",
                                      "model": args.model, "reply_language": "zh-Hans",
                                      "max_budget_usd": min(args.budget_usd, 20), "workspace_dir": str(workspace)})
@@ -312,7 +346,8 @@ def main():
     from daemon import main as agentd
     from infra.secrets import MemorySecrets
     sys.argv = ["agentd", "--port", str(PORT), "--state-dir", state_dir, "--character-catalog", str(args.character_catalog),
-                "--character", args.character, "--no-proactive", "--mute", "--plugin-on", "harness_bridge"]
+                "--character", args.character, "--no-proactive", "--mute", "--plugin-on", "harness_bridge",
+                "--plugin-on", "personal_agent"]  # personal_agent: the reminder tools and the harness's own file tools
     status = {}
     worker = threading.Thread(target=run_eval, args=(args, state_dir, args.out, persona, status))
     worker.start()
