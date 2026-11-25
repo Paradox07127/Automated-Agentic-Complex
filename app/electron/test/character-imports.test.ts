@@ -247,10 +247,10 @@ const arg = (args: string[], name: string) => args[args.indexOf(name) + 1]!;
 function scanLine(root: string) {
   const at = (name: string) => join(root, name);
   return JSON.stringify({
-    ok: true, title: '愛包ダンスホール', root,
+    ok: true, title: 'サンプルダンス', root,
     bodies: [
-      { path: at('a[f-19].vmd'), name: 'a[f-19].vmd', label: 'HimeTanaka', model: '田中ヒメ', duration_s: 223.33, place_frame: -19, has_morph: true },
-      { path: at('b[f-19].vmd'), name: 'b[f-19].vmd', label: 'SuzukiHina', model: '鈴木ヒナ', duration_s: 220, place_frame: -19, has_morph: false },
+      { path: at('a[f-19].vmd'), name: 'a[f-19].vmd', label: 'SampleDancerA', model: 'サンプルモデルA', duration_s: 223.33, place_frame: -19, has_morph: true },
+      { path: at('b[f-19].vmd'), name: 'b[f-19].vmd', label: 'SampleDancerB', model: 'サンプルモデルB', duration_s: 220, place_frame: -19, has_morph: false },
     ],
     faces: [{ path: at('lip.vmd'), name: 'lip.vmd', duration_s: 210, morphs: 5 }],
     cameras: [{ path: at('cam.vmd'), name: 'cam.vmd', duration_s: 223, place_frame: null }],
@@ -280,7 +280,7 @@ test('mmd.scan asks for files or a folder without holding the switch, scans into
   const f = fixture();
   try {
     scanTool(f);
-    const pack = join(f.dir, '愛包ダンスホール');
+    const pack = join(f.dir, 'サンプルダンス');
     f.picks = [[pack, join(f.dir, 'inst.wav')]];
     const reply = await f.call('mmd.scan', { folder: false }) as { ok: true; token: string; scan: Record<string, unknown> };
     assert.equal(reply.ok, true);
@@ -289,8 +289,8 @@ test('mmd.scan asks for files or a folder without holding the switch, scans into
     assert.deepEqual(f.tools[0], ['motion_tool.py', 'mmd-scan', '--source', pack, '--extra', join(f.dir, 'inst.wav'), '--unpack-to', unpack]);
     assert.equal(dirname(unpack), SCANS(f));
     assert.deepEqual(reply.scan.suggested, { body: 0, face: 0, camera: 0, audio: 0, bgmStartS: -0.633 });
-    assert.deepEqual((reply.scan.bodies as unknown[])[0], { path: join(unpack, 'a[f-19].vmd'), name: 'a[f-19].vmd', label: 'HimeTanaka',
-      model: '田中ヒメ', durationS: 223.33, placeFrame: -19, hasMorph: true });
+    assert.deepEqual((reply.scan.bodies as unknown[])[0], { path: join(unpack, 'a[f-19].vmd'), name: 'a[f-19].vmd', label: 'SampleDancerA',
+      model: 'サンプルモデルA', durationS: 223.33, placeFrame: -19, hasMorph: true });
     assert.deepEqual(f.calls, ['pick held=false', 'tool held=false']);
     assert.deepEqual(f.asked, [{ title: '导入 MMD', message: '选择 MMD 工程的文件夹、ZIP，或 VMD 和音频文件；可多选',
       extensions: ['vmd', 'zip', 'wav', 'mp3', 'm4a', 'aac', 'flac', 'aif', 'aiff'], folder: false }]);
@@ -347,8 +347,8 @@ test('mmd.scan: a cancelled panel runs nothing; a failed scan deletes its folder
   }
 });
 
-const PLAN = { items: [{ body: 0, title: '愛包 · HimeTanaka' }, { body: 1, title: '愛包 · SuzukiHina' }], face: 0, camera: 0, audio: 0,
-  bgmStartS: -0.633, project: '愛包ダンスホール' };
+const PLAN = { items: [{ body: 0, title: 'サンプル · SampleDancerA' }, { body: 1, title: 'サンプル · SampleDancerB' }], face: 0, camera: 0, audio: 0,
+  bgmStartS: -0.633, project: 'サンプルダンス' };
 
 test('mmd.importScan imports each body in turn with the chosen face, camera, music and offset, restarts her once, then drops the scan', async () => {
   const f = fixture();
@@ -360,18 +360,18 @@ test('mmd.importScan imports each body in turn with the chosen face, camera, mus
     const unpack = arg(f.tools[0]!, '--unpack-to');
     f.calls.length = 0;
     assert.deepEqual(await f.call('mmd.importScan', { ...PLAN, token }),
-      { ok: true, actions: [imported('愛包 · HimeTanaka'), imported('愛包 · SuzukiHina')] });
+      { ok: true, actions: [imported('サンプル · SampleDancerA'), imported('サンプル · SampleDancerB')] });
     const tail = ['--morph', join(unpack, 'lip.vmd'), '--camera', join(unpack, 'cam.vmd'), '--bgm', join(unpack, 'inst.wav'), '--bgm-start=-0.633'];
     assert.deepEqual(f.tools.slice(1), [
       ['motion_tool.py', 'import', '--library', LIBRARY(f), '--character', 'si', '--source', join(unpack, 'a[f-19].vmd'), ...tail,
-        '--title=愛包 · HimeTanaka', '--project=愛包ダンスホール', '--role=HimeTanaka', '--validate-with', 'host-bin'],
+        '--title=サンプル · SampleDancerA', '--project=サンプルダンス', '--role=SampleDancerA', '--validate-with', 'host-bin'],
       ['motion_tool.py', 'import', '--library', LIBRARY(f), '--character', 'si', '--source', join(unpack, 'b[f-19].vmd'), ...tail,
-        '--title=愛包 · SuzukiHina', '--project=愛包ダンスホール', '--role=SuzukiHina', '--validate-with', 'host-bin']]);
+        '--title=サンプル · SampleDancerB', '--project=サンプルダンス', '--role=SampleDancerB', '--validate-with', 'host-bin']]);
     assert.deepEqual(f.calls, ['tool held=true', 'tool held=true', 'restartAvatar held=true']);
     assert.equal(f.switcher.held, false);
     assert.deepEqual(f.pushed.map((p) => [(p as { kind: string }).kind, (p as { title: string }).title, (p as { stage: string }).stage]), [
-      ['mmd', '愛包 · HimeTanaka', null], ['mmd', '愛包 · HimeTanaka', 'reload'], [null, null, null],
-      ['mmd', '愛包 · SuzukiHina', null], ['mmd', '愛包 · SuzukiHina', 'reload'], [null, null, null]]);
+      ['mmd', 'サンプル · SampleDancerA', null], ['mmd', 'サンプル · SampleDancerA', 'reload'], [null, null, null],
+      ['mmd', 'サンプル · SampleDancerB', null], ['mmd', 'サンプル · SampleDancerB', 'reload'], [null, null, null]]);
     assert.equal(existsSync(unpack), false);
     assert.deepEqual(await f.call('mmd.importScan', { ...PLAN, token }), { ok: false, reason: 'scan_gone', detail: '识别结果已失效，请重新导入',
       actions: [] });
@@ -383,7 +383,7 @@ test('mmd.importScan imports each body in turn with the chosen face, camera, mus
 test('mmd.importScan stops at the first failure and reports it with the ones already done; she restarts only when one was', async () => {
   const f = fixture();
   try {
-    let failing = '--role=HimeTanaka';
+    let failing = '--role=SampleDancerA';
     scanTool(f, (args) => (args.includes(failing) ? '{"reason": "too_long", "detail": "361 s"}\n' : null));
     f.picks = [[join(f.dir, 'pack.zip')]];
     let { token } = await f.call('mmd.scan', { folder: false }) as { token: string };
@@ -391,11 +391,11 @@ test('mmd.importScan stops at the first failure and reports it with the ones alr
     assert.equal(f.tools.length, 2, 'the second body is not tried');
     assert.deepEqual(f.calls.filter((c) => c.startsWith('restartAvatar')), []);
     assert.deepEqual(readdirSync(SCANS(f)), []);
-    failing = '--role=SuzukiHina';
+    failing = '--role=SampleDancerB';
     f.picks = [[join(f.dir, 'pack.zip')]];
     ({ token } = await f.call('mmd.scan', { folder: false }) as { token: string });
     assert.deepEqual(await f.call('mmd.importScan', { ...PLAN, token }),
-      { ok: false, reason: 'too_long', detail: '361 s', actions: [imported('愛包 · HimeTanaka')] });
+      { ok: false, reason: 'too_long', detail: '361 s', actions: [imported('サンプル · SampleDancerA')] });
     assert.deepEqual(f.calls.filter((c) => c.startsWith('restartAvatar')), ['restartAvatar held=true']);
     assert.deepEqual(readdirSync(SCANS(f)), []);
     assert.equal(f.switcher.held, false);
@@ -460,7 +460,7 @@ test('mmd.pickScanAudio: a cancelled panel is cancelled and keeps the list; anot
   }
 });
 
-const MEDIA_LINE = JSON.stringify({ ok: true, character: 'si', version: '1.0.2', action: { id: 'mmd_1', title: '愛包', duration_s: 223.3, has_bgm: true } });
+const MEDIA_LINE = JSON.stringify({ ok: true, character: 'si', version: '1.0.2', action: { id: 'mmd_1', title: 'サンプル', duration_s: 223.3, has_bgm: true } });
 
 test('mmd.setMedia picks the music while holding the switch, runs mmd-media with the offset, restarts her; none runs --no-bgm', async () => {
   const f = fixture();
@@ -468,7 +468,7 @@ test('mmd.setMedia picks the music while holding the switch, runs mmd-media with
     f.tool = () => ({ last: MEDIA_LINE, status: 0, stderr: '' });
     const song = join(f.dir, 'off vocal.wav');
     f.picks = [[song]];
-    const changed = { ok: true, action: { id: 'mmd_1', title: '愛包', durationS: 223.3, hasBgm: true, format: 'vmd', warnings: [] } };
+    const changed = { ok: true, action: { id: 'mmd_1', title: 'サンプル', durationS: 223.3, hasBgm: true, format: 'vmd', warnings: [] } };
     assert.deepEqual(await f.call('mmd.setMedia', 'mmd_1', { bgm: 'pick', bgmStartS: -0.633 }), changed);
     assert.deepEqual(f.asked, [{ title: '选择音源', message: '和这支舞一起播放的音频',
       extensions: ['wav', 'mp3', 'm4a', 'aac', 'flac', 'aif', 'aiff'], multiple: false }]);

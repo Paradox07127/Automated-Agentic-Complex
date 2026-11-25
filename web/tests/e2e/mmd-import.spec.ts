@@ -12,7 +12,7 @@ for (const [width, height] of [
     await page.goto('main.html#/mmd?still=1');
     await page.getByRole('button', { name: '导入 MMD' }).click();
     const sheet = page.getByRole('dialog', { name: '导入 MMD' });
-    await expect(sheet.getByRole('textbox', { name: '曲名' })).toHaveValue('愛包ダンスホール');
+    await expect(sheet.getByRole('textbox', { name: '曲名' })).toHaveValue('サンプルダンス');
     await sheet.getByRole('button', { name: /未使用的文件/ }).click();
     const go = sheet.getByRole('button', { name: '导入' });
     await go.scrollIntoViewIfNeeded();
@@ -22,7 +22,7 @@ for (const [width, height] of [
     await saveShot(page, { path: `.shots/${info.project.name}/mmd-import-sheet-${width}x${height}.png` });
     await go.click();
     const row = page.locator('[data-mmd="mmd_dance_1"]');
-    await expect(row).toContainText('HimeTanaka');
+    await expect(row).toContainText('SampleDancerA');
     await expect(row.getByText('LIP', { exact: true })).toBeVisible({ visible: width > 1000 });
     await row.locator('button[aria-pressed]').click();
     await page.locator('[data-mmd-detail="mmd_dance_1"]').getByRole('button', { name: '换音源' }).click();

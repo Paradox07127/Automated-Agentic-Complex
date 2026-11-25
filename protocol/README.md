@@ -1,6 +1,6 @@
 # 协议
 
-这里放前后端进程之间的协议：消息格式、校验器、夹具或样例。前端是 Companion（Electron 外壳 `app/electron`）、角色进程（`private/renderer/host`（私有组件，不在公开仓库））和浏览器扩展；后端是 agentd 和 TTS 服务。
+这里放前后端进程之间的协议：消息格式、校验器、夹具或样例。前端是 Companion（Electron 外壳 `app/electron`）、角色进程（私有渲染器）和浏览器扩展；后端是 agentd 和 TTS 服务。
 
 进程内的接口不放这里。离线资源的文件格式（例如角色包，见 `characters`）也不放这里；例外是构建端写、运行时读的角色库和角色包里运行时读的文件，它们的共享常量在 `character-library/`。
 
@@ -8,7 +8,7 @@
 
 | ID | 接口 | 方向 | 传输 | 版本 | 正文 | 校验器、夹具 | 谁在跑 |
 |---|---|---|---|---|---|---|---|
-| C1 | 行为与分句意图 | agentd → 角色进程，回执经 Companion 回 agentd | SSE `GET /events` | v2.6 | [C1-agent-events/CONTRACT.md](C1-agent-events/CONTRACT.md) | `agent/agentd/c1.py`；[C1-agent-events/fixtures/](C1-agent-events/fixtures/) | `agent/agentd/tests/test_c1.py`；`private/renderer/runtime` 的 `BridgeCoreTests` 直接读这些夹具 |
+| C1 | 行为与分句意图 | agentd → 角色进程，回执经 Companion 回 agentd | SSE `GET /events` | v2.6 | [C1-agent-events/CONTRACT.md](C1-agent-events/CONTRACT.md) | `agent/agentd/c1.py`；[C1-agent-events/fixtures/](C1-agent-events/fixtures/) | `agent/agentd/tests/test_c1.py`；渲染器的 `BridgeCoreTests` 直接读这些夹具 |
 | C2 | 语音流时间轴 | TTS → agentd → 角色进程 | NDJSON `POST /speech_stream`、`GET /speech` | v2.3 | [C2-speech-stream/CONTRACT.md](C2-speech-stream/CONTRACT.md)；令牌见 [TTS-TOKEN.md](C2-speech-stream/TTS-TOKEN.md) | [C2-speech-stream/validate.py](C2-speech-stream/validate.py)；`examples/` | `agent/agentd/tests/test_speech.py` |
 | C3 | 宿主通信 | Companion ↔ 角色进程 | unix socket + NDJSON | v28 | [C3-host-ipc/CONTRACT.md](C3-host-ipc/CONTRACT.md) | [C3-host-ipc/validate.py](C3-host-ipc/validate.py)；`examples/` | `app/Tests/gate.sh`（C3 examples）、`app/electron/test/c3.test.ts`、`link-messages.test.ts`、本机宿主连接测试 `run_host_link.sh`（不在公开仓库）、`HostDescribeTests`、`PreviewTransportTests` |
 | C6 | Companion 与 agentd 的 HTTP 端点 | Companion ↔ agentd | HTTP、SSE `GET /feed` | v1 | [C6-agentd-api/CONTRACT.md](C6-agentd-api/CONTRACT.md)，逐条端点见其 §4 | [C6-agentd-api/fixtures/](C6-agentd-api/fixtures/) | `agent/agentd/tests/test_c6_fixtures.py`、`app/electron/test/c6.test.ts` |

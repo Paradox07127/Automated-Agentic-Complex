@@ -157,7 +157,7 @@ for (const theme of ['dark', 'light'] as const) {
     await button.click();
     await page.getByRole('dialog', { name: '导入 MMD' }).getByRole('button', { name: '导入' }).click();
     await expect(page.getByRole('button', { name: '导入中…' })).toBeDisabled();
-    await expect(page.locator('[data-motion-import]')).toHaveText('已导入「愛包ダンスホール · HimeTanaka」');
+    await expect(page.locator('[data-motion-import]')).toHaveText('已导入「サンプルダンス · SampleDancerA」');
     const entry = page.locator('[data-mmd="mmd_dance_1"]');
     await expect(entry).toHaveAttribute('data-state', 'baked');
     await entry.locator('button[aria-pressed]').click();

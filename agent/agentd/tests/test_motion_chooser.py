@@ -80,6 +80,27 @@ class ChooserTest(unittest.TestCase):
         self.assertEqual([c["t_s"] for c in clicks], [1.0, 3.0])
         self.assertEqual({c["clip"] for c in clicks}, {"tap", "nod"})
 
+    def test_speech_lets_a_playing_one_shot_finish_before_the_base_changes(self):
+        """wave is 2 s from t 2: speech from 2.3 leaves it to its end instead of cutting it there."""
+        choices = replay(MotionChooser(PACK), 6, [{"kind": "event", "key": "user.greet", "t_s": 2},
+                                                  {"kind": "text_line", "on": True, "t_s": 2.3},
+                                                  {"kind": "text_line", "on": False, "t_s": 5}])
+        self.assertEqual(choices[0], {"t_s": 2.0, "clip": "wave", "why": "user.greet"})
+        self.assertGreaterEqual(choices[1]["t_s"], 2.0 + 2.0 - 0.25 - FRAME, choices)
+
+    def test_an_event_waits_for_a_playing_one_shot_and_then_plays(self):
+        """wave is 2 s from t 2: session.done at 2.3 plays cheer once wave has played out, not over it."""
+        choices = replay(MotionChooser(PACK), 7, [{"kind": "event", "key": "user.greet", "t_s": 2},
+                                                  {"kind": "event", "key": "session.done", "t_s": 2.3}])
+        self.assertEqual(choices[0], {"t_s": 2.0, "clip": "wave", "why": "user.greet"})
+        cheer = next(c for c in choices if c["clip"] == "cheer")
+        self.assertGreaterEqual(cheer["t_s"], 2.0 + 2.0 - 0.25 - FRAME, choices)
+
+    def test_a_click_still_cuts_a_playing_one_shot(self):
+        choices = replay(MotionChooser(PACK), 4, [{"kind": "event", "key": "user.greet", "t_s": 2},
+                                                  {"kind": "click", "t_s": 2.3}])
+        self.assertEqual([(c["t_s"], c["why"]) for c in choices[:2]], [(2.0, "user.greet"), (2.3, "click.single region none")])
+
     def test_a_restart_draws_the_same_clips_again(self):
         chooser = MotionChooser(PACK)
         first = replay(chooser, 60)

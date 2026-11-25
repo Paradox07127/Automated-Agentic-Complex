@@ -750,10 +750,10 @@ class MotionToolTests(unittest.TestCase):
         write_json(self.library.root / "mmd-library/index.json", dict(schema="endfield-mmd-library/v2", entries=[dict(
             id="mmd_0123456789abcdef", title="dance", duration_s=1.0, created_at="2026-11-01T00:00:00+00:00", removed_at=None,
             source=dict(file="dance.vmd", sha256=hashlib.sha256(b"vmd").hexdigest(), name="dance.vmd"), morph=None, camera=None, bgm=None,
-            foot_lock=True, has_face=True, project=dict(title="愛包ダンスホール", role="HimeTanaka", place_frame=-19), failures={})]))
+            foot_lock=True, has_face=True, project=dict(title="サンプルダンス", role="SampleDancerA", place_frame=-19), failures={})]))
         [entry] = self.mmd_list()["entries"]
         self.assertEqual(entry["characters"], [dict(id="fixture", state="pending", reason=None)])
-        self.assertEqual((entry["has_face"], entry["project"], entry["role"]), (True, "愛包ダンスホール", "HimeTanaka"))
+        self.assertEqual((entry["has_face"], entry["project"], entry["role"]), (True, "サンプルダンス", "SampleDancerA"))
         doc = self.failure(tool_command("motion_tool.py", "list", "--library", str(self.library.root), "--character", "aide"))
         self.assertEqual(doc["reason"], "unsupported_character")
 
@@ -853,21 +853,21 @@ class MotionToolTests(unittest.TestCase):
         from test_vmd_import import authored_rig
         from agentic_complex_build.motion_import.take import check_mmd_index
         self.install(rig=authored_rig())
-        body, face, camera, song = self.vmd(name="Dance_HimeTanaka[f-19].vmd"), self.face_vmd(), self.camera_vmd(), self.wav("inst.wav")
+        body, face, camera, song = self.vmd(name="Dance_SampleDancerA[f-19].vmd"), self.face_vmd(), self.camera_vmd(), self.wav("inst.wav")
         patch, calls = self.recording_importer()
         with patch:
             code, doc, err = self.in_process("import", "--library", str(self.library.root), "--character", "fixture", "--source", str(body),
                                              "--morph", str(face), "--camera", str(camera), "--bgm", str(song), "--bgm-start", "-0.633",
-                                             "--title", "愛包 · Hime", "--project", "愛包", "--role", "HimeTanaka",
+                                             "--title", "サンプル · Sample", "--project", "サンプル", "--role", "SampleDancerA",
                                              "--validate-with", str(self.host()))
         self.assertEqual(code, 0, err)
         [call] = calls
         self.assertEqual((call["morph_vmd"], call["camera"], call["bgm"], call["bgm_start"], call["foot_ik"], call["title"]),
-                         (face, camera, song, -0.633, True, "愛包 · Hime"))
+                         (face, camera, song, -0.633, True, "サンプル · Sample"))
         index = self.mmd_index(); check_mmd_index(index); [entry] = index["entries"]
         self.assertEqual((entry["id"], entry["title"], entry["morph"]["name"], entry["camera"]["name"], entry["bgm"]["name"], entry["bgm"]["offset_s"]),
-                         (doc["action"]["id"], "愛包 · Hime", "lip.vmd", "camera.vmd", "inst.wav", -0.633))
-        self.assertEqual(entry["project"], dict(title="愛包", role="HimeTanaka", place_frame=-19))
+                         (doc["action"]["id"], "サンプル · Sample", "lip.vmd", "camera.vmd", "inst.wav", -0.633))
+        self.assertEqual(entry["project"], dict(title="サンプル", role="SampleDancerA", place_frame=-19))
         sources = self.library.root / "mmd-library/sources"
         self.assertEqual((sources / entry["morph"]["file"]).read_bytes(), face.read_bytes())
 
@@ -1064,20 +1064,20 @@ class MotionToolTests(unittest.TestCase):
 
     @needs_numpy
     def test_mmd_scan_sorts_a_folder_into_bodies_cameras_and_audio(self):
-        folder = self.root / "愛包ダンスホール"; (folder / "Camera/cam").mkdir(parents=True); (folder / "__MACOSX").mkdir()
-        shutil.copyfile(self.vmd(seconds=2, model="田中ヒメ"), folder / "Dance_Full_HimeTanaka_v1.1[f-19].vmd")
-        shutil.copyfile(self.vmd(model="鈴木ヒナ"), folder / "Dance_Full_HinaSuzuki_v1.1[f-19].vmd")
+        folder = self.root / "サンプルダンス"; (folder / "Camera/cam").mkdir(parents=True); (folder / "__MACOSX").mkdir()
+        shutil.copyfile(self.vmd(seconds=2, model="サンプルモデルA"), folder / "Dance_Full_SampleDancerA_v1.1[f-19].vmd")
+        shutil.copyfile(self.vmd(model="サンプルモデルB"), folder / "Dance_Full_SampleDancerB_v1.1[f-19].vmd")
         shutil.copyfile(self.camera_vmd(), folder / "Camera/cam/cam.vmd"); shutil.copyfile(self.wav("inst.wav"), folder / "inst.wav")
         (folder / "Readme.txt").write_text("hi", encoding="utf-8"); (folder / ".DS_Store").write_bytes(b"x")
         (folder / "__MACOSX/._inst.wav").write_bytes(b"x"); (folder / "broken.vmd").write_bytes(b"not a motion")
         unpack = self.root / "unpacked"
         doc = self.success(tool_command("motion_tool.py", "mmd-scan", "--source", str(folder), "--unpack-to", str(unpack)))
         folder = folder.resolve()
-        self.assertEqual(doc, dict(ok=True, title="愛包ダンスホール", root=str(folder),
-            bodies=[dict(path=str(folder / "Dance_Full_HimeTanaka_v1.1[f-19].vmd"), name="Dance_Full_HimeTanaka_v1.1[f-19].vmd",
-                         label="HimeTanaka", model="田中ヒメ", duration_s=2.0, place_frame=-19, has_morph=False),
-                    dict(path=str(folder / "Dance_Full_HinaSuzuki_v1.1[f-19].vmd"), name="Dance_Full_HinaSuzuki_v1.1[f-19].vmd",
-                         label="HinaSuzuki", model="鈴木ヒナ", duration_s=1.0, place_frame=-19, has_morph=False)],
+        self.assertEqual(doc, dict(ok=True, title="サンプルダンス", root=str(folder),
+            bodies=[dict(path=str(folder / "Dance_Full_SampleDancerA_v1.1[f-19].vmd"), name="Dance_Full_SampleDancerA_v1.1[f-19].vmd",
+                         label="SampleDancerA", model="サンプルモデルA", duration_s=2.0, place_frame=-19, has_morph=False),
+                    dict(path=str(folder / "Dance_Full_SampleDancerB_v1.1[f-19].vmd"), name="Dance_Full_SampleDancerB_v1.1[f-19].vmd",
+                         label="SampleDancerB", model="サンプルモデルB", duration_s=1.0, place_frame=-19, has_morph=False)],
             faces=[], cameras=[dict(path=str(folder / "Camera/cam/cam.vmd"), name="cam.vmd", duration_s=11 / 30, place_frame=None)],
             audio=[dict(path=str(folder / "inst.wav"), name="inst.wav")],
             ignored=[dict(name="Readme.txt", reason="not_motion"), dict(name="broken.vmd", reason="bad_vmd")],

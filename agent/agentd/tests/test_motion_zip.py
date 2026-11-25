@@ -100,12 +100,12 @@ class ClassifyTests(unittest.TestCase):
         return paths
 
     # What motion_tool's reader gives for each file name: key counts (morphs: distinct names), header model and last frame.
-    INFO = {"Dance_Full_HimeTanaka_v1.1[f-19].vmd": dict(bones=9, cameras=0, morphs=0, model="田中ヒメ", frames=6699),
-            "Dance_Full_HinaSuzuki_v1.1[f-19].vmd": dict(bones=9, cameras=0, morphs=3, model="鈴木ヒナ", frames=6700),
+    INFO = {"Dance_Full_SampleDancerA_v1.1[f-19].vmd": dict(bones=9, cameras=0, morphs=0, model="サンプルモデルA", frames=6699),
+            "Dance_Full_SampleDancerB_v1.1[f-19].vmd": dict(bones=9, cameras=0, morphs=3, model="サンプルモデルB", frames=6700),
             "body.vmd": dict(bones=2, cameras=0, morphs=0, model="m", frames=30),
             "camera.vmd": dict(bones=0, cameras=4, morphs=0, model="カメラ・照明", frames=60),
             "camera2[f4930].vmd": dict(bones=0, cameras=1, morphs=0, model="カメラ・照明", frames=90),
-            "lip_HinaSuzuki.vmd": dict(bones=0, cameras=0, morphs=5, model="", frames=6300),
+            "lip_SampleDancerB.vmd": dict(bones=0, cameras=0, morphs=5, model="", frames=6300),
             "lip_other.vmd": dict(bones=0, cameras=0, morphs=2, model="", frames=60),
             "empty.vmd": dict(bones=0, cameras=0, morphs=0, model="", frames=0)}
 
@@ -122,18 +122,18 @@ class ClassifyTests(unittest.TestCase):
             suggested=dict(body=0, face=None, camera=0, audio=0, bgm_start_s=None)))
 
     def test_two_bodies_are_told_apart_by_the_part_of_their_names_that_differs(self):
-        found = zip_import.classify(self.files("Dance_Full_HinaSuzuki_v1.1[f-19].vmd", "Dance_Full_HimeTanaka_v1.1[f-19].vmd"), self.read)
+        found = zip_import.classify(self.files("Dance_Full_SampleDancerB_v1.1[f-19].vmd", "Dance_Full_SampleDancerA_v1.1[f-19].vmd"), self.read)
         self.assertEqual([(b["name"], b["label"], b["place_frame"], b["has_morph"]) for b in found["bodies"]],
-                         [("Dance_Full_HimeTanaka_v1.1[f-19].vmd", "HimeTanaka", -19, False),
-                          ("Dance_Full_HinaSuzuki_v1.1[f-19].vmd", "HinaSuzuki", -19, True)])
+                         [("Dance_Full_SampleDancerA_v1.1[f-19].vmd", "SampleDancerA", -19, False),
+                          ("Dance_Full_SampleDancerB_v1.1[f-19].vmd", "SampleDancerB", -19, True)])
         self.assertEqual(found["suggested"], dict(body=1, face=None, camera=None, audio=None, bgm_start_s=-0.633))
 
     def test_the_face_naming_the_suggested_body_and_the_longest_camera_are_suggested(self):
-        found = zip_import.classify(self.files("Dance_Full_HimeTanaka_v1.1[f-19].vmd", "Dance_Full_HinaSuzuki_v1.1[f-19].vmd",
-                                               "lip_other.vmd", "lip_HinaSuzuki.vmd", "camera.vmd", "camera2[f4930].vmd",
+        found = zip_import.classify(self.files("Dance_Full_SampleDancerA_v1.1[f-19].vmd", "Dance_Full_SampleDancerB_v1.1[f-19].vmd",
+                                               "lip_other.vmd", "lip_SampleDancerB.vmd", "camera.vmd", "camera2[f4930].vmd",
                                                "b.mp3", "a.flac"), self.read)
         self.assertEqual([(f["name"], f["morphs"], f["duration_s"]) for f in found["faces"]],
-                         [("lip_HinaSuzuki.vmd", 5, 210.0), ("lip_other.vmd", 2, 2.0)])
+                         [("lip_SampleDancerB.vmd", 5, 210.0), ("lip_other.vmd", 2, 2.0)])
         self.assertEqual([(c["name"], c["place_frame"]) for c in found["cameras"]], [("camera.vmd", None), ("camera2[f4930].vmd", 4930)])
         self.assertEqual([a["name"] for a in found["audio"]], ["a.flac", "b.mp3"])
         self.assertEqual(found["suggested"], dict(body=1, face=0, camera=1, audio=0, bgm_start_s=-0.633))

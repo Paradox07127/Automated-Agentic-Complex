@@ -141,8 +141,8 @@ async function motionTool(args: string[]): Promise<{ last: string; status: numbe
   }
   if (args[0] === 'mmd-scan') {
     const root = arg('--unpack-to');
-    return { last: JSON.stringify({ ok: true, title: '愛包ダンスホール', root,
-      bodies: [{ path: join(root, 'a[f-19].vmd'), name: 'a[f-19].vmd', label: 'HimeTanaka', model: '田中ヒメ', duration_s: 223.33,
+    return { last: JSON.stringify({ ok: true, title: 'サンプルダンス', root,
+      bodies: [{ path: join(root, 'a[f-19].vmd'), name: 'a[f-19].vmd', label: 'SampleDancerA', model: 'サンプルモデルA', duration_s: 223.33,
         place_frame: -19, has_morph: true }],
       faces: [{ path: join(root, 'lip.vmd'), name: 'lip.vmd', duration_s: 210, morphs: 5 }],
       cameras: [{ path: join(root, 'cam.vmd'), name: 'cam.vmd', duration_s: 223, place_frame: null }],

@@ -549,7 +549,9 @@ class CodexRunner(Runner):
             catalog.write_text(json.dumps(restricted_catalog(original, config["model"])), encoding="utf-8")
             catalog.chmod(0o600)
             try:
-                servers = json.loads(await self._command(cli, "mcp", "list", "--json", env=env))
+                # Plugins are off in the session, so only the user's own servers are there to turn off: an override
+                # of a plugin's server has no transport and Codex refuses to start.
+                servers = json.loads(await self._command(cli, "-c", "features.plugins=false", "mcp", "list", "--json", env=env))
                 mcp_names = [server["name"] for server in servers]
                 if not isinstance(servers, list) or not all(isinstance(name, str) for name in mcp_names):
                     raise ValueError("invalid mcp list")

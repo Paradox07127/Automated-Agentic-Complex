@@ -114,13 +114,13 @@ VMD（含装着 VMD 的 ZIP）导入后进库里所有角色共用的一张表�
 
 ```json
 {"schema": "endfield-mmd-library/v2", "entries": [
- {"id": "mmd_0123456789abcdef", "title": "愛包ダンスホール · HimeTanaka", "duration_s": 223.3,
+ {"id": "mmd_0123456789abcdef", "title": "サンプルダンス · SampleDancerA", "duration_s": 223.3,
   "created_at": "2026-11-25T10:00:00+00:00", "removed_at": null,
   "source": {"file": "<sha>.vmd", "sha256": "<sha>", "name": "a.vmd"},
   "morph": null, "camera": {"file": "…", "sha256": "…", "name": "cam.vmd"},
   "bgm": {"file": "<sha>.wav", "sha256": "<sha>", "name": "inst.wav", "offset_s": -0.633},
   "foot_lock": true, "has_face": true,
-  "project": {"title": "愛包ダンスホール", "role": "HimeTanaka", "place_frame": -19},
+  "project": {"title": "サンプルダンス", "role": "SampleDancerA", "place_frame": -19},
   "failures": {"aster": {"reason": "missing_bones", "detail": "…", "package_sha256": "<sha>"}}}]}
 ```
 

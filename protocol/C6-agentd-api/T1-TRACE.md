@@ -1,6 +1,6 @@
 # T1 Trace 事件格式 v1（C6 的一部分）
 
-> 正文里的「Avatar」「player」指角色进程，现由渲染器 `private/renderer/host`（私有组件，不在公开仓库）实现。
+> 正文里的「Avatar」「player」指角色进程，现由私有渲染器实现。
 
 「日志与 Trace」窗口和调试读同一份事件，不解析日志。校验脚本：`agent/agentd/traces/trace_format.py <file.ndjson>`；样例：`agent/agentd/tests/trace-sample.ndjson`（打字一轮，从输入到渲染器播放结束，含一个被闸门拦下的主动触发）。
 

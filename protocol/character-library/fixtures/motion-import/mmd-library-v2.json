@@ -3,32 +3,32 @@
  "entries": [
   {
    "id": "mmd_0123456789abcdef",
-   "title": "愛包ダンスホール · HimeTanaka",
+   "title": "サンプルダンス · SampleDancerA",
    "duration_s": 223.3,
    "created_at": "2026-11-25T10:00:00+00:00",
    "removed_at": null,
    "source": {
     "file": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.vmd",
     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "name": "AipaiDanceHall_Motion(MMD)_Full_HimeTanaka_v1.1[f-19].vmd"
+    "name": "SampleDance_Motion(MMD)_Full_SampleDancerA_v1.1[f-19].vmd"
    },
    "morph": null,
    "camera": {
     "file": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.vmd",
     "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-    "name": "愛包ダンスホール_カメラ.vmd"
+    "name": "サンプルダンス_カメラ.vmd"
    },
    "bgm": {
     "file": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.wav",
     "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-    "name": "AipaiDanceHall_Audio_Inst.wav",
+    "name": "SampleDance_Audio_Inst.wav",
     "offset_s": -0.633
    },
    "foot_lock": true,
    "has_face": true,
    "project": {
-    "title": "愛包ダンスホール",
-    "role": "HimeTanaka",
+    "title": "サンプルダンス",
+    "role": "SampleDancerA",
     "place_frame": -19
    },
    "failures": {

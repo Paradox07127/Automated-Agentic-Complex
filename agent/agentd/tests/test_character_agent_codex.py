@@ -250,6 +250,7 @@ class CodexNativeConfigTests(unittest.IsolatedAsyncioTestCase):
         subject = codex_runner.CodexRunner()
         subject.emit = ready.append
         command = AsyncMock(side_effect=["codex-cli 0.171.0", json.dumps({"models": [{"slug": "gpt-6.1-sol"}]}), mcp_list])
+        self.command = command
         with patch.object(codex_runner, "AppServer", return_value=client) as server, \
                 patch.object(subject, "_command", command):
             await subject.initialize({"tools": [], "system_prompt": "Persona fixture.", "config": {
@@ -285,6 +286,12 @@ class CodexNativeConfigTests(unittest.IsolatedAsyncioTestCase):
                          (str(Path(directory).resolve() / "workspace"), "read-only", "Persona fixture.", []))
         self.assertTrue(ready["tool_inventory_verified"])
         self.assertEqual(ready["capabilities"]["builtin_tools"], "disabled_verified")
+
+    async def test_semantic_tasks_list_mcp_servers_with_plugins_off(self):
+        """A plugin's server is not in the user's config; codex 0.172 refuses an override of it (invalid transport)."""
+        with tempfile.TemporaryDirectory() as directory:
+            await self.start(directory, False, directory)
+        self.assertEqual(self.command.call_args_list[2].args[1:], ("-c", "features.plugins=false", "mcp", "list", "--json"))
 
     async def test_semantic_tasks_turn_off_the_users_mcp_servers_or_do_not_start(self):
         listed = json.dumps([{"name": "user.tools", "enabled": True}])

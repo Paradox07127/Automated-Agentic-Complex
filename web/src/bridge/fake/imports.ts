@@ -7,17 +7,17 @@ const ROOT = '/tmp/agentic-complex-mmd-scan/scan';
 
 /** A two-dancer project as motion_tool mmd-scan sorts it: two bodies placed 19 frames before the song, a camera, the music. */
 const sampleScan = (): MmdScan => ({
-  title: '愛包ダンスホール',
+  title: 'サンプルダンス',
   root: ROOT,
   bodies: [
-    { path: `${ROOT}/愛包ダンスホール_HimeTanaka_v1.1[f-19].vmd`, name: '愛包ダンスホール_HimeTanaka_v1.1[f-19].vmd', label: 'HimeTanaka',
-      model: '田中ヒメ ver1.20', durationS: 223.33, placeFrame: -19, hasMorph: true },
-    { path: `${ROOT}/愛包ダンスホール_SuzukiHina_v1.1[f-19].vmd`, name: '愛包ダンスホール_SuzukiHina_v1.1[f-19].vmd', label: 'SuzukiHina',
-      model: '鈴木ヒナ ver1.10', durationS: 220.4, placeFrame: -19, hasMorph: true },
+    { path: `${ROOT}/サンプルダンス_SampleDancerA_v1.1[f-19].vmd`, name: 'サンプルダンス_SampleDancerA_v1.1[f-19].vmd', label: 'SampleDancerA',
+      model: 'サンプルモデルA ver1.20', durationS: 223.33, placeFrame: -19, hasMorph: true },
+    { path: `${ROOT}/サンプルダンス_SampleDancerB_v1.1[f-19].vmd`, name: 'サンプルダンス_SampleDancerB_v1.1[f-19].vmd', label: 'SampleDancerB',
+      model: 'サンプルモデルB ver1.10', durationS: 220.4, placeFrame: -19, hasMorph: true },
   ],
   faces: [],
   cameras: [{ path: `${ROOT}/camera_v1.0.vmd`, name: 'camera_v1.0.vmd', durationS: 223, placeFrame: null }],
-  audio: [{ path: `${ROOT}/愛包ダンスホール_inst.wav`, name: '愛包ダンスホール_inst.wav' }],
+  audio: [{ path: `${ROOT}/サンプルダンス_inst.wav`, name: 'サンプルダンス_inst.wav' }],
   ignored: [
     { name: 'Readme.txt', reason: 'not_motion' },
     { name: 'pose_start.vmd', reason: 'no_keys' },

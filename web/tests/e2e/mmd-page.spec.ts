@@ -45,10 +45,10 @@ test('a dance added from its row shows as a card with 移出 on hover, its name 
   await page.setViewportSize({ width: 1100, height: 650 });
   const row = await importAndAdd(page);
   const card = page.getByRole('region', { name: 'MMD 列表' }).locator('[data-playlist-row="mmd_dance_1"]');
-  await expect(card).toContainText('舞 · HimeTanaka');
+  await expect(card).toContainText('舞 · SampleDancerA');
   await expect(row).toContainText('01');
   await card.hover();
   await expect(card.getByRole('button', { name: '移出' })).toBeVisible();
-  const cut = await row.getByText('舞 · HimeTanaka', { exact: true }).evaluate((e) => e.scrollWidth > e.clientWidth);
+  const cut = await row.getByText('舞 · SampleDancerA', { exact: true }).evaluate((e) => e.scrollWidth > e.clientWidth);
   expect(cut).toBe(false);
 });

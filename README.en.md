@@ -101,7 +101,7 @@ Shortcuts can be customized in Settings › 快捷键 (Shortcuts). Inside the ma
 ### Windows x64 (Experimental / WIP)
 
 - Windows x64, Visual Studio 2022 C++ Build Tools, Node.js ≥ `24.22.1`, Python `3.12`.
-- Built and packed into a portable directory via `private/remote/winhost.py` (private; not in the public repository) and `tools/release/package_windows.py`; still in active development.
+- Built and packed into a portable directory via a private build script (not in the public repository) and `tools/release/package_windows.py`; still in active development.
 
 ## Development setup & Dev deployment
 
@@ -177,7 +177,7 @@ Open `/main.html#/overview`; the frontend automatically falls back to its built-
 
 ### 5. Full release build & layouts
 
-The canonical macOS release entry point is `bash app/build_app.sh` (must be run from a clean `main` commit with a matching passing `commit` or `release` gate receipt; reads the local profile `private/release/release.json` if present, else the public `app/packaging/release.json`). The public profile ships no characters (`character_catalog` is `null`); after launch, you can import `characters/sample-library/packages/aide/<sha256>/` on 角色 › 导入 (Import) or compatible character packages inside the app.
+The canonical macOS release entry point is `bash app/build_app.sh` (must be run from a clean `main` commit with a matching passing `commit` or `release` gate receipt; reads a private local release profile if present, else the public `app/packaging/release.json`). The public profile ships no characters (`character_catalog` is `null`); after launch, you can import `characters/sample-library/packages/aide/<sha256>/` on 角色 › 导入 (Import) or compatible character packages inside the app.
 
 | Layout | Command | Output |
 |---|---|---|

@@ -1,6 +1,6 @@
 # C6 Companion ↔ agentd 接口 v1
 
-> 正文里的「Avatar」「player」指角色进程，现由渲染器 `private/renderer/host`（私有组件，不在公开仓库）实现。
+> 正文里的「Avatar」「player」指角色进程，现由私有渲染器实现。
 
 双方：Companion（Electron 外壳，含 Metal 角色进程经 Companion 转发的部分）↔ agentd（Python）。归属：agent。
 T1 trace 事件格式是 C6 的一部分，见 [T1-TRACE.md](T1-TRACE.md)。全部端点见 §3 端点总表；逐条的字段和错误码见表中「规格」列指的文档；本文件的端点细则在 §2 和 §4。

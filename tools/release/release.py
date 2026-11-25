@@ -229,13 +229,14 @@ def build(args,root=ROOT):
     smoke.pop('support_dir',None)
     smoke['app']=app.name
     (output/'artifact-smoke.json').write_text(json.dumps(smoke,indent=2)+'\n')
-    _,receipt=gate
-    public={k:v for k,v in receipt.items() if k!='checkout'}
-    for suite in public.get('suites',[]):
-        for key in ('log','lines'):suite.pop(key,None)
-        if suite.get('cached'):suite['cached'].pop('from_checkout',None)
-    (output/gate_receipt.LATEST).write_text(json.dumps(public,indent=1)+'\n')
-    gated['gate_receipt']=gate_receipt.LATEST
+    if gate:
+        _,receipt=gate
+        public={k:v for k,v in receipt.items() if k!='checkout'}
+        for suite in public.get('suites',[]):
+            for key in ('log','lines'):suite.pop(key,None)
+            if suite.get('cached'):suite['cached'].pop('from_checkout',None)
+        (output/gate_receipt.LATEST).write_text(json.dumps(public,indent=1)+'\n')
+        gated['gate_receipt']=gate_receipt.LATEST
     if sources_moved(state,source_state(root)):raise ValueError('Sources changed while building')
     (output/'release-receipt.json').write_text(json.dumps(dict(schema='endfield-canonical-release/v1',**state,
         layout=layout,catalog_sha256=sha,app=app.name,distribution=layout,

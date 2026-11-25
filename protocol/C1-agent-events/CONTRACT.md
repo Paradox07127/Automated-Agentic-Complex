@@ -1,6 +1,6 @@
 # C1 agentd → 角色进程事件 v2.8：语义行为字段、分句级意图、只出字的台词、生成动作、播放器原语和本地动作
 
-> 角色进程指 `private/renderer/host`（私有组件，不在公开仓库） 的 `metal-avatar-host`。
+> 角色进程指私有渲染器的 `metal-avatar-host`。
 
 状态：已批，2026-10-19，定稿 2b67b239（agent 起草）。interaction（6 条补充）、host（3 条）、animation（5 条）都已同意，补充都已并入；
 §3 按 C3 v11 改稿 1a63d7a4 改了两处（协调会话 2026-10-19 11:38 定）。
@@ -91,7 +91,7 @@
 
 ## 1. `event: behavior`（agentd 选的一个持续活动）
 
-agentd 的行为 tick 或事件触发选出一个活动时发一条。角色进程维持它（`private/renderer/runtime` 的
+agentd 的行为 tick 或事件触发选出一个活动时发一条。角色进程维持它（渲染器的
 `AgentBehaviorScheduler`），按 `channels` 分配身体占用。新 behavior 替换旧的（`replaces`），承重骨链先安全释放再切，
 旧的不延迟复活。`replaces` 为 null 且 `channels` 和正在跑的行为不重叠时，两个一起跑
 （扶窗中用眼、头、嘴回应说话，夹具 06）；重叠时按 `priority` 替换。

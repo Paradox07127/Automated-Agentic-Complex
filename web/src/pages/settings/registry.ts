@@ -238,7 +238,7 @@ const RAW: Raw[] = [
   ['rnd.zoom', '@character', '角色 › 画面', '镜头缩放', '镜头 缩放 放大 近景 取景'],
   ['rnd.sway', '@character', '角色 › 画面', '呼吸晃动', '镜头 晃动 呼吸 手持'],
   ['rnd.closeup', '@character', '角色 › 画面', '对话近景', '镜头 近景 对话 会话 推近'],
-  ['rnd.track', '@character', '角色 › 画面', '动作相机轨', '镜头 相机 相机轨 舞台 动作'],
+  ['rnd.track', '@character', '角色 › 画面', '舞蹈播放', '舞蹈 MMD 全屏 居中 原地 镜头 相机轨 舞台'],
   ['about-you', '@memory', '记忆 › 用户档案', '称呼、生日', '用户档案'],
 ];
 

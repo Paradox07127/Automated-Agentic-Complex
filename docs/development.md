@@ -33,7 +33,7 @@
 
 ## 开发运行（Dev Console）
 
-日常开发推荐使用本地开发面板，一条命令启动 Vite 热更新服务（`127.0.0.1:5190`）和真 Electron 外壳，外壳按配置监督 `agentd`（端口 `48790`）和 `ac-helper`，不打包 `.app`。渲染器是私有组件：检出里没有 `private/renderer` 时，面板不编也不起渲染器，角色只显示文字。
+日常开发推荐使用本地开发面板，一条命令启动 Vite 热更新服务（`127.0.0.1:5190`）和真 Electron 外壳，外壳按配置监督 `agentd`（端口 `48790`）和 `ac-helper`，不打包 `.app`。渲染器是私有组件：检出里没有渲染器源码时，面板不编也不起渲染器，角色只显示文字。
 
 ```sh
 python3 -I tools/dev/dev_console.py
@@ -50,7 +50,7 @@ python3 -I tools/dev/dev_console.py --release-renderer
 面板给每个组件做这些事：
 
 - **web**：在所选工作树的 `web` 起 vite（`127.0.0.1:5190`，`EF_DEV_HMR_PORT=5190`），改网页即热更新。工作树没有 `node_modules` 时先在它的 `web` 里运行 `npm ci`。
-- **shell**：在所选工作树的 `app/electron` 里按需运行 `npm ci` 和 `node node_modules/electron/install.js`，再 `npm run build`；用 `swift build -c release` 建同一工作树的 `app/helpers/mac`；有 `private/renderer` 时用 `swift build`（带 `--release-renderer` 时是 `-c release`）建渲染器；写 config.json；等 vite 起来后启动 `electron app/electron --config <config.json> --dev-web-server http://127.0.0.1:5190 --no-push-to-talk --no-attention [外壳参数…]`。主窗口和桌面浮层的页面都取自 vite，真桥不变（见 [Electron 外壳 · 开发模式](architecture/shell.md#开发模式)）。
+- **shell**：在所选工作树的 `app/electron` 里按需运行 `npm ci` 和 `node node_modules/electron/install.js`，再 `npm run build`；用 `swift build -c release` 建同一工作树的 `app/helpers/mac`；有渲染器源码时用 `swift build`（带 `--release-renderer` 时是 `-c release`）建渲染器；写 config.json；等 vite 起来后启动 `electron app/electron --config <config.json> --dev-web-server http://127.0.0.1:5190 --no-push-to-talk --no-attention [外壳参数…]`。主窗口和桌面浮层的页面都取自 vite，真桥不变（见 [Electron 外壳 · 开发模式](architecture/shell.md#开发模式)）。
 - **agentd**、**renderer**：在外壳里运行。面板只选它们的工作树（写进 config.json 的 `agentd_dir`、`avatar_executable`），「应用」会重建并重启外壳。不重建、只重启 agentd 和渲染器时用外壳托盘的「重启子进程」，它会重读 config.json。
 
 Ctrl-C 先停外壳（外壳按顺序停渲染器、agentd 和 helper），再停 vite。
@@ -171,7 +171,7 @@ python -I app\helpers\windows\tests\replay.py
 - 套件的输入和上一次 PASS 完全相同时，门禁复用那次结果，输出第一行是 `CACHE: <n> of <m> suites reused`。
 - 搬目录或改文档后，`python3 -I tools/qa/check_paths.py --links` 检查断链，`python3 -I tools/qa/xplat_guard.py "$PWD"` 检查跨平台路径规则。
 
-渲染器的套件（`metal-*`、`renderer-*`、`characters-swift`）写在 `private/suites.json`，只在有私有源码的检出里加入同名档；公开检出跑 `public` 档。
+渲染器的套件（`metal-*`、`renderer-*`、`characters-swift`）写在私有套件清单里，只在有私有源码的检出里加入同名档；公开检出跑 `public` 档。
 
 ## 发行
 

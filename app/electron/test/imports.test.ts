@@ -96,8 +96,8 @@ test('an outfit import failure names the mod folder before its detail', () => {
 });
 
 const SCAN_LINE = {
-  ok: true, title: '愛包ダンスホール', root: '/u/scan-1',
-  bodies: [{ path: '/u/scan-1/a.vmd', name: 'a.vmd', label: 'HimeTanaka', model: '田中ヒメ ver1.20', duration_s: 223.33, place_frame: -19,
+  ok: true, title: 'サンプルダンス', root: '/u/scan-1',
+  bodies: [{ path: '/u/scan-1/a.vmd', name: 'a.vmd', label: 'SampleDancerA', model: 'サンプルモデルA ver1.20', duration_s: 223.33, place_frame: -19,
     has_morph: true }],
   faces: [{ path: '/u/scan-1/lip.vmd', name: 'lip.vmd', duration_s: 210, morphs: 5 }],
   cameras: [{ path: '/u/scan-1/cam.vmd', name: 'cam.vmd', duration_s: 223, place_frame: null }],
@@ -114,8 +114,8 @@ test('motion_tool mmd-scan takes the first path as the source, the rest as extra
 
 test('motion_tool mmd-scan\'s result line in camelCase', () => {
   assert.deepEqual(scannedMmd(JSON.stringify(SCAN_LINE)), {
-    title: '愛包ダンスホール', root: '/u/scan-1',
-    bodies: [{ path: '/u/scan-1/a.vmd', name: 'a.vmd', label: 'HimeTanaka', model: '田中ヒメ ver1.20', durationS: 223.33, placeFrame: -19,
+    title: 'サンプルダンス', root: '/u/scan-1',
+    bodies: [{ path: '/u/scan-1/a.vmd', name: 'a.vmd', label: 'SampleDancerA', model: 'サンプルモデルA ver1.20', durationS: 223.33, placeFrame: -19,
       hasMorph: true }],
     faces: [{ path: '/u/scan-1/lip.vmd', name: 'lip.vmd', durationS: 210, morphs: 5 }],
     cameras: [{ path: '/u/scan-1/cam.vmd', name: 'cam.vmd', durationS: 223, placeFrame: null }],
@@ -137,9 +137,9 @@ test('an mmd-scan line that is not ok, lacks a list or has a field of the wrong 
 
 test('motion_tool import of a scanned body takes its face, camera, music and offset, its title, the song and the role', () => {
   assert.deepEqual(mmdImportArgs('/lib', 'si', { source: '/u/a.vmd', morph: '/u/lip.vmd', camera: '/u/cam.vmd', bgm: '/u/inst.wav',
-    bgmStartS: -0.633, title: '愛包 · Hime', project: '愛包', role: 'Hime' }, '/host'),
+    bgmStartS: -0.633, title: 'サンプル · Sample', project: 'サンプル', role: 'Sample' }, '/host'),
   ['import', '--library', '/lib', '--character', 'si', '--source', '/u/a.vmd', '--morph', '/u/lip.vmd', '--camera', '/u/cam.vmd',
-    '--bgm', '/u/inst.wav', '--bgm-start=-0.633', '--title=愛包 · Hime', '--project=愛包', '--role=Hime', '--validate-with', '/host']);
+    '--bgm', '/u/inst.wav', '--bgm-start=-0.633', '--title=サンプル · Sample', '--project=サンプル', '--role=Sample', '--validate-with', '/host']);
   // An offset without music says nothing.
   assert.deepEqual(mmdImportArgs('/lib', 'si', { source: '/u/a.vmd', morph: null, camera: null, bgm: null, bgmStartS: 2,
     title: '-x', project: '-p', role: '-r' }, '/host'),
@@ -166,8 +166,8 @@ test('motion_tool mmd-media\'s result line is the action, its id unchanged, with
 
 test('mmd.importScan\'s plan: indices into the scan, 1–64-character titles, a finite offset; anything else is bad_args', () => {
   const scan = scannedMmd(JSON.stringify({ ...SCAN_LINE, bodies: [SCAN_LINE.bodies[0], { ...SCAN_LINE.bodies[0], name: 'b.vmd' }] }));
-  const plan = { token: 't', items: [{ body: 1, title: ' 愛包 · B ' }], face: 0, camera: null, audio: 0, bgmStartS: -0.633, project: '愛包' };
-  assert.deepEqual(mmdPlanArg(plan, scan), { ...plan, items: [{ body: 1, title: '愛包 · B' }] });
+  const plan = { token: 't', items: [{ body: 1, title: ' サンプル · B ' }], face: 0, camera: null, audio: 0, bgmStartS: -0.633, project: 'サンプル' };
+  assert.deepEqual(mmdPlanArg(plan, scan), { ...plan, items: [{ body: 1, title: 'サンプル · B' }] });
   const bad = bridgeFailure('bad_args', 'mmd.importScan');
   for (const p of [null, { ...plan, items: [] }, { ...plan, items: [{ body: 2, title: 'x' }] }, { ...plan, items: [{ body: 0, title: ' ' }] },
     { ...plan, items: [{ body: 0, title: 'x' }, { body: 0, title: 'y' }] }, { ...plan, face: 1 }, { ...plan, camera: -1 },

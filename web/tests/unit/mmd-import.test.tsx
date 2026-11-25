@@ -71,12 +71,12 @@ describe('导入 MMD 确认单', () => {
     await mount();
     await open();
     expect(scan).toHaveBeenCalledWith({ folder: false });
-    expect(field('曲名').value).toBe('愛包ダンスホール');
+    expect(field('曲名').value).toBe('サンプルダンス');
     expect([tick(0).checked, tick(1).checked]).toEqual([true, false]);
-    expect(body(0).textContent).toBe('HimeTanaka田中ヒメ ver1.20223.3 s');
+    expect(body(0).textContent).toBe('SampleDancerAサンプルモデルA ver1.20223.3 s');
     expect(chosen('口型')).toBe('口型无');
     expect(chosen('镜头')).toBe('镜头camera_v1.0.vmd');
-    expect(chosen('音源')).toBe('音源愛包ダンスホール_inst.wav');
+    expect(chosen('音源')).toBe('音源サンプルダンス_inst.wav');
     expect(field('音乐偏移').value).toBe('-0.633');
     const fold = within(sheet()).getByRole('button', { name: /未使用的文件/ });
     expect(fold.getAttribute('aria-expanded')).toBe('false');
@@ -89,8 +89,8 @@ describe('导入 MMD 确认单', () => {
     await mount();
     await open();
     await click(within(sheet()).getByRole('button', { name: '导入' }));
-    expect(imp).toHaveBeenCalledWith({ token: 'scan_1', items: [{ body: 0, title: '愛包ダンスホール · HimeTanaka' }], face: null, camera: 0, audio: 0,
-      bgmStartS: -0.633, project: '愛包ダンスホール' });
+    expect(imp).toHaveBeenCalledWith({ token: 'scan_1', items: [{ body: 0, title: 'サンプルダンス · SampleDancerA' }], face: null, camera: 0, audio: 0,
+      bgmStartS: -0.633, project: 'サンプルダンス' });
     expect(screen.queryByRole('dialog', { name: '导入 MMD' })).toBeNull();
   });
 
@@ -99,14 +99,14 @@ describe('导入 MMD 确认单', () => {
     await mount();
     await open();
     await act(async () => void fireEvent.click(tick(1)));
-    fireEvent.change(field('曲名'), { target: { value: ' 愛包 ' } });
+    fireEvent.change(field('曲名'), { target: { value: ' サンプル ' } });
     await choose('镜头', '无');
     fireEvent.change(field('音乐偏移'), { target: { value: '1.25' } });
     await click(within(sheet()).getByRole('button', { name: '导入' }));
-    expect(imp).toHaveBeenCalledWith({ token: 'scan_1', items: [{ body: 0, title: '愛包 · HimeTanaka' }, { body: 1, title: '愛包 · SuzukiHina' }],
-      face: null, camera: null, audio: 0, bgmStartS: 1.25, project: '愛包' });
+    expect(imp).toHaveBeenCalledWith({ token: 'scan_1', items: [{ body: 0, title: 'サンプル · SampleDancerA' }, { body: 1, title: 'サンプル · SampleDancerB' }],
+      face: null, camera: null, audio: 0, bgmStartS: 1.25, project: 'サンプル' });
     await waitFor(() => expect(document.querySelector('[data-mmd="mmd_dance_2"]')).not.toBeNull(), SLOW);
-    expect(document.querySelector('[data-motion-import]')?.textContent).toBe('已导入「愛包 · HimeTanaka」「愛包 · SuzukiHina」');
+    expect(document.querySelector('[data-motion-import]')?.textContent).toBe('已导入「サンプル · SampleDancerA」「サンプル · SampleDancerB」');
   });
 
   it('without music sends no offset and greys the offset out; a single body takes the song’s title alone', async () => {
@@ -121,7 +121,7 @@ describe('导入 MMD 确认单', () => {
     await choose('音源', '无');
     expect(field('音乐偏移').disabled).toBe(true);
     await click(within(sheet()).getByRole('button', { name: '导入' }));
-    expect(imp).toHaveBeenCalledWith(expect.objectContaining({ items: [{ body: 0, title: '愛包ダンスホール' }], audio: null, bgmStartS: null }));
+    expect(imp).toHaveBeenCalledWith(expect.objectContaining({ items: [{ body: 0, title: 'サンプルダンス' }], audio: null, bgmStartS: null }));
   });
 
   it('marks a body over 360 s in danger and does not let it be ticked; with only that one suggested nothing is ticked and 导入 waits', async () => {
@@ -189,14 +189,14 @@ describe('导入 MMD 确认单', () => {
   });
 
   it('says which dance stopped the import after the ones done', async () => {
-    const done = { id: 'mmd_dance_1', title: '愛包ダンスホール · HimeTanaka', durationS: 223.3, hasBgm: true, format: 'vmd', warnings: [] };
+    const done = { id: 'mmd_dance_1', title: 'サンプルダンス · SampleDancerA', durationS: 223.3, hasBgm: true, format: 'vmd', warnings: [] };
     vi.spyOn(bridge.mmd, 'importScan').mockResolvedValue({ ok: false, reason: 'too_long', detail: '', actions: [done] });
     await mount();
     await open();
     await act(async () => void fireEvent.click(tick(1)));
     await click(within(sheet()).getByRole('button', { name: '导入' }));
     await waitFor(() => expect(document.querySelector('[data-motion-import]')?.textContent)
-      .toBe('已导入「愛包ダンスホール · HimeTanaka」，「愛包ダンスホール · SuzukiHina」没有完成：动作超过 360 秒'));
+      .toBe('已导入「サンプルダンス · SampleDancerA」，「サンプルダンス · SampleDancerB」没有完成：动作超过 360 秒'));
   });
 
   it('选择其它音频 adds the picked file to 音源 and chooses it; 导入 sends its index; the sheet stays open', async () => {
@@ -243,12 +243,12 @@ describe('导入 MMD 确认单', () => {
 });
 
 describe('换音源', () => {
-  const DANCE: MmdEntry = { id: 'mmd_dance_1', title: '愛包', durationS: 223.3, hasBgm: true, hasCamera: true, hasFace: true, project: '愛包',
-    role: 'HimeTanaka', createdAt: '2026-11-25T10:00:00+00:00', characters: [{ id: 'si', state: 'baked', reason: null }] };
+  const DANCE: MmdEntry = { id: 'mmd_dance_1', title: 'サンプル', durationS: 223.3, hasBgm: true, hasCamera: true, hasFace: true, project: 'サンプル',
+    role: 'SampleDancerA', createdAt: '2026-11-25T10:00:00+00:00', characters: [{ id: 'si', state: 'baked', reason: null }] };
 
   it('picks new music at the offset typed, or takes the music away', async () => {
     vi.spyOn(bridge.mmd, 'list').mockResolvedValue({ ok: true, entries: [DANCE] });
-    const set = vi.spyOn(bridge.mmd, 'setMedia').mockResolvedValue({ ok: true, action: { id: 'mmd_dance_1', title: '愛包', durationS: 223.3, hasBgm: true,
+    const set = vi.spyOn(bridge.mmd, 'setMedia').mockResolvedValue({ ok: true, action: { id: 'mmd_dance_1', title: 'サンプル', durationS: 223.3, hasBgm: true,
       format: 'vmd', warnings: [] } });
     await mount();
     const detail = await screen.findByRole('group', { name: 'MMD 操作' });
@@ -257,7 +257,7 @@ describe('换音源', () => {
     fireEvent.change(within(dialog).getByRole('textbox', { name: '音乐偏移' }), { target: { value: '-0.5' } });
     await click(within(dialog).getByRole('button', { name: '选择音频' }));
     expect(set).toHaveBeenLastCalledWith('mmd_dance_1', { bgm: 'pick', bgmStartS: -0.5 });
-    await waitFor(() => expect(document.querySelector('[data-motion-import]')?.textContent).toBe('「愛包」换了音源'));
+    await waitFor(() => expect(document.querySelector('[data-motion-import]')?.textContent).toBe('「サンプル」换了音源'));
     await click(within(screen.getByRole('group', { name: 'MMD 操作' })).getByRole('button', { name: '换音源' }));
     dialog = screen.getByRole('dialog', { name: '换音源' });
     await click(within(dialog).getByRole('radio', { name: '不要音源' }));

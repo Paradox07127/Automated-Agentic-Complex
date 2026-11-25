@@ -550,14 +550,14 @@
       "ok": true,
       "token": "scan_1",
       "scan": {
-        "title": "愛包ダンスホール",
+        "title": "サンプルダンス",
         "root": "/tmp/mmd-scan/scan_1",
         "bodies": [
           {
-            "path": "/tmp/mmd-scan/scan_1/HimeTanaka_v1.1[f-19].vmd",
-            "name": "HimeTanaka_v1.1[f-19].vmd",
-            "label": "HimeTanaka",
-            "model": "田中ヒメ ver1.20",
+            "path": "/tmp/mmd-scan/scan_1/SampleDancerA_v1.1[f-19].vmd",
+            "name": "SampleDancerA_v1.1[f-19].vmd",
+            "label": "SampleDancerA",
+            "model": "サンプルモデルA ver1.20",
             "durationS": 223.33,
             "placeFrame": -19,
             "hasMorph": true
@@ -620,14 +620,14 @@
         "items": [
           {
             "body": 0,
-            "title": "愛包ダンスホール"
+            "title": "サンプルダンス"
           }
         ],
         "face": null,
         "camera": 0,
         "audio": 0,
         "bgmStartS": -0.633,
-        "project": "愛包ダンスホール"
+        "project": "サンプルダンス"
       }
     ],
     "value": {

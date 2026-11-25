@@ -33,7 +33,7 @@
 
 ## Local development (Dev Console)
 
-For day-to-day development, the Dev Console starts the Vite hot-reload server (`127.0.0.1:5190`) and the real Electron shell with one command—supervising `agentd` (port `48790`) and `ac-helper`, with no `.app` build. The renderer is a private component: without `private/renderer` in the checkout, the console neither builds nor starts a renderer, and characters show as text only.
+For day-to-day development, the Dev Console starts the Vite hot-reload server (`127.0.0.1:5190`) and the real Electron shell with one command—supervising `agentd` (port `48790`) and `ac-helper`, with no `.app` build. The renderer is a private component: without the renderer source in the checkout, the console neither builds nor starts a renderer, and characters show as text only.
 
 ```sh
 python3 -I tools/dev/dev_console.py
@@ -50,7 +50,7 @@ Open `http://127.0.0.1:48780/` to pick worktrees per component (`web`, `shell`, 
 The console does this for each component:
 
 - **web**: starts vite in the chosen worktree's `web` (`127.0.0.1:5190`, `EF_DEV_HMR_PORT=5190`), so page edits hot-reload. A worktree without `node_modules` first gets `npm ci` in its `web`.
-- **shell**: in the chosen worktree's `app/electron` it runs `npm ci` and `node node_modules/electron/install.js` when needed, then `npm run build`; it builds the same worktree's `app/helpers/mac` with `swift build -c release`, and, when `private/renderer` exists, the renderer with `swift build` (`-c release` with `--release-renderer`); it writes config.json; once vite is up it starts `electron app/electron --config <config.json> --dev-web-server http://127.0.0.1:5190 --no-push-to-talk --no-attention [shell arguments…]`. The main window's and desktop panels' pages all come from vite with the real bridge (see [Electron shell · development mode](architecture/shell.en.md#development-mode)).
+- **shell**: in the chosen worktree's `app/electron` it runs `npm ci` and `node node_modules/electron/install.js` when needed, then `npm run build`; it builds the same worktree's `app/helpers/mac` with `swift build -c release`, and, when the renderer source exists, the renderer with `swift build` (`-c release` with `--release-renderer`); it writes config.json; once vite is up it starts `electron app/electron --config <config.json> --dev-web-server http://127.0.0.1:5190 --no-push-to-talk --no-attention [shell arguments…]`. The main window's and desktop panels' pages all come from vite with the real bridge (see [Electron shell · development mode](architecture/shell.en.md#development-mode)).
 - **agentd**, **renderer**: run inside the shell. The console only picks their worktrees (written to `agentd_dir` and `avatar_executable` in config.json), and 应用 (Apply) rebuilds and restarts the shell. To restart agentd and the renderer without a rebuild, use the shell tray's 重启子进程 (Restart child processes), which rereads config.json.
 
 Ctrl-C stops the shell first (the shell stops the renderer, agentd and the helper in order), then vite.
@@ -171,7 +171,7 @@ To run the shell by hand, config.json must have `agentd_dir`, `python`, `agentd_
 - When a suite's inputs are identical to an earlier PASS, the gate reuses that result, and the first output line is `CACHE: <n> of <m> suites reused`.
 - After moving directories or editing docs, `python3 -I tools/qa/check_paths.py --links` checks for broken links and `python3 -I tools/qa/xplat_guard.py "$PWD"` checks the cross-platform path rules.
 
-The renderer suites (`metal-*`, `renderer-*`, `characters-swift`) live in `private/suites.json` and join the same-named profiles only in a checkout with the private sources; a public checkout runs the `public` profile.
+The renderer suites (`metal-*`, `renderer-*`, `characters-swift`) live in a private suite list and join the same-named profiles only in a checkout with the private sources; a public checkout runs the `public` profile.
 
 ## Releases
 

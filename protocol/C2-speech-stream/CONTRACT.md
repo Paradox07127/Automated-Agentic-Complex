@@ -1,9 +1,9 @@
 # C2 语音流时间轴 v2.3
 
-> 角色进程指 `private/renderer/host`（私有组件，不在公开仓库） 的 `metal-avatar-host`。
+> 角色进程指私有渲染器的 `metal-avatar-host`。
 
 状态：v2，2026-10-19 由协调会话定稿（audio、agent、animation 同意）；v2.1 2026-10-23 由协调会话加：同代际停声（规则 8 第 3 条子项）；v2.2 只加字段：`en` 和不带对齐的流（见 v2.2 节）；v2.3 2026-11-12 修正规则 9 的播放器等待行为，线上字段和 schema 保持原样。v1 2026-10-18 定稿。
-参与方：音频组（TTS 主机上的 TTS 服务，生产方）→ Agent 组（agentd，唯一的 TTS 客户端，原样转发）→ 角色进程（消费方，`private/renderer/host` 的 `AgentSpeechSession`）。
+参与方：音频组（TTS 主机上的 TTS 服务，生产方）→ Agent 组（agentd，唯一的 TTS 客户端，原样转发）→ 角色进程（消费方，渲染器的 `AgentSpeechSession`）。
 改这份合同要先找协调会话；三方同意后升版本号。
 
 ## 传输

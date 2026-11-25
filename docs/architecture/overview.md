@@ -65,7 +65,7 @@ agentd 每条工具路径由谁把关、桌面授权何时释放、效果账本�
 
 ## 发行版
 
-由 `bash app/build_app.sh` 构建（`package_release.sh` → `tools/release/release.py` → `build_components.py`、`package_app.py`）。默认 `--layout portable` 出一个装着全部组件的 `Agentic Complex.app`；`--layout split` 出只装 host、renderer、web-ui 的 `Agentic Complex.app`，其余组件放在 app 旁边的 `components/`。组件表、两种版本的比对、安装和缺组件时的表现见 [components.md](../components.md)。检出里没有渲染器源码（`private/renderer`）时，构建出的 app 没有 renderer 组件，没有预览，角色只显示文字。
+由 `bash app/build_app.sh` 构建（`package_release.sh` → `tools/release/release.py` → `build_components.py`、`package_app.py`）。默认 `--layout portable` 出一个装着全部组件的 `Agentic Complex.app`；`--layout split` 出只装 host、renderer、web-ui 的 `Agentic Complex.app`，其余组件放在 app 旁边的 `components/`。组件表、两种版本的比对、安装和缺组件时的表现见 [components.md](../components.md)。检出里没有渲染器源码时，构建出的 app 没有 renderer 组件，没有预览，角色只显示文字。
 
 | 位置 | 内容 |
 |---|---|

@@ -65,7 +65,7 @@ See the [tool gateway](tool-gateway.en.md) for authorization by tool path, relea
 
 ## Release builds
 
-`bash app/build_app.sh` invokes `package_release.sh`, then `tools/release/release.py`, `build_components.py`, and `package_app.py`. The default `--layout portable` bundles every component in `Agentic Complex.app`. With `--layout split`, the app bundles host, renderer, and web-ui, with the other components in `components/` beside it. See [release components and installation](../components.en.md) for the component list, layout comparison, installation, and missing-component behavior. A checkout without the renderer source (`private/renderer`) builds an app with no renderer component and no preview; characters then show as text only.
+`bash app/build_app.sh` invokes `package_release.sh`, then `tools/release/release.py`, `build_components.py`, and `package_app.py`. The default `--layout portable` bundles every component in `Agentic Complex.app`. With `--layout split`, the app bundles host, renderer, and web-ui, with the other components in `components/` beside it. See [release components and installation](../components.en.md) for the component list, layout comparison, installation, and missing-component behavior. A checkout without the renderer source builds an app with no renderer component and no preview; characters then show as text only.
 
 | Location | Contents |
 |---|---|

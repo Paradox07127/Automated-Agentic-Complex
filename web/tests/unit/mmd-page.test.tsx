@@ -250,11 +250,11 @@ describe('MMD library', () => {
     expect(imp).toHaveBeenCalled();
     expect((screen.getByRole('button', { name: '导入中…' }) as HTMLButtonElement).disabled).toBe(true);
     await waitFor(() => expect(item('mmd_dance_1')).not.toBeNull(), SLOW);
-    expect(document.querySelector('[data-motion-import]')?.textContent).toBe('已导入「愛包ダンスホール · HimeTanaka」');
+    expect(document.querySelector('[data-motion-import]')?.textContent).toBe('已导入「サンプルダンス · SampleDancerA」');
     const row = item('mmd_dance_1')!;
-    expect(row.textContent).toContain('愛包ダンスホール · HimeTanaka');
+    expect(row.textContent).toContain('サンプルダンス · SampleDancerA');
     expect(row.textContent).toContain('223.3 s');
-    expect(within(row).getByText('HimeTanaka')).toBeTruthy();
+    expect(within(row).getByText('SampleDancerA')).toBeTruthy();
     expect(within(row).getByText('BGM')).toBeTruthy();
     expect(within(row).getByText('CAM')).toBeTruthy();
     expect(within(row).getByText('LIP')).toBeTruthy();
@@ -347,7 +347,7 @@ describe('MMD library', () => {
     await act(async () => sync({ running: true, character: 'si', total: 3, done: 1, failed: 0, stage: 'write', fraction: 0.3 }));
     await click(screen.getByRole('button', { name: '导入 MMD' }));
     await click(within(await screen.findByRole('dialog', { name: '导入 MMD' })).getByRole('button', { name: '导入' }));
-    await waitFor(() => expect(screen.getByRole('status', { name: 'MMD 导入' }).textContent).toContain('正在导入「愛包ダンスホール · HimeTanaka」'));
+    await waitFor(() => expect(screen.getByRole('status', { name: 'MMD 导入' }).textContent).toContain('正在导入「サンプルダンス · SampleDancerA」'));
     expect(screen.queryByRole('status', { name: 'MMD 同步' })).toBeNull();
     await act(async () => sync({ running: false, character: null, total: 0, done: 0, failed: 0, stage: null, fraction: 0 }));
     await waitFor(() => expect(document.querySelector('[data-motion-import]')).not.toBeNull(), SLOW);

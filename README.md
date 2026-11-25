@@ -101,7 +101,7 @@
 ### Windows x64（开发中 / 实验性）
 
 - Windows x64，Visual Studio 2022（C++ x64 构建工具）、Node.js ≥ `24.22.1`、Python `3.12`。
-- 当前通过 `private/remote/winhost.py`（私有，不在公开仓库） 在构建主机上同步、构建与打包便携目录（`package_windows.py`），仍在迭代中。
+- 当前通过私有构建脚本（不在公开仓库）在构建主机上同步、构建与打包便携目录（`package_windows.py`），仍在迭代中。
 
 ## 开发环境与 Dev 版本部署
 
@@ -177,7 +177,7 @@ npm --prefix web run dev
 
 ### 5. 完整构建与两种发行布局
 
-macOS 唯一正式打包入口为 `bash app/build_app.sh`（须在干净的 `main` 提交上执行，并具备匹配的 `commit` 或 `release` 档通过门禁回执；本机存在 `private/release/release.json` 时优先使用本机配置，否则使用公开配置 `app/packaging/release.json`）。公开发行配置默认不携带角色库（`character_catalog` 为 `null`），安装启动后可在「角色 › 导入」或使用 `characters/sample-library/packages/aide/<sha256>/` 导入纯文字示例角色。
+macOS 唯一正式打包入口为 `bash app/build_app.sh`（须在干净的 `main` 提交上执行，并具备匹配的 `commit` 或 `release` 档通过门禁回执；本机存在私有发布配置时优先使用它，否则使用公开配置 `app/packaging/release.json`）。公开发行配置默认不携带角色库（`character_catalog` 为 `null`），安装启动后可在「角色 › 导入」或使用 `characters/sample-library/packages/aide/<sha256>/` 导入纯文字示例角色。
 
 | 布局 | 命令 | 产物 |
 |---|---|---|

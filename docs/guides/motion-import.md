@@ -13,7 +13,7 @@
 一首 MMD 曲子的整包（文件夹、ZIP 或多选的文件）可以一次导入共享舞曲库，包里可以有多条身体动作、口型 VMD、多条镜头和多段音源：
 
 - `motion_tool.py mmd-scan` 先把文件分好类：有骨骼关键帧的 VMD 是身体，只有相机关键帧的是镜头，只有表情关键帧的是口型（表情）VMD，音频按后缀，其余列为忽略。文件夹递归走，跳过隐藏项和 `__MACOSX`；ZIP 展开到临时目录。
-- 每条身体按文件名里和别的身体不同的那段起名（如 `…_HimeTanaka_v1.1[f-19].vmd` 和 `…_HinaSuzuki_v1.1[f-19].vmd` 分别是 `HimeTanaka`、`HinaSuzuki`）。
+- 每条身体按文件名里和别的身体不同的那段起名（如 `…_SampleDancerA_v1.1[f-19].vmd` 和 `…_SampleDancerB_v1.1[f-19].vmd` 分别是 `SampleDancerA`、`SampleDancerB`）。
 - 身体 VMD 主名末尾的 `[fN]`（如 `[f-19]`、`[f4930]`）表示动作放在歌曲的第 N 帧（30 fps），音乐偏移缺省取 N / 30 秒，可以是负数：负数表示音乐在这么多秒静音之后才开始。
 - 缺省选最长的身体、最长的镜头、第一段音源，以及文件名含所选身体名字的口型 VMD（只有一个口型时就用它）。页面上可以逐项改选。
 - `motion_tool.py import` 的 `--morph` 给口型 VMD、`--camera` 给镜头 VMD，两者只配 VMD 身体；`--project`、`--role` 记下曲名和这支身体的角色。直接拖进来的多个文件或 ZIP 也按同样的分类取缺省选择，没用上的文件记成告警 `ignored_file`，不再因为「多于一个」失败。

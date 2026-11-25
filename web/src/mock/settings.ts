@@ -86,7 +86,7 @@ const ROWS: Row[] = [
   ['rnd.weather', '@character', '天气', 'clear', 'none', [['clear', '晴'], ['rain', '雨'], ['snow', '雪']]], ['rnd.weatherLevel', '@character', '强度', 0.6, 'none', { min: 0, max: 1, step: 0.05, format: 'percent' }],
   ['scn.mode', '@character', '场景', 'off', 'avatar', [['off', '关'], ['box', '舞台盒'], ['stage', '展示台']]], ['scn.parallax', '@character', '背景视差', true, 'avatar'],
   ['rnd.zoom', '@character', '镜头缩放', 1, 'none', { min: 1, max: 4, step: 0.05, format: 'percent' }], ['rnd.sway', '@character', '呼吸晃动', false, 'none'],
-  ['rnd.closeup', '@character', '对话近景', 'off', 'none', [['off', '关'], ['session', '会话面板打开时']]], ['rnd.track', '@character', '动作相机轨', 'stage', 'none', [['off', '不播'], ['stage', '舞台框里播']]],
+  ['rnd.closeup', '@character', '对话近景', 'off', 'none', [['off', '关'], ['session', '会话面板打开时']]], ['rnd.track', '@character', '舞蹈播放', 'stage', 'none', [['off', '原地'], ['stage', '全屏居中']]],
 ];
 
 const DESTRUCTIVE = new Set(['wintext', 'web', 'typing', 'agent_sessions']);

@@ -75,6 +75,7 @@ HISTORY = 16
 SEAT_BLEND = f32(0.25)
 SEAT_RETURN = f32(0.8)  # the least blend from a seated detour back to the seat's loop: HostSeat's offLoopReturnBlend
 SEAT_HOLD_S = f32(8)
+ONE_SHOT_HOLD_S = f32(6)  # speech waits for a one-shot with at most this many seconds left; a longer one is cut
 
 
 def lcg(x):
@@ -761,7 +762,7 @@ class MotionChooser:
         self.semantic, self.clock, self.last_event_start, self.waiting_event = "idle", 0.0, None, None
         self.clause_gestures = False
         self.deferred, self.bridging = None, None
-        self.intent_held = self.playback_speech = self.speech = False
+        self.intent_held = self.playback_speech = self.speech = self.speech_held = False
         self.last_feedback = None
         self.activity, self.activity_start, self.last_intent_key, self.last_intent_start = "idle", None, None, None
         self.session_key = self.session_intent = self.waiting_until = None
@@ -974,6 +975,15 @@ class MotionChooser:
 
     def _body_busy(self):
         return self._seat is not None
+
+    def _one_shot_playing(self):
+        """A one-shot she plays or blends into has not reached its end and has at most ONE_SHOT_HOLD_S left."""
+        p, a = self.pack, self._play
+        clip, time = (a.target, a.target_time) if a.target else (a.active, a.time)
+        length = p.lengths.get(clip)
+        if not length or p.loop(clip) or (clip == a.active and self._played_out(clip)):
+            return False
+        return f32(length - time) <= ONE_SHOT_HOLD_S
 
     def _enabled(self, clip):
         return clip not in self.disabled
@@ -1654,6 +1664,10 @@ class MotionChooser:
         intent = "speak" if self.speaking else "idle"
         if intent == self.last_feedback and self.current in self.pack.entries:
             return
+        # Speech starting or ending moves her base: a one-shot she plays finishes first.
+        self.speech_held = self._one_shot_playing()
+        if self.speech_held:
+            return
         self.last_feedback = intent
         self.apply_intent(intent)
 
@@ -1919,7 +1933,9 @@ class MotionChooser:
             return "waiting" if key.startswith("session.") else "speaking"
         # A repick follows the exit its held loop has just finished.
         entry = None if self.repicking else p.entries.get(self.current)
-        if level != "user" and (self._body_busy() or (level == "high" and self.since_user < 1.5) or (
+        # An event that is neither the user's nor needs the user waits for a one-shot she plays to end.
+        if level != "user" and (self._body_busy() or (key not in URGENT_EVENTS and self._one_shot_playing()) or (
+                level == "high" and self.since_user < 1.5) or (
                 level == "mid" and entry is not None and entry.interruptible is not True) or (
                 level == "low" and (a.target is not None or not self._resting(a.active) or self.semantic != "idle"))
                 or not self._budget_allows(posture)):
@@ -2038,6 +2054,9 @@ class MotionChooser:
             self._leave_disabled()
         if self._advance_requested():
             return
+        if self.speech_held and not self._one_shot_playing():
+            self.speech_held = False
+            self._feedback()
         if self.intent_held and not self._body_busy():
             self.intent_held = False
             if not self._mapped_intent(self.semantic):
