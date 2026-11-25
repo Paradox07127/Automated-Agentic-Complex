@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, type Ref } from 'react';
 import type { CharacterEntry } from '../../bridge';
 import type { CharacterProfile } from '../../domain';
-import { CharacterArt, Icon } from '../../ui';
-import { MicroLabel } from '../../ui/game';
+import { CharacterArt, Icon, IconBtn } from '../../ui';
 import { HeadPick } from './charMotion';
 import { DeskGlyph } from './NameBlock';
 import { pad2, Roster } from './Roster';
@@ -73,18 +72,15 @@ export function HeadStrip(p: HeadStripProps) {
         })}
       </div>
       <div ref={boxRef} className={styles.keys} data-g="bottomMenu">
-        <button type="button" className={styles.list} aria-expanded={open} aria-label={`切换角色，当前 ${cur?.name ?? ''}`} title="全部角色" onClick={() => setOpen((v) => !v)}>
-          <Icon name="grid" size={20} />
-          <MicroLabel>Roster</MicroLabel>
-        </button>
-        <button type="button" className={styles.bareKey} data-bare-key="" aria-pressed={p.bare} aria-label="隐藏界面" title={p.bare ? '显示界面' : '隐藏界面，只看模型'} onClick={() => (setOpen(false), p.onBare(!p.bare))}>
-          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true" focusable="false">
-            <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" />
-            <circle cx="12" cy="12" r="3" />
-            <path d="M4 20 20 4" />
-          </svg>
-          <span className={styles.lbl}>只看模型</span>
-        </button>
+        <span className={styles.list}>
+          <IconBtn icon="grid" label={`切换角色，当前 ${cur?.name ?? ''}`} expanded={open} onClick={() => setOpen((v) => !v)} />
+        </span>
+        <span className={styles.bareKey}>
+          <IconBtn icon="eye" label="隐藏界面" pressed={p.bare} onClick={() => (setOpen(false), p.onBare(!p.bare))} />
+          <span className={styles.lbl} aria-hidden="true">
+            只看模型
+          </span>
+        </span>
         {open && (
           <div className={pop.pop} role="dialog" aria-label="全部角色">
             <div className={pop.popHd}>

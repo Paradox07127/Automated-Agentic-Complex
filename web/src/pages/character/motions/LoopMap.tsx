@@ -59,12 +59,12 @@ function Ring({ ix }: { ix: GraphIndex }) {
     <div className={styles.hub}>
       <div className={styles.ring} data-hub={hub?.clip}>
         <svg viewBox="0 0 136 136" aria-hidden="true">
-          <circle cx="68" cy="68" r="64" fill="none" stroke="rgb(38 38 38 / 30%)" strokeWidth="1" />
+          <circle cx="68" cy="68" r="64" fill="none" stroke="color-mix(in srgb, var(--ef-plate) 30%, transparent)" strokeWidth="1" />
           <circle cx="68" cy="68" r="53" fill="rgb(46 46 46 / 90%)" />
-          <circle cx="68" cy="68" r="57" fill="none" stroke="rgb(38 38 38)" strokeWidth="2" strokeDasharray="250 108" transform="rotate(-80 68 68)" />
+          <circle cx="68" cy="68" r="57" fill="none" stroke="var(--ef-plate)" strokeWidth="2" strokeDasharray="250 108" transform="rotate(-80 68 68)" />
           <Arc />
-          <path d="M68 1v6M68 129v6M1 68h6M129 68h6" stroke="rgb(38 38 38 / 50%)" strokeWidth="1" />
-          <path d="M117 28l10-2-3 10z" fill="var(--ef-accent)" stroke="rgb(38 38 38)" strokeWidth="0.6" />
+          <path d="M68 1v6M68 129v6M1 68h6M129 68h6" stroke="color-mix(in srgb, var(--ef-plate) 50%, transparent)" strokeWidth="1" />
+          <path d="M117 28l10-2-3 10z" fill="var(--ef-accent)" stroke="var(--ef-plate)" strokeWidth="0.6" />
         </svg>
         {hub ? (
           <>

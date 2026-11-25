@@ -1,4 +1,5 @@
 import { Fragment, useRef, type KeyboardEvent, type PointerEvent } from 'react';
+import { IconBtn } from '../../../ui';
 import { Diamond } from '../../../ui/game';
 import { baseLabel, gapBand, lengthText, type ChainPath, type Joint } from './chainPath';
 import { shortName } from './graph';
@@ -167,9 +168,9 @@ export function ChainStrip(p: ChainStripProps) {
         return (
           <Fragment key={`${clip}:${i}`}>
             {pickable && (
-              <button type="button" className={styles.plus} aria-label={`在「${shortName(clip)}」前插入`} onClick={() => p.edit!.onPick(i)}>
-                <span aria-hidden="true">+</span>
-              </button>
+              <span className={styles.plus}>
+                <IconBtn icon="plus" label={`在「${shortName(clip)}」前插入`} shape="round" onClick={() => p.edit!.onPick(i)} />
+              </span>
             )}
             {joint ? <Wedge p={p} i={i} joint={joint} into={clip} /> : <span className={styles.jt} aria-hidden="true" />}
             {pickable ? (
@@ -183,15 +184,15 @@ export function ChainStrip(p: ChainStripProps) {
         );
       })}
       {p.edit && (
-        <button
-          type="button"
-          className={styles.plus}
-          aria-pressed={p.edit.pick === path.segs.length}
-          aria-label={`在「${shortName(path.segs[path.segs.length - 1]!.seg.clip)}」后插入`}
-          onClick={() => p.edit!.onPick(path.segs.length)}
-        >
-          <span aria-hidden="true">+</span>
-        </button>
+        <span className={styles.plus}>
+          <IconBtn
+            icon="plus"
+            label={`在「${shortName(path.segs[path.segs.length - 1]!.seg.clip)}」后插入`}
+            shape="round"
+            pressed={p.edit.pick === path.segs.length}
+            onClick={() => p.edit!.onPick(path.segs.length)}
+          />
+        </span>
       )}
       {back && (
         <span className={styles.jt} data-joint="" data-band={gapBand(back.joint.gap)} title={`回到站姿：${cmText(back.joint.gap)}`}>

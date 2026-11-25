@@ -52,7 +52,7 @@
   position: absolute;
   width: 12px;
   height: 12px;
-  border: 0 solid rgb(0 0 0 / 22%);
+  border: 0 solid color-mix(in srgb, var(--ef-hud-shade) 22%, transparent);
 }
 
 .ticks i:nth-child(1) {
@@ -137,12 +137,17 @@
   max-width: 100%;
   height: 22px;
   padding: 0 18px 0 10px;
-  background: rgb(22 22 22 / 90%);
-  color: rgb(255 255 255 / 85%);
+  background: color-mix(in srgb, var(--ef-on-accent) 90%, transparent);
+  color: color-mix(in srgb, var(--ef-hud-ink) 85%, transparent);
   font: 500 12px / 1 var(--ef-font-sans);
   white-space: nowrap;
   clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 100%, 0 100%);
   pointer-events: auto;
+}
+
+/* Tall enough for 重试预览 beside the reason. */
+.tag:has([data-stub='WhiteCapsule']) {
+  height: var(--slot-h);
 }
 
 .tagT {
@@ -152,23 +157,6 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.retry {
-  flex: none;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ef-accent);
-  font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-
-.retry:focus-visible {
-  outline: 2px solid var(--ef-accent);
-  outline-offset: 2px;
 }
 
 .ovlRow {
@@ -194,7 +182,7 @@
   justify-content: center;
   gap: var(--ef-sp-8);
   padding: var(--ef-sp-12);
-  background: rgb(22 22 22 / 88%);
+  background: color-mix(in srgb, var(--ef-on-accent) 88%, transparent);
   color: var(--ef-text-1);
   pointer-events: auto;
 }
@@ -299,78 +287,20 @@
   cursor: grabbing;
 }
 
-/* 镜头回正 at the stage's bottom-right corner, above the status slot and the action bar: a frosted square with a cut corner, as 只看模型. */
+/* 镜头回正 at the stage's bottom-right corner, above the status slot and the action bar. */
 .reset {
   position: absolute;
   right: 12px;
   bottom: 12px;
   z-index: 3;
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: rgb(0 0 0 / 60%);
-  cursor: pointer;
+  display: flex;
   pointer-events: auto;
   opacity: 1;
-  isolation: isolate;
-  transition:
-    opacity 100ms linear,
-    display 100ms allow-discrete;
+  transition: opacity 100ms linear;
 }
 
 @starting-style {
   .reset {
     opacity: 0;
   }
-}
-
-.reset[hidden] {
-  display: none;
-  opacity: 0;
-}
-
-.reset::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ef-g-btn-hover) 40%, transparent), transparent 60%) rgb(255 255 255 / 42%);
-  box-shadow:
-    inset 0 -2px 0 color-mix(in srgb, var(--ef-popup-text) 28%, transparent),
-    inset 0 0 0 1px rgb(255 255 255 / 70%),
-    inset 0 2px 0 var(--ef-g-btn-hover);
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
-  backdrop-filter: blur(6px);
-  transition: background-color 100ms linear;
-}
-
-/* --ef-shadow-btn under the face, cut along its corner (a filter on the key would end the face's frost). */
-.reset::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  box-shadow: var(--ef-shadow-btn);
-  clip-path: polygon(-16px -16px, calc(100% + 16px) -16px, calc(100% + 16px) calc(100% - 19px), calc(100% - 19px) calc(100% + 16px), -16px calc(100% + 16px));
-  pointer-events: none;
-}
-
-.reset:hover::before {
-  background-color: rgb(255 255 255 / 70%);
-}
-
-.reset:active::before {
-  background-color: var(--ef-accent);
-}
-
-.reset:focus-visible {
-  outline: 2px solid #262626;
-  outline-offset: 2px;
-}
-
-.reset > svg {
-  position: relative;
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Btn, Dialog } from '../../../ui';
+import { WhiteCapsule } from '../../../ui/game';
 import type { ChainOutcome } from './useChainEdit';
 import styles from './Edit.module.css';
 
@@ -30,15 +31,9 @@ export function ChainEditBar(p: ChainEditBarProps) {
         <b>结构提案 │ {p.n} 处</b>
         <span className={styles.note}>应用会重建角色包，一两分钟内角色会离开桌面</span>
         <span className={styles.sp} />
-        <button type="button" className={styles.mini} disabled={off} title={reason} onClick={p.onCheck}>
-          {p.busy === 'check' ? '检查中' : '检查'}
-        </button>
-        <button type="button" className={styles.mini} data-or="" disabled={off} title={reason} onClick={() => setAsking(true)}>
-          {p.busy === 'apply' ? '重建中' : '应用到角色包（重建）'}
-        </button>
-        <button type="button" className={styles.mini} data-q="" disabled={p.n === 0 || p.busy != null} onClick={p.onDiscard}>
-          放弃改动
-        </button>
+        <WhiteCapsule label={p.busy === 'check' ? '检查中' : '检查'} icon="check" size="sm" disabled={off} disabledReason={reason} onClick={p.onCheck} />
+        <WhiteCapsule label={p.busy === 'apply' ? '重建中' : '应用到角色包（重建）'} icon="sync" tone="accent" size="sm" disabled={off} disabledReason={reason} onClick={() => setAsking(true)} />
+        <WhiteCapsule label="放弃改动" icon="close" size="sm" disabled={p.n === 0 || p.busy != null} onClick={p.onDiscard} />
       </div>
       {p.block != null && (
         <span className={styles.sub} data-block="">

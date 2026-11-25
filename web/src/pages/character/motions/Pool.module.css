@@ -31,7 +31,7 @@
   min-height: 0;
   overflow: hidden auto;
   padding-right: 2px;
-  scrollbar-color: rgb(38 38 38 / 45%) transparent;
+  scrollbar-color: color-mix(in srgb, var(--ef-plate) 45%, transparent) transparent;
   scrollbar-width: thin;
 }
 
@@ -46,7 +46,7 @@
 }
 
 .row[data-off] :global([data-stub='DarkRow']) {
-  background: repeating-linear-gradient(135deg, rgb(255 255 255 / 5%) 0 1px, transparent 1px 6px), rgb(60 60 60 / 82%);
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--ef-hud-ink) 5%, transparent) 0 1px, transparent 1px 6px), rgb(60 60 60 / 82%);
 }
 
 .row[data-off] .mini,
@@ -90,12 +90,12 @@
   flex: 1 1 0;
   min-width: 3px;
   height: 8px;
-  background: rgb(255 255 255 / 62%);
+  background: color-mix(in srgb, var(--ef-hud-ink) 62%, transparent);
 }
 
 .ms[data-loop] {
   height: 10px;
-  background: repeating-linear-gradient(90deg, var(--ef-accent) 0 3px, rgb(255 241 0 / 35%) 3px 5px);
+  background: repeating-linear-gradient(90deg, var(--ef-accent) 0 3px, color-mix(in srgb, var(--ef-accent) 35%, transparent) 3px 5px);
 }
 
 .mj {
@@ -105,7 +105,7 @@
 }
 
 .mini [data-band='0'] {
-  background: repeating-linear-gradient(180deg, #8a8a8a 0 2px, transparent 2px 4px);
+  background: repeating-linear-gradient(180deg, var(--ef-g-state-closed) 0 2px, transparent 2px 4px);
 }
 
 .mini [data-band='1'] {
@@ -127,7 +127,7 @@
 .mt {
   flex: none;
   margin-left: 5px;
-  color: rgb(255 255 255 / 62%);
+  color: color-mix(in srgb, var(--ef-hud-ink) 62%, transparent);
   font: 500 10px / 1 var(--ef-font-num);
   white-space: nowrap;
 }
@@ -144,7 +144,7 @@
   position: relative;
   flex: 1;
   height: 4px;
-  background: rgb(255 255 255 / 14%);
+  background: color-mix(in srgb, var(--ef-hud-ink) 14%, transparent);
 }
 
 .bar i {
@@ -152,7 +152,7 @@
   top: 0;
   bottom: 0;
   left: 0;
-  background: #fff;
+  background: var(--ef-hud-ink);
 }
 
 .pct {
@@ -161,80 +161,22 @@
   text-align: right;
 }
 
+/* The place of 展开 on a row without a chain, as wide as the key. */
 .exp {
-  display: grid;
   flex: none;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: rgb(255 255 255 / 75%);
-  cursor: pointer;
-}
-
-.exp:hover {
-  color: #fff;
-}
-
-.exp:focus-visible {
-  outline: 2px solid var(--ef-accent);
-  outline-offset: -2px;
-}
-
-/* ⌄, ⌃ when open. */
-.exp i {
-  width: 8px;
-  height: 8px;
-  margin-top: -4px;
-  border-right: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
-  transform: rotate(45deg);
-}
-
-.exp[aria-expanded='true'] i {
-  margin-top: 4px;
-  transform: rotate(-135deg);
+  width: 36px;
 }
 
 .add {
   display: flex;
   flex: none;
   flex-direction: column;
+  align-items: flex-start;
   gap: 3px;
 }
 
-.addKey {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 34px;
-  padding: 0 12px 0 0;
-  border: 0;
-  background: rgb(255 255 255 / 34%);
-  box-shadow: inset 0 0 0 1px rgb(38 38 38 / 35%);
-  color: #262626;
-  font: 500 13px / 1 var(--ef-font-sans);
-  text-align: left;
-  cursor: pointer;
-  backdrop-filter: blur(4px);
-}
-
-.addKey:hover:not(:disabled) {
-  background: rgb(255 255 255 / 60%);
-}
-
-.addKey:disabled {
-  color: rgb(38 38 38 / 55%);
-  cursor: default;
-}
-
-.plus {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  font: 600 18px / 1 var(--ef-font-num);
+.add > .addList {
+  align-self: stretch;
 }
 
 .addList {
@@ -257,7 +199,7 @@
   padding: 0 12px 0 54px;
   border: 0;
   background: rgb(60 60 60 / 82%);
-  color: #fff;
+  color: var(--ef-hud-ink);
   font: 500 13px / 1 var(--ef-font-sans);
   text-align: left;
   cursor: pointer;
@@ -269,7 +211,7 @@
 
 .addList small {
   overflow: hidden;
-  color: rgb(255 255 255 / 55%);
+  color: color-mix(in srgb, var(--ef-hud-ink) 55%, transparent);
   font: 500 10.5px / 1 var(--ef-font-num);
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -292,9 +234,5 @@
 
   .pct {
     width: 28px;
-  }
-
-  .exp {
-    width: 18px;
   }
 }

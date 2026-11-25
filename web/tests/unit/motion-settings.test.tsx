@@ -64,7 +64,7 @@ describe('编排', () => {
     expect(document.querySelector('[data-hub]')!.textContent).toContain('对话站姿');
     expect(screen.getByRole('list', { name: '其他站姿' }).textContent).toContain('放松站姿经桥接 │ 0.25 s');
     expect(pool().getAttribute('aria-label')).toBe('池子 idle.t1');
-    expect(within(pool()).getByRole('heading').textContent).toBe('T1 站姿待机');
+    expect(within(pool()).getAllByRole('heading')[0]!.textContent).toBe('T1 站姿待机');
     expect(pool().textContent).toContain('idle.t1 │ 最近 4 条不重复 │ 权重和 1');
     expect(rows()).toEqual([FIDGET]);
   });
@@ -223,7 +223,7 @@ describe('编排', () => {
   it('locks every write and says so while the avatar is not running, and can still be browsed', async () => {
     await mount(toast, true);
     expect(weight(FIDGET).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: '往 idle.t1 加链' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: '往 idle.t1 加链' }).getAttribute('aria-disabled')).toBe('true');
     expect(screen.getByRole('group', { name: '保存动作设置' }).textContent).toContain('角色未运行 │ 只读');
     await toEvent('click.head');
     expect(rows()).toEqual([PAT]);

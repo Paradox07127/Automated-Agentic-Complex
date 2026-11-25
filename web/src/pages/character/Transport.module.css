@@ -19,14 +19,14 @@
   width: 28px;
   height: 28px;
   border: 0;
-  background: rgb(255 255 255 / 12%);
-  color: #fff;
+  background: color-mix(in srgb, var(--ef-hud-ink) 12%, transparent);
+  color: var(--ef-hud-ink);
   clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
   cursor: pointer;
 }
 
 .key:hover {
-  background: rgb(255 255 255 / 22%);
+  background: color-mix(in srgb, var(--ef-hud-ink) 22%, transparent);
 }
 
 .key:focus-visible {
@@ -54,7 +54,7 @@
 .time b {
   font-size: 15px;
   font-weight: 700;
-  color: #fff;
+  color: var(--ef-hud-ink);
 }
 
 .of {
@@ -119,7 +119,7 @@
   right: -4px;
   width: 8px;
   height: 9px;
-  background: #fff;
+  background: var(--ef-hud-ink);
   clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
   content: '';
 }

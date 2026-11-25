@@ -1,5 +1,6 @@
 import { Fragment, useState, type ReactNode } from 'react';
 import type { MotionPoolEntry } from '../../../bridge';
+import { Btn, IconBtn } from '../../../ui';
 import { DarkRow, Stepper, TitleBar, WhiteCapsule } from '../../../ui/game';
 import { useCompact } from '../compact';
 import { chainPath, gapBand, type GraphIndex } from './chainPath';
@@ -155,15 +156,7 @@ export function PoolRows(p: PoolRowsProps) {
                         onChange={(w) => set(i, w)}
                       />
                       {g.chains[key] ? (
-                        <button
-                          type="button"
-                          className={styles.exp}
-                          aria-expanded={open}
-                          aria-label={open ? `收起「${label}」` : `展开「${label}」`}
-                          onClick={() => p.onOpen(open ? null : key)}
-                        >
-                          <i aria-hidden="true" />
-                        </button>
+                        <IconBtn icon="chevd" label={open ? `收起「${label}」` : `展开「${label}」`} size="sm" expanded={open} onClick={() => p.onOpen(open ? null : key)} />
                       ) : (
                         <span className={styles.exp} />
                       )}
@@ -176,20 +169,18 @@ export function PoolRows(p: PoolRowsProps) {
           );
         })}
         <div className={styles.add}>
-          <button
-            type="button"
-            className={styles.addKey}
+          <Btn
+            variant="ghost"
+            size="sm"
+            icon="plus"
+            label={`往 ${pool.key} 加链`}
             aria-expanded={adding}
-            aria-label={`往 ${pool.key} 加链`}
             disabled={addBlock != null}
-            title={addBlock ?? undefined}
+            disabledReason={addBlock ?? undefined}
             onClick={() => setAdding(!adding)}
           >
-            <span className={styles.plus} aria-hidden="true">
-              +
-            </span>
             {addBlock ?? '加一条同姿态的链起头…'}
-          </button>
+          </Btn>
           {adding && addBlock == null && (
             <ul className={styles.addList} aria-label="能加的链起头">
               {more.map((k) => (

@@ -2,7 +2,7 @@
 import { useState, type CSSProperties } from 'react';
 import type { ImportedMotionEntry, ImportState } from '../../bridge';
 import { ErrBar, Icon } from '../../ui';
-import { DarkRow, Diamond, MicroLabel, TitleBar, WhiteCapsule } from '../../ui/game';
+import { DarkRow, TitleBar, WhiteCapsule, YellowKey } from '../../ui/game';
 import { useCompact } from './compact';
 import { motionFormatLabel } from './labels';
 import { MotionEditDialog, type MotionEdit } from './MotionEditDialog';
@@ -75,26 +75,14 @@ function MotionImportPane(p: ImportPaneProps & { importing: ImportState }) {
       {motionImport && (
         <section className={styles.mgrp} aria-label="动作">
           <TitleBar title="动作" micro="Motion import" actions={<span className={styles.fm}>{FORMATS}</span>} />
-          <button type="button" className={styles.ikey} aria-busy={busy || undefined} disabled={busy} title="也可以把动作文件拖到桌面上的角色身上" onClick={motionImport.run}>
-            <span className={styles.ikIc}>
-              <Icon name="upload" size={24} />
-            </span>
+          <div className={styles.ikey}>
+            <YellowKey label={motionImport.running ? '导入中…' : '导入动作…'} icon="upload" micro="Import / Motion" busy={busy} disabled={busy} onClick={motionImport.run} />
             <span className={styles.ikTx}>
-              <b>{motionImport.running ? '导入中…' : '导入动作…'}</b>
-              <span>选动作文件，可再配一首背景音乐</span>
+              <b>选动作文件，可再配一首背景音乐</b>
+              <span>也可以把动作文件拖到桌面上的角色身上</span>
+              <span>VMD 舞蹈导入后在右侧 MMD 里</span>
             </span>
-            <span className={styles.ikHint}>
-              也可以把动作文件拖到桌面上的角色身上
-              <br />
-              VMD 舞蹈导入后在右侧 MMD 里
-            </span>
-            <span className={styles.ikMicro}>
-              <MicroLabel>Import / Motion</MicroLabel>
-            </span>
-            <span className={styles.ikDia}>
-              <Diamond size={10} />
-            </span>
-          </button>
+          </div>
           {running && (
             <div className={styles.run} role="status" aria-label="导入进度">
               <div className={styles.runTop}>
@@ -155,12 +143,8 @@ function MotionImportPane(p: ImportPaneProps & { importing: ImportState }) {
                     </span>
                     <span className={styles.irAt}>{when(m.createdAt)}</span>
                     <span className={styles.irActs}>
-                      <button type="button" className={styles.mini} disabled={editOff != null} title={editOff ?? undefined} onClick={() => setDialog({ kind: 'rename', id: m.id, title: m.title })}>
-                        改名
-                      </button>
-                      <button type="button" className={styles.mini} data-del="" disabled={editOff != null} title={editOff ?? undefined} onClick={() => setDialog({ kind: 'remove', id: m.id })}>
-                        删除
-                      </button>
+                      <WhiteCapsule label="改名" icon="g-rename" size="sm" disabled={editOff != null} disabledReason={editOff ?? undefined} onClick={() => setDialog({ kind: 'rename', id: m.id, title: m.title })} />
+                      <WhiteCapsule label="删除" icon="del" size="sm" disabled={editOff != null} disabledReason={editOff ?? undefined} onClick={() => setDialog({ kind: 'remove', id: m.id })} />
                     </span>
                   </li>
                 ))}

@@ -5,7 +5,7 @@ import { expect, test, type Locator } from '@playwright/test';
 const look = (l: Locator) =>
   l.evaluate((e) => {
     const s = getComputedStyle(e);
-    return `${s.backgroundColor} | ${s.boxShadow} | ${s.color}`;
+    return `${s.backgroundColor} | ${s.backgroundImage} | ${s.boxShadow} | ${s.color}`;
   });
 
 for (const theme of ['dark', 'light'] as const) {

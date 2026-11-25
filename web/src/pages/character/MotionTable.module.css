@@ -121,8 +121,8 @@
 .fmt {
   flex: none;
   padding: 2px 5px;
-  border: 1px solid rgb(255 255 255 / 45%);
-  color: rgb(255 255 255 / 85%);
+  border: 1px solid color-mix(in srgb, var(--ef-hud-ink) 45%, transparent);
+  color: color-mix(in srgb, var(--ef-hud-ink) 85%, transparent);
   font: 600 11px / 1 var(--ef-font-num);
   letter-spacing: 0.08em;
 }
@@ -131,25 +131,25 @@
   flex: none;
   font-size: 12px;
   font-weight: 500;
-  color: rgb(255 255 255 / 70%);
+  color: color-mix(in srgb, var(--ef-hud-ink) 70%, transparent);
 }
 
 .chg {
   display: inline-flex;
   flex: none;
-  filter: drop-shadow(0 0 4px rgb(255 241 0 / 70%));
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--ef-accent) 70%, transparent));
 }
 
 .tr {
   overflow: hidden;
   font-size: 13px;
   font-weight: 400;
-  color: rgb(255 255 255 / 72%);
+  color: color-mix(in srgb, var(--ef-hud-ink) 72%, transparent);
   text-overflow: ellipsis;
 }
 
 .r[data-miss] .tr {
-  color: var(--dr-miss, #ff8a7a);
+  color: var(--dr-miss, var(--ef-danger));
 }
 
 .du,
@@ -192,9 +192,9 @@
   gap: 4px;
   height: 20px;
   padding: 0 7px 0 5px;
-  border: 1px solid rgb(255 255 255 / 55%);
-  background: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(255 255 255 / 8%) 4px 5px);
-  color: #fff;
+  border: 1px solid color-mix(in srgb, var(--ef-hud-ink) 55%, transparent);
+  background: repeating-linear-gradient(-45deg, transparent 0 4px, color-mix(in srgb, var(--ef-hud-ink) 8%, transparent) 4px 5px);
+  color: var(--ef-hud-ink);
   font-size: 12px;
   white-space: nowrap;
 }
@@ -251,18 +251,11 @@
   }
 
   .qm,
-  .long,
   .cols,
   .tr,
   .fmt,
   .media {
     display: none;
-  }
-
-  .chip {
-    height: 28px;
-    padding: 0 8px;
-    font-size: 12px;
   }
 
   .jump {

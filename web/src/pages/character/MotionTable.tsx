@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { AvatarAction, ImportedMotionEntry } from '../../bridge';
-import { Btn, Icon, Switch } from '../../ui';
+import { Btn, FilterChips, Icon, IconBtn, Switch } from '../../ui';
 import { DarkRow, Diamond, MicroLabel, TitleBar, type DarkRowMark } from '../../ui/game';
 import { SaveNote } from './Commit';
 import { useCompact } from './compact';
@@ -193,26 +193,25 @@ export function MotionTable(p: MotionTableProps) {
             }}
           />
           {q ? (
-            <button type="button" className={styles.qx} aria-label="清除搜索" title="清除搜索" onClick={() => setQ('')}>
-              <Icon name="close" size={12} />
-            </button>
+            <span className={styles.qx}>
+              <IconBtn icon="close" label="清除搜索" size="sm" onClick={() => setQ('')} />
+            </span>
           ) : (
             <span className={styles.qm}>
               <MicroLabel>Search</MicroLabel>
             </span>
           )}
         </span>
-        <button type="button" className={styles.chip} aria-label={`仅显示缺资源 ${missN}`} aria-pressed={onlyMiss} onClick={() => setOnlyMiss((x) => !x)}>
-          <i className={styles.box} aria-hidden="true" />
-          <span className={styles.miss}>⊘</span>
-          <span className={styles.long}>仅显示</span>缺资源 <span className={styles.cn}>{missN}</span>
-        </button>
-        {impN > 0 && (
-          <button type="button" className={styles.chip} aria-label={`只看导入 ${impN}`} aria-pressed={onlyImp} onClick={() => setOnlyImp(!onlyImp)}>
-            <i className={styles.box} aria-hidden="true" />
-            <span className={styles.long}>只看</span>导入 <span className={styles.cn}>{impN}</span>
-          </button>
-        )}
+        <FilterChips
+          label="筛选动作"
+          multiple
+          options={[{ value: 'miss', label: '仅显示缺资源', count: missN }, ...(impN > 0 ? [{ value: 'imp', label: '只看导入', count: impN }] : [])]}
+          value={[...(onlyMiss ? ['miss'] : []), ...(onlyImp ? ['imp'] : [])]}
+          onChange={(v) => {
+            setOnlyMiss(v.includes('miss'));
+            setOnlyImp(v.includes('imp'));
+          }}
+        />
       </div>
       <span className={styles.jump} role="group" aria-label="跳转到分区" data-hscroll="">
         {p.groups.map((g) => (

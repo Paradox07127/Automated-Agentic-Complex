@@ -101,7 +101,7 @@ describe('编排 › 角色建议', () => {
     await click(take);
     expect(rows()).toHaveLength(64);
     expect(within(proposal(RELAX_SP)).getByRole('button', { name: '不要' }).hasAttribute('aria-disabled')).toBe(false);
-    expect((screen.getByRole('button', { name: '往 idle.t1 加链' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: '往 idle.t1 加链' }).getAttribute('aria-disabled')).toBe('true');
   });
 });
 

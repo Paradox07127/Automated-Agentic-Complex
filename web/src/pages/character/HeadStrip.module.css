@@ -23,11 +23,11 @@
   gap: 14px;
   overflow: hidden auto;
   padding: 22px 0 24px;
-  background: linear-gradient(90deg, rgb(255 255 255 / 30%), rgb(255 255 255 / 0%));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ef-hud-ink) 30%, transparent), color-mix(in srgb, var(--ef-hud-ink) 0%, transparent));
   backdrop-filter: blur(2px);
   scrollbar-width: none;
-  -webkit-mask: linear-gradient(180deg, #000 84%, transparent 99%);
-  mask: linear-gradient(180deg, #000 84%, transparent 99%);
+  -webkit-mask: linear-gradient(180deg, var(--ef-hud-shade) 84%, transparent 99%);
+  mask: linear-gradient(180deg, var(--ef-hud-shade) 84%, transparent 99%);
 }
 
 .head {
@@ -53,13 +53,13 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  border: 2px solid #fff;
+  border: 2px solid var(--ef-hud-ink);
   border-radius: 50% 50% 46% 46% / 46% 46% 54% 54%;
   background: radial-gradient(circle at 50% 36%, #fafafa, #c7c7c7);
   box-shadow:
     var(--ef-shadow-btn),
-    inset 0 0 0 1px rgb(0 0 0 / 6%);
-  color: #8a8a8a;
+    inset 0 0 0 1px color-mix(in srgb, var(--ef-hud-shade) 6%, transparent);
+  color: var(--ef-g-state-closed);
 }
 
 .head:not([aria-current]) .face {
@@ -100,7 +100,7 @@
 /* smallcharhead_in on the current head: the glow behind it and the bar on the strip's right edge. */
 .strip .head [data-g='sel'] {
   inset: -16px -14px -16px -22px;
-  background: radial-gradient(ellipse 50% 50% at 52% 50%, rgb(255 250 170 / 95%) 0 34%, rgb(255 241 0 / 35%) 52%, transparent 72%);
+  background: radial-gradient(ellipse 50% 50% at 52% 50%, rgb(255 250 170 / 95%) 0 34%, color-mix(in srgb, var(--ef-accent) 35%, transparent) 52%, transparent 72%);
   -webkit-mask: none;
   mask: none;
 }
@@ -121,9 +121,9 @@
   place-items: center;
   width: 19px;
   height: 19px;
-  border: 1.5px solid #fff;
+  border: 1.5px solid var(--ef-hud-ink);
   background: rgb(61 136 205);
-  color: #fff;
+  color: var(--ef-hud-ink);
   clip-path: polygon(0 0, 100% 0, 100% 100%, 4px 100%, 0 calc(100% - 4px));
 }
 
@@ -132,140 +132,32 @@
   height: 11px;
 }
 
-.head:focus-visible,
-.list:focus-visible,
-.bareKey:focus-visible {
-  outline: 2px solid #262626;
+.head:focus-visible {
+  outline: 2px solid var(--ef-plate);
   outline-offset: 2px;
 }
 
+/* 名册 (all characters and import) and 只看模型, bottom left. */
 .keys {
   position: absolute;
   bottom: 18px;
-  left: 0;
+  left: 16px;
   display: flex;
-  align-items: flex-end;
-  gap: 14px;
+  align-items: center;
+  gap: 10px;
   pointer-events: auto;
 }
 
-/* 名册 (game ExpandListButton): a right triangle with a lit hypotenuse, yellow while the roster is open. */
-.list {
-  position: relative;
-  flex: none;
-  width: 90px;
-  height: 88px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: rgb(0 0 0 / 55%);
-  cursor: pointer;
-  filter: drop-shadow(2px 6px 4px color-mix(in srgb, var(--ef-popup-text) 36%, transparent));
-}
-
-.list::before,
-.list::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  clip-path: polygon(0 0, 100% 100%, 0 100%);
-}
-
-.list::before {
-  background: linear-gradient(135deg, rgb(255 255 255 / 70%), rgb(255 255 255 / 30%));
-  transition: background-color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
-}
-
-.list::after {
-  background: linear-gradient(135deg, transparent 49.2%, rgb(255 255 255 / 95%) 49.6% 50.4%, transparent 50.8%);
-}
-
-.list:hover::before {
-  background-color: rgb(255 255 255 / 30%);
-}
-
-.list[aria-expanded='true']::before {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--ef-accent) 40%, #fff), var(--ef-accent));
-}
-
-.list > * {
-  position: absolute;
-  left: 18px;
-}
-
-.list > svg {
-  bottom: 20px;
-  width: 22px;
-  height: 22px;
-}
-
-.list > [data-stub='MicroLabel'] {
-  bottom: 6px;
-}
-
-/* 只看模型 (game PreviewBtn): a frosted square with a cut corner, yellow while the UI is hidden. */
+.list,
 .bareKey {
-  position: relative;
-  display: grid;
+  display: flex;
   flex: none;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  margin-bottom: 4px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: rgb(0 0 0 / 50%);
-  cursor: pointer;
-  isolation: isolate;
-}
-
-/* The face: lighter on top, a light rim over a dark seam. */
-.bareKey::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ef-g-btn-hover) 40%, transparent), transparent 60%) rgb(255 255 255 / 42%);
-  box-shadow:
-    inset 0 -2px 0 color-mix(in srgb, var(--ef-popup-text) 28%, transparent),
-    inset 0 0 0 1px rgb(255 255 255 / 70%),
-    inset 0 2px 0 var(--ef-g-btn-hover);
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
-  backdrop-filter: blur(6px);
-}
-
-/* --ef-shadow-btn under the face, cut along the face's corner so it follows the cut (a filter here would end the face's frost). */
-.bareKey::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  box-shadow: var(--ef-shadow-btn);
-  clip-path: polygon(-16px -16px, calc(100% + 16px) -16px, calc(100% + 16px) calc(100% - 21px), calc(100% - 21px) calc(100% + 16px), -16px calc(100% + 16px));
-  pointer-events: none;
-}
-
-.bareKey:hover::before {
-  background-color: rgb(255 255 255 / 70%);
-}
-
-.bareKey[aria-pressed='true'] {
-  color: #1a1a1a;
-}
-
-.bareKey[aria-pressed='true']::before {
-  background-color: var(--ef-accent);
-}
-
-.bareKey > svg {
-  position: relative;
+  align-items: center;
+  gap: 8px;
 }
 
 .lbl {
-  position: absolute;
-  bottom: 16px;
-  left: 60px;
-  color: rgb(255 255 255 / 72%);
+  color: color-mix(in srgb, var(--ef-hud-ink) 72%, transparent);
   font: 400 12px / 1 var(--ef-font-sans);
   white-space: nowrap;
 }
@@ -309,36 +201,13 @@
 
   .keys {
     bottom: 8px;
+    left: 8px;
     gap: 8px;
   }
 
-  .list {
-    width: 62px;
-    height: 60px;
-  }
-
-  .list > svg {
-    left: 12px;
-    bottom: 10px;
-    width: 18px;
-    height: 18px;
-  }
-
-  .list > [data-stub='MicroLabel'],
   .lbl {
     display: none;
   }
-
-  .bareKey {
-    width: 40px;
-    height: 40px;
-  }
-
-  .bareKey > svg {
-    width: 20px;
-    height: 20px;
-  }
-
 }
 
 @container op (max-height: 560px) {
@@ -350,40 +219,11 @@
 
   .keys {
     bottom: 8px;
+    left: 8px;
     gap: 8px;
   }
 
-  .list {
-    width: 62px;
-    height: 60px;
-  }
-
-  .list > svg {
-    left: 12px;
-    bottom: 10px;
-    width: 18px;
-    height: 18px;
-  }
-
-  .list > [data-stub='MicroLabel'],
   .lbl {
     display: none;
-  }
-
-  .bareKey {
-    width: 40px;
-    height: 40px;
-  }
-
-  .bareKey > svg {
-    width: 20px;
-    height: 20px;
-  }
-
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .list::before {
-    transition: none;
   }
 }

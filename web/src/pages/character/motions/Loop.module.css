@@ -21,7 +21,7 @@
   justify-content: center;
   width: 116px;
   height: 116px;
-  color: #fff;
+  color: var(--ef-hud-ink);
   text-align: center;
 }
 
@@ -66,7 +66,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  color: #262626;
+  color: var(--ef-plate);
   font: 500 12px / 1 var(--ef-font-sans);
 }
 
@@ -78,18 +78,18 @@
 }
 
 .bases li > i {
-  border-color: #262626 !important;
+  border-color: var(--ef-plate) !important;
 }
 
 .e {
-  color: rgb(38 38 38 / 62%);
+  color: color-mix(in srgb, var(--ef-plate) 62%, transparent);
   font: 500 10.5px / 1 var(--ef-font-num);
 }
 
 .none {
   align-self: center;
   margin: 0;
-  color: rgb(38 38 38 / 70%);
+  color: color-mix(in srgb, var(--ef-plate) 70%, transparent);
   font-size: 13px;
 }
 
@@ -103,7 +103,7 @@
   right: 58px;
   left: 70px;
   height: 16px;
-  color: rgb(38 38 38 / 62%);
+  color: color-mix(in srgb, var(--ef-plate) 62%, transparent);
   font: 500 10px / 1 var(--ef-font-num);
 }
 
@@ -121,7 +121,7 @@
   left: 50%;
   width: 1px;
   height: calc(var(--map-h, 172px) - 30px);
-  background: rgb(38 38 38 / 10%);
+  background: color-mix(in srgb, var(--ef-plate) 10%, transparent);
 }
 
 .lane {
@@ -135,13 +135,13 @@
   padding: 0;
   border: 0;
   background: none;
-  color: #fff;
+  color: var(--ef-hud-ink);
   text-align: left;
   cursor: pointer;
 }
 
 .lane:focus-visible {
-  outline: 2px solid #262626;
+  outline: 2px solid var(--ef-plate);
   outline-offset: 1px;
 }
 
@@ -179,7 +179,7 @@
   position: absolute;
   top: 5px;
   bottom: 5px;
-  background: linear-gradient(90deg, rgb(255 255 255 / 55%), rgb(255 255 255 / 88%));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ef-hud-ink) 55%, transparent), color-mix(in srgb, var(--ef-hud-ink) 88%, transparent));
 }
 
 .rep {
@@ -187,7 +187,7 @@
   top: 9px;
   right: 0;
   bottom: 9px;
-  background: repeating-linear-gradient(90deg, rgb(255 255 255 / 55%) 0 2px, transparent 2px 9px);
+  background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--ef-hud-ink) 55%, transparent) 0 2px, transparent 2px 9px);
   opacity: 0.6;
 }
 
@@ -196,7 +196,7 @@
   top: 5px;
   padding: 2px 4px;
   background: rgb(36 36 36 / 72%);
-  color: rgb(255 255 255 / 88%);
+  color: color-mix(in srgb, var(--ef-hud-ink) 88%, transparent);
   font: 500 10.5px / 1 var(--ef-font-num);
   white-space: nowrap;
 }
@@ -215,7 +215,7 @@
 .warn {
   padding: 2px 5px;
   background: var(--ef-danger-vivid);
-  color: #fff;
+  color: var(--ef-hud-ink);
   font: 700 11px / 1.2 var(--ef-font-sans);
   white-space: nowrap;
 }
@@ -223,7 +223,7 @@
 .n {
   flex: none;
   width: 38px;
-  color: #262626;
+  color: var(--ef-plate);
   font: 600 12px / 1 var(--ef-font-num);
   text-align: right;
 }
@@ -246,11 +246,11 @@
 
 .lane[aria-checked='true'] .tr {
   background: rgb(80 80 80 / 78%);
-  box-shadow: inset 0 0 0 1px rgb(255 241 0 / 70%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ef-accent) 70%, transparent);
 }
 
 .lane[aria-checked='true'] .first {
-  background: linear-gradient(90deg, rgb(255 241 0 / 70%), var(--ef-accent));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ef-accent) 70%, transparent), var(--ef-accent));
 }
 
 .lane[data-bad] .lb {
@@ -270,12 +270,12 @@
 
 .links path {
   fill: none;
-  stroke: rgb(38 38 38 / 38%);
+  stroke: color-mix(in srgb, var(--ef-plate) 38%, transparent);
   stroke-width: 1.2;
 }
 
 .links path[data-on] {
-  stroke: #262626;
+  stroke: var(--ef-plate);
   stroke-width: 1.6;
 }
 
@@ -283,7 +283,7 @@
 .pr {
   padding: 2px 4px;
   background: var(--ef-g-reddot);
-  color: #fff;
+  color: var(--ef-hud-ink);
   font: 700 11px / 1 var(--ef-font-num);
 }
 

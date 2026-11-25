@@ -2,7 +2,7 @@ import { gapBand } from './chainPath';
 import type { Candidate } from './chainEdit';
 import { shortName, type GraphClip } from './graph';
 import type { Ghost } from './joints';
-import { Stepper } from '../../../ui/game';
+import { Stepper, WhiteCapsule } from '../../../ui/game';
 import styles from './Edit.module.css';
 
 export interface CandidatesProps {
@@ -74,12 +74,8 @@ export function Candidates(p: CandidatesProps) {
                 </span>
                 <span className={styles.l}>{lenText(p.clipOf(o.clip))}</span>
                 <span className={styles.sp} />
-                <button type="button" className={styles.mini} disabled={off} onClick={() => p.onReplace(o.clip)}>
-                  换成
-                </button>
-                <button type="button" className={styles.mini} data-q="" disabled={off} onClick={() => p.onInsert(o.clip)}>
-                  在此前插入
-                </button>
+                <WhiteCapsule label="换成" icon="sync" size="sm" disabled={off} onClick={() => p.onReplace(o.clip)} />
+                <WhiteCapsule label="在此前插入" icon="plus" size="sm" disabled={off} onClick={() => p.onInsert(o.clip)} />
               </li>
             ))}
           </ul>
@@ -101,9 +97,7 @@ export function Candidates(p: CandidatesProps) {
                 </span>
                 <span className={styles.l}>{lenText(p.clipOf(x.clip))}</span>
                 <span className={styles.sp} />
-                <button type="button" className={styles.mini} data-q="" disabled={off} onClick={() => p.onInsertAt(x.at + 1, x.clip)}>
-                  插在它后面
-                </button>
+                <WhiteCapsule label="插在它后面" icon="plus" size="sm" disabled={off} onClick={() => p.onInsertAt(x.at + 1, x.clip)} />
               </li>
             ))}
           </ul>

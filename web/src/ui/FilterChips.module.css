@@ -6,7 +6,7 @@
 }
 
 .chip {
-  --fill: var(--ef-chip);
+  --chip-fill: var(--ef-chip);
   display: inline-flex;
   align-items: center;
   gap: var(--ef-sp-6);
@@ -14,7 +14,7 @@
   padding: 0 calc(var(--ef-sp-8) + var(--ef-cut)) 0 var(--ef-sp-12);
   border: 0;
   border-radius: 0;
-  background: linear-gradient(-45deg, transparent calc(var(--ef-cut) - 0.5px), var(--fill) var(--ef-cut));
+  background: linear-gradient(-45deg, transparent calc(var(--ef-cut) - 0.5px), var(--chip-fill) var(--ef-cut));
   color: var(--ef-text-1);
   font-family: var(--ef-font-ui);
   font-size: var(--ef-fs-meta);
@@ -28,8 +28,12 @@
 
 .chip:hover,
 .chip[aria-pressed='true'] {
-  --fill: var(--ef-accent);
+  --chip-fill: var(--ef-accent);
   color: var(--ef-on-accent);
+}
+
+.chip:active {
+  --chip-fill: var(--ef-accent-press);
 }
 
 .chip:focus-visible {

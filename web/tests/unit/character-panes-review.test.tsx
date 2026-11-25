@@ -257,10 +257,10 @@ describe('动作表 · 只看导入 (949c#25)', () => {
 
   it('stays off after the last imported row goes and a new one comes', () => {
     const ui = render(at({ [a.id]: imp }));
-    fireEvent.click(screen.getByRole('button', { name: '只看导入 1' }));
-    expect(screen.getByRole('button', { name: '只看导入 1' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: '只看导入1' }));
+    expect(screen.getByRole('button', { name: '只看导入1' }).getAttribute('aria-pressed')).toBe('true');
     ui.rerender(at({}));
     ui.rerender(at({ [a.id]: imp }));
-    expect(screen.getByRole('button', { name: '只看导入 1' }).getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByRole('button', { name: '只看导入1' }).getAttribute('aria-pressed')).toBe('false');
   });
 });

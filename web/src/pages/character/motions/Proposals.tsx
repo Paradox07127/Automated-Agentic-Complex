@@ -1,7 +1,7 @@
 // 编排 with agentd's motion groups: the picked pool's proposals and refusals under its member rows, and the clips no pool takes.
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import type { MotionGroupPool, MotionGroupProposal, MotionGroups } from '../../../bridge/motionGroups';
-import { Btn } from '../../../ui';
+import { Btn, Fold } from '../../../ui';
 import { DarkRow } from '../../../ui/game';
 import { useCompact } from '../compact';
 import { shortName } from './graph';
@@ -25,19 +25,12 @@ const EXCLUDED: Record<string, string> = {
   prop: '道具互动',
 };
 
-/** A section head with the \\──□ line deco that folds its rows. */
-function GroupFold({ title, n, open: first = false, children }: { title: string; n: number; open?: boolean; children: ReactNode }) {
-  const [open, setOpen] = useState(first);
+/** A section head that folds its rows. */
+function GroupFold({ title, n, open = false, children }: { title: string; n: number; open?: boolean; children: ReactNode }) {
   return (
-    <div className={styles.fold} data-open={open || undefined}>
-      <button type="button" className={styles.head} aria-expanded={open} onClick={() => setOpen(!open)}>
-        <i className={styles.chev} aria-hidden="true" />
-        <span>{title}</span>
-        <span className={styles.n}>{n}</span>
-        <span className={styles.orn} aria-hidden="true" />
-      </button>
-      {open && <div className={styles.body}>{children}</div>}
-    </div>
+    <Fold variant="head" label={title} count={n} defaultOpen={open}>
+      <div className={styles.body}>{children}</div>
+    </Fold>
   );
 }
 

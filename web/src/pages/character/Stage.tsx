@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { NodeChain, type ChainNode } from '../../charts';
 import { SWITCH_STAGE_LABELS, SWITCH_STAGES } from './tables';
-import { Btn } from '../../ui';
-import { Diamond, LoadBar, PowerState } from '../../ui/game';
+import { Btn, IconBtn } from '../../ui';
+import { Diamond, LoadBar, PowerState, WhiteCapsule } from '../../ui/game';
 import { NameBlock, OfflineRow, SwitchRow, type VoiceBinding } from './NameBlock';
 import { useInspect } from './useInspect';
 import { useLivePreview } from './usePreview';
@@ -95,9 +95,7 @@ export function Stage(p: StageProps) {
           text: (
             <>
               {preview.message}
-              <button type="button" className={styles.retry} onClick={preview.retry}>
-                重试预览
-              </button>
+              <WhiteCapsule label="重试预览" icon="refresh" tone="accent" size="sm" onClick={preview.retry} />
             </>
           ),
           tone: 'warn',
@@ -129,7 +127,7 @@ export function Stage(p: StageProps) {
         )}
         {!overview && p.sw.phase !== 'idle' && <SwitchOverlay sw={p.sw} currentName={p.currentName} onRetry={p.onRetry} onDismiss={p.onDismiss} />}
         {p.cube && p.characterId && !blocked && <ViewCube inspect={inspect} />}
-        {p.characterId && <ResetKey hidden={!inspect.moved} onClick={inspect.reset} />}
+        {p.characterId && inspect.moved && <ResetKey onClick={inspect.reset} />}
       </div>
       {mode === 'detail' ? (
         <div className={styles.slot} data-g="info">
@@ -155,14 +153,11 @@ export function Stage(p: StageProps) {
 }
 
 /** 镜头回正: back to the default view, only while the view is off it. */
-function ResetKey({ hidden, onClick }: { hidden: boolean; onClick: () => void }) {
+function ResetKey({ onClick }: { onClick: () => void }) {
   return (
-    <button type="button" className={styles.reset} aria-label="镜头回正" hidden={hidden} onClick={onClick}>
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true" focusable="false">
-        <path d="M3 8V3h5M16 3h5v5M21 16v5h-5M8 21H3v-5" />
-        <circle cx="12" cy="12" r="2.5" />
-      </svg>
-    </button>
+    <span className={styles.reset}>
+      <IconBtn icon="look" label="镜头回正" onClick={onClick} />
+    </span>
   );
 }
 
