@@ -260,11 +260,11 @@
   align-self: flex-start;
 }
 
-/* 关闭 sits on the card's top edge, inside its right edge: the panel is sized to the card's width (the card is the containing block; .acts does not clip it). */
+/* 关闭 sits on the card's top right corner (the card is the containing block; .acts does not clip it). */
 .x {
   position: absolute;
   top: -8px;
-  right: 6px;
+  right: -8px;
   display: grid;
   place-items: center;
   width: 22px;
