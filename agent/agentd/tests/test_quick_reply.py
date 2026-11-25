@@ -143,7 +143,7 @@ class QuickTests(unittest.TestCase):
             words = json.dumps(body['messages'][1:], ensure_ascii=False)
             for j in range(i + 1):
                 self.assertEqual(f'早上好 {j:02}' in words, j >= i - 8)
-        self.assertEqual(len(frames[0]['request']['messages']), len(frames[-1]['request']['messages']))
+        self.assertEqual([len(f['request']['messages']) for f in frames], [2 + 2 * min(i, 8) for i in range(20)])
 
     def test_stable_persona_with_changing_memory(self):
         self.say('早上好')

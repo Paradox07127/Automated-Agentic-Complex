@@ -128,7 +128,7 @@ def judge(persona, history, user, reply, workdir):
     command = ["claude", "-p", "--model", JUDGE_MODEL, "--system-prompt", JUDGE_RUBRIC + f"<persona>\n{persona}\n</persona>",
                "--tools", "", "--setting-sources", "", "--strict-mcp-config", "--no-session-persistence",
                "--output-format", "json", "--json-schema", json.dumps(JUDGE_SCHEMA), prompt]
-    done = subprocess.run(command, cwd=workdir, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=180)
+    done = subprocess.run(command, cwd=workdir, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", timeout=180)
     result = json.loads(done.stdout)
     return result.get("structured_output"), result.get("total_cost_usd")
 
@@ -218,7 +218,7 @@ class Agentd:
 
 
 def port_listeners(port):
-    done = subprocess.run(["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN"], capture_output=True, text=True)
+    done = subprocess.run(["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN"], capture_output=True, text=True, encoding="utf-8")
     return done.stdout.strip()
 
 
@@ -351,7 +351,7 @@ def main():
     status = {}
     worker = threading.Thread(target=run_eval, args=(args, state_dir, args.out, persona, status))
     worker.start()
-    log = open(args.out / "agentd.log", "w", encoding="utf-8")
+    log = open(args.out / "server.log", "w", encoding="utf-8")
     sys.stderr = log
     try:
         agentd.main(secret_store=MemorySecrets())

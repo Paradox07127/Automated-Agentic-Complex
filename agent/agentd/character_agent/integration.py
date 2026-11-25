@@ -1780,8 +1780,8 @@ class CharacterAgentController:
         if not side and not one_off:
             self._foreground_request = text[:300] if trace.get('remember', True) else ''
             return self._prepare(line_id, text, cancel, generation, source, trace, **options)
-        if side and source in ('text', 'voice') and trace.get('remember', True):
-            foreground = self.runtime
+        foreground = self.runtime
+        if side and source in ('text', 'voice') and trace and trace.get('remember', True) and foreground is not None:
             def steer():
                 accepted, code = foreground.steer(STEER_NOTE + text)
                 self.server._step(trace, "steer.settled", new_span_id(), attrs={"accepted": accepted, "code": code})

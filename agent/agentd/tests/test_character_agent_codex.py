@@ -360,7 +360,7 @@ class CodexTurnTests(unittest.IsolatedAsyncioTestCase):
         subject, frames = await self.start("complete", message)
         self.assertTrue((await asyncio.wait({subject.run_task}, timeout=2))[0])
         self.assertEqual((frames[-1]["type"], frames[-1]["subtype"]), ("result", "success"))
-        raw = subject.record.read_text()
+        raw = subject.record.read_text(encoding="utf-8")
         self.assertNotIn("conversation_history", raw)
         return [(m["method"], m["params"]) for m in map(json.loads, raw.splitlines())]
 
@@ -399,7 +399,7 @@ class CodexTurnTests(unittest.IsolatedAsyncioTestCase):
         await subject.steer({"run_id": "run-1", "steer_id": "steer-1", "text": "change of plan"})
         await subject.interrupt("run-1")
         self.assertTrue((await asyncio.wait({subject.run_task}, timeout=2))[0])
-        requests = [(m["method"], m["params"]) for m in map(json.loads, subject.record.read_text().splitlines())]
+        requests = [(m["method"], m["params"]) for m in map(json.loads, subject.record.read_text(encoding="utf-8").splitlines())]
         return [f for f in frames if f["type"] == "steer_result"], [r for r in requests if r[0] == "turn/steer"]
 
     async def test_a_steer_reaches_the_running_turn(self):
@@ -423,7 +423,7 @@ class CodexTurnTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue((await asyncio.wait({subject.run_task}, timeout=2))[0])
         self.assertEqual([(f["steer_id"], f["accepted"], f["code"]) for f in frames if f["type"] == "steer_result"],
                          [("steer-1", False, "not_steerable_now"), ("steer-2", False, "no_active_run")])
-        self.assertNotIn("turn/steer", subject.record.read_text())
+        self.assertNotIn("turn/steer", subject.record.read_text(encoding="utf-8"))
 
     async def test_a_notification_flood_ends_the_run_with_an_error(self):
         subject, frames = await self.start("flood")
