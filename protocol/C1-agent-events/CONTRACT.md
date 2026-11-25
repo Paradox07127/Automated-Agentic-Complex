@@ -215,6 +215,8 @@ agentd 的行为 tick 或事件触发选出一个活动时发一条。角色进�
     section 为 talk / react / touch / idle、没有 `command` 和 `unavailable_reason`、clip 都在 clip-catalog、原长 ≤ 8 s 的
     动作才进匹配目录。`behavior_id` 是 `"b-ga-"` 加 16 个小写十六进制字符，`expires_at_ms` 是发出时刻加 `length_s` 再加 6 s，
     其余字段同 `motion`。不调动作服务，不取文件。
+  - 追加（只加不改）：角色工具 `avatar_motion` 按 id 点名这个目录里的一条动作时，agentd 也发它，其余同上；用户关掉的动作
+    （`PUT /behavior/motion_prefs` 的 `action_switches`）和片段缺失的动作不发。它的 `behavior.dispatched` 记在发起轮次的 trace 里。
   - 宿主按 `id` 取该动作的片段，当身体片段按原长播（不拉伸、不截短，和标记里的秒数无关），进出都用默认交叉淡化，
     播完回到待机底层，发 `completed`；片段第一次参与提交的帧时发 `running`。角色没有这条动作或片段不可播时发 `rejected`，
     reason `unsupported`。

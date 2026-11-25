@@ -27,6 +27,22 @@ PRIORITY = 1
 HOST_WAIT = 6.0  # s the behavior outlives its clip: the host waits up to 5 s for the files before it plays
 EVENT_REASONS = {"timeout": "timeout", "no_service": "no_service", "http_503": "busy"}  # others are "failed"
 
+MOTIONS_LIST_TOOL = {"name": "avatar_motions_list", "description":
+    "List the body motions of your current character you can play with avatar_motion: id, name, description, section, "
+    "tags and length_s (seconds) of each. Read it before avatar_motion and pick a motion by its id.",
+    "input_schema": {"type": "object", "properties": {}, "additionalProperties": False}}
+
+MOTION_TOOL = {"name": "avatar_motion", "description":
+    "Play one of your own body motions on purpose, once, at its own length: action_id is an id from avatar_motions_list. "
+    "For a quick gesture inside a spoken line the [motion:...] marker still works. "
+    "A motion plays only while your body is free, and it may be refused (busy, stale, user_play, stage, unknown_action, "
+    "switched_off and so on); accepted only means it was sent, so do not describe it as done when refused.",
+    "input_schema": {"type": "object", "properties": {
+        "action_id": {"type": "string", "minLength": 1, "maxLength": 64, "description": "An id from avatar_motions_list."},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 200,
+                   "description": "Short note on why, for the log; not spoken."}},
+        "required": ["action_id", "reason"], "additionalProperties": False}}
+
 
 def request_trace(request_id):
     """The trace_id of a geometry request's steps: a stable UUID, since trace events refuse other ids."""
@@ -64,6 +80,7 @@ class Performer:
         self._retarget = retarget
         self._retargets = {}  # (package root, service URL) -> its LiveRetarget, fed that service's skeleton
         self._gesture_cache = (None, {})  # (package root, catalog.load of it): the current character's game gestures
+        self._motion_cache = (None, [])  # (package root, motions() of it)
         self._pending = None  # the next motion to run: (prompt, seconds, generation, trace_id, began, trace texts)
         self._busy = False  # the worker thread runs
         self._requests = {}  # behavior_id -> its waiting geometry job (request, began), oldest first
@@ -109,20 +126,51 @@ class Performer:
             return {}
         return self._gesture_cache[1]
 
-    def _play(self, action_id, group, length_s, seconds, generation, trace_id, texts):
+    def motions(self):
+        """avatar_motions_list's rows of the current character, [{id, name, description, section, tags, length_s}] of
+        catalog.playable, read again only when the package root changes; [] when it cannot be read."""
+        try:
+            root = Path(self.package_root())
+            if self._motion_cache[0] != root:
+                self._motion_cache = (root, [
+                    {"id": row["id"], "name": row.get("name"), "description": row.get("description"),
+                     "section": row["section"], "tags": row.get("tags") or [], "length_s": length}
+                    for row, length in catalog.playable(root)])
+        except Exception:  # this runs on the turn's thread, like _gestures
+            return []
+        return self._motion_cache[1]
+
+    def play_action(self, action_id, *, generation, trace_id, trace_turn_id=None, trace_epoch=None):
+        """avatar_motion: offers the motions() row action_id at its own length, never generated. Returns
+        {accepted, behavior_id, length_s}, or {accepted: False, reason}: unknown_action or Spatial.offer's refusal.
+        trace_turn_id, trace_epoch: the turn that records its behavior.dispatched, as Spatial.request_facing takes them."""
+        row = next((r for r in self.motions() if r["id"] == action_id), None)
+        if row is None:
+            return {"accepted": False, "reason": "unknown_action"}
+        linkage = {"trace_turn_id": trace_turn_id, "trace_epoch": trace_epoch} if trace_turn_id else {}
+        behavior_id, reason = self._play(action_id, "tool", row["length_s"], row["length_s"], generation, trace_id, {},
+                                         linkage)
+        if behavior_id is None:
+            return {"accepted": False, "reason": reason}
+        return {"accepted": True, "behavior_id": behavior_id, "length_s": row["length_s"]}
+
+    def _play(self, action_id, group, length_s, seconds, generation, trace_id, texts, linkage=None):
+        """(behavior_id, None) of the perform Spatial admitted, else (None, its reason)."""
         spec = {"behavior_id": "b-ga-" + secrets.token_hex(8), "type": "perform", "target": None,
                 "trigger": {"source": "agent", "event": None}, "display_session": None, "turn_id": None,
                 "turn_generation": generation, "priority": PRIORITY,
                 "expires_at_ms": int((time.time() + length_s + HOST_WAIT) * 1000), "intensity": 1.0,
                 "channels": ["full_body"], "exit": [], "trace_id": trace_id,
-                "action": {"id": action_id, "length_s": length_s}}
+                "action": {"id": action_id, "length_s": length_s}, **(linkage or {})}
         admitted, reason = self.offer(spec)
         if not admitted:
             self.trace("motion.fallback", trace_id, attrs={"reason": reason}, texts=texts)
-            return
-        self.trace("motion.matched", trace_id,
-                   attrs={"action_id": action_id, "group": group, "length_s": length_s, "seconds": seconds},
-                   texts=texts)
+            return None, reason
+        attrs = {"action_id": action_id, "group": group, "length_s": length_s, "seconds": seconds}
+        if "prompt" not in texts:  # avatar_motion and an unremembered turn have no marker words to keep
+            attrs["prompt"] = None
+        self.trace("motion.matched", trace_id, attrs=attrs, texts=texts)
+        return spec["behavior_id"], None
 
     def request(self, body):
         """Runs a checked POST /motions/generate body on the geometry thread; a newer request for the same

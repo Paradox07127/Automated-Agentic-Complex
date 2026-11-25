@@ -141,3 +141,5 @@
 追加（2026-11-22，只加不改）：加「动作线的输入」一节和其中 11 个 kind。
 
 追加（2026-11-25，只加不改）：加 kind `steer.settled`。
+
+追加（2026-11-25，只加不改）：`motion.matched` 也由角色工具 `avatar_motion` 写：`group` 为 `tool`，`seconds` 等于 `length_s`，`prompt` 为 null（「这一轮不记」的 `[motion:]` 标记同样写 null）；它的 `perform` 带轮次 trace，Spatial 不为它写 `behavior.refused`、`behavior.dispatched`；被接受时 `behavior.dispatched` 由那一轮记，同角色工具的 `face`。

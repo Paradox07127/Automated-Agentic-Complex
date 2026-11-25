@@ -198,7 +198,7 @@ KINDS = {
                                           "fallback_template")},
     "motion.published": {"motion_id": _str, "behavior_id": _str, "total_ms": _int},
     "motion.fallback": {"reason": _str},
-    "motion.matched": {"action_id": _str, "group": _str, "length_s": _positive, "seconds": _positive, "prompt": _text},
+    "motion.matched": {"action_id": _str, "group": _str, "length_s": _positive, "seconds": _positive, "prompt": _opt_text},
     "ui.submitted": {},
     "ui.ack": {},
     "ui.first_text": {},

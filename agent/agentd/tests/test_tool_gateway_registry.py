@@ -21,7 +21,7 @@ KNOWLEDGE = ['personal_profile', 'knowledge_search', 'knowledge_read', 'task_con
 # Every kernel reads the selected material with its own tools: no workspace readers.
 WORKSPACE = ['artifact_write', 'artifact_read', 'artifact_verify', 'task_plan', 'artifact_read_previous']
 DESKTOP = ['desktop_status', 'desktop_observe', 'desktop_act', 'desktop_verify', 'desktop_cancel']
-EMBODIED = ['avatar_face', 'avatar_facing_status']
+EMBODIED = ['avatar_face', 'avatar_facing_status', 'avatar_motions_list', 'avatar_motion']
 ORCHESTRATION = ['reminders_list', 'reminder_create', 'reminder_update', 'dispatch_session', 'dispatch_status', 'schedule_propose', 'schedules_list', 'schedule_update', 'settings_read', 'settings_update', 'goals_list', 'goal_create', 'goal_update',
                  'background_start', 'background_status', 'background_cancel', 'task_continue']
 # Names reaching session_factory, in order; the order feeds the runtime session key. The mode does not filter them:

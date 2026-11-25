@@ -14,7 +14,14 @@ GROUPS = [dict(g, pattern=re.compile(g["regex"], re.I))
 def load(package_root):
     """{action_id: {length_s, clips, gestures}} of the package's gestures, in actions.json row order; {} when the package
     has no animation files."""
-    found = {}
+    return {action["id"]: {"length_s": length, "clips": action["clips"], "gestures": action.get("gestures") or []}
+            for action, length in playable(package_root)}
+
+
+def playable(package_root):
+    """[(actions.json row, length_s)] of the rows a gesture or avatar_motion may play, in row order; [] when the package
+    has no animation files."""
+    found = []
     for animation in sorted(Path(package_root).glob("runtime/characters/*/c7/animation")):
         try:
             actions = json.loads((animation / "actions.json").read_text(encoding="utf-8"))["actions"]
@@ -29,7 +36,7 @@ def load(package_root):
                 continue
             length = action.get("duration") or sum(lengths[name] for name in names)
             if 0 < length <= MAX_LENGTH:
-                found[action["id"]] = {"length_s": round(length, 3), "clips": names, "gestures": action.get("gestures") or []}
+                found.append((action, round(length, 3)))
     return found
 
 

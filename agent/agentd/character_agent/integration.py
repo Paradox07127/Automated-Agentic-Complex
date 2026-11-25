@@ -45,7 +45,7 @@ from tool_gateway.gateway import SessionKey, ToolGateway
 from tool_gateway.ledger import ledger_path
 from tool_gateway.policy import POLICY
 from tool_gateway.registry import BRIDGED
-from traces.trace_store import TURN_TRACE, new_span_id
+from traces.trace_store import TURN_TRACE, new_span_id, new_trace_id
 
 SIDE_INSTRUCTIONS = (
     "<side_session>\n"
@@ -1053,6 +1053,16 @@ class CharacterAgentController:
         probe = self._acp_probes.get(config['acp_agent']) if config['backend'] == 'acp' else None
         return available(config, bridge, probe and probe['capabilities'])
 
+    def _avatar_motions(self):
+        """(avatar_motions_list's rows, ids of the playable rows the user switched off): the performer's rows minus the
+        current chooser's missing and switched-off ones; ([], set()) without a performer."""
+        motion, chooser = getattr(self.server, 'motion', None), self.server.spatial.chooser
+        if motion is None:
+            return [], set()
+        rows = [m for m in motion.motions() if chooser is None or m['id'] not in chooser.pack.missing]
+        off = {m['id'] for m in rows if chooser is not None and not chooser.switches.get(m['id'], True)}
+        return [m for m in rows if m['id'] not in off], off
+
     def _native(self, name, args, *, run_id, is_current):
         if not is_current():
             return {"error": {"code": "run_cancelled"}}
@@ -1080,6 +1090,31 @@ class CharacterAgentController:
                         attrs={'behavior_id': result['behavior_id'], 'behavior_type': 'face'})
                 return result
             except (ValueError,TypeError):return {'error':{'code':'invalid_facing_decision'}}
+        if name == 'avatar_motions_list':
+            if args != {}:
+                return {'error':{'code':'invalid_arguments'}}
+            return {'motions': self._avatar_motions()[0]}
+        if name == 'avatar_motion':
+            if not isinstance(args,dict) or set(args)!={'action_id','reason'} \
+                    or not all(isinstance(v,str) for v in args.values()) \
+                    or not 1<=len(args['action_id'])<=64 or not 1<=len(args['reason'])<=200:
+                return {'error':{'code':'invalid_arguments'}}
+            listed, off = self._avatar_motions()
+            if args['action_id'] in off:
+                return {'accepted':False,'reason':'switched_off'}
+            if args['action_id'] not in {m['id'] for m in listed}:
+                return {'accepted':False,'reason':'unknown_action'}
+            trace = self.server._turn_trace
+            trace = trace if trace and trace['turn_id'] == run_id and self.server._traced(trace) else None
+            linkage = {'trace_turn_id': run_id,
+                       'trace_epoch': (trace['reset'], trace['history'], trace['trace_generation'])} if trace else {}
+            result = self.server.motion.play_action(args['action_id'],
+                generation=trace['generation'] if trace else self.server.turn_generation,
+                trace_id=trace['trace_id'] if trace else new_trace_id(), **linkage)
+            if trace and result['accepted']:
+                self.server._step(trace, 'behavior.dispatched', new_span_id(),
+                    attrs={'behavior_id': result['behavior_id'], 'behavior_type': 'perform'})
+            return result
         self.tools.verdict(run_id, name, self.tools.policy.desktop("character", name))
         if name == 'desktop_task':
             from tool_gateway.computer_toolset import run_desktop_task
