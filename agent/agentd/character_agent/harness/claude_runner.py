@@ -21,13 +21,14 @@ import sys
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     from character_agent.harness.acp_runner import ask_user_prompt, mcp_result
-    from character_agent.harness.codex_runner import (Runner, RunnerFailure, TOOL_NAME, classify_failure, end_child,
-                                                      history_prompt, preview_input)
+    from character_agent.harness.codex_runner import (HOST_PROMPT_NOTE, Runner, RunnerFailure, TOOL_NAME,
+                                                      classify_failure, end_child, history_prompt, preview_input)
     from character_agent.harness.tool_bridge import BridgeServer
     from character_agent.harness.transport import MAX_FRAME
 else:
     from .acp_runner import ask_user_prompt, mcp_result
-    from .codex_runner import Runner, RunnerFailure, TOOL_NAME, classify_failure, end_child, history_prompt, preview_input
+    from .codex_runner import (HOST_PROMPT_NOTE, Runner, RunnerFailure, TOOL_NAME, classify_failure, end_child,
+                               history_prompt, preview_input)
     from .tool_bridge import BridgeServer
     from .transport import MAX_FRAME
 
@@ -61,7 +62,7 @@ def cli_argv(cli, config, system_prompt, mcp_config, tool_names):
             argv += ["--allowedTools", ",".join(TOOL_PREFIX + name for name in sorted(tool_names))]
     # The = form keeps a value that starts with "-" from reading as an option.
     if system_prompt:
-        argv.append(("--append-system-prompt=" if native else "--system-prompt=") + system_prompt)
+        argv.append("--append-system-prompt=" + HOST_PROMPT_NOTE + system_prompt if native else "--system-prompt=" + system_prompt)
     if config.get("model"):
         argv.append("--model=" + config["model"])
     if config.get("effort"):
