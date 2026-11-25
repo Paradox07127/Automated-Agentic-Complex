@@ -27,8 +27,8 @@ OUTFIT_TOOL = {"name": "avatar_outfit", "description":
     "switches of one appearance; give at least one of appearance, layers and mods, with ids and values from "
     "avatar_outfits_list. Companion carries it out and remembers it as if the user had picked it. Returns {ok, "
     "appearance, values} (what you now wear and its switch values) once Companion is done; ok false comes with a "
-    "reason (unknown_appearance, unknown_layer, unknown_mod_setting, invalid_mod_value, timeout or the renderer's "
-    "own), and then do not describe the change as done.",
+    "reason (unknown_appearance, unknown_layer, unknown_mod_setting, invalid_mod_value, character_changed, timeout or "
+    "the renderer's own), and then do not describe the change as done.",
     "input_schema": {"type": "object", "properties": {
         "appearance": {**_ID, "description": "An appearance id to wear."},
         "layers": {"type": "object", "description": "Layer ids to hide and to show; the other layers stay as they are.",
@@ -155,7 +155,7 @@ class Looks:
             while len(self._sent) > KEPT:
                 self._sent.popitem(last=False)
             self._waiting.add(request_id)
-        self.server.feed.publish("looks", {"request_id": request_id, **change})
+        self.server.feed.publish("looks", {"request_id": request_id, "character": listed["character"], **change})
         with self._cv:
             self._cv.wait_for(lambda: request_id in self._answers, WAIT_S)
             self._waiting.discard(request_id)

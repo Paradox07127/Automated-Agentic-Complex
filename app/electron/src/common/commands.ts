@@ -22,12 +22,14 @@ export function feedCommand(e: { event: string; data: string }): FeedCommand | n
 export interface FeedLooks {
   seq: number;
   requestId: string;
+  /** The character agentd checked the ids against. */
+  character: string;
   appearance?: string;
   layers?: { hide: string[]; show: string[] };
   modSettings?: { appearance: string; values: ModValues };
 }
 
-const LOOKS_KEYS = ['seq', 'request_id', 'appearance', 'layers', 'mod_settings'];
+const LOOKS_KEYS = ['seq', 'request_id', 'character', 'appearance', 'layers', 'mod_settings'];
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const layerIds = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => modAppearance(x) !== null);
 
@@ -43,8 +45,10 @@ export function feedLooks(e: { event: string; data: string }): FeedLooks | null 
   if (!isObject(v) || !Object.keys(v).every((k) => LOOKS_KEYS.includes(k))) return null;
   const { seq, request_id: requestId, appearance, layers, mod_settings: mods } = v;
   if (!Number.isInteger(seq) || typeof requestId !== 'string' || !/^[0-9a-f]{16}$/.test(requestId)) return null;
+  const character = modAppearance(v.character);
+  if (character === null) return null;
   if (appearance === undefined && layers === undefined && mods === undefined) return null;
-  const out: FeedLooks = { seq: seq as number, requestId };
+  const out: FeedLooks = { seq: seq as number, requestId, character };
   if (appearance !== undefined) {
     const id = modAppearance(appearance);
     if (id === null) return null;

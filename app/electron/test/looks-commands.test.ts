@@ -43,25 +43,30 @@ function setup(f: { character?: string | null; fail?: string } = {}) {
 const RID = '0123456789abcdef';
 
 test('a feed `looks` event reads as FeedLooks; anything malformed is not one', () => {
-  assert.deepEqual(feedLooks({ event: 'looks', data: JSON.stringify({ seq: 4, request_id: RID, appearance: 'mod_a',
+  assert.deepEqual(feedLooks({ event: 'looks', data: JSON.stringify({ seq: 4, request_id: RID, character: 'pelica', appearance: 'mod_a',
     layers: { hide: ['cape'], show: [] }, mod_settings: { appearance: 'mod_a', values: { coat: 1 } } }) }),
-  { seq: 4, requestId: RID, appearance: 'mod_a', layers: { hide: ['cape'], show: [] }, modSettings: { appearance: 'mod_a', values: { coat: 1 } } });
-  assert.deepEqual(feedLooks({ event: 'looks', data: JSON.stringify({ seq: 4, request_id: RID, appearance: 'mod_a' }) }),
-    { seq: 4, requestId: RID, appearance: 'mod_a' });
-  for (const data of [{ seq: 4, request_id: RID }, { seq: '4', request_id: RID, appearance: 'a' }, { seq: 4, request_id: 'r', appearance: 'a' },
-    { seq: 4, request_id: RID, appearance: '' }, { seq: 4, request_id: RID, appearance: 'a', extra: 1 },
-    { seq: 4, request_id: RID, layers: { hide: [], show: [] } }, { seq: 4, request_id: RID, layers: { hide: ['a'] } },
-    { seq: 4, request_id: RID, layers: { hide: [''], show: [] } }, { seq: 4, request_id: RID, mod_settings: { appearance: 'a', values: {} } },
-    { seq: 4, request_id: RID, mod_settings: { appearance: 'a', values: { coat: 1.5 } } }, { seq: 4, request_id: RID, mod_settings: { values: { coat: 1 } } }]) {
+  { seq: 4, requestId: RID, character: 'pelica', appearance: 'mod_a', layers: { hide: ['cape'], show: [] },
+    modSettings: { appearance: 'mod_a', values: { coat: 1 } } });
+  assert.deepEqual(feedLooks({ event: 'looks', data: JSON.stringify({ seq: 4, request_id: RID, character: 'pelica', appearance: 'mod_a' }) }),
+    { seq: 4, requestId: RID, character: 'pelica', appearance: 'mod_a' });
+  const C = { character: 'pelica' };
+  for (const data of [{ seq: 4, request_id: RID, appearance: 'a' }, { seq: 4, request_id: RID, character: '', appearance: 'a' },
+    { seq: 4, request_id: RID, character: 3, appearance: 'a' }, { ...C, seq: 4, request_id: RID }, { ...C, seq: '4', request_id: RID, appearance: 'a' },
+    { ...C, seq: 4, request_id: 'r', appearance: 'a' },
+    { ...C, seq: 4, request_id: RID, appearance: '' }, { ...C, seq: 4, request_id: RID, appearance: 'a', extra: 1 },
+    { ...C, seq: 4, request_id: RID, layers: { hide: [], show: [] } }, { ...C, seq: 4, request_id: RID, layers: { hide: ['a'] } },
+    { ...C, seq: 4, request_id: RID, layers: { hide: [''], show: [] } }, { ...C, seq: 4, request_id: RID, mod_settings: { appearance: 'a', values: {} } },
+    { ...C, seq: 4, request_id: RID, mod_settings: { appearance: 'a', values: { coat: 1.5 } } },
+    { ...C, seq: 4, request_id: RID, mod_settings: { values: { coat: 1 } } }]) {
     assert.equal(feedLooks({ event: 'looks', data: JSON.stringify(data) }), null, JSON.stringify(data));
   }
   assert.equal(feedLooks({ event: 'looks', data: 'not json' }), null);
-  assert.equal(feedLooks({ event: 'command', data: JSON.stringify({ seq: 4, request_id: RID, appearance: 'a' }) }), null);
+  assert.equal(feedLooks({ event: 'command', data: JSON.stringify({ ...C, seq: 4, request_id: RID, appearance: 'a' }) }), null);
 });
 
 test('a looks event calls the menu\'s AvatarLooks methods in order and posts the receipt', async () => {
   const s = setup();
-  s.send({ seq: 4, request_id: RID, appearance: 'mod_a', layers: { hide: ['cape'], show: [] }, mod_settings: { appearance: 'mod_a', values: { coat: 1 } } });
+  s.send({ seq: 4, request_id: RID, character: 'pelica', appearance: 'mod_a', layers: { hide: ['cape'], show: [] }, mod_settings: { appearance: 'mod_a', values: { coat: 1 } } });
   assert.ok(await until(2, () => s.posted.length === 1));
   assert.deepEqual(s.calls, ['setAppearance mod_a', 'setLayers {"hide":["cape"],"show":[]}', 'saveModSettings pelica mod_a {"coat":1,"color":2}']);
   assert.deepEqual(s.posted, [['/avatar/looks/receipts', { request_id: RID, ok: true, appearance: 'mod_a', values: { coat: 1, color: 2 } }]]);
@@ -69,7 +74,7 @@ test('a looks event calls the menu\'s AvatarLooks methods in order and posts the
 
 test('the first failure stops the change and the receipt carries its reason', async () => {
   const s = setup({ fail: 'appearance' });
-  s.send({ seq: 5, request_id: RID, appearance: 'mod_a', layers: { hide: ['cape'], show: [] } });
+  s.send({ seq: 5, request_id: RID, character: 'pelica', appearance: 'mod_a', layers: { hide: ['cape'], show: [] } });
   assert.ok(await until(2, () => s.posted.length === 1));
   assert.deepEqual(s.calls, ['setAppearance mod_a']);
   assert.deepEqual(s.posted, [['/avatar/looks/receipts',
@@ -78,16 +83,26 @@ test('the first failure stops the change and the receipt carries its reason', as
 
 test('without a character nothing is called and the receipt says no_character', async () => {
   const s = setup({ character: null });
-  s.send({ seq: 6, request_id: RID, appearance: 'mod_a' });
+  s.send({ seq: 6, request_id: RID, character: 'pelica', appearance: 'mod_a' });
   assert.ok(await until(2, () => s.posted.length === 1));
   assert.deepEqual(s.calls, []);
   assert.deepEqual(s.posted, [['/avatar/looks/receipts', { request_id: RID, ok: false, reason: 'no_character', appearance: 'default', values: {} }]]);
 });
 
+test('an event checked against another character than the one shown calls nothing and says character_changed', async () => {
+  const s = setup({ character: 'chen' });
+  s.send({ seq: 6, request_id: RID, character: 'pelica', appearance: 'mod_a', mod_settings: { appearance: 'mod_a', values: { coat: 1 } } });
+  assert.ok(await until(2, () => s.posted.length === 1));
+  assert.deepEqual(s.calls, []);
+  assert.deepEqual(s.posted, [['/avatar/looks/receipts',
+    { request_id: RID, ok: false, reason: 'character_changed', appearance: 'default', values: {} }]]);
+});
+
 test('a malformed or other event calls nothing and posts nothing', async () => {
   const s = setup();
-  s.send({ seq: 7, request_id: RID, appearance: 'mod_a', layers: ['cape'] });
-  s.send({ seq: 8, request_id: RID });
+  s.send({ seq: 7, request_id: RID, character: 'pelica', appearance: 'mod_a', layers: ['cape'] });
+  s.send({ seq: 8, request_id: RID, character: 'pelica' });
+  s.send({ seq: 8, request_id: RID, appearance: 'mod_a' });
   s.feed({ event: 'command', id: '2', data: JSON.stringify({ seq: 9, action: 'open', target: 'Safari' }) });
   await new Promise((r) => setTimeout(r, 50));
   assert.deepEqual(s.calls, []);

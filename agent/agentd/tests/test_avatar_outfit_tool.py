@@ -116,8 +116,8 @@ class AvatarOutfitToolTest(integration.IntegrationFixture):
         event, joined = self.change({"appearance": "mod_a", "layers": {"hide": ["cape"]},
                                      "mods": {"appearance": "mod_a", "values": {"coat": 1}}, "reason": "下雨了"})
         self.assertRegex(event["request_id"], r"^[0-9a-f]{16}$")
-        self.assertEqual(event, {"seq": event["seq"], "request_id": event["request_id"], "appearance": "mod_a",
-                                 "layers": {"hide": ["cape"], "show": []},
+        self.assertEqual(event, {"seq": event["seq"], "request_id": event["request_id"], "character": "fixture",
+                                 "appearance": "mod_a", "layers": {"hide": ["cape"], "show": []},
                                  "mod_settings": {"appearance": "mod_a", "values": {"coat": 1}}})
         receipt = {"request_id": event["request_id"], "ok": True, "appearance": "mod_a", "values": {"coat": 1, "color": 0}}
         self.assertEqual(self.request("POST", "/avatar/looks/receipts", receipt), (200, {"applied": True}))
@@ -128,7 +128,8 @@ class AvatarOutfitToolTest(integration.IntegrationFixture):
 
     def test_a_refusal_comes_back_with_its_reason(self):
         event, joined = self.change({"appearance": "armed", "reason": "要出门"})
-        self.assertEqual(event, {"seq": event["seq"], "request_id": event["request_id"], "appearance": "armed"})
+        self.assertEqual(event, {"seq": event["seq"], "request_id": event["request_id"], "character": "fixture",
+                                 "appearance": "armed"})
         self.assertEqual(self.request("POST", "/avatar/looks/receipts", {"request_id": event["request_id"], "ok": False,
             "reason": "switching", "appearance": "default", "values": {}}), (200, {"applied": True}))
         self.assertEqual(joined(), {"ok": False, "reason": "switching", "appearance": "default", "values": {}})

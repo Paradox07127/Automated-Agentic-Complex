@@ -15,11 +15,12 @@ export interface LooksCommandOptions {
   log(line: string): void;
 }
 
-/** Appearance, then layers, then mod switches; stops at the first that fails. */
+/** Appearance, then layers, then mod switches; stops at the first that fails. Another character's ids are not applied. */
 async function run(o: LooksCommandOptions, c: FeedLooks): Promise<void> {
   const character = o.link.currentCharacter;
-  let reason: string | null = character === null ? 'no_character' : null, drawn: ModReceipt | null = null;
-  if (character !== null) {
+  let reason: string | null = character === null ? 'no_character' : c.character !== character ? 'character_changed' : null;
+  let drawn: ModReceipt | null = null;
+  if (character !== null && reason === null) {
     try {
       if (c.appearance !== undefined) await o.looks.setAppearance(c.appearance);
       if (c.layers !== undefined) await o.looks.setLayers(c.layers);
