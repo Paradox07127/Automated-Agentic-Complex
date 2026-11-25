@@ -463,6 +463,44 @@ export function characterOps(ctx: OpsContext, picker: ImportPicker = electronPic
 
 const SCAN_GONE: MotionFailure = { reason: 'scan_gone', detail: '识别结果已失效，请重新导入' };
 
+/** motion_tool `mmd-detail`'s detail as `mmd.detail` sends it (web `MmdDetail`); `internal` when its shape is not that. */
+function mmdDetail(line: Record<string, unknown>): Record<string, unknown> {
+  const bad = () => new MotionFailureError({ reason: 'internal', detail: `motion_tool printed no detail: ${JSON.stringify(line)}` });
+  const object = (v: unknown): Record<string, unknown> => {
+    if (typeof v === 'object' && v !== null && !Array.isArray(v)) return v as Record<string, unknown>;
+    throw bad();
+  };
+  const of = <T>(is: (v: unknown) => v is T) => (v: unknown): T => {
+    if (is(v)) return v;
+    throw bad();
+  };
+  const text = of((v): v is string => typeof v === 'string'), flag = of((v): v is boolean => typeof v === 'boolean');
+  const number = of((v): v is number => typeof v === 'number');
+  const list = <T>(item: (v: unknown) => T) => (v: unknown): T[] => {
+    if (Array.isArray(v)) return v.map(item);
+    throw bad();
+  };
+  const orNull = <T>(v: unknown, read: (v: unknown) => T): T | null => (v === null ? null : read(v));
+  const d = object(line.detail), lanes = object(d.lanes);
+  return {
+    id: text(d.id), source: orNull(d.source, text),
+    face: orNull(d.face, (v) => {
+      const f = object(v);
+      return { mapped: list(text)(f.mapped), unmapped: list(text)(f.unmapped), blinkFromDance: flag(f.blink_from_dance) };
+    }),
+    camera: orNull(d.camera, (v) => {
+      const c = object(v), fov = list(number)(c.fov_deg);
+      if (fov.length !== 2) throw bad();
+      return { cuts: list(number)(c.cuts), fovDeg: fov };
+    }),
+    bgm: orNull(d.bgm, (v) => {
+      const b = object(v);
+      return { name: text(b.name), offsetS: orNull(b.offset_s, number) };
+    }),
+    lanes: { bins: number(lanes.bins), mouth: orNull(lanes.mouth, list(number)), loudness: orNull(lanes.loudness, list(number)) },
+  };
+}
+
 /** `mmd.scan` unpacks into a fresh folder under `scanRoot`; the one scan waiting for its import keeps its folder until a new
  *  scan, its import or `mmd.dropScan`. */
 export function mmdOps(ctx: OpsContext, picker: ImportPicker = electronPicker, scanRoot = join(tmpdir(), 'agentic-complex-mmd-scan')): Ops {
@@ -496,6 +534,21 @@ export function mmdOps(ctx: OpsContext, picker: ImportPicker = electronPicker, s
       } catch (e) {
         return motionReply(e instanceof MotionFailureError ? e.failure
           : { reason: 'internal', detail: e instanceof Error ? e.message : String(e) }, false);
+      }
+    },
+    /** Read-only: no switch hold, so it answers while another import runs. */
+    'mmd.detail': async ([id]) => {
+      if (typeof id !== 'string') throw new BridgeFailure('bad_args', 'mmd.detail');
+      try {
+        const library = libraryDir(ctx);
+        const character = await currentCharacter(ctx);
+        if (character === null) throw new MotionFailureError({ reason: 'internal', detail: NO_LINK });
+        const { last, status, stderr } = await ctx.library!.runTool('motion_tool.py',
+          ['mmd-detail', '--library', library, '--character', character, '--action', id]);
+        if (status !== 0) throw new MotionFailureError(toolFailure(stderr));
+        return motionReply({ detail: mmdDetail(resultLine(last)) }, true);
+      } catch (e) {
+        return motionReply(motionFailure(e), false);
       }
     },
     'mmd.scan': async ([options]) => {

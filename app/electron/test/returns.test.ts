@@ -134,6 +134,11 @@ async function motionTool(args: string[]): Promise<{ last: string; status: numbe
       has_face: false, project: null, role: null, created_at: '2026-11-17T10:00:00+00:00', characters: [{ id: 'si', state: 'baked' }] }] }),
     status: 0, stderr: '' };
   }
+  if (args[0] === 'mmd-detail') {
+    return { last: JSON.stringify({ ok: true, detail: { id: arg('--action'), source: '示例舞蹈.vmd',
+      face: { mapped: ['あ'], unmapped: ['てへぺろ'], blink_from_dance: true }, camera: { cuts: [8.5], fov_deg: [12, 40] },
+      bgm: { name: '示例舞蹈.wav', offset_s: -0.633 }, lanes: { bins: 600, mouth: [0.8], loudness: [0.5] } } }), status: 0, stderr: '' };
+  }
   if (args[0] === 'mmd-scan') {
     const root = arg('--unpack-to');
     return { last: JSON.stringify({ ok: true, title: '愛包ダンスホール', root,
@@ -177,7 +182,8 @@ async function outfitTool(args: string[]): Promise<{ last: string; status: numbe
 }
 
 /** The import ops ask with open panels, which the registry's ops would open for real; these tests pick with a fake. */
-const IMPORTS = ['character.importMotion', 'character.importOutfit', 'character.removeOutfit', 'mmd.scan', 'mmd.importScan', 'mmd.pickScanAudio', 'mmd.setMedia'];
+const IMPORTS = ['character.importMotion', 'character.importOutfit', 'character.removeOutfit', 'mmd.scan', 'mmd.importScan', 'mmd.pickScanAudio', 'mmd.setMedia',
+  'mmd.detail'];
 const picker: ImportPicker = { files: async (o) => (o.multiple ? [join(dir, 'dance.vmd')] : o.title === '选择音源' ? [join(dir, 'off vocal.wav')] : []), folder: async () => join(dir, 'Mod'),
   filesOrFolder: async () => [join(dir, 'pack')] };
 

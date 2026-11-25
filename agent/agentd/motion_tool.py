@@ -4,8 +4,8 @@ publish the character rebuilt with one imported motion retitled or taken out, ch
 the character rebuilt with it; Companion's motion import runs it by script path.
 
 On success stdout ends with one JSON result line; import, mmd-media (which gives a shared MMD motion other music) and mmd-sync
-(which aligns a character with the shared MMD library) first emit progress lines, mmd-list shows that library and mmd-scan sorts
-an MMD project's files. On failure the last stderr line is {"ok": false, "reason", "detail"}.
+(which aligns a character with the shared MMD library) first emit progress lines, mmd-list shows that library, mmd-detail one dance
+of it and mmd-scan sorts an MMD project's files. On failure the last stderr line is {"ok": false, "reason", "detail"}.
 """
 import argparse
 import datetime
@@ -38,6 +38,8 @@ VMD_STAGES = (("read", .05), ("sample", .05), ("retarget", .35), ("write", .3), 
 TAKE_STAGES = (("read", .05), ("retarget", .45), ("write", .3), ("validate", .1), ("publish", .1))
 # mmd-sync: the entries share this much of the bar; validate and publish the rest.
 SYNC_ENTRIES = .85
+# mmd-detail: the dance's lanes cut it into this many equal slices.
+MMD_BINS = 600
 
 
 class Progress:
@@ -244,6 +246,58 @@ def mmd_list(args):
                                 has_bgm=entry["bgm"] is not None, has_camera=entry["camera"] is not None, has_face=entry["has_face"],
                                 project=project["title"], role=project["role"], created_at=entry["created_at"], characters=characters))
     return dict(ok=True, entries=entries)
+
+
+def mouth_lane(face, mids):
+    """Per slice the largest absolute weight of the face clip's mouth controls, linear between keys, clamped to 0–1."""
+    import numpy as np
+    lane = np.zeros(len(mids))
+    for curve in face["curves"]:
+        if "mouth" not in curve["control"].lower(): continue
+        keys = curve["curve"]["m_curve"]
+        lane = np.maximum(lane, np.abs(np.interp(mids, [k["time"] for k in keys], [k["value"] for k in keys])))
+    return np.clip(lane, 0, 1).tolist()
+
+
+def loudness_lane(path, duration, bins):
+    """Per slice the music's RMS over that of the loudest slice; a slice past its end is silent. The package keeps 16-bit PCM."""
+    import numpy as np
+    import wave
+    with wave.open(str(path), "rb") as audio:
+        rate, channels = audio.getframerate(), audio.getnchannels()
+        power = np.square(np.frombuffer(audio.readframes(audio.getnframes()), "<i2").astype(float)).reshape(-1, channels).mean(axis=1)
+    edges = np.minimum(np.round(np.arange(bins + 1) * duration * rate / bins).astype(int), len(power))
+    rms = np.array([math.sqrt(power[a:b].mean()) if b > a else 0.0 for a, b in zip(edges[:-1], edges[1:])])
+    return (rms / rms.max() if rms.max() > 0 else rms).tolist()
+
+
+def mmd_detail(args):
+    """mmd-detail: one shared dance as the MMD page shows it, read from --character's bake of it, else from the first character
+    that baked it."""
+    library = Library(args.library)
+    entry = next((e for e in load_mmd(library)["entries"] if e["id"] == args.action and e["removed_at"] is None), None)
+    if entry is None: fail("unknown_action", args.action)
+    current = library.package(args.character)
+    package = next((p for p in ([current] if current else []) + library.packages()
+                    if p.render_enabled and args.action in mmd_rows(p)), None)
+    if package is None: fail("not_baked", args.action)
+    report = next(r for r in vmd_reports(package) if r["action"] == args.action)
+    pack = pack_folder(package)[1]
+    face = read_json(pack / report["face"]["file"]) if report.get("face") else None
+    camera = read_json(pack / report["camera"]["file"]) if report.get("camera") else None
+    media = pack / "animation/motion-media.json"
+    track = next((t for t in read_json(media)["tracks"] if t["action"] == args.action), {}) if media.exists() else {}
+    bins, duration = MMD_BINS, entry["duration_s"]
+    mids = [(i + .5) * duration / bins for i in range(bins)]
+    return dict(ok=True, detail=dict(
+        id=entry["id"], source=entry["source"]["name"] if entry["source"] else None,
+        face=dict(mapped=report["face"]["mapped"], unmapped=report["face"]["unmapped"], blink_from_dance=face["pause_auto_blink"])
+        if face else None,
+        camera=dict(cuts=[round(frame / camera["frame_rate"], 3) for frame in report["camera"]["cuts"]], fov_deg=[min(camera["fov_deg"]), max(camera["fov_deg"])])
+        if camera else None,
+        bgm=dict(name=entry["bgm"]["name"], offset_s=entry["bgm"]["offset_s"]) if entry["bgm"] else None,
+        lanes=dict(bins=bins, mouth=mouth_lane(face, mids) if face else None,
+                   loudness=loudness_lane(pack / "animation" / track["audio"]["file"], duration, bins) if "audio" in track else None)))
 
 
 def mmd_sync(args):
@@ -642,6 +696,9 @@ def main():
     sub.add_argument("--library", type=Path, required=True); sub.add_argument("--character", required=True)
     sub = commands.add_parser("mmd-list")
     sub.add_argument("--library", type=Path, required=True)
+    sub = commands.add_parser("mmd-detail")
+    sub.add_argument("--library", type=Path, required=True)
+    sub.add_argument("--character", required=True); sub.add_argument("--action", required=True)
     sub = commands.add_parser("mmd-sync")
     for name in ("library", "validate-with"): sub.add_argument("--" + name, type=Path, required=True)
     sub.add_argument("--character", required=True)
@@ -657,7 +714,7 @@ def main():
     try:
         print(json.dumps({"import": run, "probe": probe, "list": list_motions, "rename": lambda a: edit(a, False),
                           "remove": lambda a: edit(a, True), "chain": chain, "mmd-sync": mmd_sync, "mmd-list": mmd_list,
-                          "mmd-scan": mmd_scan, "mmd-media": mmd_media}[args.command](args), ensure_ascii=False))
+                          "mmd-detail": mmd_detail, "mmd-scan": mmd_scan, "mmd-media": mmd_media}[args.command](args), ensure_ascii=False))
         return 0
     except Failure as error: reason, detail = error.reason, str(error)
     except Exception as error: reason, detail = "internal", "%s: %s" % (type(error).__name__, error)

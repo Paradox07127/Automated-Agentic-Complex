@@ -2,11 +2,13 @@
 and checks or publishes motion-chain proposals, run by script path as the app does."""
 import hashlib
 import importlib.util
+import io
 import json
 import math
 from pathlib import Path
 import shutil
 import signal
+import struct
 import subprocess
 import time
 import sys
@@ -925,6 +927,95 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual((doc["replaced"], doc["action"]["has_bgm"], doc["version"]), (new, False, "1.0.3"))
         self.assertEqual(self.mmd_index()["entries"][-1]["bgm"], None)
         self.assertEqual(self.failure(media("--no-bgm"))["reason"], "unknown_action")
+
+    def baked_dance(self, cid, identity, face=None, camera=None, music=None):
+        """Installs character cid with mmd_<identity> baked as an import leaves it: its row, report and, when given, the face
+        clip document, camera clip document and music wav bytes."""
+        clip = "imported_vmd_" + identity
+        row = {"id": "mmd_" + identity, "name": "舞", "section": "idle", "clips": [clip], "trigger": "导入 VMD · 手动播放", "duration": 20.0}
+        report = {"schema": "endfield-vmd-import/v1", "action": "mmd_" + identity, "clip": clip, "duration": 20.0, "bgm": None}
+        animation, track = {}, {"action": "mmd_" + identity, "clip": clip, "length": 20.0}
+        if face is not None:
+            animation["face/%s.json" % clip] = face["document"]; track["face"] = {"facial_animation": "mmd_" + identity}
+            report["face"] = {"mapped": face["mapped"], "unmapped": face["unmapped"], "file": "animation/face/%s.json" % clip}
+        if camera is not None:
+            animation["camera/%s.json" % clip] = camera; track["camera"] = {"file": "camera/%s.json" % clip}
+            report["camera"] = {"cuts": camera["cuts"], "file": "animation/camera/%s.json" % clip}
+        if music is not None:
+            animation["music/%s.wav" % identity] = music; track["audio"] = {"file": "music/%s.wav" % identity}
+            report["bgm"] = {"frames": 48000 * 20, "sample_rate": 48000}
+        if track.keys() - {"action", "clip", "length"}:
+            animation["motion-media.json"] = {"schema": "endfield-motion-media/v2", "tracks": [track]}
+        source = self.root / cid
+        motion_fixture(source, cid=cid, imported=[(row, report)], motion={"clips": {clip: (20.0, False)}, "animation": animation})
+        self.library.install(source)
+
+    def shared_dance(self, identity, bgm=True, removed=False):
+        from agentic_complex_build.motion_import.take import MMD_SCHEMA
+        index = self.library.root / "mmd-library/index.json"; index.parent.mkdir(exist_ok=True)
+        doc = json.loads(index.read_text(encoding="utf-8")) if index.exists() else dict(schema=MMD_SCHEMA, entries=[])
+        kept = lambda name: dict(file=hashlib.sha256(name.encode()).hexdigest() + Path(name).suffix, sha256="0" * 64, name=name)
+        doc["entries"].append(dict(id="mmd_" + identity, title="舞", duration_s=20.0, created_at="2026-11-25T00:00:00+00:00",
+                                   removed_at="2026-11-25T01:00:00+00:00" if removed else None, source=kept("dance.vmd"), morph=None,
+                                   camera=None, bgm=dict(kept("song.wav"), offset_s=-0.5) if bgm else None, foot_lock=True,
+                                   has_face=True, project=None, failures={}))
+        write_json(index, doc)
+
+    def mmd_detail(self, character, action):
+        return tool_command("motion_tool.py", "mmd-detail", "--library", str(self.library.root), "--character", character, "--action", action)
+
+    @needs_numpy
+    def test_mmd_detail_gives_the_face_mapping_camera_cuts_music_and_lanes_of_a_baked_dance(self):
+        identity = "0123456789abcdef"
+        key = lambda t, v: {"time": t, "value": v, "in_slope": 0.0, "out_slope": 0.0, "weighted_mode": 0}
+        curve = lambda control, keys: {"control": control, "curve": {"m_curve": [key(t, v) for t, v in keys]}}
+        face = {"mapped": ["あ", "い"], "unmapped": ["てへぺろ"], "document": {
+            "schema": "endfield-original-named-facial-animation/v1", "name": "舞", "duration": 20.0, "pause_auto_blink": True,
+            "additive": False, "override": False,
+            "curves": [curve("mouth_a_normal_ctrl", [(0, 0), (10, 1), (20, 0)]), curve("Mouth_O_ctrl", [(0, 0), (15, -1.5), (16, 0)]),
+                       curve("brow_angry_m_L_ctrl", [(0, 1), (20, 1)])]}}
+        camera = {"clip": "imported_vmd_" + identity, "frame_rate": 30, "frames": 4, "cuts": [30, 45, 100],
+                  "fov_deg": [30.0, 12.5, 40.0, 30.0], "distance": [-45.0] * 4, "center": [[0, 0, 0]] * 4, "euler": [[0, 0, 0]] * 4}
+        # Ten silent seconds, then ten of a square wave.
+        half, music = 48000 * 10, io.BytesIO()
+        with wave.open(music, "wb") as audio:
+            audio.setparams((2, 2, 48000, 0, "NONE", "not compressed"))
+            audio.writeframes(bytes(4 * half) + struct.pack("<%dh" % (2 * half), *([1000, 1000, -1000, -1000] * (half // 2))))
+        music = music.getvalue()
+        self.baked_dance("fixture", identity, face=face, camera=camera, music=music)
+        self.shared_dance(identity)
+        detail = self.success(self.mmd_detail("fixture", "mmd_" + identity))["detail"]
+        self.assertEqual({k: detail[k] for k in ("id", "source", "face", "camera", "bgm")}, dict(
+            id="mmd_" + identity, source="dance.vmd", face=dict(mapped=["あ", "い"], unmapped=["てへぺろ"], blink_from_dance=True),
+            camera=dict(cuts=[1.0, 1.5, 3.333], fov_deg=[12.5, 40.0]), bgm=dict(name="song.wav", offset_s=-0.5)))
+        lanes = detail["lanes"]
+        self.assertEqual((lanes["bins"], len(lanes["mouth"]), len(lanes["loudness"])), (600, 600, 600))
+        for lane in (lanes["mouth"], lanes["loudness"]): self.assertTrue(all(0 <= v <= 1 for v in lane))
+        # Each slice is 1/30 s; the brow curve is no mouth control.
+        self.assertAlmostEqual(lanes["mouth"][0], (1 / 60) / 10, places=6)
+        self.assertAlmostEqual(lanes["mouth"][299], 299.5 / 30 / 10, places=6)
+        self.assertEqual(lanes["mouth"][450], 1)
+        self.assertEqual(lanes["loudness"][:300], [0] * 300)
+        self.assertEqual(lanes["loudness"][300:], [1] * 300)
+
+    def test_mmd_detail_reads_another_character_when_the_current_one_has_not_baked_the_dance(self):
+        identity = "fedcba9876543210"
+        motion_fixture(self.root / "fixture", cid="fixture"); self.library.install(self.root / "fixture")
+        self.baked_dance("second", identity)
+        self.shared_dance(identity, bgm=False)
+        detail = self.success(self.mmd_detail("fixture", "mmd_" + identity))["detail"]
+        self.assertEqual(detail, dict(id="mmd_" + identity, source="dance.vmd", face=None, camera=None, bgm=None,
+                                      lanes=dict(bins=600, mouth=None, loudness=None)))
+
+    def test_mmd_detail_of_an_unknown_or_unbaked_dance_fails(self):
+        motion_fixture(self.root / "fixture", cid="fixture"); self.library.install(self.root / "fixture")
+        self.shared_dance("1111111111111111")
+        self.shared_dance("2222222222222222", removed=True)
+        for action, reason in (("mmd_nope", "unknown_action"), ("mmd_2222222222222222", "unknown_action"),
+                               ("mmd_1111111111111111", "not_baked")):
+            result = self.mmd_detail("fixture", action)
+            self.assertEqual(result.returncode, 2, result.stderr)
+            self.assertEqual(self.failure(result)["reason"], reason)
 
     @needs_numpy
     def test_mmd_scan_sorts_a_folder_into_bodies_cameras_and_audio(self):

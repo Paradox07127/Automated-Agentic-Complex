@@ -1,5 +1,5 @@
-// `character.importMotion`, `importOutfit`, `removeOutfit` and `mmd.scan`, `importScan`, `setMedia` against a fake picker, fake
-// tools and a fake link.
+// `character.importMotion`, `importOutfit`, `removeOutfit` and `mmd.scan`, `importScan`, `setMedia`, `detail` against a fake picker,
+// fake tools and a fake link.
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -486,6 +486,30 @@ test('mmd.setMedia picks the music while holding the switch, runs mmd-media with
       assert.deepEqual(await f.call('mmd.setMedia', id, media), err('bad_args', 'mmd.setMedia'));
     }
     assert.equal(f.switcher.held, false);
+  } finally {
+    f.done();
+  }
+});
+
+const DETAIL_LINE = JSON.stringify({ ok: true, detail: { id: 'mmd_1', source: '愛包.vmd',
+  face: { mapped: ['あ'], unmapped: ['てへぺろ'], blink_from_dance: true }, camera: { cuts: [3.867, 6.1], fov_deg: [10, 45] },
+  bgm: { name: 'inst.wav', offset_s: null }, lanes: { bins: 600, mouth: [0, 0.5], loudness: null } } });
+
+test('mmd.detail runs mmd-detail on the current character without holding the switch and answers in camelCase', async () => {
+  const f = fixture();
+  try {
+    f.tool = () => ({ last: DETAIL_LINE, status: 0, stderr: '' });
+    assert.deepEqual(await f.call('mmd.detail', 'mmd_1'), { ok: true, detail: { id: 'mmd_1', source: '愛包.vmd',
+      face: { mapped: ['あ'], unmapped: ['てへぺろ'], blinkFromDance: true }, camera: { cuts: [3.867, 6.1], fovDeg: [10, 45] },
+      bgm: { name: 'inst.wav', offsetS: null }, lanes: { bins: 600, mouth: [0, 0.5], loudness: null } } });
+    assert.deepEqual(f.tools, [['motion_tool.py', 'mmd-detail', '--library', LIBRARY(f), '--character', 'si', '--action', 'mmd_1']]);
+    assert.deepEqual(f.calls, ['tool held=false']);
+    f.tool = () => ({ last: JSON.stringify({ ok: true, detail: { id: 'mmd_1', source: null } }), status: 0, stderr: '' });
+    assert.equal(((await f.call('mmd.detail', 'mmd_1')) as { reason: string }).reason, 'internal');
+    f.tool = () => ({ last: '', status: 2, stderr: '{"ok": false, "reason": "unknown_action", "detail": "mmd_1"}' });
+    assert.deepEqual(await f.call('mmd.detail', 'mmd_1'), { ok: false, reason: 'unknown_action', detail: 'mmd_1' });
+    assert.deepEqual(await f.call('mmd.detail', 1), err('bad_args', 'mmd.detail'));
+    assert.equal(f.tools.length, 3);
   } finally {
     f.done();
   }
