@@ -81,8 +81,6 @@ class EffMod:
     materials: dict = field(default_factory=dict)
     parts: dict = field(default_factory=dict)
     replaces: list = field(default_factory=list)
-    # The mod has runtime switches: `[Mod] key_switch_enabled=1` or a `[ResourceControls]` section.
-    controls: bool = False
     controls_path: Path | None = None
 
 
@@ -138,7 +136,7 @@ def load_eff(root):
     except configparser.Error as e:raise ValueError('unsupported_mod:eff_ini') from e
     mod = ini['Mod'] if ini.has_section('Mod') else {}
     if (version := mod.get('format', '').strip()) != '3':raise ValueError('unsupported_mod:eff_format:'+version)
-    out = EffMod(root, mod.get('id', '').strip(), controls=truth(mod.get('key_switch_enabled', '')))
+    out = EffMod(root, mod.get('id', '').strip())
     names = ini.sections()
     meshes = {n: file(key(ini[n], 'path')) for n in names if n.startswith('Mesh_')}
     for n in names:
@@ -161,7 +159,7 @@ def load_eff(root):
             parts = [section(out.parts, p) for p in s.get('parts', '').split(',') if p.strip()]
             out.replaces.append(Replace(n, key(s, 'target.asset'), s.get('target.path', '').strip(), s.get('target.bundle', '').strip(),
                                         parts, s.get('handling', '').strip().lower() == 'skip'))
-    if ini.has_section('ResourceControls'):out.controls, out.controls_path = True, file(key(ini['ResourceControls'], 'path'))
+    if ini.has_section('ResourceControls'):out.controls_path = file(key(ini['ResourceControls'], 'path'))
     return out
 
 

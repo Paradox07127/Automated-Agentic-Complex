@@ -43,14 +43,14 @@ def dds(width, height, dxgi=None, fourcc=b'DX10', fill=None):
     return b'DDS '+bytes(header)+dx10+bytes([fill if fill is not None else dxgi or 7])*16*((width+3)//4)*((height+3)//4)
 
 
-def package_fixture(root, cloth_extra=(), atlas=False, second_material=False, skinned=False, tables={}, neutral=True, vulkan=False):
+def package_fixture(root, cloth_extra=(), atlas=False, second_material=False, skinned=False, tables={}, neutral=True, vulkan=False, texcoord5=False):
     """test_character_library's package with a runtime of three meshes: O1, its same-IB vfxpart twin O3, and two-submesh O2.
 
     `cloth_extra` adds (name, format, srgb, binding, size) textures to O1; `second_material` a draw of O1's submesh in material
     M_cloth_b, whose _BaseMap is 8x8; `atlas` a self-shadow atlas pass casting O1, its blobs beside the frame graph; `skinned`
     rig ids 11-13 for the three bones and O1's weights and bone indices (channels 12 and 13); `tables` ({file: document}) files
     of interaction/ that the pack lists; without `neutral` the bundle has no neutral package, as one built before it; `vulkan` a
-    Windows frame table (vulkan_frame_fixture)."""
+    Windows frame table (vulkan_frame_fixture); `texcoord5` O1's channel 9 holding its positions, as the weather step writes it."""
     doc = fixture(root, 'fixture')
     runtime = root/'runtime'
     for p in sorted(runtime.rglob('*'), reverse=True):p.unlink() if p.is_file() else p.rmdir()
@@ -76,6 +76,7 @@ def package_fixture(root, cloth_extra=(), atlas=False, second_material=False, sk
         if skinned and mesh == CLOTH:
             attributes += [dict(location=2, source_channel=12, format='R32G32B32A32_SFLOAT', stride=16, **blob(struct.pack('<4f', 1, 0, 0, 0)*len(positions))),
                            dict(location=3, source_channel=13, format='R32G32B32A32_UINT', stride=16, **blob(bytes(16*len(positions))))]
+        if texcoord5 and mesh == CLOTH:attributes.append(dict(attributes[0], location=4, source_channel=9))
         return dict(mesh=mesh, material=material, pass_name='PreGBuffer', queue=2000, vertex_count=len(positions), index_count=len(indices),
                     index_component_bytes=2, indices=blob(struct.pack(f'<{len(indices)}H', *indices)), attributes=attributes, resources=resources)
     twin_positions = O1_POSITIONS[:3]+[(5, 5, 5)]
@@ -677,8 +678,8 @@ class ImportOutfitTests(unittest.TestCase):
         cast = next(a for a in caster['attributes'] if a['source_channel'] == 0)
         self.assertEqual((runtime/cast['file']).read_bytes(), (runtime/'source'/position['file']).read_bytes())
 
-    def eff_import(self, **fixture):
-        package = package_fixture(self.root/'skinned', skinned=True)
+    def eff_import(self, second_material=False, texcoord5=False, **fixture):
+        package = package_fixture(self.root/'skinned', skinned=True, second_material=second_material, texcoord5=texcoord5)
         report = import_outfit.import_outfit(package.root, eff_mod_fixture(self.root/'eff', **fixture), self.root/'out')
         return report, *self.staged(self.root/'out')
 
@@ -692,7 +693,7 @@ class ImportOutfitTests(unittest.TestCase):
                                                    vertices=6, groups=2, bones_appended=0, warnings=[])])
         self.assertEqual([(r['section'], r['action']) for r in report['components']],
                          [('ReplaceCloth', 'geometry'), ('ReplaceBody', 'hidden'), ('ReplaceGone', 'ignored')])
-        self.assertEqual(report['warnings'], ['eff_controls_ignored', 'needs_mips:textures/base.dds', 'needs_mips:textures/bump.dds',
+        self.assertEqual(report['warnings'], ['needs_mips:textures/base.dds', 'needs_mips:textures/bump.dds',
                                               'texture_unbound:textures/gloss.dds', 'eff_target_absent:S_actor_test_gone_01_lod0'])
         self.assertEqual([(t['file'], t['meshes'], t['resource']) for t in report['textures']],
                          [('textures/base.dds', [CLOTH], '_BaseMap'), ('textures/bump.dds', [CLOTH], '_BumpMap'), ('textures/gloss.dds', [], None)])
@@ -732,6 +733,22 @@ class ImportOutfitTests(unittest.TestCase):
         first, _ = [d for d in source['draws'] if d['mesh'] == 'outfit:'+report['appearance']['id']+'/'+CLOTH]
         [template] = [d for d in source['draws'] if d['mesh'] == CLOTH]
         self.assertEqual(first['resources'], template['resources'])
+
+    def test_an_eff_material_textures_only_the_draws_of_its_template_material(self):
+        report, _, _, _, source, _, _ = self.eff_import(second_material=True, ini=EFF_INI.replace('source.asset=M_cloth', 'source.asset=M_cloth_b'))
+        new = 'outfit:'+report['appearance']['id']+'/'+CLOTH
+        def base(material, mesh, sha=None):
+            [d] = [d for d in source['draws'] if d['mesh'] == mesh and d['material'] == material and sha in (None, d['indices']['sha256'])]
+            return next(r for r in d['resources'] if r['names'][0] == '_BaseMap')['sha256']
+        a = hashlib.sha256(struct.pack('<3H', 0, 1, 2)).hexdigest()
+        self.assertEqual(base('M_cloth_b', new, a), hashlib.sha256(EFF_TEXTURES['textures/base.dds'][148:]).hexdigest())
+        self.assertEqual(base('M_cloth', new, a), base('M_cloth', CLOTH))
+
+    def test_mod_geometry_writes_its_positions_where_the_template_has_its_positions_as_texcoord5(self):
+        report, _, runtime, _, source, _, _ = self.eff_import(texcoord5=True)
+        first, _ = [d for d in source['draws'] if d['mesh'] == 'outfit:'+report['appearance']['id']+'/'+CLOTH]
+        channel = {a['source_channel']: (runtime/'source'/a['file']).read_bytes() for a in first['attributes']}
+        self.assertEqual(channel[9], channel[0])
 
     def test_an_eff_bone_the_rig_lacks_is_refused(self):
         unknown = zlib.crc32(b'Root/zz')

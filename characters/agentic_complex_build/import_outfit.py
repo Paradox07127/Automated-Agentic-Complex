@@ -994,7 +994,7 @@ def compose_eff(mod, copy, name):
     source, palette, pack, read_blob = copy.source, copy.palette, copy.pack, copy.read_blob
     meshes = [m['mesh'] for m in palette['meshes'] if not m['mesh'].startswith('outfit:')]
     bones = rig_bones(copy.rig)
-    warnings = ['eff_controls_ignored'] if mod.controls else []
+    warnings = []
     rows, geometry, results, hidden, placed, blobs = [], [], {}, set(), {}, {}
     def texture(t):
         if t.dds not in blobs:
@@ -1012,7 +1012,7 @@ def compose_eff(mod, copy, name):
         if any(m.shape_count for _, m in found):warnings.append('shapekey_ignored')
         result = eff_geometry(r.target_asset, [(p.name, m) for p, m in found], source, palette, read_blob, copy.rig_ids, bones)
         materials = {d['material'] for d in source['draws'] if d['mesh'] == r.target_asset}
-        own = material_textures(source, r.target_asset)
+        variants = material_variants(source, r.target_asset)
         groups = []
         for (p, _), g in zip(found, result.replacement.groups):
             bound = {}
@@ -1020,10 +1020,12 @@ def compose_eff(mod, copy, name):
             elif p.material is not None:
                 for slot, t in p.material.textures.items():
                     file = t.dds.relative_to(mod.root).as_posix(); meshes_of, resources = placed.setdefault(file, (set(), set()))
-                    if slot not in own or texture(t).rd_format_name != own[slot]['rd_format_name']:warnings.append('texture_unbound:'+file); continue
-                    bound[slot] = texture(t); meshes_of.add(r.target_asset); resources.add(slot)
+                    own = variants.get(slot, {}).get(p.material.source_asset)
+                    if own is None or texture(t).rd_format_name != own['rd_format_name']:warnings.append('texture_unbound:'+file); continue
+                    # The part draws in each of the mesh's materials; the texture replaces only its own material's.
+                    bound[(p.material.source_asset, slot)] = texture(t); meshes_of.add(r.target_asset); resources.add(slot)
                     # The template samplers may need the whole chain, which a block-compressed texture cannot be given here.
-                    if len(bound[slot].mips) == 1 and own[slot]['mip_count'] > 1:warnings.append('needs_mips:'+file)
+                    if len(texture(t).mips) == 1 and own['mip_count'] > 1:warnings.append('needs_mips:'+file)
             groups.append(dataclasses.replace(g, textures=bound))
         results[r.target_asset] = dataclasses.replace(result.replacement, groups=groups)
         warnings += [w for w in result.warnings if w not in warnings]

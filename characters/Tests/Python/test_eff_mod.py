@@ -239,12 +239,7 @@ class EffModTest(unittest.TestCase):
         self.assertEqual([(r.name, r.target_asset, [p.name for p in r.parts], r.skip) for r in mod.replaces],
                          [('ReplaceBody', 'S_actor_test_body_01_lod0', ['PartBody', 'PartExtra'], False),
                           ('ReplaceCloth', 'S_actor_test_cloth_01_lod0', [], True)])
-        self.assertTrue(mod.controls)
         self.assertEqual(mod.controls_path, self.root/'controls.effres')
-
-    def test_controls_off_without_switch_or_section(self):
-        ini = MOD_INI.replace('key_switch_enabled=1', 'key_switch_enabled=0').split('[ResourceControls]')[0]
-        self.assertFalse(eff_mod.load_eff(mod_fixture(self.dir/'plain', ini)).controls)
 
     def test_read_effres(self):
         kind, meta, payload = eff_mod.read_effres(self.root/'materials/body.effres')

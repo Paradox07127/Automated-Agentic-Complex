@@ -366,6 +366,8 @@ def build(parts, palette, read_blob, rig_ids, bone):
         rows[3::4] = array('f', signs)
         channels[2] = rows.tobytes()
     channels[0] = positions.tobytes()
+    # A package whose weather effects map from TexCoord5 holds the bind-pose positions there.
+    if 9 in t and t[9]['sha256'] == t[0]['sha256']:channels[9] = channels[0]
     if 4 in t and uvs is not None and written(4) == WRITTEN[4]:channels[4] = uvs.tobytes()
     if 5 in t and 'TEXCOORD1' in parts.elements and written(5) == WRITTEN[5]:channels[5] = parts.elements['TEXCOORD1'][0].tobytes()
     extra = []
