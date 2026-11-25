@@ -56,7 +56,7 @@
     "--agentic-complex-camera-mode": {"mac": "applied", "windows": "applied"},
     "--agentic-complex-camera-yaw": {"mac": "applied", "windows": "applied"},
     "--agentic-complex-camera-pitch": {"mac": "applied", "windows": "applied"},
-    "--agentic-complex-facing-mode": {"mac": "applied", "windows": "fixed", "ref": "CONTRACT.md:933"},
+    "--agentic-complex-facing-mode": {"mac": "applied", "windows": "applied"},
     "--agentic-complex-ambient": {"mac": "applied", "windows": "applied"},
     "--agentic-complex-light-wrap": {"mac": "applied", "windows": "applied"},
     "--agentic-complex-speech-expressions": {"mac": "applied", "windows": "ignored", "ref": "CONTRACT.md:935"},
