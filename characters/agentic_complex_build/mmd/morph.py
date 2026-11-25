@@ -5,7 +5,6 @@ import numpy as np
 
 from .io import FPS, name_key
 
-VOWELS = ('a', 'i', 'u', 'e', 'o')
 TOLERANCES = (0.002, 0.005, 0.01, 0.02)
 
 
@@ -15,9 +14,16 @@ def load_slots():
     return {name_key(name): slot for name, slot in doc['slots'].items()}
 
 
-def resolve(face_controls, emotion_map, override):
-    """{MMD name: [(control, weight)]}: the override's morphs first, then the vowel slots through the default lipsync
-    group's poses; only controls with bones."""
+def load_rules():
+    """{slot: rule} from face-slots.json."""
+    return json.loads(resources.files(__package__).joinpath('face-slots.json').read_text(encoding='utf-8'))['slots']
+
+
+def resolve(face_controls, emotion_map, override, blink):
+    """{MMD name: [(control, weight)]}: the override's morphs first, then each slot's rule from face-slots.json: a vowel
+    through the default lipsync group's pose, a blink through blink ({control: value with the eyes closed}, None leaves
+    blinks unmapped) on its _L_/_R_ side, any other one through one class of the controls of a pose the package has;
+    only controls with bones."""
     usable = {c['name'] for c in face_controls['controls'] if c['bones']}
     poses = {p['name']: p['weights'] for p in face_controls['poses']}
     mapping = {}
@@ -28,9 +34,21 @@ def resolve(face_controls, emotion_map, override):
             pairs += [(w['control'], w['weight'] * weight) for w in poses[row['pose']]] if 'pose' in row else [(row['control'], weight)]
         mapping[name_key(name)] = pairs
     vowels = {g['label']: g['vowels'] for g in face_controls['lipsync_groups']}[emotion_map['default']]
+    rules = load_rules()
+    sides = dict(both=('_L_', '_R_'), left=('_L_',), right=('_R_',))
     for name, slot in load_slots().items():
-        if name not in mapping and slot in VOWELS and slot in vowels:
-            mapping[name] = [(w['control'], w['weight']) for w in poses[vowels[slot]]]
+        rule = rules[slot]
+        if name in mapping:
+            continue
+        if 'lipsync' in rule:
+            if rule['lipsync'] in vowels:
+                mapping[name] = [(w['control'], w['weight']) for w in poses[vowels[rule['lipsync']]]]
+        elif 'blink' in rule:
+            if blink is not None:
+                mapping[name] = [(c, v) for c, v in blink.items() if any(s in c for s in sides[rule['blink']])]
+        elif rule['pose'] in poses:
+            mapping[name] = [(w['control'], w['weight'] * rule['weight']) for w in poses[rule['pose']]
+                             if w['control'].startswith(rule['controls'] + '_')]
     mapping = {name: [(c, w) for c, w in pairs if c in usable] for name, pairs in mapping.items()}
     return {name: pairs for name, pairs in mapping.items() if pairs}
 
@@ -127,6 +145,6 @@ def budgeted(dense, fps=FPS, tangent_mode='pchip', time_offset=0.0):
         # Size of the file write_json writes (compact JSON and a newline); the title is not counted.
         size = len(json.dumps(clip_document('', time_offset + (frames - 1) / fps, curves, False, fps=fps, tangent_mode=tangent_mode, time_offset=time_offset),
                               ensure_ascii=False, separators=(',', ':'), allow_nan=False).encode()) + 1
-        if len(curves) <= 256 and all(1 <= n <= 10000 for n in counts) and sum(counts) <= 50000 and size <= 2097152:
+        if len(curves) <= 256 and all(1 <= n <= 20000 for n in counts) and sum(counts) <= 100000 and size <= 4194304:
             return curves, tol
     return None

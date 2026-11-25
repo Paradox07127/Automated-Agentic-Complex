@@ -38,7 +38,7 @@ def _read_checked_vmd_raw(path):
         if cursor == len(data): break
         need(cursor + 4 <= len(data), 'truncated_vmd_count')
         count = struct.unpack_from('<I', data, cursor)[0]; cursor += 4
-        need(count <= 500000 and count <= (len(data)-cursor)//width, 'vmd_section_bounds')
+        need(count <= 1000000 and count <= (len(data)-cursor)//width, 'vmd_section_bounds')
         cursor += count * width
     else:
         if cursor < len(data):
@@ -221,8 +221,9 @@ def append_clip(root, manifest_path, rig_doc, name, q, t, sample_rate, provenanc
 
 
 def prepare_music(source, output, start, duration):
-    """Use the OS decoder, then trim/pad to the motion's exact 48k stereo clock."""
-    need(math.isfinite(start) and start >= 0, 'invalid_bgm_start')
+    """Use the OS decoder, then trim/pad to the motion's exact 48k stereo clock; a negative start leads with -start
+    seconds of silence."""
+    need(math.isfinite(start), 'invalid_bgm_start')
     source = Path(source); need(source.is_file() and source.stat().st_size <= 256*1024**2, 'bgm_file_limit')
     with tempfile.TemporaryDirectory(prefix='endfield-bgm-') as tmp:
         decoded = Path(tmp)/'decoded.wav'
@@ -230,8 +231,9 @@ def prepare_music(source, output, start, duration):
         need(result.returncode == 0, 'bgm_decode_failed: '+result.stderr[-800:])
         with wave.open(str(decoded),'rb') as audio:
             need(audio.getnchannels()==2 and audio.getframerate()==48000 and audio.getsampwidth()==2, 'unexpected_bgm_format')
-            audio.setpos(min(audio.getnframes(), round(start*48000)))
-            frames = max(1, math.ceil(duration*48000)); raw=audio.readframes(frames)
+            frames = max(1, math.ceil(duration*48000)); lead=min(frames, max(0, round(-start*48000)))
+            audio.setpos(min(audio.getnframes(), max(0, round(start*48000))))
+            raw=bytes(lead*4)+audio.readframes(frames-lead)
         missing=frames-len(raw)//4; raw+=bytes(missing*4)
         output.parent.mkdir(parents=True,exist_ok=True)
         with wave.open(str(output),'wb') as audio:
@@ -275,7 +277,7 @@ def import_motion(package_path, vmd_path, output, source_model=None, duration=No
     source_frames=last_frame(vmd)+1
     first_src=round(start*src_fps); available=(source_frames-1-first_src)/src_fps
     seconds=available if duration is None else duration
-    need(math.isfinite(seconds) and 0 < seconds <= 180 and seconds <= available+1e-6, 'motion_range_limit_180_seconds')
+    need(math.isfinite(seconds) and 0 < seconds <= 360 and seconds <= available+1e-6, 'motion_range_limit_360_seconds')
     count=round(seconds*sample_rate)+1
     start=first_src/src_fps; seconds=(count-1)/sample_rate
     frame_times=first_src + np.arange(count, dtype=float)*(src_fps/sample_rate)
@@ -406,14 +408,16 @@ def package_rig(package):
 
 
 def package_face(package):
-    """(face controls, emotion map, morph map or None) from the package's c7 animation folder; None without both inputs."""
+    """(face controls, emotion map, morph map or None, blink or None) from the package's c7 animation folder; None without
+    the first two. blink is {control: its peak in the palette contract's blink curves}, the value with the eyes closed."""
     native=read_json(package.root/package.native_ref['file'])
     animation=package.root/Path(package.native_ref['file']).parent/Path(native['characters'][0]['c7']['file']).parent/'animation'
-    controls,emotion,override=(animation/x for x in ['original-face-controls.json','emotion-lipsync.json','mmd-morph-map.json'])
+    controls,emotion,override,palette=(animation/x for x in ['original-face-controls.json','emotion-lipsync.json','mmd-morph-map.json','palette-contract.json'])
     if not (controls.is_file() and emotion.is_file()):return None
     face_controls=read_json(controls)
     if face_controls.get('schema')!='endfield-original-face-controls-v2':return None
-    return face_controls,read_json(emotion),read_json(override) if override.is_file() else None
+    blink={c['control']:max(k['value'] for k in c['curve']['m_Curve']) for c in read_json(palette)['blink']['curves']} if palette.is_file() else None
+    return face_controls,read_json(emotion),read_json(override) if override.is_file() else None,blink
 
 
 def install_clips(package,output,clips,report_name,report):

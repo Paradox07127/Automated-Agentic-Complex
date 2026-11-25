@@ -207,8 +207,103 @@ class VmdImportTests(unittest.TestCase):
         doc=dict(schema='endfield-motion-media/v1',tracks=[dict(audio=ref(output,self.root/'animation'))])
         deps=list(native_bundle.references(doc,'motion_media'))
         self.assertEqual(deps[0][1]['file'],'music/test.wav')
-        with self.assertRaises(ValueError):prepare_music(source,output,-1,.1)
+        with self.assertRaises(ValueError):prepare_music(source,output,float('nan'),.1)
+    def testNegativeMusicStartLeadsWithSilence(self):
+        source=self.root/'stereo.wav'
+        with wave.open(str(source),'wb')as w:
+            w.setparams((2,2,48000,0,'NONE','not compressed'));w.writeframes(struct.pack('<hh',800,-400)*4800)
+        output=self.root/'music/early.wav';report=prepare_music(source,output,-.05,.1)
+        self.assertEqual(report['source_start_seconds'],-.05);self.assertEqual(report['frames'],4800)
+        with wave.open(str(output),'rb')as w:
+            self.assertEqual(w.getnframes(),4800);self.assertEqual(w.readframes(2400),bytes(2400*4))
+            self.assertEqual(struct.unpack('<hh',w.readframes(1)),(800,-400))
+            w.setpos(4799);self.assertEqual(struct.unpack('<hh',w.readframes(1)),(800,-400))
+        report=prepare_music(source,self.root/'music/late.wav',-1,.1)
+        with wave.open(str(self.root/'music/late.wav'),'rb')as w:self.assertEqual(w.readframes(4800),bytes(4800*4))
+    def testMotionRangeIs360Seconds(self):
+        sys.path.insert(0,str(CHARACTERS.parent/'agent/agentd/tests'))
+        from test_motion_tool import motion_fixture
+        source=self.root/'source';motion_fixture(source,rig=authored_rig())
+        for frame,reason in [(10800,'pmd_file_limit'),(10830,'motion_range_limit_360_seconds')]:
+            path=self.root/f'long{frame}.vmd'
+            write_vmd(Vmd(bones=[BoneKey('上半身',0,(0,0,0),(0,0,0,1)),BoneKey('上半身',frame,(0,0,0),(0,0,0,1))]),path)
+            # A missing source model fails right after the range check, before any sampling.
+            with self.subTest(frame=frame),self.assertRaisesRegex(ValueError,reason):
+                import_motion(source,path,self.root/f'out{frame}',source_model=self.root/'missing.pmd')
+    def testMorphSectionTakesAMillionKeys(self):
+        path=self.root/'many.vmd'
+        write_vmd(Vmd(morphs=[MorphKey('あ',f//12,.5) for f in range(600000)]),path)
+        self.assertEqual(len(checked_morph_vmd(path).morphs),600000)
+    def testFaceBudgetIsTheRenderersClipBudget(self):
+        from agentic_complex_build.mmd import morph
+        values=lambda n:np.where(np.arange(n)%2,.75,0)+np.random.default_rng(0).random(n)*.25
+        curves,tol=morph.budgeted({'c':values(19000)})
+        self.assertEqual((len(curves['c']),tol),(19000,.002))
+        self.assertIsNone(morph.budgeted({'c':values(20001)}))
+        self.assertIsNone(morph.budgeted({f'c{k}':np.zeros(2) for k in range(257)}))
 
+    def testFaceSlotsTakeOnlyTheirRulesControlClass(self):
+        from agentic_complex_build.mmd import morph
+        rules=json.loads((CHARACTERS/'agentic_complex_build/mmd/face-slots.json').read_text(encoding='utf-8'))['slots']
+        posed=sorted({r['pose'] for r in rules.values() if 'pose' in r})
+        controls=lambda p:[f'eye_{p}_L_ctrl',f'brow_{p}_R_ctrl',f'mouth_{p}_ctrl']
+        face=dict(controls=[dict(name=c,bones=['b']) for p in posed+['A'] for c in controls(p)],
+                  poses=[dict(name=p,weights=[dict(control=c,weight=.5) for c in controls(p)]) for p in posed+['A']],
+                  lipsync_groups=[dict(label='normal',vowels=dict(a='A'))])
+        mapping=morph.resolve(face,dict(default='normal'),None,None)
+        self.assertEqual(mapping['あ'],[(c,.5) for c in controls('A')])
+        slots=morph.load_slots()
+        for name,slot in slots.items():
+            rule=rules[slot]
+            if 'pose' not in rule:continue
+            with self.subTest(name=name):
+                self.assertEqual(mapping[name],[(c,.5*rule['weight']) for c in controls(rule['pose']) if c.startswith(rule['controls']+'_')])
+        self.assertEqual([c for c,_ in mapping['笑い']],['eye_data_facialmorph_emotion_happysquinta_L_ctrl'])
+        self.assertEqual([c for c,_ in mapping['困る']],['brow_data_facialmorph_emotion_worrieda_R_ctrl'])
+        self.assertEqual([c for c,_ in mapping['ω']],['mouth_data_facialmorph_pose_happy_w_01_ctrl'])
+        self.assertFalse({n for n,s in slots.items() if s.startswith('blink')}&mapping.keys())
+    def testBlinkSlotsCloseTheirSide(self):
+        from agentic_complex_build.mmd import morph
+        names=['eye_close_L_ctrl','eye_close_R_ctrl','eye_scale_d_L_ctrl','eye_scale_d_R_ctrl','brow_offset_d_L_ctrl']
+        face=dict(controls=[dict(name=c,bones=[] if c.startswith('brow') else ['b']) for c in names],poses=[],
+                  lipsync_groups=[dict(label='normal',vowels={})])
+        mapping=morph.resolve(face,dict(default='normal'),None,dict(zip(names,[1,1,.3,.3,.16])))
+        self.assertEqual(sorted(mapping['まばたき']),[('eye_close_L_ctrl',1),('eye_close_R_ctrl',1),('eye_scale_d_L_ctrl',.3),('eye_scale_d_R_ctrl',.3)])
+        for name in ['ウィンク','ウィンク２']:self.assertEqual(sorted(mapping[name]),[('eye_close_L_ctrl',1),('eye_scale_d_L_ctrl',.3)])
+        for name in ['ウィンク右','ｳｨﾝｸ２右']:self.assertEqual(sorted(mapping[name]),[('eye_close_R_ctrl',1),('eye_scale_d_R_ctrl',.3)])
+    def testBlinkNeedsThePaletteContract(self):
+        from agentic_complex_build.import_vmd import package_face
+        from character_library import Package
+        sys.path.insert(0,str(CHARACTERS.parent/'agent/agentd/tests'))
+        from test_motion_tool import motion_fixture
+        doc=authored_rig()
+        face={'original-face-controls.json':dict(schema='endfield-original-face-controls-v2',
+                  controls=[dict(name='jaw_open',bones=['jawJoint']),dict(name='eye_close_L_ctrl',bones=['eyeL']),
+                            dict(name='eye_close_R_ctrl',bones=['eyeR']),dict(name='brow_offset_d_L_ctrl',bones=[])],
+                  poses=[dict(name='A',weights=[dict(control='jaw_open',weight=1.0)])],
+                  lipsync_groups=[dict(label='normal',vowels=dict(a='A'))]),
+              'emotion-lipsync.json':dict(default='normal')}
+        curve=lambda control,peak:dict(control=control,curve=dict(m_Curve=[dict(time=0,value=0),dict(time=.25,value=peak),dict(time=.5,value=0)]))
+        palette={'palette-contract.json':dict(blink=dict(duration=.5,curves=[curve('eye_close_L_ctrl',1.0),curve('eye_close_R_ctrl',.9),curve('brow_offset_d_L_ctrl',.16)]))}
+        vmd=self.root/'blink.vmd'
+        write_vmd(Vmd(bones=[BoneKey('上半身',0,(0,0,0),(0,0,0,1)),BoneKey('上半身',30,(0,0,0),(0,math.sin(.2),0,math.cos(.2)))],
+                      morphs=[MorphKey('まばたき',0,0),MorphKey('まばたき',15,1),MorphKey('まばたき',30,0),MorphKey('あ',0,0),MorphKey('あ',30,1)]),vmd)
+        for case,animation in [('palette',dict(face,**palette)),('none',face)]:
+            source=self.root/('source-'+case);motion_fixture(source,rig=doc,motion=dict(animation=animation))
+            blink=package_face(Package(source,deep=False))[3]
+            self.assertEqual(blink,dict(eye_close_L_ctrl=1.0,eye_close_R_ctrl=.9,brow_offset_d_L_ctrl=.16) if case=='palette' else None)
+            out=self.root/('imported-'+case);report=import_motion(source,vmd,out,foot_ik=False)
+            clip=json.loads((out/'runtime'/report['face']['file']).read_text(encoding='utf-8'))
+            controls=sorted(c['control'] for c in clip['curves'])
+            with self.subTest(case=case):
+                if case=='palette':
+                    self.assertTrue(clip['pause_auto_blink']);self.assertIn('まばたき',report['face']['mapped'])
+                    self.assertEqual(controls,['eye_close_L_ctrl','eye_close_R_ctrl','jaw_open'])
+                    peak=next(c for c in clip['curves'] if c['control']=='eye_close_R_ctrl')
+                    self.assertAlmostEqual(max(k['value'] for k in peak['curve']['m_curve']),.9,places=5)
+                else:
+                    self.assertFalse(clip['pause_auto_blink']);self.assertIn('まばたき',report['face']['unmapped'])
+                    self.assertEqual(controls,['jaw_open'])
     def testCheckedMorphVmdAndAutoFpsAndToeEX(self):
         morph_only=self.root/'morph.vmd'
         write_vmd(Vmd(morphs=[MorphKey('あ',0,0.0),MorphKey('あ',30,1.0),MorphKey('まばたき',60,0.8)]),morph_only)
