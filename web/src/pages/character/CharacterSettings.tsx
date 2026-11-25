@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { getBridge, type SettingValue } from '../../bridge';
 import { ErrBar, Skel, type IconName } from '../../ui';
 import { GameTabs, MicroLabel, PowerState, WhiteCapsule, type GameTab } from '../../ui/game';
@@ -26,6 +26,15 @@ export interface CharacterSettingsProps {
 }
 
 const SET_ICON: Record<CharTab, IconName> = { behavior: 'hand', render: 'sun', scene: 'loc' };
+
+const watchTheme = (cb: () => void) => {
+  const mo = new MutationObserver(cb);
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  return () => mo.disconnect();
+};
+
+/** The window's theme on `<html>`: the rows follow it like the settings page, inside the always-light training room. */
+const useAppTheme = () => useSyncExternalStore(watchTheme, () => document.documentElement.dataset.theme);
 
 /** The 设定 tab bar's cells, an orange dot on each page with a row off its default. */
 function tabItems(ids: readonly CharTab[], n: Native | undefined): GameTab[] {
@@ -59,6 +68,7 @@ export function SetPanel(p: SetPanelProps) {
 /** 设定：本页改了几项和整页恢复，再是各节的设置行；每行即时保存，改过的行点 ↺ 恢复默认。 */
 export function CharacterSettings(p: CharacterSettingsProps) {
   const { q, merge } = useCharSettings();
+  const theme = useAppTheme();
   // Restart rows saved, each true once she has left `running` since its save: the next `running` drops it.
   const [pending, setPending] = useState<Record<string, boolean>>({});
   const up = useRef(true);
@@ -147,7 +157,7 @@ export function CharacterSettings(p: CharacterSettingsProps) {
             onClick={reset}
           />
         </div>
-        <div className={styles.rows}>
+        <div className={styles.rows} data-theme={theme}>
           <SettingRows
             n={n}
             tab={tab}

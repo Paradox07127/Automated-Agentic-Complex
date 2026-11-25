@@ -68,12 +68,14 @@
   flex: 1;
 }
 
-/* Sections scroll under a fade at the bottom, a thin white scrollbar. */
+/* Sections scroll under a fade at the bottom, a thin white scrollbar; on the window theme's canvas, as the light room would wash out the dark rows. */
 .rows {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding-right: 8px;
+  padding: var(--ef-sp-8) 8px 0 var(--ef-sp-8);
+  background: color-mix(in srgb, var(--ef-canvas) 92%, transparent);
+  color: var(--ef-text-1);
   /* The last row scrolls up past the fade below. */
   padding-bottom: 36px;
   scrollbar-width: thin;

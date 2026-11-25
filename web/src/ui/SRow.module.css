@@ -1,20 +1,102 @@
-/* Settings row: read-only, so no pointer feedback; one hairline between rows; control column 240. */
+/* SettingItemCell/Content: an r3 plate, a 1 px rim; stripes at the left end and a contour fading out to the right; label 34 px in, controls in a fixed right column (--cw). */
 .row {
   position: relative;
+  isolation: isolate;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 240px;
+  grid-template-columns: minmax(0, 1fr) var(--cw, 330px);
   align-items: center;
-  gap: var(--ef-sp-4) var(--ef-sp-16);
-  min-height: 56px;
-  padding: var(--ef-sp-12) var(--ef-sp-16);
-  border-bottom: var(--ef-lw-hair) solid var(--ef-line);
+  column-gap: 20px;
+  min-height: 48px;
+  margin-bottom: 6px;
+  padding: 7px 22px 7px 34px;
+  border-radius: 3px;
+  background: var(--ef-plate-top);
+  box-shadow: inset 0 0 0 1px var(--ef-slab-rim), inset 0 1px 0 var(--ef-plate-top);
+  animation: cellIn 300ms var(--ef-ease-g-enter) both;
+  transition: background 83ms;
 }
 
-.text {
+.row:hover {
+  background: linear-gradient(var(--ef-overlay-hover) 0 0), var(--ef-plate-top);
+}
+
+/* settings-row-texture: 127 px of diagonal stripes at the left end. */
+.row::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 2px auto 2px 2px;
+  width: 96px;
+  border-radius: 2px 0 0 2px;
+  background: repeating-linear-gradient(-45deg, var(--ef-contour) 0 1.2px, transparent 1.2px 4px);
+  -webkit-mask: linear-gradient(90deg, #000 10%, transparent);
+  mask: linear-gradient(90deg, #000 10%, transparent);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* settings-row-contour: the contour lines in the text colour, moved to the left since the controls take the right. */
+.row::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 2px;
+  bottom: 2px;
+  left: 20px;
+  width: 360px;
+  max-width: 60%;
+  background: var(--ef-text-1);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='60' fill='none' stroke='%23000' stroke-opacity='.22' stroke-width='.8'%3E%3Cpath d='M0 46c30-4 44-24 78-22s40 22 74 18 44-30 80-28 46 16 80 10 30-12 48-12'/%3E%3Cpath d='M0 52c34-4 48-20 80-18s42 20 74 16 46-28 82-26 44 14 78 8 32-10 46-10'/%3E%3Cpath d='M0 58c36-2 52-16 84-14s44 18 74 14 48-24 84-22 42 12 74 6 34-8 44-8'/%3E%3Cpath d='M24 0c6 10 22 14 34 8s24-6 30 4'/%3E%3Cpath d='M30 0c6 6 18 8 26 4s20-2 24 6'/%3E%3Cpath d='M190 60c4-10 20-14 32-10s22 2 30-6'/%3E%3C/svg%3E") left center / 360px 100% no-repeat, linear-gradient(90deg, #000 30%, transparent);
+  -webkit-mask-composite: source-in;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='60' fill='none' stroke='%23000' stroke-opacity='.22' stroke-width='.8'%3E%3Cpath d='M0 46c30-4 44-24 78-22s40 22 74 18 44-30 80-28 46 16 80 10 30-12 48-12'/%3E%3Cpath d='M0 52c34-4 48-20 80-18s42 20 74 16 46-28 82-26 44 14 78 8 32-10 46-10'/%3E%3Cpath d='M0 58c36-2 52-16 84-14s44 18 74 14 48-24 84-22 42 12 74 6 34-8 44-8'/%3E%3Cpath d='M24 0c6 10 22 14 34 8s24-6 30 4'/%3E%3Cpath d='M30 0c6 6 18 8 26 4s20-2 24 6'/%3E%3Cpath d='M190 60c4-10 20-14 32-10s22 2 30-6'/%3E%3C/svg%3E") left center / 360px 100% no-repeat, linear-gradient(90deg, #000 30%, transparent);
+  mask-composite: intersect;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+:global([data-theme='light']) .row::after {
+  opacity: 0.4;
+}
+
+.row[data-sub] {
+  margin-left: 24px;
+}
+
+.row[data-sub]::before {
+  width: 60px;
+}
+
+.row[data-tall] {
+  align-items: start;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.lab {
+  display: grid;
+  gap: 1px;
   min-width: 0;
 }
 
-/* Changed from the default (ModLine, also on the settings page rows): a 2 px short-of-power line down the left edge. */
+.tt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font: 500 15px/22px var(--ef-font-sans);
+}
+
+.tt > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row[aria-disabled='true'] .tt > span:first-child {
+  color: var(--ef-text-2);
+}
+
+/* Changed from the default (ModLine): a 2 px short-of-power line down the left edge. */
 .mod {
   position: absolute;
   top: var(--ef-sp-8);
@@ -33,48 +115,114 @@
   white-space: nowrap;
 }
 
-.title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ef-sp-8);
-  color: var(--ef-text-1);
-  font: var(--ef-t-row);
-  font-weight: var(--ef-fw-semibold);
-}
-
-.desc {
+.d {
   overflow: hidden;
   color: var(--ef-text-2);
-  font: var(--ef-t-meta);
+  font-size: 12px;
+  line-height: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.reason {
-  color: var(--ef-text-1);
+.d[data-tone='attention'] {
+  color: var(--ef-attention-text);
 }
 
-.control {
+.d[data-tone='bad'] {
+  color: var(--ef-danger-text);
+}
+
+.d[data-tone='ok'] {
+  color: var(--ef-state-ok);
+}
+
+.ctl {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: var(--ef-sp-8);
+  gap: 8px;
   min-width: 0;
-  color: var(--ef-text-2);
+}
+
+.ctl[data-wrap] {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+/* Squeezed by the control, the receipt kept only its check, which read as a stray arrow. */
+.ctl > [data-stub='Receipt'] {
+  flex: none;
+}
+
+.ctl > [data-stub='Select'] {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: var(--cw, 330px);
 }
 
 .extra {
   grid-column: 1 / -1;
+  min-width: 0;
+  margin-top: 6px;
+}
+
+.row:has([data-stub='Select'][data-open]) {
+  z-index: 5;
+}
+
+/* ⓘ: a 16 px ring with a written i (the shared icon is a ring of its own), the description that does not fit the one line. */
+.tt [data-stub='InfoTip'] > button {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  box-shadow: inset 0 0 0 1.25px var(--ef-text-2);
   color: var(--ef-text-2);
-  font: var(--ef-t-meta);
+  font: 600 11px/1 var(--ef-font-num);
 }
 
-.row[aria-disabled='true'] .title {
-  color: var(--ef-text-disabled);
+.tt [data-stub='InfoTip'] > button:hover {
+  box-shadow: inset 0 0 0 1.25px var(--ef-text-1);
+  color: var(--ef-text-1);
 }
 
-.row[aria-disabled='true'] .control {
-  opacity: 0.45;
+.tt [data-stub='InfoTip'] > button::after {
+  content: 'i';
+}
+
+.tt [data-stub='InfoTip'] svg {
+  display: none;
+}
+
+@keyframes cellIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* The settings page's narrow layout. */
+@container setp (max-width: 1040px) {
+  .row {
+    column-gap: 12px;
+    min-height: 44px;
+    padding: 6px 14px 6px 22px;
+  }
+
+  .row[data-sub] {
+    margin-left: 14px;
+  }
+
+  .d:not([data-tone]) {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row {
+    animation-duration: 0.01s;
+  }
 }

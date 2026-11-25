@@ -1,19 +1,19 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { getBridge, type CharacterAppearance, type CharacterLayer, type ImportState } from '../../bridge';
 import { AgentdCallError } from '../../bridge/agentd';
-import { Btn, Dialog, Fold, Icon, Select, Switch } from '../../ui';
+import { Btn, Dialog, Fold, Icon, Select, SRow, Switch } from '../../ui';
 import { DarkRow, MicroLabel, TitleBar, WhiteCapsule, YellowKey } from '../../ui/game';
 import { useCompact } from './compact';
 import type { Toast } from './feedback';
 import { outfitImportWarning } from './labels';
 import { readModSettings, type ModSettingRow } from './modSettingsTable';
 import { ModSettings } from './ModSettings';
-import { OptionRow } from './OptionRow';
 import { importStageLabel } from './useImportState';
 import type { useLook } from './useLook';
 import type { OutfitImport } from './useOutfitImport';
 import imp from './LookImport.module.css';
 import styles from './LookPane.module.css';
+import rowStyles from './SettingRows.module.css';
 
 export type LookTab = 'look' | 'show' | 'mod' | 'import';
 
@@ -285,7 +285,7 @@ export function LookPane(p: LookPaneProps) {
           <div className={styles.list} role="group" aria-label="服装分层">
             {p.layers.map((l) => (
               <div key={l.id} data-layer={l.id}>
-                <OptionRow id={`layer-${l.id}`} title={l.name} control={<Switch variant="setting" label={l.name} checked={l.visible} onChange={(on) => p.onLayer(l.id, on, l.name)} />} />
+                <SRow id={`layer-${l.id}`} title={l.name} className={rowStyles.row} control={<Switch variant="setting" label={l.name} checked={l.visible} onChange={(on) => p.onLayer(l.id, on, l.name)} />} />
               </div>
             ))}
           </div>

@@ -1,5 +1,4 @@
-/* SettingItemCell/Content: an r3 plate, a 1 px rim; stripes at the left end and a contour fading out to the right; label 34 px in, controls in a fixed right column. */
-.row,
+/* The settings page's full-width blocks on the shared row plate (ui/SRow), the marks after a row title and the search flash. */
 .slab {
   position: relative;
   isolation: isolate;
@@ -11,21 +10,7 @@
   transition: background 83ms;
 }
 
-.row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--cw);
-  align-items: center;
-  column-gap: 20px;
-  min-height: 48px;
-  padding: 7px 22px 7px 34px;
-}
-
-.row:hover {
-  background: linear-gradient(var(--ef-overlay-hover) 0 0), var(--ef-plate-top);
-}
-
 /* settings-row-texture: 127 px of diagonal stripes at the left end. */
-.row::before,
 .slab::before {
   content: '';
   position: absolute;
@@ -41,7 +26,6 @@
 }
 
 /* settings-row-contour: the contour lines in the text colour, moved to the left since the controls take the right. */
-.row::after,
 .slab::after {
   content: '';
   position: absolute;
@@ -60,105 +44,11 @@
   pointer-events: none;
 }
 
-:global([data-theme='light']) :is(.row, .slab)::after {
+:global([data-theme='light']) .slab::after {
   opacity: 0.4;
 }
 
-.row[data-sub] {
-  margin-left: 24px;
-}
-
-.row[data-sub]::before {
-  width: 60px;
-}
-
-.row[data-tall] {
-  align-items: start;
-  padding-top: 12px;
-  padding-bottom: 12px;
-}
-
-.lab {
-  display: grid;
-  gap: 1px;
-  min-width: 0;
-}
-
-.tt {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  font: 500 15px/22px var(--ef-font-sans);
-}
-
-.tt > span:first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.row[aria-disabled='true'] .tt > span:first-child {
-  color: var(--ef-text-2);
-}
-
-.d {
-  overflow: hidden;
-  color: var(--ef-text-2);
-  font-size: 12px;
-  line-height: 18px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.d[data-tone='attention'] {
-  color: var(--ef-attention-text);
-}
-
-.d[data-tone='bad'] {
-  color: var(--ef-danger-text);
-}
-
-.d[data-tone='ok'] {
-  color: var(--ef-state-ok);
-}
-
-.ctl {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  min-width: 0;
-}
-
-.ctl[data-wrap] {
-  flex-wrap: wrap;
-  row-gap: 4px;
-}
-
-/* Squeezed by the control, the receipt kept only its check, which read as a stray arrow. */
-.ctl > [data-stub='Receipt'] {
-  flex: none;
-}
-
-.ctl > [data-stub='Select'] {
-  flex: 1 1 auto;
-  min-width: 0;
-  max-width: var(--cw);
-}
-
-.extra {
-  grid-column: 1 / -1;
-  min-width: 0;
-  margin-top: 6px;
-}
-
-.row:has([data-stub='Select'][data-open]) {
-  z-index: 5;
-}
-
-/* ⓘ: a 16 px ring with a written i (the shared icon is a ring of its own), the description that does not fit the one line. */
-.tt [data-stub='InfoTip'] > button,
+/* ⓘ on the band: SRow's 16 px ring with a written i. */
 .band [data-stub='InfoTip'] > button {
   display: inline-grid;
   place-items: center;
@@ -172,18 +62,15 @@
   font: 600 11px/1 var(--ef-font-num);
 }
 
-.tt [data-stub='InfoTip'] > button:hover,
 .band [data-stub='InfoTip'] > button:hover {
   box-shadow: inset 0 0 0 1.25px var(--ef-text-1);
   color: var(--ef-text-1);
 }
 
-.tt [data-stub='InfoTip'] > button::after,
 .band [data-stub='InfoTip'] > button::after {
   content: 'i';
 }
 
-.tt [data-stub='InfoTip'] svg,
 .band [data-stub='InfoTip'] svg {
   display: none;
 }
@@ -340,19 +227,8 @@
 }
 
 @container setp (max-width: 1040px) {
-  .row {
-    column-gap: 12px;
-    min-height: 44px;
-    padding: 6px 14px 6px 22px;
-  }
-
-  .row[data-sub],
   .slab[data-sub] {
     margin-left: 14px;
-  }
-
-  .d:not([data-tone]) {
-    display: none;
   }
 
   .slab[data-variant='plate'] {
@@ -361,7 +237,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .row,
   .slab,
   .band,
   .hl {

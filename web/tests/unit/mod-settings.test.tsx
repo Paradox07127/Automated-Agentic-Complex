@@ -45,7 +45,8 @@ function Op({ toast = noop }: { toast?: (m: string) => void }) {
 }
 
 const mods = () => screen.getByRole('group', { name: 'mod 设置' });
-const control = (name: string) => within(mods()).getByRole('group', { name });
+/** A setting's stepper: the row (the shared SRow) is a group of the same name around it. */
+const control = (name: string, scope = mods()) => within(scope).getAllByRole('group', { name }).find((g) => g.getAttribute('data-stub') !== 'SRow')!;
 /** The value a stepper shows, or its menu's caption. */
 const shown = (name: string) => (control(name).querySelector('[data-value]') ?? control(name).querySelector('[aria-haspopup]'))?.textContent;
 /** A 显示 / 隐藏 setting's 开 / 关 switch. */
@@ -226,7 +227,7 @@ describe('角色页 · 模组设置分组', () => {
     ] as unknown as ModSettingRow[]);
     await wear('imported_summer');
     expect(groups()).toEqual(['道具', '其他']);
-    expect(within(within(mods()).getByRole('group', { name: '其他' })).getByRole('group', { name: '披风' })).toBeTruthy();
+    expect(control('披风', within(mods()).getByRole('group', { name: '其他' }))).toBeTruthy();
   });
 
   it('draws a 显示 / 隐藏 setting as one switch, on exactly when the value is its 显示 value, whatever the value order', async () => {

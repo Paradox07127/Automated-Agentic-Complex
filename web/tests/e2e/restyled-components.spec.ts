@@ -166,11 +166,11 @@ test('SearchField is a square panel field with a 1 px rule border and a 2 px tra
   expect(errors).toEqual([]);
 });
 
-test('SRow: description is one line, no contour', async ({ page }) => {
+test('SRow: description is one line, the settings page plate with its left stripes', async ({ page }) => {
   const errors = collectErrors(page);
   await openDemo(page, 'SRow', 'toggle');
   const row = page.locator('[data-stub="SRow"]');
-  expect(await css(row, 'content', '::before')).toBe('none');
+  expect(await css(row, 'content', '::before')).not.toBe('none');
   const desc = row.locator('[id$="-desc"]');
   const lh = parseFloat(await css(desc, 'line-height'));
   expect((await desc.boundingBox())?.height).toBeLessThanOrEqual(lh);

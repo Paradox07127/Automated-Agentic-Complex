@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { DevMark, InfoTip, ModLine, Receipt } from '../../ui';
+import { DevMark, Receipt, SRow } from '../../ui';
 import { PowerState } from '../../ui/game';
 import { useSettings } from './ctx';
 import { REGISTRY, useHelperLacks, useRowShown } from './registry';
@@ -28,7 +28,7 @@ export interface SetRowProps {
 const DEV: ReadonlySet<string> = new Set(REGISTRY.filter((r) => r.dev).map((r) => r.id));
 
 /**
- * One settings row: title, ⓘ and marks (deletes data, waits for a restart, not applied, developer), one description line, the
+ * One settings row (the shared SRow): title, ⓘ and marks (deletes data, waits for a restart, not applied, developer), one description line, the
  * control column; a config.json row off its default gets the shared modified line. Absent while its plug-in is off, or outside 开发者模式 for a developer row. A read-only group's cause stays in
  * the bar above it. A row whose helper ops are missing stays, under a 未接入 strip that leads to 系统权限.
  */
@@ -54,30 +54,17 @@ export function SetRow(p: SetRowProps) {
 function Row({ id, title, desc, descTone, info, control, indent, tall, wrap, disabled, disabledReason, children }: SetRowProps) {
   const { model, ro, hl, native } = useSettings();
   const off = disabled || ro;
-  const descId = `set-${id}-desc`;
-  const modId = `set-${id}-mod`;
   const def = native?.rows[id]?.default;
   const modified = def !== undefined && JSON.stringify(model.value(id)) !== JSON.stringify(def);
-  const described = [desc != null ? descId : '', modified ? modId : ''].filter(Boolean).join(' ');
   return (
-    <div
-      id={`set-${id}`}
-      role="group"
-      aria-labelledby={`set-${id}-title`}
-      aria-describedby={described || undefined}
-      aria-disabled={off || undefined}
-      title={off && !ro ? disabledReason : undefined}
-      className={[styles.row, hl === id && styles.hl].filter(Boolean).join(' ')}
-      data-row={id}
-      data-nav-target={`set-${id}`}
-      data-sub={indent || undefined}
-      data-tall={tall || undefined}
-      data-modified={modified || undefined}
-    >
-      <div className={styles.lab}>
-        <div className={styles.tt}>
-          <span id={`set-${id}-title`}>{title}</span>
-          {info && <InfoTip>{info}</InfoTip>}
+    <SRow
+      id={id}
+      title={title}
+      desc={desc}
+      descTone={descTone}
+      tip={info}
+      marks={
+        <>
           {native?.rows[id]?.destructive && (
             <span className={styles.mark} data-k="del">
               关掉会删数据
@@ -94,19 +81,25 @@ function Row({ id, title, desc, descTone, info, control, indent, tall, wrap, dis
             </span>
           )}
           {DEV.has(id) && <DevMark />}
-          {modified && <ModLine id={modId} />}
-        </div>
-        {desc != null && (
-          <div id={descId} className={styles.d} data-tone={descTone}>
-            {desc}
-          </div>
-        )}
-      </div>
-      <div className={styles.ctl} data-wrap={wrap || undefined} inert={off || undefined}>
-        {model.ok === id && <Receipt>已保存</Receipt>}
-        {control}
-      </div>
-      {children != null && <div className={styles.extra}>{children}</div>}
-    </div>
+        </>
+      }
+      control={
+        <>
+          {model.ok === id && <Receipt>已保存</Receipt>}
+          {control}
+        </>
+      }
+      indent={indent}
+      tall={tall}
+      wrap={wrap}
+      disabled={off}
+      disabledReason={ro ? undefined : disabledReason}
+      modified={modified}
+      className={hl === id ? styles.hl : undefined}
+      data-row={id}
+      data-nav-target={`set-${id}`}
+    >
+      {children}
+    </SRow>
   );
 }

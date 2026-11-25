@@ -212,12 +212,12 @@ describe('disabled while open', () => {
 });
 
 describe('SRow', () => {
-  it('names the row, shows the effect tag and the disabled reason', () => {
+  it('names the row, shows the effect tag, and the disabled reason on hover as on the settings page', () => {
     render(<SRow id="wintext" title="窗口文字" desc="关闭会删除已收集内容" effect="backend" pending disabled disabledReason="屏幕录制未允许" control={<Switch checked label="窗口文字" />} />);
     const row = screen.getByRole('group', { name: '窗口文字' });
     expect(row.id).toBe('set-wintext');
     expect(row.textContent).toContain('重启后生效');
-    expect(row.textContent).toContain('不可用：屏幕录制未允许');
+    expect(row.title).toBe('屏幕录制未允许');
     expect(row.getAttribute('aria-disabled')).toBe('true');
   });
 });

@@ -1,4 +1,4 @@
-/* 角色页「模组设置」: a title bar per category and its setting rows (OptionRow), the rollback bar. */
+/* 角色页「模组设置」: a title bar per category and its setting rows (SRow), the rollback bar. */
 .mods {
   display: flex;
   flex-direction: column;
@@ -16,7 +16,7 @@
 }
 
 
-/* The row holds focus for the keys; OptionRow draws the focus frame. */
+/* The row holds focus for the keys; SettingRows.module.css `.row` draws the focus frame. */
 .slot {
   position: relative;
   outline: none;

@@ -1,13 +1,11 @@
-// One 「设定」 page: its sections from sections.ts, then 「其他」 for unplaced @character rows; each row a settings page row.
+// One 「设定」 page: its sections from sections.ts, then 「其他」 for unplaced @character rows; each section under the shared SecHead, each row the shared SRow.
 import { useRef, type KeyboardEvent } from 'react';
 import type { SettingValue } from '../../bridge';
 import { isDevMode, useDevMode } from '../../shell/devMode';
-import { DevMark, EffectTag } from '../../ui';
-import { MicroLabel } from '../../ui/game';
+import { DevMark, EffectTag, IconBtn, SecHead, SRow } from '../../ui';
 import type { Native } from '../settings/native';
 import { CHAR_SECTIONS, CHAR_TABS, LIGHT_PAD, OTHER_TITLE, placedTab, ROW_DESC, SEG_LABELS, SHOWN_WHEN, tabOf, DEV_ONLY_ROWS, type CharTab } from './sections';
 import { useCompact } from './compact';
-import { OptionRow } from './OptionRow';
 import { gameControl, valueText } from './settings';
 import styles from './SettingRows.module.css';
 
@@ -44,23 +42,15 @@ export function presentTabs(n: Native): CharTab[] {
   return CHAR_TABS.map((t) => t.id).filter((tab) => tabRows(n, tab).length > 0);
 }
 
-/** Section head on the training room (app-memory's yellow square and \\──□ rule); 「仅桌面」 where the preview does not follow. */
-export function SecHead({ title, en, desktopOnly = false }: { title: string; en: string; desktopOnly?: boolean | undefined }) {
+/** 「仅桌面」 at the head's right end: the preview does not follow these rows. */
+function DesktopOnly() {
   return (
-    <div className={styles.head}>
-      <i className={styles.sq} aria-hidden="true" />
-      <h3 className={styles.h}>{title}</h3>
-      <MicroLabel>{en}</MicroLabel>
-      <i className={styles.rule} aria-hidden="true" />
-      {desktopOnly && (
-        <span className={styles.desk} title="只作用在桌面上的角色，预览不跟随">
-          <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" focusable="false">
-            <path fill="currentColor" d="M2 3h20v13H2zm2.5 2.5v8h15v-8zM8 19h8v2.5H8z" />
-          </svg>
-          仅桌面
-        </span>
-      )}
-    </div>
+    <span className={styles.desk} title="只作用在桌面上的角色，预览不跟随">
+      <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" focusable="false">
+        <path fill="currentColor" d="M2 3h20v13H2zm2.5 2.5v8h15v-8zM8 19h8v2.5H8z" />
+      </svg>
+      仅桌面
+    </span>
   );
 }
 
@@ -146,10 +136,12 @@ export function SettingRows({ n, tab, set, setMany, pending, failed, offline }: 
     const r = n.rows[id]!;
     const changed = isChanged(n, id);
     return (
-      <div key={id} id={`set-${id}`} className={styles.row} data-changed={changed || undefined} role="group" aria-label={r.label} title={changed ? ROW_DESC[id] : undefined}>
-        <OptionRow
+      <div key={id} title={changed ? ROW_DESC[id] : undefined}>
+        <SRow
           id={id}
           title={r.label}
+          className={styles.row}
+          data-changed={changed || undefined}
           marks={
             (DEV_ONLY_ROWS.has(id) || r.restart === 'avatar') && (
               <span className={styles.marks}>
@@ -159,10 +151,14 @@ export function SettingRows({ n, tab, set, setMany, pending, failed, offline }: 
             )
           }
           desc={failed[id] ?? (changed ? `默认：${valueText(r, r.default)}` : ROW_DESC[id])}
-          {...(failed[id] ? { descTone: 'bad' as const } : {})}
+          descTone={failed[id] ? 'bad' : undefined}
           modified={changed}
-          reset={{ label: `恢复「${r.label}」的默认`, disabled: offline, onPress: () => set(id, r.default) }}
-          control={gameControl(r, n.saved[id], offline, (v, quiet) => set(id, v, quiet), SEG_LABELS[id], compact)}
+          control={
+            <>
+              {changed && <IconBtn icon="refresh" size="sm" label={`恢复「${r.label}」的默认`} disabled={offline} onClick={() => set(id, r.default)} />}
+              {gameControl(r, n.saved[id], offline, (v, quiet) => set(id, v, quiet), SEG_LABELS[id], compact)}
+            </>
+          }
         />
       </div>
     );
@@ -173,16 +169,24 @@ export function SettingRows({ n, tab, set, setMany, pending, failed, offline }: 
     const pitch = n.rows[LIGHT_PAD.pitch]!;
     const changed = isChanged(n, LIGHT_PAD.yaw) || isChanged(n, LIGHT_PAD.pitch);
     return (
-      <div key="pad" id={`set-${LIGHT_PAD.yaw}`} className={styles.row} data-changed={changed || undefined} data-pad="" role="group" aria-label="主光方向">
-        <OptionRow
-          id={LIGHT_PAD.yaw}
-          title="主光方向"
-          desc={changed ? `默认：${valueText(yaw, yaw.default)}（正中）` : '点格子换方向，正中是原作'}
-          modified={changed}
-          reset={{ label: '恢复「主光方向」的默认', disabled: offline, onPress: () => setMany({ [LIGHT_PAD.yaw]: yaw.default, [LIGHT_PAD.pitch]: pitch.default }) }}
-          control={<LightPad n={n} disabled={offline} setMany={setMany} />}
-        />
-      </div>
+      <SRow
+        key="pad"
+        id={LIGHT_PAD.yaw}
+        title="主光方向"
+        className={styles.row}
+        data-changed={changed || undefined}
+        data-pad=""
+        desc={changed ? `默认：${valueText(yaw, yaw.default)}（正中）` : '点格子换方向，正中是原作'}
+        modified={changed}
+        control={
+          <>
+            {changed && (
+              <IconBtn icon="refresh" size="sm" label="恢复「主光方向」的默认" disabled={offline} onClick={() => setMany({ [LIGHT_PAD.yaw]: yaw.default, [LIGHT_PAD.pitch]: pitch.default })} />
+            )}
+            <LightPad n={n} disabled={offline} setMany={setMany} />
+          </>
+        }
+      />
     );
   };
 
@@ -191,7 +195,7 @@ export function SettingRows({ n, tab, set, setMany, pending, failed, offline }: 
     const both = ids.includes(LIGHT_PAD.yaw) && ids.includes(LIGHT_PAD.pitch);
     return (
       <section key={key} className={styles.sec} aria-label={title}>
-        <SecHead title={title} en={en} desktopOnly={desktopOnly} />
+        <SecHead title={title} micro={en} right={desktopOnly && <DesktopOnly />} />
         {ids.map((id) => (both && id === LIGHT_PAD.yaw ? pad() : both && id === LIGHT_PAD.pitch ? null : row(id)))}
       </section>
     );

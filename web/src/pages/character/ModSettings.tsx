@@ -1,14 +1,14 @@
 // 角色页「模组设置」: the current appearance's switches from agentd's table (C6), each change sent through avatar.modSettings.set.
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { getBridge, type ModSettingAdjusted, type ModSettingValues } from '../../bridge';
-import { ErrBar, Icon, Switch } from '../../ui';
+import { ErrBar, Icon, SRow, Switch } from '../../ui';
 import { Diamond, Stepper, TitleBar, WhiteCapsule } from '../../ui/game';
 import { useCompact } from './compact';
 import type { Toast } from './feedback';
 import type { ModSettingRow } from './modSettingsTable';
-import { OptionRow } from './OptionRow';
 import { previewLookChanged } from './usePreview';
 import head from './ModCard.module.css';
+import rowStyles from './SettingRows.module.css';
 import styles from './ModSettings.module.css';
 
 export interface ModSettingsProps {
@@ -74,7 +74,7 @@ export function ModSettings({ character, appearance, settings, ro, toast }: ModS
   const [prev, setPrev] = useState<{ appearance: string; values: Record<string, number> }>();
   const [cur, setCur] = useState<string>();
   const [at, setAt] = useState<string>();
-  // The row itself holds focus (the keys act on it): OptionRow's focus frame.
+  // The row itself holds focus (the keys act on it): the row's focus frame.
   const [focused, setFocused] = useState<string | null>(null);
   const compact = useCompact();
   const root = useRef<HTMLDivElement>(null);
@@ -294,25 +294,26 @@ export function ModSettings({ character, appearance, settings, ro, toast }: ModS
                     }}
                     onBlur={(e) => e.target === e.currentTarget && setFocused(null)}
                   >
-                    <OptionRow
+                    <SRow
                       id={`mod-${s.id}`}
                       title={s.name}
+                      className={rowStyles.row}
                       desc={busy ? '应用中' : (note ?? (moved(s) ? `默认：${nameOf(s, s.default)}` : undefined))}
                       modified={moved(s)}
-                      focused={focused === s.id}
-                      state={busy ? 'busy' : fail ? 'fail' : undefined}
-                      aside={
-                        was !== undefined &&
-                        was !== value(s) &&
-                        !busy && (
-                          <button type="button" className={styles.flip} disabled={off} onClick={() => flip(s)}>
-                            <Icon name="sync" size={12} />
-                            对比「{nameOf(s, was)}」
-                            <kbd aria-hidden="true">X</kbd>
-                          </button>
-                        )
+                      data-focused={focused === s.id || undefined}
+                      data-state={busy ? 'busy' : fail ? 'fail' : undefined}
+                      control={
+                        <>
+                          {was !== undefined && was !== value(s) && !busy && (
+                            <button type="button" className={styles.flip} disabled={off} onClick={() => flip(s)}>
+                              <Icon name="sync" size={12} />
+                              对比「{nameOf(s, was)}」
+                              <kbd aria-hidden="true">X</kbd>
+                            </button>
+                          )}
+                          {control(s)}
+                        </>
                       }
-                      control={control(s)}
                     />
                   </div>
                   {failBar(s.id)}
