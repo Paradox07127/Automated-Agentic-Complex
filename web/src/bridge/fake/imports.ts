@@ -158,6 +158,28 @@ export function fakeImports(character: () => string) {
         return { ok: true as const, action: add({ ...old, hasBgm: media.bgm === 'pick' }, at), replaced: id };
       });
     },
+    // A cut every 8 s, a mouth open on every other second, music swelling to the middle.
+    detail: async (id) => {
+      const e = mmd.find((m) => m.id === id);
+      if (e === undefined) return { ok: false, reason: 'unknown_action', detail: id };
+      if (!e.characters.some((c) => c.state === 'baked')) return { ok: false, reason: 'not_baked', detail: id };
+      const bins = 600;
+      const at = (i: number) => ((i + 0.5) / bins) * e.durationS;
+      return {
+        ok: true,
+        detail: {
+          id, source: `${e.title}.vmd`,
+          face: e.hasFace ? { mapped: ['あ', 'い', 'まばたき'], unmapped: ['てへぺろ'], blinkFromDance: true } : null,
+          camera: e.hasCamera ? { cuts: Array.from({ length: Math.floor(e.durationS / 8) }, (_, k) => (k + 1) * 8), fovDeg: [12, 40] } : null,
+          bgm: e.hasBgm ? { name: 'song.wav', offsetS: 0 } : null,
+          lanes: {
+            bins,
+            mouth: e.hasFace ? Array.from({ length: bins }, (_, i) => (Math.floor(at(i)) % 2 === 0 ? 0.8 : 0)) : null,
+            loudness: e.hasBgm ? Array.from({ length: bins }, (_, i) => 1 - Math.abs(i / bins - 0.5)) : null,
+          },
+        },
+      };
+    },
     syncState: async () => ({ ...sync }),
     onSync: (cb) => {
       watchers.add(cb);

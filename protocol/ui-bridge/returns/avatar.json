@@ -448,6 +448,89 @@
     }
   },
   {
+    "op": "mmd.detail",
+    "surface": "main",
+    "before": [
+      {
+        "op": "mmd.scan",
+        "args": [
+          {
+            "folder": false
+          }
+        ]
+      },
+      {
+        "op": "mmd.importScan",
+        "args": [
+          {
+            "token": "scan_1",
+            "items": [
+              {
+                "body": 0,
+                "title": "示例舞蹈"
+              }
+            ],
+            "face": null,
+            "camera": 0,
+            "audio": 0,
+            "bgmStartS": -0.633,
+            "project": "示例舞蹈"
+          }
+        ]
+      }
+    ],
+    "args": [
+      "mmd_dance_1"
+    ],
+    "nullable": [
+      "source",
+      "face",
+      "camera",
+      "bgm",
+      "bgm.offsetS",
+      "lanes.mouth",
+      "lanes.loudness"
+    ],
+    "value": {
+      "ok": true,
+      "detail": {
+        "id": "mmd_dance_1",
+        "source": "示例舞蹈.vmd",
+        "face": {
+          "mapped": [
+            "あ"
+          ],
+          "unmapped": [
+            "てへぺろ"
+          ],
+          "blinkFromDance": true
+        },
+        "camera": {
+          "cuts": [
+            8.5
+          ],
+          "fovDeg": [
+            12,
+            40
+          ]
+        },
+        "bgm": {
+          "name": "示例舞蹈.wav",
+          "offsetS": -0.633
+        },
+        "lanes": {
+          "bins": 600,
+          "mouth": [
+            0.8
+          ],
+          "loudness": [
+            0.5
+          ]
+        }
+      }
+    }
+  },
+  {
     "op": "mmd.scan",
     "surface": "main",
     "args": [

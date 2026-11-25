@@ -55,6 +55,24 @@ export type MmdImportScanResult = { ok: true; actions: ImportedMotion[] } | { ok
 /** The pending scan with the picked music in its `audio`, `audio` the index of it there. `scan_gone`: the scan was dropped. */
 export type MmdPickAudioResult = { ok: true; scan: MmdScan; audio: number } | { ok: false; reason: string; detail?: string };
 
+/** What one dance holds, for the MMD page's timeline and detail. */
+export interface MmdDetail {
+  id: string;
+  /** The body VMD's file name as imported; null when the library entry has none. */
+  source: string | null;
+  /** From the import report of the character it was read from: the morph names that drove her face and those that did not. */
+  face: { mapped: string[]; unmapped: string[]; blinkFromDance: boolean } | null;
+  /** Cut times in seconds of the clip, and the narrowest and widest vertical field of view in degrees. */
+  camera: { cuts: number[]; fovDeg: [number, number] } | null;
+  bgm: { name: string; offsetS: number | null } | null;
+  /** `bins` equal slices of the dance; each value 0–1. mouth: the largest mouth control weight in the slice; loudness: the music's
+   *  RMS in the slice over the loudest slice. null without a face clip / without music. */
+  lanes: { bins: number; mouth: number[] | null; loudness: number[] | null };
+}
+
+/** `not_baked`: no character has the dance yet; `unknown_action`: no such dance. */
+export type MmdDetailResult = { ok: true; detail: MmdDetail } | { ok: false; reason: string; detail?: string };
+
 /** The entry re-imported with the new music under a new id, `replaced` its old one. */
 export type MmdMediaResult = { ok: true; action: ImportedMotion; replaced: string } | { ok: false; reason: string; detail?: string };
 
@@ -94,6 +112,8 @@ export interface ImportStateOps {
 /** `character.renameMotion`/`removeMotion` on an `mmd_` id change the library for every character. Main surface only. */
 export interface MmdOps {
   list(): Promise<MmdListResult>;
+  /** The dance `id` read from the current character's package when she has it baked, else from any character's that has. */
+  detail(id: string): Promise<MmdDetailResult>;
   /** Asks for an MMD project and sorts it. With `capabilities.filesOrFolderPicker` one panel takes files and folders and `folder` is
    *  not read; otherwise it opens the folder panel when true, the files panel when false. `reason`: `cancelled` or motion_tool's code. */
   scan(o: { folder: boolean }): Promise<MmdScanResult>;
