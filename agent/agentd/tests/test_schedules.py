@@ -163,6 +163,80 @@ class ScheduleTests(unittest.TestCase):
         self.assertIn('error', result)
         self.assertEqual(turn.call('schedules_list', {})['schedules'], [item])
 
+    def update_turn(self, decision='allow'):
+        """An orchestration turn whose approval card the user answers with decision (allow, deny or expire)."""
+        errors = {'deny': 'approval_denied', 'expire': 'approval_expired'}
+        self.controller.server = self.server
+        self.controller.knowledge = lambda: SimpleNamespace(sanitize=lambda value, **kw: value)
+        self.controller.semantic = SimpleNamespace(reply=lambda: 'zh-Hans')
+        self.controller.interactions = SimpleNamespace(approve=Mock(
+            side_effect=ValueError(errors[decision]) if decision in errors else None,
+            return_value={'request_id': 'card-1', 'input_sha256': 'x'}))
+        turn = OrchestrationTurn(self.controller, '启用日报', {}, self.server.character, None, 'run-1')
+        turn.open(lambda: True)
+        return turn
+
+    def card(self):
+        args, kwargs = self.controller.interactions.approve.call_args
+        self.assertEqual(args[0], 'run-1')
+        self.assertTrue(kwargs['single_only'])
+        self.assertEqual((args[1]['source'], args[1]['kind']), ('agentd', 'other'))
+        return args[1]
+
+    def test_update_enables_only_after_the_card_is_allowed(self):
+        item = self.store().add('日报', '总结', DAILY, created_from='agent_proposal')
+        ident = item['schedule_id']
+        for decision in ('deny', 'expire'):
+            with self.subTest(decision=decision):
+                result = self.update_turn(decision).call('schedule_update', {'schedule_id': ident, 'action': 'enable'})
+                self.assertEqual(result, {'error': {'code': 'user_declined'}})
+                self.assertFalse(self.store().get(ident)['enabled'])
+        result = self.update_turn().call('schedule_update', {'schedule_id': ident, 'action': 'enable'})
+        preview = self.card()
+        self.assertIn('启用', preview['title']); self.assertIn('日报', preview['title'])
+        self.assertEqual(preview['raw_input'], {'schedule_id': ident, 'action': 'enable'})
+        self.assertTrue(result['schedule']['enabled']); self.assertIsNotNone(result['schedule']['next_run_at'])
+        self.assertTrue(self.store().get(ident)['enabled'])
+        result = self.update_turn().call('schedule_update', {'schedule_id': ident, 'action': 'disable'})
+        self.assertFalse(result['schedule']['enabled']); self.assertFalse(self.store().get(ident)['enabled'])
+
+    def test_update_deletes_and_runs_only_after_the_card_is_allowed(self):
+        ident = self.store().add('日报', '总结', DAILY)['schedule_id']
+        for action in ('run_now', 'delete'):
+            with self.subTest(action=action):
+                self.update_turn('deny').call('schedule_update', {'schedule_id': ident, 'action': action})
+        self.controller.submit_job.assert_not_called()
+        self.assertIsNotNone(self.store().get(ident))
+        result = self.update_turn().call('schedule_update', {'schedule_id': ident, 'action': 'run_now'})
+        self.assertIn('立即运行', self.card()['title'])
+        self.controller.submit_job.assert_called_once()
+        self.assertEqual(result['job_id'], 'job-1')
+        self.assertEqual(result['schedule']['last_job_id'], 'job-1')
+        self.assertEqual(self.db.execute('SELECT state,job_id FROM schedule_runs').fetchall(), [('started', 'job-1')])
+        result = self.update_turn().call('schedule_update', {'schedule_id': ident, 'action': 'delete'})
+        self.assertIn('删除', self.card()['title'])
+        self.assertEqual(result, {'schedule': None, 'deleted': True})
+        self.assertIsNone(self.store().get(ident))
+
+    def test_update_edit_card_shows_before_and_after(self):
+        ident = self.store().add('日报', '总结提交', DAILY)['schedule_id']
+        self.update_turn('deny').call('schedule_update', {'schedule_id': ident, 'action': 'edit', 'instruction': '核对构建'})
+        self.assertEqual(self.store().get(ident)['instruction'], '总结提交')
+        trigger = {'kind': 'weekly', 'at': '09:00', 'weekday': 5}
+        result = self.update_turn().call('schedule_update', {'schedule_id': ident, 'action': 'edit',
+                                                             'instruction': '核对构建', 'trigger': trigger})
+        title = self.card()['title']
+        for text in ('修改', '总结提交', '核对构建', '18:30', '09:00'):
+            self.assertIn(text, title)
+        self.assertLess(title.index('总结提交'), title.index('核对构建'))
+        self.assertEqual((result['schedule']['instruction'], result['schedule']['trigger']), ('核对构建', trigger))
+        for args in ({'action': 'edit'}, {'action': 'enable', 'title': '晚报'}):
+            with self.subTest(args=args):
+                self.assertIn('error', self.update_turn().call('schedule_update', {'schedule_id': ident, **args}))
+                self.controller.interactions.approve.assert_not_called()
+        self.assertIn('error', self.update_turn().call('schedule_update', {'schedule_id': 'missing', 'action': 'enable'}))
+        self.controller.interactions.approve.assert_not_called()
+
     def test_enabling_a_proposal_marks_it_accepted_and_pausing_keeps_the_mark(self):
         store = self.store()
         item = store.add('日报', '总结', DAILY, created_from='agent_proposal')

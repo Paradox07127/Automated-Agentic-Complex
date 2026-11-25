@@ -22,6 +22,23 @@ def requested_action(text, state, *, targets=()):
     return pattern is not None and positive_instruction(text, pattern, targets=targets)
 
 
+SCHEDULE_ACTIONS = {
+    'zh-Hans': {'enable': '启用计划任务：{}', 'disable': '停用计划任务：{}', 'edit': '修改计划任务：{}',
+                'delete': '删除计划任务：{}', 'run_now': '立即运行计划任务：{}'},
+    'en': {'enable': 'Enable schedule: {}', 'disable': 'Disable schedule: {}', 'edit': 'Edit schedule: {}',
+           'delete': 'Delete schedule: {}', 'run_now': 'Run schedule now: {}'},
+    'ja': {'enable': 'スケジュールを有効にする：{}', 'disable': 'スケジュールを無効にする：{}', 'edit': 'スケジュールを編集：{}',
+           'delete': 'スケジュールを削除：{}', 'run_now': 'スケジュールを今すぐ実行：{}'},
+}
+
+
+def _when(trigger):
+    if trigger['kind'] == 'session_done':
+        return ' '.join(['session_done', trigger.get('target') or '*', trigger.get('project') or '*'])
+    days = trigger['weekdays'] if trigger['kind'] == 'daily' else [trigger['weekday']]
+    return f"{trigger['kind']} {trigger['at']} ({','.join(map(str, days))})"
+
+
 def tool(name, description, properties=None, required=()):
     return {'name': name, 'description': description, 'input_schema': {'type': 'object', 'properties': properties or {},
         'required': list(required), 'additionalProperties': False}}
@@ -50,12 +67,7 @@ class OrchestrationTurn:
         page = {'offset': {'type': 'integer', 'minimum': 0, 'maximum': 90}, 'limit': {'type': 'integer', 'minimum': 1, 'maximum': 10}}
         from character_agent.services.reminders import ReminderTurn
         from character_agent.services.dispatch_tool import DispatchTurn
-        return [*ReminderTurn.tool_definitions(), *DispatchTurn.tool_definitions(),
-            tool('schedule_propose', 'Propose a recurring background task that you will run on your own at a set local time (daily or weekly) '
-                 'or each time a Claude/Codex session finishes, e.g. "every weekday at 9:00 summarise yesterday\'s commits". '
-                 'To notify the user at a time use reminder_create, and for a long-term objective without a timetable use goal_create. '
-                 'The schedule is always saved disabled and does nothing until the user enables it on the schedules page; tell them so.',
-                 {'title': {'type': 'string', 'minLength': 1, 'maxLength': 200, 'description': 'Short name shown on the schedules page.'},
+        schedule = {'title': {'type': 'string', 'minLength': 1, 'maxLength': 200, 'description': 'Short name shown on the schedules page.'},
                   'instruction': {**text, 'description': 'What each run should do, complete enough to work without this conversation.'},
                   'trigger': {'type': 'object', 'additionalProperties': False, 'required': ['kind'],
                       'description': 'System local time. daily requires at (HH:MM) and weekdays (Monday=1, Sunday=7); weekly requires weekday and at. session_done: omit target or project to match any.',
@@ -66,10 +78,24 @@ class OrchestrationTurn:
                           'items': {'type': 'integer', 'minimum': 1, 'maximum': 7}},
                       'weekday': {'type': 'integer', 'minimum': 1, 'maximum': 7, 'description': 'weekly: the one day it runs, Monday=1.'},
                       'target': {'type': 'string', 'enum': ['claude', 'codex'], 'description': 'session_done: which agent; omit for either.'},
-                      'project': {'type': 'string', 'description': 'session_done: project folder name; omit for any.'}}}},
-                 ('title', 'instruction', 'trigger')),
+                      'project': {'type': 'string', 'description': 'session_done: project folder name; omit for any.'}}}}
+        return [*ReminderTurn.tool_definitions(), *DispatchTurn.tool_definitions(),
+            tool('schedule_propose', 'Propose a recurring background task that you will run on your own at a set local time (daily or weekly) '
+                 'or each time a Claude/Codex session finishes, e.g. "every weekday at 9:00 summarise yesterday\'s commits". '
+                 'To notify the user at a time use reminder_create, and for a long-term objective without a timetable use goal_create. '
+                 'The schedule is always saved disabled and does nothing until it is enabled; you can then call schedule_update with '
+                 'action enable to ask the user to confirm enabling it.',
+                 schedule, ('title', 'instruction', 'trigger')),
             tool('schedules_list', 'Read a bounded page of saved local schedules with their trigger and enabled state, when the user asks what is scheduled. '
-                 'Read-only: the user enables, edits or deletes them on the schedules page. Follow next_offset for more.', page),
+                 'Read-only: change one with schedule_update. Follow next_offset for more.', page),
+            tool('schedule_update', 'Enable, disable, edit, delete or run now one saved schedule, with its schedule_id from schedules_list or schedule_propose. '
+                 'Every call shows the user a confirmation card and changes nothing until they allow it; until the result comes back '
+                 'say only that you asked them to confirm, never that it is enabled, changed, deleted or running. '
+                 'edit takes at least one of title, instruction and trigger and replaces only those; other actions take none. '
+                 'Returns the schedule\'s new state, or error user_declined when the user refused or did not answer.',
+                 {'schedule_id': {**ident, 'description': 'The schedule\'s schedule_id.'},
+                  'action': {'type': 'string', 'enum': ['enable', 'disable', 'edit', 'delete', 'run_now']}, **schedule},
+                 ('schedule_id', 'action')),
             tool('goals_list', 'Read a bounded page of the user\'s durable goals with goal_id, title, current version and status '
                  '(active, paused, completed, cancelled). Use it when the user asks about their goals, and before goal_update, '
                  'which needs the goal_id and current version. Follow next_offset for more.', page),
@@ -127,7 +153,7 @@ class OrchestrationTurn:
         try:
             if name not in definitions: raise ValueError('unknown_orchestration_tool')
             _validate_arguments(args, definitions[name])
-            if name in ('schedule_propose', 'schedules_list'):
+            if name in ('schedule_propose', 'schedules_list', 'schedule_update'):
                 store = c.server.schedules_store()
                 if store is None:
                     raise ValueError('no_schedules')
@@ -137,6 +163,8 @@ class OrchestrationTurn:
                         created_from='agent_proposal', conversation_id=history.conversations.active if history else None,
                         scope_id=self.scope_id)
                     return {'schedule': item, 'message': 'Saved disabled; it runs only after the user enables it on the schedules page.'}
+                if name == 'schedule_update':
+                    return self._schedule_update(store, args)
                 records = store.list()
                 offset, limit = args.get('offset', 0), args.get('limit', 10)
                 page = records[offset:offset + limit]
@@ -197,3 +225,49 @@ class OrchestrationTurn:
                 return {k: job[k] for k in ('job_id', 'run_id', 'state')}
         except ValueError as exc:
             return {'error': {'code': str(exc)}}
+
+    def _schedule_update(self, store, args):
+        """One schedule change behind a single-use approval card, through the store calls the /schedules routes make."""
+        from personal.schedules import validate_trigger
+        c, ident, action = self.controller, args['schedule_id'], args['action']
+        changes = {k: args[k] for k in ('title', 'instruction', 'trigger') if k in args}
+        if (action == 'edit') != bool(changes):
+            raise ValueError('invalid_schedule_update')
+        item = store.get(ident)
+        if item is None:
+            raise ValueError('unknown_schedule')
+        label = item['title']
+        if action == 'edit':
+            if 'trigger' in changes:
+                changes['trigger'] = validate_trigger(changes['trigger'])
+            shown = lambda key, value: _when(value) if key == 'trigger' else value
+            label += ' (' + '; '.join(f'{shown(k, item[k])} → {shown(k, v)}' for k, v in changes.items()) + ')'
+        language = c.semantic.reply()
+        title = SCHEDULE_ACTIONS.get(language, SCHEDULE_ACTIONS['zh-Hans'])[action].format(label)
+        try:
+            c.interactions.approve(self.source_run_id, {'source': 'agentd', 'title': title, 'kind': 'other', 'raw_input': dict(args)},
+                valid=self.current, character_id=self.character_id, scope_id=self.scope_id, language=language, single_only=True)
+        except ValueError as exc:
+            if str(exc) in ('approval_denied', 'approval_expired'):
+                return {'error': {'code': 'user_declined'}}
+            raise
+        if action == 'delete':
+            if not store.delete(ident):
+                raise ValueError('unknown_schedule')
+            return {'schedule': None, 'deleted': True}
+        if action == 'run_now':
+            try:
+                job = c.server._submit_schedule(store, store.run_now(ident), manual=True)
+            except ValueError:
+                raise
+            except Exception:
+                raise ValueError('schedule_unavailable')
+            return {'schedule': store.get(ident), 'job_id': job['job_id']}
+        if action == 'enable':
+            saved = store.get(ident)
+            if saved is None:
+                raise ValueError('unknown_schedule')
+            c.server.schedule_context(saved['conversation_id'], saved['scope_id'])
+        if action in ('enable', 'disable'):
+            changes = {'enabled': action == 'enable'}
+        return {'schedule': store.update(ident, changes)}
