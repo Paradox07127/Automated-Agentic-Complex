@@ -126,15 +126,13 @@ class ClaudeRunnerTest(unittest.TestCase):
     def test_cli_argv_with_native_tools_loads_the_users_config_and_asks_endfield(self):
         sys.path.insert(0, str(AGENTD))
         from character_agent.harness.claude_runner import PERMISSION_TOOL, cli_argv
-        from character_agent.harness.codex_runner import HOST_PROMPT_NOTE
         argv = cli_argv("/fixture/claude", {"native_tools": True}, SYSTEM_PROMPT, {"mcpServers": {}}, {"fixture_read"})
         for flag in ("--tools", "--strict-mcp-config", "--setting-sources", "--allowedTools", "--disable-slash-commands",
                      "--permission-mode", "--permission-prompts", "--system-prompt=" + SYSTEM_PROMPT):
             self.assertNotIn(flag, argv)
         self.assertEqual(argv[argv.index("--permission-prompt-tool") + 1], "mcp__agentic_complex__" + PERMISSION_TOOL)
         self.assertEqual(argv[argv.index("--mcp-config") + 1], '{"mcpServers": {}}')
-        # The CLI keeps its own prompt ahead of ours; the note says it does not decide who she is.
-        self.assertIn("--append-system-prompt=" + HOST_PROMPT_NOTE + SYSTEM_PROMPT, argv)
+        self.assertIn("--append-system-prompt=" + SYSTEM_PROMPT, argv)
 
     @unittest.skipIf(sys.platform == "win32", "the fake Claude CLI is a /bin/sh script")
     def test_turn_streams_text_calls_an_endfield_tool_and_validates_as_c8(self):

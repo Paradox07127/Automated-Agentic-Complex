@@ -48,12 +48,6 @@ class RuleCheckTest(unittest.TestCase):
         self.assertEqual(rule_check("太好了！[intent:celebrate]")["intent_marker"], "missing")
         self.assertIn("intent_marker", rule_check("太好了！")["violations"])
 
-    def test_kernel_name(self):
-        for raw in ("[intent:explain]我背后跑的是 Claude 或 Codex。", "[intent:explain]我只是个大模型啦。",
-                    "[intent:explain]openai 和 deepseek 都不认识我。"):
-            self.assertIn("kernel_name", rule_check(raw)["violations"], raw)
-        self.assertNotIn("kernel_name", rule_check("[intent:explain]我是这里的管理员，不是什么程序。")["violations"])
-
     def test_checks_run_on_the_shown_text(self):
         rules = rule_check("[intent:greet][motion:waves her right hand happily|3]早。")
         self.assertEqual((rules["chars"], rules["opening"], rules["violations"]), (2, "早。", []))
@@ -84,7 +78,7 @@ class SummaryTest(unittest.TestCase):
         self.assertEqual((chat["last"]["turns"], chat["last"]["violation_rate"]), ([11, 20], 0.1))
         self.assertEqual(chat["last"]["rule_rates"],
                          {"ai_self_reference": 0, "markdown_layout": 0.1, "assistant_phrase": 0.1, "same_opening": 0,
-                          "intent_marker": 0, "kernel_name": 0})
+                          "intent_marker": 0})
         self.assertEqual(chat["first"]["judge_mean"], {"voice": 4, "canon": 5, "no_assistant": 4, "length": 3})
         self.assertEqual(chat["last"]["judge_mean"]["voice"], 3.8)
         task = summary["scenarios"]["task"]

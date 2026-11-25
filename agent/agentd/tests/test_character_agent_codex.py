@@ -16,8 +16,8 @@ from unittest.mock import AsyncMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from character_agent.harness import codex_runner
-from character_agent.harness.codex_runner import (HOST_PROMPT_NOTE, RunnerFailure, history_prompt, restricted_catalog,
-    policy_settings, toml_value)
+from character_agent.harness.codex_runner import (RunnerFailure, history_prompt, restricted_catalog, policy_settings,
+    toml_value)
 from character_agent.harness.codex_transport import CodexConfig, ManagedCodexSession
 from character_agent.harness.discovery import runtime_version
 from support import serve_in_thread
@@ -268,8 +268,7 @@ class CodexNativeConfigTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((thread["cwd"], thread["runtimeWorkspaceRoots"]), (workspace, [workspace]))
         for key in ("sandbox", "approvalPolicy", "approvalsReviewer", "environments", "baseInstructions"):
             self.assertNotIn(key, thread)
-        self.assertEqual((thread["developerInstructions"], thread["ephemeral"]),
-                         (HOST_PROMPT_NOTE + "Persona fixture.", True))
+        self.assertEqual((thread["developerInstructions"], thread["ephemeral"]), ("Persona fixture.", True))
         self.assertFalse(ready["tool_inventory_verified"])
         self.assertEqual(ready["capabilities"]["builtin_tools"], "unverified")
 
