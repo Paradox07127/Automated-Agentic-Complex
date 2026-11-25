@@ -126,6 +126,17 @@ async function approve(event, cwd) {
   if (option === "allow_once" && active === run && !run.cancelled) return undefined;
   return { block: true, reason: "The user did not allow this call." };
 }
+// The request's system messages as one leading message holding this prompt and the tools they declare, as Pi
+// projects a forced prompt.
+function withPrompt(messages, content) {
+  const system = messages.filter(item => item.role === "system"), tools = new Map();
+  for (const item of system) {
+    for (const tool of item.toolsRemoved ?? []) tools.delete(tool.name);
+    for (const tool of item.toolsAdded ?? []) tools.set(tool.name, tool);
+  }
+  return [{ role: "system", content, ...(tools.size ? { toolsAdded: [...tools.values()] } : {}), timestamp: system[0]?.timestamp ?? Date.now() },
+    ...messages.filter(item => item.role !== "system")];
+}
 // Pi's context_with_system hook: one model request's messages; the transcript keeps its own.
 function modelRequest(event) {
   let messages = event.messages;
@@ -136,6 +147,8 @@ function modelRequest(event) {
     while (messages[end]?.role === "system") end++;
     messages = [...messages.slice(start, end), ...messages.slice(0, start), ...messages.slice(end)];
   }
+  // Pi writes its prompt sections in prompt(); a question's resume starts with agent.continue(), which writes none.
+  if (!messages.some(item => item.role === "system" && item.sections)) messages = withPrompt(messages, session.systemPrompt);
   const last = messages.at(-1);
   // Pi's Anthropic conversion would send a user message after a tool result as a second user turn, so the
   // reminder joins a copy of the tool result.
@@ -350,7 +363,9 @@ async function query(message) {
       session.agent.state.messages = [];
       session.agent.streamFunction = (model, context, options) => {
         const maxTokens = Math.min(model.maxTokens, message.max_output_tokens);
-        return stream({ ...model, maxTokens }, { ...context, systemPrompt: message.system_prompt }, { ...options, reasoning: undefined, maxTokens });
+        // This runner started with an empty prompt, so Pi's sections are its default coding prompt; the quick prompt replaces them.
+        return stream({ ...model, maxTokens }, { ...context, messages: withPrompt(context.messages, message.system_prompt) },
+          { ...options, reasoning: undefined, maxTokens });
       };
     }
     const answer = message.ask_user_result;

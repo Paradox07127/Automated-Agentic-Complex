@@ -5,6 +5,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import sys
 import tempfile
 import threading
@@ -403,10 +404,17 @@ class PiSDKTests(unittest.TestCase):
         self.assertEqual(role, 'system'); self.assertTrue(head.startswith(system), head)
         return messages
 
+    def assert_own_system(self, request, system):
+        """The request's one system message: the session's prompt and the workspace Pi names after it."""
+        heads = [text for role, text in self.conversation(request) if role == 'system']
+        self.assertEqual(len(heads), 1, heads)
+        self.assertRegex(heads[0], '^' + re.escape(system) + r'\n\n<cwd>\n[^\n]+\n</cwd>$')
+
     def test_history_reaches_the_model_as_its_own_turns(self):
         model = self.model()
         events = self.run_session(self.session(model), 'Remind me.', history=self.HISTORY)
         self.assertTrue(events[-1]['success'], events)
+        self.assert_own_system(model.requests[0], 'You are Mira, a concise personal companion.')
         self.assertEqual(self.turns(model.requests[0], 'You are Mira, a concise personal companion.'),
                          [*self.HISTORY_TURNS, ('user', 'Remind me.')])
         self.assertNotIn('product_history', json.dumps(model.requests[0]))
@@ -430,6 +438,9 @@ class PiSDKTests(unittest.TestCase):
         self.assertTrue(events[-1]['success'], events)
         self.assertEqual(self.turns(model.requests[1], 'You are Mira, answering quickly.'),
                          [*self.HISTORY_TURNS, ('user', 'Quick one.')])
+        self.assertEqual([turn for turn in self.conversation(model.requests[1]) if turn[0] == 'system'],
+                         [('system', 'You are Mira, answering quickly.')])
+        self.assertNotIn('expert coding assistant', json.dumps(model.requests[1]))
         self.assertNotIn('product_history', json.dumps(model.requests[1]))
 
     def test_question_resume_history_reaches_the_model_as_its_own_turns(self):
@@ -439,7 +450,8 @@ class PiSDKTests(unittest.TestCase):
             'name': 'ask_user', 'tool_call_id': 'original-call', 'args': {'questions': [{'id': 'q', 'question': 'private-question'}]},
             'result': {'answers': {'q': ['real-answer']}}})
         self.assertTrue(events[-1]['success'], events)
-        turns = [turn for turn in self.conversation(model.requests[0]) if turn[0] != 'system']
+        self.assert_own_system(model.requests[0], 'You are Mira, a concise personal companion.')
+        turns = self.turns(model.requests[0], 'You are Mira, a concise personal companion.')
         self.assertEqual(turns[:5], [*self.HISTORY_TURNS, ('user', 'original-goal')])
         self.assertEqual([role for role, _ in turns[5:]], ['assistant', 'tool'])
         self.assertNotIn('product_history', json.dumps(model.requests[0]))
