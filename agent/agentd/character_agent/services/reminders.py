@@ -6,6 +6,7 @@ import re
 
 from character_agent.services.instruction_guard import positive_instruction
 from character_agent.services.workspace import _validate_arguments
+from personal.commitments import SNOOZE_DELIVERED
 
 # One-character verbs need 个/条 right after them, so 确定一下提醒 is not an ask.
 CREATE = re.compile(r'提醒我|提醒一下|叫我|喊我|リマインドして|(?:设置|创建|添加|新建|安排).{0,16}(?:提醒|闹钟)|'
@@ -184,6 +185,10 @@ class ReminderTurn:
                             (tuple(m.group() for m in AGAIN.finditer(quote)) if args['action'] == 'snooze' else ())
                         if not refs or not positive_instruction(quote, pattern, targets=refs):
                             raise ValueError('reminder_target_not_authorized')
+                        if args['action'] == 'snooze':
+                            # A one-time reminder that just played is fulfilled but may still be snoozed.
+                            active += [i for i in store.list(('fulfilled',))
+                                       if store.clock() - i['updated_at'] <= SNOOZE_DELIVERED]
                         if len(active) > 1 and not any(RECENT.search(r) for r in refs):
                             raise ValueError('reminder_target_ambiguous')
                         newest = max(active, key=lambda i: i['created_at'], default=None)
@@ -196,10 +201,7 @@ class ReminderTurn:
                         item = store.cancel(item['id'], expected_revision=args['expected_revision'], request_key=key)
                         action = 'cancelled'
                     elif args['action'] == 'complete':
-                        # store.complete takes no revision; the store lock held here keeps this check current.
-                        if item['revision'] != args['expected_revision']:
-                            raise ValueError('commitment_changed')
-                        item = store.complete(item['id'])
+                        item = store.complete(item['id'], expected_revision=args['expected_revision'], request_key=key)
                         action = 'completed'
                     else:
                         if not TIME.search(quote):

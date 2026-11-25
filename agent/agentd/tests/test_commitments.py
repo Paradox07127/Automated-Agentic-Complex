@@ -220,6 +220,16 @@ class CommitmentsTest(unittest.TestCase):
         done = self.commitments.fulfill(item["id"], None)
         self.assertEqual((done["state"], done["delivered_line"]), ("fulfilled", None))
 
+    def test_complete_replays_its_receipt_and_checks_the_revision(self):
+        item = self.commitments.add("喝水", 1600.0)
+        with self.assertRaisesRegex(ValueError, "commitment_changed"):
+            self.commitments.complete(item["id"], expected_revision=2, request_key="stale")
+        done = self.commitments.complete(item["id"], expected_revision=1, request_key="done")
+        self.assertEqual((done["state"], done["revision"]), ("fulfilled", 2))
+        self.assertEqual(self.commitments.complete(item["id"], expected_revision=1, request_key="done"), done)
+        with self.assertRaisesRegex(ValueError, "commitment_changed"):
+            self.commitments.complete(item["id"], expected_revision=1, request_key="other")
+
     def test_snooze_rearms_armed_and_triggered_items(self):
         for due_at in (1600.0, 1000.0):
             with self.subTest(due_at=due_at):

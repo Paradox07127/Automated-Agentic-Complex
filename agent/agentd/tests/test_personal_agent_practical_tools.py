@@ -365,6 +365,32 @@ class ReminderToolsTests(unittest.TestCase):
         self.assertEqual(result.get('error', {}).get('code'), 'commitment_changed', result)
         self.assertEqual(self.store._get(item['id'])['state'], 'armed')
 
+    def test_a_retried_complete_replays_its_receipt(self):
+        item, = self.added('交周报')
+        first = self.update('交周报的提醒搞定了', item, 'complete')
+        self.assertTrue(first.get('saved'), first)
+        self.assertEqual(self.update('交周报的提醒搞定了', item, 'complete'), first)
+        result = self.turn('交周报的提醒搞定了', 'next-run').call('reminder_update', {
+            'reminder_id': item['id'], 'expected_revision': 1, 'action': 'complete',
+            'instruction_quote': '交周报的提醒搞定了'})
+        self.assertEqual(result.get('error', {}).get('code'), 'commitment_changed', result)
+
+    def test_that_reminder_just_delivered_can_be_snoozed(self):
+        from personal.commitments import SNOOZE_DELIVERED
+        played, = self.added('喝水')
+        self.store.fulfill(played['id'], None)
+        quote = '那个提醒十分钟后再提醒我'
+        result = self.update(quote, played, 'snooze', due_at=self.iso(600), expected_revision=2)
+        self.assertEqual((result.get('reminder', {}).get('state'), result.get('reminder', {}).get('due_at')),
+                         ('armed', self.now + 600), result)
+        late, = self.added('开会')
+        self.store.fulfill(late['id'], None)
+        self.store.cancel(played['id'])
+        self.now += SNOOZE_DELIVERED + 1
+        result = self.update(quote, late, 'snooze', due_at=self.iso(600), expected_revision=2)
+        self.assertEqual(result.get('error', {}).get('code'), 'reminder_target_not_authorized', result)
+        self.assertEqual(self.store._get(late['id'])['state'], 'fulfilled')
+
     def test_remind_me_again_later_snoozes_only_with_a_time(self):
         item, = self.added('喝水')
         result = self.update('十分钟后再提醒我', item, 'snooze', due_at=self.iso(600))

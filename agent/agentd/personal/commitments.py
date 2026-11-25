@@ -309,16 +309,30 @@ class Commitments:
             self.db.commit()
         return item
 
-    def complete(self, commitment_id):
+    def complete(self, commitment_id, *, expected_revision=None, request_key=None):
         """The user is done with the occurrence it delivered: as fulfill, except that a repeating one its delivery
         already re-armed at its series' own time stays as it is."""
-        with self.lock:
-            item = self._get(commitment_id)
+        with self.lock, self.db:
+            if request_key is not None and not self.db.in_transaction:
+                self.db.execute("BEGIN IMMEDIATE")
+            request = {"operation": "complete", "id": commitment_id, "revision": expected_revision}
+            old = self._receipt(request_key, request)
+            if old is not None:
+                return old
+            now, item = self.clock(), self._get(commitment_id)
+            if item is not None and expected_revision is not None and item["revision"] != expected_revision:
+                raise ValueError("commitment_changed")
             # updated_at is created_at until a first occurrence re-arms it: before that there is none to keep.
             if item is not None and item["repeat"] is not None and item["state"] == "armed" \
                     and item["updated_at"] > item["created_at"] and self._series(commitment_id) is None:
-                return item
-            return self.fulfill(commitment_id, None)
+                pass
+            elif item is not None and item["repeat"] is not None:
+                item = self._rearm(item, now)
+            else:
+                item = self._move(commitment_id, "fulfilled", now, expected_revision=expected_revision)
+            self._receipt(request_key, request, item)
+            self.db.commit()
+        return item
 
     def seen(self, commitment_id):
         """Its card was on screen: the first receipt since it came due is kept; None for an unknown id."""
