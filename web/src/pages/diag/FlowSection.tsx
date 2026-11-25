@@ -104,10 +104,7 @@ function NodeDetail({ node, fails, approvals, onTasks, onTrace, onClear, onVoice
   const s = node.stat;
   return (
     <div className={styles.side}>
-      <div className={styles.sideHead}>
-        <b>{node.label}</b>
-        <StatusLamp state={LAMP[node.state]} label={STATE_TEXT[node.state]} />
-      </div>
+      <SecHead variant="diag" title={node.label} right={<StatusLamp state={LAMP[node.state]} label={STATE_TEXT[node.state]} />} />
       <div className={styles.band}>
         <ReadTick value={String(s?.count ?? 0)} label="近 1 小时" />
         <ReadTick value={String(s?.fail ?? 0)} label="失败" tone={s?.fail ? 'bad' : 'ink'} />
@@ -175,9 +172,7 @@ function Legend() {
   ];
   return (
     <div className={styles.side}>
-      <div className={styles.sideHead}>
-        <b>读法</b>
-      </div>
+      <SecHead variant="diag" title="读法" />
       {rows.map(([st, text]) => (
         <div key={st} className={styles.gr}>
           <StatusLamp state={LAMP[st]} label={STATE_TEXT[st]} />

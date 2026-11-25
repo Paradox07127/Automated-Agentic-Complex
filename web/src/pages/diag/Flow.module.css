@@ -51,18 +51,6 @@
   min-width: 0;
 }
 
-.sideHead {
-  display: flex;
-  gap: var(--ef-sp-8);
-  align-items: center;
-  justify-content: space-between;
-}
-
-.sideHead b {
-  color: var(--ef-text-1);
-  font: var(--ef-fw-semibold) 15px / 22px var(--ef-font-sans);
-}
-
 .band {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
