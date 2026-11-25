@@ -30,7 +30,7 @@
 
 .name {
   margin: 0;
-  font: 600 16px/24px var(--ef-font-sans);
+  font: var(--ef-fw-semibold) var(--ef-fs-title-2) / 24px var(--ef-font-sans);
 }
 
 .use {
