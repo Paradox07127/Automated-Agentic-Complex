@@ -101,7 +101,7 @@
   color: var(--ef-paper-text-2);
 }
 
-.paper textarea {
+.paper [data-stub='RejectBox'] textarea {
   width: 100%;
   min-height: 58px;
   padding: 8px 10px;
@@ -115,7 +115,7 @@
   resize: vertical;
 }
 
-.paper textarea:focus {
+.paper [data-stub='RejectBox'] textarea:focus {
   outline: none;
   box-shadow: 0 0 0 2px var(--ef-text-1);
 }

@@ -1,7 +1,7 @@
 import { useContext, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { CountdownLine, CountdownRing } from '../../charts';
 import { formatDuration, formatRemaining, type Question, type QuestionItem } from '../../domain';
-import { Btn, OptionRow } from '../../ui';
+import { Btn, OptionRow, TextArea } from '../../ui';
 import { DecisionBar } from './DecisionBar';
 import { InSession } from './inSession';
 import { useCountdown } from './useCountdown';
@@ -161,13 +161,12 @@ export function QuestionBox({ question, now, compact, selected = null, text = ''
                     <OptionRow key={o.label} label={o.description ? `${o.label} │ ${o.description}` : o.label} size={compact ? 'desk' : 'main'} selected={o.label === d.selected} onClick={() => update(q.id, { selected: o.label === d.selected ? null : o.label, text: d.text })} />
                   ))}
                 </div>
-                <textarea
-                  className={styles.input}
+                <TextArea
                   rows={compact ? 1 : 2}
-                  aria-label={items.length > 1 ? `写下回答：${q.question}` : '写下回答'}
+                  label={items.length > 1 ? `写下回答：${q.question}` : '写下回答'}
                   placeholder="或者直接写你的回答…（⏎ 提交，⇧⏎ 换行）"
                   value={d.text}
-                  onChange={(e) => update(q.id, { selected: d.selected, text: e.target.value })}
+                  onChange={(text) => update(q.id, { selected: d.selected, text })}
                   onKeyDown={onKey}
                 />
               </div>

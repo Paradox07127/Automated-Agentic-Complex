@@ -11,6 +11,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: var(--ef-sp-4) var(--ef-sp-12);
+  font: var(--ef-t-meta);
 }
 
 .title {
@@ -42,29 +43,6 @@
   display: grid;
   gap: 2px;
   max-width: 380px;
-}
-
-.input {
-  width: 100%;
-  min-height: 32px;
-  padding: var(--ef-sp-6) var(--ef-sp-8);
-  border: 1px solid var(--ef-line-strong);
-  border-radius: var(--ef-r-2);
-  background: transparent;
-  color: inherit;
-  font-size: var(--ef-fs-body);
-  line-height: var(--ef-lh-body);
-  resize: vertical;
-}
-
-.input::placeholder {
-  color: inherit;
-  opacity: 0.55;
-}
-
-.input:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
-  outline-offset: 1px;
 }
 
 .foot {
