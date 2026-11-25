@@ -1,29 +1,11 @@
 {
-  "src/features/approval/ApprovalCard.tsx": {
-    "btn": 2
-  },
-  "src/features/approval/DecisionBar.tsx": {
-    "btn": 1
-  },
-  "src/features/approval/DecisionReceipt.tsx": {
-    "btn": 1
-  },
   "src/features/approval/QuestionBox.tsx": {
-    "btn": 1
-  },
-  "src/features/approval/QueueBar.tsx": {
-    "btn": 2
-  },
-  "src/features/approval/SessionApproval.tsx": {
     "btn": 1
   },
   "src/features/delivery/VersionChain.tsx": {
     "btn": 1
   },
   "src/features/health/HealthChain.tsx": {
-    "btn": 2
-  },
-  "src/features/plan/PlanProgress.tsx": {
     "btn": 1
   },
   "src/features/task/FileImpact.tsx": {
@@ -35,9 +17,6 @@
   "src/features/task/TaskDrawer.module.css": {
     "fontPx": 1,
     "color": 5
-  },
-  "src/features/trace/CodeBlock.tsx": {
-    "btn": 2
   },
   "src/pages/character/BrandBlock.module.css": {
     "fontPx": 2,
@@ -52,21 +31,18 @@
     "color": 3
   },
   "src/pages/character/HeadStrip.module.css": {
-    "color": 27
+    "color": 4
   },
   "src/pages/character/HeadStrip.tsx": {
-    "btn": 3
+    "btn": 1
   },
   "src/pages/character/ImportPane.library.css": {
     "fontPx": 4,
-    "color": 11
+    "color": 2
   },
   "src/pages/character/ImportPane.motion.css": {
-    "fontPx": 10,
-    "color": 20
-  },
-  "src/pages/character/ImportPane.tsx": {
-    "btn": 3
+    "fontPx": 9,
+    "color": 3
   },
   "src/pages/character/LookImport.module.css": {
     "fontPx": 8,
@@ -91,14 +67,11 @@
     "btn": 2
   },
   "src/pages/character/MotionTable.module.css": {
-    "fontPx": 10,
-    "color": 10
+    "fontPx": 9,
+    "color": 1
   },
   "src/pages/character/MotionTable.tools.css": {
-    "color": 20
-  },
-  "src/pages/character/MotionTable.tsx": {
-    "btn": 3
+    "color": 1
   },
   "src/pages/character/NameBlock.module.css": {
     "fontPx": 7,
@@ -114,37 +87,29 @@
     "color": 5
   },
   "src/pages/character/Roster.module.css": {
-    "color": 9
+    "color": 1
   },
   "src/pages/character/Roster.tsx": {
     "btn": 2
   },
   "src/pages/character/RosterPop.module.css": {
-    "color": 4
+    "color": 1
   },
   "src/pages/character/Rows.module.css": {
     "color": 13
   },
   "src/pages/character/SettingRows.module.css": {
-    "fontPx": 1,
-    "color": 8
+    "color": 2
   },
   "src/pages/character/SettingRows.tsx": {
     "btn": 1
-  },
-  "src/pages/character/Stage.module.css": {
-    "color": 9
-  },
-  "src/pages/character/Stage.tsx": {
-    "btn": 2
   },
   "src/pages/character/StateRows.module.css": {
     "fontPx": 1,
     "color": 11
   },
   "src/pages/character/Transport.module.css": {
-    "fontPx": 1,
-    "color": 5
+    "fontPx": 1
   },
   "src/pages/character/Transport.tsx": {
     "btn": 1
@@ -155,18 +120,12 @@
   "src/pages/character/ViewCube.tsx": {
     "btn": 1
   },
-  "src/pages/character/motions/Candidates.tsx": {
-    "btn": 3
-  },
   "src/pages/character/motions/Chain.module.css": {
     "fontPx": 4,
     "color": 14
   },
-  "src/pages/character/motions/ChainEditBar.tsx": {
-    "btn": 3
-  },
   "src/pages/character/motions/ChainStrip.tsx": {
-    "btn": 3
+    "btn": 1
   },
   "src/pages/character/motions/Detail.module.css": {
     "fontPx": 5,
@@ -174,40 +133,33 @@
   },
   "src/pages/character/motions/Edit.module.css": {
     "fontPx": 7,
-    "color": 18
+    "color": 3
   },
   "src/pages/character/motions/EventGrid.tsx": {
     "btn": 1
   },
   "src/pages/character/motions/Events.module.css": {
     "fontPx": 1,
-    "color": 18
+    "color": 7
   },
   "src/pages/character/motions/Groups.module.css": {
-    "fontPx": 2,
-    "color": 8
+    "fontPx": 2
   },
   "src/pages/character/motions/Loop.module.css": {
     "fontPx": 7,
-    "color": 26
+    "color": 6
   },
   "src/pages/character/motions/LoopMap.tsx": {
     "btn": 1,
-    "color": 5
+    "color": 1
   },
   "src/pages/character/motions/Pool.module.css": {
     "fontPx": 3,
-    "color": 23
-  },
-  "src/pages/character/motions/PoolRows.tsx": {
-    "btn": 2
-  },
-  "src/pages/character/motions/Proposals.tsx": {
-    "btn": 1
+    "color": 6
   },
   "src/pages/character/motions/Strip.module.css": {
     "fontPx": 4,
-    "color": 24
+    "color": 2
   },
   "src/pages/chat/Chat.module.css": {
     "fontPx": 1
@@ -228,9 +180,6 @@
   "src/pages/chat/LinkConfirm.tsx": {
     "btn": 1
   },
-  "src/pages/chat/MessageCode.tsx": {
-    "btn": 1
-  },
   "src/pages/chat/MessagesPart1.css": {
     "fontPx": 4,
     "color": 2
@@ -244,23 +193,17 @@
   "src/pages/chat/RunItems.module.css": {
     "fontPx": 1
   },
-  "src/pages/chat/SideMessage.tsx": {
-    "btn": 1
-  },
   "src/pages/chat/TaskCard.module.css": {
     "fontPx": 4
   },
   "src/pages/chat/TaskCard.tsx": {
     "btn": 1
   },
-  "src/pages/chat/ToolRow.tsx": {
-    "btn": 1
-  },
   "src/pages/chat/TurnInspector.module.css": {
     "fontPx": 4
   },
   "src/pages/chat/TurnInspector.tsx": {
-    "btn": 4
+    "btn": 3
   },
   "src/pages/chat/TurnInspectorMore.module.css": {
     "fontPx": 2
@@ -354,7 +297,7 @@
     "btn": 1
   },
   "src/pages/observe/EpisodeDetail.tsx": {
-    "btn": 3
+    "btn": 1
   },
   "src/pages/observe/Panels.module.css": {
     "fontPx": 1
@@ -414,9 +357,6 @@
   "src/pages/settings/Band.tsx": {
     "btn": 1
   },
-  "src/pages/settings/Outbound.tsx": {
-    "btn": 1
-  },
   "src/pages/settings/SearchResults.module.css": {
     "fontPx": 3,
     "color": 2
@@ -443,7 +383,7 @@
     "fontPx": 4
   },
   "src/pages/settings/rows.module.css": {
-    "fontPx": 3,
+    "fontPx": 2,
     "color": 6
   },
   "src/pages/tasks/Artifacts.module.css": {
@@ -542,10 +482,10 @@
     "color": 2
   },
   "src/surfaces/desktop/bubble/ConfirmCard.module.css": {
-    "fontPx": 3
+    "fontPx": 2
   },
   "src/surfaces/desktop/bubble/ConfirmCard.tsx": {
-    "btn": 2
+    "btn": 1
   },
   "src/surfaces/desktop/bubble/HeadBubble.module.css": {
     "fontPx": 1
@@ -555,12 +495,6 @@
   },
   "src/surfaces/desktop/cmd/console/ConsoleSlot.module.css": {
     "fontPx": 2
-  },
-  "src/surfaces/desktop/cmd/input/Attached.tsx": {
-    "btn": 1
-  },
-  "src/surfaces/desktop/cmd/input/QuickInputBox.tsx": {
-    "btn": 5
   },
   "src/surfaces/desktop/comm/Subtitle.tsx": {
     "btn": 1
