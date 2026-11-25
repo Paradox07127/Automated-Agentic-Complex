@@ -38,7 +38,7 @@ export function RejectBox({ mode = 'reject', kernelName, initialNote = '', busy,
       />
       <div className={styles.foot}>
         <Switch checked={useCur} label="使用当前选中的内核" onChange={setUseCur} />
-        {kernelName && <span className={styles.kernel}>{kernelName}</span>}
+        <span className={styles.kernel}>使用当前选中的内核{kernelName ? `（${kernelName}）` : ''}</span>
         <span className={styles.sp} />
         {mode === 'reject' && onCancel && (
           <Btn variant="text" onClick={onCancel}>
