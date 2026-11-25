@@ -8,6 +8,18 @@
 
 In the app, import motion from 角色 › 导入 (Character › Import), or drop a VMD or ZIP file directly onto the character.
 
+## MMD project import in the app
+
+The whole package of an MMD song (a folder, a ZIP or several selected files) can be imported into the shared dance library at once; it may hold several body motions, lip-sync VMDs, several cameras and several audio tracks:
+
+- `motion_tool.py mmd-scan` sorts the files first: a VMD with bone keys is a body, one with only camera keys a camera, one with only morph keys a lip-sync (face) VMD; audio goes by suffix, and the rest is listed as ignored. A folder is walked recursively, skipping hidden entries and `__MACOSX`; a ZIP is extracted into a temporary folder.
+- Each body is labelled by the part of its file name that differs from the other bodies' (`…_HimeTanaka_v1.1[f-19].vmd` and `…_HinaSuzuki_v1.1[f-19].vmd` become `HimeTanaka` and `HinaSuzuki`).
+- A trailing `[fN]` on a body VMD's stem (such as `[f-19]` or `[f4930]`) places the motion at frame N of the song (30 fps), so the music offset defaults to N / 30 seconds. It may be negative: the music then starts after that many seconds of silence.
+- By default the longest body, the longest camera, the first audio track and the lip-sync VMD whose name contains the chosen body's label (or the only one) are chosen; the page lets you change each.
+- `motion_tool.py import` takes the lip-sync VMD as `--morph` and the camera VMD as `--camera`, both only with a VMD body; `--project` and `--role` record the song title and this body's role. Several dropped files or a ZIP are sorted the same way and take the same default choices; files left out become `ignored_file` warnings instead of failing for "more than one".
+- `motion_tool.py mmd-media` gives a library song other music or another offset: it imports it again with its own body, lip-sync and camera, replacing the library entry and the current character's row.
+- Limits: a ZIP file is at most 512 MiB; one ZIP or folder holds at most 256 files and 1 GiB in all.
+
 ## Tool environment
 
 Create the pipeline tool environment (Python 3.12) in the repository root and install NumPy from `requirements-mmd.txt`:
@@ -69,7 +81,8 @@ With `--format auto` (the default), `detect` in `motion_import/formats.py` check
 
 Limits:
 
-- One take is at most 180 seconds (`take.MAX_SECONDS`); imports are 30 fps.
+- One motion, music track or face clip is at most 360 seconds (`take.MAX_SECONDS`, `motion_tool.MAX_SECONDS`); imports are 30 fps.
+- A ZIP file is at most 512 MiB; one ZIP or folder holds at most 256 files and 1 GiB in all.
 - File size: VMD and BVH 64 MiB, glTF/GLB/VRMA 256 MiB, background music 256 MiB.
 - Samples: for BVH and glTF, frames × joints/nodes is at most 4,000,000; BVH has at most 512 joints.
 - glTF sparse accessors are rejected (`bad_source: sparse_accessor`).
@@ -78,7 +91,7 @@ Coverage:
 
 - Body and root motion: imported for every importable format.
 - Fingers: VMD fingers are retargeted (`fingers: "retargeted"`). Other formats retarget fingers too when the finger bones map; otherwise they stay at rest (`fingers: "rest"`, warning `fingers_rest`).
-- Expressions: VMD expressions go into `tracks.face`. glTF morph weights and VRMA expressions are only parsed and listed in `source.expressions`, not written into the package (warning `expressions_not_applied`).
+- Expressions: VMD expressions (the body VMD's own, or a lip-sync VMD given as `--morph`) go into `tracks.face`. glTF morph weights and VRMA expressions are only parsed and listed in `source.expressions`, not written into the package (warning `expressions_not_applied`).
 - Camera: a VMD camera goes into `tracks.camera`, through the app's import only; the offline entry point has no camera flag, and other formats import no camera.
 - VRMA `lookAt` is ignored (warning `look_at_ignored`); VRMA translation channels other than hips, and all scale channels, are ignored (`translation_ignored`, `scale_ignored`).
 
@@ -98,12 +111,12 @@ Coverage:
 
 - The output is the same as for `import_motion`: `packages-built/<id>/`, `library/current.json`, `import-result.json`, and each character's `.endfield-character` with `--export`. The imported motion appears in the character's existing action menu.
 - `--source-model original.pmd` calibrates with the PMD skeleton of the motion's original model; without it, the project's own standard MMD control skeleton is used. A different original model proportion affects the retargeting result. The character skeleton, rest scale, existing actions, meshes, shaders and lighting assets are kept.
-- `--start 30 --duration 4` imports one excerpt, with start and end quantized to 30 fps. One excerpt is at most 180 seconds, and the input range and evaluation memory are bounded; import a long file in parts. `--no-foot-ik` turns off the target foot correction.
+- `--start 30 --duration 4` imports one excerpt, with start and end quantized to 30 fps. One excerpt is at most 360 seconds, and the input range and evaluation memory are bounded; import a long file in parts. `--no-foot-ik` turns off the target foot correction.
 - Each output must be a new directory, not inside the input package or library. On failure the run's staging directory is cleaned up.
 
 ### Music sync
 
-- `--bgm` is decoded to stereo 48 kHz PCM by the system's `/usr/bin/afconvert`. By default the music is cut from the motion's `--start` position; `--bgm-start` sets the track start separately. The track is cut to the motion length, a shortfall is padded with silence, and the padded frame count is recorded in the report.
+- `--bgm` is decoded to stereo 48 kHz PCM by the system's `/usr/bin/afconvert`. By default the music is cut from the motion's `--start` position; `--bgm-start` sets the track start separately (the second of the source audio that motion frame 0 plays with; a negative value pads that much silence first). The track is cut to the motion length, a shortfall is padded with silence, and the padded frame count is recorded in the report.
 - The music starts once the first real Metal committed frame of that play is confirmed. Animation time follows the source sample position consumed by `AVAudioPlayerNode`; when the renderer is hidden or paused, both freeze and then resume. A looping play restarts the track from zero; when the motion is replaced or stopped, the old track stops.
 - This clock is the render progress of the source audio; the display, the audio device and the speakers each add latency. `max_animation_clock_drift_s` in the receipt is not an acoustic or end-to-end sync accuracy.
 

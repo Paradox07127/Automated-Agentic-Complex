@@ -106,10 +106,10 @@ class MotionToolTests(unittest.TestCase):
         host.chmod(0o700)
         return host
 
-    def vmd(self, seconds=1):
+    def vmd(self, seconds=1, name="dance.vmd", model=""):
         from agentic_complex_build.mmd.io import Vmd, BoneKey, write_vmd
-        path = self.root / "dance.vmd"
-        write_vmd(Vmd(bones=[BoneKey("上半身", 0, (0, 0, 0), (0, 0, 0, 1)),
+        path = self.root / name
+        write_vmd(Vmd(model=model, bones=[BoneKey("上半身", 0, (0, 0, 0), (0, 0, 0, 1)),
                              BoneKey("上半身", 30 * seconds, (0, 0, 0), (0, math.sin(.2), 0, math.cos(.2)))]), path)
         return path
 
@@ -171,9 +171,10 @@ class MotionToolTests(unittest.TestCase):
         kept = self.library.root / "mmd-library/sources"
         index = self.mmd_index(); check_mmd_index(index)
         imports = index["entries"]
-        self.assertEqual((index["schema"], len(imports)), ("endfield-mmd-library/v1", 1))
-        self.assertEqual({k: imports[0][k] for k in ("id", "title", "bgm", "camera", "zip", "removed_at")},
-                         dict(id=doc["action"]["id"], title="舞蹈", bgm=None, camera=None, zip=None, removed_at=None))
+        self.assertEqual((index["schema"], len(imports)), ("endfield-mmd-library/v2", 1))
+        self.assertEqual({k: imports[0][k] for k in ("id", "title", "bgm", "morph", "camera", "foot_lock", "has_face", "project", "removed_at")},
+                         dict(id=doc["action"]["id"], title="舞蹈", bgm=None, morph=None, camera=None, foot_lock=True, has_face=False,
+                              project=None, removed_at=None))
         self.assertEqual((imports[0]["source"]["name"], imports[0]["source"]["sha256"]), ("dance.vmd", doc["source"]["sha256"]))
         self.assertEqual((kept / imports[0]["source"]["file"]).read_bytes(), self.vmd().read_bytes())
         self.assertEqual(imports[0]["created_at"], doc["created_at"])
@@ -338,7 +339,10 @@ class MotionToolTests(unittest.TestCase):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig()); package, report = self.install_with_report("second")
         action = self.success(self.run_import(self.vmd(), self.host()))["action"]["id"]
-        before = self.published(); index = self.library.root / "mmd-library/index.json"; shared = index.read_bytes()
+        index = self.library.root / "mmd-library/index.json"; doc = self.mmd_index()
+        # The library names the earlier import, so that mmd-sync keeps its row and only clones the report.
+        doc["entries"].insert(0, dict(doc["entries"][0], id="mmd_0123456789abcdef", title="旧舞")); write_json(index, doc)
+        before = self.published(); shared = index.read_bytes()
         for name, entry_fails in (("runtime/animation/actions.json", True), ("runtime/rig.json", True), (report, False)):
             with self.subTest(name=name):
                 result = self.tampered(package, name, lambda: tool_command("motion_tool.py", *self.sync_command(self.host())))
@@ -448,11 +452,29 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual(self.library.snapshot(), snapshot)
 
     @needs_numpy
-    def test_motion_over_180_seconds_is_too_long(self):
+    def test_motion_over_360_seconds_is_too_long(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig()); before = self.files()
-        doc = self.failure(self.run_import(self.vmd(seconds=181), self.host()))
+        doc = self.failure(self.run_import(self.vmd(seconds=361), self.host()))
         self.assertEqual(doc["reason"], "too_long")
+        self.assertEqual(self.files(), before)
+
+    @needs_numpy
+    def test_a_motion_of_360_seconds_passes_the_precheck(self):
+        import motion_tool
+        from test_vmd_import import authored_rig
+        from agentic_complex_build.motion_import import take
+        package = self.install(rig=authored_rig())
+        self.assertEqual(motion_tool.precheck(package, self.vmd(seconds=360), "vmd", 0), "vmd")
+        self.assertEqual(take.MAX_SECONDS, motion_tool.MAX_SECONDS)
+
+    @needs_numpy
+    def test_a_music_offset_that_is_not_finite_is_refused_before_any_write(self):
+        from test_vmd_import import authored_rig
+        self.install(rig=authored_rig()); before = self.files()
+        for value in ("nan", "inf", "-inf"):
+            doc = self.failure(self.run_import(self.vmd(), self.host(), "--bgm-start=" + value))
+            self.assertEqual(doc["reason"], "bad_source")
         self.assertEqual(self.files(), before)
 
     def wav(self, name):
@@ -484,25 +506,11 @@ class MotionToolTests(unittest.TestCase):
         kept = self.library.root / "mmd-library/sources"
         [entry] = self.mmd_index()["entries"]
         check_mmd_index(self.mmd_index())
-        self.assertEqual((entry["source"]["name"], entry["zip"]["name"], entry["camera"]), ("dance.vmd", "set.zip", None))
-        self.assertEqual((kept / entry["zip"]["file"]).read_bytes(), archive.read_bytes())
-        self.assertEqual(entry["zip"]["sha256"], hashlib.sha256(archive.read_bytes()).hexdigest())
+        self.assertEqual((entry["source"]["name"], entry["bgm"]["name"], entry["bgm"]["offset_s"], entry["camera"]), ("dance.vmd", "song.wav", None, None))
         self.assertEqual((kept / entry["bgm"]["file"]).read_bytes(), self.wav("song.wav").read_bytes())
+        # The library keeps the files it bakes from, not the ZIP.
+        self.assertEqual(sorted(p.name for p in kept.iterdir()), sorted([entry["source"]["file"], entry["bgm"]["file"]]))
         self.assertEqual([p.name for p in (self.library.root / ".vmd-stage").iterdir()], [".lock"])
-
-    @needs_numpy
-    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
-    def test_remove_keeps_the_zip_of_another_import(self):
-        from test_vmd_import import authored_rig
-        self.install(rig=authored_rig())
-        archive = self.root / "set.zip"
-        with zipfile.ZipFile(archive, "w") as z: z.write(self.vmd(), "set/dance.vmd")
-        self.success(self.run_import(archive, self.host()))
-        other = self.success(self.run_import(self.vmd(seconds=2), self.host()))["action"]["id"]
-        self.success(self.edit("remove", self.host(), other))
-        kept = self.library.root / "mmd-library/sources"
-        entry = next(x for x in self.mmd_index()["entries"] if x["zip"] is not None)
-        self.assertEqual((kept / entry["zip"]["file"]).read_bytes(), archive.read_bytes())
 
     @needs_numpy
     @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
@@ -514,8 +522,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual((doc["tracks"]["camera"]["frames"], doc["tracks"]["camera"]["cuts"]), (31, [11]))
         kept = self.library.root / "mmd-library/sources"
         [entry] = self.mmd_index()["entries"]
-        self.assertEqual((entry["camera"]["name"], entry["camera"]["sha256"], entry["zip"]),
-                         ("camera.vmd", hashlib.sha256(camera.read_bytes()).hexdigest(), None))
+        self.assertEqual((entry["camera"]["name"], entry["camera"]["sha256"]), ("camera.vmd", hashlib.sha256(camera.read_bytes()).hexdigest()))
         self.assertEqual((kept / entry["camera"]["file"]).read_bytes(), camera.read_bytes())
         self.assertEqual([p.name for p in (self.library.root / ".vmd-stage").iterdir()], [".lock"])
 
@@ -724,11 +731,11 @@ class MotionToolTests(unittest.TestCase):
 
     @needs_numpy
     @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
-    def test_mmd_sync_records_an_entry_whose_bake_options_it_cannot_recover(self):
+    def test_mmd_sync_records_an_entry_whose_stored_options_do_not_bake_its_id(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig()); self.second_character(authored_rig())
         self.success(self.run_import(self.vmd(), self.host()))
-        index = self.mmd_index(); index["entries"][0]["duration_s"] = 9.0
+        index = self.mmd_index(); index["entries"][0]["foot_lock"] = False
         write_json(self.library.root / "mmd-library/index.json", index)
         result = self.sync(self.host())
         self.assertEqual((result["ok"], result["baked"], [f["reason"] for f in result["failed"]]), (True, [], ["internal"]))
@@ -750,12 +757,13 @@ class MotionToolTests(unittest.TestCase):
         from test_character_library import text_fixture
         self.install(); text_fixture(self.root / "aide"); self.library.install(self.root / "aide")
         sources = self.library.root / "mmd-library/sources"; sources.mkdir(parents=True); (sources / "dance.vmd").write_bytes(b"vmd")
-        write_json(self.library.root / "mmd-library/index.json", dict(schema="endfield-mmd-library/v1", entries=[dict(
+        write_json(self.library.root / "mmd-library/index.json", dict(schema="endfield-mmd-library/v2", entries=[dict(
             id="mmd_0123456789abcdef", title="dance", duration_s=1.0, created_at="2026-11-01T00:00:00+00:00", removed_at=None,
-            source=dict(file="dance.vmd", sha256=hashlib.sha256(b"vmd").hexdigest(), name="dance.vmd"), camera=None, bgm=None, zip=None,
-            failures={})]))
+            source=dict(file="dance.vmd", sha256=hashlib.sha256(b"vmd").hexdigest(), name="dance.vmd"), morph=None, camera=None, bgm=None,
+            foot_lock=True, has_face=True, project=dict(title="愛包ダンスホール", role="HimeTanaka", place_frame=-19), failures={})]))
         [entry] = self.mmd_list()["entries"]
         self.assertEqual(entry["characters"], [dict(id="fixture", state="pending", reason=None)])
+        self.assertEqual((entry["has_face"], entry["project"], entry["role"]), (True, "愛包ダンスホール", "HimeTanaka"))
         doc = self.failure(tool_command("motion_tool.py", "list", "--library", str(self.library.root), "--character", "aide"))
         self.assertEqual(doc["reason"], "unsupported_character")
 
@@ -770,8 +778,8 @@ class MotionToolTests(unittest.TestCase):
         other = self.success(self.run_import(self.vmd(seconds=2), self.host()))["action"]["id"]
         index = self.mmd_index(); live = [e for e in index["entries"] if e["id"] == action and e["removed_at"] is None]
         self.assertEqual(len([e for e in index["entries"] if e["id"] == action]), 2)
-        # No bake options reproduce the live entry's id, so its bake fails.
-        live[0]["duration_s"] = 9.0; write_json(self.library.root / "mmd-library/index.json", index)
+        # Its stored options no longer bake the live entry's id, so its bake fails.
+        live[0]["foot_lock"] = False; write_json(self.library.root / "mmd-library/index.json", index)
         result = self.sync(self.host())
         self.assertEqual((result["baked"], [f["id"] for f in result["failed"]]), ([other], [action]))
         second = next(p for p in self.library.packages() if p.id == "second")
@@ -791,6 +799,168 @@ class MotionToolTests(unittest.TestCase):
         write_json(self.library.root / "mmd-library/index.json", index)
         [motion] = self.listed()["motions"]
         self.assertEqual(motion["created_at"], again["created_at"])
+
+    @needs_numpy
+    def test_the_protocol_mmd_library_fixture_is_a_v2_library(self):
+        from agentic_complex_build.motion_import.take import check_mmd_index
+        doc = json.loads((REPO / "protocol/character-library/fixtures/motion-import/mmd-library-v2.json").read_text(encoding="utf-8"))
+        check_mmd_index(doc)
+        entry = doc["entries"][0]
+        for broken in (dict(doc, schema="endfield-mmd-library/v1"), dict(doc, entries=[{k: v for k, v in entry.items() if k != "has_face"}]),
+                       dict(doc, entries=[dict(entry, bgm=dict(entry["bgm"], offset_s="0"))]), dict(doc, entries=[dict(entry, zip=None)])):
+            with self.assertRaises(ValueError): check_mmd_index(broken)
+
+    @needs_numpy
+    def test_a_v1_library_reads_as_empty(self):
+        self.install()
+        sources = self.library.root / "mmd-library/sources"; sources.mkdir(parents=True)
+        write_json(self.library.root / "mmd-library/index.json", dict(schema="endfield-mmd-library/v1", entries=[dict(
+            id="mmd_0123456789abcdef", title="dance", duration_s=1.0, created_at="2026-11-01T00:00:00+00:00", removed_at=None,
+            source=dict(file="dance.vmd", sha256="0" * 64, name="dance.vmd"), camera=None, bgm=None, zip=None, failures={})]))
+        self.assertEqual(self.mmd_list()["entries"], [])
+
+    @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
+    def test_mmd_sync_removes_imported_rows_no_library_entry_names(self):
+        from test_vmd_import import authored_rig
+        self.install(rig=authored_rig())
+        action = self.success(self.run_import(self.vmd(), self.host()))["action"]["id"]
+        write_json(self.library.root / "mmd-library/index.json", dict(schema="endfield-mmd-library/v2", entries=[]))
+        result = tool_command("motion_tool.py", *self.sync_command(self.host(), "fixture"))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        doc = json.loads(result.stdout.splitlines()[-1])
+        self.assertEqual((doc["removed"], doc["version"]), ([action], "1.0.2"))
+        self.assertEqual(self.listed()["motions"], [])
+
+    def in_process(self, *argv):
+        """motion_tool's main in this process, so that a test can patch the importer: (exit code, result line, stderr)."""
+        import contextlib, io
+        from unittest import mock
+        import motion_tool
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.object(sys, "argv", ["motion_tool.py", *argv]), contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = motion_tool.main()
+        return code, json.loads(out.getvalue().splitlines()[-1]) if out.getvalue() else None, err.getvalue()
+
+    def face_vmd(self):
+        from agentic_complex_build.mmd.io import Vmd, MorphKey, write_vmd
+        path = self.root / "lip.vmd"
+        write_vmd(Vmd(morphs=[MorphKey("あ", 0, 0.), MorphKey("あ", 30, 1.)]), path)
+        return path
+
+    def recording_importer(self):
+        """A patch of the VMD adapter's import_motion that records each call's keywords and bakes without the face VMD and
+        the music offset, which another change teaches import_motion."""
+        from unittest import mock
+        from agentic_complex_build.motion_import import vmd as adapter
+        real, calls = adapter.import_motion, []
+        def recorded(*args, **options): calls.append(options); return real(*args, **dict(options, morph_vmd=None, bgm_start=None))
+        return mock.patch.object(adapter, "import_motion", side_effect=recorded), calls
+
+    @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "Windows refuses a bgm import: test_a_bgm_import_on_windows_is_refused_before_the_package_is_copied")
+    def test_import_passes_the_face_camera_and_a_negative_offset_and_records_a_v2_entry(self):
+        from test_vmd_import import authored_rig
+        from agentic_complex_build.motion_import.take import check_mmd_index
+        self.install(rig=authored_rig())
+        body, face, camera, song = self.vmd(name="Dance_HimeTanaka[f-19].vmd"), self.face_vmd(), self.camera_vmd(), self.wav("inst.wav")
+        patch, calls = self.recording_importer()
+        with patch:
+            code, doc, err = self.in_process("import", "--library", str(self.library.root), "--character", "fixture", "--source", str(body),
+                                             "--morph", str(face), "--camera", str(camera), "--bgm", str(song), "--bgm-start", "-0.633",
+                                             "--title", "愛包 · Hime", "--project", "愛包", "--role", "HimeTanaka",
+                                             "--validate-with", str(self.host()))
+        self.assertEqual(code, 0, err)
+        [call] = calls
+        self.assertEqual((call["morph_vmd"], call["camera"], call["bgm"], call["bgm_start"], call["foot_ik"], call["title"]),
+                         (face, camera, song, -0.633, True, "愛包 · Hime"))
+        index = self.mmd_index(); check_mmd_index(index); [entry] = index["entries"]
+        self.assertEqual((entry["id"], entry["title"], entry["morph"]["name"], entry["camera"]["name"], entry["bgm"]["name"], entry["bgm"]["offset_s"]),
+                         (doc["action"]["id"], "愛包 · Hime", "lip.vmd", "camera.vmd", "inst.wav", -0.633))
+        self.assertEqual(entry["project"], dict(title="愛包", role="HimeTanaka", place_frame=-19))
+        sources = self.library.root / "mmd-library/sources"
+        self.assertEqual((sources / entry["morph"]["file"]).read_bytes(), face.read_bytes())
+
+    @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "Windows refuses a bgm import: test_a_bgm_import_on_windows_is_refused_before_the_package_is_copied")
+    def test_mmd_sync_bakes_an_entry_with_exactly_its_stored_options(self):
+        from test_vmd_import import authored_rig
+        self.install(rig=authored_rig()); self.second_character(authored_rig())
+        patch, calls = self.recording_importer()
+        with patch:
+            code, imported, err = self.in_process("import", "--library", str(self.library.root), "--character", "fixture",
+                "--source", str(self.vmd()), "--morph", str(self.face_vmd()), "--camera", str(self.camera_vmd()), "--bgm", str(self.wav("song.wav")),
+                "--bgm-start", "0.25", "--no-foot-lock", "--title", "舞", "--validate-with", str(self.host()))
+            self.assertEqual(code, 0, err)
+            code, synced, err = self.in_process(*self.sync_command(self.host()))
+        self.assertEqual(code, 0, err)
+        self.assertEqual(synced["baked"], [imported["action"]["id"]])
+        [entry] = self.mmd_index()["entries"]; sources = self.library.root / "mmd-library/sources"
+        self.assertEqual({k: calls[1][k] for k in ("morph_vmd", "camera", "bgm", "bgm_start", "foot_ik", "title")},
+                         dict(morph_vmd=sources / entry["morph"]["file"], camera=sources / entry["camera"]["file"],
+                              bgm=sources / entry["bgm"]["file"], bgm_start=.25, foot_ik=False, title="舞"))
+
+    @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "Windows refuses a bgm import: test_a_bgm_import_on_windows_is_refused_before_the_package_is_copied")
+    def test_mmd_media_replaces_the_entry_and_its_row_in_one_publish(self):
+        from test_vmd_import import authored_rig
+        from agentic_complex_build.motion_import.take import check_result
+        self.install(rig=authored_rig())
+        old = self.success(self.run_import(self.vmd(), self.host(), "--title", "舞", "--no-foot-lock"))["action"]["id"]
+        media = lambda *extra: tool_command("motion_tool.py", "mmd-media", "--library", str(self.library.root), "--character", "fixture",
+                                            "--action", old, *extra, "--validate-with", str(self.host()))
+        doc = self.success(media("--bgm", str(self.wav("song.wav")), "--bgm-start", "0.25"))
+        check_result({k: v for k, v in doc.items() if k != "replaced"})
+        new = doc["action"]["id"]
+        self.assertEqual((doc["replaced"], doc["version"], doc["action"]["title"], doc["action"]["has_bgm"]), (old, "1.0.2", "舞", True))
+        self.assertNotEqual(new, old)
+        entries = {e["id"]: e for e in self.mmd_index()["entries"]}
+        self.assertIsNotNone(entries[old]["removed_at"])
+        self.assertEqual({k: entries[new][k] for k in ("title", "source", "foot_lock", "removed_at")},
+                         dict(title="舞", source=entries[old]["source"], foot_lock=False, removed_at=None))
+        self.assertEqual((entries[new]["bgm"]["name"], entries[new]["bgm"]["offset_s"]), ("song.wav", .25))
+        self.assertEqual([m["id"] for m in self.listed()["motions"]], [new])
+        old = new
+        doc = self.success(media("--no-bgm"))
+        self.assertEqual((doc["replaced"], doc["action"]["has_bgm"], doc["version"]), (new, False, "1.0.3"))
+        self.assertEqual(self.mmd_index()["entries"][-1]["bgm"], None)
+        self.assertEqual(self.failure(media("--no-bgm"))["reason"], "unknown_action")
+
+    @needs_numpy
+    def test_mmd_scan_sorts_a_folder_into_bodies_cameras_and_audio(self):
+        folder = self.root / "愛包ダンスホール"; (folder / "Camera/cam").mkdir(parents=True); (folder / "__MACOSX").mkdir()
+        shutil.copyfile(self.vmd(seconds=2, model="田中ヒメ"), folder / "Dance_Full_HimeTanaka_v1.1[f-19].vmd")
+        shutil.copyfile(self.vmd(model="鈴木ヒナ"), folder / "Dance_Full_HinaSuzuki_v1.1[f-19].vmd")
+        shutil.copyfile(self.camera_vmd(), folder / "Camera/cam/cam.vmd"); shutil.copyfile(self.wav("inst.wav"), folder / "inst.wav")
+        (folder / "Readme.txt").write_text("hi", encoding="utf-8"); (folder / ".DS_Store").write_bytes(b"x")
+        (folder / "__MACOSX/._inst.wav").write_bytes(b"x"); (folder / "broken.vmd").write_bytes(b"not a motion")
+        unpack = self.root / "unpacked"
+        doc = self.success(tool_command("motion_tool.py", "mmd-scan", "--source", str(folder), "--unpack-to", str(unpack)))
+        folder = folder.resolve()
+        self.assertEqual(doc, dict(ok=True, title="愛包ダンスホール", root=str(folder),
+            bodies=[dict(path=str(folder / "Dance_Full_HimeTanaka_v1.1[f-19].vmd"), name="Dance_Full_HimeTanaka_v1.1[f-19].vmd",
+                         label="HimeTanaka", model="田中ヒメ", duration_s=2.0, place_frame=-19, has_morph=False),
+                    dict(path=str(folder / "Dance_Full_HinaSuzuki_v1.1[f-19].vmd"), name="Dance_Full_HinaSuzuki_v1.1[f-19].vmd",
+                         label="HinaSuzuki", model="鈴木ヒナ", duration_s=1.0, place_frame=-19, has_morph=False)],
+            faces=[], cameras=[dict(path=str(folder / "Camera/cam/cam.vmd"), name="cam.vmd", duration_s=11 / 30, place_frame=None)],
+            audio=[dict(path=str(folder / "inst.wav"), name="inst.wav")],
+            ignored=[dict(name="Readme.txt", reason="not_motion"), dict(name="broken.vmd", reason="bad_vmd")],
+            suggested=dict(body=0, face=None, camera=0, audio=0, bgm_start_s=-0.633)))
+
+    @needs_numpy
+    def test_mmd_scan_extracts_a_zip_into_the_folder_it_creates(self):
+        archive = self.root / "set.zip"
+        with zipfile.ZipFile(archive, "w") as z: z.write(self.vmd(), "set/dance.vmd"); z.write(self.wav("song.wav"), "set/song.wav")
+        unpack = self.root / "unpacked"
+        scan = lambda *paths: tool_command("motion_tool.py", "mmd-scan", "--source", str(paths[0]), *[a for p in paths[1:] for a in ("--extra", str(p))],
+                                           "--unpack-to", str(unpack))
+        doc = self.success(scan(archive))
+        self.assertEqual((doc["title"], doc["root"], [b["name"] for b in doc["bodies"]], [a["name"] for a in doc["audio"]]),
+                         ("set", str(unpack.resolve()), ["dance.vmd"], ["song.wav"]))
+        self.assertTrue(Path(doc["bodies"][0]["path"]).is_relative_to(unpack.resolve()))
+        self.assertEqual(self.failure(scan(archive))["reason"], "bad_source")
+        shutil.rmtree(unpack)
+        self.assertEqual(self.failure(scan(self.wav("song.wav"), self.camera_vmd()))["detail"], "no body motion")
 
     def install_chains(self):
         """test_chain_edit's wave chain with its motion graph, installed."""
@@ -884,12 +1054,14 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual((formats.detect(kept), len(gltf.read(kept)["buffers"])), ("vrma", 1))
 
     @needs_numpy
-    def test_two_audio_extras_is_ambiguous(self):
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
+    def test_extras_import_the_suggested_body_and_warn_of_the_files_left_out(self):
         from test_vmd_import import authored_rig
-        self.install(rig=authored_rig()); before = self.files()
-        doc = self.failure(self.run_import(self.vmd(), self.host(), "--extra", str(self.wav("a.wav")), "--extra", str(self.wav("b.wav"))))
-        self.assertEqual((doc["reason"], doc["detail"]), ("ambiguous_motion", "a.wav,b.wav"))
-        self.assertEqual(self.files(), before)
+        self.install(rig=authored_rig())
+        doc = self.success(self.run_import(self.vmd(), self.host(), "--extra", str(self.vmd(seconds=2, name="long.vmd")),
+                                           "--extra", str(self.camera_vmd())))
+        self.assertEqual((doc["source"]["name"], doc["action"]["duration_s"], doc["warnings"]), ("long.vmd", 2.0, ["ignored_file: dance.vmd"]))
+        self.assertIsNotNone(doc["tracks"]["camera"])
 
     @needs_numpy
     def test_an_import_its_rename_and_the_library_build_copy_the_package_without_a_child_process(self):

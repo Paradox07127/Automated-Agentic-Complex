@@ -10,12 +10,12 @@ RESULT_SCHEMA = 'endfield-motion-import/v1'
 INDEX_SCHEMA = 'endfield-motion-imports/v2'
 FORMATS = ('vmd', 'bvh', 'gltf', 'vrma', 'fbx', 'zip')
 FPS = 30
-MAX_SECONDS = 180
+MAX_SECONDS = 360
 # A last sample closer than this many frames to the one before is dropped: float32 glTF key times are not exact.
 END_TOLERANCE = 1e-3
 REASONS = ('validate_failed', 'too_many_actions', 'too_many_media', 'bad_vmd', 'too_long', 'missing_bones', 'busy', 'internal',
            'unsupported_format', 'bad_source', 'no_animation', 'unmapped_skeleton', 'already_imported', 'unknown_action',
-           'not_imported', 'bad_title', 'bad_zip', 'ambiguous_motion', 'linked_motion', 'outside_package')
+           'not_imported', 'bad_title', 'bad_zip', 'linked_motion', 'outside_package')
 # synthesized_bones comes as 'synthesized_bones: <canonical joints, comma-separated>'.
 WARNINGS = ('fingers_rest', 'toe_synthesized', 'hand_tip_synthesized', 'shoulder_synthesized', 'scale_ignored',
             'translation_ignored', 'expression_clamped', 'expressions_not_applied', 'look_at_ignored', 'unmapped_bones',
@@ -197,14 +197,23 @@ def check_index(doc):
             if entry[key] is not None: _check('index', path + '.' + key, entry[key], spec)
 
 
+MMD_SCHEMA = 'endfield-mmd-library/v2'
+_MMD_FILE = dict(file=_string, sha256=_string, name=_string)
+_MMD_FILES = dict(source=_MMD_FILE, morph=_MMD_FILE, camera=_MMD_FILE,
+                  bgm=dict(_MMD_FILE, offset_s=lambda x: x is None or _number(x)))
+_PROJECT = dict(title=_string, role=_optional_string, place_frame=lambda x: x is None or _int(x))
+
+
 def check_mmd_index(doc):
-    _check('index', '', doc, dict(schema=lambda x: x == 'endfield-mmd-library/v1', entries=lambda x: isinstance(x, list)))
+    _check('index', '', doc, dict(schema=lambda x: x == MMD_SCHEMA, entries=lambda x: isinstance(x, list)))
     spec = dict(id=_string, title=_string, duration_s=_number, created_at=_string, removed_at=_optional_string,
-                source=_object, camera=_optional_object, bgm=_optional_object, zip=_optional_object, failures=_object)
+                source=_object, morph=_optional_object, camera=_optional_object, bgm=_optional_object, foot_lock=_bool,
+                has_face=_bool, project=_optional_object, failures=_object)
     for n, entry in enumerate(doc['entries']):
         path = 'entries[%d]' % n
         _check('index', path, entry, spec)
-        for key, fields in _FILES.items():
+        for key, fields in _MMD_FILES.items():
             if entry[key] is not None: _check('index', path + '.' + key, entry[key], fields)
+        if entry['project'] is not None: _check('index', path + '.project', entry['project'], _PROJECT)
         for character, failure in entry['failures'].items():
             _check('index', path + '.failures.' + character, failure, dict(reason=_string, detail=_string, package_sha256=_string))

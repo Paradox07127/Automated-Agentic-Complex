@@ -68,10 +68,10 @@ class DistributionSeedTests(unittest.TestCase):
         aid = json.loads(result.stdout.splitlines()[-1])['appearance']['id']
         sources = old.root / 'mmd-library/sources'; sources.mkdir(parents=True); (sources / 'dance.vmd').write_bytes(b'vmd')
         failure = dict(reason='missing_bones', detail='fixture', package_sha256=old.package('fixture').sha256)
-        write_json(old.root / 'mmd-library/index.json', dict(schema='endfield-mmd-library/v1', entries=[dict(
+        write_json(old.root / 'mmd-library/index.json', dict(schema='endfield-mmd-library/v2', entries=[dict(
             id='mmd_0123456789abcdef', title='dance', duration_s=1.0, created_at='2026-11-01T00:00:00+00:00', removed_at=None,
-            source=dict(file='dance.vmd', sha256=hashlib.sha256(b'vmd').hexdigest(), name='dance.vmd'), camera=None, bgm=None, zip=None,
-            failures=dict(fixture=failure))]))
+            source=dict(file='dance.vmd', sha256=hashlib.sha256(b'vmd').hexdigest(), name='dance.vmd'), morph=None, camera=None, bgm=None,
+            foot_lock=True, has_face=False, project=None, failures=dict(fixture=failure))]))
         return old, aid
 
     def seed_library(self, root, **options):

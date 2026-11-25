@@ -18,10 +18,10 @@ def probe(path, take=0):
 
 
 def import_file(package_root, path, output, *, title=None, bgm=None, bgm_start=None, foot_lock=True, camera: Path | None = None,
-                progress=None):
+                morph: Path | None = None, progress=None):
     # Only these arguments, so the identity stays the one motion_tool's --vmd import gives.
     report = import_motion(package_root, path, output, title=title, bgm=bgm, bgm_start=bgm_start, foot_ik=foot_lock, camera=camera,
-                           progress=progress)
+                           morph_vmd=morph, progress=progress)
     return parts(report, path, title)
 
 

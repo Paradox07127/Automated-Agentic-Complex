@@ -3,29 +3,32 @@ new motion in place, probe reads a motion source without a library, list shows a
 publish the character rebuilt with one imported motion retitled or taken out, chain checks a motion-chain proposal or publishes
 the character rebuilt with it; Companion's motion import runs it by script path.
 
-On success stdout ends with one JSON result line; import and mmd-sync (which aligns a character with the shared MMD library)
-first emit progress lines, and mmd-list shows that library. On failure the last stderr line is {"ok": false, "reason", "detail"}.
+On success stdout ends with one JSON result line; import, mmd-media (which gives a shared MMD motion other music) and mmd-sync
+(which aligns a character with the shared MMD library) first emit progress lines, mmd-list shows that library and mmd-scan sorts
+an MMD project's files. On failure the last stderr line is {"ok": false, "reason", "detail"}.
 """
 import argparse
 import datetime
 import hashlib
 import importlib
 import json
+import math
 import os
 from pathlib import Path
 import shutil
 import signal
+import struct
 import sys
 
 AGENTD = Path(__file__).resolve().parent
 sys.path.insert(0, str(AGENTD))  # -I leaves the script's folder off the path
 from character_library import Library, Package, PackageError, digest, read_json, validate_pack, write_json
 from infra.platform import lock_file
-from motion.zip_import import Failure, classify, extract, fail
+from motion.zip_import import Failure, classify, extract, fail, placed, walk
 
 # The host refuses a character with more action rows or motion media tracks than this.
 HOST_ROWS = 128
-MAX_SECONDS = 180
+MAX_SECONDS = 360
 # The importer's ValueError messages start with one of these reasons; any other message is a bad source.
 SOURCE_REASONS = ("unsupported_format", "bad_source", "bad_vmd", "no_animation", "unmapped_skeleton", "too_long")
 # Hashed in this order.
@@ -144,16 +147,35 @@ def keep(path, folder):
     return name
 
 
+def finite(seconds):
+    """--bgm-start: any finite number of seconds; a negative one starts the music after that much silence."""
+    if seconds is not None and not math.isfinite(seconds): fail("bad_source", "--bgm-start must be a finite number of seconds")
+
+
+def vmd_info(path):
+    """zip_import.classify's reading of a VMD; ValueError when it does not parse."""
+    io = importlib.import_module(importer() + ".mmd.io")
+    try: motion = io.read_vmd(path)
+    except struct.error as error: raise ValueError(error) from error
+    frames = io.last_frame(motion) if motion.bones or motion.morphs else max((key[0] for key in motion.cameras), default=0)
+    return dict(bones=len(motion.bones), cameras=len(motion.cameras), morphs=len({key.name for key in motion.morphs}),
+                model=motion.model, frames=frames)
+
+
 def inputs(args, paths):
-    """The body, camera VMD, audio and ignored-file warnings among the import's files; a lone non-ZIP --source is the body."""
-    if paths == [args.source]: return args.source, None, args.bgm, []
-    read_vmd = importlib.import_module(importer() + ".mmd.io").read_vmd
-    def vmd_counts(path):
-        try: motion = read_vmd(path)
-        except ValueError as error: fail("bad_vmd", "%s: %s" % (path.name, error))
-        return len(motion.bones), len(motion.cameras)
-    found = classify(paths, vmd_counts)
-    return found["body"], found["camera"], args.bgm or found["audio"], found["warnings"]
+    """The body, face and camera VMDs, audio, music offset and left-out-file warnings of the import; a lone non-ZIP --source is the
+    body, else the files are sorted as mmd-scan sorts them and its suggestions fill what no flag names. No music, no offset."""
+    if paths == [args.source]: body, morph, camera, bgm, start, warnings = args.source, args.morph, args.camera, args.bgm, args.bgm_start, []
+    else:
+        found = classify(paths, vmd_info); chosen = found["suggested"]
+        pick = lambda kind, key: Path(found[kind][chosen[key]]["path"]) if chosen[key] is not None else None
+        body = pick("bodies", "body")
+        morph, camera, bgm = args.morph or pick("faces", "face"), args.camera or pick("cameras", "camera"), args.bgm or pick("audio", "audio")
+        start = chosen["bgm_start_s"] if args.bgm_start is None else args.bgm_start
+        left = [item["name"] for kind in ("bodies", "faces", "cameras", "audio") for item in found[kind]
+                if Path(item["path"]) not in (body, morph, camera, bgm)]
+        warnings = ["ignored_file: " + name for name in sorted(left + [item["name"] for item in found["ignored"]])]
+    return body, morph, camera, bgm, start if bgm else None, warnings
 
 
 def mmd_rows(package):
@@ -163,9 +185,12 @@ def mmd_rows(package):
 
 
 def load_mmd(library):
+    """The shared MMD library; a v1 file or none reads as an empty v2 library."""
     path = library.root / "mmd-library/index.json"
-    doc = read_json(path) if path.exists() else dict(schema="endfield-mmd-library/v1", entries=[])
-    motion_import(".take").check_mmd_index(doc)
+    take = motion_import(".take")
+    doc = read_json(path) if path.exists() else None
+    if doc is None or doc.get("schema") == "endfield-mmd-library/v1": doc = dict(schema=take.MMD_SCHEMA, entries=[])
+    take.check_mmd_index(doc)
     return doc
 
 
@@ -174,9 +199,27 @@ def save_mmd(library, doc):
     sources = folder / "sources"; sources.mkdir(exist_ok=True)
     write_json(folder / "index.json", doc)
     live = {entry[key]["file"] for entry in doc["entries"] if entry["removed_at"] is None
-            for key in ("source", "bgm", "camera", "zip") if entry[key] is not None}
+            for key in ("source", "morph", "camera", "bgm") if entry[key] is not None}
     for path in sources.iterdir():
         if path.name not in live: path.unlink()
+
+
+def entry_paths(library, entry):
+    """The kept body, face, camera and music files of a library entry, None where it has none."""
+    sources = library.root / "mmd-library/sources"
+    return {key: sources / entry[key]["file"] if entry[key] else None for key in ("source", "morph", "camera", "bgm")}
+
+
+def bumped(package, current):
+    """current, chained from package, as package's next patch version, ready to validate and publish."""
+    definition = read_json(current.root / "character.json")
+    # The host finds the window envelope of an imported package by the version it derives from.
+    definition.setdefault("base_package_version", package.version)
+    major, minor, patch = map(int, package.version.split("."))
+    definition["version"] = f"{major}.{minor}.{patch + 1}"
+    write_json(current.root / "character.json", definition)
+    # library.upgrade checks every file's SHA-256 in the copy it publishes.
+    return Package(current.root, deep=False)
 
 
 def mmd_list(args):
@@ -196,9 +239,10 @@ def mmd_list(args):
                 failed = failure is not None and failure["package_sha256"] == package.sha256
                 state = "baked" if entry["id"] in rows else "failed" if failed else "pending"
                 characters.append(dict(id=package.id, state=state, reason=failure["reason"] if state == "failed" else None))
+            project = entry["project"] or dict(title=None, role=None)
             entries.append(dict(id=entry["id"], title=entry["title"], duration_s=entry["duration_s"],
-                                has_bgm=entry["bgm"] is not None, has_camera=entry["camera"] is not None,
-                                created_at=entry["created_at"], characters=characters))
+                                has_bgm=entry["bgm"] is not None, has_camera=entry["camera"] is not None, has_face=entry["has_face"],
+                                project=project["title"], role=project["role"], created_at=entry["created_at"], characters=characters))
     return dict(ok=True, entries=entries)
 
 
@@ -223,13 +267,17 @@ def mmd_sync(args):
             rows = mmd_rows(package)
             result = dict(ok=True, character=package.id, version=package.version, baked=[], renamed=[], removed=[], failed=[])
             failed = []
-            total = len(doc["entries"])
             live = {entry["id"] for entry in doc["entries"] if entry["removed_at"] is None}
+            # Imported MMD rows no library entry names come last, to be removed.
+            named = {entry["id"] for entry in doc["entries"]}
+            work = [(entry["id"], entry) for entry in doc["entries"]] + [(action, None) for action in rows if action not in named]
+            total = len(work)
             bar = Progress(total=total, done=0); bar.show("read", 0)
-            for n, entry in enumerate(doc["entries"], 1):
-                action = entry["id"]; row = rows.get(action)
+            for n, (action, entry) in enumerate(work, 1):
+                row = rows.get(action)
                 operation = None
-                if entry["removed_at"] is not None:
+                if entry is None: operation = "removed"
+                elif entry["removed_at"] is not None:
                     if row is not None and action not in live: operation = "removed"
                 elif row is not None:
                     if row["name"] != entry["title"]: operation = "renamed"
@@ -240,49 +288,32 @@ def mmd_sync(args):
                     output = stage / str(n)
                     try:
                         if operation == "baked":
-                            sources = library.root / "mmd-library/sources"
-                            paths = {key: sources / entry[key]["file"] if entry[key] else None
-                                     for key in ("source", "bgm", "camera")}
+                            paths = entry_paths(library, entry)
                             precheck(current, paths["source"], "vmd", 0)
-                            # Recover bake options by identity: the shared schema stores media, not these options.
-                            identity = dict(vmd=entry["source"]["sha256"], model="authored-standard-control-reference-v1",
-                                            start=0.0, duration=entry["duration_s"],
-                                            bgm=entry["bgm"]["sha256"] if entry["bgm"] else None,
-                                            **(dict(camera=entry["camera"]["sha256"]) if entry["camera"] else {}))
-                            canonical = importlib.import_module(importer() + ".common").canonical_json
-                            offsets = (None, entry["bgm"]["offset_s"]) if entry["bgm"] else (None,)
-                            options = next(((foot_lock, offset) for foot_lock in (True, False) for offset in offsets
-                                if "mmd_" + hashlib.sha256(canonical(dict(identity, foot_ik=foot_lock, bgm_start=offset))).hexdigest()[:16] == action), None)
-                            if options is None: fail("internal", "no bake options reproduce " + action)
-                            foot_lock, bgm_start = options
                             try:
-                                motion_import(".pipeline").import_file(current.root, paths["source"], "vmd", output,
-                                    title=entry["title"], bgm=paths["bgm"], bgm_start=bgm_start,
-                                    foot_lock=foot_lock, camera=paths["camera"],
+                                parts = motion_import(".pipeline").import_file(current.root, paths["source"], "vmd", output,
+                                    title=entry["title"], bgm=paths["bgm"], bgm_start=entry["bgm"]["offset_s"] if entry["bgm"] else None,
+                                    foot_lock=entry["foot_lock"], camera=paths["camera"], morph=paths["morph"],
                                     progress=bar.span(VMD_STAGES[1:4], SYNC_ENTRIES * (n - 1) / total, SYNC_ENTRIES * n / total))
                             except ValueError as error: source_failure(error)
+                            if parts["action"]["id"] != action: fail("internal", "the stored options bake %s, not %s" % (parts["action"]["id"], action))
                         else:
-                            motion_import(".edit").edit_package(current.root, output, action=action, title=entry["title"], remove=operation == "removed")
+                            motion_import(".edit").edit_package(current.root, output, action=action, title=entry and entry["title"],
+                                                                remove=operation == "removed")
                     except (Failure, PackageError) as error:
                         reason = error.reason if isinstance(error, Failure) else str(error)
-                        entry["failures"][package.id] = dict(reason=reason, detail=str(error), package_sha256=package.sha256)
-                        failed.append(entry)
+                        if entry is not None:
+                            entry["failures"][package.id] = dict(reason=reason, detail=str(error), package_sha256=package.sha256)
+                            failed.append(entry)
                         result["failed"].append(dict(id=action, reason=reason, detail=str(error)))
                         shutil.rmtree(output, ignore_errors=True)
                     else:
                         current = Package(output, deep=False)
-                        entry["failures"].pop(package.id, None)
+                        if entry is not None: entry["failures"].pop(package.id, None)
                         result[operation].append(action)
                 bar.counts["done"] = n; bar.show(bar.printed["stage"] if operation == "baked" else "write", SYNC_ENTRIES * n / total)
             if current is not package:
-                definition = read_json(current.root / "character.json")
-                # The host finds the window envelope of an imported package by the version it derives from.
-                definition.setdefault("base_package_version", package.version)
-                major, minor, patch = map(int, package.version.split("."))
-                definition["version"] = f"{major}.{minor}.{patch + 1}"
-                write_json(current.root / "character.json", definition)
-                # library.upgrade checks every file's SHA-256 in the copy it publishes.
-                current = Package(current.root, deep=False)
+                current = bumped(package, current)
                 for entry in failed: entry["failures"][package.id]["package_sha256"] = current.sha256
                 bar.show("validate", SYNC_ENTRIES)
                 try: validate_pack(host, current)
@@ -301,12 +332,13 @@ def mmd_sync(args):
 def run(args):
     host = args.validate_with.resolve()
     if not (host.is_file() and os.access(host, os.X_OK)): fail("validate_failed", "host executable is missing or not executable: " + str(host))
+    finite(args.bgm_start)
     bar = Progress(); bar.show("read", 0)
     library = Library(args.library)
     package = find(library, args.character)
     zipped = args.source.suffix.lower() == ".zip"
     if not zipped:
-        body, camera, bgm, ignored = inputs(args, [args.source, *args.extra])
+        body, morph, camera, bgm, bgm_start, ignored = inputs(args, [args.source, *args.extra])
         fmt = precheck(package, body, args.format, args.take)
     title = args.title or args.source.stem
     take = motion_import(".take")
@@ -321,7 +353,7 @@ def run(args):
         shutil.rmtree(unpacked, ignore_errors=True); shutil.rmtree(glb, ignore_errors=True)
         try:
             if zipped:
-                body, camera, bgm, ignored = inputs(args, [*extract(args.source, unpacked), *args.extra])
+                body, morph, camera, bgm, bgm_start, ignored = inputs(args, [*extract(args.source, unpacked), *args.extra])
                 fmt = precheck(package, body, args.format, args.take)
             if fmt in ("gltf", "vrma"):
                 # The kept source is one file: buffers beside a .gltf (a VRMA too) go into a GLB, which is baked and kept.
@@ -332,9 +364,9 @@ def run(args):
             progress("read", 1)
             try:
                 parts = motion_import(".pipeline").import_file(
-                    package.root, body, fmt, stage, take=args.take, title=title, bgm=bgm, bgm_start=args.bgm_start,
+                    package.root, body, fmt, stage, take=args.take, title=title, bgm=bgm, bgm_start=bgm_start,
                     foot_lock=not args.no_foot_lock, bone_map=read_json(args.bone_map) if args.bone_map else None, camera=camera,
-                    progress=progress)
+                    morph=morph, progress=progress)
             except ValueError as error:
                 if "motion_already_imported" in str(error): fail("already_imported", error)
                 source_failure(error)
@@ -348,22 +380,28 @@ def run(args):
             sources = library.root / "mmd-library/sources" if fmt == "vmd" else library.root / "motion-imports" / package.id
             sources.mkdir(parents=True, exist_ok=True)
             kept = lambda path: dict(file=keep(path, sources), sha256=digest(path), name=path.name) if path else None
-            music = keep(bgm, sources) if bgm else None
-            record = dict(action=parts["action"]["id"], clip=parts["action"]["clip"], format=parts["format"], title=title,
-                          source=kept(body),
-                          bgm=dict(file=music, sha256=Path(music).stem, offset_s=args.bgm_start) if music else None,
-                          camera=kept(camera), zip=kept(args.source) if zipped else None, morphs_mapped=[], morphs_unmapped=[],
-                          created_at=datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"), removed_at=None)
+            created = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+            if fmt == "vmd":
+                record = dict(id=parts["action"]["id"], title=title, duration_s=parts["action"]["duration_s"], created_at=created,
+                              removed_at=None, source=kept(body), morph=kept(morph), camera=kept(camera),
+                              bgm=dict(kept(bgm), offset_s=bgm_start) if bgm else None, foot_lock=not args.no_foot_lock,
+                              has_face=parts["tracks"]["face"] is not None,
+                              project=dict(title=args.project, role=args.role, place_frame=placed(body)[1]) if args.project is not None else None,
+                              failures={})
+            else:
+                music = keep(bgm, sources) if bgm else None
+                record = dict(action=parts["action"]["id"], clip=parts["action"]["clip"], format=parts["format"], title=title,
+                              source=kept(body),
+                              bgm=dict(file=music, sha256=Path(music).stem, offset_s=bgm_start) if music else None,
+                              camera=kept(camera), zip=kept(args.source) if zipped else None, morphs_mapped=[], morphs_unmapped=[],
+                              created_at=created, removed_at=None)
             library.upgrade(stage, package.sha256)
         finally:
             shutil.rmtree(stage, ignore_errors=True)
             shutil.rmtree(unpacked, ignore_errors=True); shutil.rmtree(glb, ignore_errors=True)
         if fmt == "vmd":
-            entry = next((e for e in shared["entries"] if e["id"] == record["action"] and e["removed_at"] is None), None)
-            if entry is None:
-                shared["entries"].append(dict(id=record["action"], title=title, duration_s=parts["action"]["duration_s"],
-                    created_at=record["created_at"], removed_at=None, source=record["source"], camera=record["camera"],
-                    bgm=record["bgm"], zip=record["zip"], failures={}))
+            entry = next((e for e in shared["entries"] if e["id"] == record["id"] and e["removed_at"] is None), None)
+            if entry is None: shared["entries"].append(record)
             else: entry["failures"].pop(package.id, None)
             save_mmd(library, shared)
         else:
@@ -371,8 +409,81 @@ def run(args):
             imports = read_json(index) if index.exists() else dict(schema=take.INDEX_SCHEMA, imports=[])
             imports["imports"].append(record); take.check_index(imports); write_json(index, imports)
     progress("publish", 1)
-    return take.build_result(character=package.id, version=staged.version, created_at=record["created_at"],
+    return take.build_result(character=package.id, version=staged.version, created_at=created,
                              **dict(parts, warnings=parts["warnings"] + ignored))
+
+
+def mmd_scan(args):
+    """mmd-scan: the files of a folder, a ZIP (extracted under --unpack-to) or single files, sorted for an MMD import."""
+    source, unpack = args.source.resolve(), args.unpack_to.resolve()
+    if unpack.exists(): fail("bad_source", "--unpack-to already exists: " + str(unpack))
+    files, zips = [], 0
+    for path in (source, *(extra.resolve() for extra in args.extra)):
+        if path.is_dir(): files += walk(path)
+        elif path.suffix.lower() == ".zip": files += extract(path, unpack / str(zips)); zips += 1
+        elif path.is_file(): files.append(path)
+        else: fail("bad_source", "no such file or folder: " + str(path))
+    root = source if source.is_dir() else unpack if source.suffix.lower() == ".zip" else source.parent
+    return dict(ok=True, title=source.name if source.is_dir() else source.stem, root=str(root), **classify(files, vmd_info))
+
+
+def mmd_media(args):
+    """mmd-media: a library entry imported again with its own body, face and camera and other music, replacing the entry and the
+    current character's row in one publish."""
+    host = args.validate_with.resolve()
+    if not (host.is_file() and os.access(host, os.X_OK)): fail("validate_failed", "host executable is missing or not executable: " + str(host))
+    finite(args.bgm_start)
+    bar = Progress(); bar.show("read", 0)
+    library = Library(args.library)
+    package = find(library, args.character)
+    take = motion_import(".take")
+    stages = library.root / ".vmd-stage"; stages.mkdir(exist_ok=True)
+    with (stages / ".lock").open("a", encoding="utf-8") as lock:
+        try: lock_file(lock, blocking=False)
+        except BlockingIOError: fail("busy", "another motion import is running in " + str(library.root))
+        shared = load_mmd(library)
+        old = next((e for e in shared["entries"] if e["id"] == args.action and e["removed_at"] is None), None)
+        if old is None: fail("unknown_action", args.action + " is not in the MMD library")
+        paths, bgm = entry_paths(library, old), args.bgm
+        bgm_start = args.bgm_start if bgm else None
+        precheck(package, paths["source"], "vmd", 0)
+        stage = stages / package.id
+        shutil.rmtree(stage, ignore_errors=True)  # left by a killed import
+        stage.mkdir()
+        try:
+            current = package
+            if args.action in mmd_rows(package):
+                try: motion_import(".edit").edit_package(package.root, stage / "removed", action=args.action, title=None, remove=True)
+                except PackageError as error:
+                    if str(error) in ("unknown_action", "not_imported", "linked_motion", "outside_package"): fail(str(error), error)
+                    raise
+                current = Package(stage / "removed", deep=False)
+            progress = bar.span(VMD_STAGES)
+            progress("read", 1)
+            try:
+                parts = motion_import(".pipeline").import_file(current.root, paths["source"], "vmd", stage / "imported",
+                    title=old["title"], bgm=bgm, bgm_start=bgm_start, foot_lock=old["foot_lock"], camera=paths["camera"],
+                    morph=paths["morph"], progress=progress)
+            except ValueError as error:
+                if "motion_already_imported" in str(error): fail("already_imported", error)
+                source_failure(error)
+            progress("validate", 0)
+            staged = bumped(package, Package(stage / "imported", deep=False))
+            try: validate_pack(host, staged)
+            except (PackageError, TimeoutError) as error: fail("validate_failed", error)
+            progress("publish", 0)
+            sources = library.root / "mmd-library/sources"
+            created = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+            entry = dict(old, id=parts["action"]["id"], duration_s=parts["action"]["duration_s"], created_at=created,
+                         bgm=dict(file=keep(bgm, sources), sha256=digest(bgm), name=bgm.name, offset_s=bgm_start) if bgm else None,
+                         has_face=parts["tracks"]["face"] is not None, failures={})
+            library.upgrade(staged.root, package.sha256)
+        finally:
+            shutil.rmtree(stage, ignore_errors=True)
+        old["removed_at"] = created
+        shared["entries"].append(entry); save_mmd(library, shared)
+    progress("publish", 1)
+    return dict(take.build_result(character=package.id, version=staged.version, created_at=created, **parts), replaced=args.action)
 
 
 def reclaim(sources, imports):
@@ -513,6 +624,17 @@ def main():
     sub.add_argument("--format", default="auto"); sub.add_argument("--take", type=int, default=0)
     sub.add_argument("--bgm-start", type=float); sub.add_argument("--no-foot-lock", action="store_true")
     sub.add_argument("--bone-map", type=Path); sub.add_argument("--extra", type=Path, action="append", default=[])
+    sub.add_argument("--morph", type=Path); sub.add_argument("--camera", type=Path)
+    sub.add_argument("--project"); sub.add_argument("--role")
+    sub = commands.add_parser("mmd-scan")
+    for name in ("source", "unpack-to"): sub.add_argument("--" + name, type=Path, required=True)
+    sub.add_argument("--extra", type=Path, action="append", default=[])
+    sub = commands.add_parser("mmd-media")
+    for name in ("library", "validate-with"): sub.add_argument("--" + name, type=Path, required=True)
+    sub.add_argument("--character", required=True); sub.add_argument("--action", required=True)
+    music = sub.add_mutually_exclusive_group(required=True)
+    music.add_argument("--bgm", type=Path); music.add_argument("--no-bgm", action="store_true")
+    sub.add_argument("--bgm-start", type=float)
     sub = commands.add_parser("probe")
     sub.add_argument("--source", type=Path, required=True)
     sub.add_argument("--format", default="auto"); sub.add_argument("--take", type=int, default=0)
@@ -534,7 +656,8 @@ def main():
     args = parser.parse_args()
     try:
         print(json.dumps({"import": run, "probe": probe, "list": list_motions, "rename": lambda a: edit(a, False),
-                          "remove": lambda a: edit(a, True), "chain": chain, "mmd-sync": mmd_sync, "mmd-list": mmd_list}[args.command](args), ensure_ascii=False))
+                          "remove": lambda a: edit(a, True), "chain": chain, "mmd-sync": mmd_sync, "mmd-list": mmd_list,
+                          "mmd-scan": mmd_scan, "mmd-media": mmd_media}[args.command](args), ensure_ascii=False))
         return 0
     except Failure as error: reason, detail = error.reason, str(error)
     except Exception as error: reason, detail = "internal", "%s: %s" % (type(error).__name__, error)

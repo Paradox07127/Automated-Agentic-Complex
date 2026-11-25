@@ -8,6 +8,18 @@
 
 在 App 里，在「角色 › 导入」导入动作，或把 VMD、ZIP 文件直接拖到角色身上。
 
+## App 里的 MMD 工程导入
+
+一首 MMD 曲子的整包（文件夹、ZIP 或多选的文件）可以一次导入共享舞曲库，包里可以有多条身体动作、口型 VMD、多条镜头和多段音源：
+
+- `motion_tool.py mmd-scan` 先把文件分好类：有骨骼关键帧的 VMD 是身体，只有相机关键帧的是镜头，只有表情关键帧的是口型（表情）VMD，音频按后缀，其余列为忽略。文件夹递归走，跳过隐藏项和 `__MACOSX`；ZIP 展开到临时目录。
+- 每条身体按文件名里和别的身体不同的那段起名（如 `…_HimeTanaka_v1.1[f-19].vmd` 和 `…_HinaSuzuki_v1.1[f-19].vmd` 分别是 `HimeTanaka`、`HinaSuzuki`）。
+- 身体 VMD 主名末尾的 `[fN]`（如 `[f-19]`、`[f4930]`）表示动作放在歌曲的第 N 帧（30 fps），音乐偏移缺省取 N / 30 秒，可以是负数：负数表示音乐在这么多秒静音之后才开始。
+- 缺省选最长的身体、最长的镜头、第一段音源，以及文件名含所选身体名字的口型 VMD（只有一个口型时就用它）。页面上可以逐项改选。
+- `motion_tool.py import` 的 `--morph` 给口型 VMD、`--camera` 给镜头 VMD，两者只配 VMD 身体；`--project`、`--role` 记下曲名和这支身体的角色。直接拖进来的多个文件或 ZIP 也按同样的分类取缺省选择，没用上的文件记成告警 `ignored_file`，不再因为「多于一个」失败。
+- `motion_tool.py mmd-media` 给库里的一首换音乐或偏移：用它自己的身体、口型和镜头重新导入，换掉库条目和当前角色的那一行。
+- 上限：ZIP 文件 512 MiB；一个 ZIP 或文件夹最多 256 个文件、合计 1 GiB。
+
 ## 工具环境
 
 在仓库根目录创建 pipeline 工具环境（Python 3.12），按 `requirements-mmd.txt` 安装 NumPy：
@@ -69,7 +81,8 @@ uv pip install --python .local/venvs/pipeline/bin/python3 \
 
 上限：
 
-- 单段最长 180 秒（`take.MAX_SECONDS`），导入后统一 30 fps。
+- 动作、音乐和表情片段单段最长 360 秒（`take.MAX_SECONDS`、`motion_tool.MAX_SECONDS`），导入后统一 30 fps。
+- ZIP 文件 512 MiB；一个 ZIP 或一个文件夹最多 256 个文件、合计 1 GiB。
 - 文件大小：VMD、BVH 64 MiB，glTF/GLB/VRMA 256 MiB，背景音乐 256 MiB。
 - 采样数：BVH、glTF 的帧数 × 关节/节点数不超过 4,000,000；BVH 最多 512 个关节。
 - glTF 不收 sparse accessor（`bad_source: sparse_accessor`）。
@@ -78,7 +91,7 @@ uv pip install --python .local/venvs/pipeline/bin/python3 \
 
 - 身体和根位移：所有能导入的格式都导入。
 - 手指：VMD 照常重定向（`fingers: "retargeted"`）。其他格式的手指骨能映射时也重定向；映射不到时保持 rest（`fingers: "rest"`，告警 `fingers_rest`）。
-- 表情：VMD 的表情进 `tracks.face`。glTF morph 权重和 VRMA 表情只解析，列在 `source.expressions`，不进包（告警 `expressions_not_applied`）。
+- 表情：VMD 的表情（身体 VMD 自带的，或 `--morph` 给的口型 VMD）进 `tracks.face`。glTF morph 权重和 VRMA 表情只解析，列在 `source.expressions`，不进包（告警 `expressions_not_applied`）。
 - 相机：VMD 相机进 `tracks.camera`，只能经 App 导入；离线入口没有相机旗标，其他格式不导入相机。
 - VRMA 的 `lookAt` 忽略（告警 `look_at_ignored`）；VRMA 非 hips 的平移和所有缩放通道忽略（`translation_ignored`、`scale_ignored`）。
 
@@ -98,12 +111,12 @@ uv pip install --python .local/venvs/pipeline/bin/python3 \
 
 - 输出同 `import_motion`：`packages-built/<id>/`、`library/current.json`、`import-result.json`，加 `--export` 后还有各角色的 `.endfield-character`。导入的动作出现在角色现有的动作菜单里。
 - `--source-model original.pmd` 用动作原模型的 PMD 骨架校准；省略时用项目自行编写的标准 MMD 控制骨架。原模型比例不同会影响重定向效果。角色骨架、rest scale、原有动作、网格、shader 和光照资产保留。
-- `--start 30 --duration 4` 只导入一段，起止量化到 30 fps。单段最多 180 秒，输入范围和求值内存都有上限；长文件可以分段导入。`--no-foot-ik` 关闭目标脚部修正。
+- `--start 30 --duration 4` 只导入一段，起止量化到 30 fps。单段最多 360 秒，输入范围和求值内存都有上限；长文件可以分段导入。`--no-foot-ik` 关闭目标脚部修正。
 - 每次输出必须是新目录，不能在输入包或输入库里面。失败时清理本次的暂存目录。
 
 ### 音乐同步
 
-- `--bgm` 经系统的 `/usr/bin/afconvert` 解码为双声道 48 kHz PCM。默认从动作的 `--start` 位置截取音乐；`--bgm-start` 单独指定音轨起点。音轨截到动作长度，不够的部分补静音，补齐的帧数记进报告。
+- `--bgm` 经系统的 `/usr/bin/afconvert` 解码为双声道 48 kHz PCM。默认从动作的 `--start` 位置截取音乐；`--bgm-start` 单独指定音轨起点（动作第 0 帧对应源音频的这一秒；负数时音乐先补这么多秒静音）。音轨截到动作长度，不够的部分补静音，补齐的帧数记进报告。
 - 音乐在这次动作的第一个真实 Metal 提交帧确认后开始。动画时间跟随 `AVAudioPlayerNode` 消费的源采样位置；渲染器隐藏或暂停时两者一起冻结，恢复后继续。循环播放时音轨从零开始；动作被替换或停止时旧音轨停下。
 - 这个时钟表示源音频的渲染进度；显示器呈现、音频设备和扬声器各有延迟。回执里的 `max_animation_clock_drift_s` 不是声学或端到端的同步精度。
 

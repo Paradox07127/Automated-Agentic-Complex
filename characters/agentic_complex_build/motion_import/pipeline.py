@@ -10,7 +10,7 @@ def probe_file(path, fmt='auto', take=0):
 
 
 def import_file(package_root, path, fmt, output, *, take=0, title=None, bgm=None, bgm_start=None, foot_lock=True,
-                bone_map=None, camera: Path | None = None, progress=None):
+                bone_map=None, camera: Path | None = None, morph: Path | None = None, progress=None):
     """The import result's parts (take.build_result's arguments but character, version, created_at and playback).
     progress(stage, fraction): import_motion's stages for a VMD, import_take's for the other formats."""
     if fmt == 'auto': fmt = formats.detect(path)
@@ -18,8 +18,8 @@ def import_file(package_root, path, fmt, output, *, take=0, title=None, bgm=None
     if fmt == 'vmd':
         if take != 0: raise ValueError('bad_source: take')
         return vmd.import_file(package_root, path, output, title=title, bgm=bgm, bgm_start=bgm_start, foot_lock=foot_lock,
-                               camera=camera, progress=progress)
-    if camera is not None: raise ValueError('bad_source: a camera VMD goes only with a VMD body motion')
+                               camera=camera, morph=morph, progress=progress)
+    if camera is not None or morph is not None: raise ValueError('bad_source: a camera or face VMD goes only with a VMD body motion')
     module = formats.importer(fmt)
     motion = module.load(path, take, {'bone_map': bone_map})
     try: from .bake import import_take
