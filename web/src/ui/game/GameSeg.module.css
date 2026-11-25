@@ -1,4 +1,4 @@
-/* Game segmented switch (common toggle): a dark slanted track, the chosen option under a sliding white block with a yellow foot. */
+/* Game segmented switch (common toggle): a dark capsule track, the chosen option under a sliding white capsule. */
 .seg {
   --gs-track: rgb(0 0 0 / 40%);
   --gs-hatch: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(255 255 255 / 8%) 4px 5px);
@@ -41,8 +41,8 @@
   height: 26px;
   padding: 0 5px;
   background: var(--gs-track);
+  border-radius: 999px;
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 20%);
-  clip-path: polygon(7px 0, 100% 0, calc(100% - 7px) 100%, 0 100%);
 }
 
 @keyframes gs-hover {
@@ -60,6 +60,7 @@
   content: '';
   position: absolute;
   inset: 0;
+  border-radius: inherit;
   background-color: var(--gs-light);
   opacity: 0;
   pointer-events: none;
@@ -89,19 +90,8 @@
   box-shadow:
     inset 0 2px 0 var(--ef-g-btn-hover),
     inset 0 -2px 0 color-mix(in srgb, var(--ef-popup-text) 32%, transparent);
-  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+  border-radius: 999px;
   transition: left 200ms var(--ef-ease-g-enter);
-}
-
-/* The yellow foot under the chosen label. */
-.knob::after {
-  content: '';
-  position: absolute;
-  left: 30%;
-  right: 30%;
-  bottom: 0;
-  height: 2px;
-  background: var(--ef-accent);
 }
 
 .opt {
@@ -184,10 +174,6 @@
   box-shadow: none;
 }
 
-.seg[aria-disabled='true'] .knob::after {
-  display: none;
-}
-
 .seg[aria-disabled='true'] .opt[aria-checked='true'] {
   color: rgb(255 255 255 / 70%);
 }
@@ -258,7 +244,6 @@
   clip-path: none;
 }
 
-.seg[data-variant='setting'] .knob::after,
 .seg[data-variant='setting'] .opt::before,
 .seg[data-variant='setting'] .opt[data-default]::after {
   display: none;
