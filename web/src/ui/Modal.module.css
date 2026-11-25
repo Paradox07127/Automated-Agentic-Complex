@@ -1,4 +1,4 @@
-/* Confirm popup: blurred #000@0.5 scrim, a full-width white band with a tri-colour strip, centred text, cancel + confirm capsules. */
+/* Popup frame Dialog composes: blurred #000@0.5 scrim, a full-width white band with a tri-colour strip, footer row; .field and .input serve dialogs with a text field. */
 .scrim {
   /* Background blur; the radius is inferred. */
   --popup-blur: 6px;
@@ -117,42 +117,6 @@
   outline: none;
 }
 
-.inner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--ef-sp-12);
-  min-height: 0;
-  padding: 0 var(--ef-sp-24);
-  overflow-y: auto;
-  text-align: center;
-  animation: flicker 50ms steps(1, end) 233ms both;
-}
-
-.title {
-  color: var(--ef-popup-text);
-  font: var(--ef-fw-medium) var(--ef-fs-title-1) / 1.4 var(--ef-font-sans);
-}
-
-.note {
-  color: var(--ef-popup-sub);
-  font: var(--ef-t-text);
-}
-
-.body {
-  width: 100%;
-  color: var(--ef-text-1);
-  font: var(--ef-t-text);
-  text-align: left;
-}
-
-.warning {
-  width: min(435px, 100%);
-  padding: 4.5px 10px;
-  background: var(--ef-popup-warn-bg);
-  color: var(--ef-popup-warn-text);
-  font: var(--ef-t-text);
-}
 
 .field {
   display: flex;
@@ -221,135 +185,6 @@
   }
 }
 
-/* Entrance text flicker: 0→1→0→1 in equal steps. */
-@keyframes flicker {
-  0% {
-    opacity: 0;
-  }
-
-  33% {
-    opacity: 1;
-  }
-
-  66% {
-    opacity: 0;
-  }
-
-  100% {
-    opacity: 1;
-  }
-}
-
-/* Modal plays popupIn (commonpopuo_in) on its [data-g] parts in place of the CSS entrance above, which Dialog keeps;
-   the rest state is the clip's last frame. */
-.clip {
-  /* Mask #000, faded to 0.5 by popupIn. */
-  --popup-shade: #000;
-  background: none;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  animation: none;
-}
-
-/* The closing copy plays popupOut with Web Animations instead of the scrim's fade-out. */
-.clip[data-closing] {
-  animation: none;
-}
-
-/* The band alone draws the white, so the content area fades in with it. */
-.clip .panel {
-  background: none;
-}
-
-.blur,
-.shade,
-.blur > * {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-}
-
-.shade {
-  background: var(--popup-shade);
-  opacity: 0.5;
-}
-
-/* popupIn grows --size-x from -960 to 214 (rest): the band opens leftwards from its right edge. */
-.clip .band {
-  --size-x: 214;
-  left: calc(50% - 50cqw - var(--ef-space-page) + (214 - var(--size-x)) * 1px);
-}
-
-.clip .band::after {
-  content: none;
-}
-
-.shadow {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  left: 0;
-  z-index: -1;
-  height: 74px;
-  background: linear-gradient(var(--popup-shadow), transparent);
-}
-
-/* Recipe popup-shadow stretched over the strip. */
-:global(html[data-art]) .shadow {
-  background: url('/art/pages/common/popup-shadow.png') center / 100% 100% no-repeat;
-}
-
-/* The halo is the top and bottom slices of recipe popup-band. */
-:global(html[data-art]) .clip .band::before {
-  border-image: url('/art/pages/common/popup-band.png') 58 0 65 / 28px 0 24px;
-  background:
-    url('/art/common/popup-ticks.png') left 130.6px bottom 24.3px / 184px 8px no-repeat,
-    url('/art/common/popup-logo.png') left -23.5px top 27px / 198px 172px no-repeat;
-}
-
-.clip :is(.band, .tri, .inner, .foot) {
-  animation: none;
-}
-
-/* ContentText: its text alpha flickers 233-283 ms while its group fades in 233-417 ms (two curves, not in the clip); SubText flickers in with it. */
-.clip .title {
-  animation: title-in 184ms linear 233ms both;
-}
-
-.clip .note {
-  animation: flicker 50ms steps(1, end) 233ms both;
-}
-
-@keyframes title-in {
-  0%,
-  18% {
-    opacity: 0;
-  }
-
-  9% {
-    opacity: 0.09;
-  }
-
-  27% {
-    opacity: 0.27;
-  }
-
-  100% {
-    opacity: 1;
-  }
-}
-
-:global(:is(.still, [data-reduce-motion])) .clip :is(.title, .note) {
-  animation: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .clip :is(.title, .note) {
-    animation: none;
-  }
-}
-
 /* The catalog shows the popup in place instead of over the whole page. */
 :global([data-demo]) .scrim {
   position: relative;
@@ -358,9 +193,9 @@
   min-height: 380px;
 }
 
-:global([data-demo]) :is(.scrim, .band, .tri, .inner, .foot),
+:global([data-demo]) :is(.scrim, .band, .tri, .foot),
 :global([data-demo]) .band::after,
-:global(.still) :is(.scrim, .band, .tri, .inner, .foot),
+:global(.still) :is(.scrim, .band, .tri, .foot),
 :global(.still) .band::after {
   animation: none;
 }
@@ -370,13 +205,12 @@
   .band,
   .band::after,
   .tri,
-  .inner,
   .foot {
     animation: none;
   }
 }
 
-:global([data-reduce-motion]) :is(.scrim, .band, .tri, .inner, .foot),
+:global([data-reduce-motion]) :is(.scrim, .band, .tri, .foot),
 :global([data-reduce-motion]) .band::after {
   animation: none;
 }

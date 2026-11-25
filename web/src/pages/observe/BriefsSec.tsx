@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { toast } from '../../shell/toast';
-import { Btn, ErrBar, OpenSec, Region, Sheet, Skel } from '../../ui';
+import { Btn, ErrBar, Fold, Region, Sheet, Skel } from '../../ui';
 import { briefError, useBrief, useBriefs, type Brief, type BriefStatus } from './useBriefs';
 import s from './Briefs.module.css';
 import { BriefHealth } from './BriefHealth';
@@ -169,10 +169,16 @@ export function BriefsSec({ no }: { no: string }) {
       setBusy(false);
     }
   };
+  // BriefHealth shows the latest daily and weekly attempt when it failed.
+  const failed = ['daily', 'weekly'].some((period) => ['failed', 'interrupted'].includes(b.list.data?.attempts?.find((a) => a.period === period)?.state ?? ''));
   return (
-    <OpenSec
-      no={no}
-      title="简报"
+    <Fold
+      id="briefs"
+      variant="head"
+      label="简报"
+      head={{ no }}
+      defaultOpen
+      autoOpen={b.list.status === 'error' || failed}
       right={
         <>
           {b.list.data !== undefined && <span className={`${s.cap} num`}>{b.reports.length} 份</span>}
@@ -200,6 +206,6 @@ export function BriefsSec({ no }: { no: string }) {
       </Region>
       <BriefHealth attempts={b.list.data?.attempts} onRetry={b.generate} />
       <BriefSheet id={shown} onClose={() => setOpen(null)} onDismiss={b.dismiss} />
-    </OpenSec>
+    </Fold>
   );
 }

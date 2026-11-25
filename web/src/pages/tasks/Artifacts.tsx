@@ -3,7 +3,7 @@
 import { useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react';
 import { revealText } from '../../bridge/platformText';
 import { formatClock, type Artifact, type Delivery } from '../../domain';
-import { ContextMenu, Fold, Icon, InfoTip, Modal, SecHead, type MenuItem } from '../../ui';
+import { Btn, ContextMenu, Dialog, Fold, Icon, InfoTip, SecHead, type MenuItem } from '../../ui';
 import { GameSeg } from '../../ui/game';
 import type { NativeOff } from './actions';
 import { Box, Micro } from './Glyphs';
@@ -114,19 +114,29 @@ export function Artifacts({ deliveries, canReveal, nativeOff, onOpen, onReveal, 
         </Fold>
       )}
       <ContextMenu label={menu?.a.name ?? ''} items={menu ? items(menu.a) : []} at={menu} onClose={() => setMenu(null)} />
-      <Modal
+      <Dialog
         open={revert != null}
-        danger
         title={`把「${revert?.name ?? ''}」撤回到 v${(revert?.version ?? 2) - 1}？`}
-        note={`把上一版写回去，成为 v${(revert?.version ?? 1) + 1}；v${revert?.version ?? ''} 留在版本里。`}
-        confirmLabel="撤回"
-        cancelLabel="算了"
-        onCancel={() => setRevert(null)}
-        onConfirm={() => {
-          if (revert) onRevert(d, revert);
-          setRevert(null);
-        }}
-      />
+        onClose={() => setRevert(null)}
+        footer={
+          <>
+            <Btn variant="secondary" kbd="esc" onClick={() => setRevert(null)}>
+              算了
+            </Btn>
+            <Btn
+              variant="danger"
+              onClick={() => {
+                if (revert) onRevert(d, revert);
+                setRevert(null);
+              }}
+            >
+              撤回
+            </Btn>
+          </>
+        }
+      >
+        <p>{`把上一版写回去，成为 v${(revert?.version ?? 1) + 1}；v${revert?.version ?? ''} 留在版本里。`}</p>
+      </Dialog>
     </>
   );
 }

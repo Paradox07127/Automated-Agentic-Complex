@@ -1,7 +1,7 @@
 import { Component, useState, type ErrorInfo, type ReactNode } from 'react';
 import { useRouter, type ErrorComponentProps } from '@tanstack/react-router';
 import { getBridge } from '../bridge';
-import { Btn, ErrBar } from '../ui';
+import { Btn, ErrBar, Fold } from '../ui';
 import styles from './ErrorPage.module.css';
 
 /** `message\nstack` of whatever a page threw. */
@@ -68,12 +68,11 @@ export function ErrorPage({ error, reset }: ErrorComponentProps) {
           </Btn>
         }
       />
-      <details className={styles.fold}>
-        <summary>详情</summary>
+      <Fold label="详情">
         <pre className={styles.raw} data-selectable="">
           {text}
         </pre>
-      </details>
+      </Fold>
     </section>
   );
 }

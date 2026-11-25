@@ -71,7 +71,7 @@ describe('leaving 设置 with a change that waits for a backend restart', () => 
     const save = vi.spyOn(m.bridge.settings, 'save');
     const ways: Array<[string, () => void]> = [
       ['Escape', () => fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })],
-      ['backdrop', () => fireEvent.mouseDown(document.querySelector('[data-stub="Modal"]')!)],
+      ['backdrop', () => fireEvent.mouseDown(document.querySelector('[data-stub="Dialog"]')!)],
       ['留在设置', () => fireEvent.click(within(dialog()!).getByRole('button', { name: /留在设置/ }))],
     ];
     for (const [way, stay] of ways) {

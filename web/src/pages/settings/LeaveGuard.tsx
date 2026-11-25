@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useBlocker } from '@tanstack/react-router';
-import { Btn, Modal } from '../../ui';
+import { Btn, Dialog } from '../../ui';
 import { useSettings } from './ctx';
 import { labelOf } from './registry';
 import { serviceOf } from './servicesDraft';
@@ -57,23 +57,25 @@ export function LeaveGuard() {
     });
   const dropLabel = restart ? '不重启' : '放弃改动';
   return (
-    <Modal
+    <Dialog
       open
       title={`有 ${drafts.length + pending.length} 项设置还没生效`}
-      note={
+      onClose={stay}
+      footer={
         <>
-          {pending.length > 0 && <p>重启后台服务后生效：{pending.map(labelOf).join('、')}</p>}
-          {drafts.length > 0 && <p>还没应用：{drafts.map(labelOf).join('、')}</p>}
-          <p>{!canApply ? '后台服务没有运行，这些改动现在应用不了。放弃会撤销这些改动。' : restart ? '重启期间对话和观察暂停几秒。不重启会撤销这些改动。' : '不应用会撤销这些改动。'}</p>
+          <Btn variant="secondary" kbd="esc" onClick={stay}>
+            留在设置
+          </Btn>
+          {canApply && <Btn onClick={() => void drop()}>{dropLabel}</Btn>}
+          <Btn variant={!canApply ? 'danger' : 'primary'} onClick={() => void (canApply ? go() : drop())}>
+            {!canApply ? dropLabel : restart ? '重启后台' : '应用'}
+          </Btn>
         </>
       }
-      danger={!canApply}
-      confirmLabel={!canApply ? dropLabel : restart ? '重启后台' : '应用'}
-      cancelLabel="留在设置"
-      onConfirm={() => void (canApply ? go() : drop())}
-      onCancel={stay}
     >
-      {canApply && <Btn onClick={() => void drop()}>{dropLabel}</Btn>}
-    </Modal>
+      {pending.length > 0 && <p>重启后台服务后生效：{pending.map(labelOf).join('、')}</p>}
+      {drafts.length > 0 && <p>还没应用：{drafts.map(labelOf).join('、')}</p>}
+      <p>{!canApply ? '后台服务没有运行，这些改动现在应用不了。放弃会撤销这些改动。' : restart ? '重启期间对话和观察暂停几秒。不重启会撤销这些改动。' : '不应用会撤销这些改动。'}</p>
+    </Dialog>
   );
 }

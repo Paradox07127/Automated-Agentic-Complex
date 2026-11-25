@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Banner, ContextMenu, CountBadge, Fraction, Menu, Modal, Select, StatusTag, Toast, type MenuItem } from '../../src/ui';
+import { Banner, ContextMenu, Dialog, CountBadge, Fraction, Menu, Select, StatusTag, Toast, type MenuItem } from '../../src/ui';
 
 afterEach(() => {
   cleanup();
@@ -156,12 +156,12 @@ describe('Menu', () => {
     expect(screen.queryByRole('menu')).toBeNull();
   });
 
-  it('esc closes an open menu inside a modal without closing the modal', () => {
+  it('esc closes an open menu inside a dialog without closing the dialog', () => {
     const onCancel = vi.fn();
     render(
-      <Modal open title="设置" confirmLabel="好" onCancel={onCancel}>
+      <Dialog open title="设置" onClose={onCancel}>
         <Menu label="管理" items={items} />
-      </Modal>,
+      </Dialog>,
     );
     fireEvent.click(screen.getByRole('button', { name: /管理/ }));
     fireEvent.keyDown(document, { key: 'Escape' });
@@ -237,41 +237,6 @@ describe('Menu', () => {
     expect(menu.scrollTop).toBe(4 + 24 * 32 - 100);
     fireEvent.keyDown(menu, { key: 'Home' });
     expect(menu.scrollTop).toBe(4);
-  });
-});
-
-describe('Modal', () => {
-  it('starts on the safe choice when dangerous, closes on esc and traps Tab', () => {
-    const onCancel = vi.fn();
-    render(<Modal open danger title="关闭并删除 214 条？" confirmLabel="关闭并删除" onCancel={onCancel} />);
-    const dialog = screen.getByRole('dialog', { name: '关闭并删除 214 条？' });
-    expect(dialog.getAttribute('aria-modal')).toBe('true');
-    const cancel = screen.getByRole('button', { name: '取消' });
-    const confirm = screen.getByRole('button', { name: '关闭并删除' });
-    expect(document.activeElement).toBe(cancel);
-    confirm.focus();
-    fireEvent.keyDown(dialog, { key: 'Tab' });
-    expect(document.activeElement).toBe(cancel);
-    fireEvent.keyDown(document, { key: 'Escape' });
-    expect(onCancel).toHaveBeenCalledTimes(1);
-  });
-
-  it('keeps confirm inert until the confirm word is typed', () => {
-    const onConfirm = vi.fn();
-    render(<Modal open danger title="清空全部记忆？" confirmWord="清空" confirmLabel="清空记忆" onConfirm={onConfirm} />);
-    const input = screen.getByRole('textbox', { name: /输入「清空」确认/ });
-    expect(document.activeElement).toBe(input);
-    const confirm = screen.getByRole('button', { name: '清空记忆' });
-    fireEvent.click(confirm);
-    expect(onConfirm).not.toHaveBeenCalled();
-    fireEvent.change(input, { target: { value: '清空' } });
-    fireEvent.click(confirm);
-    expect(onConfirm).toHaveBeenCalledTimes(1);
-  });
-
-  it('renders nothing when closed', () => {
-    render(<Modal open={false} title="x" confirmLabel="好" />);
-    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
 

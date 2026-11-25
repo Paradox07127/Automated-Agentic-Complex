@@ -99,7 +99,7 @@
   display: none;
 }
 
-/* Full-window mount point for dialogs (ui/Modal portals here). no-drag: an open dialog or drawer covers the command bar's
+/* Full-window mount point for dialogs (Dialog and Sheet portal here). no-drag: an open dialog or drawer covers the command bar's
    window-drag strip, which would otherwise take the clicks on its close key in the app. */
 .modalRoot {
   position: fixed;

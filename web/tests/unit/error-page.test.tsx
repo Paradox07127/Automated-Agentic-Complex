@@ -59,9 +59,11 @@ describe('page error', () => {
     const main = document.querySelector('main') as HTMLElement;
     expect(main.textContent).toContain('这一页出错了');
     // The English message is only inside a closed fold.
-    const fold = main.querySelector('details');
-    expect(fold?.open).toBe(false);
-    expect(fold?.textContent).toContain('kaboom in page');
+    const fold = screen.getByRole('button', { name: '详情' });
+    expect(fold.getAttribute('aria-expanded')).toBe('false');
+    expect(main.textContent).not.toContain('kaboom in page');
+    fireEvent.click(fold);
+    expect(main.textContent).toContain('kaboom in page');
     expect(screen.getByRole('button', { name: '复制错误' })).toBeTruthy();
     const logged = errors.mock.calls.map((c) => c.map(String).join(' ')).join('\n');
     // One line the shell records in error.jsonl: the route and message, then the first component frame.

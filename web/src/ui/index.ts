@@ -27,7 +27,6 @@ export * from './Missing';
 export * from './Modal';
 export * from './MoreLines';
 export * from './Nameplate';
-export * from './OpenSec';
 export * from './OptionRow';
 export * from './PageIssues';
 export * from './Progress';

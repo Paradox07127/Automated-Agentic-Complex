@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { formatDuration, type ActiveRun, type Session, type VisualStateKey } from '../../domain';
 import { useDevMode } from '../../shell/devMode';
-import { Btn, Empty, Fold, fxCalm, Icon, Missing, OpenSec, Region, StatusTag, type IconName, type RegionSource } from '../../ui';
+import { Btn, Empty, Fold, fxCalm, Icon, Missing, Region, StatusTag, type IconName, type RegionSource } from '../../ui';
 import { StatusLamp } from '../../ui/game';
 import type { RunRow } from './briefModel';
 import { Selected, TrackTip, useCellIn, type MissionTone } from './MissionFx';
@@ -194,10 +194,14 @@ export function RunningSection(p: RunningSectionProps) {
     ));
   return (
     <div className={shared.run}>
-      <OpenSec
-        no="02"
-        title="进行中"
+      <Fold
+        id="running"
+        variant="head"
+        label="进行中"
+        head={{ no: '02' }}
         count={loaded ? rows.length : undefined}
+        defaultOpen
+        autoOpen={p.q.status === 'error'}
         right={
           <>
             {loaded && (
@@ -248,7 +252,7 @@ export function RunningSection(p: RunningSectionProps) {
             </>
           )}
         </Region>
-      </OpenSec>
+      </Fold>
     </div>
   );
 }

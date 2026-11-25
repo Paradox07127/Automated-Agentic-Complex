@@ -13,7 +13,7 @@ function collectErrors(page: Page): string[] {
 }
 
 // The task detail has a 待处理 section of its own.
-const need = (page: Page) => page.locator('section[aria-label="待处理"][data-stub="OpenSec"]');
+const need = (page: Page) => page.locator('section[aria-label="待处理"][data-stub="Fold"]');
 
 test('今天 has the 待处理 card; approving it moves the card on', async ({ page }) => {
   const errors = collectErrors(page);

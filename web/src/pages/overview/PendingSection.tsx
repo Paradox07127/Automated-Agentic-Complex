@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import type { PendingItem, Question, Session, VisualStateKey } from '../../domain';
 import { ApprovalCard, approvalView, QuestionBox } from '../../features/approval';
-import { Btn, Empty, OpenSec, Paper, Receipt, Region, StatusTag, type RegionSource } from '../../ui';
+import { Btn, Empty, Fold, Paper, Receipt, Region, StatusTag, type RegionSource } from '../../ui';
 import { ExpandRow } from '../../ui/game';
 import { CompleteFx, GroupHead, useCellIn } from './MissionFx';
 import type { Go } from './nav';
@@ -74,12 +74,12 @@ export function PendingSection(p: PendingSectionProps) {
   }
   return (
     <div className={styles.need} data-nav-target="pending" data-g="listBody">
-      <OpenSec no="01" title="待处理" count={loaded ? open.length : undefined}>
+      <Fold id="pending" variant="head" label="待处理" head={{ no: '01' }} count={loaded ? open.length : undefined} defaultOpen autoOpen={p.q.status === 'error' || open.length > 0}>
         {/* About the focus card's height, so the rows below do not jump when it lands. */}
         <Region q={p.q} what="待处理" reserve={{ height: 220 }} skel="cards" isEmpty={() => false}>
           {() => body}
         </Region>
-      </OpenSec>
+      </Fold>
     </div>
   );
 }

@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Dialog } from '../../src/ui/Dialog';
 import { InfoTip } from '../../src/ui/InfoTip';
-import { Modal } from '../../src/ui/Modal';
 import { Sheet } from '../../src/ui/Sheet';
 
 afterEach(cleanup);
@@ -252,32 +251,5 @@ describe('InfoTip', () => {
     } finally {
       spy.mockRestore();
     }
-  });
-});
-
-describe('Modal opened inside a Sheet', () => {
-  function Stacked({ onSheetClose }: { onSheetClose: () => void }) {
-    const [sheet, setSheet] = useState(true);
-    const [modal, setModal] = useState(false);
-    return (
-      <Sheet open={sheet} title="任务详情" onClose={() => (onSheetClose(), setSheet(false))}>
-        <button type="button" onClick={() => setModal(true)}>
-          停止
-        </button>
-        <Modal open={modal} title="停止任务？" confirmLabel="停止任务" onCancel={() => setModal(false)} />
-      </Sheet>
-    );
-  }
-
-  it('closes only the Modal on Esc, then the Sheet on the next', () => {
-    const onSheetClose = vi.fn();
-    render(<Stacked onSheetClose={onSheetClose} />);
-    fireEvent.click(screen.getByRole('button', { name: '停止' }));
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: '停止任务' }));
-    fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'Escape' });
-    expect(screen.queryByRole('dialog', { name: '停止任务？' })).toBeNull();
-    expect(onSheetClose).not.toHaveBeenCalled();
-    fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'Escape' });
-    expect(onSheetClose).toHaveBeenCalledTimes(1);
   });
 });

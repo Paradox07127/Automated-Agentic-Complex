@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Banner, Btn, Card, Empty, ErrBar, Modal, OpenSec, Paper, Plate, Row, RowPlate, SecHead, Tabs } from '../../src/ui';
+import { Banner, Btn, Card, Empty, ErrBar, Paper, Plate, Row, RowPlate, SecHead, Tabs } from '../../src/ui';
 
 afterEach(cleanup);
 
@@ -142,16 +142,6 @@ describe('Tabs keyboard', () => {
 });
 
 describe('panel levels and list rows', () => {
-  it('OpenSec is a labelled section with a numbered head and no frame of its own', () => {
-    const { container } = render(
-      <OpenSec no="02" title="进行中" count={2}>
-        内容
-      </OpenSec>,
-    );
-    expect(screen.getByRole('region', { name: '进行中' })).toBeTruthy();
-    expect(container.querySelector('[data-stub="SecHead"]')?.textContent).toContain('02');
-  });
-
   it('Plate hides its number tag from readers; Paper reads light tokens in both themes', () => {
     const { container } = render(
       <>
@@ -238,21 +228,5 @@ describe('Card', () => {
       </Card>,
     );
     expect(container.querySelectorAll('[aria-hidden="true"]')).toHaveLength(0);
-  });
-});
-
-describe('Modal', () => {
-  it('is a solid centred dialog: no tape or code besides the popup band, buttons in its own footer', () => {
-    render(<Modal open title="停止任务？" note="已写出的产物保留" confirmLabel="停止任务" />);
-    const dialog = screen.getByRole('dialog', { name: '停止任务？' });
-    const deco = [...dialog.querySelectorAll('[aria-hidden="true"]')].filter((n) => !n.querySelector('kbd') && !n.closest('[data-stub="Btn"], [data-part="band"]'));
-    expect(deco).toHaveLength(0);
-    expect(screen.getByRole('button', { name: '停止任务' }).getAttribute('data-variant')).toBe('primary');
-    expect(screen.getByRole('button', { name: /取消/ }).getAttribute('data-variant')).toBe('secondary');
-  });
-
-  it('confirms danger with the danger variant', () => {
-    render(<Modal open danger confirmWord="清空" title="清空全部记忆？" confirmLabel="清空记忆" />);
-    expect(screen.getByRole('button', { name: '清空记忆' }).getAttribute('data-variant')).toBe('danger');
   });
 });

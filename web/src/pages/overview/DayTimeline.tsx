@@ -3,7 +3,7 @@ import { formatClock, secToMs } from '../../domain';
 import { useDemo } from '../../shell/demo';
 import { useDevMode } from '../../shell/devMode';
 import { useGo } from '../../shell/nav';
-import { Btn, Icon, OpenSec, Region, Sheet, type IconName, type RegionSource } from '../../ui';
+import { Btn, Fold, Icon, Region, Sheet, type IconName, type RegionSource } from '../../ui';
 import { localDate, memoriesOf, pageNow, parseEp } from '../observe/data';
 import { EpisodeDetail } from '../observe/EpisodeDetail';
 import { EpisodeEvidence } from '../observe/EpisodeEvidence';
@@ -114,7 +114,7 @@ export function DayTimeline({ q, summaries, now, title = '今日时间线', onOp
   const open = summaries.find((r) => r.id === sum) ?? null;
   return (
     <div data-nav-target="timeline" data-g="rewards">
-      <OpenSec title={title} count={q.data?.length}>
+      <Fold id="timeline" variant="head" label={title} count={q.data?.length} defaultOpen autoOpen={q.status === 'error'}>
         <Region q={q} what="时间线" reserve={{ rows: 6 }} empty={{ text: '这一天还没有活动' }}>
           {(entries) => (
             <>
@@ -133,7 +133,7 @@ export function DayTimeline({ q, summaries, now, title = '今日时间线', onOp
             </>
           )}
         </Region>
-      </OpenSec>
+      </Fold>
       {open && <SummarySheet row={open} onClose={() => setSum(null)} />}
     </div>
   );

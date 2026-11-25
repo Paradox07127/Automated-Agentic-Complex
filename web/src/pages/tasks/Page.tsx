@@ -9,7 +9,7 @@ import { PageHeaderSlot } from '../../shell/headerSlot';
 import { useGo } from '../../shell/nav';
 import { isPluginOff, usePlugins } from '../../shell/plugins';
 import { useToast } from '../../shell/toast';
-import { Btn, Empty, Modal, SearchField, Skel, Tabs } from '../../ui';
+import { Btn, Dialog, Empty, SearchField, Skel, Tabs } from '../../ui';
 import { PowerState } from '../../ui/game';
 import { TasksLoadError } from '../../data/tasksBase';
 import { useCharacters } from '../chat/useChatData';
@@ -368,20 +368,32 @@ export function TasksPage() {
           void desk.actions?.stopNow(stop);
         }}
       />
-      <Modal
+      <Dialog
         open={delSched != null}
-        danger
         title={`删除「${delSched?.title ?? ''}」？`}
-        note="连同它的运行记录一起删，不能恢复。"
-        confirmLabel="删除"
-        cancelLabel="算了"
-        onCancel={() => setDel(null)}
-        onConfirm={() => {
-          if (delSched) void writes.remove(delSched);
-          setDel(null);
-        }}
-      />
-      <Modal open={leave != null} title="放弃这次改动？" note="填的内容不会保存。" confirmLabel="放弃" cancelLabel="接着改" onCancel={() => setLeave(null)} onConfirm={() => leave?.()} />
+        onClose={() => setDel(null)}
+        footer={
+          <>
+            <Btn variant="secondary" kbd="esc" onClick={() => setDel(null)}>算了</Btn>
+            <Btn variant="danger" onClick={() => { if (delSched) void writes.remove(delSched); setDel(null); }}>删除</Btn>
+          </>
+        }
+      >
+        <p>连同它的运行记录一起删，不能恢复。</p>
+      </Dialog>
+      <Dialog
+        open={leave != null}
+        title="放弃这次改动？"
+        onClose={() => setLeave(null)}
+        footer={
+          <>
+            <Btn variant="secondary" kbd="esc" onClick={() => setLeave(null)}>接着改</Btn>
+            <Btn variant="primary" onClick={() => leave?.()}>放弃</Btn>
+          </>
+        }
+      >
+        <p>填的内容不会保存。</p>
+      </Dialog>
     </div>
   );
 }

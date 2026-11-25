@@ -1,5 +1,5 @@
 import type { Task } from '../../domain';
-import { Modal } from '../../ui';
+import { Btn, Dialog } from '../../ui';
 
 /** A stopped character ledger task continues from its checkpoint (http.py); a stopped job or run does not (jobs.py resume). */
 export const canContinue = (t: Task): boolean => t.job_id == null && t.target === 'character' && t.task_id != null;
@@ -45,16 +45,23 @@ export function StopConfirm({ open, target, resume = 'none', onConfirm, onCancel
   const title = typeof target === 'number' ? `停止选中的 ${target} 个任务？` : `停止「${target}」？`;
   return (
     <div data-stub="StopConfirm" hidden={!open}>
-      <Modal
+      <Dialog
         open={open}
-        danger
         title={title}
-        note={`正在执行的步骤会被中断。${AFTER[resume]}外部会话不受影响。`}
-        confirmLabel="停止任务"
-        cancelLabel="不停止"
-        onConfirm={onConfirm}
-        onCancel={onCancel}
-      />
+        onClose={onCancel}
+        footer={
+          <>
+            <Btn variant="secondary" kbd="esc" onClick={onCancel}>
+              不停止
+            </Btn>
+            <Btn variant="danger" onClick={onConfirm}>
+              停止任务
+            </Btn>
+          </>
+        }
+      >
+        <p>{`正在执行的步骤会被中断。${AFTER[resume]}外部会话不受影响。`}</p>
+      </Dialog>
     </div>
   );
 }

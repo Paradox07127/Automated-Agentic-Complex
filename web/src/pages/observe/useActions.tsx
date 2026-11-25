@@ -5,10 +5,19 @@ import { del, post, put, seg } from '../../bridge/agentd';
 import { paused } from '../../domain/bodies';
 import { formatClock, type Episode } from '../../domain';
 import { toast } from '../../shell/toast';
-import { Modal, type ModalProps } from '../../ui';
+import { Btn, Dialog, ErrBar } from '../../ui';
 import { errorText, FIELD_OF, KEY, ruleLabel, type ExKind, type ExRule, type TaskGuess, type WireDiagSeen } from './data';
 
-export type ConfirmSpec = Omit<ModalProps, 'open' | 'onCancel' | 'onConfirm'> & { onConfirm: () => void };
+/** A confirm: the question, a note and a warning under it; danger makes the confirm red. */
+export interface ConfirmSpec {
+  title: string;
+  note?: string;
+  warning?: string;
+  danger?: boolean;
+  confirmLabel: string;
+  cancelLabel?: string;
+  onConfirm: () => void;
+}
 
 /** Minutes an activity correction holds. */
 const CORRECTION_MIN = 60;
@@ -72,15 +81,30 @@ export function useActions(setPausedDemo: (v: number | null | undefined) => void
   };
 
   const confirmNode = confirm && (
-    <Modal
-      {...confirm}
+    <Dialog
       open
-      onCancel={() => setConfirm(null)}
-      onConfirm={() => {
-        setConfirm(null);
-        confirm.onConfirm();
-      }}
-    />
+      title={confirm.title}
+      onClose={() => setConfirm(null)}
+      footer={
+        <>
+          <Btn variant="secondary" kbd="esc" onClick={() => setConfirm(null)}>
+            {confirm.cancelLabel ?? '取消'}
+          </Btn>
+          <Btn
+            variant={confirm.danger ? 'danger' : 'primary'}
+            onClick={() => {
+              setConfirm(null);
+              confirm.onConfirm();
+            }}
+          >
+            {confirm.confirmLabel}
+          </Btn>
+        </>
+      }
+    >
+      {confirm.note && <p>{confirm.note}</p>}
+      {confirm.warning && <ErrBar tone="warning" message={confirm.warning} />}
+    </Dialog>
   );
 
   return {
