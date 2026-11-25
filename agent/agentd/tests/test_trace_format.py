@@ -100,6 +100,16 @@ class TraceFormatTest(unittest.TestCase):
         event.update(kind="desktop.lease_released", attrs={"run_id": "r1", "session_id": "own:r1", "reason": "run_end"})
         self.assertEqual(validate_event(event), [])
 
+    def test_steer_settled_event(self):
+        event = copy.deepcopy(sample()[13])
+        event.pop("duration_ms", None)
+        event.update(kind="steer.settled", attrs={"accepted": True, "code": None})
+        self.assertEqual(validate_event(event), [])
+        event["attrs"] = {"accepted": False, "code": "not_steerable_now"}
+        self.assertEqual(validate_event(event), [])
+        event["attrs"]["accepted"] = "no"
+        self.assertTrue(any("bad attrs.accepted" in e for e in validate_event(event)))
+
     def test_tool_verdict_event(self):
         event = copy.deepcopy(sample()[13])
         event.pop("duration_ms", None)

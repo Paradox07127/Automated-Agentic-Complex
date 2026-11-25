@@ -59,6 +59,10 @@ SIDE_INSTRUCTIONS = (
     "say it has to wait until the main session is done and ask the user to say it again then.\n"
     "</side_session>")
 
+# Goes ahead of the user's own words when they reach the foreground run through C8 steer.
+STEER_NOTE = ("The user said this while you were working. A separate reply has already answered them aloud, so do not "
+              "answer it again. If it changes what you are doing, adjust the work; otherwise continue.\n\n")
+
 FOREGROUND_INSTRUCTIONS = (
     "<main_session>\n"
     "Main session: you answer the user directly; where these rules are silent, reason from them.\n"
@@ -1737,6 +1741,12 @@ class CharacterAgentController:
         if not side and not one_off:
             self._foreground_request = text[:300] if trace.get('remember', True) else ''
             return self._prepare(line_id, text, cancel, generation, source, trace, **options)
+        if side and source in ('text', 'voice') and trace.get('remember', True):
+            foreground = self.runtime
+            def steer():
+                accepted, code = foreground.steer(STEER_NOTE + text)
+                self.server._step(trace, "steer.settled", new_span_id(), attrs={"accepted": accepted, "code": code})
+            threading.Thread(target=steer, name='foreground-steer', daemon=True).start()
         self._auto_select()
         snapshot = self.settings.snapshot()
         config = RuntimeSettings.route(snapshot, 'chat')

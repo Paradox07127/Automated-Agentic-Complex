@@ -1167,6 +1167,40 @@ class IntegrationTests(IntegrationFixture):
         self.assertEqual(len(self.server.history.export()), 2)
         self.assertEqual(len(self.server.mouth.history), 2)
 
+    def test_p0_4_input_while_foreground_works_is_also_steered_into_the_foreground(self):
+        from character_agent.integration import STEER_NOTE
+        conn, response = self.open_feed(); self.addCleanup(conn.close)
+        task = self.busy_foreground()
+        with patch.object(self.server, '_step', wraps=self.server._step) as step:
+            status, side = self.request('POST', '/say', {'text': '换成表格吧'})
+            self.assertEqual(status, 202, side)
+            text, final = self.reply_of(response, side['line_id'])
+            self.assertEqual((text, final['error'], final['cancelled']), ('Hello', None, False))
+            self.until(lambda: any(c.args[1] == 'steer.settled' for c in step.call_args_list))
+        [(steered, run_id)] = self.sessions[0].steers
+        self.assertTrue(steered.startswith(STEER_NOTE), steered)
+        self.assertTrue(steered.endswith('换成表格吧'), steered)
+        self.assertEqual(run_id, task['run_id'])
+        [call] = [c for c in step.call_args_list if c.args[1] == 'steer.settled']
+        self.assertEqual(call.kwargs['attrs'], {'accepted': True, 'code': None})
+        self.assertEqual(self.state(task['run_id']), 'running')
+        self.gates['TASK'].set()
+        self.until(lambda: self.state(task['run_id']) == 'completed' and not self.server._live_lines)
+
+    def test_p0_4_a_temporary_or_her_own_side_line_is_not_steered(self):
+        conn, response = self.open_feed(); self.addCleanup(conn.close)
+        task = self.busy_foreground()
+        status, side = self.request('POST', '/say', {'text': '临时问一句', 'no_memory': True})
+        self.assertEqual(status, 202, side)
+        self.assertEqual(self.reply_of(response, side['line_id'])[1]['error'], None)
+        status, side = self.server.say('点了一下', 'tap')
+        self.assertEqual(status, 202, side)
+        self.assertEqual(self.reply_of(response, side['line_id'])[1]['error'], None)
+        self.assertEqual(len(self.sessions), 3)
+        self.assertEqual(self.sessions[0].steers, [])
+        self.gates['TASK'].set()
+        self.until(lambda: self.state(task['run_id']) == 'completed' and not self.server._live_lines)
+
     def test_retention_only_change_keeps_the_running_foreground_and_its_runtime(self):
         conn, response = self.open_feed(); self.addCleanup(conn.close)
         task = self.busy_foreground()

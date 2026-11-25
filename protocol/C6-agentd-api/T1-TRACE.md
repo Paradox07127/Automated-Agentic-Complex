@@ -58,6 +58,7 @@
 | `motion.ended` | `behavior_id`（同上）、`clip` | 是 |
 | `cancel.requested` | `by`：ptt / text / stop_command / supersede / character_switch / system；`target`：turn / speech / observation / dispatch | |
 | `cancel.acked` | `target` | 是 |
+| `steer.settled` | `accepted`（布尔）、`code`（C8 `steer` 的拒绝码，接受时为 null）：前台忙时用户的一句话经 C8 `steer` 送进前台那一轮的结果；不带用户原话 | |
 | `gate.decided` | `kind`、`level`、`speak`（布尔）、`reason` | |
 | `judge.decided` | `backend`：rules / character_agent，`answers`（列表 `{id, value, prob}`）；判断失败时 `answers` 为空并带 `failure_reason`（安全原因代码） | `status=ok` 表示判断已产生；`status=failed` 表示判断失败，这次主动决策跳过，不用规则补答。 |
 | `behavior.ticked` | `options`（列表）、`chosen`、`reason` | |
@@ -138,3 +139,5 @@
 追加（2026-11-22，只加不改）：加端点 `GET /trace/events`（一段时间里所有 trace 的事件，分页）；`behavior.receipt` 的 `causation_id` 指向它那个行为的 `behavior.dispatched`。
 
 追加（2026-11-22，只加不改）：加「动作线的输入」一节和其中 11 个 kind。
+
+追加（2026-11-25，只加不改）：加 kind `steer.settled`。

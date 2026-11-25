@@ -31,6 +31,7 @@ class FakeSession:
         self.interrupted = 0
         self.closed = 0
         self.interrupt_hook = None
+        self.steers = []
 
     def stream(self, prompt, **options):
         self.calls.append({'prompt': prompt, **options})
@@ -52,6 +53,10 @@ class FakeSession:
 
     def invalidate(self):
         self.interrupt()
+
+    def steer(self, text, *, run_id=None):
+        self.steers.append((text, run_id))
+        return True, None
 
     def close(self):
         self.closed += 1
@@ -664,6 +669,21 @@ class RuntimeTests(unittest.TestCase):
         self.assertGreater(self.sessions[0].interrupted, 0)
         self.assertEqual(self.workspace.run_artifacts('run-1'), [])
         self.assertEqual(self.tasks.get(replies[0].task_id)['state'], 'cancelled')
+
+    def test_steer_reaches_the_active_runs_session_with_its_run_id(self):
+        self.assertEqual(self.runtime.steer('x'), (False, 'no_active_run'))
+        entered, release = threading.Event(), threading.Event()
+        def script(session, prompt, options):
+            entered.set(); release.wait(3)
+            yield {'type': 'result', 'success': True, 'final_text': 'Hello'}
+        self.script = script
+        thread = threading.Thread(target=self.run_agent, daemon=True); thread.start()
+        self.assertTrue(entered.wait(2))
+        self.assertEqual(self.runtime.steer('x'), (True, None))
+        release.set(); thread.join(2)
+        self.assertEqual(self.sessions[0].steers, [('x', 'run-1')])
+        self.assertEqual(self.runtime.steer('y'), (False, 'no_active_run'))
+        self.assertEqual(self.sessions[0].steers, [('x', 'run-1')])
 
     def test_waiting_input_can_be_cancelled_without_stealing_active_run(self):
         entered, release = threading.Event(), threading.Event()

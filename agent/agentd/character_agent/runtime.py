@@ -167,6 +167,15 @@ class PersonalAgentRuntime:
                 session.interrupt()
         return active["run_id"] if active else None
 
+    def steer(self, text):
+        """Hands text to the active run's model after its current tool call (C8 steer); returns (accepted, code)."""
+        with self._lock:
+            active = self._active
+            session = (active.get("quick_session") or self._session) if active is not None else None
+            if active is None or active["cancel"].is_set() or session is None:
+                return False, "no_active_run"
+        return session.steer(text, run_id=active["run_id"])
+
     def invalidate(self, reason="context_changed", *, run_id=None, interrupted=False):
         with self._lock:
             cancelled = self.cancel(reason, run_id=run_id, interrupted=interrupted)

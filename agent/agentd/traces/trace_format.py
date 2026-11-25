@@ -143,6 +143,7 @@ KINDS = {
     "cancel.requested": {"by": _enum("ptt", "text", "stop_command", "supersede", "character_switch", "system"),
                          "target": _enum("turn", "speech", "observation", "dispatch")},
     "cancel.acked": {"target": _enum("turn", "speech", "observation", "dispatch")},
+    "steer.settled": {"accepted": _bool, "code": _opt_str},
     "gate.decided": {"kind": _str, "level": _str, "speak": _bool, "reason": _opt_str},
     "judge.decided": {"backend": _enum("rules", "haiku", "character_agent"),
                       "answers": _answers},

@@ -20,7 +20,7 @@ REPLAY_INPUTS = frozenset({"spatial.began", "situation.observed", "motion.choose
                            "behavior.capabilities", "behavior.cancel_all", "interaction.preset"})
 DAEMON_EVENTS = frozenset({"tool.started", "tool.settled", "turn.settled", "behavior.dispatched", "behavior.receipt",
                            "behavior.refused", "signal.changed", "stage.changed", "motion.chosen", "motion.state",
-                           *REPLAY_INPUTS})
+                           "steer.settled", *REPLAY_INPUTS})
 LOCAL_PRODUCERS = ("agentd", "tts")  # tts: the speech relay's lines, written by agentd (§4.1)
 PURGE_EVERY = 3600
 FORGET_CHUNK = 500  # turn_ids per query, under SQLite's bound-parameter limit
