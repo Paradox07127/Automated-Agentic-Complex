@@ -192,6 +192,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.ar
     console.error(`${f} ${k} ${now}>${base}`);
     console.error(`  ${line}: ${src.split('\n')[line - 1].trim()}`);
   }
+  if (over.length > 0) console.error('用 src/ui 的组件和 tokens.json 的 token 代替；确实要新增时，同一提交里跑 npm run check:ui -- --write-baseline 并在提交说明里写原因。');
   console.log(over.length === 0 ? 'CHECK-UI ok' : `CHECK-UI fail ${over.length}`);
   process.exit(over.length === 0 ? 0 : 1);
 }

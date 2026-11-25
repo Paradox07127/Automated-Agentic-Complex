@@ -9,8 +9,7 @@
     "btn": 1
   },
   "src/features/approval/QuestionBox.tsx": {
-    "btn": 1,
-    "btnVariant": 2
+    "btn": 1
   },
   "src/features/approval/QueueBar.tsx": {
     "btn": 2
@@ -24,37 +23,18 @@
   "src/features/health/HealthChain.tsx": {
     "btn": 2
   },
-  "src/features/kernel/KernelChain.tsx": {
-    "btnVariant": 1
-  },
   "src/features/plan/PlanProgress.tsx": {
     "btn": 1
   },
   "src/features/task/FileImpact.tsx": {
     "btn": 1
   },
-  "src/features/task/RejectBox.tsx": {
-    "retired": 1,
-    "btnVariant": 1
-  },
   "src/features/task/RunWaterfall.tsx": {
     "btn": 1
-  },
-  "src/features/task/StopConfirm.tsx": {
-    "retired": 1
-  },
-  "src/features/task/TaskDetail.tsx": {
-    "btnVariant": 1
   },
   "src/features/task/TaskDrawer.module.css": {
     "fontPx": 1,
     "color": 5
-  },
-  "src/features/task/TaskDrawer.tsx": {
-    "btnVariant": 1
-  },
-  "src/features/task/TaskSections.tsx": {
-    "btnVariant": 2
   },
   "src/features/trace/CodeBlock.tsx": {
     "btn": 2
@@ -118,8 +98,7 @@
     "color": 20
   },
   "src/pages/character/MotionTable.tsx": {
-    "btn": 3,
-    "btnVariant": 1
+    "btn": 3
   },
   "src/pages/character/NameBlock.module.css": {
     "fontPx": 7,
@@ -157,8 +136,7 @@
     "color": 9
   },
   "src/pages/character/Stage.tsx": {
-    "btn": 2,
-    "btnVariant": 1
+    "btn": 2
   },
   "src/pages/character/StateRows.module.css": {
     "fontPx": 1,
@@ -176,9 +154,6 @@
   },
   "src/pages/character/ViewCube.tsx": {
     "btn": 1
-  },
-  "src/pages/character/feedback.tsx": {
-    "retired": 1
   },
   "src/pages/character/motions/Candidates.tsx": {
     "btn": 3
@@ -237,9 +212,6 @@
   "src/pages/chat/Chat.module.css": {
     "fontPx": 1
   },
-  "src/pages/chat/ChatReadBanner.tsx": {
-    "btnVariant": 1
-  },
   "src/pages/chat/Composer.module.css": {
     "fontPx": 9
   },
@@ -268,9 +240,6 @@
   },
   "src/pages/chat/QuestionCard.module.css": {
     "fontPx": 1
-  },
-  "src/pages/chat/QuestionCard.tsx": {
-    "btnVariant": 1
   },
   "src/pages/chat/RunItems.module.css": {
     "fontPx": 1
@@ -368,9 +337,6 @@
   "src/pages/mmd/Library.tsx": {
     "btn": 1
   },
-  "src/pages/mmd/MediaDialog.tsx": {
-    "retired": 1
-  },
   "src/pages/mmd/Section.module.css": {
     "fontPx": 1
   },
@@ -385,8 +351,7 @@
     "fontPx": 3
   },
   "src/pages/observe/BriefsSec.tsx": {
-    "btn": 1,
-    "retired": 1
+    "btn": 1
   },
   "src/pages/observe/EpisodeDetail.tsx": {
     "btn": 3
@@ -396,9 +361,6 @@
   },
   "src/pages/observe/Timeline.module.css": {
     "fontPx": 6
-  },
-  "src/pages/observe/useActions.tsx": {
-    "retired": 1
   },
   "src/pages/onboarding/GuideCard.module.css": {
     "fontPx": 3
@@ -417,8 +379,7 @@
     "fontPx": 7
   },
   "src/pages/overview/DayTimeline.tsx": {
-    "btn": 1,
-    "retired": 1
+    "btn": 1
   },
   "src/pages/overview/DetailTab.tsx": {
     "btn": 1
@@ -438,15 +399,11 @@
   "src/pages/overview/PagePart1.css": {
     "fontPx": 4
   },
-  "src/pages/overview/PendingSection.tsx": {
-    "retired": 1
-  },
   "src/pages/overview/RunningSection.module.css": {
     "fontPx": 3
   },
   "src/pages/overview/RunningSection.tsx": {
-    "btn": 1,
-    "retired": 1
+    "btn": 1
   },
   "src/pages/pipeline/Detail.module.css": {
     "fontPx": 1
@@ -456,9 +413,6 @@
   },
   "src/pages/settings/Band.tsx": {
     "btn": 1
-  },
-  "src/pages/settings/LeaveGuard.tsx": {
-    "retired": 1
   },
   "src/pages/settings/Outbound.tsx": {
     "btn": 1
@@ -496,14 +450,10 @@
     "fontPx": 4
   },
   "src/pages/tasks/Artifacts.tsx": {
-    "btn": 1,
-    "retired": 1
+    "btn": 1
   },
   "src/pages/tasks/Bar.module.css": {
     "fontPx": 1
-  },
-  "src/pages/tasks/CreateForm.tsx": {
-    "retired": 1
   },
   "src/pages/tasks/Detail.module.css": {
     "fontPx": 11
@@ -524,9 +474,6 @@
   "src/pages/tasks/Page.module.css": {
     "fontPx": 3,
     "color": 2
-  },
-  "src/pages/tasks/Page.tsx": {
-    "retired": 1
   },
   "src/pages/tasks/Paper.module.css": {
     "fontPx": 6
@@ -632,9 +579,6 @@
   },
   "src/surfaces/stack/SessionCard.tsx": {
     "btn": 1
-  },
-  "src/surfaces/stack/cards/DropCard.tsx": {
-    "btnVariant": 1
   },
   "src/surfaces/stack/cards/NoticeBody.module.css": {
     "fontPx": 1
