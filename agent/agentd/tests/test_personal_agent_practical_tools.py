@@ -348,6 +348,33 @@ class ReminderToolsTests(unittest.TestCase):
         result = self.update('把它改到四点', item, 'reschedule', due_at=self.iso(1800), expected_revision=2)
         self.assertEqual(result.get('reminder', {}).get('due_at'), self.now + 1800, result)
 
+    def test_done_wording_completes_the_named_reminder_and_the_list_shows_it(self):
+        item, = self.added('交周报')
+        result = self.update('那个交周报的提醒我还没做完', item, 'complete')
+        self.assertEqual(result.get('error', {}).get('code'), 'reminder_target_not_authorized', result)
+        self.assertEqual(self.store._get(item['id'])['state'], 'armed')
+        result = self.update('那个交周报的提醒我做完了', item, 'complete')
+        self.assertTrue(result.get('saved'), result)
+        listed = self.turn('提醒的状态？').call('reminders_list', {'active_only': False})['items']
+        self.assertEqual([(i['id'], i['state']) for i in listed], [(item['id'], 'fulfilled')])
+        self.assertEqual(listed[0]['state'], self.store._get(item['id'])['state'])
+
+    def test_complete_checks_the_revision(self):
+        item, = self.added('交周报')
+        result = self.update('交周报的提醒搞定了', item, 'complete', expected_revision=2)
+        self.assertEqual(result.get('error', {}).get('code'), 'commitment_changed', result)
+        self.assertEqual(self.store._get(item['id'])['state'], 'armed')
+
+    def test_remind_me_again_later_snoozes_only_with_a_time(self):
+        item, = self.added('喝水')
+        result = self.update('十分钟后再提醒我', item, 'snooze', due_at=self.iso(600))
+        self.assertEqual(result.get('reminder', {}).get('due_at'), self.now + 600, result)
+        result = self.update('等会儿再说', item, 'snooze', due_at=self.iso(1200), expected_revision=2)
+        self.assertEqual(result.get('error', {}).get('code'), 'reminder_target_not_authorized', result)
+        result = self.update('等会儿再提醒我', item, 'snooze', due_at=self.iso(1200), expected_revision=2)
+        self.assertEqual(result.get('error', {}).get('code'), 'reminder_time_instruction_required', result)
+        self.assertEqual(self.store._get(item['id'])['due_at'], self.now + 600)
+
     def test_terminal_reminder_does_not_claim_user_heard_or_completed_work(self):
         item = self.store.add('提交报告', self.now + 600)
         self.store.fulfill(item['id'], None)

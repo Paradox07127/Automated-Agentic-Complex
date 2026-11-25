@@ -13,6 +13,11 @@ CREATE = re.compile(r'提醒我|提醒一下|叫我|喊我|リマインドして
                     r'\bremind\s+me\b|\b(?:set|create|add)\b.{0,24}\b(?:reminder|alarm)\b', re.I)
 CANCEL = re.compile(r'取消|删除|撤销|\b(?:cancel|delete|remove)\b', re.I)
 RESCHEDULE = re.compile(r'改到|改成|改为|修改|推迟|延后|提前|\b(?:reschedule|snooze|postpone|move)\b', re.I)
+# 已经…了 may not hold a negation, so 已经不想做了 is not a done.
+COMPLETE = re.compile(r'(?:做|办|弄|写|交)完了|完成了|搞定了|已经[^，,。！？!?；;不没未别]{0,12}?了|标记.{0,4}完成|打卡|'
+                      r'\b(?:done|finished)\b|\bmark\b.{0,24}\b(?:complete|completed|done)\b', re.I)
+AGAIN = re.compile(r'再(?:提醒|叫|喊)我')
+SNOOZE = re.compile(rf'{RESCHEDULE.pattern}|(?:稍后|晚点|晚些|等会儿?|待会儿?|过.{{0,8}}?|后){AGAIN.pattern}', re.I)
 # A reminder pointed at instead of named: the only active one, or for RECENT words the newest created.
 POINTER = r'(?:刚才|刚刚|上一个|上个|最新|那个|这个|它)'
 REFERENCE = re.compile(rf'{POINTER}(?:那个|这个|的|那条|这条)?提醒|(?:把|将){POINTER}|'
@@ -73,14 +78,17 @@ class ReminderTurn:
                   'instruction_quote': quote,
                   'time_quote': {**quote, 'description': 'Verbatim time words from the user\'s answer to your ask_user question, when the time is not in instruction_quote.'}},
                  ('text', 'instruction_quote')),
-            tool('reminder_update', 'Cancel or reschedule the reminder the user names in the current message, with its id and current revision from reminders_list '
+            tool('reminder_update', 'Cancel, reschedule, complete or snooze the reminder the user names in the current message, with its id and current revision from reminders_list '
                  'and a verbatim current instruction naming it. If the user points at it instead ("that one"), quote their sentence and give the id it means: '
                  'the only active reminder, or the newest for "the last one"; if that is unclear, ask which one first. '
-                 'For reschedule give the new due_at, which the quote must contain; this changes only the reminder, not the underlying task.',
+                 'complete when the user says they have done the thing it reminds about ("done", "做完了"); '
+                 'snooze when they want it again later ("remind me again in ten minutes", "十分钟后再提醒我"). '
+                 'For reschedule and snooze give the new due_at, which the quote must contain; if they give no time, ask for one. '
+                 'This changes only the reminder, not the underlying task.',
                  {'reminder_id': {'type': 'string', 'minLength': 1, 'maxLength': 128},
                   'expected_revision': {'type': 'integer', 'minimum': 1, 'description': 'The reminder\'s current revision from reminders_list.'},
-                  'action': {'type': 'string', 'enum': ['cancel', 'reschedule']},
-                  'instruction_quote': quote, 'due_at': {**due, 'description': 'reschedule only: the new time. ' + due['description']}},
+                  'action': {'type': 'string', 'enum': ['cancel', 'reschedule', 'complete', 'snooze']},
+                  'instruction_quote': quote, 'due_at': {**due, 'description': 'reschedule and snooze only: the new time. ' + due['description']}},
                  ('reminder_id', 'expected_revision', 'action', 'instruction_quote')),
         ]
 
@@ -161,7 +169,8 @@ class ReminderTurn:
                     action = 'added'
                 else:
                     item = store._get(args['reminder_id'])
-                    pattern = CANCEL if args['action'] == 'cancel' else RESCHEDULE
+                    pattern = {'cancel': CANCEL, 'reschedule': RESCHEDULE, 'complete': COMPLETE,
+                               'snooze': SNOOZE}[args['action']]
                     if not positive_instruction(self.text, pattern, targets=(quote,)):
                         raise ValueError('reminder_target_not_authorized')
                     active = store.list(('armed', 'triggered'))
@@ -170,7 +179,9 @@ class ReminderTurn:
                         if len(matching) > 1 and item['id'] not in quote:
                             raise ValueError('reminder_target_ambiguous')
                     else:
-                        refs = tuple(m.group() for m in REFERENCE.finditer(quote))
+                        # 再提醒我 points at the reminder it would repeat.
+                        refs = tuple(m.group() for m in REFERENCE.finditer(quote)) + \
+                            (tuple(m.group() for m in AGAIN.finditer(quote)) if args['action'] == 'snooze' else ())
                         if not refs or not positive_instruction(quote, pattern, targets=refs):
                             raise ValueError('reminder_target_not_authorized')
                         if len(active) > 1 and not any(RECENT.search(r) for r in refs):
@@ -179,11 +190,17 @@ class ReminderTurn:
                         if item is None or newest is None or item['id'] != newest['id']:
                             raise ValueError('reminder_target_not_authorized')
                     key = hashlib.sha256(repr([self.run_id, name, quote, item['id'], args['action']]).encode()).hexdigest()
+                    if args['action'] in ('cancel', 'complete') and 'due_at' in args:
+                        raise ValueError('unexpected_reminder_time')
                     if args['action'] == 'cancel':
-                        if 'due_at' in args:
-                            raise ValueError('unexpected_reminder_time')
                         item = store.cancel(item['id'], expected_revision=args['expected_revision'], request_key=key)
                         action = 'cancelled'
+                    elif args['action'] == 'complete':
+                        # store.complete takes no revision; the store lock held here keeps this check current.
+                        if item['revision'] != args['expected_revision']:
+                            raise ValueError('commitment_changed')
+                        item = store.complete(item['id'])
+                        action = 'completed'
                     else:
                         if not TIME.search(quote):
                             raise ValueError('reminder_time_instruction_required')
