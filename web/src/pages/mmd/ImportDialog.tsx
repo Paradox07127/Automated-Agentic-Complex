@@ -1,7 +1,7 @@
 // 导入 MMD 的确认单：mmd.scan 认出的身体动作、口型、镜头、音源，用户挑好后 mmd.importScan。
 import { useId, useState } from 'react';
 import type { MmdImportPlan, MmdScan } from '../../bridge';
-import { Btn, Dialog, Fold, Select } from '../../ui';
+import { Btn, Dialog, Fold, IconBtn, Select } from '../../ui';
 import { MicroLabel } from '../../ui/game';
 import { MMD_IGNORED_REASON } from '../character/labels';
 import modal from '../../ui/Modal.module.css';
@@ -38,9 +38,11 @@ export interface ImportDialogProps {
   scan: MmdScan;
   onImport: (plan: MmdImportPlan) => void;
   onCancel: () => void;
+  /** Adds music from anywhere to `scan.audio`; the index of it there, null when none was added. */
+  onPickAudio: () => Promise<number | null>;
 }
 
-export function ImportDialog({ token, scan, onImport, onCancel }: ImportDialogProps) {
+export function ImportDialog({ token, scan, onImport, onCancel, onPickAudio }: ImportDialogProps) {
   const s = scan.suggested;
   const tooLong = (i: number) => scan.bodies[i]!.durationS > MAX_SECONDS;
   const [song, setSong] = useState(scan.title);
@@ -66,6 +68,7 @@ export function ImportDialog({ token, scan, onImport, onCancel }: ImportDialogPr
     onImport({ token, items, face: index(face), camera: index(camera), audio: index(audio), bgmStartS: audio === NONE ? null : (bgmStartS ?? null), project: song.trim() });
   };
   const toggle = (i: number, on: boolean) => setPicked((p) => (on ? [...p, i].sort((a, b) => a - b) : p.filter((x) => x !== i)));
+  const pickAudio = () => void onPickAudio().then((i) => i !== null && setAudio(String(i)));
   const options = (list: Array<{ name: string }>) => [{ value: NONE, label: '无' }, ...list.map((f, i) => ({ value: String(i), label: f.name }))];
 
   return (
@@ -121,7 +124,10 @@ export function ImportDialog({ token, scan, onImport, onCancel }: ImportDialogPr
         <div className={styles.media}>
           <Select label="口型" prefix="口型" value={face} options={options(scan.faces)} onChange={setFace} />
           <Select label="镜头" prefix="镜头" value={camera} options={options(scan.cameras)} onChange={setCamera} />
-          <Select label="音源" prefix="音源" value={audio} options={options(scan.audio)} onChange={setAudio} />
+          <div className={styles.audio}>
+            <Select label="音源" prefix="音源" value={audio} options={options(scan.audio)} onChange={setAudio} />
+            <IconBtn icon="folder" label="选择其它音频" size="sm" onClick={pickAudio} />
+          </div>
           <label className={styles.offset}>
             音乐偏移
             <input

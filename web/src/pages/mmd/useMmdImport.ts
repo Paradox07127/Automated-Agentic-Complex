@@ -15,6 +15,8 @@ export interface MmdImport {
   confirm: (plan: MmdImportPlan) => void;
   /** Drops the pending scan. */
   cancel: () => void;
+  /** Adds music picked anywhere to the pending scan; its index in `pending.scan.audio`, null when none was added. */
+  pickAudio: () => Promise<number | null>;
   setMedia: (id: string, media: { bgm: 'pick' | 'none'; bgmStartS: number | null }) => void;
 }
 
@@ -25,7 +27,7 @@ const hints = (actions: ImportedMotion[]) => {
   return n ? `，有 ${n} 条提示` : '';
 };
 
-/** `mmd.scan`, then `mmd.importScan` of the choices or `mmd.dropScan`; `mmd.setMedia`. One at a time; `onImported` runs once the
+/** `mmd.scan`, then `mmd.pickScanAudio`, `mmd.importScan` of the choices or `mmd.dropScan`; `mmd.setMedia`. One at a time; `onImported` runs once the
  *  avatar is back with a new dance. */
 export function useMmdImport(onImported: () => void): MmdImport {
   const [running, setRunning] = useState(false);
@@ -80,6 +82,27 @@ export function useMmdImport(onImported: () => void): MmdImport {
     setPending(null);
   };
 
+  const pickAudio = (): Promise<number | null> => {
+    const was = pending;
+    if (!was) return Promise.resolve(null);
+    return getBridge()
+      .mmd.pickScanAudio(was.token)
+      .then(
+        (r) => {
+          if (r.ok) {
+            setPending((p) => (p?.token === was.token ? { token: p.token, scan: r.scan } : p));
+            return r.audio;
+          }
+          if (r.reason !== 'cancelled') failed(motionImportReason(r.reason, r.detail), '音源没有换成');
+          return null;
+        },
+        (e: unknown) => {
+          failed(thrown(e), '音源没有换成');
+          return null;
+        },
+      );
+  };
+
   const setMedia = (id: string, media: { bgm: 'pick' | 'none'; bgmStartS: number | null }) => {
     setRunning(true);
     setNote(null);
@@ -100,5 +123,5 @@ export function useMmdImport(onImported: () => void): MmdImport {
       );
   };
 
-  return { running, note, pending, scan, confirm, cancel, setMedia };
+  return { running, note, pending, scan, confirm, cancel, pickAudio, setMedia };
 }

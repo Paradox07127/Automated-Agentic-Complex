@@ -177,8 +177,8 @@ async function outfitTool(args: string[]): Promise<{ last: string; status: numbe
 }
 
 /** The import ops ask with open panels, which the registry's ops would open for real; these tests pick with a fake. */
-const IMPORTS = ['character.importMotion', 'character.importOutfit', 'character.removeOutfit', 'mmd.scan', 'mmd.importScan', 'mmd.setMedia'];
-const picker: ImportPicker = { files: async (o) => (o.multiple ? [join(dir, 'dance.vmd')] : []), folder: async () => join(dir, 'Mod'),
+const IMPORTS = ['character.importMotion', 'character.importOutfit', 'character.removeOutfit', 'mmd.scan', 'mmd.importScan', 'mmd.pickScanAudio', 'mmd.setMedia'];
+const picker: ImportPicker = { files: async (o) => (o.multiple ? [join(dir, 'dance.vmd')] : o.title === '选择音源' ? [join(dir, 'off vocal.wav')] : []), folder: async () => join(dir, 'Mod'),
   filesOrFolder: async () => [join(dir, 'pack')] };
 
 function context(surface: Surface): OpsContext {
@@ -288,7 +288,7 @@ async function call(c: ReturnCase, ops = registry(context(c.surface))): Promise<
   if (c.op === 'avatar.playPlaylist' && c.before === undefined) writeFileSync(join(dir, 'config.json'), JSON.stringify({ mute: false }));
   // A fixture's scan token stands for the one the step's mmd.scan answered.
   let token: unknown;
-  const scanned = (args: unknown[]) => args.map((a) => (typeof a === 'object' && a !== null && 'token' in a ? { ...a, token } : a));
+  const scanned = (args: unknown[]) => args.map((a) => (a === 'scan_1' ? token : typeof a === 'object' && a !== null && 'token' in a ? { ...a, token } : a));
   for (const step of c.before ?? []) {
     if (step.op === 'character.switchTo') character = step.args![0] as string;
     else {

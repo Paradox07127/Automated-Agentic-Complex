@@ -140,6 +140,14 @@ export function fakeImports(character: () => string) {
     dropScan: async (token) => {
       if (pending?.token === token) pending = null;
     },
+    // As if the user picked song.wav outside the project.
+    pickScanAudio: async (token) => {
+      if (pending === null || pending.token !== token) return { ok: false, reason: 'scan_gone', detail: '识别结果已失效，请重新导入' };
+      const path = '/elsewhere/song.wav';
+      let audio = pending.scan.audio.findIndex((a) => a.path === path);
+      if (audio < 0) audio = pending.scan.audio.push({ path, name: 'song.wav' }) - 1;
+      return { ok: true, scan: { ...pending.scan, audio: [...pending.scan.audio] }, audio };
+    },
     // `pick` as if the user picked off vocal.wav.
     setMedia: async (id, media) => {
       const at = mmd.findIndex((e) => e.id === id);

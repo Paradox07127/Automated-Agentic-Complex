@@ -143,6 +143,18 @@
   align-items: center;
 }
 
+.audio {
+  display: flex;
+  align-items: center;
+  gap: var(--ef-sp-8);
+  min-width: 0;
+}
+
+.audio > [data-stub='Select'] {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .offset {
   display: flex;
   align-items: center;

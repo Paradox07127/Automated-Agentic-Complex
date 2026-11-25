@@ -197,6 +197,35 @@ describe('导入 MMD 确认单', () => {
       .toBe('已导入「愛包ダンスホール · HimeTanaka」，「愛包ダンスホール · SuzukiHina」没有完成：动作超过 360 秒'));
   });
 
+  it('选择其它音频 adds the picked file to 音源 and chooses it; 导入 sends its index; the sheet stays open', async () => {
+    const pick = vi.spyOn(bridge.mmd, 'pickScanAudio');
+    const imp = vi.spyOn(bridge.mmd, 'importScan');
+    await mount();
+    await open();
+    await choose('音源', '无');
+    await click(within(sheet()).getByRole('button', { name: '选择其它音频' }));
+    expect(pick).toHaveBeenCalledWith('scan_1');
+    await waitFor(() => expect(chosen('音源')).toBe('音源song.wav'));
+    expect(field('音乐偏移').disabled).toBe(false);
+    await click(within(sheet()).getByRole('button', { name: '音源' }));
+    expect(within(screen.getByRole('listbox', { name: '音源' })).getAllByRole('option').map((o) => o.textContent))
+      .toEqual(['无', '愛包ダンスホール_inst.wav', 'song.wav']);
+    await click(within(sheet()).getByRole('button', { name: '音源' }));
+    await click(within(sheet()).getByRole('button', { name: '导入' }));
+    expect(imp).toHaveBeenCalledWith(expect.objectContaining({ token: 'scan_1', audio: 1 }));
+  });
+
+  it('a cancelled 选择其它音频 leaves 音源 as it was', async () => {
+    vi.spyOn(bridge.mmd, 'pickScanAudio').mockResolvedValue({ ok: false, reason: 'cancelled' });
+    await mount();
+    await open();
+    await click(within(sheet()).getByRole('button', { name: '选择其它音频' }));
+    expect(chosen('音源')).toBe('音源愛包ダンスホール_inst.wav');
+    await click(within(sheet()).getByRole('button', { name: '音源' }));
+    expect(within(screen.getByRole('listbox', { name: '音源' })).getAllByRole('option')).toHaveLength(2);
+    expect(document.querySelector('[data-motion-import]')).toBeNull();
+  });
+
   it('offers 选择文件 and 选择文件夹 where one panel cannot take both', async () => {
     install({ capabilities: { filesOrFolderPicker: false } });
     const scan = vi.spyOn(bridge.mmd, 'scan');

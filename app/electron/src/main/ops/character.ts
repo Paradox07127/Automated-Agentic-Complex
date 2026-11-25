@@ -532,6 +532,19 @@ export function mmdOps(ctx: OpsContext, picker: ImportPicker = electronPicker, s
       if (pending?.token === token) drop();
       return undefined;
     },
+    /** Adds music picked anywhere to the pending scan's audio; `audio` is its index there. */
+    'mmd.pickScanAudio': async ([token]) => {
+      if (typeof token !== 'string') throw new BridgeFailure('bad_args', 'mmd.pickScanAudio');
+      if (pending === null || pending.token !== token) return motionReply(SCAN_GONE, false);
+      const [path] = await picker.files({ title: '选择音源', message: '和这支舞一起播放的音频', extensions: BGM_EXTENSIONS, multiple: false });
+      if (path === undefined) return { ok: false, reason: 'cancelled' };
+      // The scan may have been replaced or dropped while the panel was open.
+      if (pending === null || pending.token !== token) return motionReply(SCAN_GONE, false);
+      const scan = pending.scan;
+      let audio = scan.audio.findIndex((a) => a.path === path);
+      if (audio < 0) audio = scan.audio.push({ path, name: basename(path) }) - 1;
+      return { ok: true, scan, audio };
+    },
     /** Each item in turn; the first failure stops the rest and comes back with the actions already imported. */
     'mmd.importScan': async ([value]) => {
       const done: unknown[] = [];

@@ -216,7 +216,7 @@ export function useMmdSection(p: MmdSectionProps): Extract<Side, { of: 'mmd' }> 
         )}
       </section>
       {edit && <MotionEditDialog edit={edit} removeNote="每个角色都会删掉这个动作，角色会重新载入一次" onEdit={setEdit} library={library} />}
-      {mmdImport.pending && <ImportDialog token={mmdImport.pending.token} scan={mmdImport.pending.scan} onImport={mmdImport.confirm} onCancel={mmdImport.cancel} />}
+      {mmdImport.pending && <ImportDialog token={mmdImport.pending.token} scan={mmdImport.pending.scan} onImport={mmdImport.confirm} onCancel={mmdImport.cancel} onPickAudio={mmdImport.pickAudio} />}
       {media && (
         <MediaDialog
           entry={media}

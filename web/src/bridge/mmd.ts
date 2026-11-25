@@ -52,6 +52,9 @@ export interface MmdImportPlan {
 /** The dances imported, in plan order; a failure stops the rest and lists those done before it. `scan_gone`: the scan was dropped. */
 export type MmdImportScanResult = { ok: true; actions: ImportedMotion[] } | { ok: false; reason: string; detail?: string; actions: ImportedMotion[] };
 
+/** The pending scan with the picked music in its `audio`, `audio` the index of it there. `scan_gone`: the scan was dropped. */
+export type MmdPickAudioResult = { ok: true; scan: MmdScan; audio: number } | { ok: false; reason: string; detail?: string };
+
 /** The entry re-imported with the new music under a new id, `replaced` its old one. */
 export type MmdMediaResult = { ok: true; action: ImportedMotion; replaced: string } | { ok: false; reason: string; detail?: string };
 
@@ -99,6 +102,8 @@ export interface MmdOps {
   importScan(plan: MmdImportPlan): Promise<MmdImportScanResult>;
   /** Deletes the scan's unpacked files; nothing for another token. */
   dropScan(token: string): Promise<void>;
+  /** Asks for music anywhere for the scan `token` and adds it to the scan's `audio` once; `reason`: `cancelled` or `scan_gone`. */
+  pickScanAudio(token: string): Promise<MmdPickAudioResult>;
   /** The dance `id` re-imported with music picked in a panel (`pick`) or without music (`none`), at the offset (null: none). */
   setMedia(id: string, media: { bgm: 'pick' | 'none'; bgmStartS: number | null }): Promise<MmdMediaResult>;
   syncState(): Promise<MmdSyncState>;

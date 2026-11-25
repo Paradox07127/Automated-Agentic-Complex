@@ -421,6 +421,45 @@ test('mmd.importScan: a plan that does not fit the scan is bad_args and keeps it
   }
 });
 
+test('mmd.pickScanAudio adds music from outside the scan once, and mmd.importScan of its index sends that file as the bgm', async () => {
+  const f = fixture();
+  try {
+    scanTool(f);
+    f.picks = [[join(f.dir, 'pack.zip')]];
+    const { token, scan } = await f.call('mmd.scan', { folder: false }) as { token: string; scan: { audio: unknown[] } };
+    const song = join(f.dir, 'elsewhere', 'off vocal.wav');
+    f.picks = [[song], [song]];
+    const audio = [...scan.audio, { path: song, name: 'off vocal.wav' }];
+    const picked = await f.call('mmd.pickScanAudio', token) as { ok: true; scan: { audio: unknown[] }; audio: number };
+    assert.deepEqual([picked.ok, picked.scan.audio, picked.audio], [true, audio, 1]);
+    assert.deepEqual(f.asked.at(-1), { title: '选择音源', message: '和这支舞一起播放的音频', extensions: ['wav', 'mp3', 'm4a', 'aac', 'flac', 'aif', 'aiff'],
+      multiple: false });
+    const again = await f.call('mmd.pickScanAudio', token) as { scan: { audio: unknown[] }; audio: number };
+    assert.deepEqual([again.scan.audio, again.audio], [audio, 1]);
+    assert.equal((await f.call('mmd.importScan', { ...PLAN, items: [PLAN.items[0]], token, audio: 1 }) as { ok: boolean }).ok, true);
+    assert.equal(arg(f.tools[1]!, '--bgm'), song);
+  } finally {
+    f.done();
+  }
+});
+
+test('mmd.pickScanAudio: a cancelled panel is cancelled and keeps the list; another token is scan_gone and asks nothing; no token is bad_args', async () => {
+  const f = fixture();
+  try {
+    scanTool(f);
+    f.picks = [[join(f.dir, 'pack.zip')]];
+    const { token } = await f.call('mmd.scan', { folder: false }) as { token: string };
+    assert.deepEqual(await f.call('mmd.pickScanAudio', token), { ok: false, reason: 'cancelled' });
+    assert.deepEqual(await f.call('mmd.importScan', { ...PLAN, token, audio: 1 }), err('bad_args', 'mmd.importScan'));
+    const asked = f.asked.length;
+    assert.deepEqual(await f.call('mmd.pickScanAudio', 'other'), { ok: false, reason: 'scan_gone', detail: '识别结果已失效，请重新导入' });
+    assert.equal(f.asked.length, asked);
+    assert.deepEqual(await f.call('mmd.pickScanAudio', 1), err('bad_args', 'mmd.pickScanAudio'));
+  } finally {
+    f.done();
+  }
+});
+
 const MEDIA_LINE = JSON.stringify({ ok: true, action: { id: 'mmd_2', title: '愛包', duration_s: 223.3, has_bgm: true }, replaced: 'mmd_1' });
 
 test('mmd.setMedia picks the music while holding the switch, runs mmd-media with the offset, restarts her; none runs --no-bgm', async () => {

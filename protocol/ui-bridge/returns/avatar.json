@@ -614,6 +614,89 @@
     }
   },
   {
+    "op": "mmd.pickScanAudio",
+    "surface": "main",
+    "before": [
+      {
+        "op": "mmd.scan",
+        "args": [
+          {
+            "folder": false
+          }
+        ]
+      }
+    ],
+    "args": [
+      "scan_1"
+    ],
+    "nullable": [
+      "scan.bodies[].placeFrame",
+      "scan.cameras[].placeFrame",
+      "scan.suggested.face",
+      "scan.suggested.camera",
+      "scan.suggested.audio",
+      "scan.suggested.bgmStartS"
+    ],
+    "value": {
+      "ok": true,
+      "scan": {
+        "title": "愛包ダンスホール",
+        "root": "/tmp/mmd-scan/scan_1",
+        "bodies": [
+          {
+            "path": "/tmp/mmd-scan/scan_1/HimeTanaka_v1.1[f-19].vmd",
+            "name": "HimeTanaka_v1.1[f-19].vmd",
+            "label": "HimeTanaka",
+            "model": "田中ヒメ ver1.20",
+            "durationS": 223.33,
+            "placeFrame": -19,
+            "hasMorph": true
+          }
+        ],
+        "faces": [
+          {
+            "path": "/tmp/mmd-scan/scan_1/lip.vmd",
+            "name": "lip.vmd",
+            "durationS": 210,
+            "morphs": 5
+          }
+        ],
+        "cameras": [
+          {
+            "path": "/tmp/mmd-scan/scan_1/camera.vmd",
+            "name": "camera.vmd",
+            "durationS": 223,
+            "placeFrame": null
+          }
+        ],
+        "audio": [
+          {
+            "path": "/tmp/mmd-scan/scan_1/inst.wav",
+            "name": "inst.wav"
+          },
+          {
+            "path": "/Users/me/Music/off vocal.wav",
+            "name": "off vocal.wav"
+          }
+        ],
+        "ignored": [
+          {
+            "name": "Readme.txt",
+            "reason": "not_motion"
+          }
+        ],
+        "suggested": {
+          "body": 0,
+          "face": null,
+          "camera": 0,
+          "audio": 0,
+          "bgmStartS": -0.633
+        }
+      },
+      "audio": 1
+    }
+  },
+  {
     "op": "mmd.syncState",
     "surface": "main",
     "nullable": [
