@@ -266,7 +266,7 @@ Companion 的 `interaction_preset` 对应 agentd 的 `--interaction-preset quiet
 - 前台忙时用户打字或说的话由旁路会话回答，同时经 C8 `steer` 送进前台那一轮，前台模型在当前工具调用之后看到它（Claude 只在工具执行中接受；被拒时只有旁路回答）。临时对话不送。
 - 从任务卡继续时，同一个任务 ID 得到新的 run ID；新内核读产品检查点，经 `artifact_read_previous` 读旧成果。源文件、知识依赖、角色或范围变了时拒绝续接。发生未知桌面效果时不自动重放。
 - 主动问候走所选内核，开放知识读取；礼物与仪式轮另外可以请求朝向和读回执，没有文件、桌面、记忆或后台工作权限。临时对话不开放写文件和桌面动作，不写长期历史。
-- `reminders_list`、`reminder_create`、`reminder_update` 让角色经提醒库处理明确的单次提醒；写入有持久幂等回执，修改检查 revision。提醒只在应用运行时生效。
+- `reminders_list`、`reminder_create`、`reminder_update` 让角色经提醒库按用户原话新建、取消、改时间、完成或延后提醒：单次、每天或工作日重复，或在会话结束、等待审批时触发；写入有持久幂等回执，修改检查 revision。提醒只在应用运行时生效。
 
 ### 后台任务
 

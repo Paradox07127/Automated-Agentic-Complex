@@ -266,7 +266,7 @@ These are per-module throttles, not one token or cost cap.
 - While the foreground is busy, what the user types or says is answered by a side session and also sent into the foreground run through C8 `steer`, so the foreground model sees it after its current tool call (Claude accepts it only while a tool runs; when refused, only the side reply remains). Temporary conversations are not sent.
 - Continuing from a task card gives the same task ID a new run ID; the new kernel reads the product checkpoint and reads earlier output through `artifact_read_previous`. A change in source files, knowledge dependencies, character, or scope refuses the resumption. An unknown desktop effect is never replayed automatically.
 - Proactive greetings use the selected kernel with knowledge reads open; gift and ritual turns can additionally request facing and read receipts, but get no file, desktop, memory, or background work permissions. Temporary conversations cannot write files or act on the desktop and write no long-term history.
-- `reminders_list`, `reminder_create`, and `reminder_update` let the character handle explicit one-time reminders through the reminder store; writes have persistent idempotency receipts and changes check the revision. Reminders work only while the app runs.
+- `reminders_list`, `reminder_create`, and `reminder_update` let the character create, cancel, reschedule, complete or snooze reminders through the reminder store, on the user's own words: one-time, repeating daily or on weekdays, or triggered when a session finishes or waits for approval; writes have persistent idempotency receipts and changes check the revision. Reminders work only while the app runs.
 
 ### Background jobs
 
