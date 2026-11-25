@@ -189,6 +189,7 @@ export const ModelRuntime = { create: async () => ({ registerProvider() {},
 export const SettingsManager = { inMemory: value => value };
 export const SessionManager = { inMemory: () => ({}) };
 export const createExtensionRuntime = () => ({});
+export const createSyntheticSourceInfo = path => ({ path });
 export async function createAgentSession({ customTools }) {
   let notify;
   const session = {

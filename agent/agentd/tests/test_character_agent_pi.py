@@ -387,6 +387,63 @@ class PiSDKTests(unittest.TestCase):
         self.assertFalse(list((self.root / 'private').rglob('*.jsonl')))
         self.assertFalse(list((self.root / 'private').rglob('auth.json')))
 
+    HISTORY = [[{'role': 'user', 'content': 'What did we settle on?'}, {'role': 'assistant', 'content': 'Earlier confirmed plan.'}],
+               [{'role': 'user', 'content': 'And the time?'}, {'role': 'assistant', 'content': 'Seven sharp.'}]]
+    HISTORY_TURNS = [('user', 'What did we settle on?'), ('assistant', 'Earlier confirmed plan.'),
+                     ('user', 'And the time?'), ('assistant', 'Seven sharp.')]
+
+    @staticmethod
+    def conversation(request):
+        text = lambda content: content if isinstance(content, str) else ''.join(part.get('text', '') for part in content or [])
+        return [(m['role'], text(m.get('content'))) for m in request['messages']]
+
+    def turns(self, request, system):
+        """The request's messages after its one leading system prompt, as (role, text)."""
+        [(role, head), *messages] = self.conversation(request)
+        self.assertEqual(role, 'system'); self.assertTrue(head.startswith(system), head)
+        return messages
+
+    def test_history_reaches_the_model_as_its_own_turns(self):
+        model = self.model()
+        events = self.run_session(self.session(model), 'Remind me.', history=self.HISTORY)
+        self.assertTrue(events[-1]['success'], events)
+        self.assertEqual(self.turns(model.requests[0], 'You are Mira, a concise personal companion.'),
+                         [*self.HISTORY_TURNS, ('user', 'Remind me.')])
+        self.assertNotIn('product_history', json.dumps(model.requests[0]))
+
+    def test_history_stays_after_the_system_prompt_on_a_model_that_takes_later_system_messages(self):
+        model = self.model(['Seven sharp, as planned.', 'Done.'])
+        session = self.session(model, provider='deepseek', model='deepseek-v4-pro', auth_source='api_key', api_key='fixture-key')
+        self.assertTrue(self.run_session(session, 'Remind me.', history=self.HISTORY)[-1]['success'])
+        self.assertTrue(list(session.stream('Thanks.', system_prompt='You are Mira, a concise personal companion.', run_id='run-2'))[-1]['success'])
+        system = 'You are Mira, a concise personal companion.'
+        self.assertEqual(self.turns(model.requests[0], system), [*self.HISTORY_TURNS, ('user', 'Remind me.')])
+        self.assertEqual(self.turns(model.requests[1], system), [*self.HISTORY_TURNS, ('user', 'Remind me.'),
+                         ('assistant', 'Seven sharp, as planned.'), ('user', 'Thanks.')])
+
+    def test_quick_reply_history_reaches_the_model_as_its_own_turns(self):
+        model = self.model(['First answer.', 'Quick answer.'])
+        session = self.session(model)
+        self.assertTrue(self.run_session(session, 'First.')[-1]['success'])
+        events = list(session.stream('Quick one.', system_prompt='You are Mira, answering quickly.', run_id='run-2',
+                                     history=self.HISTORY, replace_history=True))
+        self.assertTrue(events[-1]['success'], events)
+        self.assertEqual(self.turns(model.requests[1], 'You are Mira, answering quickly.'),
+                         [*self.HISTORY_TURNS, ('user', 'Quick one.')])
+        self.assertNotIn('product_history', json.dumps(model.requests[1]))
+
+    def test_question_resume_history_reaches_the_model_as_its_own_turns(self):
+        model = self.model()
+        definition = {'name': 'ask_user', 'description': 'Ask a question.', 'input_schema': {'type': 'object'}}
+        events = self.run_session(self.session(model, [definition]), prompt='original-goal', history=self.HISTORY, ask_user_result={
+            'name': 'ask_user', 'tool_call_id': 'original-call', 'args': {'questions': [{'id': 'q', 'question': 'private-question'}]},
+            'result': {'answers': {'q': ['real-answer']}}})
+        self.assertTrue(events[-1]['success'], events)
+        turns = [turn for turn in self.conversation(model.requests[0]) if turn[0] != 'system']
+        self.assertEqual(turns[:5], [*self.HISTORY_TURNS, ('user', 'original-goal')])
+        self.assertEqual([role for role, _ in turns[5:]], ['assistant', 'tool'])
+        self.assertNotIn('product_history', json.dumps(model.requests[0]))
+
     def test_tool_callback_context_and_receipt_return_to_model(self):
         model = self.model([{'name': 'receipt_check', 'args': {'id': 'e1'}}, 'Checked.'])
         calls = []
