@@ -50,7 +50,8 @@ BUILTIN = {
     **_family("memory", ("actions",), _FOREGROUND, [("memory_propose", "write", "run_actions", False)]),
     **_family("orchestration", ("actions",), _FOREGROUND, [
         ("schedule_propose", "write", "run_actions", False), ("schedules_list", "read", "none", False),
-        ("schedule_update", "write", "card", False), ("dispatch_session", "external_write", "card", False), ("dispatch_status", "read", "none", False),
+        ("schedule_update", "write", "card", False), ("settings_read", "read", "none", False), ("settings_update", "write", "card", False),
+        ("dispatch_session", "external_write", "card", False), ("dispatch_status", "read", "none", False),
         ("reminders_list", "read", "none", False), ("reminder_create", "write", "run_actions", False),
         ("reminder_update", "write", "run_actions", False), ("goals_list", "read", "none", False),
         ("goal_create", "write", "run_actions", False), ("goal_update", "write", "run_actions", False),

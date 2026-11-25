@@ -25,6 +25,7 @@ agentd 给模型的每个工具调用，由 `agent/agentd/tool_gateway/` 决定�
 | Codex 的 `desktop_act` 审批表单（own 会话） | `own.py` 的 `mcpServer/elicitation/request` | `POLICY.desktop_elicitation` | `native_panel`, `card` | 已有窗口授权时直接接受、由原生小窗把关；否则 broker 卡片 | `tool.verdict` |
 | 角色的 `desktop_*` | `integration.py` 的原生处理 → `tools.desktop.call` | `POLICY.desktop("character", name)` | `none`, `native_panel` | Companion 原生小窗 | `tool.verdict`、`desktop.lease_*`；`desktop_act` / `desktop_task` 进账本 |
 | 角色的 `schedule_update`（启用、停用、修改、删除、立即运行计划任务） | `orchestration.py` `OrchestrationTurn._schedule_update` → `interactions.approve(single_only=True)` | 无；每次调用都发卡，不给「本对话都允许」 | `card` | 逐次审批收件箱 | 收件箱条目 |
+| 角色的 `settings_update`（主动陪伴与免打扰时段、静音的主动类型、暂停观察、回复语言；凭据、内核、隐私黑名单和文件夹范围不在其中） | `orchestration.py` `OrchestrationTurn._settings_update` → `interactions.approve(single_only=True)` | 无；每次调用都发卡，不给「本对话都允许」 | `card` | 逐次审批收件箱 | 收件箱条目 |
 | 内核自带工具（含用户自己的 MCP 服务）的审批 | 内核 runner 的权限请求 → `integration.py` `_harness_permission` → `interactions.approve` | 无；Pi 开审批时 `bash`、`powershell`、`write`、`edit` 和每个 `mcp__*` 调用都发请求，codex、claude、acp 按各自 CLI 的请求 | `exact_call` | 逐次审批收件箱 | 收件箱条目 |
 | own 会话的 `desktop_*`（MCP facade） | `tools/computer_use_mcp.py` | 无；Companion 决定 | `native_panel` | Companion 原生小窗 | `desktop_act` 进账本，`run_id` 为 `own:<session_id>` |
 | 角色的其它内置工具 | `runtime.py` → `tools.registry.offer(mode, ...)` | 无；传入的定义都提供，调用时按模式拒绝（`tool_not_allowed_in_mode`）；记忆、编排、提问工具只在有对应会话的 run 里传入 | `none`, `run_actions`, `scope` | 无 | 无 |
@@ -129,7 +130,7 @@ own 会话的原生会话 id 就是它的 session id。每个回合结束时以 
 | `workspace` | `workspace_list`, `workspace_read`, `workspace_image`, `workspace_search`, `artifact_write`, `artifact_read`, `artifact_verify` | `scope` | `character`, `character_background` | `actions`, `background` |
 | `task` | `task_plan`, `artifact_read_previous` | `run_actions`, `scope` | `character`, `character_background` | `actions`, `background` |
 | `memory` | `memory_propose` | `run_actions` | `character` | `actions` |
-| `orchestration` | `dispatch_session`, `dispatch_status`, `reminders_list`, `reminder_create`, `reminder_update`, `goals_list`, `goal_create`, `goal_update`, `background_start`, `background_status`, `background_cancel`, `task_continue`, `schedule_propose`, `schedules_list`, `schedule_update` | `none`, `card`, `run_actions` | `character` | `actions` |
+| `orchestration` | `dispatch_session`, `dispatch_status`, `reminders_list`, `reminder_create`, `reminder_update`, `goals_list`, `goal_create`, `goal_update`, `background_start`, `background_status`, `background_cancel`, `task_continue`, `schedule_propose`, `schedules_list`, `schedule_update`, `settings_read`, `settings_update` | `none`, `card`, `run_actions` | `character` | `actions` |
 | `interaction` | `ask_user` | `none` | `character`, `character_background` | `actions`, `background` |
 
 `desktop_task` 只提供给 `character`，不会进入 own 会话的 MCP 工具清单。`desktop_act`、`desktop_task` 带 `receipt`；循环结束并不确认 UI 效果，`desktop_task` 的聚合回执保留为 `unverifiable`。

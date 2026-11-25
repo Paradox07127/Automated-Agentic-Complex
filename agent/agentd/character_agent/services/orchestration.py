@@ -32,6 +32,19 @@ SCHEDULE_ACTIONS = {
 }
 
 
+SETTINGS_CARD = {
+    'zh-Hans': {'title': '修改设置：{}', 'on': '开', 'off': '关', 'none': '无', 'minutes': '{} 分钟',
+                'companion_mode': '主动陪伴', 'quiet_enabled': '免打扰时段', 'quiet_ranges': '免打扰时间',
+                'muted': '不主动说的类型', 'observation_pause_minutes': '暂停观察', 'reply_language': '回复语言'},
+    'en': {'title': 'Change settings: {}', 'on': 'on', 'off': 'off', 'none': 'none', 'minutes': '{} min',
+           'companion_mode': 'Companion mode', 'quiet_enabled': 'Quiet hours', 'quiet_ranges': 'Quiet hours ranges',
+           'muted': 'Muted line kinds', 'observation_pause_minutes': 'Pause observation', 'reply_language': 'Reply language'},
+    'ja': {'title': '設定を変更：{}', 'on': 'オン', 'off': 'オフ', 'none': 'なし', 'minutes': '{} 分',
+           'companion_mode': 'コンパニオンモード', 'quiet_enabled': 'おやすみ時間', 'quiet_ranges': 'おやすみ時間の範囲',
+           'muted': '話さない種類', 'observation_pause_minutes': '観察を一時停止', 'reply_language': '返信の言語'},
+}
+
+
 def _when(trigger):
     if trigger['kind'] == 'session_done':
         return ' '.join(['session_done', trigger.get('target') or '*', trigger.get('project') or '*'])
@@ -67,6 +80,21 @@ class OrchestrationTurn:
         page = {'offset': {'type': 'integer', 'minimum': 0, 'maximum': 90}, 'limit': {'type': 'integer', 'minimum': 1, 'maximum': 10}}
         from character_agent.services.reminders import ReminderTurn
         from character_agent.services.dispatch_tool import DispatchTurn
+        from api.observation import PAUSE_MAX
+        from brain import language
+        from character.proactive import MUTABLE
+        hour = {'type': 'integer', 'minimum': 0, 'maximum': 23}
+        settings = {'companion_mode': {'type': 'boolean', 'description': 'Whether you may speak up on your own.'},
+                    'quiet_enabled': {'type': 'boolean', 'description': 'Whether quiet hours hold your own lines.'},
+                    'quiet_ranges': {'type': 'array', 'maxItems': 8, 'description': 'The whole list of quiet hours as [start, end] '
+                        'local hours, e.g. [[22, 8]] for 22:00 to 08:00; start and end differ.',
+                        'items': {'type': 'array', 'minItems': 2, 'maxItems': 2, 'items': hour}},
+                    'muted': {'type': 'array', 'maxItems': len(MUTABLE), 'description': 'The whole list of line kinds you do not say on your own.',
+                        'items': {'type': 'string', 'enum': list(MUTABLE)}},
+                    'observation_pause_minutes': {'type': 'integer', 'minimum': 0, 'maximum': PAUSE_MAX,
+                        'description': 'Pause watching the screen for this many minutes from now; 0 resumes.'},
+                    'reply_language': {'type': 'string', 'enum': list(language.SETTINGS),
+                        'description': 'auto follows the user\'s language; harness leaves it to the kernel.'}}
         schedule = {'title': {'type': 'string', 'minLength': 1, 'maxLength': 200, 'description': 'Short name shown on the schedules page.'},
                   'instruction': {**text, 'description': 'What each run should do, complete enough to work without this conversation.'},
                   'trigger': {'type': 'object', 'additionalProperties': False, 'required': ['kind'],
@@ -96,6 +124,13 @@ class OrchestrationTurn:
                  {'schedule_id': {**ident, 'description': 'The schedule\'s schedule_id.'},
                   'action': {'type': 'string', 'enum': ['enable', 'disable', 'edit', 'delete', 'run_now']}, **schedule},
                  ('schedule_id', 'action')),
+            tool('settings_read', 'Read the settings you may change with settings_update: companion mode (speaking up on your own), '
+                 'quiet hours, muted line kinds with the kinds allowed, the observation pause and quiet ends, and the reply language '
+                 'with the values allowed. Other settings are not readable or changeable here.'),
+            tool('settings_update', 'Change one or more of the settings settings_read returns when the user asks; give only those to change. '
+                 'Every call shows the user a confirmation card and changes nothing until they allow it; until the result comes back '
+                 'say only that you asked them to confirm, never that it is changed. '
+                 'Returns the new settings, or error user_declined when the user refused or did not answer.', settings),
             tool('goals_list', 'Read a bounded page of the user\'s durable goals with goal_id, title, current version and status '
                  '(active, paused, completed, cancelled). Use it when the user asks about their goals, and before goal_update, '
                  'which needs the goal_id and current version. Follow next_offset for more.', page),
@@ -169,6 +204,10 @@ class OrchestrationTurn:
                 offset, limit = args.get('offset', 0), args.get('limit', 10)
                 page = records[offset:offset + limit]
                 return {'schedules': page, 'next_offset': offset + len(page) if offset + len(page) < len(records) else None}
+            if name == 'settings_read':
+                return self._settings_read()
+            if name == 'settings_update':
+                return self._settings_update(args)
             if name in ('goals_list', 'background_status'):
                 records = c.jobs.store.goals() if name == 'goals_list' else c.jobs.store.list(states=args.get('states') or None)
                 offset, limit = args.get('offset', 0), args.get('limit', 10)
@@ -271,3 +310,60 @@ class OrchestrationTurn:
         if action in ('enable', 'disable'):
             changes = {'enabled': action == 'enable'}
         return {'schedule': store.update(ident, changes)}
+
+    def _settings_read(self):
+        from brain.language import SETTINGS
+        from character.proactive import MUTABLE
+        c = self.controller
+        gate, observed = c.server.gate, c.server.observation_state()
+        on, ranges = gate.quiet_settings
+        return {'companion_mode': gate.companion, 'quiet_enabled': on, 'quiet_ranges': ranges, 'muted': sorted(gate.muted),
+                'mutable_kinds': list(MUTABLE), 'paused_until': observed['paused_until'], 'quiet_until': observed['quiet_until'],
+                'reply_language': c.settings.snapshot()['reply_language'], 'reply_languages': list(SETTINGS)}
+
+    def _settings_update(self, args):
+        """One change set behind a single-use approval card, through the calls the /proactive, /observation and
+        /character/runtime routes make."""
+        c = self.controller
+        if not args:
+            raise ValueError('invalid_settings_update')
+        if any(start == end for start, end in args.get('quiet_ranges', ())):
+            raise ValueError('invalid_quiet_ranges')
+        current = self._settings_read()
+        language = c.semantic.reply()
+        words = SETTINGS_CARD.get(language, SETTINGS_CARD['zh-Hans'])
+        def shown(key, value):
+            if isinstance(value, bool):
+                return words['on' if value else 'off']
+            if key == 'quiet_ranges':
+                return ', '.join(f'{start}:00–{end}:00' for start, end in value) or words['none']
+            if key == 'muted':
+                return ', '.join(sorted(set(value))) or words['none']
+            if key == 'observation_pause_minutes':
+                return words['minutes'].format(value) if value else words['off']
+            return value
+        before = lambda key: words['on' if current['paused_until'] else 'off'] if key == 'observation_pause_minutes' \
+            else shown(key, current[key])  # noqa: E731
+        title = words['title'].format('; '.join(f'{words[k]}: {before(k)} → {shown(k, v)}' for k, v in args.items()))
+        try:
+            c.interactions.approve(self.source_run_id, {'source': 'agentd', 'title': title, 'kind': 'other', 'raw_input': dict(args)},
+                valid=self.current, character_id=self.character_id, scope_id=self.scope_id, language=language, single_only=True)
+        except ValueError as exc:
+            if str(exc) in ('approval_denied', 'approval_expired'):
+                return {'error': {'code': 'user_declined'}}
+            raise
+        server = c.server
+        gate = server.gate
+        if 'companion_mode' in args:
+            gate.set_companion(args['companion_mode'])
+        if 'quiet_enabled' in args or 'quiet_ranges' in args:
+            on, ranges = gate.quiet_settings
+            gate.set_quiet(args.get('quiet_enabled', on), args.get('quiet_ranges', ranges))
+        if 'muted' in args:
+            gate.set_muted(args['muted'])
+        if 'observation_pause_minutes' in args:
+            minutes = args['observation_pause_minutes']
+            server.set_paused_until(server.clock() + minutes * 60 if minutes else None)
+        if 'reply_language' in args:
+            c.configure({'reply_language': args['reply_language']})
+        return self._settings_read()

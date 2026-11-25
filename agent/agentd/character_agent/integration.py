@@ -873,13 +873,15 @@ class CharacterAgentController:
             config = RuntimeSettings.validate({**old, **carried, **data})
             if config["scope_id"] and self.workspace is not None:
                 self.workspace.validate_scope(config["scope_id"])
-            # Unchanged, or retention only (read at each cleanup): the running runtime keeps going.
-            # Compared and saved under the lock, so a PUT read before another change cannot write back stale settings.
-            keep = {**old, "history_retention": config["history_retention"]} == config
+            # Unchanged, or retention (read at each cleanup) and reply language (read at each turn) only: the running
+            # runtime keeps going. Compared and saved under the lock, so a PUT read before another change cannot write
+            # back stale settings.
+            kept = ("history_retention", "reply_language")
+            keep = {**old, **{key: config[key] for key in kept}} == config
             if keep:
                 self.settings.save(config)
                 if self._runtime_config is not None:
-                    self._runtime_config["history_retention"] = config["history_retention"]
+                    self._runtime_config.update({key: config[key] for key in kept})
         if keep:
             return self._configured()
         if self.jobs and old["interactive_tools"] and not config["interactive_tools"]:
