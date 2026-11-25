@@ -10,8 +10,8 @@ export interface IconBtnProps {
   icon: IconName;
   /** aria-label 与 tooltip */
   label: string;
-  /** 50×32 / 44×28 / 36×24（close 为 32 / 28 / 24 圆），默认 md；xs 放在 24 高的行里 */
-  size?: 'md' | 'sm' | 'xs';
+  /** 50×32 / 36×24（close 为 32 / 24 圆），默认 md；sm 放在 24 高的行里 */
+  size?: 'md' | 'sm';
   /** round：24 px 圆形徽标，不看 size */
   shape?: 'pill' | 'round';
   /** 切换类按钮的按下态 */
@@ -88,7 +88,7 @@ export function IconBtn({ icon, label, size = 'md', shape, pressed, shortcut, ex
         onBlur={why ? () => setTip(false) : undefined}
         onKeyDown={why ? (e) => e.key === 'Escape' && setTip(false) : undefined}
       >
-        <Icon name={icon} size={size === 'xs' ? 12 : size === 'sm' || shape === 'round' ? 14 : 16} />
+        <Icon name={icon} size={size === 'sm' ? 12 : shape === 'round' ? 14 : 16} />
       </button>
       {why && (shown ? createPortal(whyEl, document.body) : whyEl)}
     </>
@@ -99,8 +99,7 @@ export const IconBtnDemos: Array<{ name: string; props: IconBtnProps }> = [
   { name: 'close', props: { icon: 'close', label: '关闭' } },
   { name: 'more', props: { icon: 'more', label: '更多操作', size: 'sm' } },
   { name: 'pressed', props: { icon: 'pin', label: '固定', pressed: true, size: 'sm' } },
-  { name: 'xs', props: { icon: 'more', label: '更多操作', size: 'xs' } },
-  { name: 'close-xs', props: { icon: 'close', label: '关闭', size: 'xs' } },
+  { name: 'close-sm', props: { icon: 'close', label: '关闭', size: 'sm' } },
   { name: 'expanded', props: { icon: 'more', label: '更多操作', expanded: true } },
   { name: 'round', props: { icon: 'plus', label: '新建', shape: 'round' } },
   { name: 'disabled', props: { icon: 'refresh', label: '重新检测', disabled: true } },

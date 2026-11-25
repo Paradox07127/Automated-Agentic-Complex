@@ -173,10 +173,10 @@ describe('tasks page 定时 tab', () => {
     });
     await waitFor(() => expect(sent(spy, 'PUT', '/schedules/schedule-2')).toEqual([['PUT', '/schedules/schedule-2', { enabled: true }]]));
     fireEvent.click(within(await list()).getByRole('option', { name: /日报/ }));
-    const onoff = await within(detail()).findByRole('radiogroup', { name: '启用「日报」' });
-    expect(within(onoff).getByRole('radio', { name: '开' }).getAttribute('aria-checked')).toBe('true');
+    const onoff = await within(detail()).findByRole('switch', { name: '启用「日报」' });
+    expect(onoff.getAttribute('aria-checked')).toBe('true');
     await act(async () => {
-      fireEvent.click(within(onoff).getByRole('radio', { name: '关' }));
+      fireEvent.click(onoff);
     });
     await waitFor(() => expect(sent(spy, 'PUT', '/schedules/schedule-1')).toEqual([['PUT', '/schedules/schedule-1', { enabled: false }]]));
   });

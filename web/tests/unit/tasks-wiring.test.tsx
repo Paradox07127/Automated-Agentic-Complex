@@ -786,7 +786,7 @@ describe('tasks: an accepted proposal that was paused', () => {
     const group = await screen.findByRole('listbox', { name: '暂停' });
     expect(within(group).getByRole('option', { name: `${SCHED.title}，暂停` })).toBeTruthy();
     expect(screen.queryByRole('listbox', { name: '角色提议的' })).toBeNull();
-    expect(screen.getByRole('radiogroup', { name: `启用「${SCHED.title}」` })).toBeTruthy();
+    expect(screen.getByRole('switch', { name: `启用「${SCHED.title}」` })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '不要' })).toBeNull();
   });
 });

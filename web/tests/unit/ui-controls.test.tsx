@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Btn, IconBtn, Row, SecHead, Seg, Slider, SRow, Tabs, Toggle } from '../../src/ui';
+import { Btn, IconBtn, RadioDot, Row, SecHead, Slider, SRow, Switch, Tabs } from '../../src/ui';
 import { MOUSE_ONLY_HINT } from '../../src/ui/Btn';
 import { Select } from '../../src/ui/Select';
 
@@ -60,58 +60,35 @@ describe('IconBtn', () => {
   });
 });
 
-describe('Toggle', () => {
-  it('is a switch that flips on click and reports the change', () => {
-    const onChange = vi.fn();
-    render(<Toggle on={false} label="窗口文字" onChange={onChange} />);
-    const sw = screen.getByRole('switch', { name: '窗口文字' });
-    expect(sw.getAttribute('aria-checked')).toBe('false');
-    fireEvent.click(sw);
-    expect(onChange).toHaveBeenCalledWith(true);
+describe('RadioDot', () => {
+  it('selects on click and on space, and says it is checked', () => {
+    const onSelect = vi.fn();
+    const { rerender } = render(<RadioDot checked={false} label="任务完成：出声" onSelect={onSelect} />);
+    const dot = screen.getByRole('radio', { name: '任务完成：出声' });
+    expect(dot.getAttribute('aria-checked')).toBe('false');
+    expect(dot.tabIndex).toBe(0);
+    fireEvent.click(dot);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(fireEvent.keyDown(dot, { key: ' ' })).toBe(false);
+    expect(onSelect).toHaveBeenCalledTimes(2);
+    rerender(<RadioDot checked label="任务完成：出声" onSelect={onSelect} />);
+    expect(dot.getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(dot);
+    expect(onSelect).toHaveBeenCalledTimes(2);
   });
 
-  it('keeps its own state when uncontrolled', () => {
-    render(<Toggle on label="终端" size="sm" />);
-    const sw = screen.getByRole('switch', { name: '终端' });
-    fireEvent.click(sw);
-    expect(sw.getAttribute('aria-checked')).toBe('false');
-  });
-
-  it('does not change while disabled and exposes the reason', () => {
-    const onChange = vi.fn();
-    render(<Toggle on={false} label="附上截图" disabled disabledReason="屏幕录制未允许" onChange={onChange} />);
-    const sw = screen.getByRole('switch', { name: '附上截图' });
-    fireEvent.click(sw);
-    expect(onChange).not.toHaveBeenCalled();
-    expect(sw.getAttribute('aria-disabled')).toBe('true');
-    expect(document.getElementById(sw.getAttribute('aria-describedby') ?? '')?.textContent).toBe('屏幕录制未允许');
-  });
-});
-
-describe('Seg', () => {
-  const options = [
-    { value: 'a', label: '全部' },
-    { value: 'b', label: '角色', disabled: true },
-    { value: 'c', label: '编码' },
-  ];
-
-  it('moves with arrow keys, skips disabled options and keeps one tab stop', () => {
-    const onChange = vi.fn();
-    render(<Seg label="来源" value="a" options={options} onChange={onChange} />);
-    const group = screen.getByRole('radiogroup', { name: '来源' });
-    const radios = screen.getAllByRole('radio');
-    expect(radios.map((r) => r.tabIndex)).toEqual([0, -1, -1]);
-    fireEvent.keyDown(group, { key: 'ArrowRight' });
-    expect(onChange).toHaveBeenLastCalledWith('c');
-    fireEvent.keyDown(group, { key: 'Home' });
-    expect(onChange).toHaveBeenLastCalledWith('a');
-  });
-
-  it('ignores clicks on disabled options', () => {
-    const onChange = vi.fn();
-    render(<Seg label="来源" value="a" options={options} onChange={onChange} />);
-    fireEvent.click(screen.getByRole('radio', { name: '角色' }));
-    expect(onChange).not.toHaveBeenCalled();
+  it('ignores clicks and space while disabled; without onSelect it leaves the tab order to the row', () => {
+    const onSelect = vi.fn();
+    const { rerender } = render(<RadioDot checked={false} label="提醒：不提示" disabled onSelect={onSelect} />);
+    const dot = screen.getByRole('radio', { name: '提醒：不提示' });
+    fireEvent.click(dot);
+    fireEvent.keyDown(dot, { key: ' ' });
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(dot.getAttribute('aria-disabled')).toBe('true');
+    rerender(<RadioDot checked label="Codex" size="sm" />);
+    const sm = screen.getByRole('radio', { name: 'Codex' });
+    expect(sm.getAttribute('data-size')).toBe('sm');
+    expect(sm.tabIndex).toBe(-1);
   });
 });
 
@@ -236,7 +213,7 @@ describe('disabled while open', () => {
 
 describe('SRow', () => {
   it('names the row, shows the effect tag and the disabled reason', () => {
-    render(<SRow id="wintext" title="窗口文字" desc="关闭会删除已收集内容" effect="backend" pending disabled disabledReason="屏幕录制未允许" control={<Toggle on label="窗口文字" />} />);
+    render(<SRow id="wintext" title="窗口文字" desc="关闭会删除已收集内容" effect="backend" pending disabled disabledReason="屏幕录制未允许" control={<Switch checked label="窗口文字" />} />);
     const row = screen.getByRole('group', { name: '窗口文字' });
     expect(row.id).toBe('set-wintext');
     expect(row.textContent).toContain('重启后生效');

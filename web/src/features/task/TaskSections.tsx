@@ -72,7 +72,7 @@ export function TaskSections({ task, now, deliveries = [], steps = [], tools = [
             <Btn variant="ghost" icon="stop" onClick={() => onAction?.({ kind: 'stop' })}>
               停止任务
             </Btn>
-            <Btn variant="quiet" icon="ext" disabled={!sessionId} disabledReason="没有找到会话" onClick={() => sessionId && onAction?.({ kind: 'jump_terminal', sessionId })}>
+            <Btn variant="text" icon="ext" disabled={!sessionId} disabledReason="没有找到会话" onClick={() => sessionId && onAction?.({ kind: 'jump_terminal', sessionId })}>
               跳到终端
             </Btn>
           </div>
@@ -90,7 +90,7 @@ export function TaskSections({ task, now, deliveries = [], steps = [], tools = [
             <dt>运行</dt>
             <dd>
               <span className="num">{task.run_count}</span> 次{' '}
-              <Btn size="sm" variant="quiet" icon="ext" onClick={() => onAction?.({ kind: 'open_timeline' })}>
+              <Btn size="sm" variant="text" icon="ext" onClick={() => onAction?.({ kind: 'open_timeline' })}>
                 在对话轮次里看
               </Btn>
             </dd>

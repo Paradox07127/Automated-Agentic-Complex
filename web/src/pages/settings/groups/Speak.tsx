@@ -9,7 +9,7 @@ import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import type { DiagView } from '../diag';
 import { REPLY_LANGUAGE } from '../fields';
-import { Btn, Pill, Switch } from '../../../ui';
+import { Btn, Pill, RadioDot, Switch } from '../../../ui';
 import { GameSeg, PowerState, StatusLamp } from '../../../ui/game';
 import { Dis } from '../kit';
 import { optionsOf } from '../native';
@@ -177,15 +177,7 @@ export function SpeakGroup() {
                 </span>
                 {notifyLevels.map((o) => (
                   <span key={o.value} role="cell" className={styles.mxCell}>
-                    <input
-                      type="radio"
-                      className={styles.mxDot}
-                      name={`notify-${id}`}
-                      aria-label={`${label}：${o.label}`}
-                      checked={model.value(id) === o.value}
-                      disabled={groupRo}
-                      onChange={() => model.set(id, o.value)}
-                    />
+                    <RadioDot label={`${label}：${o.label}`} checked={model.value(id) === o.value} disabled={groupRo} onSelect={() => model.set(id, o.value)} />
                   </span>
                 ))}
               </span>

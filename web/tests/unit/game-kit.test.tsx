@@ -181,19 +181,15 @@ describe('GameSeg', () => {
     expect(three).not.toHaveBeenCalled();
   });
 
-  it('开｜关: the second option checked marks the switch off; a locked switch ignores keys', () => {
+  it('a locked GameSeg ignores keys', () => {
     const onoff = [
       { value: 'on', label: '开' },
       { value: 'off', label: '关' },
     ];
-    const { container, rerender } = render(<GameSeg label="思考" variant="onoff" options={onoff} value="off" />);
-    expect(container.querySelector('[data-stub="GameSeg"]')?.hasAttribute('data-off')).toBe(true);
-    expect(screen.getByRole('radio', { name: '关' }).getAttribute('aria-checked')).toBe('true');
     const onChange = vi.fn();
-    rerender(<GameSeg label="思考" variant="onoff" options={onoff} value="on" disabled onChange={onChange} />);
+    render(<GameSeg label="思考" options={onoff} value="on" disabled onChange={onChange} />);
     key(screen.getByRole('radiogroup'), 'ArrowRight');
     expect(onChange).not.toHaveBeenCalled();
-    expect(container.querySelector('[data-stub="GameSeg"]')?.hasAttribute('data-off')).toBe(false);
   });
 });
 

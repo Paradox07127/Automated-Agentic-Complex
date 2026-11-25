@@ -1,7 +1,6 @@
 /* Game segmented switch (common toggle): a dark slanted track, the chosen option under a sliding white block with a yellow foot. */
 .seg {
   --gs-track: rgb(0 0 0 / 40%);
-  --gs-knob-off: #9a9a9a;
   --gs-hatch: repeating-linear-gradient(-45deg, transparent 0 4px, rgb(255 255 255 / 8%) 4px 5px);
   /* SelectedLight (commontoggle_btn): a white plate at .298 × the clip's alpha, .25 hovered, .1 at rgb .651 pressed. */
   --gs-light: #fff;
@@ -175,25 +174,6 @@
   outline-offset: -3px;
 }
 
-/* 开｜关: a short track; on 关 the block turns grey and loses its foot. */
-.seg[data-variant='onoff'] .track {
-  width: 88px;
-  background: rgb(20 20 20 / 55%);
-}
-
-.seg[data-variant='onoff'] .opt {
-  min-width: 0;
-  padding: 0;
-}
-
-.seg[data-off] .knob {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ef-g-btn-hover) 30%, var(--gs-knob-off)), var(--gs-knob-off) 55%, color-mix(in srgb, var(--gs-knob-off) 88%, var(--ef-g-icon)));
-}
-
-.seg[data-off] .knob::after {
-  display: none;
-}
-
 .seg[aria-disabled='true'] .track {
   background: var(--gs-hatch), var(--gs-track);
   opacity: 0.5;
@@ -221,10 +201,6 @@
 .seg[data-size='compact'] .opt {
   min-width: 32px;
   padding: 0 6px;
-}
-
-.seg[data-size='compact'][data-variant='onoff'] .track {
-  width: 72px;
 }
 
 .seg[data-size='compact'] .knob {

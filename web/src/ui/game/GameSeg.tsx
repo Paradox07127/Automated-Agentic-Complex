@@ -17,8 +17,8 @@ export interface GameSegProps {
   size?: 'normal' | 'compact';
   /** 读屏名称 */
   label: string;
-  /** plain：速度、播放方式；onoff：斜切「开｜关」，选中第二项（关）时白块变灰、没有黄边；setting：设置行（ToggleSetting），34 高圆角槽，宽到 --cw（默认 330） */
-  variant?: 'plain' | 'onoff' | 'setting';
+  /** plain：速度、播放方式；setting：设置行（ToggleSetting），34 高圆角槽，宽到 --cw（默认 330） */
+  variant?: 'plain' | 'setting';
   /** 槽上方的说明（中文）和它的微型英文 */
   caption?: string;
   micro?: string;
@@ -58,7 +58,7 @@ export function GameSeg({ options, value, defaultValue, size = 'normal', label, 
 
   const place = { '--n': options.length, '--i': Math.max(0, sel) } as CSSProperties;
   return (
-    <div className={styles.seg} data-stub="GameSeg" data-variant={variant} data-size={size} data-off={(variant === 'onoff' && sel === 1) || undefined} aria-disabled={disabled || undefined}>
+    <div className={styles.seg} data-stub="GameSeg" data-variant={variant} data-size={size} aria-disabled={disabled || undefined}>
       {caption && (
         <span className={styles.cap} aria-hidden="true">
           {caption}
@@ -146,9 +146,7 @@ export const GameSegDemos: Array<{ name: string; props: GameSegProps }> = [
       ],
     },
   },
-  { name: 'on', props: { label: '开口说话', variant: 'onoff', value: 'on', options: [{ value: 'on', label: '开' }, { value: 'off', label: '关' }] } },
-  { name: 'off', props: { label: '思考', variant: 'onoff', value: 'off', options: [{ value: 'on', label: '开' }, { value: 'off', label: '关' }] } },
-  { name: 'locked', props: { label: '站立待机', variant: 'onoff', value: 'on', disabled: true, options: [{ value: 'on', label: '开' }, { value: 'off', label: '关' }] } },
+  { name: 'locked', props: { label: '站立待机', value: 'on', disabled: true, options: [{ value: 'on', label: '开' }, { value: 'off', label: '关' }] } },
   {
     name: 'setting',
     props: {

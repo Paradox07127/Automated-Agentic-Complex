@@ -1,8 +1,8 @@
 // One schedule (MissionInfoNode): ON/OFF, the trigger on the location line, the last run; her proposal as a paper, the
 // failed last run as a red band, the next run as the TimerNode band, the instruction and what it uses.
 import type { Schedule } from '../../domain/schedules';
-import { Btn, Pill, SecHead } from '../../ui';
-import { GameSeg, MicroLabel } from '../../ui/game';
+import { Btn, Pill, SecHead, Switch } from '../../ui';
+import { MicroLabel } from '../../ui/game';
 import { Clock, Pin, Warn } from './Glyphs';
 import { dayText, scheduleError, spanText, triggerText, type Choice } from './schedules';
 import page from './Page.module.css';
@@ -40,7 +40,7 @@ export function ScheduleDetail({ s, now, scopes, convTitle, onToggle, onEdit, on
               未启用
             </Pill>
           ) : (
-            <GameSeg label={`启用「${s.title}」`} variant="onoff" value={s.enabled ? 'on' : 'off'} options={[{ value: 'on', label: '开' }, { value: 'off', label: '关' }]} onChange={(v) => onToggle(v === 'on')} />
+            <Switch label={`启用「${s.title}」`} checked={s.enabled} onChange={onToggle} />
           )}
         </div>
         <div className={styles.where}>

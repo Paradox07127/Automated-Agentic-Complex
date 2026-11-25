@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { Btn, Toggle } from '../../ui';
+import { Btn, Switch } from '../../ui';
 import styles from './RejectBox.module.css';
 
 /** 补充要求框：任务详情和对话抽屉共用；退回先展开这一框，补充要求为空时「退回并继续」禁用。 */
@@ -37,16 +37,16 @@ export function RejectBox({ mode = 'reject', kernelName, initialNote = '', busy,
         onChange={(e) => setNote(e.target.value)}
       />
       <div className={styles.foot}>
-        <Toggle size="sm" on={useCur} label="使用当前选中的内核" onChange={setUseCur} />
-        <span className={styles.kernel}>使用当前选中的内核{kernelName ? `（${kernelName}）` : ''}</span>
+        <Switch checked={useCur} label="使用当前选中的内核" onChange={setUseCur} />
+        {kernelName && <span className={styles.kernel}>{kernelName}</span>}
         <span className={styles.sp} />
         {mode === 'reject' && onCancel && (
-          <Btn variant="quiet" onClick={onCancel}>
+          <Btn variant="text" onClick={onCancel}>
             取消
           </Btn>
         )}
         <Btn
-          variant={mode === 'reject' ? 'cancel' : 'ghost'}
+          variant={mode === 'reject' ? 'secondary' : 'ghost'}
           loading={busy}
           disabled={empty}
           disabledReason="先写补充要求"

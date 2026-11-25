@@ -64,7 +64,7 @@
     box-shadow var(--ef-dur-g-btn) var(--ef-ease-g-fade);
 }
 
-/* Contour texture (recipe btn-contour; short capsules btn-contour-short), anchored right in the fill; the smallest and function pills have none. */
+/* Contour texture (recipe btn-contour; short capsules btn-contour-short), anchored right in the fill; the smallest has none. */
 .contour {
   display: block;
   opacity: var(--btn-deco, 1);
@@ -73,13 +73,13 @@
     opacity var(--btn-dur) var(--ef-ease-g-fade);
 }
 
-:global(html[data-art]) .btn:not(.sm, .ring) .contour {
+:global(html[data-art]) .btn:not(.sm) .contour {
   background-color: color-mix(in srgb, var(--btn-contour-ink) var(--btn-contour-alpha), transparent);
   -webkit-mask: url('/art/common/btn-contour-short.png') right 6px center / auto 100% no-repeat;
   mask: url('/art/common/btn-contour-short.png') right 6px center / auto 100% no-repeat;
 }
 
-:global(html[data-art]) .lg:not(.sm, .ring) .contour {
+:global(html[data-art]) .lg:not(.sm) .contour {
   -webkit-mask: url('/art/common/btn-contour.png') right 12px center / auto 100% no-repeat;
   mask: url('/art/common/btn-contour.png') right 12px center / auto 100% no-repeat;
 }
@@ -178,7 +178,7 @@
   color: inherit;
 }
 
-/* Variants: primary yellow, ghost light, secondary dark grey, danger red, ring the function pill. */
+/* Variants: primary yellow, ghost light, secondary dark grey, danger red. */
 .primary {
   --btn-fill: var(--ef-accent);
   --btn-fg: var(--ef-btn-accent-text);
@@ -193,24 +193,6 @@
 .danger {
   --btn-fill: var(--ef-danger-vivid);
   --btn-fg: var(--ef-on-danger-vivid);
-}
-
-/* Function button: pill with a thin white ring directly on the fill, no gap. */
-.ring {
-  --btn-ring: var(--ef-popup-band);
-  --fill-inset: 3px 3px 4px;
-}
-
-.ring::before {
-  outline-width: 1px;
-  outline-offset: 0;
-  box-shadow:
-    0 0 0 2px var(--btn-edge),
-    var(--btn-shadow);
-}
-
-.ring.sm {
-  --fill-inset: 0;
 }
 
 /* Text only, no capsule; link: body text over a 2 px yellow underline, inline in a row, a chip or a ban plate, in the 24 px small box. */

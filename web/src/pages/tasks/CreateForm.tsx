@@ -1,7 +1,8 @@
 import type { PickedHandle } from '../../bridge/protocol';
 import type { Goal } from '../../domain';
 import { usePlugins } from '../../shell/plugins';
-import { Btn, Field, Fold, InfoTip, Seg, Select, TextArea } from '../../ui';
+import { Btn, Field, Fold, InfoTip, Select, TextArea } from '../../ui';
+import { GameSeg } from '../../ui/game';
 import styles from './CreateForm.module.css';
 
 export type CreateKind = 'role' | 'code';
@@ -63,7 +64,7 @@ export function CreateForm({ draft, onChange, goals, canPick, onPickFolder }: Cr
   const codeOn = usePlugins().coding_sessions;
   return (
     <div className={styles.root} data-nav-target="task-create">
-      <Seg
+      <GameSeg
         label="新建类型"
         value={draft.kind}
         onChange={(v) => set({ kind: v as CreateKind })}
@@ -112,8 +113,7 @@ export function CreateForm({ draft, onChange, goals, canPick, onPickFolder }: Cr
         <>
           <div className={styles.field}>
             <span>编码工具</span>
-            <Seg
-              size="sm"
+            <GameSeg
               label="编码工具"
               value={draft.agent}
               onChange={(v) => set({ agent: v as CreateDraft['agent'] })}

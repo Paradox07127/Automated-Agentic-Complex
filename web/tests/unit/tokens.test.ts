@@ -135,7 +135,7 @@ describe('contrast', () => {
       });
     }
     // The side away from the knob rests dimmed by the stylesheet's opacity; its blend over the track is what is read.
-    for (const ui of ['Switch', 'Toggle']) {
+    for (const ui of ['Switch']) {
       for (const pre of ['', 'paper-']) {
         it(`${theme}: ${ui} ${pre}toggle-off-text at rest opacity on ${pre}toggle-track >= 4.5`, () => {
           const css = readFileSync(fileURLToPath(new URL(`../../src/ui/${ui}.module.css`, import.meta.url)), 'utf8');

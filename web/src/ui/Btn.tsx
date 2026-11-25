@@ -8,15 +8,14 @@ import pressStyles from './BtnPressed.module.css';
 
 /**
  * 按钮（.ef-btn）：胶囊。primary 黄、ghost 浅、secondary 深灰、
- * danger 红、ring 功能药丸、text 无胶囊。primary 每个视图只放 1 个；危险批准只能用鼠标点。
+ * danger 红、text 无胶囊。primary 每个视图只放 1 个；危险批准只能用鼠标点。
  */
 export interface BtnProps {
   /**
    * 变体，默认 ghost（浅色胶囊，无图标位）。
-   * 旧名照旧可传：cancel、action-row 按 secondary，quiet 按 text，danger-confirm 按 danger。
    * link：行内文字链，正文色、黄下划线，没有胶囊；只有 sm 一种高（24）。
    */
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'text' | 'ring' | 'link' | 'cancel' | 'danger-confirm' | 'quiet' | 'action-row';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'text' | 'link';
   /** 高 36 / 32 / 24，默认 md */
   size?: 'lg' | 'md' | 'sm';
   /** 只对 sm：去掉左右内边距（窄条里并排平分宽度的键，如卡脚的 ◀ ▶ 移出） */
@@ -53,28 +52,14 @@ export interface BtnProps {
   ref?: Ref<HTMLButtonElement>;
 }
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'text' | 'ring' | 'link';
+type Variant = NonNullable<BtnProps['variant']>;
 
-const VARIANT: Record<NonNullable<BtnProps['variant']>, Variant> = {
-  primary: 'primary',
-  secondary: 'secondary',
-  ghost: 'ghost',
-  danger: 'danger',
-  text: 'text',
-  ring: 'ring',
-  link: 'link',
-  cancel: 'secondary',
-  'action-row': 'secondary',
-  quiet: 'text',
-  'danger-confirm': 'danger',
-};
-const TAIL: Partial<Record<Variant, IconName>> = { primary: 'check', secondary: 'chev', danger: 'del', ring: 'chev' };
+const TAIL: Partial<Record<Variant, IconName>> = { primary: 'check', secondary: 'chev', danger: 'del' };
 export const MOUSE_ONLY_HINT = '只能用鼠标点击';
 
-export function Btn({ variant = 'ghost', size: asked = 'md', dense, icon, tail, go, label, kbd, loading, pressed, disabled, disabledReason, mouseOnly, onClick, children, ref, ...aria }: BtnProps) {
+export function Btn({ variant: v = 'ghost', size: asked = 'md', dense, icon, tail, go, label, kbd, loading, pressed, disabled, disabledReason, mouseOnly, onClick, children, ref, ...aria }: BtnProps) {
   const [hint, setHint] = useState(false);
   const reasonId = useId();
-  const v = VARIANT[variant];
   const size = v === 'link' ? 'sm' : asked;
   const inactive = !!disabled || !!loading;
   const slot = TAIL[v] && (size !== 'sm' || !!tail) ? (tail ?? icon ?? TAIL[v]) : undefined;
@@ -179,7 +164,6 @@ export const BtnDemos: Array<{ name: string; props: BtnProps }> = [
   { name: 'ghost', props: { variant: 'ghost', icon: 'plus', children: '新建' } },
   { name: 'danger', props: { variant: 'danger', children: '批准（只能点击）', mouseOnly: true } },
   { name: 'text', props: { variant: 'text', children: '前往设置' } },
-  { name: 'ring', props: { variant: 'ring', children: '稍后处理' } },
   { name: 'go', props: { go: true, children: '打开配置文件' } },
   { name: 'pressed', props: { variant: 'secondary', size: 'sm', pressed: true, children: '只看出错' } },
   { name: 'link', props: { variant: 'link', children: '恢复默认排除' } },

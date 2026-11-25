@@ -65,13 +65,6 @@ for (const theme of ['dark', 'light'] as const) {
     }
   });
 
-  test(`Toggle ${theme}: checked and unchecked small toggles react to hover and press`, async ({ page }) => {
-    for (const d of ['on-sm', 'off-sm', 'on']) {
-      const root = await demo(page, 'Toggle', d, theme);
-      await expectHoverAndPress(page, root.getByRole('switch'));
-    }
-  });
-
   test(`Switch ${theme}: hover and press on both states`, async ({ page }) => {
     for (const d of ['on', 'off']) {
       const root = await demo(page, 'Switch', d, theme);
@@ -89,9 +82,19 @@ test('Tabs: an unselected tab gets a hover background and a press state', async 
   expect(s.press).not.toBe(s.hover);
 });
 
-test('Seg: an unselected option reacts to press', async ({ page }) => {
-  const root = await demo(page, 'Seg', 'source');
-  await expectHoverAndPress(page, root.getByRole('radio', { name: '角色' }));
+test('GameSeg: an unselected option lights the track on hover and shades it on press', async ({ page }) => {
+  const root = await demo(page, 'GameSeg', 'speed');
+  const track = root.getByRole('radiogroup');
+  const light = () => track.evaluate((n) => `${getComputedStyle(n, '::after').opacity} ${getComputedStyle(n, '::after').backgroundColor}`);
+  await page.mouse.move(0, 0);
+  const rest = await light();
+  await root.getByRole('radio', { name: '0.5×' }).hover();
+  await expect.poll(light).not.toBe(rest);
+  const hover = await light();
+  await page.mouse.down();
+  await expect.poll(light).not.toBe(hover);
+  await page.mouse.up();
+  await page.mouse.move(0, 0);
 });
 
 test('Menu: the trigger and an item react to press', async ({ page }) => {

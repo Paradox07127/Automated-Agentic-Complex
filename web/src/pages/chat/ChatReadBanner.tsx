@@ -9,7 +9,7 @@ export function ChatReadBanner({ errors, disconnected, readAt, onRetry }: { erro
   if (disconnected || load?.kind === 'disconnected') return (
     <div className={styles.banner}>
       <ErrBar message="后台服务已断开：对话和任务显示上次读到的数据" staleAt={readAt || undefined} onRetry={onRetry}
-        extra={<Btn variant="quiet" size="sm" onClick={() => navigate({ page: 'diag', item: 'agentd', focus: 'proc-agentd' })}>查看诊断 →</Btn>} />
+        extra={<Btn variant="text" size="sm" onClick={() => navigate({ page: 'diag', item: 'agentd', focus: 'proc-agentd' })}>查看诊断 →</Btn>} />
     </div>
   );
   if (!failure) return null;

@@ -1,7 +1,8 @@
 // 换音源：给一支舞换一个音频或去掉音源，带音乐偏移；mmd.setMedia 在选择音频时打开文件面板。
 import { useState } from 'react';
 import type { MmdEntry } from '../../bridge';
-import { Btn, Dialog, Seg } from '../../ui';
+import { Btn, Dialog } from '../../ui';
+import { GameSeg } from '../../ui/game';
 import modal from '../../ui/Modal.module.css';
 import styles from './ImportDialog.module.css';
 
@@ -33,12 +34,12 @@ export function MediaDialog({ entry, onSave, onCancel }: MediaDialogProps) {
       }
     >
       <div className={styles.form} data-mmd-media={entry.id}>
-        <Seg
+        <GameSeg
           label="音源"
           value={bgm}
           options={[
             { value: 'pick', label: '换一个音频' },
-            { value: 'none', label: '不要音源', disabled: !entry.hasBgm, disabledReason: '这支舞没有音源' },
+            { value: 'none', label: '不要音源', disabled: !entry.hasBgm, title: '这支舞没有音源' },
           ]}
           onChange={(v) => setBgm(v as 'pick' | 'none')}
         />

@@ -3,7 +3,7 @@ import { getBridge } from '../../../bridge';
 import { type RuntimeInfo } from '../../../domain';
 import { KernelChain, kernelBreak } from '../../../features/kernel';
 import { usePlugins } from '../../../shell/plugins';
-import { Btn, Missing, Select, Skel, Switch, Table, TableCell, TableHead, TableRow } from '../../../ui';
+import { Btn, Missing, RadioDot, Select, Skel, Switch, Table, TableCell, TableHead, TableRow } from '../../../ui';
 import { StatusLamp } from '../../../ui/game';
 import { BAND } from '../Band';
 import { useControls } from '../controls';
@@ -136,7 +136,7 @@ function KernelPick({ acp }: { acp: AcpState }) {
             return (
               <TableRow key={r.id} id={r.id}>
                 <TableCell>
-                  <span role="radio" aria-checked={on} aria-label={r.name} aria-disabled={ro || (!usable(r) && !gated(r)) || undefined} className={styles.radio} data-on={on || undefined} />
+                  <RadioDot size="sm" checked={on} label={r.name} disabled={ro || (!usable(r) && !gated(r))} />
                 </TableCell>
                 <TableCell>{r.name}</TableCell>
                 <TableCell mono>{r.version ?? <Missing why={r.path ? 'unsupported' : 'na'} />}</TableCell>

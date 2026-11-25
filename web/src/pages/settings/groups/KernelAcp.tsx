@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Fold } from '../../../ui/Fold';
-import { Btn, Missing, Skel, Table, TableCell, TableHead, TableRow } from '../../../ui';
+import { Btn, Missing, RadioDot, Skel, Table, TableCell, TableHead, TableRow } from '../../../ui';
 import { StatusLamp } from '../../../ui/game';
 import { useSettings } from '../ctx';
 import { failure, installAcpAgent, readAcpAgents, type AcpAgent, type AcpAgents, type AcpInstall } from '../api';
@@ -96,7 +96,7 @@ export function AcpAgentSlab({ acp, onSwitch }: { acp: AcpState; onSwitch: (id: 
         return (
           <TableRow key={key} id={key}>
             <TableCell>
-              <span role="radio" aria-checked={on} aria-label={a.name} aria-disabled={off || undefined} className={styles.radio} data-on={on || undefined} />
+              <RadioDot size="sm" checked={on} label={a.name} disabled={off} />
             </TableCell>
             <TableCell>{a.name}</TableCell>
             <TableCell mono>{a.version ?? <Missing why="na" />}</TableCell>

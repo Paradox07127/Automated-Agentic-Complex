@@ -1,6 +1,7 @@
 import { useRef, type CSSProperties, type ReactNode } from 'react';
 import { gameClips } from '../../design/gameClips.generated';
 import { useGameClip } from '../fx/useGameClip';
+import { Switch } from '../Switch';
 import { GameSeg } from './GameSeg';
 import { Diamond, MicroLabel } from './Marks';
 import { Stepper } from './Stepper';
@@ -153,10 +154,6 @@ export function DarkRow({ title, sub, mark = 'play', lead, leadAction, state, fo
   );
 }
 
-const ON_OFF = [
-  { value: 'on', label: '开' },
-  { value: 'off', label: '关' },
-];
 const SHOWN = [
   { value: 'on', label: '显示' },
   { value: 'off', label: '隐藏' },
@@ -174,7 +171,7 @@ export const DarkRowDemos: Array<{ name: string; props: DarkRowProps }> = [
       title: '开口说话',
       sub: '说话时',
       onPress: () => undefined,
-      end: <GameSeg label="开口说话" variant="onoff" value="on" options={ON_OFF} />,
+      end: <Switch checked label="开口说话" />,
     },
   },
   { name: 'selected', props: { title: '点头附和', sub: '批准之后', selected: true, onPress: () => undefined } },

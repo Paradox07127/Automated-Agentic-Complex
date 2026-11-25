@@ -1,0 +1,35 @@
+/* Radio dot: a ring on the segment track colour; checked takes the knob colour with a centre dot. */
+.dot {
+  display: inline-block;
+  flex: none;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 1.5px solid var(--ef-seg-track-text);
+  border-radius: 50%;
+  background: var(--ef-seg-track);
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.dot[data-size='sm'] {
+  width: 14px;
+  height: 14px;
+}
+
+.dot[aria-checked='true'] {
+  border-color: var(--ef-seg-knob);
+  background: radial-gradient(circle, var(--ef-seg-knob-text) 0 3px, var(--ef-seg-knob) 3.5px);
+}
+
+.dot:focus-visible {
+  outline: 2px solid var(--ef-accent);
+  outline-offset: 2px;
+}
+
+.dot[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.5;
+}

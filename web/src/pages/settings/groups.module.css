@@ -38,24 +38,6 @@
   font: 12px var(--ef-font-mono);
 }
 
-/* Single-select mark in a table; the row itself takes the click. */
-.radio {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1.5px currentColor;
-  vertical-align: middle;
-}
-
-.radio[data-on] {
-  background: radial-gradient(circle, currentColor 0 3px, transparent 3.5px);
-}
-
-.radio[aria-disabled='true'] {
-  opacity: 0.45;
-}
-
 .files {
   display: flex;
   flex-direction: column;
@@ -140,32 +122,6 @@
 .mxCell {
   display: flex;
   justify-content: center;
-}
-
-.mxDot {
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  border: 1.5px solid var(--ef-seg-track-text);
-  border-radius: 50%;
-  background: var(--ef-seg-track);
-  cursor: pointer;
-}
-
-.mxDot:checked {
-  border-color: var(--ef-seg-knob);
-  background: radial-gradient(circle, var(--ef-seg-knob-text) 0 3px, var(--ef-seg-knob) 3.5px);
-}
-
-.mxDot:focus-visible {
-  outline: 2px solid var(--ef-accent);
-  outline-offset: 2px;
-}
-
-.mxDot:disabled {
-  cursor: default;
-  opacity: 0.5;
 }
 
 /* Readout plate: big name, meta line, an action, the capability chips under it. */

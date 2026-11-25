@@ -262,7 +262,7 @@ export function MotionTable(p: MotionTableProps) {
           {!p.offline && n > 0 && (
             <>
               <span className={styles.sp} />
-              <Btn variant="quiet" onClick={p.onUndo}>
+              <Btn variant="text" onClick={p.onUndo}>
                 撤销
               </Btn>
               <Btn variant="primary" loading={p.saving} onClick={p.onSave}>

@@ -79,7 +79,7 @@ export function QuestionCard({ at, question, request = question, roleName, now, 
           ) : undoing ? (
             <div className={qc.undo}>
               <Receipt tone="neutral">{CANCEL_RECEIPT}</Receipt>
-              <Btn variant="quiet" size="sm" onClick={() => setUndoing(false)}>
+              <Btn variant="text" size="sm" onClick={() => setUndoing(false)}>
                 撤销
               </Btn>
               <span className={styles.cap}>{UNDO_S} 秒内可撤销</span>

@@ -7,18 +7,9 @@ import { Banner, Btn, Card, Empty, ErrBar, Paper, Plate, Row, RowPlate, SecHead,
 afterEach(cleanup);
 
 describe('Btn', () => {
-  it.each([
-    ['cancel', 'secondary'],
-    ['action-row', 'secondary'],
-    ['quiet', 'text'],
-    ['danger-confirm', 'danger'],
-    ['primary', 'primary'],
-    ['ghost', 'ghost'],
-    ['text', 'text'],
-    ['ring', 'ring'],
-  ] as const)('maps the variant %s to %s', (variant, to) => {
+  it.each(['primary', 'secondary', 'ghost', 'danger', 'text', 'link'] as const)('marks the variant %s', (variant) => {
     render(<Btn variant={variant}>好</Btn>);
-    expect(screen.getByRole('button', { name: '好' }).getAttribute('data-variant')).toBe(to);
+    expect(screen.getByRole('button', { name: '好' }).getAttribute('data-variant')).toBe(variant);
   });
 
   it('has three heights', () => {

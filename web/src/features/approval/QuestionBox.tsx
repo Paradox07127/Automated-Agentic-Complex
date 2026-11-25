@@ -121,7 +121,7 @@ export function QuestionBox({ question, now, compact, selected = null, text = ''
                 />
               )}
               {onCancel && (
-                <Btn variant="quiet" size="sm" onClick={onCancel}>
+                <Btn variant="text" size="sm" onClick={onCancel}>
                   取消
                 </Btn>
               )}
@@ -180,7 +180,7 @@ export function QuestionBox({ question, now, compact, selected = null, text = ''
                 提交回答
               </Btn>
               {onCancel && (
-                <Btn variant="quiet" size="sm" onClick={onCancel}>
+                <Btn variant="text" size="sm" onClick={onCancel}>
                   取消请求
                 </Btn>
               )}

@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SetNav } from '../../src/pages/settings/SetNav';
-import { Switch, Toggle } from '../../src/ui';
+import { Switch } from '../../src/ui';
 
 // jsdom has no Web Animations: record what each run asks for.
 let runs: Array<{ el: Element; frames: Keyframe[]; opts: KeyframeAnimationOptions }> = [];
@@ -25,8 +25,8 @@ afterEach(() => {
 const keys = () => [...new Set(runs.map((r) => r.el.getAttribute('data-g')))].sort();
 
 describe('toggle clips', () => {
-  it('plays common_toggle_to_left on the knob when Toggle turns on, nothing on mount; the labels fade in CSS', () => {
-    render(<Toggle on={false} label="窗口文字" />);
+  it('plays common_toggle_to_left on the knob when Switch turns on, nothing on mount; the labels fade in CSS', () => {
+    render(<Switch checked={false} label="窗口文字" />);
     expect(runs).toEqual([]);
     fireEvent.click(screen.getByRole('switch', { name: '窗口文字' }));
     expect(keys()).toEqual(['knob']);
@@ -44,7 +44,7 @@ describe('toggle clips', () => {
 
   it('jumps to the end state in still shots', () => {
     document.documentElement.classList.add('still');
-    render(<Toggle on={false} label="终端" />);
+    render(<Switch checked={false} label="终端" />);
     fireEvent.click(screen.getByRole('switch', { name: '终端' }));
     expect(screen.getByRole('switch', { name: '终端' }).getAttribute('aria-checked')).toBe('true');
     expect(runs).toEqual([]);

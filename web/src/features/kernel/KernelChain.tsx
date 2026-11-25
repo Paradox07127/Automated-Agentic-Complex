@@ -71,7 +71,7 @@ export function KernelChain({ runtime, alternative = null, surface = 'main', onC
             </Btn>
           )}
           {alternative && (
-            <Btn size="sm" variant="quiet" onClick={() => onSwitch?.(alternative.id)}>
+            <Btn size="sm" variant="text" onClick={() => onSwitch?.(alternative.id)}>
               改用 {alternative.name}
             </Btn>
           )}

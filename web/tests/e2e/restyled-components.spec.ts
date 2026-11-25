@@ -205,7 +205,7 @@ test('restyled components, dark and light, for review', async ({ page }, info) =
   const dir = fileURLToPath(new URL(`../../.shots/${info.project.name}/`, import.meta.url));
   // Tall enough that no component runs past the viewport under the sticky page header.
   await page.setViewportSize({ width: 1280, height: 2000 });
-  for (const c of ['Btn', 'Tabs', 'SecHead', 'Row', 'SRow', 'Select', 'SearchField', 'Empty', 'Banner', 'ErrBar', 'Card', 'Seg', 'Nameplate', 'Plate', 'Paper', 'RowPlate']) {
+  for (const c of ['Btn', 'Tabs', 'SecHead', 'Row', 'SRow', 'Select', 'SearchField', 'Empty', 'Banner', 'ErrBar', 'Card', 'GameSeg', 'Nameplate', 'Plate', 'Paper', 'RowPlate']) {
     for (const theme of [undefined, 'light'] as const) {
       await openDemo(page, c, undefined, theme);
       await page.evaluate(() => document.fonts.ready.then(() => undefined));

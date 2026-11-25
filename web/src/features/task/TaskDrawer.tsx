@@ -170,7 +170,7 @@ export function TaskDrawer({ task, effective, now, delivery: latest = null, deli
       )}
       {onOpenTask && (
         <div className={styles.foot}>
-          <Btn size="sm" variant="quiet" icon="ext" onClick={onOpenTask}>
+          <Btn size="sm" variant="text" icon="ext" onClick={onOpenTask}>
             在任务中打开
           </Btn>
         </div>

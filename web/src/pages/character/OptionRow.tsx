@@ -42,7 +42,7 @@ export function OptionRow(p: OptionRowProps) {
       </div>
       <div className={rows.ctl}>
         {p.aside}
-        {p.modified && p.reset && <IconBtn icon="refresh" size="xs" label={p.reset.label} disabled={p.reset.disabled} onClick={p.reset.onPress} />}
+        {p.modified && p.reset && <IconBtn icon="refresh" size="sm" label={p.reset.label} disabled={p.reset.disabled} onClick={p.reset.onPress} />}
         {p.control}
       </div>
     </div>

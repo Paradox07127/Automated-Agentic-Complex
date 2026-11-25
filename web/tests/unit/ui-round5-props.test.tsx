@@ -32,13 +32,13 @@ describe('WhiteCapsule lg', () => {
   });
 });
 
-describe('IconBtn xs', () => {
+describe('IconBtn sm', () => {
   it('marks the 24 px tier and draws it 24 high, the close key a 24 px circle', () => {
-    render(<IconBtn icon="more" label="更多" size="xs" />);
-    expect(screen.getByRole('button', { name: '更多' }).getAttribute('data-size')).toBe('xs');
+    render(<IconBtn icon="more" label="更多" size="sm" />);
+    expect(screen.getByRole('button', { name: '更多' }).getAttribute('data-size')).toBe('sm');
     const css = read('IconBtn.module.css');
-    expect(rules(css, ".btn[data-size='xs']")).toMatch(/height:\s*24px/);
-    expect(rules(css, ".btn[data-icon='close'][data-size='xs']")).toMatch(/width:\s*24px/);
+    expect(rules(css, ".btn[data-size='sm']")).toMatch(/height:\s*24px/);
+    expect(rules(css, ".btn[data-icon='close'][data-size='sm']")).toMatch(/width:\s*24px/);
   });
 });
 

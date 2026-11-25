@@ -180,7 +180,7 @@ export function DropCard({ card, top, highlight, act }: DropCardProps) {
             ) : (
               <>
                 <span className={desk.meta}>{`可读这 ${scope.files.length} 个文件 │ ${formatClock(scope.expires_at * 1000)} 失效`}</span>
-                <Btn variant="quiet" size="sm" disabled={busy} onClick={() => void revoke(scope.scope_id)}>
+                <Btn variant="text" size="sm" disabled={busy} onClick={() => void revoke(scope.scope_id)}>
                   撤销
                 </Btn>
               </>

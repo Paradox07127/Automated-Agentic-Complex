@@ -169,7 +169,7 @@ export function Toast({ message, kind = 'normal', severity = 'neutral', icon, ac
       {action && (
         <span className={styles.action} data-g={sys ? undefined : 'label'}>
           <Btn
-            variant="quiet"
+            variant="text"
             size="sm"
             onClick={() => {
               // One shot: a second press during the exit finds the toast already leaving.

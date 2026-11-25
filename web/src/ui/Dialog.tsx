@@ -168,7 +168,7 @@ export const DialogDemos: Array<{ name: string; props: DialogProps }> = [
       ),
       footer: (
         <>
-          <Btn variant="cancel">取消</Btn>
+          <Btn variant="secondary">取消</Btn>
           <Btn variant="primary">派发</Btn>
         </>
       ),
@@ -182,7 +182,7 @@ export const DialogDemos: Array<{ name: string; props: DialogProps }> = [
       children: <p>已写出的产物保留，停止后不能继续执行。</p>,
       footer: (
         <>
-          <Btn variant="cancel">不停止</Btn>
+          <Btn variant="secondary">不停止</Btn>
           <Btn variant="danger">停止任务</Btn>
         </>
       ),

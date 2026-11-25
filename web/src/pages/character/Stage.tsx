@@ -84,7 +84,7 @@ export function Stage(p: StageProps) {
   const previewNote = preview.phase === 'failed' && (
     <div className={styles.ovlRow} role="status">
       <span className={styles.cap}>{preview.message}</span>
-      <Btn size="sm" variant="quiet" onClick={preview.retry}>重试预览</Btn>
+      <Btn size="sm" variant="text" onClick={preview.retry}>重试预览</Btn>
     </div>
   );
   const warn = p.status?.tone === 'warn' ? p.status : null;

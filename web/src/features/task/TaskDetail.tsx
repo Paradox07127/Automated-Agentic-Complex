@@ -134,7 +134,7 @@ export function TaskDetail(props: TaskDetailProps) {
       {task.source === 'ext' && (
         <div className={styles.note}>
           <span>外部会话不是本 app 派发的，这里只显示状态，不画运行瀑布。</span>
-          <Btn size="sm" variant="quiet" icon="ext" disabled={!sessionId} disabledReason="没有找到会话" onClick={() => sessionId && onAction?.({ kind: 'jump_terminal', sessionId })}>
+          <Btn size="sm" variant="text" icon="ext" disabled={!sessionId} disabledReason="没有找到会话" onClick={() => sessionId && onAction?.({ kind: 'jump_terminal', sessionId })}>
             跳到终端
           </Btn>
         </div>
