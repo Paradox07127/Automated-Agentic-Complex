@@ -7,6 +7,8 @@ import { randomUUID } from "node:crypto";
 // Match the host IPC ceiling; buffers still grow only with actual payloads.
 const MAX_FRAME = 40 * 1024 * 1024;
 let seq = 0, session, config, modelRuntime, active, initialized = false, closing = false, acceptsImages = false, priced = false;
+// The transcript entry the latest run started after.
+let runStart;
 const pending = new Map(), permissions = new Map();
 // Pi's own tools that wait for an approval card when approvals are on; every mcp__<server>__<tool> call waits too.
 const APPROVED = new Set(["bash", "powershell", "write", "edit"]);
@@ -149,11 +151,12 @@ function modelRequest(event) {
   }
   // Pi writes its prompt sections in prompt(); a question's resume starts with agent.continue(), which writes none.
   if (!messages.some(item => item.role === "system" && item.sections)) messages = withPrompt(messages, session.systemPrompt);
-  const last = messages.at(-1);
+  const at = messages.findLastIndex(item => item.role === "toolResult"), tool = messages[at];
   // Pi's Anthropic conversion would send a user message after a tool result as a second user turn, so the
-  // reminder joins a copy of the tool result.
-  if (config.tool_reminder && active && !active.quick && last?.role === "toolResult") {
-    messages = [...messages.slice(0, -1), { ...last, content: [...last.content, { type: "text", text: config.tool_reminder }] }];
+  // reminder joins a copy of the tool result. User messages after a tool result of this run are steers.
+  if (config.tool_reminder && active && !active.quick && tool && tool.timestamp >= active.started &&
+      messages.slice(at + 1).every(item => item.role === "user")) {
+    messages = messages.with(at, { ...tool, content: [...tool.content, { type: "text", text: config.tool_reminder }] });
   }
   return messages === event.messages ? undefined : { messages };
 }
@@ -348,7 +351,7 @@ function usage(run) {
 async function query(message) {
   if (!initialized) return fail("pi_not_initialized", message.run_id);
   if (active) return fail("run_busy", message.run_id);
-  const run = { id: message.run_id, quick: message.system_prompt !== undefined, cancelled: false, turns: 0, cost: 0, text: [], textItem: null,
+  const run = { id: message.run_id, quick: message.system_prompt !== undefined, started: Date.now(), cancelled: false, turns: 0, cost: 0, text: [], textItem: null,
     usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0 } };
   active = run;
   const stream = message.system_prompt !== undefined ? session.agent.streamFunction : undefined;
@@ -369,16 +372,27 @@ async function query(message) {
       };
     }
     const answer = message.ask_user_result;
+    const manager = session.sessionManager;
     if (answer) {
       const timestamp = Date.now();
-      const messages = [...historyMessages(message.history),
+      // Pi builds each request from the transcript. When the run that asked is still in it, its prompt, call and
+      // stand-in result give way to the answered ones.
+      const branch = manager.getBranch(), asked = branch.slice(branch.findIndex(entry => entry.id === runStart) + 1);
+      const prompt = asked.find(entry => entry.type === "message" && entry.message.role === "user");
+      if (prompt && asked.some(entry => entry.type === "message" && entry.message.role === "assistant" &&
+          entry.message.content.some(part => part.type === "toolCall" && part.id === answer.tool_call_id))) {
+        prompt.parentId ? manager.branch(prompt.parentId) : manager.resetLeaf();
+      }
+      for (const entry of historyMessages(message.history)) manager.appendMessage(entry);
+      runStart = manager.getLeafId();
+      const messages = [
         { role: "user", content: message.prompt, timestamp },
         assistantMessage([{ type: "toolCall", id: answer.tool_call_id, name: "ask_user", arguments: answer.args }], "toolUse", timestamp),
         { role: "toolResult", toolCallId: answer.tool_call_id, toolName: "ask_user",
           content: [{ type: "text", text: JSON.stringify(answer.result) }], isError: false, timestamp },
       ];
-      for (const entry of messages) session.sessionManager.appendMessage(entry);
-      session.agent.state.messages = messages;
+      for (const entry of messages) manager.appendMessage(entry);
+      session.agent.state.messages = manager.buildSessionContext().messages;
       await session.agent.continue();
     } else {
       const history = historyMessages(message.history);
@@ -386,6 +400,7 @@ async function query(message) {
         for (const entry of history) session.sessionManager.appendMessage(entry);
         session.agent.state.messages = [...session.agent.state.messages, ...history];
       }
+      runStart = manager.getLeafId();
       await session.prompt(message.prompt, { expandPromptTemplates: false, source: "rpc" });
     }
     const stop = run.last?.stopReason;
@@ -407,6 +422,8 @@ async function query(message) {
       error_message: String(error?.message || "").slice(0, 2000) });
   } finally {
     if (message.system_prompt !== undefined) session.agent.streamFunction = stream;
+    // A steer accepted after Pi's last look at its queue would open the next run.
+    session.clearQueue();
     active = undefined; endPending();
   }
 }
@@ -421,6 +438,8 @@ async function steer(message) {
   let disposition;
   try { disposition = await session.steer(message.text, undefined, { source: "rpc" }); }
   catch { return steerResult(message, "steer_failed"); }
+  // Pi queues only after its input handlers ran; a run that ended meanwhile already cleared the queue.
+  if (active !== run) { session.clearQueue(); return steerResult(message, "no_active_run"); }
   steerResult(message, disposition === "queued" || disposition === "handled" ? null : "steer_failed");
 }
 async function command(message) {

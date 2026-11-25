@@ -274,6 +274,31 @@ sdk.ModelRuntime.prototype.setRuntimeApiKey = async function (...args) {
 await import(RUNNER_URL);
 """
 
+# pi_runner.mjs whose session.prompt returns 1 s after Pi's run ended, writing MARKER as that wait begins.
+LATE_STEER_RUNNER = """
+import fs from "node:fs";
+const sdk = await import(SDK_URL);
+const prompt = sdk.AgentSession.prototype.prompt;
+sdk.AgentSession.prototype.prompt = async function (...args) {
+  const value = await prompt.apply(this, args);
+  fs.writeFileSync(MARKER, "");
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  return value;
+};
+await import(RUNNER_URL);
+"""
+
+# pi_runner.mjs whose session.steer waits 1.5 s before Pi queues the message.
+SLOW_STEER_RUNNER = """
+const sdk = await import(SDK_URL);
+const steer = sdk.AgentSession.prototype.steer;
+sdk.AgentSession.prototype.steer = async function (...args) {
+  await new Promise(resolve => setTimeout(resolve, 1500));
+  return steer.apply(this, args);
+};
+await import(RUNNER_URL);
+"""
+
 NODE, RUNTIME = resolve_pi_runtime()
 HAS_SDK = Path(NODE).is_file() and (Path(RUNTIME) / 'node_modules/@earendil-works/pi-coding-agent/package.json').is_file()
 
@@ -455,6 +480,26 @@ class PiSDKTests(unittest.TestCase):
         self.assertEqual(turns[:5], [*self.HISTORY_TURNS, ('user', 'original-goal')])
         self.assertEqual([role for role, _ in turns[5:]], ['assistant', 'tool'])
         self.assertNotIn('product_history', json.dumps(model.requests[0]))
+
+    def test_question_resume_in_a_session_with_earlier_turns_keeps_them_once(self):
+        model = self.model(['First answer.', {'name': 'ask_user', 'args': {'questions': [{'id': 'q', 'question': 'Which?'}]}},
+                            'Waiting for you.', 'Thanks.'])
+        definition = {'name': 'ask_user', 'description': 'Ask a question.', 'input_schema': {'type': 'object'}}
+        calls = []
+        session = self.session(model, [definition], lambda name, args: calls.append(args) or {'error': 'interaction_pending'})
+        system = 'You are Mira, a concise personal companion.'
+        self.assertTrue(self.run_session(session, 'First.')[-1]['success'])
+        self.assertTrue(list(session.stream('original-goal', system_prompt=system, run_id='run-2'))[-1]['success'])
+        [args] = calls
+        events = list(session.stream('original-goal', system_prompt=system, run_id='run-3', ask_user_result={
+            'name': 'ask_user', 'tool_call_id': 'call-1', 'args': args, 'result': {'answers': {'q': ['real-answer']}}}))
+        self.assertTrue(events[-1]['success'], events)
+        self.assertEqual(len(model.requests), 4)
+        self.assertEqual(self.turns(model.requests[3], system), [
+            ('user', 'First.'), ('assistant', 'First answer.'), ('user', 'original-goal'), ('assistant', ''),
+            ('tool', json.dumps({'answers': {'q': ['real-answer']}}, separators=(',', ':')))])
+        [call] = model.requests[3]['messages'][-2]['tool_calls']
+        self.assertEqual(call['id'], 'call-1')
 
     def test_tool_callback_context_and_receipt_return_to_model(self):
         model = self.model([{'name': 'receipt_check', 'args': {'id': 'e1'}}, 'Checked.'])
@@ -853,6 +898,76 @@ class PiSDKTests(unittest.TestCase):
         self.assertEqual([m['role'] for m in model.requests[1]['messages']][-2:], ['tool', 'user'])
         self.assertIn(model.requests[1]['messages'][-1]['content'], ('change of plan', [{'type': 'text', 'text': 'change of plan'}]))
         self.assertEqual(session.steer('too late', run_id='run-1'), (False, 'no_active_run'))
+
+    def test_a_steered_message_after_a_tool_result_keeps_the_tool_reminder(self):
+        reminder = 'Speak as Mira in your own voice.'
+        model = self.model([{'name': 'wait_for_consent', 'args': {}}, 'Changed course.'])
+        entered = threading.Event(); release = threading.Event(); result = []
+        def handler(*_): entered.set(); release.wait(5); return {'ok': True}
+        definitions = [{'name': 'wait_for_consent', 'description': 'Wait.', 'input_schema': {'type': 'object', 'properties': {}}}]
+        session = self.session(model, definitions, handler, tool_reminder=reminder)
+        worker = threading.Thread(target=lambda: result.extend(self.run_session(session)), daemon=True); worker.start()
+        self.assertTrue(entered.wait(5))
+        try:
+            self.assertEqual(session.steer('change of plan', run_id='run-1'), (True, None))
+        finally:
+            release.set()
+        worker.join(10)
+        self.assertTrue(result[-1]['success'], result)
+        tool, steered = model.requests[1]['messages'][-2:]
+        self.assertEqual((tool['role'], steered['role']), ('tool', 'user'))
+        self.assertEqual(tool['content'], '{"ok":true}\n' + reminder)
+        self.assertEqual(json.dumps(model.requests[1]).count(reminder), 1)
+
+    def test_a_steer_accepted_as_a_run_ends_stays_out_of_the_next_run(self):
+        model = self.model(['First answer.', 'Second answer.'])
+        marker = self.root / 'run-ended'
+        runner = self.root / 'late_steer_runner.mjs'
+        sdk = Path(RUNTIME) / 'node_modules/@earendil-works/pi-coding-agent/dist/index.js'
+        runner.write_text(LATE_STEER_RUNNER.replace('SDK_URL', json.dumps(sdk.as_uri())).replace('MARKER', json.dumps(str(marker)))
+                          .replace('RUNNER_URL', json.dumps(RUNNER.as_uri())), encoding='utf-8')
+        config = PiConfig(self.root / 'private', 'endfield-fixture', 'fixture', node=NODE, runtime_dir=RUNTIME,
+                          auth_source='none', base_url=model.url)
+        session = ManagedPiSession(config, runner_path=runner)
+        self.resources.append(session)
+        result = []
+        worker = threading.Thread(target=lambda: result.extend(self.run_session(session)), daemon=True); worker.start()
+        deadline = time.monotonic() + 10
+        while not marker.exists() and time.monotonic() < deadline:
+            time.sleep(.01)
+        self.assertEqual(session.steer('late words', run_id='run-1'), (True, None))
+        worker.join(10)
+        self.assertTrue(result[-1]['success'], result)
+        self.assertTrue(list(session.stream('Next.', system_prompt='You are Mira, a concise personal companion.', run_id='run-2'))[-1]['success'])
+        self.assertEqual(len(model.requests), 2)
+        self.assertNotIn('late words', json.dumps(model.requests[1]))
+
+    def test_a_steer_queued_after_its_run_ended_is_refused_and_kept_out_of_the_next_run(self):
+        model = self.model([{'name': 'wait_for_consent', 'args': {}}, 'First answer.', 'Second answer.'])
+        runner = self.root / 'slow_steer_runner.mjs'
+        sdk = Path(RUNTIME) / 'node_modules/@earendil-works/pi-coding-agent/dist/index.js'
+        runner.write_text(SLOW_STEER_RUNNER.replace('SDK_URL', json.dumps(sdk.as_uri()))
+                          .replace('RUNNER_URL', json.dumps(RUNNER.as_uri())), encoding='utf-8')
+        entered, release, result, steered = threading.Event(), threading.Event(), [], []
+        def handler(*_): entered.set(); release.wait(5); return {'ok': True}
+        definitions = [{'name': 'wait_for_consent', 'description': 'Wait.', 'input_schema': {'type': 'object', 'properties': {}}}]
+        config = PiConfig(self.root / 'private', 'endfield-fixture', 'fixture', node=NODE, runtime_dir=RUNTIME,
+                          auth_source='none', base_url=model.url)
+        session = ManagedPiSession(config, definitions, handler, runner_path=runner)
+        self.resources.append(session)
+        worker = threading.Thread(target=lambda: result.extend(self.run_session(session)), daemon=True)
+        worker.start()
+        self.assertTrue(entered.wait(5))
+        sender = threading.Thread(target=lambda: steered.append(session.steer('late words', run_id='run-1')), daemon=True)
+        sender.start()
+        time.sleep(.2)
+        release.set()
+        worker.join(10)
+        sender.join(10)
+        self.assertTrue(result[-1]['success'], result)
+        self.assertEqual(steered, [(False, 'no_active_run')])
+        self.assertTrue(list(session.stream('Next.', system_prompt='You are Mira, a concise personal companion.', run_id='run-2'))[-1]['success'])
+        self.assertNotIn('late words', json.dumps(model.requests[-1]))
 
     def test_invalidate_recreates_native_session_with_product_history(self):
         model = self.model(['first', 'resumed'])

@@ -194,7 +194,7 @@ export async function createAgentSession({ customTools }) {
   let notify;
   const session = {
     sessionId: "pi-session-1", getActiveToolNames: () => customTools.map(t => t.name),
-    subscribe: callback => { notify = callback; }, abort: async () => {}, dispose() {},
+    subscribe: callback => { notify = callback; }, abort: async () => {}, dispose() {}, clearQueue() {}, sessionManager: { getLeafId: () => null },
     async prompt() {
       notify({ type: "turn_start" });
       notify({ type: "message_end", message: { role: "assistant", stopReason: "toolUse",
