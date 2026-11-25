@@ -54,7 +54,7 @@
 
 .fact dt {
   color: var(--ef-hud-text-2);
-  font-size: 12px;
+  font-size: var(--ef-fs-small);
 }
 
 .fact dd {
@@ -64,7 +64,7 @@
   gap: 4px 10px;
   min-width: 0;
   margin: 0;
-  font-size: 13px;
+  font-size: var(--ef-fs-body);
 }
 
 .file {
@@ -82,12 +82,12 @@
 
 .m {
   color: var(--ef-hud-text-2);
-  font-size: 12px;
+  font-size: var(--ef-fs-small);
 }
 
 .miss {
   color: var(--ef-danger-text);
-  font-size: 12px;
+  font-size: var(--ef-fs-small);
 }
 
 .who {
@@ -105,7 +105,7 @@
   align-items: center;
   gap: 7px;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--ef-fs-body);
 }
 
 /* The whole name, on more lines when it is long. */
@@ -116,7 +116,7 @@
 
 .st {
   color: var(--ef-hud-text-2);
-  font-size: 12px;
+  font-size: var(--ef-fs-small);
 }
 
 .ch[data-state='failed'] .st {

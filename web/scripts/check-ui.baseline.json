@@ -271,17 +271,17 @@
   "src/pages/memory/parts.tsx": {
     "btn": 1
   },
-  "src/pages/mmd/Detail.module.css": {
-    "fontPx": 2
-  },
   "src/pages/mmd/Library.module.css": {
     "fontPx": 4
   },
   "src/pages/mmd/Library.tsx": {
     "btn": 1
   },
-  "src/pages/mmd/Section.module.css": {
-    "fontPx": 1
+  "src/pages/mmd/Page.module.css": {
+    "color": 12
+  },
+  "src/pages/mmd/Page.tsx": {
+    "btn": 1
   },
   "src/pages/mmd/Setlist.module.css": {
     "fontPx": 6,
@@ -289,6 +289,13 @@
   },
   "src/pages/mmd/Status.module.css": {
     "fontPx": 1
+  },
+  "src/pages/mmd/Timeline.module.css": {
+    "fontPx": 2,
+    "color": 3
+  },
+  "src/pages/mmd/Timeline.tsx": {
+    "btn": 1
   },
   "src/pages/observe/Briefs.module.css": {
     "fontPx": 3
