@@ -77,6 +77,13 @@ def history_prompt(prompt, history):
             f"Current user request:\n{prompt}")
 
 
+def history_items(history):
+    """Earlier turns as Responses API messages, oldest first; the caller already applied its egress rules."""
+    return [{'type': 'message', 'role': message['role'], 'content': [
+                {'type': 'input_text' if message['role'] == 'user' else 'output_text', 'text': message['content']}]}
+            for turn in history or [] for message in turn]
+
+
 # The approval store refuses a card over 40000 characters; this leaves room for the rest of the card.
 PREVIEW_CHARS = 30000
 PREVIEW_KEYS = ("path", "file_path", "command", "cwd", "grantRoot")
@@ -693,18 +700,20 @@ class CodexRunner(Runner):
         items, streamed_items = {}, set()
         try:
             pending = message.get('ask_user_result')
+            injected = history_items(message.get('history'))
             if pending:
-                await self.client.request('thread/inject_items', {'threadId': self.thread_id, 'items': [
-                    {'type': 'message', 'role': 'user', 'content': [
-                        {'type': 'input_text', 'text': history_prompt(message['prompt'], message.get('history'))}]},
+                injected += [
+                    {'type': 'message', 'role': 'user', 'content': [{'type': 'input_text', 'text': message['prompt']}]},
                     {'type': 'function_call', 'call_id': pending['tool_call_id'], 'name': 'ask_user',
                      'arguments': json.dumps(pending['args'], ensure_ascii=False)},
                     {'type': 'function_call_output', 'call_id': pending['tool_call_id'],
-                     'output': json.dumps(pending['result'], ensure_ascii=False)}]})
+                     'output': json.dumps(pending['result'], ensure_ascii=False)}]
+            if injected:
+                await self.client.request('thread/inject_items', {'threadId': self.thread_id, 'items': injected})
             if run["cancelled"]:
                 raise asyncio.CancelledError
             result = await self.client.request("turn/start", {"threadId": self.thread_id,
-                "input": [] if pending else [{"type": "text", "text": history_prompt(message["prompt"], message.get("history"))}]})
+                "input": [] if pending else [{"type": "text", "text": message["prompt"]}]})
             self.turn_id = result["turn"]["id"]
             if run["cancelled"]:
                 # The cancel came while the turn started, when interrupt() had no turn id to send.

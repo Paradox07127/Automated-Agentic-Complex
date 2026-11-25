@@ -302,17 +302,24 @@ class CodexNativeConfigTests(unittest.IsolatedAsyncioTestCase):
                 await self.start(directory, False, directory, json.dumps({"user.tools": {}}))
 
 
-# An app server that answers turn/start late ("slow-start") or with 600 notifications behind it ("flood"), and ends the
-# turn once turn/interrupt names it.
+# An app server that answers turn/start late ("slow-start"), with 600 notifications behind it ("flood") or with the
+# turn's end ("complete"), and ends the turn once turn/interrupt names it. argv[2], if given, records each request.
 FAKE_APP_SERVER = r'''
 import json, sys, time
 def line(message): return json.dumps(message, separators=(",", ":")) + "\n"
 for raw in sys.stdin:
     m = json.loads(raw)
-    if m.get("method") == "turn/start":
+    if len(sys.argv) > 2:
+        with open(sys.argv[2], "a") as record: record.write(raw)
+    if m.get("method") == "thread/inject_items":
+        sys.stdout.write(line({"id": m["id"], "result": {}})); sys.stdout.flush()
+    elif m.get("method") == "turn/start":
         if sys.argv[1] == "slow-start": time.sleep(.3)
         # Short notifications: the answer and all of them reach the runner in one pipe read.
         flood = line({"method": "n"}) * 600 if sys.argv[1] == "flood" else ""
+        if sys.argv[1] == "complete":
+            flood = line({"method": "turn/completed", "params": {"threadId": "thread-1",
+                                                                 "turn": {"id": "turn-1", "status": "completed"}}})
         sys.stdout.write(line({"id": m["id"], "result": {"turn": {"id": "turn-1"}}}) + flood); sys.stdout.flush()
     elif m.get("method") == "turn/interrupt" and m["params"]["turnId"] == "turn-1":
         sys.stdout.write(line({"id": m["id"], "result": {}}) + line({"method": "turn/completed", "params": {
@@ -321,20 +328,54 @@ for raw in sys.stdin:
 
 
 class CodexTurnTests(unittest.IsolatedAsyncioTestCase):
-    async def start(self, mode):
+    async def start(self, mode, message=None):
         subject = codex_runner.CodexRunner()
         frames = []
         subject.emit = frames.append
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
-        subject.client = codex_runner.AppServer([sys.executable, "-I", "-c", FAKE_APP_SERVER, mode], dict(os.environ),
-                                                directory.name, subject.server_request)
+        subject.record = Path(directory.name) / "requests.jsonl"
+        subject.client = codex_runner.AppServer([sys.executable, "-I", "-c", FAKE_APP_SERVER, mode, str(subject.record)],
+                                                dict(os.environ), directory.name, subject.server_request)
         await subject.client.start()
         self.addAsyncCleanup(subject.client.disconnect)
-        subject.thread_id = "thread-1"
+        subject.thread_id, subject.model = "thread-1", "model"
         subject.active = {"id": "run-1", "cancelled": False}
-        subject.run_task = asyncio.create_task(subject.run({"prompt": "Synthetic", "history": None}))
+        subject.run_task = asyncio.create_task(subject.run(message or {"prompt": "Synthetic", "history": None}))
         return subject, frames
+
+    HISTORY = [[{"role": "user", "content": "First question"}, {"role": "assistant", "content": "Her first answer"}],
+               [{"role": "user", "content": "Second question"}, {"role": "assistant", "content": "Her second answer"}]]
+    PAST = [{"type": "message", "role": "user", "content": [{"type": "input_text", "text": "First question"}]},
+            {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "Her first answer"}]},
+            {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "Second question"}]},
+            {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "Her second answer"}]}]
+
+    async def received(self, message):
+        subject, frames = await self.start("complete", message)
+        self.assertTrue((await asyncio.wait({subject.run_task}, timeout=2))[0])
+        self.assertEqual((frames[-1]["type"], frames[-1]["subtype"]), ("result", "success"))
+        raw = subject.record.read_text()
+        self.assertNotIn("conversation_history", raw)
+        return [(m["method"], m["params"]) for m in map(json.loads, raw.splitlines())]
+
+    async def test_history_reaches_the_thread_as_its_own_messages_before_the_turn(self):
+        requests = await self.received({"prompt": "Current words", "history": self.HISTORY})
+        self.assertEqual(requests, [
+            ("thread/inject_items", {"threadId": "thread-1", "items": self.PAST}),
+            ("turn/start", {"threadId": "thread-1", "input": [{"type": "text", "text": "Current words"}]})])
+
+    async def test_an_answered_question_follows_the_history_messages(self):
+        pending = {"name": "ask_user", "tool_call_id": "call-1", "args": {"questions": [{"id": "q", "question": "Which?"}]},
+                   "result": {"answers": {"q": ["A"]}}}
+        requests = await self.received({"prompt": "Current words", "history": self.HISTORY, "ask_user_result": pending})
+        self.assertEqual(requests, [
+            ("thread/inject_items", {"threadId": "thread-1", "items": self.PAST + [
+                {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "Current words"}]},
+                {"type": "function_call", "call_id": "call-1", "name": "ask_user",
+                 "arguments": '{"questions": [{"id": "q", "question": "Which?"}]}'},
+                {"type": "function_call_output", "call_id": "call-1", "output": '{"answers": {"q": ["A"]}}'}]}),
+            ("turn/start", {"threadId": "thread-1", "input": []})])
 
     async def test_a_cancel_while_the_turn_starts_interrupts_the_new_turn(self):
         subject, frames = await self.start("slow-start")
