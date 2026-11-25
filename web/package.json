@@ -17,6 +17,7 @@
     "lint:size": "node scripts/check-size.mjs",
     "check:copy": "node scripts/check-copy.mjs",
     "check:boundary": "node scripts/check-boundary.mjs",
+    "check:ui": "node scripts/check-ui.mjs",
     "check:routes": "node scripts/route-contract.ts"
   },
   "dependencies": {
