@@ -303,7 +303,8 @@ class CodexNativeConfigTests(unittest.IsolatedAsyncioTestCase):
 
 
 # An app server that answers turn/start late ("slow-start"), with 600 notifications behind it ("flood") or with the
-# turn's end ("complete"), and ends the turn once turn/interrupt names it. argv[2], if given, records each request.
+# turn's end ("complete"), and ends the turn once turn/interrupt names it. turn/steer is taken, or refused as a review
+# turn's ("not-steerable"). argv[2], if given, records each request.
 FAKE_APP_SERVER = r'''
 import json, sys, time
 def line(message): return json.dumps(message, separators=(",", ":")) + "\n"
@@ -321,6 +322,10 @@ for raw in sys.stdin:
             flood = line({"method": "turn/completed", "params": {"threadId": "thread-1",
                                                                  "turn": {"id": "turn-1", "status": "completed"}}})
         sys.stdout.write(line({"id": m["id"], "result": {"turn": {"id": "turn-1"}}}) + flood); sys.stdout.flush()
+    elif m.get("method") == "turn/steer":
+        reply = {"error": {"code": -32600, "message": "cannot steer a review turn", "data": {"codexErrorInfo": {
+            "activeTurnNotSteerable": {"turnKind": "review"}}}}} if sys.argv[1] == "not-steerable" else {"result": {"turnId": "turn-1"}}
+        sys.stdout.write(line({"id": m["id"], **reply})); sys.stdout.flush()
     elif m.get("method") == "turn/interrupt" and m["params"]["turnId"] == "turn-1":
         sys.stdout.write(line({"id": m["id"], "result": {}}) + line({"method": "turn/completed", "params": {
             "threadId": "thread-1", "turn": {"id": "turn-1", "status": "interrupted"}}})); sys.stdout.flush()
@@ -384,6 +389,41 @@ class CodexTurnTests(unittest.IsolatedAsyncioTestCase):
         # wait_for would cancel the run, which then ends as cancelled anyway.
         self.assertTrue((await asyncio.wait({subject.run_task}, timeout=2))[0])
         self.assertEqual((frames[-1]["type"], frames[-1]["subtype"]), ("result", "cancelled"))
+
+    async def steered(self, mode):
+        subject, frames = await self.start(mode)
+        for _ in range(100):
+            if subject.turn_id:
+                break
+            await asyncio.sleep(.02)
+        await subject.steer({"run_id": "run-1", "steer_id": "steer-1", "text": "change of plan"})
+        await subject.interrupt("run-1")
+        self.assertTrue((await asyncio.wait({subject.run_task}, timeout=2))[0])
+        requests = [(m["method"], m["params"]) for m in map(json.loads, subject.record.read_text().splitlines())]
+        return [f for f in frames if f["type"] == "steer_result"], [r for r in requests if r[0] == "turn/steer"]
+
+    async def test_a_steer_reaches_the_running_turn(self):
+        results, requests = await self.steered("steer")
+        self.assertEqual(results, [{"type": "steer_result", "run_id": "run-1", "steer_id": "steer-1", "accepted": True,
+                                    "code": None}])
+        self.assertEqual(requests, [("turn/steer", {"threadId": "thread-1", "input": [{"type": "text", "text": "change of plan"}],
+                                                    "expectedTurnId": "turn-1"})])
+
+    async def test_a_turn_that_cannot_take_a_steer_is_not_steerable_now(self):
+        results, requests = await self.steered("not-steerable")
+        self.assertEqual([(r["accepted"], r["code"]) for r in results], [(False, "not_steerable_now")])
+        self.assertEqual(len(requests), 1)
+
+    async def test_a_steer_before_the_turn_has_an_id_is_not_sent(self):
+        subject, frames = await self.start("slow-start")
+        await asyncio.sleep(.1)
+        await subject.steer({"run_id": "run-1", "steer_id": "steer-1", "text": "change of plan"})
+        await subject.steer({"run_id": "run-0", "steer_id": "steer-2", "text": "change of plan"})
+        await subject.interrupt("run-1")
+        self.assertTrue((await asyncio.wait({subject.run_task}, timeout=2))[0])
+        self.assertEqual([(f["steer_id"], f["accepted"], f["code"]) for f in frames if f["type"] == "steer_result"],
+                         [("steer-1", False, "not_steerable_now"), ("steer-2", False, "no_active_run")])
+        self.assertNotIn("turn/steer", subject.record.read_text())
 
     async def test_a_notification_flood_ends_the_run_with_an_error(self):
         subject, frames = await self.start("flood")

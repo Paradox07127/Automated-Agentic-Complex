@@ -110,7 +110,7 @@ class AcpRunnerTest(unittest.TestCase):
         ready, _ = runner.next("ready")
         self.assertEqual(ready["capabilities"], {"cancel": "native", "tool_injection": "mcp_stdio",
             "builtin_tools": "unverified", "system_prompt": "native", "usage": "none", "event_scope": "session",
-            "native_questions": False})
+            "native_questions": False, "steer": "unsupported"})
         self.assertEqual(ready["tool_names"], ["fixture_read"])
         self.assertEqual(ready["agent_info"], {"name": "fake-acp", "title": "Fake ACP", "version": "0.1.0"})
         self.assertEqual(ready["auth_methods"], [{"id": "fake-login", "name": "Fake login"}])
@@ -132,6 +132,10 @@ class AcpRunnerTest(unittest.TestCase):
         request, before = runner.next("tool_request")
         self.assertEqual((request["run_id"], request["name"], request["args"]), ("run-1", "fixture_read", {"path": "notes.txt"}))
         self.assertTrue(request["tool_call_id"])
+        runner.send({"type": "steer", "run_id": "run-1", "steer_id": "steer-1", "text": "change of plan"})
+        answer, _ = runner.next("steer_result")
+        self.assertEqual((answer["run_id"], answer["steer_id"], answer["accepted"], answer["code"]),
+                         ("run-1", "steer-1", False, "unsupported"))
         deltas = [(f["run_id"], f["text"], f["item_id"]) for f in before if f["type"] == "text_delta"]
         self.assertEqual(deltas, [("run-1", "Hello ", "msg_1")])
         # The bridge's own call_1 is left to the transport's tool_request.

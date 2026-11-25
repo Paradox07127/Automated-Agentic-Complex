@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unittest
 
 AGENTD = Path(__file__).resolve().parents[1]
@@ -139,7 +140,7 @@ class ClaudeRunnerTest(unittest.TestCase):
         ready, _ = runner.next("ready")
         self.assertEqual(ready["capabilities"], {"cancel": "native", "tool_injection": "mcp_stdio",
             "builtin_tools": "unverified", "system_prompt": "native", "usage": "usd", "event_scope": "session",
-            "native_questions": False})
+            "native_questions": False, "steer": "native"})
         self.assertEqual((ready["tool_names"], ready["tool_inventory_verified"]), (["fixture_read"], True))
         self.assertEqual((ready["protocol"], ready["cli_version"]), ("claude-stream-json", "2.1.327-fake"))
         argv = cli_log(runner.log, "argv")[0]["argv"]
@@ -305,6 +306,47 @@ class ClaudeRunnerTest(unittest.TestCase):
         self.assertEqual(result["final_text"], "refused")
         self.assertEqual(cli_log(runner.log, "hook_reply")[0]["reply"]["subtype"], "error")
         self.assertEqual(runner.close(), 0)
+
+    def user_messages(self, runner):
+        return [r["message"] for r in cli_log(runner.log, "stdin") if r["message"]["type"] == "user"]
+
+    @unittest.skipIf(sys.platform == "win32", "the fake Claude CLI is a /bin/sh script")
+    def test_a_steer_while_an_endfield_tool_runs_is_a_second_user_message(self):
+        runner = RunnerProcess(self)
+        runner.next("ready")
+        runner.query("run-1")
+        runner.next("tool_request")
+        runner.send({"type": "steer", "run_id": "run-1", "steer_id": "steer-1", "text": "change of plan"})
+        answer, _ = runner.next("steer_result")
+        self.assertEqual((answer["run_id"], answer["steer_id"], answer["accepted"], answer["code"]),
+                         ("run-1", "steer-1", True, None))
+        deadline = time.monotonic() + 5
+        while len(self.user_messages(runner)) < 2 and time.monotonic() < deadline:
+            time.sleep(.02)
+        self.assertEqual(self.user_messages(runner)[1], {"type": "user", "message": {"role": "user", "content": "change of plan"},
+                         "parent_tool_use_id": None, "session_id": "11111111-2222-3333-4444-555555555555"})
+        self.assertIsNone(c8.check(runner.lines))
+
+    @unittest.skipIf(sys.platform == "win32", "the fake Claude CLI is a /bin/sh script")
+    def test_a_steer_without_an_endfield_tool_running_is_refused_and_never_reaches_the_cli(self):
+        workspace = tempfile.TemporaryDirectory()
+        self.addCleanup(workspace.cleanup)
+        runner = RunnerProcess(self, "permission", native_tools=True, workspace_dir=workspace.name)
+        runner.next("ready")
+        runner.query("run-1")
+        request, _ = runner.next("permission_request")
+        runner.send({"type": "steer", "run_id": "run-1", "steer_id": "steer-1", "text": "change of plan"})
+        answer, _ = runner.next("steer_result")
+        self.assertEqual((answer["accepted"], answer["code"]), (False, "not_steerable_now"))
+        runner.send({"type": "permission_result", "run_id": "run-1", "request_id": request["request_id"],
+                     "option_id": "allow_once"})
+        runner.next("result")
+        runner.send({"type": "steer", "run_id": "run-1", "steer_id": "steer-2", "text": "change of plan"})
+        answer, _ = runner.next("steer_result")
+        self.assertEqual((answer["accepted"], answer["code"]), (False, "no_active_run"))
+        self.assertEqual(runner.close(), 0)
+        self.assertEqual(len(self.user_messages(runner)), 1)
+        self.assertIsNone(c8.check(runner.lines))
 
     def test_the_tool_reminder_is_validated_and_wired(self):
         sys.path.insert(0, str(AGENTD))

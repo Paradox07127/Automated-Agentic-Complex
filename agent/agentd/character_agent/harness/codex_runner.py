@@ -64,6 +64,18 @@ def classify_failure(reason=None, errors=None, status=None, codex_info=None):
     return {'code': code, 'retryable': code in ('rate_limited', 'network', 'timeout'), 'public_message': messages[code]}
 
 
+def steer_refusal(error):
+    """turn/steer's JSON-RPC error -> the steer_result code. app-server names the reason only in its message."""
+    error = error if isinstance(error, dict) else {}
+    message = error.get("message") if isinstance(error.get("message"), str) else ""
+    info = error.get("data", {}).get("codexErrorInfo") if isinstance(error.get("data"), dict) else None
+    if isinstance(info, dict) and "activeTurnNotSteerable" in info or message.startswith("cannot steer"):
+        return "not_steerable_now"
+    if message.startswith(("no active turn", "expected active turn id")):
+        return "no_active_run"
+    return "steer_failed"
+
+
 def history_prompt(prompt, history):
     if not history:
         return prompt
@@ -212,6 +224,11 @@ class Runner:
         finally:
             self.pending.pop(call_id, None)
 
+    def steer_result(self, message, code=None):
+        """The one answer to a steer frame: accepted without a code, refused with one."""
+        self.emit({"type": "steer_result", "run_id": message.get("run_id"), "steer_id": message.get("steer_id"),
+                   "accepted": code is None, "code": code})
+
     async def main(self):
         loop = asyncio.get_running_loop()
         threading.Thread(target=self.read, args=(loop,), daemon=True).start()
@@ -235,6 +252,8 @@ class Runner:
                         match[1].set_result(message)
                 elif kind == "interrupt":
                     asyncio.create_task(self.interrupt(message.get("run_id")))
+                elif kind == "steer":
+                    asyncio.create_task(self.steer(message))
                 elif kind == "close":
                     break
                 else:
@@ -419,7 +438,9 @@ class AppServer:
                     if future.done():
                         continue
                     if "error" in message:
-                        future.set_exception(RunnerFailure("codex_request_rejected"))
+                        rejected = RunnerFailure("codex_request_rejected")
+                        rejected.error = message["error"]
+                        future.set_exception(rejected)
                     else:
                         future.set_result(message.get("result", {}))
         except (ValueError, asyncio.QueueFull, RunnerFailure) as error:
@@ -609,7 +630,7 @@ class CodexRunner(Runner):
         return {"cancel": "native", "tool_injection": "dynamic_tools",
                 "builtin_tools": "unverified" if self.config.get("native_tools") else "disabled_verified",
                 "system_prompt": "native", "usage": "tokens", "event_scope": "global",
-                "native_questions": "ask_user" in self.allowed_names}
+                "native_questions": "ask_user" in self.allowed_names, "steer": "native"}
 
     def _accept(self, message):
         if message.get("type") != "permission_result":
@@ -825,6 +846,19 @@ class CodexRunner(Runner):
             self.turn_id = None
             if self.active is run:
                 self.active = None
+
+    async def steer(self, message):
+        run = self.active
+        if not run or run["id"] != message.get("run_id") or run["cancelled"]:
+            return self.steer_result(message, "no_active_run")
+        if not self.turn_id:
+            return self.steer_result(message, "not_steerable_now")
+        try:
+            await self.client.request("turn/steer", {"threadId": self.thread_id,
+                "input": [{"type": "text", "text": message.get("text")}], "expectedTurnId": self.turn_id})
+        except Exception as error:
+            return self.steer_result(message, steer_refusal(getattr(error, "error", None)))
+        self.steer_result(message)
 
     async def interrupt(self, run_id):
         if not self.active or self.active["id"] != run_id:

@@ -32,6 +32,7 @@ TO_RUNNER = {
     "tool_result": {"tool_call_id": "str", "run_id": "str", "result": "any", "is_error": "bool"},
     "permission_result": {"run_id": "str", "request_id": "str", "option_id": "str_or_null"},
     "interrupt": {"run_id": "str"},
+    "steer": {"run_id": "str", "steer_id": "str", "text": "nonempty_str"},
     "close": {},
     "list_models": {"runtime_dir": "str", "provider": "str_or_null"},
 }
@@ -47,6 +48,7 @@ FROM_RUNNER = {
                            "options": "permission_options"},
     "result": {"run_id": "str", "success": "bool", "subtype": "str"},
     "error": {"code": "str"},
+    "steer_result": {"run_id": "str", "steer_id": "str", "accepted": "bool", "code": "str_or_null"},
     "models": {"providers": "array", "models": "array"},
 }
 OPTIONAL = {
@@ -67,6 +69,8 @@ CAPABILITIES = {
     "event_scope": ("session", "global"),
     "native_questions": (True, False),
 }
+# Checked when present; a ready without it is a runner that cannot steer.
+OPTIONAL_CAPABILITIES = {"steer": ("native", "unsupported")}
 
 
 def check(lines):
@@ -121,6 +125,9 @@ def check_capabilities(capabilities):
         value = capabilities[key]
         valid = isinstance(value, bool) if key == "native_questions" else isinstance(value, str) and value in allowed
         if not valid:
+            return f"capabilities.{key} must be one of {', '.join(map(json.dumps, allowed))}"
+    for key, allowed in OPTIONAL_CAPABILITIES.items():
+        if key in capabilities and capabilities[key] not in allowed:
             return f"capabilities.{key} must be one of {', '.join(map(json.dumps, allowed))}"
     return None
 

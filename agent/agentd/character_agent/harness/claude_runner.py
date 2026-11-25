@@ -206,7 +206,8 @@ class ClaudeRunner(Runner):
 
     def capabilities(self):
         return {"cancel": "native", "tool_injection": "mcp_stdio", "builtin_tools": "unverified",
-                "system_prompt": "native", "usage": "usd", "event_scope": "session", "native_questions": False}
+                "system_prompt": "native", "usage": "usd", "event_scope": "session", "native_questions": False,
+                "steer": "native"}
 
     async def initialize(self, message):
         if self.client is not None:
@@ -473,6 +474,21 @@ class ClaudeRunner(Runner):
         finally:
             if self.active is run:
                 self.active = None
+
+    async def steer(self, message):
+        run = self.active
+        if not run or run["id"] != message.get("run_id") or run["cancelled"]:
+            return self.steer_result(message, "no_active_run")
+        # The CLI hands a user message to the model once the running tool call ends; with no call running it would start
+        # a turn of its own, whose output would reach the next run.
+        if not any(owner == run["id"] and not future.done() for owner, future in self.pending.values()):
+            return self.steer_result(message, "not_steerable_now")
+        try:
+            await self.client.write({"type": "user", "message": {"role": "user", "content": message.get("text")},
+                                     "parent_tool_use_id": None, "session_id": self.session_id or "default"})
+        except RunnerFailure:
+            return self.steer_result(message, "steer_failed")
+        self.steer_result(message)
 
     async def interrupt(self, run_id):
         if not self.active or self.active["id"] != run_id:

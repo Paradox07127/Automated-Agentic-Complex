@@ -65,6 +65,7 @@ agentd 读到非法帧（第 2、3、4 节，或 `capabilities` 不符合第 10 
 | `tool_result` | `tool_call_id` 字符串；`run_id` 字符串；`result` 任意 JSON；`is_error` 布尔 | | 回答一个 `tool_request` |
 | `permission_result` | `run_id` 字符串；`request_id` 字符串；`option_id` 字符串或 `null` | | 回答一个 `permission_request`。`option_id` 取自请求的 `options[].option_id`；`null` 表示拒绝 |
 | `interrupt` | `run_id` 字符串 | | 取消这个 run |
+| `steer` | `run_id` 字符串；`steer_id` 字符串；`text` 非空字符串 | | 把一段用户文字送进正在进行的 run，模型在当前工具调用之后看到它。`text` 原样交给模型；`steer_id` 由 agentd 生成，本进程内唯一。runner 对每个 `steer` 恰好回一个 `steer_result` |
 | `close` | | | 让 runner 退出 |
 | `list_models` | `runtime_dir` 字符串；`provider` 字符串或 `null` | | 只有 Pi runner 接受，代替 `init` 作为进程的第一帧。runner 读 Pi 的离线模型目录（不联网、不要 key），回一个 `models` 帧；agentd 收到后关掉 stdin，runner 退出 |
 
@@ -78,6 +79,11 @@ runner 一侧的规则：
 4. `interrupt` 的 `run_id` 不是当前 run：runner 忽略这一帧。
 5. stdin 关闭等同 `close`。
 6. `permission_result` 的 `request_id` 没有在等、`run_id` 对不上，或这个请求已经有了答案：runner 忽略这一帧。Claude、Codex runner 只在 `option_id` 是 `allow_once` 时允许，其余（含等了 `config.permission_timeout` 秒仍没有答案）都拒绝。ACP runner 按 `option_id` 回 agent：`null`、不在请求的 `options` 里、或等了 `config.permission_timeout` 秒（默认 180）仍没有答案时回 agent 的 `reject_once` 选项（没有就 `reject_always`，都没有回 cancelled）；run 已取消（发过 `session/cancel`）时按 ACP 规范回 `cancelled` 结果，等着的请求和之后来的请求都是；选中 `allow_always` 时改回 `allow_once`（没有 `allow_once` 就按拒绝处理）。
+7. `steer`：`run_id` 不是当前 run、当前 run 已取消或已结束，回 `steer_result`（`accepted: false`，`code: "no_active_run"`）。否则各 runner：
+   - Pi：快速回复的 run（`query` 带 `system_prompt`）回 `not_steerable_now`；其余调 `session.steer(text)`，返回 `queued` 或 `handled` 时接受，抛错或返回别的时回 `steer_failed`。Pi 在当前助手回合及其工具调用结束后、下一次模型请求前交出这条消息。
+   - Codex：还没有 turn id（`turn/start` 未回）时回 `not_steerable_now`；否则发 `turn/steer`（`threadId`、`input: [{type: "text", text}]`、`expectedTurnId` 为当前 turn id）。成功时接受；app-server 报没有进行中的 turn（`no active turn to steer`）或 turn id 不符（`expected active turn id …`）时回 `no_active_run`，报这个 turn 不能插话（`codexErrorInfo.activeTurnNotSteerable`，`cannot steer a … turn`）时回 `not_steerable_now`，其余失败回 `steer_failed`。
+   - Claude：只在这个 run 有 agentd 工具的 `tool_request` 还没回 `tool_result` 时，向 CLI 写一条 stream-json `user` 消息（格式同 `query`），写成就接受，写失败回 `steer_failed`；其余时刻回 `not_steerable_now`，不写 CLI。没有工具在执行时 CLI 会为这条消息另开一轮，那一轮的输出会串进下一个 run。
+   - ACP：一律回 `unsupported`。
 
 ACP runner 对 agentd 自己的工具（`title` 是 `mcp__agentic_complex__<init.tools 里的名字>`）直接允许一次，其余每个请求都发 `permission_request`。不在 run 里或 `sessionId` 不对的权限请求，runner 直接拒绝；run 已取消时回 `cancelled`。runner 自己从不选 `allow_always`。
 
@@ -95,6 +101,7 @@ ACP runner 对 agentd 自己的工具（`title` 是 `mcp__agentic_complex__<init
 | `permission_request` | `run_id` 字符串；`request_id` 非空字符串；`title` 字符串；`kind` 字符串或 `null`；`locations` 字符串数组或 `null`；`raw_input` 对象或 `null`；`options` 数组（每项有字符串 `option_id`、`name`、`kind`） | | ACP、Claude、Codex |
 | `result` | `run_id` 字符串；`success` 布尔；`subtype` 字符串 | `session_id`、`model`、`text`、`final_text`、`usage`、`total_cost_usd`、`cost_usd`、`cost_source`、`num_turns`、`model_usage`、`failure`、`error` 等 | 四个 runner |
 | `error` | `code` 字符串 | `run_id` 字符串；`message` 字符串；`failure` 对象（`code`、`retryable`、`public_message`） | 四个 runner |
+| `steer_result` | `run_id` 字符串；`steer_id` 字符串；`accepted` 布尔；`code` 字符串或 `null` | | 四个 runner，只回答 `steer` |
 | `models` | `providers` 数组（每项有 `id`、`name`）；`models` 数组（`provider` 为空时是空数组；每项有 `id`、`name`、`context_window`、`max_tokens`、`input`、`reasoning`、`thinking_levels`、`priced`） | | Pi，只回答 `list_models` |
 
 各帧的含义：
@@ -107,6 +114,7 @@ ACP runner 对 agentd 自己的工具（`title` 是 `mcp__agentic_complex__<init
 6. `permission_request`：harness 要执行一个需要用户同意的工具，请 agentd 选一个选项，用 `permission_result` 回答（第 6 节 runner 一侧第 6 条）。`request_id` 由 runner 生成，本进程内唯一。`title`、`kind` 取 ACP `toolCall` 的同名字段（`title` 缺时为空串），`kind` 现有取值见 ACP ToolKind（`read`、`edit`、`delete`、`move`、`search`、`execute`、`think`、`fetch`、`switch_mode`、`other`）；`locations` 是 `toolCall.locations[].path`；`raw_input` 是 `toolCall.rawInput`（不是对象时为 `null`；Claude、Codex、Pi runner 在它编码后超过 30000 字时发截断预览：`{"truncated": true}` 后先放放得下的关键字段原值（Pi 为 `path`、`command`，Claude、Codex 另有 `file_path`、`cwd`、`grantRoot`），其余字段截到剩下的长度，非字符串值截其 JSON 文本，工具仍以完整参数执行；整帧仍超过帧上限时为 `{"truncated": true}`）；`options[].kind` 是 `allow_once`、`allow_always`、`reject_once`、`reject_always` 之一。Claude runner 的请求来自 `--permission-prompt-tool`：`title` 是工具名，参数里有字符串 `command` 时为 `<工具名>: <command>`，`kind` 为 `null`，`raw_input` 是工具参数。Codex runner 的请求来自 app-server 的 `item/commandExecution/requestApproval`（`kind: "execute"`）、`item/fileChange/requestApproval`（`edit`）、`item/permissions/requestApproval`（`other`），`raw_input` 是请求参数。这两个 runner 的 `options` 只有 `allow_once`、`reject_once`。
 7. `result`：run 结束，每个 run 恰好一个。取消时 `success: false`、`subtype: "cancelled"`。
 8. `error`：带 `run_id` 时这个 run 失败结束；不带 `run_id` 时是进程级失败（启动失败、协议错误）。Python runner 发进程级 `error` 后退出。
+9. `steer_result`：`run_id`、`steer_id` 取自它回答的 `steer`。接受时 `accepted: true`、`code: null`；拒绝时 `accepted: false`，`code` 是 `no_active_run`（不是当前 run、已取消或已结束）、`not_steerable_now`（这一刻插不进去）、`unsupported`（runner 不支持插话）、`steer_failed`（harness 报错）之一。
 
 agentd 一侧的规则：
 
@@ -116,6 +124,7 @@ agentd 一侧的规则：
 4. 运行阶段收到 `error` 或进程退出，`stream()` 抛出 `HarnessError`（进程退出时是 `runner_disconnected`）。
 5. agentd 的事件队列上限 512 帧，满了就结束 runner 进程组。
 6. 收到 `permission_request`：`run_id` 不是当前 run、当前 run 已取消、`request_id` 不是非空字符串、或这个 `(run_id, request_id)` 在本进程里出现过，立刻回 `permission_result`（`option_id: null`）。否则交给调用方一个 `permission_requested` 事件（字段同请求），再在后台线程调会话或这次 `stream()` 的 `permission_handler(request)`，把它返回的字符串作为 `option_id` 回给 runner；没有 handler、handler 出错或返回的不是字符串、或等它期间 run 被取消或已换进程，回 `option_id: null`。
+7. 会话的 `steer(text, run_id=None)`：没有正在跑的 run、run 已取消、或 `run_id` 不是当前 run 时不发帧，返回 `(False, "no_active_run")`；否则发 `steer`，最多等 5 秒对应的 `steer_result`，返回 `(accepted, code)`，等不到返回 `(False, "steer_timeout")`，写失败返回 `(False, "steer_failed")`。`steer_result` 交给等着的调用方，不进 `stream()` 的事件。
 
 `tool_started`、`tool_finished`、`waiting_user`、`permission_requested`、`eof` 是 agentd 自己给调用方的事件，不是 wire 上的帧，runner 不发。
 
@@ -155,7 +164,7 @@ agentd 一侧的规则：
 
 ## 10. 能力描述
 
-每个 `ready` 帧带 `capabilities` 对象，描述这个 runner 在本会话里怎么接 harness。7 个键都必填，取值只能是下表所列：
+每个 `ready` 帧带 `capabilities` 对象，描述这个 runner 在本会话里怎么接 harness。除 `steer` 外 7 个键都必填；`steer` 选填，缺省等同 `unsupported`。取值只能是下表所列：
 
 | 键 | 取值 | 含义 |
 |---|---|---|
@@ -166,6 +175,7 @@ agentd 一侧的规则：
 | `usage` | `usd` / `tokens` / `none` | `result` 里有什么用量：`usd` 有美元费用（`cost_usd`）；`tokens` 只有 token 数；`none` 都没有 |
 | `event_scope` | `session` / `global` | harness 的事件源：`session` 只属于本会话；`global` 是进程级共享的，runner 要按会话或轮次过滤 |
 | `native_questions` | 布尔 | `true`：harness 自带的提问工具在本会话里接到 agentd 的 `ask_user` 工具 |
+| `steer` | `native` / `unsupported` | `native`：`steer` 走 harness 自己的插话接口（第 6 节 runner 一侧第 7 条）；`unsupported`：每个 `steer` 都回 `unsupported` |
 
 规则：
 
@@ -185,6 +195,7 @@ agentd 一侧的规则：
 | `usage` | `tokens` | 接自定义端点（`config.base_url`）时 `tokens`，否则 `usd` | `none` | `usd` |
 | `event_scope` | `global` | `session` | `session` | `session` |
 | `native_questions` | `init.tools` 有 `ask_user` 时 `true` | `false` | `false` | `false` |
+| `steer` | `native` | `native` | `unsupported` | `native` |
 
 ## 10a. Claude runner
 

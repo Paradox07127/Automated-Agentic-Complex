@@ -36,6 +36,20 @@ class ExamplesTest(unittest.TestCase):
                 self.assertIsNotNone(err)
                 self.assertTrue(err.startswith(EXPECTED[name]), err)
 
+    def test_steer_and_its_result(self):
+        ready = ('{"v": 1, "seq": 1, "type": "ready", "tool_names": [], "tool_inventory_verified": true, "model": "m", '
+                 '"capabilities": {"cancel": "native", "tool_injection": "in_process", "builtin_tools": "unverified", '
+                 '"system_prompt": "native", "usage": "none", "event_scope": "session", "native_questions": false, '
+                 '"steer": "%s"}}\n')
+        steer = '{"v": 1, "type": "steer", "run_id": "r", "steer_id": "s", "text": %s}\n'
+        answer = '{"v": 1, "seq": 2, "type": "steer_result", "run_id": "r", "steer_id": "s", "accepted": %s, "code": %s}\n'
+        self.assertIsNone(check([ready % "native", steer % '"change of plan"', answer % ("true", "null")]))
+        self.assertIsNone(check([ready % "unsupported", steer % '"x"', answer % ("false", '"unsupported"')]))
+        self.assertEqual(check([ready % "native", steer % '""']), "line 1: steer.text missing or not nonempty_str")
+        self.assertEqual(check([ready % "native", answer % ('"yes"', "null")]),
+                         "line 1: steer_result.accepted missing or not bool")
+        self.assertTrue(check([ready % "sometimes"]).startswith("line 0: capabilities.steer must be one of"))
+
     def test_frame_size_counts_the_newline(self):
         frame = '{"v": 1, "seq": 1, "type": "error", "code": "x", "message": "%s"}'
         pad = 40 * 1024 * 1024 - len(frame % "") - 1

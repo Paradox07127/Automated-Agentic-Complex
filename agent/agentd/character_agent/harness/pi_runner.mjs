@@ -325,7 +325,7 @@ async function init(message) {
     capabilities: { cancel: "native", tool_injection: "in_process",
       builtin_tools: config.native_tools ? "unverified" : "disabled_verified",
       system_prompt: "native", usage: priced ? "usd" : "tokens", event_scope: "session",
-      native_questions: false } });
+      native_questions: false, steer: "native" } });
 }
 function assistantMessage(content, stopReason, timestamp) {
   return { role: "assistant", content, api: modelRuntime.getModel(config.provider, config.model).api,
@@ -410,6 +410,19 @@ async function query(message) {
     active = undefined; endPending();
   }
 }
+function steerResult(message, code = null) {
+  emit("steer_result", { run_id: message.run_id, steer_id: message.steer_id, accepted: code === null, code });
+}
+// Pi hands a steering message to the model after the current assistant turn and its tool calls.
+async function steer(message) {
+  const run = active;
+  if (!run || run.id !== message.run_id || run.cancelled || run.limit) return steerResult(message, "no_active_run");
+  if (run.quick) return steerResult(message, "not_steerable_now");
+  let disposition;
+  try { disposition = await session.steer(message.text, undefined, { source: "rpc" }); }
+  catch { return steerResult(message, "steer_failed"); }
+  steerResult(message, disposition === "queued" || disposition === "handled" ? null : "steer_failed");
+}
 async function command(message) {
   if (!message || message.v !== 1) throw new Error("invalid_protocol");
   switch (message.type) {
@@ -429,6 +442,7 @@ async function command(message) {
     case "interrupt":
       if (active?.id === message.run_id) { active.cancelled = true; endPending(); void session.abort(); }
       break;
+    case "steer": void steer(message); break;
     case "close": await shutdown(); break;
     default: throw new Error("invalid_command");
   }

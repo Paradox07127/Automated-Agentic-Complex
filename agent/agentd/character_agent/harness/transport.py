@@ -146,6 +146,8 @@ def capabilities_valid(capabilities):
 class ManagedClaudeSession:
     # Grace period for delivering an interrupt or exiting after close.
     CLOSE_WAIT = 1
+    # How long steer() waits for the runner's steer_result.
+    STEER_WAIT = 5
 
     def __init__(self, config, tool_definitions=None, tool_handler=None, permission_handler=None, *, runner_path):
         self.config = config
@@ -167,6 +169,8 @@ class ManagedClaudeSession:
         self._tool_slots = threading.BoundedSemaphore(8)
         self._seen_tools = set()
         self._seen_permissions = set()
+        # steer_id -> [event set when the runner answers, its steer_result frame].
+        self._steers = {}
         self.session_id = None
         self.capabilities = None
 
@@ -234,6 +238,12 @@ class ManagedClaudeSession:
                     self._dispatch_tool(proc, generation, message)
                 elif message.get("type") == "permission_request":
                     self._dispatch_permission(proc, generation, message)
+                elif message.get("type") == "steer_result":
+                    with self._state_lock:
+                        waiter = self._steers.get(message.get("steer_id"))
+                    if waiter is not None:
+                        waiter[1] = message
+                        waiter[0].set()
                 else:
                     self._queue(message, generation, proc)
         except (ValueError, OSError, TypeError):
@@ -506,6 +516,29 @@ class ManagedClaudeSession:
             if started and not finished:
                 self.close()
             self._stream_lock.release()
+
+    def steer(self, text, *, run_id=None):
+        """Sends `text` to the model inside the current run (C8 steer); run_id, if given, must name that run.
+        Returns (accepted, code), code None when accepted."""
+        if not isinstance(text, str) or not text:
+            raise ValueError("steer_text_required")
+        steer_id = secrets.token_hex(12)
+        waiter = [threading.Event(), None]
+        with self._state_lock:
+            active, proc = self._active, self._proc
+            if not active or active["cancelled"] or proc is None or run_id not in (None, active["id"]):
+                return False, "no_active_run"
+            self._steers[steer_id] = waiter
+        try:
+            self._write({"type": "steer", "run_id": active["id"], "steer_id": steer_id, "text": text}, proc)
+            if not waiter[0].wait(self.STEER_WAIT):
+                return False, "steer_timeout"
+        except HarnessError:
+            return False, "steer_failed"
+        finally:
+            with self._state_lock:
+                self._steers.pop(steer_id)
+        return waiter[1].get("accepted") is True, waiter[1].get("code")
 
     def interrupt(self):
         with self._state_lock:

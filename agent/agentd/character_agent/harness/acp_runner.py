@@ -336,7 +336,7 @@ class AcpRunner(Runner):
     def capabilities(self):
         return {"cancel": "native", "tool_injection": "mcp_stdio", "builtin_tools": "unverified",
                 "system_prompt": "native" if self.native_system_prompt else "prompt_prefix", "usage": "none",
-                "event_scope": "session", "native_questions": False}
+                "event_scope": "session", "native_questions": False, "steer": "unsupported"}
 
     async def initialize(self, message):
         if self.client is not None:
@@ -624,6 +624,9 @@ class AcpRunner(Runner):
         finally:
             if self.active is run:
                 self.active = None
+
+    async def steer(self, message):
+        self.steer_result(message, "unsupported")
 
     async def interrupt(self, run_id):
         if not self.active or self.active["id"] != run_id:

@@ -833,6 +833,27 @@ class PiSDKTests(unittest.TestCase):
         self.assertEqual(result[-1]['subtype'], 'cancelled')
         self.assertEqual(len(model.requests), 1)
 
+    def test_a_steer_while_a_tool_waits_reaches_the_next_model_request_after_the_tool_result(self):
+        model = self.model([{'name': 'wait_for_consent', 'args': {}}, 'Changed course.'])
+        entered = threading.Event(); release = threading.Event(); result = []
+        def handler(*_): entered.set(); release.wait(5); return {'ok': True}
+        definitions = [{'name': 'wait_for_consent', 'description': 'Wait.', 'input_schema': {'type': 'object', 'properties': {}}}]
+        session = self.session(model, definitions, handler)
+        self.assertEqual(session.steer('change of plan'), (False, 'no_active_run'))
+        worker = threading.Thread(target=lambda: result.extend(self.run_session(session)), daemon=True); worker.start()
+        self.assertTrue(entered.wait(5))
+        try:
+            self.assertEqual(session.steer('change of plan', run_id='run-1'), (True, None))
+        finally:
+            release.set()
+        worker.join(10)
+        self.assertTrue(result[-1]['success'], result)
+        self.assertNotIn('steer_result', [event['type'] for event in result])
+        self.assertEqual(len(model.requests), 2)
+        self.assertEqual([m['role'] for m in model.requests[1]['messages']][-2:], ['tool', 'user'])
+        self.assertIn(model.requests[1]['messages'][-1]['content'], ('change of plan', [{'type': 'text', 'text': 'change of plan'}]))
+        self.assertEqual(session.steer('too late', run_id='run-1'), (False, 'no_active_run'))
+
     def test_invalidate_recreates_native_session_with_product_history(self):
         model = self.model(['first', 'resumed'])
         session = self.session(model)
