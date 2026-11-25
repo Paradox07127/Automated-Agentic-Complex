@@ -9,7 +9,7 @@ export interface MotionImport {
   run: () => void;
 }
 
-/** `character.importMotion` or `mmd.import` (`call`): one import at a time; `onImported` runs once the avatar is back with the new action. */
+/** `character.importMotion` (`call`): one import at a time; `onImported` runs once the avatar is back with the new action. */
 export function useMotionImport(call: () => Promise<MotionImportResult>, onImported: () => void): MotionImport {
   const [running, setRunning] = useState(false);
   const [note, setNote] = useState<MotionImport['note']>(null);

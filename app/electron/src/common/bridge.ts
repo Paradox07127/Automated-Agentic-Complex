@@ -43,7 +43,11 @@ export function boot(surface: Surface, platform: ShellPlatform = 'mac', helperOp
   const bits = Object.fromEntries(Object.entries(ops.capabilities[surface])
     .map(([name, v]) => [name, v === true || (v === 'host:helper' && helperBit(name)) || (v === 'host:actionLoop' && loopBit)
       || (v === 'host:avatar' && avatarHost)]));
-  if (platform === 'windows') bits.runInTerminal = false;
+  if (platform === 'windows') {
+    bits.runInTerminal = false;
+    // Windows's open panel takes files or a folder, not both (platform/index.ts filesOrFolderProperties).
+    bits.filesOrFolderPicker = false;
+  }
   return { surface, platform, capabilities: bits, ops: [...ops.ops, ...onboarding.ops], kinds: ops.kinds };
 }
 

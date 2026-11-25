@@ -99,10 +99,10 @@ describe('导入 pane', () => {
 });
 
 describe('MMD section', () => {
-  it('shows any running import on the library strip and disables 导入 VMD', async () => {
+  it('shows any running import on the library strip and disables 导入 MMD', async () => {
     const sink = pushes();
     await mount('&view=mmd');
-    const btn = (await screen.findByRole('button', { name: '导入 VMD' })) as HTMLButtonElement;
+    const btn = (await screen.findByRole('button', { name: '导入 MMD' })) as HTMLButtonElement;
     await act(async () => sink.push({ running: true, kind: 'outfit', title: 'SummerMod', stage: 'publish', fraction: 0.9 }));
     const strip = screen.getByRole('status', { name: 'MMD 导入' });
     expect(within(strip).getByRole('progressbar').getAttribute('aria-valuenow')).toBe('90');

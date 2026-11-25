@@ -100,7 +100,7 @@ export function Library(p: LibraryProps) {
         title="曲库里还没有舞"
         desc={
           <>
-            点右上 <b>导入 VMD</b> 选一个 VMD 动作（可附带音乐）；导入后每个角色共用，切到别的角色时会自动同步过去。
+            点右上 <b>导入 MMD</b> 选 MMD 工程的文件夹、ZIP 或 VMD；导入后每个角色共用，切到别的角色时会自动同步过去。
           </>
         }
       />
@@ -153,9 +153,11 @@ export function Library(p: LibraryProps) {
                   </span>
                   <span className={styles.main}>
                     <span className={styles.nm}>{e.title}</span>
+                    {e.role != null && <span className={styles.role}>{e.role}</span>}
                     <span className={styles.dur}>{`${e.durationS.toFixed(1)} s`}</span>
                     {e.hasBgm && <span className={styles.chip}>BGM</span>}
                     {e.hasCamera && <span className={styles.chip}>CAM</span>}
+                    {e.hasFace && <span className={styles.chip}>LIP</span>}
                     {why != null && (
                       <span className={styles.why} data-tone={s.state === 'failed' ? 'danger' : undefined} title={why}>
                         {why}

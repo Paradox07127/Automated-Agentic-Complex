@@ -6,10 +6,6 @@ describe('motionImportReason zip and edit codes', () => {
     expect(motionImportReason('bad_zip', undefined)).toBe('压缩包打不开或不安全');
   });
 
-  it('words ambiguous_motion', () => {
-    expect(motionImportReason('ambiguous_motion', undefined)).toBe('包里有多支动作、相机或音乐，分不出用哪个');
-  });
-
   it('words the motion edit refusals linked_motion and outside_package, not the host fallback', () => {
     for (const code of ['linked_motion', 'outside_package']) expect(motionImportReason(code, undefined)).not.toBe(NO_REASON);
   });

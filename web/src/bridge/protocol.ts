@@ -39,6 +39,8 @@ export interface Capabilities {
   /** `open.runInTerminal` can start a command in a terminal window. */
   runInTerminal: boolean;
   nativeFilePicker: boolean;
+  /** One open panel takes files and folders together (`mmd.scan`); without it the page asks for files or a folder first. */
+  filesOrFolderPicker: boolean;
   nativeConfirm: boolean;
   avatar: boolean;
   clickThrough: boolean; /** The avatar lists C3 `action_loop`: `avatar.playAction` takes `{ loop: true }`, `avatar.stopAction` ends it. */ actionLoop: boolean; /** The platform helper's `hello.ops` has the feature's ops (app/electron/src/common/bridge.ts `HELPER_BIT_OPS`), or no list is known. */ helperPushToTalk: boolean; helperWindowText: boolean; helperTypedText: boolean; helperActionTimeline: boolean; helperSelectedText: boolean;

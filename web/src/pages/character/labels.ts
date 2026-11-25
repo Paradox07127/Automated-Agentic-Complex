@@ -108,7 +108,7 @@ const MOTION_IMPORT_REASON: Record<string, string> = {
   too_many_actions: '动作已满 128 条',
   too_many_media: '动作媒体已满 128 条',
   bad_vmd: '读不了这个 VMD 文件',
-  too_long: '动作超过 180 秒',
+  too_long: '动作超过 360 秒',
   missing_bones: '这个角色的骨骼接不上 MMD 动作',
   busy: '正在切换角色或另一个导入还没完成，稍后再试',
   validate_failed: '桌面角色校验没有通过',
@@ -123,7 +123,14 @@ const MOTION_IMPORT_REASON: Record<string, string> = {
   linked_motion: '别的动作会接到这个动作，或别的动作行用到了它，所以不能删',
   outside_package: '角色包指向了包外的文件，为安全起见没有改',
   bad_zip: '压缩包打不开或不安全',
-  ambiguous_motion: '包里有多支动作、相机或音乐，分不出用哪个',
+  scan_gone: '识别结果已失效，请重新导入',
+};
+
+/** motion_tool mmd-scan's reasons for a file of the project it left out. */
+export const MMD_IGNORED_REASON: Record<string, string> = {
+  not_motion: '不是动作或音频',
+  no_keys: '没有关键帧',
+  bad_vmd: '读不了',
 };
 
 /** A motion import failure in words; `internal` shows motion_tool's detail, the only place it says the cause. */

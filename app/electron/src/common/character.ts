@@ -36,7 +36,7 @@ export interface MotionFailure { reason: string; detail: string }
 
 const REASONS = new Set(['too_many_actions', 'too_many_media', 'bad_vmd', 'too_long', 'missing_bones', 'busy', 'validate_failed',
   'internal', 'unsupported_format', 'bad_source', 'no_animation', 'unmapped_skeleton', 'already_imported', 'unknown_action',
-  'not_imported', 'bad_title', 'bad_zip', 'ambiguous_motion', 'linked_motion', 'outside_package']);
+  'not_imported', 'bad_title', 'bad_zip', 'linked_motion', 'outside_package']);
 
 /** motion_tool's failure: its last stderr line `{reason, detail}` with a known reason, else `internal` with the stderr's end. */
 export function toolFailure(stderr: string): MotionFailure {
@@ -84,7 +84,7 @@ export function importedMotions(line: Json): Json[] {
 export function mmdEntries(line: Json): Json[] {
   if (!Array.isArray(line.entries)) throw new MotionFailureError({ reason: 'internal', detail: `motion_tool printed no result: ${JSON.stringify(line)}` });
   return line.entries.map((e: Json) => ({ id: e.id, title: e.title, durationS: e.duration_s, hasBgm: e.has_bgm, hasCamera: e.has_camera,
-    createdAt: e.created_at,
+    hasFace: e.has_face === true, project: e.project ?? null, role: e.role ?? null, createdAt: e.created_at,
     characters: (Array.isArray(e.characters) ? e.characters : []).map((c: Json) => ({ id: c.id, state: c.state, reason: c.reason ?? null })) }));
 }
 

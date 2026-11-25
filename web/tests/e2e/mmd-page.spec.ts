@@ -7,7 +7,10 @@ const overlap = (a: { x: number; y: number; width: number; height: number }, b: 
 
 async function importAndAdd(page: Page) {
   await page.goto('main.html#/character?view=mmd&still=1');
-  await page.getByRole('button', { name: '导入 VMD' }).click();
+  await page.getByRole('button', { name: '导入 MMD' }).click();
+  const sheet = page.getByRole('dialog', { name: '导入 MMD' });
+  await sheet.getByRole('textbox', { name: '曲名' }).fill('舞');
+  await sheet.getByRole('button', { name: '导入' }).click();
   const row = page.locator('[data-mmd="mmd_dance_1"]');
   await row.getByRole('button', { name: '加入演出列表' }).click();
   return row;
@@ -35,10 +38,10 @@ test('a dance added from its row shows as a card with 移出 on hover, its name 
   await page.setViewportSize({ width: 1100, height: 650 });
   const row = await importAndAdd(page);
   const card = page.getByRole('region', { name: 'MMD 列表' }).locator('[data-playlist-row="mmd_dance_1"]');
-  await expect(card).toContainText('示例舞蹈');
+  await expect(card).toContainText('舞 · HimeTanaka');
   await expect(row).toContainText('01');
   await card.hover();
   await expect(card.getByRole('button', { name: '移出' })).toBeVisible();
-  const cut = await row.getByText('示例舞蹈', { exact: true }).evaluate((e) => e.scrollWidth > e.clientWidth);
+  const cut = await row.getByText('舞 · HimeTanaka', { exact: true }).evaluate((e) => e.scrollWidth > e.clientWidth);
   expect(cut).toBe(false);
 });

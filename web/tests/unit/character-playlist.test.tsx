@@ -44,7 +44,7 @@ const row = (id: string) => document.querySelector(`[data-playlist-row="${id}"]`
 const list = () => screen.findByRole('region', { name: 'MMD 列表' });
 const add = (id: string) => click(within(document.querySelector(`[data-mmd="${id}"]`) as HTMLElement).getByRole('button', { name: '加入演出列表' }));
 // The library entries of her two dances, baked for her.
-const LIBRARY = MMD.map((a) => ({ id: a.id, title: a.label, durationS: a.durationS ?? 0, hasBgm: false, hasCamera: false, createdAt: '', characters: [{ id: 'si', state: 'baked' as const, reason: null }] }));
+const LIBRARY = MMD.map((a) => ({ id: a.id, title: a.label, durationS: a.durationS ?? 0, hasBgm: false, hasCamera: false, hasFace: false, project: null, role: null, createdAt: '', characters: [{ id: 'si', state: 'baked' as const, reason: null }] }));
 
 beforeEach(() => {
   install(MMD);

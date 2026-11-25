@@ -14,7 +14,7 @@ const ROSTER: CharacterEntry[] = [
   { id: 'voice_a', name: '示例甲', en: 'VA', active: false, voice: true, appearances: [] },
 ];
 const baked = (id: string, title: string): MmdEntry => ({
-  id, title, durationS: 10, hasBgm: false, hasCamera: false, createdAt: '',
+  id, title, durationS: 10, hasBgm: false, hasCamera: false, hasFace: false, project: null, role: null, createdAt: '',
   characters: ROSTER.map((c) => ({ id: c.id, state: 'baked' as const, reason: null })),
 });
 const ACTIONS: AvatarAction[] = [

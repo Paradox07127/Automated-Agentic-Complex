@@ -38,7 +38,7 @@ const IMPLEMENTED = [
   'settings.wipeLocalData', 'files.pickFile', 'files.pickFolder', 'files.saveAgentdExport', 'open.url', 'open.artifact',
   'open.revealInFinder', 'clipboard.writeText', 'character.list', 'character.importPackage', 'character.listImportedMotions',
   'character.renameMotion', 'character.removeMotion', 'character.importState', 'character.getPlaylist', 'character.setPlaylist',
-  'mmd.list', 'mmd.syncState', 'onboarding.state', 'onboarding.advance', 'onboarding.back', 'onboarding.goto', 'onboarding.skip',
+  'mmd.list', 'mmd.dropScan', 'mmd.syncState', 'onboarding.state', 'onboarding.advance', 'onboarding.back', 'onboarding.goto', 'onboarding.skip',
   'onboarding.complete',
   'avatar.state', 'avatar.details', 'avatar.setVisible', 'avatar.stopSpeech', 'avatar.actions', 'avatar.playAction', 'avatar.stopAction',
   'avatar.setScale', 'avatar.keepClearOfMain', 'avatar.resetPosition', 'avatar.preview.show', 'avatar.preview.hide',
@@ -131,7 +131,22 @@ async function motionTool(args: string[]): Promise<{ last: string; status: numbe
   const arg = (name: string) => args[args.indexOf(name) + 1]!;
   if (args[0] === 'mmd-list') {
     return { last: JSON.stringify({ entries: [{ id: 'mmd_sample_1', title: '示例舞蹈', duration_s: 12.5, has_bgm: true, has_camera: false,
-      created_at: '2026-11-17T10:00:00+00:00', characters: [{ id: 'si', state: 'baked' }] }] }), status: 0, stderr: '' };
+      has_face: false, project: null, role: null, created_at: '2026-11-17T10:00:00+00:00', characters: [{ id: 'si', state: 'baked' }] }] }),
+    status: 0, stderr: '' };
+  }
+  if (args[0] === 'mmd-scan') {
+    const root = arg('--unpack-to');
+    return { last: JSON.stringify({ ok: true, title: '愛包ダンスホール', root,
+      bodies: [{ path: join(root, 'a[f-19].vmd'), name: 'a[f-19].vmd', label: 'HimeTanaka', model: '田中ヒメ', duration_s: 223.33,
+        place_frame: -19, has_morph: true }],
+      faces: [{ path: join(root, 'lip.vmd'), name: 'lip.vmd', duration_s: 210, morphs: 5 }],
+      cameras: [{ path: join(root, 'cam.vmd'), name: 'cam.vmd', duration_s: 223, place_frame: null }],
+      audio: [{ path: join(root, 'inst.wav'), name: 'inst.wav' }], ignored: [{ name: 'Readme.txt', reason: 'not_motion' }],
+      suggested: { body: 0, face: 0, camera: 0, audio: 0, bgm_start_s: -0.633 } }), status: 0, stderr: '' };
+  }
+  if (args[0] === 'mmd-media') {
+    return { last: JSON.stringify({ ok: true, action: { id: 'mmd_sample_2', title: '示例舞蹈', duration_s: 12.5, has_bgm: false }, format: 'vmd',
+      warnings: [], replaced: arg('--action') }), status: 0, stderr: '' };
   }
   if (arg('--character') !== 'si') {
     return { last: '', status: 1, stderr: `Traceback\n${JSON.stringify({ reason: 'internal', detail: `unknown_character: ${arg('--character')}` })}\n` };
@@ -162,8 +177,9 @@ async function outfitTool(args: string[]): Promise<{ last: string; status: numbe
 }
 
 /** The import ops ask with open panels, which the registry's ops would open for real; these tests pick with a fake. */
-const IMPORTS = ['character.importMotion', 'character.importOutfit', 'character.removeOutfit', 'mmd.import'];
-const picker: ImportPicker = { files: async (o) => (o.multiple ? [join(dir, 'dance.vmd')] : []), folder: async () => join(dir, 'Mod') };
+const IMPORTS = ['character.importMotion', 'character.importOutfit', 'character.removeOutfit', 'mmd.scan', 'mmd.importScan', 'mmd.setMedia'];
+const picker: ImportPicker = { files: async (o) => (o.multiple ? [join(dir, 'dance.vmd')] : []), folder: async () => join(dir, 'Mod'),
+  filesOrFolder: async () => [join(dir, 'pack')] };
 
 function context(surface: Surface): OpsContext {
   const runtime = join(dir, 'agentd', 'ui-runtime.json');
@@ -270,14 +286,20 @@ async function call(c: ReturnCase, ops = registry(context(c.surface))): Promise<
   character = 'si';
   // The playPlaylist fixture without steps stands for a character with no list.
   if (c.op === 'avatar.playPlaylist' && c.before === undefined) writeFileSync(join(dir, 'config.json'), JSON.stringify({ mute: false }));
+  // A fixture's scan token stands for the one the step's mmd.scan answered.
+  let token: unknown;
+  const scanned = (args: unknown[]) => args.map((a) => (typeof a === 'object' && a !== null && 'token' in a ? { ...a, token } : a));
   for (const step of c.before ?? []) {
     if (step.op === 'character.switchTo') character = step.args![0] as string;
-    else await handle(c.surface, sender, { op: step.op, args: step.args ?? [] }, ops, page);
+    else {
+      const reply = await handle(c.surface, sender, { op: step.op, args: scanned(step.args ?? []) }, ops, page);
+      if (step.op === 'mmd.scan' && reply.ok) token = (reply.value as { token?: unknown }).token;
+    }
   }
   // The fixture's /tmp/artifact has no text suffix and does not exist; open.artifact opens only an existing text file.
   // The fixture's /tmp is not a Windows path.
   const args = c.op === 'open.artifact' ? [realpathSync(join(dir, 'artifact.md'))]
-    : c.op === 'open.revealInFinder' && process.platform === 'win32' ? [dir] : c.args ?? [];
+    : c.op === 'open.revealInFinder' && process.platform === 'win32' ? [dir] : scanned(c.args ?? []);
   return handle(c.surface, sender, { op: c.op, args }, ops, page);
 }
 
@@ -351,7 +373,8 @@ test('every fixture of an import op resolves to the fixture shape when the picke
   const checked = cases.filter((x) => IMPORTS.includes(x.op));
   for (const c of checked) {
     const ctx = context(c.surface);
-    const reply = await call(c, new Map([...registry(ctx), ...Object.entries({ ...characterOps(ctx, picker), ...mmdOps(ctx, picker) })]));
+    const reply = await call(c, new Map([...registry(ctx),
+      ...Object.entries({ ...characterOps(ctx, picker), ...mmdOps(ctx, picker, join(dir, 'scans')) })]));
     assert.ok(reply.ok, `${c.op}: ${JSON.stringify(reply)}`);
     assert.deepEqual(mismatches(c.value, reply.value, c.nullable ?? [], c.free_keys ?? []), [], c.op);
   }
@@ -365,15 +388,16 @@ test('character.onImport pushes the character.importState fixture shape through 
     progress?.({ stage: 'read', fraction: 0.5 });
     return script === 'outfit_tool.py' ? outfitTool(args) : motionTool(args);
   };
-  const ops = new Map([...registry(ctx), ...Object.entries({ ...characterOps(ctx, picker), ...mmdOps(ctx, picker) })]);
+  const ops = new Map([...registry(ctx), ...Object.entries({ ...characterOps(ctx, picker), ...mmdOps(ctx, picker, join(dir, 'scans')) })]);
   const pushed: unknown[] = [];
   const page = new PageSession((_id, stream, kind, payload) => {
     if (stream === 'character.onImport' && kind === 'event') pushed.push(JSON.parse(payload!.data));
   });
   const sender = { mainFrame: true, origin: ORIGIN };
   assert.deepEqual(await handle('main', sender, { op: 'character.onImport', args: [1] }, ops, page), { ok: true, value: null });
-  for (const op of ['character.importMotion', 'character.importOutfit', 'mmd.import']) {
-    assert.ok((await handle('main', sender, { op, args: [] }, ops, page)).ok, op);
+  for (const [op, args] of [['character.importMotion', []], ['character.importOutfit', []],
+    ['mmd.setMedia', ['mmd_sample_1', { bgm: 'none', bgmStartS: null }]]] as const) {
+    assert.ok((await handle('main', sender, { op, args: [...args] }, ops, page)).ok, op);
   }
   assert.deepEqual(pushed.map((p) => (p as { kind: string | null }).kind),
     ['motion', 'motion', 'motion', null, 'outfit', 'outfit', 'outfit', null, 'mmd', 'mmd', 'mmd', null]);

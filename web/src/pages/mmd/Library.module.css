@@ -164,6 +164,17 @@
   font: 500 14px / 1 var(--ef-font-num);
 }
 
+/* The part of the song this dance is. */
+.role {
+  flex: none;
+  max-width: 7em;
+  overflow: hidden;
+  color: var(--ef-hud-text-2);
+  font: 500 12px / 1 var(--ef-font-sans);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .chip {
   flex: none;
   padding: 3px 5px;
@@ -268,6 +279,7 @@
   }
 
   .chip,
+  .role,
   .deco,
   .add [data-stub='MicroLabel'],
   .inq [data-stub='MicroLabel'] {

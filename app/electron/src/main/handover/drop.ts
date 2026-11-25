@@ -85,6 +85,7 @@ export function opsMotionImport(ctx: OpsContext): DropPorts['importMotion'] {
     const picker: ImportPicker = {
       files: async () => (asked++ === 0 ? [files.source, ...files.extras] : files.bgm === null ? [] : [files.bgm]),
       folder: async () => null,
+      filesOrFolder: async () => [],
     };
     // The op reads no page.
     return await characterOps(ctx, picker)['character.importMotion']!([], new PageSession(() => {})) as Record<string, unknown>;

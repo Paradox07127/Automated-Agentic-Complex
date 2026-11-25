@@ -1,8 +1,9 @@
 // `character.*` and `mmd.*`: the roster with its art, switching, the imported motions, the playlist in
 // config.json, package import, motion, MMD and outfit import, the shared MMD library's list and its bake into the current
 // character. The previews are not here.
-import { createHash } from 'node:crypto';
-import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
+import { createHash, randomUUID } from 'node:crypto';
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { BridgeFailure } from '../../common/bridge.ts';
 import {
@@ -14,12 +15,14 @@ import { silentSource } from '../../common/feed.ts';
 import { type ImportKind, type ImportProgress, ImportTracker } from '../../common/import-state.ts';
 import { MMD_SYNC_IDLE, MmdSync, mmdSyncArgs, mmdSyncResult } from '../../common/mmd-sync.ts';
 import {
-  BGM_EXTENSIONS, firstMissingComponent, importedMotion, importedOutfit, MMD_EXTENSIONS, MOTION_EXTENSIONS, motionFiles, motionImportArgs,
-  motionImportTitle, outfitFailure, outfitImportArgs, outfitRemoveArgs, pickerExtensions,
+  BGM_EXTENSIONS, firstMissingComponent, importedMotion, importedOutfit, mediaChanged, MMD_SCAN_EXTENSIONS, mmdImportArgs, mmdMediaArgs,
+  mmdPlanArg, type MmdScan, mmdScanArgs, MOTION_EXTENSIONS, motionFiles, motionImportArgs, motionImportTitle, outfitFailure,
+  outfitImportArgs, outfitRemoveArgs, pickerExtensions, scannedMmd,
 } from '../../common/imports.ts';
 import { PushSource } from '../../common/push.ts';
 import { HOST, SCHEME } from '../../common/ui.ts';
 import { saveLastAppearance } from '../placement/store.ts';
+import { filesOrFolderProperties } from '../platform/index.ts';
 import { lastAppearance } from '../renderer/looks.ts';
 import type { Ops, OpsContext, ToolResult } from './context.ts';
 import { watch } from './events.ts';
@@ -41,6 +44,8 @@ export interface ImportPicker {
   files(o: { title: string; message: string; extensions: string[]; multiple: boolean }): Promise<string[]>;
   /** The chosen folder; null when cancelled. */
   folder(o: { title: string; message: string }): Promise<string | null>;
+  /** Files, folders or both where one panel takes both, else files or a folder as `folder` says; empty when cancelled. */
+  filesOrFolder(o: { title: string; message: string; extensions: string[]; folder: boolean }): Promise<string[]>;
 }
 
 /** Electron's open panel, on the focused window when there is one. */
@@ -56,6 +61,7 @@ async function openPanel(title: string, message: string, properties: ('openFile'
 export const electronPicker: ImportPicker = {
   files: (o) => openPanel(o.title, o.message, o.multiple ? ['openFile', 'multiSelections'] : ['openFile'], o.extensions),
   folder: async (o) => (await openPanel(o.title, o.message, ['openDirectory']))[0] ?? null,
+  filesOrFolder: (o) => openPanel(o.title, o.message, filesOrFolderProperties(o.folder), o.extensions),
 };
 
 interface Imports { tracker: ImportTracker; events: PushSource }
@@ -94,8 +100,6 @@ async function importMotion(ctx: OpsContext, picker: ImportPicker, kind: ImportK
     const catalog = ctx.library?.catalog, link = ctx.avatar, sw = ctx.switcher;
     if (!catalog) throw new MotionFailureError({ reason: 'internal', detail: noLibrary });
     if (!link || !sw) throw new MotionFailureError({ reason: 'internal', detail: NO_LINK });
-    // importMmd checks before it holds the switch, importMotion after.
-    if (kind === 'mmd') ctx.mmdSync?.sync.checkIdle();
     return await holdingMotions(link, sw, async (character) => {
       ctx.mmdSync?.sync.checkIdle();
       const missing = missingComponent(ctx);
@@ -457,7 +461,31 @@ export function characterOps(ctx: OpsContext, picker: ImportPicker = electronPic
   };
 }
 
-export function mmdOps(ctx: OpsContext, picker: ImportPicker = electronPicker): Ops {
+const SCAN_GONE: MotionFailure = { reason: 'scan_gone', detail: '识别结果已失效，请重新导入' };
+
+/** `mmd.scan` unpacks into a fresh folder under `scanRoot`; the one scan waiting for its import keeps its folder until a new
+ *  scan, its import or `mmd.dropScan`. */
+export function mmdOps(ctx: OpsContext, picker: ImportPicker = electronPicker, scanRoot = join(tmpdir(), 'agentic-complex-mmd-scan')): Ops {
+  let pending: { token: string; dir: string; scan: MmdScan } | null = null;
+  const drop = () => {
+    if (pending !== null) rmSync(pending.dir, { recursive: true, force: true });
+    pending = null;
+  };
+
+  /** `body` on the current character while the switch is held, the sync idle and her components there. */
+  async function onMmd<T>(body: (link: NonNullable<OpsContext['avatar']>, library: string, character: string) => Promise<T>): Promise<T> {
+    const catalog = ctx.library?.catalog, link = ctx.avatar, sw = ctx.switcher;
+    if (!catalog) throw new MotionFailureError({ reason: 'internal', detail: NO_LIBRARY });
+    if (!link || !sw) throw new MotionFailureError({ reason: 'internal', detail: NO_LINK });
+    ctx.mmdSync?.sync.checkIdle();
+    return await holdingMotions(link, sw, async (character) => {
+      ctx.mmdSync?.sync.checkIdle();
+      const missing = missingComponent(ctx);
+      if (missing !== null) throw new MotionFailureError({ reason: 'internal', detail: missing });
+      return body(link, dirname(catalog), character);
+    });
+  }
+
   return {
     'mmd.list': async () => {
       try {
@@ -470,7 +498,114 @@ export function mmdOps(ctx: OpsContext, picker: ImportPicker = electronPicker): 
           : { reason: 'internal', detail: e instanceof Error ? e.message : String(e) }, false);
       }
     },
-    'mmd.import': () => importMotion(ctx, picker, 'mmd', MMD_EXTENSIONS, '选择 VMD 动作文件，或装着 VMD 的 ZIP；可多选', NO_LINK),
+    'mmd.scan': async ([options]) => {
+      if (typeof options !== 'object' || options === null || typeof (options as { folder?: unknown }).folder !== 'boolean') {
+        throw new BridgeFailure('bad_args', 'mmd.scan');
+      }
+      try {
+        const library = ctx.library;
+        if (!library) throw new MotionFailureError({ reason: 'internal', detail: NO_LIBRARY });
+        const missing = missingComponent(ctx);
+        if (missing !== null) throw new MotionFailureError({ reason: 'internal', detail: missing });
+        drop();
+        const paths = await picker.filesOrFolder({ title: '导入 MMD', message: '选择 MMD 工程的文件夹、ZIP，或 VMD 和音频文件；可多选',
+          extensions: MMD_SCAN_EXTENSIONS, folder: (options as { folder: boolean }).folder });
+        if (paths.length === 0) return { ok: false, reason: 'cancelled' };
+        const token = randomUUID(), dir = join(scanRoot, token);
+        mkdirSync(scanRoot, { recursive: true });
+        try {
+          const { last, status, stderr } = await library.runTool('motion_tool.py', mmdScanArgs(paths, dir));
+          if (status !== 0) throw new MotionFailureError(toolFailure(stderr));
+          const scan = scannedMmd(last);
+          drop();
+          pending = { token, dir, scan };
+          return { ok: true, token, scan };
+        } catch (e) {
+          rmSync(dir, { recursive: true, force: true });
+          throw e;
+        }
+      } catch (e) {
+        return motionReply(motionFailure(e), false);
+      }
+    },
+    'mmd.dropScan': ([token]) => {
+      if (pending?.token === token) drop();
+      return undefined;
+    },
+    /** Each item in turn; the first failure stops the rest and comes back with the actions already imported. */
+    'mmd.importScan': async ([value]) => {
+      const done: unknown[] = [];
+      const failed = (e: unknown) => ({ ...motionReply(motionFailure(e), false), actions: done });
+      let scan: MmdScan;
+      try {
+        ctx.mmdSync?.sync.checkIdle();
+        const token = typeof value === 'object' && value !== null ? (value as { token?: unknown }).token : undefined;
+        if (pending === null || token !== pending.token) throw new MotionFailureError(SCAN_GONE);
+        scan = pending.scan;
+      } catch (e) {
+        return failed(e);
+      }
+      const plan = mmdPlanArg(value, scan);
+      try {
+        await onMmd(async (link, library, character) => {
+          // From here the scan's folder is this import's; a new scan does not delete it.
+          const taken = pending!;
+          pending = null;
+          try {
+            for (const [i, item] of plan.items.entries()) {
+              const body = scan.bodies[item.body]!;
+              const path = <T extends { path: string }>(list: T[], index: number | null) => (index === null ? null : list[index]!.path);
+              const reload = i === plan.items.length - 1 ? () => reloadAvatar(ctx, link) : async () => {};
+              done.push(await imports(ctx).tracker.run('mmd', item.title, async (progress) => {
+                const host = validationHost(ctx, (detail) => new MotionFailureError({ reason: 'validate_failed', detail }));
+                const { last, status, stderr } = await ctx.library!.runTool('motion_tool.py', mmdImportArgs(library, character, {
+                  source: body.path, morph: path(scan.faces, plan.face), camera: path(scan.cameras, plan.camera),
+                  bgm: path(scan.audio, plan.audio), bgmStartS: plan.bgmStartS, title: item.title, project: plan.project, role: body.label,
+                }, host), progress);
+                if (status !== 0) throw new MotionFailureError(toolFailure(stderr));
+                return importedMotion(last);
+              }, reload));
+            }
+          } catch (e) {
+            // The ones already published restart her.
+            if (done.length > 0) await reloadAvatar(ctx, link);
+            throw e;
+          } finally {
+            rmSync(taken.dir, { recursive: true, force: true });
+          }
+        });
+        return { ok: true, actions: done };
+      } catch (e) {
+        return failed(e);
+      }
+    },
+    'mmd.setMedia': async ([id, media]) => {
+      const action = motionID(id);
+      const m = typeof media === 'object' && media !== null ? media as { bgm?: unknown; bgmStartS?: unknown } : {};
+      if (action === null || (m.bgm !== 'pick' && m.bgm !== 'none')
+        || !(m.bgmStartS === null || (typeof m.bgmStartS === 'number' && Number.isFinite(m.bgmStartS)))) {
+        throw new BridgeFailure('bad_args', 'mmd.setMedia');
+      }
+      const bgmStartS = m.bgmStartS as number | null;
+      try {
+        return await onMmd(async (link, library, character) => {
+          const bgm = m.bgm === 'pick'
+            ? (await picker.files({ title: '选择音源', message: '和这支舞一起播放的音频', extensions: BGM_EXTENSIONS, multiple: false }))[0] ?? null
+            : null;
+          if (m.bgm === 'pick' && bgm === null) return { ok: false, reason: 'cancelled' };
+          const changed = await imports(ctx).tracker.run('mmd', bgm === null ? '' : motionImportTitle(bgm), async (progress) => {
+            const host = validationHost(ctx, (detail) => new MotionFailureError({ reason: 'validate_failed', detail }));
+            const { last, status, stderr } = await ctx.library!.runTool('motion_tool.py',
+              mmdMediaArgs(library, character, action, bgm, bgmStartS, host), progress);
+            if (status !== 0) throw new MotionFailureError(toolFailure(stderr));
+            return mediaChanged(last);
+          }, () => reloadAvatar(ctx, link));
+          return { ok: true, ...changed };
+        });
+      } catch (e) {
+        return motionReply(motionFailure(e), false);
+      }
+    },
     'mmd.syncState': () => ctx.mmdSync?.sync.state ?? MMD_SYNC_IDLE,
     'mmd.onSync': watch('mmd.onSync', ctx.mmdSync?.events ?? silentSource),
   };

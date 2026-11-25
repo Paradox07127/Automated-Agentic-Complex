@@ -31,6 +31,13 @@
   flex: 1;
 }
 
+/* 换音源, 改名, 删除 wrap as one group, kept at the right. */
+.edits {
+  display: flex;
+  gap: inherit;
+  margin-left: auto;
+}
+
 .desk {
   display: inline-flex;
 }

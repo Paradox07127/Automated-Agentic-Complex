@@ -97,8 +97,8 @@ describe('Transport', () => {
   });
 });
 
-const DANCE: MmdEntry = { id: 'mmd_a', title: '舞蹈甲', durationS: 12.5, hasBgm: true, hasCamera: false, createdAt: '2026-11-17T10:00:00+00:00',
-  characters: [{ id: 'si', state: 'baked', reason: null }] };
+const DANCE: MmdEntry = { id: 'mmd_a', title: '舞蹈甲', durationS: 12.5, hasBgm: true, hasCamera: false, hasFace: false, project: null, role: null,
+  createdAt: '2026-11-17T10:00:00+00:00', characters: [{ id: 'si', state: 'baked', reason: null }] };
 
 async function mountMmd() {
   vi.spyOn(bridge.mmd, 'list').mockResolvedValue({ ok: true, entries: [DANCE] });

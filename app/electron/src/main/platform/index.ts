@@ -112,6 +112,13 @@ export function pythonFlags(packaged: boolean, platform: ShellPlatform = shellPl
   return packaged && platform === 'windows' ? ['-I', '-B'] : [];
 }
 
+/** The open panel's properties for files or a folder: macOS's one panel takes both; Windows's takes either, so `folder` picks. */
+export function filesOrFolderProperties(folder: boolean, platform: NodeJS.Platform = process.platform):
+  ('openFile' | 'openDirectory' | 'multiSelections')[] {
+  if (platform === 'darwin') return ['openFile', 'openDirectory', 'multiSelections'];
+  return folder ? ['openDirectory'] : ['openFile', 'multiSelections'];
+}
+
 /**
  * A local absolute path as `open.*` takes it: `isLocalPath` on macOS; on Windows drive-absolute (`C:\…`), at most 4096
  * UTF-8 bytes, without control characters or `..` components.

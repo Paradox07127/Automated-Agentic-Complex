@@ -21,7 +21,7 @@ const RECT = { x: 400, y: 80, width: 360, height: 640, top: 80, left: 400, right
 const EMPTY = { x: 0, y: 0, width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0, toJSON: () => ({}) } as DOMRect;
 const MMD_ACTION: AvatarAction = { id: 'mmd_a', label: '舞蹈甲', enabled: true, section: 'idle', durationS: 12, playable: true };
 const entry = (id: string, title: string, state: 'baked' | 'pending' | 'failed', reason: string | null = null): MmdEntry => ({
-  id, title, durationS: 12.5, hasBgm: true, hasCamera: id === 'mmd_a', createdAt: '2026-11-17T10:00:00+00:00',
+  id, title, durationS: 12.5, hasBgm: true, hasCamera: id === 'mmd_a', hasFace: false, project: null, role: null, createdAt: '2026-11-17T10:00:00+00:00',
   characters: [{ id: 'si', state, reason }, { id: 'voice_a', state: 'pending', reason: null }],
 });
 const THREE = { ok: true as const, entries: [entry('mmd_a', '舞蹈甲', 'baked'), entry('mmd_b', '舞蹈乙', 'pending'), entry('mmd_c', '舞蹈丙', 'failed', 'missing_bones')] };
@@ -51,11 +51,17 @@ const pick = (id: string) => click(rowKey(id));
 const press = (el: Element, key: string, opts: Partial<KeyboardEventInit> = {}) => act(async () => void fireEvent.keyDown(el, { key, ...opts }));
 // The selected row's opened part.
 const detail = () => screen.getByRole('group', { name: 'MMD 操作' });
-const importKey = () => screen.getByRole('button', { name: /^导入(中…| VMD)$/ }) as HTMLButtonElement;
+const importKey = () => screen.getByRole('button', { name: /^导入(中…| MMD)$/ }) as HTMLButtonElement;
 // The selected dance's other characters leave her out: who the section is for.
 const herName = () => within(detail()).getByRole('list', { name: '其他角色' }).textContent;
 // The fake import takes a second.
 const SLOW = { timeout: 3000 };
+/** The fake's project scanned and its first body imported as 示例舞蹈 (`mmd_dance_1`). */
+async function importOne() {
+  const r = await bridge.mmd.scan({ folder: false });
+  if (!r.ok) throw new Error(r.reason);
+  await bridge.mmd.importScan({ token: r.token, items: [{ body: 0, title: '示例舞蹈' }], face: null, camera: null, audio: 0, bgmStartS: null, project: '示例' });
+}
 
 beforeEach(() => install());
 afterEach(() => {
@@ -89,20 +95,23 @@ describe('MMD section', () => {
 });
 
 describe('MMD library', () => {
-  it('imports a dance: the result line, then the entry baked for her with its BGM mark, played on the desktop', async () => {
-    const imp = vi.spyOn(bridge.mmd, 'import');
+  it('imports a project: its 确认单, the result line, then the entry baked for her with its part and marks, played on the desktop', async () => {
+    const imp = vi.spyOn(bridge.mmd, 'importScan');
     const play = vi.spyOn(bridge.avatar, 'playAction');
     await mount();
-    await click(await screen.findByRole('button', { name: '导入 VMD' }));
+    await click(await screen.findByRole('button', { name: '导入 MMD' }));
+    await click(within(await screen.findByRole('dialog', { name: '导入 MMD' })).getByRole('button', { name: '导入' }));
     expect(imp).toHaveBeenCalled();
     expect((screen.getByRole('button', { name: '导入中…' }) as HTMLButtonElement).disabled).toBe(true);
     await waitFor(() => expect(item('mmd_dance_1')).not.toBeNull(), SLOW);
-    expect(document.querySelector('[data-motion-import]')?.textContent).toBe('已导入「示例舞蹈」（VMD）');
+    expect(document.querySelector('[data-motion-import]')?.textContent).toBe('已导入「愛包ダンスホール · HimeTanaka」');
     const row = item('mmd_dance_1')!;
-    expect(row.textContent).toContain('示例舞蹈');
-    expect(row.textContent).toContain('12.5 s');
+    expect(row.textContent).toContain('愛包ダンスホール · HimeTanaka');
+    expect(row.textContent).toContain('223.3 s');
+    expect(within(row).getByText('HimeTanaka')).toBeTruthy();
     expect(within(row).getByText('BGM')).toBeTruthy();
-    expect(within(row).queryByText('CAM')).toBeNull();
+    expect(within(row).getByText('CAM')).toBeTruthy();
+    expect(within(row).getByText('LIP')).toBeTruthy();
     await pick('mmd_dance_1');
     await click(within(detail()).getByRole('button', { name: '桌面播放' }));
     expect(play).toHaveBeenCalledWith('mmd_dance_1', 1);
@@ -192,8 +201,9 @@ describe('MMD library', () => {
     });
     await mount();
     await act(async () => sync({ running: true, character: 'si', total: 3, done: 1, failed: 0, stage: 'write', fraction: 0.3 }));
-    await click(screen.getByRole('button', { name: '导入 VMD' }));
-    await waitFor(() => expect(screen.getByRole('status', { name: 'MMD 导入' }).textContent).toContain('正在导入「示例舞蹈」'));
+    await click(screen.getByRole('button', { name: '导入 MMD' }));
+    await click(within(await screen.findByRole('dialog', { name: '导入 MMD' })).getByRole('button', { name: '导入' }));
+    await waitFor(() => expect(screen.getByRole('status', { name: 'MMD 导入' }).textContent).toContain('正在导入「愛包ダンスホール · HimeTanaka」'));
     expect(screen.queryByRole('status', { name: 'MMD 同步' })).toBeNull();
     await act(async () => sync({ running: false, character: null, total: 0, done: 0, failed: 0, stage: null, fraction: 0 }));
     await waitFor(() => expect(document.querySelector('[data-motion-import]')).not.toBeNull(), SLOW);
@@ -204,7 +214,7 @@ describe('MMD library', () => {
   });
 
   it('bakes a dance into the next character after a switch on the fake', async () => {
-    await bridge.mmd.import();
+    await importOne();
     const seen: boolean[] = [];
     const off = bridge.mmd.onSync((s) => seen.push(s.running));
     await bridge.character.switchTo('voice_a');
@@ -217,7 +227,7 @@ describe('MMD library', () => {
   it('renames and deletes the selected entry; the delete says every character loses it', async () => {
     const rename = vi.spyOn(bridge.character, 'renameMotion');
     const remove = vi.spyOn(bridge.character, 'removeMotion');
-    await bridge.mmd.import();
+    await importOne();
     await mount();
     await waitFor(() => expect(item('mmd_dance_1')).not.toBeNull());
     await pick('mmd_dance_1');
@@ -368,7 +378,7 @@ describe('MMD section · whose it is', () => {
     await mount(false);
     await act(async () => {});
     expect(item('mmd_a')).toBeNull();
-    expect(screen.queryByRole('button', { name: /^导入(中…| VMD)$/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^导入(中…| MMD)$/ })).toBeNull();
   });
 
   it('says the roster read failed in the page’s bar and reads it again on 重试', async () => {
@@ -387,7 +397,7 @@ describe('MMD section · whose it is', () => {
     vi.spyOn(bridge.character, 'list').mockResolvedValue([]);
     await mount(false);
     await screen.findByRole('button', { name: '导入角色' });
-    expect(screen.queryByRole('button', { name: /^导入(中…| VMD)$/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^导入(中…| MMD)$/ })).toBeNull();
     expect(screen.queryByRole('region', { name: 'MMD 列表' })).toBeNull();
   });
 });

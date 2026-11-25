@@ -113,12 +113,13 @@ test('boot turns a helper bit off when the helper\'s hello.ops lacks one of its 
   }
 });
 
-test('boot on Windows names the platform and has no run-in-terminal; every other bit is the table\'s', () => {
+test('boot on Windows names the platform and has no run-in-terminal and no one panel for files and folders; every other bit is the table\'s', () => {
   for (const surface of SURFACES) {
     const b = boot(surface, 'windows');
     assert.equal(b.platform, 'windows');
-    assert.deepEqual(b.capabilities, { ...boot(surface).capabilities, runInTerminal: false }, surface);
+    assert.deepEqual(b.capabilities, { ...boot(surface).capabilities, runInTerminal: false, filesOrFolderPicker: false }, surface);
   }
+  assert.equal(boot('main').capabilities.filesOrFolderPicker, true);
 });
 
 test('the not_implemented reply has the BridgeError shape the returns/ fixtures use, for every fixture op', async () => {

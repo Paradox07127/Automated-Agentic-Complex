@@ -255,5 +255,13 @@
       }
     ],
     "kind": "undefined"
+  },
+  {
+    "op": "mmd.dropScan",
+    "surface": "main",
+    "args": [
+      "scan_1"
+    ],
+    "kind": "undefined"
   }
 ]

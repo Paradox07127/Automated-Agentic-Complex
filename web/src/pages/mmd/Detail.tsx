@@ -24,6 +24,8 @@ export interface DetailProps {
   onStop: () => void;
   onRename: () => void;
   onRemove: () => void;
+  /** 换音源 */
+  onMedia: () => void;
   /** The player of this dance while the desktop plays it. */
   transport?: ReactNode;
 }
@@ -38,7 +40,7 @@ function Txt({ children }: { children: string }) {
   return <span className={styles.txt}>{children}</span>;
 }
 
-/** 选中行展开：桌面播放、舞台一次 / 循环、改名、删除；桌面在播这支舞时下面一行是播放器；再下面一行是这支舞在其他角色上的状态。 */
+/** 选中行展开：桌面播放、舞台一次 / 循环、换音源、改名、删除；桌面在播这支舞时下面一行是播放器；再下面一行是这支舞在其他角色上的状态。 */
 export function Detail(p: DetailProps) {
   const e = p.entry;
   return (
@@ -62,12 +64,17 @@ export function Detail(p: DetailProps) {
           </span>
         )}
         <span className={styles.sp} />
-        <Btn variant="secondary" icon="g-rename" label="改名" disabled={p.editOff != null} disabledReason={p.editOff ?? ''} onClick={p.onRename}>
-          <Txt>改名</Txt>
-        </Btn>
-        <Btn variant="secondary" icon="del" label="删除" disabled={p.editOff != null} disabledReason={p.editOff ?? ''} onClick={p.onRemove}>
-          <Txt>删除</Txt>
-        </Btn>
+        <span className={styles.edits}>
+          <Btn variant="secondary" icon="voice" label="换音源" disabled={p.editOff != null} disabledReason={p.editOff ?? ''} onClick={p.onMedia}>
+            <Txt>换音源</Txt>
+          </Btn>
+          <Btn variant="secondary" icon="g-rename" label="改名" disabled={p.editOff != null} disabledReason={p.editOff ?? ''} onClick={p.onRename}>
+            <Txt>改名</Txt>
+          </Btn>
+          <Btn variant="secondary" icon="del" label="删除" disabled={p.editOff != null} disabledReason={p.editOff ?? ''} onClick={p.onRemove}>
+            <Txt>删除</Txt>
+          </Btn>
+        </span>
       </div>
       {p.transport}
       {p.others.length > 0 && (

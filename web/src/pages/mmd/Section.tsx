@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBridge, type AvatarAction, type CharacterEntry, type MmdEntry, type MmdSyncState } from '../../bridge';
+import { Menu } from '../../ui';
 import { TitleBar, WhiteCapsule } from '../../ui/game';
 import type { Toast } from '../character/feedback';
 import { PLAY_REFUSED, playRefusedSeverity } from '../character/labels';
@@ -8,12 +9,14 @@ import { MotionEditDialog, type MotionEdit } from '../character/MotionEditDialog
 import type { Side } from '../character/Side';
 import { Transport, useActionTransport } from '../character/Transport';
 import { importStageLabel, useImportState } from '../character/useImportState';
-import { useMotionImport } from '../character/useMotionImport';
 import { useMotionLibrary } from '../character/useMotionLibrary';
 import { Detail } from './Detail';
+import { ImportDialog } from './ImportDialog';
 import { AddKey, filtered, InList, Library, notBaked, stateOf, type MmdFilter } from './Library';
+import { MediaDialog } from './MediaDialog';
 import { Setlist } from './Setlist';
 import { Status, type StatusLine } from './Status';
+import { useMmdImport } from './useMmdImport';
 import { useSetlist } from './useSetlist';
 import styles from './Section.module.css';
 
@@ -46,15 +49,17 @@ export function useMmdSection(p: MmdSectionProps): Extract<Side, { of: 'mmd' }> 
     void qc.invalidateQueries({ queryKey: ['mmd', 'list'] });
     void qc.invalidateQueries({ queryKey: ['character', 'motions'] });
   };
-  const mmdImport = useMotionImport(() => getBridge().mmd.import(), refresh);
+  const mmdImport = useMmdImport(refresh);
   const importing = useImportState();
   const library = useMotionLibrary({ character: current, onChanged: refresh });
   const [edit, setEdit] = useState<MotionEdit | null>(null);
-  // An open 改名 or 删除 belongs to the character it was opened on.
+  const [media, setMedia] = useState<MmdEntry | null>(null);
+  // An open 改名, 删除 or 换音源 belongs to the character it was opened on.
   const [editOf, setEditOf] = useState(current);
   if (editOf !== current) {
     setEditOf(current);
     setEdit(null);
+    setMedia(null);
   }
   const [sel, setSel] = useState<string>();
   const [filter, setFilter] = useState<MmdFilter>('all');
@@ -150,7 +155,26 @@ export function useMmdSection(p: MmdSectionProps): Extract<Side, { of: 'mmd' }> 
           micro="MMD LIBRARY / SHARED"
           count={entries.length > 0 ? entries.length : undefined}
           countAccent
-          actions={<WhiteCapsule label={mmdImport.running ? '导入中…' : '导入 VMD'} icon="upload" disabled={playOff != null} disabledReason={playOff ?? ''} onClick={mmdImport.run} />}
+          actions={
+            bridge.capabilities.filesOrFolderPicker || playOff != null ? (
+              <WhiteCapsule
+                label={mmdImport.running ? '导入中…' : '导入 MMD'}
+                icon="upload"
+                disabled={playOff != null}
+                disabledReason={playOff ?? ''}
+                onClick={() => mmdImport.scan(false)}
+              />
+            ) : (
+              <Menu
+                label="导入 MMD"
+                align="right"
+                items={[
+                  { kind: 'item', label: '选择文件', icon: 'file', onSelect: () => mmdImport.scan(false) },
+                  { kind: 'item', label: '选择文件夹', icon: 'folder', onSelect: () => mmdImport.scan(true) },
+                ]}
+              />
+            )
+          }
         />
         {status && <Status line={status} />}
         {noCharacter ? (
@@ -183,6 +207,7 @@ export function useMmdSection(p: MmdSectionProps): Extract<Side, { of: 'mmd' }> 
                   onStop={stop}
                   onRename={() => setEdit({ kind: 'rename', id: picked.id, title: picked.title })}
                   onRemove={() => setEdit({ kind: 'remove', id: picked.id })}
+                  onMedia={() => setMedia(picked)}
                   transport={transport.progress?.id === picked.id && <Transport progress={transport.progress} onControl={transport.control} />}
                 />
               )
@@ -191,6 +216,17 @@ export function useMmdSection(p: MmdSectionProps): Extract<Side, { of: 'mmd' }> 
         )}
       </section>
       {edit && <MotionEditDialog edit={edit} removeNote="每个角色都会删掉这个动作，角色会重新载入一次" onEdit={setEdit} library={library} />}
+      {mmdImport.pending && <ImportDialog token={mmdImport.pending.token} scan={mmdImport.pending.scan} onImport={mmdImport.confirm} onCancel={mmdImport.cancel} />}
+      {media && (
+        <MediaDialog
+          entry={media}
+          onCancel={() => setMedia(null)}
+          onSave={(m) => {
+            setMedia(null);
+            mmdImport.setMedia(media.id, m);
+          }}
+        />
+      )}
     </div>
   );
   return { of: 'mmd', node, band, preview: { action: shown?.id, request: shown ? preview?.request : undefined, loop: loopPick } };

@@ -1,7 +1,29 @@
 // The fake bridge's imported motions: per-character imports, the shared MMD library (`mmd.*`), their `avatar.actions()` rows
 // the library's bake after a switch, and the progress of a running import.
 import { CHARACTERS } from '../../mock/fixtures';
-import type { AvatarAction, AgenticComplexBridge, ImportStage, ImportState, MmdEntry, MmdSyncState } from '../protocol';
+import type { AvatarAction, AgenticComplexBridge, ImportedMotion, ImportStage, ImportState, MmdEntry, MmdScan, MmdSyncState } from '../protocol';
+
+const ROOT = '/tmp/agentic-complex-mmd-scan/scan';
+
+/** A two-dancer project as motion_tool mmd-scan sorts it: two bodies placed 19 frames before the song, a camera, the music. */
+const sampleScan = (): MmdScan => ({
+  title: '愛包ダンスホール',
+  root: ROOT,
+  bodies: [
+    { path: `${ROOT}/愛包ダンスホール_HimeTanaka_v1.1[f-19].vmd`, name: '愛包ダンスホール_HimeTanaka_v1.1[f-19].vmd', label: 'HimeTanaka',
+      model: '田中ヒメ ver1.20', durationS: 223.33, placeFrame: -19, hasMorph: true },
+    { path: `${ROOT}/愛包ダンスホール_SuzukiHina_v1.1[f-19].vmd`, name: '愛包ダンスホール_SuzukiHina_v1.1[f-19].vmd', label: 'SuzukiHina',
+      model: '鈴木ヒナ ver1.10', durationS: 220.4, placeFrame: -19, hasMorph: true },
+  ],
+  faces: [],
+  cameras: [{ path: `${ROOT}/camera_v1.0.vmd`, name: 'camera_v1.0.vmd', durationS: 223, placeFrame: null }],
+  audio: [{ path: `${ROOT}/愛包ダンスホール_inst.wav`, name: '愛包ダンスホール_inst.wav' }],
+  ignored: [
+    { name: 'Readme.txt', reason: 'not_motion' },
+    { name: 'pose_start.vmd', reason: 'no_keys' },
+  ],
+  suggested: { body: 0, face: null, camera: 0, audio: 0, bgmStartS: -0.633 },
+});
 
 const IDLE: MmdSyncState = { running: false, character: null, total: 0, done: 0, failed: 0, stage: null, fraction: 0 };
 const IMPORT_IDLE: ImportState = { running: false, kind: null, title: null, stage: null, fraction: 0 };
@@ -80,17 +102,54 @@ export function fakeImports(character: () => string) {
       return { ok: true, id };
     },
   };
+  // The one scan the shell keeps, and the ids handed out so far.
+  let scans = 0;
+  let pending: { token: string; scan: MmdScan } | null = null;
+  let made = 0;
+  /** A dance baked for her and pending for the others; `ImportedMotion` of it. */
+  const add = (e: Omit<MmdEntry, 'id' | 'createdAt' | 'characters'>, at = mmd.length) => {
+    const id = `mmd_dance_${++made}`;
+    mmd.splice(at, 0, {
+      ...e, id, createdAt: new Date().toISOString(),
+      characters: CHARACTERS.map((c) => ({ id: c.id, state: c.id === character() ? 'baked' : 'pending', reason: null })),
+    });
+    return { id, title: e.title, durationS: e.durationS, hasBgm: e.hasBgm, format: 'vmd', warnings: [] };
+  };
   const ops: AgenticComplexBridge['mmd'] = {
     list: async () => ({ ok: true, entries: mmd.map((e) => ({ ...e, characters: e.characters.map((c) => ({ ...c })) })) }),
-    // As if the user picked a .vmd and a BGM and the import took a second.
-    import: () => progressed('mmd', '示例舞蹈', 1000, () => {
-      const action = { id: `mmd_dance_${mmd.length + 1}`, title: '示例舞蹈', durationS: 12.5, hasBgm: true, format: 'vmd', warnings: [] };
-      mmd.push({
-        id: action.id, title: action.title, durationS: action.durationS, hasBgm: true, hasCamera: false, createdAt: new Date().toISOString(),
-        characters: CHARACTERS.map((c) => ({ id: c.id, state: c.id === character() ? 'baked' : 'pending', reason: null })),
+    // As if the user picked a two-dancer project folder.
+    scan: async () => {
+      pending = { token: `scan_${++scans}`, scan: sampleScan() };
+      return { ok: true, token: pending.token, scan: sampleScan() };
+    },
+    // Short: bridge-returns runs every avatar fixture within one 5 s test.
+    importScan: async (plan) => {
+      const taken = pending;
+      if (taken === null || taken.token !== plan.token) return { ok: false, reason: 'scan_gone', detail: '识别结果已失效，请重新导入', actions: [] };
+      pending = null;
+      const actions: ImportedMotion[] = [];
+      for (const item of plan.items) {
+        const body = taken.scan.bodies[item.body]!;
+        actions.push(await progressed('mmd', item.title, 300 / plan.items.length, () => add({
+          title: item.title, durationS: body.durationS, hasBgm: plan.audio !== null, hasCamera: plan.camera !== null,
+          hasFace: plan.face !== null || body.hasMorph, project: plan.project, role: body.label,
+        })));
+      }
+      return { ok: true, actions };
+    },
+    dropScan: async (token) => {
+      if (pending?.token === token) pending = null;
+    },
+    // `pick` as if the user picked off vocal.wav.
+    setMedia: async (id, media) => {
+      const at = mmd.findIndex((e) => e.id === id);
+      if (at < 0) return { ok: false, reason: 'unknown_action', detail: id };
+      const old = mmd[at]!;
+      return progressed('mmd', media.bgm === 'pick' ? 'off vocal' : '', 200, () => {
+        mmd.splice(at, 1);
+        return { ok: true as const, action: add({ ...old, hasBgm: media.bgm === 'pick' }, at), replaced: id };
       });
-      return { ok: true as const, action };
-    }),
+    },
     syncState: async () => ({ ...sync }),
     onSync: (cb) => {
       watchers.add(cb);
@@ -107,7 +166,7 @@ export function fakeImports(character: () => string) {
       ...imported.map((a) => ({ ...a })),
       ...mmd.filter((e) => e.characters.some((c) => c.id === character() && c.state === 'baked')).map((e) => ({
         id: e.id, label: e.title, enabled: true, defaultEnabled: true, section: 'idle', trigger: '导入 VMD · 手动播放', durationS: e.durationS, isNew: true, missingReason: null, playable: true,
-        media: { bgm: e.hasBgm, face: false, camera: e.hasCamera },
+        media: { bgm: e.hasBgm, face: e.hasFace, camera: e.hasCamera },
       })),
     ],
     /** As native, bakes the dances she lacks in the background once she is on the desktop. */

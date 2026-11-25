@@ -118,7 +118,7 @@ describe('949c#5 a switch the page did not start', () => {
     await click(within(heads).getByRole('button', { name: '示例甲' }));
     await click(within(await screen.findByRole('dialog')).getByRole('button', { name: '切换' }));
     await click(rail('MMD'));
-    const vmd = await screen.findByRole('button', { name: /导入 VMD/ });
+    const vmd = await screen.findByRole('button', { name: /导入 MMD/ });
     expect((vmd as HTMLButtonElement).disabled).toBe(true);
   });
 });
