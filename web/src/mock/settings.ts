@@ -83,6 +83,7 @@ const ROWS: Row[] = [
   ['rnd.lightStrength', '@character', '主光强度', '1', 'none', [['0.5', '50 %'], ['0.75', '75 %'], ['1', '原作 · 100 %'], ['1.25', '125 %'], ['1.5', '150 %']]],
   ['rnd.ground', '@character', '脚下阴影', 'cast', 'none', [['off', '关'], ['contact', '接触阴影'], ['cast', '真实投影']]], ['rnd.wrap', '@character', '边缘环境光', false, 'none'],
   ['rnd.dof', '@character', '景深', 'off', 'none', [['off', '关'], ['closeup', '近景时']]], ['rnd.ambient', '@character', '环境取色', 'off', 'none', [['off', '关'], ['wallpaper', '壁纸颜色'], ['screen', '屏幕取色']]],
+  ['rnd.weather', '@character', '天气', 'clear', 'none', [['clear', '晴'], ['rain', '雨'], ['snow', '雪']]], ['rnd.weatherLevel', '@character', '强度', 0.6, 'none', { min: 0, max: 1, step: 0.05, format: 'percent' }],
   ['scn.mode', '@character', '场景', 'off', 'avatar', [['off', '关'], ['box', '舞台盒'], ['stage', '展示台']]], ['scn.parallax', '@character', '背景视差', true, 'avatar'],
   ['rnd.zoom', '@character', '镜头缩放', 1, 'none', { min: 1, max: 4, step: 0.05, format: 'percent' }], ['rnd.sway', '@character', '呼吸晃动', false, 'none'],
   ['rnd.closeup', '@character', '对话近景', 'off', 'none', [['off', '关'], ['session', '会话面板打开时']]], ['rnd.track', '@character', '动作相机轨', 'stage', 'none', [['off', '不播'], ['stage', '舞台框里播']]],

@@ -101,6 +101,8 @@
         "rnd.closeup": "off",
         "rnd.track": "stage",
         "rnd.dof": "off",
+        "rnd.weather": "clear",
+        "rnd.weatherLevel": 0.6,
         "appTheme": "system",
         "winBg": "glass",
         "glassAlpha": "55",

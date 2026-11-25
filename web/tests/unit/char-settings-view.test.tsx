@@ -61,6 +61,7 @@ describe('CharacterSettings', () => {
       ['落地与景深', false],
       ['画质', false],
       ['环境光', true],
+      ['天气', true],
       ['镜头', true],
       ['性能', true],
     ]);
@@ -79,12 +80,12 @@ describe('CharacterSettings', () => {
       await waitFor(() => expect(save).toHaveBeenLastCalledWith({ 'rnd.lightYaw': '0', 'rnd.lightPitch': '10' }));
       fireEvent.click(within(screen.getByRole('radiogroup', { name: '景深' })).getByRole('radio', { name: '近景时' }));
       await waitFor(() => expect(save).toHaveBeenLastCalledWith({ 'rnd.dof': 'closeup' }));
-      await waitFor(() => expect(screen.getByText('已改').parentElement?.textContent).toContain('已改2/ 18 项'));
+      await waitFor(() => expect(screen.getByText('已改').parentElement?.textContent).toContain('已改2/ 19 项'));
       expect(within(bar).getByRole('tab', { name: '画面' }).getAttribute('aria-describedby')).not.toBeNull();
       expect(within(bar).getByRole('tab', { name: '行为' }).getAttribute('aria-describedby')).toBeNull();
       fireEvent.click(screen.getByRole('button', { name: '恢复原作' }));
       await waitFor(() => expect(save).toHaveBeenLastCalledWith({ 'rnd.lightPitch': '0', 'rnd.dof': 'off' }));
-      await waitFor(() => expect(screen.getByText('已改').parentElement?.textContent).toContain('已改0/ 18 项'));
+      await waitFor(() => expect(screen.getByText('已改').parentElement?.textContent).toContain('已改0/ 19 项'));
     } finally {
       save.mockRestore();
     }

@@ -90,6 +90,8 @@ const ITEMS: Item[] = [
   dropdown('render_ground_shadow', '脚下阴影', [['off', '关'], ['contact', '接触阴影'], ['cast', '真实投影']], 'cast'),
   dropdown('render_ambient', '环境取色', [['off', '关'], ['wallpaper', '壁纸颜色'], ['screen', '屏幕取色']], 'off'),
   toggle('render_light_wrap', '边缘环境光', false),
+  choice('render_weather', '天气', [['clear', '晴'], ['rain', '雨'], ['snow', '雪']], 'clear'),
+  slider('render_weather_intensity', '强度', 0, 1, 0.05, 'percent', 0.6),
   dropdown('render_dof', '景深', [['off', '关'], ['closeup', '近景时']], 'off'),
   dropdown('render_light_yaw', '主光水平微调', [['-15', '左偏 15°'], ['0', '原作'], ['15', '右偏 15°']], '0'),
   dropdown('render_light_pitch', '主光俯仰微调', [['-10', '降低 10°'], ['0', '原作'], ['10', '抬高 10°']], '0'),
@@ -178,7 +180,7 @@ const CHARACTER_ROWS: [string, string][] = [
   ['rnd.lightPitch', 'render_light_pitch'], ['rnd.lightStrength', 'render_light_strength'],
   ['avatar_click', 'avatar_click'], ['beh.physics', 'render_secondary_motion'],
   ['rnd.ground', 'render_ground_shadow'], ['rnd.ambient', 'render_ambient'], ['rnd.wrap', 'render_light_wrap'],
-  ['rnd.dof', 'render_dof'],
+  ['rnd.dof', 'render_dof'], ['rnd.weather', 'render_weather'], ['rnd.weatherLevel', 'render_weather_intensity'],
   ['scn.mode', 'scene_mode'], ['scn.parallax', 'scene_parallax'],
   ['rnd.zoom', 'render_camera_zoom'], ['rnd.sway', 'render_camera_sway'], ['rnd.closeup', 'render_camera_auto_closeup'],
   ['rnd.track', 'render_camera_track'],
@@ -487,7 +489,9 @@ export type SaveEffect =
   /** `touch_regions`, `head_pat`, `cheek_pinch` or `greet_on_resume` changed. */
   | { kind: 'touch' }
   /** One of APPEARANCE_KEYS changed. */
-  | { kind: 'appearance' };
+  | { kind: 'appearance' }
+  /** `render_weather` or `render_weather_intensity` changed. */
+  | { kind: 'weather' };
 
 /** What the running renderer takes in a `set_render`. */
 /** The keys config.ts agentdLive sends to a running agentd. */
@@ -574,6 +578,7 @@ export function planSave(saved: Record<string, SettingValue>, login: boolean | n
   if (agentdLive.length > 0) effects.push({ kind: 'agentdLive', keys: agentdLive });
   if (['touch_regions', 'head_pat', 'cheek_pinch', 'greet_on_resume'].some((k) => changed.includes(k))) effects.push({ kind: 'touch' });
   if (APPEARANCE_KEYS.some((k) => changed.includes(k))) effects.push({ kind: 'appearance' });
+  if (['render_weather', 'render_weather_intensity'].some((k) => changed.includes(k))) effects.push({ kind: 'weather' });
   const backend = changed.some((k) => rowByKey(k)?.item.restart === 'backend');
   return { write, effects, restart: backend ? 'backend' : restartAvatar ? 'avatar' : 'none' };
 }

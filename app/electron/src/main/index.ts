@@ -112,6 +112,7 @@ import { AvatarLooks, linkSwitchPorts, rememberedLooks } from './renderer/looks.
 import { quitOnSignals } from './quit.ts';
 import { rendererReports } from './renderer/reports.ts';
 import { liveSaved } from './renderer/saved.ts';
+import { WeatherDriver } from './renderer/weather.ts';
 import { type Loading, lookArguments, RendererSupervisor } from './renderer/supervisor.ts';
 import { singleInstance } from './single-instance.ts';
 import { TitleOverlay, titleNames, titleScreen } from './title/overlay.ts';
@@ -276,6 +277,7 @@ const hostLink = config && new HostLink({
   onDrop: (d) => drops?.drop(d),
   onDragRelease: (at, excludedPids) => windowHandover?.(at, excludedPids),
   onPoseState: (s) => camera?.poses.state(s), onCameraGesture: (g) => camera?.camera.gesture(g),
+  onPresentationState: (s) => weather?.state(s),
   fps: () => {
     const s = readObject(configPath);
     return { idleLowFps: s.idle_low_fps === true, userFps: [30, 45, 60].includes(Number(s.render_fps)) ? Number(s.render_fps) : 60,
@@ -293,6 +295,17 @@ if (config && hostLink) resendStoredOverrides(hostLink, configPath, (line) => ap
 const looks = config && hostLink && new AvatarLooks({ link: hostLink, supportDir: config.supportDir, configPath,
   log: (line) => appendLog(config!.supportDir, 'companion', line) });
 looks?.start();
+/** The 天气 rows onto the desktop renderer. */
+const weather = config && hostLink && new WeatherDriver({ link: hostLink,
+  settings: () => {
+    try {
+      return readObject(configPath);
+    } catch (e) {
+      appendLog(config!.supportDir, 'companion', `weather: config.json unreadable: ${e instanceof Error ? e.message : String(e)}`);
+      return {};
+    }
+  },
+  log: (line) => appendLog(config!.supportDir, 'hostlink', `HOSTLINK ${line}`) });
 /** The gesture camera, the conversation close-up and the poses (camera/shell.ts); 调整镜头's window is not there yet. */
 /** 调整镜头's window, kept to end it at quit. */
 let cameraOverlay: CameraOverlayWindow | null = null;
@@ -937,6 +950,7 @@ function opsContext(surface: Surface): OpsContext {
         desktop?.hotkeySaved(key, name);
       },
       appearance: applyAppearanceNow,
+      weather: () => weather?.saved(),
       ...savedRender,
     },
     settingsChanges, settingsChanged: (keys) => settingsChanges.changed(keys),
@@ -1285,6 +1299,7 @@ app.on('will-quit', (e) => {
   hotkeys?.stop();
   hotkeyRecorder.cancel();
   camera?.stop();
+  weather?.stop();
   cameraOverlay?.stop();
   resizeOverlay?.stop();
   photoOverlay?.stop();

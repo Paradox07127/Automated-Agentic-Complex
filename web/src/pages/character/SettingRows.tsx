@@ -5,7 +5,7 @@ import { isDevMode, useDevMode } from '../../shell/devMode';
 import { DevMark, EffectTag } from '../../ui';
 import { MicroLabel } from '../../ui/game';
 import type { Native } from '../settings/native';
-import { CHAR_SECTIONS, CHAR_TABS, LIGHT_PAD, OTHER_TITLE, placedTab, ROW_DESC, SEG_LABELS, tabOf, DEV_ONLY_ROWS, type CharTab } from './sections';
+import { CHAR_SECTIONS, CHAR_TABS, LIGHT_PAD, OTHER_TITLE, placedTab, ROW_DESC, SEG_LABELS, SHOWN_WHEN, tabOf, DEV_ONLY_ROWS, type CharTab } from './sections';
 import { useCompact } from './compact';
 import { OptionRow } from './OptionRow';
 import { gameControl, valueText } from './settings';
@@ -24,7 +24,8 @@ export interface SettingRowsProps {
   offline: boolean;
 }
 
-const visible = (n: Native, id: string) => n.rows[id]?.group === '@character' && (!DEV_ONLY_ROWS.has(id) || isDevMode());
+const visible = (n: Native, id: string) =>
+  n.rows[id]?.group === '@character' && (!DEV_ONLY_ROWS.has(id) || isDevMode()) && (SHOWN_WHEN[id]?.(n.saved) ?? true);
 
 const others = (n: Native, tab: CharTab) =>
   Object.values(n.rows)

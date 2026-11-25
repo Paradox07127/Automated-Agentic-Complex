@@ -227,6 +227,8 @@ const RAW: Raw[] = [
   ['rnd.ambient', '@character', '角色 › 画面', '环境取色', '环境 取色 壁纸 屏幕 补光 渲染'],
   ['rnd.wrap', '@character', '角色 › 画面', '边缘环境光', '边缘光 环境光 轮廓 背景色 渲染'],
   ['rnd.dof', '@character', '角色 › 画面', '景深', '景深 虚化 近景 焦点 光圈 渲染 画质'],
+  ['rnd.weather', '@character', '角色 › 画面', '天气', '天气 下雨 下雪 雨 雪 晴 湿身 积雪'],
+  ['rnd.weatherLevel', '@character', '角色 › 画面', '天气强度', '天气 强度 雨量 雪量 大雨 小雨'],
   ['rnd.idle', '@character', '角色 › 画面', '空闲时降到 30 fps', '帧率 节能 空闲 fps 渲染 性能'],
   ['rnd.batt', '@character', '角色 › 画面', '电池供电时降帧', '帧率 电池 节能 fps 渲染 性能'],
   ['rnd.aa', '@character', '角色 › 画面', '2× SSAA', '抗锯齿 超采样 ssaa 画质'],

@@ -59,6 +59,17 @@ describe('sections', () => {
 });
 
 describe('SettingRows', () => {
+  it('draws 天气 under 天气 and its 强度 only while it rains or snows', async () => {
+    const n = await demoNative(null);
+    draw(n, 'render');
+    const section = screen.getByRole('region', { name: '天气' });
+    expect(within(section).getByRole('group', { name: '天气' })).toBeTruthy();
+    expect(within(section).queryByRole('group', { name: '强度' })).toBeNull();
+    cleanup();
+    draw({ ...n, saved: { ...n.saved, 'rnd.weather': 'snow' } }, 'render');
+    expect(within(screen.getByRole('region', { name: '天气' })).getByRole('group', { name: '强度' })).toBeTruthy();
+  });
+
   it('leaves no 画面 row to 其他', async () => {
     draw(await demoNative(null), 'render');
     expect(screen.queryByRole('region', { name: '其他' })).toBeNull();

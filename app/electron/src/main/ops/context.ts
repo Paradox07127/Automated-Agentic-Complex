@@ -130,8 +130,10 @@ export interface OpsContext {
   /** `app.action`'s desktop test cards; false when the desktop cannot show one; absent without the desktop panels. */
   testCard?: ((kind: 'approval' | 'announcement') => boolean) | null;
   /** A saved setting the running shell takes at once (`fpsSettingsSaved`, `hotkeySaved`, `touchSettingsSaved`,
-   *  `renderLiveSaved`: renderer/saved.ts; `appearance`: the 外观 rows onto the main window); absent without one. */
-  saved?: { fps(): void; hotkey(key: string, name: string): void; touch?(): void; renderLive?(keys: string[]): void; appearance?(): void } | null;
+   *  `renderLiveSaved`: renderer/saved.ts; `appearance`: the 外观 rows onto the main window; `weather`: renderer/weather.ts); absent
+   *  without one. */
+  saved?: { fps(): void; hotkey(key: string, name: string): void; touch?(): void; renderLive?(keys: string[]): void; appearance?(): void;
+    weather?(): void } | null;
   /** Native changes to saved settings (`settings.onChange`). */
   settingsChanges: EventSource;
   /** Tells `settingsChanges` which config keys a save wrote; absent tells no one. */

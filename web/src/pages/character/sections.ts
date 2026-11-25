@@ -29,6 +29,8 @@ export const CHAR_SECTIONS: readonly CharSection[] = [
   { tab: 'render', id: 'render/ground', title: '落地与景深', en: 'Ground & Depth', rows: ['rnd.ground', 'rnd.dof'] },
   { tab: 'render', id: 'render/quality', title: '画质', en: 'Quality', rows: ['rnd.aa', 'rnd.shadow'] },
   { tab: 'render', id: 'render/ambient', title: '环境光', en: 'Ambient', rows: ['rnd.ambient', 'rnd.wrap'], desktopOnly: true },
+  // Not launch arguments: renderer/weather.ts sends them to the desktop renderer only.
+  { tab: 'render', id: 'render/weather', title: '天气', en: 'Weather', rows: ['rnd.weather', 'rnd.weatherLevel'], desktopOnly: true },
   // rnd.closeup is not a launch argument either: camera/closeup.ts pushes it to the desktop renderer only.
   { tab: 'render', id: 'render/camera', title: '镜头', en: 'Camera', rows: ['rnd.cam', 'rnd.yaw', 'rnd.pitch', 'rnd.zoom', 'rnd.sway', 'rnd.closeup', 'rnd.track'], desktopOnly: true },
   { tab: 'render', id: 'render/perf', title: '性能', en: 'Performance', rows: ['rnd.fps', 'rnd.idle', 'rnd.batt', 'rnd.size'], desktopOnly: true },
@@ -41,6 +43,11 @@ export const LIGHT_PAD = { yaw: 'rnd.lightYaw', pitch: 'rnd.lightPitch' } as con
 /** Rows drawn as segments with these short labels in place of the schema's. */
 export const SEG_LABELS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   'rnd.lightStrength': { '0.5': '50', '0.75': '75', '1': '100', '1.25': '125', '1.5': '150' },
+};
+
+/** Drawn only while `shown` holds for the saved values by web id. */
+export const SHOWN_WHEN: Readonly<Record<string, (saved: Readonly<Record<string, unknown>>) => boolean>> = {
+  'rnd.weatherLevel': (saved) => saved['rnd.weather'] !== 'clear',
 };
 
 /** Drawn only in 开发者模式, each with the DEV mark. */

@@ -104,7 +104,7 @@ export function settingsOps(ctx: OpsContext): Ops {
         ctx.loginItem.set(effect.on);
         if (ctx.loginItem.enabled() !== effect.on) failed.push('launch_at_login');
       } else if (effect.kind === 'restartAvatar' || effect.kind === 'fps' || effect.kind === 'hotkeys' || effect.kind === 'renderLive'
-        || effect.kind === 'touch' || effect.kind === 'actionSwitch' || effect.kind === 'appearance') {
+        || effect.kind === 'touch' || effect.kind === 'actionSwitch' || effect.kind === 'appearance' || effect.kind === 'weather') {
         continue;
       } else if (effect.kind === 'agentdLive') {
         let s = 0;
@@ -189,6 +189,7 @@ export function settingsOps(ctx: OpsContext): Ops {
       else if (effect.kind === 'touch') ctx.saved?.touch?.();
       else if (effect.kind === 'actionSwitch') setSwitch(effect.id, effect.on);
       else if (effect.kind === 'appearance') ctx.saved?.appearance?.();
+      else if (effect.kind === 'weather') ctx.saved?.weather?.();
     }
     const failed = plan.effects.length === 0 || !ctx.agentd ? [] : await apply(plan.effects);
     ctx.settingsChanged?.(Object.keys(plan.write));
