@@ -107,7 +107,7 @@
   gap: 6px;
   height: var(--ef-h-sm);
   padding: 0 12px;
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
 }
 
 .sm::before {
@@ -213,7 +213,7 @@
 .link {
   --btn-fg: var(--ef-text-1);
   padding: 0;
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
   text-decoration: underline var(--ef-accent-text) 2px;
   text-underline-offset: 3px;
 }

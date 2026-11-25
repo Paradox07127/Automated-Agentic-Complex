@@ -13,7 +13,7 @@
 }
 
 .in text.value {
-  font: var(--ef-fw-semibold) var(--ef-fs-h1) var(--ef-font-ui);
+  font: var(--ef-fw-semibold) var(--ef-fs-title-1) var(--ef-font-ui);
   font-variant-numeric: tabular-nums;
   fill: var(--ef-text-1);
 }

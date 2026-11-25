@@ -81,7 +81,7 @@
   border-top: 1px solid var(--ef-line);
   border-bottom: 1px solid var(--ef-line);
   color: var(--ef-text-2);
-  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1 var(--ef-font-sans);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 1 var(--ef-font-sans);
 }
 
 /* What the capability's absence takes away: its 做 line, which the narrow band hides. */

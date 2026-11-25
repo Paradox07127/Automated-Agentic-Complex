@@ -34,7 +34,7 @@
   border-left: 2px solid var(--ef-accent);
   background: color-mix(in srgb, var(--ef-raised) 85%, transparent);
   color: var(--ef-text-1);
-  font: var(--ef-fw-medium) var(--ef-fs-small) / 1.3 var(--ef-font-ui);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 1.3 var(--ef-font-ui);
   text-align: left;
   box-shadow: var(--home-edge);
 }
@@ -88,7 +88,7 @@
 .focusT span {
   overflow: hidden;
   color: var(--ef-text-2);
-  font: var(--ef-fw-regular) var(--ef-fs-small) / 1.3 var(--ef-font-ui);
+  font: var(--ef-fw-regular) var(--ef-fs-caption) / 1.3 var(--ef-font-ui);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -101,7 +101,7 @@
 
 .focusT em {
   color: var(--ef-danger-text);
-  font: var(--ef-fw-medium) var(--ef-fs-small) / 1.3 var(--ef-font-ui);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 1.3 var(--ef-font-ui);
 }
 
 .disc > * {
@@ -128,7 +128,7 @@
   border-radius: 999px;
   background: none;
   color: var(--ef-g-watch-ink);
-  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-ui);
+  font: var(--ef-fw-semibold) var(--ef-fs-caption) / 1 var(--ef-font-ui);
   cursor: pointer;
   opacity: 0.7;
 }
@@ -193,13 +193,13 @@
   padding: 1px var(--ef-sp-4);
   border: 1px solid var(--ef-line-strong);
   color: var(--ef-text-2);
-  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1.2 var(--ef-font-ui);
+  font: var(--ef-fw-semibold) var(--ef-fs-caption) / 1.2 var(--ef-font-ui);
 }
 
 .rowT small {
   margin-left: var(--ef-sp-6);
   color: var(--ef-text-2);
-  font-size: var(--ef-fs-meta);
+  font-size: var(--ef-fs-caption);
 }
 
 .calm {
@@ -266,7 +266,7 @@
 }
 
 .repLabel {
-  font: var(--ef-fw-semibold) var(--ef-fs-small) / 1 var(--ef-font-ui);
+  font: var(--ef-fw-semibold) var(--ef-fs-caption) / 1 var(--ef-font-ui);
 }
 
 .repHead b {
@@ -275,13 +275,13 @@
 }
 
 .repOf {
-  font: var(--ef-fw-regular) var(--ef-fs-meta) / 1 var(--ef-font-num);
+  font: var(--ef-fw-regular) var(--ef-fs-caption) / 1 var(--ef-font-num);
   opacity: 0.7;
 }
 
 .repRun {
   margin-left: auto;
-  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1 var(--ef-font-ui);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 1 var(--ef-font-ui);
   opacity: 0.8;
 }
 
@@ -297,5 +297,5 @@
 }
 
 .repPct {
-  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-num);
+  font: var(--ef-fw-semibold) var(--ef-fs-caption) / 1 var(--ef-font-num);
 }

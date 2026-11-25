@@ -107,7 +107,7 @@
 
 .empty {
   padding: 10px 14px;
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
   color: var(--ef-text-3);
 }
 

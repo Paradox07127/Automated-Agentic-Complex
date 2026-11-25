@@ -83,7 +83,7 @@
   padding: 0 var(--ef-sp-8) 0 var(--ef-sp-8);
   background: var(--ps-c);
   color: var(--ef-g-state-ink);
-  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-sans);
+  font: var(--ef-fw-semibold) var(--ef-fs-caption) / 1 var(--ef-font-sans);
   clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 50%, calc(100% - 6px) 100%, 0 100%);
   padding-right: 14px;
 }

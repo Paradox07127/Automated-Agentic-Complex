@@ -48,7 +48,7 @@
 }
 
 .topName {
-  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-ui);
+  font: var(--ef-fw-semibold) var(--ef-fs-caption) / 1 var(--ef-font-ui);
   white-space: nowrap;
 }
 

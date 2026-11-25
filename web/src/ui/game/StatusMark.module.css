@@ -50,7 +50,7 @@
   padding: 0 9px 0 11px;
   border-radius: 0 11px 11px 0;
   background: var(--sm-bg);
-  font: var(--ef-fw-medium) var(--ef-fs-meta) / 22px var(--ef-font-sans);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 22px var(--ef-font-sans);
   box-shadow: var(--ef-shadow-btn);
 }
 
@@ -71,7 +71,7 @@
 }
 
 .cap b {
-  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-num);
+  font: var(--ef-fw-semibold) var(--ef-fs-caption) / 1 var(--ef-font-num);
 }
 
 .mark[data-tone='running'] .disc {

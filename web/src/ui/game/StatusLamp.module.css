@@ -129,7 +129,7 @@
 /* sm: an 8 px mark in the word's colour, drawn as the state's shape, beside 12 px words. */
 .lamp[data-size='sm'] {
   gap: 6px;
-  font: var(--ef-fw-semibold) var(--ef-fs-meta) / var(--ef-lh-meta) var(--ef-font-sans);
+  font: var(--ef-fw-semibold) var(--ef-fs-caption) / var(--ef-lh-meta) var(--ef-font-sans);
 }
 
 .lamp[data-size='sm'] .light {

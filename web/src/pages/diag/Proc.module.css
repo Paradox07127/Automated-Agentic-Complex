@@ -83,7 +83,7 @@
 
 .name {
   overflow: hidden;
-  font: var(--ef-fw-semibold) var(--ef-fs-row) / 20px var(--ef-font-sans);
+  font: var(--ef-fw-semibold) var(--ef-fs-text) / 20px var(--ef-font-sans);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -92,7 +92,7 @@
 .state small {
   overflow: hidden;
   color: color-mix(in srgb, var(--ef-g-watch-ink) 66%, transparent);
-  font: var(--ef-fw-regular) var(--ef-fs-meta) / 16px var(--ef-font-num);
+  font: var(--ef-fw-regular) var(--ef-fs-caption) / 16px var(--ef-font-num);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

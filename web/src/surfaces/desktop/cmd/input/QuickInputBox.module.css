@@ -26,7 +26,7 @@
   border: var(--ef-lw-hair) solid var(--ef-line-strong);
   background: var(--ef-hud-field);
   color: var(--ef-text-1);
-  font: var(--ef-fw-semibold) var(--ef-fs-keycap) / 14px var(--ef-font-din);
+  font: var(--ef-fw-semibold) var(--ef-fs-eyebrow) / 14px var(--ef-font-din);
   text-align: center;
   transform: translate(-50%, -50%);
 }
@@ -78,7 +78,7 @@
 
 .title {
   color: var(--ef-text-1);
-  font: var(--ef-fw-medium) var(--ef-fs-small) / 1.4 var(--ef-font-sans);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 1.4 var(--ef-font-sans);
   text-shadow: var(--ef-hud-text-shadow);
 }
 

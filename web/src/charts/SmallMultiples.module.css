@@ -74,12 +74,12 @@
 
 .name {
   fill: var(--ef-text-2);
-  font: var(--ef-fw-medium) var(--ef-fs-meta) var(--ef-font-sans);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) var(--ef-font-sans);
 }
 
 .value {
   fill: var(--ef-chart-value);
-  font: var(--ef-fw-medium) var(--ef-fs-meta) var(--ef-font-ui);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) var(--ef-font-ui);
   font-variant-numeric: tabular-nums;
 }
 
@@ -91,7 +91,7 @@
 
 .tri {
   fill: var(--ef-trace);
-  font-size: var(--ef-fs-num);
+  font-size: var(--ef-fs-body);
 }
 
 .pausedSw {

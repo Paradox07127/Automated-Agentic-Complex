@@ -70,7 +70,7 @@
   gap: var(--ef-sp-6);
   min-width: 0;
   color: #a0a09c;
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
 }
 
 .statusText {
@@ -81,7 +81,7 @@
 
 .status > [data-stub='StatusLamp'] {
   min-width: 0;
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
 }
 
 .status > [data-stub='StatusLamp'] > :last-child {

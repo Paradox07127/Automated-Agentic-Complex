@@ -67,7 +67,7 @@
   overflow: hidden;
   max-width: 100%;
   color: var(--ef-chart-label);
-  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1 var(--ef-font-ui);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 1 var(--ef-font-ui);
   font-variant-numeric: tabular-nums;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -81,7 +81,7 @@
   align-items: center;
   gap: var(--ef-sp-4);
   color: var(--ef-text-1);
-  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1.2 var(--ef-font-sans);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 1.2 var(--ef-font-sans);
   text-align: center;
 }
 
@@ -93,7 +93,7 @@
   width: var(--dot);
   height: var(--dot);
   flex: none;
-  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-sans);
+  font: var(--ef-fw-semibold) var(--ef-fs-caption) / 1 var(--ef-font-sans);
 }
 
 .item[data-state='done'] .dot {
@@ -111,7 +111,7 @@
   margin: -3px;
   background: var(--ef-accent);
   color: var(--ef-on-accent);
-  font-size: var(--ef-fs-num);
+  font-size: var(--ef-fs-body);
 }
 
 /* Current: a solid ink frame. */
@@ -152,7 +152,7 @@
 
 .sub {
   color: var(--ef-chart-label);
-  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1.2 var(--ef-font-ui);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 1.2 var(--ef-font-ui);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -160,7 +160,7 @@
 .segLine {
   margin-top: var(--ef-sp-4);
   color: var(--ef-chart-label);
-  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1.3 var(--ef-font-ui);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 1.3 var(--ef-font-ui);
   font-variant-numeric: tabular-nums;
 }
 

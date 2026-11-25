@@ -118,7 +118,7 @@
 .readout small {
   margin-left: 1px;
   color: var(--ef-text-3);
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
 }
 
 .readout:hover:not(:disabled) {

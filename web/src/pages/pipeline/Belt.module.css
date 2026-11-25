@@ -97,7 +97,7 @@
   right: 0;
   left: 0;
   color: var(--ef-text-2);
-  font: var(--ef-fw-regular) var(--ef-fs-small) / 14px var(--ef-font-sans);
+  font: var(--ef-fw-regular) var(--ef-fs-caption) / 14px var(--ef-font-sans);
   text-align: center;
   white-space: nowrap;
 }
@@ -133,7 +133,7 @@
   background: color-mix(in srgb, var(--ef-g-watch-map) 82%, var(--ef-g-watch-ink));
   box-shadow: inset 3px 0 0 var(--ef-text-3);
   color: var(--ef-g-watch-ink);
-  font: var(--ef-fw-medium) var(--ef-fs-small) / 18px var(--ef-font-sans);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 18px var(--ef-font-sans);
   white-space: nowrap;
   clip-path: polygon(0 0, 100% 0, 100% 100%, 5px 100%, 0 calc(100% - 5px));
 }

@@ -18,7 +18,7 @@
 
 .lamp b {
   color: var(--ef-text-1);
-  font: var(--ef-fw-medium) var(--ef-fs-meta) var(--ef-font-num);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) var(--ef-font-num);
 }
 
 .bars {
@@ -49,7 +49,7 @@
 
 /* Readout plate parts: what she does, the state switch at the end. */
 .doing {
-  font: var(--ef-fw-medium) var(--ef-fs-body-lg) / 1.4 var(--ef-font-sans);
+  font: var(--ef-fw-medium) var(--ef-fs-text) / 1.4 var(--ef-font-sans);
 }
 
 .aff {
@@ -155,7 +155,7 @@
 }
 
 .tm {
-  font: var(--ef-fw-medium) var(--ef-fs-meta) var(--ef-font-num);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) var(--ef-font-num);
   opacity: 0.75;
 }
 

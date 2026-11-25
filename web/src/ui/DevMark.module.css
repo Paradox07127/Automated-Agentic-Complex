@@ -3,7 +3,7 @@
   flex: none;
   padding: 0 5px;
   color: var(--ef-mission-accent);
-  font: var(--ef-fw-regular) var(--ef-fs-small) / 16px var(--ef-font-num);
+  font: var(--ef-fw-regular) var(--ef-fs-caption) / 16px var(--ef-font-num);
   letter-spacing: 0.06em;
   white-space: nowrap;
   box-shadow: inset 0 0 0 1px var(--ef-mission-accent);

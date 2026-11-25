@@ -27,7 +27,7 @@
   align-items: center;
   gap: var(--ef-sp-12);
   color: var(--ef-text-2);
-  font: var(--ef-fw-regular) var(--ef-fs-small) / 1 var(--ef-font-sans);
+  font: var(--ef-fw-regular) var(--ef-fs-caption) / 1 var(--ef-font-sans);
   white-space: nowrap;
 }
 

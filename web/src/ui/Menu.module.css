@@ -157,7 +157,7 @@
 
 .reason {
   color: var(--ef-text-3);
-  font-size: var(--ef-fs-meta);
+  font-size: var(--ef-fs-caption);
   font-weight: var(--ef-fw-regular);
 }
 
@@ -173,7 +173,7 @@
   gap: var(--ef-sp-4);
   margin-left: auto;
   color: var(--ef-text-disabled);
-  font-size: var(--ef-fs-meta);
+  font-size: var(--ef-fs-caption);
   font-weight: var(--ef-fw-regular);
 }
 
@@ -184,7 +184,7 @@
 .hint {
   margin-left: auto;
   color: var(--ef-text-3);
-  font: var(--ef-fw-semibold) var(--ef-fs-keycap) / 1 var(--ef-font-ui);
+  font: var(--ef-fw-semibold) var(--ef-fs-eyebrow) / 1 var(--ef-font-ui);
   font-stretch: var(--ef-wide);
   font-variant-numeric: tabular-nums;
 }
@@ -220,7 +220,7 @@
 .head {
   padding: 6px 12px 2px;
   color: var(--ef-text-3);
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
 }
 
 :global([data-demo]) .wrap[data-open] {

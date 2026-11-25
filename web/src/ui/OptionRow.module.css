@@ -116,7 +116,7 @@
 .opt[data-size='desk'] {
   height: 26px;
   padding-left: 34px;
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
 }
 
 .opt[data-size='desk'] .icon {

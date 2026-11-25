@@ -54,7 +54,7 @@
 
 .fact dt {
   color: var(--ef-hud-text-2);
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
 }
 
 .fact dd {
@@ -82,12 +82,12 @@
 
 .m {
   color: var(--ef-hud-text-2);
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
 }
 
 .miss {
   color: var(--ef-danger-text);
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
 }
 
 .who {
@@ -116,7 +116,7 @@
 
 .st {
   color: var(--ef-hud-text-2);
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
 }
 
 .ch[data-state='failed'] .st {

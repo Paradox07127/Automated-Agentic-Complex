@@ -173,7 +173,7 @@
   position: relative;
   padding: 3px 6px;
   background: rgb(26 26 26 / 12%);
-  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-ui);
+  font: var(--ef-fw-semibold) var(--ef-fs-caption) / 1 var(--ef-font-ui);
 }
 
 /* White key (停止): the same cuts, a white face and a white glow. */

@@ -17,7 +17,7 @@
   display: grid;
   grid-template-columns: var(--dt-cols);
   padding-left: 14px;
-  font: var(--ef-fw-semibold) var(--ef-fs-small) / 1.4 var(--ef-font-sans);
+  font: var(--ef-fw-semibold) var(--ef-fs-caption) / 1.4 var(--ef-font-sans);
   color: var(--ef-text-2);
 }
 
@@ -113,7 +113,7 @@
 }
 
 .t small {
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
   line-height: 16px;
   color: var(--dt-plate-t2);
 }
@@ -203,7 +203,7 @@
 }
 
 .vals span {
-  font: var(--ef-fw-medium) var(--ef-fs-small) / 18px var(--ef-font-num);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 18px var(--ef-font-num);
   color: var(--ef-text-2);
 }
 

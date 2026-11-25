@@ -17,7 +17,7 @@
   background: linear-gradient(-45deg, transparent calc(var(--ef-cut) - 0.5px), var(--chip-fill) var(--ef-cut));
   color: var(--ef-text-1);
   font-family: var(--ef-font-ui);
-  font-size: var(--ef-fs-meta);
+  font-size: var(--ef-fs-caption);
   font-stretch: var(--ef-wide);
   font-weight: var(--ef-fw-medium);
   line-height: 1;

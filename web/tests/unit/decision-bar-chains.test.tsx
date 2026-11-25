@@ -189,7 +189,7 @@ describe(' charts', () => {
 
   it('DiffPreview and DeliveryBox styles use the new tokens only', () => {
     for (const p of ['features/approval/DiffPreview.module.css', 'features/delivery/DeliveryBox.module.css']) {
-      expect(src(p), p).not.toMatch(/--ef-(paper|fs-caption|fs-code|track-text)\b/);
+      expect(src(p), p).not.toMatch(/--ef-(paper|fs-caption|track-text)\b/);
     }
   });
 });

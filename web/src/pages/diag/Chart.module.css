@@ -63,7 +63,7 @@
 .note,
 .ll,
 .tagt {
-  font: var(--ef-fw-regular) var(--ef-fs-meta) var(--ef-font-sans);
+  font: var(--ef-fw-regular) var(--ef-fs-caption) var(--ef-font-sans);
 }
 
 .refl,

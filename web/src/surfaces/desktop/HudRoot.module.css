@@ -1,12 +1,12 @@
 /* Shrink-wrapped: the panel takes this box's size; the right padding holds the band's fade. */
 .root {
   /* Shared components inside read at 13 px with text-2 as the faintest text, as in the comm window. */
-  --ef-fs-small: var(--ef-fs-body);
   --ef-fs-caption: var(--ef-fs-body);
-  --ef-fs-meta: var(--ef-fs-body);
-  --ef-fs-keycap: var(--ef-fs-body);
-  --ef-fs-code: var(--ef-fs-body);
-  --ef-fs-mono: var(--ef-fs-body);
+  --ef-fs-caption: var(--ef-fs-body);
+  --ef-fs-caption: var(--ef-fs-body);
+  --ef-fs-eyebrow: var(--ef-fs-body);
+  --ef-fs-caption: var(--ef-fs-body);
+  --ef-fs-caption: var(--ef-fs-body);
   /* The composite tokens resolve their size on :root, so they are restated here to pick up the 13 px. */
   --ef-t-meta: var(--ef-fw-regular) var(--ef-fs-body) / var(--ef-lh-meta) var(--ef-font-sans);
   --ef-t-mono: var(--ef-fw-regular) var(--ef-fs-body) / var(--ef-lh-mono) var(--ef-font-mono);

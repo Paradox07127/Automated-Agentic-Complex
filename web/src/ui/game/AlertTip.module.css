@@ -14,7 +14,7 @@
   border-radius: 999px;
   background: var(--at-bg);
   color: var(--ef-g-watch-ink);
-  font: var(--ef-fw-regular) var(--ef-fs-meta) / 1 var(--ef-font-sans);
+  font: var(--ef-fw-regular) var(--ef-fs-caption) / 1 var(--ef-font-sans);
   white-space: nowrap;
   cursor: pointer;
   box-shadow:

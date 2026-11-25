@@ -13,7 +13,7 @@
   overflow: hidden;
   border-top: 1px solid color-mix(in srgb, var(--ef-text-1) 10%, transparent);
   color: var(--ef-text-1);
-  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-sans);
+  font: var(--ef-fw-semibold) var(--ef-fs-caption) / 1 var(--ef-font-sans);
   white-space: nowrap;
 }
 

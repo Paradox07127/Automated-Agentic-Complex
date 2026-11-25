@@ -14,7 +14,7 @@
   padding: 0 10px;
   background: color-mix(in srgb, var(--ef-text-1) 5%, transparent);
   color: var(--ef-text-2);
-  font: var(--ef-fw-regular) var(--ef-fs-small) / 1 var(--ef-font-sans);
+  font: var(--ef-fw-regular) var(--ef-fs-caption) / 1 var(--ef-font-sans);
   white-space: nowrap;
 }
 

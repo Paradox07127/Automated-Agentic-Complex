@@ -191,7 +191,7 @@
   border-radius: 9px;
   background: var(--ef-paper-text);
   color: var(--ef-paper);
-  font: var(--ef-fw-semibold) var(--ef-fs-num) / 18px var(--ef-font-num);
+  font: var(--ef-fw-semibold) var(--ef-fs-body) / 18px var(--ef-font-num);
 }
 
 .pSrc {
@@ -220,7 +220,7 @@
 .kv code {
   padding: 0 7px;
   color: var(--ef-paper-text);
-  font: var(--ef-fw-medium) var(--ef-fs-meta) / 20px var(--ef-font-sans);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 20px var(--ef-font-sans);
 }
 
 .pTitle {

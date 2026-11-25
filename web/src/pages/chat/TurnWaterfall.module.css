@@ -157,7 +157,7 @@
   position: absolute;
   top: 2px;
   margin-left: 3px;
-  font: 500 var(--ef-fs-keycap)/1 var(--ef-font-num);
+  font: 500 var(--ef-fs-eyebrow)/1 var(--ef-font-num);
   color: var(--ef-chart-label);
   white-space: nowrap;
 }

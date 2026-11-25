@@ -47,7 +47,7 @@
   padding: 0 10px;
   background: var(--ef-band);
   color: var(--ef-text-1);
-  font: var(--ef-fw-semibold) var(--ef-fs-h3) / 24px var(--ef-font-sans);
+  font: var(--ef-fw-semibold) var(--ef-fs-body) / 24px var(--ef-font-sans);
   white-space: nowrap;
   clip-path: polygon(0 0, 100% 0, 100% 100%, 6px 100%, 0 calc(100% - 6px));
 }
@@ -130,7 +130,7 @@
 
 .v small {
   margin: 0 3px 0 1px;
-  font-size: var(--ef-fs-h2);
+  font-size: var(--ef-fs-title-2);
 }
 
 .lead::before {
@@ -297,7 +297,7 @@
 
 .bars b {
   color: var(--ef-text-2);
-  font: var(--ef-fw-medium) var(--ef-fs-meta) var(--ef-font-num);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) var(--ef-font-num);
   text-align: right;
   white-space: nowrap;
 }
@@ -338,7 +338,7 @@
   }
 
   .v small {
-    font-size: var(--ef-fs-meta);
+    font-size: var(--ef-fs-caption);
   }
 
   .touch {

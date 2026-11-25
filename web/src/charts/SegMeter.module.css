@@ -87,20 +87,20 @@
 .frac {
   min-width: 58px;
   color: var(--ef-chart-value);
-  font: var(--ef-fw-medium) var(--ef-fs-h2) / 1 var(--ef-font-ui);
+  font: var(--ef-fw-medium) var(--ef-fs-title-2) / 1 var(--ef-font-ui);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .frac small {
   color: var(--ef-text-3);
-  font-size: max(0.8em, var(--ef-fs-num));
+  font-size: max(0.8em, var(--ef-fs-body));
 }
 
 .root[data-size='mini'] .frac,
 .root[data-size='desk'] .frac {
   min-width: 0;
-  font-size: var(--ef-fs-num);
+  font-size: var(--ef-fs-body);
 }
 
 .waitText,

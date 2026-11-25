@@ -29,7 +29,7 @@
   padding: 0 var(--ef-sp-12) 0 var(--ef-sp-8);
   background: var(--gf-tag);
   color: var(--gf-tag-text);
-  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1 var(--ef-font-sans);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 1 var(--ef-font-sans);
   clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
 }
 
@@ -183,7 +183,7 @@
   padding: 0 10px;
   background: color-mix(in srgb, var(--ef-g-watch-map) 85%, var(--ef-g-watch-ink));
   color: var(--ef-g-watch-ink);
-  font: var(--ef-fw-semibold) var(--ef-fs-meta) / 1 var(--ef-font-sans);
+  font: var(--ef-fw-semibold) var(--ef-fs-caption) / 1 var(--ef-font-sans);
 }
 
 .head > [aria-hidden] {

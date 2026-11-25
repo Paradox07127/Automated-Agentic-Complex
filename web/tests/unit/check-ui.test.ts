@@ -25,7 +25,7 @@ describe('check-ui counts', () => {
   });
 
   it('counts px font sizes in CSS only', () => {
-    expect(count('x.css', '.a { font-size: 13px; }\n.b { font-size: var(--ef-fs-meta); }\n.c { font-size:10.5px }')).toEqual({ fontPx: 2 });
+    expect(count('x.css', '.a { font-size: 13px; }\n.b { font-size: var(--ef-fs-caption); }\n.c { font-size:10.5px }')).toEqual({ fontPx: 2 });
     expect(count('x.tsx', "const s = 'font-size: 13px';")).toEqual({});
   });
 

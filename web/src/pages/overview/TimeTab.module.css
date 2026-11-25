@@ -53,14 +53,14 @@
 }
 
 .n {
-  font: var(--ef-fw-semibold) var(--ef-fs-num) var(--ef-font-num);
+  font: var(--ef-fw-semibold) var(--ef-fs-body) var(--ef-font-num);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .n small {
   color: var(--ef-text-2);
-  font-size: var(--ef-fs-meta);
+  font-size: var(--ef-fs-caption);
   font-weight: var(--ef-fw-medium);
 }
 
@@ -113,7 +113,7 @@
 
 .apps b {
   color: var(--ef-text-2);
-  font: var(--ef-fw-medium) var(--ef-fs-meta) var(--ef-font-num);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) var(--ef-font-num);
 }
 
 @container page (max-width: 980px) {

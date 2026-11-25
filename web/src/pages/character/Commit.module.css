@@ -84,7 +84,7 @@
 }
 
 .cap {
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
   color: var(--ef-text-2);
 }
 

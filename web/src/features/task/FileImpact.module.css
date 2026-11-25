@@ -25,7 +25,7 @@
   width: 18px;
   height: 18px;
   flex: none;
-  font-size: var(--ef-fs-meta);
+  font-size: var(--ef-fs-caption);
   font-weight: var(--ef-fw-semibold);
   border: var(--ef-lw-hair) solid var(--ef-line-strong);
   color: var(--ef-text-2);
@@ -70,7 +70,7 @@
   border: 0;
   background: none;
   text-align: left;
-  font: var(--ef-fs-code) var(--ef-font-mono);
+  font: var(--ef-fs-caption) var(--ef-font-mono);
   color: var(--ef-text-1);
   overflow: hidden;
   text-overflow: ellipsis;

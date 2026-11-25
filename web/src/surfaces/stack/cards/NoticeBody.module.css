@@ -30,7 +30,7 @@
 .t {
   margin: 0;
   color: var(--ef-text-1);
-  font: var(--ef-fw-medium) var(--ef-fs-body-lg) / 1.45 var(--ef-font-sans);
+  font: var(--ef-fw-medium) var(--ef-fs-text) / 1.45 var(--ef-font-sans);
   overflow-wrap: anywhere;
 }
 
@@ -56,7 +56,7 @@
 .ff {
   flex: none;
   color: var(--ef-keyword);
-  font: 700 var(--ef-fs-meta) / 1 var(--ef-font-din);
+  font: 700 var(--ef-fs-caption) / 1 var(--ef-font-din);
   letter-spacing: -0.1em;
 }
 
@@ -70,7 +70,7 @@
   display: block;
   overflow: hidden;
   color: var(--ef-keyword);
-  font: var(--ef-fw-medium) var(--ef-fs-body-lg) / 1.35 var(--ef-font-sans);
+  font: var(--ef-fw-medium) var(--ef-fs-text) / 1.35 var(--ef-font-sans);
   white-space: nowrap;
   text-overflow: ellipsis;
 }

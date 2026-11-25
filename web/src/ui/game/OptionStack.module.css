@@ -128,7 +128,7 @@
 }
 
 .name {
-  font: var(--ef-fw-medium) var(--ef-fs-row) / 1 var(--ef-font-sans);
+  font: var(--ef-fw-medium) var(--ef-fs-text) / 1 var(--ef-font-sans);
   white-space: nowrap;
 }
 
@@ -180,7 +180,7 @@
   border-left: 3px solid var(--ef-accent);
   background: linear-gradient(90deg, var(--os-row), transparent);
   color: var(--os-ink-2);
-  font: var(--ef-fw-regular) var(--ef-fs-meta) / 22px var(--ef-font-sans);
+  font: var(--ef-fw-regular) var(--ef-fs-caption) / 22px var(--ef-font-sans);
 }
 
 @keyframes os-in {

@@ -55,7 +55,7 @@
 
 .target {
   font-family: var(--ef-font-mono);
-  font-size: var(--ef-fs-code);
+  font-size: var(--ef-fs-caption);
 }
 
 .danger {

@@ -63,7 +63,7 @@
   border: 0;
   background: none;
   color: var(--ef-text-1);
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
   text-align: left;
 }
 
@@ -87,7 +87,7 @@ button.node:hover {
   width: 8px;
   height: 8px;
   background: var(--ef-text-1);
-  font-size: var(--ef-fs-num);
+  font-size: var(--ef-fs-body);
   line-height: 1;
 }
 

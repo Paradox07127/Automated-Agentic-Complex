@@ -11,7 +11,7 @@
   border-radius: 0;
   background: var(--bg);
   color: var(--ef-text-2);
-  font: var(--ef-fw-semibold) var(--ef-fs-keycap) / 1 var(--ef-font-ui);
+  font: var(--ef-fw-semibold) var(--ef-fs-eyebrow) / 1 var(--ef-font-ui);
   font-stretch: var(--ef-wide);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -19,7 +19,7 @@
 
 /* Chinese key names take the 12px floor for Chinese text. */
 .kbd[data-cjk] {
-  font-size: var(--ef-fs-meta);
+  font-size: var(--ef-fs-caption);
 }
 
 .kbd[data-hud] {

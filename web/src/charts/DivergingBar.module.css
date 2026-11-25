@@ -21,7 +21,7 @@
   overflow: hidden;
   padding-right: 8px;
   color: var(--ef-text-2);
-  font: var(--ef-fw-regular) var(--ef-fs-meta) / 1 var(--ef-font-mono);
+  font: var(--ef-fw-regular) var(--ef-fs-caption) / 1 var(--ef-font-mono);
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;

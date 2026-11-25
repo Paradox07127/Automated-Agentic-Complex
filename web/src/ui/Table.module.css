@@ -30,7 +30,7 @@ th.cell {
   z-index: 1;
   background: var(--ui-table-bg, var(--ef-base));
   color: var(--ef-text-2);
-  font: var(--ef-fw-semibold) var(--ef-fs-small) / var(--ef-lh-meta) var(--ef-font-ui);
+  font: var(--ef-fw-semibold) var(--ef-fs-caption) / var(--ef-lh-meta) var(--ef-font-ui);
   font-stretch: var(--ef-wider);
   text-transform: uppercase;
   white-space: nowrap;

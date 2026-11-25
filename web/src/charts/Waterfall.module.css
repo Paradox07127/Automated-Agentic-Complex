@@ -157,7 +157,7 @@
   justify-content: center;
   width: 16px;
   height: 16px;
-  font: var(--ef-fw-semibold) var(--ef-fs-num) / 1 var(--ef-font-sans);
+  font: var(--ef-fw-semibold) var(--ef-fs-body) / 1 var(--ef-font-sans);
   transform: translate(-50%, -50%);
 }
 

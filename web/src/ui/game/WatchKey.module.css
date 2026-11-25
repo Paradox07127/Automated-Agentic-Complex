@@ -92,7 +92,7 @@
 /* 12px, the least for Chinese: four characters (48px) fit inside a square key's rim (52px). */
 .name {
   color: var(--ef-g-label);
-  font: var(--ef-fw-semibold) var(--ef-fs-small) / 1 var(--ef-font-ui);
+  font: var(--ef-fw-semibold) var(--ef-fs-caption) / 1 var(--ef-font-ui);
   white-space: nowrap;
 }
 
@@ -111,7 +111,7 @@
 .sub {
   padding: 1px var(--ef-sp-4);
   color: var(--ef-g-label);
-  font: var(--ef-fw-semibold) var(--ef-fs-small) / 1 var(--ef-font-ui);
+  font: var(--ef-fw-semibold) var(--ef-fs-caption) / 1 var(--ef-font-ui);
   white-space: nowrap;
 }
 
@@ -173,7 +173,7 @@
 
 /* 12px on the stage so the hint still reads at 11px at the smallest fit. */
 .hot kbd {
-  font-size: var(--ef-fs-meta);
+  font-size: var(--ef-fs-caption);
 }
 
 /* Key hints show only while ⌘ or Ctrl is held (Layout sets html[data-keys]). */

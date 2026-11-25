@@ -42,7 +42,7 @@
 
 .value {
   color: var(--ef-chart-value);
-  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1 var(--ef-font-ui);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 1 var(--ef-font-ui);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }

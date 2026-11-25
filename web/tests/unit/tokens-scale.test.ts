@@ -59,31 +59,33 @@ describe('type, space and radius scales', () => {
   const role = (tokens.type as unknown as { role: Record<string, string> }).role;
 
   it.each([
-    ['h1', '18px', '26px', 'semibold'],
-    ['h2', '15px', '22px', 'semibold'],
-    ['h3', '13px', '20px', 'semibold'],
-    ['text', '14px', '22px', 'regular'],
-    ['row', '14px', '20px', 'medium'],
-    ['table', '13px', '20px', 'regular'],
-    ['meta', '12px', '18px', 'regular'],
-    ['num', '13px', '16px', 'regular'],
-    ['mono', '12px', '18px', 'regular'],
-  ])('%s is %s/%s %s', (name, fs, line, weight) => {
-    expect(size[`fs-${name}`]).toBe(fs);
+    ['h1', 'title-1', '18px', '26px', 'semibold'],
+    ['h2', 'title-2', '15px', '22px', 'semibold'],
+    ['h3', 'body', '13px', '20px', 'semibold'],
+    ['text', 'text', '14px', '22px', 'regular'],
+    ['row', 'text', '14px', '20px', 'medium'],
+    ['table', 'body', '13px', '20px', 'regular'],
+    ['meta', 'caption', '12px', '18px', 'regular'],
+    ['num', 'body', '13px', '16px', 'regular'],
+    ['mono', 'caption', '12px', '18px', 'regular'],
+  ])('%s is %s %s/%s %s', (name, sz, fs, line, weight) => {
+    expect(size[`fs-${sz}`]).toBe(fs);
     expect(lh[`lh-${name}`]).toBe(line);
     const face = name === 'mono' || name === 'num' ? name : 'sans';
-    expect(role[`t-${name}`]).toBe(`var(--ef-fw-${weight}) var(--ef-fs-${name}) / var(--ef-lh-${name}) var(--ef-font-${face})`);
+    expect(role[`t-${name}`]).toBe(`var(--ef-fw-${weight}) var(--ef-fs-${sz}) / var(--ef-lh-${name}) var(--ef-font-${face})`);
   });
 
   it('has a big-number size in the 24–28 range on the wide face', () => {
-    expect(size['fs-big']).toBe('28px');
+    expect(size['fs-display']).toBe('28px');
     expect(role['t-big']).toContain('var(--ef-font-wide)');
   });
 
   it('keeps every Chinese-capable size at 12px or more, numbers at the table size and 11px for key caps only', () => {
-    for (const name of ['h1', 'h2', 'h3', 'text', 'row', 'table', 'meta', 'mono']) expect(parseInt(size[`fs-${name}`] ?? '0')).toBeGreaterThanOrEqual(12);
-    expect(size['fs-num']).toBe(size['fs-table']);
-    expect(size['fs-keycap']).toBe('11px');
+    for (const name of ['title-1', 'title-2', 'body', 'text', 'caption']) expect(parseInt(size[`fs-${name}`] ?? '0')).toBeGreaterThanOrEqual(12);
+    expect(role['t-num']).toContain('var(--ef-fs-body)');
+    expect(role['t-table']).toContain('var(--ef-fs-body)');
+    expect(size['fs-eyebrow']).toBe('11px');
+    expect(Object.keys(size).sort()).toEqual(['fs-body', 'fs-caption', 'fs-display', 'fs-eyebrow', 'fs-micro', 'fs-text', 'fs-title-1', 'fs-title-2', 'fs-watermark']);
   });
 
   it('spaces on 4 / 8 / 12 / 16 / 24 / 32 / 48', () => {

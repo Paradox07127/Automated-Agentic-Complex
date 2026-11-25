@@ -25,7 +25,7 @@
   background: var(--ef-surface-3);
   color: var(--ef-text-1);
   font-family: var(--ef-font-mono);
-  font-size: var(--ef-fs-code);
+  font-size: var(--ef-fs-caption);
   white-space: nowrap;
 }
 

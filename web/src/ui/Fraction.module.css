@@ -15,5 +15,5 @@
 .den {
   margin-left: 1px;
   color: var(--ef-text-2);
-  font-size: max(var(--ef-fs-num), 0.6em);
+  font-size: max(var(--ef-fs-body), 0.6em);
 }

@@ -68,7 +68,7 @@
 }
 
 .field[data-size='sm'] .input {
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
   line-height: 16px;
 }
 
@@ -158,7 +158,7 @@
   min-height: 52px;
   padding: var(--ef-sp-8) var(--ef-sp-12);
   color: var(--ef-text-1);
-  font: var(--ef-fw-medium) var(--ef-fs-body-lg) / 1.5 var(--ef-font-sans);
+  font: var(--ef-fw-medium) var(--ef-fs-text) / 1.5 var(--ef-font-sans);
   resize: none;
   caret-color: var(--ef-text-1);
 }

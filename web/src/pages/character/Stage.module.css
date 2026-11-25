@@ -168,7 +168,7 @@
 }
 
 .cap {
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
   color: var(--ef-text-2);
 }
 
@@ -197,7 +197,7 @@
 
 .fail {
   color: var(--ef-danger-text);
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
   font-weight: 600;
 }
 

@@ -324,7 +324,7 @@ describe('chart type uses the new scale', () => {
   it('uses no retired aliases and no literal font sizes', () => {
     for (const f of sheets) {
       const css = readFileSync(resolve(chartsDir, f), 'utf8');
-      expect(css, f).not.toMatch(/--ef-(fs-(caption|small|body|micro|title-\d|eyebrow|num-[a-z]+)|bg-base|bg-canvas|row\)|slab|plate|band|fold)\b/);
+      expect(css, f).not.toMatch(/--ef-(fs-(keycap|code|meta|mono|small|h[123]|num|table|body-lg|row|big|num-[a-z]+)|bg-base|bg-canvas|row\)|slab|plate|band|fold)\b/);
       expect(css, f).not.toMatch(/font(-size)?:[^;]*\b\d+px/);
     }
   });

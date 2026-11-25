@@ -15,7 +15,7 @@
   padding: var(--ef-sp-12);
   background: var(--ef-step-bg);
   border-radius: var(--ef-r-3);
-  font: var(--ef-fs-code) / var(--ef-lh-code) var(--ef-font-mono);
+  font: var(--ef-fs-caption) / var(--ef-lh-code) var(--ef-font-mono);
   color: var(--ef-text-2);
   white-space: pre-wrap;
 }
@@ -61,5 +61,5 @@
 
 .mono {
   font-family: var(--ef-font-mono);
-  font-size: var(--ef-fs-code);
+  font-size: var(--ef-fs-caption);
 }

@@ -10,7 +10,7 @@
 
 .label {
   color: var(--ef-text-2);
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
 }
 
 .bar,

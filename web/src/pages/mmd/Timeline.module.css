@@ -148,7 +148,7 @@
   gap: 6px;
   min-width: 0;
   color: var(--ef-track-text);
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
   white-space: nowrap;
 }
 

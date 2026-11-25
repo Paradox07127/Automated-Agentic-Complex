@@ -307,7 +307,7 @@
 
 .tab[data-icon] .name {
   position: relative;
-  font: var(--ef-fw-semibold) var(--ef-fs-small) / 1 var(--ef-font-ui);
+  font: var(--ef-fw-semibold) var(--ef-fs-caption) / 1 var(--ef-font-ui);
   letter-spacing: 0;
   white-space: nowrap;
   animation: none;

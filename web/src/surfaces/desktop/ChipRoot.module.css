@@ -37,7 +37,7 @@
   padding: 2px 10px;
   overflow: hidden;
   background: var(--ef-hud-plate);
-  font-size: var(--ef-fs-meta);
+  font-size: var(--ef-fs-caption);
   line-height: 20px;
   white-space: nowrap;
   text-overflow: ellipsis;

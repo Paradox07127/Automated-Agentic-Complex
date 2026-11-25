@@ -11,13 +11,13 @@
 }
 
 .box text {
-  font: var(--ef-fw-medium) var(--ef-fs-meta) var(--ef-font-ui);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) var(--ef-font-ui);
   font-variant-numeric: tabular-nums;
   fill: var(--ef-chart-label);
 }
 
 .box text.zh {
-  font: var(--ef-fw-medium) var(--ef-fs-meta) var(--ef-font-sans);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) var(--ef-font-sans);
 }
 
 .box :global([data-state='empty']) > p {
@@ -34,7 +34,7 @@
   border: 1px solid var(--ef-rule);
   background: var(--ef-raised);
   color: var(--ef-text-1);
-  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1.45 var(--ef-font-sans);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 1.45 var(--ef-font-sans);
   text-align: left;
   white-space: pre;
   transform: translate(-50%, calc(-100% - 12px));
@@ -112,7 +112,7 @@
 .box text.end.key {
   fill: var(--ef-chart-value);
   font-weight: var(--ef-fw-semibold);
-  font-size: var(--ef-fs-meta);
+  font-size: var(--ef-fs-caption);
 }
 
 .box text.ext {
@@ -191,11 +191,11 @@
 
 .lg small {
   color: var(--ef-text-3);
-  font-size: var(--ef-fs-meta);
+  font-size: var(--ef-fs-caption);
 }
 
 .lg .big {
-  font-size: var(--ef-fs-h2);
+  font-size: var(--ef-fs-title-2);
   font-weight: var(--ef-fw-semibold);
 }
 

@@ -44,7 +44,7 @@
 
 .errText {
   overflow: hidden;
-  font: var(--ef-fs-meta) / var(--ef-lh-num) var(--ef-font-sans);
+  font: var(--ef-fs-caption) / var(--ef-lh-num) var(--ef-font-sans);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -120,7 +120,7 @@
   padding: 0 1px;
   background: var(--ef-accent);
   color: var(--ef-on-accent);
-  font: var(--ef-fw-semibold) var(--ef-fs-num) / 1 var(--ef-font-sans);
+  font: var(--ef-fw-semibold) var(--ef-fs-body) / 1 var(--ef-font-sans);
   pointer-events: none;
 }
 
@@ -128,7 +128,7 @@
   padding: 0 2px;
   background: var(--ef-accent);
   color: var(--ef-on-accent);
-  font: var(--ef-fw-semibold) var(--ef-fs-num) / 1 var(--ef-font-sans);
+  font: var(--ef-fw-semibold) var(--ef-fs-body) / 1 var(--ef-font-sans);
 }
 
 /* Still running: hatch = 未结束, over a lighter step of the bar colour so the stripes show. */

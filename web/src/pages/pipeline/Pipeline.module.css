@@ -90,7 +90,7 @@
   gap: var(--ef-sp-8);
   align-items: center;
   color: var(--ef-text-2);
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
   white-space: nowrap;
 }
 

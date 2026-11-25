@@ -229,13 +229,13 @@
   gap: var(--ef-sp-8);
   align-items: center;
   color: var(--ef-text-2);
-  font: var(--ef-fw-medium) var(--ef-fs-small) var(--ef-font-num);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) var(--ef-font-num);
 }
 
 .kind {
   padding: 0 6px;
   border: var(--ef-lw-hair) solid var(--ef-text-2);
-  font: var(--ef-fw-medium) var(--ef-fs-small) / 18px var(--ef-font-sans);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 18px var(--ef-font-sans);
 }
 
 .kind[data-kind='self'] {

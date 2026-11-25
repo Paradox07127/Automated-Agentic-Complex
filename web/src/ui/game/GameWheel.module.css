@@ -149,7 +149,7 @@
   text-overflow: ellipsis;
   margin-top: 3px;
   color: rgb(255 255 255 / 76%);
-  font: var(--ef-fw-medium) var(--ef-fs-meta) / 16px var(--ef-font-sans);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 16px var(--ef-font-sans);
   white-space: nowrap;
   text-shadow: 1px 1px 0 rgb(0 0 0 / 60%);
 }
@@ -240,7 +240,7 @@
 .desc {
   min-height: 18px;
   color: rgb(255 255 255 / 72%);
-  font: var(--ef-fw-regular) var(--ef-fs-meta) / 18px var(--ef-font-sans);
+  font: var(--ef-fw-regular) var(--ef-fs-caption) / 18px var(--ef-font-sans);
 }
 
 .desc[data-bad] {
@@ -257,7 +257,7 @@
   padding: 0 10px;
   background: rgb(18 18 18 / 85%);
   color: rgb(255 255 255 / 80%);
-  font: var(--ef-fw-regular) var(--ef-fs-meta) / 22px var(--ef-font-sans);
+  font: var(--ef-fw-regular) var(--ef-fs-caption) / 22px var(--ef-font-sans);
   white-space: nowrap;
   transform: translateX(-50%);
   visibility: hidden;

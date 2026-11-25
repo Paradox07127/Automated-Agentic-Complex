@@ -52,7 +52,7 @@
   width: var(--cell);
   overflow: visible;
   color: var(--ef-chart-label);
-  font: var(--ef-fw-medium) var(--ef-fs-num) / 1 var(--ef-font-ui);
+  font: var(--ef-fw-medium) var(--ef-fs-body) / 1 var(--ef-font-ui);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -64,5 +64,5 @@
 
 .v {
   color: var(--ef-chart-value);
-  font-size: var(--ef-fs-meta);
+  font-size: var(--ef-fs-caption);
 }

@@ -43,7 +43,7 @@
 
 .flow text.n {
   fill: var(--ef-text-2);
-  font-size: var(--ef-fs-num);
+  font-size: var(--ef-fs-body);
   paint-order: stroke;
   stroke: var(--v3-bg);
   stroke-width: 3;
@@ -91,12 +91,12 @@
 }
 
 .flow text.no {
-  font: 700 var(--ef-fs-num) var(--ef-font-ui);
+  font: 700 var(--ef-fs-body) var(--ef-font-ui);
 }
 
 .flow text.label {
   fill: var(--ef-text-1);
-  font: var(--ef-fw-medium) var(--ef-fs-meta) var(--ef-font-sans);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) var(--ef-font-sans);
 }
 
 .flow .paper text.label {
@@ -118,7 +118,7 @@
 
 .flow .flag text {
   fill: var(--ef-on-accent);
-  font: var(--ef-fw-semibold) var(--ef-fs-num) var(--ef-font-ui);
+  font: var(--ef-fw-semibold) var(--ef-fs-body) var(--ef-font-ui);
   font-variant-numeric: tabular-nums;
 }
 

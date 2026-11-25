@@ -1,10 +1,10 @@
 /* The native panel follows the size of this root. Its padding leaves room for the tail and the card's shadow. */
 .root {
   /* On the desktop, shared components inside the panel read at 13 px with text-2 as the faintest text. */
-  --ef-fs-small: var(--ef-fs-body);
   --ef-fs-caption: var(--ef-fs-body);
-  --ef-fs-meta: var(--ef-fs-body);
-  --ef-fs-keycap: var(--ef-fs-body);
+  --ef-fs-caption: var(--ef-fs-body);
+  --ef-fs-caption: var(--ef-fs-body);
+  --ef-fs-eyebrow: var(--ef-fs-body);
   --ef-t-meta: var(--ef-fw-regular) var(--ef-fs-body) / var(--ef-lh-meta) var(--ef-font-sans);
   --ef-text-3: var(--ef-text-2);
   /* Band over --ef-hud-band; the desktop alpha keeps the dialog text at 4.5:1 on a white desktop. */

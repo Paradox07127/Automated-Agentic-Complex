@@ -9,7 +9,7 @@
   width: var(--d);
   height: var(--d);
   color: var(--cc);
-  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1 var(--ef-font-sans);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 1 var(--ef-font-sans);
   vertical-align: middle;
 }
 

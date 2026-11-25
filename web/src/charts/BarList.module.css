@@ -29,7 +29,7 @@
   border: 0;
   background: none;
   color: var(--ef-text-2);
-  font: var(--ef-fw-medium) var(--ef-fs-meta) / 1 var(--ef-font-sans);
+  font: var(--ef-fw-medium) var(--ef-fs-caption) / 1 var(--ef-font-sans);
   text-align: left;
 }
 

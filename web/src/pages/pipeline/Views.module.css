@@ -7,7 +7,7 @@
 }
 
 .mono {
-  font: var(--ef-fs-small) var(--ef-font-mono);
+  font: var(--ef-fs-caption) var(--ef-font-mono);
 }
 
 .bad {
@@ -34,14 +34,14 @@
 }
 
 .key {
-  font: var(--ef-fw-regular) var(--ef-fs-small) / 1 var(--ef-font-sans);
+  font: var(--ef-fw-regular) var(--ef-fs-caption) / 1 var(--ef-font-sans);
   white-space: nowrap;
 }
 
 .dim {
   margin-left: var(--ef-sp-8);
   color: color-mix(in srgb, currentColor 62%, transparent);
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
   font-weight: var(--ef-fw-regular);
 }
 
@@ -61,7 +61,7 @@
   background: color-mix(in srgb, currentColor 12%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 20%, transparent);
   color: var(--dr-ink, var(--ef-g-watch-ink));
-  font: var(--ef-fw-regular) var(--ef-fs-small) / 20px var(--ef-font-sans);
+  font: var(--ef-fw-regular) var(--ef-fs-caption) / 20px var(--ef-font-sans);
 }
 
 .chips .chip {
@@ -82,7 +82,7 @@
   display: inline-flex;
   gap: 10px;
   color: var(--ef-text-2);
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
 }
 
 .ops b {
@@ -112,7 +112,7 @@
   align-items: baseline;
   width: 52px;
   color: var(--ef-text-2);
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
   white-space: nowrap;
 }
 
@@ -138,7 +138,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--ef-text-2);
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -148,7 +148,7 @@
   padding: 0 6px;
   box-shadow: inset 0 0 0 1px currentColor;
   color: var(--ef-badge-dot);
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
   line-height: 18px;
 }
 
@@ -167,7 +167,7 @@
 .src span {
   overflow: hidden;
   color: var(--ef-text-2);
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
   text-overflow: ellipsis;
 }
 
@@ -255,7 +255,7 @@
   justify-content: space-between;
   margin-top: 4px;
   color: var(--ef-text-2);
-  font-size: var(--ef-fs-small);
+  font-size: var(--ef-fs-caption);
 }
 
 @media (max-width: 1099px) {
