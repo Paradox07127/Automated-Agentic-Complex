@@ -15,14 +15,15 @@ const demo = async (page: Page, c: string, d: string, theme = 'dark') => {
   return page.locator(`[data-demo="${c}-${d}"]`);
 };
 
-/** Painted look of a control and its direct children. */
+/** Painted look of a control, its ::before / ::after (Btn draws wash, press and focus there) and its direct children. */
 const look = (el: Locator) =>
   el.evaluate((node) =>
     JSON.stringify(
-      [node, ...node.children].map((n) => {
-        const s = getComputedStyle(n);
-        return [s.backgroundColor, s.boxShadow, s.borderColor, s.color, s.textDecorationThickness, s.textDecorationStyle, s.outlineStyle];
-      }),
+      [
+        ...[node, ...node.children].map((n) => getComputedStyle(n)),
+        getComputedStyle(node, '::before'),
+        getComputedStyle(node, '::after'),
+      ].map((s) => [s.backgroundColor, s.boxShadow, s.borderColor, s.color, s.textDecorationThickness, s.textDecorationStyle, s.outlineStyle, s.opacity]),
     ),
   );
 
