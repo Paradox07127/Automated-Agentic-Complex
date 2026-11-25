@@ -138,6 +138,17 @@
     "kind": "undefined"
   },
   {
+    "op": "avatar.preview.control",
+    "surface": "main",
+    "args": [
+      {
+        "op": "seek",
+        "at": 0
+      }
+    ],
+    "kind": "undefined"
+  },
+  {
     "op": "open.url",
     "surface": "main",
     "args": [

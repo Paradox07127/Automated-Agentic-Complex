@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getBridge, type CharacterEntry, type MmdEntry } from '../../bridge';
+import { getBridge, type CharacterEntry, type MmdEntry, type PreviewControl, type PreviewPosition } from '../../bridge';
 import { PageHeaderSlot } from '../../shell/headerSlot';
 import { toast } from '../../shell/toast';
 import { ErrBar, Menu } from '../../ui';
@@ -96,6 +96,10 @@ export function MmdPage() {
   const setlist = useSetlist(current, ids, toast);
   const transport = useActionTransport(toast);
   const desk = picked != null && transport.progress?.id === picked.id ? transport.progress : null;
+  // The stage preview's playhead; the stage plays the picked dance only while it is baked and not on the desktop.
+  const [stagePos, setStagePos] = useState<PreviewPosition | null>(null);
+  useEffect(() => (canAvatar ? getBridge().avatar.preview.onPosition(setStagePos) : undefined), [canAvatar]);
+  const controlStage = (c: PreviewControl) => void getBridge().avatar.preview.control(c).catch(() => {});
   const onDesk = desk != null || (looping?.character === current && looping.id === picked?.id);
   // Read again once some character has it baked: before that it is `not_baked`.
   const anyBaked = picked?.characters.some((c) => c.state === 'baked') ?? false;
@@ -178,6 +182,8 @@ export function MmdPage() {
                   detail={detail}
                   desk={desk}
                   onControl={transport.control}
+                  preview={baked && !desk ? stagePos : null}
+                  onPreview={controlStage}
                   baked={baked}
                   canLoop={canLoop}
                   loop={loopPick}
@@ -286,10 +292,10 @@ interface StageProps {
   desk: boolean;
 }
 
-/** 舞台：外壳把页内预览画在这个矩形里；里面不放可点的东西。 */
+/** 舞台：外壳把页内预览按这支舞的镜头和音乐画在这个矩形里，停在第 0 帧等时间线的播放键；里面不放可点的东西。 */
 function Stage(p: StageProps) {
   const [el, setEl] = useState<HTMLDivElement | null>(null);
-  const preview = useLivePreview(p.character ? el : null, { character: p.character, action: p.action, request: p.request, loop: p.loop, blocked: p.blocked || p.desk });
+  const preview = useLivePreview(p.character ? el : null, { character: p.character, action: p.action, request: p.request, loop: p.loop, stage: true, blocked: p.blocked || p.desk });
   const failed = !p.why && preview.phase === 'failed' ? preview.message : null;
   return (
     <div ref={setEl} className={styles.stage} data-preview-stage="" data-live={preview.phase === 'live' || undefined}>

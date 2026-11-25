@@ -42,7 +42,7 @@ const IMPLEMENTED = [
   'onboarding.complete',
   'avatar.state', 'avatar.details', 'avatar.setVisible', 'avatar.stopSpeech', 'avatar.actions', 'avatar.playAction', 'avatar.stopAction',
   'avatar.setScale', 'avatar.keepClearOfMain', 'avatar.resetPosition', 'avatar.preview.show', 'avatar.preview.hide',
-  'avatar.preview.sequence', 'avatar.preview.view', 'avatar.setAppearance', 'avatar.setLayers', 'avatar.setActionSwitches', 'avatar.modSettings.get',
+  'avatar.preview.sequence', 'avatar.preview.view', 'avatar.preview.control','avatar.setAppearance', 'avatar.setLayers', 'avatar.setActionSwitches', 'avatar.modSettings.get',
   'avatar.modSettings.set', 'character.switchTo', 'permissions.status', 'permissions.request', 'permissions.openSettings',
   'open.jumpToSession', 'open.runFeedCommand', 'open.runInTerminal',
   'avatar.motionOverrides.get', 'avatar.motionOverrides.set', 'avatar.playChain', 'avatar.motionChain.check', 'avatar.motionChain.apply',
@@ -202,7 +202,8 @@ function context(surface: Surface): OpsContext {
     avatar,
     placement: { setScale: () => {}, resetPosition: () => {}, keepClearOfMain: () => {} },
     // Like the web mock: no main window draws a preview, so show answers false.
-    preview: { show: async () => false, hide: () => {}, sequence: async () => {}, progress: new PushSource('progress'), view: () => {} },
+    preview: { show: async () => false, hide: () => {}, sequence: async () => {}, progress: new PushSource('progress'), view: () => {},
+      control: () => {}, position: new PushSource('position') },
     // The renderer answers each request; one setting it does not take falls back to its default.
     looks: {
       setAppearance: async () => {}, setLayers: async () => {},

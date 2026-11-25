@@ -7,7 +7,8 @@ import type { ShellPlatform } from '../../common/config.ts';
 import { PushSource } from '../../common/push.ts';
 import type { PreviewRect } from '../ops/preview.ts';
 import type { PreviewView } from './controller.ts';
-import { type CameraView, previewOutput, PreviewSession, type PreviewSelection, type PreviewSurface, type PreviewTransport } from './session.ts';
+import { type CameraView, previewOutput, PreviewSession, type PreviewSelection, type PreviewSurface, type PreviewTransport,
+  type StageControl } from './session.ts';
 
 /** The preview's transport to the renderer: the macOS addon itself, or the Windows addon under PipeTransport (pipe.ts). */
 export interface PreviewAddon extends PreviewTransport<PreviewSurface> {
@@ -45,6 +46,7 @@ export class WindowPreview implements PreviewView {
   private lastView: CameraView | null = null;
   private readonly inFlight = new Set<PreviewSurface>();
   readonly progress = new PushSource('progress');
+  readonly position = new PushSource('position');
 
   constructor(options: WindowPreviewOptions) {
     this.options = options;
@@ -81,6 +83,10 @@ export class WindowPreview implements PreviewView {
     this.session?.view(v);
   }
 
+  control(c: StageControl): void {
+    this.session?.control(c);
+  }
+
   hide(): void {
     this.shown = false;
     if (this.win && !this.win.isDestroyed()) this.win.webContents.send('preview:hide');
@@ -100,6 +106,7 @@ export class WindowPreview implements PreviewView {
         present: (surface, done) => this.present(win, surface, done),
       },
       progress: (fraction) => this.progress.send(fraction === null ? null : { fraction }),
+      position: (p) => this.position.send(p),
     });
     if (this.lastView) session.view(this.lastView);
     const sync = () => session.syncPlayback();

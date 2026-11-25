@@ -197,8 +197,15 @@ export type ActionSpeed = 0.5 | 1 | 2;
 
 /** C3 rule 58: where the desktop play `playAction` started last stands: `tS` of `durationS` seconds into the clip playing now. */ export interface ActionProgress { id: string; tS: number; durationS: number; paused: boolean }
 
-/** A rect of the page's viewport in CSS px, and the action to play there (`loop`: over and over); absent plays the current character's idle. */
-export type PreviewPlacement = { x: number; y: number; w: number; h: number; action?: string; loop?: boolean; request?: number };
+/** A rect of the page's viewport in CSS px, and the action to play there (`loop`: over and over); absent plays the current character's idle.
+ *  `stage` (with `action`) plays the action's camera and music, standing silent at 0 s until `control` resumes it. */
+export type PreviewPlacement = { x: number; y: number; w: number; h: number; action?: string; loop?: boolean; request?: number; stage?: boolean };
+
+/** `avatar.preview.control` of a stage preview. */
+export type PreviewControl = { op: 'pause' } | { op: 'resume' } | { op: 'seek'; at: number };
+
+/** A stage preview's playhead: `t` seconds of `duration` into her clip. */
+export interface PreviewPosition { t: number; duration: number; playing: boolean }
 
 export interface CharacterAppearance {
   id: string; name: string; desc: string;
@@ -330,6 +337,8 @@ export interface AgenticComplexBridge {
       /** Places or moves it and plays `action`; true once the character is drawn there, false where the shell has no live preview. */
       show(at: PreviewPlacement): Promise<boolean>; hide(): Promise<void>; /** The inspection camera; absent `tilt`, `pan`, `frame` are 0, [0, 0], [0, 0, 1, 1]. The shell keeps it across loads. */ view(v: import('./motionOverrides').PreviewView): Promise<void>;
       /** `{ fraction }` 0–1 while a load builds her anew; null once none does (drawn, failed, replaced). A clip change reports none. */ onProgress(cb: (p: { fraction: number } | null) => void): Unsubscribe;
+      /** Pauses, resumes or seeks (seconds) the stage preview; nothing without one. */ control(c: PreviewControl): Promise<void>;
+      /** The stage preview's playhead while it is on screen; null once there is none (another show, hidden, failed). */ onPosition(cb: (p: PreviewPosition | null) => void): Unsubscribe;
     };
     onState(cb: (s: AvatarState) => void): Unsubscribe;
     onStats(cb: (s: AvatarStats) => void): Unsubscribe;

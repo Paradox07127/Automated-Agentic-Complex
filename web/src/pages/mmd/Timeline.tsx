@@ -1,11 +1,11 @@
 import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
-import type { ActionProgress, MmdDetail, MmdEntry } from '../../bridge';
+import type { ActionProgress, MmdDetail, MmdEntry, PreviewControl, PreviewPosition } from '../../bridge';
 import { Icon } from '../../ui';
 import { GameSeg, MicroLabel, WhiteCapsule } from '../../ui/game';
 import type { TransportOp } from '../character/Transport';
 import styles from './Timeline.module.css';
 
-/** ← / → on the timeline while the desktop plays. */
+/** ← / → on the timeline. */
 const STEP_S = 5;
 
 /** m:ss.t, tenths cut down (the epsilon keeps 0.3 s from reading 0.2). */
@@ -29,6 +29,9 @@ interface TimelineProps {
   /** The desktop's report while it plays this dance. */
   desk: ActionProgress | null;
   onControl: (op: TransportOp, at?: number) => void;
+  /** The stage preview's playhead while it shows this dance. */
+  preview: PreviewPosition | null;
+  onPreview: (c: PreviewControl) => void;
   baked: boolean;
   canLoop: boolean;
   loop: boolean;
@@ -40,23 +43,30 @@ interface TimelineProps {
   onStop: () => void;
 }
 
-/** 时间线：播放键、时钟、来源（页内预览 / 桌面）、桌面播放、一次 / 循环；身体、口型、镜头切点、音源四条轨和播放头。桌面在播这支舞时跟着桌面走，拖动或 ← → 跳转。 */
+/** 时间线：播放键、时钟、来源（页内预览 / 桌面）、桌面播放、一次 / 循环；身体、口型、镜头切点、音源四条轨和播放头。桌面在播这支舞时跟着桌面走，否则跟着页内预览走；拖动或 ← → 跳转。 */
 export function Timeline(p: TimelineProps) {
   const desk = p.desk;
-  const total = desk?.durationS ?? p.entry.durationS;
+  const stage = desk ? null : p.preview;
+  const total = desk?.durationS ?? stage?.duration ?? p.entry.durationS;
+  // The play the controls act on: the desktop's, else the stage preview's.
+  const now = desk ? { t: desk.tS, paused: desk.paused } : stage ? { t: stage.t, paused: !stage.playing } : null;
+  const control = (op: TransportOp, at = 0) => {
+    if (desk) return op === 'seek' ? p.onControl(op, at) : p.onControl(op);
+    p.onPreview(op === 'seek' ? { op, at } : { op });
+  };
   const [drag, setDrag] = useState<number | null>(null);
   const held = useRef(false);
   const track = useRef<HTMLDivElement>(null);
-  // No preview position yet: the playhead stays at the start.
-  const t = desk ? Math.min(total, Math.max(0, drag ?? desk.tS)) : 0;
+  // No position yet: the playhead stays at the start.
+  const t = now ? Math.min(total, Math.max(0, drag ?? now.t)) : 0;
   const f = total > 0 ? t / total : 0;
   const at = (clientX: number) => {
     const r = track.current!.getBoundingClientRect();
     return r.width > 0 ? Math.min(1, Math.max(0, (clientX - r.left) / r.width)) * total : 0;
   };
-  const toggle = () => desk && p.onControl(desk.paused ? 'resume' : 'pause');
+  const toggle = () => now && control(now.paused ? 'resume' : 'pause');
   const down = (e: PointerEvent<HTMLDivElement>) => {
-    if (!desk || e.button !== 0) return;
+    if (!now || e.button !== 0) return;
     e.currentTarget.setPointerCapture?.(e.pointerId);
     e.currentTarget.focus();
     held.current = true;
@@ -69,11 +79,11 @@ export function Timeline(p: TimelineProps) {
     if (!held.current) return;
     held.current = false;
     setDrag(null);
-    p.onControl('seek', at(e.clientX));
+    control('seek', at(e.clientX));
   };
   const key = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (!desk) return;
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') p.onControl('seek', Math.min(total, Math.max(0, desk.tS + (e.key === 'ArrowLeft' ? -STEP_S : STEP_S))));
+    if (!now) return;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') control('seek', Math.min(total, Math.max(0, now.t + (e.key === 'ArrowLeft' ? -STEP_S : STEP_S))));
     else if (e.key === ' ') toggle();
     else return;
     e.preventDefault();
@@ -82,11 +92,11 @@ export function Timeline(p: TimelineProps) {
   const marks = Array.from({ length: Math.max(0, Math.ceil(total / step) - 1) }, (_, i) => (i + 1) * step);
   const lanes = p.detail?.lanes;
   const cuts = p.detail?.camera?.cuts;
-  const paused = desk?.paused === true;
+  const paused = now?.paused === true;
   return (
     <section className={styles.tl} aria-label="时间线" data-source={desk ? 'desktop' : 'preview'}>
       <div className={styles.ctl}>
-        <button type="button" className={styles.pp} aria-label={paused ? '继续' : '暂停'} title={desk ? (paused ? '继续' : '暂停') : '页内预览还不能暂停'} disabled={!desk} onClick={toggle}>
+        <button type="button" className={styles.pp} aria-label={paused ? '继续' : '暂停'} title={now ? (paused ? '继续' : '暂停') : '页内预览没有在播这支舞'} disabled={!now} onClick={toggle}>
           {paused ? <Icon name="play" size={14} /> : <i className={styles.pause} aria-hidden="true" />}
         </button>
         <span className={styles.clock} aria-label="时钟">
@@ -133,15 +143,15 @@ export function Timeline(p: TimelineProps) {
           ref={track}
           className={styles.track}
           role="slider"
-          tabIndex={desk ? 0 : -1}
+          tabIndex={now ? 0 : -1}
           aria-label="播放进度"
-          aria-disabled={!desk || undefined}
+          aria-disabled={!now || undefined}
           aria-valuemin={0}
           aria-valuemax={total}
           aria-valuenow={t}
           aria-valuetext={`${clock(t)} / ${clock(total)}`}
           data-transport-bar=""
-          data-seek={desk ? '' : undefined}
+          data-seek={now ? '' : undefined}
           onPointerDown={down}
           onPointerMove={move}
           onPointerUp={up}

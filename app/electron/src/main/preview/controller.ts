@@ -4,7 +4,7 @@ import { BridgeFailure } from '../../common/bridge.ts';
 import type { EventSource } from '../../common/page.ts';
 import type { PreviewHost, PreviewRect } from '../ops/preview.ts';
 import type { MotionLibrary } from './library.ts';
-import type { CameraView, PreviewSelection } from './session.ts';
+import type { CameraView, PreviewSelection, StageControl } from './session.ts';
 
 /** The preview in the main window. */
 export interface PreviewView {
@@ -19,6 +19,10 @@ export interface PreviewView {
   hide(): void;
   /** `{fraction}` while a load builds anew, null once none does. */
   readonly progress: EventSource;
+  /** The stage load's pause, resume or seek; nothing without one. */
+  control(c: StageControl): void;
+  /** `{t, duration, playing}` of the stage load on screen, null once there is none. */
+  readonly position: EventSource;
 }
 
 export interface PreviewControllerOptions {
@@ -54,7 +58,11 @@ export class PreviewController implements PreviewHost {
     return this.options.view.progress;
   }
 
-  async show(rect: PreviewRect, action: string | null, loop: boolean, revision: number): Promise<boolean> {
+  get position(): EventSource {
+    return this.options.view.position;
+  }
+
+  async show(rect: PreviewRect, action: string | null, loop: boolean, revision: number, stage = false): Promise<boolean> {
     this.request += 1;
     const expected = this.request;
     const resized = this.placed !== null && (this.placed.w !== rect.w || this.placed.h !== rect.h);
@@ -97,7 +105,8 @@ export class PreviewController implements PreviewHost {
     return this.options.view.load({ bundle: library.bundle, sha256: library.sha256, character: library.character, clip, facial: null,
       rate: 1, appearance: avatar.appearance, request: revision, modSettings: Object.keys(mods).length > 0 ? mods : null,
       loop: loop && clip !== null, ...(renderArgs && { renderArgs }),
-      ...(avatar.hiddenLayers?.length ? { hiddenLayers: avatar.hiddenLayers } : {}) });
+      ...(avatar.hiddenLayers?.length ? { hiddenLayers: avatar.hiddenLayers } : {}),
+      ...(stage && action !== null ? { stage: true, action } : {}) });
   }
 
   hide(): void {
@@ -117,5 +126,9 @@ export class PreviewController implements PreviewHost {
 
   view(v: CameraView): void {
     this.options.view.view(v);
+  }
+
+  control(c: StageControl): void {
+    this.options.view.control(c);
   }
 }

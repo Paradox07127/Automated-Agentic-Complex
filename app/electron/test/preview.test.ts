@@ -15,7 +15,8 @@ import type { OpsContext } from '../src/main/ops/context.ts';
 import { type PreviewHost, previewOps } from '../src/main/ops/preview.ts';
 import { PreviewController, type PreviewView } from '../src/main/preview/controller.ts';
 import { loadMotionLibrary, type MotionLibrary } from '../src/main/preview/library.ts';
-import { type CameraView, PreviewFailure, previewOutput, PreviewSession, type PreviewSelection } from '../src/main/preview/session.ts';
+import { type CameraView, PreviewFailure, previewOutput, PreviewSession, type PreviewSelection, type StageControl,
+  type StagePosition } from '../src/main/preview/session.ts';
 import { lookArguments, renderArguments } from '../src/main/renderer/supervisor.ts';
 
 type Message = Record<string, unknown>;
@@ -64,9 +65,10 @@ const selection = (o: Partial<PreviewSelection> = {}): PreviewSelection => ({ bu
 
 function session(firstFrameTimeout = 5000, releaseAfter = 5000) {
   const transport = new FakeTransport(), presenter = new FakePresenter(), logs: string[] = [], progress: (number | null)[] = [];
+  const positions: (StagePosition | null)[] = [];
   const s = new PreviewSession<string>({ transport, service: 'test.preview', presenter,
-    log: (l) => logs.push(l), firstFrameTimeout, releaseAfter, progress: (f) => progress.push(f) });
-  return { s, transport, presenter, logs, progress };
+    log: (l) => logs.push(l), firstFrameTimeout, releaseAfter, progress: (f) => progress.push(f), position: (p) => positions.push(p) });
+  return { s, transport, presenter, logs, progress, positions };
 }
 
 /** Lets the promise callbacks run. */
@@ -403,18 +405,82 @@ test('a session no view was asked of resets a reused service to the default view
   s.disconnect();
 });
 
+const STAGE_LOAD = { op: 'load', bundle: '/lib/si/runtime/bundle.json', sha256: 'a'.repeat(64), character: 'si', rate: 1, clip: 'A_dance', stage: true,
+  action: 'mmd_a' };
+
+test('a stage load carries stage and action and stands at 0 s paused; control reaches the service and positions of the current load the page', () => {
+  const { s, transport, presenter, positions } = session();
+  s.load(selection({ clip: 'A_dance', stage: true, action: 'mmd_a' })).catch(() => {});
+  assert.deepEqual(transport.sent.slice(1), [{ ...STAGE_LOAD, load_id: 1 }, { op: 'pause' }, { op: 'seek', at: 0 }]);
+  transport.emit({ event: 'position', load_id: 0, t: 5, duration: 9, playing: true });
+  transport.emit({ event: 'position', load_id: 1, t: 0, duration: 12.5, playing: false });
+  assert.deepEqual(positions, [{ t: 0, duration: 12.5, playing: false }], 'an older load_id is dropped');
+  s.control({ op: 'resume' });
+  s.control({ op: 'seek', at: 3.5 });
+  s.control({ op: 'pause' });
+  assert.deepEqual(transport.sent.slice(-3), [{ op: 'resume' }, { op: 'seek', at: 3.5 }, { op: 'pause' }]);
+  transport.emit({ event: 'position', load_id: 1, t: 3.5, duration: 12.5, playing: false });
+  // Hidden: null once, and nothing of it while off screen; back on screen paused, its frame is drawn again where it stood.
+  presenter.active = false;
+  s.syncPlayback();
+  transport.emit({ event: 'position', load_id: 1, t: 3.5, duration: 12.5, playing: false });
+  assert.deepEqual(positions.slice(1), [{ t: 3.5, duration: 12.5, playing: false }, null]);
+  const sent = transport.sent.length;
+  presenter.active = true;
+  s.syncPlayback();
+  assert.deepEqual(transport.sent.slice(sent), [{ op: 'seek', at: 3.5 }]);
+  s.disconnect();
+});
+
+test('a non-stage load, an error or the service going away ends the stage: null once, and control then sends nothing', () => {
+  const { s, transport, positions } = session();
+  s.load(selection({ clip: 'A_dance', stage: true, action: 'mmd_a' })).catch(() => {});
+  transport.emit({ event: 'position', load_id: 1, t: 1, duration: 12.5, playing: true });
+  s.load(selection({ clip: 'wave' })).catch(() => {});
+  assert.deepEqual(positions, [{ t: 1, duration: 12.5, playing: true }, null]);
+  assert.deepEqual(transport.sent.at(-1), { op: 'load', bundle: '/lib/si/runtime/bundle.json', sha256: 'a'.repeat(64), character: 'si', rate: 1,
+    load_id: 2, clip: 'wave' });
+  s.control({ op: 'pause' });
+  s.control({ op: 'seek', at: 1 });
+  transport.emit({ event: 'position', load_id: 2, t: 1, duration: 3, playing: true });
+  assert.equal(transport.sent.at(-1)?.op, 'load');
+  assert.equal(positions.length, 2);
+  s.load(selection({ clip: 'A_dance', stage: true, action: 'mmd_a' })).catch(() => {});
+  transport.emit({ event: 'position', load_id: 3, t: 0, duration: 12.5, playing: false });
+  transport.emit({ event: 'error', load_id: 3, reason: 'clip does not match the track' });
+  assert.deepEqual(positions.slice(2), [{ t: 0, duration: 12.5, playing: false }, null]);
+  s.load(selection({ clip: 'A_dance', stage: true, action: 'mmd_a' })).catch(() => {});
+  transport.emit({ event: 'position', load_id: 4, t: 0, duration: 12.5, playing: false });
+  transport.emit({ event: 'disconnected' });
+  assert.deepEqual(positions.slice(4), [{ t: 0, duration: 12.5, playing: false }, null]);
+});
+
+test('a stage rebuild after its first frame plays the dance again, paused at 0 s, not her idle', async () => {
+  const { s, transport, presenter } = session();
+  const loaded = s.load(selection({ clip: 'A_dance', stage: true, action: 'mmd_a' }));
+  transport.emit({ event: 'frame', load_id: 1 }, 'surface-a', 1);
+  presenter.finish();
+  await loaded;
+  s.load(selection({ clip: 'A_dance', stage: true, action: 'mmd_a', output: [720, 864] })).catch(() => {});
+  assert.deepEqual(transport.sent.slice(-3), [{ ...STAGE_LOAD, load_id: 2, output: [720, 864] }, { op: 'pause' }, { op: 'seek', at: 0 }]);
+  s.disconnect();
+});
+
 /** A view that records what the controller asks of it. */
 class FakeView implements PreviewView {
   placed: unknown[] = [];
   loads: PreviewSelection[] = [];
   views: CameraView[] = [];
   hides = 0;
+  controls: StageControl[] = [];
   readonly progress = new PushSource('progress');
+  readonly position = new PushSource('position');
   place(rect: unknown): void { this.placed.push(rect); }
   async load(s: PreviewSelection): Promise<boolean> { this.loads.push(s); return true; }
   async sequence(): Promise<void> {}
   view(v: CameraView): void { this.views.push(v); }
   hide(): void { this.hides += 1; }
+  control(c: StageControl): void { this.controls.push(c); }
 }
 
 const library: MotionLibrary = { bundle: '/b.json', sha256: 'f'.repeat(64), character: 'si',
@@ -426,6 +492,19 @@ test('the controller passes a view to the window preview', () => {
   const v: CameraView = { turn: 90, tilt: 5, zoom: 0.4, pan: [0.1, 0], frame: [0, 0, 0.5, 1] };
   c.view(v);
   assert.deepEqual(view.views, [v]);
+});
+
+test('a stage show plays the action as the stage; the controller passes control and positions between page and view', async () => {
+  const view = new FakeView();
+  const c = new PreviewController({ view, avatar: () => ({ character: 'si', appearance: null }), library: async () => library });
+  const rect = { x: 0, y: 0, w: 300, h: 400 };
+  await c.show(rect, 'wave', true, 1, true);
+  await c.show(rect, 'wave', false, 2);
+  assert.deepEqual(view.loads.map((s) => [s.clip, s.loop, s.stage, s.action]), [['A_wave', true, true, 'wave'], ['A_wave', false, undefined, undefined]]);
+  c.control({ op: 'seek', at: 2 });
+  c.control({ op: 'resume' });
+  assert.deepEqual(view.controls, [{ op: 'seek', at: 2 }, { op: 'resume' }]);
+  assert.equal(c.position, view.position);
 });
 
 test('show plays the first clip of the action as the current character, idle without one, and reloads a library that lacks it', async () => {
@@ -662,10 +741,10 @@ const sender = { mainFrame: true, origin: ORIGIN };
 const call = (preview: PreviewHost | null, op: string, args: unknown[] = []) =>
   handle('main', sender, { op, args }, new Map(Object.entries(previewOps({ preview } as unknown as OpsContext))));
 
-test('without a preview host (Windows) the five ops answer not_implemented, after the sequence and view argument checks', async () => {
+test('without a preview host (Windows) the seven ops answer not_implemented, after the sequence and view argument checks', async () => {
   for (const [op, args] of [['avatar.preview.show', [{ x: 0, y: 0, w: 10, h: 10 }]], ['avatar.preview.hide', []],
     ['avatar.preview.sequence', [{ clips: ['a'], blend_s: [] }]], ['avatar.preview.onProgress', [1]],
-    ['avatar.preview.view', [{ turn: 0, zoom: 1 }]]] as const) {
+    ['avatar.preview.view', [{ turn: 0, zoom: 1 }]], ['avatar.preview.control', [{ op: 'pause' }]], ['avatar.preview.onPosition', [1]]] as const) {
     assert.deepEqual(await call(null, op, [...args]), { ok: false, error: { code: 'not_implemented', detail: op } }, op);
   }
   assert.equal(((await call(null, 'avatar.preview.sequence', [{ clips: [] }])) as { error: { code: string } }).error.code, 'invalid_args');
@@ -675,7 +754,7 @@ test('without a preview host (Windows) the five ops answer not_implemented, afte
 test('avatar.preview.view takes finite numbers, clamps the zoom to 0.1–2 and the tilt to ±80, fills the defaults and reaches the host', async () => {
   const views: CameraView[] = [];
   const host: PreviewHost = { show: async () => true, hide: () => {}, sequence: async () => {}, progress: new PushSource('progress'),
-    view: (v) => { views.push(v); } };
+    view: (v) => { views.push(v); }, control: () => {}, position: new PushSource('position') };
   assert.deepEqual(await call(host, 'avatar.preview.view', [{ turn: 725.5, tilt: 12, zoom: 0.6, pan: [0.1, -0.3], frame: [0.28, 0, 0.44, 1] }]),
     { ok: true, value: null });
   await call(host, 'avatar.preview.view', [{ turn: -30, zoom: 0.01, tilt: -95 }]);
@@ -713,6 +792,8 @@ test('the ops check their arguments and reach the preview host', async () => {
       sequences.push([clips, blends]);
     },
     view: () => {},
+    control: () => {},
+    position: new PushSource('position'),
   };
   const rect = { x: 10, y: 20.5, w: 300, h: 400 };
   assert.deepEqual(await call(host, 'avatar.preview.show', [rect]), { ok: true, value: true });
@@ -747,6 +828,39 @@ test('the ops check their arguments and reach the preview host', async () => {
   assert.equal(sequences.length, 3);
   assert.deepEqual(await call(host, 'avatar.preview.sequence', [{ clips: ['old'], blend_s: [] }]),
     { ok: false, error: { code: 'unavailable', detail: 'no live preview' } });
+});
+
+test('avatar.preview.show takes stage with an action; avatar.preview.control checks its op and reaches the host; onPosition pushes', async () => {
+  const shown: unknown[][] = [], controls: StageControl[] = [];
+  const position = new PushSource('position');
+  const host: PreviewHost = { show: async (...a) => { shown.push(a); return true; }, hide: () => {}, sequence: async () => {},
+    progress: new PushSource('progress'), view: () => {}, control: (c) => { controls.push(c); }, position };
+  const rect = { x: 0, y: 0, w: 10, h: 10 };
+  assert.deepEqual(await call(host, 'avatar.preview.show', [{ ...rect, action: 'mmd_a', stage: true, request: 2 }]), { ok: true, value: true });
+  await call(host, 'avatar.preview.show', [{ ...rect, action: 'mmd_a', stage: false }]);
+  await call(host, 'avatar.preview.show', [{ ...rect, action: 'mmd_a' }]);
+  for (const value of [{ ...rect, stage: true }, { ...rect, action: null, stage: true }, { ...rect, action: 'mmd_a', stage: 'yes' }]) {
+    const r = await call(host, 'avatar.preview.show', [value]) as { ok: boolean; error?: { code: string } };
+    assert.equal(r.error?.code, 'invalid_args', JSON.stringify(value));
+  }
+  assert.deepEqual(shown.map((s) => [s[1], s[4]]), [['mmd_a', true], ['mmd_a', false], ['mmd_a', false]]);
+  for (const c of [{ op: 'pause' }, { op: 'resume' }, { op: 'seek', at: 4.5 }]) {
+    assert.deepEqual(await call(host, 'avatar.preview.control', [c]), { ok: true, value: null });
+  }
+  for (const value of [{ op: 'seek' }, { op: 'seek', at: Number.NaN }, { op: 'seek', at: '1' }, { op: 'stop' }, null, 'pause']) {
+    const r = await call(host, 'avatar.preview.control', [value]) as { ok: boolean; error?: { code: string } };
+    assert.equal(r.error?.code, 'invalid_args', JSON.stringify(value));
+  }
+  assert.deepEqual(controls, [{ op: 'pause' }, { op: 'resume' }, { op: 'seek', at: 4.5 }]);
+  const pushed: unknown[] = [];
+  const page = new PageSession((_id, stream, kind, payload) => {
+    if (stream === 'avatar.preview.onPosition' && kind === 'event') pushed.push(JSON.parse(payload!.data));
+  });
+  const ops = new Map(Object.entries(previewOps({ preview: host } as unknown as OpsContext)));
+  assert.deepEqual(await handle('main', sender, { op: 'avatar.preview.onPosition', args: [1] }, ops, page), { ok: true, value: null });
+  position.send({ t: 1.5, duration: 12.5, playing: true });
+  position.send(null);
+  assert.deepEqual(pushed, [{ t: 1.5, duration: 12.5, playing: true }, null]);
 });
 
 test('her hidden layers go to the service as hidden_layers, and showing them all again is another load', async () => {

@@ -49,7 +49,16 @@ export interface PreviewSelection {
   output?: [number, number];
   /** Layer ids the desktop hides; absent shows every layer. */
   hiddenLayers?: string[];
+  /** Plays `action`'s tracks (its camera and music) as the stage; set only with `action`. */
+  stage?: true;
+  action?: string;
 }
+
+/** The page's transport over a stage load. */
+export type StageControl = { op: 'pause' } | { op: 'resume' } | { op: 'seek'; at: number };
+
+/** A stage load's `position`: `t` seconds of `duration` into its clip. */
+export interface StagePosition { t: number; duration: number; playing: boolean }
 
 /** Preview `view`: `turn` degrees on her camera yaw, `tilt` degrees on its pitch (±80), `zoom` the share 0.1–2 of the fitted
  *  frame shown, `pan` the shown centre's offset from the fit's in fitted-frame sizes (y down), `frame` where the fit sits in the
@@ -92,6 +101,8 @@ export interface SessionOptions<S> {
   releaseAfter?: number;
   /** A load that builds anew: its share done (the service's `progress`, 0.95 at `loaded`); null once it is drawn, fails or is replaced. */
   progress?(fraction: number | null): void;
+  /** The current stage load's position while on screen; null once there is none (another load, hidden, failed, gone). */
+  position?(p: StagePosition | null): void;
 }
 
 type Phase = { kind: 'idle' | 'loading' | 'live' } | { kind: 'failed'; reason: string };
@@ -124,6 +135,14 @@ export class PreviewSession<S> {
   private progressed: number | null = null;
   /** The last `view` asked for; null before one. */
   private lastView: CameraView | null = null;
+  /** A stage load stands paused until the page resumes it. */
+  private held = false;
+  /** The presenter's `active` as of the last syncPlayback. */
+  private onScreen = false;
+  /** The stage load's last reported `t`. */
+  private stageAt = 0;
+  /** The last position reported was not null. */
+  private positioned = false;
 
   constructor(options: SessionOptions<S>) {
     this.options = options;
@@ -135,8 +154,9 @@ export class PreviewSession<S> {
       // The service keeps a view across loads and connections (a reload can reuse it), so a new connection sets this session's
       // first; a service that starts with it applies it to the actor its load builds.
       if (this.connect()) this.send({ op: 'view', ...(this.lastView ?? DEFAULT_VIEW) });
-      // The service cannot keep a playhead across a load: a rebuild of a clip that has played draws her idle, a loop loops on.
-      const idle = this.selection !== null && this.played && samePlayback(value, this.selection) && (this.sequenced || !value.loop);
+      // The service cannot keep a playhead across a load: a rebuild of a clip that has played draws her idle, a loop loops on,
+      // a stage stands at its start again.
+      const idle = !value.stage && this.selection !== null && this.played && samePlayback(value, this.selection) && (this.sequenced || !value.loop);
       this.played = idle;
       this.sequenced = idle && this.sequenced;
       this.selection = value;
@@ -152,12 +172,23 @@ export class PreviewSession<S> {
       if (value.renderArgs !== undefined) message.render_args = value.renderArgs;
       if (value.output !== undefined) message.output = value.output;
       if (value.hiddenLayers !== undefined) message.hidden_layers = value.hiddenLayers;
+      if (value.stage) {
+        message.stage = true;
+        message.action = value.action;
+      }
       if (!this.send(message)) {
         this.fail('预览请求发不出去（太大或连接已断）');
         return this.settled();
       }
-      // A load starts the service playing.
-      this.servicePaused = false;
+      // A load starts the service playing; a stage stands at its first frame, silent, until the page resumes it.
+      this.held = value.stage === true;
+      this.servicePaused = this.held;
+      if (this.held) {
+        this.stageAt = 0;
+        this.onScreen = this.options.presenter.active;
+        this.send({ op: 'pause' });
+        this.send({ op: 'seek', at: 0 });
+      }
       this.syncPlayback();
       this.awaitFirstFrame(expected);
     }
@@ -195,10 +226,33 @@ export class PreviewSession<S> {
       if (this.releaseTimer !== null) clearTimeout(this.releaseTimer);
       this.releaseTimer = null;
     } else this.releaseTimer ??= setTimeout(() => this.release(), this.options.releaseAfter ?? 20_000);
-    if (!this.connected || this.selection === null || this.servicePaused !== active) return;
-    this.servicePaused = !active;
-    this.send({ op: this.servicePaused ? 'pause' : 'resume' });
-    if (active && this.phase.kind === 'loading') this.awaitFirstFrame(this.loadID);
+    if (!active) this.endPosition();
+    const appeared = active && !this.onScreen;
+    this.onScreen = active;
+    if (!this.connected || this.selection === null) return;
+    const paused = !active || this.held;
+    if (this.servicePaused === paused) {
+      // A hide cleared the canvas: a held stage draws its frame again.
+      if (appeared && this.held) this.send({ op: 'seek', at: this.stageAt });
+      return;
+    }
+    this.servicePaused = paused;
+    this.send({ op: paused ? 'pause' : 'resume' });
+    if (!paused && this.phase.kind === 'loading') this.awaitFirstFrame(this.loadID);
+  }
+
+  /** The page's pause, resume or seek of a stage load; nothing without one. */
+  control(c: StageControl): void {
+    if (!this.connected || this.selection?.stage !== true) return;
+    if (c.op === 'seek') {
+      this.send({ op: 'seek', at: c.at });
+      return;
+    }
+    // Sent even when it seems to change nothing: a stage played to its end stands, and `resume` plays it again from 0.
+    this.held = c.op === 'pause';
+    this.servicePaused = this.held;
+    this.send({ op: c.op });
+    this.syncPlayback();
   }
 
   /** The window is gone: ends the connection; nothing of it is handled after. */
@@ -213,6 +267,7 @@ export class PreviewSession<S> {
     if (this.timeout !== null) clearTimeout(this.timeout);
     this.timeout = null;
     this.endProgress();
+    this.endPosition();
     this.phase = { kind: 'idle' };
     const ended = this.waiters;
     this.waiters = [];
@@ -241,6 +296,7 @@ export class PreviewSession<S> {
     this.loadStarted = performance.now();
     this.framesReported = 0;
     this.endProgress();
+    this.endPosition();
     const replaced = this.waiters;
     this.waiters = [];
     for (const w of replaced) w.reject(new PreviewFailure('预览换成了新的请求'));
@@ -273,6 +329,7 @@ export class PreviewSession<S> {
     if (this.timeout !== null) clearTimeout(this.timeout);
     this.timeout = null;
     this.endProgress();
+    this.endPosition();
     if (report) this.options.log(`character preview load_id=${this.loadID} failed: ${reason}`);
     if (this.connected && !this.servicePaused) {
       this.servicePaused = true;
@@ -295,6 +352,12 @@ export class PreviewSession<S> {
     if (this.progressed === null) return;
     this.progressed = null;
     this.options.progress?.(null);
+  }
+
+  private endPosition(): void {
+    if (!this.positioned) return;
+    this.positioned = false;
+    this.options.position?.(null);
   }
 
   private send(value: Record<string, unknown>): boolean {
@@ -331,6 +394,17 @@ export class PreviewSession<S> {
       case 'loaded':
         if (message.load_id === this.loadID && this.progressed !== null) this.reportProgress(0.95);
         return;
+      case 'position': {
+        const { t, duration, playing } = message;
+        if (this.selection?.stage !== true || message.load_id !== this.loadID || typeof t !== 'number' || typeof duration !== 'number'
+          || typeof playing !== 'boolean') return;
+        this.stageAt = t;
+        // The `pause` a hide sends brings one more.
+        if (!this.options.presenter.active) return;
+        this.positioned = true;
+        this.options.position?.({ t, duration, playing });
+        return;
+      }
       case 'stats': {
         if (this.selection === null || message.load_id !== this.loadID || typeof message.fps !== 'number') return;
         this.framesReported += 1;

@@ -303,7 +303,8 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
       playlistState: async () => ({ playing: playing !== null, index: playing, id: playing === null ? null : playlist.items[playing] ?? null }),
       presentation: { get: async () => null, set: done },
       // A browser has no live preview: the stage keeps its art.
-      preview: { show: async () => false, hide: done, sequence: fakePreviewSequence, onProgress: () => none, view: fakePreviewView() },
+      preview: { show: async () => false, hide: done, sequence: fakePreviewSequence, onProgress: () => none, view: fakePreviewView(),
+        control: done, onPosition: () => none },
       onState: () => none,
       onStats: (cb) => {
         if (hashQuery().get('demo') === 'suspended') return none;

@@ -86,6 +86,8 @@ export interface LivePreviewWant {
   request?: number | undefined;
   /** `action` starts over at its end instead of returning to the idle. */
   loop?: boolean | undefined;
+  /** `action` plays as the stage, its camera and music, standing at 0 s until `avatar.preview.control` resumes it. */
+  stage?: boolean | undefined;
   /** The stage's own overlay (not running, switching) is up. */
   blocked: boolean;
 }
@@ -104,11 +106,12 @@ interface LoadReport { fraction: number | null; seen: boolean }
 export function useLivePreview(stage: HTMLElement | null, want: LivePreviewWant): PreviewPhase & { progress: number | null; retry: () => void } {
   const covered = usePreviewOverlay(stage);
   const loop = !!want.loop && !!want.action;
+  const asStage = !!want.stage && !!want.action;
   const [status, setStatus] = useState<PreviewPhase>({ phase: 'idle' });
   const [report, setReport] = useState<LoadReport>({ fraction: null, seen: false });
   const [drawn, setDrawn] = useState(false);
-  const latest = useRef({ ...want, loop, off: false });
-  latest.current = { ...want, loop, off: covered || want.blocked };
+  const latest = useRef({ ...want, loop, stage: asStage, off: false });
+  latest.current = { ...want, loop, stage: asStage, off: covered || want.blocked };
   const schedule = useRef<() => void>(() => {});
   const retry = useRef<() => void>(() => {});
   const qc = useContext(QueryClientContext);
@@ -148,8 +151,8 @@ export function useLivePreview(stage: HTMLElement | null, want: LivePreviewWant)
     };
     const report = () => {
       frame = 0;
-      const { character, action, appearance, request, loop, off } = latest.current;
-      const what = `${character}|${action ?? ''}|${loop ? 'loop' : ''}|${appearance ?? ''}|${request ?? ''}`;
+      const { character, action, appearance, request, loop, stage: asStage, off } = latest.current;
+      const what = `${character}|${action ?? ''}|${loop ? 'loop' : ''}|${asStage ? 'stage' : ''}|${appearance ?? ''}|${request ?? ''}`;
       const s = stage.getBoundingClientRect();
       const layer = document.querySelector(PREVIEW_LAYER) ?? stage;
       const r = layer === stage ? s : layer.getBoundingClientRect();
@@ -168,6 +171,7 @@ export function useLivePreview(stage: HTMLElement | null, want: LivePreviewWant)
         ...(action ? { action } : {}),
         ...(loop ? { loop } : {}),
         ...(request != null ? { request } : {}),
+        ...(asStage ? { stage: true } : {}),
       };
       // Her look changing shows again without loading anew on the page: the stage stays live unless the show fails.
       const key = `${drawing}|${at.x},${at.y},${at.w},${at.h}`;
@@ -231,7 +235,7 @@ export function useLivePreview(stage: HTMLElement | null, want: LivePreviewWant)
   }, [stage]);
 
   const off = covered || want.blocked;
-  useEffect(() => schedule.current(), [off, want.character, want.action, loop, want.appearance, want.request]);
+  useEffect(() => schedule.current(), [off, want.character, want.action, loop, asStage, want.appearance, want.request]);
   const placed = status.phase === 'loading' || status.phase === 'live';
   // A service that reports no progress: the first show on this stage counts 0 until her first frame.
   const progress = !placed ? null : (report.fraction ?? (status.phase === 'loading' && !drawn && !report.seen ? 0 : null));

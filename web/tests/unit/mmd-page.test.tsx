@@ -74,6 +74,17 @@ function desktop() {
   });
   return (p: ActionProgress | null) => act(async () => listeners.forEach((l) => l(p)));
 }
+type StagePosition = Parameters<Parameters<AgenticComplexBridge['avatar']['preview']['onPosition']>[0]>[0];
+/** Every stage position the page listens for, pushed at once. */
+function previewAt() {
+  const listeners = new Set<(p: StagePosition) => void>();
+  vi.spyOn(bridge.avatar.preview, 'onPosition').mockImplementation((cb) => {
+    listeners.add(cb);
+    return () => void listeners.delete(cb);
+  });
+  return (p: StagePosition) => act(async () => listeners.forEach((l) => l(p)));
+}
+const BAR = { x: 100, y: 0, width: 200, height: 40, top: 0, left: 100, right: 300, bottom: 40, toJSON: () => ({}) } as DOMRect;
 
 beforeEach(() => install());
 afterEach(() => {
@@ -192,6 +203,40 @@ describe('MMD inspector and timeline', () => {
     await push({ id: 'mmd_other', tS: 1, durationS: 9, paused: false });
     expect(timeline().textContent).toContain('PREVIEW');
     expect(within(timeline()).getByLabelText('时钟').textContent).toBe('0:00.0/ 3:43.3');
+  });
+
+  it('follows the stage preview of the selected dance: PREVIEW, its clock and playhead, its pause, a drag and ← → seek it', async () => {
+    const push = previewAt();
+    const control = vi.spyOn(bridge.avatar.preview, 'control').mockResolvedValue();
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      return 'transportBar' in this.dataset ? BAR : EMPTY;
+    });
+    vi.spyOn(bridge.mmd, 'list').mockResolvedValue(THREE);
+    await mount();
+    await waitFor(() => expect(item('mmd_a')).not.toBeNull());
+    expect(within(timeline()).getByRole('button', { name: '暂停' })).toHaveProperty('disabled', true);
+    await push({ t: 4.2, duration: 12.4, playing: false });
+    expect(timeline().textContent).toContain('PREVIEW');
+    expect(within(timeline()).getByLabelText('时钟').textContent).toBe('0:04.2/ 0:12.4');
+    const slider = within(timeline()).getByRole('slider', { name: '播放进度' });
+    expect(slider.getAttribute('aria-valuenow')).toBe('4.2');
+    await click(within(timeline()).getByRole('button', { name: '继续' }));
+    expect(control).toHaveBeenLastCalledWith({ op: 'resume' });
+    await push({ t: 4.2, duration: 12.4, playing: true });
+    await click(within(timeline()).getByRole('button', { name: '暂停' }));
+    expect(control).toHaveBeenLastCalledWith({ op: 'pause' });
+    await press(slider, 'ArrowRight');
+    expect(control).toHaveBeenLastCalledWith({ op: 'seek', at: 9.2 });
+    await press(slider, 'ArrowLeft');
+    expect(control).toHaveBeenLastCalledWith({ op: 'seek', at: 0 });
+    await act(async () => {
+      fireEvent.pointerDown(slider, { clientX: 200, pointerId: 1, button: 0 });
+      fireEvent.pointerUp(slider, { clientX: 200, pointerId: 1, button: 0 });
+    });
+    expect(control).toHaveBeenLastCalledWith({ op: 'seek', at: 6.2 });
+    await push(null);
+    expect(within(timeline()).getByLabelText('时钟').textContent).toBe('0:00.0/ 0:12.5');
+    expect(within(timeline()).getByRole('button', { name: '暂停' })).toHaveProperty('disabled', true);
   });
 });
 
@@ -396,13 +441,13 @@ describe('MMD stage preview', () => {
     return vi.spyOn(bridge.avatar.preview, 'show').mockImplementation(async (_at: PreviewPlacement) => true);
   }
 
-  it('previews the selected baked dance in the stage’s rect, looped with 循环', async () => {
+  it('previews the selected baked dance as the stage in the stage’s rect, looped with 循环', async () => {
     const show = stage();
     await mount();
-    await waitFor(() => expect(show).toHaveBeenLastCalledWith(expect.objectContaining({ x: 400, y: 80, w: 360, h: 640, action: 'mmd_a' })));
+    await waitFor(() => expect(show).toHaveBeenLastCalledWith(expect.objectContaining({ x: 400, y: 80, w: 360, h: 640, action: 'mmd_a', stage: true })));
     expect(show.mock.lastCall?.[0]).not.toHaveProperty('loop');
     await click(within(screen.getByRole('radiogroup', { name: '播放方式' })).getByRole('radio', { name: '循环' }));
-    await waitFor(() => expect(show).toHaveBeenLastCalledWith(expect.objectContaining({ action: 'mmd_a', loop: true })));
+    await waitFor(() => expect(show).toHaveBeenLastCalledWith(expect.objectContaining({ action: 'mmd_a', loop: true, stage: true })));
   });
 
   it('does not preview a dance that is not baked for her', async () => {
@@ -411,6 +456,7 @@ describe('MMD stage preview', () => {
     await waitFor(() => expect(show).toHaveBeenLastCalledWith(expect.objectContaining({ action: 'mmd_a' })));
     await pick('mmd_b');
     await waitFor(() => expect(show.mock.lastCall?.[0]).not.toHaveProperty('action'));
+    expect(show.mock.lastCall?.[0]).not.toHaveProperty('stage');
     await pick('mmd_c');
     await act(async () => {});
     expect(show.mock.lastCall?.[0]).not.toHaveProperty('action');

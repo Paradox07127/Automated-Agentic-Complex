@@ -2,7 +2,7 @@
 // `not_implemented`, after the argument checks.
 import { BridgeFailure } from '../../common/bridge.ts';
 import type { EventSource } from '../../common/page.ts';
-import type { CameraView } from '../preview/session.ts';
+import type { CameraView, StageControl } from '../preview/session.ts';
 import type { Ops, OpsContext } from './context.ts';
 import { watch } from './events.ts';
 
@@ -10,8 +10,9 @@ import { watch } from './events.ts';
 export interface PreviewRect { x: number; y: number; w: number; h: number }
 
 export interface PreviewHost {
-  /** Viewport rect, optional action id, whether the action loops, and a selection revision that can replay the same action. */
-  show(rect: PreviewRect, action: string | null, loop: boolean, revision: number): Promise<boolean>;
+  /** Viewport rect, optional action id, whether the action loops, a selection revision that can replay the same action, and
+   *  whether the action plays as the stage (its camera and music, standing at 0 s until resumed). */
+  show(rect: PreviewRect, action: string | null, loop: boolean, revision: number, stage?: boolean): Promise<boolean>;
   hide(): void;
   /** Preview `sequence`: clips and the blend seconds between them; resolves once its first frame is drawn. */
   sequence(clips: string[], blendSeconds: number[]): Promise<void>;
@@ -19,6 +20,10 @@ export interface PreviewHost {
   readonly progress: EventSource;
   /** Preview `view`, its zoom and tilt clamped and its defaults filled in. */
   view(v: CameraView): void;
+  /** Preview `pause`, `resume` or `seek` of the stage load; nothing without one. */
+  control(c: StageControl): void;
+  /** `avatar.preview.onPosition`: `{t, duration, playing}` of the stage load on screen, null once there is none. */
+  readonly position: EventSource;
 }
 
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -40,11 +45,12 @@ export function previewOps(ctx: OpsContext): Ops {
       if (!isObject(r) || ![r.x, r.y, r.w, r.h].every(finite) || !((r.w as number) > 0 && (r.h as number) > 0)
         || !(r.action === undefined || r.action === null || (typeof r.action === 'string' && r.action !== ''))
         || !(r.loop === undefined || r.loop === null || typeof r.loop === 'boolean')
-        || !(r.request === undefined || (typeof r.request === 'number' && Number.isSafeInteger(r.request) && r.request >= 0))) {
-        throw new BridgeFailure('invalid_args', '{x, y, w, h, action?, loop?, request?}');
+        || !(r.request === undefined || (typeof r.request === 'number' && Number.isSafeInteger(r.request) && r.request >= 0))
+        || !(r.stage === undefined || r.stage === null || r.stage === false || (r.stage === true && typeof r.action === 'string'))) {
+        throw new BridgeFailure('invalid_args', '{x, y, w, h, action?, loop?, request?, stage?: with an action}');
       }
       return preview.show({ x: r.x as number, y: r.y as number, w: r.w as number, h: r.h as number },
-        typeof r.action === 'string' ? r.action : null, r.loop === true, typeof r.request === 'number' ? r.request : 0);
+        typeof r.action === 'string' ? r.action : null, r.loop === true, typeof r.request === 'number' ? r.request : 0, r.stage === true);
     },
     'avatar.preview.hide': () => {
       host('avatar.preview.hide').hide();
@@ -62,6 +68,15 @@ export function previewOps(ctx: OpsContext): Ops {
       return true;
     },
     'avatar.preview.onProgress': (args, page) => watch('avatar.preview.onProgress', host('avatar.preview.onProgress').progress)(args, page),
+    'avatar.preview.onPosition': (args, page) => watch('avatar.preview.onPosition', host('avatar.preview.onPosition').position)(args, page),
+    'avatar.preview.control': ([c]) => {
+      const preview = host('avatar.preview.control');
+      if (!isObject(c) || !(c.op === 'pause' || c.op === 'resume' || (c.op === 'seek' && finite(c.at)))) {
+        throw new BridgeFailure('invalid_args', "{op: 'pause' | 'resume'} | {op: 'seek', at: finite seconds}");
+      }
+      preview.control(c.op === 'seek' ? { op: 'seek', at: c.at as number } : { op: c.op });
+      return null;
+    },
     'avatar.preview.view': ([v]) => {
       const pan = isObject(v) ? (v.pan ?? [0, 0]) : null;
       const frame = isObject(v) ? (v.frame ?? [0, 0, 1, 1]) : null;
