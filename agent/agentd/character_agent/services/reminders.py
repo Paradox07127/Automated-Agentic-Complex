@@ -7,7 +7,10 @@ import re
 from character_agent.services.instruction_guard import positive_instruction
 from character_agent.services.workspace import _validate_arguments
 
-CREATE = re.compile(r'提醒我|叫我|喊我|リマインドして|(?:设置|创建|添加).{0,8}提醒|\bremind\s+me\b|\b(?:set|create|add)\b.{0,24}\breminder\b', re.I)
+# One-character verbs need 个/条 right after them, so 确定一下提醒 is not an ask.
+CREATE = re.compile(r'提醒我|提醒一下|叫我|喊我|リマインドして|(?:设置|创建|添加|新建|安排).{0,16}(?:提醒|闹钟)|'
+                    r'(?:建|加|设|定)(?:一?个|一?条).{0,16}(?:提醒|闹钟)|'
+                    r'\bremind\s+me\b|\b(?:set|create|add)\b.{0,24}\b(?:reminder|alarm)\b', re.I)
 CANCEL = re.compile(r'取消|删除|撤销|\b(?:cancel|delete|remove)\b', re.I)
 RESCHEDULE = re.compile(r'改到|改成|改为|修改|推迟|延后|提前|\b(?:reschedule|snooze|postpone|move)\b', re.I)
 # A reminder pointed at instead of named: the only active one, or for RECENT words the newest created.

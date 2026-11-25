@@ -48,6 +48,13 @@ class RuleCheckTest(unittest.TestCase):
         self.assertEqual(rule_check("太好了！[intent:celebrate]")["intent_marker"], "missing")
         self.assertIn("intent_marker", rule_check("太好了！")["violations"])
 
+    def test_internal_detail(self):
+        for raw in ("[intent:explain]报错是 reminder_instruction_required，没建成。",
+                    "[intent:explain]写好了，在 /private/var/folders/x1/T/persona-eval-ab/workspace/todo.txt。",
+                    "[intent:explain]放在 C:\\Users\\me\\todo.txt 了。"):
+            self.assertIn("internal_detail", rule_check(raw)["violations"], raw)
+        self.assertNotIn("internal_detail", rule_check("[intent:explain]写好了，在 todo.txt 里。")["violations"])
+
     def test_checks_run_on_the_shown_text(self):
         rules = rule_check("[intent:greet][motion:waves her right hand happily|3]早。")
         self.assertEqual((rules["chars"], rules["opening"], rules["violations"]), (2, "早。", []))
@@ -78,7 +85,7 @@ class SummaryTest(unittest.TestCase):
         self.assertEqual((chat["last"]["turns"], chat["last"]["violation_rate"]), ([11, 20], 0.1))
         self.assertEqual(chat["last"]["rule_rates"],
                          {"ai_self_reference": 0, "markdown_layout": 0.1, "assistant_phrase": 0.1, "same_opening": 0,
-                          "intent_marker": 0})
+                          "intent_marker": 0, "internal_detail": 0})
         self.assertEqual(chat["first"]["judge_mean"], {"voice": 4, "canon": 5, "no_assistant": 4, "length": 3})
         self.assertEqual(chat["last"]["judge_mean"]["voice"], 3.8)
         task = summary["scenarios"]["task"]

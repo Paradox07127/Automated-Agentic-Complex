@@ -38,7 +38,9 @@ ASSISTANT_PHRASES = ("有什么可以帮你", "有什么我可以帮", "希望�
                      "如有其他问题", "随时告诉我", "很高兴为你服务",
                      "how can i help", "how can i assist", "i hope this helps", "let me know if you have any other",
                      "feel free to ask", "happy to help")
-RULES = ("ai_self_reference", "markdown_layout", "assistant_phrase", "same_opening", "intent_marker")
+# Product error codes (snake_case words) and absolute paths, which she should never say aloud.
+INTERNAL_DETAIL = re.compile(r"\b[a-z]+(?:_[a-z0-9]+)+\b|(?:/Users|/private|/var|/tmp|/opt|/Volumes)/\S+|\b[A-Za-z]:\\\S+")
+RULES = ("ai_self_reference", "markdown_layout", "assistant_phrase", "same_opening", "intent_marker", "internal_detail")
 DIMENSIONS = ("voice", "canon", "no_assistant", "length")
 JUDGE_MODEL = "haiku"
 JUDGE_RUBRIC = ("你是角色扮演对话的评审。下面 <persona> 是一个桌面角色的设定，她和用户用中文聊天。"
@@ -79,11 +81,12 @@ def rule_check(raw, previous=None):
     phrases = [p for p in ASSISTANT_PHRASES if p in lowered]
     same = bool(previous) and bool(text) and text[:OPENING] == previous[:OPENING]
     intent = intent_marker(raw)
+    details = INTERNAL_DETAIL.findall(text)
     violations = [r for r, hit in zip(RULES, ("ai_self_reference" in voice, "markdown_layout" in voice, bool(phrases),
-                                               same, intent != "ok")) if hit]
+                                               same, intent != "ok", bool(details))) if hit]
     return {"out_of_voice": voice, "chars": len(text), "markdown": "markdown_layout" in voice,
             "assistant_phrases": phrases, "same_opening": same,
-            "opening": text[:OPENING], "intent_marker": intent, "violations": violations}
+            "opening": text[:OPENING], "intent_marker": intent, "internal_details": details, "violations": violations}
 
 
 def _segment(rows):

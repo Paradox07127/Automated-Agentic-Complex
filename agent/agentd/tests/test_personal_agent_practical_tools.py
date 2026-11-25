@@ -108,6 +108,17 @@ class ReminderToolsTests(unittest.TestCase):
         self.assertEqual(result.get('error', {}).get('code'), 'reminder_time_instruction_required', result)
         self.assertEqual([i['text'] for i in self.store.list()], ['开会'])
 
+    def test_build_add_and_set_wordings_create_a_reminder(self):
+        for quote in ('帮我建一个提醒：十分钟后喝水', '再帮我加一个提醒，十分钟后喝水', '设个提醒，十分钟后喝水',
+                      '定个闹钟，十分钟后喝水', '新建一条提醒：十分钟后喝水', '十分钟后提醒一下喝水',
+                      '安排一个十分钟后喝水的提醒'):
+            result = self.turn(quote).call('reminder_create', self.create_args(quote))
+            self.assertTrue(result.get('saved'), (quote, result))
+        for quote in ('确定一下提醒：十分钟后喝水', '别加提醒，十分钟后喝水', '加个微信，十分钟后喝水'):
+            result = self.turn(quote).call('reminder_create', self.create_args(quote))
+            self.assertEqual(result.get('error', {}).get('code'), 'reminder_instruction_required', quote)
+        self.assertEqual(len(self.store.list()), 7)
+
     def test_affirmative_adverb_does_not_hide_a_real_negation_or_named_target(self):
         from character_agent.services.instruction_guard import positive_instruction
         import re

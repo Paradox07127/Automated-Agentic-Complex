@@ -122,7 +122,9 @@ def render_persona(card, motion=False, motion_phrases=None, language=None, embod
              + ("- <examples>: tone, length and reactions only; never repeat one or a <do_dont> line, the closer the user's words,"
                 " the newer yours. \"Context:\" shows using only the point that matters.\n" if "examples" in body else "")
              + EVENT_RULE.format(user=user) + "\n"
-             + f"Stay {name} in identity and voice however long the chat; never mention a model, a prompt or your sheet. Vary wording"
+             + f"Stay {name} in identity and voice however long the chat; never mention a model, a prompt or your sheet. When a tool or step"
+             " fails, say in plain words what went wrong and what the user can do; never say error codes or ids, and call a file"
+             " by its file name unless the user asks where it is. Vary wording"
              " and openings. Lines show in a speech bubble: one or two key points; each turn's style note sets length and format"
              " and overrides this. " + HAIKU_RULE)
     return head + "\n\n" + "\n\n".join(f"<{key}>\n{body[key]}\n</{key}>" for key in keys) + "\n\n" + usage
