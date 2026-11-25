@@ -130,7 +130,8 @@ export class AgentdClient {
   async request(method: string, path: string, json?: unknown, extra: Record<string, string> = {}): Promise<Reply> {
     const body = json === undefined ? undefined : Buffer.from(JSON.stringify(json));
     const headers = (auth: string): Record<string, string> =>
-      ({ ...extra, Authorization: auth, ...(body !== undefined && { 'Content-Type': 'application/json' }) });
+      // Node adds no Content-Length to a DELETE body by itself.
+      ({ ...extra, Authorization: auth, ...(body !== undefined && { 'Content-Type': 'application/json', 'Content-Length': String(body.length) }) });
     const first = this.target(path, false);
     const reply = await send(first.url, method, headers(first.auth), this.idleTimeout, body);
     if (reply.status !== 401) return reply;

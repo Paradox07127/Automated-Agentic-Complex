@@ -103,6 +103,25 @@ test('a request\'s own headers go with it, and with the retry after a 401', asyn
   }).finally(() => fake.close());
 });
 
+test('a DELETE body goes with its Content-Length, which agentd reads the body by', async () => {
+  const seen: string[] = [];
+  const fake = await fakeAgentd((req, res) => {
+    const chunks: Buffer[] = [];
+    req.on('data', (c: Buffer) => chunks.push(c));
+    req.on('end', () => {
+      seen.push(`${req.method} ${req.headers['content-length']} ${Buffer.concat(chunks).toString('utf8')}`);
+      res.writeHead(200).end('{}');
+    });
+  });
+  await withRuntime(async (dir, write) => {
+    write(fake.url, 'tok');
+    const client = new AgentdClient(join(dir, 'ui-runtime.json'));
+    await client.request('DELETE', '/blacklist', { field: 'app', value: '删' });
+    const sent = JSON.stringify({ field: 'app', value: '删' });
+    assert.deepEqual(seen, [`DELETE ${Buffer.byteLength(sent)} ${sent}`]);
+  }).finally(() => fake.close());
+});
+
 test('the feed reconnects after the stream ends and resumes from the last event id', async () => {
   const connections: (string | undefined)[] = [];
   const fake = await fakeAgentd((req, res) => {
