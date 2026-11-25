@@ -41,7 +41,8 @@ BUILTIN = {
         ("desktop_task", "desktop_input", "native_panel", True)]),
     **_family("embodied", ("actions", "embodied_only"), _FOREGROUND, [
         ("avatar_face", "embodied", "none", False), ("avatar_facing_status", "read", "none", False),
-        ("avatar_motions_list", "read", "none", False), ("avatar_motion", "embodied", "none", False)]),
+        ("avatar_motions_list", "read", "none", False), ("avatar_motion", "embodied", "none", False),
+        ("avatar_outfits_list", "read", "none", False), ("avatar_outfit", "embodied", "none", False)]),
     **_family("workspace", ("actions", "background"), _WORK, [
         ("workspace_list", "read", "scope", False), ("workspace_read", "read", "scope", False),
         ("workspace_image", "read", "scope", False), ("workspace_search", "read", "scope", False), ("artifact_write", "write", "scope", False),
@@ -91,10 +92,11 @@ class ToolRegistry:
         """The desktop and embodied families in model format; desktop only while a Companion bridge exists."""
         from observation.facing_decisions import FACING_TOOL, FACING_STATUS_TOOL
         from motion.performer import MOTION_TOOL, MOTIONS_LIST_TOOL
+        from character.looks import OUTFIT_TOOL, OUTFITS_LIST_TOOL
         tools = [{"name": t["name"], "description": t["description"], "input_schema": t["inputSchema"]}
                  for t in DESKTOP_TOOLS] if desktop else []
         return [*tools, *([DESKTOP_TASK_TOOL] if desktop and desktop_task else []), FACING_TOOL, FACING_STATUS_TOOL,
-                MOTIONS_LIST_TOOL, MOTION_TOOL]
+                MOTIONS_LIST_TOOL, MOTION_TOOL, OUTFITS_LIST_TOOL, OUTFIT_TOOL]
 
     def mcp_tools(self, caller):
         return [t for t in DESKTOP_TOOLS if caller in BUILTIN[t["name"]].callers]

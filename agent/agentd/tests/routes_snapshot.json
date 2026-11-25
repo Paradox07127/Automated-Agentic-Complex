@@ -985,6 +985,13 @@
   ],
   [
     "POST",
+    "/avatar/looks/receipts",
+    [
+      "ui_token"
+    ]
+  ],
+  [
+    "POST",
     "/motions/generate",
     [
       "ui_token"

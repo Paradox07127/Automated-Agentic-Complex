@@ -1,4 +1,5 @@
-// agentd's `/feed` `command` event: the shell carries out `open` or `jump` of a target as spoken.
+// agentd's `/feed` `command` event: the shell carries out `open` or `jump` of a target as spoken; and its `looks` event.
+import { modAppearance, modValues, type ModValues } from './looks.ts';
 
 export interface FeedCommand { seq: number; action: string; target: string }
 
@@ -15,4 +16,49 @@ export function feedCommand(e: { event: string; data: string }): FeedCommand | n
   const { seq, action, target } = v as Record<string, unknown>;
   if (!Number.isInteger(seq) || typeof action !== 'string' || typeof target !== 'string') return null;
   return { seq: seq as number, action, target };
+}
+
+/** agentd's `/feed` `looks` event: her own change of appearance, layers or one appearance's mod switches (C6 §4.4). */
+export interface FeedLooks {
+  seq: number;
+  requestId: string;
+  appearance?: string;
+  layers?: { hide: string[]; show: string[] };
+  modSettings?: { appearance: string; values: ModValues };
+}
+
+const LOOKS_KEYS = ['seq', 'request_id', 'appearance', 'layers', 'mod_settings'];
+const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+const layerIds = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => modAppearance(x) !== null);
+
+/** Null for another event, or one with any part that does not decode: none of it is carried out. */
+export function feedLooks(e: { event: string; data: string }): FeedLooks | null {
+  if (e.event !== 'looks') return null;
+  let v: unknown;
+  try {
+    v = JSON.parse(e.data);
+  } catch {
+    return null;
+  }
+  if (!isObject(v) || !Object.keys(v).every((k) => LOOKS_KEYS.includes(k))) return null;
+  const { seq, request_id: requestId, appearance, layers, mod_settings: mods } = v;
+  if (!Number.isInteger(seq) || typeof requestId !== 'string' || !/^[0-9a-f]{16}$/.test(requestId)) return null;
+  if (appearance === undefined && layers === undefined && mods === undefined) return null;
+  const out: FeedLooks = { seq: seq as number, requestId };
+  if (appearance !== undefined) {
+    const id = modAppearance(appearance);
+    if (id === null) return null;
+    out.appearance = id;
+  }
+  if (layers !== undefined) {
+    if (!isObject(layers) || Object.keys(layers).length !== 2 || !layerIds(layers.hide) || !layerIds(layers.show)
+      || layers.hide.length + layers.show.length === 0) return null;
+    out.layers = { hide: layers.hide, show: layers.show };
+  }
+  if (mods !== undefined) {
+    const id = isObject(mods) ? modAppearance(mods.appearance) : null, values = isObject(mods) ? modValues(mods.values) : null;
+    if (id === null || values === null || Object.keys(values).length === 0) return null;
+    out.modSettings = { appearance: id, values };
+  }
+  return out;
 }

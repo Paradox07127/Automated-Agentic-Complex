@@ -124,7 +124,8 @@ class RegistryTest(unittest.TestCase):
                 self.assertEqual((spec.family, spec.effect, spec.grant, spec.callers, spec.modes, spec.receipt),
                                  (face.family, effect, "none", face.callers, face.modes, False))
         names = [d["name"] for d in REGISTRY.native_definitions(desktop=False)]
-        self.assertEqual(names, ["avatar_face", "avatar_facing_status", "avatar_motions_list", "avatar_motion"])
+        self.assertEqual(names, ["avatar_face", "avatar_facing_status", "avatar_motions_list", "avatar_motion",
+                                 "avatar_outfits_list", "avatar_outfit"])
         tool = next(d for d in REGISTRY.native_definitions(desktop=False) if d["name"] == "avatar_motion")
         self.assertEqual(tool["input_schema"]["required"], ["action_id", "reason"])
         self.assertIn("avatar_motions_list", tool["description"])

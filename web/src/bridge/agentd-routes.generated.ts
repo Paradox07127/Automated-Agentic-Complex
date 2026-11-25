@@ -159,6 +159,7 @@ export const AGENTD_ROUTES: readonly AgentdRoute[] = [
   { method: 'POST', path: '/behavior/receipts', templates: ['/behavior/receipts'], class: 'host_only', surfaces: [] },
   { method: 'POST', path: '/behavior/motion_state', templates: ['/behavior/motion_state'], class: 'host_only', surfaces: [] },
   { method: 'POST', path: '/behavior/user_play', templates: ['/behavior/user_play'], class: 'host_only', surfaces: [] },
+  { method: 'POST', path: '/avatar/looks/receipts', templates: ['/avatar/looks/receipts'], class: 'host_only', surfaces: [] },
   { method: 'POST', path: '/motions/generate', templates: ['/motions/generate'], class: 'host_only', surfaces: [], plugin: 'motion_generation' },
   { method: 'POST', path: '/focus', templates: ['/focus'], class: 'write', surfaces: ['main', 'stack'] },
   { method: 'POST', path: '/interaction/tap', templates: ['/interaction/tap'], class: 'host_only', surfaces: [] },
@@ -274,32 +275,33 @@ export type AgentdRouteKey =
   | 'GET /context/timeline/summaries' | `DELETE /context/timeline/summaries/${string}` | 'POST /sessions'
   | 'POST /context/text' | 'POST /context/image' | 'POST /look' | 'POST /trace/events' | 'POST /memory/facts'
   | 'POST /feedback' | 'POST /blacklist' | 'POST /blacklist/defaults' | 'POST /blacklist/mode' | 'POST /reset'
-  | 'POST /behavior/receipts' | 'POST /behavior/motion_state' | 'POST /behavior/user_play' | 'POST /motions/generate'
-  | 'POST /focus' | 'POST /interaction/tap' | 'POST /interaction/gift' | 'POST /interaction/record'
-  | 'POST /character/greeting' | 'POST /model/settings' | 'POST /model/catalog' | 'POST /model/test'
-  | 'POST /model/chatgpt/start' | 'POST /model/chatgpt/cancel' | 'POST /model/chatgpt/select'
-  | 'POST /model/chatgpt/logout' | 'POST /character/prepare' | 'POST /character/commit' | 'POST /character/abort'
-  | `POST /approvals/${string}/decision` | `POST /sessions/${string}/messages` | `POST /sessions/${string}/interrupt`
-  | `POST /memory/facts/${string}/confirm` | `POST /memory/facts/${string}/reject` | `POST /tasks/${string}/accept`
-  | `POST /tasks/${string}/reject` | `POST /commitments/${string}/cancel` | `POST /commitments/${string}/snooze`
-  | `POST /commitments/${string}/complete` | `POST /commitments/${string}/seen` | 'POST /conversations'
-  | `POST /conversations/${string}/activate` | `POST /conversations/${string}/messages`
-  | `POST /conversations/${string}/cancel` | 'POST /agent/scopes' | `POST /agent/scopes/${string}/revoke`
-  | 'POST /agent/artifacts/revert' | `POST /tasks/${string}/continue` | `POST /tasks/${string}/cancel`
-  | `POST /agent/runs/${string}/cancel` | 'POST /character/acp/install' | 'POST /character/login/start'
-  | 'POST /character/login/cancel' | 'POST /character/login/logout' | `POST /agent/interactions/${string}/answer`
-  | `POST /agent/interactions/${string}/dismiss` | `POST /agent/interactions/${string}/continue` | 'POST /agent/goals'
-  | `POST /agent/goals/${string}` | 'POST /agent/jobs' | `POST /agent/jobs/${string}/cancel`
-  | `POST /agent/jobs/${string}/resume` | 'PUT /observation/paused' | 'PUT /observation/meeting'
-  | 'PUT /observation/quiet' | 'PUT /proactive/mutes' | 'PUT /proactive/settings' | 'PUT /motion/settings'
-  | `PUT /characters/${string}/binding` | 'PUT /context/activity' | 'PUT /behavior/capabilities'
-  | 'PUT /behavior/motion_prefs' | 'PUT /behavior/switches' | 'PUT /settings/live' | 'PUT /avatar/visibility'
-  | 'PUT /character/state/switch' | 'PUT /memory/paused' | `PUT /memory/facts/${string}/locked`
-  | `PUT /memory/facts/${string}/quiet` | `PUT /conversations/${string}` | `PUT /sessions/${string}`
-  | 'PUT /character/runtime' | `PATCH /episodes/${string}` | `PATCH /memory/facts/${string}` | 'DELETE /attention'
-  | 'DELETE /focus' | 'DELETE /history' | 'DELETE /memory' | 'DELETE /observation' | 'DELETE /blacklist'
-  | 'DELETE /character/state' | `DELETE /memory/facts/${string}` | `DELETE /context/items/${string}`
-  | `DELETE /episodes/${string}` | `DELETE /conversations/${string}` | `DELETE /sessions/${string}`;
+  | 'POST /behavior/receipts' | 'POST /behavior/motion_state' | 'POST /behavior/user_play'
+  | 'POST /avatar/looks/receipts' | 'POST /motions/generate' | 'POST /focus' | 'POST /interaction/tap'
+  | 'POST /interaction/gift' | 'POST /interaction/record' | 'POST /character/greeting' | 'POST /model/settings'
+  | 'POST /model/catalog' | 'POST /model/test' | 'POST /model/chatgpt/start' | 'POST /model/chatgpt/cancel'
+  | 'POST /model/chatgpt/select' | 'POST /model/chatgpt/logout' | 'POST /character/prepare' | 'POST /character/commit'
+  | 'POST /character/abort' | `POST /approvals/${string}/decision` | `POST /sessions/${string}/messages`
+  | `POST /sessions/${string}/interrupt` | `POST /memory/facts/${string}/confirm`
+  | `POST /memory/facts/${string}/reject` | `POST /tasks/${string}/accept` | `POST /tasks/${string}/reject`
+  | `POST /commitments/${string}/cancel` | `POST /commitments/${string}/snooze` | `POST /commitments/${string}/complete`
+  | `POST /commitments/${string}/seen` | 'POST /conversations' | `POST /conversations/${string}/activate`
+  | `POST /conversations/${string}/messages` | `POST /conversations/${string}/cancel` | 'POST /agent/scopes'
+  | `POST /agent/scopes/${string}/revoke` | 'POST /agent/artifacts/revert' | `POST /tasks/${string}/continue`
+  | `POST /tasks/${string}/cancel` | `POST /agent/runs/${string}/cancel` | 'POST /character/acp/install'
+  | 'POST /character/login/start' | 'POST /character/login/cancel' | 'POST /character/login/logout'
+  | `POST /agent/interactions/${string}/answer` | `POST /agent/interactions/${string}/dismiss`
+  | `POST /agent/interactions/${string}/continue` | 'POST /agent/goals' | `POST /agent/goals/${string}`
+  | 'POST /agent/jobs' | `POST /agent/jobs/${string}/cancel` | `POST /agent/jobs/${string}/resume`
+  | 'PUT /observation/paused' | 'PUT /observation/meeting' | 'PUT /observation/quiet' | 'PUT /proactive/mutes'
+  | 'PUT /proactive/settings' | 'PUT /motion/settings' | `PUT /characters/${string}/binding` | 'PUT /context/activity'
+  | 'PUT /behavior/capabilities' | 'PUT /behavior/motion_prefs' | 'PUT /behavior/switches' | 'PUT /settings/live'
+  | 'PUT /avatar/visibility' | 'PUT /character/state/switch' | 'PUT /memory/paused'
+  | `PUT /memory/facts/${string}/locked` | `PUT /memory/facts/${string}/quiet` | `PUT /conversations/${string}`
+  | `PUT /sessions/${string}` | 'PUT /character/runtime' | `PATCH /episodes/${string}` | `PATCH /memory/facts/${string}`
+  | 'DELETE /attention' | 'DELETE /focus' | 'DELETE /history' | 'DELETE /memory' | 'DELETE /observation'
+  | 'DELETE /blacklist' | 'DELETE /character/state' | `DELETE /memory/facts/${string}`
+  | `DELETE /context/items/${string}` | `DELETE /episodes/${string}` | `DELETE /conversations/${string}`
+  | `DELETE /sessions/${string}`;
 
 /** protocol/C6-agentd-api/fixtures/health.json */
 export interface HealthResponse { status: string; degraded: string[]; c6_contract: string }

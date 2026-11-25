@@ -126,7 +126,7 @@ own 会话的原生会话 id 就是它的 session id。每个回合结束时以 
 |---|---|---|---|---|
 | `knowledge` | `personal_profile`, `knowledge_search`, `knowledge_read`, `task_context`, `behavior_context`, `observation_status`, `observation_search`, `observation_read`, `observation_changes`, `observation_image`, `observation_refresh` | `none` | `character`, `character_side`, `character_background` | 全部 |
 | `desktop` | `desktop_status`, `desktop_observe`, `desktop_act`, `desktop_verify`, `desktop_cancel`, `desktop_task` | `none`, `native_panel` | `character`, `own_session` | `actions` |
-| `embodied` | `avatar_face`, `avatar_facing_status`, `avatar_motions_list`, `avatar_motion` | `none` | `character` | `actions`, `embodied_only` |
+| `embodied` | `avatar_face`, `avatar_facing_status`, `avatar_motions_list`, `avatar_motion`, `avatar_outfits_list`, `avatar_outfit` | `none` | `character` | `actions`, `embodied_only` |
 | `workspace` | `workspace_list`, `workspace_read`, `workspace_image`, `workspace_search`, `artifact_write`, `artifact_read`, `artifact_verify` | `scope` | `character`, `character_background` | `actions`, `background` |
 | `task` | `task_plan`, `artifact_read_previous` | `run_actions`, `scope` | `character`, `character_background` | `actions`, `background` |
 | `memory` | `memory_propose` | `run_actions` | `character` | `actions` |

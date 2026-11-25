@@ -45,6 +45,7 @@ MOTION = "motion.routes"
 CHARACTER_BINDINGS = "character.binding_routes"
 CHARACTER_MOTION_GRAPH = "character.motion_graph_routes"
 CHARACTER_MOD_SETTINGS = "character.mod_settings_routes"
+CHARACTER_LOOKS = "character.looks"
 INTEGRATION_HTTP = "api.integration"
 
 # spec: the repo-relative doc whose prose specifies the route
@@ -421,6 +422,8 @@ REGISTRY = (
           owner=SERVER, action="_motion_state", summary="A clip boundary of the renderer's playback", spec=C6),
     Route("POST", "/behavior/user_play", UI, "host_only", (),
           owner=SERVER, action="_behavior_user_play", summary="The user's own play: her body behaviors give way until it is over", spec=C6),
+    Route("POST", "/avatar/looks/receipts", UI, "host_only", (),
+          owner=CHARACTER_LOOKS, summary="Companion's receipt of a /feed looks event: what she wears after her own change", spec=C6),
     Route("POST", "/motions/generate", UI, "host_only", (),
           owner=MOTION, summary="Generate a motion for geometry the host computed; answered by event: motion", spec=C1),
     Route("POST", "/focus", UI, "write", ("main", "stack"),

@@ -139,6 +139,7 @@
   {"method": "POST", "path": "/behavior/receipts", "class": "host_only", "surfaces": []},
   {"method": "POST", "path": "/behavior/motion_state", "class": "host_only", "surfaces": []},
   {"method": "POST", "path": "/behavior/user_play", "class": "host_only", "surfaces": []},
+  {"method": "POST", "path": "/avatar/looks/receipts", "class": "host_only", "surfaces": []},
   {"method": "POST", "path": "/motions/generate", "class": "host_only", "surfaces": [], "plugin": "motion_generation"},
   {"method": "POST", "path": "/focus", "class": "write", "surfaces": ["main", "stack"]},
   {"method": "POST", "path": "/interaction/tap", "class": "host_only", "surfaces": []},

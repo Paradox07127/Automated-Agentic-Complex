@@ -55,6 +55,7 @@ import { PhotoOverlayWindow } from './camera/photo-overlay.ts';
 import { desktopPoses, wheelPose } from './camera/pose.ts';
 import { CAMERA_OFFERS, shellCamera } from './camera/shell.ts';
 import { feedCommands } from './commands/feed.ts';
+import { looksCommands } from './commands/looks.ts';
 import {
   configPathFromArgs, DEFAULT_AGENTD_STATE_DIR, DEFAULT_SUPPORT_DIR, DEFAULT_WEB_LOGS_DIR, lastCharacter, loadConfig, quitAfterFromArgs, supportDirOf,
 } from './config.ts';
@@ -1454,6 +1455,12 @@ void app.whenReady().then(async () => {
   // agentd's `command` events are carried out as they come.
   store?.subscribe(feedCommands({ ctx: opsContext('main'), notice: (text) => desktop?.notice(text),
     log: (line) => appendLog(config?.supportDir ?? supportDir, 'companion', line) }));
+  // Her own outfit changes, carried out as the menu's and answered with a receipt.
+  if (looks && hostLink && runtimePath !== null) {
+    const client = new AgentdClient(runtimePath);
+    store?.subscribe(looksCommands({ looks, link: hostLink, post: (path, body) => client.request('POST', path, body),
+      log: (line) => appendLog(config?.supportDir ?? supportDir, 'companion', line) }));
+  }
   store?.subscribe((e) => recent.receive(e, Date.now()));
   tray = new Tray(trayIcon(iconBitmap('normal')));
   tray.setToolTip(statusTitle(config?.supportDir ?? supportDir, DEFAULT_SUPPORT_DIR));

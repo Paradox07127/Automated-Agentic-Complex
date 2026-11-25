@@ -157,6 +157,8 @@ class CharacterAgentController:
         self.store = RunStore(ledger_path(self.state_dir), retention=self.retention)
         self.tools = ToolGateway(self.store, computer_control=lambda: server.computer_control,
                                  egress=lambda: server.egress, report=server.broker.report)
+        from character.looks import Looks
+        self.looks = Looks(server)
         self._presentation_lock = threading.RLock()
         self._presentation_fault = False
         self._role_outcomes = deque(maxlen=256)
@@ -1115,6 +1117,10 @@ class CharacterAgentController:
                 self.server._step(trace, 'behavior.dispatched', new_span_id(),
                     attrs={'behavior_id': result['behavior_id'], 'behavior_type': 'perform'})
             return result
+        if name == 'avatar_outfits_list':
+            return {'error':{'code':'invalid_arguments'}} if args != {} else self.looks.outfits()
+        if name == 'avatar_outfit':
+            return self.looks.change(args)
         self.tools.verdict(run_id, name, self.tools.policy.desktop("character", name))
         if name == 'desktop_task':
             from tool_gateway.computer_toolset import run_desktop_task
