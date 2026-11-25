@@ -1,0 +1,192 @@
+/* 这支舞: a dark frosted plate cut at the bottom right, a yellow hatched top band. */
+.insp {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ef-hud-row-head) 90%, transparent), color-mix(in srgb, var(--ef-band) 94%, transparent));
+  color: var(--ef-text-1);
+  backdrop-filter: blur(10px);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%);
+}
+
+.insp::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 5px;
+  background: repeating-linear-gradient(-45deg, transparent 0 4px, color-mix(in srgb, var(--ef-accent) 50%, transparent) 4px 5.5px);
+}
+
+.ihd {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 16px 18px 8px;
+}
+
+.ihd h3 {
+  margin: 0;
+  font: 700 15px / 1.2 var(--ef-font-sans);
+}
+
+.ihd [data-stub='MicroLabel'] {
+  margin-left: auto;
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0 18px;
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px dashed color-mix(in srgb, var(--ef-text-1) 10%, transparent);
+}
+
+.fact dt {
+  color: var(--ef-hud-text-2);
+  font-size: 12px;
+}
+
+.fact dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+}
+
+.file {
+  max-width: 100%;
+  overflow: hidden;
+  font: 500 12px / 1.3 var(--ef-font-num);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.y {
+  color: var(--ef-accent);
+  font: 600 14px / 1 var(--ef-font-num);
+}
+
+.m {
+  color: var(--ef-hud-text-2);
+  font-size: 12px;
+}
+
+.miss {
+  color: var(--ef-danger-text);
+  font-size: 12px;
+}
+
+.who {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ch {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+/* The whole name, on more lines when it is long. */
+.chn {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.st {
+  color: var(--ef-hud-text-2);
+  font-size: 12px;
+}
+
+.ch[data-state='failed'] .st {
+  color: var(--ef-danger-text);
+}
+
+.av {
+  position: relative;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--ef-text-1);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 36%, var(--ef-text-2) 0 22%, transparent 23%), radial-gradient(ellipse at 50% 104%, var(--ef-text-3) 0 48%, transparent 49%), var(--ef-list);
+}
+
+.av img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top;
+}
+
+.ch[data-state='pending'] .av {
+  border-style: dashed;
+  border-color: var(--ef-text-3);
+  opacity: 0.7;
+  filter: grayscale(1);
+}
+
+.ch[data-state='failed'] .av {
+  border-color: var(--ef-g-reddot);
+}
+
+.ops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 18px 16px;
+  border-top: 1px solid color-mix(in srgb, var(--ef-text-1) 8%, transparent);
+}
+
+/* 925 × 515: tighter rows without the file and the side notes. */
+@container mmd (max-width: 1100px) or (max-height: 600px) {
+  .ihd {
+    padding: 10px 12px 4px;
+  }
+
+  .facts {
+    padding: 0 12px;
+  }
+
+  .fact {
+    grid-template-columns: 40px minmax(0, 1fr);
+    padding: 4px 0;
+  }
+
+  .fact[data-fact='source'],
+  .fact .m {
+    display: none;
+  }
+
+  .av {
+    width: 20px;
+    height: 20px;
+  }
+
+  .ops {
+    padding: 6px 12px 8px;
+  }
+}

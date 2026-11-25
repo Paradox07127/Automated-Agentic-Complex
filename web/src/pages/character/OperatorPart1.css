@@ -8,9 +8,6 @@
   --gap: 12px;
   --info-w: min(292px, calc(28cqw - var(--strip) - 27px));
   --panel-w: 0px;
-  /* MMD: her setlist under the stage and its gap to the bottom edge. */
-  --band-h: 158px;
-  --band-b: 16px;
 
   position: relative;
   height: 100%;
@@ -54,8 +51,6 @@
     --rail: 52px;
     --rail-item: 66px;
     --info-w: min(196px, calc(30cqw - var(--strip) - 20px));
-    --band-h: 94px;
-    --band-b: 8px;
   }
 
   .op[data-mode='overview'] > * {
@@ -70,8 +65,6 @@
     --rail: 52px;
     --rail-item: 66px;
     --info-w: min(196px, calc(30cqw - var(--strip) - 20px));
-    --band-h: 94px;
-    --band-b: 8px;
   }
 
   .op[data-mode='overview'] > * {

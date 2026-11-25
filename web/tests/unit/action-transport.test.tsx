@@ -1,5 +1,5 @@
 // The player of a desktop play (C3 rule 58): elapsed / total, a bar that follows her reports, pause and resume, a click or
-// a drag on the bar to seek, ←/→ 5 s and Space; on the MMD section's opened dance and in the character page's bottom bar.
+// a drag on the bar to seek, ←/→ 5 s and Space; on the MMD page's timeline and in the character page's bottom bar.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -9,9 +9,9 @@ import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge, MmdEntry } from '../../src/bridge/protocol';
 import { CHARACTER_LOOKS } from '../../src/mock/fixtures';
 import { MOTIONS, STATE_WITH_CAUSES } from '../../src/mock/character';
-import { CharacterPage } from '../../src/pages/character/Page';
 import { Operator } from '../../src/pages/character/Operator';
 import { Transport } from '../../src/pages/character/Transport';
+import { MmdPage } from '../../src/pages/mmd/Page';
 
 vi.mock('../../src/shell/toast', async (original) => ({ ...(await original<typeof import('../../src/shell/toast')>()), toast: vi.fn() }));
 
@@ -103,8 +103,8 @@ const DANCE: MmdEntry = { id: 'mmd_a', title: '舞蹈甲', durationS: 12.5, hasB
 async function mountMmd() {
   vi.spyOn(bridge.mmd, 'list').mockResolvedValue({ ok: true, entries: [DANCE] });
   vi.spyOn(bridge.avatar, 'actions').mockResolvedValue([{ id: 'mmd_a', label: '舞蹈甲', enabled: true, section: 'idle', durationS: 12.5, playable: true }]);
-  const root = createRootRoute({ component: CharacterPage });
-  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/?still=1&view=mmd'] }) });
+  const root = createRootRoute({ component: MmdPage });
+  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/?still=1'] }) });
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <RouterProvider router={router} />
@@ -113,29 +113,31 @@ async function mountMmd() {
   await screen.findByRole('region', { name: 'MMD 库' });
   await waitFor(() => expect(document.querySelector('[data-mmd-detail="mmd_a"]')).not.toBeNull());
 }
-const detail = () => screen.getByRole('group', { name: 'MMD 操作' });
+const timeline = () => screen.getByRole('region', { name: '时间线' });
+const seekBar = () => within(timeline()).getByRole('slider', { name: '播放进度' });
+const clockText = () => within(timeline()).getByLabelText('时钟').textContent;
 
-describe('MMD section', () => {
-  it('shows the player under the dance the desktop plays while she reports it, and folds it at the end', async () => {
+describe('MMD page timeline', () => {
+  it('follows the dance the desktop plays while she reports it, and goes back to the preview at the end', async () => {
     const { control } = install();
     await mountMmd();
     await waitFor(() => expect(listeners.size).toBeGreaterThan(0));
-    expect(within(detail()).queryByRole('group', { name: '播放器' })).toBeNull();
+    expect(seekBar().getAttribute('aria-disabled')).toBe('true');
     await push({ id: 'mmd_a', tS: 3.2, durationS: 12.5, paused: false });
-    expect(within(detail()).getByRole('group', { name: '播放器' }).textContent).toContain('0:03 / 0:12');
-    await act(async () => void fireEvent.click(within(player()).getByRole('button', { name: '暂停' })));
+    expect(clockText()).toBe('0:03.2/ 0:12.5');
+    await act(async () => void fireEvent.click(within(timeline()).getByRole('button', { name: '暂停' })));
     expect(control).toHaveBeenCalledWith('pause');
-    await act(async () => void fireEvent.keyDown(bar(), { key: 'ArrowRight' }));
+    await act(async () => void fireEvent.keyDown(seekBar(), { key: 'ArrowRight' }));
     expect(control).toHaveBeenLastCalledWith('seek', 8.2);
     await push({ id: 'mmd_other', tS: 1, durationS: 9, paused: false });
-    expect(within(detail()).queryByRole('group', { name: '播放器' })).toBeNull();
+    expect(clockText()).toBe('0:00.0/ 0:12.5');
     await push({ id: 'mmd_a', tS: 9, durationS: 12.5, paused: true });
-    expect(within(player()).getByRole('button', { name: '继续' })).toBeTruthy();
+    expect(within(timeline()).getByRole('button', { name: '继续' })).toBeTruthy();
     await push(null);
-    expect(within(detail()).queryByRole('group', { name: '播放器' })).toBeNull();
+    expect(seekBar().getAttribute('aria-disabled')).toBe('true');
   });
 
-  it('keeps the bar where it was let go until her next report after the seek', async () => {
+  it('keeps the playhead where it was let go until her next report after the seek', async () => {
     const { control } = install();
     let settle = noop;
     control.mockImplementation(() => new Promise<void>((resolve) => void (settle = resolve)));
@@ -143,17 +145,17 @@ describe('MMD section', () => {
     await waitFor(() => expect(listeners.size).toBeGreaterThan(0));
     await push({ id: 'mmd_a', tS: 1, durationS: 10, paused: false });
     await act(async () => {
-      fireEvent.pointerDown(bar(), { clientX: 250, pointerId: 1, button: 0 });
-      fireEvent.pointerUp(bar(), { clientX: 250, pointerId: 1, button: 0 });
+      fireEvent.pointerDown(seekBar(), { clientX: 250, pointerId: 1, button: 0 });
+      fireEvent.pointerUp(seekBar(), { clientX: 250, pointerId: 1, button: 0 });
     });
     expect(control).toHaveBeenCalledWith('seek', 7.5);
-    // A report sent before she took the seek does not pull the bar back.
+    // A report sent before she took the seek does not pull the playhead back.
     await push({ id: 'mmd_a', tS: 1.25, durationS: 10, paused: false });
-    expect(bar().getAttribute('aria-valuenow')).toBe('7.5');
+    expect(seekBar().getAttribute('aria-valuenow')).toBe('7.5');
     await act(async () => settle());
     await push({ id: 'mmd_a', tS: 7.5, durationS: 10, paused: false });
     await push({ id: 'mmd_a', tS: 7.75, durationS: 10, paused: false });
-    expect(bar().getAttribute('aria-valuenow')).toBe('7.75');
+    expect(seekBar().getAttribute('aria-valuenow')).toBe('7.75');
   });
 });
 

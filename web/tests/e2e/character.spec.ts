@@ -146,10 +146,11 @@ test('offline: the stage says the character is not running and the table is read
 });
 
 for (const theme of ['dark', 'light'] as const) {
-  test(`import MMD (${theme}): 导入中… while the fake imports in the MMD section, then the title, the baked entry and its ＋ into the MMD 列表`, async ({ page }, info) => {
+  test(`import MMD (${theme}): the rail's MMD item opens the MMD page; 导入中… while the fake imports, then the title, the baked entry and its ＋ into the MMD 列表`, async ({ page }, info) => {
     const errors = collectErrors(page);
     await page.goto(`main.html#/character?still=1&theme=${theme}`);
     await page.getByRole('navigation', { name: '角色分区' }).getByRole('button', { name: 'MMD' }).click();
+    await expect(page).toHaveURL(/#\/mmd\?/);
     await expect(page.getByRole('region', { name: 'MMD 库' })).toBeVisible();
     const button = page.getByRole('button', { name: '导入 MMD' });
     await expect(button).toBeVisible();
@@ -160,7 +161,8 @@ for (const theme of ['dark', 'light'] as const) {
     const entry = page.locator('[data-mmd="mmd_dance_1"]');
     await expect(entry).toHaveAttribute('data-state', 'baked');
     await entry.locator('button[aria-pressed]').click();
-    await expect(page.locator('[data-mmd-detail="mmd_dance_1"]').getByRole('button', { name: '桌面播放' })).toBeEnabled();
+    await expect(page.locator('[data-mmd-detail="mmd_dance_1"]')).toBeVisible();
+    await expect(page.getByRole('region', { name: '时间线' }).getByRole('button', { name: '桌面播放' })).toBeEnabled();
     await expect(page.getByRole('region', { name: 'MMD 列表' })).toBeVisible();
     await expect(entry.getByRole('button', { name: '加入演出列表' })).toBeEnabled();
     await page.evaluate(() => document.fonts.ready.then(() => undefined));

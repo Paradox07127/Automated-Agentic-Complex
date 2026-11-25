@@ -1,12 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// 角色 › MMD: the stage holds no control; a dance added from its library row becomes a card in the setlist under the stage.
+// MMD page: the stage holds no control; the timeline and the setlist stand under it; a dance added from its library row becomes a card in the setlist.
 
 const overlap = (a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) =>
   a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 
 async function importAndAdd(page: Page) {
-  await page.goto('main.html#/character?view=mmd&still=1');
+  await page.goto('main.html#/mmd?still=1');
   await page.getByRole('button', { name: '导入 MMD' }).click();
   const sheet = page.getByRole('dialog', { name: '导入 MMD' });
   await sheet.getByRole('textbox', { name: '曲名' }).fill('舞');
@@ -20,17 +20,24 @@ for (const [width, height] of [
   [1440, 900],
   [925, 515],
 ] as const) {
-  test(`${width}×${height}: no control of the page lies over the stage`, async ({ page }) => {
+  test(`${width}×${height}: no control of the page lies over the stage; the timeline, the setlist and the inspector fit the window`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await importAndAdd(page);
     await expect(page.getByRole('region', { name: 'MMD 列表' }).locator('[data-playlist-row="mmd_dance_1"]')).toBeVisible();
     const stage = (await page.locator('[data-preview-stage]').boundingBox())!;
     expect(stage.width).toBeGreaterThan(200);
-    const boxes = await page.locator('[data-page="character"] :is(button, [role="radio"], [role="tab"])').evaluateAll((els) =>
+    expect(stage.height).toBeGreaterThan(150);
+    const boxes = await page.locator('[data-page="mmd"] :is(button, [role="radio"], [role="tab"], [role="slider"], input)').evaluateAll((els) =>
       els.map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0).map((r) => ({ x: r.x, y: r.y, width: r.width, height: r.height })),
     );
     expect(boxes.length).toBeGreaterThan(5);
     expect(boxes.filter((b) => overlap(b, stage))).toEqual([]);
+    for (const name of ['时间线', 'MMD 列表', '这支舞']) {
+      const box = (await page.getByRole('region', { name }).boundingBox())!;
+      expect(box.y + box.height, name).toBeLessThanOrEqual(height);
+    }
+    await expect(page.getByRole('region', { name: '时间线' }).locator('[data-lane="face"] svg')).toHaveAttribute('data-bins', '600');
+    await expect(page.getByRole('region', { name: '这支舞' }).getByRole('button', { name: '删除' })).toBeVisible();
   });
 }
 

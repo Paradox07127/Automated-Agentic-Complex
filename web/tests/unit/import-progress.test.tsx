@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge, ImportState } from '../../src/bridge/protocol';
 import { CharacterPage } from '../../src/pages/character/Page';
+import { MmdPage } from '../../src/pages/mmd/Page';
 import { setNavRouter } from '../../src/shell/nav';
 import { Progress } from '../../src/ui';
 
@@ -25,6 +26,18 @@ async function mount(search: string) {
     </QueryClientProvider>,
   );
   await screen.findByRole('navigation', { name: '角色分区' });
+}
+
+async function mountMmd() {
+  const root = createRootRoute({ component: MmdPage });
+  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/?still=1'] }) });
+  setNavRouter(router);
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+  await screen.findByRole('region', { name: 'MMD 库' });
 }
 
 /** Captures every `character.onImport` callback; `push` reaches them all. */
@@ -98,10 +111,10 @@ describe('导入 pane', () => {
   });
 });
 
-describe('MMD section', () => {
+describe('MMD page', () => {
   it('shows any running import on the library strip and disables 导入 MMD', async () => {
     const sink = pushes();
-    await mount('&view=mmd');
+    await mountMmd();
     const btn = (await screen.findByRole('button', { name: '导入 MMD' })) as HTMLButtonElement;
     await act(async () => sink.push({ running: true, kind: 'outfit', title: 'SummerMod', stage: 'publish', fraction: 0.9 }));
     const strip = screen.getByRole('status', { name: 'MMD 导入' });

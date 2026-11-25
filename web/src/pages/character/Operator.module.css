@@ -21,7 +21,3 @@
   }
 }
 
-/* MMD: the stage and its status slot end above her setlist (mmd/Section.module.css). */
-.op[data-band] [data-stage] {
-  --deck-h: calc(var(--band-h) + var(--band-b) + 4px);
-}

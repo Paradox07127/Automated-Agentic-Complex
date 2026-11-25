@@ -1,4 +1,4 @@
-// 角色页 after the review of 11-22: a switch reads her actions again and drops the drafts of the one before; a finished MMD sync reads them again here too; the MMD section keeps unsaved switches; 设定's tab bar lists only the tabs with rows; 隐藏界面 hides the bottom bar and the roster.
+// 角色页 after the review of 11-22: a switch reads her actions again and drops the drafts of the one before; a finished MMD sync reads them again here too; 设定's tab bar lists only the tabs with rows; 隐藏界面 hides the bottom bar and the roster.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -94,7 +94,7 @@ describe('a switch on the character page', () => {
     expect(screen.queryByText(/已修改/)).toBeNull();
   });
 
-  it('reads her actions again when the MMD sync after a switch ends, outside the MMD section', async () => {
+  it('reads her actions again when the MMD sync after a switch ends, on 角色', async () => {
     let push: (s: MmdSyncState) => void = () => {};
     vi.spyOn(bridge.mmd, 'onSync').mockImplementation((cb) => {
       push = cb;
@@ -109,19 +109,6 @@ describe('a switch on the character page', () => {
   });
 });
 
-describe('the rail’s MMD item with unsaved switches', () => {
-  it('opens the MMD section at once: the drafts stay in the character area and are there back on 动作', async () => {
-    await mount('&pane=motion');
-    await waitFor(() => expect(row('nod')).not.toBeNull());
-    await turnOff('nod');
-    await click(rail('MMD'));
-    expect(screen.queryByRole('dialog')).toBeNull();
-    await screen.findByRole('region', { name: 'MMD 库' });
-    await click(rail('动作'));
-    await waitFor(() => expect(row('nod')).not.toBeNull());
-    expect(within(row('nod')!).queryByLabelText('未保存')).not.toBeNull();
-  });
-});
 
 describe('设定 tab bar', () => {
   it('lists only the tabs the settings schema has rows for, and lights the one the body shows', async () => {
@@ -185,16 +172,6 @@ describe('隐藏界面', () => {
     expect(screen.getByRole('dialog', { name: '全部角色' })).toBeTruthy();
     await click(screen.getByRole('button', { name: '隐藏界面' }));
     expect(screen.queryByRole('dialog', { name: '全部角色' })).toBeNull();
-    bottom.remove();
-  });
-
-  it('does not carry into MMD, which has no key to bring the UI back', async () => {
-    const { bottom, ui, rerender } = inShell(props);
-    await click(screen.getByRole('button', { name: '隐藏界面' }));
-    const op = ui.container.querySelector('[data-view="operator"]')!;
-    expect(op.hasAttribute('data-bare')).toBe(true);
-    rerender({ ...props, side: { of: 'mmd', node: <div />, band: false, preview: { action: undefined, request: undefined, loop: false } } });
-    expect(op.hasAttribute('data-bare')).toBe(false);
     bottom.remove();
   });
 });

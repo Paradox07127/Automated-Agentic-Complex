@@ -1,11 +1,11 @@
-// 角色 › MMD › 导入 MMD: mmd.scan, its 确认单 and the plan mmd.importScan gets; 取消 drops the scan; 换音源 runs mmd.setMedia.
+// MMD › 导入 MMD: mmd.scan, its 确认单 and the plan mmd.importScan gets; 取消 drops the scan; 换音源 runs mmd.setMedia.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge, MmdEntry, MmdScan } from '../../src/bridge/protocol';
-import { CharacterPage } from '../../src/pages/character/Page';
+import { MmdPage } from '../../src/pages/mmd/Page';
 
 vi.mock('../../src/shell/toast', async (original) => ({ ...(await original<typeof import('../../src/shell/toast')>()), toast: vi.fn() }));
 
@@ -17,8 +17,8 @@ function install(over: Partial<Parameters<typeof createFakeBridge>[0]> = {}) {
 }
 
 async function mount() {
-  const root = createRootRoute({ component: CharacterPage });
-  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/?still=1&view=mmd'] }) });
+  const root = createRootRoute({ component: MmdPage });
+  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/?still=1'] }) });
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <RouterProvider router={router} />

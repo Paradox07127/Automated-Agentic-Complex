@@ -64,7 +64,7 @@ export interface OperatorProps {
   /** Motion a demo shows as playing on the desktop. */
   playing?: string | null;
   toast: Toast;
-  /** 设定 (with its tab), 拍照 or MMD in the panel in place of the panes. */
+  /** 设定 (with its tab) or 拍照 in the panel in place of the panes. */
   side?: Side;
   /** A switch runs, the page's own or one from the tray or menu bar; absent, the page's own. */
   switching?: boolean;
@@ -185,11 +185,7 @@ export function Operator(p: OperatorProps) {
   // 动作 always has its action bar; another detail page only while switches wait to be saved (总览 has no room; 编排 has its own commit bar).
   const deck = !side && mode === 'detail' && pane !== 'chain' && (pane === 'motion' || changes.length > 0);
   const play = m.play;
-  // MMD plays on the same stage: back from it, a row asked before does not play again.
-  if (side?.of === 'mmd' && previewAction) setPreviewAction(undefined);
   const asked = previewAction?.character === p.current ? previewAction : undefined;
-  // MMD previews its own dance on the same stage.
-  const pv = side?.of === 'mmd' ? side.preview : { action: asked?.id, request: asked?.request, loop };
 
   const imp: GameTab = { id: 'import', label: '导入', icon: 'upload', micro: 'IMPORT' };
   const tabs: GameTab[] =
@@ -256,7 +252,6 @@ export function Operator(p: OperatorProps) {
       mode,
       panel,
       deck,
-      band: (side?.of === 'mmd' && side.band) || undefined,
       status: deck ? deckLine(why, blocked, play, oneSpeed) : null,
       strip: overview && (
         <HeadStrip
@@ -353,12 +348,12 @@ export function Operator(p: OperatorProps) {
   useSceneReport(opRef, s.deck, p.onScene);
 
   return (
-    <div ref={opRef} className={styles.op} data-view="operator" data-mode={s.mode} data-panel={s.panel} data-bare={isBare || undefined} data-deck={s.deck || undefined} data-band={s.band} data-theme="light">
+    <div ref={opRef} className={styles.op} data-view="operator" data-mode={s.mode} data-panel={s.panel} data-bare={isBare || undefined} data-deck={s.deck || undefined} data-theme="light">
       {view.parts && s.strip}
       <div ref={midRef} className={styles.mid} data-character-preview="">
         <Stage
           mode={s.mode}
-          cube={side?.of !== 'mmd'}
+          cube
           status={s.status}
           deck={s.deck}
           name={s.mode === 'overview' && view.parts ? (ch?.name ?? '') : ''}
@@ -375,10 +370,10 @@ export function Operator(p: OperatorProps) {
           onRetry={p.sw.retry}
           onDismiss={p.sw.dismiss}
           characterId={p.current}
-          previewAction={pv.action}
-          previewRequest={pv.request}
+          previewAction={asked?.id}
+          previewRequest={asked?.request}
           previewAppearance={lookId}
-          loop={pv.loop}
+          loop={loop}
         />
       </div>
       {view.parts && s.right}

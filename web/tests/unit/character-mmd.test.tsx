@@ -1,5 +1,4 @@
-// 角色页 and MMD: the rail's MMD item and `?view=mmd` open the MMD section beside the rail on the one stage;
-// the 动作 tab and the 导入 pane leave its dances out.
+// 角色页 and MMD: the rail's MMD item opens the MMD page; the 动作 tab and the 导入 pane leave its dances out.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -44,49 +43,20 @@ afterEach(() => {
   window.location.hash = '';
 });
 
-describe('MMD is a section of 角色', () => {
-  const library = () => screen.queryByRole('region', { name: 'MMD 库' });
-  const current = () => screen.getByRole('navigation', { name: '角色分区' }).querySelector('[aria-current="page"]');
-
-  it('the MMD rail item after 设定 opens ?view=mmd with the rail still there, keeping the view flags', async () => {
+describe('the MMD rail item of 角色', () => {
+  it('after 设定 opens the MMD page, keeping the view flags; ?view=mmd is no section of 角色', async () => {
     // The shell's hash, which a jump reads the view flags from.
     window.location.hash = '#/character?still=1&theme=light';
     const router = await mount('&theme=light');
     const btn = tab('MMD');
     expect(btn.previousElementSibling?.textContent).toBe('设定');
     await click(btn);
-    expect(router.state.location.pathname).toBe('/character');
-    const q = new URLSearchParams(router.state.location.searchStr);
-    expect(q.get('view')).toBe('mmd');
-    expect(q.get('theme')).toBe('light');
-    expect(await screen.findByRole('region', { name: 'MMD 库' })).toBeTruthy();
-    expect(current()?.textContent).toContain('MMD');
-  });
-
-  it('总览 and 动作 on the rail leave the MMD section', async () => {
-    const router = await mount('&view=mmd');
-    expect(await screen.findByRole('region', { name: 'MMD 库' })).toBeTruthy();
-    await click(tab('总览'));
-    await waitFor(() => expect(library()).toBeNull());
-    expect(new URLSearchParams(router.state.location.searchStr).get('view')).toBeNull();
-    await click(tab('MMD'));
-    await screen.findByRole('region', { name: 'MMD 库' });
-    await click(tab('动作'));
-    await waitFor(() => expect(library()).toBeNull());
-    expect(new URLSearchParams(router.state.location.searchStr).get('pane')).toBe('motion');
-  });
-
-  it('keeps one stage: the same node on 总览, MMD and 动作', async () => {
-    await mount();
-    const stage = document.querySelector('[data-preview-stage]');
-    expect(stage).not.toBeNull();
-    await click(tab('MMD'));
-    await screen.findByRole('region', { name: 'MMD 库' });
-    expect(document.querySelectorAll('[data-preview-stage]').length).toBe(1);
-    expect(document.querySelector('[data-preview-stage]')).toBe(stage);
-    await click(tab('动作'));
-    await waitFor(() => expect(library()).toBeNull());
-    expect(document.querySelector('[data-preview-stage]')).toBe(stage);
+    expect(router.state.location.pathname).toBe('/mmd');
+    expect(new URLSearchParams(router.state.location.searchStr).get('theme')).toBe('light');
+    cleanup();
+    await mount('&view=mmd');
+    await act(async () => {});
+    expect(screen.queryByRole('region', { name: 'MMD 库' })).toBeNull();
   });
 });
 

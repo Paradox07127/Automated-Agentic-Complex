@@ -1,15 +1,16 @@
-// 角色 › MMD: the MMD library every character shares (mmd.list/import/syncState/onSync) in the section panel beside the
-// character area's live preview stage, her setlist under the stage.
+// MMD page: the MMD library every character shares (mmd.list/detail/import/syncState/onSync) beside its own live preview stage,
+// the timeline of the selected dance under the stage, her setlist under that, the inspector under the library.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PreviewPlacement } from '../../src/bridge';
+import type { ActionProgress, PreviewPlacement } from '../../src/bridge';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AvatarAction, AgenticComplexBridge, MmdEntry, MmdSyncState } from '../../src/bridge/protocol';
-import { CharacterPage } from '../../src/pages/character/Page';
 import { Library } from '../../src/pages/mmd/Library';
-import { findRoute } from '../../src/shell/registry';
+import { MmdPage } from '../../src/pages/mmd/Page';
+import { setNavRouter } from '../../src/shell/nav';
+import { findRoute, pageRoutes } from '../../src/shell/registry';
 import { createAppRouter } from '../../src/shell/router';
 import { stubMatchMedia } from './mediaStub';
 
@@ -31,17 +32,19 @@ function install(over: Partial<Parameters<typeof createFakeBridge>[0]> = {}) {
   window.agenticComplex = bridge;
 }
 
-/** 角色 opened on its MMD section; `ready: false` does not wait for the library panel. */
-async function mount(ready = true) {
-  const root = createRootRoute({ component: CharacterPage });
-  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/?still=1&view=mmd'] }) });
+/** The MMD page; `ready: false` does not wait for the library panel. */
+async function mount(search = '', ready = true) {
+  const root = createRootRoute({ component: MmdPage });
+  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: [`/?still=1${search}`] }) });
+  setNavRouter(router);
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
   if (ready) await screen.findByRole('region', { name: 'MMD 库' });
-  else await waitFor(() => expect(document.querySelector('[data-page="character"]')).not.toBeNull());
+  else await waitFor(() => expect(document.querySelector('[data-page="mmd"]')).not.toBeNull());
+  return router;
 }
 
 const click = (el: Element) => act(async () => void fireEvent.click(el));
@@ -49,18 +52,27 @@ const item = (id: string) => document.querySelector<HTMLElement>(`[data-mmd="${i
 const rowKey = (id: string) => item(id)!.querySelector<HTMLButtonElement>('button[aria-pressed]')!;
 const pick = (id: string) => click(rowKey(id));
 const press = (el: Element, key: string, opts: Partial<KeyboardEventInit> = {}) => act(async () => void fireEvent.keyDown(el, { key, ...opts }));
-// The selected row's opened part.
-const detail = () => screen.getByRole('group', { name: 'MMD 操作' });
+const inspector = () => screen.getByRole('region', { name: '这支舞' });
+const ops = () => screen.getByRole('group', { name: 'MMD 操作' });
+const timeline = () => screen.getByRole('region', { name: '时间线' });
+const fact = (at: string) => inspector().querySelector<HTMLElement>(`[data-fact="${at}"]`);
 const importKey = () => screen.getByRole('button', { name: /^导入(中…| MMD)$/ }) as HTMLButtonElement;
-// The selected dance's other characters leave her out: who the section is for.
-const herName = () => within(detail()).getByRole('list', { name: '其他角色' }).textContent;
 // The fake import takes a second.
 const SLOW = { timeout: 3000 };
-/** The fake's project scanned and its first body imported as 示例舞蹈 (`mmd_dance_1`). */
+/** The fake's project scanned and its first body imported as 示例舞蹈 (`mmd_dance_1`), with its camera and music. */
 async function importOne() {
   const r = await bridge.mmd.scan({ folder: false });
   if (!r.ok) throw new Error(r.reason);
-  await bridge.mmd.importScan({ token: r.token, items: [{ body: 0, title: '示例舞蹈' }], face: null, camera: null, audio: 0, bgmStartS: null, project: '示例' });
+  await bridge.mmd.importScan({ token: r.token, items: [{ body: 0, title: '示例舞蹈' }], face: null, camera: 0, audio: 0, bgmStartS: null, project: '示例' });
+}
+/** Every report the page listens for, pushed at once. */
+function desktop() {
+  const listeners = new Set<(p: ActionProgress | null) => void>();
+  vi.spyOn(bridge.avatar, 'onActionProgress').mockImplementation((cb) => {
+    listeners.add(cb);
+    return () => void listeners.delete(cb);
+  });
+  return (p: ActionProgress | null) => act(async () => listeners.forEach((l) => l(p)));
 }
 
 beforeEach(() => install());
@@ -68,11 +80,14 @@ afterEach(() => {
   cleanup();
   delete window.agenticComplex;
   vi.restoreAllMocks();
+  window.location.hash = '';
 });
 
-describe('MMD section', () => {
-  it('is no page of its own: /mmd is not found', async () => {
-    expect(findRoute('/mmd')).toBeUndefined();
+describe('MMD page', () => {
+  it('is a page of its own after 角色: #/mmd opens it with its library', async () => {
+    expect(findRoute('/mmd')).toMatchObject({ title: 'MMD', icon: 'file' });
+    const ids = pageRoutes.map((r) => r.id);
+    expect(ids.indexOf('mmd')).toBe(ids.indexOf('character') + 1);
     stubMatchMedia();
     window.location.hash = '#/mmd?still=1';
     const router = createAppRouter();
@@ -81,16 +96,102 @@ describe('MMD section', () => {
         <RouterProvider router={router} />
       </QueryClientProvider>,
     );
-    expect(await screen.findByRole('heading', { name: '没有这个页面' })).toBeTruthy();
+    expect(await screen.findByRole('region', { name: 'MMD 库' })).toBeTruthy();
     expect(router.state.location.pathname).toBe('/mmd');
-    window.location.hash = '';
   });
 
-  it('stands on the character area’s training room with its one live preview stage, beside the rail', async () => {
+  it('opens from the MMD item of the 角色 rail', async () => {
+    stubMatchMedia();
+    window.location.hash = '#/character?still=1&theme=light';
+    const router = createAppRouter();
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    const rail = await screen.findByRole('navigation', { name: '角色分区' });
+    await click(within(rail).getByRole('button', { name: 'MMD' }));
+    await waitFor(() => expect(window.location.hash).toMatch(/^#\/mmd\?/));
+    expect(new URLSearchParams(router.state.location.searchStr).get('theme')).toBe('light');
+    expect(await screen.findByRole('region', { name: 'MMD 库' })).toBeTruthy();
+  });
+
+  it('stands on the training room with its own live preview stage and no character rail', async () => {
     await mount();
-    expect(document.querySelector('[data-page="character"] [data-training-room]')).not.toBeNull();
+    expect(document.querySelector('[data-page="mmd"] [data-training-room]')).not.toBeNull();
     expect(document.querySelectorAll('[data-preview-stage]').length).toBe(1);
-    expect(screen.getByRole('navigation', { name: '角色分区' })).toBeTruthy();
+    expect(screen.queryByRole('navigation', { name: '角色分区' })).toBeNull();
+  });
+
+  it('selects the dance a link names (?sel=)', async () => {
+    vi.spyOn(bridge.mmd, 'list').mockResolvedValue(THREE);
+    await mount('&sel=mmd_b');
+    await waitFor(() => expect(item('mmd_b')).not.toBeNull());
+    expect(rowKey('mmd_b').getAttribute('aria-pressed')).toBe('true');
+    expect(inspector().getAttribute('data-mmd-detail')).toBe('mmd_b');
+  });
+});
+
+describe('MMD inspector and timeline', () => {
+  it('says what the selected dance holds: its file, the face, the camera, the music, each character and the unmapped morphs', async () => {
+    await importOne();
+    await mount();
+    await waitFor(() => expect(item('mmd_dance_1')).not.toBeNull());
+    await pick('mmd_dance_1');
+    await waitFor(() => expect(fact('face')).not.toBeNull());
+    expect(fact('source')!.textContent).toContain('示例舞蹈.vmd');
+    expect(fact('face')!.textContent).toBe('口型3 种表情对上眨眼跟着舞');
+    expect(fact('camera')!.textContent).toBe('镜头27 次切镜视角 12–40°');
+    expect(fact('bgm')!.textContent).toBe('音源song.wav偏移 0.000 s');
+    expect(within(fact('characters')!).getAllByRole('listitem').map((c) => c.textContent)).toEqual(['示例乙已同步', '示例甲待同步', '示例丙待同步']);
+    expect(fact('unmapped')!.textContent).toBe('没对上1 种：てへぺろ');
+    expect(within(ops()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['换音源', '改名', '删除']);
+  });
+
+  it('draws the four lanes from mmd.detail: 600 mouth slices, a cut every 8 s, the music', async () => {
+    await importOne();
+    await mount();
+    await waitFor(() => expect(timeline().querySelector('[data-lane="face"] svg')).not.toBeNull());
+    const mouth = timeline().querySelector('[data-lane="face"] svg')!;
+    expect(mouth.getAttribute('data-bins')).toBe('600');
+    expect(mouth.querySelector('path')!.getAttribute('d')!.match(/M/g)).toHaveLength(600);
+    expect(timeline().querySelectorAll('[data-lane="cam"] rect')).toHaveLength(27);
+    expect(timeline().querySelector('[data-lane="bgm"] svg')!.getAttribute('data-bins')).toBe('600');
+    expect(timeline().querySelector('[data-lane="body"]')).not.toBeNull();
+    expect(within(timeline()).getByLabelText('时钟').textContent).toBe('0:00.0/ 3:43.3');
+  });
+
+  it('shows only the characters and the actions while no character has the dance baked', async () => {
+    vi.spyOn(bridge.mmd, 'list').mockResolvedValue({ ok: true, entries: [entry('mmd_b', '舞蹈乙', 'pending')] });
+    const read = vi.spyOn(bridge.mmd, 'detail').mockResolvedValue({ ok: false, reason: 'not_baked' });
+    await mount();
+    await waitFor(() => expect(read).toHaveBeenCalledWith('mmd_b'));
+    await act(async () => {});
+    expect([...inspector().querySelectorAll('[data-fact]')].map((f) => f.getAttribute('data-fact'))).toEqual(['characters']);
+    expect(within(ops()).getByRole('button', { name: '改名' })).toBeTruthy();
+  });
+
+  it('follows the desktop while it plays the selected dance: DESKTOP, its clock and playhead, and its pause', async () => {
+    const push = desktop();
+    const control = vi.spyOn(bridge.avatar, 'controlAction').mockResolvedValue();
+    await importOne();
+    await mount();
+    await waitFor(() => expect(item('mmd_dance_1')).not.toBeNull());
+    expect(timeline().textContent).toContain('PREVIEW');
+    expect(within(timeline()).getByRole('button', { name: '暂停' })).toHaveProperty('disabled', true);
+    await push({ id: 'mmd_dance_1', tS: 84, durationS: 223.33, paused: false });
+    expect(timeline().textContent).toContain('DESKTOP');
+    expect(within(timeline()).getByLabelText('时钟').textContent).toBe('1:24.0/ 3:43.3');
+    expect(within(timeline()).getByRole('slider', { name: '播放进度' }).getAttribute('aria-valuenow')).toBe('84');
+    expect(document.querySelector('[data-preview-stage]')!.textContent).toContain('正在桌面上播');
+    expect(within(timeline()).getByRole('button', { name: '停止桌面播放' })).toBeTruthy();
+    await click(within(timeline()).getByRole('button', { name: '暂停' }));
+    expect(control).toHaveBeenCalledWith('pause');
+    await press(within(timeline()).getByRole('slider', { name: '播放进度' }), 'ArrowRight');
+    expect(control).toHaveBeenLastCalledWith('seek', 89);
+    await push({ id: 'mmd_other', tS: 1, durationS: 9, paused: false });
+    expect(timeline().textContent).toContain('PREVIEW');
+    expect(within(timeline()).getByLabelText('时钟').textContent).toBe('0:00.0/ 3:43.3');
   });
 });
 
@@ -113,7 +214,7 @@ describe('MMD library', () => {
     expect(within(row).getByText('CAM')).toBeTruthy();
     expect(within(row).getByText('LIP')).toBeTruthy();
     await pick('mmd_dance_1');
-    await click(within(detail()).getByRole('button', { name: '桌面播放' }));
+    await click(within(timeline()).getByRole('button', { name: '桌面播放' }));
     expect(play).toHaveBeenCalledWith('mmd_dance_1', 1);
   });
 
@@ -123,29 +224,30 @@ describe('MMD library', () => {
     await waitFor(() => expect(item('mmd_c')).not.toBeNull());
     expect(within(item('mmd_a')!).getByText('CAM')).toBeTruthy();
     expect(item('mmd_a')!.getAttribute('data-state')).toBe('baked');
-    expect(within(detail()).getByRole('button', { name: '桌面播放' })).toBeTruthy();
+    expect(within(timeline()).getByRole('button', { name: '桌面播放' })).toBeTruthy();
     expect(item('mmd_b')!.getAttribute('data-state')).toBe('pending');
     expect(item('mmd_b')!.textContent).toContain('待同步');
     await pick('mmd_b');
-    expect(item('mmd_b')!.contains(detail())).toBe(true);
-    expect(within(detail()).queryByRole('button', { name: '桌面播放' })).toBeNull();
-    expect(within(detail()).getByRole('button', { name: '改名' })).toBeTruthy();
+    expect(inspector().getAttribute('data-mmd-detail')).toBe('mmd_b');
+    expect(within(timeline()).queryByRole('button', { name: '桌面播放' })).toBeNull();
+    expect(within(ops()).getByRole('button', { name: '改名' })).toBeTruthy();
     expect(item('mmd_c')!.textContent).toContain('这个角色的骨骼接不上 MMD 动作');
     await pick('mmd_c');
-    expect(within(detail()).queryByRole('button', { name: '桌面播放' })).toBeNull();
+    expect(within(timeline()).queryByRole('button', { name: '桌面播放' })).toBeNull();
   });
 
-  it('filters the rows by 全部 / 可播放 / 未就绪 with their counts, and draws no tabs when every dance stands the same', async () => {
+  it('filters the rows by 全部 / 可播放 with their counts and by the search, and draws no tabs when every dance stands the same', async () => {
     const list = vi.spyOn(bridge.mmd, 'list').mockResolvedValue(THREE);
     await mount();
     await waitFor(() => expect(item('mmd_c')).not.toBeNull());
     const tabs = screen.getByRole('tablist', { name: '筛选' });
-    expect(within(tabs).getAllByRole('tab').map((t) => t.textContent)).toEqual(['全部[3]', '可播放[1]', '未就绪[2]']);
+    expect(within(tabs).getAllByRole('tab').map((t) => t.textContent)).toEqual(['全部[3]', '可播放[1]']);
     await click(within(tabs).getByRole('tab', { name: /可播放/ }));
     expect([item('mmd_a'), item('mmd_b'), item('mmd_c')].map((e) => e != null)).toEqual([true, false, false]);
-    await click(within(tabs).getByRole('tab', { name: /未就绪/ }));
-    expect([item('mmd_a'), item('mmd_b'), item('mmd_c')].map((e) => e != null)).toEqual([false, true, true]);
-    expect(item('mmd_b')!.contains(detail())).toBe(true);
+    await click(within(tabs).getByRole('tab', { name: /全部/ }));
+    fireEvent.change(screen.getByRole('textbox', { name: '搜索曲名' }), { target: { value: '乙' } });
+    await waitFor(() => expect([item('mmd_a'), item('mmd_b'), item('mmd_c')].map((e) => e != null)).toEqual([false, true, false]));
+    expect(inspector().getAttribute('data-mmd-detail')).toBe('mmd_b');
     cleanup();
     list.mockResolvedValue({ ok: true, entries: [entry('mmd_a', '舞蹈甲', 'baked')] });
     await mount();
@@ -153,17 +255,14 @@ describe('MMD library', () => {
     expect(screen.queryByRole('tablist', { name: '筛选' })).toBeNull();
   });
 
-  it('says how the selected dance stands on each other character, with the reason of a failure', async () => {
+  it('says how the selected dance stands on each character, with the reason of a failure', async () => {
     const other = { ...entry('mmd_a', '舞蹈甲', 'baked'), characters: [{ id: 'si', state: 'baked' as const, reason: null }, { id: 'voice_a', state: 'failed' as const, reason: 'missing_bones' }] };
     vi.spyOn(bridge.mmd, 'list').mockResolvedValue({ ok: true, entries: [other] });
     await mount();
     await waitFor(() => expect(item('mmd_a')).not.toBeNull());
-    const others = within(detail()).getByRole('list', { name: '其他角色' });
-    const names = within(others).getAllByRole('listitem');
-    expect(names.map((n) => n.getAttribute('data-state'))).toEqual(['failed', 'pending']);
-    expect(names[0]!.textContent).toBe('示例甲这个角色的骨骼接不上 MMD 动作');
-    expect(names[1]!.textContent).toBe('示例丙待同步');
-    expect(others.textContent).not.toContain('示例乙');
+    const names = within(within(inspector()).getByRole('list', { name: '角色同步' })).getAllByRole('listitem');
+    expect(names.map((n) => n.getAttribute('data-state'))).toEqual(['baked', 'failed', 'pending']);
+    expect(names.map((n) => n.textContent)).toEqual(['示例乙已同步', '示例甲这个角色的骨骼接不上 MMD 动作', '示例丙待同步']);
   });
 
   it('shows the sync while it runs and reads the lists again when it ends', async () => {
@@ -231,14 +330,14 @@ describe('MMD library', () => {
     await mount();
     await waitFor(() => expect(item('mmd_dance_1')).not.toBeNull());
     await pick('mmd_dance_1');
-    await click(within(detail()).getByRole('button', { name: '改名' }));
+    await click(within(ops()).getByRole('button', { name: '改名' }));
     const input = within(screen.getByRole('dialog', { name: '改名' })).getByRole('textbox') as HTMLInputElement;
     expect(input.value).toBe('示例舞蹈');
     fireEvent.change(input, { target: { value: '慢舞' } });
     await act(async () => void fireEvent.keyDown(input, { key: 'Enter' }));
     expect(rename).toHaveBeenCalledWith('si', 'mmd_dance_1', '慢舞');
     await waitFor(() => expect(item('mmd_dance_1')?.textContent).toContain('慢舞'));
-    await click(within(detail()).getByRole('button', { name: '删除' }));
+    await click(within(ops()).getByRole('button', { name: '删除' }));
     const dialog = screen.getByRole('dialog', { name: '删除动作' });
     expect(dialog.textContent).toContain('每个角色');
     await click(within(dialog).getByRole('button', { name: '删除' }));
@@ -266,7 +365,7 @@ describe('MMD library', () => {
     expect(screen.getByRole('dialog', { name: '删除动作' })).toBeTruthy();
   });
 
-  it('draws her 演出列表 under the stage with only the dances in it; a row’s ＋ adds one and shows its place', async () => {
+  it('draws her 演出列表 under the timeline with only the dances in it; a row’s ＋ adds one and shows its place', async () => {
     vi.spyOn(bridge.mmd, 'list').mockResolvedValue(THREE);
     const real = bridge.avatar.actions.bind(bridge.avatar);
     vi.spyOn(bridge.avatar, 'actions').mockImplementation(async () => [...(await real()), { ...MMD_ACTION }]);
@@ -274,6 +373,7 @@ describe('MMD library', () => {
     await mount();
     const band = await screen.findByRole('region', { name: 'MMD 列表' });
     expect(screen.getByRole('region', { name: 'MMD 库' }).contains(band)).toBe(false);
+    expect(timeline().compareDocumentPosition(band) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(band.textContent).toContain('列表是空的');
     expect(band.querySelector('[data-playlist-row]')).toBeNull();
     // Not baked for her: not hers, so no ＋.
@@ -290,20 +390,16 @@ describe('MMD library', () => {
 describe('MMD stage preview', () => {
   function stage() {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-      return 'previewStage' in this.dataset || 'previewLayer' in this.dataset ? RECT : EMPTY;
+      return 'previewStage' in this.dataset ? RECT : EMPTY;
     });
     vi.spyOn(bridge.mmd, 'list').mockResolvedValue(THREE);
     return vi.spyOn(bridge.avatar.preview, 'show').mockImplementation(async (_at: PreviewPlacement) => true);
   }
 
-  it('plays a baked dance on the stage when it is selected, looped with 循环', async () => {
+  it('previews the selected baked dance in the stage’s rect, looped with 循环', async () => {
     const show = stage();
     await mount();
-    await waitFor(() => expect(show).toHaveBeenCalled());
-    expect(show.mock.calls.every(([at]) => !('action' in at))).toBe(true);
-    await waitFor(() => expect(item('mmd_a')).not.toBeNull());
-    await pick('mmd_a');
-    await waitFor(() => expect(show).toHaveBeenLastCalledWith(expect.objectContaining({ action: 'mmd_a' })));
+    await waitFor(() => expect(show).toHaveBeenLastCalledWith(expect.objectContaining({ x: 400, y: 80, w: 360, h: 640, action: 'mmd_a' })));
     expect(show.mock.lastCall?.[0]).not.toHaveProperty('loop');
     await click(within(screen.getByRole('radiogroup', { name: '播放方式' })).getByRole('radio', { name: '循环' }));
     await waitFor(() => expect(show).toHaveBeenLastCalledWith(expect.objectContaining({ action: 'mmd_a', loop: true })));
@@ -312,8 +408,6 @@ describe('MMD stage preview', () => {
   it('does not preview a dance that is not baked for her', async () => {
     const show = stage();
     await mount();
-    await waitFor(() => expect(item('mmd_b')).not.toBeNull());
-    await pick('mmd_a');
     await waitFor(() => expect(show).toHaveBeenLastCalledWith(expect.objectContaining({ action: 'mmd_a' })));
     await pick('mmd_b');
     await waitFor(() => expect(show.mock.lastCall?.[0]).not.toHaveProperty('action'));
@@ -323,12 +417,22 @@ describe('MMD stage preview', () => {
     expect(screen.queryByRole('radiogroup', { name: '播放方式' })).toBeNull();
   });
 
+  it('stops the preview while the desktop plays the selected dance', async () => {
+    const push = desktop();
+    const show = stage();
+    const hide = vi.spyOn(bridge.avatar.preview, 'hide');
+    await mount();
+    await waitFor(() => expect(show).toHaveBeenLastCalledWith(expect.objectContaining({ action: 'mmd_a' })));
+    await push({ id: 'mmd_a', tS: 3, durationS: 12.5, paused: false });
+    await waitFor(() => expect(hide).toHaveBeenCalled());
+  });
+
   it('says the 播放方式 is the stage’s alone when the avatar cannot loop', async () => {
     install({ capabilities: { actionLoop: false } });
     vi.spyOn(bridge.mmd, 'list').mockResolvedValue(THREE);
     await mount();
     await waitFor(() => expect(item('mmd_a')).not.toBeNull());
-    expect(within(detail()).getByRole('button', { name: '桌面播放' })).toBeTruthy();
+    expect(within(timeline()).getByRole('button', { name: '桌面播放' })).toBeTruthy();
     expect(screen.queryByRole('radiogroup', { name: '播放方式' })).toBeNull();
     expect(screen.getByRole('radiogroup', { name: '舞台播放方式' })).toBeTruthy();
   });
@@ -340,9 +444,23 @@ describe('MMD stage preview', () => {
     const st = document.querySelector('[data-preview-stage]')!;
     expect(st.querySelectorAll(':is(button, [role="radio"], input, a):not([hidden])').length).toBe(0);
   });
+
+  it('previews for the character on the desktop: after a switch to one without the dance, her idle', async () => {
+    const show = stage();
+    let push: (s: Awaited<ReturnType<AgenticComplexBridge['app']['runtime']>>) => void = () => {};
+    vi.spyOn(bridge.app, 'onRuntime').mockImplementation((cb) => {
+      push = cb;
+      return () => {};
+    });
+    const rt = await bridge.app.runtime();
+    await mount();
+    await waitFor(() => expect(show).toHaveBeenLastCalledWith(expect.objectContaining({ action: 'mmd_a' })));
+    await act(async () => push({ ...rt, character: { ...rt.character, current: 'voice_a', shown: 'voice_a', agentd: 'voice_a' } }));
+    await waitFor(() => expect(show.mock.lastCall?.[0]).not.toHaveProperty('action'));
+  });
 });
 
-describe('MMD section · whose it is', () => {
+describe('MMD page · whose it is', () => {
   const B_ACTION: AvatarAction = { ...MMD_ACTION, id: 'mmd_b', label: '舞蹈乙' };
 
   it('follows a switch the shell pushes: her name, her actions and her own list, which a change then writes', async () => {
@@ -375,16 +493,16 @@ describe('MMD section · whose it is', () => {
   it('waits for the roster before it says how a dance stands for her, and offers no import meanwhile', async () => {
     vi.spyOn(bridge.character, 'list').mockReturnValue(new Promise(() => {}));
     vi.spyOn(bridge.mmd, 'list').mockResolvedValue(THREE);
-    await mount(false);
+    await mount();
     await act(async () => {});
     expect(item('mmd_a')).toBeNull();
-    expect(screen.queryByRole('button', { name: /^导入(中…| MMD)$/ })).toBeNull();
+    expect(importKey().disabled).toBe(true);
   });
 
   it('says the roster read failed in the page’s bar and reads it again on 重试', async () => {
     const roster = vi.spyOn(bridge.character, 'list').mockRejectedValue({ code: 'failed' });
     vi.spyOn(bridge.mmd, 'list').mockResolvedValue(THREE);
-    await mount(false);
+    await mount('', false);
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('读取角色目录失败'));
     expect(item('mmd_a')).toBeNull();
     expect(screen.queryByRole('region', { name: 'MMD 库' })).toBeNull();
@@ -393,16 +511,16 @@ describe('MMD section · whose it is', () => {
     await waitFor(() => expect(roster.mock.calls.length).toBeGreaterThan(n));
   });
 
-  it('offers no import VMD without a character, only the page’s 导入角色', async () => {
+  it('offers no import without a character', async () => {
     vi.spyOn(bridge.character, 'list').mockResolvedValue([]);
-    await mount(false);
-    await screen.findByRole('button', { name: '导入角色' });
-    expect(screen.queryByRole('button', { name: /^导入(中…| MMD)$/ })).toBeNull();
+    await mount();
+    await waitFor(() => expect(within(screen.getByRole('region', { name: 'MMD 库' })).queryByText('还没有角色')).not.toBeNull());
+    expect(importKey().disabled).toBe(true);
     expect(screen.queryByRole('region', { name: 'MMD 列表' })).toBeNull();
   });
 });
 
-describe('MMD section · minor review findings', () => {
+describe('MMD page · minor review findings', () => {
   it('says the bridge’s failure of a retry, not the reason of the read before it', () => {
     render(<Library data={{ ok: false, reason: 'bad_zip', detail: '' }} error="not_implemented" onRetry={() => {}} current="si" sel={undefined} onPick={() => {}} />);
     expect(screen.getByRole('alert').textContent).toContain('读取 MMD 库失败：这个版本还不支持');
@@ -425,55 +543,29 @@ describe('MMD section · minor review findings', () => {
     expect(list).not.toHaveBeenCalled();
   });
 
-  it('drops the selected dance’s actions when a later library read fails', async () => {
+  it('drops the selected dance’s inspector when a later library read fails', async () => {
     const list = vi.spyOn(bridge.mmd, 'list').mockResolvedValue(THREE);
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const root = createRootRoute({ component: CharacterPage });
-    const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/?still=1&view=mmd'] }) });
+    const root = createRootRoute({ component: MmdPage });
+    const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/?still=1'] }) });
     render(
       <QueryClientProvider client={qc}>
         <RouterProvider router={router} />
       </QueryClientProvider>,
     );
-    await waitFor(() => expect(within(detail()).getByRole('button', { name: '改名' })).toBeTruthy());
+    await waitFor(() => expect(within(ops()).getByRole('button', { name: '改名' })).toBeTruthy());
     list.mockRejectedValue({ code: 'failed' });
     await act(async () => void (await qc.refetchQueries({ queryKey: ['mmd', 'list'] })));
     await waitFor(() => expect(within(screen.getByRole('region', { name: 'MMD 库' })).getByRole('alert')).toBeTruthy());
     expect(screen.queryByRole('button', { name: '改名' })).toBeNull();
-  });
-
-  it('does not bring back an old stage preview when she comes back after a switch', async () => {
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-      return 'previewStage' in this.dataset || 'previewLayer' in this.dataset ? RECT : EMPTY;
-    });
-    vi.spyOn(bridge.mmd, 'list').mockResolvedValue(THREE);
-    const show = vi.spyOn(bridge.avatar.preview, 'show').mockImplementation(async (_at: PreviewPlacement) => true);
-    let push: (s: Awaited<ReturnType<AgenticComplexBridge['app']['runtime']>>) => void = () => {};
-    vi.spyOn(bridge.app, 'onRuntime').mockImplementation((cb) => {
-      push = cb;
-      return () => {};
-    });
-    const rt = await bridge.app.runtime();
-    const at = (id: string) => ({ ...rt, character: { ...rt.character, current: id, shown: id, agentd: id } });
-    await mount();
-    await waitFor(() => expect(item('mmd_a')).not.toBeNull());
-    await pick('mmd_a');
-    await waitFor(() => expect(show).toHaveBeenLastCalledWith(expect.objectContaining({ action: 'mmd_a' })));
-    await act(async () => push(at('voice_a')));
-    await waitFor(() => expect(herName()).not.toContain('示例甲'));
-    await waitFor(() => expect(show.mock.lastCall?.[0]).not.toHaveProperty('action'));
-    await act(async () => push(at('si')));
-    await waitFor(() => expect(herName()).not.toContain('示例乙'));
-    // The stage reports on the next animation frame.
-    await act(() => new Promise((r) => setTimeout(r, 100)));
-    expect(show.mock.lastCall?.[0]).not.toHaveProperty('action');
+    expect(screen.queryByRole('region', { name: '时间线' })).toBeNull();
   });
 });
 
-describe('MMD section · 播放方式', () => {
+describe('MMD page · 播放方式', () => {
   beforeEach(() => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-      return 'previewStage' in this.dataset || 'previewLayer' in this.dataset ? RECT : EMPTY;
+      return 'previewStage' in this.dataset ? RECT : EMPTY;
     });
   });
 
@@ -483,22 +575,21 @@ describe('MMD section · 播放方式', () => {
     const show = vi.spyOn(bridge.avatar.preview, 'show').mockImplementation(async (_at: PreviewPlacement) => true);
     await mount();
     await waitFor(() => expect(item('mmd_a')).not.toBeNull());
-    await pick('mmd_a');
     await click(within(screen.getByRole('radiogroup', { name: '舞台播放方式' })).getByRole('radio', { name: '循环' }));
     await waitFor(() => expect(show).toHaveBeenLastCalledWith(expect.objectContaining({ action: 'mmd_a', loop: true })));
   });
 
-  it('loops 桌面播放 too with 循环, and 停止 ends it', async () => {
+  it('loops 桌面播放 too with 循环, and 停止桌面播放 ends it', async () => {
     vi.spyOn(bridge.mmd, 'list').mockResolvedValue(THREE);
     const play = vi.spyOn(bridge.avatar, 'playAction');
     const stop = vi.spyOn(bridge.avatar, 'stopAction');
     await mount();
     await waitFor(() => expect(item('mmd_a')).not.toBeNull());
     await click(within(screen.getByRole('radiogroup', { name: '播放方式' })).getByRole('radio', { name: '循环' }));
-    await click(within(detail()).getByRole('button', { name: '桌面播放' }));
+    await click(within(timeline()).getByRole('button', { name: '桌面播放' }));
     expect(play).toHaveBeenCalledWith('mmd_a', 1, { loop: true });
-    await click(await within(detail()).findByRole('button', { name: '停止' }));
+    await click(await within(timeline()).findByRole('button', { name: '停止桌面播放' }));
     expect(stop).toHaveBeenCalled();
-    expect(await within(detail()).findByRole('button', { name: '桌面播放' })).toBeTruthy();
+    expect(await within(timeline()).findByRole('button', { name: '桌面播放' })).toBeTruthy();
   });
 });

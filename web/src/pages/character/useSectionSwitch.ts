@@ -11,7 +11,7 @@ const BLOCKS = [0, 83, 167, 333];
 /** charinfo_talent_first_in starts its five rows 50 ms apart; later rows start with the fifth. */
 const ROW = 50;
 const ROWS_STAGGERED = 5;
-const ROW_SEL = '[data-motion], [data-look], [data-layer], [data-imported-motion], [data-mmd], [id^="set-"]';
+const ROW_SEL = '[data-motion], [data-look], [data-layer], [data-imported-motion], [id^="set-"]';
 
 /** The tracks of `key` on the part itself, or with no key every track on its `[data-g]` nodes under the part. */
 type Use = { clip: GameClip; key?: string };

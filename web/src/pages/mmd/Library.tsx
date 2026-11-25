@@ -1,7 +1,7 @@
 import { useRef, type KeyboardEvent, type ReactNode } from 'react';
 import type { MmdEntry, MmdListResult } from '../../bridge';
 import { gameClips } from '../../design/gameClips.generated';
-import { Empty, IconBtn, Skel, Tabs } from '../../ui';
+import { Empty, IconBtn, SearchField, Skel, Tabs } from '../../ui';
 import { useGameClip } from '../../ui/fx/useGameClip';
 import { Barcode, MicroLabel, StatusLamp, WhiteCapsule } from '../../ui/game';
 import { motionImportReason } from '../character/labels';
@@ -17,17 +17,20 @@ export const stateOf = (e: MmdEntry, character: string): MmdState => e.character
 /** Why a dance does not play on her; null once it is baked. */
 export const notBaked = (s: MmdState): string | null => (s.state === 'baked' ? null : s.state === 'failed' ? motionImportReason(s.reason ?? '', undefined) : '待同步');
 
-export type MmdFilter = 'all' | 'ready' | 'pending';
+export type MmdFilter = 'all' | 'ready';
 
-/** How many dances she can play and how many wait; the filter tabs show only when both are some. */
+/** How many dances she can play; the filter tabs show only when some can and some cannot. */
 const counts = (entries: MmdEntry[], current: string) => {
   const ready = entries.filter((e) => stateOf(e, current).state === 'baked').length;
-  return { ready, waiting: entries.length - ready, tabs: ready > 0 && ready < entries.length };
+  return { ready, tabs: ready > 0 && ready < entries.length };
 };
 
-/** The rows a filter tab keeps; every row while the tabs are not drawn. */
-export const filtered = (entries: MmdEntry[], current: string, f: MmdFilter) =>
-  f === 'all' || !counts(entries, current).tabs ? entries : entries.filter((e) => (stateOf(e, current).state === 'baked') === (f === 'ready'));
+/** The rows a filter tab and the search keep; the tab keeps every row while the tabs are not drawn. */
+export const filtered = (entries: MmdEntry[], current: string, f: MmdFilter, query = '') => {
+  const q = query.trim().toLowerCase();
+  const tab = f === 'all' || !counts(entries, current).tabs ? entries : entries.filter((e) => stateOf(e, current).state === 'baked');
+  return q ? tab.filter((e) => [e.title, e.role, e.project].some((x) => x?.toLowerCase().includes(q))) : tab;
+};
 
 export interface LibraryProps {
   data: MmdListResult | undefined;
@@ -39,10 +42,11 @@ export interface LibraryProps {
   onPick: (e: MmdEntry) => void;
   filter?: MmdFilter;
   onFilter?: (f: MmdFilter) => void;
+  /** The search beside the filter tabs. */
+  query?: string;
+  onQuery?: (q: string) => void;
   /** A row's right end: its place in her list, its ＋, or nothing. */
   slot?: (e: MmdEntry) => ReactNode;
-  /** Under the selected row. */
-  detail?: ReactNode;
   /** A key the selected row does not handle itself (Enter, ＋, F2, Delete). */
   onKey?: (e: MmdEntry, key: string) => boolean;
 }
@@ -81,7 +85,7 @@ export function LibraryError({ message, onRetry }: { message: string; onRetry: (
   );
 }
 
-/** 舞曲库：筛选页签（全部 / 可播放 / 未就绪），每支舞一行 ▶ 深色行；点一行选中，选中行展开它的操作。 */
+/** 舞曲库：搜索和筛选页签（全部 / 可播放），每支舞一行 ▶ 深色行；点一行选中。 */
 export function Library(p: LibraryProps) {
   const list = useRef<HTMLUListElement>(null);
   const d = p.data;
@@ -106,9 +110,9 @@ export function Library(p: LibraryProps) {
       />
     );
 
-  const { ready, waiting, tabs } = counts(d.entries, p.current);
+  const { ready, tabs } = counts(d.entries, p.current);
   const f = tabs ? (p.filter ?? 'all') : 'all';
-  const rows = filtered(d.entries, p.current, f);
+  const rows = filtered(d.entries, p.current, f, p.query);
 
   const onKeyDown = (e: MmdEntry, i: number) => (k: KeyboardEvent<HTMLButtonElement>) => {
     const by = k.key === 'ArrowDown' ? 1 : k.key === 'ArrowUp' ? -1 : 0;
@@ -123,19 +127,27 @@ export function Library(p: LibraryProps) {
 
   return (
     <>
-      {tabs && (
-        <div className={styles.tabs}>
-          <Tabs
-            label="筛选"
-            keys={false}
-            value={f}
-            onChange={(v) => p.onFilter?.(v as MmdFilter)}
-            tabs={[
-              { id: 'all', label: '全部', count: d.entries.length },
-              { id: 'ready', label: '可播放', count: ready },
-              { id: 'pending', label: '未就绪', count: waiting },
-            ]}
-          />
+      {(tabs || p.onQuery) && (
+        <div className={styles.find}>
+          {p.onQuery && (
+            <span className={styles.search} data-theme="light">
+              <SearchField value={p.query ?? ''} label="搜索曲名" placeholder="搜索曲名" onChange={p.onQuery} />
+            </span>
+          )}
+          {tabs && (
+            <div className={styles.tabs}>
+              <Tabs
+                label="筛选"
+                keys={false}
+                value={f}
+                onChange={(v) => p.onFilter?.(v as MmdFilter)}
+                tabs={[
+                  { id: 'all', label: '全部', count: d.entries.length },
+                  { id: 'ready', label: '可播放', count: ready },
+                ]}
+              />
+            </div>
+          )}
         </div>
       )}
       <ul ref={list} className={styles.list} aria-label="MMD 舞蹈">
@@ -152,17 +164,21 @@ export function Library(p: LibraryProps) {
                     <Lead state={s.state} />
                   </span>
                   <span className={styles.main}>
-                    <span className={styles.nm}>{e.title}</span>
-                    {e.role != null && <span className={styles.role}>{e.role}</span>}
-                    <span className={styles.dur}>{`${e.durationS.toFixed(1)} s`}</span>
-                    {e.hasBgm && <span className={styles.chip}>BGM</span>}
-                    {e.hasCamera && <span className={styles.chip}>CAM</span>}
-                    {e.hasFace && <span className={styles.chip}>LIP</span>}
-                    {why != null && (
-                      <span className={styles.why} data-tone={s.state === 'failed' ? 'danger' : undefined} title={why}>
-                        {why}
-                      </span>
-                    )}
+                    <span className={styles.l1}>
+                      <span className={styles.nm}>{e.title}</span>
+                      {e.role != null && <span className={styles.role}>{e.role}</span>}
+                      {why != null && (
+                        <span className={styles.why} data-tone={s.state === 'failed' ? 'danger' : undefined} title={why}>
+                          {why}
+                        </span>
+                      )}
+                    </span>
+                    <span className={styles.l2}>
+                      <span className={styles.dur}>{`${e.durationS.toFixed(1)} s`}</span>
+                      {e.hasBgm && <span className={styles.chip}>BGM</span>}
+                      {e.hasCamera && <span className={styles.chip}>CAM</span>}
+                      {e.hasFace && <span className={styles.chip}>LIP</span>}
+                    </span>
                   </span>
                 </button>
                 <span className={styles.deco} aria-hidden="true">
@@ -170,7 +186,6 @@ export function Library(p: LibraryProps) {
                 </span>
                 <span className={styles.q}>{p.slot?.(e)}</span>
               </div>
-              {on && p.detail}
             </li>
           );
         })}

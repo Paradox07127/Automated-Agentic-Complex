@@ -1,4 +1,4 @@
-// 角色页 after the Gemini review of 11-22 (fix card 3): an old motion preview stays off after MMD, a switch from the tray locks the page,
+// 角色页 after the Gemini review of 11-22 (fix card 3): a switch from the tray locks the page,
 // a pending switch confirm drops on a new run, the room follows the stage's deck and compact layout, a loop ends with her, and the layer calls queue.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
@@ -82,18 +82,6 @@ const props: OperatorProps = {
   pane: 'motion',
 };
 
-describe('949c#3 a motion preview after MMD', () => {
-  it('does not play again on 总览 once MMD showed its own stage', async () => {
-    const ui = render(<Operator {...props} />);
-    await click(row('nod')!.querySelector('button')!);
-    expect(screen.getByTestId('stage').dataset.action).toBe('nod');
-    ui.rerender(<Operator {...props} side={{ of: 'mmd', node: <div />, band: false, preview: { action: undefined, request: undefined, loop: false } }} />);
-    expect(screen.getByTestId('stage').dataset.action).toBe('');
-    ui.rerender(<Operator {...props} pane="overview" />);
-    expect(screen.getByTestId('stage').dataset.action).toBe('');
-  });
-});
-
 describe('949c#5 a switch the page did not start', () => {
   it('locks the motion switches while the host switches from the tray', async () => {
     let push: (s: RuntimeSnapshot) => void = noop;
@@ -108,18 +96,6 @@ describe('949c#5 a switch the page did not start', () => {
     const s = await bridge.app.runtime();
     await act(async () => push({ ...s, character: { ...s.character, switching: true } }));
     expect(off()).toBe(true);
-  });
-
-  it('locks MMD while the page’s own switch runs', async () => {
-    const run = deferred<{ ok: true }>();
-    vi.spyOn(bridge.character, 'switchTo').mockImplementation(() => run.p);
-    await mount();
-    const heads = await screen.findByRole('group', { name: '角色头像' });
-    await click(within(heads).getByRole('button', { name: '示例甲' }));
-    await click(within(await screen.findByRole('dialog')).getByRole('button', { name: '切换' }));
-    await click(rail('MMD'));
-    const vmd = await screen.findByRole('button', { name: /导入 MMD/ });
-    expect((vmd as HTMLButtonElement).disabled).toBe(true);
   });
 });
 

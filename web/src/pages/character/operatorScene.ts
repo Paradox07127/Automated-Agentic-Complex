@@ -11,14 +11,13 @@ export interface SceneReport {
   compact: boolean;
 }
 
-/** Detail panel width per view (BRIEF 11-22 C): wide for 外观, 动作 and 编排 (and 导入 under them), narrow for 设定 and MMD. */
+/** Detail panel width per view (BRIEF 11-22 C): wide for 外观, 动作 and 编排 (and 导入 under them), narrow for 设定. */
 export const PANEL: Record<Exclude<Pane, 'overview'> | Side['of'], 'wide' | 'narrow'> = {
   motion: 'wide',
   chain: 'wide',
   look: 'wide',
   import: 'wide',
   set: 'narrow',
-  mmd: 'narrow',
 };
 
 /** First motion worth showing: not required, playable, present. */

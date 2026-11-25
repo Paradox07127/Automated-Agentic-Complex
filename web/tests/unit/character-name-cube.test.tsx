@@ -98,7 +98,7 @@ describe('a long character name', () => {
     expect(screen.getByRole('navigation', { name: '角色名册' }).textContent).toContain(LONG_CJK);
     expect(cuts(rule(css('character/Roster.module.css'), '.name'))).toBe(false);
     expect(cuts(rule(css('mmd/Setlist.module.css'), '.who'))).toBe(false);
-    expect(cuts(rule(css('mmd/Detail.module.css'), '.chn'))).toBe(false);
+    expect(cuts(rule(css('mmd/Inspector.module.css'), '.chn'))).toBe(false);
   });
 });
 

@@ -8,8 +8,8 @@
 }
 
 /* The room draws her shadow and watermark around the stage's span (Stage.module.css): on a detail page between the
-   left edge and the panel (rail 64, gaps 12, the panel's tier from OperatorPart1.css) above the status slot and the action bar
-   (MMD: her setlist, `band`). 总览 keeps the room's own camera, the game's 总览 one (floor line at 76.9 %). Every other
+   left edge and the panel (rail 64, gaps 12, the panel's tier from OperatorPart1.css) above the status slot and the action bar.
+   总览 keeps the room's own camera, the game's 总览 one (floor line at 76.9 %). Every other
    section stands her left of a panel as the game's 档案 does, so it takes that closer camera: the floor line at 87.6 %,
    raised by what lifts her off the bottom. */
 .page[data-stage-span] > [data-training-room] {
@@ -31,12 +31,8 @@
   --room-panel: clamp(440px, 46cqw, 900px);
 }
 
-.page:is([data-stage-span='set'], [data-stage-span='band']) > [data-training-room] {
+.page[data-stage-span='set'] > [data-training-room] {
   --room-panel: clamp(404px, 36cqw, 700px);
-}
-
-.page[data-stage-span='band'] > [data-training-room] {
-  --room-deck: calc(158px + 20px);
 }
 
 @container page (max-width: 1100px) {
@@ -54,10 +50,6 @@
 
 .page[data-compact][data-stage-span='deck'] > [data-training-room] {
   --room-deck: 48px;
-}
-
-.page[data-compact][data-stage-span='band'] > [data-training-room] {
-  --room-deck: calc(94px + 12px);
 }
 
 /* The live preview's layer: the whole page, its own stacking context over the room (z-index 0) and under the bars and the body (1). */

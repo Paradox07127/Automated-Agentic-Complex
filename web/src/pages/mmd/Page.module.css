@@ -1,0 +1,220 @@
+/* MMD page over the training room: left the stage, the timeline and her setlist; right the library and the inspector. */
+.page {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  container: mmd / size;
+}
+
+/* The sizes live on the children: a container query does not reach the container itself. */
+.bars,
+.body {
+  --edge: 20px;
+  --gap: 20px;
+  --side: 470px;
+  --tl-h: 178px;
+  --band-h: 158px;
+}
+
+.bars {
+  position: absolute;
+  top: 8px;
+  right: var(--edge);
+  left: var(--edge);
+  z-index: 3;
+}
+
+.body {
+  position: absolute;
+  inset: 12px var(--edge) 16px;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--side);
+  gap: var(--gap);
+}
+
+.left,
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.side {
+  padding-top: 4px;
+}
+
+/* The stage: the shell draws the live preview in this rect, so nothing here is a control while she is drawn. */
+.stage {
+  position: relative;
+  flex: 1;
+  min-height: 120px;
+  overflow: hidden;
+  background: linear-gradient(rgb(255 255 255 / 26%), rgb(255 255 255 / 8%) 58%, rgb(0 0 0 / 4%) 58.4%, rgb(0 0 0 / 2%));
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 55%),
+    0 10px 28px rgb(0 0 0 / 16%);
+}
+
+.ticks i {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 0 solid rgb(255 255 255 / 85%);
+}
+
+.ticks i:nth-child(1) {
+  top: 8px;
+  left: 8px;
+  border-width: 2px 0 0 2px;
+}
+
+.ticks i:nth-child(2) {
+  top: 8px;
+  right: 8px;
+  border-width: 2px 2px 0 0;
+}
+
+.ticks i:nth-child(3) {
+  bottom: 8px;
+  left: 8px;
+  border-width: 0 0 2px 2px;
+}
+
+.ticks i:nth-child(4) {
+  right: 8px;
+  bottom: 8px;
+  border-width: 0 2px 2px 0;
+}
+
+.load {
+  position: absolute;
+  top: 70%;
+  left: 50%;
+  width: min(78%, 640px);
+  transform: translate(-50%, -50%);
+}
+
+/* The desktop plays the selected dance: the preview has stopped. */
+.desk {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 28px;
+  background: rgb(30 30 30 / 80%);
+  color: #fff;
+  transform: translate(-50%, -50%);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}
+
+.desk b {
+  font: 700 16px / 1.2 var(--ef-font-sans);
+}
+
+.stage:has(.desk) {
+  background-color: rgb(32 32 32 / 45%);
+}
+
+/* Why there is no preview: top left, as the stage tag. */
+.tag {
+  position: absolute;
+  top: 18px;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 16px 5px 12px;
+  background: rgb(30 30 30 / 74%);
+  color: #fff;
+  font-size: 12px;
+  backdrop-filter: blur(6px);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+
+.retry {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ef-accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* The timeline under the stage (Timeline.module.css fills this box). */
+.tlAt {
+  position: relative;
+  flex: none;
+  height: var(--tl-h);
+}
+
+/* Her setlist under the timeline (Setlist.module.css fills this box). */
+.bandAt {
+  position: relative;
+  flex: none;
+  height: var(--band-h);
+}
+
+/* The library: the title bar, the status strip, the search and the rows. */
+.lib {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+  color: var(--ef-text-1);
+}
+
+.why {
+  margin: 0;
+  padding: 14px 16px;
+  background: color-mix(in srgb, var(--ef-hud-row-head) 86%, transparent);
+  color: var(--ef-track-text);
+  font-size: 13px;
+}
+
+/* 925 × 515: a narrower side, shorter timeline and setlist. */
+@container mmd (max-width: 1100px) or (max-height: 600px) {
+  .bars,
+  .body {
+    --edge: 10px;
+    --gap: 10px;
+    --side: 330px;
+    --tl-h: 128px;
+    --band-h: 96px;
+  }
+
+  .body {
+    inset: 6px var(--edge) 8px;
+  }
+
+  .left,
+  .side {
+    gap: 6px;
+  }
+
+  .side {
+    padding-top: 2px;
+  }
+
+  .lib {
+    gap: 6px;
+  }
+
+  /* The title bar keeps the title, the count and 导入 MMD. */
+  .lib > [data-stub='TitleBar'] > [aria-hidden='true'] {
+    display: none;
+  }
+
+  .lib > [data-stub='TitleBar'] > :last-child {
+    margin-left: auto;
+  }
+}

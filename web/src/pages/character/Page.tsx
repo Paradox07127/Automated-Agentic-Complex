@@ -7,7 +7,6 @@ import { PageHeaderSlot } from '../../shell/headerSlot';
 import { navigate as navTo } from '../../shell/nav';
 import { Btn, ErrBar, Menu, Spinner } from '../../ui';
 import { PowerState, TrainingRoom } from '../../ui/game';
-import { useMmdSection } from '../mmd/Section';
 import { failure, readRunningTasks, readState } from './api';
 import { CharacterSettings } from './CharacterSettings';
 import { demo as slot } from './demoSlot';
@@ -20,7 +19,7 @@ import { CHAR_TABS, isCharTab } from './sections';
 import { useCharSettings } from './settings';
 import { presentTabs } from './SettingRows';
 import { SWITCH_STAGES } from './tables';
-import { currentOf, useHostCharacter, useMmdSync } from './useHostCharacter';
+import { currentOf, RUNTIME_DOWN, useHostCharacter, useMmdSync } from './useHostCharacter';
 import { useMotionImport } from './useMotionImport';
 import { useMotionLibrary } from './useMotionLibrary';
 import { useSwitch, type SwitchState } from './useSwitch';
@@ -31,8 +30,6 @@ type Roster = CharacterEntry[];
 const NO_ROSTER: Roster = [];
 /** Supervisor child states in which the avatar is not running. */
 export const DOWN = /^(stopped|backoff|portInUse|gpuHold|failed)/;
-/** The runtime's avatar process states in which she is not running. */
-const RUNTIME_DOWN: ReadonlySet<string> = new Set(['stopped', 'backoff', 'port_in_use', 'gpu_hold', 'failed']);
 const codeOf = (e: unknown) => (e as { code?: string } | null)?.code;
 /** The `ok` demo opens with two unsaved switches, as the prototype does. */
 const OK_SEED = { stretch: false, watch: true };
@@ -45,7 +42,7 @@ function initialSwitch(demo: string | null, roster: Roster | undefined): SwitchS
   return { phase: 'idle' };
 }
 
-/** 角色：训练场上的实机舞台。默认（`?pane=overview`）是总览；`?pane=motion|chain|look|import` 是外观、动作的详情，`?tab=behavior|render|scene` 是「设定」，`?view=mmd` 是 MMD；她的状态曲线在诊断 › 行为决策。 */
+/** 角色：训练场上的实机舞台。默认（`?pane=overview`）是总览；`?pane=motion|chain|look|import` 是外观、动作的详情，`?tab=behavior|render|scene` 是「设定」；她的状态曲线在诊断 › 行为决策。 */
 export function CharacterPage() {
   const { state, demo } = useDemo();
   const fb = useFeedback();
@@ -53,12 +50,12 @@ export function CharacterPage() {
   const tab = params.get('tab');
   const row = params.get('row');
   const pane = params.get('pane');
-  const mmdView = !isCharTab(tab) && params.get('view') === 'mmd';
   const qc = useQueryClient();
   const bridge = getBridge();
   const canAvatar = bridge.capabilities.avatar;
   const host = useHostCharacter(canAvatar);
-  const sync = useMmdSync(canAvatar);
+  // A finished MMD sync changes her actions.
+  useMmdSync(canAvatar);
 
   const list = useQuery({ queryKey: ['character', 'list'], queryFn: () => getBridge().character.list(), enabled: canAvatar });
   // Page clock of the last state read: where the curves stop when agentd goes away.
@@ -101,7 +98,6 @@ export function CharacterPage() {
   const backoff = demo === 'offline' ? null : (host.avatar?.backoff ?? null);
   // A switch from the tray or menu bar runs on the host only.
   const switching = host.switching || sw.state.phase === 'running';
-  const mmd = useMmdSection({ on: mmdView, roster: roster ?? NO_ROSTER, ch: currentOf(roster, host.current), actions: motions.data, offline, switching, sync, toast: fb.toast });
   const [scene, setScene] = useState<SceneReport>({ deck: false, compact: false });
   const disconnected = conn.data === 'offline' || (cs.error != null && failure(cs.error).kind === 'offline');
   const stateError = state === 'error' || (cs.isError && !disconnected);
@@ -176,15 +172,13 @@ export function CharacterPage() {
           toast={fb.toast}
           {...(isCharTab(tab)
             ? { side: { of: 'set' as const, tab: setTabs.includes(tab) ? tab : (setTabs[0] ?? tab), tabs: setTabs, node: <CharacterSettings tab={tab} row={row ?? undefined} offline={offline} onRestart={restart} avatar={canAvatar} onTab={(t) => navTo({ page: 'character', tab: t })} menu={false} toast={fb.toast} /> } }
-            : mmdView
-              ? { side: mmd }
-              : {})}
+            : {})}
         />
       </div>
     );
 
   // Where the stage stands, for the room's floor and rings (Stage.module.css): 总览 is the room's default span; the deck is the one the stage stands on.
-  const stage = isCharTab(tab) ? 'set' : mmdView ? (mmd.band ? 'band' : 'set') : isPane(pane) && pane !== 'overview' ? (scene.deck ? 'deck' : 'wide') : undefined;
+  const stage = isCharTab(tab) ? 'set' : isPane(pane) && pane !== 'overview' ? (scene.deck ? 'deck' : 'wide') : undefined;
   return (
     <div className={styles.page} data-page="character" data-stage-span={stage} data-compact={scene.compact || undefined}>
       <TrainingRoom watermark={her?.background} />

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { saveShot } from './shots.ts';
 
-// 角色 › MMD › 导入 MMD on the fake: the 确认单 fits the window at both sizes, the imported dance shows its part and marks, 换音源 opens.
+// MMD › 导入 MMD on the fake: the 确认单 fits the window at both sizes, the imported dance shows its part and marks, 换音源 opens.
 
 for (const [width, height] of [
   [1440, 900],
@@ -9,7 +9,7 @@ for (const [width, height] of [
 ] as const) {
   test(`${width}×${height}: the 确认单 shows every choice inside the window with 导入 reachable`, async ({ page }, info) => {
     await page.setViewportSize({ width, height });
-    await page.goto('main.html#/character?view=mmd&still=1');
+    await page.goto('main.html#/mmd?still=1');
     await page.getByRole('button', { name: '导入 MMD' }).click();
     const sheet = page.getByRole('dialog', { name: '导入 MMD' });
     await expect(sheet.getByRole('textbox', { name: '曲名' })).toHaveValue('愛包ダンスホール');
