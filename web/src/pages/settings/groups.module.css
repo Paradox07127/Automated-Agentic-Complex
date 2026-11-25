@@ -208,20 +208,6 @@
   gap: 6px;
 }
 
-.chipBtn {
-  all: unset;
-  display: inline-flex;
-  cursor: pointer;
-}
-
-.chipBtn:hover > * {
-  background: var(--ef-slab-hover);
-}
-
-.chipBtn:focus-visible {
-  outline: 2px solid var(--ef-accent);
-}
-
 .to {
   color: var(--ef-text-2);
   font: 500 12px var(--ef-font-num);

@@ -1,3 +1,4 @@
+import { Btn } from '../../ui';
 import styles from './QueueBar.module.css';
 
 /** 队列条：每张待决定的卡一个 8×8 方块，危险卡 ■ danger；「后面还有 N 张 · M 张危险」只数没上屏的卡。 */
@@ -42,14 +43,14 @@ export function QueueBar({ more, dangerous, cells = [], notices = 0, expanded, o
       </span>
       <span className={styles.sp} />
       {onToggle && (
-        <button type="button" className={styles.btn} aria-expanded={!!expanded} onClick={onToggle}>
+        <Btn variant="text" size="sm" aria-expanded={!!expanded} onClick={onToggle}>
           {expanded ? '收起' : '展开'}
-        </button>
+        </Btn>
       )}
       {onLater && (
-        <button type="button" className={styles.btn} onClick={onLater}>
-          [稍后]
-        </button>
+        <Btn variant="text" size="sm" onClick={onLater}>
+          稍后
+        </Btn>
       )}
     </div>
   );

@@ -38,6 +38,8 @@ export interface BtnProps {
   disabled?: boolean;
   /** 禁用原因，作为 tooltip（禁用时必给） */
   disabledReason?: string;
+  /** 可用时的悬停提示：文字没说清点了去哪时给 */
+  tip?: string;
   /** 只能用鼠标点（危险批准）：不响应 ⏎ 和空格 */
   mouseOnly?: boolean;
   /** 点击 */
@@ -57,7 +59,7 @@ type Variant = NonNullable<BtnProps['variant']>;
 const TAIL: Partial<Record<Variant, IconName>> = { primary: 'check', secondary: 'chev', danger: 'del' };
 export const MOUSE_ONLY_HINT = '只能用鼠标点击';
 
-export function Btn({ variant: v = 'ghost', size: asked = 'md', dense, icon, tail, go, label, kbd, loading, pressed, disabled, disabledReason, mouseOnly, onClick, children, ref, ...aria }: BtnProps) {
+export function Btn({ variant: v = 'ghost', size: asked = 'md', dense, icon, tail, go, label, kbd, loading, pressed, disabled, disabledReason, tip, mouseOnly, onClick, children, ref, ...aria }: BtnProps) {
   const [hint, setHint] = useState(false);
   const reasonId = useId();
   const size = v === 'link' ? 'sm' : asked;
@@ -98,7 +100,7 @@ export function Btn({ variant: v = 'ghost', size: asked = 'md', dense, icon, tai
       aria-disabled={disabled || undefined}
       aria-busy={loading || undefined}
       aria-describedby={disabled && disabledReason ? reasonId : undefined}
-      title={disabled ? disabledReason : mouseOnly ? MOUSE_ONLY_HINT : undefined}
+      title={disabled ? disabledReason : mouseOnly ? MOUSE_ONLY_HINT : tip}
       onClick={() => {
         if (!inactive) onClick?.();
       }}

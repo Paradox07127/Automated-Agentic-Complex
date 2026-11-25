@@ -157,19 +157,6 @@ button.node:hover {
   margin-left: auto;
 }
 
-.fix {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ef-info-text);
-  font-size: var(--ef-fs-caption);
-  cursor: pointer;
-}
-
-.fix:hover {
-  text-decoration: underline;
-}
-
 .root[data-layout='wide'] .chain {
   padding: var(--ef-sp-8) 0;
 }

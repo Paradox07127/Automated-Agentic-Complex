@@ -114,38 +114,6 @@
   word-break: break-all;
 }
 
-.link {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ef-text-1);
-  font: var(--ef-t-meta);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
-.link:hover:not([aria-disabled]) {
-  background: var(--ef-overlay-hover);
-  text-decoration-thickness: 2px;
-}
-
-.link:active:not([aria-disabled]) {
-  background: var(--ef-overlay-press);
-}
-
-.link:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
-  outline-offset: 2px;
-}
-
-/* A dotted underline keeps it reading as a link that is off, not as plain text. */
-.link[aria-disabled] {
-  color: var(--ef-text-3);
-  text-decoration: underline dotted;
-  cursor: not-allowed;
-}
-
 .chk {
   display: inline-flex;
   align-items: center;

@@ -103,9 +103,9 @@ export function DecisionBar({ kind, title, meta, dangerous, primary, secondary =
               {a.label}
             </Btn>
             {a.withReason && (
-              <button type="button" className={styles.reasonBtn} aria-label={`${a.label}并附一句理由`} aria-expanded={reason?.i === i} disabled={a.disabled} onClick={() => setReason(reason?.i === i ? null : { i, text: '' })}>
+              <Btn variant="link" label={`${a.label}并附一句理由`} aria-expanded={reason?.i === i} disabled={a.disabled} disabledReason={a.disabledReason} onClick={() => setReason(reason?.i === i ? null : { i, text: '' })}>
                 附理由
-              </button>
+              </Btn>
             )}
           </Fragment>
         ))}

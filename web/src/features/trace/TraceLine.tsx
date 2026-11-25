@@ -1,6 +1,7 @@
-import { useId, useState, type KeyboardEvent, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { formatMs, stateVisual, type VisualStateKey } from '../../domain';
 import { Icon, Missing, type IconName } from '../../ui';
+import { ExpandRow } from '../../ui/game/ExpandRow';
 import { StatusLamp } from '../../ui/game/StatusLamp';
 import styles from './TraceLine.module.css';
 
@@ -33,24 +34,11 @@ function descParts(desc: string): Array<{ text: string; mono: boolean }> {
 }
 
 export function TraceLine({ icon, title, desc, state, durationMs, children, defaultOpen = false }: TraceLineProps) {
-  const [open, setOpen] = useState(defaultOpen);
-  const id = useId();
   const expandable = children != null;
   const tone = stateVisual(state).tone;
 
-  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.target !== e.currentTarget) return;
-    const next = e.key === 'Enter' || e.key === ' ' ? !open : e.key === 'ArrowRight' ? true : e.key === 'ArrowLeft' ? false : null;
-    if (next == null) return;
-    e.preventDefault();
-    setOpen(next);
-  };
-
   const row = (
     <>
-      <span className={styles.chev} data-open={open || undefined} aria-hidden="true">
-        {expandable && <Icon name="chev" size={14} />}
-      </span>
       {icon && (
         <span className={styles.icon} aria-hidden="true">
           <Icon name={icon} size={14} />
@@ -83,19 +71,10 @@ export function TraceLine({ icon, title, desc, state, durationMs, children, defa
   );
 
   return (
-    <div data-stub="TraceLine" className={styles.root} data-tone={tone} data-open={(expandable && open) || undefined}>
-      {expandable ? (
-        <div role="button" tabIndex={0} className={styles.row} aria-expanded={open} aria-controls={open ? id : undefined} onClick={() => setOpen((o) => !o)} onKeyDown={onKeyDown}>
-          {row}
-        </div>
-      ) : (
-        <div className={styles.row}>{row}</div>
-      )}
-      {expandable && open && (
-        <div id={id} className={styles.detail}>
-          {children}
-        </div>
-      )}
+    <div data-stub="TraceLine" className={styles.root} data-tone={tone}>
+      <ExpandRow body={children} defaultOpen={defaultOpen} tone={tone === 'failed' ? 'fail' : tone === 'running' ? 'run' : undefined}>
+        {row}
+      </ExpandRow>
     </div>
   );
 }

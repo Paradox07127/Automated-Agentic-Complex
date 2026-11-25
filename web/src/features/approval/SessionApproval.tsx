@@ -56,9 +56,9 @@ export function SessionApproval({ title, line, dangerous, dangerRule, cmd, diff,
   const flip = (o: Exclude<Open, null>) => setOpen((cur) => (cur === o ? null : o));
   const counts = diff ? diffCounts(diff) : null;
   const tab = (o: Exclude<Open, null>, label: ReactNode) => (
-    <button type="button" className={styles.tab} aria-expanded={open === o} onClick={() => flip(o)}>
+    <Btn variant="text" size="sm" dense aria-expanded={open === o} onClick={() => flip(o)}>
       {label}
-    </button>
+    </Btn>
   );
   const targetLabel = TARGET_LABEL[line.kind];
 

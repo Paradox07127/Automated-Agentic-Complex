@@ -24,17 +24,3 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.link {
-  align-self: flex-start;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  font-size: var(--ef-fs-caption);
-  color: var(--ef-info-text);
-}
-
-.link:hover {
-  text-decoration: underline;
-}

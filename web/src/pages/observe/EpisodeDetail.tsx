@@ -77,13 +77,12 @@ export function EpisodeDetail({ episode: e, apps, memories, rank, now, onMemory,
                 排除 {main}
               </Btn>
             )}
-            <button type="button" className={s.del} onClick={onDelete}>
-              <Icon name="del" size={14} />
+            <Btn size="sm" variant="danger" icon="del" onClick={onDelete}>
               删除片段
-            </button>
-            <button type="button" className={s.quiet} onClick={onEvidence}>
+            </Btn>
+            <Btn size="sm" variant="text" onClick={onEvidence}>
               查看出处
-            </button>
+            </Btn>
           </div>
         </div>
       </Plate>

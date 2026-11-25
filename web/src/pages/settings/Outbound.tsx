@@ -75,9 +75,9 @@ export function OutboundPlate() {
         <span className={styles.outLbl}>{REGISTRY.find((r) => r.id === 'out')?.label}</span>
         <span className={styles.flow}>
           {out.map((r) => (
-            <button key={r.key} type="button" className={styles.chipBtn} title="跳到这一项的开关" onClick={() => goRow(r.row)}>
-              <Pill>{r.detail ? `${r.label}（${r.detail}）` : r.label}</Pill>
-            </button>
+            <Btn key={r.key} variant="ghost" size="sm" tip="跳到这一项的开关" onClick={() => goRow(r.row)}>
+              {r.detail ? `${r.label}（${r.detail}）` : r.label}
+            </Btn>
           ))}
           {out.length === 0 && <Pill dashed>{unread ? '未读到' : '没有'}</Pill>}
           <span className={styles.to}>

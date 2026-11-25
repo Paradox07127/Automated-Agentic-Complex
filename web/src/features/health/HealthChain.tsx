@@ -1,6 +1,7 @@
 import { CountdownRing } from '../../charts';
 import { formatDuration, type Health } from '../../domain';
 import { voiceText } from '../../domain/voiceState';
+import { Btn } from '../../ui';
 import { useCountdown } from '../approval/useCountdown';
 import styles from './HealthChain.module.css';
 
@@ -107,9 +108,9 @@ export function HealthChain({ health, now, layout = 'card', onNode, onVoiceReset
                 </span>
                 <span className={styles.t3}>{n === root ? '三条支路都不可达' : '只影响这一支'}</span>
                 {onNode && (
-                  <button type="button" className={styles.fix} onClick={() => (n.key === 'voice' && onVoiceReset ? onVoiceReset() : onNode(n.key))}>
+                  <Btn variant="link" onClick={() => (n.key === 'voice' && onVoiceReset ? onVoiceReset() : onNode(n.key))}>
                     {n.fix}
-                  </button>
+                  </Btn>
                 )}
               </span>
             ))

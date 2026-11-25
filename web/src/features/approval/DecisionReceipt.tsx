@@ -1,4 +1,5 @@
 import { formatClock } from '../../domain';
+import { Btn } from '../../ui';
 import type { ApprovalOutcome } from './ApprovalCard';
 import { expiredNote, type ApprovalOrigin } from './approvalView';
 import styles from './DecisionReceipt.module.css';
@@ -50,9 +51,12 @@ export function DecisionReceipt({ outcome, agent = '会话', onGoTerminal, origi
       {kind === 'elsewhere' && <p className={styles.note}>这张卡被别处处理了，这里不用再点</p>}
       {kind === 'failed' && outcome.text && <p className={styles.note}>{outcome.text}</p>}
       {hook && (kind === 'expired' || kind === 'failed') && (
-        <button type="button" className={styles.link} disabled={!onGoTerminal} title={onGoTerminal ? undefined : '没有会话关联'} onClick={onGoTerminal}>
-          去终端 ↗
-        </button>
+        // Wrapped so the grid does not stretch the link across the card.
+        <span>
+          <Btn variant="link" disabled={!onGoTerminal} disabledReason="没有会话关联" onClick={onGoTerminal}>
+            去终端 ↗
+          </Btn>
+        </span>
       )}
     </div>
   );

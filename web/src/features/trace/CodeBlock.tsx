@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { getBridge } from '../../bridge';
+import { Btn, IconBtn } from '../../ui';
 import { MoreLines } from '../../ui/MoreLines';
 import styles from './CodeBlock.module.css';
 
@@ -49,12 +50,10 @@ export function CodeBlock({ code, preview = 20, wrap: wrapInit = true, label = '
   return (
     <div data-stub="CodeBlock" data-selectable="" className={styles.root} data-wrap={wrap || undefined} role="group" aria-label={label}>
       <div className={styles.tools}>
-        <button type="button" className={styles.tool} aria-pressed={wrap} onClick={() => setWrap((w) => !w)}>
+        <Btn variant="text" size="sm" pressed={wrap} onClick={() => setWrap((w) => !w)}>
           自动换行
-        </button>
-        <button type="button" className={styles.tool} onClick={() => void copy()}>
-          {copied ? '已复制' : '复制'}
-        </button>
+        </Btn>
+        <IconBtn icon={copied ? 'check' : 'copy'} label={copied ? '已复制' : '复制'} size="sm" onClick={() => void copy()} />
       </div>
       <pre id={preId} className={styles.pre}>
         {shown.map((l, i) => (

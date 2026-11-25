@@ -134,12 +134,12 @@ export function ApprovalCard({ approval: given, view, onExtra, surface = 'main',
           目录 <code>{approval.cwd}</code>
         </span>
       )}
-      <button type="button" className={styles.link} aria-disabled={sessionOff || undefined} title={sessionOff ? (sessionReason ?? '没有会话关联') : '打开这个会话'} onClick={sessionOff ? undefined : onOpenSession}>
+      <Btn variant="link" disabled={sessionOff} disabledReason={sessionReason ?? '没有会话关联'} tip="打开这个会话" onClick={onOpenSession}>
         会话 ↗
-      </button>
-      <button type="button" className={styles.link} aria-disabled={timelineOff || undefined} title={timelineOff ? (timelineReason ?? '这次审批没有记到对话轮次') : '在诊断的对话轮次里打开这一轮'} onClick={timelineOff ? undefined : onOpenTimeline}>
+      </Btn>
+      <Btn variant="link" disabled={timelineOff} disabledReason={timelineReason ?? '这次审批没有记到对话轮次'} tip="在诊断的对话轮次里打开这一轮" onClick={onOpenTimeline}>
         时间线 ↗
-      </button>
+      </Btn>
     </p>
   );
   const scopeBox = live && !danger && approval.scope_ok && (

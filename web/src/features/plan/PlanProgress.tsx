@@ -1,6 +1,6 @@
 import type { Plan } from '../../domain';
 import { SegMeter } from '../../charts';
-import { Fraction, Spinner } from '../../ui';
+import { Btn, Fraction, Spinner } from '../../ui';
 import styles from './PlanProgress.module.css';
 
 /** 计划进度：SegMeter + 「3/5」+「当前：<步骤>」；还没有计划写加载环；只有快照时 SegMeter 写「重连后显示步骤」，下面只写「已保存的计划」（落库的计划不带版本）。 */
@@ -58,9 +58,12 @@ export function PlanProgress({ plan, source = 'live', completed, ended, hasRun =
         </span>
       )}
       {onOpen && size !== 'row' && (
-        <button type="button" className={styles.link} onClick={onOpen}>
-          在任务中打开 │ 看运行瀑布 ↗
-        </button>
+        // Wrapped so the column does not stretch the link across the box.
+        <span>
+          <Btn variant="link" onClick={onOpen}>
+            在任务中打开 │ 看运行瀑布 ↗
+          </Btn>
+        </span>
       )}
     </div>
   );

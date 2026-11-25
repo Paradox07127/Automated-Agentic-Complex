@@ -24,31 +24,6 @@
   opacity: 1;
 }
 
-.tool {
-  height: var(--ef-h-sm);
-  padding: 0 var(--ef-sp-8);
-  border: 0;
-  border-radius: var(--ef-r-btn);
-  background: none;
-  color: var(--ef-text-2);
-  font: var(--ef-t-meta);
-  cursor: pointer;
-}
-
-.tool:hover {
-  background: var(--ef-overlay-hover);
-  color: var(--ef-text-1);
-}
-
-.tool[aria-pressed='true'] {
-  color: var(--ef-text-1);
-}
-
-.tool:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
-  outline-offset: -2px;
-}
-
 .pre {
   display: grid;
   margin: 0;

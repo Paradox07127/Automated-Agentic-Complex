@@ -55,31 +55,6 @@
   display: inline-flex;
 }
 
-.reasonBtn {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ef-text-2);
-  font: var(--ef-t-meta);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
-.reasonBtn:hover:not(:disabled) {
-  color: var(--ef-text-1);
-}
-
-.reasonBtn:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
-  outline-offset: 2px;
-}
-
-.reasonBtn:disabled {
-  color: var(--ef-text-3);
-  cursor: not-allowed;
-}
-
 .reason {
   flex-basis: 100%;
   min-width: 0;

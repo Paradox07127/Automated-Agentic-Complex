@@ -7,6 +7,13 @@ import { Banner, Btn, Card, Empty, ErrBar, Paper, Plate, Row, RowPlate, SecHead,
 afterEach(cleanup);
 
 describe('Btn', () => {
+  it('shows tip while enabled and the disabled reason while disabled', () => {
+    const { rerender } = render(<Btn variant="link" tip="打开这个会话">去终端</Btn>);
+    expect(screen.getByRole('button', { name: '去终端' }).getAttribute('title')).toBe('打开这个会话');
+    rerender(<Btn variant="link" tip="打开这个会话" disabled disabledReason="没有会话关联">去终端</Btn>);
+    expect(screen.getByRole('button', { name: /去终端/ }).getAttribute('title')).toBe('没有会话关联');
+  });
+
   it.each(['primary', 'secondary', 'ghost', 'danger', 'text', 'link'] as const)('marks the variant %s', (variant) => {
     render(<Btn variant={variant}>好</Btn>);
     expect(screen.getByRole('button', { name: '好' }).getAttribute('data-variant')).toBe(variant);

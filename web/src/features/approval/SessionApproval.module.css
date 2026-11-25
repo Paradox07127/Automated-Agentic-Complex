@@ -80,31 +80,6 @@
   min-width: 0;
 }
 
-.tab {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ef-text-2);
-  font: var(--ef-t-meta);
-  text-decoration: underline dotted;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-
-.tab:hover,
-.tab[aria-expanded='true'] {
-  color: var(--ef-text-1);
-}
-
-.tab[aria-expanded='true'] {
-  text-decoration-style: solid;
-}
-
-.tab:focus-visible {
-  outline: var(--ef-lw-focus) solid var(--ef-focus);
-  outline-offset: 2px;
-}
-
 .add {
   color: var(--ef-success-text);
 }

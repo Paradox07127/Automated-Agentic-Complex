@@ -52,23 +52,6 @@
   white-space: nowrap;
 }
 
-.link {
-  justify-self: start;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font-size: var(--ef-fs-caption);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
-.link:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 @keyframes receipt-in {
   from {
     opacity: 0.2;
