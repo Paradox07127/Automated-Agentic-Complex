@@ -17,7 +17,7 @@ The whole package of an MMD song (a folder, a ZIP or several selected files) can
 - A trailing `[fN]` on a body VMD's stem (such as `[f-19]` or `[f4930]`) places the motion at frame N of the song (30 fps), so the music offset defaults to N / 30 seconds. It may be negative: the music then starts after that many seconds of silence.
 - By default the longest body, the longest camera, the first audio track and the lip-sync VMD whose name contains the chosen body's label (or the only one) are chosen; the page lets you change each.
 - `motion_tool.py import` takes the lip-sync VMD as `--morph` and the camera VMD as `--camera`, both only with a VMD body; `--project` and `--role` record the song title and this body's role. Several dropped files or a ZIP are sorted the same way and take the same default choices; files left out become `ignored_file` warnings instead of failing for "more than one".
-- `motion_tool.py mmd-media` gives a library song other music or another offset: it imports it again with its own body, lip-sync and camera, replacing the library entry and the current character's row.
+- `motion_tool.py mmd-media` gives a library song other music or another offset: it swaps only the music, without baking it again, and keeps its id; the current character's row gets it at once, the other characters on their next `mmd-sync`, which swaps only the music.
 - Limits: a ZIP file is at most 512 MiB; one ZIP or folder holds at most 256 files and 1 GiB in all.
 
 ## Tool environment

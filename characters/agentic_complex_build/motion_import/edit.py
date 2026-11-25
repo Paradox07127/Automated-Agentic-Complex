@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 import shutil
+import sys
 import tempfile
 
 from character_library import Package, PackageError, digest, need, read_json, relative, write_json
@@ -43,11 +44,13 @@ def imported_report(package_root, action):
     return None, None
 
 
-def edit_package(package_root, output, *, action, title=None, remove=False):
-    """Clone the package to the NEW directory output with action removed (remove=True) or renamed to title.
+def edit_package(package_root, output, *, action, title=None, remove=False, music=None):
+    """Clone the package to the NEW directory output with action removed (remove=True), given other music (music=dict(source,
+    start): source None takes the music out, start None starts it with the motion) or renamed to title.
 
-    Returns the provenance/edit-<16hex>.json document. Raises PackageError unknown_action, not_imported, bad_title, linked_motion (another clip's next or exit or another
-    action row names the clip to remove) or outside_package (package JSON names a file outside its inventory)."""
+    Returns the provenance/edit-<16hex>.json document. Raises PackageError unknown_action, not_imported (music for a motion
+    import_vmd did not add too), bad_title, linked_motion (another clip's next or exit or another action row names the clip to
+    remove) or outside_package (package JSON names a file outside its inventory)."""
     # cloned_ref checks the inventory's SHA-256 of each file this rewrites; the library checks the others when it publishes.
     package = Package(package_root, deep=False); output = Path(output).resolve()
     need(not output.exists(), 'output_already_exists')
@@ -57,7 +60,12 @@ def edit_package(package_root, output, *, action, title=None, remove=False):
     need(any(x['id'] == action for x in rows), 'unknown_action')
     report_path, clip = imported_report(package.root, action)
     need(report_path is not None, 'not_imported')
-    if not remove:
+    op = 'remove' if remove else 'music' if music is not None else 'rename'
+    if op == 'music':
+        need(read_json(report_path)['schema'] == 'endfield-vmd-import/v1', 'not_imported')
+        # prepare_music decodes with macOS afconvert; Windows ships no audio decoder program.
+        need(sys.platform != 'win32' or music['source'] is None, 'bgm_unsupported_on_windows')
+    if op == 'rename':
         title = (title or '').strip(); need(1 <= len(title) <= 64, 'bad_title')
     output.parent.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix='.edit-', dir=output.parent)); shutil.rmtree(stage)
@@ -79,7 +87,7 @@ def edit_package(package_root, output, *, action, title=None, remove=False):
         palette_path = inside(animation, pack['animation']['palette_contract']['file']); palette = read_json(palette_path)
         def change(folder, file, fn):
             p = inside(folder, file); d = read_json(p); fn(d); write_document(p, d)
-        if remove:
+        if op == 'remove':
             # A chain edit may have led another clip to this one or put it in another action row; that edge would dangle.
             intents = read_json(inside(animation, 'intent-motion-map.json'))['clips']
             others = [row for folder in (animation, interaction) for row in read_json(inside(folder, 'actions.json'))['actions'] if row['id'] != action]
@@ -122,11 +130,39 @@ def edit_package(package_root, output, *, action, title=None, remove=False):
                 else:
                     media_path.unlink()
                     pack['animation']['data'] = [x for x in pack['animation']['data'] if x['file'] != 'motion-media.json']
+        elif op == 'music':
+            from ..import_vmd import prepare_music
+            report_file = report_path.relative_to(package.root).as_posix(); report = read_json(inside(stage, report_file))
+            [length] = [x['length'] for x in palette['clips'] if x['name'] == clip]
+            media_path = animation/'motion-media.json'
+            media = read_json(inside(animation, media_path.name)) if media_path.exists() else dict(schema='endfield-motion-media/v1', tracks=[])
+            track = next((x for x in media['tracks'] if x['action'] == action), None)
+            if track is None: track = dict(action=action, clip=clip, length=length); media['tracks'].append(track)
+            if 'audio' in track:
+                inside(animation, track['audio']['file']).unlink()
+                for name in ('audio', 'sample_rate', 'channels'): track.pop(name)
+            info = None
+            if music['source'] is not None:
+                wav = animation/'music'/(action[len('mmd_'):]+'.wav')
+                start = report['provenance']['source_start_seconds'] if music['start'] is None else music['start']
+                info = prepare_music(music['source'], wav, start, length)
+                track.update(audio=ref(wav, animation), sample_rate=48000, channels=2)
+            if not track.keys() & {'audio', 'face', 'camera'}: media['tracks'].remove(track)
+            if any('face' in x or 'camera' in x for x in media['tracks']): media['schema'] = 'endfield-motion-media/v2'
+            if media['tracks']:
+                write_json(media_path, media)
+                if not any(x['file'] == 'motion-media.json' for x in pack['animation']['data']): pack['animation']['data'].append(ref(media_path, animation))
+            elif media_path.exists():
+                media_path.unlink()
+                pack['animation']['data'] = [x for x in pack['animation']['data'] if x['file'] != 'motion-media.json']
+            change(interaction, 'blend-times.json', lambda d: d['clips'][clip].update(blend_in_s=0 if info else .25))
+            change(stage, report_file, lambda d: d.update(bgm=info))
+        else:
+            change(animation, 'actions.json', lambda d: [x.update(name=title) for x in d['actions'] if x['id'] == action])
+        if op != 'rename':
             # A removed file is published nowhere, so only here can it fail the edit.
             need(all(digest(package.root/key) == known['sha256'] for key, known in package.inventory.items() if not (stage/key).exists()),
                  'file_sha_mismatch')
-        else:
-            change(animation, 'actions.json', lambda d: [x.update(name=title) for x in d['actions'] if x['id'] == action])
         write_json(palette_path, palette); pack['animation']['palette_contract'] = ref(palette_path, animation)
         if (animation/'supplemental-clips.json').exists():
             change(animation, 'supplemental-clips.json', lambda d: d.update(base_contract_sha256=digest(palette_path)))
@@ -143,8 +179,8 @@ def edit_package(package_root, output, *, action, title=None, remove=False):
         write_json(native_path, native); native_bundle.verify(runtime)
         definition['components']['render']['native_bundle'] = ref(native_path, stage)
         major, minor, patch = map(int, definition['version'].split('.')); definition['version'] = f'{major}.{minor}.{patch+1}'
-        report = dict(schema=EDIT_SCHEMA, character=package.id, op='remove' if remove else 'rename', action=action,
-                      title=None if remove else title, previous_version=package.version)
+        report = dict(schema=EDIT_SCHEMA, character=package.id, op=op, action=action,
+                      title=title if op == 'rename' else None, previous_version=package.version)
         write_json(stage/'provenance'/('edit-'+sha256_bytes(canonical_json(report))[:16]+'.json'), report)
         definition['inventory'] = [cloned_ref(package, stage, p, stage) for p in sorted(stage.rglob('*')) if p.is_file() and p != stage/'character.json']
         write_json(stage/'character.json', definition); Package(stage, deep=False); stage.rename(output)

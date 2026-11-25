@@ -460,7 +460,7 @@ test('mmd.pickScanAudio: a cancelled panel is cancelled and keeps the list; anot
   }
 });
 
-const MEDIA_LINE = JSON.stringify({ ok: true, action: { id: 'mmd_2', title: '愛包', duration_s: 223.3, has_bgm: true }, replaced: 'mmd_1' });
+const MEDIA_LINE = JSON.stringify({ ok: true, character: 'si', version: '1.0.2', action: { id: 'mmd_1', title: '愛包', duration_s: 223.3, has_bgm: true } });
 
 test('mmd.setMedia picks the music while holding the switch, runs mmd-media with the offset, restarts her; none runs --no-bgm', async () => {
   const f = fixture();
@@ -468,7 +468,7 @@ test('mmd.setMedia picks the music while holding the switch, runs mmd-media with
     f.tool = () => ({ last: MEDIA_LINE, status: 0, stderr: '' });
     const song = join(f.dir, 'off vocal.wav');
     f.picks = [[song]];
-    const changed = { ok: true, action: { id: 'mmd_2', title: '愛包', durationS: 223.3, hasBgm: true, format: 'vmd', warnings: [] }, replaced: 'mmd_1' };
+    const changed = { ok: true, action: { id: 'mmd_1', title: '愛包', durationS: 223.3, hasBgm: true, format: 'vmd', warnings: [] } };
     assert.deepEqual(await f.call('mmd.setMedia', 'mmd_1', { bgm: 'pick', bgmStartS: -0.633 }), changed);
     assert.deepEqual(f.asked, [{ title: '选择音源', message: '和这支舞一起播放的音频',
       extensions: ['wav', 'mp3', 'm4a', 'aac', 'flac', 'aif', 'aiff'], multiple: false }]);
@@ -639,7 +639,7 @@ test('mmd.setMedia and character.importOutfit report as mmd and outfit; outfit\'
       progress!({ stage: 'publish', fraction: 0.9 });
       return script === 'outfit_tool.py'
         ? { last: JSON.stringify({ ok: true, appearance: { id: 'mod_1a2b', name: 'Red Coat' } }), status: 0, stderr: '' }
-        : { last: JSON.stringify({ ok: true, action: { id: 'mmd_2', title: 'dance', duration_s: 12.5, has_bgm: true }, replaced: 'mmd_1' }),
+        : { last: JSON.stringify({ ok: true, character: 'si', version: '1.0.2', action: { id: 'mmd_1', title: 'dance', duration_s: 12.5, has_bgm: true } }),
           status: 0, stderr: '' };
     };
     assert.equal((await f.call('mmd.setMedia', 'mmd_1', { bgm: 'pick', bgmStartS: null }) as { ok: boolean }).ok, true);
@@ -733,7 +733,7 @@ function baking() {
   let end: () => void = () => {};
   const events = new PushSource('sync');
   const sync = new MmdSync({
-    run: () => new Promise((resolve) => { end = () => resolve({ character: 'si', version: '1.0.0', baked: [], renamed: [], removed: [], failed: [] }); }),
+    run: () => new Promise((resolve) => { end = () => resolve({ character: 'si', version: '1.0.0', baked: [], renamed: [], music: [], removed: [], failed: [] }); }),
     reload: async () => {}, current: () => 'si', send: (s) => events.send(s), log: () => {},
   });
   return { mmd: { sync, events }, start: () => sync.follow('si'), end: () => end() };

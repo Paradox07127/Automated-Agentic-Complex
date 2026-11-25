@@ -390,6 +390,24 @@ describe('MMD library', () => {
     await waitFor(() => expect(item('mmd_dance_1')).toBeNull());
   });
 
+  it('换音源 keeps the dance selected under its id and reads its detail again for the new music', async () => {
+    const setMedia = vi.spyOn(bridge.mmd, 'setMedia');
+    const read = vi.spyOn(bridge.mmd, 'detail');
+    await importOne();
+    await mount();
+    await waitFor(() => expect(item('mmd_dance_1')).not.toBeNull());
+    await pick('mmd_dance_1');
+    await waitFor(() => expect(fact('bgm')).not.toBeNull());
+    const reads = read.mock.calls.length;
+    await click(within(ops()).getByRole('button', { name: '换音源' }));
+    await click(within(screen.getByRole('dialog', { name: '换音源' })).getByRole('button', { name: '选择音频' }));
+    expect(setMedia).toHaveBeenCalledWith('mmd_dance_1', { bgm: 'pick', bgmStartS: null });
+    await waitFor(() => expect(read.mock.calls.length).toBeGreaterThan(reads), SLOW);
+    expect(read.mock.calls.at(-1)).toEqual(['mmd_dance_1']);
+    expect(rowKey('mmd_dance_1').getAttribute('aria-pressed')).toBe('true');
+    expect(inspector().getAttribute('data-mmd-detail')).toBe('mmd_dance_1');
+  });
+
   it('moves the selection with ↑ ↓, adds with Enter, renames with F2 and asks to delete with Delete', async () => {
     vi.spyOn(bridge.mmd, 'list').mockResolvedValue(THREE);
     vi.spyOn(bridge.avatar, 'actions').mockResolvedValue([{ ...MMD_ACTION }]);

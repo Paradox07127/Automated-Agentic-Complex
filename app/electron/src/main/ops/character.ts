@@ -666,7 +666,7 @@ export function mmdOps(ctx: OpsContext, picker: ImportPicker = electronPicker, s
             if (status !== 0) throw new MotionFailureError(toolFailure(stderr));
             return mediaChanged(last);
           }, () => reloadAvatar(ctx, link));
-          return { ok: true, ...changed };
+          return { ok: true, action: changed };
         });
       } catch (e) {
         return motionReply(motionFailure(e), false);

@@ -157,10 +157,10 @@ test('motion_tool mmd-media takes the new music and offset, or --no-bgm', () => 
     ['mmd-media', '--library', '/lib', '--character', 'si', '--action', 'mmd_1', '--no-bgm', '--validate-with', '/host']);
 });
 
-test('motion_tool mmd-media\'s result line is the new action and the id it replaced', () => {
-  assert.deepEqual(mediaChanged('{"ok": true, "action": {"id": "mmd_2", "title": "t", "duration_s": 3, "has_bgm": false}, "replaced": "mmd_1"}'),
-    { action: { id: 'mmd_2', title: 't', durationS: 3, hasBgm: false, format: 'vmd', warnings: [] }, replaced: 'mmd_1' });
-  const line = '{"ok": true, "action": {"id": "mmd_2", "title": "t", "duration_s": 3, "has_bgm": false}}';
+test('motion_tool mmd-media\'s result line is the action, its id unchanged, with its new music', () => {
+  assert.deepEqual(mediaChanged('{"ok": true, "character": "si", "version": "1.0.2", "action": {"id": "mmd_1", "title": "t", "duration_s": 3, "has_bgm": true}}'),
+    { id: 'mmd_1', title: 't', durationS: 3, hasBgm: true, format: 'vmd', warnings: [] });
+  const line = '{"ok": true, "action": {"id": "mmd_1", "title": "t", "duration_s": 3}}';
   assert.throws(() => mediaChanged(line), motionFailure('internal', `motion_tool printed no result: ${line}`));
 });
 

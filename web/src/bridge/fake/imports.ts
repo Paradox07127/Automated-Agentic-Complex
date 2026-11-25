@@ -107,9 +107,9 @@ export function fakeImports(character: () => string) {
   let pending: { token: string; scan: MmdScan } | null = null;
   let made = 0;
   /** A dance baked for her and pending for the others; `ImportedMotion` of it. */
-  const add = (e: Omit<MmdEntry, 'id' | 'createdAt' | 'characters'>, at = mmd.length) => {
+  const add = (e: Omit<MmdEntry, 'id' | 'createdAt' | 'characters'>) => {
     const id = `mmd_dance_${++made}`;
-    mmd.splice(at, 0, {
+    mmd.push({
       ...e, id, createdAt: new Date().toISOString(),
       characters: CHARACTERS.map((c) => ({ id: c.id, state: c.id === character() ? 'baked' : 'pending', reason: null })),
     });
@@ -150,12 +150,11 @@ export function fakeImports(character: () => string) {
     },
     // `pick` as if the user picked off vocal.wav.
     setMedia: async (id, media) => {
-      const at = mmd.findIndex((e) => e.id === id);
-      if (at < 0) return { ok: false, reason: 'unknown_action', detail: id };
-      const old = mmd[at]!;
+      const e = mmd.find((m) => m.id === id);
+      if (e === undefined) return { ok: false, reason: 'unknown_action', detail: id };
       return progressed('mmd', media.bgm === 'pick' ? 'off vocal' : '', 200, () => {
-        mmd.splice(at, 1);
-        return { ok: true as const, action: add({ ...old, hasBgm: media.bgm === 'pick' }, at), replaced: id };
+        e.hasBgm = media.bgm === 'pick';
+        return { ok: true as const, action: { id, title: e.title, durationS: e.durationS, hasBgm: e.hasBgm, format: 'vmd', warnings: [] } };
       });
     },
     // A cut every 8 s, a mouth open on every other second, music swelling to the middle.

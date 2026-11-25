@@ -73,8 +73,8 @@ export interface MmdDetail {
 /** `not_baked`: no character has the dance yet; `unknown_action`: no such dance. */
 export type MmdDetailResult = { ok: true; detail: MmdDetail } | { ok: false; reason: string; detail?: string };
 
-/** The entry re-imported with the new music under a new id, `replaced` its old one. */
-export type MmdMediaResult = { ok: true; action: ImportedMotion; replaced: string } | { ok: false; reason: string; detail?: string };
+/** The same id with other music: the current character's bake gets it now, the others on their next sync. */
+export type MmdMediaResult = { ok: true; action: ImportedMotion } | { ok: false; reason: string; detail?: string };
 
 /** The background bake of the library into `character` after a switch. */
 export interface MmdSyncState {
@@ -124,7 +124,7 @@ export interface MmdOps {
   dropScan(token: string): Promise<void>;
   /** Asks for music anywhere for the scan `token` and adds it to the scan's `audio` once; `reason`: `cancelled` or `scan_gone`. */
   pickScanAudio(token: string): Promise<MmdPickAudioResult>;
-  /** The dance `id` re-imported with music picked in a panel (`pick`) or without music (`none`), at the offset (null: none). */
+  /** The dance `id`, its id kept and not baked again, given music picked in a panel (`pick`) or none (`none`), at the offset (null: none). */
   setMedia(id: string, media: { bgm: 'pick' | 'none'; bgmStartS: number | null }): Promise<MmdMediaResult>;
   syncState(): Promise<MmdSyncState>;
   onSync(cb: (s: MmdSyncState) => void): Unsubscribe;

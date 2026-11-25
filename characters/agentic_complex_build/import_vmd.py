@@ -243,8 +243,9 @@ def prepare_music(source, output, start, duration):
 
 def import_motion(package_path, vmd_path, output, source_model=None, duration=None, start=0,
                   title=None, bgm=None, bgm_start=None, foot_ik=True, face=True, camera=None, progress=None,
-                  source_fps=None, morph_vmd=None, morph_fps=30.0, sample_rate=30, preroll=0.0, tangent_mode='pchip'):
-    """progress(stage, fraction) is told the stages sample, retarget and write, each from 0 to 1."""
+                  source_fps=None, morph_vmd=None, morph_fps=30.0, sample_rate=30, preroll=0.0, tangent_mode='pchip', identity=None):
+    """progress(stage, fraction) is told the stages sample, retarget and write, each from 0 to 1. identity, when given, names the
+    clip and action in place of the hash of the inputs."""
     import numpy as np
     from .mmd.io import last_frame, detect_source_fps
     from .mmd.skeleton import MmdSkeleton, add_semi_standard_bones
@@ -294,7 +295,7 @@ def import_motion(package_path, vmd_path, output, source_model=None, duration=No
     if sample_rate != 30: extra_identity['sample_rate'] = sample_rate
     if morph_vmd: extra_identity.update(morph_vmd=digest(morph_vmd), morph_fps=float(morph_fps))
     if preroll > 0: extra_identity['preroll'] = float(preroll)
-    identity=sha256_bytes(canonical_json(dict(vmd=digest(vmd_path),model=model_source,start=start,duration=seconds,
+    if identity is None:identity=sha256_bytes(canonical_json(dict(vmd=digest(vmd_path),model=model_source,start=start,duration=seconds,
         foot_ik=foot_ik,bgm=digest(bgm) if bgm else None,bgm_start=bgm_start,
         **(dict(camera=digest(camera)) if camera else {}), **extra_identity)))[:16]
     name='imported_vmd_'+identity; action='mmd_'+identity

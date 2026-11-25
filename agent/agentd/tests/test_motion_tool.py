@@ -266,7 +266,7 @@ class MotionToolTests(unittest.TestCase):
         from test_vmd_import import authored_rig
         identity = "0123456789abcdef"
         row = dict(id="mmd_" + identity, name="旧舞", section="idle", clips=[], trigger="导入 VMD · 手动播放", duration=2.0)
-        report = dict(schema="endfield-vmd-import/v1", character=cid, action=row["id"], clip="imported_vmd_" + identity)
+        report = dict(schema="endfield-vmd-import/v1", character=cid, action=row["id"], clip="imported_vmd_" + identity, bgm=None)
         source = self.root / ("source-" + cid); motion_fixture(source, cid=cid, rig=authored_rig(), imported=[(row, report)])
         self.library.install(source)
         return next(p for p in self.library.packages() if p.id == cid), "provenance/vmd-%s.json" % identity
@@ -582,7 +582,7 @@ class MotionToolTests(unittest.TestCase):
         with host.open("a", encoding="utf-8") as stream: stream.write("with pathlib.Path(__file__).with_suffix('.calls').open('a') as f: f.write('validate\\n')\n")
         result = self.sync(host)
         self.assertEqual(result, dict(ok=True, character="second", version="1.0.1", baked=[first["action"]["id"], second["action"]["id"]],
-                                      renamed=[], removed=[], failed=[]))
+                                      renamed=[], music=[], removed=[], failed=[]))
         self.assertEqual(host.with_suffix('.calls').read_text(encoding="utf-8").splitlines(), ["validate"])
         self.assertEqual([e["characters"] for e in self.mmd_list()["entries"]],
                          [[dict(id="fixture", state="baked", reason=None), dict(id="second", state="baked", reason=None)]] * 2)
@@ -658,7 +658,7 @@ class MotionToolTests(unittest.TestCase):
         self.success(self.edit("remove", self.host(), action))
         self.success(tool_command("motion_tool.py", "import", "--library", str(self.library.root), "--character", "second",
                                   "--source", str(self.vmd()), "--validate-with", str(self.host())))
-        self.assertEqual(self.sync(self.host()), dict(ok=True, character="second", version="1.0.1", baked=[], renamed=[], removed=[], failed=[]))
+        self.assertEqual(self.sync(self.host()), dict(ok=True, character="second", version="1.0.1", baked=[], renamed=[], music=[], removed=[], failed=[]))
         self.assertEqual(self.mmd_list()["entries"][0]["characters"][1]["state"], "baked")
 
     @needs_numpy
@@ -733,18 +733,6 @@ class MotionToolTests(unittest.TestCase):
 
     @needs_numpy
     @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
-    def test_mmd_sync_records_an_entry_whose_stored_options_do_not_bake_its_id(self):
-        from test_vmd_import import authored_rig
-        self.install(rig=authored_rig()); self.second_character(authored_rig())
-        self.success(self.run_import(self.vmd(), self.host()))
-        index = self.mmd_index(); index["entries"][0]["foot_lock"] = False
-        write_json(self.library.root / "mmd-library/index.json", index)
-        result = self.sync(self.host())
-        self.assertEqual((result["ok"], result["baked"], [f["reason"] for f in result["failed"]]), (True, [], ["internal"]))
-        self.assertEqual(self.mmd_index()["entries"][0]["failures"]["second"]["reason"], "internal")
-
-    @needs_numpy
-    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_mmd_remove_reclaims_shared_sources_no_live_entry_names(self):
         from test_vmd_import import authored_rig
         self.install(rig=authored_rig())
@@ -780,8 +768,8 @@ class MotionToolTests(unittest.TestCase):
         other = self.success(self.run_import(self.vmd(seconds=2), self.host()))["action"]["id"]
         index = self.mmd_index(); live = [e for e in index["entries"] if e["id"] == action and e["removed_at"] is None]
         self.assertEqual(len([e for e in index["entries"] if e["id"] == action]), 2)
-        # Its stored options no longer bake the live entry's id, so its bake fails.
-        live[0]["foot_lock"] = False; write_json(self.library.root / "mmd-library/index.json", index)
+        # Its kept body no longer parses, so its bake fails.
+        (self.library.root / "mmd-library/sources" / live[0]["source"]["file"]).write_bytes(b"not a vmd")
         result = self.sync(self.host())
         self.assertEqual((result["baked"], [f["id"] for f in result["failed"]]), ([other], [action]))
         second = next(p for p in self.library.packages() if p.id == "second")
@@ -904,29 +892,86 @@ class MotionToolTests(unittest.TestCase):
 
     @needs_numpy
     @unittest.skipIf(sys.platform == "win32", "Windows refuses a bgm import: test_a_bgm_import_on_windows_is_refused_before_the_package_is_copied")
-    def test_mmd_media_replaces_the_entry_and_its_row_in_one_publish(self):
+    def test_mmd_media_swaps_the_music_of_the_entry_and_its_row_without_a_new_bake(self):
         from test_vmd_import import authored_rig
-        from agentic_complex_build.motion_import.take import check_result
         self.install(rig=authored_rig())
-        old = self.success(self.run_import(self.vmd(), self.host(), "--title", "舞", "--no-foot-lock"))["action"]["id"]
-        media = lambda *extra: tool_command("motion_tool.py", "mmd-media", "--library", str(self.library.root), "--character", "fixture",
-                                            "--action", old, *extra, "--validate-with", str(self.host()))
-        doc = self.success(media("--bgm", str(self.wav("song.wav")), "--bgm-start", "0.25"))
-        check_result({k: v for k, v in doc.items() if k != "replaced"})
-        new = doc["action"]["id"]
-        self.assertEqual((doc["replaced"], doc["version"], doc["action"]["title"], doc["action"]["has_bgm"]), (old, "1.0.2", "舞", True))
-        self.assertNotEqual(new, old)
-        entries = {e["id"]: e for e in self.mmd_index()["entries"]}
-        self.assertIsNotNone(entries[old]["removed_at"])
-        self.assertEqual({k: entries[new][k] for k in ("title", "source", "foot_lock", "removed_at")},
-                         dict(title="舞", source=entries[old]["source"], foot_lock=False, removed_at=None))
-        self.assertEqual((entries[new]["bgm"]["name"], entries[new]["bgm"]["offset_s"]), ("song.wav", .25))
-        self.assertEqual([m["id"] for m in self.listed()["motions"]], [new])
-        old = new
-        doc = self.success(media("--no-bgm"))
-        self.assertEqual((doc["replaced"], doc["action"]["has_bgm"], doc["version"]), (new, False, "1.0.3"))
-        self.assertEqual(self.mmd_index()["entries"][-1]["bgm"], None)
-        self.assertEqual(self.failure(media("--no-bgm"))["reason"], "unknown_action")
+        action = self.success(self.run_import(self.vmd(), self.host(), "--title", "舞", "--no-foot-lock", "--bgm", str(self.wav("song.wav"))))["action"]["id"]
+        created = self.mmd_index()["entries"][0]["created_at"]
+        pack = lambda: next(p for p in self.library.packages() if p.id == "fixture").root / "runtime"
+        wav = lambda: pack() / "animation/music" / (action[len("mmd_"):] + ".wav")
+        blend = lambda: json.loads((pack() / "interaction/blend-times.json").read_text(encoding="utf-8"))["clips"]["imported_vmd_" + action[4:]]["blend_in_s"]
+        before = wav().read_bytes()
+        media = lambda *extra: self.in_process("mmd-media", "--library", str(self.library.root), "--character", "fixture",
+                                               "--action", action, *extra, "--validate-with", str(self.host()))
+        patch, calls = self.recording_importer()
+        with patch: code, doc, err = media("--bgm", str(self.tone("other.wav")), "--bgm-start", "0.25")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(doc, dict(ok=True, character="fixture", version="1.0.2", action=dict(id=action, title="舞", duration_s=1.0, has_bgm=True)))
+        self.assertEqual(calls, [])
+        self.assertNotEqual(wav().read_bytes(), before)
+        self.assertEqual(blend(), 0)
+        [entry] = self.mmd_index()["entries"]
+        self.assertEqual((entry["id"], entry["created_at"], entry["removed_at"], entry["foot_lock"], entry["bgm"]["name"], entry["bgm"]["offset_s"]),
+                         (action, created, None, False, "other.wav", .25))
+        self.assertEqual([m["id"] for m in self.listed()["motions"]], [action])
+        with patch: code, doc, err = media("--no-bgm")
+        self.assertEqual(code, 0, err)
+        self.assertEqual((doc["action"], doc["version"]), (dict(id=action, title="舞", duration_s=1.0, has_bgm=False), "1.0.3"))
+        self.assertEqual((blend(), wav().exists(), (pack() / "animation/motion-media.json").exists()), (.25, False, False))
+        [entry] = self.mmd_index()["entries"]
+        self.assertEqual((entry["id"], entry["bgm"], entry["removed_at"]), (action, None, None))
+        self.assertEqual(calls, [])
+        self.assertEqual(self.failure(tool_command("motion_tool.py", "mmd-media", "--library", str(self.library.root), "--character", "fixture",
+                                                   "--action", "mmd_nope", "--no-bgm", "--validate-with", str(self.host())))["reason"], "unknown_action")
+
+    def tone(self, name):
+        """A second of a square wave, unlike wav's silence."""
+        path = self.root / name
+        with wave.open(str(path), "wb") as audio:
+            audio.setparams((2, 2, 48000, 0, "NONE", "not compressed")); audio.writeframes(struct.pack("<96000h", *([1000, 1000, -1000, -1000] * 24000)))
+        return path
+
+    def music_of(self, cid, action):
+        return (next(p for p in self.library.packages() if p.id == cid).root / "runtime/animation/music" / (action[len("mmd_"):] + ".wav")).read_bytes()
+
+    @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "Windows refuses a bgm import: test_a_bgm_import_on_windows_is_refused_before_the_package_is_copied")
+    def test_mmd_sync_swaps_only_the_music_of_a_dance_another_character_gave_new_music(self):
+        from test_vmd_import import authored_rig
+        self.install(rig=authored_rig()); self.second_character(authored_rig())
+        action = self.success(self.run_import(self.vmd(), self.host(), "--bgm", str(self.wav("song.wav"))))["action"]["id"]
+        self.assertEqual(self.sync(self.host())["baked"], [action])
+        patch, calls = self.recording_importer()
+        with patch:
+            code, doc, err = self.in_process("mmd-media", "--library", str(self.library.root), "--character", "fixture", "--action", action,
+                                             "--bgm", str(self.tone("other.wav")), "--validate-with", str(self.host()))
+            self.assertEqual(code, 0, err)
+            self.assertEqual([e["characters"] for e in self.mmd_list()["entries"]],
+                             [[dict(id="fixture", state="baked", reason=None), dict(id="second", state="pending", reason=None)]])
+            code, synced, err = self.in_process(*self.sync_command(self.host()))
+        self.assertEqual(code, 0, err)
+        self.assertEqual(calls, [])
+        self.assertEqual((synced["music"], synced["baked"], synced["renamed"], synced["failed"], synced["version"]), ([action], [], [], [], "1.0.2"))
+        self.assertEqual(self.music_of("second", action), self.music_of("fixture", action))
+        self.assertEqual(self.mmd_list()["entries"][0]["characters"][1]["state"], "baked")
+        again = self.sync(self.host())
+        self.assertEqual((again["music"], again["version"]), ([], "1.0.2"))
+
+    @needs_numpy
+    @unittest.skipIf(sys.platform == "win32", "Windows refuses a bgm import: test_a_bgm_import_on_windows_is_refused_before_the_package_is_copied")
+    def test_mmd_sync_bakes_a_dance_given_new_music_before_its_bake_under_the_same_id(self):
+        from test_vmd_import import authored_rig
+        self.install(rig=authored_rig()); self.second_character(authored_rig())
+        action = self.success(self.run_import(self.vmd(), self.host(), "--bgm", str(self.wav("song.wav"))))["action"]["id"]
+        song = self.tone("other.wav")
+        self.success(tool_command("motion_tool.py", "mmd-media", "--library", str(self.library.root), "--character", "fixture", "--action", action,
+                                  "--bgm", str(song), "--validate-with", str(self.host())))
+        result = self.sync(self.host())
+        self.assertEqual((result["baked"], result["failed"]), ([action], []))
+        self.assertEqual(self.music_of("second", action), self.music_of("fixture", action))
+        second = next(p for p in self.library.packages() if p.id == "second")
+        report = json.loads((second.root / "provenance" / ("vmd-" + action[4:] + ".json")).read_text(encoding="utf-8"))
+        self.assertEqual(report["bgm"]["source_sha256"], hashlib.sha256(song.read_bytes()).hexdigest())
 
     def baked_dance(self, cid, identity, face=None, camera=None, music=None):
         """Installs character cid with mmd_<identity> baked as an import leaves it: its row, report and, when given, the face

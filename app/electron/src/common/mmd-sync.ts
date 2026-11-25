@@ -23,6 +23,8 @@ export interface MmdSyncResult {
   version: string;
   baked: string[];
   renamed: string[];
+  /** Dances whose music alone was swapped for the library's. */
+  music: string[];
   removed: string[];
   failed: { id: string; reason: string; detail: string }[];
 }
@@ -42,9 +44,9 @@ export function mmdSyncResult(line: string): MmdSyncResult {
     o = JSON.parse(line);
   } catch { /* falls through to the failure */ }
   if (isObject(o) && typeof o.character === 'string' && typeof o.version === 'string' && strings(o.baked) && strings(o.renamed)
-    && strings(o.removed) && Array.isArray(o.failed)
+    && strings(o.music) && strings(o.removed) && Array.isArray(o.failed)
     && o.failed.every((f) => isObject(f) && typeof f.id === 'string' && typeof f.reason === 'string' && typeof f.detail === 'string')) {
-    return { character: o.character, version: o.version, baked: o.baked, renamed: o.renamed, removed: o.removed,
+    return { character: o.character, version: o.version, baked: o.baked, renamed: o.renamed, music: o.music, removed: o.removed,
       failed: (o.failed as Record<string, string>[]).map((f) => ({ id: f.id!, reason: f.reason!, detail: f.detail! })) };
   }
   throw new MotionFailureError({ reason: 'internal', detail: `motion_tool printed no result: ${line}` });
@@ -108,7 +110,7 @@ export class MmdSync {
         }, abort.signal);
         if (result === null) return;
         failed = result.failed.length;
-        if (result.baked.length + result.renamed.length + result.removed.length > 0 && this.ports.current() === current) {
+        if (result.baked.length + result.renamed.length + result.music.length + result.removed.length > 0 && this.ports.current() === current) {
           await this.ports.reload();
         }
       } catch (e) {

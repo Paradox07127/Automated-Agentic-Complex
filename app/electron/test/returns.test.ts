@@ -150,8 +150,8 @@ async function motionTool(args: string[]): Promise<{ last: string; status: numbe
       suggested: { body: 0, face: 0, camera: 0, audio: 0, bgm_start_s: -0.633 } }), status: 0, stderr: '' };
   }
   if (args[0] === 'mmd-media') {
-    return { last: JSON.stringify({ ok: true, action: { id: 'mmd_sample_2', title: '示例舞蹈', duration_s: 12.5, has_bgm: false }, format: 'vmd',
-      warnings: [], replaced: arg('--action') }), status: 0, stderr: '' };
+    return { last: JSON.stringify({ ok: true, character: 'si', version: '1.0.2',
+      action: { id: arg('--action'), title: '示例舞蹈', duration_s: 12.5, has_bgm: false } }), status: 0, stderr: '' };
   }
   if (arg('--character') !== 'si') {
     return { last: '', status: 1, stderr: `Traceback\n${JSON.stringify({ reason: 'internal', detail: `unknown_character: ${arg('--character')}` })}\n` };

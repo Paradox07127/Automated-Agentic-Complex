@@ -194,12 +194,11 @@ export function mmdMediaArgs(library: string, character: string, action: string,
     ...(bgm === null ? ['--no-bgm'] : ['--bgm', bgm, ...(bgmStartS === null ? [] : [`--bgm-start=${bgmStartS}`])]), '--validate-with', host];
 }
 
-/** motion_tool mmd-media's result line: the new entry's action and the id it replaced. */
-export function mediaChanged(line: string): { action: Json; replaced: string } {
-  const o = parsed(line);
-  const action = actionOf(o);
-  if (action === null || !isObject(o) || !isString(o.replaced)) throw noResult(line);
-  return { action, replaced: o.replaced };
+/** motion_tool mmd-media's result line: the entry's action, its id unchanged, with its new music. */
+export function mediaChanged(line: string): Json {
+  const action = actionOf(parsed(line));
+  if (action === null) throw noResult(line);
+  return action;
 }
 
 export function outfitImportArgs(library: string, character: string, source: string, host: string): string[] {

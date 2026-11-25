@@ -246,8 +246,8 @@ describe('换音源', () => {
 
   it('picks new music at the offset typed, or takes the music away', async () => {
     vi.spyOn(bridge.mmd, 'list').mockResolvedValue({ ok: true, entries: [DANCE] });
-    const set = vi.spyOn(bridge.mmd, 'setMedia').mockResolvedValue({ ok: true, action: { id: 'mmd_dance_2', title: '愛包', durationS: 223.3, hasBgm: true,
-      format: 'vmd', warnings: [] }, replaced: 'mmd_dance_1' });
+    const set = vi.spyOn(bridge.mmd, 'setMedia').mockResolvedValue({ ok: true, action: { id: 'mmd_dance_1', title: '愛包', durationS: 223.3, hasBgm: true,
+      format: 'vmd', warnings: [] } });
     await mount();
     const detail = await screen.findByRole('group', { name: 'MMD 操作' });
     await click(within(detail).getByRole('button', { name: '换音源' }));

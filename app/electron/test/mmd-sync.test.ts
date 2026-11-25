@@ -11,7 +11,7 @@ import { MMD_SYNC_IDLE, MmdSync, type MmdSyncResult, mmdSyncResult, type MmdSync
 import { shellMmdSync } from '../src/main/ops/character.ts';
 import { runAgentdTool } from '../src/main/ops/tools.ts';
 
-const RESULT: MmdSyncResult = { character: 'si', version: '1.2.4', baked: ['mmd_a'], renamed: [], removed: [], failed: [] };
+const RESULT: MmdSyncResult = { character: 'si', version: '1.2.4', baked: ['mmd_a'], renamed: [], music: [], removed: [], failed: [] };
 
 interface Run { character: string; progress: (p: ImportProgress) => void; signal: AbortSignal; end(r: MmdSyncResult | null | Error): void }
 
@@ -67,7 +67,7 @@ test('no reload when nothing changed or she is no longer current; a failure is l
   await f.tick();
   f.runs[0]!.end({ ...RESULT, baked: [] });
   await done;
-  assert.equal(f.reloads(), 0, 'nothing baked, renamed or removed');
+  assert.equal(f.reloads(), 0, 'nothing baked, renamed, given music or removed');
   f.setCurrent('cedar');
   done = f.sync.follow('cedar');
   await f.tick();
@@ -82,6 +82,15 @@ test('no reload when nothing changed or she is no longer current; a failure is l
   assert.deepEqual(f.logs, ['mmd-sync voice_a failed: boom']);
   assert.equal(f.sync.state.running, false);
   assert.equal(f.sync.state.failed, 0);
+});
+
+test('a sync that only gave a dance other music reloads the renderer', async () => {
+  const f = fixture();
+  const done = f.sync.follow('si');
+  await f.tick();
+  f.runs[0]!.end({ ...RESULT, baked: [], music: ['mmd_a'] });
+  await done;
+  assert.equal(f.reloads(), 1);
 });
 
 test('a switch cancels the running sync and starts the next once it has exited; the cancelled one sends nothing more', async () => {
@@ -108,7 +117,9 @@ test('a switch cancels the running sync and starts the next once it has exited; 
 test('mmd-sync\'s result line is checked as MmdSyncResult decodes it', () => {
   assert.deepEqual(mmdSyncResult(JSON.stringify({ ...RESULT, failed: [{ id: 'a', reason: 'r', detail: 'd' }] })),
     { ...RESULT, failed: [{ id: 'a', reason: 'r', detail: 'd' }] });
-  for (const line of ['', '{}', JSON.stringify({ ...RESULT, baked: [1] }), JSON.stringify({ ...RESULT, failed: [{ id: 'a' }] })]) {
+  assert.deepEqual(mmdSyncResult(JSON.stringify({ ...RESULT, baked: [], music: ['mmd_a'] })).music, ['mmd_a']);
+  for (const line of ['', '{}', JSON.stringify({ ...RESULT, baked: [1] }), JSON.stringify({ ...RESULT, failed: [{ id: 'a' }] }),
+    JSON.stringify({ ...RESULT, music: undefined }), JSON.stringify({ ...RESULT, music: [1] })]) {
     assert.throws(() => mmdSyncResult(line), (e: unknown) => e instanceof MotionFailureError
       && e.failure.reason === 'internal' && e.failure.detail === `motion_tool printed no result: ${line}`);
   }
@@ -123,7 +134,7 @@ test('the shell runs motion_tool mmd-sync on the library with its progress and p
       console.log(JSON.stringify({ event: 'progress', stage: 'read', total: 2, done: 0, fraction: 0 }));
       console.log(JSON.stringify({ event: 'progress', stage: 'write', total: 2, done: 2, fraction: 1 }));
       console.log(JSON.stringify({ character: args[args.indexOf('--character') + 1], version: '1.0.0', baked: ['mmd_a'], renamed: [],
-        removed: [], failed: [], args }));
+        music: [], removed: [], failed: [], args }));
     `);
     const logs: string[] = [], pushed: unknown[] = [];
     let reloads = 0;

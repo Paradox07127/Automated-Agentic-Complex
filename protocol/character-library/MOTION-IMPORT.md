@@ -1,6 +1,6 @@
 # 外部动作导入
 
-状态：v2，2026-11-25（MMD 共享库 v2、`mmd-scan`、`mmd-media`、360 秒）。
+状态：v3，2026-11-25（`mmd-media` 只换音乐、id 不变，`mmd-sync` 加 `music`）；v2 2026-11-25（MMD 共享库 v2、`mmd-scan`、`mmd-media`、360 秒）。
 参与方：写——`characters/agentic_complex_build/motion_import`（导入结果、包内报告、索引的结构和校验）、`agent/agentd/motion_tool.py`（导入、索引、进度行）、`agent/agentd/outfit_tool.py`（进度行）；读——`app/electron/src/common/imports.ts`（`importedMotion`）、`app/electron/src/common/import-state.ts`（进度行）、`characters/build.py import_motion`（离线导入）。
 
 常量、结构和校验在 `motion_import/take.py`：`RESULT_SCHEMA`、`INDEX_SCHEMA`、`MMD_SCHEMA`、`FORMATS`、`REASONS`、`WARNINGS`、`MAX_SECONDS`、`check_result`、`check_index`、`check_mmd_index`。样例在 [fixtures/motion-import/](fixtures/motion-import/)。
@@ -137,8 +137,8 @@ VMD（含装着 VMD 的 ZIP）导入后进库里所有角色共用的一张表�
 |---|---|---|
 | `import` | 同 §1 | 同 §2；VMD 另在共享库加条目，同 id 已在且未删时不重复加 |
 | `mmd-scan` | `--source <路径> [--extra <路径>]... --unpack-to <目录>` | `{ok:true, title, root, bodies:[{path, name, label, model, duration_s, place_frame, has_morph}], faces:[{path, name, duration_s, morphs}], cameras:[{path, name, duration_s, place_frame}], audio:[{path, name}], ignored:[{name, reason}], suggested:{body, face, camera, audio, bgm_start_s}}` |
-| `mmd-media` | `--library --character --action <mmd_ id> (--bgm <音频> \| --no-bgm) [--bgm-start] --validate-with` | 同 §2，另加 `replaced: <旧 id>` |
-| `mmd-sync` | `--library --character --validate-with` | `{ok:true, character, version, baked:[id], renamed:[id], removed:[id], failed:[{id, reason, detail}]}` |
+| `mmd-media` | `--library --character --action <mmd_ id> (--bgm <音频> \| --no-bgm) [--bgm-start] --validate-with` | `{ok:true, character, version, action:{id, title, duration_s, has_bgm}}` |
+| `mmd-sync` | `--library --character --validate-with` | `{ok:true, character, version, baked:[id], renamed:[id], music:[id], removed:[id], failed:[{id, reason, detail}]}` |
 | `mmd-list` | `--library` | `{ok:true, entries:[{id, title, duration_s, has_bgm, has_camera, has_face, project, role, created_at, characters:[{id, state, reason}]}]}` |
 | `rename` / `remove` | 同 §5 | 同 §5 |
 
@@ -146,11 +146,11 @@ VMD（含装着 VMD 的 ZIP）导入后进库里所有角色共用的一张表�
 - 各列表按 `name` 排序；`path` 是绝对路径；`duration_s` = 最后一帧 / 30（相机按相机关键帧）；`model` 是 VMD 头里的模型名；`morphs` 是不同表情名的个数；`title` 是文件夹名、ZIP 或单个文件的主名；`root` 是文件夹、`--unpack-to` 或单个文件所在目录。
 - `label`：身体文件主名（去掉 `[fN]`）去掉所有身体共有的前缀和后缀后剩下的部分（前缀截到最后一个分隔符 `_ -.` 之后，后缀从第一个分隔符起，结果再去两端分隔符）；只有一支身体或没有差别时是整个主名。`place_frame`：主名末尾 `[fN]` / `[f-N]` 的 N，没有为 null。
 - `suggested`：`body` 最长的身体（同长取名字靠前的）；`face` 只有一个口型时取它，否则取主名含建议身体 `label` 的，没有为 null；`camera` 最长的相机或 null；`audio` 第一个音频或 null；`bgm_start_s` 建议身体的 `place_frame / 30` 四舍五入到 3 位，没有为 null。都是对应列表里的下标。
-- `mmd-media` 用条目自己的身体、口型、相机、标题和锁脚，配上给的音乐和偏移重新导入：新条目得到新的 `mmd_` id，旧条目写 `removed_at`，当前角色包去掉旧行、加上新行，一次包校验、一次 `Library.upgrade`。`--action` 不是未删条目时报 `unknown_action`。
-- `mmd-sync` 把共享库对齐到这个角色：未删条目缺的按条目存的选项（身体、口型、相机、音乐、偏移、锁脚、标题）烘进去，烘出的 id 和条目不同时该条记 `internal` 失败；标题和库里不同的改名；库里已删而包里还有的删掉；包里有、库里没有任何条目叫这个 id 的导入 `mmd_` 行也删掉。所有改动链在同一串 stage 上，最后一次包校验、一次 `Library.upgrade`；没有改动就不发布，`version` 是原版本。单条失败写进 `failures` 并跳过。
+- `mmd-media` 只换条目的音乐和偏移，不重定向、不重新烘焙：id、`created_at`、`failures` 不变，条目的 `bgm` 换成新音乐（`--no-bgm` 为 null），不再用的音源被回收。当前角色包里有这一行时只换包里的音乐（`animation/music/<identity>.wav`、`motion-media.json` 这条 track 的 `audio`、`blend-times.json` 的 `blend_in_s`、报告的 `bgm`；track 没有音乐、口型和相机了就删掉），一次包校验、一次 `Library.upgrade`；没有这一行时只改共享库，`version` 是原版本。`--action` 不是未删条目时报 `unknown_action`。
+- `mmd-sync` 把共享库对齐到这个角色：未删条目缺的按条目存的选项（身体、口型、相机、音乐、偏移、锁脚、标题）烘进去，用条目的 id；标题和库里不同的改名；包里这一行的音乐（报告 `bgm` 的 `source_sha256`、`source_start_seconds`）和条目的（`bgm.sha256`、`bgm.offset_s`，null 为 0）不同的只换音乐，同 `mmd-media`，不重新烘焙，记进 `music`；标题和音乐都不同时先改名再换音乐；库里已删而包里还有的删掉；包里有、库里没有任何条目叫这个 id 的导入 `mmd_` 行也删掉。所有改动链在同一串 stage 上，最后一次包校验、一次 `Library.upgrade`；没有改动就不发布，`version` 是原版本。单条失败写进 `failures` 并跳过。
 - `mmd-sync` 在结果行之前写 §9 的进度行，每行另带 `total`（条目数加要删的无主行数）和 `done`（已处理条数）；每处理完一条写一行，开始时先写 `stage: "read"`、`fraction: 0`、`done: 0`。
 - `mmd-sync` 收到 SIGTERM：删掉 stage、不发布、不改共享库，退出码 143。
-- `mmd-list` 的 `characters` 列目录里每个角色：`state` 为 `baked`、`pending` 或 `failed`；`reason` 只在 `failed` 时非 null。`project`、`role` 取条目的 `project.title`、`project.role`，没有为 null。条目按 `created_at` 升序，已删的不列。
+- `mmd-list` 的 `characters` 列目录里每个角色：`state` 为 `baked`、`pending` 或 `failed`；包里有这一行但音乐和条目不同（同上）为 `pending`；`reason` 只在 `failed` 时非 null。`project`、`role` 取条目的 `project.title`、`project.role`，没有为 null。条目按 `created_at` 升序，已删的不列。
 - `rename`、`remove` 的 `--action` 是 `mmd_` id 时同时改共享库（`title` / `removed_at`）。当前角色包里没有这一行（还没烘或烘失败）时只改共享库，成功行的 `version` 是原版本。其他角色由下一次 `mmd-sync` 跟上。
 - 和导入同一把锁（`.vmd-stage/.lock`）；被占时报 `busy`。`mmd-scan` 不拿锁。
 
@@ -164,7 +164,7 @@ VMD（含装着 VMD 的 ZIP）导入后进库里所有角色共用的一张表�
 
 - `stage`：`read`、`sample`、`retarget`、`compose`、`write`、`validate`、`publish` 之一。
 - `fraction`：整条子命令的总进度，0–1，单调不减；第一行是 0，成功时最后一个进度行是 1。
-- 各阶段在条上的份额写在 `motion_tool.py` 的 `VMD_STAGES`、`TAKE_STAGES`、`SYNC_ENTRIES` 和 `outfit_tool.py` 的 `STAGES`。
+- 各阶段在条上的份额写在 `motion_tool.py` 的 `VMD_STAGES`、`TAKE_STAGES`、`MEDIA_STAGES`、`SYNC_ENTRIES` 和 `outfit_tool.py` 的 `STAGES`。
 - 失败时 stdout 只有已经写出的进度行，失败行仍在 stderr 最后一行。
 - 读方：`app/electron/src/common/import-state.ts`（`parseProgress`）。
 

@@ -686,14 +686,13 @@
     "value": {
       "ok": true,
       "action": {
-        "id": "mmd_dance_2",
+        "id": "mmd_dance_1",
         "title": "示例舞蹈",
         "durationS": 12.5,
         "hasBgm": false,
         "format": "vmd",
         "warnings": []
-      },
-      "replaced": "mmd_dance_1"
+      }
     }
   },
   {

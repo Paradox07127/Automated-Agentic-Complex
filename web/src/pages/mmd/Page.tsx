@@ -48,6 +48,8 @@ export function MmdPage() {
   const list = useQuery({ queryKey: ['mmd', 'list'], queryFn: () => getBridge().mmd.list(), enabled: canAvatar });
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ['mmd', 'list'] });
+    // 换音源 keeps the id, so the inspector's music and loudness lane come only from a new read.
+    void qc.invalidateQueries({ queryKey: ['mmd', 'detail'] });
     void qc.invalidateQueries({ queryKey: ['character', 'motions'] });
   };
   const mmdImport = useMmdImport(refresh);
