@@ -63,6 +63,12 @@ export interface PreviewView {
   frame?: [number, number, number, number];
 }
 
+/** `avatar.preview.control` of a stage preview. */
+export type PreviewControl = { op: 'pause' } | { op: 'resume' } | { op: 'seek'; at: number };
+
+/** A stage preview's playhead: `t` seconds of `duration` into her clip. */
+export interface PreviewPosition { t: number; duration: number; playing: boolean }
+
 /** The motion settings' `avatar` ops; main surface only. */
 export interface MotionAvatarOps {
   motionOverrides: {
