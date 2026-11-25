@@ -165,6 +165,16 @@ describe('导入 MMD 确认单', () => {
     expect(screen.queryByRole('dialog', { name: '导入 MMD' })).toBeNull();
   });
 
+  it('a press outside the sheet keeps it open with its choices', async () => {
+    const drop = vi.spyOn(bridge.mmd, 'dropScan');
+    await mount();
+    const d = await open();
+    fireEvent.change(field('曲名'), { target: { value: 'サンプル' } });
+    await act(async () => void fireEvent.mouseDown(d.parentElement!));
+    expect(drop).not.toHaveBeenCalled();
+    expect(field('曲名').value).toBe('サンプル');
+  });
+
   it('says what a scan failed for and opens no 确认单; a cancelled panel says nothing', async () => {
     const scan = vi.spyOn(bridge.mmd, 'scan').mockResolvedValue({ ok: false, reason: 'bad_zip', detail: 'x' });
     await mount();

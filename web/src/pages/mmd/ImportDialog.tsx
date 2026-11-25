@@ -73,6 +73,7 @@ export function ImportDialog({ token, scan, onImport, onCancel }: ImportDialogPr
       open
       title="导入 MMD"
       onClose={onCancel}
+      keepOnScrim
       footer={
         <>
           <Btn variant="secondary" onClick={onCancel}>

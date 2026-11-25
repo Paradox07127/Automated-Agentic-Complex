@@ -17,6 +17,8 @@ export interface DialogProps {
   footer?: ReactNode;
   /** Esc、关闭按钮或点遮罩 */
   onClose?: () => void;
+  /** 点遮罩不关闭，只留 Esc 和关闭按钮 */
+  keepOnScrim?: boolean;
 }
 
 const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
@@ -104,7 +106,7 @@ export function Dialog(props: DialogProps) {
   ) : null;
 }
 
-function DialogBody({ title, children, footer, onClose }: DialogProps) {
+function DialogBody({ title, children, footer, onClose, keepOnScrim }: DialogProps) {
   const scrim = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -116,7 +118,7 @@ function DialogBody({ title, children, footer, onClose }: DialogProps) {
       className={styles.scrim}
       data-stub="Dialog"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose?.();
+        if (!keepOnScrim && e.target === e.currentTarget) onClose?.();
       }}
     >
       {/* The band is white in both themes, so its content reads light-theme tokens. */}
