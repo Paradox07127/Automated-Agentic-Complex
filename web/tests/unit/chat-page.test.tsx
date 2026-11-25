@@ -144,7 +144,7 @@ describe('chat: turn trace from /trace/turns/{id}', () => {
     render(<TurnInspector tr={tr} wide />);
     for (const h of ['瀑布', '引用记忆', '判断', '模型', '观察', '动作']) expect(screen.getByRole('heading', { name: h })).toBeTruthy();
     expect(screen.queryByRole('table')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /展开/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^事件/ }));
     expect(screen.getByRole('table')).toBeTruthy();
   });
 

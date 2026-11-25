@@ -1,30 +1,27 @@
 import { AgentdCallError } from '../../bridge/agentd';
 import { formatClock, formatMs, secToMs, type WireRunItem } from '../../domain';
 import { Btn, ErrBar, Icon, Skel } from '../../ui';
+import { ExpandRow } from '../../ui/game';
 import { useRunItems } from './useChatData';
 import styles from './RunItems.module.css';
 
 const STATUS: Readonly<Record<string, string>> = { started: '执行中', in_progress: '执行中', completed: '完成', failed: '失败', cancelled: '已取消', interrupted: '已中断' };
 
 function ToolReceipt({ call, result }: { call: WireRunItem; result?: WireRunItem }) {
-  const [open, setOpen] = useState(false);
   const outcome = result?.summary ?? call.summary;
   const status = /\bfailed\b/i.test(outcome ?? '') ? 'failed' : result?.status ?? call.status;
   const statusLabel = STATUS[status] ?? status;
   return (
-    <div className={styles.receipt}>
-      <button type="button" aria-label={`${call.name ?? '工具调用'}，${statusLabel}，查看工具回执`} aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-        <Icon name="tool" size={16} />
-        <b>{call.name ?? '工具调用'}</b>
-        <span className={styles.status} data-failed={status === 'failed' || undefined}>{statusLabel}</span>
-      </button>
-      {open && <dl className={styles.details}>
-        <dt>开始</dt><dd>{formatClock(secToMs(call.created_at), { seconds: true })}</dd>
-        {status !== 'started' && status !== 'in_progress' && <><dt>耗时</dt><dd>{formatMs(Math.max(0, secToMs(call.updated_at - call.created_at)))}</dd></>}
-        {call.summary && <><dt>调用</dt><dd>{call.summary}</dd></>}
-        {result?.summary && result.summary !== call.summary && <><dt>结果</dt><dd>{result.summary}</dd></>}
-      </dl>}
-    </div>
+    <ExpandRow label={`${call.name ?? '工具调用'}，${statusLabel}，查看工具回执`} body={<dl className={styles.details}>
+      <dt>开始</dt><dd>{formatClock(secToMs(call.created_at), { seconds: true })}</dd>
+      {status !== 'started' && status !== 'in_progress' && <><dt>耗时</dt><dd>{formatMs(Math.max(0, secToMs(call.updated_at - call.created_at)))}</dd></>}
+      {call.summary && <><dt>调用</dt><dd>{call.summary}</dd></>}
+      {result?.summary && result.summary !== call.summary && <><dt>结果</dt><dd>{result.summary}</dd></>}
+    </dl>}>
+      <Icon name="tool" size={16} />
+      <b>{call.name ?? '工具调用'}</b>
+      <span className={styles.status} data-failed={status === 'failed' || undefined}>{statusLabel}</span>
+    </ExpandRow>
   );
 }
 
@@ -47,4 +44,3 @@ export function RunItems({ runId, running = false }: { runId: string; running?: 
     </section>
   );
 }
-import { useState } from 'react';

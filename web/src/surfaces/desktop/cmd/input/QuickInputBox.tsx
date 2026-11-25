@@ -1,6 +1,6 @@
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import type { SayRequest, SayResult } from '../../../../bridge';
-import { Btn, ErrBar, Icon, Kbd, TextArea } from '../../../../ui';
+import { Btn, ErrBar, FilterChips, IconBtn, Kbd, TextArea, type FilterChip } from '../../../../ui';
 import { PowerMark, PowerState, type PowerStateProps } from '../../../../ui/game';
 import styles from './QuickInputBox.module.css';
 
@@ -9,8 +9,8 @@ export type SayFailure = Extract<SayResult, { ok: false }>;
 /**
  * 快速输入: 420 wide, 1–4 rows; ⏎ sends, ⇧⏎ breaks the line, esc closes, ⌘J opens
  * 对话. ⏎ while an input method is composing only picks the candidate. A failed send keeps the text and turns the line red.
- * Borrowed parts in the page's appearance: interaction-menu head and structure line, toast field,
- * selected-row capsule chips; the error bar stays dark in both.
+ * Borrowed parts in the page's appearance: interaction-menu head and structure line, toast field;
+ * the error bar stays dark in both.
  */
 export interface QuickInputBoxProps {
   /** Character name for the head. */
@@ -81,6 +81,14 @@ export function QuickInputBox(p: QuickInputBoxProps) {
     }
   };
 
+  // 附上当前窗口 is left out while it cannot be turned on (a window is attached already).
+  const opts: FilterChip[] = [...(p.onAttach && !p.attachDisabled ? [{ value: 'attach', label: '附上当前窗口' }] : []), { value: 'nomem', label: '这一轮不记' }];
+  const picked = [...(p.attach ? ['attach'] : []), ...(p.noMemory ? ['nomem'] : [])];
+  const pick = (v: string[]) => {
+    if (v.includes('attach') !== p.attach) p.onAttach?.(!p.attach);
+    if (v.includes('nomem') !== p.noMemory) p.onNoMemory(!p.noMemory);
+  };
+
   const err = p.error;
   const field = (
     <div className={styles.body}>
@@ -113,9 +121,9 @@ export function QuickInputBox(p: QuickInputBoxProps) {
       <div className={styles.head}>
         <span className={styles.deco} aria-hidden="true" />
         <span className={styles.title}>{`对 ${p.role} 说`}</span>
-        <button type="button" className={styles.esc} aria-label="关闭快速输入" title="Esc" onClick={p.onClose}>
-          <Icon name="close" size={16} />
-        </button>
+        <span className={styles.esc}>
+          <IconBtn icon="close" size="sm" label="关闭快速输入" onClick={p.onClose} />
+        </span>
       </div>
       {p.attachment}
       {p.unlinked ? (
@@ -140,24 +148,19 @@ export function QuickInputBox(p: QuickInputBoxProps) {
       )}
       <div className={styles.opts}>
         {p.onLookOff && (
-          <button type="button" className={styles.chip} title="已关闭：设置 › 感知里关着「屏幕识读」，点按前往设置打开" onClick={p.onLookOff}>
-            <PowerMark state="off" compact />
-            附上当前窗口
-          </button>
+          <span title="已关闭：设置 › 感知里关着「屏幕识读」，点按前往设置打开">
+            <Btn variant="text" size="sm" onClick={p.onLookOff}>
+              <PowerMark state="off" compact />
+              附上当前窗口
+            </Btn>
+          </span>
         )}
-        {p.onAttach && (
-          <button type="button" className={styles.chip} aria-pressed={p.attach} disabled={p.attachDisabled} onClick={() => p.onAttach?.(!p.attach)}>
-            {p.attach && <Icon name="check" size={14} />}附上当前窗口
-          </button>
-        )}
-        <button type="button" className={styles.chip} aria-pressed={p.noMemory} onClick={() => p.onNoMemory(!p.noMemory)}>
-          {p.noMemory && <Icon name="check" size={14} />}这一轮不记
-        </button>
+        <FilterChips label="这一轮的选项" multiple options={opts} value={picked} onChange={pick} />
       </div>
       <div className={styles.footer}>
-        <button type="button" className={styles.aux} onClick={p.onOpenChat}>
-          <Kbd>⌘J</Kbd>对话
-        </button>
+        <Btn variant="text" size="sm" kbd="⌘J" onClick={p.onOpenChat}>
+          对话
+        </Btn>
         {p.talkKey && (
           <span className={styles.talk}>
             按住<Kbd>{p.talkKey}</Kbd>说话

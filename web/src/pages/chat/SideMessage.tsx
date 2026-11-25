@@ -38,9 +38,9 @@ export function SideMessage({ at, text, streaming, roleName, frontTitle, onFront
           <span>只读</span>
         </span>
         {frontTitle && (
-          <button type="button" className={styles.up} onClick={onFront}>
+          <Btn variant="text" size="sm" onClick={onFront}>
             ↑ 触发时前台：{frontTitle}
-          </button>
+          </Btn>
         )}
         <div className={styles.bub} data-first={first || undefined} tabIndex={0} onContextMenu={onContextMenu} onKeyDown={onKeyDown}>
           <MessageText text={text} streaming={streaming} />

@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import common from '../../charts/chart.module.css';
 import { ChartState, type ChartStatus } from '../../charts';
 import { navigate } from '../../shell/nav';
-import { Icon, Pill, Plate, type PillProps } from '../../ui';
+import { Fold, Icon, Pill, Plate, type PillProps } from '../../ui';
 import { critOf, fmtMs, OUTCOME_LABEL, TERMINAL_LABEL, TI_SPAN, TI_SRC, type TurnRes, type TurnTrace } from './turnTrace';
 import { TurnWaterfall } from './TurnWaterfall';
 import styles from './TurnInspector.module.css';
@@ -252,18 +252,11 @@ export function TurnInspector({ tr, wide, st = 'ok', stopAt, onRetry, emptyText 
       </tbody>
     </table></div>
   );
-  const fold = (open: string, rest: ReactNode) => (
+  const fold = (label: string, count: number | undefined, summary: ReactNode) => (
     <section className={`${styles.s} ${xs.raw}`}>
-      <button type="button" className={xs.rawT} aria-expanded={more} onClick={() => setMore(!more)}>
-        <span className={xs.sq} aria-hidden="true" />
-        {more ? '收起' : open}
-        {rest}
-        <span className={xs.sp} />
-        <span className={xs.dots} aria-hidden="true">
-          •••
-        </span>
-      </button>
-      {more && (wide ? evt : <div className={xs.more}>{obs('05')}{motion('06')}<section className={styles.s}><Sh no="07" t="事件" right={<span className={styles.num}>{tr.events.length} 条</span>} />{evt}</section></div>)}
+      <Fold label={label} count={count} summary={summary} open={more} onToggle={setMore}>
+        {wide ? evt : <div className={xs.more}>{obs('05')}{motion('06')}<section className={styles.s}><Sh no="07" t="事件" right={<span className={styles.num}>{tr.events.length} 条</span>} />{evt}</section></div>}
+      </Fold>
     </section>
   );
   if (wide)
@@ -280,7 +273,7 @@ export function TurnInspector({ tr, wide, st = 'ok', stopAt, onRetry, emptyText 
             {motion('06')}
           </div>
         </div>
-        {fold('展开', <span className={styles.num}>{` ${tr.events.length} 条事件`}</span>)}
+        {fold('事件', tr.events.length, undefined)}
       </div>
     );
   return (
@@ -290,7 +283,7 @@ export function TurnInspector({ tr, wide, st = 'ok', stopAt, onRetry, emptyText 
       {mem}
       {judge}
       {model}
-      {fold('更多', <span className={styles.cap}>观察 │ 动作 │ <span className={styles.num}>{tr.events.length}</span> 条事件</span>)}
+      {fold('更多', undefined, <>观察 │ 动作 │ <span className={styles.num}>{tr.events.length}</span> 条事件</>)}
     </div>
   );
 }

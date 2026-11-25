@@ -71,12 +71,11 @@ describe('window attachment', () => {
     expect(document.body.textContent).toContain(`预览 — ${'x'.repeat(40)}…`);
   });
 
-  it('快速输入 with a window and nothing typed sends 看看这个窗口 with lookWindow, and 附上当前窗口 is off', async () => {
+  it('快速输入 with a window and nothing typed sends 看看这个窗口 with lookWindow, and 附上当前窗口 is not offered', async () => {
     const { bridge } = withCommands();
     const say = vi.spyOn(bridge.desktop, 'say');
     render(<QuickInput role="她" autoFocus={false} look attachment={WINDOW} surface="quick_input" onClose={() => {}} />);
-    const toggle = screen.getByRole('button', { name: '附上当前窗口' });
-    expect(toggle).toHaveProperty('disabled', true);
+    expect(screen.queryByRole('button', { name: '附上当前窗口' })).toBeNull();
     await flush(async () => fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' }));
     expect(say).toHaveBeenCalledWith({ text: '看看这个窗口', attachWindow: false, noMemory: false, lookWindow: { windowId: 77, pid: 123 }, surface: 'quick_input' });
   });

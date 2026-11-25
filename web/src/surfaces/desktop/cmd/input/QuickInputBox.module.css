@@ -83,17 +83,8 @@
 }
 
 .esc {
+  display: flex;
   margin-left: auto;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: none;
-  color: var(--ef-text-2);
-  cursor: pointer;
 }
 
 /* The field is TextArea's HUD look; this holds the failed-send line over it. */
@@ -114,27 +105,6 @@
   padding-top: var(--ef-sp-8);
 }
 
-/* Selected-row capsule: round on the left, a 1.5 px white ring when on. */
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ef-sp-6);
-  min-height: 34px;
-  padding: 0 var(--ef-sp-12) 0 var(--ef-sp-12);
-  border: 0;
-  border-radius: 17px 0 0 17px;
-  background: var(--ef-hud-field);
-  color: var(--ef-text-2);
-  font-size: var(--ef-fs-caption);
-  cursor: pointer;
-  transition: color var(--ef-dur-g-btn-hover) var(--ef-ease-g-fade);
-}
-
-.chip[aria-pressed='true'] {
-  color: var(--ef-text-1);
-  box-shadow: inset 0 0 0 1.5px var(--ef-text-1);
-}
-
 .footer {
   display: flex;
   flex-wrap: wrap;
@@ -142,21 +112,6 @@
   justify-content: space-between;
   gap: var(--ef-sp-6);
   padding-top: var(--ef-sp-6);
-}
-
-.aux {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ef-sp-4);
-  min-height: 32px;
-  padding: 0 var(--ef-sp-6);
-  border: 0;
-  border-radius: 16px;
-  background: var(--ef-hud-field);
-  color: var(--ef-text-2);
-  font-size: var(--ef-fs-caption);
-  text-shadow: var(--ef-hud-text-shadow);
-  cursor: pointer;
 }
 
 /* A plain hint, no plate: it is not a control. */
@@ -168,13 +123,6 @@
   color: var(--ef-text-2);
   font-size: var(--ef-fs-caption);
   text-shadow: var(--ef-hud-text-shadow);
-}
-
-.esc:hover,
-.aux:hover,
-.chip:hover:not(:disabled) {
-  background: var(--ef-fold);
-  color: var(--ef-text-1);
 }
 
 @keyframes hud-in {

@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import type { SayRequest } from '../../../../bridge';
-import { Btn, IconBtn } from '../../../../ui';
+import { Btn, FilterChips, IconBtn } from '../../../../ui';
 import { ACTIONS, dropOverflows, REMIND_AT, selectionSay, type Attachment, type SelectionAction } from './selection';
 import styles from './Attached.module.css';
 
@@ -16,14 +16,6 @@ export interface AttachedProps {
 }
 
 const SOURCE = { selection: '选中文字', clipboard: '剪贴板' } as const;
-
-function Chip({ pressed, disabled, onClick, children }: { pressed?: boolean; disabled: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button type="button" className={styles.chip} aria-pressed={pressed} disabled={disabled} onClick={onClick}>
-      {children}
-    </button>
-  );
-}
 
 /** What 快速输入 opened with: a selection with its six actions, a drop scope, a window, or why nothing was read. */
 export function Attached({ attachment: a, typed, sending, onDrop, onSend }: AttachedProps) {
@@ -89,29 +81,27 @@ export function Attached({ attachment: a, typed, sending, onDrop, onSend }: Atta
       <div className={styles.chips}>
         {action === 'remind' ? (
           <>
-            {REMIND_AT.map(([shown, spoken]) => (
-              <Chip key={shown} pressed={when === spoken} disabled={sending} onClick={() => setWhen(spoken)}>
-                {shown}
-              </Chip>
-            ))}
-            <Chip disabled={sending} onClick={() => setAction(null)}>
+            <FilterChips
+              label="什么时候提醒"
+              options={REMIND_AT.map(([shown, spoken]) => ({ value: spoken, label: shown }))}
+              value={when ? [when] : []}
+              onChange={(v) => !sending && setWhen(v[0] ?? null)}
+            />
+            <Btn variant="text" size="sm" disabled={sending} disabledReason="正在发送" onClick={() => setAction(null)}>
               返回
-            </Chip>
+            </Btn>
           </>
         ) : (
-          ACTIONS.map(([key, label]) => (
-            <Chip
-              key={key}
-              pressed={action === key}
-              disabled={sending}
-              onClick={() => {
-                setAction(key);
-                setWhen(null);
-              }}
-            >
-              {label}
-            </Chip>
-          ))
+          <FilterChips
+            label="对这段文字"
+            options={ACTIONS.map(([value, label]) => ({ value, label }))}
+            value={action ? [action] : []}
+            onChange={(v) => {
+              if (sending || !v[0]) return;
+              setAction(v[0] as SelectionAction);
+              setWhen(null);
+            }}
+          />
         )}
       </div>
       {request && (

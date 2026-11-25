@@ -72,9 +72,11 @@ export function ConfirmCard({ card, more, tail = null, act, onDetails, note = nu
       )}
       {note && <p className={styles.err} role="alert">{note}</p>}
       <div className={styles.row}>
-        <button type="button" className={styles.link} onClick={onDetails}>
-          详情
-        </button>
+        <span className={styles.link}>
+          <Btn variant="text" size="sm" onClick={onDetails}>
+            详情
+          </Btn>
+        </span>
         {deny && (
           <Btn variant="secondary" size="sm" onClick={() => act(deny)}>
             拒绝

@@ -126,19 +126,8 @@
 }
 
 .link {
+  display: flex;
   margin-right: auto;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ef-paper-text-2);
-  font-size: 13px;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-
-.link:hover {
-  color: var(--ef-paper-text);
 }
 
 .tail {
