@@ -1,5 +1,4 @@
 """Authored fixtures only. Real licensed VMD/character acceptance is opt-in."""
-import importlib.util
 import json
 import math
 from pathlib import Path
@@ -353,7 +352,6 @@ class VmdImportTests(unittest.TestCase):
         w_post=rotation.as_rotvec(qmul(q_seam[2],qconj(q_seam[1])))*30.0
         self.assertLess(float(np.linalg.norm(w_pre-w_post)),0.15)
 
-    @unittest.skipUnless(importlib.util.find_spec('scipy'),'the grafted graph fixture needs scipy; run with .local/venvs/pipeline/bin/python3')
     def testImportRewritesThePackagesMotionGraphWithTheNewClip(self):
         from agentic_complex_build.motion_graph import FILE as GRAPH,graft
         sys.path.insert(0,str(CHARACTERS.parent/'agent/agentd/tests'))

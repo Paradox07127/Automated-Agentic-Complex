@@ -27,8 +27,6 @@ import native_bundle
 
 NUMPY = importlib.util.find_spec("numpy") is not None
 needs_numpy = unittest.skipUnless(NUMPY, "the importer needs numpy; run with .local/venvs/pipeline/bin/python3")
-# install_chains grafts the chains with characters/agentic_complex_build/interaction_motion.py, which imports scipy.
-needs_scipy = unittest.skipUnless(NUMPY and importlib.util.find_spec("scipy") is not None, "the chain fixture needs numpy and scipy")
 
 
 def motion_fixture(root, cid="fixture", rows=1, rig=None, imported=(), motion=None):
@@ -320,7 +318,7 @@ class MotionToolTests(unittest.TestCase):
         self.success(self.edit("rename", self.host(), imported["id"], "--title", "新舞"))
         self.success(self.edit("remove", self.host(), imported["id"]))
 
-    @needs_scipy
+    @needs_numpy
     def test_an_installed_file_changed_after_install_fails_a_chain_and_publishes_nothing(self):
         """Rewritten by the chain or read and cloned: each changed file fails the chain."""
         package = self.install_chains(); before = self.published()
@@ -808,7 +806,7 @@ class MotionToolTests(unittest.TestCase):
         return tool_command("motion_tool.py", "chain", "--library", str(self.library.root), "--character", "fixture", "--proposal", str(path),
                             *extra, "--validate-with", str(host))
 
-    @needs_scipy
+    @needs_numpy
     def test_chain_check_reports_problems_and_graph_changes_without_writing(self):
         package = self.install_chains(); before = self.files()
         doc = self.success(self.chain(package, self.host(), [dict(op="insert", chain="wave_start", index=1, clip="nod")], "--check"))
@@ -817,7 +815,7 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual((doc["ok"], doc["problems"]), (False, [dict(edit=1, reason="bad_blend")]))
         self.assertEqual(self.files(), before)
 
-    @needs_scipy
+    @needs_numpy
     def test_chain_publishes_the_rebuilt_character_and_then_its_proposal_is_stale(self):
         package = self.install_chains()
         edits = [dict(op="insert", chain="wave_start", index=1, clip="nod")]
@@ -910,7 +908,7 @@ class MotionToolTests(unittest.TestCase):
         for root in (self.root / "imported", self.root / "renamed"): Package(root)
         self.assertEqual([p.version for p in Library(self.root / "built/library").packages()], ["1.0.1"])
 
-    @needs_scipy
+    @needs_numpy
     def test_a_chain_copies_the_package_without_a_child_process(self):
         from unittest import mock
         from agentic_complex_build.motion_import.chain_edit import chain_package
@@ -936,7 +934,7 @@ class MotionToolTests(unittest.TestCase):
             import_motion.main()
         self.assertEqual([p.id for p in Library(self.root / "built/library").packages()], ["fixture"])
 
-    @needs_scipy
+    @needs_numpy
     def test_a_motion_graph_and_its_library_copy_the_packages_without_a_child_process(self):
         from unittest import mock
         from agentic_complex_build.motion_graph import graft, graft_library

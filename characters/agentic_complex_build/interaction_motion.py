@@ -8,21 +8,21 @@ import json
 import struct
 
 import numpy as np
-from scipy.spatial.transform import Rotation
 
 from .common import need as require, reference, sha256_bytes, sha256_file as sha
 from .keys_v2 import decode as decode_efkey002
+from .mmd import rotation
 from .mmd.rig_math import bone, humanoid_ids
 
 
 def read_json(path):
-    return json.loads(Path(path).read_text())
+    return json.loads(Path(path).read_text(encoding='utf-8'))
 
 
 def write_json(path, data):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False) + '\n')
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False) + '\n', encoding='utf-8')
 
 
 class BipedRig:
@@ -66,7 +66,7 @@ class BipedRig:
         frames = len(rotations)
         local = np.broadcast_to(np.eye(4), (frames, len(self.nodes), 4, 4)).copy()
         scale=self.scales[None] if scales is None else scales
-        local[..., :3, :3] = Rotation.from_quat(rotations.reshape(-1, 4)).as_matrix().reshape(frames, -1, 3, 3) * scale[...,None,:]
+        local[..., :3, :3] = rotation.as_matrix(rotations.reshape(-1, 4)).reshape(frames, -1, 3, 3) * scale[...,None,:]
         local[..., :3, 3] = positions
         world = np.empty_like(local)
         for i, parent in enumerate(self.parent):
@@ -172,13 +172,13 @@ def retarget(source, target, rotations, positions):
             src = mapped[index]
             desired = source_r[:, src] @ source.rest_rotation[src].T @ target.rest_rotation[index]
             local = np.linalg.inv(target.rotation_matrices(parent_world)) @ desired
-            q[:, index] = Rotation.from_matrix(local).as_quat()
+            q[:, index] = rotation.from_matrix(local)
             if index == target.hips:
                 delta = world[:, src, :3, 3] - source.rest[src, :3, 3]
                 point = target.rest[index, :3, 3] + ratio*delta
                 t[:, index] = (np.linalg.inv(parent_world) @ np.concatenate([point, np.ones((count, 1))], axis=-1)[..., None])[:, :3, 0]
         local = np.broadcast_to(np.eye(4), (count, 4, 4)).copy()
-        local[:, :3, :3] = Rotation.from_quat(q[:, index]).as_matrix() * target.scales[index][None, None, :]
+        local[:, :3, :3] = rotation.as_matrix(q[:, index]) * target.scales[index][None, None, :]
         local[:, :3, 3] = t[:, index]
         target_world[:, index] = parent_world @ local
     # Quaternions q and -q encode the same orientation; keep interpolation continuous.

@@ -131,8 +131,8 @@ def edit_package(package_root, output, *, action, title=None, remove=False):
         if (animation/'supplemental-clips.json').exists():
             change(animation, 'supplemental-clips.json', lambda d: d.update(base_contract_sha256=digest(palette_path)))
         if (animation/GRAPH).exists():
-            # From the old graph's poses: the app's content runtime lacks the scipy that sampling the archive needs.
-            graph = inside(animation, GRAPH); graph.write_text(text(pack_graph(package.id, pack_path, archive_path, previous=read_json(graph))))
+            # From the old graph's poses: the app's content lacks the interaction_motion that sampling the archive needs.
+            graph = inside(animation, GRAPH); graph.write_text(text(pack_graph(package.id, pack_path, archive_path, previous=read_json(graph))), encoding='utf-8')
         for section in ['animation', 'interaction']:
             folder = pack_path.parent/section
             pack[section]['data'] = [dict(x, **ref(folder/x['file'], folder)) for x in pack[section]['data']]

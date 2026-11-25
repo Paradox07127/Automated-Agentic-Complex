@@ -184,7 +184,7 @@ def chain_package(package_root, output, proposal):
         native_path = stage/package.native_ref['file']; native = read_json(native_path); entry = native['characters'][0]
         pack_path = runtime/entry['c7']['file']; pack = read_json(pack_path)
         for name, document in result['documents'].items(): write_document(pack_path.parent/name, document)
-        if result['graph'] is not None: (pack_path.parent/'animation'/GRAPH).write_text(text(result['graph']))
+        if result['graph'] is not None: (pack_path.parent/'animation'/GRAPH).write_text(text(result['graph']), encoding='utf-8')
         for section in ['animation', 'interaction']:
             folder = pack_path.parent/section
             pack[section]['data'] = [dict(x, **ref(folder/x['file'], folder)) for x in pack[section]['data']]

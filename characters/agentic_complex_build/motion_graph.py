@@ -946,7 +946,7 @@ def text(document):
 def archive_frames(archive_path, names, humanoid):
     """({clip: (rotations, positions, scales) of its first and last frame}, {clip: clip document}, [clips not readable]);
     humanoid: the rig's humanoid.json document, as MotionArchive takes it."""
-    # interaction_motion needs scipy; graph() does not.
+    # interaction_motion is not in the shipped content (release.CONTENT_SOURCES); graph() runs without it.
     from .interaction_motion import MotionArchive
     ends, meta, failed = {}, {}, []
     try:
@@ -1000,7 +1000,7 @@ def graft(package_path, output):
         native_path = stage/package.native_ref['file']; root = native_path.parent; native = read_json(native_path); entry = native['characters'][0]
         pack_path = root/entry['c7']['file']; animation = pack_path.parent/'animation'
         document = pack_graph(package.id, pack_path, root/entry['actor_archive']['file'])
-        path = animation/FILE; path.write_text(text(document))
+        path = animation/FILE; path.write_text(text(document), encoding='utf-8')
         pack = read_json(pack_path)
         pack['animation']['data'] = [r for r in pack['animation']['data'] if r['file'] != FILE] + [reference(path, animation)]
         write_json(pack_path, pack); entry['c7'] = reference(pack_path, root)
