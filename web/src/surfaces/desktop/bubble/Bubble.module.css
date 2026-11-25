@@ -138,22 +138,6 @@
   }
 }
 
-.more {
-  align-self: flex-start;
-  min-height: 34px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ef-accent-text);
-  font: var(--ef-fw-regular) var(--ef-fs-body) / 20px var(--ef-font-sans);
-  text-shadow: inherit;
-  cursor: pointer;
-}
-
-.more:hover {
-  text-decoration: underline;
-}
-
 .btns {
   display: flex;
   flex-wrap: wrap;
@@ -243,47 +227,76 @@
   text-overflow: ellipsis;
 }
 
-.acts,
-.moreActs {
+.acts {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px var(--ef-sp-8);
+  gap: 6px var(--ef-sp-8);
 }
 
+/* The disclosed buttons continue the same row. */
 .moreActs {
-  flex-basis: 100%;
+  display: contents;
 }
 
-/* Text buttons on the band. */
-.act {
+/* Text buttons on the band: the text in a thin pill shell, no icon. */
+.act,
+.more {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--ef-sp-4);
-  min-width: 32px;
-  min-height: 32px;
-  padding: 0 var(--ef-sp-4);
-  border: 0;
-  border-radius: 0;
-  background: none;
+  min-height: 24px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--bubble-t1) 28%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bubble-t1) 8%, transparent);
   color: var(--bubble-t1);
-  font: var(--ef-fw-regular) var(--ef-fs-body) / 1 var(--ef-font-sans);
+  font: var(--ef-fw-regular) 13px / 1 var(--ef-font-sans);
   text-shadow: inherit;
+  cursor: pointer;
+}
+
+.more {
+  align-self: flex-start;
+}
+
+/* 关闭 sits on the card's top edge, inside its right edge: the panel is sized to the card's width (the card is the containing block; .acts does not clip it). */
+.x {
+  position: absolute;
+  top: -8px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--bubble-t1) 28%, transparent);
+  border-radius: 50%;
+  background: var(--ef-hud-bubble);
+  color: var(--bubble-t1);
   cursor: pointer;
 }
 
 .act:focus-visible,
 .more:focus-visible,
+.x:focus-visible,
 .say:focus-visible {
   outline: 2px solid var(--ef-focus);
   outline-offset: -2px;
 }
 
-.act:hover {
-  color: var(--ef-accent-text);
+.act:hover,
+.more:hover,
+.x:hover {
+  background: color-mix(in srgb, var(--bubble-t1) 18%, transparent);
+}
+
+.x:hover {
+  background: color-mix(in srgb, var(--bubble-t1) 18%, var(--ef-hud-bubble));
 }
 
 .act:disabled {
+  opacity: 0.6;
   cursor: default;
 }
 

@@ -34,12 +34,12 @@ export function Acts({ text, replyLabel = '回复', onReply, onMute, onClose, vo
       <button type="button" className={styles.act} data-region="" onClick={onReply}>
         <Icon name="send" size={14} /> {replyLabel}
       </button>
-      {text && <button type="button" className={styles.act} data-region="" aria-expanded={expanded} aria-controls={moreId} onClick={() => setExpanded((value) => !value)}>
-        <Icon name="more" size={16} /> 更多操作
+      {text && <button type="button" className={styles.act} data-region="" title="更多操作" aria-label="更多操作" aria-expanded={expanded} aria-controls={moreId} onClick={() => setExpanded((value) => !value)}>
+        <Icon name="more" size={16} />
       </button>}
       {onClose && (
-        <button type="button" className={styles.act} data-region="" title="关闭" aria-label="关闭" onClick={onClose}>
-          <Icon name="close" size={16} />
+        <button type="button" className={styles.x} data-region="" title="关闭" aria-label="关闭" onClick={onClose}>
+          <Icon name="close" size={12} />
         </button>
       )}
       {expanded && <div id={moreId} className={styles.moreActs}>
