@@ -46,9 +46,7 @@
   flex: 1;
   min-width: 0;
   margin: 0;
-  font: var(--ef-t-row);
-  font-weight: var(--ef-fw-semibold);
-  color: var(--ef-raised-fg);
+  font: var(--ef-fw-semibold) var(--ef-fs-title-2) / var(--ef-lh-title-2) var(--ef-font-sans);
   overflow-wrap: anywhere;
 }
 
