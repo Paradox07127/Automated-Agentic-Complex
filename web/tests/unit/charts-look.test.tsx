@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { FlowGraph, FlowGraphDemos, Gantt, GanttDemos, LineChart, LineChartDemos, StackedBars, StackedBarsDemos } from '../../src/charts';
+import { Gantt, GanttDemos, LineChart, LineChartDemos, StackedBars, StackedBarsDemos } from '../../src/charts';
 import { ShapeGlyph } from '../../src/charts/StateMark';
 
 afterEach(cleanup);
@@ -11,7 +11,6 @@ afterEach(cleanup);
 const chartsDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../src/charts');
 const sheets = readdirSync(chartsDir).filter((f) => f.endsWith('.css'));
 const sources = readdirSync(chartsDir).filter((f) => f.endsWith('.tsx'));
-const demo = FlowGraphDemos.find((d) => d.name === 'live')!.props;
 
 describe(' failures are yellow blocks with ink, never red', () => {
   it('draws a failure glyph as ✕ in ink on a yellow block', () => {
@@ -29,45 +28,8 @@ describe(' failures are yellow blocks with ink, never red', () => {
     expect(container.querySelector('svg rect')?.getAttribute('fill')).toBe('currentColor');
   });
 
-  it('flags a flow node failure count as ✕n on a yellow block, not in the stat line', () => {
-    const { container } = render(<FlowGraph {...demo} />);
-    const tts = container.querySelector('[data-node="tts"]')!;
-    expect(tts.querySelector('[data-flag] text')?.textContent).toBe('✕2');
-    expect(tts.querySelector('[data-flag] rect')).not.toBeNull();
-    expect(container.querySelector('[data-node="interp"] [data-flag] text')?.textContent).toBe('✕1');
-    expect(container.querySelector('[data-node="obs"] [data-flag]')).toBeNull();
-    expect(tts.textContent).not.toMatch(/· ✕/);
-  });
-
   it('uses no danger colour in any chart', () => {
     for (const f of [...sheets, ...sources]) expect(readFileSync(resolve(chartsDir, f), 'utf8'), f).not.toMatch(/--ef-danger\b|--ef-success\)/);
-  });
-});
-
-describe(' FlowGraph nodes', () => {
-  it('cuts the bottom-right corner of pressable nodes and gives them the trace tab', () => {
-    const { container } = render(<FlowGraph {...demo} />);
-    const node = container.querySelector('[data-node="judge"]')!;
-    expect(node.hasAttribute('data-press')).toBe(true);
-    const w = demo.nodeW!;
-    const h = demo.nodeH!;
-    expect(node.querySelector('path')?.getAttribute('d')).toBe(`M0 0H${w}V${h - 8}L${w - 8} ${h}H0Z`);
-    expect(node.querySelectorAll('rect').length).toBeGreaterThan(1);
-  });
-
-  it('keeps nodes that cannot be pressed square, without a tab', () => {
-    const { container } = render(<FlowGraph {...demo} onPick={undefined} />);
-    const node = container.querySelector('[data-node="judge"]')!;
-    expect(node.hasAttribute('data-press')).toBe(false);
-    expect(node.querySelector('path')?.getAttribute('d')).toBe(`M0 0H${demo.nodeW}V${demo.nodeH}H0Z`);
-  });
-
-  it('draws the current turn as one trace dot, without a halo', () => {
-    const replay = FlowGraphDemos.find((d) => d.name === 'replay')!.props;
-    const { container } = render(<FlowGraph {...replay} />);
-    const dots = [...container.querySelectorAll('svg > circle')];
-    expect(dots).toHaveLength(1);
-    expect(dots[0]?.getAttribute('r')).toBe('4');
   });
 });
 

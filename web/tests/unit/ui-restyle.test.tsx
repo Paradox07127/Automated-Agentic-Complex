@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Banner, Btn, Card, Empty, ErrBar, Paper, Plate, Row, RowPlate, SecHead, Tabs } from '../../src/ui';
+import { Banner, Btn, Card, Empty, ErrBar, Paper, Plate, Row, SecHead, Tabs } from '../../src/ui';
 
 afterEach(cleanup);
 
@@ -149,17 +149,6 @@ describe('panel levels and list rows', () => {
     );
     expect(container.querySelector('[data-stub="Plate"] [aria-hidden="true"]')?.textContent).toBe('02');
     expect(container.querySelector('[data-stub="Paper"]')?.getAttribute('data-theme')).toBe('light');
-  });
-
-  it('RowPlate keeps its actions outside the row button and marks the selection', () => {
-    const onClick = vi.fn();
-    render(<RowPlate icon="file" title="整理本周提交周报" meta="待复核" selected onClick={onClick} actions={<Btn variant="text" size="sm">查看原文</Btn>} />);
-    const row = screen.getByRole('button', { name: /整理本周提交周报/ });
-    expect(row.getAttribute('aria-pressed')).toBe('true');
-    expect(row.querySelector('button')).toBeNull();
-    fireEvent.click(row);
-    expect(onClick).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('button', { name: '查看原文' }).closest('[data-stub="RowPlate"]')).not.toBeNull();
   });
 });
 

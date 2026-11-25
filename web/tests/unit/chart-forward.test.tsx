@@ -2,26 +2,12 @@ import type { ComponentType } from 'react';
 import { cleanup, fireEvent, render, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  CumulativeStep,
-  CumulativeStepDemos,
-  DivergingBar,
-  DivergingBarDemos,
-  Donut,
-  DonutDemos,
-  DotMatrix,
-  DotMatrixDemos,
-  FlowGraph,
-  FlowGraphDemos,
   Gantt,
   GanttDemos,
   LineChart,
   LineChartDemos,
   StackedBars,
   StackedBarsDemos,
-  Timeline,
-  TimelineDemos,
-  Treemap,
-  TreemapDemos,
   type ChartCommonProps,
 } from '../../src/charts';
 
@@ -39,15 +25,8 @@ const pick = <P extends ChartCommonProps>(name: string, C: ComponentType<P>, dem
 const cases: Case[] = [
   pick('LineChart', LineChart, LineChartDemos),
   pick('Gantt', Gantt, GanttDemos),
-  pick('Timeline', Timeline, TimelineDemos),
-  pick('CumulativeStep', CumulativeStep, CumulativeStepDemos),
-  pick('DivergingBar', DivergingBar, DivergingBarDemos),
-  pick('Donut', Donut, DonutDemos),
-  pick('DotMatrix', DotMatrix, DotMatrixDemos),
-  pick('FlowGraph', FlowGraph, FlowGraphDemos),
   pick('StackedBars', StackedBars, StackedBarsDemos),
   pick('StackedBars', StackedBars, StackedBarsDemos, 'horizontal'),
-  pick('Treemap', Treemap, TreemapDemos),
 ];
 
 describe('every ChartBox chart forwards its stale time and retry', () => {

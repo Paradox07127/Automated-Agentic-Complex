@@ -74,18 +74,6 @@ test('dark HUD question card: button text reads at 4.5:1 on its own background',
   }
 });
 
-test('SmallMultiples: 暂停 does not sit on the dashed target line', async ({ page }) => {
-  await open(page, 'SmallMultiples', 'render');
-  // getBBox in SVG units: WebKit's client rect for a <text> under a CSS `font` shorthand lands at the svg origin.
-  const gap = await page.locator('svg[data-series="fps"]').evaluate((svg) => {
-    const label = [...svg.querySelectorAll('text')].find((t) => t.textContent === '暂停') as SVGTextElement;
-    const b = label.getBBox();
-    const y = Number(svg.querySelector('line[data-ref]')?.getAttribute('y1'));
-    return y < b.y ? b.y - y : y - (b.y + b.height);
-  });
-  expect(gap).toBeGreaterThan(0);
-});
-
 const SHOTS: Array<[string, string]> = [
   ['DeliveryBox', 'review'],
   ['TaskDrawer', 'review'],
@@ -94,7 +82,6 @@ const SHOTS: Array<[string, string]> = [
   ['DecisionReceipt', 'expired'],
   ['ApprovalCard', 'normal'],
   ['TaskDetail', 'review'],
-  ['SmallMultiples', 'render'],
   ['SegMeter', 'snapshot'],
 ];
 

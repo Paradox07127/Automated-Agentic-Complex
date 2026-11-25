@@ -12,15 +12,6 @@ const hr = (t: number) => new Date(t).getHours() + new Date(t).getMinutes() / 60
 export const ENERGY: Array<[number, number | null]> = half.map((t) => [t, +clamp(0.5 + 0.32 * Math.sin(((hr(t) - 10) / 12) * Math.PI) + (rnd() - 0.5) * 0.08, 0, 1).toFixed(2)]);
 export const MOOD: Array<[number, number | null]> = half.map((t, i) => [t, i >= 18 && i <= 21 ? null : +clamp(0.12 + 0.3 * Math.sin(i / 6) + (rnd() - 0.5) * 0.12, -1, 1).toFixed(2)]);
 
-const shotTimes: number[] = [];
-for (const [h, n] of [[9, 4], [10, 6], [11, 5], [12, 3], [13, 2], [14, 17]] as const) {
-  const span = h === 14 ? 30 : 60;
-  for (let k = 0; k < n; k++) shotTimes.push(at(h, Math.floor(((k + 0.5) * span) / n), 20));
-}
-export const SHOT_TIMES = shotTimes;
-export const SHOTS = [...shotTimes.map((t) => ({ t })), ...[at(10, 21), at(13, 6), at(14, 12)].map((t) => ({ t, kind: 'blocked' as const }))];
-export const SAYS = [...[at(9, 31), at(10, 48), at(11, 47), at(13, 15), at(14, 3), at(14, 25)].map((t) => ({ t })), ...[at(10, 2), at(12, 40), at(14, 18)].map((t) => ({ t, kind: 'blocked' as const }))];
-
 export const APPS = [
   { id: 'term', label: 'Terminal', color: 'var(--ef-cat-1)' },
   { id: 'web', label: 'Safari', color: 'var(--ef-cat-2)' },
@@ -42,16 +33,3 @@ export const CHANNELS = [
   { key: 'obs', label: '观察摘要', parts: { new: 26_000, cache: 61_000, out: 1_000 } },
   { key: 'dec', label: '动作决策', parts: { new: 12_000, cache: 32_000, out: 1_000 } },
 ];
-export const tokSum = (id: string) => CHANNELS.reduce((a, c) => a + (c.parts[id as keyof typeof c.parts] ?? 0), 0);
-
-export const EPISODES = [
-  { id: 'e1', t0: at(9, 2), t1: at(9, 48), label: '在 Xcode 改 HostLink' },
-  { id: 'e2', t0: at(9, 55), t1: at(10, 40), label: '看 Metal 文档' },
-  { id: 'e3', t0: at(11, 0), t1: at(11, 45), label: '排查 HostLink 断线' },
-  { id: 'e4', t0: at(12, 45), t1: at(13, 5), label: '午休浏览' },
-  { id: 'e5', t0: at(13, 10), t1: at(14, 32), label: '写周报 v2' },
-];
-const appName: Record<string, string> = { 1: 'Terminal', 2: 'Safari', 3: '会议', other: '其他' };
-export const STRIP = ([[9, 2, 9, 48, 1], [9, 55, 10, 40, 2], [11, 0, 11, 45, 3], [12, 45, 13, 5, 2], [13, 10, 13, 40, 1], [13, 40, 13, 52, 'other'], [13, 52, 14, 32, 1]] as const).map(([a, b, c, d, k], i) => ({ id: `a${i}`, t0: at(a, b), t1: at(c, d), cat: k, label: appName[k] }));
-
-export const play = (n: number) => Array.from({ length: 24 }, (_, h) => (h < 8 || h > 14 ? 0 : Math.round(rnd() * n)));

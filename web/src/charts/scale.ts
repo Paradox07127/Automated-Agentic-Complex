@@ -90,17 +90,11 @@ export function linear(lo: number, hi: number): (v: number) => number {
   return (v) => (span === 0 ? 0.5 : clamp((v - lo) / span, 0, 1));
 }
 
-export const LOG_TICKS_MS = [100, 1000, 10_000, 60_000];
-
 /** Log map for durations (100 ms … 1 min) to 0..1. */
 export function logPos(ms: number): number {
   const lo = Math.log10(100);
   const hi = Math.log10(60_000);
   return (Math.log10(clamp(ms, 100, 60_000)) - lo) / (hi - lo);
-}
-
-export function logTickLabel(ms: number): string {
-  return ms >= 60_000 ? '1 min' : formatMs(ms);
 }
 
 export type UsageLevel = 'ok' | 'high' | 'over';
@@ -133,10 +127,4 @@ export function linePath(values: ReadonlyArray<number | null>, x: (i: number) =>
     pen = true;
   });
   return d;
-}
-
-/** Index of the last non-null value, or -1. */
-export function lastIndex(values: ReadonlyArray<number | null>): number {
-  for (let i = values.length - 1; i >= 0; i -= 1) if (values[i] != null) return i;
-  return -1;
 }

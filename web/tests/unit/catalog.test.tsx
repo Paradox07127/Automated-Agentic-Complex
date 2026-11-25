@@ -15,8 +15,8 @@ describe('component catalog', () => {
     expect(uiCatalog.length).toBeGreaterThanOrEqual(25);
     expect(chartCatalog.map((e) => e.name)).toEqual(
       expect.arrayContaining([
-        'BracketMeter', 'SegMeter', 'CountdownRing', 'CountdownLine', 'NodeChain', 'Swimlane', 'Waterfall',
-        'CompositionBar', 'BarList', 'Sparkline', 'DotStrip', 'SmallMultiples', 'ChartState',
+        'BracketMeter', 'SegMeter', 'CountdownRing', 'CountdownLine', 'NodeChain', 'Waterfall',
+        'BarList', 'ChartState',
       ]),
     );
     expect(featureCatalog.map((e) => e.group)).toEqual(

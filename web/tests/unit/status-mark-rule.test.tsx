@@ -7,7 +7,6 @@ import { TraceLine } from '../../src/features/trace';
 import type { RunRow } from '../../src/pages/overview/briefModel';
 import { RunningSection } from '../../src/pages/overview/RunningSection';
 import { HudCard } from '../../src/surfaces/stack/HudCard';
-import { Nameplate } from '../../src/ui';
 
 afterEach(cleanup);
 const noop = () => {};
@@ -25,10 +24,8 @@ describe(' status marks', () => {
     expect(stopped.container.querySelector('dd [data-stub="StatusTag"]')).toBeNull();
   });
 
-  it('a trace step and a name plate show a lamp with its word', () => {
+  it('a trace step shows a lamp with its word', () => {
     expect(stub(render(<TraceLine title="读取目录" state="failed" />).container)).toEqual(['StatusLamp']);
-    const plate = render(<Nameplate name="示例乙" state="running_tool" status="正在执行 │ 整理本周提交周报" />).container;
-    expect(plate.querySelector('[data-stub="StatusLamp"]')?.textContent).toBe('正在执行 │ 整理本周提交周报');
   });
 
   it('a desk card head shows a lamp, and the yellow block only for a question to her', () => {

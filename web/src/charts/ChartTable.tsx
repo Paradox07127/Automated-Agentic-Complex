@@ -65,14 +65,3 @@ export function DataTable({ caption, columns, rows, selected, onRow }: { caption
     </div>
   );
 }
-
-/** Hover readout for SVG charts: surface-2, radius 4, 12 px, at most 4 lines. */
-export function ChartTip({ x, y, lines, align = 'center' }: { x: number | string; y: number | string; lines: string[]; align?: 'center' | 'right' }) {
-  return (
-    <div className={styles.svgTip} role="tooltip" data-align={align} style={{ left: x, top: y }}>
-      {lines.slice(0, 4).map((l) => (
-        <div key={l}>{l}</div>
-      ))}
-    </div>
-  );
-}

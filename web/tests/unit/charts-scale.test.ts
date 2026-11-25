@@ -3,7 +3,6 @@ import { clockTickLabel, fraction, linePath, logPos, niceStep, niceTicks, offset
 import { meterLevel } from '../../src/charts/BracketMeter';
 import { barListRows } from '../../src/charts/BarList';
 import { chainStates } from '../../src/charts/NodeChain';
-import { hourlyFailures } from '../../src/charts/DotStrip';
 
 const at = (h: number, m: number) => new Date(2026, 9, 29, h, m).getTime();
 const isNice = (step: number) => {
@@ -98,15 +97,5 @@ describe('derived chart data', () => {
 
   it('marks every node after a break unreachable', () => {
     expect(chainStates([{ state: 'done' }, { state: 'broken' }, { state: 'todo' }, { state: 'done' }])).toEqual(['done', 'broken', 'unreachable', 'unreachable']);
-  });
-
-  it('counts failures per hour from the dots when no series is given', () => {
-    const dots = [
-      { id: 'a', started_at: at(0, 10), duration_ms: 500, result: 'failed' as const, source: 'x' },
-      { id: 'b', started_at: at(2, 30), duration_ms: 500, result: 'failed' as const, source: 'x' },
-      { id: 'c', started_at: at(2, 40), duration_ms: 500, result: 'ok' as const, source: 'x' },
-    ];
-    expect(hourlyFailures(dots, at(0, 0), at(3, 0))).toEqual([1, 0, 1]);
-    expect(hourlyFailures(dots, at(0, 0), at(3, 0), [0, 0, 5])).toEqual([0, 0, 5]);
   });
 });

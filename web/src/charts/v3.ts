@@ -6,8 +6,6 @@ export const INK = ['var(--v3-ink-1)', 'var(--v3-ink-2)', 'var(--v3-ink-3)'] as 
 /** Fill levels of areas and bars: ink, secondary ink, chip, hatch. */
 export const FILL = ['var(--v3-ink-1)', 'var(--v3-ink-2)', 'var(--v3-chip)', 'var(--v3-hatch)'] as const;
 export const EMPH = 'var(--v3-emph)';
-/** The selected item: trace in both themes. */
-export const SEL = 'var(--v3-sel)';
 export const CAT: Record<string, string> = { 1: 'var(--v3-cat-1)', 2: 'var(--v3-cat-2)', 3: 'var(--v3-cat-3)', other: 'var(--v3-cat-other)' };
 
 /** Maps the documented colour tokens (`var(--ef-cat-1)`, `var(--ef-ink-s2)`, `var(--ef-emph)`) onto the palette; a failure never paints red. */
@@ -93,11 +91,4 @@ export function rulerTicks(t0: number, t1: number, px: number): Ruler {
   const shorts = sh * ppm >= 5 ? align(t0, t1, sh * 60e3).filter((t) => Math.round(t - z) % (lg * 60e3) !== 0) : [];
   const every = [1, 2, 3, 4, 6, 12, 24].find((k) => k * lg * ppm >= 52) ?? 24;
   return { longs, shorts, lab: (t) => Math.round((t - z) / (lg * 60e3)) % every === 0, fmt: sh < 1 ? hms : hm };
-}
-
-/** Reduced motion: system setting, the app's `still` screenshot mode, or the reduce-motion switch. */
-export function calm(): boolean {
-  if (typeof window === 'undefined') return true;
-  const root = document.documentElement;
-  return root.classList.contains('still') || root.hasAttribute('data-reduce-motion') || (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
 }

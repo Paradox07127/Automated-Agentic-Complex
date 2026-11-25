@@ -8,7 +8,6 @@ import type { AgenticComplexBridge, ImportState } from '../../src/bridge/protoco
 import { CharacterPage } from '../../src/pages/character/Page';
 import { MmdPage } from '../../src/pages/mmd/Page';
 import { setNavRouter } from '../../src/shell/nav';
-import { Progress } from '../../src/ui';
 
 vi.mock('../../src/shell/toast', async (original) => ({ ...(await original<typeof import('../../src/shell/toast')>()), toast: vi.fn() }));
 
@@ -58,15 +57,6 @@ afterEach(() => {
   cleanup();
   delete window.agenticComplex;
   vi.restoreAllMocks();
-});
-
-describe('Progress', () => {
-  it('is a progressbar named by its stage with a whole percent', () => {
-    render(<Progress label="校验" value={0.5049} />);
-    const bar = screen.getByRole('progressbar', { name: '校验' });
-    expect(bar.getAttribute('aria-valuenow')).toBe('50');
-    expect(bar.textContent).toBe('校验50%');
-  });
 });
 
 describe('导入 pane', () => {

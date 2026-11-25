@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { BracketMeter, Swimlane, SwimlaneDemos } from '../../src/charts';
+import { BracketMeter } from '../../src/charts';
 import { usageText } from '../../src/charts/scale';
 import { DeliveryBox, VersionChain } from '../../src/features/delivery';
 import { JobCells, PlanProgress, RunStepTrack } from '../../src/features/plan';
@@ -71,21 +71,6 @@ describe('90–100 % reads 接近上限, above 100 % reads 超限', () => {
     expect(el?.getAttribute('aria-label')).toBe('P95 15.6/16.7，接近上限');
     expect(el?.textContent).toContain('接近上限');
     expect(el?.textContent).not.toContain('超限');
-  });
-});
-
-describe('a lane read failure uses danger ■', () => {
-  it('Swimlane lane error: square glyph in the failed colour plus text, no ▲', () => {
-    const { container } = render(<Swimlane {...demo(SwimlaneDemos, 'lane-error')} />);
-    const lane = container.querySelector('[data-error]') as HTMLElement;
-    expect(lane.textContent).not.toContain('▲');
-    expect(lane.textContent).toContain('读取失败');
-    const glyphs = [...lane.querySelectorAll('svg[data-shape]')];
-    expect(glyphs.length).toBeGreaterThan(0);
-    for (const g of glyphs) {
-      expect(g.getAttribute('data-shape')).toBe('square');
-      expect((g as SVGElement).style.color).toBe('var(--ef-state-failed)');
-    }
   });
 });
 

@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { ChartState, SegMeter, SegMeterDemos, SmallMultiples, SmallMultiplesDemos } from '../../src/charts';
+import { ChartState, SegMeter, SegMeterDemos } from '../../src/charts';
 import { ApprovalCard, DecisionBar, DecisionReceipt, QuestionBox } from '../../src/features/approval';
 import { DeliveryBox } from '../../src/features/delivery';
 import { PlanProgress } from '../../src/features/plan';
@@ -171,20 +171,6 @@ describe(' charts', () => {
     expect(container.textContent).toContain('已保存的计划');
     expect(container.textContent).not.toMatch(/第 \d+ 版/);
     expect(container.textContent).not.toContain('重新连接');
-  });
-
-  it('the 暂停 label keeps clear of the dashed target line', () => {
-    for (const name of ['render', 'minute']) {
-      const { container } = render(<SmallMultiples {...demo(SmallMultiplesDemos, name)} />);
-      const svg = container.querySelector('svg[data-series="fps"]') as SVGSVGElement;
-      const label = [...svg.querySelectorAll('text')].find((t) => t.textContent === '暂停') as SVGTextElement;
-      const line = svg.querySelector('line[data-ref]') as SVGLineElement;
-      const baseline = Number(label.getAttribute('y'));
-      const refY = Number(line.getAttribute('y1'));
-      // The label glyphs span about 12 px above the baseline.
-      expect(refY < baseline - 13 || refY > baseline + 2, `${name}: ref ${refY} vs label ${baseline}`).toBe(true);
-      cleanup();
-    }
   });
 
   it('DiffPreview and DeliveryBox styles use the new tokens only', () => {

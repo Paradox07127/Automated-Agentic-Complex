@@ -2,31 +2,15 @@ import { cleanup, fireEvent, render } from '@testing-library/react';
 import type { ComponentType } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  CumulativeStep,
-  CumulativeStepDemos,
-  DivergingBar,
-  DivergingBarDemos,
-  Donut,
-  DonutDemos,
-  DotMatrix,
-  DotMatrixDemos,
-  FlowGraph,
-  FlowGraphDemos,
   Gantt,
   GanttDemos,
   LineChart,
   LineChartDemos,
-  MIN_SPAN,
   StackedBars,
   StackedBarsDemos,
-  Timeline,
-  TimelineDemos,
-  Treemap,
-  TreemapDemos,
 } from '../../src/charts';
 import { GANTT_ROWS, GANTT_STATES } from '../../src/charts/Gantt';
 import { rulerLabels } from '../../src/charts/Track';
-import { TIMELINE_LANES } from '../../src/charts/Timeline';
 
 afterEach(cleanup);
 
@@ -36,15 +20,8 @@ const clock = (t: number) => new Date(t).toTimeString().slice(0, 5);
 type Entry = [string, ComponentType<Record<string, unknown>>, Array<{ name: string; props: object }>];
 const NEW: Entry[] = [
   ['LineChart', LineChart as never, LineChartDemos],
-  ['CumulativeStep', CumulativeStep as never, CumulativeStepDemos],
   ['StackedBars', StackedBars as never, StackedBarsDemos],
-  ['Donut', Donut as never, DonutDemos],
-  ['Treemap', Treemap as never, TreemapDemos],
   ['Gantt', Gantt as never, GanttDemos],
-  ['Timeline', Timeline as never, TimelineDemos],
-  ['FlowGraph', FlowGraph as never, FlowGraphDemos],
-  ['DivergingBar', DivergingBar as never, DivergingBarDemos],
-  ['DotMatrix', DotMatrix as never, DotMatrixDemos],
 ];
 
 describe('charts: drawing, empty state, table view', () => {
@@ -87,7 +64,7 @@ describe('charts: drawing, empty state, table view', () => {
     expect(loading.container.querySelector('[data-state="loading"]')).not.toBeNull();
     expect(loading.container.querySelector('[data-table-toggle]')).toBeNull();
     cleanup();
-    const err = render(<CumulativeStep {...CumulativeStepDemos.find((d) => d.name === 'error')!.props} />);
+    const err = render(<LineChart {...LineChartDemos[0]!.props} st="error" />);
     expect(err.container.querySelector('[data-state="error"] [data-stale] svg[role="img"]')).not.toBeNull();
   });
 });
@@ -119,8 +96,6 @@ describe('monochrome plus one emphasis', () => {
   it('dashes only the limit line and labels it directly', () => {
     const { container } = render(<LineChart {...LineChartDemos.find((d) => d.name === 'limit')!.props} />);
     expect(container.querySelector('[data-limit] text')?.textContent).toBe('预算 16.7 ms');
-    const step = render(<CumulativeStep {...CumulativeStepDemos[0]!.props} />);
-    expect(step.container.querySelector('[data-limit] text')?.textContent).toBe('上限 200');
   });
 
   it('maps the documented colour tokens onto the palette', () => {
@@ -128,78 +103,6 @@ describe('monochrome plus one emphasis', () => {
     const fills = [...container.querySelectorAll('[data-bucket="h9"] rect:not([fill="transparent"])')].map((r) => r.getAttribute('fill'));
     // 「其他」 is the hatch level: an SVG pattern.
     expect(fills).toEqual(['var(--v3-cat-1)', 'var(--v3-cat-2)', expect.stringMatching(/^url\(#.+\)$/)]);
-  });
-});
-
-describe('Donut with one live part', () => {
-  it('draws the full ring as two half arcs per edge, each with distinct endpoints', () => {
-    const { container } = render(<Donut label="占比" parts={[{ id: 'a', label: 'A', v: 5 }, { id: 'b', label: 'B', v: 0 }]} />);
-    const d = container.querySelector('path[data-part="a"]')?.getAttribute('d') ?? '';
-    expect(d.match(/A/g)).toHaveLength(4);
-    // Each arc's start is the point just before its A; SVG drops an arc that ends where it starts.
-    const starts = d.split('A').slice(0, -1).map((seg) => seg.match(/(-?[\d.]+ -?[\d.]+)$/)?.[1]);
-    const ends = d.split('A').slice(1).map((seg) => seg.match(/^[\d.]+ [\d.]+ 0 [01] [01] (-?[\d.]+ -?[\d.]+)/)?.[1]);
-    ends.forEach((e, i) => expect(e).not.toBe(starts[i]));
-  });
-});
-
-describe('Timeline zoom', () => {
-  const zoomed = () => render(<Timeline label="今日时间线" lanes={TIMELINE_LANES} t0={at(9, 0)} t1={at(15, 30)} now={at(14, 32)} zoom />);
-  const view = (c: HTMLElement) => {
-    const body = c.querySelector('[data-v0]') as HTMLElement;
-    return [Number(body.dataset.v0), Number(body.dataset.v1)] as const;
-  };
-
-  it('zooms in with the wheel down to one minute and no further', () => {
-    const { container } = zoomed();
-    const body = container.querySelector('[data-v0]') as HTMLElement;
-    for (let i = 0; i < 60; i++) fireEvent.wheel(body, { deltaY: -400, clientX: 300 });
-    const [v0, v1] = view(container);
-    expect(MIN_SPAN).toBe(60_000);
-    expect(v1 - v0).toBe(MIN_SPAN);
-    expect(v0).toBeGreaterThanOrEqual(at(9, 0));
-    expect(container.textContent).toContain('复位');
-  });
-
-  it('zooms out no further than the whole range and resets on double click', () => {
-    const { container } = zoomed();
-    const body = container.querySelector('[data-v0]') as HTMLElement;
-    fireEvent.wheel(body, { deltaY: -800, clientX: 300 });
-    expect(view(container)[1] - view(container)[0]).toBeLessThan(at(15, 30) - at(9, 0));
-    for (let i = 0; i < 20; i++) fireEvent.wheel(body, { deltaY: 800, clientX: 300 });
-    expect(view(container)).toEqual([at(9, 0), at(15, 30)]);
-    fireEvent.wheel(body, { deltaY: -800, clientX: 300 });
-    fireEvent.doubleClick(body);
-    expect(view(container)).toEqual([at(9, 0), at(15, 30)]);
-  });
-
-  it('keeps wheel zoom after the table view replaces the track and gives it back', () => {
-    const { container } = zoomed();
-    const toggle = () => fireEvent.click(container.querySelector('[data-table-toggle]') as Element);
-    toggle();
-    toggle();
-    const body = container.querySelector('[data-v0]') as HTMLElement;
-    fireEvent.wheel(body, { deltaY: -800, clientX: 300 });
-    expect(view(container)[1] - view(container)[0]).toBeLessThan(at(15, 30) - at(9, 0));
-  });
-
-  it('densifies the ruler as the view narrows', () => {
-    const { container } = zoomed();
-    const labels = () => [...container.querySelectorAll('[data-ruler] b')].map((b) => b.textContent ?? '');
-    expect(labels().every((l) => l.endsWith(':00'))).toBe(true);
-    const body = container.querySelector('[data-v0]') as HTMLElement;
-    for (let i = 0; i < 60; i++) fireEvent.wheel(body, { deltaY: -400, clientX: 300 });
-    expect(labels().some((l) => /^\d\d:\d\d:\d\d$/.test(l))).toBe(true);
-  });
-
-  it('merges dense points into count chips and zooms into one on click', () => {
-    const { container } = zoomed();
-    const chip = container.querySelector('[data-count]') as HTMLElement;
-    expect(Number(chip.dataset.count)).toBeGreaterThan(1);
-    const before = view(container);
-    fireEvent.click(chip);
-    const after = view(container);
-    expect(after[1] - after[0]).toBeLessThan(before[1] - before[0]);
   });
 });
 
