@@ -175,7 +175,9 @@ function Legend() {
   ];
   return (
     <div className={styles.side}>
-      <SecHead variant="diag" title="读法" />
+      <div className={styles.sideHead}>
+        <b>读法</b>
+      </div>
       {rows.map(([st, text]) => (
         <div key={st} className={styles.gr}>
           <StatusLamp state={LAMP[st]} label={STATE_TEXT[st]} />
