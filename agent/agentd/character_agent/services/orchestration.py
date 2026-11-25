@@ -80,7 +80,7 @@ class OrchestrationTurn:
         page = {'offset': {'type': 'integer', 'minimum': 0, 'maximum': 90}, 'limit': {'type': 'integer', 'minimum': 1, 'maximum': 10}}
         from character_agent.services.reminders import ReminderTurn
         from character_agent.services.dispatch_tool import DispatchTurn
-        from api.observation import PAUSE_MAX
+        from observation.privacy import PAUSE_MAX
         from brain import language
         from character.proactive import MUTABLE
         hour = {'type': 'integer', 'minimum': 0, 'maximum': 23}

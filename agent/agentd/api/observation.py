@@ -6,11 +6,11 @@ import idna
 
 from observation import activity
 from observation.blacklist import ALLOW_FIELDS, FIELDS, MODES, entry_hides
+from observation.privacy import PAUSE_MAX
 from daemon.constants import CLEARABLE, SEEN
 from infra.store import checkpoint
 from api.views import _midnight, _iso
 
-PAUSE_MAX = 1440  # minutes PUT /observation/paused may pause for
 RANGES = {"15m": 900, "1h": 3600}  # DELETE /observation; "today" is since local midnight
 OBSERVED_SOURCES = ("observed_context", "inferred_hypothesis")  # facts DELETE /observation takes with it
 BLACKLIST_VALUE_MAX = 200

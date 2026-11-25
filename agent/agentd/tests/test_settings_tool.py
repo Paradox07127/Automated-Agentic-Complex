@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from api.observation import PAUSE_MAX
+from observation.privacy import PAUSE_MAX
 from brain.language import ReplyLanguage
 from character.proactive import MUTABLE
 from character_agent.services.orchestration import OrchestrationTurn

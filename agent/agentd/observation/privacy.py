@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import threading
 
+PAUSE_MAX = 1440  # minutes the user's observation pause may last
 _PARSED = {}  # path -> ((st_ino, st_mtime_ns, st_size), body) of its last good read; callers only read the body
 
 
