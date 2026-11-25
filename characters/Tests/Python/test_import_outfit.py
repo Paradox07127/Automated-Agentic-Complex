@@ -43,14 +43,15 @@ def dds(width, height, dxgi=None, fourcc=b'DX10', fill=None):
     return b'DDS '+bytes(header)+dx10+bytes([fill if fill is not None else dxgi or 7])*16*((width+3)//4)*((height+3)//4)
 
 
-def package_fixture(root, cloth_extra=(), atlas=False, second_material=False, skinned=False, tables={}, neutral=True, vulkan=False, texcoord5=False):
+def package_fixture(root, cloth_extra=(), atlas=False, second_material=False, skinned=False, tables={}, neutral=True, vulkan=False, texcoord5=False, outline=False):
     """test_character_library's package with a runtime of three meshes: O1, its same-IB vfxpart twin O3, and two-submesh O2.
 
     `cloth_extra` adds (name, format, srgb, binding, size) textures to O1; `second_material` a draw of O1's submesh in material
     M_cloth_b, whose _BaseMap is 8x8; `atlas` a self-shadow atlas pass casting O1, its blobs beside the frame graph; `skinned`
     rig ids 11-13 for the three bones and O1's weights and bone indices (channels 12 and 13); `tables` ({file: document}) files
     of interaction/ that the pack lists; without `neutral` the bundle has no neutral package, as one built before it; `vulkan` a
-    Windows frame table (vulkan_frame_fixture); `texcoord5` O1's channel 9 holding its positions, as the weather step writes it."""
+    Windows frame table (vulkan_frame_fixture); `texcoord5` O1's channel 9 holding its positions, as the weather step writes it; `outline` an outline pass of O1
+    that samples _BaseMap and an _OutlineMask."""
     doc = fixture(root, 'fixture')
     runtime = root/'runtime'
     for p in sorted(runtime.rglob('*'), reverse=True):p.unlink() if p.is_file() else p.rmdir()
@@ -82,6 +83,9 @@ def package_fixture(root, cloth_extra=(), atlas=False, second_material=False, sk
     twin_positions = O1_POSITIONS[:3]+[(5, 5, 5)]
     draws = [draw(CLOTH, 'M_cloth', [0, 1, 2, 2, 1, 3], O1_POSITIONS), draw(BODY, 'M_body', [0, 1, 2], O1_POSITIONS),
              draw(BODY, 'M_face', [2, 1, 3], O1_POSITIONS), draw(TWIN, 'M_fx', [0, 1, 2, 2, 1, 3], twin_positions)]
+    if outline:
+        draws.append(dict(draw(CLOTH, 'M_cloth', [0, 1, 2, 2, 1, 3], O1_POSITIONS), pass_name='CharacterOutline'))
+        draws[-1]['resources'] = [draws[-1]['resources'][0], texture('_OutlineMask', 'BC7_UNORM_BLOCK', False, 4)]
     if second_material:
         draws.append(draw(CLOTH, 'M_cloth_b', [0, 1, 2, 2, 1, 3], O1_POSITIONS))
         draws[-1]['resources'][0] = texture('_BaseMap', 'BC7_SRGB_BLOCK', True, 7, 8)
@@ -1212,6 +1216,42 @@ this = ref ResourceZero
         # A mapping, too, may put a file of another color space in place.
         report, _ = self.si_import(textures={'1': '_BaseMap'})
         self.assertEqual(report['textures'][1]['resource'], '_BaseMap')
+
+    def placeholder_import(self, draw, out):
+        """CLOTH with an _EmissionMap, hinted ps-t17 and ps-t20 _BaseMap and ps-t18 _MetallicGlossMap, imported with `draw` over
+        Textures/{base,light,glow,coat}.dds: an 8x8 sRGB and linear set and 4x4 sRGB and linear placeholders."""
+        hints = {'fixture': {'M_cloth': {'ps-t17': '_BaseMap', 'ps-t18': '_MetallicGlossMap', 'ps-t20': '_BaseMap'}}}
+        package = package_fixture(self.root/'emissive', cloth_extra=[('_EmissionMap', 'BC7_SRGB_BLOCK', True, 3)], outline=True,
+                                  tables={import_outfit.HINTS_FILE: dict(schema=import_outfit.HINTS_SCHEMA, characters=hints)})
+        sections = ''.join(f'\n[Resource{n.title()}]\nfilename = Textures/{n}.dds\n' for n in ('base', 'light', 'glow', 'coat'))
+        mod = cloth_mod(self.root/out, draw, {'Textures/base.dds': dds(8, 8, 99), 'Textures/light.dds': dds(8, 8, 98),
+                                              'Textures/glow.dds': dds(4, 4, 99, fill=4), 'Textures/coat.dds': dds(4, 4, 98, fill=8)}, sections)
+        report = import_outfit.import_outfit(package.root, mod, self.root/(out+'-out'))
+        return {t['file'][9:]: t['resource'] for t in report['textures']}, report['warnings']
+
+    def test_a_template_register_the_table_does_not_hold_takes_the_one_free_texture_of_its_format(self):
+        draw = 'ps-t17 = ResourceBase\nps-t18 = ResourceLight\nps-t20 = ResourceGlow\nps-t13 = ResourceCoat\n' \
+               'drawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'
+        placed, warnings = self.placeholder_import(draw, 'both')
+        self.assertEqual(placed, {'base.dds': '_BaseMap', 'light.dds': '_MetallicGlossMap', 'glow.dds': '_EmissionMap', 'coat.dds': '_ClearCoatMask'})
+        self.assertFalse([w for w in warnings if w.startswith('texture_unbound:')])
+
+    def test_a_template_register_with_two_free_textures_of_its_format_is_left_unbound(self):
+        draw = 'ps-t17 = ResourceBase\nps-t13 = ResourceCoat\ndrawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'
+        placed, warnings = self.placeholder_import(draw, 'two')
+        self.assertEqual(placed['coat.dds'], None)
+        self.assertIn('texture_unbound:Textures/coat.dds', warnings)
+
+    def test_textures_bound_only_past_the_template_registers_are_named_in_one_warning(self):
+        draw = 'ps-t17 = ResourceNew\nps-t107 = ResourceFx\nps-t108 = ResourceMist\ndrawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'
+        sections = ''.join(f'\n[Resource{n}]\nfilename = Textures/{n.lower()}.dds\n' for n in ('New', 'Fx', 'Mist'))
+        mod = cloth_mod(self.root/'mod', draw, {'Textures/new.dds': dds(8, 8, 99), 'Textures/fx.dds': dds(4, 4, 98, fill=8),
+                                                'Textures/mist.dds': dds(4, 4, 98, fill=9)}, sections)
+        hints = {'fixture': {'M_cloth': {'ps-t17': '_BaseMap'}}}
+        package = package_fixture(self.root/'hinted', tables={import_outfit.HINTS_FILE: dict(schema=import_outfit.HINTS_SCHEMA, characters=hints)})
+        warnings = import_outfit.import_outfit(package.root, mod, self.root/'out')['warnings']
+        self.assertIn('shader_textures_ignored:Textures/fx.dds:Textures/mist.dds', warnings)
+        self.assertFalse([w for w in warnings if w.startswith('texture_unbound:')])
 
     def test_a_texture_only_a_skipped_shader_patch_reads_is_named_in_that_patch_s_warning(self):
         draw = 'ps-t17 = ResourceNew\nps-t110 = ResourceMask\ndrawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'

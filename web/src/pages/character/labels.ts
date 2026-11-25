@@ -222,6 +222,7 @@ const OUTFIT_IMPORT_WARNING: Record<string, (n: string) => string> = {
     return `模组的「${ini}」改的是游戏的着色器，没有套上${files.length ? `，只给它用的贴图${files.map((f) => `「${f}」`).join('')}也没用上` : ''}`;
   },
   custom_shader_ignored: (n) => `模组的「${n}」用自己的着色器做的效果，没有套上`,
+  shader_textures_ignored: (n) => `只给模组自己的着色器用的贴图${n.split(':').map((f) => `「${f}」`).join('')}没有用上`,
   shapekey_ignored: () => '模组的形态键没有套上',
   morph_ignored: () => '模组的变形效果没有套上',
   weights_renormalized: () => '模组模型的骨骼权重加起来不对，已按比例改过',

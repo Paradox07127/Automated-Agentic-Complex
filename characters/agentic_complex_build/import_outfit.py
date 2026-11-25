@@ -199,6 +199,8 @@ EXTERNAL_NAME = re.compile(r'([0-9a-f]{8})-\d+-\d+-(diffuse|light|normal)map\.dd
 # The semantic a `this` texture's resource or file is named by (`Resource_Component4_LightMap`, `Components-4-8 Light.dds`).
 SEMANTIC_NAME = re.compile(r'(?<![a-z])(diffuse|light|normal)(?:map)?(?![a-z])', re.IGNORECASE)
 # The slots RabbitFX's rewritten character shaders read the material's maps from (its SetTextures: Diffuse, Lightmap, Normalmap).
+# CharacterNPR's D3D11 programs declare t0-t29; a mod binds a shader patch's own textures above them.
+TEMPLATE_REGISTERS = 30
 RABBITFX_SLOTS = {'ps-t70': 'diffusemap', 'ps-t71': 'lightmap', 'ps-t72': 'normalmap'}
 HINTS_FILE = 'efmi-slot-hints.json'
 HINTS_SCHEMA = 'endfield-efmi-slot-hints/v1'
@@ -730,8 +732,20 @@ def match_textures(mod, source, read_blob, drawn, hidden, by_component, mapping,
         seen = set().union(*(known.get(k, set()) for k in [h, *keys] if k is not None)) & set(own)
         if seen:return seen, True
         family = hint_name(program(source, mesh, family=True))
-        if hinted := {hints.get(hint_name(p), {}).get(s) or hints.get(family, {}).get(s) for p, s in keys} & set(own):return hinted, True
+        def hint(p, s):return hints.get(hint_name(p), {}).get(s) or hints.get(family, {}).get(s)
+        # One program binds a resource at one register: where another file holds a lower register the table gives the same
+        # resource, that register is the program's and this one is a slot the table does not know.
+        lower = {(int(s[4:]), hint(*slot_key(source, mesh, s))) for (f, m), bound in slots.items() if m == mesh and f != filename
+                 for s in bound if s.startswith('ps-t')}
+        held = {hint(p, s) for p, s in keys if not s.startswith('ps-t') or not any(r == hint(p, s) and n < int(s[4:]) for n, r in lower)}
+        if hinted := held & set(own):return hinted, True
         fits = {n for n, t in own.items() if t['rd_format_name'] == blob.rd_format_name and shaped(blob, t)}
+        if keys and program_hints(source, mesh, hints):
+            guessed.add(filename)
+            # The register is one program's: of the passes that sample what the table names at the registers bound here.
+            named = {r for n, r in lower if r} | {r for p, s in keys if s.startswith('ps-t') and (r := hint(p, s))}
+            passes = [{r['names'][0] for r in d['resources'] if r['names']} for d in source['draws'] if d['mesh'] == mesh]
+            fits &= set().union(*(p for p in passes if named <= p))
         # A resource kept unchanged under another original hash in each of its materials is not the one this hash replaces.
         fits -= {n for n in fits if all(other_hash(mesh, (m, n), h) for m in kinds(mesh)[n])}
         return {n for n in fits if sized(blob, own[n])} or fits, False
@@ -750,12 +764,13 @@ def match_textures(mod, source, read_blob, drawn, hidden, by_component, mapping,
         if bound and all(s.startswith('filter:') for s in bound):return not hashed(filename, mesh)
         def dead(s):
             if s.startswith(('hash:', 'filter:')):return True
-            if s.startswith('ps-t'):return s not in table and slot_key(source, mesh, s) not in known
+            # A register past the template programs' own is a shader patch's.
+            if s.startswith('ps-t'):return s not in table and slot_key(source, mesh, s) not in known and int(s[4:]) >= TEMPLATE_REGISTERS
             return s in RABBITFX_SLOTS.values() and s not in named and slot_key(source, mesh, s) not in known
         return bool(table and bound) and not hashes.get(filename) and not hashed(filename, mesh) and all(dead(s) for s in bound)
     # Of a format nothing here reads, a file only a mod shader samples is unused whatever its format.
     warnings += [('texture_unbound:' if all(unread(f, m) for m, _ in places) else 'texture_unsupported:')+f for f, places in unsupported.items()]
-    rows, assigned, placing = [], {}, []
+    rows, assigned, placing, guessed = [], {}, [], set()
     for i, filename in enumerate(sorted(targets)):
         places = sorted(targets[filename], key=place_key)
         # A hash override or a filter replaces a texture only on the meshes whose template has it, also where the file equals it.
@@ -800,6 +815,8 @@ def match_textures(mod, source, read_blob, drawn, hidden, by_component, mapping,
             # Several resources only when hashes name them all: one file the mod puts in place of several original textures.
             by_hash = [hashed(filename, p[0]) for p in places]
             if len(names) != 1 and not (names and all(names <= h for h in by_hash)):
+                # A register the table does not hold is placed only where its format leaves one texture.
+                if filename in guessed:warnings.append('texture_unbound:'+filename); continue
                 raise ValueError(f'texture_mismatch:{i}:{filename}: candidates '+'; '.join(
                     f'{p[0]}: {", ".join(n+(" (taken)" if n not in rest else "") for n in sorted(c)) or "none"}' for p, c, rest in zip(places, fits, left)))
             chosen = sorted(names)
@@ -1209,6 +1226,12 @@ def import_outfit(package_root, mod_dir, stage, name=None, mapping=None, progres
             if patch:folded.setdefault(patch, []).append(f)
         warnings = [':'.join(['shader_patch_ignored', w[21:], *folded[w[21:]]]) if w.startswith('shader_patch_ignored:') and w[21:] in folded else w
                     for w in warnings if not (w.startswith('texture_unbound:') and any(w[16:] in fs for fs in folded.values()))]
+        # Of the rest, a file bound only past the template programs' registers is read only by a shader of the mod's own.
+        own_shader = [w[16:] for w in warnings if w.startswith('texture_unbound:') and (read := [
+            re.fullmatch(r'ps-t(\d+)', t.slot) for t in mod.slot_textures if t.filename == w[16:]]) and
+            all(r and int(r.group(1)) >= TEMPLATE_REGISTERS for r in read)]
+        if own_shader:warnings = [w for w in warnings if not (w.startswith('texture_unbound:') and w[16:] in own_shader)]+[
+            ':'.join(['shader_textures_ignored', *own_shader])]
         referenced = set(mod.files.values())
         unused = sorted(p.relative_to(mod.root).as_posix() for p in mod.root.rglob('*') if p.suffix.lower() == '.dds' and p.resolve() not in referenced)
         appearance = new_appearance(pack, fingerprint(mod), name or mod.name or mod.root.name, 'efmi', mod.name)
