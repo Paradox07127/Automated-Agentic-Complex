@@ -44,12 +44,12 @@ export function KernelGroup() {
   const routes = shown('routes') && <KernelRoutes agents={acp.list?.agents ?? []} />;
   return (
     <>
-      <SetSection title="选择内核" info="内核替角色想和做，所有角色共用；角色是谁由角色卡决定。Pi 随应用提供，Codex、Claude Code 和 ACP 智能体要先装在这台电脑上。">
+      <SetSection title="选择内核" info="执行内核负责处理对话推理与任务执行，由所有角色共用；角色设定由各自角色档案决定。Pi 随应用内置；Codex、Claude Code 与 ACP 智能体需在本机预先安装。">
         <AiRow pi={pi} />
         {!on ? (
           <div className={band.fold}>
-            关着 │ 打开后可以设：内核、账号、模型
-            <span className={band.lost}>│ 少了：{BAND.light_ai.does}</span>
+            未开启 │ 开启后可配置执行内核、账号与模型
+            <span className={band.lost}>│ 停用功能：{BAND.light_ai.does}</span>
           </div>
         ) : runtime ? (
           <KernelPick acp={acp} />
@@ -80,9 +80,9 @@ function AiRow({ pi }: { pi: boolean }) {
     <SetRow
       id={LIGHT}
       title={labelOf(LIGHT)}
-      desc={checked ? '角色会回答你，语音、记忆和主动搭话也开着' : '角色不回消息，也不记新的对话'}
-      info="Pi 只要这一个开关；Codex、Claude Code 和 ACP 还要后台另开一项，选它们时会一起打开。关掉时两项都关。对话内容会发给下面选的内核和模型。改了要重启后台服务才生效。"
-      control={<Switch variant="setting" checked={checked} label={labelOf(LIGHT)} disabled={!native} disabledReason="还没读到设置" onChange={setOn} />}
+      desc={checked ? '开启后，角色将正常响应对话，语音播报、记忆及主动交互也将按配置运行' : '关闭后，角色将停止回复消息且不记录新对话'}
+      info="Pi 仅依赖此开关；Codex、Claude Code 及 ACP 智能体还需同时开启外部框架桥接，选择时将自动一并开启，关闭时将同时关闭。对话内容将发送至所选内核与模型。更改后需重启后台服务生效。"
+      control={<Switch variant="setting" checked={checked} label={labelOf(LIGHT)} disabled={!native} disabledReason="尚未读取设置" onChange={setOn} />}
     />
   );
 }
@@ -132,7 +132,7 @@ function KernelPick({ acp }: { acp: AcpState }) {
           {list.map((r) => {
             const on = selected === r.id;
             const bi = kernelBreak(r);
-            const status = gated(r) ? (othersOn ? '重启后台服务后可用' : '没打开，点这一行打开并选用') : !usable(r) ? '暂不可用' : bi < 0 ? '已就绪' : (BREAK_LABEL[bi] ?? '未就绪');
+            const status = gated(r) ? (othersOn ? '重启后台服务后可用' : '未开启，选择此项将同步启用') : !usable(r) ? '暂不可用' : bi < 0 ? '已就绪' : (BREAK_LABEL[bi] ?? '未就绪');
             return (
               <TableRow key={r.id} id={r.id}>
                 <TableCell>
@@ -141,9 +141,9 @@ function KernelPick({ acp }: { acp: AcpState }) {
                 <TableCell>{r.name}</TableCell>
                 <TableCell mono>{r.version ?? <Missing why={r.path ? 'unsupported' : 'na'} />}</TableCell>
                 <TableCell>
-                  {r.path ? (RUNSRC.find((o) => o.value === r.runtime_source)?.label ?? <Missing why="unsupported" />) : r.id === 'acp' ? <Missing why="na" /> : r.id === 'pi' && usable(r) ? '随应用提供' : '没找到'}
+                  {r.path ? (RUNSRC.find((o) => o.value === r.runtime_source)?.label ?? <Missing why="unsupported" />) : r.id === 'acp' ? <Missing why="na" /> : r.id === 'pi' && usable(r) ? '随应用内置' : '未检测到'}
                 </TableCell>
-                <TableCell>{r.id === 'acp' ? <Missing why="na" /> : r.authenticated == null ? '不需要' : r.path ? (r.authenticated ? '已登录' : '未登录') : <Missing why="na" />}</TableCell>
+                <TableCell>{r.id === 'acp' ? <Missing why="na" /> : r.authenticated == null ? '无需登录' : r.path ? (r.authenticated ? '已登录' : '未登录') : <Missing why="na" />}</TableCell>
                 <TableCell>
                   <StatusLamp size="sm" state={usable(r) && bi < 0 ? 'ok' : gated(r) ? 'idle' : 'broken'} label={status} />
                   {model.draft.kernel === r.id && <span className={styles.att}> │ 未应用</span>}
@@ -191,11 +191,11 @@ function OtherSections({ acp, routes }: { acp: AcpState; routes: ReactNode }) {
             desc={
               dsh
                 ? model.value('acct') === 'api_key'
-                  ? '用下面保存的 DeepSeek API Key'
-                  : '在 DeepSeek 客户端里登录，与客户端共用'
-                : ({ api_key: '用下面保存的 API Key，按用量计费', product_login: '在应用里登录，与终端里的登录分开' }[String(model.value('acct'))] ?? '用内核自己的登录')
+                  ? '使用下方保存的 DeepSeek API Key'
+                  : '使用 DeepSeek 客户端中的已登录账号'
+                : ({ api_key: '使用下方保存的 API Key（按用量计费）', product_login: '在应用内单独登录，与终端 CLI 登录相互独立' }[String(model.value('acct'))] ?? '使用执行内核自身登录状态')
             }
-            info="「复用本机工具登录」用你在终端里登录的那个账号；「在应用里登录」在这里单独登录，不影响终端里的登录；「使用 API 凭据」用下面保存的 Key，按用量计费。改了要点底部「应用」才生效。"
+            info="「复用本机 CLI 登录」将直接使用终端内已登录的账号；「在应用内登录」则在应用内独立登录，不影响终端配置；「使用 API 凭据」使用下方保存的 API Key（按用量计费）。修改后须点击底部「应用」生效。"
             control={c.select('acct', acctOptions(dsh ? 'deepseek-harness' : selected, model.value('acct')))}
           />
         )}
@@ -209,10 +209,10 @@ function OtherSections({ acp, routes }: { acp: AcpState; routes: ReactNode }) {
         )}
         {loginShown && <KernelLoginRow backend={dsh ? 'deepseek' : selected} methods={dsh ? [] : savedMethods} />}
         {!ownLogin && <ProviderRow />}
-        {!acctShown && !loginShown && <p className={styles.note}>用 ACP 智能体自己的登录；选好智能体并应用后，在这里登录</p>}
+        {!acctShown && !loginShown && <p className={styles.note}>使用 ACP 智能体自身登录方式；选定智能体并应用后，可在此完成登录</p>}
       </SetSection>
       <SetSection title="模型">
-        <SetRow id="mainModel" title={labelOf('mainModel')} desc="留空用内核默认模型" control={c.text('mainModel', labelOf('mainModel'), '模型 ID')} />
+        <SetRow id="mainModel" title={labelOf('mainModel')} desc="留空时使用执行内核默认模型" control={c.text('mainModel', labelOf('mainModel'), '模型 ID')} />
         {routes}
       </SetSection>
     </>
@@ -248,17 +248,17 @@ function RunSection() {
   const pickExe = async () => {
     const h = await bridge.files.pickFile({ purpose: 'runtime_executable' });
     if (h) model.setHandle('exe', h);
-    else model.notify({ message: '没有选择文件，可执行文件保持不变' });
+    else model.notify({ message: '未选择文件，可执行文件路径保持不变' });
   };
   const exeRow = local && (
     <SetRow
       id="exe"
       title={labelOf('exe')}
-      desc={caps.nativeFilePicker ? '留空时由后台检测' : '这个平台不能打开文件选择器，请在配置文件里填写'}
+      desc={caps.nativeFilePicker ? '留空时由后台服务自动检测' : '当前平台不支持原生文件选择器，请在配置文件中手动填写'}
       control={
         <>
           <code className={styles.path}>{exe ? String(exe) : '自动检测'}</code>
-          <Btn disabled={ro || !caps.nativeFilePicker} disabledReason="这个平台没有原生文件选择器" onClick={() => void pickExe()}>
+          <Btn disabled={ro || !caps.nativeFilePicker} disabledReason="当前平台不支持原生文件选择器" onClick={() => void pickExe()}>
             选择…
           </Btn>
         </>
@@ -267,7 +267,7 @@ function RunSection() {
   );
   if (selected === 'pi') return <KernelPi>{exeRow}</KernelPi>;
   return (
-    <SetSection title={`${KERNEL_LABEL[selected] ?? selected} 运行`} info="改了要点底部「应用」才生效。">
+    <SetSection title={`${KERNEL_LABEL[selected] ?? selected} 运行`} info="修改后须点击底部「应用」生效。">
       {exeRow}
       <WorkspaceRow />
     </SetSection>

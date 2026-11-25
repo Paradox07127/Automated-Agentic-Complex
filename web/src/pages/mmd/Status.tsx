@@ -20,7 +20,7 @@ export function Status({ line }: { line: StatusLine }) {
   return (
     <div className={styles.status} role="status" aria-label={sync ? 'MMD 同步' : 'MMD 导入'}>
       <span className={styles.l1}>
-        <span className={styles.what}>{sync ? `同步曲库到 ${line.who}` : line.title ? `正在导入「${line.title}」` : '正在导入'}</span>
+        <span className={styles.what}>{sync ? `正在同步舞蹈库至 ${line.who}` : line.title ? `正在导入「${line.title}」` : '正在导入'}</span>
         <StatusLamp onDark state="running" label={line.stage} />
         <MicroLabel>{sync ? 'SYNC' : 'IMPORT'}</MicroLabel>
         <span className={styles.sp} />

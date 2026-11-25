@@ -85,32 +85,32 @@ export interface ItemMeta {
 }
 
 export const ITEMS: Record<BriefItemId, ItemMeta> = {
-  done: { name: '任务完成', src: '做完的任务和交付', unit: '', need: ['agent', 'code'] },
-  err: { name: '出错', src: '任务和编码会话里出错的', unit: '', need: ['agent', 'code'] },
-  turn: { name: '对话', src: '你和角色的往返轮数', unit: '轮', need: [] },
-  line: { name: '发言', src: '回你的、主动的、被碰时的', unit: '句', need: [] },
-  fg: { name: '在电脑前', src: '前台时长，离开不算', unit: '', kind: 'min', need: ['scr'] },
-  say: { name: '主动发言', src: '角色先开口的次数', unit: '次', need: [] },
-  motion: { name: '动作播放', src: '角色在桌面上做的动作', unit: '次', need: [] },
-  touch: { name: '你碰角色', src: '摸头、捏脸、拖动、右键', unit: '次', need: [] },
-  voice: { name: '角色出声', src: '语音播放时长', unit: '', kind: 'sec', need: ['voice'] },
-  mem: { name: '新记住的事', src: '进记忆的事实', unit: '条', need: [] },
-  cost: { name: '模型花费', src: '对话、内核和记忆整理', unit: '', kind: 'usd', need: [] },
-  code: { name: '编码会话', src: 'Claude Code、Codex', unit: '个', need: ['code'] },
-  shot: { name: '截图', src: '屏幕识读附上的截图', unit: '张', need: ['shot'] },
-  mask: { name: '外发前遮蔽', src: '发给模型前遮掉的字段', unit: '处', need: ['scr', 'shot'] },
-  rem: { name: '提醒', src: '到点的提醒', unit: '个', need: [] },
+  done: { name: '已完成任务', src: '已完成任务与交付产物', unit: '', need: ['agent', 'code'] },
+  err: { name: '异常', src: '任务与编码会话中的异常记录', unit: '', need: ['agent', 'code'] },
+  turn: { name: '对话轮次', src: '与角色的对话往返轮数', unit: '轮', need: [] },
+  line: { name: '角色发言', src: '回复、主动触发及交互回应的总句数', unit: '句', need: [] },
+  fg: { name: '在电脑前', src: '前台使用时长（不含离开时段）', unit: '', kind: 'min', need: ['scr'] },
+  say: { name: '主动发言', src: '角色主动发起交互的次数', unit: '次', need: [] },
+  motion: { name: '动作播放', src: '角色在桌面上播放的动作次数', unit: '次', need: [] },
+  touch: { name: '互动触碰', src: '摸头、脸颊交互、拖动与右键轮盘', unit: '次', need: [] },
+  voice: { name: '语音播报', src: '语音合成播放总时长', unit: '', kind: 'sec', need: ['voice'] },
+  mem: { name: '新增记忆', src: '写入记忆库的事实条目', unit: '条', need: [] },
+  cost: { name: '模型用量费用', src: '对话、执行内核与记忆整理消耗', unit: '', kind: 'usd', need: [] },
+  code: { name: '编码会话', src: 'Claude Code、Codex 会话数', unit: '个', need: ['code'] },
+  shot: { name: '屏幕截图', src: '屏幕识读附带的截图数量', unit: '张', need: ['shot'] },
+  mask: { name: '发送前脱敏', src: '发送给模型前已脱敏处理的字段数', unit: '处', need: ['scr', 'shot'] },
+  rem: { name: '提醒事项', src: '已触发的提醒次数', unit: '个', need: [] },
 };
 
 export const ITEM_ORDER: BriefItemId[] = ['done', 'err', 'turn', 'line', 'fg', 'say', 'motion', 'touch', 'voice', 'mem', 'cost', 'code', 'shot', 'mask', 'rem'];
 
 export const SWITCH_LABEL: Record<BriefSwitch, string> = {
   scr: '屏幕感知',
-  read: '窗口文字和网页正文',
-  shot: '屏幕识读附截图',
+  read: '窗口文字与网页正文',
+  shot: '屏幕识读附带截图',
   code: '读取编码会话',
-  agent: 'Agent 内核',
-  voice: '语音',
+  agent: '个人代理与自主能力',
+  voice: '语音播报',
 };
 
 export const DEFAULT_PINS: BriefItemId[] = ['done', 'err', 'turn', 'fg', 'say', 'cost'];

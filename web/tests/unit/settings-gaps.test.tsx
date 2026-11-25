@@ -40,10 +40,10 @@ describe('感知 › 每日简报 › 简报时间', () => {
   it('picks the hour agentd writes the briefs after, through POST /observation/briefs/settings', async () => {
     const request = vi.spyOn(window.agenticComplex!.agentd, 'request');
     await mount('&group=privacy');
-    const hour = await screen.findByRole('button', { name: '简报时间' });
+    const hour = await screen.findByRole('button', { name: '简报生成时间' });
     expect(hour.textContent).toContain('09:00');
     await click(hour);
-    const list = screen.getByRole('listbox', { name: '简报时间' });
+    const list = screen.getByRole('listbox', { name: '简报生成时间' });
     expect(within(list).getAllByRole('option')).toHaveLength(24);
     await click(within(list).getByRole('option', { name: '21:00' }));
     await waitFor(() => expect(request).toHaveBeenCalledWith('POST', '/observation/briefs/settings', { hour: 21 }));
@@ -52,11 +52,11 @@ describe('感知 › 每日简报 › 简报时间', () => {
 
   it('has an ⓘ that says more than its line and is found by search', async () => {
     await mount('&group=privacy');
-    await screen.findByRole('button', { name: '简报时间' });
+    await screen.findByRole('button', { name: '简报生成时间' });
     expect(tip('briefHour').length).toBeGreaterThan(20);
     expect(tip('briefHour')).not.toContain(row('briefHour').querySelector('[id$="-desc"]')?.textContent ?? '');
-    expect(searchSettings('简报时间').map((r) => r.id)).toContain('briefHour');
-    expect(searchSettings('几点').map((r) => r.id)).toContain('briefHour');
+    expect(searchSettings('简报生成时间').map((r) => r.id)).toContain('briefHour');
+    expect(searchSettings('时间').map((r) => r.id)).toContain('briefHour');
   });
 });
 
@@ -68,7 +68,7 @@ describe('服务 › 网络 › 代理', () => {
     fireEvent.change(field, { target: { value: 'socks5://127.0.0.1:1080' } });
     await act(async () => void fireEvent.blur(field));
     expect(save).not.toHaveBeenCalled();
-    expect(row('proxy').textContent).toContain('要以 http:// 或 https:// 开头');
+    expect(row('proxy').textContent).toContain('须以 http://');
     fireEvent.change(field, { target: { value: ' http://127.0.0.1:7890 ' } });
     await act(async () => void fireEvent.blur(field));
     await waitFor(() => expect(save).toHaveBeenCalledWith({ proxy: 'http://127.0.0.1:7890' }));

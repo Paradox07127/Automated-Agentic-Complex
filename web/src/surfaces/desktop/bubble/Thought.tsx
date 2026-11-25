@@ -11,9 +11,9 @@ type Offer = 'idle' | 'busy' | 'sent' | { failed: string };
 const RITUAL: Readonly<Record<string, string>> = { break: '久坐提醒', water: '喝水提醒', birthday: '生日', morning: '早安', report: '今日汇报' };
 
 function sayFailure(r: Extract<SayResult, { ok: false }>): string {
-  if (r.reason === 'agentd') return '后台服务没有运行';
-  if (r.reason === 'kernel') return '角色内核未就绪';
-  return r.detail ?? '后台不接受这条';
+  if (r.reason === 'agentd') return '后台服务未运行';
+  if (r.reason === 'kernel') return '执行内核未就绪';
+  return r.detail ?? '后台服务未接收该请求';
 }
 
 /**
@@ -28,7 +28,7 @@ export function Thought({ thought, ritual, mute, composing }: { thought: Presenc
     return (
       <div className={styles.main} data-kind="thought">
         <p className={styles.note}>
-          已关闭想法，以后不再显示
+          已关闭此类想法提示，后续不再显示
           <Btn variant="text" size="sm" onClick={() => void mute.undo(m.before)}>
             撤销
           </Btn>
@@ -81,21 +81,21 @@ export function Thought({ thought, ritual, mute, composing }: { thought: Presenc
         <div className={styles.btns}>
           {offered &&
             (sent === 'sent' ? (
-              <span className={styles.note}>已发给角色</span>
+              <span className={styles.note}>已发送至角色</span>
             ) : (
               <Btn variant="primary" size="sm" loading={sent === 'busy'} onClick={() => void send(offered.id, offered.reply ?? '')}>
                 {offered.offer}
               </Btn>
             ))}
-          {ritual && claimed === 'sent' && <span role="status" className={styles.note}>已请角色回应</span>}
+          {ritual && claimed === 'sent' && <span role="status" className={styles.note}>已通知角色回应</span>}
           {ritual && claimed !== 'sent' && (
             <Btn variant="secondary" size="sm" icon="redeem" loading={claimed === 'busy'} onClick={() => void claimRitual(ritual)}>
-              {RITUAL[ritual.kind] ?? '仪式'}
+              {RITUAL[ritual.kind] ?? '提示'}
             </Btn>
           )}
         </div>
       )}
-      {typeof sent === 'object' && <p className={styles.err}>没能发给角色：{sent.failed}</p>}
+      {typeof sent === 'object' && <p className={styles.err}>发送失败：{sent.failed}</p>}
       {typeof claimed === 'object' && <p className={styles.err} role="alert">{claimed.failed}</p>}
       {m?.phase === 'failed' && <p className={styles.err}>{m.text}</p>}
     </div>

@@ -55,11 +55,11 @@ export function LeaveGuard() {
       model.revertAll();
       return !restart || (await model.discardPending());
     });
-  const dropLabel = restart ? '不重启' : '放弃改动';
+  const dropLabel = restart ? '暂不重启' : '放弃更改';
   return (
     <Dialog
       open
-      title={`有 ${drafts.length + pending.length} 项设置还没生效`}
+      title={`有 ${drafts.length + pending.length} 项更改尚未生效`}
       onClose={stay}
       footer={
         <>
@@ -68,14 +68,14 @@ export function LeaveGuard() {
           </Btn>
           {canApply && <Btn onClick={() => void drop()}>{dropLabel}</Btn>}
           <Btn variant={!canApply ? 'danger' : 'primary'} onClick={() => void (canApply ? go() : drop())}>
-            {!canApply ? dropLabel : restart ? '重启后台' : '应用'}
+            {!canApply ? dropLabel : restart ? '重启后台服务' : '应用'}
           </Btn>
         </>
       }
     >
-      {pending.length > 0 && <p>重启后台服务后生效：{pending.map(labelOf).join('、')}</p>}
-      {drafts.length > 0 && <p>还没应用：{drafts.map(labelOf).join('、')}</p>}
-      <p>{!canApply ? '后台服务没有运行，这些改动现在应用不了。放弃会撤销这些改动。' : restart ? '重启期间对话和观察暂停几秒。不重启会撤销这些改动。' : '不应用会撤销这些改动。'}</p>
+      {pending.length > 0 && <p>需重启后台服务后生效：{pending.map(labelOf).join('、')}</p>}
+      {drafts.length > 0 && <p>尚未应用：{drafts.map(labelOf).join('、')}</p>}
+      <p>{!canApply ? '后台服务未运行，当前无法应用这些更改；放弃后将撤销未生效的改动。' : restart ? '重启期间对话与屏幕感知将暂停数秒；暂不重启将撤销上述更改。' : '未应用前离开将撤销上述更改。'}</p>
     </Dialog>
   );
 }

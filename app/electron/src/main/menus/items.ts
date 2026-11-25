@@ -82,13 +82,13 @@ export function freeRoamItem(s: MenuState, ports: MenuPorts): MenuItem | null {
   return item('freeRoam', '自由活动', toggle, { checked: s.freeRoam });
 }
 
-/** The character list and 角色卡…, under 切换角色. */
+/** The character list and 打开角色页…, under 切换角色. */
 export function characterEntries(s: MenuState, ports: MenuPorts): MenuItem[] {
   const pick = ports.switchCharacter;
   return [
     ...s.characters.map((c) => item(`character.${c.id}`, c.name, pick && (() => pick(c.id)),
       { checked: c.id === s.currentCharacter, enabled: !s.characterSwitching })),
-    SEPARATOR, item('characterCard', '角色卡…', page(ports, MENU_ROUTES.character)),
+    SEPARATOR, item('characterCard', '打开角色页…', page(ports, MENU_ROUTES.character)),
   ];
 }
 
@@ -97,7 +97,7 @@ export function appearanceItem(s: MenuState, ports: MenuPorts): MenuItem | null 
   if (s.appearances.length < 2) return null;
   const enabled = !s.characterSwitching && s.appearanceSwitchingTo === null, pick = ports.switchAppearance;
   return submenu('appearances', '外观', s.appearances.map((a) => item(`appearance.${a.id}`,
-    a.id === s.appearanceSwitchingTo ? `${a.name} · 切换中…` : a.name, pick && (() => pick(a.id)),
+    a.id === s.appearanceSwitchingTo ? `${a.name}（切换中）` : a.name, pick && (() => pick(a.id)),
     { checked: a.id === s.currentAppearance, enabled })), { enabled });
 }
 

@@ -1085,12 +1085,12 @@ export class StackDecisions {
     if (question !== null) await this.gesture(question, true);
     const reply = await this.post(id, `/agent/interactions/${seg(q.request_id)}/answer`, { expected_version: expected, answers });
     const session = Object.values(answers).some((a) => only(a, SESSION_ALLOW));
-    const receipt = !approval ? '已回答' : refused ? '已拒绝' : session ? '已允许（本对话）' : '已允许';
+    const receipt = !approval ? '已回答' : refused ? '已拒绝' : session ? '已允许（本对话）' : '已批准';
     this.source.settle(id, approval ? (refused ? 'denied' : 'approved') : null, receipt);
     this.source.requestRefresh();
     if (parse<Json>(reply)?.resume_required === true) {
       const job = q.data?.job_id;
-      this.source.addNotice(`resume-${q.request_id}`, 'resume', '回答已保存 · 在主窗口继续', { task_id: job != null ? `job:${job}` : null }, 60_000);
+      this.source.addNotice(`resume-${q.request_id}`, 'resume', '回答已保存 │ 可在主窗口继续', { task_id: job != null ? `job:${job}` : null }, 60_000);
     }
   }
 
@@ -1115,8 +1115,8 @@ export class StackDecisions {
   private async settleReview(id: string, accept: boolean, note: unknown, follow: (note: string) => { path: string; body: Json } | null):
     Promise<void> {
     const text = (typeof note === 'string' ? note : '').trim();
-    if (accept) return this.source.settle(id, null, '已接受这一版');
-    this.source.settle(id, null, text === '' ? '已退回' : `已退回：${text}`);
+    if (accept) return this.source.settle(id, null, '已接受当前版本');
+    this.source.settle(id, null, text === '' ? '已驳回' : `已驳回：${text}`);
     if (text === '') return;
     const target = follow(text);
     if (target === null) throw new BridgeFailure('partial', 'no_target');

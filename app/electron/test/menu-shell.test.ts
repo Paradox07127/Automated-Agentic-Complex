@@ -139,17 +139,17 @@ test('menuState keeps what index.ts filled: roster, 自由活动, and the config
   assert.deepEqual([s.currentCharacter, s.characterSwitching, s.freeRoam, s.configError], ['aster', false, false, null]);
   const failed = setup({ characters: () => null, link: null });
   const f = failed.menus.state();
-  assert.equal(f.configError, '请查看设置');
-  assert.equal(trayMenu(f, failed.menus.ports())[0]!.label, '配置错误：请查看设置', 'said once');
+  assert.equal(f.configError, '请检查配置文件或前往设置排查');
+  assert.equal(trayMenu(f, failed.menus.ports())[0]!.label, '配置错误：请检查配置文件或前往设置排查', 'said once');
   assert.deepEqual([f.characters, f.currentCharacter, f.appearances], [[], 'aster', []]);
 });
 
-test('复位浮窗 resets the desktop panels\' offsets; without the panels it is grey', () => {
+test('重置桌面浮窗 resets the desktop panels\' offsets; without the panels it is grey', () => {
   const h = setup();
-  click(find(trayMenu(h.menus.state(), h.menus.ports()), '复位浮窗'));
+  click(find(trayMenu(h.menus.state(), h.menus.ports()), '重置桌面浮窗'));
   assert.deepEqual(h.calls, ['resetOffsets']);
   const bare = setup({ desktop: () => null });
-  assert.equal(find(trayMenu(bare.menus.state(), bare.menus.ports()), '复位浮窗').enabled, false);
+  assert.equal(find(trayMenu(bare.menus.state(), bare.menus.ports()), '重置桌面浮窗').enabled, false);
 });
 
 const announce = (seq: number, extra: Record<string, unknown> = {}) => ({ event: 'announce', id: String(seq),

@@ -144,7 +144,7 @@ describe('home right list', () => {
 
   it('puts 档案\'s 待确认 dot on the line over the list once the key scrolls out above', async () => {
     const list = await mount();
-    const facts = await within(list).findByRole('img', { name: /^\d+ 条待确认$/ }, { timeout: 3000 });
+    const facts = await within(list).findByRole('img', { name: /^\d+ 条待处理$/ }, { timeout: 3000 });
     expect(key(list, '档案').contains(facts)).toBe(true);
     expect(line(list, 'up').querySelector('i')).toBeNull();
     expect(line(list, 'down').querySelector('i')).toBeNull();
@@ -195,7 +195,7 @@ describe('home right list keys', () => {
       ['外观', 'character', { pane: 'look' }],
       ['动作表', 'character', { pane: 'motion' }],
       ['MMD', 'mmd', {}],
-      ['角色这一天', 'overview', { tab: 'char' }],
+      ['角色当日动态', 'overview', { tab: 'char' }],
       ['时间', 'overview', { tab: 'tm' }],
       ['能力', 'settings', { group: 'perm' }],
       ['感知', 'settings', { group: 'privacy' }],
@@ -216,7 +216,7 @@ describe('home right list keys', () => {
     pluginsReset();
     setDevMode(false);
     const list = await mount();
-    for (const name of ['定时', '回顾', '角色这一天']) {
+    for (const name of ['定时', '回顾', '角色当日动态']) {
       const b = key(list, name);
       expect(b.hasAttribute('disabled'), name).toBe(false);
       expect(b.querySelector('[data-stub="PowerMark"]')?.getAttribute('aria-label'), name).toBe('已关闭');

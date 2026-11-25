@@ -39,11 +39,11 @@ describe('设置 › 显示 › 外观', () => {
     const sec = await screen.findByRole('region', { name: '外观' });
     expect(document.querySelector('section[aria-label]')).toBe(sec);
     expect([...sec.querySelectorAll('[data-row]')].map((r) => r.getAttribute('data-row'))).toEqual(['appTheme', 'winBg', 'glassAlpha', 'reduceMotion', 'uiZoom']);
-    expect(options('主题')).toEqual(['跟随系统', '浅色', '深色']);
+    expect(options('界面主题')).toEqual(['跟随系统', '浅色', '深色']);
     expect(options('窗口背景')).toEqual(['磨砂', '不透明']);
-    expect(options('磨砂强度')).toEqual(['轻', '中', '重']);
-    expect(options('减少动效')).toEqual(['跟随系统', '开']);
-    expect(options('界面大小')).toEqual(['90 %', '100 %', '110 %', '125 %']);
+    expect(options('磨砂强度')).toEqual(['轻度', '适中', '较强']);
+    expect(options('减弱动态效果')).toEqual(['跟随系统', '开启']);
+    expect(options('界面缩放')).toEqual(['90 %', '100 %', '110 %', '125 %']);
   });
 
   it('saves a choice at once, and 磨砂强度 is off while the window is opaque', async () => {

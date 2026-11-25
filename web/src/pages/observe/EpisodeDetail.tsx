@@ -62,7 +62,7 @@ export function EpisodeDetail({ episode: e, apps, memories, rank, now, onMemory,
             </div>
             {memories.length ? (
               memories.map((m) => (
-                <button key={m.fact_id} type="button" className={s.mem} onClick={() => onMemory(m.fact_id)} title="在记忆页打开">
+                <button key={m.fact_id} type="button" className={s.mem} onClick={() => onMemory(m.fact_id)} title="在记忆页查看">
                   <span className={s.memT}>{m.text}</span>
                   <Icon name="chev" size={14} />
                 </button>

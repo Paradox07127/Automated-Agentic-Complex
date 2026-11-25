@@ -25,7 +25,7 @@ export const firstPick = (actions: AvatarAction[]) => actions.find((a) => !a.req
 
 export const failed = (what: string, toast: Toast) => (e: unknown) => {
   const code = (e as { code?: string } | null)?.code;
-  toast(`${what}没有完成：${code === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}`, { severity: 'danger' });
+  toast(`${what}未完成：${code === 'not_implemented' ? '当前版本暂不支持' : '角色渲染进程无响应'}`, { severity: 'danger' });
 };
 
 /** Tells `report` the drawn scene's deck and whether `scene` is compact, before paint so the room moves with the stage. */

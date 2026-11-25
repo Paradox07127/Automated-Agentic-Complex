@@ -70,7 +70,7 @@ describe('the name block', () => {
     expect(plate.querySelector('img')).toBeNull();
     // The 在桌面 monitor is the plate's only drawing.
     expect(plate.querySelectorAll('svg')).toHaveLength(1);
-    expect(plate.textContent).toBe('示例乙在桌面SI');
+    expect(plate.textContent).toBe('示例乙当前在桌面SI');
   });
 });
 

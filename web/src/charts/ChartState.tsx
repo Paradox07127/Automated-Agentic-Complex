@@ -85,8 +85,8 @@ export function ChartState({ state, emptyText, stoppedAt, onRetry, height, need,
 const STOP = new Date(2026, 9, 29, 14, 31).getTime();
 
 export const ChartStateDemos: Array<{ name: string; props: ChartStateProps }> = [
-  { name: 'ok', props: { state: 'ok', emptyText: '现在没有在跑的任务', children: '图本体' } },
-  { name: 'loading', props: { state: 'loading', emptyText: '现在没有在跑的任务', height: 48, children: '图本体' } },
+  { name: 'ok', props: { state: 'ok', emptyText: '当前无运行中的任务', children: '图本体' } },
+  { name: 'loading', props: { state: 'loading', emptyText: '当前无运行中的任务', height: 48, children: '图本体' } },
   { name: 'empty', props: { state: 'empty', emptyText: '今天还没有活动 │ 派发一个任务后这里会出现运行条', children: '图本体' } },
   { name: 'error', props: { state: 'error', emptyText: '今天还没有活动', stoppedAt: STOP, onRetry: () => undefined, children: '图本体（旧数据）' } },
   { name: 'disconnected', props: { state: 'disconnected', emptyText: '今天还没有活动', stoppedAt: STOP, children: '图本体（旧数据）' } },

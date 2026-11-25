@@ -161,40 +161,41 @@ function YourVoice() {
       setRecording(false);
     }
   };
+  const settingsName = getBridge().platform === 'windows' ? '系统「设置」' : '「系统设置」';
   const openSettings = async (p: PermRow) => {
     try {
       await bridge.permissions.openSettings(p.kind);
-      model.notify({ message: `已打开系统设置 › ${p.label} │ 允许后回到这里，会自动重新检测`, persistent: true });
+      model.notify({ message: `已打开${settingsName} › ${p.label} │ 授权后返回本页面将自动重新检测`, persistent: true });
     } catch {
-      model.notify({ message: `没能打开系统设置。请手动检查「${p.label}」。`, severity: 'danger', persistent: true });
+      model.notify({ message: `无法打开${settingsName}，请手动检查「${p.label}」权限。`, severity: 'danger', persistent: true });
     }
   };
   const recheck = async (p: PermRow) => {
     const s = await recheckPerms(p.kind);
-    if (s === 'granted') model.notify({ message: `${p.label}：已允许，${p.features.join('、')}可以用了`, severity: 'success' });
-    else model.notify({ message: `${p.label}：${s ? `仍${PERM_STATE[s][1]}` : '没读到权限状态'}`, severity: 'warning', persistent: true });
+    if (s === 'granted') model.notify({ message: `${p.label}：已授予，${p.features.join('、')}现已可用`, severity: 'success' });
+    else model.notify({ message: `${p.label}：${s ? (s === 'notDetermined' ? '尚未请求系统授权' : PERM_STATE[s][1]) : '未能读取权限状态'}`, severity: 'warning', persistent: true });
   };
   const ask = async (p: PermRow) => {
     let s;
     try {
       s = await bridge.permissions.request(p.kind);
     } catch {
-      return model.notify({ message: `${p.label}：这个外壳还不能弹出系统询问，请去系统设置里打开`, severity: 'warning', persistent: true });
+      return model.notify({ message: `${p.label}：当前系统环境无法直接弹出授权窗口，请前往${settingsName}中开启`, severity: 'warning', persistent: true });
     }
     await recheckPerms(p.kind);
-    if (s === 'granted') model.notify({ message: `${p.label}：已允许，${p.features.join('、')}可以用了`, severity: 'success' });
-    else model.notify({ message: `${p.label}：没有允许，可以去系统设置里打开`, severity: 'warning', persistent: true });
+    if (s === 'granted') model.notify({ message: `${p.label}：已授予，${p.features.join('、')}现已可用`, severity: 'success' });
+    else model.notify({ message: `${p.label}：未授予，可前往${settingsName}中开启`, severity: 'warning', persistent: true });
   };
   return (
     <>
       <SetRow
         id="hk_ptt"
         title={label}
-        desc={`只有这一项能单用${hotkeyText('右⌥')}`}
+        desc={`仅此项支持单独使用 ${hotkeyText('右⌥')}`}
         control={
           <>
             <KeyCell keys={combo ? capsOf(hotkeyText(combo)) : undefined} none={combo === ''} recording={recording} />
-            <Btn loading={recording} disabled={ro || !caps.hotkeys} disabledReason="这个平台不支持全局热键" onClick={() => void record()}>
+            <Btn loading={recording} disabled={ro || !caps.hotkeys} disabledReason="当前平台不支持全局快捷键" onClick={() => void record()}>
               更改
             </Btn>
           </>
@@ -211,16 +212,16 @@ function YourVoice() {
               id={p.kind}
               title={p.label}
               indent
-              desc={p.state === 'denied' ? `没允许：${p.features.join('、')}用不了，其余照常` : `用于 ${p.features.join('、')}`}
+              desc={p.state === 'denied' ? `未授予：${p.features.join('、')}暂不可用，其余功能正常` : `用于${p.features.join('、')}`}
               descTone={p.state === 'denied' ? 'bad' : undefined}
               info={PERM_TIP[p.kind]}
               control={
                 <>
                   <StatusLamp size="sm" state={tone} label={text} />
-                  {p.state === 'notDetermined' && <Btn onClick={() => void ask(p)}>允许</Btn>}
+                  {p.state === 'notDetermined' && <Btn onClick={() => void ask(p)}>授权</Btn>}
                   {known && p.state !== 'granted' && (
-                    <Btn go disabled={!caps.systemSettings} disabledReason="这个平台不能从这里打开系统设置，请手动打开系统的隐私设置" onClick={() => void openSettings(p)}>
-                      去系统设置
+                    <Btn go disabled={!caps.systemSettings} disabledReason="当前平台无法直接跳转，请手动打开系统隐私权限设置" onClick={() => void openSettings(p)}>
+                      前往系统设置
                     </Btn>
                   )}
                   {p.state !== 'granted' && p.state !== 'loading' && <Btn onClick={() => void recheck(p)}>重新检测</Btn>}

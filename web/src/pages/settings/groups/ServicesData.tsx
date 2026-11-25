@@ -13,13 +13,13 @@ const ACT_VERB = { start: '启动', stop: '停止', restart: '重启' } as const
 type Act = keyof typeof ACT_VERB;
 /** ensure_failed and stop_failed say nothing beyond the verb; the script's line, when there is one, says why. */
 const ACT_REASON: Record<Extract<ServiceActionResult, { ok: false }>['error'], string> = {
-  not_supervised: '它的接法不由这里启停',
-  unknown_service: '外壳不认识这个服务',
+  not_supervised: '该连接方式不由应用负责启停',
+  unknown_service: '应用未识别该服务',
   ensure_failed: '',
   stop_failed: '',
 };
 
-const NO_REPLY = '外壳没有响应';
+const NO_REPLY = '客户端无响应';
 
 /** app.runtime's `services`, kept current, and a read again after an op; null until read. */
 function useServiceRuntimes(): [RuntimeSnapshot['services'] | null, () => void] {
@@ -70,11 +70,11 @@ export function ServicesData() {
     try {
       const r = await getBridge().services[act](id);
       const reason = r.ok ? '' : ACT_REASON[r.error];
-      const head = r.ok ? `已${what}` : `没能${what}${reason ? `：${reason}` : ''}`;
+      const head = r.ok ? `已${what}` : `未能${what}${reason ? `：${reason}` : ''}`;
       model.notify({ message: [head, r.line].filter(Boolean).join(' │ '), ...(r.ok ? { severity: 'success' as const } : { severity: 'danger' as const, persistent: true }) });
       rereadRuntimes();
     } catch {
-      model.notify({ message: `没能${what}：${NO_REPLY}`, severity: 'danger', persistent: true });
+      model.notify({ message: `未能${what}：${NO_REPLY}`, severity: 'danger', persistent: true });
     }
     setBusy(false);
   };

@@ -37,15 +37,15 @@ export function DeleteCard({ conv, onClose, onArchive, onDelete }: { conv: Conve
     f(conv);
   };
   return (
-    <PaperCard title={`删除「${conv.title}」？`} warn onClose={onClose}>
-      <p className={styles.p}>{`这个话题里的 ${conv.turn_count} 轮对话一起删除，删除后找不回。${conv.archived ? '' : '只是不想看到，可以归档。'}`}</p>
+    <PaperCard title={`确认删除「${conv.title}」？`} warn onClose={onClose}>
+      <p className={styles.p}>{`该对话中的 ${conv.turn_count} 轮记录将被一并删除，且无法恢复。${conv.archived ? '' : '如仅需暂时隐藏，可选择归档。'}`}</p>
       <div className={styles.row}>
         <Btn size="sm" variant="secondary" onClick={onClose}>
-          先不删
+          取消
         </Btn>
         {!conv.archived && (
           <Btn size="sm" variant="ghost" onClick={pick(onArchive)}>
-            改成归档
+            改为归档
           </Btn>
         )}
         <Btn size="sm" variant="danger" icon="g-delete" onClick={pick(onDelete)}>
@@ -69,7 +69,7 @@ export function SwapCard({ ask, onPick }: { ask: SwapAsk | null; onPick: (yes: b
   if (!ask) return null;
   const { who, from, text } = ask;
   return (
-    <PaperCard title={`换${who.name}出来回你？`} onClose={() => onPick(false)}>
+    <PaperCard title={`切换角色「${who.name}」出场？`} onClose={() => onPick(false)}>
       <div className={styles.who2} aria-hidden="true">
         {from && (
           <>
@@ -80,13 +80,13 @@ export function SwapCard({ ask, onPick }: { ask: SwapAsk | null; onPick: (yes: b
         <Face c={who} />
       </div>
       {text && <q className={styles.q}>{text}</q>}
-      <p className={styles.p}>{`${who.name}现在不在桌面上。${from ? `${from.name}会回到列表里。` : ''}${text ? `换好后这句话发给${who.name}。` : ''}`}</p>
+      <p className={styles.p}>{`${who.name} 当前未在桌面显示。${from ? `${from.name} 将返回角色列表。` : ''}${text ? `切换完成后将把该消息发送给 ${who.name}。` : ''}`}</p>
       <div className={styles.row}>
         <Btn size="sm" variant="secondary" onClick={() => onPick(false)}>
-          先不换
+          取消
         </Btn>
         <Btn size="sm" variant="primary" icon="g-switch" onClick={() => onPick(true)}>
-          {text ? '换出来并发送' : '换出来'}
+          {text ? '切换并发送' : '切换出场'}
         </Btn>
       </div>
     </PaperCard>

@@ -117,7 +117,7 @@ describe('avatar details', () => {
     const raw = detailRaw(SUSPENDED);
     expect(raw).toContain('3f9c2a71d0b4e8c5');
     expect(raw).toContain('voice_a │ default（summer 不可用）');
-    expect(raw).toContain('SSAA 关');
+    expect(raw).toContain('SSAA 已关闭');
     expect(raw).toContain('shader cache miss');
     expect(raw).toContain('1520, 84');
     expect(raw).toContain('1.25×');
@@ -127,8 +127,8 @@ describe('avatar details', () => {
 
   it('a suspended host explains the missing render data', () => {
     expect(renderWhy(true, HEALTH.avatar, SUSPENDED)).toBe('画面暂停中 │ 屏幕睡眠');
-    expect(renderWhy(true, HEALTH.avatar, null)).toBe('宿主没有上报帧数据');
-    expect(renderWhy(false, HEALTH.avatar, SUSPENDED)).toBe('这个窗口收不到角色的帧数据');
+    expect(renderWhy(true, HEALTH.avatar, null)).toBe('宿主未上报帧数据');
+    expect(renderWhy(false, HEALTH.avatar, SUSPENDED)).toBe('当前窗口环境无法接收角色帧数据');
   });
 
   it('the host details sit under the charts with their raw text folded', async () => {

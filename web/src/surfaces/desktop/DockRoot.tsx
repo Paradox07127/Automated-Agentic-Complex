@@ -24,20 +24,27 @@ export type Talk = 'hold' | 'tap' | null;
  *  records only 说话 is left. */
 export function dockItems(s: DesktopState | null, presence: unknown, talk: Talk): OptionStackItem[] {
   const p = readPresence(presence);
-  const away = p.offline ? '未接入：连不上后台' : undefined;
+  const away = p.offline ? '未接入：无法连接后台服务' : undefined;
   const voice: OptionStackItem = {
     id: 'talk',
-    label: talk === 'hold' ? '在听…松开发送' : talk === 'tap' ? '在听…再点一下发送' : s?.pips.voice === 'off' ? '说话（只出字）' : '说话',
+    label: talk === 'hold' ? '录音中…松开发送' : talk === 'tap' ? '录音中…再次点击发送' : '语音输入',
     icon: 'mic',
     live: talk != null,
-    off: talk ? undefined : (away ?? (s?.pips.voice === 'denied' ? '未接入：没有麦克风权限，点按前往设置 › 能力 › 系统权限里允许' : undefined)),
+    off: talk
+      ? undefined
+      : (away ??
+        (s?.pips.voice === 'denied'
+          ? '未接入：缺少麦克风权限，点击前往「设置 › 能力 › 系统权限」开启'
+          : s?.pips.voice === 'off'
+            ? '未启用：当前设备不支持按住语音输入'
+            : undefined)),
   };
   if (talk) return [voice];
-  const lookOff = s?.plugins.includes('screen_reading') ? (p.observation.paused ? '观察已暂停' : undefined) : '已关闭：设置 › 感知里关着「屏幕识读」';
+  const lookOff = s?.plugins.includes('screen_reading') ? (p.observation.paused ? '屏幕观察已暂停' : undefined) : '已关闭：请在「设置 › 感知」中开启「屏幕识读」';
   return [
     { id: 'chat', label: '对话', icon: 'g-chat', off: away },
     voice,
-    { id: 'look', label: '给角色看', icon: 'look', off: away ?? lookOff },
+    { id: 'look', label: '屏幕识读', icon: 'look', off: away ?? lookOff },
     { id: 'hide', label: '隐藏', icon: 'eye' },
   ];
 }

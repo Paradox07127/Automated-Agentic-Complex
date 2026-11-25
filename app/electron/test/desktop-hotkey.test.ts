@@ -47,12 +47,12 @@ test('a bad name and one another program holds log and notify; the refused one i
   let { calls, hotkey } = setup();
   hotkey.register('right_option');
   assert.deepEqual(calls, [['log', 'QUICKINPUT bad_hotkey right_option'],
-    ['notify', '快速输入的快捷键没设上', 'right_option 不是有效的快捷键，请前往设置修改']]);
+    ['notify', '快速输入快捷键注册失败', 'right_option 不是有效的快捷键格式，请前往「设置 › 快捷键」修改']]);
   assert.equal(hotkey.failed, null);
   ({ calls, hotkey } = setup(new Set(['Control+Alt+Space'])));
   hotkey.register('control+option+space');
   assert.deepEqual(calls, [['register', 'Control+Alt+Space'], ['log', 'QUICKINPUT hotkey_failed control+option+space'],
-    ['notify', '快速输入的快捷键没设上', 'control+option+space 可能被别的程序占用了，请前往设置更换']]);
+    ['notify', '快速输入快捷键注册失败', 'control+option+space 可能已被其他应用占用，请前往「设置 › 快捷键」更换']]);
   assert.equal(hotkey.failed, 'control+option+space');
 });
 

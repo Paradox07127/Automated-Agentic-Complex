@@ -40,25 +40,25 @@ const toggle = (name: string) => within(sec(name)).getByRole('button', { name: n
 describe('总览 folds', () => {
   it('做完了 and 今天聊了什么 start shut past 3 rows, with the count and the latest one as the summary', async () => {
     await draw({ done: [task(4), task(3), task(2), task(1)], convs: [conv(4), conv(3), conv(2), conv(1)] });
-    for (const name of ['做完了', '今天聊了什么']) expect(toggle(name).getAttribute('aria-expanded')).toBe('false');
-    expect(toggle('做完了').textContent).toMatch(/\[4\].*最近：任务 4 09:04/);
-    expect(toggle('今天聊了什么').textContent).toMatch(/最近：话题 4 09:04/);
-    expect(within(sec('做完了')).queryAllByRole('button', { name: /^任务/ })).toHaveLength(0);
-    fireEvent.click(toggle('做完了'));
-    expect(within(sec('做完了')).getAllByRole('button', { name: /^任务/ })).toHaveLength(4);
+    for (const name of ['已完成', '今日对话']) expect(toggle(name).getAttribute('aria-expanded')).toBe('false');
+    expect(toggle('已完成').textContent).toMatch(/\[4\].*最近：任务 4 09:04/);
+    expect(toggle('今日对话').textContent).toMatch(/最近：话题 4 09:04/);
+    expect(within(sec('已完成')).queryAllByRole('button', { name: /^任务/ })).toHaveLength(0);
+    fireEvent.click(toggle('已完成'));
+    expect(within(sec('已完成')).getAllByRole('button', { name: /^任务/ })).toHaveLength(4);
   });
 
   it('a failed task opens 做完了 and a failed read opens 聊了什么', async () => {
     await draw({ done: [task(4), task(3, true), task(2), task(1)], convs: null });
-    expect(toggle('做完了').getAttribute('aria-expanded')).toBe('true');
-    expect(toggle('今天聊了什么').getAttribute('aria-expanded')).toBe('true');
-    expect(sec('今天聊了什么').textContent).toContain('对话没有读到');
+    expect(toggle('已完成').getAttribute('aria-expanded')).toBe('true');
+    expect(toggle('今日对话').getAttribute('aria-expanded')).toBe('true');
+    expect(sec('今日对话').textContent).toContain('未能读取对话记录');
   });
 
   it('three rows or fewer stay flat, with no fold arrow', async () => {
     await draw({ done: [task(2), task(1)], convs: [conv(1)] });
-    expect(within(sec('做完了')).queryByRole('button', { name: /^做完了/ })).toBeNull();
-    expect(within(sec('做完了')).getAllByRole('button', { name: /^任务/ })).toHaveLength(2);
+    expect(within(sec('已完成')).queryByRole('button', { name: /^已完成/ })).toBeNull();
+    expect(within(sec('已完成')).getAllByRole('button', { name: /^任务/ })).toHaveLength(2);
   });
 
   it('reminders already rung fold under the ones still to come once the list passes 3 rows', async () => {
@@ -86,10 +86,10 @@ describe('总览 readouts', () => {
     const first = within(band).getAllByRole('listitem')[0]!;
     const it = day.items.done;
     expect(it.avg7).not.toBeNull();
-    const tip = within(first).getByRole('button', { name: '任务完成：和近 7 天比' });
+    const tip = within(first).getByRole('button', { name: '已完成任务：与近 7 日均值对比' });
     const text = within(first).getByRole('tooltip', { hidden: true });
     expect(text.hidden).toBe(true);
-    expect(text.textContent).toMatch(/^比近 7 天均值[少多] /);
+    expect(text.textContent).toMatch(/^较近 7 日均值[少多] /);
     fireEvent.focus(tip);
     expect(document.getElementById(text.id)?.hidden).toBe(false);
   });

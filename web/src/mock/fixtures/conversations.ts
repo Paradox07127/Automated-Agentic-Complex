@@ -48,7 +48,7 @@ export const MESSAGES: Record<string, Message[]> = {
     {
       kind: 'side',
       at: at(14, 29, 44),
-      text: '初步看是 10-27 那组改 HostLink 心跳超时的提交。现在前台在跑周报任务，我只读看了提交记录；要细查的话，等周报结束后可以开一个任务。',
+      text: '初步看是 10-27 那组改 HostLink 心跳超时的提交。现在前台正在运行周报任务，我只读看了提交记录；要细查的话，等周报结束后可以开一个任务。',
       streaming: true,
     },
   ],

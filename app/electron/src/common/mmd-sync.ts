@@ -125,6 +125,6 @@ export class MmdSync {
 
   /** Throws `busy` while a sync rewrites the current character's package. */
   checkIdle(): void {
-    if (this.current.running) throw new MotionFailureError({ reason: 'busy', detail: '正在给角色烘共享库里的 MMD 动作' });
+    if (this.current.running) throw new MotionFailureError({ reason: 'busy', detail: '正在为角色转换共享库中的 MMD 动作' });
   }
 }

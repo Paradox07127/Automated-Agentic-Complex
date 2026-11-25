@@ -95,7 +95,7 @@ describe('编辑结构 on a chain of one segment', () => {
     await edit(THINK);
     // THINK leaves at 1 cm, FIDGET starts at 5: 4 cm after segment 1 (IDLE would give 5 cm after segment 2).
     expect(ghost(FIDGET)!.textContent).toContain('接在第 1 段后 │ 4 cm');
-    await click(within(ghost(FIDGET)!).getByRole('button', { name: '插在它后面' }));
+    await click(within(ghost(FIDGET)!).getByRole('button', { name: '在其后插入' }));
     expect(segs()).toEqual([THINK, FIDGET]);
     await click(within(band()).getByRole('button', { name: '检查' }));
     expect(check.mock.lastCall![0].edits).toEqual([{ op: 'insert', chain: THINK, index: 1, clip: FIDGET }]);
@@ -116,7 +116,7 @@ describe('a character switch on 编排', () => {
     await click(screen.getByRole('radio', { name: /^事件反应/ }));
     await switchTo();
     expect(screen.getByRole('radio', { name: /^待机/ }).getAttribute('aria-checked')).toBe('true');
-    expect(document.body.textContent).not.toContain('角色包里没有能改的池子');
+    expect(document.body.textContent).not.toContain('当前角色包中没有可编辑的动作池');
   });
 
   it('drops the unsaved draft, the open chain and the structure edits of the character left', async () => {

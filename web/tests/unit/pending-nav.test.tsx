@@ -116,6 +116,6 @@ describe('the task drawer version chain switches versions', () => {
     expect(v1.getAttribute('aria-pressed')).toBe('true');
     expect(v2.getAttribute('aria-pressed')).toBe('false');
     expect(screen.queryByText('接受这一版')).toBeNull();
-    expect(screen.getByText(/这一版已退回/)).toBeTruthy();
+    expect(screen.getByText(/当前版本已驳回/)).toBeTruthy();
   });
 });

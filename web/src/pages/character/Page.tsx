@@ -110,8 +110,8 @@ export function CharacterPage() {
     void getBridge()
       .supervisor.restart('avatar')
       .then(
-        () => fb.toast('正在重启角色…'),
-        () => fb.toast('没有重启角色：桌面角色没有回应', { severity: 'danger' }),
+        () => fb.toast('正在重启角色进程…'),
+        () => fb.toast('未能重启角色进程：角色渲染进程无响应', { severity: 'danger' }),
       );
   const importPackage = () =>
     void getBridge()
@@ -122,22 +122,22 @@ export function CharacterPage() {
             void list.refetch();
             fb.toast('已导入角色');
           } else if (r.reason === 'cancelled') fb.toast('已取消导入');
-          else fb.toast(`导入没有完成：${hostReason(r.reason)}`, { severity: 'danger', persistent: true });
+          else fb.toast(`导入未完成：${hostReason(r.reason)}`, { severity: 'danger', persistent: true });
         },
-        (e: unknown) => fb.toast(`导入没有完成：${codeOf(e) === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}`, { severity: 'danger' }),
+        (e: unknown) => fb.toast(`导入未完成：${codeOf(e) === 'not_implemented' ? '当前版本暂不支持该功能' : '角色渲染进程无响应'}`, { severity: 'danger' }),
       );
   // 设定's tab bar has the tabs CharacterSettings draws rows for, and lights the one it falls back to.
   const setN = useCharSettings(isCharTab(tab)).q.data;
   const setTabs = setN ? presentTabs(setN) : CHAR_TABS.map((t) => t.id);
-  const motionsError = motions.isError ? (codeOf(motions.error) === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应') : null;
+  const motionsError = motions.isError ? (codeOf(motions.error) === 'not_implemented' ? '当前版本暂不支持该功能' : '角色渲染进程无响应') : null;
 
   let body;
   if (loading) body = <OperatorSkel />;
   // A failed reread keeps the roster it had, and the drafts with it.
-  else if (!roster) body = <ErrBar message="读取角色目录失败：角色目录不可用" onRetry={() => void list.refetch()} />;
+  else if (!roster) body = <ErrBar message="读取角色列表失败：角色目录不可用" onRetry={() => void list.refetch()} />;
   else if (empty)
     body = (
-      <section className={styles.empty} aria-label="还没有角色" data-character-empty="">
+      <section className={styles.empty} aria-label="当前无可用角色" data-character-empty="">
         <Btn size="sm" variant="secondary" onClick={importPackage}>
           导入角色
         </Btn>
@@ -146,7 +146,7 @@ export function CharacterPage() {
   else
     body = (
       <div className={styles.sw}>
-        {listError && <ErrBar message="读取角色目录失败：角色目录不可用，下面是上次读到的" onRetry={() => void list.refetch()} />}
+        {listError && <ErrBar message="读取角色列表失败：角色目录不可用，以下为上次缓存的数据" onRetry={() => void list.refetch()} />}
         <Operator
           roster={roster}
           current={cur}
@@ -205,7 +205,7 @@ export function CharacterPage() {
                     kind: 'item',
                     label: '重新读取角色目录',
                     onSelect: () => void list.refetch().then((r) => {
-                      if (r.isError) fb.toast('角色目录没有刷新，请重试', { severity: 'danger' });
+                      if (r.isError) fb.toast('角色列表刷新失败，请重试', { severity: 'danger' });
                       else fb.toast(`已重新读取 │ ${r.data?.length ?? 0} 个角色`);
                     }),
                   },
@@ -218,15 +218,15 @@ export function CharacterPage() {
       {(stateError || disconnected) && !loading && !empty && (
         <div className={styles.bars}>
           {stateError && (
-            <ErrBar message={`读取角色状态失败：${cs.error ? failure(cs.error).text : '桌面角色没有回应'}`} {...(readAt != null ? { staleAt: readAt } : {})} onRetry={() => void cs.refetch().then(() => fb.toast('正在重新读取…'))} />
+            <ErrBar message={`读取角色状态失败：${cs.error ? failure(cs.error).text : '角色渲染进程无响应'}`} {...(readAt != null ? { staleAt: readAt } : {})} onRetry={() => void cs.refetch().then(() => fb.toast('正在重新读取…'))} />
           )}
           {disconnected && (
             <PowerState
               state="unlinked"
               mode="block"
               title="后台服务"
-              reason={`后台已断开，角色状态和读数停在断开前${readAt != null ? `，下面是 ${formatClock(readAt)} 的数据` : ''}`}
-              action={{ label: '重启后台', onClick: () => void getBridge().supervisor.restart('agentd').then(() => fb.toast('正在重新连接后台服务…')) }}
+              reason={`后台服务已断开，当前显示断开前的角色状态与参数${readAt != null ? `（记录时间：${formatClock(readAt)}）` : ''}`}
+              action={{ label: '重启后台服务', onClick: () => void getBridge().supervisor.restart('agentd').then(() => fb.toast('正在重新连接后台服务…')) }}
             >
               {null}
             </PowerState>

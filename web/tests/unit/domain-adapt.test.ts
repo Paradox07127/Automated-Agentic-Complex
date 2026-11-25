@@ -311,7 +311,7 @@ describe('character, diagnostics, kernel', () => {
       { key: 'rest', label: '休息提醒', left_s: 1440, total_s: null },
     ]);
     const now = fromTurnNow(WIRE_DIAG_TURN);
-    expect(now?.phases_ms.map((p) => p.label)).toEqual(['收到输入', '组装上下文', '调模型']);
+    expect(now?.phases_ms.map((p) => p.label)).toEqual(['接收输入', '组装上下文', '调用模型']);
     expect(fromTurnNow({ ...WIRE_DIAG_TURN, trace_id: null })).toBeNull();
   });
 

@@ -37,7 +37,7 @@ export const C1_TURNS: WireTurn[] = [
   turn(C1, 401, 'tr8', 'text', '帮我整理这周的提交，出一份周报，放到 ~/Documents/周报。', '好，我先看这周 Endfield 仓库的提交记录，再按目录归到项目里。', atS(14, 14), atS(14, 14, 12)),
   turn(C1, 402, 'turn-c1-p20', 'proactive', '', '第一版按日期排好了，放在 ~/Documents/周报/2026-W44 周报.md。', atS(14, 20, 31), atS(14, 20, 34)),
   turn(C1, 403, 'tr7', 'text', '按项目分组，不要按日期。', '改好了：Companion 58 条、agentd 41 条、渲染管线 29 条、其他 14 条。v2 已交付，待复核。我接着生成提交统计表。', atS(14, 25, 51), atS(14, 26)),
-  turn(C1, 404, 'tr3', 'text', '顺便查下 HostLink 断线是哪次提交引入的？', '初步看是 10-27 那组改 HostLink 心跳超时的提交。现在前台在跑周报任务，我只读看了提交记录；要细查的话，等周报结束后可以开一个任务。', atS(14, 29, 40), atS(14, 29, 46)),
+  turn(C1, 404, 'tr3', 'text', '顺便查下 HostLink 断线是哪次提交引入的？', '初步看是 10-27 那组改 HostLink 心跳超时的提交。现在前台正在运行周报任务，我只读看了提交记录；要细查的话，等周报结束后可以开一个任务。', atS(14, 29, 40), atS(14, 29, 46)),
 ];
 
 export const SPARSE_CONV: WireConversation = { id: S1, character_id: CHARACTER, title: 'HostLink 早上', pinned: false, archived: false, revision: 1, created_at: atS(10, 2), updated_at: atS(11, 6), turn_count: 4, active: true, preview: '嗯，记下了：重连超时先保持 1.5 秒。' };

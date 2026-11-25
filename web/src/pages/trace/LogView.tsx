@@ -90,14 +90,14 @@ export function LogView({ logs, f, sel, now, searchRef, turnNo, onF, onSelect, o
 
   let body: ReactNode;
   if (logs.status === 'missing' || logs.status === 'error')
-    body = <Empty size="compact" title="读不到日志" desc={logs.status === 'missing' ? '这个版本的外壳还没有读日志的接口。' : (logs.error ?? '外壳没有回答。')} />;
+    body = <Empty size="compact" title="无法读取日志" desc={logs.status === 'missing' ? '当前版本应用宿主尚未提供日志读取接口。' : (logs.error ?? '应用宿主无响应。')} />;
   else if (logs.status === 'loading') body = Array.from({ length: 14 }, (_, i) => <div key={i} className={`${t.skel} ${g.skl}`} />);
   else if (lines.length === 0)
     body = (
       <Empty
         size="compact"
-        title={f.q ? `没有含「${f.q}」的行` : '这些条件下没有日志'}
-        action={<Btn variant="secondary" size="sm" onClick={() => onF({ q: '', win: null, levels: DEFAULT_LEVELS, on: null })}>清掉筛选</Btn>}
+        title={f.q ? `无包含「${f.q}」的日志行` : '当前筛选条件下无日志'}
+        action={<Btn variant="secondary" size="sm" onClick={() => onF({ q: '', win: null, levels: DEFAULT_LEVELS, on: null })}>清除筛选</Btn>}
       />
     );
   else {
@@ -160,7 +160,7 @@ export function LogView({ logs, f, sel, now, searchRef, turnNo, onF, onSelect, o
       );
       prevTurn = last.turn;
     }
-    if (f.follow) out.push(<div key="tail" className={g.tail}><i aria-hidden="true" />跟随中 │ 新行接在这里</div>);
+    if (f.follow) out.push(<div key="tail" className={g.tail}><i aria-hidden="true" />跟随中 │ 新日志将追加于此</div>);
     body = out;
   }
 
@@ -168,13 +168,13 @@ export function LogView({ logs, f, sel, now, searchRef, turnNo, onF, onSelect, o
   const filled = filledSources(logs);
   const fewer = f.on != null && (f.on.length !== filled.length || f.on.some((id) => !filled.includes(id)));
   const levelItems: MenuItem[] = [
-    { kind: 'head', label: '显示的级别' },
+    { kind: 'head', label: '显示级别' },
     ...LEVELS.map((l): MenuItem => ({ kind: 'item', label: l === 'err' || l === 'warn' ? `${LEVEL_NAME[l]} ${count(l)}` : LEVEL_NAME[l], checked: f.levels[l], onSelect: () => onF({ levels: { ...f.levels, [l]: !f.levels[l] } }) })),
   ];
   return (
     <div className={t.logs}>
       <aside className={ra.rail} aria-label="来源">
-        <SecHead title="来源" count={on.size} right={`共 ${LOG_IDS.length}`} info="⌥ 点一个来源：只看这一个" />
+        <SecHead title="来源" count={on.size} right={`共 ${LOG_IDS.length}`} info={`${keyText('⌥')} 点击来源：仅显示该来源`} />
         <div className={ra.srcs}>
           {LOG_IDS.map((id) => {
             const s = info(id);
@@ -197,7 +197,7 @@ export function LogView({ logs, f, sel, now, searchRef, turnNo, onF, onSelect, o
                     ) : empty ? '空' : '—'}
                   </span>
                 }
-                tip={`${s?.file ?? id}（⌥ 点只看这一个）`}
+                tip={`${s?.file ?? id}（${keyText('⌥')} 点击仅显示该项）`}
                 selected={on.has(id)}
                 onClick={(ev) => toggle(id, ev.altKey)}
               />
@@ -215,7 +215,7 @@ export function LogView({ logs, f, sel, now, searchRef, turnNo, onF, onSelect, o
         <section className={g.main}>
           <div className={g.tool}>
             <span className={g.q}>
-              <SearchField value={f.q} label="搜日志" placeholder="搜日志" inputRef={searchRef} shortcut={keyText('⌘F')} onChange={(q) => onF({ q, follow: false, pausedAt: f.follow ? logs.last : f.pausedAt })} />
+              <SearchField value={f.q} label="搜索日志" placeholder="搜索日志" inputRef={searchRef} shortcut={keyText('⌘F')} onChange={(q) => onF({ q, follow: false, pausedAt: f.follow ? logs.last : f.pausedAt })} />
             </span>
             <span className={g.srcdd}>
               <Menu label={`来源 ${on.size}/${LOG_IDS.length}`} icon="tune" narrowed={fewer} items={[{ kind: 'head', label: '来源' }, ...LOG_IDS.map((id): MenuItem => ({ kind: 'item', label: `${LOG_NAME[id]} │ ${info(id)?.file ?? id}`, checked: on.has(id), onSelect: () => toggle(id, false) }))]} />
@@ -223,7 +223,7 @@ export function LogView({ logs, f, sel, now, searchRef, turnNo, onF, onSelect, o
             <Menu label={`级别 ${levels}/${LEVELS.length}`} narrowed={LEVELS.some((l) => f.levels[l] !== DEFAULT_LEVELS[l])} items={levelItems} />
             {f.win && (
               <Btn variant="secondary" size="sm" tail="close" onClick={() => onF({ win: null })}>
-                只看第 {f.win.no} 轮前后
+                仅显示第 {f.win.no} 轮前后
               </Btn>
             )}
             <span className={g.sp} />

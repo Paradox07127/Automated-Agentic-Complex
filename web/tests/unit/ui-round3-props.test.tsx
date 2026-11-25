@@ -84,11 +84,11 @@ describe('shared modified line', () => {
         </QueryClientProvider>,
       );
       // The demo user turned 窗口文字 on (default off) and left 你输入的文字 off.
-      const changed = await screen.findByRole('group', { name: '窗口文字' });
+      const changed = await screen.findByRole('group', { name: '允许读取窗口文本' });
       expect(changed.querySelector('[data-mod-line]')).not.toBeNull();
       expect(changed.getAttribute('aria-describedby')).toContain('set-wintext-mod');
       expect(document.getElementById('set-wintext-mod')?.textContent).toBe('和默认不同');
-      const same = screen.getByRole('group', { name: '你输入的文字' });
+      const same = screen.getByRole('group', { name: '允许读取当前输入文本' });
       expect(same.querySelector('[data-mod-line]')).toBeNull();
     });
   });

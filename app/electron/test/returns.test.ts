@@ -184,7 +184,7 @@ async function outfitTool(args: string[]): Promise<{ last: string; status: numbe
 /** The import ops ask with open panels, which the registry's ops would open for real; these tests pick with a fake. */
 const IMPORTS = ['character.importMotion', 'character.importOutfit', 'character.removeOutfit', 'mmd.scan', 'mmd.importScan', 'mmd.pickScanAudio', 'mmd.setMedia',
   'mmd.detail'];
-const picker: ImportPicker = { files: async (o) => (o.multiple ? [join(dir, 'dance.vmd')] : o.title === '选择音源' ? [join(dir, 'off vocal.wav')] : []), folder: async () => join(dir, 'Mod'),
+const picker: ImportPicker = { files: async (o) => (o.multiple ? [join(dir, 'dance.vmd')] : o.title === '选择配套音频' ? [join(dir, 'off vocal.wav')] : []), folder: async () => join(dir, 'Mod'),
   filesOrFolder: async () => [join(dir, 'pack')] };
 
 function context(surface: Surface): OpsContext {

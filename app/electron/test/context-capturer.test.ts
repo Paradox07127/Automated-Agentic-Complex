@@ -598,10 +598,10 @@ test('selection: the selected text of the front app, else the first clipboard it
 
 test('selection: secure input, incognito and the blacklist refuse before reading the selection or the clipboard', async () => {
   const cases: [Parameters<typeof setup>[0], AttentionSample, string][] = [
-    [{ helper: { 'attention.sample': ok({ secure_input: true }) } }, sample(), '安全输入中，没有读取'],
-    [{}, sample({ frontIncognito: true }), '无痕窗口，没有读取'],
-    [{ blacklist: parseBlacklist({ mode: 'deny', app_names: ['TextEdit'] }) }, sample(), '这个窗口在黑名单里，没有读取'],
-    [{ helper: { 'attention.sample': ok({ secure_input: false, front: null }) } }, sample({ front: null }), '没找到前台窗口，没有读取'],
+    [{ helper: { 'attention.sample': ok({ secure_input: true }) } }, sample(), '当前处于安全输入状态，未读取内容'],
+    [{}, sample({ frontIncognito: true }), '当前为无痕浏览器窗口，未读取内容'],
+    [{ blacklist: parseBlacklist({ mode: 'deny', app_names: ['TextEdit'] }) }, sample(), '当前窗口位于排除名单内，未读取内容'],
+    [{ helper: { 'attention.sample': ok({ secure_input: false, front: null }) } }, sample({ front: null }), '未检测到有效前台窗口，未读取内容'],
   ];
   for (const [o, s0, message] of cases) {
     const s = setup(o);
@@ -624,7 +624,7 @@ test('selection: the window in front when the hotkey is pressed decides, not the
   const pending = s.c.readSelection();
   await settle();
   await s.beat(sample({ front: chromeWindow(91), frontIncognito: true }));
-  assert.deepEqual((await pending).decision, { kind: 'refused', message: '无痕窗口，没有读取' });
+  assert.deepEqual((await pending).decision, { kind: 'refused', message: '当前为无痕浏览器窗口，未读取内容' });
   assert.ok(!s.ops().includes('ax.selected_text') && !s.ops().includes('clipboard.read'));
   const t = setup({ helper: { 'attention.sample': ok({ secure_input: false, front: CHROME_FRONT(91) }) } });
   await t.beat(sample({ front: chromeWindow(90), frontIncognito: false }));
@@ -642,6 +642,6 @@ test('selection: the front window is checked again before the clipboard is read'
     return ok({ text: null });
   };
   await s.beat();
-  assert.deepEqual((await s.c.readSelection()).decision, { kind: 'refused', message: '安全输入中，没有读取' });
+  assert.deepEqual((await s.c.readSelection()).decision, { kind: 'refused', message: '当前处于安全输入状态，未读取内容' });
   assert.ok(!s.ops().includes('clipboard.read'));
 });

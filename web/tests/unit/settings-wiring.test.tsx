@@ -128,7 +128,7 @@ describe('native rows (settings.schema / read / save)', () => {
   it('shows the schema options and saves the option value, not the label', async () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     render(<Harness d={d}><SpeakGroup /></Harness>);
-    const asr = screen.getByRole('radiogroup', { name: '听写语言' });
+    const asr = screen.getByRole('radiogroup', { name: '语音识别语言' });
     expect(within(asr).getAllByRole('radio').map((r) => r.textContent)).toEqual(['跟随系统', '中文', 'English']);
     await click(within(asr).getByRole('radio', { name: '中文' }));
     expect(save).toHaveBeenCalledWith({ asr: 'zh-CN' });
@@ -137,7 +137,7 @@ describe('native rows (settings.schema / read / save)', () => {
   it('picking the option already chosen sends nothing (Seg fires onChange for it too)', async () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     render(<Harness d={d}><SpeakGroup /></Harness>);
-    const asr = screen.getByRole('radiogroup', { name: '听写语言' });
+    const asr = screen.getByRole('radiogroup', { name: '语音识别语言' });
     const chosen = within(asr).getAllByRole('radio').find((r) => r.getAttribute('aria-checked') === 'true');
     expect(chosen?.textContent).toBe('跟随系统');
     await click(chosen!);
@@ -151,7 +151,7 @@ describe('native rows (settings.schema / read / save)', () => {
     render(<Harness d={d}><SpeakGroup /><ActGroup /><ApplyBar /></Harness>);
     await click(screen.getByRole('radio', { name: '完成：不提示' }));
     expect(screen.queryByRole('region', { name: '未应用的改动' })).toBeNull();
-    await click(screen.getByRole('switch', { name: '外部智能体接入' }));
+    await click(screen.getByRole('switch', { name: '外部接入' }));
     expect(screen.getByRole('region', { name: '未应用的改动' }).textContent).toContain('1 项重启后台服务后生效');
   });
 
@@ -159,8 +159,8 @@ describe('native rows (settings.schema / read / save)', () => {
     vi.spyOn(window.agenticComplex!.settings, 'save').mockResolvedValue({ restart: 'none', notApplied: [], error: 'asr_locale: zh-CN' });
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(<Harness d={d}><SpeakGroup /></Harness>);
-    await click(within(screen.getByRole('radiogroup', { name: '听写语言' })).getByRole('radio', { name: '中文' }));
-    expect(screen.getByTestId('toast').textContent).toBe('没有保存「听写语言」：桌面端没有接受这次修改');
+    await click(within(screen.getByRole('radiogroup', { name: '语音识别语言' })).getByRole('radio', { name: '中文' }));
+    expect(screen.getByTestId('toast').textContent).toBe('没有保存「语音识别语言」：桌面端没有接受这次修改');
     expect(warn).toHaveBeenCalledWith('settings.save refused', 'asr_locale: zh-CN');
   });
 
@@ -168,9 +168,9 @@ describe('native rows (settings.schema / read / save)', () => {
     const consent = vi.spyOn(window.agenticComplex!.settings, 'confirmDestructive');
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     render(<Harness d={d}><SeeGroup /></Harness>);
-    await click(screen.getByRole('switch', { name: '窗口文字' }));
+    await click(screen.getByRole('switch', { name: '允许读取窗口文本' }));
     expect(save).not.toHaveBeenCalled();
-    await click(within(screen.getByRole('dialog', { name: '关闭「窗口文字」并删除已收集的内容？' })).getByRole('button', { name: '关闭并删除' }));
+    await click(within(screen.getByRole('dialog', { name: '关闭「允许读取窗口文本」并删除已收集的内容？' })).getByRole('button', { name: '关闭并删除' }));
     expect(consent).toHaveBeenCalledWith('wintext');
     expect(save).toHaveBeenCalledWith({ wintext: false });
   });
@@ -179,7 +179,7 @@ describe('native rows (settings.schema / read / save)', () => {
     vi.spyOn(window.agenticComplex!.settings, 'save').mockResolvedValue({ restart: 'none', notApplied: ['wintext'], error: undefined });
     render(<Harness d={d}><SeeGroup /></Harness>);
     await click(screen.getByRole('switch', { name: '屏幕感知' }));
-    expect(screen.getByTestId('toast').textContent).toBe('已保存，窗口文字要重启 Agentic Complex 后生效');
+    expect(screen.getByTestId('toast').textContent).toBe('已保存，允许读取窗口文本要重启 Agentic Complex 后生效');
     expect(screen.queryByTestId('toast-action')).toBeNull();
   });
 
@@ -187,26 +187,26 @@ describe('native rows (settings.schema / read / save)', () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     const off = { ...d, native: { ...d.native, saved: { ...d.native.saved, wintext: false } } };
     const ui = render(<Harness d={off}><SeeGroup /></Harness>);
-    await click(screen.getByRole('switch', { name: '窗口文字' }));
+    await click(screen.getByRole('switch', { name: '允许读取窗口文本' }));
     expect(save).toHaveBeenCalledTimes(1);
     await click(screen.getByTestId('toast-action'));
-    expect(screen.getByRole('dialog', { name: '关闭「窗口文字」并删除已收集的内容？' })).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: '关闭「允许读取窗口文本」并删除已收集的内容？' })).toBeTruthy();
     expect(save).toHaveBeenCalledTimes(1);
     ui.unmount();
 
     // Turned off elsewhere (config.json read again) before 撤销.
     const again = render(<Harness d={off}><SeeGroup /></Harness>);
-    await click(screen.getByRole('switch', { name: '窗口文字' }));
+    await click(screen.getByRole('switch', { name: '允许读取窗口文本' }));
     again.rerender(<Harness d={{ ...off, native: { ...off.native, saved: { ...off.native.saved } } }}><SeeGroup /></Harness>);
     await click(screen.getByTestId('toast-action'));
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.getByTestId('toast').textContent).toBe('「窗口文字」已经又改过，没有撤销');
+    expect(screen.getByTestId('toast').textContent).toBe('「允许读取窗口文本」已经又改过，没有撤销');
     expect(save).toHaveBeenCalledTimes(2);
   });
 
   it('the delete confirm says how many records go, from settings.previewDestructive', async () => {
     const preview = vi.spyOn(window.agenticComplex!.settings, 'previewDestructive').mockResolvedValue({ total: 214, counts: { task_understanding: 214 } });
-    for (const [id, label] of [['wintext', '窗口文字'], ['web', '网页正文'], ['typing', '你输入的文字']] as const) {
+    for (const [id, label] of [['wintext', '允许读取窗口文本'], ['web', '允许读取网页正文'], ['typing', '允许读取当前输入文本']] as const) {
       const on = { ...d, native: { ...d.native, saved: { ...d.native.saved, [id]: true } } };
       const ui = render(<Harness d={on}><SeeGroup /></Harness>);
       await click(screen.getByRole('switch', { name: label }));
@@ -220,8 +220,8 @@ describe('native rows (settings.schema / read / save)', () => {
     vi.spyOn(window.agenticComplex!.settings, 'previewDestructive').mockRejectedValue({ code: 'failed', detail: 'agentd 503' });
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     render(<Harness d={d}><SeeGroup /></Harness>);
-    await click(screen.getByRole('switch', { name: '窗口文字' }));
-    const dialog = screen.getByRole('dialog', { name: '关闭「窗口文字」并删除已收集的内容？' });
+    await click(screen.getByRole('switch', { name: '允许读取窗口文本' }));
+    const dialog = screen.getByRole('dialog', { name: '关闭「允许读取窗口文本」并删除已收集的内容？' });
     expect(dialog.textContent).toContain('条数未知');
     expect(dialog.textContent).not.toContain('agentd 503');
     await click(within(dialog).getByRole('button', { name: '关闭并删除' }));
@@ -252,7 +252,7 @@ describe('native rows (settings.schema / read / save)', () => {
     render(<Harness d={d}><DataGroup /></Harness>);
     await click(screen.getByRole('button', { name: '恢复默认…' }));
     const card = screen.getByRole('dialog').textContent;
-    expect(card).toContain('会关掉：窗口文字、网页正文、识读时附上截图');
+    expect(card).toContain('将关闭：允许读取窗口文本、允许读取网页正文、屏幕识读时附带截图');
   });
 
   it('marks a restart by each row\'s schema even when the shell answers restart=backend', async () => {
@@ -267,9 +267,9 @@ describe('native app actions', () => {
   it('deletes all local data after the in-app confirm card lists what goes', async () => {
     const wipe = vi.spyOn(window.agenticComplex!.settings, 'wipeLocalData');
     render(<Harness d={d}><DataGroup /></Harness>);
-    await click(screen.getByRole('button', { name: '删除所有…' }));
+    await click(screen.getByRole('button', { name: '删除全部…' }));
     expect(wipe).not.toHaveBeenCalled();
-    await click(within(screen.getByRole('dialog', { name: '删除所有本地数据？' })).getByRole('button', { name: '删除所有' }));
+    await click(within(screen.getByRole('dialog', { name: '确认删除所有本地数据？' })).getByRole('button', { name: '删除全部' }));
     expect(wipe).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('toast').textContent).toBe('已删除所有本地数据');
   });
@@ -308,14 +308,14 @@ describe('hot keys', () => {
 
   it('names the row a combo is taken by, and refuses an invalid combo in plain words', async () => {
     vi.spyOn(window.agenticComplex!.settings, 'recordHotkey').mockResolvedValue('⌃⌥P');
-    const check = vi.spyOn(window.agenticComplex!.settings, 'validateHotkey').mockResolvedValue({ ok: false, conflictWith: '临时全部点穿' });
+    const check = vi.spyOn(window.agenticComplex!.settings, 'validateHotkey').mockResolvedValue({ ok: false, conflictWith: '切换全局鼠标穿透' });
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     const { container } = render(<Harness d={d}><KeysGroup /></Harness>);
     await click(within(container.querySelector('[data-row="hk_hide"]')!).getByRole('button', { name: '更改' }));
-    expect(screen.getByTestId('toast').textContent).toBe('⌃⌥P 已被「临时全部点穿」占用，「显示 / 隐藏角色」保持不变');
+    expect(screen.getByTestId('toast').textContent).toBe('⌃⌥P 已被「切换全局鼠标穿透」占用，「显示或隐藏角色」保持不变');
     check.mockRejectedValue({ code: 'invalid_hotkey' });
     await click(within(container.querySelector('[data-row="hk_hide"]')!).getByRole('button', { name: '更改' }));
-    expect(screen.getByTestId('toast').textContent).toBe('⌃⌥P 不能用作热键：要带 ⌃、⌥ 或 ⌘，或者用 F1–F12');
+    expect(screen.getByTestId('toast').textContent).toBe('⌃⌥P 不能用作快捷键：须包含 ⌃、⌥ 或 ⌘，或使用 F1–F12');
     expect(save).not.toHaveBeenCalled();
   });
 
@@ -363,11 +363,11 @@ describe('角色内核 → PUT /character/runtime patches', () => {
     render(<Harness d={d}><KernelGroup /></Harness>);
     const grid = screen.getByRole('grid', { name: '内核' });
     expect(within(grid).getByRole('row', { name: /Codex/ }).textContent).toContain('本机已安装');
-    expect(within(grid).getByRole('row', { name: /Pi/ }).textContent).toContain('随应用提供');
+    expect(within(grid).getByRole('row', { name: /Pi/ }).textContent).toContain('随应用内置');
     expect(screen.queryByText('内核原生会话恢复')).toBeNull();
     expect(document.querySelector('[data-row="maxCost"]')).toBeNull();
     // What the kernel can do sits on its card as chips, one per capability agentd reports as wired.
-    expect(within(screen.getByRole('list', { name: '用 Codex 能' })).getByText('内核原生执行工具')).toBeTruthy();
+    expect(within(screen.getByRole('list', { name: 'Codex 支持的能力' })).getByText('内核原生执行工具')).toBeTruthy();
   });
 
   it('shows the cost cap as an editable row only on Pi', async () => {
@@ -383,7 +383,7 @@ describe('角色内核 → PUT /character/runtime patches', () => {
 
   it('switches history retention through a PUT', async () => {
     render(<Harness d={d}><DataGroup /></Harness>);
-    await click(within(screen.getByRole('radiogroup', { name: '历史保留多久' })).getByRole('radio', { name: '30 天' }));
+    await click(within(screen.getByRole('radiogroup', { name: '历史记录保留时长' })).getByRole('radio', { name: '30 天' }));
     expect(sent('PUT', '/character/runtime')).toMatchObject({ history_retention: '30d' });
   });
 });
@@ -446,13 +446,13 @@ describe('隐私 and 数据 through agentd', () => {
 
   it('switches to allow mode and adds and removes allow entries with list allow', async () => {
     render(<Harness d={d}><SeeGroup /></Harness>);
-    await click(within(screen.getByRole('radiogroup', { name: '读取方式' })).getByRole('radio', { name: '只读名单里的' }));
+    await click(within(screen.getByRole('radiogroup', { name: '名单过滤模式' })).getByRole('radio', { name: '仅允许名单' }));
     expect(sent('POST', '/blacklist/mode')).toEqual({ mode: 'allow' });
     // The mock keeps the mode across tests; put it back before the next one reads it.
     await window.agenticComplex!.agentd.request('POST', '/blacklist/mode', { mode: 'deny' });
     cleanup();
     render(<Harness d={{ ...d, blacklist: { ...d.blacklist, mode: 'allow' } }}><SeeGroup /></Harness>);
-    expect(screen.getByText('只读取这些应用和网站')).toBeTruthy();
+    expect(screen.getByText('允许读取的应用与网站')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '恢复默认排除' })).toBeNull();
     await click(screen.getByRole('button', { name: '移除 github.com' }));
     expect(sent('DELETE', '/blacklist')).toEqual({ list: 'allow', field: 'domains', value: 'github.com' });
@@ -491,7 +491,7 @@ describe('隐私 and 数据 through agentd', () => {
   it('says nothing is read in allow mode with an empty allow list', () => {
     const blacklist: WireBlacklist = { ...d.blacklist, mode: 'allow', allow: { bundle_ids: [], app_names: [], domains: [] } };
     render(<Harness d={{ ...d, blacklist }}><SeeGroup /></Harness>);
-    expect(screen.getByText('什么都不读')).toBeTruthy();
+    expect(screen.getByText('当前列表为空，不会读取任何应用或网站')).toBeTruthy();
   });
 
   it('deletes recent records and the activity log, and says how many', async () => {
@@ -499,11 +499,11 @@ describe('隐私 and 数据 through agentd', () => {
     await click(screen.getByRole('button', { name: '1 小时' }));
     await click(within(screen.getByRole('dialog')).getByRole('button', { name: '删除' }));
     expect(request).toHaveBeenCalledWith('DELETE', '/observation?range=1h', undefined);
-    expect(screen.getByTestId('toast').textContent).toBe('已删掉最近 1 小时 看到的 28 条');
+    expect(screen.getByTestId('toast').textContent).toBe('已删除最近 1 小时 的屏幕观察记录（共 28 条）');
     expect(document.querySelector('[data-row="delact"]')?.textContent).toContain('Trace 事件');
     await click(screen.getByRole('button', { name: '清空…' }));
     const ask = screen.getByRole('dialog');
-    expect(ask.textContent).toContain('删除全部观察记录、操作时间线、活动摘要和由它推出的记忆，以及全部 Trace 事件。');
+    expect(ask.textContent).toContain('将删除全部屏幕观察记录、操作时间线、活动摘要与衍生记忆，以及全部 Trace 事件。');
     await click(within(ask).getByRole('button', { name: '清空' }));
     expect(request).toHaveBeenCalledWith('DELETE', '/attention', undefined);
     expect(screen.getByTestId('toast').textContent).toBe('已清空活动记录 1180 条、Trace 事件 96 条');
@@ -536,7 +536,7 @@ describe('语音状态', () => {
     const { tts: _unset, ...saved } = d.native.saved;
     render(<Harness d={{ ...withTts(WIRE_TTS.off), native: { ...d.native, saved } }}><SpeakGroup /></Harness>);
     expect(row()?.closest('[data-stub="PowerState"]')?.getAttribute('data-state')).toBe('unlinked');
-    expect(row()?.textContent).toContain('台词只显示文字');
+    expect(row()?.textContent).toContain('当前仅文字回复');
     expect(document.querySelector('[data-row="ttsToken"]')).toBeNull();
     expect(sourceSeg()).toBeNull();
   });
@@ -557,10 +557,10 @@ describe('语音状态', () => {
 
   it('says the text-only fallback on an unreachable voice, and keeps the usual line when ready', () => {
     const { unmount } = render(<Harness d={withTts(WIRE_TTS.unreachable)}><SpeakGroup /></Harness>);
-    expect(row()?.textContent).toContain('这段时间只显示文字');
+    expect(row()?.textContent).toContain('当前仅使用文字回复');
     unmount();
     render(<Harness d={withTts(WIRE_TTS.ready)}><SpeakGroup /></Harness>);
-    expect(row()?.textContent).toContain('自己部署的语音服务，app 只连接');
+    expect(row()?.textContent).toContain('需自行部署外部语音服务并在「服务」中配置地址；本应用不内置语音合成模型');
     expect(row()?.textContent).not.toContain('只显示文字');
   });
 
@@ -590,7 +590,7 @@ describe('语音状态', () => {
     render(<Harness d={withTts(WIRE_TTS.cold)}><SpeakGroup /></Harness>);
     request.mockResolvedValueOnce({ status: 0, body: null, error: { code: 'offline' } } as never);
     await click(within(row() as HTMLElement).getByRole('button', { name: '重新连接' }));
-    expect(screen.getByTestId('toast').textContent).toBe('没能重新连接语音：后台已断开');
+    expect(screen.getByTestId('toast').textContent).toBe('重新连接语音服务失败：后台已断开');
     expect(row()?.textContent).toContain('冷启动（第一句会慢）');
   });
 });
@@ -599,7 +599,7 @@ describe('听写语言', () => {
   it('offers follow-the-system, Chinese and English and saves the locale', async () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');
     render(<Harness d={d}><SpeakGroup /></Harness>);
-    const asr = screen.getByRole('radiogroup', { name: '听写语言' });
+    const asr = screen.getByRole('radiogroup', { name: '语音识别语言' });
     expect(within(asr).getAllByRole('radio').map((r) => r.textContent)).toEqual(['跟随系统', '中文', 'English']);
     await click(within(asr).getByRole('radio', { name: 'English' }));
     expect(save).toHaveBeenCalledWith({ asr: 'en-US' });
@@ -631,14 +631,14 @@ describe('外部语音服务', () => {
     expect(screen.queryByLabelText('令牌', { selector: 'input' })).toBeNull();
     expect(screen.queryByRole('button', { name: '测试' })).toBeNull();
     const jump = document.querySelector('[data-row="ttsJump"]') as HTMLElement;
-    expect(jump.textContent).toContain('在「服务 › 语音服务」里');
-    await click(within(jump).getByRole('button', { name: '去服务' }));
+    expect(jump.textContent).toContain('位于「设置 › 服务 › 语音服务」');
+    await click(within(jump).getByRole('button', { name: '前往服务' }));
     expect(goRow).toHaveBeenCalledWith('ttsToken', 'services');
   });
 
   it.each([
     [true, '令牌已保存'],
-    [false, '令牌不回显'],
+    [false, '令牌仅保存于后台服务，不予回显'],
   ])('reads token_set %s from /diag/state as %s', (token_set, note) => {
     const tts = { ...WIRE_TTS.ready, token_set };
     render(<Harness d={{ ...d, diag: { ...DIAG, connections: { ...WIRE_DIAG_CONNECTIONS, tts } } }}><TtsSecretRows pending={false} /></Harness>);
@@ -650,7 +650,7 @@ describe('外部语音服务', () => {
     fireEvent.change(screen.getByLabelText('令牌', { selector: 'input' }), { target: { value: ' secret ' } });
     await click(screen.getByRole('button', { name: '测试' }));
     expect(sent('POST', '/voice/test')).toEqual({ token: 'secret' });
-    expect(testRow()?.textContent).toContain('通过 │ 首声 320 ms');
+    expect(testRow()?.textContent).toContain('通过 │ 首包延迟 320 ms');
   });
 
   it('leaves an empty token out of the test', async () => {
@@ -677,11 +677,11 @@ describe('外部语音服务', () => {
   });
 
   it.each([
-    ['http_401', '令牌不对'],
-    ['invalid_url', '地址不可用：要以 http:// 或 https:// 开头'],
-    ['unreachable', '连不上'],
-    ['http_502', '服务返回 502'],
-    ['bad_stream', '返回的不是语音流'],
+    ['http_401', '令牌无效'],
+    ['invalid_url', '地址格式无效：须以 http:// 或 https:// 开头'],
+    ['unreachable', '无法连接'],
+    ['http_502', '服务返回状态码 502'],
+    ['bad_stream', '返回值非有效语音流'],
     ['timeout', '超时'],
   ])('shows the failure %s as %s', async (reason, text) => {
     render(<Harness d={d}><TtsSecretRows pending={false} /></Harness>);
@@ -694,7 +694,7 @@ describe('外部语音服务', () => {
     render(<Harness d={d}><TtsSecretRows pending={false} /></Harness>);
     request.mockResolvedValueOnce({ status: 503, body: { error: 'no_tts' }, error: { code: 'no_tts' } } as never);
     await click(screen.getByRole('button', { name: '测试' }));
-    expect(testRow()?.textContent).toContain('语音没有启用');
+    expect(testRow()?.textContent).toContain('语音服务未启用');
   });
 
   it('saves the token through POST /voice/token and never reads it back', async () => {
@@ -713,14 +713,14 @@ describe('外部语音服务', () => {
 describe('AI 对话 over the AI tab', () => {
   it('holds the account and model rows under the switch and folds them into one line while it is off', async () => {
     const { unmount } = render(<Harness d={d} init={{ draft: { kernel: 'pi' } }}><KernelGroup /></Harness>);
-    expect(screen.getByRole('switch', { name: 'AI 对话' })).toBeTruthy();
+    expect(screen.getByRole('switch', { name: '轻量 AI（对话、语音、记忆）' })).toBeTruthy();
     expect(document.querySelector('[data-row="svc"]')).not.toBeNull();
     expect(screen.getByRole('region', { name: '模型' })).toBeTruthy();
     unmount();
     setPlugins({ 'plugins.light_ai': false });
     render(<Harness d={d} init={{ draft: { kernel: 'pi' } }}><KernelGroup /></Harness>);
     // The folded line also says what is gone while it is off.
-    expect(screen.getByText(/关着 │ 打开后可以设：内核、账号、模型/).textContent).toContain('少了：聊天、记得聊过的事、主动搭话');
+    expect(screen.getByText(/未开启 │ 开启后可配置执行内核、账号与模型/).textContent).toContain('停用功能：日常对话、长期记忆与主动交互');
     expect(document.querySelector('[data-row="svc"]')).toBeNull();
     expect(screen.queryByRole('region', { name: '模型' })).toBeNull();
     expect(screen.queryByRole('region', { name: '当前内核' })).toBeNull();
@@ -740,7 +740,7 @@ describe('资料范围 with picked handles', () => {
     await click(screen.getByRole('button', { name: '撤销授权' }));
     // agentd's revoke stops every run and clears what the continuous observation and the memory journal hold, not only this scope's.
     const ask = screen.getByRole('dialog').textContent;
-    for (const what of ['所有在跑的任务和对话都会停下', '持续观察记下的内容和分析', '观察简报', '记忆整理记录里的原文']) expect(ask).toContain(what);
+    for (const what of ['所有运行中的任务与对话都将中止', '持续观察记录的分析上下文与摘要将被清空', '每日简报中的观察摘要将被清空', '记忆整理记录中的原文引用将被清除']) expect(ask).toContain(what);
     expect(ask).not.toContain('用这个范围的任务会停下');
     await click(within(screen.getByRole('dialog')).getByRole('button', { name: '撤销授权' }));
     expect(sent('POST', `/agent/scopes/${d.scopes[0]!.scope_id}/revoke`)).toEqual({});

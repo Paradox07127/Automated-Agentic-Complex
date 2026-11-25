@@ -84,16 +84,16 @@ class SignalsTest(unittest.TestCase):
         self.assertTrue(self.failed())
         self.hook('Stop')
         self.assertEqual(len(self.posts), 1)
-        self.assertEqual(self.posts[0]['text'], 'Claude Code 的 swift test 红了 3 条，都是 HostSeatTests')
+        self.assertEqual(self.posts[0]['text'], 'Claude Code 的 swift test 失败 3 项，均为 HostSeatTests')
         self.assertEqual(self.posts[0]['reason'], 'signal.check_failed')
         self.assertIn('Endfield', self.posts[0]['reply'])
 
     def test_session_lines_are_in_the_reply_language(self):
         for language, text, offer, reply in (
-                ('zh-Hans', 'Claude Code 的 swift test 红了 3 条，都是 HostSeatTests', '开个会话看看？',
-                 '帮我开一个会话看看 Endfield 的 swift test 为什么红了 3 条'),
-                (None, 'Claude Code 的 swift test 红了 3 条，都是 HostSeatTests', '开个会话看看？',
-                 '帮我开一个会话看看 Endfield 的 swift test 为什么红了 3 条'),
+                ('zh-Hans', 'Claude Code 的 swift test 失败 3 项，均为 HostSeatTests', '打开会话查看',
+                 '打开会话查看 Endfield 的 swift test 失败原因（3 项）'),
+                (None, 'Claude Code 的 swift test 失败 3 项，均为 HostSeatTests', '打开会话查看',
+                 '打开会话查看 Endfield 的 swift test 失败原因（3 项）'),
                 ('en', "Claude Code's swift test has 3 failing, all in HostSeatTests", 'Open a session to look?',
                  "Open a session to look at why Endfield's swift test has 3 failing"),
                 ('ja', 'Claude Code の swift test で 3 件失敗、すべて HostSeatTests', 'セッションを開いて見てみる？',
@@ -103,7 +103,7 @@ class SignalsTest(unittest.TestCase):
                 self.signals.semantic = NS(reply=lambda: language)
                 self.failed()
                 self.assertEqual([(p['text'], p['offer'], p['reply']) for p in self.posts], [(text, offer, reply)])
-        for language, detail in (('zh-Hans', '请求被限流了'), ('en', 'requests were rate limited'),
+        for language, detail in (('zh-Hans', '请求被限流'), ('en', 'requests were rate limited'),
                                  ('ja', 'リクエストが制限された')):
             with self.subTest(error=language):
                 self.setUp()
@@ -149,7 +149,7 @@ class SignalsTest(unittest.TestCase):
         self.signals.tick(self.now)
         self.assertEqual(len(self.posts), 1)
         self.assertEqual(self.posts[0]['reason'], 'signal.approval_wait')
-        self.assertTrue(self.posts[0]['text'].startswith('Claude Code 在等你批准'), self.posts[0]['text'])
+        self.assertTrue(self.posts[0]['text'].startswith('Claude Code 等待批准'), self.posts[0]['text'])
         self.assertIsNone(self.posts[0].get('offer'))
         self.hook('PermissionRequest', 'B', tool_name='Bash', tool_input={'command': 'ls'})
         self.now += 120
@@ -315,7 +315,7 @@ class SignalsTest(unittest.TestCase):
         for _ in range(3):
             self.hook('PreToolUse', 'B', tool_name='Read', tool_input={'file_path': '/tmp/a.py'})
             self.hook('PostToolUseFailure', 'B', tool_name='Read', error='missing')
-        self.assertIn('连着 3 次 a.py 失败', self.posts[-1]['text'])
+        self.assertIn('连续 3 次 a.py 失败', self.posts[-1]['text'])
         self.now += 601
         for _ in range(3):
             self.hook('PreToolUse', 'B', tool_name='Read', tool_input={'file_path': '/tmp/a.py'})
@@ -344,7 +344,7 @@ class SignalsTest(unittest.TestCase):
         self.hook('UserPromptSubmit')
         self.now += 600
         self.hook('Stop', last_assistant_message='修好了。详细说明在下面。')
-        self.assertEqual(self.posts[0]['text'], 'Claude Code 在 Endfield 做完了：修好了。')
+        self.assertEqual(self.posts[0]['text'], 'Claude Code 在 Endfield 已完成：修好了。')
         self.hook('UserPromptSubmit')
         self.now += 600
         self.hook('Stop', last_assistant_message='又修好了。')
@@ -354,7 +354,7 @@ class SignalsTest(unittest.TestCase):
         self.hook('UserPromptSubmit')
         self.now += 600
         self.hook('Stop', last_assistant_message='sk-test-1234567890abcdefghij 已经配好。')
-        self.assertEqual(self.posts[0]['text'], 'Claude Code 在 Endfield 做完了：[已遮蔽:密钥] 已经配好。')
+        self.assertEqual(self.posts[0]['text'], 'Claude Code 在 Endfield 已完成：[已遮蔽:密钥] 已经配好。')
 
     def test_failed_long_turn_has_no_done_message_and_daily_cap_is_separate(self):
         self.gate._count = self.gate.daily_limit
@@ -475,13 +475,13 @@ class WorkSignalsTest(unittest.TestCase):
         self.cards.append(dict(self.cards[0], id='task-B', title='修材质'))
         self.tick()
         self.tick(300)
-        self.assertEqual([p['text'] for p in self.posts], ['「修渲染」一天没动了，上次停在：检查材质'])
+        self.assertEqual([p['text'] for p in self.posts], ['「修渲染」已停滞一天，上次步骤：检查材质'])
         self.tick(3600)
         self.assertEqual(len(self.posts), 1)
 
     def test_a_stalled_task_without_a_next_step_names_none(self):
         for language, text, reply in (
-                ('zh-Hans', '「修渲染」一天没动了', '提醒我明天9点接着做修渲染'),
+                ('zh-Hans', '「修渲染」已停滞一天', '提醒我明天9点接着做修渲染'),
                 ('en', '"修渲染" has not moved for a day', 'Remind me tomorrow at 9:00 to continue "修渲染"'),
                 ('ja', '「修渲染」が一日止まっている', '明日 9 時に「修渲染」の続きをリマインドして')):
             for step in (None, ''):

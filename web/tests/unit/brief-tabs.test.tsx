@@ -39,29 +39,29 @@ const panel = (name: string) => screen.queryByRole('region', { name });
 describe('brief her tab', () => {
   it('shows her tools when every switch is on', async () => {
     draw(<HerTab {...props(await read())} />);
-    expect(panel('替你动手')).not.toBeNull();
-    expect(panel('在桌面上')).toBeNull();
+    expect(panel('工具执行')).not.toBeNull();
+    expect(panel('桌面行为')).toBeNull();
   });
 
   it('shows how often you touched her in the side column when voice is off', async () => {
     draw(<HerTab {...props(await read('scr,read'))} />);
-    const side = screen.getByRole('region', { name: '角色这一天' });
-    expect(side.textContent).not.toContain('出声');
-    expect(side.textContent).toContain('你碰角色');
+    const side = screen.getByRole('region', { name: '角色动态' });
+    expect(side.textContent).not.toContain('语音播报');
+    expect(side.textContent).toContain('互动触碰');
   });
 
   it('shows her desk and her voice when only voice is on', async () => {
     draw(<HerTab {...props(await read('voice'))} />);
-    expect(panel('替你动手')).toBeNull();
-    expect(panel('在桌面上')).not.toBeNull();
-    const side = screen.getByRole('region', { name: '角色这一天' });
-    expect(side.textContent).toContain('出声');
+    expect(panel('工具执行')).toBeNull();
+    expect(panel('桌面行为')).not.toBeNull();
+    const side = screen.getByRole('region', { name: '角色动态' });
+    expect(side.textContent).toContain('语音播报');
   });
 
   it('names why she spoke by agentd’s label', async () => {
     const day = await read();
     draw(<HerTab {...props({ ...day, her: { ...day.her, why: [{ key: 'break', label: '提醒你休息', count: 2 }, { key: 'new_kind', label: 'new_kind', count: 1 }] } })} />);
-    expect(screen.getByRole('img', { name: /^为什么开口：/ }).getAttribute('aria-label')).toBe('为什么开口：提醒你休息 2 次，new_kind 1 次');
+    expect(screen.getByRole('img', { name: /^主动触发原因：/ }).getAttribute('aria-label')).toBe('主动触发原因：提醒你休息 2 次，new_kind 1 次');
   });
 });
 

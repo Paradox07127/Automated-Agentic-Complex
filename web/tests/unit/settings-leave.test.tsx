@@ -32,7 +32,7 @@ async function mount() {
     </QueryClientProvider>,
   );
   // Plug-ins still take a backend restart; every one is on here (pluginsOn), once config.json is read.
-  const plugin = await screen.findByRole('switch', { name: '外部智能体接入' });
+  const plugin = await screen.findByRole('switch', { name: '外部接入' });
   await waitFor(() => expect(plugin.getAttribute('aria-checked')).toBe('true'));
   await act(async () => fireEvent.click(plugin));
   return { bridge, router, leave: () => act(async () => void router.navigate({ to: '/chat' })) };
@@ -45,9 +45,9 @@ describe('leaving 设置 with a change that waits for a backend restart', () => 
     const m = await mount();
     const restart = vi.spyOn(m.bridge.supervisor, 'restart');
     await m.leave();
-    expect(dialog()?.textContent).toContain('外部智能体接入');
+    expect(dialog()?.textContent).toContain('外部接入');
     expect(m.router.state.location.pathname).toBe('/settings');
-    await act(async () => fireEvent.click(within(dialog()!).getByRole('button', { name: '重启后台' })));
+    await act(async () => fireEvent.click(within(dialog()!).getByRole('button', { name: '重启后台服务' })));
     expect(restart).toHaveBeenCalledWith('agentd');
     await screen.findByText('对话页');
   });
@@ -80,14 +80,14 @@ describe('leaving 设置 with a change that waits for a backend restart', () => 
       await act(async () => stay());
       expect(dialog(), way).toBeNull();
       expect(m.router.state.location.pathname, way).toBe('/settings');
-      expect(screen.getByRole('switch', { name: '外部智能体接入' }).getAttribute('aria-checked'), way).toBe('false');
+      expect(screen.getByRole('switch', { name: '外部接入' }).getAttribute('aria-checked'), way).toBe('false');
     }
     expect(save).not.toHaveBeenCalled();
   });
 
   it('does not ask once the value is back where the backend runs', async () => {
     const m = await mount();
-    await act(async () => fireEvent.click(screen.getByRole('switch', { name: '外部智能体接入' })));
+    await act(async () => fireEvent.click(screen.getByRole('switch', { name: '外部接入' })));
     await m.leave();
     expect(dialog()).toBeNull();
     await screen.findByText('对话页');
@@ -120,7 +120,7 @@ describe('leaving 设置 with a kernel picked that its plug-in turned away', () 
     const codex = await screen.findByRole('radio', { name: 'Codex' });
     await act(async () => fireEvent.click(codex.closest('tr')!));
     await act(async () => void router.navigate({ to: '/chat' }));
-    const confirm = within(dialog()!).getAllByRole('button').find((b) => b.textContent === '重启后台' || b.textContent === '应用')!;
+    const confirm = within(dialog()!).getAllByRole('button').find((b) => b.textContent === '重启后台服务' || b.textContent === '应用')!;
     await act(async () => fireEvent.click(confirm));
     expect(save).toHaveBeenLastCalledWith({ 'plugins.harness_bridge': true });
     expect(restart).toHaveBeenCalledWith('agentd');

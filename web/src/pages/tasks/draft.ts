@@ -93,9 +93,9 @@ function createDraft(d: EditDraft): CreateDraft {
 /** Why the draft cannot be sent yet; null when it can. */
 export function problemOf(d: EditDraft, canPick: boolean): string | null {
   if (d.when === 'now') return draftProblem(createDraft(d), canPick);
-  if (!d.title.trim()) return '先写标题';
-  if (!d.brief.trim()) return '先写指令';
-  return triggerOf(d) ? null : '时间写成 18:30 这样，至少选一天';
+  if (!d.title.trim()) return '请填写标题';
+  if (!d.brief.trim()) return '请填写指令';
+  return triggerOf(d) ? null : '请按 HH:MM 格式填写时间（如 18:30）并至少选择一天';
 }
 
 /** Next run of a schedule draft, for the preview line; null without one. */

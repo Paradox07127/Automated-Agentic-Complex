@@ -52,6 +52,7 @@ export function isApprovalCard(card: StackCard): card is ApprovalStackItem {
 /** Receipts native and the stack write after a role approval; anything else is not an approval outcome. */
 const RECEIPT_OUTCOME: Record<string, ApprovalOutcome['kind']> = {
   已允许: 'approved',
+  已批准: 'approved',
   '已回答：允许': 'approved',
   '已回答：本对话都允许': 'approved',
   已拒绝: 'denied',

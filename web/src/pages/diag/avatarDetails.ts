@@ -11,7 +11,7 @@ const SUSPENDED: Readonly<Record<string, string>> = {
 /** 画面暂停中 with its reason when the host gave a known one. */
 export const suspendedText = (code: string): string => (SUSPENDED[code] ? `画面暂停中 │ ${SUSPENDED[code]}` : '画面暂停中');
 
-const UNSUPPORTED: Readonly<Record<string, string>> = { ssaa: 'SSAA 关', display_resolution: '按显示器分辨率' };
+const UNSUPPORTED: Readonly<Record<string, string>> = { ssaa: 'SSAA 已关闭', display_resolution: '按显示器分辨率' };
 
 export const rendererName =(r: string | null): string => (r == null ? '未知' : r === 'metal' ? 'Metal' : r);
 

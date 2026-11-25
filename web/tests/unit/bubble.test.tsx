@@ -269,7 +269,7 @@ describe('the bubble', () => {
     await flush(async () => {});
     expect(request).toHaveBeenCalledWith('POST', '/agent/scopes', { files: [{ handle: 'H:周报.md' }, { handle: 'H:notes.txt' }] });
     expect(action).toHaveBeenCalledWith('quickInput', JSON.stringify({ scopeId: 's1', files: 2 }));
-    within(screen.getByRole('dialog', { name: '快速输入' })).getByText('可读 2 个文件');
+    within(screen.getByRole('dialog', { name: '快速输入' })).getByText('可读取 2 个文件');
     // The same card pushed again does not open it a second time.
     await b.cards([drop]);
     expect(action).toHaveBeenCalledTimes(1);
@@ -302,7 +302,7 @@ describe('the bubble', () => {
     ]);
     await flush(async () => {});
     const dialog = screen.getByRole('dialog', { name: '快速输入' });
-    within(dialog).getByText('读不了 .pdf，只把路径发给角色');
+    within(dialog).getByText('无法读取 .pdf 内容，将仅发送文件路径');
     const box = within(dialog).getByRole('textbox');
     fireEvent.change(box, { target: { value: '帮我看看这些' } });
     await flush(async () => fireEvent.keyDown(box, { key: 'Enter' }));
@@ -463,7 +463,7 @@ describe('the bubble’s thought and mute', () => {
     expect(request.mock.calls[0]?.slice(0, 2)).toEqual(['GET', '/proactive/mutes']);
     expect(puts()).toEqual([['PUT', '/proactive/mutes', { muted: ['comment', 'thought'] }]]);
     expect(said(THOUGHT.text)).toBeNull();
-    screen.getByText('已关闭想法，以后不再显示');
+    screen.getByText('已关闭此类想法提示，后续不再显示');
     await flush(async () => fireEvent.click(screen.getByRole('button', { name: '撤销' })));
     expect(puts().at(-1)).toEqual(['PUT', '/proactive/mutes', { muted: ['comment'] }]);
     screen.getByText(THOUGHT.text);
@@ -588,16 +588,16 @@ describe('the bubble’s thought and mute', () => {
     const b = mountBubble();
     await b.presence(presenceOf());
     openMore();
-    screen.getByRole('button', { name: '有用' });
-    screen.getByRole('button', { name: '少说点' });
+    screen.getByRole('button', { name: '有帮助' });
+    screen.getByRole('button', { name: '减少此类提示' });
     await b.line('c1', '我先去看看日志。', true);
     openMore();
-    expect(screen.queryByRole('button', { name: '有用' })).toBeNull();
-    expect(screen.queryByRole('button', { name: '少说点' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '有帮助' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '减少此类提示' })).toBeNull();
     await b.line('d-pro', '要不要我帮你把报错整理一下？', true, { code: 'stuck', kind: 'stuck' });
     openMore();
-    screen.getByRole('button', { name: '有用' });
-    screen.getByRole('button', { name: '少说点' });
+    screen.getByRole('button', { name: '有帮助' });
+    screen.getByRole('button', { name: '减少此类提示' });
   });
 
   it('少说点 posts /feedback less once and shows it was sent, until the next thought', async () => {
@@ -605,16 +605,16 @@ describe('the bubble’s thought and mute', () => {
     const request = vi.spyOn(b.bridge.agentd, 'request').mockResolvedValue({ status: 200, body: {} });
     await b.presence(presenceOf());
     openMore();
-    await flush(async () => fireEvent.click(screen.getByRole('button', { name: '少说点' })));
+    await flush(async () => fireEvent.click(screen.getByRole('button', { name: '减少此类提示' })));
     expect(request.mock.calls).toEqual([['POST', '/feedback', { line_id: 't1', value: 'less' }]]);
-    const sent = screen.getByRole('button', { name: '少说点（已发送）' });
+    const sent = screen.getByRole('button', { name: '减少此类提示（已发送）' });
     expect(sent.hasAttribute('disabled')).toBe(true);
-    expect(screen.getByRole('button', { name: '有用' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: '有帮助' }).hasAttribute('disabled')).toBe(true);
     await b.presence(presenceOf({ thought: { ...THOUGHT, id: 't2', text: '窗口里的报错换了一条。' } }));
     openMore();
-    await flush(async () => fireEvent.click(screen.getByRole('button', { name: '有用' })));
+    await flush(async () => fireEvent.click(screen.getByRole('button', { name: '有帮助' })));
     expect(request.mock.calls.at(-1)).toEqual(['POST', '/feedback', { line_id: 't2', value: 'useful' }]);
-    screen.getByRole('button', { name: '有用（已发送）' });
+    screen.getByRole('button', { name: '有帮助（已发送）' });
   });
 
   it('a refused 有用 is not shown as sent', async () => {
@@ -622,15 +622,15 @@ describe('the bubble’s thought and mute', () => {
     vi.spyOn(b.bridge.agentd, 'request').mockResolvedValue({ status: 404, body: null });
     await b.presence(presenceOf());
     openMore();
-    await flush(async () => fireEvent.click(screen.getByRole('button', { name: '有用' })));
-    expect(screen.getByRole('button', { name: '有用' }).hasAttribute('disabled')).toBe(false);
+    await flush(async () => fireEvent.click(screen.getByRole('button', { name: '有帮助' })));
+    expect(screen.getByRole('button', { name: '有帮助' }).hasAttribute('disabled')).toBe(false);
   });
 
   it('an accepted turn shows 在想 in place of her thought, until her first word fills the card', async () => {
     const b = mountBubble();
     await b.presence(presenceOf());
     await b.accepted('u1');
-    screen.getByText('在想');
+    screen.getByText('思考中');
     expect(said(THOUGHT.text)).toBeNull();
     await b.line('u1', '我看看。');
     expect(said('在想')).toBeNull();
@@ -647,10 +647,10 @@ describe('the bubble’s thought and mute', () => {
     render(<BubbleRoot />);
     await b.accepted('u1');
     const bar = document.querySelector<HTMLElement>('[data-subtitle]')!;
-    expect(bar.textContent).toContain('在想');
+    expect(bar.textContent).toContain('思考中');
     await b.line('u1', '我看看。');
     expect(bar.isConnected && document.querySelector('[data-subtitle]')!.textContent).toContain('我看看。');
-    expect(document.querySelector('[data-subtitle]')!.textContent).not.toContain('在想');
+    expect(document.querySelector('[data-subtitle]')!.textContent).not.toContain('思考中');
   });
 
   it('a due reminder offers neither 关闭 nor 更多操作 of its own', async () => {
@@ -697,7 +697,7 @@ describe('the bubble’s thought and mute', () => {
     const seen = () => request.mock.calls.filter(([, path]) => String(path).endsWith('/seen'));
     await b.presence(presenceOf());
     await b.cards([approval, reminder]);
-    expect(screen.getByRole('alertdialog', { name: /^要你批准：/ })).toBeTruthy();
+    expect(screen.getByRole('alertdialog', { name: /^待批准：/ })).toBeTruthy();
     expect(screen.queryByText('c1 组会')).toBeNull();
     expect(seen()).toHaveLength(0);
     await b.cards([reminder]);

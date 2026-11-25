@@ -212,17 +212,17 @@ describe('chat v2: topic management', () => {
     fireEvent.click(tab('示例甲'));
     rightClick(await within(topics()).findByText('早班的提醒'));
     fireEvent.click(menuItem(/删除/));
-    let card = screen.getByRole('dialog', { name: '删除「早班的提醒」？' });
-    expect(card.textContent).toMatch(/1 轮对话/);
-    fireEvent.click(within(card).getByRole('button', { name: '先不删' }));
+    let card = screen.getByRole('dialog', { name: '确认删除「早班的提醒」？' });
+    expect(card.textContent).toMatch(/1 轮记录/);
+    fireEvent.click(within(card).getByRole('button', { name: '取消' }));
     expect(screen.queryByRole('dialog')).toBeNull();
     rightClick(row('早班的提醒'));
     fireEvent.click(menuItem(/删除/));
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '改成归档' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '改为归档' }));
     await waitFor(() => expect(b.calls.filter((c) => c.method === 'PUT').map((c) => c.body)).toEqual([{ expected_version: 1, archived: true }]));
     fireEvent.keyDown(row('协议核心的交接'), { key: 'Delete' });
-    card = screen.getByRole('dialog', { name: '删除「协议核心的交接」？' });
-    expect(card.textContent).toMatch(/2 轮对话/);
+    card = screen.getByRole('dialog', { name: '确认删除「协议核心的交接」？' });
+    expect(card.textContent).toMatch(/2 轮记录/);
     fireEvent.click(within(card).getByRole('button', { name: /^删除/ }));
     await waitFor(() => expect(b.of('DELETE', `/conversations/${HANDOVER}`).map((c) => c.body)).toEqual([{ expected_version: 1 }]));
     await waitFor(() => expect(within(topics()).queryByText('协议核心的交接')).toBeNull());
@@ -242,7 +242,7 @@ describe('chat v2: topic management', () => {
     await mount();
     rightClick(tab('示例甲'));
     const menu = screen.getByRole('menu', { name: '示例甲' });
-    expect(within(menu).getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['新话题', '换示例甲出来', '示例甲的专属记忆']);
+    expect(within(menu).getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['新话题', '切换「示例甲」出场', '示例甲 的专属记忆']);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('menu')).toBeNull();
   });
@@ -255,9 +255,9 @@ describe('chat v2: a character not on the desktop', () => {
     fireEvent.click(tab('示例甲'));
     await within(thread).findByText('不急。看完告诉我一声就行。');
     send(thread, '我看完了');
-    const card = await screen.findByRole('dialog', { name: '换示例甲出来回你？' });
+    const card = await screen.findByRole('dialog', { name: '切换角色「示例甲」出场？' });
     expect(b.of('POST', `/conversations/${HANDOVER}/messages`)).toHaveLength(0);
-    fireEvent.click(within(card).getByRole('button', { name: '换出来并发送' }));
+    fireEvent.click(within(card).getByRole('button', { name: '切换并发送' }));
     await waitFor(() => expect(b.of('POST', `/conversations/${HANDOVER}/messages`).map((c) => c.body)).toEqual([{ text: '我看完了' }]));
     expect(b.switched).toEqual(['voice_a']);
     const sent = b.calls.findIndex((c) => c.method === 'POST' && c.path.endsWith('/messages'));
@@ -271,7 +271,7 @@ describe('chat v2: a character not on the desktop', () => {
     fireEvent.click(tab('示例甲'));
     await within(thread).findByText('不急。看完告诉我一声就行。');
     send(thread, '我看完了');
-    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '先不换' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '取消' }));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect((within(thread).getByRole('textbox', { name: '消息' }) as HTMLTextAreaElement).value).toBe('我看完了');
     expect(b.switched).toEqual([]);
@@ -282,9 +282,9 @@ describe('chat v2: a character not on the desktop', () => {
     const b = bridge([refused]);
     const thread = await mount();
     send(thread, '在吗');
-    const card = await screen.findByRole('dialog', { name: '换示例乙出来回你？' });
+    const card = await screen.findByRole('dialog', { name: '切换角色「示例乙」出场？' });
     expect(b.of('POST', `/conversations/${C1}/messages`)).toHaveLength(1);
-    expect(within(card).getByRole('button', { name: '换出来并发送' })).toBeTruthy();
+    expect(within(card).getByRole('button', { name: '切换并发送' })).toBeTruthy();
   });
 });
 
@@ -317,9 +317,9 @@ describe('chat v2: quoting a message', () => {
     const thread = await mount();
     fireEvent.contextMenu(within(thread).getByText('按项目分组，不要按日期。'), { clientX: 10, clientY: 10 });
     fireEvent.click(menuItem('引用回复'));
-    expect(within(thread).getByRole('button', { name: '不引用' })).toBeTruthy();
+    expect(within(thread).getByRole('button', { name: '取消引用' })).toBeTruthy();
     send(thread, '好');
     await waitFor(() => expect(b.of('POST', `/conversations/${C1}/messages`).map((c) => c.body)).toEqual([{ text: '好', quote_turn: { turn_id: 'tr7', part: 'user' } }]));
-    await waitFor(() => expect(within(thread).queryByRole('button', { name: '不引用' })).toBeNull());
+    await waitFor(() => expect(within(thread).queryByRole('button', { name: '取消引用' })).toBeNull());
   });
 });

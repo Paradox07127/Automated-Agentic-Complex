@@ -51,7 +51,7 @@ export function SearchResults({ q, results, onPick }: SearchResultsProps) {
     return (
       <div className={styles.empty} role="status">
         <Icon name="search" size={32} />
-        <span>没有找到「{q.trim()}」，试试「截图」「热键」「外发」</span>
+        <span>未找到「{q.trim()}」，可尝试搜索「截图」「快捷键」「外发」</span>
       </div>
     );
   }

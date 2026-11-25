@@ -56,7 +56,7 @@ export function ProcRow({ p, metric, samples, now, uptime, stale, action, highli
         <b className={styles.name}>{p.name}</b>
         <small className={styles.sub}>{p.pid != null ? `${p.sub} │ pid ${p.pid}` : p.sub}</small>
         <span className={styles.state}>
-          {busy ? <span className={styles.busy}>◌ 正在重启…</span> : <StatusLamp state={state} label={stale ? '没有响应' : p.status_text} onDark />}
+          {busy ? <span className={styles.busy}>◌ 正在重启…</span> : <StatusLamp state={state} label={stale ? '无响应' : p.status_text} onDark />}
           <small>{p.backoff_s != null && !busy ? `退避 ${p.backoff_s} 秒后重试` : `运行 ${uptime ?? '—'}`}</small>
         </span>
         <i className={styles.bar} aria-hidden="true" />

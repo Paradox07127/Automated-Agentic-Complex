@@ -91,9 +91,9 @@ describe(' 观察: 外发总览', () => {
         <SeeGroup />
       </Harness>,
     );
-    expect(plate().textContent).toMatch(/^会离开这台电脑的/);
-    expect(out()).toEqual(['截图', '窗口文字（仅焦点元素）', '网页正文', '编码会话']);
-    expect(plate().textContent).toContain('→ Codex │ 发出前遮蔽 开');
+    expect(plate().textContent).toMatch(/^外部数据流向/);
+    expect(out()).toEqual(['截图', '窗口文字（焦点内容）', '网页正文', '编码会话']);
+    expect(plate().textContent).toContain('→ Codex │ 发送前脱敏 开启');
     expect(container.querySelector('svg[aria-label^="外发流向"]')).toBeNull();
     expect(screen.queryByRole('grid', { name: '外发' })).toBeNull();
     expect(screen.queryByRole('button', { name: '展开' })).toBeNull();
@@ -106,7 +106,7 @@ describe(' 观察: 外发总览', () => {
         <SeeGroup />
       </Harness>,
     );
-    expect(out()).toContain('窗口文字（仅焦点元素）');
+    expect(out()).toContain('窗口文字（焦点内容）');
   });
 
   it('leaves a type out when its switch or the plug-in owning it is off', () => {
@@ -135,14 +135,14 @@ describe(' 观察: 外发总览', () => {
         <SeeGroup />
       </Harness>,
     );
-    expect(out()).toContain('窗口文字（仅焦点元素）');
+    expect(out()).toContain('窗口文字（焦点内容）');
     cleanup();
     render(
       <Harness init={{ draft: { wintext: true, grain: 'window' } }}>
         <SeeGroup />
       </Harness>,
     );
-    expect(out()).toContain('窗口文字（整个窗口）');
+    expect(out()).toContain('窗口文字（窗口摘要）');
   });
 
   it('leaves 窗口文字 out at the status level, where agentd sends no window text', () => {
@@ -161,7 +161,7 @@ describe(' 观察: 外发总览', () => {
       </Harness>,
     );
     expect(out()).toEqual([]);
-    expect(plate().textContent).toContain('未读到');
+    expect(plate().textContent).toContain('未读取');
   });
 
   it('sends nothing for Pi on a local service without a key', () => {
@@ -171,7 +171,7 @@ describe(' 观察: 外发总览', () => {
       </Harness>,
     );
     expect(out()).toEqual([]);
-    expect(plate().textContent).toContain('没有');
+    expect(plate().textContent).toContain('无');
   });
 
   it('names the role kernel as the destination', () => {
@@ -187,7 +187,7 @@ describe(' 观察: 外发总览', () => {
         <SeeGroup />
       </Harness>,
     );
-    expect(plate().textContent).toContain('→ 角色内核');
+    expect(plate().textContent).toContain('→ 执行内核');
   });
 
   // Boolean rows use the game's 开 | 关 switch: one control, a click flips it.
@@ -198,7 +198,7 @@ describe(' 观察: 外发总览', () => {
         <SeeGroup />
       </Harness>,
     );
-    const sw = screen.getByRole('switch', { name: '键鼠计数' });
+    const sw = screen.getByRole('switch', { name: '记录键鼠交互频次' });
     // The shared Switch draws its two words from data-t, so they stay out of the accessible name.
     expect([...sw.querySelectorAll('[data-t]')].map((e) => e.getAttribute('data-t'))).toEqual(['开', '关']);
     expect(sw.getAttribute('aria-checked')).toBe('true');
@@ -302,7 +302,7 @@ describe(' 角色内核', () => {
       </Harness>,
     );
     const chains = Array.from(container.querySelectorAll('[data-stub="KernelChain"]'), (c) => c.getAttribute('aria-label'));
-    expect(chains).toEqual(['Pi 就绪链']);
+    expect(chains).toEqual(['Pi 就绪状态']);
   });
 
   it('has no backend issue numbers on screen', async () => {
@@ -333,7 +333,7 @@ describe(' 关于 › 排障', () => {
 describe(' 搜索', () => {
   it('lists results without effect tags; only data deletion is marked', () => {
     const { container } = render(<SearchResults q="外发" results={searchSettings('外发')} onPick={() => {}} />);
-    expect(screen.getByRole('button', { name: /^会离开这台电脑的/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^外部数据流向/ })).toBeTruthy();
     expect(container.textContent).not.toMatch(/整组应用|⟳后台|⟳角色|立即/);
   });
 });

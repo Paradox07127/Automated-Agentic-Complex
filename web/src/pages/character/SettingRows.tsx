@@ -155,7 +155,7 @@ export function SettingRows({ n, tab, set, setMany, pending, failed, offline }: 
           modified={changed}
           control={
             <>
-              {changed && <IconBtn icon="refresh" size="sm" label={`恢复「${r.label}」的默认`} disabled={offline} onClick={() => set(id, r.default)} />}
+              {changed && <IconBtn icon="refresh" size="sm" label={`恢复「${r.label}」默认值`} disabled={offline} onClick={() => set(id, r.default)} />}
               {gameControl(r, n.saved[id], offline, (v, quiet) => set(id, v, quiet), SEG_LABELS[id], compact)}
             </>
           }
@@ -176,12 +176,12 @@ export function SettingRows({ n, tab, set, setMany, pending, failed, offline }: 
         className={styles.row}
         data-changed={changed || undefined}
         data-pad=""
-        desc={changed ? `默认：${valueText(yaw, yaw.default)}（正中）` : '点格子换方向，正中是原作'}
+        desc={changed ? `默认：${valueText(yaw, yaw.default)}（正中）` : '点击网格调整主光方向，中心为默认角度'}
         modified={changed}
         control={
           <>
             {changed && (
-              <IconBtn icon="refresh" size="sm" label="恢复「主光方向」的默认" disabled={offline} onClick={() => setMany({ [LIGHT_PAD.yaw]: yaw.default, [LIGHT_PAD.pitch]: pitch.default })} />
+              <IconBtn icon="refresh" size="sm" label="恢复「主光方向」默认值" disabled={offline} onClick={() => setMany({ [LIGHT_PAD.yaw]: yaw.default, [LIGHT_PAD.pitch]: pitch.default })} />
             )}
             <LightPad n={n} disabled={offline} setMany={setMany} />
           </>

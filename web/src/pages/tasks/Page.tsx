@@ -32,7 +32,7 @@ import styles from './Page.module.css';
 const TABS = [
   { id: 'run', label: '进行中', icon: 'sync' as const },
   { id: 'sched', label: '定时', icon: 'clock' as const },
-  { id: 'done', label: '已完成', icon: 'ok' as const },
+  { id: 'done', label: '历史记录', icon: 'ok' as const },
 ];
 const ORDER: TasksTab[] = ['run', 'sched', 'done'];
 /** 已完成 shows this many more per 再往前. */
@@ -118,9 +118,9 @@ export function TasksPage() {
     try {
       const h = await getBridge().files.pickFolder({ purpose: 'session_cwd' });
       if (h && draft) setDraft({ ...draft, cwd: h });
-      else if (!h) push('没有选择目录');
+      else if (!h) push('未选择目录');
     } catch {
-      push('这台电脑的外壳暂不支持选择目录', { severity: 'danger' });
+      push('当前客户端环境暂不支持选择目录', { severity: 'danger' });
     }
   };
   const submit = async () => {
@@ -129,7 +129,7 @@ export function TasksPage() {
     try {
       if (draft.when === 'now') {
         const r = await sendNow(draft);
-        push(`已交派：${r.label}`);
+        push(`已派发：${r.label}`);
         close();
         void desk.reload();
         put({ tab: 'run', sel: r.select });
@@ -143,7 +143,7 @@ export function TasksPage() {
       }
     } catch (e) {
       const text = isPluginOff(e) ? offText(draft.type) : failMessage(e);
-      if (text !== null) push(`交派失败：${text}`, { severity: 'danger' });
+      if (text !== null) push(`派发失败：${text}`, { severity: 'danger' });
     } finally {
       setBusy(false);
     }
@@ -204,12 +204,12 @@ export function TasksPage() {
   const delSched = del ? scheds.find((s) => s.schedule_id === del) : undefined;
   const newKind: CreateKind = tab === 'sched' ? 'sched' : 'role';
   const newLabel = tab === 'sched' ? '新建定时任务' : '派发任务';
-  const emptyText = tab === 'run' ? '现在没有在做的任务' : tab === 'sched' ? '还没有定时任务' : '还没有做完的任务';
+  const emptyText = tab === 'run' ? '当前无运行中的任务' : tab === 'sched' ? '尚无定时任务' : '尚无历史任务记录';
   const plugins = usePlugins();
   // Coding sessions are one kind of row in 进行中 and 已完成; with 编码会话 off that kind says 已关闭 over the list.
   const codeOff =
     plugins.personal_agent && !plugins.coding_sessions && tab !== 'sched' ? (
-      <PowerState state="off" mode="block" title="编码会话" reason="设置里关着「编码会话」，这里不列 Claude Code 和 Codex 的会话。" action={{ label: '前往设置打开', onClick: () => go({ page: 'settings', group: 'privacy', item: 'plugins.coding_sessions' }) }}>
+      <PowerState state="off" mode="block" title="编码会话" reason="已在「设置 › 感知」中关闭「编码会话」，此处不显示 Claude Code 与 Codex 会话。" action={{ label: '前往开启', onClick: () => go({ page: 'settings', group: 'privacy', item: 'plugins.coding_sessions' }) }}>
         {null}
       </PowerState>
     ) : null;
@@ -225,7 +225,7 @@ export function TasksPage() {
         <div className={styles.tipsR} role="alert">
           <Warn />
           <span>
-            <b>{tab === 'sched' ? '定时任务没读到' : '任务列表没读到'}</b>
+            <b>{tab === 'sched' ? '未能读取定时任务' : '未能读取任务列表'}</b>
             <small>{errText}</small>
           </span>
           <Btn size="sm" variant="ghost" onClick={() => void (tab === 'sched' ? sched.refetch() : desk.reload())}>
@@ -237,7 +237,7 @@ export function TasksPage() {
         <div className={styles.tipsR} role="alert">
           <Warn />
           <span>
-            <b>待处理没读全</b>
+            <b>待处理任务未能完整读取</b>
             <small>{pendText}</small>
           </span>
           <Btn size="sm" variant="ghost" onClick={() => void desk.reload()}>
@@ -251,7 +251,7 @@ export function TasksPage() {
       {tab === 'done' && q.trim() && ids.length === 0 && (
         <Empty
           inline
-          title={`没找到「${q.trim()}」`}
+          title={`未找到匹配「${q.trim()}」的任务`}
           action={
             <Btn size="sm" variant="text" onClick={() => setQ('')}>
               清除
@@ -263,7 +263,7 @@ export function TasksPage() {
       {tab === 'done' && !q.trim() && ended.length > limit && (
         <span className={styles.more}>
           <Btn size="sm" variant="text" onClick={() => setLimit(limit + PAGE)}>
-            再往前 {PAGE} 个
+            加载更多（{PAGE} 项）
           </Btn>
         </span>
       )}
@@ -290,14 +290,14 @@ export function TasksPage() {
     />
   ) : (
     <div className={blank.empty} style={{ gridRow: '1 / -1' }}>
-      <p>{loading ? '' : errText ? '—' : params.sel && !sel ? '不在这个列表里' : tab === 'sched' ? '选一个定时任务' : '选一个任务看详情'}</p>
+      <p>{loading ? '' : errText ? '—' : params.sel && !sel ? '未在当前列表中找到该项' : tab === 'sched' ? '请选择一个定时任务' : '请选择一个任务查看详情'}</p>
     </div>
   );
 
   return (
     <div className={styles.page} data-page="tasks">
       <PageHeaderSlot
-        tabs={<Tabs label="任务页签" keys={false} value={tab} onChange={setTab} tabs={TABS.map((t) => (t.id === 'run' && waiting ? { ...t, mark: '有要你处理的任务' } : t))} />}
+        tabs={<Tabs label="任务页签" keys={false} value={tab} onChange={setTab} tabs={TABS.map((t) => (t.id === 'run' && waiting ? { ...t, mark: '存在待处理任务' } : t))} />}
         bottom={
           <BottomBar
             tab={tab}
@@ -318,7 +318,7 @@ export function TasksPage() {
             onGoChat={(c) => go({ page: 'chat', conv: c })}
             onEdit={() => schedule && open(draftFromSchedule(schedule))}
             onRunNow={() => schedule && void writes.runNow(schedule)}
-            runOff={scopeGone ? '先重新选资料' : null}
+            runOff={scopeGone ? '请先重新选择资料范围' : null}
             runBusy={!!schedule && writes.running(schedule.schedule_id)}
             onDelete={() => schedule && setDel(schedule.schedule_id)}
           />
@@ -344,7 +344,7 @@ export function TasksPage() {
                 tab === 'done' && (
                   // Esc that clears the search stops here, so it does not also leave the editor or the note.
                   <span className={styles.search} onKeyDown={(e) => e.key === 'Escape' && q && e.stopPropagation()}>
-                    <SearchField value={q} label="搜索已完成的任务" placeholder="搜标题和结果" onChange={setQ} />
+                    <SearchField value={q} label="搜索历史任务" placeholder="搜索标题或结果" onChange={setQ} />
                   </span>
                 )
               }
@@ -370,29 +370,29 @@ export function TasksPage() {
       />
       <Dialog
         open={delSched != null}
-        title={`删除「${delSched?.title ?? ''}」？`}
+        title={`确认删除「${delSched?.title ?? ''}」？`}
         onClose={() => setDel(null)}
         footer={
           <>
-            <Btn variant="secondary" kbd="esc" onClick={() => setDel(null)}>算了</Btn>
+            <Btn variant="secondary" kbd="esc" onClick={() => setDel(null)}>取消</Btn>
             <Btn variant="danger" onClick={() => { if (delSched) void writes.remove(delSched); setDel(null); }}>删除</Btn>
           </>
         }
       >
-        <p>连同它的运行记录一起删，不能恢复。</p>
+        <p>将一并删除关联的运行记录，且无法恢复。</p>
       </Dialog>
       <Dialog
         open={leave != null}
-        title="放弃这次改动？"
+        title="确认放弃未保存的更改？"
         onClose={() => setLeave(null)}
         footer={
           <>
-            <Btn variant="secondary" kbd="esc" onClick={() => setLeave(null)}>接着改</Btn>
-            <Btn variant="primary" onClick={() => leave?.()}>放弃</Btn>
+            <Btn variant="secondary" kbd="esc" onClick={() => setLeave(null)}>继续编辑</Btn>
+            <Btn variant="primary" onClick={() => leave?.()}>放弃更改</Btn>
           </>
         }
       >
-        <p>填的内容不会保存。</p>
+        <p>已填写的内容将不会被保存。</p>
       </Dialog>
     </div>
   );

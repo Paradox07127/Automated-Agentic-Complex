@@ -81,7 +81,7 @@ function Now({ now, guess, onCorrect, onReject, onClear }: { now: NowData | null
               {guess.expiresAt != null && <small className={`${styles.dim} num`}>到 {formatClock(guess.expiresAt)}</small>}
             </>
           ) : (
-            <span className={styles.dim}>没有推断</span>
+            <span className={styles.dim}>无活跃推断</span>
           )
         }
         end={guess && <WhiteCapsule label="否认" icon="close" onClick={() => onReject(guess)} />}
@@ -99,7 +99,7 @@ function Now({ now, guess, onCorrect, onReject, onClear }: { now: NowData | null
               ))}
             </span>
           ) : (
-            <span className={styles.dim}>本轮没有读取</span>
+            <span className={styles.dim}>本轮未读取上下文</span>
           )
         }
         end={clearable.length > 0 && <WhiteCapsule label="清除" icon="del" onClick={() => onClear(clearable.map((i) => i.type))} />}
@@ -156,11 +156,11 @@ export function InterpView({
         />
       )}
       <div className={styles.cols}>
-        <Panel title="现在的理解" micro="CURRENT">
+        <Panel title="当前推断" micro="CURRENT">
           <Now now={now} guess={guess} {...acts} />
         </Panel>
-        <Panel title="最近理解" count={runs.length} micro="INTERPRET LOG">
-          {rows.length > 0 ? <GameTable label="最近理解" columns={COLS} endWidth="auto" rows={rows} selected={selected} onSelect={onSelect} /> : <None title="今天还没有理解记录" icon="kernel" />}
+        <Panel title="近期记录" count={runs.length} micro="INTERPRET LOG">
+          {rows.length > 0 ? <GameTable label="近期记录" columns={COLS} endWidth="auto" rows={rows} selected={selected} onSelect={onSelect} /> : <None title="今日尚无理解记录" icon="kernel" />}
         </Panel>
       </div>
     </>

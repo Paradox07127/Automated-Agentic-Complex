@@ -123,7 +123,7 @@ describe('overview RunningSection header entry', () => {
     const { rerender } = render(
       <RunningSection q={READY} rows={[]} convs={0} code={0} activeRuns={{}} now={NOW} lost={false} go={go} onJumpSession={() => {}} schedules={2} />,
     );
-    const linkWithCount = screen.getByRole('button', { name: /定时任务 │ 2 个开着/ });
+    const linkWithCount = screen.getByRole('button', { name: /定时任务 │ 2 项启用/ });
     fireEvent.click(linkWithCount);
     expect(go).toHaveBeenLastCalledWith({ page: 'tasks', tab: 'sched' });
 
@@ -147,7 +147,7 @@ describe('tasks page 定时 tab', () => {
     cleanup();
     bottom.replaceChildren();
     mountTasks('&state=empty', bottom);
-    await screen.findByText('还没有定时任务');
+    await screen.findByText('尚无定时任务');
     expect(screen.getAllByRole('button', { name: '新建定时任务' })).toHaveLength(1);
     expect(within(bottom).queryByRole('button', { name: '新建定时任务' })).toBeNull();
     bottom.remove();
@@ -157,10 +157,10 @@ describe('tasks page 定时 tab', () => {
     install();
     mountTasks('&sel=schedule-2');
     const region = await list();
-    const proposed = await within(region).findByRole('listbox', { name: '角色提议的' });
+    const proposed = await within(region).findByRole('listbox', { name: '角色建议' });
     expect(within(proposed).getByText('每周五整理周报')).toBeTruthy();
-    expect(within(proposed).getByText('待你决定')).toBeTruthy();
-    expect(within(within(region).getByRole('listbox', { name: '开着' })).getByText('日报')).toBeTruthy();
+    expect(within(proposed).getByText('待处理')).toBeTruthy();
+    expect(within(within(region).getByRole('listbox', { name: '已启用' })).getByText('日报')).toBeTruthy();
     expect((await within(detail()).findByRole('button', { name: '启用' })).getAttribute('data-variant')).toBe('primary');
   });
 
@@ -188,7 +188,7 @@ describe('tasks page 定时 tab', () => {
     await within(await list()).findByText('日报');
     fireEvent.click(await within(bottom).findByRole('button', { name: '编辑' }));
     const form = await screen.findByRole('form', { name: /编辑定时任务/ });
-    fireEvent.change(within(form).getByLabelText('指令'), { target: { value: '总结今日提交与未决问题' } });
+    fireEvent.change(within(form).getByLabelText('执行指令'), { target: { value: '总结今日提交与未决问题' } });
     fireEvent.change(within(form).getByLabelText('时间'), { target: { value: '19:00' } });
     fireEvent.click(within(form).getByRole('button', { name: '周六' }));
     await act(async () => {
@@ -224,7 +224,7 @@ describe('tasks page 定时 tab', () => {
     });
     await waitFor(() => expect(sent(spy, 'POST', '/schedules/schedule-1/run')).toHaveLength(1));
     fireEvent.click(within(bottom).getByRole('button', { name: '删除定时任务' }));
-    const ask = await screen.findByRole('dialog', { name: '删除「日报」？' });
+    const ask = await screen.findByRole('dialog', { name: '确认删除「日报」？' });
     expect(sent(spy, 'DELETE', '/schedules/schedule-1')).toHaveLength(0);
     await act(async () => {
       fireEvent.click(within(ask).getByRole('button', { name: '删除' }));
@@ -243,7 +243,7 @@ describe('tasks page 定时 tab', () => {
     fireEvent.click(within(bottom).getByRole('button', { name: '新建定时任务' }));
     const form = await screen.findByRole('form', { name: /新建/ });
     fireEvent.change(within(form).getByLabelText('标题'), { target: { value: '晨间待办检查' } });
-    fireEvent.change(within(form).getByLabelText('指令'), { target: { value: '梳理今日优先事项' } });
+    fireEvent.change(within(form).getByLabelText('执行指令'), { target: { value: '梳理今日优先事项' } });
     fireEvent.change(within(form).getByLabelText('时间'), { target: { value: '09:30' } });
     const scope = await within(form).findByRole('option', { name: '/Users/lin/Documents/周报' });
     fireEvent.change(within(form).getByLabelText('授权资料'), { target: { value: (scope as HTMLOptionElement).value } });

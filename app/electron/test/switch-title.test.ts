@@ -282,7 +282,7 @@ test('the title\'s names come from the library\'s character.json: display.name z
 
 test('切换角色时的雷霆大字: config.json switch_title, on by default, saved without a restart', () => {
   const row = schema('mac').find((r) => r.id === 'switchTitle');
-  assert.deepEqual([row?.group, row?.kind, row?.default, row?.restart, row?.label], ['speak', 'toggle', true, 'none', '切换角色时的雷霆大字']);
+  assert.deepEqual([row?.group, row?.kind, row?.default, row?.restart, row?.label], ['speak', 'toggle', true, 'none', '切换角色时显示标题动画']);
   assert.deepEqual(parseChanges({ switchTitle: false }, () => {}), { switch_title: false });
   assert.deepEqual(planSave({}, null, { switch_title: false }), { write: { switch_title: false }, effects: [], restart: 'none' });
   assert.deepEqual(planSave({ switch_title: false }, null, { switch_title: true }), { write: { switch_title: true }, effects: [], restart: 'none' });

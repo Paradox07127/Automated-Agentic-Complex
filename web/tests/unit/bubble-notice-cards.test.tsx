@@ -56,7 +56,7 @@ describe('the bubble draws native voice and loading cards', () => {
     expect(bubbleCard()).toBeNull();
     await b.cards([voice({ elapsed_s: 3 })]);
     const card = screen.getByRole('status', { name: '语音：正在录音' });
-    within(card).getByText('正在听…');
+    within(card).getByText('正在录音…');
     within(card).getByText('00:03');
     expect(bubbleCard()?.hasAttribute('data-region')).toBe(true);
   });
@@ -68,7 +68,7 @@ describe('the bubble draws native voice and loading cards', () => {
     await b.cards([DENIED]);
     const card = screen.getByRole('status', { name: '语音：麦克风被拒' });
     within(card).getByText('Agentic Complex 没有麦克风权限，按住说话用不了');
-    fireEvent.click(within(card).getByRole('button', { name: '去权限与授权' }));
+    fireEvent.click(within(card).getByRole('button', { name: '前往系统权限' }));
     expect(open).toHaveBeenCalledTimes(1);
     expect(open.mock.calls[0]![0]).toContain('settings');
     fireEvent.click(within(card).getByRole('button', { name: '关闭' }));

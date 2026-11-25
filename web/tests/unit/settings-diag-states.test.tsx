@@ -47,12 +47,12 @@ describe('今天发出的截图 counts the screenshots the user asked for too', 
 describe('settings error state', () => {
   it('names the cause once above the group; rows keep their text and the segmented control its labels', async () => {
     mount(SettingsPage, '&state=error&group=privacy');
-    const grain = await screen.findByRole('radiogroup', { name: '看多细' });
+    const grain = await screen.findByRole('radiogroup', { name: '屏幕读取粒度' });
     // A disabled switch keeps the cause as its hidden description for screen readers.
     expect(screen.getAllByText('读取设置失败，这一组暂不能修改').filter((el) => !el.closest('[hidden]'))).toHaveLength(1);
     expect(document.body.textContent).not.toContain('不可用：');
     expect(document.body.textContent).not.toContain('后台服务没有运行');
-    expect(within(grain).getAllByRole('radio').map((r) => r.textContent)).toEqual(['仅读状态', '焦点语义', '窗口摘要']);
+    expect(within(grain).getAllByRole('radio').map((r) => r.textContent)).toEqual(['仅应用状态', '焦点内容', '窗口摘要']);
   });
 
   it('has no English decoration tags or group heading', async () => {
@@ -69,7 +69,7 @@ describe('settings error state', () => {
 describe('浮层背景 row', () => {
   it('is gone: the overlays draw their own background', async () => {
     mount(SettingsPage, '&group=speak');
-    await screen.findByRole('radiogroup', { name: '听写语言' });
+    await screen.findByRole('radiogroup', { name: '语音识别语言' });
     expect(screen.queryByRole('radiogroup', { name: '浮层背景' })).toBeNull();
     expect(document.getElementById('set-overlay_background')).toBeNull();
     expect(searchSettings('浮层背景')).toEqual([]);
@@ -125,7 +125,7 @@ describe('diag process rows', () => {
   it('agentd gone: its row says 没有响应 and drops its readings; the others keep theirs', () => {
     const container = procs(true);
     const row = (k: string) => container.querySelector<HTMLElement>(`[data-nav-target="proc-${k}"]`)!;
-    expect(row('agentd').textContent).toContain('没有响应');
+    expect(row('agentd').textContent).toContain('无响应');
     expect(row('agentd').textContent).not.toMatch(/168\s*MB/);
     expect(row('avatar').textContent).toContain('已停止');
   });
@@ -156,7 +156,7 @@ describe('onboarding', () => {
     window.agenticComplex = { ...fake, onboarding: { ...fake.onboarding, state: () => Promise.reject({ code: 'offline', detail: '' }) } };
     mount(OnboardingPage, '');
     const alert = await screen.findByRole('alert');
-    expect(within(alert).getByText('没有连上桌面端，请重试')).toBeTruthy();
+    expect(within(alert).getByText('未能连接应用主进程，请重试')).toBeTruthy();
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('首次设置');
     expect(within(alert).getByRole('button', { name: '重试' })).toBeTruthy();
   });

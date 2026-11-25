@@ -43,7 +43,7 @@ export function useOverviewActions(snap: OverviewSnapshot | undefined, now: numb
   const fail = useCallback(
     (what: string) => (e: unknown) => {
       if (isConflict(e)) {
-        toast(`${what}：已在别处更新，已重新读取`, { severity: 'warning' });
+        toast(`${what}：已在其他位置更新，已重新读取`, { severity: 'warning' });
         refetch();
         return;
       }
@@ -115,9 +115,9 @@ export function useOverviewActions(snap: OverviewSnapshot | undefined, now: numb
         .open.jumpToSession(s.id)
         .then(() => {
           void post('/desktop/sessions/seen', { session_id: s.id }).catch(fail('标记会话已读'));
-          toast(`已跳到终端：${s.agent} │ ${s.title}`);
+          toast(`已切换至终端：${s.agent} │ ${s.title}`);
         })
-        .catch(fail('跳到终端'));
+        .catch(fail('切换终端'));
     },
     [toast, fail],
   );
@@ -191,14 +191,14 @@ export function useOverviewActions(snap: OverviewSnapshot | undefined, now: numb
       } else if (action === 'terminal' && value) {
         getBridge()
           .open.runInTerminal(value)
-          .then(() => toast(`已在终端运行：${value}，登录后点「重新检测」`))
+          .then(() => toast(`已在终端运行命令：${value}，完成登录后请点击「重新检测」`))
           .catch(fail('在终端运行'));
       } else if (action === 'switch') {
         go({ page: 'settings', group: 'kernel' });
       } else if (action === 'recheck') {
         refreshRuntime(qc)
-          .then(() => toast('已重新检测内核'))
-          .catch(fail('重新检测内核'));
+          .then(() => toast('已完成执行内核检测'))
+          .catch(fail('检测执行内核'));
       }
     },
     [toast, fail, go, qc],

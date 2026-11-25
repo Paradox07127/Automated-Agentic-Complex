@@ -184,7 +184,7 @@ export function Composer(p: ComposerProps) {
   const said = d.text.trim();
   const send = async () => {
     if (said === '' || p.sending || inflight.current) return;
-    if ([...said].length > MAX_TEXT) return setNote(`超过 ${MAX_TEXT} 字，删减后再发`);
+    if ([...said].length > MAX_TEXT) return setNote(`内容超过 ${MAX_TEXT} 字，请精简后再发送`);
     // A kept scope goes in place of files; files picked since wait in the tray for the next line.
     const from = d.scope ? { ...d, files: [] } : d;
     const k = key;
@@ -210,7 +210,7 @@ export function Composer(p: ComposerProps) {
   /** Files picked, dropped or pasted join the draft of `k`, unless 这句不记 turned on or the tray filled meanwhile. */
   const take = (k: string | null, got: PickedHandle[], text: string | null) =>
     update(k, (cur) => {
-      tell(k, cur.noMem ? '这句不记时不带文件' : text);
+      tell(k, cur.noMem ? '开启「此轮不记录」时不可附带文件' : text);
       return cur.noMem ? cur : { ...cur, files: [...cur.files, ...got].slice(0, MAX_FILES) };
     });
   const addFile = async () => {
@@ -219,14 +219,14 @@ export function Composer(p: ComposerProps) {
       const h = await getBridge().files.pickFile({ purpose: 'scope_file' });
       if (h) take(k, [h], null);
     } catch (e) {
-      tell(k, `文件没带上：${reasonOf(e)}`);
+      tell(k, `文件附加失败：${reasonOf(e)}`);
     }
   };
   /** Pasted images go as bytes (they have no path), every other file through the shell's drop handles. */
   const adopt = async (files: File[], pasted: boolean) => {
     const k = key;
     if (!agent) return setNote(NO_AGENT);
-    if (now.current.d.noMem) return setNote('这句不记时不带文件');
+    if (now.current.d.noMem) return setNote('开启「此轮不记录」时不可附带文件');
     const f = getBridge().files;
     const asked = files.slice(0, Math.max(MAX_FILES - now.current.d.files.length, 0));
     const images = pasted ? asked.filter((x) => x.type.startsWith('image/')) : [];
@@ -241,13 +241,13 @@ export function Composer(p: ComposerProps) {
       why = reasonOf(e);
     }
     const left = files.length - got.length;
-    const reason = why ?? (files.length > asked.length ? `最多带 ${MAX_FILES} 个` : images.length > fit.length ? '图片超过 5 MiB' : null);
-    take(k, got, left > 0 ? `${left} 个文件没带上${reason ? `：${reason}` : ''}` : null);
+    const reason = why ?? (files.length > asked.length ? `最多附带 ${MAX_FILES} 个` : images.length > fit.length ? '图片大小超过 5 MiB' : null);
+    take(k, got, left > 0 ? `${left} 个文件未能附加${reason ? `：${reason}` : ''}` : null);
   };
   const plus: MenuItem[] = [
-    { kind: 'item', label: '添加文件或图片', disabled: !agent || d.noMem || d.files.length >= MAX_FILES, ...(!agent ? { reason: NO_AGENT } : d.noMem ? { reason: '这句不记时不带文件' } : d.files.length >= MAX_FILES ? { reason: `最多带 ${MAX_FILES} 个文件` } : {}), onSelect: () => void addFile() },
-    { kind: 'item', label: `让${p.roleName}看一眼屏幕`, checked: look, disabled: p.lookOff != null, ...(p.lookOff ? { reason: p.lookOff } : {}), onSelect: () => edit({ look: !d.look }) },
-    { kind: 'item', label: '这句不记', checked: d.noMem, disabled: d.files.length > 0, ...(d.files.length > 0 ? { reason: '带着文件时不能不记' } : {}), onSelect: () => edit({ noMem: !d.noMem }) },
+    { kind: 'item', label: '添加文件或图片', disabled: !agent || d.noMem || d.files.length >= MAX_FILES, ...(!agent ? { reason: NO_AGENT } : d.noMem ? { reason: '开启「此轮不记录」时不可附带文件' } : d.files.length >= MAX_FILES ? { reason: `最多附带 ${MAX_FILES} 个文件` } : {}), onSelect: () => void addFile() },
+    { kind: 'item', label: '附带当前屏幕识读', checked: look, disabled: p.lookOff != null, ...(p.lookOff ? { reason: p.lookOff } : {}), onSelect: () => edit({ look: !d.look }) },
+    { kind: 'item', label: '此轮不记录', checked: d.noMem, disabled: d.files.length > 0, ...(d.files.length > 0 ? { reason: '附带文件时无法开启「此轮不记录」' } : {}), onSelect: () => edit({ noMem: !d.noMem }) },
   ];
   const tray: TrayItem[] = [
     ...d.files.map((f, i) => ({
@@ -260,8 +260,8 @@ export function Composer(p: ComposerProps) {
         void getBridge().files.release?.(f.handle).catch(() => undefined);
       },
     })),
-    ...(look ? [{ key: 'look', name: '看一眼屏幕', icon: 'g-window' as const, flag: true, removeLabel: '不看屏幕', onRemove: () => edit({ look: false }) }] : []),
-    ...(d.noMem ? [{ key: 'nomem', name: '这句不记', icon: 'g-nomem' as const, flag: true, removeLabel: '取消这句不记', onRemove: () => edit({ noMem: false }) }] : []),
+    ...(look ? [{ key: 'look', name: '屏幕识读', icon: 'g-window' as const, flag: true, removeLabel: '移除屏幕识读', onRemove: () => edit({ look: false }) }] : []),
+    ...(d.noMem ? [{ key: 'nomem', name: '此轮不记录', icon: 'g-nomem' as const, flag: true, removeLabel: '取消「此轮不记录」', onRemove: () => edit({ noMem: false }) }] : []),
   ];
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -277,9 +277,9 @@ export function Composer(p: ComposerProps) {
           <span className={styles.flagMark} aria-hidden="true">
             ▲
           </span>
-          <b>角色内核未就绪</b>
+          <b>执行内核未就绪</b>
           <span className={styles.cap}>{p.kernel.name} 未就绪</span>
-          <a href="#/settings?group=kernel">设置 › 角色内核</a>
+          <a href="#/settings?group=kernel">设置 › 内核</a>
           <span className={styles.sp} />
           <Btn size="sm" variant="ghost" icon="refresh" onClick={p.onRecheck}>
             重新检测
@@ -300,12 +300,12 @@ export function Composer(p: ComposerProps) {
       )}
       {p.notice && <p className={styles.notice}>{p.notice}</p>}
       {note && <p className={styles.notice}>{note}</p>}
-      {p.sideHint && <p className={`${styles.cap} ${styles.busy}`} title="前台执行中，新消息由只读旁路回答">前台执行中，新消息由只读旁路回答</p>}
+      {p.sideHint && <p className={`${styles.cap} ${styles.busy}`} title="当前任务执行中，新消息将由只读旁路通道回复">当前任务执行中，新消息将由只读旁路通道回复</p>}
       {p.quote && (
         <div className={styles.quote}>
           <Icon name="g-quote" size={14} />
           <span className={styles.quoteText}>{p.quote.text}</span>
-          <IconBtn icon="close" size="sm" label="不引用" onClick={p.onClearQuote} />
+          <IconBtn icon="close" size="sm" label="取消引用" onClick={p.onClearQuote} />
         </div>
       )}
       <AttachTray items={tray} />
@@ -316,7 +316,7 @@ export function Composer(p: ComposerProps) {
           autoGrow
           maxRows={5}
           value={d.text}
-          placeholder={`对${p.roleName}说…`}
+          placeholder={`向 ${p.roleName} 发送消息…`}
           onChange={(text) => edit({ text })}
           onKeyDown={onKey}
           onPaste={(e) => {
@@ -327,7 +327,7 @@ export function Composer(p: ComposerProps) {
             void adopt(files, true);
           }}
         />
-        <Btn variant={p.quietSend ? 'secondary' : 'primary'} tail="g-send" disabled={inactive} {...(said === '' ? { disabledReason: '先输入消息' } : {})} loading={p.sending} onClick={() => void send()}>
+        <Btn variant={p.quietSend ? 'secondary' : 'primary'} tail="g-send" disabled={inactive} {...(said === '' ? { disabledReason: '请先输入消息' } : {})} loading={p.sending} onClick={() => void send()}>
           发送
         </Btn>
       </div>
@@ -338,9 +338,9 @@ export function Composer(p: ComposerProps) {
     <PowerState
       state="unlinked"
       mode="block"
-      title="没有可用的模型"
-      reason="登录 Claude Code 或 Codex，或在设置里给 pi 填一个 API key"
-      action={{ label: '前往设置连接', onClick: () => navigate({ page: 'settings', group: 'kernel', item: 'svc' }) }}
+      title="无可用模型"
+      reason="请在「设置 › 内核」中登录 Claude Code / Codex，或为 Pi 配置 API Key"
+      action={{ label: '前往配置', onClick: () => navigate({ page: 'settings', group: 'kernel', item: 'svc' }) }}
       more={
         <Btn size="sm" variant="ghost" icon="refresh" onClick={p.onRecheck}>
           重新检测

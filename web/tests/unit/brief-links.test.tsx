@@ -63,14 +63,14 @@ describe('总览 readouts open what they count', () => {
   it('出错 lists exactly the day’s /brief/day errors, newest first; each opens its task or turn, a run also its trace', async () => {
     withErrors(ERRORS);
     mount();
-    fireEvent.click((await band()).getByRole('button', { name: /^出错 4，/ }));
-    const sheet = await screen.findByRole('dialog', { name: '出错' });
+    fireEvent.click((await band()).getByRole('button', { name: /^异常 4，/ }));
+    const sheet = await screen.findByRole('dialog', { name: '异常记录' });
     await waitFor(() => expect(sheet.querySelectorAll('[data-err]')).toHaveLength(4));
     const rows = [...sheet.querySelectorAll<HTMLElement>('[data-err]')];
     expect(rows.map((r) => r.textContent)).toEqual([
-      '下载资源索引13:10 │ 角色运行 │ network',
+      '下载资源索引13:10 │ 角色进程 │ network',
       '编码会话出错12:40 │ 编码会话 │ error',
-      '一轮对话没有完成11:30 │ 对话 │ timeout',
+      '该轮对话未能完成11:30 │ 对话 │ timeout',
       '整理 11 月发票09:05 │ 任务 │ verify_failed',
     ]);
     expect(rows[1]!.getAttribute('aria-disabled')).toBe('true');
@@ -87,20 +87,20 @@ describe('总览 readouts open what they count', () => {
   it('a day without errors says so', async () => {
     withErrors([]);
     mount();
-    fireEvent.click((await band()).getByRole('button', { name: /^出错 0，/ }));
-    const sheet = await screen.findByRole('dialog', { name: '出错' });
-    expect(await within(sheet).findByText('今天没有出错')).toBeTruthy();
+    fireEvent.click((await band()).getByRole('button', { name: /^异常 0，/ }));
+    const sheet = await screen.findByRole('dialog', { name: '异常记录' });
+    expect(await within(sheet).findByText('今日无异常记录')).toBeTruthy();
   });
 
   it('任务完成 opens the tasks page on 已完成', async () => {
     mount();
-    fireEvent.click((await band()).getByRole('button', { name: /^任务完成 \d+，/ }));
+    fireEvent.click((await band()).getByRole('button', { name: /^已完成任务 \d+，/ }));
     expect(window.location.hash).toMatch(/^#\/tasks\?tab=done/);
   });
 
   it('模型花费 opens 诊断 › 链路 at the model calls', async () => {
     mount();
-    fireEvent.click((await band()).getByRole('button', { name: /^模型花费 / }));
+    fireEvent.click((await band()).getByRole('button', { name: /^模型用量费用 / }));
     expect(window.location.hash).toMatch(/^#\/diag\?tab=flow&item=usage/);
   });
 
@@ -116,8 +116,8 @@ describe('明细 rows open what they count', () => {
     const bridge = createFakeBridge({ surface: 'main', still: true });
     const day = (await bridge.agentd.request<BriefDay>('GET', '/brief/day?date=2026-11-20')).body!;
     const err = vi.fn();
-    render(<DetailTab day={day} pins={DEFAULT_PINS} onPins={() => {}} go={() => {}} links={{ err: { open: err, to: '查看出错列表' } }} />);
-    fireEvent.click(screen.getByRole('button', { name: /^出错 .*，查看出错列表$/ }));
+    render(<DetailTab day={day} pins={DEFAULT_PINS} onPins={() => {}} go={() => {}} links={{ err: { open: err, to: '查看异常列表' } }} />);
+    fireEvent.click(screen.getByRole('button', { name: /^异常 .*，查看异常列表$/ }));
     expect(err).toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: /^截图 / })).toBeNull();
   });

@@ -70,12 +70,12 @@ describe('409 plugin_off', () => {
   it('is no edit conflict: a write that gets it says nothing', () => {
     expect(failMessage(pluginOff())).toBeNull();
     expect(isConflict(pluginOff())).toBe(false);
-    expect(failMessage(new AgentdCallError(409, 'stale_revision', undefined, null, ''))).toBe('已在别处更新');
+    expect(failMessage(new AgentdCallError(409, 'stale_revision', undefined, null, ''))).toBe('已在其他位置更新');
   });
 });
 
 describe('每日简报 with 编码会话 off', () => {
-  it('keeps 进行中 for 个人代理 with nothing about coding sessions and no 已在别处更新', async () => {
+  it('keeps 进行中 for 个人代理 with nothing about coding sessions and no 已在其他位置更新', async () => {
     pluginsOn('daily_brief', 'personal_agent');
     asAgentd();
     mount(OverviewPage);
@@ -83,7 +83,7 @@ describe('每日简报 with 编码会话 off', () => {
     await settle();
     expect(within(run).queryByRole('alert')).toBeNull();
     expect(within(run).queryByText(/编码/)).toBeNull();
-    expect(document.body.textContent).not.toContain('已在别处更新');
+    expect(document.body.textContent).not.toContain('已在其他位置更新');
     expect(within(run).getByRole('button', { name: /^定时任务/ })).toBeTruthy();
   });
 
@@ -99,8 +99,8 @@ describe('每日简报 with 编码会话 off', () => {
     expect(paths).not.toContain('/schedules');
     const band = screen.getByRole('toolbar', { name: '常用操作' });
     expect(within(band).getAllByRole('button').map((b) => b.textContent?.replace(/[⌃⌥⌘].*$/, ''))).toEqual(['快速输入', '屏幕识读', '命令面板']);
-    expect(within(band).getByRole('button', { name: /^屏幕识读/ }).getAttribute('title')).toBe('已关闭：设置里关着「屏幕识读」');
-    expect(document.body.textContent).not.toContain('已在别处更新');
+    expect(within(band).getByRole('button', { name: /^屏幕识读/ }).getAttribute('title')).toBe('已关闭：请在设置中开启「屏幕识读」');
+    expect(document.body.textContent).not.toContain('已在其他位置更新');
   });
 
   it('reads neither 编码会话 nor 个人代理 for the task desk and names no 编码会话 on the page while both are off', async () => {
@@ -110,9 +110,9 @@ describe('每日简报 with 编码会话 off', () => {
     await screen.findByRole('region', { name: '待处理' }, { timeout: 3000 });
     await settle();
     for (const p of ['/sessions', '/agent/runs', '/tasks', '/agent/goals']) expect(paths).not.toContain(p);
-    expect(screen.getByRole('region', { name: '今天聊了什么' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: '今日对话' })).toBeTruthy();
     // 今日一句 is today.ts's summary sentence, which counts the snapshot's coding sessions whatever the plug-ins.
-    const line = screen.getByRole('region', { name: '今日一句' }).textContent ?? '';
+    const line = screen.getByRole('region', { name: '今日摘要' }).textContent ?? '';
     // 进行中's 已关闭 strip names the switch.
     const off = screen.getByRole('status', { name: '进行中' }).textContent ?? '';
     expect(document.body.textContent?.replace(line, '').replace(off, '')).not.toContain('编码会话');
@@ -145,7 +145,7 @@ describe('每日简报 with 编码会话 off', () => {
     await settle();
     expect(paths).toContain('/sessions');
     expect(within(run).queryByRole('alert')).toBeNull();
-    expect(document.body.textContent).not.toContain('已在别处更新');
+    expect(document.body.textContent).not.toContain('已在其他位置更新');
   });
 });
 
@@ -156,7 +156,7 @@ describe('任务页「定时」 while agentd still has 个人代理 off', () => 
     mount(TasksPage, '&tab=sched');
     await settle();
     expect(screen.queryByRole('alert')).toBeNull();
-    expect(document.body.textContent).not.toContain('已在别处更新');
+    expect(document.body.textContent).not.toContain('已在其他位置更新');
     expect(screen.queryByRole('button', { name: '新建定时任务' })).toBeNull();
     expect(screen.queryByRole('option')).toBeNull();
   });

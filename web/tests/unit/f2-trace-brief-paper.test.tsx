@@ -79,8 +79,8 @@ describe('运行记录 logs: ⌥ on a source row', () => {
 describe('运行记录 result marks', () => {
   it('the turn detail and its steps mark results with StatusLamp, no page-drawn shapes', async () => {
     mount('&demo=full&turn=tr7');
-    const detail = await screen.findByRole('region', { name: '这一轮' });
-    await within(detail).findByRole('region', { name: '经过' });
+    const detail = await screen.findByRole('region', { name: '本轮详情' });
+    await within(detail).findByRole('region', { name: '执行轨迹' });
     expect(detail.querySelector('[data-stub="StatusLamp"]')).not.toBeNull();
     expect(detail.querySelector('svg[data-shape]')).toBeNull();
   });
@@ -126,7 +126,7 @@ describe('每日简报 明细 star', () => {
     const bridge = createFakeBridge({ surface: 'main', still: true });
     const day = (await bridge.agentd.request<BriefDay>('GET', '/brief/day?date=2026-11-20')).body!;
     render(<DetailTab day={day} pins={ITEM_ORDER.slice(0, 2)} onPins={() => {}} go={() => {}} links={{}} />);
-    const on = screen.getAllByRole('button', { name: /^从总览拿掉：/ })[0]!;
+    const on = screen.getAllByRole('button', { name: /^从总览移除：/ })[0]!;
     expect(on.querySelector('[data-icon="star"]')).not.toBeNull();
     expect(read('pages/overview/DetailTab.module.css')).toMatch(/\.star[^{]*\[aria-pressed='true'\][^{]*\{[^}]*--plate:\s*var\(--ef-accent\)/);
   });

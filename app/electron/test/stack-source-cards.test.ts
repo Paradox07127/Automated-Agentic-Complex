@@ -296,9 +296,9 @@ test('StackDecisionsTests.testARoleApprovalTakesOnlyAllowOrRefuse, and the resum
   const d = h.decisions();
   await assert.rejects(d.decide('q2', { kind: 'answer', expected_version: 2, answers: { decision: ['好的'] } }), { code: 'invalid_args' });
   await d.decide('q2', { kind: 'answer', expected_version: 2, answers: { decision: ['允许'] } });
-  assert.equal(h.card('q2')!.receipt, '已允许');
+  assert.equal(h.card('q2')!.receipt, '已批准');
   // The answer is saved, but the run must be continued from the main window.
-  assert.deepEqual(h.card('resume-q2'), { id: 'resume-q2', kind: 'notice', variant: 'resume', title: '回答已保存 · 在主窗口继续',
+  assert.deepEqual(h.card('resume-q2'), { id: 'resume-q2', kind: 'notice', variant: 'resume', title: '回答已保存 │ 可在主窗口继续',
     task_id: 'job:j1', at: h.now });
   h.now += 59_999;
   h.source.sweep();
@@ -343,7 +343,7 @@ test('StackDecisionsTests.testADangerousRoleAllowAlwaysAsksNatively', async () =
   await d.decide('q2', confirmed);
   assert.equal(asked.length, 3);
   assert.deepEqual(h.posts[0]!.json, { expected_version: 2, answers: { decision: ['允许'] } }, 'agentd gets the answer only');
-  assert.deepEqual(h.card('q2')!.outcome, { kind: 'approved', at: h.now, text: '已允许' });
+  assert.deepEqual(h.card('q2')!.outcome, { kind: 'approved', at: h.now, text: '已批准' });
 });
 
 test('StackDecisionsTests.testAPlainRoleAllowNeedsNoGesture', async () => {
@@ -758,7 +758,7 @@ test('StackDecisionsTests.testAcceptSendsTheDeliveryRevision', async () => {
   await d.decide(`r-${DID}`, reviewDecision('accept'));
   assert.equal(h.posts[0]!.path, '/agent/tasks/job%3Aj1/accept');
   assert.deepEqual(h.posts[0]!.json, { expected_revision: 5, generation: 2, delivery_id: DID });
-  assert.equal(h.card(`r-${DID}`)!.receipt, '已接受这一版');
+  assert.equal(h.card(`r-${DID}`)!.receipt, '已接受当前版本');
 });
 
 test('StackDecisionsTests.testRejectWithANoteResumesTheJob', async () => {
@@ -769,7 +769,7 @@ test('StackDecisionsTests.testRejectWithANoteResumesTheJob', async () => {
   await h.decisions().decide(`r-${DID}`, reviewDecision('reject', { note: '  按项目分组 ' }));
   assert.deepEqual(h.posts.map((c) => c.path), ['/agent/tasks/job%3Aj1/reject', '/agent/jobs/j1/resume']);
   assert.deepEqual(h.posts[1]!.json, { text: '按项目分组', use_current_backend: false });
-  assert.equal(h.card(`r-${DID}`)!.receipt, '已退回：按项目分组');
+  assert.equal(h.card(`r-${DID}`)!.receipt, '已驳回：按项目分组');
 });
 
 test('StackDecisionsTests.testRejectWithANoteContinuesALedgerTask', async () => {
@@ -788,7 +788,7 @@ test('StackDecisionsTests.testAnEmptyNoteRejectsOnly and testANoteThatDoesNotArr
   h.transport.set('POST', '/agent/tasks/job%3Aj1/reject', { task: {}, delivery: {} });
   await h.decisions().decide(`r-${DID}`, reviewDecision('reject', { note: '   ' }));
   assert.deepEqual(h.posts.map((c) => c.path), ['/agent/tasks/job%3Aj1/reject']);
-  assert.equal(h.card(`r-${DID}`)!.receipt, '已退回');
+  assert.equal(h.card(`r-${DID}`)!.receipt, '已驳回');
 
   const p = new Harness();
   await p.load({ tasks: [presentedRow()] });
@@ -796,7 +796,7 @@ test('StackDecisionsTests.testAnEmptyNoteRejectsOnly and testANoteThatDoesNotArr
   p.transport.set('POST', '/agent/jobs/j1/resume', { error: 'job_not_resumable' }, 409);
   await assert.rejects(p.decisions().decide(`r-${DID}`, reviewDecision('reject', { note: '按项目分组' })),
     { code: 'partial', detail: 'job_not_resumable' });
-  assert.equal(p.card(`r-${DID}`)!.receipt, '已退回：按项目分组');
+  assert.equal(p.card(`r-${DID}`)!.receipt, '已驳回：按项目分组');
 });
 
 // MARK: Coding reviews
@@ -811,8 +811,8 @@ test('StackSourceTests.testCodingReviewsComeFromTheTaskLedgerExceptCharacterWork
   assert.equal(card.kind, 'review');
   assert.equal(card.source, 'coding');
   assert.equal((card.item as Json).task_id, 'task:t9');
-  assert.equal((card.item as Json).source, 'Codex · 修 HostLink 重连');
-  assert.equal(card.summary, '没有设置检查命令，结果需要你复核。');
+  assert.equal((card.item as Json).source, 'Codex │ 修 HostLink 重连');
+  assert.equal(card.summary, '未配置校验命令，请人工复核结果。');
   assert.equal(h.source.pendingCount, 1);
 });
 
@@ -825,7 +825,7 @@ test('StackDecisionsTests.testCodingReviewsUseTheLedgerRoutes', async () => {
   await assert.rejects(d.decide('c-t9', { kind: 'accept', task_id: 'task:t8', delivery_id: '', expected_revision: 0, generation: 0 }),
     { code: 'invalid_args' });
   await d.decide('c-t9', { kind: 'accept', task_id: 'task:t9', delivery_id: '', expected_revision: 0, generation: 0 });
-  assert.equal(h.card('c-t9')!.receipt, '已接受这一版');
+  assert.equal(h.card('c-t9')!.receipt, '已接受当前版本');
   // agentd's /tasks/:id/continue takes character tasks only, so a coding task's note has nowhere to go.
   await assert.rejects(d.decide('c-t8', { kind: 'reject', task_id: 'task:t8', delivery_id: '', expected_revision: 0, generation: 0, note: '再跑一遍' }),
     { code: 'partial', detail: 'no_target' });
@@ -848,7 +848,7 @@ test('StackSourceTests.testAVoiceResultStaysTwoAndAHalfSecondsAndMicDeniedStaysU
   // So does a download let go of before it finished.
   h.source.setVoiceHint({ kind: 'downloading', fraction: 0.5, receivedMB: 104, totalMB: 208 });
   assert.deepEqual(h.card('voice-hint'), { id: 'voice-hint', kind: 'notice', variant: 'voice', phase: 'downloading',
-    title: '第一次用，要先下载识别模型', fraction: 0.5, received_mb: 104, total_mb: 208, at: h.now });
+    title: '首次使用需下载语音识别模型', fraction: 0.5, received_mb: 104, total_mb: 208, at: h.now });
   h.source.setVoiceHint(null);
   assert.equal(h.card('voice-hint'), undefined);
   assert.equal(h.history.length, 0);
@@ -877,7 +877,7 @@ test('StackSourceTests.testAVoiceResultStaysTwoAndAHalfSecondsAndMicDeniedStaysU
   assert.ok(h.card('voice-hint'));
   assert.ok(h.source.collapse('voice-hint'));
   assert.equal(h.card('voice-hint'), undefined);
-  assert.equal(h.history[0]!.title, '麦克风被拒');
+  assert.equal(h.history[0]!.title, '未授予麦克风权限');
   assert.equal(h.source.pendingCount, 0);
   // A notice is a chat card: the hud's ids leave it out.
   assert.deepEqual(h.ids.at(-1), []);

@@ -91,7 +91,7 @@ const POSES: NonNullable<DesktopState['poses']> = {
 
 describe('the action table', () => {
   it('has the 8 slots of the design, clockwise from the top', () => {
-    expect(wheelItems(STATE, 2).map((i) => i.label)).toEqual(['对话页', '待处理', '免打扰', '拍照', '放回原位', '自由活动', '动作', '角色页']);
+    expect(wheelItems(STATE, 2).map((i) => i.label)).toEqual(['打开对话', '待处理', '免打扰', '拍照', '重置位置', '自由活动', '动作', '角色设置']);
     expect(wheelItems(STATE, 2).map((i) => i.id)).toEqual(['goChat', 'pending', 'quiet', 'photo', 'home', 'roam', 'actions', 'goCharacter']);
     expect(wheelItems(STATE, 2)[1]).toMatchObject({ count: 2 });
   });
@@ -101,7 +101,7 @@ describe('the action table', () => {
     expect(wheelItems(STATE, 0, now, DANCES)[6]).toMatchObject({ id: 'actions', label: '动作', icon: 'play', deeper: true });
     expect(wheelItems({ ...STATE, playing: null }, 0, now, DANCES)[6]?.id).toBe('actions');
     const stop = wheelItems({ ...STATE, playing: 'mmd_lamb' }, 0, now, DANCES)[6];
-    expect(stop).toMatchObject({ id: 'stop', label: '停止', icon: 'stop', on: true, desc: 'Lamb.' });
+    expect(stop).toMatchObject({ id: 'stop', label: '停止动作', icon: 'stop', on: true, desc: 'Lamb.' });
     expect(stop?.deeper).toBeUndefined();
     // A play her list does not name is named by its id.
     expect(wheelItems({ ...STATE, playing: 'chain_x' }, 0, now, DANCES)[6]).toMatchObject({ id: 'stop', desc: 'chain_x' });
@@ -129,12 +129,12 @@ describe('the action table', () => {
     expect(level[5]).toMatchObject({ id: 'pose', off: '这个角色没有这个姿态的原作动作' });
     expect(poseItems({ ...STATE, poses: { ...POSES, current: null } })[0]?.on).toBe(true);
     // A renderer without `poses` (Windows today) sends none.
-    for (const s of [STATE, { ...STATE, poses: null }]) expect(actionItems(s, [], DANCES)[6]).toMatchObject({ id: 'poses', off: '这个版本的角色不支持姿态' });
+    for (const s of [STATE, { ...STATE, poses: null }]) expect(actionItems(s, [], DANCES)[6]).toMatchObject({ id: 'poses', off: '当前版本角色不支持姿态设置' });
   });
 
   it('待处理 with nothing waiting is greyed with its reason; the toggles follow the desktop state', () => {
     const now = 1_800_000_000_000;
-    expect(wheelItems(STATE, 0, now)[1]).toMatchObject({ id: 'pending', off: '没有待处理的事' });
+    expect(wheelItems(STATE, 0, now)[1]).toMatchObject({ id: 'pending', off: '当前无待处理事项' });
     const on = wheelItems({ ...STATE, freeRoam: true, quietUntil: now + 60_000 }, 0, now);
     expect(on[2]).toMatchObject({ id: 'quietEnd', label: '结束免打扰', on: true });
     expect(on[5]).toMatchObject({ id: 'roam', on: true });
@@ -142,14 +142,14 @@ describe('the action table', () => {
   });
 
   it('04 is 拍照, greyed with why while her renderer lists no `capture`', () => {
-    expect(wheelItems(STATE, 0)[3]).toMatchObject({ id: 'photo', label: '拍照', icon: 'eye', desc: '调光圈、对焦，拍透明背景的照片' });
+    expect(wheelItems(STATE, 0)[3]).toMatchObject({ id: 'photo', label: '拍照', icon: 'eye', desc: '调节光圈与对焦，拍摄透明背景图像' });
     expect(wheelItems({ ...STATE, capture: true }, 0)[3]?.off).toBeUndefined();
-    expect(wheelItems({ ...STATE, capture: false }, 0)[3]).toMatchObject({ id: 'photo', off: '渲染器没有提供截图' });
+    expect(wheelItems({ ...STATE, capture: false }, 0)[3]).toMatchObject({ id: 'photo', off: '当前渲染器未提供截图能力' });
   });
 
   it('送礼物 is greyed with why when her package has no gift action, or has it missing', () => {
     expect(giftOff([{ id: 'receive_gift', label: '收礼', enabled: true }])).toBeNull();
-    expect(giftOff([{ id: 'wave', label: '挥手', enabled: true }])).toBe('当前角色包尚未导入原作收礼动作');
+    expect(giftOff([{ id: 'wave', label: '挥手', enabled: true }])).toBe('当前角色尚未导入原作赠礼动作');
     expect(giftOff([{ id: 'interact_receive_gift', label: '收礼', enabled: true, missing: true, missingReason: '缺动作文件' }])).toBe('缺动作文件');
     expect(actionItems(STATE, [], DANCES, '缺动作文件')[7]).toMatchObject({ id: 'gift', label: '送礼物', off: '缺动作文件' });
     expect(actionItems(STATE, [], DANCES)[7]?.off).toBeUndefined();
@@ -190,7 +190,7 @@ describe('the wheel', () => {
     const wheel = screen.getByRole('menu', { name: '角色的轮盘' });
     fireEvent.keyDown(wheel, { key: '2' });
     expect(onRun).not.toHaveBeenCalled();
-    expect(wheel.textContent).toContain('没有待处理的事');
+    expect(wheel.textContent).toContain('当前无待处理事项');
     fireEvent.keyDown(wheel, { key: '4' });
     expect(onRun).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'photo' }));
     fireEvent.keyDown(wheel, { key: 'Escape' });
@@ -374,7 +374,7 @@ describe('wheel actions', () => {
     const request = vi.spyOn(bridge.agentd, 'request');
     const action = vi.spyOn(bridge.desktop, 'action');
     const now = 1_800_000_000_000;
-    expect(await runCmdAction(item('quiet'), ctx(bridge, STATE, now))).toMatchObject({ kind: 'receipt', tone: 'success', text: expect.stringContaining('免打扰已开始') });
+    expect(await runCmdAction(item('quiet'), ctx(bridge, STATE, now))).toMatchObject({ kind: 'receipt', tone: 'success', text: expect.stringContaining('免打扰已开启') });
     const quiet = { ...STATE, quietUntil: now + 60_000 };
     const end = wheelItems(quiet, 0, now)[2];
     expect(await runCmdAction(runs(end), ctx(bridge, quiet, now))).toMatchObject({ kind: 'receipt', text: '免打扰已结束' });
@@ -387,7 +387,7 @@ describe('wheel actions', () => {
     const action = vi.spyOn(bridge.desktop, 'action');
     const pass = async (hotkeys: Record<string, string>) => {
       const s = { ...STATE, hotkeys };
-      const o = await runCmdAction({ id: 'pass', label: '让鼠标穿过角色' }, ctx(bridge, s));
+      const o = await runCmdAction({ id: 'pass', label: '鼠标穿透' }, ctx(bridge, s));
       return o.kind === 'receipt' ? o.text : '';
     };
     expect(await pass({ hk_pass: '⌃P' })).toContain('⌃P 关闭');
@@ -410,8 +410,8 @@ describe('wheel actions', () => {
     expect(await runCmdAction(item('gift'), ctx(bridge))).toEqual({ kind: 'close' });
     expect(action).toHaveBeenCalledWith('gift');
     expect(request).not.toHaveBeenCalled();
-    action.mockRejectedValue({ code: 'failed', detail: '当前角色包尚未导入原作收礼动作' });
-    expect(await runCmdAction(item('gift'), ctx(bridge))).toMatchObject({ kind: 'receipt', tone: 'danger', text: expect.stringContaining('当前角色包尚未导入原作收礼动作') });
+    action.mockRejectedValue({ code: 'failed', detail: '当前角色尚未导入原作赠礼动作' });
+    expect(await runCmdAction(item('gift'), ctx(bridge))).toMatchObject({ kind: 'receipt', tone: 'danger', text: expect.stringContaining('当前角色尚未导入原作赠礼动作') });
   });
 
   it('对话页, 待处理 and 角色页 open the main window', async () => {
@@ -491,7 +491,7 @@ describe('wheel actions', () => {
     await screen.findByRole('menu', { name: '角色的轮盘' });
     await flush(async () => {});
     await flush(async () => fireEvent.keyDown(screen.getByRole('menu', { name: '角色的轮盘' }), { key: '3' }));
-    await waitFor(() => expect(notice.mock.calls).toEqual([[expect.stringContaining('免打扰已开始')]]));
+    await waitFor(() => expect(notice.mock.calls).toEqual([[expect.stringContaining('免打扰已开启')]]));
     expect(close).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('status')).toBeNull();
     expect(screen.queryByRole('menu', { name: '角色的轮盘' })).toBeNull();
@@ -508,7 +508,7 @@ describe('wheel actions', () => {
     await flush(async () => fireEvent.keyDown(wheel, { key: '7' }));
     await waitFor(() => expect(within(wheel).getByRole('menuitem', { name: /^8 送礼物/ }).getAttribute('aria-disabled')).toBe('true'));
     await flush(async () => fireEvent.keyDown(wheel, { key: '8' }));
-    expect(wheel.textContent).toContain('当前角色包尚未导入原作收礼动作');
+    expect(wheel.textContent).toContain('当前角色尚未导入原作赠礼动作');
     expect(action).not.toHaveBeenCalled();
   });
 
@@ -524,7 +524,7 @@ describe('wheel actions', () => {
     expect(await runCmdAction(runs(first), ctx(bridge))).toEqual({ kind: 'close' });
     expect(play).toHaveBeenCalledWith({ start: 1 });
     play.mockResolvedValueOnce({ ok: false, reason: 'not_started' });
-    expect(await runCmdAction(runs(first), ctx(bridge))).toMatchObject({ kind: 'receipt', tone: 'danger', text: '极乐净土没有开始：角色没有接受' });
+    expect(await runCmdAction(runs(first), ctx(bridge))).toMatchObject({ kind: 'receipt', tone: 'danger', text: '极乐净土 未能播放：角色未响应播放请求' });
     const [auto, , , sit] = poseItems({ ...STATE, poses: POSES });
     expect(await runCmdAction(runs(sit), ctx(bridge))).toEqual({ kind: 'close' });
     expect(await runCmdAction(runs(auto), ctx(bridge))).toEqual({ kind: 'close' });
@@ -597,7 +597,7 @@ describe('快速输入 under the bubble', () => {
     const restart = vi.spyOn(bridge.supervisor, 'restart').mockResolvedValue();
     const box = await openInput(bridge);
     await flush(async () => fireEvent.keyDown(box, { key: 'Enter' }));
-    expect((await screen.findByRole('alert')).textContent).toContain('原文已保留');
+    expect((await screen.findByRole('alert')).textContent).toContain('已保留输入内容');
     expect(box.value).toBe('你好');
     expect(screen.getByRole('dialog', { name: '快速输入' }).dataset.err).toBe('agentd');
     await flush(async () => fireEvent.click(screen.getByRole('button', { name: '重启后台服务' })));
@@ -609,7 +609,7 @@ describe('快速输入 under the bubble', () => {
     const say = vi.spyOn(bridge.desktop, 'say').mockResolvedValue({ ok: false, reason: 'kernel' });
     const box = await openInput(bridge);
     await flush(async () => fireEvent.keyDown(box, { key: 'Enter' }));
-    await flush(async () => fireEvent.click(await screen.findByRole('button', { name: /重新检测/ })));
+    await flush(async () => fireEvent.click(await screen.findByRole('button', { name: /重试发送/ })));
     expect(say).toHaveBeenCalledTimes(2);
     expect(say).toHaveBeenLastCalledWith({ text: '你好', attachWindow: false, noMemory: false, surface: 'quick_input' });
   });

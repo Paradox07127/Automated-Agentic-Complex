@@ -25,7 +25,7 @@ export interface HotkeyPorts {
   notify(title: string, body: string): void;
 }
 
-const TITLE = '快速输入的快捷键没设上';
+const TITLE = '快速输入快捷键注册失败';
 
 export class QuickInputHotkey {
   /** The name the system refused (another program holds it); null once a name registers or is cleared. */
@@ -46,13 +46,13 @@ export class QuickInputHotkey {
     const accel = accelerator(name);
     if (accel === null) {
       this.ports.log(`QUICKINPUT bad_hotkey ${name}`);
-      this.ports.notify(TITLE, `${name} 不是有效的快捷键，请前往设置修改`);
+      this.ports.notify(TITLE, `${name} 不是有效的快捷键格式，请前往「设置 › 快捷键」修改`);
       return;
     }
     if (!this.ports.register(accel, this.show)) {
       this.failed = name;
       this.ports.log(`QUICKINPUT hotkey_failed ${name}`);
-      this.ports.notify(TITLE, `${name} 可能被别的程序占用了，请前往设置更换`);
+      this.ports.notify(TITLE, `${name} 可能已被其他应用占用，请前往「设置 › 快捷键」更换`);
       return;
     }
     this.held = accel;

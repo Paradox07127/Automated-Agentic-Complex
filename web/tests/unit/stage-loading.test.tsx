@@ -74,7 +74,7 @@ for (const [page, props] of [['character', stageProps], ['MMD', mmdProps]] as co
       await waitFor(() => expect(show).toHaveBeenCalledTimes(1));
       await act(async () => draw(false));
       await waitFor(() => expect(screen.getAllByRole('button', { name: '重试预览' }).length).toBeGreaterThan(0));
-      expect(screen.getAllByText('实时预览没有加载，仍可查看角色外观').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('实时预览加载失败，可点击重试').length).toBeGreaterThan(0);
       expect(portrait()).toBeNull();
       expect(bar()).toBeNull();
       act(() => screen.getAllByRole('button', { name: '重试预览' })[0]!.click());

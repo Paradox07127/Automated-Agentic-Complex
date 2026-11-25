@@ -27,7 +27,7 @@ it('shows only the import button and reads the roster again after an import', as
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  const region = await screen.findByRole('region', { name: '还没有角色' });
+  const region = await screen.findByRole('region', { name: '当前无可用角色' });
   const button = within(region).getByRole('button', { name: '导入角色' });
   expect(region.textContent).toBe('导入角色');
   expect(screen.queryByText(/读取角色目录失败/)).toBeNull();

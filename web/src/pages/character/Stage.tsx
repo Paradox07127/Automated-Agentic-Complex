@@ -118,8 +118,8 @@ export function Stage(p: StageProps) {
               state="unlinked"
               mode="page"
               title="桌面角色"
-              reason={p.backoff != null ? `角色未运行，退避 ${p.backoff} 秒后重试` : '角色未运行，预览和设定暂停'}
-              action={{ label: '重启角色', onClick: p.onRestart }}
+              reason={p.backoff != null ? `角色进程未运行，将在 ${p.backoff} 秒后重试` : '角色进程未运行，实时预览与参数设置已暂停'}
+              action={{ label: '重启角色进程', onClick: p.onRestart }}
             >
               {null}
             </PowerState>
@@ -176,8 +176,8 @@ function SwitchOverlay({ sw, currentName, onRetry, onDismiss }: { sw: Exclude<Sw
   const failed = sw.phase === 'failed';
   return (
     <div className={styles.ovl} data-theme="dark" role={failed ? 'alert' : 'status'}>
-      <b>{failed ? `切换到 ${sw.target.name} 没有完成` : `正在切换到 ${sw.target.name}`}</b>
-      <span className={styles.cap}>{failed ? `仍是 ${currentName}` : '输入暂停'}</span>
+      <b>{failed ? `切换至 ${sw.target.name} 未完成` : `正在切换至 ${sw.target.name}`}</b>
+      <span className={styles.cap}>{failed ? `当前仍为 ${currentName}` : '输入暂停'}</span>
       {nodes.length > 0 && (
         <div className={styles.chain}>
           <NodeChain label={`切换到 ${sw.target.name}`} nodes={nodes} size="compact" />

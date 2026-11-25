@@ -39,8 +39,8 @@ describe(' 观察: 外发总览 plate', () => {
   it('is one line: what leaves this computer, where it goes, and whether it is masked first', async () => {
     await mount('&group=privacy');
     const plate = await screen.findByRole('region', { name: '外发总览' });
-    expect(plate.textContent).toContain('会离开这台电脑的');
-    expect(plate.textContent).toMatch(/→ .+ │ 发出前遮蔽 (开|关|—)/);
+    expect(plate.textContent).toContain('外部数据流向');
+    expect(plate.textContent).toMatch(/→ .+ │ 发送前脱敏 (开启|关闭|—)/);
     expect(within(plate).queryByRole('img')).toBeNull();
     expect(within(plate).queryByRole('grid')).toBeNull();
   });
@@ -49,7 +49,7 @@ describe(' 观察: 外发总览 plate', () => {
     await mount('&group=privacy');
     const plate = await screen.findByRole('region', { name: '外发总览' });
     window.location.hash = '';
-    fireEvent.click(within(plate).getByRole('button', { name: /在每日简报看今天的截图/ }));
+    fireEvent.click(within(plate).getByRole('button', { name: /在每日简报查看今日截图/ }));
     expect(window.location.hash).toBe('#/overview?tab=tm');
   });
 
@@ -65,7 +65,7 @@ describe(' 观察: 外发总览 plate', () => {
 describe(' 说话: no gate chart', () => {
   it('the gate chart lives on the diag page, not here', async () => {
     await mount('&group=speak');
-    expect(await screen.findByRole('radiogroup', { name: '主动开口' })).toBeTruthy();
+    expect(await screen.findByRole('radiogroup', { name: '主动交互' })).toBeTruthy();
     expect(screen.queryByRole('region', { name: '今日发言闸门' })).toBeNull();
     expect(document.querySelector('[data-row="gate"]')).toBeNull();
   });
@@ -80,7 +80,7 @@ describe(' 说话: a row under 主动 while 主动 is not chosen', () => {
     };
     try {
       await mount('&group=speak&item=quiet_hours');
-      const when = (await screen.findByRole('radiogroup', { name: '主动开口' })).closest('[data-row="speakWhen"]') as HTMLElement;
+      const when = (await screen.findByRole('radiogroup', { name: '主动交互' })).closest('[data-row="speakWhen"]') as HTMLElement;
       if (document.querySelector('[data-row="quiet_hours"]')) return;
       await waitFor(() => expect(when.className).toMatch(/hl/));
       expect(seen).toContain(document.getElementById('set-speakWhen'));
@@ -101,7 +101,7 @@ describe(' states and navigation', () => {
     // Shown once above the group; disabled switches keep it as their hidden description.
     expect((await screen.findAllByText('读取设置失败，这一组暂不能修改')).filter((el) => !el.closest('[hidden]'))).toHaveLength(1);
     expect(screen.getByRole('region', { name: '外发总览' })).toBeTruthy();
-    expect(screen.getByRole('switch', { name: '操作时间线' }).getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByRole('switch', { name: '记录操作时间线' }).getAttribute('aria-disabled')).toBe('true');
     cleanup();
     await mount('&state=error&group=kernel');
     expect(await screen.findByRole('region', { name: '当前内核' })).toBeTruthy();
@@ -128,9 +128,9 @@ describe(' states and navigation', () => {
 
   it('heads each section with the shared SecHead and no second title row under the tabs; no ⓘ repeats the tab\'s line', async () => {
     await mount('&group=data');
-    const sec = await screen.findByRole('region', { name: '保留' });
+    const sec = await screen.findByRole('region', { name: '数据保留' });
     const head = sec.querySelector(':scope > [data-stub="SecHead"]') as HTMLElement;
-    expect(head.querySelector('h3')?.textContent).toBe('保留');
+    expect(head.querySelector('h3')?.textContent).toBe('数据保留');
     expect(head.querySelector('[data-stub="InfoTip"]')).toBeNull();
     expect(screen.queryByRole('heading', { name: '数据' })).toBeNull();
     cleanup();
@@ -156,9 +156,9 @@ describe(' states and navigation', () => {
     const fake = createFakeBridge({ surface: 'main', still: true });
     window.agenticComplex = { ...fake, settings: { ...fake.settings, wipeLocalData: () => new Promise<void>((r) => (finish = r)) } };
     await mount('&group=data');
-    await act(async () => fireEvent.click(await screen.findByRole('button', { name: '删除所有…' })));
+    await act(async () => fireEvent.click(await screen.findByRole('button', { name: '删除全部…' })));
     const paper = () => screen.queryByRole('dialog');
-    await act(async () => fireEvent.click(within(paper()!).getByRole('button', { name: '删除所有' })));
+    await act(async () => fireEvent.click(within(paper()!).getByRole('button', { name: '删除全部' })));
     expect(within(paper()!).getByRole('button', { name: '正在处理…' })).toBeTruthy();
     await act(async () => void fireEvent.keyDown(document.body, { key: 'Escape' }));
     await act(async () => void fireEvent.mouseDown(document.querySelector('[data-stub="SettingsConfirm"]')!));
@@ -185,8 +185,8 @@ describe(' 快捷键', () => {
 
   it('uses the current action names', async () => {
     await mount('&group=keys');
-    expect(await screen.findByText('屏幕识读')).toBeTruthy();
-    expect(screen.getByText('快速输入')).toBeTruthy();
+    expect(await screen.findByText('触发屏幕识读')).toBeTruthy();
+    expect(screen.getByText('打开快速输入')).toBeTruthy();
     expect(document.querySelector('#set-hk_page_overview')?.textContent).toBe('⌘1每日简报');
     expect(document.querySelector('#set-hk_page_memory')?.textContent).toContain('⌘3');
   });

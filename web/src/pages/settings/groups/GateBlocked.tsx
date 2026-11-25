@@ -1,25 +1,25 @@
 /** The proactive kinds agentd may mute (proactive.py `MUTABLE`). */
 export const MUTED_KIND: Record<string, string> = {
-  comment: '久盯一个窗口时搭话',
-  back: '回来时汇报',
-  break: '休息提示',
-  water: '喝水提示',
-  stuck: '卡住时问要不要帮忙',
-  thought: '冒出的想法',
-  session: '会话出事时告诉你',
-  task: '任务停了时提醒',
-  repeat: '重复的事建议做成定时任务',
+  comment: '长时间注视同一窗口时发起提醒',
+  back: '返回电脑时汇报期间摘要',
+  break: '休息提醒',
+  water: '饮水提醒',
+  stuck: '检测到操作受阻时主动询问',
+  thought: '关联思考提示',
+  session: '会话异常时通知',
+  task: '任务中止时通知',
+  repeat: '检测到重复操作时建议创建定时任务',
 };
 
 /** Gate categories: the mutable kinds plus the announcements that pass the gate below P0. */
 export const GATE_KIND: Record<string, string> = {
   ...MUTED_KIND,
-  dispatch_closed: '派的活过期了，没有开始',
-  dispatch_failed: '派的任务没做成',
-  dispatch_review: '派的任务回话了，结果要确认',
-  session_failed: '会话出错了',
-  task_expired: '任务没开始就过期了',
-  task_interrupted: '任务被重启打断了',
+  dispatch_closed: '派发任务超时未启动并已过期',
+  dispatch_failed: '派发任务执行失败',
+  dispatch_review: '派发任务已返回结果，等待复核',
+  session_failed: '对话会话异常',
+  task_expired: '任务超时未启动',
+  task_interrupted: '任务因服务重启而中断',
   focus_done: '专注时段结束',
   reminder_missed: '错过的提醒',
 };

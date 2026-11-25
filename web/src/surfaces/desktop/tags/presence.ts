@@ -10,20 +10,20 @@ export const ACTIVE: ReadonlySet<string> = new Set(['thinking', 'running_tool', 
 
 /** Short state words; agentd's own labels address the user. */
 const STATE_LABEL: Readonly<Record<string, string>> = {
-  thinking: '在想',
-  running_tool: '在跑',
+  thinking: '思考中',
+  running_tool: '工具执行中',
   awaiting_approval: '待批准',
   awaiting_input: '待回答',
-  compacting: '在整理上下文',
-  subagent: '在派子任务',
-  done: '完成',
-  background: '在后台做',
-  error: '出错了',
-  stale: '没有新动静',
+  compacting: '整理上下文中',
+  subagent: '派发子任务中',
+  done: '已完成',
+  background: '后台执行中',
+  error: '出错',
+  stale: '无更新',
   idle: '空闲',
 };
 
-export const stateLabel = (state: string): string => STATE_LABEL[state] ?? '状态不明';
+export const stateLabel = (state: string): string => STATE_LABEL[state] ?? '状态未知';
 
 export interface PresenceRole {
   state: string;

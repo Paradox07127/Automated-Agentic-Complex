@@ -39,7 +39,7 @@ describe('PhotoRoot', () => {
     mount({ photo: false, capture: true });
     expect((screen.getByRole('slider', { name: '光圈' }) as HTMLInputElement).disabled).toBe(true);
     expect((screen.getByRole('radio', { name: '手动' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText(/景深还没有接上/)).toBeTruthy();
+    expect(screen.getByText(/景深能力尚未就绪/)).toBeTruthy();
   });
 
   it('opens on f/32 and sends aperture and manual focus through photo.set', () => {
@@ -67,14 +67,14 @@ describe('PhotoRoot', () => {
     const v = mount({ photo: true, capture: true });
     v.calls.capture.mockRejectedValueOnce({ code: 'not_implemented', detail: 'photo.capture' });
     fireEvent.click(screen.getByRole('button', { name: '拍照' }));
-    expect(await screen.findByText('没有拍成：这个版本还不支持')).toBeTruthy();
+    expect(await screen.findByText('拍摄失败：当前版本暂不支持')).toBeTruthy();
   });
 
   it('greys the shutter without capture and says why', () => {
     const v = mount({ photo: true, capture: false });
     const shutter = screen.getByRole('button', { name: '拍照' });
     expect(shutter.getAttribute('aria-disabled')).toBe('true');
-    expect(screen.getByText('渲染器没有提供截图')).toBeTruthy();
+    expect(screen.getByText('当前渲染器未提供截图能力')).toBeTruthy();
     fireEvent.click(shutter);
     expect(v.calls.capture).not.toHaveBeenCalled();
   });

@@ -101,15 +101,15 @@ describe('render settings (rnd.*)', () => {
     const present = vi.spyOn(bridge.avatar.presentation, 'set');
     await tune();
     const shadow = await screen.findByRole('radiogroup', { name: '自阴影精度' });
-    expect(within(shadow).getAllByRole('radio').map((r) => r.textContent)).toEqual(['高 · 1024', '中 · 512', '低 · 256']);
+    expect(within(shadow).getAllByRole('radio').map((r) => r.textContent)).toEqual(['高（1024）', '中（512）', '低（256）']);
     const aa = screen.getByRole('switch', { name: '2× SSAA' });
     expect(aa.getAttribute('aria-checked')).toBe('true');
     await click(aa);
     expect(save).toHaveBeenLastCalledWith({ 'rnd.aa': false });
-    await click(within(shadow).getByRole('radio', { name: '低 · 256' }));
+    await click(within(shadow).getByRole('radio', { name: '低（256）' }));
     expect(save).toHaveBeenLastCalledWith({ 'rnd.shadow': '256' });
     expect(present).not.toHaveBeenCalled();
-    expect(toasts()).toEqual(['已保存 │ 角色正在重新出现', '已保存 │ 角色正在重新出现']);
+    expect(toasts()).toEqual(['已保存 │ 正在重载角色进程', '已保存 │ 正在重载角色进程']);
   });
 
   it('says the save was refused and keeps the saved value', async () => {
@@ -117,17 +117,17 @@ describe('render settings (rnd.*)', () => {
     vi.spyOn(bridge.settings, 'save').mockResolvedValue({ restart: 'none', notApplied: [], error: '「渲染尺寸」不能设成 x' } as SettingsSaveResult);
     await tune();
     const shadow = await screen.findByRole('radiogroup', { name: '自阴影精度' });
-    await click(within(shadow).getByRole('radio', { name: '中 · 512' }));
-    expect(toasts()).toEqual(['没有保存「自阴影精度」：桌面端没有接受这次修改']);
-    expect(within(shadow).getByRole('radio', { name: '高 · 1024' }).getAttribute('aria-checked')).toBe('true');
+    await click(within(shadow).getByRole('radio', { name: '中（512）' }));
+    expect(toasts()).toEqual(['未能保存「自阴影精度」：应用宿主未接受本次修改']);
+    expect(within(shadow).getByRole('radio', { name: '高（1024）' }).getAttribute('aria-checked')).toBe('true');
   });
 
   it('a raw shell error (option key, system text) goes to the log, the toast stays fixed Chinese', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(bridge.settings, 'save').mockResolvedValue({ restart: 'none', notApplied: [], error: 'authored: The file couldn’t be saved.' } as SettingsSaveResult);
     await tune();
-    await click(within(await screen.findByRole('radiogroup', { name: '自阴影精度' })).getByRole('radio', { name: '中 · 512' }));
-    expect(toasts()).toEqual(['没有保存「自阴影精度」：桌面端没有接受这次修改']);
+    await click(within(await screen.findByRole('radiogroup', { name: '自阴影精度' })).getByRole('radio', { name: '中（512）' }));
+    expect(toasts()).toEqual(['未能保存「自阴影精度」：应用宿主未接受本次修改']);
     expect(warn.mock.calls.flat().join(' ')).toContain('authored: The file couldn’t be saved.');
   });
 
@@ -142,7 +142,7 @@ describe('render settings (rnd.*)', () => {
   it('a failed read says why instead of showing made-up values', async () => {
     vi.spyOn(bridge.settings, 'read').mockRejectedValue({ code: 'config_unreadable', detail: 'config.json' });
     await tune();
-    expect(await screen.findByText(/读取设置失败/)).toBeTruthy();
+    expect(await screen.findByText(/未能读取设置/)).toBeTruthy();
     expect(screen.queryByRole('radiogroup', { name: '自阴影精度' })).toBeNull();
   });
 });
@@ -152,7 +152,7 @@ describe('offline note', () => {
     const s = await bridge.app.runtime();
     vi.spyOn(bridge.app, 'runtime').mockResolvedValue({ ...s, processes: { ...s.processes, avatar: { ...s.processes.avatar, state: 'backoff', pid: null, backoff: 8 } } });
     await mount();
-    expect((await screen.findByText(/退避/)).closest('[role="status"]')?.textContent).toContain('退避 8 秒后重试');
+    expect((await screen.findByText(/将在 8 秒后重试/)).closest('[role="status"]')?.textContent).toContain('将在 8 秒后重试');
   });
 });
 
@@ -174,7 +174,7 @@ describe('import receipts', () => {
     imp.mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce({ ok: false, reason: 'cancelled' }).mockResolvedValueOnce({ ok: false, reason: '未配置 Metal 宿主可执行文件' }).mockResolvedValueOnce({ ok: false, reason: 'bundle hash mismatch' });
     await mount('&pane=import');
     for (let i = 0; i < 4; i++) await click(await screen.findByRole('button', { name: '导入角色' }));
-    expect(toasts()).toEqual(['已导入角色', '已取消导入', '导入没有完成：未配置 Metal 宿主可执行文件', '导入没有完成：桌面角色没有给出原因']);
+    expect(toasts()).toEqual(['已导入角色', '已取消导入', '导入未完成：未配置 Metal 宿主可执行文件', '导入未完成：角色渲染进程未返回原因']);
     expect(vi.mocked(pushToast).mock.calls[1]?.[1]?.severity).toBeUndefined();
   });
 });
@@ -204,7 +204,7 @@ describe('motion import', () => {
       .mockResolvedValueOnce({ ok: false, reason: 'internal', detail: 'unknown_character: cedar' });
     await motionImport();
     await click(await screen.findByRole('button', { name: /^导入动作…/ }));
-    expect(line()).toBe('导入没有完成动作已满 128 条，出错');
+    expect(line()).toBe('导入没有完成动作数量已达上限（128 条），出错');
     await click(importKey());
     expect(line()).toBe('导入没有完成unknown_character: cedar，出错');
   });

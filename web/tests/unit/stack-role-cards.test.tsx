@@ -137,7 +137,7 @@ describe('native decision reply codes', () => {
     });
     const deny = [...card.querySelectorAll('button')].find((b) => b.textContent?.includes('拒绝'));
     fireEvent.click(deny!);
-    await waitFor(() => expect(card.textContent).toContain('这张卡被别处处理了'));
+    await waitFor(() => expect(card.textContent).toContain('该请求已在其他位置处理'));
     expect(card.textContent).not.toContain('没能送达决定');
   });
 });

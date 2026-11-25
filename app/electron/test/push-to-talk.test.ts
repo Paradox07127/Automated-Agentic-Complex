@@ -124,9 +124,9 @@ test('speechLocale: auto takes the first Chinese or English preferred language, 
 });
 
 test('a refused /say shows the short recovery for a role runtime, the code\'s sentence, or 没发出去', () => {
-  assert.equal(rejectedHint('native_login_required', 'codex'), '角色内核未登录：终端运行 codex login');
-  assert.equal(rejectedHint('local_runtime_missing', null), '没找到 Codex CLI 或 ACP agent');
-  assert.equal(rejectedHint('switching', null), '正在换角色，没发出去');
+  assert.equal(rejectedHint('native_login_required', 'codex'), '执行内核未登录：请在终端运行 codex login');
+  assert.equal(rejectedHint('local_runtime_missing', null), '未检测到 Codex CLI 或 ACP 智能体');
+  assert.equal(rejectedHint('switching', null), '正在切换角色，消息未发送');
   assert.equal(rejectedHint('whatever', null), HINT.notSent);
 });
 
@@ -134,7 +134,7 @@ test('the hint as protocol.ts PushToTalkState (pushToTalkState)', () => {
   assert.deepEqual(pushToTalkState(null), { phase: 'idle' });
   assert.deepEqual(pushToTalkState({ kind: 'listening', levels: [0.2], elapsed: 1, text: '明天下午' }), { phase: 'listening', partial: '明天下午' });
   assert.deepEqual(pushToTalkState({ kind: 'sent', text: '明天下午', elapsed: 2 }), { phase: 'sent', partial: '明天下午' });
-  assert.deepEqual(pushToTalkState({ kind: 'discarded', reason: HINT.tooShort, elapsed: 0.1 }), { phase: 'error', error: '按住不到 0.3 秒' });
+  assert.deepEqual(pushToTalkState({ kind: 'discarded', reason: HINT.tooShort, elapsed: 0.1 }), { phase: 'error', error: '按住时长不足 0.3 秒' });
   assert.deepEqual(pushToTalkState({ kind: 'micDenied' }), { phase: 'error', error: 'mic_denied' });
 });
 
@@ -426,7 +426,7 @@ test('agentd unreachable shows 没发出去; a refusal shows its sentence', asyn
   const refused = setup({ agentd: { 'POST /say': { status: 409, body: { error: 'switching' } } } });
   await refused.up();
   await refused.hold(800);
-  assert.deepEqual(refused.last(), { phase: 'error', error: '正在换角色，没发出去' });
+  assert.deepEqual(refused.last(), { phase: 'error', error: '正在切换角色，消息未发送' });
   const command = setup({ agentd: { 'POST /say': { status: 200, body: { command: 'stop' } } } });
   await command.up();
   await command.hold(800);

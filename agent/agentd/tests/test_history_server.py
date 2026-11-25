@@ -257,7 +257,7 @@ class PageTest(HistoryServerCase):
     def test_no_history_is_503(self):
         self.server.history = None
         for method, path in (("GET", "/history"), ("GET", "/history/export"), ("DELETE", "/history")):
-            self.assertEqual(self.request(method, path), (503, {"error": "no_history", "detail": "聊天记录没有开启"}))
+            self.assertEqual(self.request(method, path), (503, {"error": "no_history", "detail": "对话记录未开启"}))
 
 
 class RecallTest(HistoryServerCase):

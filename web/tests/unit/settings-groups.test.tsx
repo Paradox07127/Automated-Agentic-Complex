@@ -95,11 +95,11 @@ describe('settings › 隐私', () => {
         <SeeGroup />
       </Harness>,
     );
-    const toggle = screen.getByRole('switch', { name: '读会话里的工具输入输出' });
+    const toggle = screen.getByRole('switch', { name: '允许读取编码会话' });
     expect(toggle.getAttribute('aria-checked')).toBe('true');
     expect(native.rows.agent_sessions).toMatchObject({ default: true, restart: 'none', destructive: true });
     await act(async () => fireEvent.click(toggle));
-    expect(screen.getByRole('dialog', { name: '关闭「读会话里的工具输入输出」并删除已收集的内容？' })).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: '关闭「允许读取编码会话」并删除已收集的内容？' })).toBeTruthy();
     expect(save).not.toHaveBeenCalled();
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '关闭并删除' })));
     expect(consent).toHaveBeenCalledWith('agent_sessions');
@@ -114,8 +114,8 @@ describe('settings › 隐私', () => {
         <SeeGroup />
       </Harness>,
     );
-    await act(async () => fireEvent.click(screen.getByRole('switch', { name: '窗口文字' })));
-    expect(screen.getByRole('dialog', { name: '关闭「窗口文字」并删除已收集的内容？' }).textContent).toBe('关闭并删除');
+    await act(async () => fireEvent.click(screen.getByRole('switch', { name: '允许读取窗口文本' })));
+    expect(screen.getByRole('dialog', { name: '关闭「允许读取窗口文本」并删除已收集的内容？' }).textContent).toBe('关闭并删除');
     expect(save).not.toHaveBeenCalled();
   });
 
@@ -126,7 +126,7 @@ describe('settings › 隐私', () => {
         <SeeGroup />
       </Harness>,
     );
-    await act(async () => fireEvent.click(screen.getByRole('switch', { name: '键鼠计数' })));
+    await act(async () => fireEvent.click(screen.getByRole('switch', { name: '记录键鼠交互频次' })));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(save).toHaveBeenCalledWith({ keys: false });
   });
@@ -141,10 +141,10 @@ describe('settings › 声音 › 通知方式', () => {
       </Harness>,
     );
     const row = screen.getByRole('row', { name: /^提醒/ });
-    const companion = screen.getByRole('radiogroup', { name: '主动开口' }).closest('[data-row="speakWhen"]');
-    expect(companion?.textContent).toContain('任务结果和你设的提醒照常送达');
-    expect(within(row).getAllByRole('radio').map((r) => r.getAttribute('aria-label'))).toEqual(['提醒：出声', '提醒：只出卡', '提醒：不提示']);
-    await act(async () => fireEvent.click(within(row).getByRole('radio', { name: '提醒：只出卡' })));
+    const companion = screen.getByRole('radiogroup', { name: '主动交互' }).closest('[data-row="speakWhen"]');
+    expect(companion?.textContent).toContain('任务结果与已设提醒仍正常送达');
+    expect(within(row).getAllByRole('radio').map((r) => r.getAttribute('aria-label'))).toEqual(['提醒：卡片并提示音', '提醒：仅显示卡片', '提醒：不提示']);
+    await act(async () => fireEvent.click(within(row).getByRole('radio', { name: '提醒：仅显示卡片' })));
     expect(save).toHaveBeenCalledWith({ n_remind: 'card' });
   });
 });
@@ -160,7 +160,7 @@ describe('settings › 快捷键', () => {
       </Harness>,
     );
     const row = container.querySelector('[data-row="hk_sel"]') as HTMLElement;
-    expect(row.textContent).toContain('读取选中文字');
+    expect(row.textContent).toContain('读取当前选中文本');
     expect(row.textContent).toContain('⌃⌥S');
     await act(async () => fireEvent.click(within(row).getByRole('button', { name: '更改' })));
     expect(check).toHaveBeenCalledWith('hk_sel', '⌃⌥J');
@@ -182,7 +182,7 @@ describe('settings › 能做 › 系统权限', () => {
       </Harness>,
     );
     await unfold();
-    const open = screen.getByRole('button', { name: '去系统设置' });
+    const open = screen.getByRole('button', { name: '打开系统设置' });
     await act(async () => fireEvent.click(open));
     expect(request).toHaveBeenCalledWith('automation');
     expect(screen.getByTestId('toast').textContent).toContain('自动化');
@@ -197,7 +197,7 @@ describe('settings › 能做 › 系统权限', () => {
       </Harness>,
     );
     await unfold();
-    expect(screen.getByRole('button', { name: '去系统设置' }).getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByRole('button', { name: '打开系统设置' }).getAttribute('aria-disabled')).toBe('true');
   });
 });
 
@@ -210,7 +210,7 @@ describe('settings › 启动与关于', () => {
       </Harness>,
     );
     const row = container.querySelector('[data-row="login"]') as HTMLElement;
-    expect(within(row).getByRole('switch', { name: '开机登录后启动' })).toBeTruthy();
+    expect(within(row).getByRole('switch', { name: '登录后自动启动' })).toBeTruthy();
     expect(within(row).queryByRole('button', { name: '去系统设置' })).toBeNull();
   });
 
@@ -253,7 +253,7 @@ describe('settings › 角色内核', () => {
         <KernelGroup />
       </Harness>,
     );
-    expect(within(row()).getByText('在浏览器里完成登录后回来')).toBeTruthy();
+    expect(within(row()).getByText('请在浏览器中完成登录后返回')).toBeTruthy();
     expect(within(row()).getByRole('button', { name: '取消登录' })).toBeTruthy();
     cleanup();
     render(
@@ -441,7 +441,7 @@ describe('settings › 角色内核 › ACP', () => {
     const [claude] = within(grid).getAllByRole('row').slice(1);
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '更多（需下载）' })));
     const [gemini, fast] = within(screen.getByRole('grid', { name: '更多（需下载）' })).getAllByRole('row').slice(1);
-    expect(within(claude!).getByText('用直连')).toBeTruthy();
+    expect(within(claude!).getByText('直连模式')).toBeTruthy();
     expect(within(claude!).getByRole('radio').getAttribute('aria-disabled')).toBe('true');
     await act(async () => fireEvent.click(claude!));
     expect(draft()).toEqual({});
@@ -474,7 +474,7 @@ describe('settings › 角色内核 › ACP', () => {
     const [gemini] = within(screen.getByRole('grid', { name: '更多（需下载）' })).getAllByRole('row').slice(1);
     expect(within(claude!).getByRole('radio').getAttribute('aria-checked')).toBe('true');
     expect(within(claude!).getByRole('radio').getAttribute('aria-disabled')).toBeNull();
-    expect(within(claude!).getByText('用直连')).toBeTruthy();
+    expect(within(claude!).getByText('直连模式')).toBeTruthy();
     await act(async () => fireEvent.click(within(gemini!).getByRole('button', { name: '安装' })));
     expect(screen.getByTestId('toast').textContent).toBe('安装 Gemini CLI 失败：本机没有 npm 或 uv');
   });
@@ -507,7 +507,7 @@ describe('settings › 角色内核 › ACP', () => {
     );
     await screen.findByText('Goose');
     expect(screen.queryByRole('button', { name: '在终端运行' })).toBeNull();
-    expect(screen.getByRole('button', { name: '去登录' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '前往登录' })).toBeTruthy();
     const row = document.querySelector('[data-row="kernelLogin"]') as HTMLElement;
     await act(async () => fireEvent.click(within(row).getByRole('button', { name: '登录' })));
     expect(started).toEqual([{ method_id: 'oauth' }]);
@@ -529,7 +529,7 @@ describe('settings › 角色内核 › ACP', () => {
         <KernelGroup />
       </Harness>,
     );
-    await screen.findByText('DeepSeek 客户端里登录', { exact: false });
+    await screen.findByText('使用 DeepSeek 客户端中的已登录账号', { exact: false });
     expect(document.querySelector('[data-row="acct"]')!.textContent).toContain('DeepSeek 账号');
     const row = document.querySelector('[data-row="kernelLogin"]') as HTMLElement;
     await act(async () => fireEvent.click(within(row).getByRole('button', { name: '登录' })));

@@ -246,7 +246,7 @@ describe('chat review fixes', () => {
   });
 
   it('says why agentd refused an approval answer', () => {
-    expect(reasonOf(new AgentdCallError(400, 'invalid_approval', undefined, { error: 'invalid_approval' }, 'x'))).toBe('审批只能选允许或拒绝');
+    expect(reasonOf(new AgentdCallError(400, 'invalid_approval', undefined, { error: 'invalid_approval' }, 'x'))).toBe('审批仅支持允许或拒绝');
     expect(reasonOf(new AgentdCallError(400, 'approval_expired', undefined, { error: 'approval_expired' }, 'x'))).toBe('审批已过期');
   });
 
@@ -272,11 +272,11 @@ describe('chat review fixes', () => {
     await send(thread, '统计表好了吗？');
     await waitFor(() => expect(thread.querySelector('[data-live]')).toBeTruthy());
     b.reload();
-    expect(await within(thread).findByText(/实时输出有中断/)).toBeTruthy();
+    expect(await within(thread).findByText(/实时输出曾中断/)).toBeTruthy();
     landed = true;
     b.reload();
     expect(await within(thread).findByText('统计表已生成。')).toBeTruthy();
-    await waitFor(() => expect(within(thread).queryByText(/实时输出有中断/)).toBeNull());
+    await waitFor(() => expect(within(thread).queryByText(/实时输出曾中断/)).toBeNull());
   });
 
   it('a failed line and its 重发 do not follow to another conversation, and wait in their own', async () => {
@@ -331,7 +331,7 @@ describe('chat writes', () => {
     const thread = await sendLine('提醒我十分钟后喝水', [command(200, { command: 'remind', commitment })]);
     const pad = (n: number) => String(n).padStart(2, '0');
     const at = new Date(due * 1000);
-    expect(await within(thread).findByText(`好，${pad(at.getHours())}:${pad(at.getMinutes())} 提醒你：喝水`)).toBeTruthy();
+    expect(await within(thread).findByText(`已设置提醒：${pad(at.getHours())}:${pad(at.getMinutes())} 提醒「喝水」`)).toBeTruthy();
     const live = thread.querySelector<HTMLElement>('[data-live]')!;
     expect(within(live).getByText('提醒我十分钟后喝水')).toBeTruthy();
     expect(thread.querySelector('[data-live] [aria-live]')).toBeNull();
@@ -343,21 +343,21 @@ describe('chat writes', () => {
     const thread = await sendLine('提醒我明天下午交报告', [command(200, { command: 'remind', commitment })]);
     const pad = (n: number) => String(n).padStart(2, '0');
     const at = new Date(due * 1000);
-    expect(await within(thread).findByText(`好，${at.getMonth() + 1}月${at.getDate()}日 ${pad(at.getHours())}:${pad(at.getMinutes())} 提醒你：交报告`)).toBeTruthy();
+    expect(await within(thread).findByText(`已设置提醒：${at.getMonth() + 1}月${at.getDate()}日 ${pad(at.getHours())}:${pad(at.getMinutes())} 提醒「交报告」`)).toBeTruthy();
   });
 
   it('a 提醒我 command waiting for a session says what it waits for instead of a clock time', async () => {
     const commitment = { id: 'c10', text: '看结果', due_at: null, trigger: { kind: 'session_done', agent: 'claude' }, state: 'armed', created_at: NOW / 1000, created_line: null, delivered_line: null, updated_at: NOW / 1000 };
     const thread = await sendLine('Claude 做完提醒我看结果', [command(200, { command: 'remind', commitment })]);
-    expect(await within(thread).findByText('好，等 claude 做完提醒你：看结果')).toBeTruthy();
+    expect(await within(thread).findByText('已设置提醒：将在 claude 完成后提醒「看结果」')).toBeTruthy();
   });
 
   it.each([
-    [{ command: 'remember', fact_id: 'f1' }, '记住了'],
-    [{ command: 'remember', fact_id: 'f1', reinforced: true }, '这条已经记着了'],
-    [{ command: 'remember', fact_id: null, skipped: 'paused' }, '记忆已暂停，没记'],
-    [{ command: 'remember', fact_id: null, skipped: 'no_memory' }, '这一轮不记，没记'],
-    [{ command: 'mute' }, '好'],
+    [{ command: 'remember', fact_id: 'f1' }, '已记入记忆'],
+    [{ command: 'remember', fact_id: 'f1', reinforced: true }, '该条目已存在于记忆中'],
+    [{ command: 'remember', fact_id: null, skipped: 'paused' }, '记忆已暂停，未记录'],
+    [{ command: 'remember', fact_id: null, skipped: 'no_memory' }, '已开启「此轮不记录」，未记录'],
+    [{ command: 'mute' }, '已处理'],
   ])('a command answered with %j shows 「%s」 and no pending reply', async (body, note) => {
     const thread = await sendLine('记住我喜欢乌龙茶', [command(200, body)]);
     expect(await within(thread).findByText(note)).toBeTruthy();
@@ -366,13 +366,13 @@ describe('chat writes', () => {
 
   it('a dispatch command shows 已开确认卡', async () => {
     const thread = await sendLine('让 Codex 跑一下测试', [command(202, { command: 'dispatch', request_id: 'r1' })]);
-    expect(await within(thread).findByText('已开确认卡')).toBeTruthy();
+    expect(await within(thread).findByText('已弹出派发确认卡')).toBeTruthy();
     expect(thread.querySelector('[data-live] [aria-live]')).toBeNull();
   });
 
   it('a 409 no_reminder_time stays a failed send that says what was missing', async () => {
     const thread = await sendLine('提醒我', [command(409, { error: 'no_reminder_time' })]);
-    expect(await within(thread).findByText(/没听清时间或要提醒的事/)).toBeTruthy();
+    expect(await within(thread).findByText(/未能识别提醒时间或提醒事项/)).toBeTruthy();
     expect(thread.querySelector('[data-live]')).toBeNull();
   });
 
@@ -436,7 +436,7 @@ describe('chat writes', () => {
     await waitFor(() => expect(b.of('POST', `/conversations/${C2}/activate`)).toHaveLength(1));
     expect(b.of('POST', `/conversations/${C2}/activate`)[0]!.body).toEqual({ expected_version: c2.revision });
     menu('HostLink 断线排查', /删除/);
-    fireEvent.click(within(screen.getByRole('dialog', { name: '删除「HostLink 断线排查」？' })).getByRole('button', { name: '删除' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: '确认删除「HostLink 断线排查」？' })).getByRole('button', { name: '删除' }));
     await waitFor(() => expect(b.of('DELETE', `/conversations/${C2}`)).toHaveLength(1));
     expect(b.of('DELETE', `/conversations/${C2}`)[0]!.body).toEqual({ expected_version: c2.revision });
   });
@@ -448,7 +448,7 @@ describe('chat writes', () => {
     const reads = () => b.of('GET', '/conversations?character=si').length;
     const before = reads();
     menu('HostLink 断线排查', '置顶');
-    expect(await screen.findByText('没有置顶：已在别处更新')).toBeTruthy();
+    expect(await screen.findByText('未能置顶：已在其他位置更新')).toBeTruthy();
     await waitFor(() => expect(reads()).toBe(before + 1));
   });
 });
@@ -555,7 +555,7 @@ describe('chat actions', () => {
     await a.answer(q, { scope: ['包含'] });
     actions[0]!.onClick?.();
     await waitFor(() => expect(b.of('POST', `/agent/interactions/${Q1}/continue`)).toHaveLength(1));
-    await waitFor(() => expect(pushes.some((m) => m.startsWith('没有继续'))).toBe(true));
+    await waitFor(() => expect(pushes.some((m) => m.startsWith('未能继续执行'))).toBe(true));
     actions[0]!.onClick?.();
     await waitFor(() => expect(b.of('POST', `/agent/interactions/${Q1}/continue`).map((c) => c.body)).toEqual([{ expected_version: 3 }, { expected_version: 5 }]));
   });
@@ -567,19 +567,19 @@ describe('chat actions', () => {
   });
 
   it.each([
-    ['no_task', '现在没有在跑的任务'],
-    ['ambiguous_task', '有多个任务在跑，请在任务页选一个停下'],
-    ['no_cwd', '没有工作目录：先在会话里打开一个目录'],
-    ['no_memory_dispatch', '这一轮不记，不能派活'],
-    ['switching', '正在换角色，稍后再说'],
-    ['no_reminder_time', '没听清时间或要提醒的事'],
-    ['no_pending_approval', '没有待决的审批'],
-    ['ambiguous_approval', '有多张审批卡，请在卡片上选一张拒绝'],
+    ['no_task', '当前无运行中的任务'],
+    ['ambiguous_task', '当前有多个运行中的任务，请在任务页选择指定任务停止'],
+    ['no_cwd', '缺少工作目录：请先在对话或授权范围中指定目录'],
+    ['no_memory_dispatch', '开启「此轮不记录」时无法派发任务'],
+    ['switching', '正在切换角色，请稍后重试'],
+    ['no_reminder_time', '未能识别提醒时间或提醒事项'],
+    ['no_pending_approval', '当前无待处理的审批'],
+    ['ambiguous_approval', '当前存在多张待处理审批卡片，请在对应卡片上拒绝'],
     ['scope_changed', '工作目录已变动或不可用'],
     ['scope_revoked', '工作目录授权已撤销'],
     ['scope_expired', '工作目录授权已过期'],
     ['unknown_scope', '工作目录授权不存在'],
-    ['idempotency_conflict', '同一请求已用不同内容发过'],
+    ['idempotency_conflict', '相同请求已使用不同内容提交'],
   ])('a 409 %s on send says 「%s」 and does not re-read the list', async (code, text) => {
     const failed: string[] = [];
     let lists = 0;
@@ -603,10 +603,10 @@ describe('chat actions', () => {
   });
 
   it('says 后台已断开 only for offline, 已在别处更新 for a conflict', () => {
-    expect(reasonOf(new AgentdCallError(0, 'offline', undefined, null, 'offline'))).toBe('后台已断开');
-    expect(reasonOf(new AgentdCallError(409, 'version_conflict', undefined, { error: 'version_conflict' }, 'x'))).toBe('已在别处更新');
-    expect(reasonOf(new AgentdCallError(0, 'route_class', undefined, null, 'x'))).toBe('后台拒绝了这次操作');
-    expect(reasonOf(new AgentdCallError(503, 'native_login_required', undefined, { error: 'native_login_required', runtime: 'codex' }, 'x'))).toBe('角色内核未就绪');
+    expect(reasonOf(new AgentdCallError(0, 'offline', undefined, null, 'offline'))).toBe('后台服务已断开');
+    expect(reasonOf(new AgentdCallError(409, 'version_conflict', undefined, { error: 'version_conflict' }, 'x'))).toBe('已在其他位置更新');
+    expect(reasonOf(new AgentdCallError(0, 'route_class', undefined, null, 'x'))).toBe('后台服务拒绝了该请求');
+    expect(reasonOf(new AgentdCallError(503, 'native_login_required', undefined, { error: 'native_login_required', runtime: 'codex' }, 'x'))).toBe('执行内核未就绪');
   });
 });
 

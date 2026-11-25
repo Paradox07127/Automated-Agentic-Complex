@@ -10,7 +10,7 @@ import { Slab } from '../Slab';
 import { useKernelActions } from '../useKernelActions';
 import styles from '../groups.module.css';
 
-export const BREAK_LABEL = ['没找到可执行文件', '入口不可用', '未登录'];
+export const BREAK_LABEL = ['未找到可执行文件', '通信入口不可用', '未登录'];
 
 /** Codes the discovery chain below the card explains and fixes. */
 const DISCOVERY_CODES: ReadonlySet<string> = new Set(['native_login_required', 'runtime_protocol_unavailable', 'runtime_version_not_verified', 'local_runtime_missing', 'runtime_missing']);
@@ -25,7 +25,7 @@ const FEATURE: Array<[string, string]> = [
   ['clarification_and_approval', '澄清与操作审批'],
   ['native_shell', '内核原生执行工具'],
   ['native_resume', '内核原生会话恢复'],
-  ['native_computer_use', '内核原生桌面操作'],
+  ['native_computer_use', '内核原生电脑操作'],
 ];
 
 type Feature = { implemented?: boolean; enabled?: boolean };
@@ -45,7 +45,7 @@ export function KernelCard({ cur, altOf, onSwitch }: { cur: RuntimeInfo; altOf: 
   const code = !ready && saved ? runtime!.error : null;
   const reason: RuntimeError | null = ready ? null : code ? (RUNTIME_ERROR[code] ?? RUNTIME_ERROR_UNKNOWN) : { label: BREAK_LABEL[kernelBreak(cur)] || '未知原因' };
   const chain = !readyOf(cur) && (!code || DISCOVERY_CODES.has(code));
-  const source = cur.id === 'pi' && usable(cur) && !cur.path ? '随应用提供' : RUNSRC.find((o) => o.value === cur.runtime_source)?.label;
+  const source = cur.id === 'pi' && usable(cur) && !cur.path ? '随应用内置' : RUNSRC.find((o) => o.value === cur.runtime_source)?.label;
   const computerUse = model.value('plugins.computer_use') === true;
   return (
     <Slab id="kcur" variant="plate" label="当前内核">
@@ -56,7 +56,7 @@ export function KernelCard({ cur, altOf, onSwitch }: { cur: RuntimeInfo; altOf: 
         </span>
         <span className={styles.meta}>
           {'kernel' in model.draft ? (
-            <StatusLamp size="sm" state="waiting" label="未应用 │ 点底部「应用」后切换" />
+            <StatusLamp size="sm" state="waiting" label="未应用 │ 点击底部「应用」后切换" />
           ) : reason == null ? (
             <StatusLamp size="sm" state="ok" label={cur.authenticated ? '已就绪 │ 已登录' : '已就绪'} />
           ) : (
@@ -68,21 +68,21 @@ export function KernelCard({ cur, altOf, onSwitch }: { cur: RuntimeInfo; altOf: 
           {runtime!.wire.auto_selected && <Pill>自动选择</Pill>}
           <span>所有角色共用</span>
         </span>
-        <Btn loading={runtimeChecking} disabled={agentdOff} disabledReason="后台服务没有运行" onClick={() => void k.recheck(cur.name, cur.id)}>
+        <Btn loading={runtimeChecking} disabled={agentdOff} disabledReason="后台服务未运行" onClick={() => void k.recheck(cur.name, cur.id)}>
           重新检测
         </Btn>
-        <div className={styles.can} role="list" aria-label={`用 ${cur.name} 能`}>
-          <span className={styles.canLbl}>用 {cur.name} 能：</span>
+        <div className={styles.can} role="list" aria-label={`${cur.name} 支持的能力`}>
+          <span className={styles.canLbl}>支持能力：</span>
           {FEATURE.filter(([key]) => features[key]?.implemented).map(([key, label]) => (
             <span key={key} role="listitem">
               <Pill dashed={features[key]?.enabled === false}>{label}</Pill>
             </span>
           ))}
-          {Object.keys(features).length === 0 && <span className={styles.t3}>保存并刷新后显示这个内核接通的能力</span>}
+          {Object.keys(features).length === 0 && <span className={styles.t3}>保存并刷新后将显示该内核支持的能力</span>}
           <span role="listitem">
             <Pill size="lg" dashed={!computerUse}>
               {labelOf('plugins.computer_use')}
-              {!computerUse && <Btn variant="link" onClick={() => goRow('plugins.computer_use', 'perm')}>去打开</Btn>}
+              {!computerUse && <Btn variant="link" onClick={() => goRow('plugins.computer_use', 'perm')}>前往开启</Btn>}
             </Pill>
           </span>
         </div>
@@ -91,7 +91,7 @@ export function KernelCard({ cur, altOf, onSwitch }: { cur: RuntimeInfo; altOf: 
             <KernelChain runtime={cur} alternative={altOf(cur)} onCopy={k.onCopy} onRunInTerminal={k.onRunInTerminal} onSwitch={onSwitch} />
           </div>
         )}
-        {runtime!.busy && <p className={styles.wide}>正在运行；改用别的内核或改设置会取消这次运行</p>}
+        {runtime!.busy && <p className={styles.wide}>当前正在执行任务；切换内核或更改配置将中断本次运行</p>}
       </div>
     </Slab>
   );

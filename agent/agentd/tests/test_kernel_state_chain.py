@@ -161,8 +161,8 @@ class PiChainTest(Chain, unittest.TestCase):
 class AcpToolKindTest(unittest.TestCase):
     def test_acp_tool_kinds_read_as_the_work_they_do(self):
         from observation.desktop_presence import _role_doing
-        cases = {'execute': '在跑命令', 'edit': '在改文件', 'delete': '在改文件', 'move': '在改文件',
-                 'read': '在读文件', 'search': '在查资料', 'fetch': '在查资料'}
+        cases = {'execute': '执行命令中', 'edit': '编辑文件中', 'delete': '编辑文件中', 'move': '编辑文件中',
+                 'read': '读取文件中', 'search': '检索资料中', 'fetch': '检索资料中'}
         self.assertEqual({kind: _role_doing('running_tool', kind, 'zh-Hans') for kind in cases}, cases)
 
 

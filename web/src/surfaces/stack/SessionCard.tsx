@@ -6,7 +6,7 @@ import type { Act } from './actions';
 import type { SessionGroup, SessionRow, SessionStatus } from './sessions';
 import styles from './SessionCard.module.css';
 
-export const STATUS_LABEL: Record<SessionStatus, string> = { needs_you: '待处理', error: '出错', done: '完成', running: '运行中', stale: '没有新动静' };
+export const STATUS_LABEL: Record<SessionStatus, string> = { needs_you: '待处理', error: '出错', done: '已完成', running: '执行中', stale: '无更新' };
 
 const STATUS_TONE: Record<SessionStatus, PillProps['tone']> = { needs_you: 'attention', error: 'danger', done: 'success', running: 'info', stale: 'neutral' };
 
@@ -38,7 +38,7 @@ export function SessionCard({ group, now, act, children }: SessionCardProps) {
   const line = actionText(row);
   return (
     <section className={styles.card} data-session-id={row.id} data-status={status} aria-label={`会话：${row.title} │ ${STATUS_LABEL[status]}`}>
-      <button type="button" className={styles.head} title="在主窗口打开这个会话" onClick={() => act({ type: 'open-session', sessionId: row.id, title: row.title })}>
+      <button type="button" className={styles.head} title="在终端或主窗口中打开此会话" onClick={() => act({ type: 'open-session', sessionId: row.id, title: row.title })}>
         <Pill tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Pill>
         <span className={styles.title}>{row.title}</span>
         <span className={styles.backend}>{BACKEND_LABEL[row.backend] ?? row.backend}</span>

@@ -29,7 +29,7 @@ class ListFailure extends Error {
   }
 }
 
-const hostText = (e: unknown) => ((e as { code?: string } | null)?.code === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应');
+const hostText = (e: unknown) => ((e as { code?: string } | null)?.code === 'not_implemented' ? '当前版本暂不支持' : '角色渲染进程无响应');
 
 /** `character.listImportedMotions` of `character` with rename and remove; `onChanged` runs once the avatar is back with the change. */
 export function useMotionLibrary({ character, onChanged }: { character: string; onChanged: () => void }): MotionLibrary {

@@ -114,7 +114,7 @@ describe('测试连接 result', () => {
     await settle();
     request.mockRejectedValueOnce(new AgentdCallError(400, 'auth_expired', undefined, {}, 'x'));
     await click(screen.getByRole('button', { name: '测试' }));
-    expect(row('mtest')?.textContent).toContain('没连通：登录已过期，请重新登录');
+    expect(row('mtest')?.textContent).toContain('未能连通：登录已过期，请重新登录');
   });
 });
 
@@ -145,14 +145,14 @@ describe("Pi's model catalog", () => {
   it("shows 思考强度 for a thinking model only, with that model's levels, and saves the pick", async () => {
     render(<Harness d={d}><PiSections /><ApplyBar /></Harness>);
     await settle();
-    expect(await options('思考强度')).toEqual(['模型默认', '不思考', '最低', '低', '中', '高']);
+    expect(await options('思考强度')).toEqual(['模型默认', '关闭', '最低', '低', '中', '高']);
     await click(screen.getByRole('option', { name: '高' }));
     await click(screen.getByRole('button', { name: '应用' }));
     expect(sent('POST', '/model/settings')).toEqual({ provider: 'anthropic', reasoning_effort: 'high' });
     cleanup();
     render(<Harness d={withModel('claude-sonnet-5')}><PiSections /></Harness>);
     await settle();
-    expect(await options('思考强度')).toEqual(['模型默认', '不思考', '最低', '低', '中', '高', '很高', '最高']);
+    expect(await options('思考强度')).toEqual(['模型默认', '关闭', '最低', '低', '中', '高', '很高', '最高']);
     cleanup();
     render(<Harness d={withModel('claude-instant-2')}><PiSections /></Harness>);
     await settle();
@@ -195,7 +195,7 @@ describe('the model of a compatible API', () => {
     expect(row('think')).toBeNull();
     cleanup();
     render(<Harness d={caps({ reasoning: true })}><PiSections /></Harness>);
-    expect(await options('思考强度')).toEqual(['模型默认', '不思考', '最低', '低', '中', '高']);
+    expect(await options('思考强度')).toEqual(['模型默认', '关闭', '最低', '低', '中', '高']);
   });
 
   it('waits for the service choice before writing a capability', () => {
@@ -267,7 +267,7 @@ describe('Pi account rows', () => {
   it('picks the provider from provider_profiles and the account source the profile needs', async () => {
     render(<Harness d={pi()}><KernelGroup /><ApplyBar /></Harness>);
     expect(row('provider')!.querySelector('input')).toBeNull();
-    expect(await options('服务提供方')).toEqual(['AI 账号', 'Anthropic API', 'OpenAI API', 'Grok / xAI', 'DeepSeek', '兼容 API']);
+    expect(await options('服务提供方')).toEqual(['默认账号', 'Anthropic API', 'OpenAI API', 'Grok / xAI', 'DeepSeek', '兼容 API']);
     await click(screen.getByRole('option', { name: 'DeepSeek' }));
     await click(screen.getByRole('button', { name: '应用' }));
     expect(sent('PUT', '/character/runtime')).toEqual({ provider: 'deepseek', auth_source: 'api_key' });
@@ -283,8 +283,8 @@ describe('Pi readiness codes', () => {
   it('links select_model to the chat-model row', async () => {
     const goRow = vi.fn();
     render(<Harness d={pi({ ready: false, error: 'select_model' })} goRow={goRow}><KernelGroup /></Harness>);
-    expect(screen.getByText('未就绪：还没有选模型')).toBeTruthy();
-    await click(screen.getByRole('button', { name: '去选模型' }));
+    expect(screen.getByText('未就绪：尚未选择模型')).toBeTruthy();
+    await click(screen.getByRole('button', { name: '选择模型' }));
     expect(goRow).toHaveBeenCalledWith('chatModel');
   });
 
@@ -297,7 +297,7 @@ describe('Pi readiness codes', () => {
 describe('a failed call with a kernel readiness code', () => {
   it('reads the kernel reason, not the generic text', () => {
     expect(failure(new AgentdCallError(502, 'pi_runner_error', undefined, { error: 'pi_runner_error' }, 'pi_runner_error')).text)
-      .toBe('Pi 运行出错，请重新检测');
+      .toBe('Pi 运行异常，请重新检测');
   });
 });
 
@@ -316,7 +316,7 @@ describe("Pi's own section of 角色内核", () => {
       ['grep', '本机没有 rg', '无', '无'],
       ['find', '本机没有 fd', '无', '无'],
     ]);
-    await click(within(row('piApproval')!).getByRole('switch', { name: '写文件和运行命令前先问你' }));
+    await click(within(row('piApproval')!).getByRole('switch', { name: '写文件或运行命令前请求批准' }));
     expect(tools().map((t) => t[3])).toEqual(['无', '无', '无', '无', '无', '无', '无']);
     await click(screen.getByRole('button', { name: '应用' }));
     expect(sent('PUT', '/character/runtime')).toEqual({ pi_tool_approval: false });

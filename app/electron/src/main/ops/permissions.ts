@@ -83,7 +83,7 @@ export async function openSettings(ctx: OpsContext, pane: string): Promise<void>
     await ctx.shell.openExternal(url);
   } catch (e) {
     ctx.log(`open settings ${pane} failed: ${e instanceof Error ? e.message : String(e)}`);
-    throw new BridgeFailure('failed', '打不开系统设置');
+    throw new BridgeFailure('failed', '无法打开系统设置');
   }
 }
 

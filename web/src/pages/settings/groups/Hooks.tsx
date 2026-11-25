@@ -20,8 +20,8 @@ type Step = AppInfo['hookInstallSteps'][number];
 
 /** Stand-ins for the dry run and install when the app gives no installer; their buttons stay disabled. */
 const NO_INSTALLER: Step[] = [
-  { label: '先看会改什么', command: '', terminal: true },
-  { label: '确认改动后执行', command: '', terminal: true },
+  { label: '预览将修改的项', command: '', terminal: true },
+  { label: '确认并执行安装', command: '', terminal: true },
 ];
 
 /** The app's installer steps aimed at one tool, and for Codex the in-app
@@ -66,13 +66,13 @@ export function HookRows() {
   const missing = installer?.length === 0;
   const run = (s: Step) =>
     void runInTerminal(bridge, s.command).then(
-      (how) => model.notify({ message: how === 'ran' ? `已在终端运行：${s.label}` : '命令已复制，粘到终端运行' }),
-      () => model.notify({ message: '这个外壳还不能打开终端，命令也没复制成', severity: 'warning' }),
+      (how) => model.notify({ message: how === 'ran' ? `已在终端运行：${s.label}` : '已复制命令，请粘贴至终端运行' }),
+      () => model.notify({ message: '当前环境无法直接打开终端或写入剪贴板', severity: 'warning' }),
     );
   const copy = (s: Step) =>
     void bridge.clipboard.writeText(s.command).then(
       () => model.notify({ message: `已复制 ${s.command}` }),
-      () => model.notify({ message: '没复制成', severity: 'warning' }),
+      () => model.notify({ message: '复制失败', severity: 'warning' }),
     );
   const unbind = (id: 'claude' | 'codex', name: string) =>
     model.ask({

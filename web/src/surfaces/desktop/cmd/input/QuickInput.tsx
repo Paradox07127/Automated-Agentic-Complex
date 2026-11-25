@@ -123,9 +123,9 @@ export function QuickInput({ role, prefill, talkKey, autoFocus, look, initial, a
     onClose(false);
   };
   const unlinked = offline
-    ? { title: '后台没有响应', reason: '这句发不出去，写好的话会留着', action: { label: '重启后台', onClick: restartBackend } }
+    ? { title: '后台服务无响应', reason: '当前内容尚未发送，已保留在输入框中', action: { label: '重启后台服务', onClick: restartBackend } }
     : noModel != null
-      ? { title: '没有可用的模型', reason: noModel, action: { label: '前往设置连接', onClick: () => settings({ page: 'settings', group: 'kernel', item: 'svc' }) } }
+      ? { title: '未配置可用模型', reason: noModel, action: { label: '前往设置', onClick: () => settings({ page: 'settings', group: 'kernel', item: 'svc' }) } }
       : undefined;
 
   if (echo != null)

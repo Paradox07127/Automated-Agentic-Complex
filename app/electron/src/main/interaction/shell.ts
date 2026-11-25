@@ -78,7 +78,7 @@ export function interactionShell(o: InteractionOptions): Interaction {
     });
   };
 
-  const changed = () => new Error('角色已改变，请重新选择操作');
+  const changed = () => new Error('当前角色已变更，请重新选择操作');
 
   const rightClicked = (at: { x: number; y: number }, held: boolean) => {
     // C3 rule 55: each right click on her is one `wheel`.
@@ -101,7 +101,7 @@ export function interactionShell(o: InteractionOptions): Interaction {
       claimRitual: () => claimRitual(null, null),
       gift: async () => {
         const link = o.link;
-        if (!link) throw new Error('角色还没连上（配置出错）');
+        if (!link) throw new Error('角色渲染进程未连接（配置异常）');
         // Her list, for the character she still is.
         const list = async () => {
           const character = link.currentCharacter;
@@ -112,15 +112,15 @@ export function interactionShell(o: InteractionOptions): Interaction {
         };
         const first = await list();
         const gift = giftAction(first.actions);
-        if (!gift || gift.missing !== null) throw new Error(gift?.missing ?? '当前角色包尚未导入原作收礼动作');
+        if (!gift || gift.missing !== null) throw new Error(gift?.missing ?? '当前角色尚未导入原作赠礼动作');
         // Played at speed 1.
         if (link.currentCharacter !== first.character) throw changed();
         const again = await list();
         if (again.character !== first.character) throw changed();
         const action = again.actions.find((a) => a.id === gift.id);
-        if (!action) throw new Error('当前角色没有这个动作');
+        if (!action) throw new Error('当前角色不含该动作');
         if (action.missing !== null) throw new Error(action.missing);
-        if (action.section === 'move') throw new Error('这个动作不能单独播放');
+        if (action.section === 'move') throw new Error('该动作不支持单独播放');
         await link.playAction(first.character, gift.id, 1, false);
         // agentd queues the gift and has her react to it; 202 is its only success.
         void o.request('POST', '/interaction/gift', { action_id: gift.id }).then((r) => r.status, () => 0).then((status) => {

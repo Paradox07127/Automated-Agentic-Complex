@@ -86,7 +86,7 @@ describe('角色页 · 页签', () => {
     // 导入 stays under 外观, the item it was opened from, and imports outfit mods only: 导入角色 is on 总览's roster, 导入动作 under 动作.
     expect(tabs()).toEqual(['look', 'show', 'import']);
     expect(within(panel()).getByRole('heading', { name: '导入外观模组' })).toBeTruthy();
-    expect(within(panel()).getByRole('button', { name: '选择 mod 目录…' })).toBeTruthy();
+    expect(within(panel()).getByRole('button', { name: '选择模组目录…' })).toBeTruthy();
     expect(within(panel()).queryByRole('button', { name: '导入角色' })).toBeNull();
     expect(within(panel()).queryByRole('button', { name: '导入动作' })).toBeNull();
     expect(within(panel()).queryByRole('group', { name: '外观' })).toBeNull();

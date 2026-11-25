@@ -70,13 +70,13 @@ export function acctOptions(backend: string, current?: unknown): Opt[] {
     ];
   if (backend === 'pi')
     return [
-      { value: current === 'existing_login' ? 'existing_login' : 'api_key', label: 'AI 账号' },
-      { value: 'local_no_auth', label: '本机无需密钥' },
+      { value: current === 'existing_login' ? 'existing_login' : 'api_key', label: '模型服务账号' },
+      { value: 'local_no_auth', label: '本地无需密钥' },
     ];
   return [
-    { value: 'existing_login', label: '复用本机工具登录' },
+    { value: 'existing_login', label: '复用本机 CLI 登录' },
     ...(backend === 'claude' ? [] : [{ value: 'api_key', label: '使用 API 凭据' }]),
-    { value: 'product_login', label: '在应用里登录' },
+    { value: 'product_login', label: '在应用内登录' },
   ];
 }
 
@@ -91,7 +91,7 @@ export interface ProviderProfile {
 export function providerOptions(backend: string, profiles: readonly ProviderProfile[] = []): Opt[] {
   if (backend === 'pi') {
     const svc = (v: string) => ({ value: v, label: SVC.find((o) => o.value === v)?.label ?? v });
-    return [{ value: '', label: 'AI 账号' }, svc('anthropic'), svc('openai'), ...profiles.map((p) => ({ value: p.id, label: p.title })), svc('compatible')];
+    return [{ value: '', label: '默认账号' }, svc('anthropic'), svc('openai'), ...profiles.map((p) => ({ value: p.id, label: p.title })), svc('compatible')];
   }
   const own = backend === 'claude' ? 'anthropic' : 'openai';
   return [
@@ -103,7 +103,7 @@ export function providerOptions(backend: string, profiles: readonly ProviderProf
 export const ARCHIVE: Opt[] = [
   { value: '7d', label: '7 天' },
   { value: '30d', label: '30 天' },
-  { value: 'keep', label: '不清理' },
+  { value: 'keep', label: '长期保留' },
 ];
 
 export const REPLY_LANGUAGE: Opt[] = [
@@ -182,7 +182,7 @@ export function modelTestText(r: WireModelTest): string {
     .join(' │ ');
 }
 
-const THINK_LABEL: Readonly<Record<ThinkingLevel, string>> = { off: '不思考', minimal: '最低', low: '低', medium: '中', high: '高', xhigh: '很高', max: '最高' };
+const THINK_LABEL: Readonly<Record<ThinkingLevel, string>> = { off: '关闭', minimal: '最低', low: '低', medium: '中', high: '高', xhigh: '很高', max: '最高' };
 
 /** 思考强度: the model's own levels, after 模型默认 (the route's effort, else off). */
 export const thinkOptions = (levels: readonly ThinkingLevel[]): Opt[] => [{ value: '', label: '模型默认' }, ...levels.map((l) => ({ value: l, label: THINK_LABEL[l] }))];
@@ -277,76 +277,76 @@ export interface RuntimeError {
   fix?: { row: string; action: string };
 }
 
-const API_KEY = { row: 'apikey', action: '去填写 API Key' };
-const API_BASE = { row: 'apiBase', action: '去改 API 地址' };
-const ACCT = { row: 'acct', action: '去改账号来源' };
-const LOGIN = { row: 'kernelLogin', action: '去登录' };
-const PROVIDER = { row: 'provider', action: '去填写服务提供方和模型' };
-const EXE = { row: 'exe', action: '去选可执行文件' };
-const RUNSRC_FIX = { row: 'runsrc', action: '去改运行来源' };
-const CONNECTION = { row: 'svc', action: '去选模型提供方' };
-const ACP_AGENT = { row: 'acpAgent', action: '去选 ACP agent' };
+const API_KEY = { row: 'apikey', action: '填写 API Key' };
+const API_BASE = { row: 'apiBase', action: '修改 API 地址' };
+const ACCT = { row: 'acct', action: '切换账号来源' };
+const LOGIN = { row: 'kernelLogin', action: '前往登录' };
+const PROVIDER = { row: 'provider', action: '填写服务提供方与模型' };
+const EXE = { row: 'exe', action: '选择可执行文件' };
+const RUNSRC_FIX = { row: 'runsrc', action: '切换运行来源' };
+const CONNECTION = { row: 'svc', action: '选择模型提供方' };
+const ACP_AGENT = { row: 'acpAgent', action: '选择 ACP 智能体' };
 
 /** Every code integration.py, settings.py and available_backends() send (character_agent). */
 export const RUNTIME_ERROR: Readonly<Record<string, RuntimeError>> = {
-  native_login_required: { label: '还没有登录这个内核' },
-  missing_api_key: { label: '还没有保存这个服务的 API Key', fix: API_KEY },
-  credentials_rejected: { label: '服务拒绝了当前凭据，请重新登录或填写 API Key' },
-  usage_limit: { label: '当前服务的可用额度已用完或请求过于频繁' },
-  subscription_sharing_usage_limit_exceeded: { label: '订阅共享额度已用完' },
+  native_login_required: { label: '尚未登录该执行内核' },
+  missing_api_key: { label: '尚未保存该服务的 API Key', fix: API_KEY },
+  credentials_rejected: { label: '服务端拒绝当前凭据，请重新登录或更新 API Key' },
+  usage_limit: { label: '当前服务可用额度已耗尽或请求过于频繁' },
+  subscription_sharing_usage_limit_exceeded: { label: '订阅共享额度已用尽' },
   subscription_sharing_usage_unavailable: { label: '订阅共享额度暂不可用' },
   sign_in_required: { label: '请先登录 ChatGPT' },
   plan_usage_not_enabled: { label: 'ChatGPT 尚未授权订阅用量' },
-  runtime_version_not_verified: { label: '内核兼容检查未通过' },
-  runtime_protocol_unavailable: { label: '角色入口不可用，请到 设置 › 内核 点「重新检测」' },
+  runtime_version_not_verified: { label: '内核兼容性检查未通过' },
+  runtime_protocol_unavailable: { label: '内核通信入口不可用，请前往 设置 › 内核 点击「重新检测」' },
   sdk_protocol_unavailable: { label: '内核缺少必要接口，请更新 CLI 后重新检测' },
   sdk_policy_capability_missing: { label: '内核缺少必要的工具权限控制能力' },
-  sdk_effort_capability_missing: { label: '内核缺少本轮需要的推理设置能力' },
-  codex_model_catalog_unavailable: { label: '读取不到内核的模型目录，请到 设置 › 内核 点「重新检测」' },
-  provider_profile_requires_api_key: { label: '所选 AI 需要自己的 API Key', fix: API_KEY },
-  local_runtime_missing: { label: '没找到本机的可执行文件', fix: EXE },
-  bundled_runtime_missing: { label: '应用里没有带这个内核', fix: RUNSRC_FIX },
-  runtime_missing: { label: '没有安装' },
-  plugin_off: { label: '重启后台服务后才能用' },
-  runtime_discovery_pending: { label: '正在检测本机的内核…' },
-  runtime_probe_pending: { label: '正在检查所选的可执行文件…' },
-  character_context_unavailable: { label: '角色对话还没有启动' },
-  product_login_required: { label: '还没有在应用里登录这个内核，或登录已过期', fix: LOGIN },
+  sdk_effort_capability_missing: { label: '内核缺少本轮所需的推理强度设置能力' },
+  codex_model_catalog_unavailable: { label: '无法读取内核模型目录，请前往 设置 › 内核 点击「重新检测」' },
+  provider_profile_requires_api_key: { label: '所选模型服务需要配置 API Key', fix: API_KEY },
+  local_runtime_missing: { label: '未找到本机可执行文件', fix: EXE },
+  bundled_runtime_missing: { label: '应用未内置该执行内核', fix: RUNSRC_FIX },
+  runtime_missing: { label: '未安装' },
+  plugin_off: { label: '需重启后台服务后生效' },
+  runtime_discovery_pending: { label: '正在检测本地执行内核…' },
+  runtime_probe_pending: { label: '正在检查所选可执行文件…' },
+  character_context_unavailable: { label: '角色对话上下文尚未就绪' },
+  product_login_required: { label: '尚未在应用内登录该内核，或登录已过期', fix: LOGIN },
   product_login_checking: { label: '正在检查登录状态…' },
-  product_login_not_selected: { label: '账号来源不是「在应用里登录」', fix: ACCT },
-  login_pending: { label: '已经有一个登录在进行，请先完成或取消它' },
-  login_denied: { label: '登录没有完成：浏览器里取消了，或账号没有授权', fix: LOGIN },
-  login_timeout: { label: '5 分钟内没有在浏览器里完成登录，请重新登录', fix: LOGIN },
-  login_rejected: { label: '内核拒绝开始登录，请更新这个工具后再试' },
-  login_failed: { label: '登录进程意外退出，请重新登录；仍不行就在终端里登录后改用「复用本机工具登录」', fix: LOGIN },
-  browser_unavailable: { label: '打不开浏览器，请先设置系统默认浏览器' },
-  deepseek_desktop_missing: { label: '没有找到 DeepSeek 客户端，请先从 deepseek.com 下载安装' },
-  logout_failed: { label: '登出没有在 30 秒内完成，请重试' },
-  logout_unsupported: { label: '这个 ACP agent 不支持在应用里登出，请用它自己的方式登出' },
-  unknown_auth_method: { label: '这个 ACP agent 没有列出这种登录方式，请点「重新检测」后再登录' },
-  local_node_missing: { label: '没找到本机的 Node 可执行文件', fix: EXE },
-  pi_provider_model_required: { label: 'Pi 要写明服务提供方和模型', fix: PROVIDER },
-  pi_connection_missing: { label: 'Pi 没有能用的连接：写明服务提供方，或在 设置 › 内核 里用 ChatGPT 订阅或 API Key', fix: CONNECTION },
-  acp_agent_missing: { label: '没有选 ACP agent，或选的 agent 找不到了', fix: ACP_AGENT },
-  acp_auth_required: { label: '这个 ACP agent 还没有登录', fix: LOGIN },
-  missing_anthropic_api_key: { label: '还没有保存 Anthropic API Key', fix: API_KEY },
-  missing_provider_api_key: { label: '还没有保存这个服务的 API Key', fix: API_KEY },
-  unsupported_anthropic_endpoint: { label: 'API 凭据只能用 Anthropic 官方地址', fix: API_BASE },
-  unsupported_openai_endpoint: { label: 'API 凭据只能用 OpenAI 官方地址', fix: API_BASE },
+  product_login_not_selected: { label: '当前账号来源未设置为「在应用内登录」', fix: ACCT },
+  login_pending: { label: '已有登录流程进行中，请先完成或取消' },
+  login_denied: { label: '登录未完成：已在浏览器取消或未授权', fix: LOGIN },
+  login_timeout: { label: '登录超时（5 分钟内未在浏览器完成），请重试', fix: LOGIN },
+  login_rejected: { label: '执行内核拒绝发起登录，请更新该工具后重试' },
+  login_failed: { label: '登录进程异常退出，请重试；若仍失败，可在终端登录后改用「复用本机 CLI 登录」', fix: LOGIN },
+  browser_unavailable: { label: '无法打开系统浏览器，请先设置默认浏览器' },
+  deepseek_desktop_missing: { label: '未检测到 DeepSeek 客户端，请先前往 deepseek.com 下载安装' },
+  logout_failed: { label: '登出超时（30 秒内未完成），请重试' },
+  logout_unsupported: { label: '该 ACP 智能体不支持在应用内登出，请使用其原生方式登出' },
+  unknown_auth_method: { label: '该 ACP 智能体未提供此登录方式，请点击「重新检测」后重试' },
+  local_node_missing: { label: '未找到本机 Node 可执行文件', fix: EXE },
+  pi_provider_model_required: { label: 'Pi 需要同时指定服务提供方与模型', fix: PROVIDER },
+  pi_connection_missing: { label: 'Pi 缺少可用连接：请填写服务提供方，或在 设置 › 内核 中配置 ChatGPT 订阅或 API Key', fix: CONNECTION },
+  acp_agent_missing: { label: '未选择 ACP 智能体，或所选智能体已失效', fix: ACP_AGENT },
+  acp_auth_required: { label: '该 ACP 智能体尚未登录', fix: LOGIN },
+  missing_anthropic_api_key: { label: '尚未保存 Anthropic API Key', fix: API_KEY },
+  missing_provider_api_key: { label: '尚未保存该服务的 API Key', fix: API_KEY },
+  unsupported_anthropic_endpoint: { label: 'API 凭据仅支持 Anthropic 官方地址', fix: API_BASE },
+  unsupported_openai_endpoint: { label: 'API 凭据仅支持 OpenAI 官方地址', fix: API_BASE },
   secret_store_unavailable: { label: '系统凭据存储无法访问' },
-  credential_permissions: { label: '本机的凭据文件读不了', fix: API_KEY },
-  runtime_settings_unreadable: { label: '内核设置文件读不了' },
-  local_no_auth_requires_compatible: { label: '「无需密钥」只能配兼容 API', fix: PROVIDER },
-  unauthenticated_provider_requires_loopback: { label: '无需密钥时只能连本机地址', fix: API_BASE },
-  native_login_requires_native_provider: { label: '兼容 API 不能复用本机工具登录', fix: ACCT },
-  select_model: { label: '还没有选模型', fix: { row: 'chatModel', action: '去选模型' } },
-  credentials_missing: { label: '这个连接还没有 API Key', fix: API_KEY },
-  pi_model_unavailable: { label: 'Pi 找不到所选的模型' },
-  pi_runtime_unavailable: { label: 'Pi 没能启动，请重新检测' },
-  sdk_startup_timeout: { label: '内核启动超时，请重新检测' },
-  pi_runner_error: { label: 'Pi 运行出错，请重新检测' },
-  pi_node_version_mismatch: { label: 'Node 版本太旧，Pi 要 22.19 或更新', fix: RUNSRC_FIX },
+  credential_permissions: { label: '无法读取本地凭据文件', fix: API_KEY },
+  runtime_settings_unreadable: { label: '无法读取执行内核配置文件' },
+  local_no_auth_requires_compatible: { label: '「本地无需密钥」仅支持兼容 API', fix: PROVIDER },
+  unauthenticated_provider_requires_loopback: { label: '无密钥连接仅支持本地回环地址', fix: API_BASE },
+  native_login_requires_native_provider: { label: '兼容 API 不支持复用本机 CLI 登录', fix: ACCT },
+  select_model: { label: '尚未选择模型', fix: { row: 'chatModel', action: '选择模型' } },
+  credentials_missing: { label: '该连接尚未配置 API Key', fix: API_KEY },
+  pi_model_unavailable: { label: 'Pi 未找到所选模型' },
+  pi_runtime_unavailable: { label: 'Pi 启动失败，请重新检测' },
+  sdk_startup_timeout: { label: '执行内核启动超时，请重新检测' },
+  pi_runner_error: { label: 'Pi 运行异常，请重新检测' },
+  pi_node_version_mismatch: { label: 'Node 版本过低，Pi 需要 22.19 或更高版本', fix: RUNSRC_FIX },
 };
 
 /** An unknown code still reads as a sentence; the code itself goes into the tooltip. */
-export const RUNTIME_ERROR_UNKNOWN: RuntimeError = { label: '后台报告这个内核还不能用' };
+export const RUNTIME_ERROR_UNKNOWN: RuntimeError = { label: '后台服务报告该执行内核暂不可用' };

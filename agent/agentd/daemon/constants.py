@@ -16,6 +16,6 @@ MAX_MESSAGE = 8000  # a chat window message
 def say_text(text, limit):
     """True for a str with something besides whitespace, at most limit characters without its surrounding whitespace."""
     return isinstance(text, str) and 0 < len(text.strip()) <= limit
-NO_HISTORY = {"error": "no_history", "detail": "聊天记录没有开启"}  # 503: the store is off, not broken
+NO_HISTORY = {"error": "no_history", "detail": "对话记录未开启"}  # 503: the store is off, not broken
 CLEARABLE = ("view", "window_text", "page", "selection")  # DELETE /context/items/<type>
 SEEN = (*CLEARABLE, "activity")  # the context kinds DELETE /attention and /observation take away

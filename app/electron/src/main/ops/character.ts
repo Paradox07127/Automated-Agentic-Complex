@@ -29,11 +29,11 @@ import { watch } from './events.ts';
 import { holdingMotions, reloadAvatar } from './holding.ts';
 import { readObject, writeObject } from './settings.ts';
 
-const NOT_LINKED = '角色还没连上';
-const NO_LINK = '角色还没连上（配置出错）';
-const NO_LIBRARY = '没有配置角色目录';
+const NOT_LINKED = '角色渲染进程尚未连接';
+const NO_LINK = '角色渲染进程未连接（配置异常）';
+const NO_LIBRARY = '未配置角色库目录';
 /** Said when the character a page meant is no longer the current one. */
-const CHANGED = '角色刚换过，这次没有改';
+const CHANGED = '当前角色已切换，本次修改未生效';
 
 /** The character a page names: a 1–64-byte id, else null. */
 const characterArg = (v: unknown): string | null => motionID(v);
@@ -368,11 +368,11 @@ export function characterOps(ctx: OpsContext, picker: ImportPicker = electronPic
       return { ok: true };
     },
     'character.importMotion': () => importMotion(ctx, picker, 'motion', MOTION_EXTENSIONS,
-      '选择 VMD、BVH、glTF/GLB、VRMA 或 FBX 动作文件，或装着 VMD 的 ZIP；可多选', NO_LIBRARY),
+      '选择 VMD、BVH、glTF/GLB、VRMA 或 FBX 动作文件，或包含 VMD 的 ZIP 压缩包；支持多选', NO_LIBRARY),
     'character.importOutfit': () => onOutfit(ctx, null, async (library, character, link) => {
       const missing = missingComponent(ctx);
       if (missing !== null) throw new BridgeFailure('internal', missing);
-      const source = await picker.folder({ title: '导入外观（EFMI mod）', message: '选择包含 mod.ini 的 mod 目录；只导入到本机' });
+      const source = await picker.folder({ title: '导入外观模组', message: '选择包含 mod.ini 的外观目录（仅导入至本机）' });
       if (source === null) throw new BridgeFailure('cancelled', 'character.importOutfit');
       const outfit = await imports(ctx).tracker.run('outfit', basename(source), async (progress) => {
         const host = validationHost(ctx, (detail) => new BridgeFailure('validate_failed', detail));
@@ -561,7 +561,7 @@ export function mmdOps(ctx: OpsContext, picker: ImportPicker = electronPicker, s
         const missing = missingComponent(ctx);
         if (missing !== null) throw new MotionFailureError({ reason: 'internal', detail: missing });
         drop();
-        const paths = await picker.filesOrFolder({ title: '导入 MMD', message: '选择 MMD 工程的文件夹、ZIP，或 VMD 和音频文件；可多选',
+        const paths = await picker.filesOrFolder({ title: '导入 MMD 舞蹈', message: '选择 MMD 工程文件夹、ZIP 压缩包，或 VMD 与音频文件；支持多选',
           extensions: MMD_SCAN_EXTENSIONS, folder: (options as { folder: boolean }).folder });
         if (paths.length === 0) return { ok: false, reason: 'cancelled' };
         const token = randomUUID(), dir = join(scanRoot, token);
@@ -589,7 +589,7 @@ export function mmdOps(ctx: OpsContext, picker: ImportPicker = electronPicker, s
     'mmd.pickScanAudio': async ([token]) => {
       if (typeof token !== 'string') throw new BridgeFailure('bad_args', 'mmd.pickScanAudio');
       if (pending === null || pending.token !== token) return motionReply(SCAN_GONE, false);
-      const [path] = await picker.files({ title: '选择音源', message: '和这支舞一起播放的音频', extensions: BGM_EXTENSIONS, multiple: false });
+      const [path] = await picker.files({ title: '选择配套音频', message: '选择与该舞蹈同步播放的音频文件', extensions: BGM_EXTENSIONS, multiple: false });
       if (path === undefined) return { ok: false, reason: 'cancelled' };
       // The scan may have been replaced or dropped while the panel was open.
       if (pending === null || pending.token !== token) return motionReply(SCAN_GONE, false);
@@ -656,7 +656,7 @@ export function mmdOps(ctx: OpsContext, picker: ImportPicker = electronPicker, s
       try {
         return await onMmd(async (link, library, character) => {
           const bgm = m.bgm === 'pick'
-            ? (await picker.files({ title: '选择音源', message: '和这支舞一起播放的音频', extensions: BGM_EXTENSIONS, multiple: false }))[0] ?? null
+            ? (await picker.files({ title: '选择配套音频', message: '选择与该舞蹈同步播放的音频文件', extensions: BGM_EXTENSIONS, multiple: false }))[0] ?? null
             : null;
           if (m.bgm === 'pick' && bgm === null) return { ok: false, reason: 'cancelled' };
           const changed = await imports(ctx).tracker.run('mmd', bgm === null ? '' : motionImportTitle(bgm), async (progress) => {

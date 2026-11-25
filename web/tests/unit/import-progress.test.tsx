@@ -37,7 +37,7 @@ async function mountMmd() {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  await screen.findByRole('region', { name: 'MMD 库' });
+  await screen.findByRole('region', { name: 'MMD 舞蹈库' });
 }
 
 /** Captures every `character.onImport` callback; `push` reaches them all. */

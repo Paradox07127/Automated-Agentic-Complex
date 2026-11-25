@@ -90,12 +90,15 @@ export function DetailTab({ day, pins, onPins, links }: BriefTabProps) {
     else if (!full) onPins([...pins, id]);
   };
 
+  const isToday = day.partial;
+  const pastLabel = isToday ? '昨日' : '前一日';
+
   return (
     <div className={styles.dt}>
       <div className={styles.head} aria-hidden="true">
         <span>项目</span>
         <span>每小时走势</span>
-        <span>今天 │ {cmp === 'avg' ? '均值' : '昨天'}</span>
+        <span>{isToday ? '今日' : '当日'} │ {cmp === 'avg' ? '均值' : pastLabel}</span>
       </div>
       <ul className={styles.list} aria-label="明细">
         {rows.map((id) => {
@@ -114,8 +117,8 @@ export function DetailTab({ day, pins, onPins, links }: BriefTabProps) {
                     shape="round"
                     pressed={pinned}
                     disabled={!pinned && full}
-                    disabledReason="总览最多放 6 项，先拿掉一项"
-                    label={`${pinned ? '从总览拿掉' : '放进总览'}：${meta.name}`}
+                    disabledReason="总览最多显示 6 项，请先取消一项"
+                    label={`${pinned ? '从总览移除' : '添加至总览'}：${meta.name}`}
                     onClick={() => toggle(id)}
                   />
                 </span>
@@ -131,7 +134,7 @@ export function DetailTab({ day, pins, onPins, links }: BriefTabProps) {
               <div className={styles.vals}>
                 <b className="num">{plain(id, it.today)}</b>
                 <span className="num">
-                  {cmp === 'avg' ? '均值' : '昨天'} {ref == null ? '—' : plain(id, ref)}
+                  {cmp === 'avg' ? '均值' : pastLabel} {ref == null ? '—' : plain(id, ref)}
                 </span>
               </div>
             </li>
@@ -141,7 +144,7 @@ export function DetailTab({ day, pins, onPins, links }: BriefTabProps) {
       {offSwitches.length > 0 && (
         <div className={styles.off}>
           <span>
-            另有 <b className="num">{off.length}</b> 项没记，因为这些开关关着：{offSwitches.map((s) => SWITCH_LABEL[s]).join('、')}
+            另有 <b className="num">{off.length}</b> 项未统计，因以下开关已关闭：{offSwitches.map((s) => SWITCH_LABEL[s]).join('、')}
           </span>
           <Btn variant="text" size="sm" onClick={() => go({ page: 'settings', ...SWITCH_AT[offSwitches[0]!] })}>
             前往设置
@@ -157,8 +160,8 @@ export function DetailTab({ day, pins, onPins, links }: BriefTabProps) {
             value={sort}
             options={[
               { value: 'def', label: '默认' },
-              { value: 'up', label: '比平时多' },
-              { value: 'down', label: '比平时少' },
+              { value: 'up', label: '高于均值' },
+              { value: 'down', label: '低于均值' },
             ]}
             onChange={(v) => setSort(v as Sort)}
           />
@@ -170,8 +173,8 @@ export function DetailTab({ day, pins, onPins, links }: BriefTabProps) {
             width={140}
             value={cmp}
             options={[
-              { value: 'avg', label: '近 7 天均值' },
-              { value: 'y', label: '昨天' },
+              { value: 'avg', label: '近 7 日均值' },
+              { value: 'y', label: pastLabel },
             ]}
             onChange={(v) => setCmp(v as Cmp)}
           />

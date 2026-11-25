@@ -67,19 +67,19 @@ describe('⌘K actions that need the desktop', () => {
     vi.spyOn(getBridge().app, 'look').mockRejectedValueOnce({ code: 'blocked', detail: 'secure_input' }).mockRejectedValueOnce({ code: 'failed', detail: 'POST /look status 409 paused' });
     await runLook();
     await runLook();
-    expect(vi.mocked(pushToast).mock.calls.map((c) => c[0])).toEqual(['屏幕识读没有完成：正在输入密码', '屏幕识读没有完成：观察已暂停']);
+    expect(vi.mocked(pushToast).mock.calls.map((c) => c[0])).toEqual(['屏幕识读未完成：当前处于安全输入状态', '屏幕识读未完成：屏幕观察已暂停']);
   });
 
   it('a shell without the op turns the entry off with one reason line', async () => {
     serve();
     vi.spyOn(getBridge().app, 'openQuickInput').mockRejectedValueOnce({ code: 'not_implemented', detail: 'app.openQuickInput' });
     await runQuickInput();
-    expect(vi.mocked(pushToast).mock.calls.map((c) => c[0])).toEqual(['这个版本的桌面端还不支持']);
+    expect(vi.mocked(pushToast).mock.calls.map((c) => c[0])).toEqual(['当前平台或版本暂不支持此功能']);
     const onClose = vi.fn();
     mount(onClose);
     const option = within(screen.getByRole('listbox')).getByRole('option', { name: /快速输入/ });
     expect(option.getAttribute('aria-disabled')).toBe('true');
-    expect(option.textContent).toContain('这个版本的桌面端还不支持');
+    expect(option.textContent).toContain('当前平台或版本暂不支持此功能');
     await act(async () => fireEvent.click(option));
     expect(onClose).not.toHaveBeenCalled();
   });
@@ -116,7 +116,7 @@ describe('⌘K stop', () => {
   it('a job waiting for review answers cancelled:false: it says so instead of 已停止', async () => {
     serve();
     await stopTask(t1);
-    expect(vi.mocked(pushToast).mock.calls.map((c) => c[0])).toEqual(['这个任务待验收，不能停止']);
+    expect(vi.mocked(pushToast).mock.calls.map((c) => c[0])).toEqual(['当前任务待复核，无法停止']);
   });
 
   it('cancelled:false for a job in any other state does not claim it waits for review', async () => {
@@ -125,7 +125,7 @@ describe('⌘K stop', () => {
     await stopTask({ ...job, status: 'failed' });
     spy.mockResolvedValueOnce({ status: 202, body: { job_id: T3.slice(4), cancelled: false } });
     await stopTask(job);
-    expect(vi.mocked(pushToast).mock.calls.map((c) => c[0])).toEqual(['这个任务已经结束，不用停止', '后台没有停下这个任务：它的状态已经变了，刷新后再看']);
+    expect(vi.mocked(pushToast).mock.calls.map((c) => c[0])).toEqual(['该任务已结束，无需停止', '后台服务未能停止该任务：任务状态已变更，请刷新查看']);
   });
 
   it('offers stop only where agentd has a cancel route', () => {
@@ -149,7 +149,7 @@ describe('⌘K stop', () => {
     await stopTask(job);
     spy.mockResolvedValueOnce({ status: 404, body: { error: 'unknown_character_task' }, error: { code: 'unknown_character_task', detail: 'unknown_character_task' } });
     await stopTask(character);
-    expect(toast.mock.calls.map((c) => c[0])).toEqual(['停止失败：后台已断开', '停止失败：后台没有这一项']);
+    expect(toast.mock.calls.map((c) => c[0])).toEqual(['停止失败：后台服务已断开', '停止失败：后台服务未找到该资源']);
   });
 });
 
@@ -188,7 +188,7 @@ describe('⌘K keys and reads', () => {
     await act(async () => fireEvent.keyDown(input, { key: 'Enter' }));
     await waitFor(() => expect(pushToast).toHaveBeenCalled());
     const [msg, opts] = vi.mocked(pushToast).mock.calls[0]!;
-    expect(msg).toMatch(/尚未就绪 │ 还没有保存这个服务的 API Key$/);
+    expect(msg).toMatch(/尚未就绪 │ 尚未保存该服务的 API Key$/);
     expect(opts).toEqual({ severity: 'warning' });
   });
 

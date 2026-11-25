@@ -13,8 +13,8 @@ const TITLE_MAX = 80;
 
 /** Why a session write failed; `busy` (a turn is running) is not someone else's change; null when its plug-in is off. */
 function whyNot(e: unknown): string | null {
-  if (e instanceof AgentdCallError && e.code === 'busy') return '会话正在执行这一轮，先停下再归档或删除';
-  if (e instanceof AgentdCallError && e.code === 'invalid_title') return `标题要 1–${TITLE_MAX} 个字`;
+  if (e instanceof AgentdCallError && e.code === 'busy') return '会话正在执行当前轮次，请先停止后再归档或删除';
+  if (e instanceof AgentdCallError && e.code === 'invalid_title') return `标题长度须为 1–${TITLE_MAX} 个字符`;
   return failMessage(e);
 }
 
@@ -33,8 +33,8 @@ export function SessionMenu({ sessionId }: { sessionId: string }) {
   const [dialog, setDialog] = useState<'rename' | 'delete' | null>(null);
   const [title, setTitle] = useState('');
   const s = row.data ?? null;
-  const name = s?.title ?? '这个会话';
-  const off = s?.revision == null ? (row.isError ? '会话信息没读到' : '正在读取会话信息') : null;
+  const name = s?.title ?? '当前会话';
+  const off = s?.revision == null ? (row.isError ? '未能读取会话信息' : '正在读取会话信息') : null;
 
   const write = async (send: (v: number) => Promise<unknown>, done: string) => {
     if (s?.revision == null) return;
@@ -81,10 +81,10 @@ export function SessionMenu({ sessionId }: { sessionId: string }) {
               <Btn
                 variant="primary"
                 disabled={!trimmed || trimmed.length > TITLE_MAX}
-                disabledReason={`标题要 1–${TITLE_MAX} 个字`}
+                disabledReason={`标题长度须为 1–${TITLE_MAX} 个字符`}
                 onClick={() => {
                   setDialog(null);
-                  void write((v) => put(`/sessions/${seg(sessionId)}`, { expected_version: v, title: trimmed }), `已改名：${trimmed}`);
+                  void write((v) => put(`/sessions/${seg(sessionId)}`, { expected_version: v, title: trimmed }), `已重命名为：${trimmed}`);
                 }}
               >
                 保存
@@ -101,12 +101,12 @@ export function SessionMenu({ sessionId }: { sessionId: string }) {
       {dialog === 'delete' && (
         <Dialog
           open
-          title={`删除会话「${name}」？`}
+          title={`确认删除会话「${name}」？`}
           onClose={() => setDialog(null)}
           footer={
             <>
               <Btn variant="secondary" onClick={() => setDialog(null)}>
-                不删除
+                取消
               </Btn>
               <Btn
                 variant="danger"
@@ -120,7 +120,7 @@ export function SessionMenu({ sessionId }: { sessionId: string }) {
             </>
           }
         >
-          <p>只删除 Agentic Complex 记下的这个会话和它的输出，工作目录里的文件不动。删除后不能恢复。</p>
+          <p>仅删除 Agentic Complex 中记录的该会话及其输出内容，工作目录中的文件不受影响。删除后无法恢复。</p>
         </Dialog>
       )}
     </>

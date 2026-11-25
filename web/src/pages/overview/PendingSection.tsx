@@ -174,7 +174,7 @@ function Focus(p: PendingSectionProps & { item: PendingItem }) {
     <>
       {head}
       <h4 className={styles.cardT}>{item.title}</h4>
-      {item.verification_source === 'unverified' && <p className={styles.warnText}>▲ 未验证</p>}
+      {item.verification_source === 'unverified' && <p className={styles.warnText}>▲ 未经验证</p>}
       <div className={styles.btnRow}>
         <Btn variant="secondary" size="sm" tail="chev" onClick={() => go({ page: 'overview', sel: item.id, focus: `item-${item.id}` })}>
           前往复核

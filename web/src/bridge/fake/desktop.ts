@@ -27,7 +27,7 @@ function once<T>(value: () => T, cb: (v: T) => void): Unsubscribe {
 /** 最近播报 as native keeps it, newest first. */
 const RECENT: RecentAnnouncement[] = [
   { id: 'announce-41', text: '「周报草稿」已交付，在任务里看', time: '14:01', unread: true },
-  { id: 'announce-40', text: '编码会话 fix-login 跑完了 · 3 个测试没过', time: '13:47', unread: true },
+  { id: 'announce-40', text: '编码会话 fix-login 已完成 │ 3 项测试未通过', time: '13:47', unread: true },
   { id: 'announce-38', text: '提醒：15:00 和设计组过评审', time: '13:30', unread: true },
   { id: 'announce-35', text: '「晨间简报」已交付', time: '08:30', unread: false },
 ];
@@ -36,8 +36,8 @@ const DOCK_REASONS: DockReason[] =['hidden', 'fullscreen', 'offscreen', 'stale',
 
 /** desktop_presence.py LABELS for the session states the fake has. */
 const ACTIVITY: Record<string, string> = {
-  thinking: '在想', running_tool: '在跑', awaiting_approval: '待批准', awaiting_input: '待回答',
-  compacting: '在整理上下文', subagent: '在派子任务', done: '完成', background: '在后台做', error: '出错了', stale: '没有新动静', idle: '空闲',
+  thinking: '思考中', running_tool: '工具执行中', awaiting_approval: '待批准', awaiting_input: '待回答',
+  compacting: '整理上下文中', subagent: '派发子任务中', done: '已完成', background: '后台执行中', error: '出错', stale: '无更新', idle: '空闲',
 };
 
 /** desktop_presence.py `_status` for the session states the fake has; the rest run. */

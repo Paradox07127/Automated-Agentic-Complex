@@ -22,14 +22,14 @@ export interface ChainEditBarProps {
 export function ChainEditBar(p: ChainEditBarProps) {
   const [asking, setAsking] = useState(false);
   const off = p.block != null || p.n === 0 || p.busy != null;
-  const reason = p.block ?? (p.n === 0 ? '还没有改动' : undefined);
+  const reason = p.block ?? (p.n === 0 ? '当前无修改' : undefined);
   const check = p.outcome && 'check' in p.outcome ? p.outcome.check : null;
   const changed = check?.graph_changes ? new Set(Object.values(check.graph_changes).flat()).size : 0;
   return (
     <div className={styles.prop} data-chain-edit="" role="group" aria-label="结构提案">
       <div className={styles.pr}>
         <b>结构提案 │ {p.n} 处</b>
-        <span className={styles.note}>应用会重建角色包，一两分钟内角色会离开桌面</span>
+        <span className={styles.note}>应用修改将重新构建角色包；重建期间（约 1–2 分钟）角色将暂时退出桌面</span>
         <span className={styles.sp} />
         <WhiteCapsule label={p.busy === 'check' ? '检查中' : '检查'} icon="check" size="sm" disabled={off} disabledReason={reason} onClick={p.onCheck} />
         <WhiteCapsule label={p.busy === 'apply' ? '重建中' : '应用到角色包（重建）'} icon="sync" tone="accent" size="sm" disabled={off} disabledReason={reason} onClick={() => setAsking(true)} />
@@ -42,7 +42,7 @@ export function ChainEditBar(p: ChainEditBarProps) {
       )}
       {check?.ok && (
         <span className={styles.sub} data-check="ok">
-          检查通过，会改动 {changed} 条链
+          检查通过，将修改 {changed} 条动作链
         </span>
       )}
       {p.outcome && 'failed' in p.outcome && (
@@ -80,8 +80,8 @@ export function ChainEditBar(p: ChainEditBarProps) {
           </>
         }
       >
-        <p>会用这 {p.n} 处改动重建当前角色包，再用新包重新载入角色。</p>
-        <p>重建通常要一两分钟；这期间角色会从桌面上消失，重新载入后回来，按改过的链播放。</p>
+        <p>将使用当前 {p.n} 处修改重新构建角色包，并在构建完成后重新加载角色。</p>
+        <p>构建过程通常需要 1–2 分钟；期间角色将暂时退出桌面，完成后自动重新加载并按新动作链运行。</p>
       </Dialog>
     </div>
   );

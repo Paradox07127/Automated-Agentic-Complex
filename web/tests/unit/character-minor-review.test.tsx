@@ -94,6 +94,6 @@ describe('switch confirm', () => {
     await act(async () => reads[1]!([]));
     await act(async () => reads[0]!([]));
     expect(ask).toHaveBeenCalledTimes(1);
-    expect(ask.mock.calls[0]?.[0].title).toBe('切换到 示例丙？');
+    expect(ask.mock.calls[0]?.[0].title).toBe('切换至 示例丙？');
   });
 });

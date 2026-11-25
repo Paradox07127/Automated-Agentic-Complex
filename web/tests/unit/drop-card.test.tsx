@@ -115,7 +115,7 @@ describe('drop card', () => {
     expect(request).toHaveBeenCalledWith('POST', '/agent/scopes', { files: FILES.items.map((i) => i.kind === 'file' && { handle: i.handle }) });
     expect(say).toHaveBeenCalledWith({ text: '总结这些文件', attachWindow: false, noMemory: false, scopeId: 's1' });
     expect(request.mock.invocationCallOrder[0]!).toBeLessThan(say.mock.invocationCallOrder[0]!);
-    expect(await within(el).findByText(/^可读这 2 个文件/)).toBeTruthy();
+    expect(await within(el).findByText(/^授权读取 2 个文件/)).toBeTruthy();
   });
 
   it('撤销 revokes the scope and the card keeps saying so', async () => {
@@ -136,7 +136,7 @@ describe('drop card', () => {
     const el = mount(FILES);
     await flush(async () => fireEvent.click(within(el).getByRole('button', { name: '建任务' })));
     expect(request).toHaveBeenCalledWith('POST', '/agent/jobs', expect.objectContaining({ scope_id: 's1' }));
-    expect(await within(el).findByText(/还没有登录这个内核/)).toBeTruthy();
+    expect(await within(el).findByText(/当前执行内核尚未登录/)).toBeTruthy();
   });
 
   it('a text or link drop creates no scope; 记住 sends them as they are', async () => {
@@ -165,6 +165,6 @@ describe('drop card', () => {
   it('a file drop offers no 记住', () => {
     mount(FILES);
     expect(screen.queryByRole('button', { name: '记住' })).toBeNull();
-    return waitFor(() => expect(screen.getByText(/重置后台时删除/)).toBeTruthy());
+    return waitFor(() => expect(screen.getByText(/清除所有本地数据时会一并删除/)).toBeTruthy());
   });
 });

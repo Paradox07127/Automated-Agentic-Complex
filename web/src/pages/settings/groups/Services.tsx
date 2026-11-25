@@ -28,13 +28,13 @@ export interface ServicesGroupProps {
 
 /** Each service and what uses it. */
 const SERVICES: Array<[ServiceId, string]> = [
-  ['tts', '说话出声用'],
-  ['motion', '生成新动作用'],
-  ['llm', 'Pi 选「兼容 API」时用'],
+  ['tts', '用于语音播报'],
+  ['motion', '用于生成角色动作'],
+  ['llm', 'Pi 选择「兼容 API」时使用'],
 ];
 
 const MODES: Array<{ value: ServiceMode; label: string }> = [
-  { value: 'off', label: '关' },
+  { value: 'off', label: '关闭' },
   { value: 'url', label: '地址' },
   { value: 'ssh', label: 'SSH' },
   { value: 'local', label: '本机' },
@@ -47,19 +47,19 @@ const STATE: Record<string, [VisualStateKey, string]> = {
   running: ['ok', '运行中'],
   backoff: ['waiting', '重连中'],
   port_in_use: ['broken', '端口被占用'],
-  failed: ['broken', '失败'],
+  failed: ['broken', '启动失败'],
   external: ['ok', '沿用已有转发'],
 };
 const LIVE: ReadonlySet<string> = new Set(['running', 'starting', 'backoff']);
 
-const OFF_REASON = '现在不能操作';
+const OFF_REASON = '当前不可操作';
 
 /** 服务: one card per self-hosted service; a change is a draft of the page, applied whole with the bottom bar. */
 export function ServicesGroup({ records, runtimes, disabled, ...on }: ServicesGroupProps) {
   return (
     <SetSection
       title="自建服务"
-      info="SSH 和本机两种接法由应用负责启停。改了要点底部「应用」，应用后会重启这个服务和后台服务。换地址会删掉这个服务的旧令牌或 Key。"
+      info="仅 SSH 与本机模式由应用托管启停。修改后须点击底部「应用」，生效后将自动重启对应服务与后台服务。更换服务地址将清除原有的访问令牌或 API Key。"
     >
       {SERVICES.map(([id, use]) => (
         <Service key={id} id={id} use={use} record={records[id]} runtime={runtimes[id]} disabled={disabled} {...on} />
@@ -94,11 +94,11 @@ function Service({ id, use, record, runtime, disabled, onStart, onStop, onRestar
   const kind = rt?.state?.kind;
   const live = kind != null && LIVE.has(kind);
   let lamp: ReactNode = null;
-  if (record.mode === 'off') lamp = <StatusLamp size="sm" state="stopped" label="没开" />;
+  if (record.mode === 'off') lamp = <StatusLamp size="sm" state="stopped" label="未启用" />;
   else if (managed) {
-    const [tone, text]: [VisualStateKey, string] = kind ? (STATE[kind] ?? ['idle', kind]) : ['idle', '未读到'];
+    const [tone, text]: [VisualStateKey, string] = kind ? (STATE[kind] ?? ['idle', kind]) : ['idle', '未读取'];
     lamp = <StatusLamp size="sm" state={tone} label={text} />;
-  } else if (id === 'tts') lamp = diag.voice ? <StatusLamp size="sm" state={VOICE_TONE[diag.voice.state]} label={voiceText(diag.voice.state, null)} /> : <StatusLamp size="sm" state="idle" label="未读到" />;
+  } else if (id === 'tts') lamp = diag.voice ? <StatusLamp size="sm" state={VOICE_TONE[diag.voice.state]} label={voiceText(diag.voice.state, null)} /> : <StatusLamp size="sm" state="idle" label="未读取" />;
   const note = managed ? [rt?.state?.reason, rt?.detail].filter(Boolean).join(' │ ') : '';
 
   const field = (key: 'url' | 'ssh_host' | 'start_script' | 'cwd' | 'command', title: string, placeholder?: string, hint?: string) => (
@@ -135,28 +135,28 @@ function Service({ id, use, record, runtime, disabled, onStart, onStop, onRestar
           <span className={styles.use}>{use}</span>
           {dirty && (
             <span className={rows.mark} data-k="draft">
-              未应用 │ 现在：{MODE_LABEL[record.mode]}
+              未应用 │ 当前：{MODE_LABEL[record.mode]}
             </span>
           )}
         </div>
         <div className={styles.ctl}>
           {lamp}
-          {managed && rt?.pid != null && <span className={styles.pid}>pid {rt.pid}</span>}
+          {managed && rt?.pid != null && <span className={styles.pid}>PID {rt.pid}</span>}
           {managed && kind !== 'external' &&
             (live ? (
               <IconBtn icon="stop" label={`停止${name}`} disabled={disabled} disabledReason={OFF_REASON} onClick={() => onStop(id)} />
             ) : (
-              <IconBtn icon="play" label={`启动${name}`} disabled={disabled || !rt} disabledReason={disabled ? OFF_REASON : '还没读到状态'} onClick={() => onStart(id)} />
+              <IconBtn icon="play" label={`启动${name}`} disabled={disabled || !rt} disabledReason={disabled ? OFF_REASON : '尚未读取状态'} onClick={() => onStart(id)} />
             ))}
           {managed && live && kind !== 'starting' && <IconBtn icon="refresh" label={`重启${name}`} disabled={disabled} disabledReason={OFF_REASON} onClick={() => onRestart(id)} />}
           {managed && <IconBtn icon="file" label={`${name}日志`} disabled={disabled} disabledReason={OFF_REASON} onClick={() => onLogs(id)} />}
-          <GameSeg variant="setting" label={`${name} 接法`} value={draft.mode} options={MODES} disabled={disabled} onChange={(v) => put({ mode: v as ServiceMode })} />
+          <GameSeg variant="setting" label={`${name} 连接方式`} value={draft.mode} options={MODES} disabled={disabled} onChange={(v) => put({ mode: v as ServiceMode })} />
         </div>
       </header>
       {note && <p className={styles.note}>{note}</p>}
       {draft.mode !== 'off' && (
         <div className={styles.body}>
-          {field('url', '地址', draft.mode === 'url' ? 'http://主机:端口' : 'http://127.0.0.1:端口', draft.mode === 'ssh' ? '隧道在这台电脑上的一端' : undefined)}
+          {field('url', '地址', draft.mode === 'url' ? 'http://主机:端口' : 'http://127.0.0.1:端口', draft.mode === 'ssh' ? '本机隧道映射地址' : undefined)}
           {draft.mode === 'ssh' && (
             <>
               {field('ssh_host', 'SSH 主机')}

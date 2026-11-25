@@ -80,8 +80,8 @@ export function PhotoRoot() {
     getBridge()
       .photo.capture()
       .then(
-        (r) => setShot({ busy: false, text: `已保存 ${r.file}` }),
-        (e: unknown) => setShot({ busy: false, text: `没有拍成：${codeOf(e) === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}` }),
+        (r) => setShot({ busy: false, text: `已保存至 ${r.file}` }),
+        (e: unknown) => setShot({ busy: false, text: `拍摄失败：${codeOf(e) === 'not_implemented' ? '当前版本暂不支持' : '角色渲染进程无响应'}` }),
       );
   };
 
@@ -91,7 +91,7 @@ export function PhotoRoot() {
         <div className={styles.part} aria-label="相机" role="group">
           {!state.photo && (
             <div className={styles.note} role="status">
-              景深还没有接上：渲染器支持拍照景深后，光圈和对焦才可以调
+              景深能力尚未就绪：角色渲染器支持拍照景深后即可调节光圈与对焦
             </div>
           )}
           <div className={styles.cam} data-off={camOff || undefined}>
@@ -143,8 +143,8 @@ export function PhotoRoot() {
         <div className={styles.shutter}>
           <div className={styles.msg}>
             <MicroLabel>Transparent Capture</MicroLabel>
-            <b>拍下桌面上的角色，透明背景</b>
-            <span role="status">{shot.text ?? (off ? '渲染器没有提供截图' : '')}</span>
+            <b>拍摄桌面角色图像（透明背景）</b>
+            <span role="status">{shot.text ?? (off ? '当前渲染器未提供截图能力' : '')}</span>
           </div>
           <button
             type="button"
@@ -152,7 +152,7 @@ export function PhotoRoot() {
             aria-label="拍照"
             aria-disabled={off || undefined}
             aria-busy={shot.busy || undefined}
-            title={off ? '渲染器没有提供截图' : undefined}
+            title={off ? '当前渲染器未提供截图能力' : undefined}
             onClick={take}
           >
             <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" focusable="false">

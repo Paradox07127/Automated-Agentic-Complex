@@ -4,7 +4,7 @@ import common from './chart.module.css';
 import styles from './RunRing.module.css';
 
 const GLYPH: Record<RunPhase, string> = { prepare: '准', tool: '工', verify: '验', awaiting: '待' };
-const PHASE_TEXT: Record<RunPhase, string> = { prepare: '准备', tool: '在跑', verify: '验证', awaiting: '待处理' };
+const PHASE_TEXT: Record<RunPhase, string> = { prepare: '准备', tool: '执行中', verify: '验证', awaiting: '待处理' };
 
 /** 运行状态框：思考/执行工具画墨色实线框，等你黄块 ◆，出错黄块 ✕，结束空心；框心写阶段字；最小 22 px。 */
 export interface RunRingProps {

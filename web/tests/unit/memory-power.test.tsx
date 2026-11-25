@@ -37,7 +37,7 @@ describe('记忆页未通电', () => {
     const status = await screen.findByRole('status', { name: '每日简报' }, T);
     expect(within(status).getByText('已关闭')).toBeTruthy();
     expect(board()?.getAttribute('data-state')).toBe('off');
-    fireEvent.click(within(status).getByRole('button', { name: /前往设置打开/ }));
+    fireEvent.click(within(status).getByRole('button', { name: /前往开启/ }));
     expect(window.location.hash).toMatch(/^#\/settings\?/);
     expect(hashQuery().get('group')).toBe('privacy');
     expect(hashQuery().get('item')).toBe('plugins.daily_brief');
@@ -48,7 +48,7 @@ describe('记忆页未通电', () => {
     expect((await tab('回顾')).getAttribute('aria-selected')).toBe('true');
     const status = await screen.findByRole('status', { name: '屏幕感知' }, T);
     expect(within(status).getByText('已关闭')).toBeTruthy();
-    fireEvent.click(within(status).getByRole('button', { name: /前往设置打开/ }));
+    fireEvent.click(within(status).getByRole('button', { name: /前往开启/ }));
     expect(hashQuery().get('group')).toBe('privacy');
     expect(hashQuery().get('item')).toBe('plugins.screen_awareness');
   });

@@ -77,8 +77,8 @@ describe('menus, ⌘K and the hotkeys', () => {
     const page = items.find((i) => i.key === 'page-overview')!;
     expect(page.hint).toBe('已关闭');
     expect(page.run).toEqual({ kind: 'nav', target: { page: 'overview' } });
-    expect(items.find((i) => i.key === 'look')?.run).toEqual({ kind: 'off', reason: '已关闭：设置里关着「屏幕识读」' });
-    expect(items.find((i) => i.key === 'recheck')?.run).toEqual({ kind: 'off', reason: '已关闭：设置里关着「改用 Codex、Claude Code 或 ACP」' });
+    expect(items.find((i) => i.key === 'look')?.run).toEqual({ kind: 'off', reason: '已关闭：请在设置中开启「屏幕识读」' });
+    expect(items.find((i) => i.key === 'recheck')?.run).toEqual({ kind: 'off', reason: '已关闭：请在设置中开启「外部执行内核接入（Codex / Claude Code / ACP）」' });
     const all = { ...DEFAULT_PLUGINS, daily_brief: true, screen_reading: true, harness_bridge: true };
     const on = paletteItems('', visibleRoutes(false), undefined, {}, {}, all);
     expect(on.find((i) => i.key === 'page-overview')?.hint).toBe('');
@@ -104,7 +104,7 @@ describe('每日简报 off', () => {
     expect(board.textContent).toContain('已关闭');
     expect(document.querySelector('[inert] [data-page="overview"]')).not.toBeNull();
     expect(slotsEmpty()).toBe(true);
-    fireEvent.click(within(board).getByRole('button', { name: /前往设置打开/ }));
+    fireEvent.click(within(board).getByRole('button', { name: /前往开启/ }));
     expect(hashQuery().get('group')).toBe('privacy');
     expect(hashQuery().get('item')).toBe('plugins.daily_brief');
   });
@@ -123,7 +123,7 @@ describe('每日简报 blocks', () => {
     mount(OverviewPage);
     const strip = await screen.findByRole('status', { name: '进行中' }, { timeout: 3000 });
     expect(strip.textContent).toContain('已关闭');
-    fireEvent.click(within(strip).getByRole('button', { name: /前往设置打开/ }));
+    fireEvent.click(within(strip).getByRole('button', { name: /前往开启/ }));
     expect(hashQuery().get('group')).toBe('perm');
     expect(hashQuery().get('item')).toBe('plugins.personal_agent');
   });
@@ -142,7 +142,7 @@ describe('每日简报 blocks', () => {
     const restart = vi.spyOn(getBridge().supervisor, 'restart').mockResolvedValue();
     vi.spyOn(getBridge().agentd, 'connection').mockResolvedValue('offline');
     mount(OverviewPage);
-    const strip = await screen.findByRole('status', { name: '后台' }, { timeout: 3000 });
+    const strip = await screen.findByRole('status', { name: '后台服务' }, { timeout: 3000 });
     expect(strip.textContent).toContain('未接入');
     expect(screen.queryByText(/后台无响应，显示上次读到的数据/)).toBeNull();
     await act(async () => fireEvent.click(within(strip).getByRole('button', { name: /重启后台/ })));
@@ -153,11 +153,11 @@ describe('每日简报 blocks', () => {
 describe('任务 off', () => {
   it('greys the page under a 已关闭 board leading to 派发任务和定时任务, with no 派发任务 to press', async () => {
     mount(TasksGate);
-    const board = await screen.findByRole('status', { name: '派发任务和定时任务' });
+    const board = await screen.findByRole('status', { name: '个人代理与自主能力' });
     expect(board.textContent).toContain('已关闭');
     expect(document.querySelector('[inert] [data-page="tasks"]')).not.toBeNull();
     expect(slotsEmpty()).toBe(true);
-    fireEvent.click(within(board).getByRole('button', { name: /前往设置打开/ }));
+    fireEvent.click(within(board).getByRole('button', { name: /前往开启/ }));
     expect(hashQuery().get('group')).toBe('perm');
     expect(hashQuery().get('item')).toBe('plugins.personal_agent');
   });
@@ -167,7 +167,7 @@ describe('任务 off', () => {
     mount(TasksPage);
     const strip = await screen.findByRole('status', { name: '编码会话' }, { timeout: 3000 });
     expect(strip.textContent).toContain('已关闭');
-    fireEvent.click(within(strip).getByRole('button', { name: /前往设置打开/ }));
+    fireEvent.click(within(strip).getByRole('button', { name: /前往开启/ }));
     expect(hashQuery().get('group')).toBe('privacy');
     expect(hashQuery().get('item')).toBe('plugins.coding_sessions');
   });
@@ -199,7 +199,7 @@ describe('主页 with the plug-ins at their defaults', () => {
     expect(await screen.findByRole('button', { name: '待处理 已关闭' })).toBeTruthy();
     const strip = await screen.findByRole('status', { name: '每日简报' });
     expect(strip.textContent).toContain('已关闭');
-    fireEvent.click(within(strip).getByRole('button', { name: /前往设置打开/ }));
+    fireEvent.click(within(strip).getByRole('button', { name: /前往开启/ }));
     expect(hashQuery().get('group')).toBe('privacy');
     expect(hashQuery().get('item')).toBe('plugins.daily_brief');
   });
@@ -208,6 +208,6 @@ describe('主页 with the plug-ins at their defaults', () => {
     vi.spyOn(getBridge().agentd, 'connection').mockResolvedValue('offline');
     mount(HomePage);
     const status = await screen.findByRole('group', { name: '组件状态' });
-    await vi.waitFor(() => expect(status.textContent).toMatch(/^后台未接入/));
+    await vi.waitFor(() => expect(status.textContent).toMatch(/^后台未连接/));
   });
 });

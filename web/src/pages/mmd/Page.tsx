@@ -83,9 +83,9 @@ export function MmdPage() {
   // Each click on a row plays its dance on the stage from the start.
   const [request, setRequest] = useState(0);
 
-  const noCharacter = !canAvatar ? '桌面角色没有接入' : roster?.length === 0 ? '还没有角色' : null;
-  const blocked = noCharacter ?? (!ch ? '正在读取角色' : offline ? '角色未运行' : switching ? '角色正在切换' : null);
-  const editOff = blocked ?? (library.busy ? '上一个改动还没完成' : null);
+  const noCharacter = !canAvatar ? '未接入角色渲染进程' : roster?.length === 0 ? '当前无可用角色' : null;
+  const blocked = noCharacter ?? (!ch ? '正在加载角色' : offline ? '角色进程未运行' : switching ? '角色切换中' : null);
+  const editOff = blocked ?? (library.busy ? '上一项修改尚未完成' : null);
   const playOff = blocked ?? (mmdImport.running || importing.running ? '导入中' : null);
   // A failed refetch keeps the old data; the library shows the failure, so nothing here acts on those entries.
   const entries = ch && list.data?.ok && !list.isError ? list.data.entries : [];
@@ -118,7 +118,7 @@ export function MmdPage() {
     const of = current;
     void (loop ? getBridge().avatar.playAction(id, 1, { loop: true }) : getBridge().avatar.playAction(id, 1)).then(
       () => setLooping(loop ? { character: of, id } : null),
-      (e: unknown) => toast(PLAY_REFUSED[codeOf(e) ?? ''] ?? '没有播放：桌面角色未确认播放，请检查角色是否显示、是否连上', { severity: playRefusedSeverity(codeOf(e) ?? '') }),
+      (e: unknown) => toast(PLAY_REFUSED[codeOf(e) ?? ''] ?? '播放失败：角色渲染进程未确认播放，请检查角色是否已显示且连接正常', { severity: playRefusedSeverity(codeOf(e) ?? '') }),
     );
   };
   const stop = () =>
@@ -126,7 +126,7 @@ export function MmdPage() {
       .avatar.stopAction()
       .then(
         () => setLooping(null),
-        (e: unknown) => toast(`没有停止：${codeOf(e) === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}`, { severity: 'danger' }),
+        (e: unknown) => toast(`停止失败：${codeOf(e) === 'not_implemented' ? '当前版本暂不支持' : '角色渲染进程无响应'}`, { severity: 'danger' }),
       );
   const add = (id: string) => setlist.put([...setlist.items, id]);
   const addable = (id: string) => ids.includes(id) && !setlist.items.includes(id);
@@ -156,7 +156,7 @@ export function MmdPage() {
 
   const bar = rosterError && (
     <div className={styles.bars}>
-      <ErrBar message={roster ? '读取角色目录失败：角色目录不可用，下面是上次读到的' : '读取角色目录失败：角色目录不可用'} onRetry={() => void rosterQ.refetch()} />
+      <ErrBar message={roster ? '读取角色列表失败：角色目录不可用，以下为上次缓存的数据' : '读取角色列表失败：角色目录不可用'} onRetry={() => void rosterQ.refetch()} />
     </div>
   );
 
@@ -174,7 +174,7 @@ export function MmdPage() {
               request={request}
               loop={loopPick}
               blocked={offline || switching}
-              why={ch ? (offline ? '角色未运行' : switching ? '角色正在切换' : null) : null}
+              why={ch ? (offline ? '角色进程未运行' : switching ? '角色切换中' : null) : null}
               desk={desk != null}
             />
             {picked && (
@@ -204,9 +204,9 @@ export function MmdPage() {
             )}
           </div>
           <div className={styles.side}>
-            <section className={styles.lib} data-theme="dark" aria-label="MMD 库">
+            <section className={styles.lib} data-theme="dark" aria-label="MMD 舞蹈库">
               <TitleBar
-                title="舞曲库"
+                title="MMD 舞蹈库"
                 micro="MMD LIBRARY / SHARED"
                 count={entries.length > 0 ? entries.length : undefined}
                 countAccent
@@ -265,7 +265,7 @@ export function MmdPage() {
           </div>
         </div>
       )}
-      {edit && <MotionEditDialog edit={edit} removeNote="每个角色都会删掉这个动作，角色会重新载入一次" onEdit={setEdit} library={library} />}
+      {edit && <MotionEditDialog edit={edit} removeNote="将从所有角色中删除该舞蹈，完成后角色将重新加载" onEdit={setEdit} library={library} />}
       {mmdImport.pending && <ImportDialog token={mmdImport.pending.token} scan={mmdImport.pending.scan} onImport={mmdImport.confirm} onCancel={mmdImport.cancel} onPickAudio={mmdImport.pickAudio} />}
       {media && (
         <MediaDialog
@@ -315,7 +315,7 @@ function Stage(p: StageProps) {
       {p.desk && !p.blocked && (
         <div className={styles.desk} role="status">
           <MicroLabel>ON DESKTOP</MicroLabel>
-          <b>正在桌面上播</b>
+          <b>正在桌面端播放</b>
         </div>
       )}
       {(p.why ?? failed) && (

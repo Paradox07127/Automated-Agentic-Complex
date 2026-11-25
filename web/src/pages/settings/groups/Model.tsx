@@ -64,7 +64,7 @@ export function PiSections({ provider, routes }: { provider?: ReactNode; routes?
     void readCatalog().then((r) => {
       took(r);
       model.notify({ message: `已获取模型列表：${r.models.length} 个可用` });
-    }, fail('没能获取模型列表'));
+    }, fail('未能获取模型列表'));
   // Pi's own catalog is offline and needs no key: read it as the page opens.
   const offline = !listsOwnModels(svc) && !svcDraft;
   useEffect(() => {
@@ -85,7 +85,7 @@ export function PiSections({ provider, routes }: { provider?: ReactNode; routes?
       const r = await testModels();
       setTest({ ok: r.ok, text: `已连通 │ ${modelTestText(r)}` });
     } catch (e) {
-      setTest({ ok: false, text: `没连通：${failure(e).text}` });
+      setTest({ ok: false, text: `未能连通：${failure(e).text}` });
     }
     setTesting(false);
   };
@@ -114,13 +114,13 @@ export function PiSections({ provider, routes }: { provider?: ReactNode; routes?
           <SetRow
             id="apikey"
             title={labelOf('apikey')}
-            desc={noKey ? '这台电脑上的服务不用密钥' : cfg?.has_key ? '已保存在「服务 › 自建模型接口」里' : '地址和 Key 在「服务 › 自建模型接口」里填'}
+            desc={noKey ? '本机连接无需配置密钥' : cfg?.has_key ? '密钥已保存于「设置 › 服务 › 自建模型接口」' : '请在「设置 › 服务 › 自建模型接口」填写地址与 API Key'}
             descTone={!noKey && !cfg?.has_key ? 'attention' : undefined}
             control={
               <>
                 {keyless && c.seg('acct', keyOptions(model.value('acct')), false, 'API Key')}
                 <Btn go onClick={() => goRow('svc_llm', 'services')}>
-                  去服务
+                  前往配置
                 </Btn>
               </>
             }
@@ -148,7 +148,7 @@ export function PiSections({ provider, routes }: { provider?: ReactNode; routes?
           control={
             <>
               {catalog?.models.length ? c.select('chatModel', catalog.models.map((m) => ({ value: m.id, label: m.name || m.id })), [], false, '默认模型') : c.text('chatModel', '默认模型', '模型 ID')}
-              <Btn disabled={ro || svcDraft} disabledReason="先应用模型提供方的改动" onClick={fetchCatalog}>
+              <Btn disabled={ro || svcDraft} disabledReason="请先应用模型提供方的更改" onClick={fetchCatalog}>
                 刷新列表
               </Btn>
             </>
@@ -168,25 +168,25 @@ export function PiSections({ provider, routes }: { provider?: ReactNode; routes?
                 title={labelOf(id)}
                 indent
                 control={
-                  <Stepper label={labelOf(id)} value={Number(model.value(id) ?? min)} min={min} max={max} step={step} format={tokens} solid disabled={ro || agentdOff || svcDraft} disabledReason="先应用模型提供方的改动" onChange={(n) => model.set(id, n)} />
+                  <Stepper label={labelOf(id)} value={Number(model.value(id) ?? min)} min={min} max={max} step={step} format={tokens} solid disabled={ro || agentdOff || svcDraft} disabledReason="请先应用模型提供方的更改" onChange={(n) => model.set(id, n)} />
                 }
               />
             ))}
-            <SetRow id="images" title={labelOf('images')} indent control={c.toggle('images', labelOf('images'), svcDraft, '先应用模型提供方的改动')} />
-            <SetRow id="reasoning" title={labelOf('reasoning')} indent control={c.toggle('reasoning', labelOf('reasoning'), svcDraft, '先应用模型提供方的改动')} />
+            <SetRow id="images" title={labelOf('images')} indent control={c.toggle('images', labelOf('images'), svcDraft, '请先应用模型提供方的更改')} />
+            <SetRow id="reasoning" title={labelOf('reasoning')} indent control={c.toggle('reasoning', labelOf('reasoning'), svcDraft, '请先应用模型提供方的更改')} />
           </>
         )}
         {levels && (
-          <SetRow id="think" title={labelOf('think')} info="越高，模型回答前想得越久：复杂问题答得更好，但更慢、用量更多。" control={c.select('think', thinkOptions(levels))} />
+          <SetRow id="think" title={labelOf('think')} info="等级越高，模型推理越充分，复杂问题回答更准确，但响应耗时与 Token 用量也会相应增加。" control={c.select('think', thinkOptions(levels))} />
         )}
         <SetRow
           id="mtest"
           title={labelOf('mtest')}
-          desc={drafted ? '先应用上面的改动再测' : undefined}
+          desc={drafted ? '请先应用上方更改再进行测试' : undefined}
           control={
             <>
               {test && <StatusLamp size="sm" state={test.ok ? 'ok' : 'broken'} label={test.text} />}
-              <Btn loading={testing} disabled={ro || drafted} disabledReason="先应用上面的改动" onClick={() => void runTest()}>
+              <Btn loading={testing} disabled={ro || drafted} disabledReason="请先应用上方更改" onClick={() => void runTest()}>
                 测试
               </Btn>
             </>

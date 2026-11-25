@@ -43,12 +43,12 @@ describe(' 诊断 · 行为决策', () => {
   it('draws the state plate, one chart for the curves and the three decision lanes, and the causes; no motion table', async () => {
     expect(findRoute('/diag')?.devOnly).toBe(true);
     behavior();
-    const plate = await screen.findByRole('region', { name: '角色现在的状态' });
-    await waitFor(() => expect(plate.textContent).toContain('有点低落'));
-    expect(plate.textContent).toContain('坐着');
+    const plate = await screen.findByRole('region', { name: '角色当前状态' });
+    await waitFor(() => expect(plate.textContent).toContain('低落'));
+    expect(plate.textContent).toContain('坐姿待机');
     expect(plate.textContent).toContain('状态影响行为 开');
     const chart = screen.getByRole('region', { name: '精神与心情 │ 行为决策' });
-    expect(within(chart).getByRole('img', { name: /^精神和心情曲线，下面是同一时间轴上的行为决策/ })).toBeTruthy();
+    expect(within(chart).getByRole('img', { name: /^精神和心情曲线，下方为同一时间轴上的行为决策/ })).toBeTruthy();
     await waitFor(() => expect(chart.querySelector('svg')?.textContent).toContain('规则 1'));
     expect(chart.querySelector('svg')?.textContent).toContain('模型 0');
     expect(chart.querySelector('svg')?.textContent).toContain('硬规则 0');
@@ -65,9 +65,9 @@ describe(' 诊断 · 行为决策', () => {
     bridge.agentd.request = (async (method: string, path: string, body?: unknown) =>
       method === 'GET' && path === '/character/state' ? { status: 200, body: state } : inner(method as never, path, body)) as typeof bridge.agentd.request;
     behavior();
-    const plate = await screen.findByRole('region', { name: '角色现在的状态' });
-    await waitFor(() => expect(plate.textContent).toContain('很困'));
-    expect(plate.textContent).toContain('不错');
+    const plate = await screen.findByRole('region', { name: '角色当前状态' });
+    await waitFor(() => expect(plate.textContent).toContain('极疲倦'));
+    expect(plate.textContent).toContain('良好');
     expect(plate.textContent).toContain('一般');
     expect(plate.textContent).not.toMatch(/very_sleepy|good/);
   });
@@ -80,8 +80,8 @@ describe(' 诊断 · 行为决策', () => {
     expect(first.getAttribute('aria-pressed')).toBe('true');
     const cause = first.textContent ?? '';
     const line = screen.getByRole('region', { name: '精神与心情 │ 行为决策' }).querySelector('[aria-live]');
-    expect(cause).toContain('和你聊天');
-    expect(line?.textContent).toContain('和你聊天');
+    expect(cause).toContain('与你对话');
+    expect(line?.textContent).toContain('与你对话');
     expect(line?.textContent).toMatch(/当时精神 \d\.\d\d/);
   });
 
@@ -101,19 +101,19 @@ describe(' 诊断 · 行为决策', () => {
     const bridge = install();
     const request = vi.spyOn(bridge.agentd, 'request');
     behavior();
-    await screen.findByText('有点低落');
+    await screen.findByText('低落');
     await click(screen.getByRole('button', { name: '重置状态…' }));
-    const dialog = screen.getByRole('dialog', { name: '重置角色的状态？' });
+    const dialog = screen.getByRole('dialog', { name: '重置角色状态？' });
     expect(dialog.textContent).toContain('变化原因：8 条');
     await click(within(dialog).getByRole('button', { name: '重置' }));
     await waitFor(() => expect(request.mock.calls.some(([m, p]) => m === 'DELETE' && p === '/character/state')).toBe(true));
-    await waitFor(() => expect(screen.getByRole('region', { name: '角色现在的状态' }).textContent).toContain('平稳'));
+    await waitFor(() => expect(screen.getByRole('region', { name: '角色当前状态' }).textContent).toContain('平稳'));
   });
 
   it('without a state the reset is off and the chart says why', async () => {
     window.location.hash = '#/diag?tab=behavior&demo=state-none';
     behavior('&demo=state-none');
-    expect(await screen.findByText(/状态还没开始记录/)).toBeTruthy();
+    expect(await screen.findByText(/状态尚未开始记录/)).toBeTruthy();
     expect(screen.getByRole('button', { name: '重置状态…' }).getAttribute('aria-disabled')).toBe('true');
   });
 });

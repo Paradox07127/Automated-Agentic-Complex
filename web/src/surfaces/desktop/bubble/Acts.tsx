@@ -7,8 +7,8 @@ import styles from './Bubble.module.css';
 export type Vote = 'useful' | 'less';
 
 const VOTES: { value: Vote; label: string }[] = [
-  { value: 'useful', label: '有用' },
-  { value: 'less', label: '少说点' },
+  { value: 'useful', label: '有帮助' },
+  { value: 'less', label: '减少此类提示' },
 ];
 
 export interface ActsProps {

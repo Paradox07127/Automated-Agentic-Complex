@@ -110,7 +110,7 @@ async function mountMmd() {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  await screen.findByRole('region', { name: 'MMD 库' });
+  await screen.findByRole('region', { name: 'MMD 舞蹈库' });
   await waitFor(() => expect(document.querySelector('[data-mmd-detail="mmd_a"]')).not.toBeNull());
 }
 const timeline = () => screen.getByRole('region', { name: '时间线' });

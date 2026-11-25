@@ -210,7 +210,7 @@ export function stackPush(query: URLSearchParams): StackPayload | { error: Bridg
 
 /** A presence `sessions[]` row (desktop_presence.py `snapshot`, epoch seconds); `between` is a running one between tools. */
 function sessionRow(id: string, backend: string, title: string, status: string, agoS: number, tool: string | null, target: string | null, approvals: string[] = [], between = false) {
-  const activity = between ? '思考中' : ({ needs_you: '待批准', error: '遇到问题', done: '已完成', running: '在跑' }[status] ?? '状态未知');
+  const activity = between ? '思考中' : ({ needs_you: '待批准', error: '出错', done: '已完成', running: '工具执行中' }[status] ?? '状态未知');
   const state = between ? 'thinking' : ({ needs_you: 'awaiting_approval', error: 'error', done: 'done', running: 'running_tool' }[status] ?? 'running');
   return { id, backend, title, state, updated_at: (NOW - agoS * SECOND) / 1000, tool, target, approvals, status, activity };
 }

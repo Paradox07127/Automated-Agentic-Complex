@@ -15,24 +15,24 @@
 
 **Agentic Complex** (repository directory `Endfield`) is an experimental desktop character app and character-package development framework. It renders compatible character packages on the desktop and embeds a personal agent with switchable execution kernels for text/voice conversation, task execution, memory management, and optional desktop awareness.
 
-- **Primary platform**: Apple Silicon Mac (macOS 15 or later), built with an Electron shell, a native Swift Metal renderer, and a Swift platform helper.
-- **Windows x64 (WIP / Experimental)**: A Vulkan renderer (`efw.exe`), Windows helper (`ac-helper.exe`), and portable directory packaging are under active development and not yet feature-complete (e.g., push-to-talk and live 3D character-page previews are not implemented yet).
+- **Primary platform**: Apple Silicon Mac (macOS 15 or later), built with an Electron host, a native Swift Metal renderer, and a Swift platform helper.
+- **Windows x64 (WIP / Experimental)**: A Vulkan renderer (`efw.exe`), Windows helper (`ac-helper.exe`), and Velopack installer/portable packaging (`vpk pack`) are under active development and not yet feature-complete (for example, push-to-talk and live 3D character-page previews are not implemented yet).
 - **Assets & fan notice**: This repository ships no game assets or release character library; the public profile ships no characters and provides only a text-only example character, `aide`, under `characters/sample-library/` for testing and learning. See the [unofficial fan project notice](#unofficial-fan-project-notice) below.
 
 ## Features
 
 ### Personal agent
 
-- **Main window & control panel**: The main window opens on **主页 (Home)**—a tilted 3D watch face: page keys on the left, tool keys on the right, a centre disc with 待批准 / 在做 / 今日 pages that you switch by tab or by swiping sideways, today's task progress below it, a character card with what she is doing, her outfit and the render frame rate, and the clock, connection state and reminder banner at the top right—while the top command bar navigates across **工业简报 (Briefing, `⌘1`)** for today's timeline, pending approvals/questions, running tasks, and daily briefs; **对话 (Chat, `⌘2`)**; **记忆 (Memory, `⌘3`)**; **角色 (Character)**; **定时任务 (Schedules)**; **运行记录 (Trace)**; **诊断 (Diagnostics)**; and **设置 (Settings, `⌘,`)**. Enabling **开发者模式 (Developer mode)** in Settings › 启动与关于 unlocks additional pages such as **管线 (Pipeline)** and **调参 (Tune)**.
+- **Main window & control panel**: The main window opens on **主页 (Home, `⌘0`)**—a tilted 3D watch face: page keys on the left, tool keys on the right, a centre disc with 待处理 (Pending) / 进行中 (Running) pages that you switch by tab or by swiping sideways, today's task progress below it, a character card with the character's current status, outfit, and render frame rate, and the clock, connection state, and reminder banner at the top right—while the top command bar navigates across **每日简报 (Daily Briefing, `⌘1`)** for today's timeline, pending approvals/questions, running tasks, and daily briefs; **对话 (Chat, `⌘2`)**; **记忆 (Memory, `⌘3`)**; **角色 (Character, `⌘4`)**; **MMD**; **任务 (Tasks)**; and **设置 (Settings, `⌘,`)** (`Ctrl+0`–`Ctrl+4` and `Ctrl+,` on Windows). Enabling **开发者模式 (Developer mode)** in Settings › 关于 (About) unlocks **诊断 (Diagnostics)** and additional inspection pages.
 - **Memory**: The **记忆 (Memory)** page stores user-confirmed facts and sourced records; facts extracted from observed activity enter as candidates for your review.
-- **Switchable kernels & per-purpose routing**: Choose the active execution kernel in Settings › 角色内核 (Character kernel): the bundled **Pi** runtime (default), locally installed **Codex** or **Claude Code**, or another local agent tool via **ACP**. You can also route individual purposes (chat, background tasks, proactive judge, screen understanding, memory/journal, computer control) to different kernels, models, and reasoning efforts. Character persona, conversation history, tasks, and memory stay in the app across kernel switches.
-- **Accounts & credentials**: Local kernels reuse their own CLI login by default; Codex can also use API credentials. Pi's providers are configured in Settings › pi 账号与凭据 (pi account and credentials), supporting **Anthropic API**, **DeepSeek**, **Grok / xAI**, **OpenAI API**, **OpenAI-compatible APIs** (including keyless local loopback servers), additional providers from Pi's offline catalog (**其他（Pi 目录）**), and **ChatGPT subscriptions**. Reply language is configurable in Settings › 说话与通知 (Speech and notifications).
-- **Token & cost warning**: Background observation, briefs, proactive speech, and multi-step runs trigger model calls. Monitor call counts, estimated costs, and turn traces in **诊断 (Diagnostics)** and **运行记录 (Trace)**, set the per-run cost cap in Settings › 角色内核 › 限额 (Limits, shown when Pi is selected), and keep unused background observation/proactive toggles off during experimentation.
+- **Switchable kernels & per-purpose routing**: Choose the active execution kernel in Settings › 内核 (Kernel): the bundled **Pi** runtime (default), locally installed **Codex** or **Claude Code**, or another local agent tool via **ACP**. You can also route individual purposes (chat, background tasks, proactive judge, screen understanding, memory/journal, computer control) to different kernels, models, and reasoning efforts. Character persona, conversation history, tasks, and memory stay in the app across kernel switches.
+- **Accounts & credentials**: Local kernels reuse their own CLI login by default; Codex can also use API credentials. Pi's providers are configured in Settings › 内核 (Kernel), supporting **Anthropic API**, **DeepSeek**, **Grok / xAI**, **OpenAI API**, **OpenAI-compatible APIs** (including keyless local loopback servers, also configurable as an LLM service in Settings › 服务), additional providers from Pi's offline catalog (**其他（Pi 目录）**), and **ChatGPT subscriptions**. Reply language is configurable in Settings › 交流 (Communication).
+- **Token & cost warning**: Screen awareness, briefs, proactive interaction, and multi-step runs trigger model calls. Monitor call counts, estimated costs, and turn traces in **诊断 (Diagnostics)** and run logs, set the per-run cost cap in Settings › 内核 › 限额 (Limits, shown when Pi is selected), and keep unused background observation/proactive toggles off during experimentation.
 
 ### Companionship and awareness
 
-- **Activity observation (off by default)**: When enabled in Settings › 隐私 (Privacy), the app records foreground app, window, and activity summaries locally and can generate daily or weekly briefs. Filtering supports both exclude mode (**名单外都读**) and allow-list mode (**只读名单里的**, the default).
-- **Proactive speech & Do Not Disturb**: Choose when she speaks up, how often, and quiet-hour ranges in Settings › 交流 (Communication). Break and water reminders are built into the character; turn one kind off with 关闭此类 (Mute this kind) in the bubble menu. Quiet / Meeting modes cover quiet times and screen sharing.
+- **Screen awareness (off by default)**: When enabled in Settings › 感知 (Awareness), the app records foreground app, window, and activity summaries locally and can generate daily or weekly briefs. Filtering supports both exclude mode (**排除名单**) and allow-list mode (**仅允许名单**, the default).
+- **Proactive interaction & Do Not Disturb**: Choose when the character initiates interaction, how often, and quiet-hour ranges in Settings › 交流 (Communication). Break and water reminders are built-in proactive reminders; turn one kind off with 关闭此类 (Disable this category) in the bubble action menu. Do Not Disturb presets (`30 分钟` / `1 小时` / `到明早 7:00`) cover quiet times and screen sharing.
 - **Coding sessions**: When 读取编码会话 (Read coding sessions) is on and the hooks are installed, progress, completion, and approval requests from local Claude Code and Codex sessions appear on desktop overlays.
 - **Desktop interactions**: Reacts to clicking body regions, dragging, and gifts from the context menu, and plays idle animations when inactive.
 
@@ -40,29 +40,29 @@
 
 - **Native rendering**: Uses a native Metal pipeline (`metal-avatar-host`) on macOS with lighting and post-processing matched to the in-game character detail screen; Windows uses a work-in-progress Vulkan renderer (`efw.exe`).
 - **Desktop behavior**: Borderless transparent overlay draggable anywhere on screen; automatically steps aside when covered by windows (or stays fixed when **自由活动 (Free roam)** is unchecked in the context menu's 更多 (More) submenu); hides by default behind full-screen apps while staying at the edge for full-screen video or games.
-- **Hide while recording**: **录屏时隐藏角色 (Hide character while recording)** is on by default on macOS (she hides once when recording or sharing starts; press `⌃⌥H` to show her again) and off by default on Windows; change it under Settings › 说话与通知 › 免打扰.
+- **Hide while recording**: **录屏时隐藏角色 (Hide character while recording)** is on by default on macOS (the character hides when recording or sharing starts; press `⌃⌥H` on macOS or `Ctrl+Alt+H` on Windows to restore it) and off by default on Windows; change it under Settings › 交流 (Communication).
 
 ### Characters, appearance and motion
 
-- Switch character packages on the **角色 (Character)** page, whose top tabs cover **动作 (Motion)**, **编排 (Motion chain)**, **外观 (Appearance)**, **设定 (Setup)**, **拍照 (Photo)**, **MMD**, and **导入 (Import)**.
+- Switch character packages on the **角色 (Character, `⌘4`)** page, with look-mode tabs for **外观 (Look)**, **显示 (Display)**, **模组设置 (Mod settings)**, and **导入 (Import)**, plus motion-mode tabs for **动作表 (Motion list)**, **编排 (Motion chain)**, and **导入 (Import)**. Use the top-level **MMD** page for the shared dance library, audio tracks, and setlists.
 - Each character is a self-contained package containing models, motions, voice settings, and persona; see the [character package contract](protocol/character-library/CONTRACT.md).
-- On 角色 › 导入 (Import), import EFMI mod outfits with part/color toggles, as well as VMD, BVH, glTF, GLB, VRMA, FBX, and VMD ZIP dances with background music (dropping directly onto the character accepts VMD and ZIP). See [motion import](docs/guides/motion-import.en.md).
+- On 角色 › 导入 (Import), import EFMI mod outfits with part/color toggles, as well as VMD, BVH, glTF, GLB, VRMA, FBX, and VMD ZIP dances with audio (dropping VMD or ZIP files directly onto the character window imports them). See [motion import](docs/guides/motion-import.en.md).
 
 ### Voice
 
-- **Push-to-talk (macOS)**: Hold the right `Option` key to speak and release to send; speech recognition runs locally via macOS speech frameworks.
-- **Speech synthesis**: Replies can be read aloud when an external TTS service is configured. **Without an external TTS service configured, replies are shown as text only (no speech).**
+- **Voice input / Push-to-talk (macOS)**: Hold the right `Option` key to speak and release to send; speech recognition runs locally via macOS speech frameworks.
+- **Voice output (TTS)**: Replies can be read aloud when an external TTS service is configured in Settings › 服务 (Services). **Without an external TTS service configured, replies are shown as text only (no voice output).**
 
-### Privacy and computer use
+### Awareness, privacy and computer use
 
-- Activity observation and computer use are both off by default. Window text, page text, typed text, coding sessions, screenshots, input counts, and microphone-using apps each have their own toggle; outbound redaction and exclude/allow lists are also available.
+- Screen awareness and computer use are both off by default. Window text, page text, typed text, coding sessions, screenshots, input counts, and microphone-using apps each have their own toggle; outbound redaction and exclude/allow lists are also available.
 - Computer use allows supported sessions to observe controls, read text, capture screenshots, or perform actions on native windows, after you authorize each window and each permission. See the [product guide](docs/product.en.md) for full details.
 
 ## Architecture overview
 
 The app coordinates multiple processes across well-defined contracts (see [Repository and runtime architecture](docs/architecture/overview.en.md)):
 
-- **`app/electron`**: Electron shell managing windows, tray menu, desktop overlays, global shortcuts, subprocess supervision, and `ui-bridge`;
+- **`app/electron`**: Electron host managing windows, tray menu, desktop overlays, global shortcuts, subprocess supervision, and `ui-bridge`;
 - **`web/`**: React + TypeScript UI for the main control panel (`main.html`) and floating desktop stack (`stack.html`);
 - **`app/helpers/mac` & `app/helpers/windows`**: Native platform helper `ac-helper` (protocol C12) for permissions, window/AX readings, screen capture, OCR, and push-to-talk;
 - **`agent/agentd`**: Python 3.12 daemon managing character sessions, replaceable harnesses (Pi / Codex / Claude Code / ACP), memory, observation, tool gateway, and C1/C2/C6/C9 endpoints;
@@ -80,7 +80,7 @@ The app coordinates multiple processes across well-defined contracts (see [Repos
 | `⌃⌥S` | Read selected text (or clipboard if none selected) into quick input |
 | `⌃⌥P` | Temporarily let clicks pass through the character and floating overlays |
 
-Shortcuts can be customized in Settings › 快捷键 (Shortcuts). Inside the main window: `⌘0`–`⌘3` and `⌘,` jump to pages, `Q`/`E` cycle page tabs, `⌘K` opens the command palette, and `Esc` returns to Home.
+Shortcuts can be customized in Settings › 快捷键 (Shortcuts). Inside the main window: `⌘0`–`⌘4` and `⌘,` (`Ctrl+0`–`Ctrl+4` and `Ctrl+,` on Windows) jump to pages, `Q`/`E` cycle page tabs, `⌘K` (`Ctrl+K`) opens the command palette, and `Esc` returns to Home.
 
 ## Requirements
 
@@ -88,7 +88,7 @@ Shortcuts can be customized in Settings › 快捷键 (Shortcuts). Inside the ma
 
 - Apple Silicon Mac, macOS 15 or later.
 - Xcode Swift toolchain, Node.js ≥ `24.22.1`, Python `3.12` (recommended via `uv`).
-- Per-feature system permissions (inspectable in Settings › 权限与授权):
+- Per-feature system permissions (inspectable in Settings › 能力 (Capabilities)):
 
 | Permission | Use |
 |---|---|
@@ -125,7 +125,7 @@ python3 -I agent/agentd/character_agent/harness/pi_install_runtime.py \
 
 ### 2. Local Dev Console (Recommended for daily development, no `.app` build)
 
-Starts Vite with hot module reload (`127.0.0.1:5190`) alongside the real Electron shell, which supervises `agentd` (dev port `48790`), `ac-helper`, and `metal-avatar-host`:
+Starts Vite with hot module reload (`127.0.0.1:5190`) alongside the real Electron host, which supervises `agentd` (dev port `48790`), `ac-helper`, and `metal-avatar-host`:
 
 ```sh
 python3 -I tools/dev/dev_console.py
@@ -137,15 +137,15 @@ The public repository has no renderer source: the dev console then starts no `me
 
 Open **`http://127.0.0.1:48780/`** in your browser to switch component worktrees, inspect process logs, and restart parts independently.
 
-- The dev build keeps its settings, data and logs in `.local/cache/dev-console/` and does not use the installed app's port `48800` or `~/Library/Application Support/`. The kernels' workspace is `~/AgenticComplex` by default, as in the installed app (change it under Settings › 角色内核 › 工作区 (Workspace)); local kernels such as Codex also write their own directories, for example `~/.codex`.
+- The dev build keeps its settings, data and logs in `.local/cache/dev-console/` and does not use the installed app's port `48800` or `~/Library/Application Support/`. The kernels' workspace is `~/AgenticComplex` by default, as in the installed app (change it under Settings › 内核 › 工作区 (Workspace)); local kernels such as Codex also write their own directories, for example `~/.codex`.
 - The agentd port is fixed at `48790`; the dev console has no option to change it. In a public checkout the dev console reads the sample library `characters/sample-library/` (the text-only character `aide`) by default; `--catalog <current.json>` picks another library.
-- Connect a model: the first start of the dev build opens the 首次设置 (first-run setup) assistant; you can close it. Then do one of these: enter an API key or sign in under Settings › pi 账号与凭据 (pi account and credentials); or run `codex login` in a terminal first and then choose Codex under Settings › 角色内核 (Character kernel). Without a model, a chat replies `pi_connection_missing`.
-- Passes `--no-push-to-talk --no-attention` by default, so the global push-to-talk key and the observation samplers stay off; additional shell arguments can be appended or edited in the console UI.
+- Connect a model: the first start of the dev build opens the 首次设置 (first-run setup) assistant; you can close it. Then do one of these: enter an API key or sign in under Settings › 内核 (Kernel); or run `codex login` in a terminal first and then choose Codex under Settings › 内核 (Kernel). Without a model, a chat replies `pi_connection_missing`.
+- Passes `--no-push-to-talk --no-attention` by default, so global shortcuts for push-to-talk and observation samplers stay off; additional host arguments can be appended or edited in the console UI.
 - Note: Running Electron from `node_modules` lacks the packaged preview XPC service, so the 3D preview on the Character page falls back to static portraits.
 
 ### 3. Dev deployment onto an installed `Agentic Complex.app` (`dev_deploy.py`, macOS)
 
-To test changes to `web/` or `agent/agentd/` directly inside an already-installed `Agentic Complex.app`—preserving its code signing, macOS permissions, Electron shell, helper, and Metal renderer without rebuilding the whole `.app`:
+To test changes to `web/` or `agent/agentd/` directly inside an already-installed `Agentic Complex.app`—preserving its code signing, macOS permissions, Electron host, helper, and Metal renderer without rebuilding the whole `.app`:
 
 1. **Enable**: Add the following key to `~/Library/Application Support/local.agenticcomplex.companion/config.json` and restart the app once:
 
@@ -161,8 +161,8 @@ To test changes to `web/` or `agent/agentd/` directly inside an already-installe
    python3 -I tools/release/dev_deploy.py agentd   # Deploy agent/agentd code and restart backend only
    ```
 
-3. **Live reload**: `dev_deploy.py` writes `.local/dev-runtime/<UTC>-<commit>[-dirty]/` with `dev-receipt.json` and atomically switches the `current` symlink. The running Electron shell watches the parent directory (`dev-reload.ts`) and reads `dev-receipt.json`: `web` reloads the web panels, `agentd` restarts `agentd`, and `all` does both. Verify the active source under **诊断 (Diagnostics)**: it shows 开发目录 │ <commit>.
-4. **Limitations & disable**: Changes to the Electron shell, `ac-helper`, Metal renderer, preview XPC, `Info.plist`, or new Python dependencies still require rebuilding `.app`. Remove `dev_resources` from `config.json` and restart once to revert to bundled resources. See [Development and releases](docs/development.en.md#development-deployment).
+3. **Live reload**: `dev_deploy.py` writes `.local/dev-runtime/<UTC>-<commit>[-dirty]/` with `dev-receipt.json` and atomically switches the `current` symlink. The running Electron host watches the parent directory (`dev-reload.ts`) and reads `dev-receipt.json`: `web` reloads the web panels, `agentd` restarts `agentd`, and `all` does both. Verify the active source under **诊断 (Diagnostics)**: it shows 开发目录 │ <commit>.
+4. **Limitations & disable**: Changes to the Electron host, `ac-helper`, Metal renderer, preview XPC, `Info.plist`, or new Python dependencies still require rebuilding `.app`. Remove `dev_resources` from `config.json` and restart once to revert to bundled resources. See [Development and releases](docs/development.en.md#development-deployment).
 
 ### 4. Standalone Web UI development (Fake Bridge)
 
@@ -185,8 +185,8 @@ The canonical macOS release entry point is `bash app/build_app.sh` (must be run 
 | `split` | `bash app/build_app.sh --layout split` | An `Agentic Complex.app` containing `host`, `renderer`, and `web-ui`, plus a sibling `components/` directory imported on first launch |
 
 - Run `bash app/build_app.sh --check` to verify prerequisites without building; use `python3 -I tools/qa/gate_daemon.py pack` when building via the gate runner.
-- On first launch, a setup assistant guides through enabling the character, testing push-to-talk, setting your name, and connecting coding sessions; every step can be skipped (re-runnable later in Settings › 启动与关于).
-- See [Development and releases](docs/development.en.md) and [Release components](docs/components.en.md); for WIP Windows portable directory packaging, see [release components · Windows portable directory](docs/components.en.md#windows-portable-directory).
+- On first launch, a setup assistant guides through enabling the character, testing voice input, setting your name, and connecting coding sessions; every step can be skipped (re-runnable later in Settings › 关于 (About)).
+- See [Development and releases](docs/development.en.md) and [Release components](docs/components.en.md); for WIP Windows Velopack (`vpk pack`) / portable packaging, see [release components · Windows portable directory](docs/components.en.md#windows-portable-directory).
 
 ### 6. Common verification commands
 
@@ -207,8 +207,8 @@ AGENTD_DEV_CATALOG="$PWD/fixtures/characters/current.json" ../../.venv/bin/pytho
 
 These services run separately and are deployed by the user; the app stores only their URLs and tokens and contains no model weights or images:
 
-- **Speech synthesis service**: HTTP service based on GPT-SoVITS providing character voices. See [deploying the voice service](docs/guides/tts-deploy.en.md) and the [TTS engine interface](protocol/C2-speech-stream/ENGINE.md).
-- **Motion generation service**: HTTP service in `motion/` generating motion clips from text prompts (currently backed by NVIDIA Kimodo). Configure via right-click character menu › 镜头与动作… › switch 动作来源 to 模型生成 and supply the service URL (no full deployment guide yet).
+- **Speech synthesis service**: HTTP service based on GPT-SoVITS providing character voices. Configure in Settings › 服务 › TTS 语音合成服务; see [deploying the voice service](docs/guides/tts-deploy.en.md) and the [TTS engine interface](protocol/C2-speech-stream/ENGINE.md).
+- **Motion generation service**: HTTP service in `motion/` generating motion clips from text prompts (currently backed by NVIDIA Kimodo). Configure under Settings › 服务 › 动作生成服务 (no full deployment guide yet).
 
 ## Community
 

@@ -59,15 +59,15 @@ export function Projects({ tasks, error, onRetry, initialQ, onSession }: Project
   const label = STATUS.find((s) => s.id === cur)?.label ?? '';
 
   let list;
-  if (error != null) list = <List>{<ErrBar message={`没有读到项目：${error}`} onRetry={onRetry} />}</List>;
+  if (error != null) list = <List>{<ErrBar message={`未能读取项目：${error}`} onRetry={onRetry} />}</List>;
   else if (tasks == null)
     list = (
       <List>
         <Skel rows={6} height={58} />
       </List>
     );
-  else if (tasks.length === 0) list = <List>{<Empty size="compact" title="还没有项目，后台整理会话后会列在这里" />}</List>;
-  else if (shown.length === 0) list = <List>{<Empty inline title={q.trim() ? '没有符合条件的项目' : `没有${label}的项目`} {...(q.trim() ? { action: <Lnk onClick={() => setQ('')}>清除条件</Lnk> } : {})} />}</List>;
+  else if (tasks.length === 0) list = <List>{<Empty size="compact" title="尚无项目记录，后台服务整理会话后将列于此处" />}</List>;
+  else if (shown.length === 0) list = <List>{<Empty inline title={q.trim() ? '无匹配的项目' : `尚无${label}的项目`} {...(q.trim() ? { action: <Lnk onClick={() => setQ('')}>清除条件</Lnk> } : {})} />}</List>;
   else
     list = (
       <List label={label}>
@@ -165,9 +165,9 @@ function ProjectDetail({ task, onSession, onClose }: { task: WorkTask; onSession
           // Text typed while the save ran stays in the editor, now over the revision just written.
           if (typed.current === sent) setGoal(null);
           else setRev(r.revision);
-          toast('已改目标，下次接着这份做');
+          toast('已更新目标，后续将继续沿此推进');
         },
-        (e: unknown) => toast(isConflict(e) ? '没有改：已在别处更新，已重新读取' : `没有改：${errorText(e)}`),
+        (e: unknown) => toast(isConflict(e) ? '未能修改：已在其他位置更新，已重新读取' : `未能修改：${errorText(e)}`),
       )
       .finally(() => {
         setBusy(false);
@@ -187,8 +187,8 @@ function ProjectDetail({ task, onSession, onClose }: { task: WorkTask; onSession
       </>
     ) : (
       <>
-        <Btn onClick={edit}>改目标</Btn>
-        <Note>记错了就改，下次接着这份做</Note>
+        <Btn onClick={edit}>修改目标</Btn>
+        <Note>如有偏差可直接修改，后续任务将沿新目标推进</Note>
         <Spacer />
       </>
     );
@@ -198,7 +198,7 @@ function ProjectDetail({ task, onSession, onClose }: { task: WorkTask; onSession
         <Kv k="目标">
           {goal != null && rev !== t.revision && (
             <Note>
-              已在别处更新为「{t.goal}」 <Lnk onClick={edit}>载入最新目标</Lnk>
+              已在其他位置更新为「{t.goal}」 <Lnk onClick={edit}>载入最新目标</Lnk>
             </Note>
           )}
           {goal != null ? (
@@ -235,15 +235,15 @@ function ProjectDetail({ task, onSession, onClose }: { task: WorkTask; onSession
         }
       >
         {q.isError ? (
-          <ErrBar message={`没有读到会话：${errorText(q.error)}`} onRetry={() => void q.refetch()} />
+          <ErrBar message={`未能读取会话：${errorText(q.error)}`} onRetry={() => void q.refetch()} />
         ) : !q.data ? (
           <Text>读取中…</Text>
         ) : q.data.sessions.length === 0 ? (
-          <Note>还没有会话</Note>
+          <Note>尚无关联会话</Note>
         ) : (
           <Lines>
             {q.data.sessions.map((s) => (
-              <Line key={s.id} at={session(s)} end={<Lnk onClick={() => onSession(s.id)}>在简报里看 ›</Lnk>}>
+              <Line key={s.id} at={session(s)} end={<Lnk onClick={() => onSession(s.id)}>在简报中查看 ›</Lnk>}>
                 {s.title}
               </Line>
             ))}

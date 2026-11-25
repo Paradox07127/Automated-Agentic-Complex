@@ -34,10 +34,10 @@ function mount(component: RouteComponent, search: string) {
 describe(' 运行记录 page', () => {
   it('/trace?turn=<id> picks that row and shows its 经过 with the cost; the 判断 step opens to its probabilities', async () => {
     mount(DiagPage, '&demo=full&turn=tr7');
-    const detail = await screen.findByRole('region', { name: '这一轮' });
+    const detail = await screen.findByRole('region', { name: '本轮详情' });
     await waitFor(() => expect(detail.textContent).toContain('$0.013'));
     expect(screen.getByRole('option', { selected: true }).getAttribute('data-turn')).toBe('tr7');
-    const steps = within(detail).getByRole('region', { name: '经过' });
+    const steps = within(detail).getByRole('region', { name: '执行轨迹' });
     fireEvent.click(steps.querySelector<HTMLElement>('[data-step="judge"]')!);
     expect((await within(steps).findByRole('list', { name: '判断' })).textContent).toContain('0.82');
     // The usage block and 刷新记录 are gone: the brief has the day's spend and the lamp says the list is live.
@@ -48,7 +48,7 @@ describe(' 运行记录 page', () => {
   it('/trace?turn=<trace_id> picks the listed row whose trace id it is', async () => {
     mount(DiagPage, '&demo=full&turn=trace-tr7');
     await waitFor(() => expect(screen.getByRole('option', { selected: true }).getAttribute('data-turn')).toBe('tr7'));
-    expect(await within(screen.getByRole('region', { name: '这一轮' })).findByRole('region', { name: '经过' })).toBeTruthy();
+    expect(await within(screen.getByRole('region', { name: '本轮详情' })).findByRole('region', { name: '执行轨迹' })).toBeTruthy();
   });
 
   it('/trace?turn=<trace_id> outside the recent list reads that turn by its trace id', async () => {
@@ -57,8 +57,8 @@ describe(' 运行记录 page', () => {
     const route = { method: 'GET' as const, path: '/trace/turns', handler: ({ query }: { query: URLSearchParams }) => ({ status: 200, body: { turns: query.get('trace_id') === old.trace_id ? [{ ...old, turn_id: 'turn-old' }] : [] } }) };
     window.agenticComplex = createFakeBridge({ surface: 'main', still: true, routes: [route] });
     mount(DiagPage, `&turn=${old.trace_id}`);
-    const detail = await screen.findByRole('region', { name: '这一轮' });
-    expect(await within(detail).findByRole('region', { name: '经过' })).toBeTruthy();
+    const detail = await screen.findByRole('region', { name: '本轮详情' });
+    expect(await within(detail).findByRole('region', { name: '执行轨迹' })).toBeTruthy();
     expect(detail.textContent).toContain(`trace ${old.trace_id.slice(0, 8)}`);
   });
 
@@ -83,10 +83,10 @@ describe(' 运行记录 page', () => {
     // The tabs go through the app's navigation; open 对话轮次 by its URL instead.
     cleanup();
     const turns = mount(DiagPage, '&tab=turns');
-    await screen.findByRole('region', { name: '经过' });
-    fireEvent.click(screen.getByRole('button', { name: '看日志' }));
+    await screen.findByRole('region', { name: '执行轨迹' });
+    fireEvent.click(screen.getByRole('button', { name: '查看日志' }));
     await waitFor(() => expect(turns.state.location.search).toMatchObject({ tab: 'logs' }));
-    expect(await screen.findByRole('button', { name: /^只看第 \d+ 轮前后/ })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: /^仅显示第 \d+ 轮前后/ })).toBeTruthy();
   });
 
   it('/trace?tab=logs&src=agentd shows only 后台服务 lines', async () => {

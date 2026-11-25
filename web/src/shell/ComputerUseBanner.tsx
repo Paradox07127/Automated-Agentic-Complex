@@ -30,7 +30,7 @@ export function ComputerUseBanner({ demo }: { demo?: ComputerUseState }) {
   }, []);
   if (!state?.active) return null;
   const granted = state.granted.map((s) => SCOPE[s]).join('、');
-  const stop = () => void getBridge().computerUse.stop().catch(() => toast('没有停下：桌面端没有回应', { severity: 'danger' }));
+  const stop = () => void getBridge().computerUse.stop().catch(() => toast('未能停止：应用无响应', { severity: 'danger' }));
   return (
     <Banner
       severity="warning"

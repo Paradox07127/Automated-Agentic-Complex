@@ -91,11 +91,11 @@ describe('onboarding page', () => {
     expect(screen.getByRole('tablist', { name: '首次设置的步骤' })).toBeTruthy();
     expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['角色', '对话', '声音', '完成']);
     await toStep(2);
-    await within(guide()).findByText(/^已连上 │ 回复/);
+    await within(guide()).findByText(/^已连接 │ 耗时/);
     await toStep(4);
     expect(guide().getAttribute('aria-label')).toBe('首次设置 │ 完成');
-    expect(guide().textContent).toContain('示例乙 已在桌面就位');
-    press('聊几句');
+    expect(guide().textContent).toContain('示例乙 已就绪');
+    press('开始对话');
     await waitFor(() => expect(calls).toContain('complete {"destination":"talk"}'));
     expect(calls.filter((c) => c.startsWith('advance'))).toEqual(['advance', 'advance', 'advance']);
   });
@@ -114,11 +114,11 @@ describe('onboarding page', () => {
     mount();
     await roster();
     await toStep(2);
-    await within(guide()).findByText('没连上：模型没有回复');
+    await within(guide()).findByText('连接失败：模型未响应');
     const next = bar().getByRole('button', { name: '下一步' });
     expect(next).toHaveProperty('disabled', true);
-    expect(next.getAttribute('title')).toBe('先连上账号并测试通过，或点「稍后再连」');
-    press('稍后再连');
+    expect(next.getAttribute('title')).toBe('请先完成账号连接测试，或点击「稍后配置」');
+    press('稍后配置');
     await waitFor(() => expect(step()).toBe('3'));
     expect(calls).toContain('advance {"skip":true}');
     expect(screen.getAllByRole('tab')[1]?.querySelector('[data-step]')?.getAttribute('data-step')).toBe('skip');
@@ -129,7 +129,7 @@ describe('onboarding page', () => {
     mount();
     await roster();
     await toStep(2);
-    const sw = await screen.findByRole('switch', { name: 'AI 对话' });
+    const sw = await screen.findByRole('switch', { name: '轻量 AI（对话、语音、记忆）' });
     await waitFor(() => expect(sw.getAttribute('aria-disabled')).toBeNull());
     fireEvent.click(sw);
     await waitFor(() => expect(saves).toEqual([{ 'plugins.light_ai': false }]));
@@ -157,7 +157,7 @@ describe('onboarding page', () => {
     await toStep(3);
     const row = await screen.findByRole('group', { name: '输入监控' });
     expect(within(row).getByText('还没问过')).toBeTruthy();
-    fireEvent.click(within(row).getByRole('button', { name: '允许' }));
+    fireEvent.click(within(row).getByRole('button', { name: '授权' }));
     await waitFor(() => expect(asked).toContain('request'));
     const before = asked.filter((k) => k === 'status').length;
     act(() => void window.dispatchEvent(new Event('focus')));
@@ -208,8 +208,8 @@ describe('onboarding page', () => {
     await roster();
     await toStep(2);
     const key = () => document.querySelector('[data-row="apikey"]') as HTMLElement;
-    await waitFor(() => expect(within(key()).getByRole('button', { name: '替换' })).toBeTruthy());
-    fireEvent.click(within(key()).getByRole('button', { name: '替换' }));
+    await waitFor(() => expect(within(key()).getByRole('button', { name: '更换' })).toBeTruthy());
+    fireEvent.click(within(key()).getByRole('button', { name: '更换' }));
     fireEvent.change(within(key()).getByLabelText('API Key', { selector: 'input' }), { target: { value: 'sk-ant-0123456789' } });
     fireEvent.click(screen.getByRole('button', { name: '模型提供方' }));
     fireEvent.click(within(screen.getByRole('listbox', { name: '模型提供方' })).getByRole('option', { name: 'OpenAI API' }));
@@ -237,7 +237,7 @@ describe('onboarding page', () => {
     mount();
     await roster();
     await toStep(4);
-    press('聊几句');
+    press('开始对话');
     await waitFor(() => expect(bar().getByRole('alert').textContent).toBe('配置没有存上'));
     expect(step()).toBe('4');
   });
@@ -245,7 +245,7 @@ describe('onboarding page', () => {
   it('waits for the guide state on the shared indeterminate LoadBar', async () => {
     install({ state: () => new Promise<OnboardingState>(() => {}) });
     mount();
-    expect(await screen.findByText('正在读取首次设置…')).toBeTruthy();
+    expect(await screen.findByText('正在加载首次设置…')).toBeTruthy();
     const load = document.querySelector('[data-stub="LoadBar"]');
     expect(load?.hasAttribute('data-indeterminate')).toBe(true);
     expect(load?.getAttribute('aria-valuenow')).toBeNull();
@@ -260,7 +260,7 @@ describe('onboarding page', () => {
       },
     });
     mount();
-    const alert = await within(document.body).findByText('没有连上桌面端，请重试');
+    const alert = await within(document.body).findByText('未能连接应用主进程，请重试');
     fail = false;
     fireEvent.click(within(alert.closest('[role="alert"]') as HTMLElement).getByRole('button', { name: '重试' }));
     await roster();

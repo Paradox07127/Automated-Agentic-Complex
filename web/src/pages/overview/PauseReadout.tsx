@@ -19,14 +19,14 @@ export function PauseReadout({ until, kind, now, onResume }: PauseReadoutProps) 
       <span className={styles.t2}>
         {until != null ? (
           <>
-            还剩 <span className="num">{left}</span> 分 │ <span className="num">{formatClock(until)}</span> 恢复
+            剩余 <span className="num">{left}</span> 分 │ <span className="num">{formatClock(until)}</span> 恢复
           </>
         ) : (
-          '直到关闭'
+          '直至手动恢复'
         )}
       </span>
       <Btn variant="ghost" size="sm" onClick={onResume}>
-        现在恢复
+        立即恢复
       </Btn>
     </span>
   );

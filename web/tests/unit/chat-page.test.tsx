@@ -92,7 +92,7 @@ describe('chat: turn trace from /trace/turns/{id}', () => {
   it('keeps fields agentd does not send as null: cache, cost, motion length', () => {
     expect(tr.model).toEqual({ name: 'claude-sonnet-4-5', in: 4200, cache: null, out: 180, cost: null });
     expect(tr.motion).toEqual({ name: '点头附和', ms: null });
-    expect(tr.judge).toEqual([{ k: 'want_comment', l: '想搭话', p: 0.8 }]);
+    expect(tr.judge).toEqual([{ k: 'want_comment', l: '倾向发言', p: 0.8 }]);
     expect(tr.pick).toBe('want_comment');
   });
 
@@ -111,7 +111,7 @@ describe('chat: turn trace from /trace/turns/{id}', () => {
     expect(aligned.turnState).toBe('completed');
     expect(aligned.turnOutcome).toBe('needs_review');
     expect(aligned.behavior).toEqual({ name: 'point', phase: 'rejected', reason: 'actor_hidden' });
-    expect(aligned.res).toBe('回执不全');
+    expect(aligned.res).toBe('状态未知');
     expect(aligned.events.find((e) => e.name === 'playback.started')?.t).toBe(60);
     expect(aligned.spans.find((s) => s.id === 'tool')).toMatchObject({ t0: 20, dur: 25 });
   });
@@ -122,7 +122,7 @@ describe('chat: turn trace from /trace/turns/{id}', () => {
     for (const h of ['瀑布', '引用记忆', '判断', '模型']) expect(screen.getByRole('heading', { name: h })).toBeTruthy();
     expect(screen.getByText('未计价')).toBeTruthy();
     expect(screen.queryByText('缓存')).toBeNull();
-    expect(screen.getByRole('list', { name: /^判断：想搭话 0.80，选中想搭话/ })).toBeTruthy();
+    expect(screen.getByRole('list', { name: /^判断：倾向发言 0.80，选中倾向发言/ })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: '观察' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /更多/ }));
     for (const h of ['观察', '动作', '事件']) expect(screen.getByRole('heading', { name: h })).toBeTruthy();
@@ -182,7 +182,7 @@ describe('chat page', () => {
     const thread = await mount('&demo=full');
     const tag = await within(thread).findByRole('button', { name: /\+ 新增记忆 1 条/ });
     fireEvent.contextMenu(tag.closest<HTMLElement>('[data-kind="ai"]')!.querySelector('[data-first]')!.closest('div')!.querySelector('p, div')!, { clientX: 10, clientY: 10 });
-    fireEvent.click(screen.getByRole('menuitem', { name: '在诊断里看这一轮' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '在诊断中查看此轮' }));
     expect(window.location.hash).toMatch(/\/diag\?tab=turns&turn=tr7/);
   });
 

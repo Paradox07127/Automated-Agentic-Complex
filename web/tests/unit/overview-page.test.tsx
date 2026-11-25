@@ -227,7 +227,7 @@ describe(' 02 进行中', () => {
     const go = vi.fn();
     const { container } = render(<RunningSection q={READY} rows={rows} convs={5} code={0} activeRuns={{}} now={NOW} lost={false} go={go} onJumpSession={noop} />);
     expect(container.querySelectorAll('[data-run]').length).toBe(3);
-    const fold = screen.getByRole('button', { name: /另有 2 个/ });
+    const fold = screen.getByRole('button', { name: /另有 2 项/ });
     expect(fold.getAttribute('aria-expanded')).toBe('false');
     expect(fold.textContent).toContain('闲聊 4 │ 闲聊 5');
     fireEvent.click(fold);
@@ -240,7 +240,7 @@ describe(' 02 进行中', () => {
     expect(r.rows.length).toBeGreaterThan(3);
     expect(r.rows.slice(3).some((x) => x.k === 'code' && x.session.state.startsWith('awaiting'))).toBe(true);
     const { container } = render(<RunningSection q={READY} rows={r.rows} convs={r.convs} code={r.code} activeRuns={snap.active_runs} now={NOW} lost={false} go={noop} onJumpSession={noop} />);
-    expect(screen.getByRole('button', { name: new RegExp(`另有 ${r.rows.length - 3} 个`) }).getAttribute('aria-expanded')).toBe('false');
+    expect(screen.getByRole('button', { name: new RegExp(`另有 ${r.rows.length - 3} 项`) }).getAttribute('aria-expanded')).toBe('false');
     expect(container.querySelectorAll('[data-run]').length).toBe(3);
   });
 
@@ -266,10 +266,10 @@ describe('今天 console: the 进行中 frames', () => {
 });
 
 describe(' 02 进行中 durations', () => {
-  it('a row that started this second reads 刚开始, not 0 秒', () => {
+  it('a row that started this second reads 刚刚开始, not 0 秒', () => {
     const own = snap.sessions.find((x) => x.own)!;
     render(<RunningSection q={READY} rows={[{ k: 'code', id: own.id, session: own, started: NOW }]} convs={0} code={1} activeRuns={{}} now={NOW} lost={false} go={noop} onJumpSession={noop} />);
-    expect(screen.getByText('刚开始')).toBeTruthy();
+    expect(screen.getByText('刚刚开始')).toBeTruthy();
     expect(screen.queryByText('0 秒')).toBeNull();
   });
 });

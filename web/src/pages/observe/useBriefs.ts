@@ -13,12 +13,12 @@ export type BriefStatus = Partial<Brief> & { id: string; state: string };
 const LIST = ['observe', 'briefs'] as const;
 
 const REASON: Readonly<Record<string, string>> = {
-  brief_busy: '已有一份简报正在生成，稍后再试',
-  brief_disabled: '简报没有开启，或观察已关闭、暂停',
-  brief_period_incomplete: '这段时间还没过完',
-  brief_period_expired: '这段时间的观察记录已经清理',
-  brief_not_found: '这份简报已经不在了',
-  observation_briefs_unavailable: '后台的简报模块没有运行',
+  brief_busy: '已有简报正在生成，请稍后再试',
+  brief_disabled: '简报未开启，或观察功能已关闭/暂停',
+  brief_period_incomplete: '当前统计周期尚未结束',
+  brief_period_expired: '该时段的观察记录已清理',
+  brief_not_found: '该简报已不存在',
+  observation_briefs_unavailable: '后台简报模块未运行',
 };
 
 export const briefError = (e: unknown): string => (e instanceof AgentdCallError && REASON[e.code]) || errorText(e);

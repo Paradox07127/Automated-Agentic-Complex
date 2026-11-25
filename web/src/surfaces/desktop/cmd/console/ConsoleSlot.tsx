@@ -94,7 +94,7 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
       <header className={styles.head}>
         <span className={styles.slash} aria-hidden="true" />
         <span className={styles.ttl}>
-          <MicroLabel>Menu Bar</MicroLabel>
+          <MicroLabel>{getBridge().platform === 'windows' ? 'System Tray' : 'Menu Bar'}</MicroLabel>
           <b>Agentic Complex</b>
         </span>
         <TopIcon box={{ width: 44, height: 44 }} icon="settings" label="设置" named onClick={() => go({ page: 'settings' })} />
@@ -110,7 +110,7 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
         )}
         {configError != null ? (
           <div data-fix="配置" role="group" aria-label="配置出错">
-          <ErrBar message="配置读不了" detail={configError}
+          <ErrBar message="配置读取失败" detail={configError}
             actions={
               <>
                 <WhiteCapsule label="打开设置" icon="settings" tone="accent" size="sm" onClick={() => go({ page: 'settings' })} />
@@ -121,14 +121,14 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
         ) : (
           <>
             {offline && starting && (
-              <div data-fix="后台" role="group" aria-label="后台出错">
-              <ErrBar tone="warning" message="后台正在启动，好了会自动接上" detail={backoff != null ? `${backoff} 秒后自动重试` : undefined} />
+              <div data-fix="后台" role="group" aria-label="后台服务状态">
+              <ErrBar tone="warning" message="后台服务正在启动，就绪后将自动连接" detail={backoff != null ? `${backoff} 秒后自动重试` : undefined} />
               </div>
             )}
             {offline && !starting ? (
-              <div data-fix="后台" role="group" aria-label="后台出错">
-                <PowerState hud state="unlinked" mode="block" title="后台没有响应" reason="角色听不到你，也不会回消息"
-                  action={{ label: '重启后台', onClick: () => void restart() }}>
+              <div data-fix="后台" role="group" aria-label="后台服务无响应">
+                <PowerState hud state="unlinked" mode="block" title="后台服务无响应" reason="角色当前无法接收或回复消息"
+                  action={{ label: '重启后台服务', onClick: () => void restart() }}>
                   {card}
                 </PowerState>
               </div>

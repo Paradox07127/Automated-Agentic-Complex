@@ -1,3 +1,4 @@
+import { getBridge } from '../../../bridge';
 import { hotkeyText } from '../../../bridge/platformText';
 import { Btn } from '../../../ui';
 import type { CharTab } from '../../character/sections';
@@ -10,10 +11,10 @@ import { SetSection } from '../SetSection';
 
 /** 角色 › 设定's display sections: each opens that tab at the section's first row. */
 const GO_ROWS: Array<{ id: string; title: string; desc: string; tab: CharTab; row: string }> = [
-  { id: 'disp_render', title: '画面', desc: '主光方向和强度、角色边界、脚下阴影、景深、环境光', tab: 'render', row: 'rnd.lightYaw' },
-  { id: 'disp_camera', title: '镜头', desc: '原作镜头预设、朝向、缩放、呼吸晃动、对话近景', tab: 'render', row: 'rnd.cam' },
-  { id: 'disp_perf', title: '性能', desc: '帧率上限，空闲时和用电池时自动降帧', tab: 'render', row: 'rnd.fps' },
-  { id: 'disp_scene', title: '场景', desc: '角色身后的舞台盒或展示台，背景视差', tab: 'scene', row: 'scn.mode' },
+  { id: 'disp_render', title: '画面', desc: '主光源角度与强度、角色描边、地面阴影、景深、环境光照', tab: 'render', row: 'rnd.lightYaw' },
+  { id: 'disp_camera', title: '镜头', desc: '镜头预设、旋转角度、缩放比例、呼吸微动、自动近景', tab: 'render', row: 'rnd.cam' },
+  { id: 'disp_perf', title: '性能', desc: '帧率上限、空闲降帧与电池供电降帧策略', tab: 'render', row: 'rnd.fps' },
+  { id: 'disp_scene', title: '场景', desc: '角色背景的舞台盒与展示台模式、背景视差', tab: 'scene', row: 'scn.mode' },
 ];
 
 /** 显示: how the app's own windows look (外观), where the character's picture is tuned (角色 › 设定, one go key per section),
@@ -21,19 +22,26 @@ const GO_ROWS: Array<{ id: string; title: string; desc: string; tab: CharTab; ro
 export function DisplayGroup() {
   const { goPage, model, native } = useSettings();
   const c = useControls();
+  const windows = getBridge().platform === 'windows';
   // The shell's reason when this system draws no window glass: the row then offers 不透明 only.
   const noGlass = native?.statuses.winBg;
   const opaque = optionsOf(native?.rows.winBg).filter((o) => o.value === 'opaque');
   const glass = model.value('winBg') === 'glass';
+  const hkHide = String(model.value('hk_hide') ?? native?.rows.hk_hide?.default ?? '');
+  const capHideDesc = windows
+    ? '启用渲染器屏幕采集保护（本机仍可见，截屏与屏幕共享中隐藏）；修改后需重启角色渲染进程生效'
+    : `检测到屏幕录制或共享时自动隐藏一次${hkHide ? `，按 ${hotkeyText(hkHide)} 重新显示` : ''}`;
   return (
     <>
       <SetSection title="外观">
-        <SetRow id="appTheme" title={labelOf('appTheme')} desc="跟随系统时随系统的浅色、深色一起换" info="主窗口、桌面上的气泡和面板、菜单和系统对话框一起换。" control={c.seg('appTheme')} />
+        <SetRow id="appTheme" title={labelOf('appTheme')} desc="选择「跟随系统」时将自动匹配系统浅色/深色模式" info="统一作用于主窗口、桌面气泡与面板、菜单及系统对话框。" control={c.seg('appTheme')} />
         <SetRow
           id="winBg"
           title={labelOf('winBg')}
-          desc={noGlass ?? '磨砂时透出窗口后面的桌面，不透明是实色底'}
-          info="系统开着「降低透明度」时按不透明显示。对话框、菜单和卡片始终是实色底，上面的文字不受影响。"
+          desc={noGlass ?? '磨砂模式可透出窗口下方桌面背景，不透明模式使用纯色背景'}
+          info={windows
+            ? '系统关闭「透明效果」或开启「高对比度」时将按不透明显示。对话框、菜单与卡片始终为实色底，不影响文字可读性。'
+            : '系统开启「降低透明度」时将按不透明显示。对话框、菜单与卡片始终为实色底，不影响文字可读性。'}
           disabled={noGlass != null}
           disabledReason={noGlass}
           control={c.seg('winBg', noGlass != null ? opaque : undefined, noGlass != null)}
@@ -41,17 +49,25 @@ export function DisplayGroup() {
         <SetRow
           id="glassAlpha"
           title={labelOf('glassAlpha')}
-          desc="越重，底色盖住的越多，文字越清楚"
-          info="轻、中、重分别让主窗口的底色盖住磨砂的 35 %、55 %、75 %；面板和卡片的底不变。"
+          desc="强度越高，底色遮盖程度越高，文字对比度越清晰"
+          info="轻度、适中、较强分别对应 35 %、55 %、75 % 的窗口底色遮盖强度；面板与卡片背景不受此项影响。"
           disabled={!glass}
-          disabledReason="窗口背景是不透明时不起作用"
+          disabledReason="窗口背景为不透明模式时不生效"
           control={c.seg('glassAlpha', undefined, !glass)}
         />
-        <SetRow id="reduceMotion" title={labelOf('reduceMotion')} desc="开着时切页、展开和按键反馈都不做动画" info="跟随系统时看系统的「减弱动态效果」；开着时不管系统怎么设都不做动画。只管主窗口。" control={c.seg('reduceMotion')} />
-        <SetRow id="uiZoom" title={labelOf('uiZoom')} desc="主窗口里的文字和控件一起放大或缩小" info="只改主窗口；桌面上的角色、气泡和面板保持原来的大小。" control={c.seg('uiZoom')} />
+        <SetRow
+          id="reduceMotion"
+          title={labelOf('reduceMotion')}
+          desc="开启后将关闭切页、展开及按键反馈等过渡动画"
+          info={windows
+            ? '「跟随系统」将读取系统的「动画效果」设置；选择「开启」时将强制停用动效。此设置仅作用于主窗口。'
+            : '「跟随系统」将读取系统的「减弱动态效果」设置；选择「开启」时将强制停用动效。此设置仅作用于主窗口。'}
+          control={c.seg('reduceMotion')}
+        />
+        <SetRow id="uiZoom" title={labelOf('uiZoom')} desc="等比例缩放主窗口内的文字与控件尺寸" info="仅作用于主窗口；桌面上的角色、气泡与浮窗保持原有尺寸。" control={c.seg('uiZoom')} />
       </SetSection>
 
-      <SetSection title="角色设定">
+      <SetSection title="角色画面与性能">
         {GO_ROWS.map((s) => (
           <SetRow
             key={s.id}
@@ -67,9 +83,9 @@ export function DisplayGroup() {
         ))}
       </SetSection>
 
-      <SetSection title="桌面上">
-        <SetRow id="capHide" title={labelOf('capHide')} desc={hotkeyText('开始录屏或共享屏幕时隐藏一次，按 ⌃⌥H 显示')} control={c.toggle('capHide', labelOf('capHide'))} />
-        <SetRow id="switchTitle" title={labelOf('switchTitle')} desc="切换后在角色所在屏幕正中显示新角色的名字" control={c.toggle('switchTitle')} />
+      <SetSection title="桌面显示">
+        <SetRow id="capHide" title={labelOf('capHide')} desc={capHideDesc} control={c.toggle('capHide', labelOf('capHide'))} />
+        <SetRow id="switchTitle" title={labelOf('switchTitle')} desc="切换角色时在所在屏幕中央短暂展示角色名称标题" control={c.toggle('switchTitle')} />
       </SetSection>
     </>
   );

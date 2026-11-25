@@ -180,7 +180,7 @@ describe('stateVisual', () => {
   it('keeps the intuitive colour meanings and shapes', () => {
     expect(stateVisual('succeeded')).toMatchObject({ tone: 'ok', shape: 'check', token: '--ef-state-ok' });
     expect(stateVisual('failed')).toMatchObject({ tone: 'failed', shape: 'square', token: '--ef-state-failed' });
-    expect(stateVisual('blocked')).toMatchObject({ tone: 'warning', shape: 'triangle', label: '堵住' });
+    expect(stateVisual('blocked')).toMatchObject({ tone: 'warning', shape: 'triangle', label: '已阻塞' });
     expect(stateVisual('paused')).toMatchObject({ tone: 'cancelled', shape: 'hollow-square', label: '已暂停' });
     expect(stateVisual('awaiting_approval')).toMatchObject({ tone: 'waiting', shape: 'diamond', label: '待批准' });
     expect(stateVisual('running_tool')).toMatchObject({ tone: 'running', shape: 'ring', token: '--ef-state-running' });

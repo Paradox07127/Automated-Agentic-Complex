@@ -43,7 +43,7 @@ export function Processes({ rows, error, onRetry, samples, now, metric, onMetric
         title="进程"
         count={rows?.length}
         micro="PROCESS MONITOR"
-        info="CPU 是单核占比，可以超过 100%。曲线是近 30 分钟的读数，外壳每 10 秒记一次，本页打开后每次刷新再加一点。"
+        info="CPU 为单核占比，可超过 100%。曲线记录近 30 分钟读数，应用每 10 秒采样一次，页面打开后随刷新追加。"
         right={
           <>
             {rows && (
@@ -67,7 +67,7 @@ export function Processes({ rows, error, onRetry, samples, now, metric, onMetric
       {error && !rows ? (
         <Empty
           size="compact"
-          title="读不到进程状态"
+          title="无法读取进程状态"
           desc={error}
           action={
             <Btn size="sm" variant="secondary" icon="refresh" onClick={onRetry}>

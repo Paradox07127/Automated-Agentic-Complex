@@ -19,7 +19,7 @@ export function useMessageMenu(text: string, ids: { line?: string | undefined; t
     { kind: 'item', label: '复制', onSelect: () => void getBridge().clipboard.writeText(text) },
     ...(p.onQuote ? [{ kind: 'item' as const, label: '引用回复', onSelect: () => p.onQuote?.(text) }] : []),
     ...(p.onReplay && line ? [{ kind: 'item' as const, label: '在桌面上重放表情', onSelect: () => p.onReplay?.(line) }] : []),
-    ...(p.onOpenTrace && turn ? [{ kind: 'sep' as const }, { kind: 'item' as const, label: '在诊断里看这一轮', onSelect: () => p.onOpenTrace?.(turn) }] : []),
+    ...(p.onOpenTrace && turn ? [{ kind: 'sep' as const }, { kind: 'item' as const, label: '在诊断中查看此轮', onSelect: () => p.onOpenTrace?.(turn) }] : []),
   ];
   const onContextMenu = (e: MouseEvent) => {
     e.preventDefault();
@@ -31,5 +31,5 @@ export function useMessageMenu(text: string, ids: { line?: string | undefined; t
     const box = e.currentTarget.getBoundingClientRect();
     setAt({ x: box.left, y: box.bottom });
   };
-  return { onContextMenu, onKeyDown, menu: <ContextMenu label="这条消息" items={items} at={at} onClose={() => setAt(null)} /> };
+  return { onContextMenu, onKeyDown, menu: <ContextMenu label="消息操作" items={items} at={at} onClose={() => setAt(null)} /> };
 }

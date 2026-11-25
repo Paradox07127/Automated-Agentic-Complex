@@ -21,18 +21,18 @@ const VOICE: Readonly<Record<string, string>> = {
 
 /** spatial.py TICK_TYPES, the body behaviors /diag/state behavior.running lists. */
 const SPATIAL: Readonly<Record<string, string>> = {
-  idle: '待着',
-  observe: '张望',
-  short_walk: '走动',
-  sit: '坐着',
-  hold_window_edge: '扒着窗口边',
-  climb_window_top: '爬上窗口顶',
+  idle: '静止待机',
+  observe: '观察周围',
+  short_walk: '短距移动',
+  sit: '坐姿',
+  hold_window_edge: '倚靠窗口边缘',
+  climb_window_top: '停靠窗口顶部',
 };
 
 /** behavior.py CATEGORY_NAMES; proactive.focus.category is the wire identifier. */
 const CATEGORY: Readonly<Record<string, string>> = {
-  coding: '写代码', terminal: '终端', browsing: '浏览网页', assistant: '用 AI 助手', files: '整理文件',
-  reading: '看文档', writing: '写东西', media: '听音乐或看视频', meeting: '开会', game: '玩游戏',
+  coding: '编程', terminal: '终端', browsing: '浏览网页', assistant: '使用 AI 助手', files: '文件管理',
+  reading: '阅读文档', writing: '文本编辑', media: '影音播放', meeting: '会议', game: '游戏',
   other: '其他', canvas: '使用画布', remote_desktop: '使用远程桌面',
 };
 
@@ -60,13 +60,13 @@ export function NowPanel({ d }: NowPanelProps) {
       <KV
         items={[
           {
-            key: '嘴和声音',
-            value: `${mv.mouth === 'busy' ? '在说' : '闲着'} │ ${mv.voice ? (VOICE[mv.voice] ?? mv.voice) : '没有语音'}${mv.muted ? ' │ 已静音' : ''}${mv.avatar_visible ? '' : ' │ 角色隐藏'}`,
+            key: '语音与输出',
+            value: `${mv.mouth === 'busy' ? '输出中' : '空闲'} │ ${mv.voice ? (VOICE[mv.voice] ?? mv.voice) : '未配置语音'}${mv.muted ? ' │ 已静音' : ''}${mv.avatar_visible ? '' : ' │ 角色已隐藏'}`,
           },
           ...(mv.speech_failed
             ? [
                 {
-                  key: '上次没说出口',
+                  key: '上次输出失败',
                   value: (
                     <>
                       {speechFailed(mv.speech_failed)}{' '}
@@ -78,23 +78,23 @@ export function NowPanel({ d }: NowPanelProps) {
                 },
               ]
             : []),
-          { key: '身体', value: [d.body.activity && (BEHAVIOR[d.body.activity] ?? '其他动作'), mood, running && `在做 ${running}`].filter(Boolean).join(' │ ') || null },
+          { key: '状态与动作', value: [d.body.activity && (BEHAVIOR[d.body.activity] ?? '其他动作'), mood, running && `执行中：${running}`].filter(Boolean).join(' │ ') || null },
           {
             key: '主动判断',
             value: [
-              p.focus ? `关注 ${CATEGORY[p.focus.category] ?? '其他'}` : '没有关注',
+              p.focus ? `当前焦点：${CATEGORY[p.focus.category] ?? '其他'}` : '无当前焦点',
               next != null ? `下次 ${formatClock(next, { seconds: true })}` : null,
               p.last_judge ? `上次 ${JUDGE_BACKEND[p.last_judge.backend] ?? '其他后端'}` : null,
-              p.misses ? `落空 ${p.misses} 次` : null,
+              p.misses ? `未命中 ${p.misses} 次` : null,
             ]
               .filter(Boolean)
               .join(' │ '),
           },
           {
             key: '会话',
-            value: sessions.length ? `${sessions.length} 个${stale ? ` │ 过期 ${stale}` : ''}` : '没有',
+            value: sessions.length ? `${sessions.length} 个${stale ? ` │ 已过期 ${stale}` : ''}` : '无',
           },
-          { key: '仪式', value: `待说 ${d.rituals.pending.length} │ 今天说过 ${d.rituals.today.length}` },
+          { key: '仪式', value: `待触发 ${d.rituals.pending.length} │ 今日已触发 ${d.rituals.today.length}` },
         ]}
       />
     </div>

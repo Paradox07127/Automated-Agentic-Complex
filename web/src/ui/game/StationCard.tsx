@@ -80,8 +80,8 @@ export function StationCard({ no, micro, icon, name, value, unit, note, sub, sta
 const noop = () => undefined;
 
 export const StationCardDemos: Array<{ name: string; props: StationCardProps }> = [
-  { name: 'running', props: { no: '01', micro: 'OBSERVE', icon: 'look', name: '观察', value: '12', unit: '/40', sub: '今天截图 │ 最近 6 次', state: 'running', stateLabel: '在跑', why: '等 2 个请求', onSelect: noop } },
-  { name: 'selected', props: { no: '02', micro: 'INTERPRET', icon: 'kernel', name: '理解', value: '18', note: '今天理解', sub: '角色认为你在 写代码', state: 'idle', why: '上次 14:02', selected: true, onSelect: noop } },
-  { name: 'failed', props: { no: '03', micro: 'CONSOLIDATE', icon: 'data', name: '整理', value: '4', note: '今天整理批次', sub: '写入 7 条', state: 'failed', stateLabel: '出错了', why: '整理失败', onSelect: noop } },
-  { name: 'waiting', props: { no: '04', micro: 'MEMORY', icon: 'hub', name: '记忆库', value: '326', note: '已记住', sub: '今天 +5', state: 'waiting', stateLabel: '待确认', why: '3 条', onSelect: noop } },
+  { name: 'running', props: { no: '01', micro: 'OBSERVE', icon: 'look', name: '观察', value: '12', unit: '/40', sub: '今日截图 │ 最近 6 次', state: 'running', stateLabel: '运行中', why: '排队 2 个请求', onSelect: noop } },
+  { name: 'selected', props: { no: '02', micro: 'INTERPRET', icon: 'kernel', name: '理解', value: '18', note: '今日理解', sub: '推断当前活动：编程', state: 'idle', why: '上次 14:02', selected: true, onSelect: noop } },
+  { name: 'failed', props: { no: '03', micro: 'CONSOLIDATE', icon: 'data', name: '整理', value: '4', note: '今日整理批次', sub: '写入 7 条', state: 'failed', stateLabel: '出错', why: '整理失败', onSelect: noop } },
+  { name: 'waiting', props: { no: '04', micro: 'MEMORY', icon: 'hub', name: '记忆库', value: '326', note: '已存储', sub: '今日 +5', state: 'waiting', stateLabel: '待确认', why: '3 条', onSelect: noop } },
 ];

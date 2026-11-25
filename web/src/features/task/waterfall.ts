@@ -78,7 +78,7 @@ export function buildLanes(steps: readonly StepEvent[], tools: readonly ToolItem
   const marks: RunLanes['marks'] = [];
   for (const d of deliveries) {
     if (d.produced_at >= t0 && d.produced_at <= t1 && d.version > 1) marks.push({ atMs: d.produced_at - t0, label: `交付 v${d.version}` });
-    if (d.state === 'rejected' && d.decided_at != null && d.decided_at >= t0 && d.decided_at <= t1) marks.push({ atMs: d.decided_at - t0, label: `v${d.version} 已退回` });
+    if (d.state === 'rejected' && d.decided_at != null && d.decided_at >= t0 && d.decided_at <= t1) marks.push({ atMs: d.decided_at - t0, label: `v${d.version} 已驳回` });
   }
   const lastGen = generations.at(-1);
   const terminal = lastGen?.outcome === 'running' ? null : (lastGen?.outcome ?? null);

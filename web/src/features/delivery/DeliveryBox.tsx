@@ -27,7 +27,7 @@ export interface DeliveryBoxProps {
 /** Header tag: undecided versions all read "已送达 · 待决定" so it never contradicts "产物 0/2 打开过". */
 function stateText(d: Delivery): string {
   if (d.state === 'accepted') return '已接受';
-  if (d.state === 'rejected') return '已退回';
+  if (d.state === 'rejected') return '已驳回';
   return d.state === 'produced' ? '已产出 │ 待决定' : '已送达 │ 待决定';
 }
 

@@ -369,55 +369,55 @@ export const DRIVER = 'endfield-native-ax-v1';
 /** `control.act`'s params for a checked `desktop_act`; throws the code a refusal before acting gives. */
 export function actParams(snapshotId: string, params: Record<string, unknown>, frame: Rect, elementKnown: boolean): Record<string, unknown> {
   const action = params.action;
-  if (typeof action !== 'string') throw new ControlError('invalid_action', '缺少动作类型');
+  if (typeof action !== 'string') throw new ControlError('invalid_action', '缺少操作类型');
   const element = typeof params.element_id === 'string' && elementKnown ? params.element_id : null;
   switch (action) {
     case 'press':
-      if (element === null) throw new ControlError('element_required', 'AXPress需要观察中的element_id');
+      if (element === null) throw new ControlError('element_required', '点击控件需要先通过页面观察获取目标控件标识');
       return { snapshot_id: snapshotId, action, element_id: element };
     case 'set_value': case 'type': {
       const text = params.text;
       if (element === null || typeof text !== 'string' || new TextEncoder().encode(text).length > TEXT_BYTES) {
-        throw new ControlError('invalid_text', '需要element_id及最多4096字节文字');
+        throw new ControlError('invalid_text', '需要目标控件标识及不超过 4096 字节的文本');
       }
       return { snapshot_id: snapshotId, action, element_id: element, text };
     }
     case 'click': case 'scroll': {
       const x = coordinate(params.x), y = coordinate(params.y);
       if (x === null || y === null || x < 0 || y < 0 || x >= frame.width || y >= frame.height) {
-        throw new ControlError('invalid_point', '坐标必须在授权窗口内');
+        throw new ControlError('invalid_point', '坐标必须位于已授权窗口范围内');
       }
       return action === 'click' ? { snapshot_id: snapshotId, action, x, y }
         : { snapshot_id: snapshotId, action, x, y, delta_y: scrollDelta(params.delta_y) };
     }
     default:
-      throw new ControlError('unsupported', '只支持press/set_value/type/click/scroll');
+      throw new ControlError('unsupported', '当前操作类型不受支持');
   }
 }
 
 /** The helper's error codes (CONTRACT §7.8) as agentd's; anything else is its catch-all `native_error`. */
 const HELPER_CODES: Record<string, [string, string]> = {
-  permission_denied: ['ax_permission_required', 'macOS辅助功能权限未授予'],
-  window_gone: ['target_changed', '目标进程、窗口或几何已改变，请重新观察并授权'],
-  target_changed: ['target_changed', '目标进程、窗口或几何已改变，请重新观察并授权'],
-  element_gone: ['element_required', '需要新观察中的element_id'],
-  element_required: ['element_required', '需要新观察中的element_id'],
-  stale_snapshot: ['stale_snapshot', '请先取得新的desktop_observe结果'],
-  secure_element: ['secure_element', '不操作密码控件'],
-  secure_input: ['secure_input', '安全输入已开启，暂停电脑操作'],
-  action_refused: ['action_refused', '控件未接受动作；请观察结果，不要盲目重放'],
-  unsupported_action: ['unsupported', '这台电脑不支持这个动作（Windows 不支持 click/scroll，用 press/set_value/type）'],
-  invalid_text: ['invalid_text', '需要element_id及最多4096字节文字'],
-  invalid_point: ['invalid_point', '坐标必须在授权窗口内'],
-  invalid_scroll: ['invalid_scroll', 'delta_y必须是有限整数'],
-  foreground_required: ['foreground_required', '坐标操作只用于已经在前台的授权窗口；不会抢焦点'],
-  occluded_target: ['occluded_target', '点击位置被其它窗口遮住或不能验证'],
-  too_large: ['image_too_large', '截图超过本次工具预算'],
+  permission_denied: ['ax_permission_required', '辅助功能权限未授予'],
+  window_gone: ['target_changed', '目标进程、窗口或几何位置已改变，请重新观察并授权'],
+  target_changed: ['target_changed', '目标进程、窗口或几何位置已改变，请重新观察并授权'],
+  element_gone: ['element_required', '需要重新观察后获取目标控件标识'],
+  element_required: ['element_required', '需要重新观察后获取目标控件标识'],
+  stale_snapshot: ['stale_snapshot', '窗口状态已过期，请先重新执行页面观察'],
+  secure_element: ['secure_element', '出于安全策略，不操作密码输入框'],
+  secure_input: ['secure_input', '当前处于安全输入状态，已暂停电脑操作'],
+  action_refused: ['action_refused', '控件未响应此操作，请重新观察结果后再决定下一步'],
+  unsupported_action: ['unsupported', '当前平台不支持该操作类型'],
+  invalid_text: ['invalid_text', '需要目标控件标识及不超过 4096 字节的文本'],
+  invalid_point: ['invalid_point', '坐标必须位于已授权窗口范围内'],
+  invalid_scroll: ['invalid_scroll', '滚动偏移量须为有效整数'],
+  foreground_required: ['foreground_required', '坐标操作仅适用于位于前台的已授权窗口，系统不会主动切换焦点'],
+  occluded_target: ['occluded_target', '目标位置被其他窗口遮挡或无法验证'],
+  too_large: ['image_too_large', '截图尺寸超出单次工具限制'],
 };
 
 export function helperFailure(code: string): ControlError {
   const known = HELPER_CODES[code];
-  return known ? new ControlError(known[0], known[1]) : new ControlError('native_error', '桌面工具未能完成');
+  return known ? new ControlError(known[0], known[1]) : new ControlError('native_error', '桌面控制组件执行失败');
 }
 
 export function targetJSON(t: ControlTarget): Record<string, unknown> {
@@ -462,7 +462,7 @@ export function chooseApp(apps: readonly RunningApp[], pid: number | null, bundl
 
 /** The refusals of an app: browsers, then the blacklist by app. */
 export function appRefusal(app: RunningApp, rules: BlacklistRules, ownPids: readonly number[]): ControlError | null {
-  if (isBrowser(app.appId)) return new ControlError('browser_driver_required', '此原生桥暂不读取或操作浏览器；请使用按标签页授权的结构化浏览器工具');
+  if (isBrowser(app.appId)) return new ControlError('browser_driver_required', '桌面操作工具暂不支持直接控制浏览器，请改用浏览器页面工具');
   if (hides(rules, { app: app.name, bundleId: app.appId, pid: app.pid, windowId: null, title: null, urlHost: null }, ownPids)) {
     return new ControlError('blacklisted', '此应用已被排除');
   }

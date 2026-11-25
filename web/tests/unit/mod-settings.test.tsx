@@ -44,7 +44,7 @@ function Op({ toast = noop }: { toast?: (m: string) => void }) {
   );
 }
 
-const mods = () => screen.getByRole('group', { name: 'mod 设置' });
+const mods = () => screen.getByRole('group', { name: '模组设置' });
 /** A setting's stepper: the row (the shared SRow) is a group of the same name around it. */
 const control = (name: string, scope = mods()) => within(scope).getAllByRole('group', { name }).find((g) => g.getAttribute('data-stub') !== 'SRow')!;
 /** The value a stepper shows, or its menu's caption. */
@@ -71,7 +71,7 @@ async function wear(appearance: string) {
   render(<Op />);
   // The 模组设置 tab shows up once the table names this appearance.
   fireEvent.click(await screen.findByRole('tab', { name: '模组设置' }));
-  await screen.findByRole('group', { name: 'mod 设置' });
+  await screen.findByRole('group', { name: '模组设置' });
 }
 
 describe('角色页 · 模组设置', () => {
@@ -94,7 +94,7 @@ describe('角色页 · 模组设置', () => {
     render(<Op />);
     await waitFor(() => expect(read).toHaveBeenCalledWith('GET', '/characters/si/mod-settings', undefined));
     await Promise.all(read.mock.results.map((r) => r.value));
-    expect(screen.queryByRole('group', { name: 'mod 设置' })).toBeNull();
+    expect(screen.queryByRole('group', { name: '模组设置' })).toBeNull();
     expect(screen.queryByRole('tab', { name: '模组设置' })).toBeNull();
   });
 
@@ -105,7 +105,7 @@ describe('角色页 · 模组设置', () => {
     expect(tab.textContent).toBe('模组设置6MOD CFG');
     fireEvent.click(screen.getByRole('tab', { name: '外观' }));
     fireEvent.click(screen.getByRole('tab', { name: '模组设置' }));
-    await screen.findByRole('group', { name: 'mod 设置' });
+    await screen.findByRole('group', { name: '模组设置' });
     await Promise.all(read.mock.results.map((r) => r.value));
     expect(read.mock.calls.filter(([, path]) => path === '/characters/si/mod-settings')).toHaveLength(1);
   });
@@ -127,7 +127,7 @@ describe('角色页 · 模组设置', () => {
     render(<Op />);
     fireEvent.click(await screen.findByRole('tab', { name: '模组设置' }));
     const bar = await screen.findByRole('alert');
-    expect(bar.textContent).toContain('读取 mod 设置失败：桌面角色没有回应');
+    expect(bar.textContent).toContain('读取模组设置失败：角色渲染进程无响应');
     expect(arrow('裙长', '下一个').disabled).toBe(true);
     fireEvent.click(arrow('裙长', '下一个'));
     expect(set).not.toHaveBeenCalled();
@@ -181,7 +181,7 @@ describe('角色页 · 模组设置', () => {
     vi.spyOn(bridge.avatar.modSettings, 'set').mockRejectedValueOnce({ code: 'failed', detail: 'invalid' });
     await wear('imported_summer');
     fireEvent.click(arrow('配色', '下一个'));
-    expect(await screen.findByRole('alert')).toHaveProperty('textContent', '「配色」没有改成：角色没有接受，已改回「原色」');
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', '「配色」未能更改：角色渲染进程拒绝了该设置，已还原为「原色」');
     expect(shown('配色')).toBe('原色');
   });
 
@@ -189,7 +189,7 @@ describe('角色页 · 模组设置', () => {
     vi.spyOn(bridge.avatar.modSettings, 'set').mockResolvedValueOnce({ values: { skirt: 0, color: 2 }, adjusted: [{ id: 'skirt', reason: 'defaulted' }] });
     await wear('imported_summer');
     fireEvent.click(arrow('裙长', '下一个'));
-    expect(await screen.findByText('角色包里没有这个值，按默认值画')).toBeTruthy();
+    expect(await screen.findByText('当前角色包未包含该配置值，已按默认值渲染')).toBeTruthy();
     expect(shown('裙长')).toBe('长');
     expect(shown('配色')).toBe('白');
   });
@@ -255,7 +255,7 @@ describe('角色页 · 模组设置分组', () => {
     await bridge.avatar.setAppearance('imported_field');
     render(<Op toast={toast} />);
     fireEvent.click(await screen.findByRole('tab', { name: '模组设置' }));
-    await screen.findByRole('group', { name: 'mod 设置' });
+    await screen.findByRole('group', { name: '模组设置' });
     const reset = (group: string) => within(within(mods()).getByRole('group', { name: group })).getByRole('button', { name: '恢复默认' }) as HTMLButtonElement;
     expect(reset('发型').disabled).toBe(true);
     expect(reset('发型').title).toBe('已是默认');
@@ -286,7 +286,7 @@ describe('角色页 · 模组设置的外观卡', () => {
     await wear('imported_summer');
     expect(within(card()).getByRole('heading').textContent).toBe('夏装');
     expect(card().textContent).toContain('imported_summer');
-    expect(sync()).toBe('预览与桌面一致');
+    expect(sync()).toBe('设置与实时显示一致');
     fireEvent.click(arrow('裙长', '下一个'));
     expect(sync()).toBe('正在应用「裙长」…');
     // The row being applied says so; every control waits.
@@ -294,9 +294,9 @@ describe('角色页 · 模组设置的外观卡', () => {
     expect(row('skirt').textContent).toContain('应用中');
     expect(arrow('配色', '下一个').disabled).toBe(true);
     await act(async () => reply.resolve({ values: { skirt: 1, color: 0 }, adjusted: [] }));
-    expect(sync()).toBe('预览与桌面一致');
+    expect(sync()).toBe('设置与实时显示一致');
     fireEvent.click(arrow('配色', '下一个'));
-    await waitFor(() => expect(sync()).toBe('上次改动没成功，已改回'));
+    await waitFor(() => expect(sync()).toBe('上次修改未生效，已恢复原值'));
   });
 
   it('全部恢复默认 sends every switch on its default in one set, and is off while all are', async () => {
@@ -386,7 +386,7 @@ describe('角色页 · 模组设置表读不了', () => {
     await bridge.avatar.setAppearance('imported_field');
     render(<Op />);
     const looks = await screen.findByRole('group', { name: '外观' });
-    await waitFor(() => expect(within(looks).getAllByText('设置表读不了：安装后文件被改过')).toHaveLength(2));
+    await waitFor(() => expect(within(looks).getAllByText('无法读取设置表：安装后的文件已被修改')).toHaveLength(2));
     expect(screen.queryByRole('tab', { name: '模组设置' })).toBeNull();
     expect(within(looks).getByRole('button', { name: /日常/ }).textContent).not.toContain('设置表');
   });

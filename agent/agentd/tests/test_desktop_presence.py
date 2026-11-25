@@ -47,7 +47,7 @@ class DesktopPresenceTests(unittest.TestCase):
         self.assertEqual(status, 200)
         sessions = {s['id']: s for s in value['sessions']}
         self.assertEqual(sessions['claude:a']['state'], 'thinking')
-        self.assertEqual(sessions['codex:b']['activity'], '在跑')
+        self.assertEqual(sessions['codex:b']['activity'], '工具执行中')
         self.assertEqual((sessions['codex:b']['tool'], sessions['codex:b']['target']), ('Bash', 'make'))
         encoded = json.dumps(value)
         for private in ('private prompt', 'SECRET_COMMAND', 'tool_input', 'last_line'):
@@ -77,7 +77,7 @@ class DesktopPresenceTests(unittest.TestCase):
                 value = snapshot(self.server)
                 self.assertEqual(value['sessions'][0]['activity'], '待批准')
                 self.assertEqual(value['role']['activity'], '空闲')
-                self.assertTrue(self.server._headlines()['due'].startswith('提醒你'))
+                self.assertTrue(self.server._headlines()['due'].startswith('日程提醒：'))
             finally:
                 self.server.character_agent = None
                 store.close()
@@ -94,7 +94,7 @@ class DesktopPresenceTests(unittest.TestCase):
                         store.event(backend, 'tool_started', {'tool': 'artifact_verify', 'tool_call_id': 'opaque'})
                         value = snapshot(self.server)
                         self.assertEqual(value['role']['backend'], backend)
-                        self.assertEqual(value['role']['intention'], '我在检查结果是否符合要求。')
+                        self.assertEqual(value['role']['intention'], '正在检查产物是否符合要求。')
                         self.assertEqual(value['role']['state'], 'running_tool')
                         self.assertNotIn('opaque', json.dumps(value))
                         store.finish(backend, 'cancelled')
@@ -108,8 +108,8 @@ class DesktopPresenceTests(unittest.TestCase):
             store = RunStore(Path(directory) / 'runs.sqlite')
             try:
                 for setting, words in (('en', ("I'm checking whether the result meets the requirements.", 'Running')),
-                                       ('zh-Hans', ('我在检查结果是否符合要求。', '在跑')),
-                                       ('harness', ('我在检查结果是否符合要求。', '在跑'))):
+                                       ('zh-Hans', ('正在检查产物是否符合要求。', '工具执行中')),
+                                       ('harness', ('正在检查产物是否符合要求。', '工具执行中'))):
                     with self.subTest(setting=setting):
                         self.server.character_agent = agent(setting, store=store)
                         store.begin(setting, 'conversation', self.server.character, 1)
@@ -153,7 +153,7 @@ class DesktopPresenceTests(unittest.TestCase):
         self.hook('claude', 'UserPromptSubmit', session='b', cwd='/Users/me/Endfield/.claude/worktrees/g2/web')
         self.hook('claude', 'UserPromptSubmit', session='c', cwd='/Users/me/Endfield')
         self.assertEqual({s['id']: s['title'] for s in snapshot(self.server)['sessions']},
-                         {'claude:a': 'Endfield · 子任务', 'claude:b': 'Endfield · 子任务', 'claude:c': 'Endfield'})
+                         {'claude:a': 'Endfield │ 子任务', 'claude:b': 'Endfield │ 子任务', 'claude:c': 'Endfield'})
 
     def test_hook_session_title_is_not_kept_during_a_pause(self):
         self.server.share_typed_text = True
@@ -355,15 +355,15 @@ class PendingPresenceTests(unittest.TestCase):
         self.rows(('lost', 'stale', self.now - 20, {'observed_at': self.now - 200, 'tool_name': 'Bash',
                                                    'tool_target': 'swift'}))
         row = snapshot(self.server, now=self.now)['sessions'][0]
-        self.assertEqual((row['status'], row['activity'], row['doing']), ('stale', '没有新动静', '3 分钟没动静'))
+        self.assertEqual((row['status'], row['activity'], row['doing']), ('stale', '无更新', '3 分钟无活动'))
 
     def test_session_words_follow_the_reply_language(self):
         self.rows(('lost', 'stale', self.now - 20, {'observed_at': self.now - 200}),
                   ('edit', 'running_tool', self.now - 1, {'tool_name': 'Edit', 'tool_target': 'app.py'}))
         for code, expected in (('en', {'claude:lost': ('No recent activity', 'Quiet for 3 min'),
                                        'claude:edit': ('Running', 'Edit app.py')}),
-                               ('zh-Hans', {'claude:lost': ('没有新动静', '3 分钟没动静'),
-                                            'claude:edit': ('在跑', '改 app.py')})):
+                               ('zh-Hans', {'claude:lost': ('无更新', '3 分钟无活动'),
+                                            'claude:edit': ('工具执行中', '编辑 app.py')})):
             with self.subTest(code=code):
                 self.server.reply_language_code = lambda: code
                 rows = snapshot(self.server, now=self.now)['sessions']
@@ -382,7 +382,7 @@ class PendingPresenceTests(unittest.TestCase):
         clock[0] = now + 700
         rows = snapshot(self.server, now=now + 700)['sessions']
         self.assertEqual([(s['id'], s['state'], s['status'], s['updated_at'], s['doing']) for s in rows],
-                         [('claude:quiet', 'stale', 'stale', now, '11 分钟没动静')])
+                         [('claude:quiet', 'stale', 'stale', now, '11 分钟无活动')])
         self.assertFalse(acknowledge(self.server, 'claude:quiet', now + 600))
         self.assertTrue(acknowledge(self.server, 'claude:quiet', now))
         self.assertEqual(snapshot(self.server, now=now + 700)['sessions'], [])
@@ -433,9 +433,9 @@ class PendingPresenceTests(unittest.TestCase):
 
     def test_presence_state_words(self):
         self.assertEqual(LABELS['zh-Hans'], {
-            'thinking': '在想', 'running_tool': '在跑', 'awaiting_approval': '待批准',
-            'awaiting_input': '待回答', 'compacting': '在整理上下文', 'subagent': '在派子任务',
-            'done': '完成', 'background': '在后台做', 'error': '出错了', 'stale': '没有新动静', 'idle': '空闲'})
+            'thinking': '思考中', 'running_tool': '工具执行中', 'awaiting_approval': '待批准',
+            'awaiting_input': '待回答', 'compacting': '整理上下文中', 'subagent': '派发子任务中',
+            'done': '已完成', 'background': '后台执行中', 'error': '出错', 'stale': '无更新', 'idle': '空闲'})
         for table in LABELS.values():
             self.assertEqual(set(table), set(LABELS['zh-Hans']))
         for state, label in LABELS['zh-Hans'].items():
@@ -449,14 +449,14 @@ class PendingPresenceTests(unittest.TestCase):
 
     def test_session_doing_describes_current_state_and_tool(self):
         cases = [
-            ('running_tool', 'Edit', 'SessionCard.tsx', '改 SessionCard.tsx'),
-            ('running_tool', 'MultiEdit', 'app.py', '改 app.py'),
-            ('running_tool', 'NotebookEdit', 'demo.ipynb', '改 demo.ipynb'),
-            ('running_tool', 'apply_patch', 'app.py', '改 app.py'),
+            ('running_tool', 'Edit', 'SessionCard.tsx', '编辑 SessionCard.tsx'),
+            ('running_tool', 'MultiEdit', 'app.py', '编辑 app.py'),
+            ('running_tool', 'NotebookEdit', 'demo.ipynb', '编辑 demo.ipynb'),
+            ('running_tool', 'apply_patch', 'app.py', '编辑 app.py'),
             ('running_tool', 'Read', 'README.md', '读取 README.md'),
             ('running_tool', 'Write', 'notes.md', '写入 notes.md'),
-            ('running_tool', 'Bash', 'swift', '运行 swift'),
-            ('running_tool', 'exec_command', 'swift test', '运行 swift test'),
+            ('running_tool', 'Bash', 'swift', '执行 swift'),
+            ('running_tool', 'exec_command', 'swift test', '执行 swift test'),
             ('running_tool', 'Bash', '跑一遍 host 单元测试', '跑一遍 host 单元测试'),
             ('running_tool', 'Task', '检查构建结果', '检查构建结果'),
             ('running_tool', 'Agent', '核对 API 契约', '核对 API 契约'),
@@ -464,20 +464,20 @@ class PendingPresenceTests(unittest.TestCase):
             ('running_tool', 'WebSearch', None, '搜索'),
             ('running_tool', 'Glob', None, '查找'),
             ('running_tool', 'Grep', None, '搜索'),
-            ('running_tool', None, None, '在跑'),
-            ('running_tool', 'custom_tool', None, '用 custom_tool'),
-            ('running_tool', 'mcp__search__lookup', 'search · lookup', '用 search 的 lookup'),
-            ('running_tool', 'mcp__agentic_complex__private', None, '在跑'),
+            ('running_tool', None, None, '工具执行中'),
+            ('running_tool', 'custom_tool', None, '使用 custom_tool'),
+            ('running_tool', 'mcp__search__lookup', 'search · lookup', '使用 search 的 lookup'),
+            ('running_tool', 'mcp__agentic_complex__private', None, '工具执行中'),
             ('running_tool', 'Bash', '  跑一遍\n 测试  ', '跑一遍 测试'),
             ('awaiting_approval', 'Bash', 'rm -rf build/', '待批准 rm -rf build/'),
             ('awaiting_approval', None, None, '待批准'),
             ('awaiting_input', 'Read', 'README.md', '待回答'),
-            ('thinking', 'Edit', 'app.py', '在想'),
-            ('compacting', 'Read', 'README.md', '在整理上下文'),
-            ('subagent', None, None, '在派子任务'),
-            ('done', 'Edit', 'app.py', '完成'),
-            ('error', 'Bash', 'swift', '出错了'),
-            ('stale', 'Bash', 'swift', '1 分钟没动静'),
+            ('thinking', 'Edit', 'app.py', '思考中'),
+            ('compacting', 'Read', 'README.md', '整理上下文中'),
+            ('subagent', None, None, '派发子任务中'),
+            ('done', 'Edit', 'app.py', '已完成'),
+            ('error', 'Bash', 'swift', '出错'),
+            ('stale', 'Bash', 'swift', '1 分钟无活动'),
         ]
         for state, tool, target, expected in cases:
             with self.subTest(state=state, tool=tool, target=target):
@@ -499,17 +499,17 @@ class PendingPresenceTests(unittest.TestCase):
     def test_role_doing_uses_tool_name_without_arguments(self):
         self.store.begin('role', 'conversation', 'aster', 1)
         self.store.event('role', 'running', {'backend': 'codex'})
-        self.assertEqual(snapshot(self.server, now=self.now)['role']['doing'], '在想')
+        self.assertEqual(snapshot(self.server, now=self.now)['role']['doing'], '思考中')
         for tool, expected in (
-                ('Bash', '在跑命令'), ('exec_command', '在跑命令'),
-                ('Read', '在读文件'), ('knowledge_read', '在读文件'), ('Edit', '在改文件'),
-                ('Write', '在改文件'), ('apply_patch', '在改文件'), ('knowledge_search', '在查资料'),
-                ('WebSearch', '在查资料'), ('unknown_tool', '在跑')):
+                ('Bash', '执行命令中'), ('exec_command', '执行命令中'),
+                ('Read', '读取文件中'), ('knowledge_read', '读取文件中'), ('Edit', '编辑文件中'),
+                ('Write', '编辑文件中'), ('apply_patch', '编辑文件中'), ('knowledge_search', '检索资料中'),
+                ('WebSearch', '检索资料中'), ('unknown_tool', '工具执行中')):
             with self.subTest(tool=tool):
                 self.store.event('role', 'tool_started', {'tool': tool, 'tool_call_id': 'opaque-' + tool})
                 value = snapshot(self.server, now=self.now)
                 self.assertEqual(value['role']['doing'], expected)
-                self.assertEqual(value['role']['activity'], '在跑')
+                self.assertEqual(value['role']['activity'], '工具执行中')
                 self.assertNotIn('opaque-', json.dumps(value))
                 self.store.event('role', 'tool_finished', {'tool_call_id': 'opaque-' + tool})
 
@@ -520,7 +520,7 @@ class PendingPresenceTests(unittest.TestCase):
                 self.assertEqual(snapshot(self.server, now=self.now)['role']['doing'], expected)
         with self.server._mouth_lock:
             role = snapshot(self.server, now=self.now)['role']
-            self.assertEqual((role['state'], role['activity'], role['doing']), ('thinking', '在想', '在想'))
+            self.assertEqual((role['state'], role['activity'], role['doing']), ('thinking', '思考中', '思考中'))
 
     def test_role_counts_background_runs_and_names_the_background_state(self):
         self.assertEqual(snapshot(self.server, now=self.now)['role']['background_runs'], 0)
@@ -528,7 +528,7 @@ class PendingPresenceTests(unittest.TestCase):
         self.store.event('bg', 'running', {'backend': 'codex', 'work_kind': 'background'})
         role = snapshot(self.server, now=self.now)['role']
         self.assertEqual((role['state'], role['activity'], role['doing'], role['background_runs']),
-                         ('background', '在后台做', '在后台做', 1))
+                         ('background', '后台执行中', '后台执行中', 1))
 
     def test_role_lists_each_background_run_with_its_job_title(self):
         self.assertEqual(snapshot(self.server, now=self.now)['role']['background'], [])
@@ -548,7 +548,7 @@ class PendingPresenceTests(unittest.TestCase):
     def test_role_doing_follows_state_and_unknown_state_is_readable(self):
         self.store.begin('role', 'conversation', 'aster', 1)
         for state, expected in (('awaiting_approval', '待批准'), ('awaiting_input', '待回答'),
-                                ('done', '完成'), ('error', '出错了'), ('unknown', '状态不明')):
+                                ('done', '已完成'), ('error', '出错'), ('unknown', '状态未知')):
             with self.subTest(state=state):
                 run = {'state': state, 'backend': 'codex', 'phase': 'tool_started', 'tool_name': 'Read',
                        'run_id': 'role', 'conversation_id': 'conversation', 'run_generation': 1,

@@ -17,7 +17,7 @@ export interface OutRow {
 }
 
 /** privacy.py `saved_consent`: the window text `screen_context_level` (setting `grain`) lets out. */
-const GRAIN_DETAIL: Record<string, string> = { status: '仅读状态', focused: '仅焦点元素', window: '整个窗口' };
+const GRAIN_DETAIL: Record<string, string> = { status: '仅应用状态', focused: '焦点内容', window: '窗口摘要' };
 
 /** Whether the selected role kernel is a cloud model; null when the kernel was not read. Pi on a keyless local service is held to loopback by agentd. */
 function kernelCloud(kernel: unknown, acct: unknown): boolean | null {
@@ -67,7 +67,7 @@ export function OutboundPlate() {
   const unread = rows.some((r) => r.on == null);
   const kernel = String(model.value('kernel') ?? '');
   const svc = String(model.value('svc') ?? '');
-  const dest = kernel === 'pi' ? `Pi │ ${SVC.find((o) => o.value === svc)?.label ?? '模型服务'}` : (KERNEL_LABEL[kernel] ?? '角色内核');
+  const dest = kernel === 'pi' ? `Pi │ ${SVC.find((o) => o.value === svc)?.label ?? '模型服务'}` : (KERNEL_LABEL[kernel] ?? '执行内核');
   const mask = model.value('mask');
   return (
     <Slab id="out" variant="plate" label="外发总览">
@@ -75,16 +75,16 @@ export function OutboundPlate() {
         <span className={styles.outLbl}>{REGISTRY.find((r) => r.id === 'out')?.label}</span>
         <span className={styles.flow}>
           {out.map((r) => (
-            <Btn key={r.key} variant="ghost" size="sm" tip="跳到这一项的开关" onClick={() => goRow(r.row)}>
+            <Btn key={r.key} variant="ghost" size="sm" tip="跳转至该设置项" onClick={() => goRow(r.row)}>
               {r.detail ? `${r.label}（${r.detail}）` : r.label}
             </Btn>
           ))}
-          {out.length === 0 && <Pill dashed>{unread ? '未读到' : '没有'}</Pill>}
+          {out.length === 0 && <Pill dashed>{unread ? '未读取' : '无'}</Pill>}
           <span className={styles.to}>
-            → <b>{dest}</b> │ 发出前遮蔽 {mask === true ? '开' : mask === false ? '关' : '—'}
+            → <b>{dest}</b> │ 发送前脱敏 {mask === true ? '开启' : mask === false ? '关闭' : '—'}
           </span>
         </span>
-        {diag.screenshots && <Btn variant="link" onClick={() => goPage({ page: 'overview', tab: 'tm' })}>在每日简报看今天的截图 ›</Btn>}
+        {diag.screenshots && <Btn variant="link" onClick={() => goPage({ page: 'overview', tab: 'tm' })}>在每日简报查看今日截图 ›</Btn>}
       </div>
     </Slab>
   );

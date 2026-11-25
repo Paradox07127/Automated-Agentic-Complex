@@ -63,7 +63,7 @@ export function OverviewPage() {
   const offline = !!q.data && snap.connection !== 'connected';
   // A failed refresh keeps the last data; its section tags the time it was read.
   const stale = !!q.data && (q.isError || offline);
-  const lostText = snap.connection === 'unauthorized' ? '后台拒绝访问' : '后台无响应';
+  const lostText = snap.connection === 'unauthorized' ? '后台服务拒绝访问' : '后台服务无响应';
   // A jump elsewhere keeps this page on screen under the new URL until the next page loads; only its own path's query counts.
   const [path] = useState(useRouterState({ select: (s) => s.location.pathname }));
   const search = useRouterState({ select: (s) => (s.location.pathname === path ? s.location.searchStr : '') });
@@ -141,10 +141,10 @@ export function OverviewPage() {
 
   const dayConvs = isToday ? brief?.convs : pastQ.data?.convs;
   const [errs, setErrs] = useState(false);
-  const her = { open: () => put({ tab: 'char' }), to: `看${snap.character.name ?? '角色'}这一天` };
+  const her = { open: () => put({ tab: 'char' }), to: `查看${snap.character.name ?? '角色'}当日动态` };
   const links: BriefTabProps['links'] = {
-    done: { open: () => go({ page: 'tasks', tab: 'done' }), to: '前往已完成的任务' },
-    err: { open: () => setErrs(true), to: '查看出错列表' },
+    done: { open: () => go({ page: 'tasks', tab: 'done' }), to: '查看任务历史记录' },
+    err: { open: () => setErrs(true), to: '查看异常列表' },
     turn: { open: () => go(dayConvs?.[0] ? { page: 'chat', conv: dayConvs[0].id } : { page: 'chat' }), to: '前往对话' },
     line: her,
     say: her,
@@ -153,7 +153,7 @@ export function OverviewPage() {
     voice: her,
     ...(timeOn && { fg: { open: () => put({ tab: 'tm' }), to: '前往时间页签' } }),
     mem: { open: () => go({ page: 'memory', view: 'about' }), to: '前往记忆' },
-    cost: { open: () => go({ page: 'diag', tab: 'flow', item: 'usage' }), to: '前往诊断的用量' },
+    cost: { open: () => go({ page: 'diag', tab: 'flow', item: 'usage' }), to: '前往诊断用量页' },
     code: { open: () => go({ page: 'tasks' }), to: '前往任务' },
   };
   const tabProps = (d: BriefTabProps['day']): BriefTabProps => ({ day: d, pins, onPins: setPins, go: (t) => put({ tab: t }), links });
@@ -200,8 +200,8 @@ export function OverviewPage() {
               state="off"
               mode="block"
               title="进行中"
-              reason="设置里关着「派发任务和定时任务」和「编码会话」，这里不列角色在做的任务、编码会话和定时任务。"
-              action={{ label: '前往设置打开', onClick: () => go({ page: 'settings', group: 'perm', item: 'plugins.personal_agent' }) }}
+              reason="「个人代理与自主能力」与「编码会话」均已在设置中关闭，此处不展示执行中的角色任务、编码会话与定时任务。"
+              action={{ label: '前往开启', onClick: () => go({ page: 'settings', group: 'perm', item: 'plugins.personal_agent' }) }}
               more={
                 <Btn variant="ghost" size="sm" onClick={() => go({ page: 'settings', group: 'privacy', item: 'plugins.coding_sessions' })}>
                   编码会话
@@ -237,13 +237,13 @@ export function OverviewPage() {
   );
   const reread = () =>
     void q.refetch().then((result) => {
-      if (result.isSuccess && result.data.connection === 'connected') toast('已重新读取');
-      else toast('后台仍未连接，保留上次读到的数据', { severity: 'warning' });
+      if (result.isSuccess && result.data.connection === 'connected') toast('已刷新数据');
+      else toast('后台服务仍未连接，保留上次读取的数据', { severity: 'warning' });
     });
   const restart = () =>
     void getBridge().supervisor.restart('agentd').then(
-      () => toast('正在重启后台…'),
-      () => toast('后台没有重启，请重启应用', { severity: 'danger' }),
+      () => toast('正在重启后台服务…'),
+      () => toast('未能重启后台服务，请尝试重启应用', { severity: 'danger' }),
     );
 
   return (
@@ -253,13 +253,13 @@ export function OverviewPage() {
         right={
           <>
             <span className={styles.date}>
-              <IconBtn icon="chevl" label="前一天" size="sm" disabled={date <= shift(today, -BACK)} disabledReason={`最多往回看 ${BACK} 天`} onClick={() => put({ date: shift(date, -1) })} />
+              <IconBtn icon="chevl" label="前一日" size="sm" disabled={date <= shift(today, -BACK)} disabledReason={`最多可回溯 ${BACK} 天`} onClick={() => put({ date: shift(date, -1) })} />
               <span className="num" data-date={date}>
                 {mm}.{dd}
                 <span data-fold="1"> 周{WEEK[new Date(day0).getDay()]}</span>
-                {isToday && <i>今天</i>}
+                {isToday && <i>今日</i>}
               </span>
-              <IconBtn icon="chev" label="后一天" size="sm" disabled={isToday} disabledReason="已经是今天" onClick={() => put({ date: shift(date, 1) })} />
+              <IconBtn icon="chev" label="后一日" size="sm" disabled={isToday} disabledReason="已是最新日期" onClick={() => put({ date: shift(date, 1) })} />
             </span>
             {/* The top bar says 已连接. */}
             {(loading || (stale && !offline)) && <span className={styles.conn}><StatusLamp size="sm" state={loading ? 'idle' : 'broken'} label={loading ? '读取中' : '刷新失败'} /></span>}
@@ -274,9 +274,9 @@ export function OverviewPage() {
             <PowerState
               state="unlinked"
               mode="block"
-              title="后台"
-              reason={`${lostText}，下面是 ${formatClock(snap.now)} 读到的数据`}
-              action={{ label: '重启后台', onClick: restart }}
+              title="后台服务"
+              reason={`${lostText}，以下为 ${formatClock(snap.now)} 读取的缓存数据`}
+              action={{ label: '重启后台服务', onClick: restart }}
               more={
                 <Btn variant="ghost" size="sm" icon="refresh" onClick={reread}>
                   重新读取

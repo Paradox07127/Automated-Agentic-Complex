@@ -41,7 +41,7 @@ describe('character settings search', () => {
     );
     expect(searchSettings('朝向').map((r) => r.id)).toContain('beh.watch');
     expect(searchSettings('抗锯齿').map((r) => r.id)).toContain('rnd.aa');
-    expect(searchSettings('待在原地').find((r) => r.id === 'beh.stay')?.section).toBe('角色 › 行为');
+    expect(searchSettings('原地待机').find((r) => r.id === 'beh.stay')?.section).toBe('角色 › 行为');
     expect(searchSettings('缩放').map((r) => r.id)).toContain('rnd.zoom');
     expect(searchSettings('晃动').map((r) => r.id)).toContain('rnd.sway');
     expect(searchSettings('近景').map((r) => r.id)).toContain('rnd.closeup');

@@ -56,9 +56,9 @@ export function hudDemo(q: URLSearchParams): HudDemo | null {
   if (name !== 'three' && name !== 'standalone') return null;
   const now = Date.now();
   const sessions = [
-    session(now, 'hud-s1', 'claude', '修 HostLink 断线后不重连', 'running', 'running_tool', '在跑 swift test HostLinkTests', 4),
+    session(now, 'hud-s1', 'claude', '修 HostLink 断线后不重连', 'running', 'running_tool', '正在执行 swift test HostLinkTests', 4),
     session(now, 'hud-s2', 'codex', '补桌面叠卡的设计说明', 'needs_you', 'awaiting_approval', '要删 build/ 目录，待批准', 7, ['hud-a1']),
-    session(now, 'hud-s3', 'character', '整理渲染管线的构建脚本', 'error', 'error', '出错：测试 3 个失败', 12),
+    session(now, 'hud-s3', 'character', '整理渲染管线的构建脚本', 'error', 'error', '出错：3 项测试未通过', 12),
   ];
   const cards: StackCard[] = [approval(now, 'hud-a1', 'hud-s2', '删除构建目录', 'rm -rf build/')];
   if (name === 'standalone') cards.push(approval(now, 'hud-a2', 'hud-none', '推送发布分支', 'git push origin release'));

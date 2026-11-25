@@ -63,11 +63,15 @@ function Guide({ o, g }: { o: Onboarding; g: GuideSettings }) {
   const goto = (n: OnboardingStep) => void run('goto', (ops) => ops.goto(n));
   const complete = (destination?: OnboardingDestination) =>
     void run('complete', (ops) => ops.complete(destination ? { destination } : undefined)).then((r) => r?.done && leave());
-  const askSkip = () =>
+  const askSkip = () => {
+    const voiceEnabled = g.ctx.diag.voice != null && !g.ctx.diag.voiceNone && o.current?.voice;
     g.ctx.model.ask({
       title: '跳过首次设置？',
-      list: [`已经选的会保留：${o.current?.name ?? '—'}、对话${g.talks ? '开着' : '关着'}`, '还没设的用默认：账号没连、只显示文字、按住说话没开'],
-      note: '这些都在设置里，随时可以改；「设置 › 关于 › 重新运行首次设置」可以再走一遍。',
+      list: [
+        `保留当前配置：角色「${o.current?.name ?? '未选择'}」、对话${g.talks ? '已启用' : '未启用'}`,
+        `其余项目沿用当前或默认状态：${chatReady ? '账号已测试连接' : '账号未连接'}、${voiceEnabled ? '语音服务已连接' : '仅文字回复'}、${missing.length === 0 && g.talks ? '按住语音输入权限已就绪' : '按住语音输入暂未启用'}`,
+      ],
+      note: '以上配置均可在「设置」中随时调整；也可在「设置 › 关于 › 重新运行首次设置」再次打开本向导。',
       cancelLabel: '继续设置',
       confirmLabel: '跳过',
       onConfirm: async () => {
@@ -75,6 +79,7 @@ function Guide({ o, g }: { o: Onboarding; g: GuideSettings }) {
         if (r?.done) leave();
       },
     });
+  };
   // A step cell or E onto the next step passes this one, as 下一步 does; any other cell only jumps.
   const onTab = (id: string) => {
     const n = Number(id) as OnboardingStep;
@@ -89,7 +94,7 @@ function Guide({ o, g }: { o: Onboarding; g: GuideSettings }) {
     body = (
       <section className={styles.step}>
         <GuideCard n={0} title="首次设置" />
-        <Frame n={1}>{o.loadError ? <ErrBar message={o.loadError} onRetry={o.reload} /> : <Loading tip="正在读取首次设置…" />}</Frame>
+        <Frame n={1}>{o.loadError ? <ErrBar message={o.loadError} onRetry={o.reload} /> : <Loading tip="正在加载首次设置…" />}</Frame>
       </section>
     );
   else if (step === 4) body = <StepDone o={o} g={g} missing={missing} goto={goto} />;
@@ -108,13 +113,13 @@ function Guide({ o, g }: { o: Onboarding; g: GuideSettings }) {
   );
   let right = null;
   if (live && step === 1) right = roster > 0 ? next('') : <>
-      <Btn onClick={() => advance(true)}>先不导入</Btn>
-      {next('先导入一个角色包，或点「先不导入」')}
+      <Btn onClick={() => advance(true)}>稍后导入</Btn>
+      {next('请先导入角色包，或点击「稍后导入」')}
     </>;
   if (live && step === 2)
     right = chatReady ? next('') : <>
-      <Btn onClick={() => advance(true)}>稍后再连</Btn>
-      {next('先连上账号并测试通过，或点「稍后再连」')}
+      <Btn onClick={() => advance(true)}>稍后配置</Btn>
+      {next('请先完成账号连接测试，或点击「稍后配置」')}
     </>;
   if (live && step === 3) right = next('');
   if (live && step === 4) {
@@ -125,13 +130,13 @@ function Guide({ o, g }: { o: Onboarding; g: GuideSettings }) {
           打开主窗口
         </Btn>
         <Primary>
-          <YellowKey label={talk ? '聊几句' : '完成'} micro={talk ? 'Talk' : 'Done'} icon={talk ? 'g-chat' : 'check'} busy={o.busy === 'complete'} onClick={() => complete(talk ? 'talk' : undefined)} />
+          <YellowKey label={talk ? '开始对话' : '完成'} micro={talk ? 'Talk' : 'Done'} icon={talk ? 'g-chat' : 'check'} busy={o.busy === 'complete'} onClick={() => complete(talk ? 'talk' : undefined)} />
         </Primary>
       </>
     );
   }
   const error = o.opError ?? s?.completionError ?? null;
-  const lamp = g.restarting ? (['running', '正在重启后台'] as const) : g.agentdOff ? (['broken', '后台没有运行'] as const) : (['ok', '后台'] as const);
+  const lamp = g.restarting ? (['running', '正在重启后台服务'] as const) : g.agentdOff ? (['broken', '后台服务未运行'] as const) : (['ok', '后台服务'] as const);
 
   return (
     <div ref={root} className={styles.root} data-page="onboarding" data-step={s ? step : undefined} role="region" aria-label={`首次设置 │ ${s && step === 4 ? '完成' : C.title}`}>

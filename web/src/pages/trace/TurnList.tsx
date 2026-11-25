@@ -10,7 +10,7 @@ import { clockOf, groupOf, hourOf, inFilter, LAMP, no4, type ResFilter, SHAPE_LA
 import s from './List.module.css';
 
 const PAGE = 40;
-const RES: ReadonlyArray<[ResFilter, string]> = [['all', '全部'], ['fail', '出错'], ['cut', '打断'], ['live', '在跑']];
+const RES: ReadonlyArray<[ResFilter, string]> = [['all', '全部'], ['fail', '失败'], ['cut', '中断'], ['live', '执行中']];
 
 export interface TurnListProps {
   rows: WireTraceTurn[];
@@ -53,14 +53,14 @@ export function TurnList({ rows, noOf, sel, st, stoppedAt, q, group, res, search
     body = (
       <Empty
         size="compact"
-        title="读不到对话轮次"
-        desc={`后台已断开${stoppedAt ? `，列表停在 ${stoppedAt}` : ''}。`}
+        title="无法读取对话轮次"
+        desc={`后台服务已断开${stoppedAt ? `，列表停于 ${stoppedAt}` : ''}。`}
         action={<Btn variant="secondary" size="sm" icon="refresh" onClick={onRetry}>重试</Btn>}
       />
     );
-  else if (rows.length === 0) body = <Empty size="compact" title="近 24 小时没有跑过一轮" action={<Btn variant="secondary" size="sm" icon="send" onClick={onChat}>去对话</Btn>} />;
+  else if (rows.length === 0) body = <Empty size="compact" title="近 24 小时无对话轮次" action={<Btn variant="secondary" size="sm" icon="send" onClick={onChat}>前往对话</Btn>} />;
   else if (list.length === 0)
-    body = <Empty size="compact" title="没有符合的轮次" action={<Btn variant="secondary" size="sm" onClick={() => (onQ(''), onGroup('all'), onRes('all'))}>看全部</Btn>} />;
+    body = <Empty size="compact" title="无符合条件的轮次" action={<Btn variant="secondary" size="sm" onClick={() => (onQ(''), onGroup('all'), onRes('all'))}>显示全部</Btn>} />;
   else {
     const out: ReactNode[] = [];
     let hour = '';
@@ -73,7 +73,7 @@ export function TurnList({ rows, noOf, sel, st, stoppedAt, q, group, res, search
         const bad = inHour.filter((x) => shapeOf(x) === 'fail').length;
         out.push(
           <div key={`h${h}`} className={s.hsep} role="presentation">
-            {h} │ {inHour.length} 轮{bad > 0 && <b> │ 出错 {bad}</b>}
+            {h} │ {inHour.length} 轮{bad > 0 && <b> │ 失败 {bad}</b>}
           </div>,
         );
       }
@@ -107,7 +107,7 @@ export function TurnList({ rows, noOf, sel, st, stoppedAt, q, group, res, search
   return (
     <section className={s.lp} aria-label="轮次列表">
       <div className={s.head}>
-        <SearchField value={q} label="找一轮" placeholder="开头的字或轮次号" inputRef={searchRef} shortcut={keyText('⌘F')} onChange={onQ} onSubmit={() => list[0] && onPick(list[0].turn_id)} />
+        <SearchField value={q} label="搜索轮次" placeholder="起始文本或轮次号" inputRef={searchRef} shortcut={keyText('⌘F')} onChange={onQ} onSubmit={() => list[0] && onPick(list[0].turn_id)} />
         <Menu
           label={SRC_GROUPS.find(([id]) => id === group)?.[1] ?? '全部来源'}
           align="right"

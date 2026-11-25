@@ -139,7 +139,7 @@ export function LaneView({ events, st, now }: LaneViewProps) {
       />
     </li>
   );
-  const msg = st === 'error' ? '读不到这段时间的事件' : st === 'loading' ? '正在读…' : events == null ? '后台暂不提供一段时间的事件' : all.length === 0 ? `近 ${range} 分钟没有动作事件` : null;
+  const msg = st === 'error' ? '无法读取该时段的事件' : st === 'loading' ? '正在读取…' : events == null ? '后台服务暂不提供历史时段事件' : all.length === 0 ? `近 ${range} 分钟无动作事件` : null;
   const status = picked ? (STATUS[picked.status] ?? (['unk', picked.status] as [Shape, string])) : null;
 
   return (
@@ -151,8 +151,8 @@ export function LaneView({ events, st, now }: LaneViewProps) {
             <b className={t.num}>{drawn.length}</b>条
           </span>
           <span className={l.sp} />
-          {hidden.size > 0 && <span className={l.count}>隐藏了 {hidden.size} 条线</span>}
-          <Menu label="显示哪些线" icon="tune" align="right" narrowed={hidden.size > 0} items={[{ kind: 'head', label: '显示的线' }, ...lanes.map((id): MenuItem => ({ kind: 'item', label: LANE_NAME[id], checked: !hidden.has(id), onSelect: () => toggle(id) }))]} />
+          {hidden.size > 0 && <span className={l.count}>已隐藏 {hidden.size} 条线</span>}
+          <Menu label="筛选事件线" icon="tune" align="right" narrowed={hidden.size > 0} items={[{ kind: 'head', label: '可见事件线' }, ...lanes.map((id): MenuItem => ({ kind: 'item', label: LANE_NAME[id], checked: !hidden.has(id), onSelect: () => toggle(id) }))]} />
         </div>
         {msg != null ? (
           <Empty size="compact" title={msg} />
@@ -198,7 +198,7 @@ export function LaneView({ events, st, now }: LaneViewProps) {
       </section>
       <GameFrame label="所选事件">
         {!picked ? (
-          <Empty size="compact" title="选一个事件看前因后果" />
+          <Empty size="compact" title="请选择事件以查看关联因果" />
         ) : (
           <div className={l.dscroll} key={picked.event_id}>
             <div className={l.dh}>

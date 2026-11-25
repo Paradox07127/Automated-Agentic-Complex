@@ -170,7 +170,7 @@ export class CharacterSwitch {
   /** `character.switchTo`: waits for the transaction; what became of `id`. */
   async switchOutcome(id: string): Promise<SwitchOutcome> {
     if (this._current === null) return { kind: 'noAvatar' };
-    if (this.held) return { kind: 'failed', stage: 'prepare', reason: '正在导入动作，导入完再切换' };
+    if (this.held) return { kind: 'failed', stage: 'prepare', reason: '正在导入动作，请在导入完成后再切换角色' };
     this.select(id);
     if (this._busy) await new Promise<void>((r) => this.idle.push(r));
     if (this._current === id) return { kind: 'switched' };

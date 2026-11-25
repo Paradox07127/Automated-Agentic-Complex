@@ -87,7 +87,7 @@ export function PoolRows(p: PoolRowsProps) {
   const off = p.lock != null;
   const more = candidates(g, pool.posture, p.entries);
   const full = p.entries.length >= MAX_ENTRIES;
-  const addBlock = p.lock ?? (full ? `一个池子最多 ${MAX_ENTRIES} 条` : more.length === 0 ? '没有可加的同姿态链起头' : null);
+  const addBlock = p.lock ?? (full ? `单个动作池最多包含 ${MAX_ENTRIES} 条` : more.length === 0 ? '无可用的同姿态动作链起始项' : null);
   return (
     <section className={styles.pool} aria-label={`池子 ${pool.key}`} data-pool={pool.key}>
       <TitleBar
@@ -97,13 +97,13 @@ export function PoolRows(p: PoolRowsProps) {
         actions={
           <>
             {p.overridden && <span className={styles.tag}>已改</span>}
-            {p.overridden && !off && <WhiteCapsule label="用包里的" icon="refresh" onClick={() => p.onPool(null)} />}
+            {p.overridden && !off && <WhiteCapsule label="恢复默认" icon="refresh" onClick={() => p.onPool(null)} />}
           </>
         }
       />
       {p.adjusted && (
         <p className={styles.why} data-adjusted="">
-          上次保存没有生效：{p.adjusted}
+          上次保存未生效：{p.adjusted}
         </p>
       )}
       <div className={styles.rows}>
@@ -118,7 +118,7 @@ export function PoolRows(p: PoolRowsProps) {
           const sub = why ? (
             <span className={styles.red}>{why}</span>
           ) : compact && flag?.tone !== 'red' ? undefined : !on ? (
-            '已关 │ 抽到跳过'
+            '已关闭 │ 触发时跳过'
           ) : flag ? (
             <span className={flag.tone === 'red' ? styles.red : styles.orange}>{flag.text}</span>
           ) : (
@@ -179,7 +179,7 @@ export function PoolRows(p: PoolRowsProps) {
             disabledReason={addBlock ?? undefined}
             onClick={() => setAdding(!adding)}
           >
-            {addBlock ?? '加一条同姿态的链起头…'}
+            {addBlock ?? '添加同姿态动作链起始项…'}
           </Btn>
           {adding && addBlock == null && (
             <ul className={styles.addList} aria-label="能加的链起头">

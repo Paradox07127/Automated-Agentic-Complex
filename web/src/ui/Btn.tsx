@@ -57,7 +57,7 @@ export interface BtnProps {
 type Variant = NonNullable<BtnProps['variant']>;
 
 const TAIL: Partial<Record<Variant, IconName>> = { primary: 'check', secondary: 'chev', danger: 'del' };
-export const MOUSE_ONLY_HINT = '只能用鼠标点击';
+export const MOUSE_ONLY_HINT = '仅限鼠标点击';
 
 export function Btn({ variant: v = 'ghost', size: asked = 'md', dense, icon, tail, go, label, kbd, loading, pressed, disabled, disabledReason, tip, mouseOnly, onClick, children, ref, ...aria }: BtnProps) {
   const [hint, setHint] = useState(false);

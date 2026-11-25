@@ -52,8 +52,8 @@ describe('首次设置 · 01 角色', () => {
     expect(cells.map((c) => c.textContent?.replace(/[A-Z_ ]+|✓/g, ''))).toEqual(['示例乙', '示例甲', '示例丙']);
     expect(cells.map((c) => c.getAttribute('aria-checked'))).toEqual(['true', 'false', 'false']);
     expect(within(roster).getByRole('button', { name: /导入/ })).toBeTruthy();
-    const desk = screen.getByRole('group', { name: '示例乙 在桌面上' });
-    expect(desk.textContent).toContain('有声线');
+    const desk = screen.getByRole('group', { name: '已选择 示例乙' });
+    expect(desk.textContent).toContain('包含角色声线');
     expect(within(guide()).getByText('必做')).toBeTruthy();
   });
 
@@ -64,7 +64,7 @@ describe('首次设置 · 01 角色', () => {
     await waitFor(() => expect(within(roster).getAllByRole('radio')).toHaveLength(3));
     fireEvent.click(within(roster).getAllByRole('radio')[1] as HTMLElement);
     await waitFor(() => expect(switchTo).toHaveBeenCalledWith('voice_a'));
-    await screen.findByRole('group', { name: '示例甲 在桌面上' });
+    await screen.findByRole('group', { name: '已选择 示例甲' });
   });
 
   it('导入 asks the host for a package and reads the roster again', async () => {
@@ -93,7 +93,7 @@ describe('首次设置 · 角色库为空', () => {
     await within(document.body).findByText('还没有角色。导入一个角色包，角色就会出现在桌面上。');
     expect(within(guide()).getByText('可跳过')).toBeTruthy();
     expect(bar().getByRole('button', { name: '下一步' })).toHaveProperty('disabled', true);
-    fireEvent.click(bar().getByRole('button', { name: '先不导入' }));
+    fireEvent.click(bar().getByRole('button', { name: '稍后导入' }));
     await waitFor(() => expect(guide().getAttribute('data-step')).toBe('2'));
   });
 
@@ -103,8 +103,8 @@ describe('首次设置 · 角色库为空', () => {
     await within(document.body).findByText(/还没有角色。/);
     fireEvent.click(screen.getByRole('tab', { name: '04 完成' }));
     await waitFor(() => expect(guide().getAttribute('data-step')).toBe('4'));
-    expect(guide().textContent).toContain('设置完成');
+    expect(guide().textContent).toContain('配置完成');
     expect(guide().textContent).not.toContain('已在桌面就位');
-    expect(guide().textContent).toContain('还没有角色');
+    expect(guide().textContent).toContain('未选择角色');
   });
 });

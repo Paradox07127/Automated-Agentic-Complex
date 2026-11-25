@@ -56,7 +56,7 @@ export function useLayers(ch: CharacterEntry | undefined, current: string, toast
         (e: unknown) => {
           const code = (e as { code?: string } | null)?.code;
           answered(character, shown);
-          toast(`服装分层没有完成：${code === 'not_implemented' ? '这个版本还不支持' : code === 'character_changed' ? hostReason(code) : '桌面角色没有回应'}`, { severity: 'danger' });
+          toast(`服装分层未完成：${code === 'not_implemented' ? '当前版本暂不支持' : code === 'character_changed' ? hostReason(code) : '角色渲染进程无响应'}`, { severity: 'danger' });
           settle();
         },
       );

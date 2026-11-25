@@ -30,23 +30,23 @@ export interface RunningSectionProps {
 const SHOWN = 3;
 
 const CODE_STATE: Readonly<Record<string, [VisualStateKey, string]>> = {
-  running_tool: ['running_tool', '在跑'],
+  running_tool: ['running_tool', '工具执行中'],
   running: ['running', '进行中'],
   accepted: ['running', '进行中'],
-  thinking: ['thinking', '在想'],
-  compacting: ['thinking', '整理上下文'],
-  subagent: ['running', '子任务执行中'],
+  thinking: ['thinking', '思考中'],
+  compacting: ['thinking', '整理上下文中'],
+  subagent: ['running', '派发子任务中'],
   awaiting_approval: ['awaiting_approval', '待批准'],
   awaiting_input: ['awaiting_input', '待回答'],
   idle: ['idle', '空闲'],
 };
 
-const RUN_LABEL: Readonly<Record<string, string>> = { thinking: '在想', running_tool: '在跑', awaiting_approval: '待批准', awaiting_input: '待回答', waiting_user: '待回答' };
+const RUN_LABEL: Readonly<Record<string, string>> = { thinking: '思考中', running_tool: '工具执行中', awaiting_approval: '待批准', awaiting_input: '待回答', waiting_user: '待回答' };
 
-const dirOf = (cwd: string) => cwd.split('/').filter(Boolean).pop() ?? cwd;
+const dirOf = (cwd: string) => cwd.split(/[\\/]/).filter(Boolean).pop() ?? cwd;
 
 /** How long a row has run; under a second reads 刚开始. */
-const elapsed = (ms: number) => (ms < 1000 ? '刚开始' : formatDuration(ms));
+const elapsed = (ms: number) => (ms < 1000 ? '刚刚开始' : formatDuration(ms));
 
 interface LineProps {
   icon: IconName;
@@ -111,7 +111,7 @@ function Row({ r, p }: { r: RunRow; p: RunningSectionProps }) {
         icon="send"
         frame={c.busy ? 'run' : 'idle'}
         title={c.title}
-        meta={c.last ? `「${c.last}」` : '还没有回复'}
+        meta={c.last ? `「${c.last}」` : '尚未回复'}
         state={c.busy ? <StatusLamp state="running" label="执行中" /> : <span className={styles.cap}><span className="num">{ago}</span> 分钟前</span>}
         cap={devMode && <>第 <span className="num">{c.turn_count}</span> 轮</>}
         label={`对话「${c.title}」，前往对话页`}
@@ -218,7 +218,7 @@ export function RunningSection(p: RunningSectionProps) {
               <Btn size="sm" variant="text" onClick={() => go({ page: 'tasks', tab: 'sched' })}>
                 {p.schedules > 0 ? (
                   <>
-                    定时任务 │ <span className="num">{p.schedules}</span> 个开着
+                    定时任务 │ <span className="num">{p.schedules}</span> 项启用
                   </>
                 ) : (
                   '定时任务'
@@ -242,8 +242,8 @@ export function RunningSection(p: RunningSectionProps) {
               </ul>
               {hidden.length > 0 && (
                 <div className={styles.rest}>
-                  <Fold id="running-rest" label={`另有 ${hidden.length} 个`} summary={hidden.map(titleOf).join(' │ ')}>
-                    <ul className={styles.rows} aria-label="进行中的其余">
+                  <Fold id="running-rest" label={`另有 ${hidden.length} 项`} summary={hidden.map(titleOf).join(' │ ')}>
+                    <ul className={styles.rows} aria-label="其余进行中任务">
                       {cells(hidden)}
                     </ul>
                   </Fold>

@@ -51,51 +51,51 @@ export type NativeEntry = 'artifact' | 'copy' | 'jump';
 
 /** Why a native entry is disabled once the shell refused it. */
 export const NATIVE_OFF: Readonly<Record<NativeEntry, string>> = {
-  artifact: '这台电脑的外壳暂不支持打开文件',
-  copy: '这台电脑的外壳暂不支持复制路径',
-  jump: '这台电脑的外壳暂不支持跳到终端',
+  artifact: '当前客户端环境暂不支持打开文件',
+  copy: '当前客户端环境暂不支持复制路径',
+  jump: '当前客户端环境暂不支持跳转至终端',
 };
 
 export type NativeOff = Partial<Record<NativeEntry, string>>;
 
-const fileName = (path: string) => path.slice(path.lastIndexOf('/') + 1);
+const fileName = (path: string) => path.split(/[\\/]/).pop() ?? path;
 
 /** Short reasons for codes the task page's writes return; others show their code. */
 const REASON: Readonly<Record<string, string>> = {
-  invalid_state: '任务现在不能停止',
-  task_not_active: '任务已经不在运行',
-  unknown_character_task: '找不到这项角色任务',
-  unknown_session: '找不到这个会话',
-  not_own: '外部会话不能在这里操作',
-  idle: '会话没有在进行，发不了消息',
+  invalid_state: '当前任务状态不支持停止操作',
+  task_not_active: '任务已结束，不在运行中',
+  unknown_character_task: '未找到该角色任务',
+  unknown_session: '未找到该会话',
+  not_own: '外部编码会话不支持在此操作',
+  idle: '会话当前未运行，无法发送消息',
   archived: '会话已归档',
-  start_failed: '编码工具没能启动',
-  character_busy: '角色正忙，稍后再试',
-  personal_runtime_required: '角色内核没有就绪',
-  checkpoint_missing: '找不到可继续的进度',
-  invalid_payload: '请求内容不完整',
-  invalid_answers: '每道题都要回答',
-  invalid_approval: '只能选「允许」或「拒绝」',
-  approval_expired: '这次请求已过期',
-  invalid_goal_update: '目标状态不能这样改',
-  goal_results_not_verified: '目标下还有任务没通过核验',
-  goal_results_not_current: '目标的产物已经变了，核验没通过',
-  job_not_resumable: '这项任务现在不能继续',
-  goal_not_active: '所属目标没有在进行',
+  start_failed: '编码工具启动失败',
+  character_busy: '角色正在执行，请稍后再试',
+  personal_runtime_required: '执行内核尚未就绪',
+  checkpoint_missing: '未找到可继续的断点进度',
+  invalid_payload: '请求参数不完整',
+  invalid_answers: '每个问题均须作答',
+  invalid_approval: '审批仅支持选择「允许」或「拒绝」',
+  approval_expired: '该请求已过期',
+  invalid_goal_update: '不支持变更为该目标状态',
+  goal_results_not_verified: '目标下仍有任务未通过校验',
+  goal_results_not_current: '目标关联产物已变更，校验未通过',
+  job_not_resumable: '该任务当前不可继续执行',
+  goal_not_active: '所属目标当前未处于进行状态',
   job_store_unavailable: '任务存储暂不可用',
-  not_found: '找不到这一项',
-  unknown_artifact: '找不到这个产物',
-  no_previous_version: '这个产物没有可回去的上一版',
+  not_found: '未找到该条目',
+  unknown_artifact: '未找到该产物文件',
+  no_previous_version: '该产物无可用的上一版本',
 };
 
 /** Toast text for a failed write: offline, someone else's change, or a short reason; null when its plug-in is off. */
 export function failMessage(e: unknown): string | null {
-  if (e instanceof RangeError) return '每道题都要选一个回答';
-  if (!(e instanceof AgentdCallError)) return e instanceof Error && e.message ? `没有完成：${e.message}` : '没有完成';
+  if (e instanceof RangeError) return '请为每个问题选择一项回答';
+  if (!(e instanceof AgentdCallError)) return e instanceof Error && e.message ? `操作未完成：${e.message}` : '操作未完成';
   if (isPluginOff(e)) return null;
-  if (e.code === 'offline') return '后台已断开';
+  if (e.code === 'offline') return '后台服务已断开';
   if (e.code === 'switching') return codeText(e.code)!;
-  if (CONFLICT_CODES.has(e.code) || (e.status === 409 && !REASON[e.code])) return '已在别处更新';
+  if (CONFLICT_CODES.has(e.code) || (e.status === 409 && !REASON[e.code])) return '已在其他位置更新';
   return REASON[e.code] ?? failureText(e).text;
 }
 
@@ -161,7 +161,7 @@ export function createTasksActions(d: ActionDeps) {
         d.push(NATIVE_OFF[entry], { severity: 'danger' });
       } else {
         const known = codeText(code);
-        d.push(known ?? '桌面端没有完成这个操作', { severity: 'danger', ...copyCode(known ? null : (code ?? null)) });
+        d.push(known ?? '客户端未完成该操作', { severity: 'danger', ...copyCode(known ? null : (code ?? null)) });
       }
       return false;
     }
@@ -169,7 +169,7 @@ export function createTasksActions(d: ActionDeps) {
   const jump = (sessionId: string) => native('jump', async () => {
     await getBridge().open.jumpToSession(sessionId);
     await post('/desktop/sessions/seen', { session_id: sessionId });
-  }, `已跳到终端 │ ${sessionId}`);
+  }, `已跳转至终端 │ ${sessionId}`);
 
   const stopNow = async (ids: string[]) => {
     const tasks = ids.flatMap((id) => d.view.tasks.filter((t) => t.id === id));
@@ -214,16 +214,16 @@ export function createTasksActions(d: ActionDeps) {
     else {
       try {
         if (a.note) await sendNote(task, a.note, a.useCurrentKernel);
-        d.push(a.note ? `已退回 v${delivery.version}，角色按补充要求继续` : `已退回 v${delivery.version}`);
+        d.push(a.note ? `已驳回 v${delivery.version}，角色将按补充要求继续执行` : `已驳回 v${delivery.version}`);
       } catch (e) {
         const text = failMessage(e);
-        if (text !== null) d.push(`已退回 v${delivery.version}；补充要求没送到：${text}`, { severity: 'danger' });
+        if (text !== null) d.push(`已驳回 v${delivery.version}；补充说明未能送达：${text}`, { severity: 'danger' });
       }
     }
     d.reload();
   };
 
-  /** 验收 / 退回 of a coding task that needs review: the ledger id, no body (server.py _task_review). */
+  /** 验收 / 驳回 of a coding task that needs review: the ledger id, no body (server.py _task_review). */
   const review = async (task: Task, verdict: 'accept' | 'reject') => {
     if (!task.task_id) return;
     try {
@@ -233,7 +233,7 @@ export function createTasksActions(d: ActionDeps) {
       return;
     }
     resolve([`c-${task.task_id}`]);
-    d.push(`${verdict === 'accept' ? '已验收' : '已退回'}「${task.title}」`);
+    d.push(`${verdict === 'accept' ? '已验收' : '已驳回'}「${task.title}」`);
     d.reload();
   };
 
@@ -248,7 +248,7 @@ export function createTasksActions(d: ActionDeps) {
       case 'continue':
         try {
           await sendNote(task, a.note, a.useCurrentKernel);
-          d.push('已把补充要求发给角色');
+          d.push('已将补充说明发送至任务');
           d.reload();
           return true;
         } catch (e) {
@@ -290,22 +290,22 @@ export function createTasksActions(d: ActionDeps) {
         d.setDecideFail(null);
         d.select(task.id);
         d.reload();
-        d.push('已切到最新一版');
+        d.push('已切换至最新版本');
         return;
       case 'send_session': {
         const session = d.view.sessions.find((s) => s.own && s.task_id === task.id);
         if (!session) {
-          d.push('没有找到这个任务的编码会话', { severity: 'danger' });
+          d.push('未找到该任务的编码会话', { severity: 'danger' });
           return;
         }
         try {
           await post(`/sessions/${seg(session.id)}/messages`, { text: a.text });
-          d.push('已发送到编码会话');
+          d.push('已发送至编码会话');
           d.reload();
           return true;
         } catch (e) {
           // 409 busy: the session is still running its turn (own.py message), not someone else's change.
-          if (e instanceof AgentdCallError && e.code === 'busy') d.push('会话正在执行这一轮，等它结束再发', { severity: 'danger' });
+          if (e instanceof AgentdCallError && e.code === 'busy') d.push('会话正在执行当前轮次，请等待结束后发送', { severity: 'danger' });
           else fail(e);
         }
         return;
@@ -349,7 +349,7 @@ export function createTasksActions(d: ActionDeps) {
     const resume = async () => {
       try {
         await post(`/agent/interactions/${seg(q.id)}/continue`, { expected_version: reply.revision });
-        d.push('角色已继续');
+        d.push('任务已继续执行');
         d.reload();
       } catch (e) {
         fail(e);
@@ -368,7 +368,7 @@ export function createTasksActions(d: ActionDeps) {
     }
     resolve([q.id]);
     leave(q.id);
-    d.push('已取消这次提问');
+    d.push('已取消本次提问');
     d.reload();
   };
 
@@ -381,14 +381,14 @@ export function createTasksActions(d: ActionDeps) {
       return;
     }
     d.setLocal((l) => ({ ...l, goalStatus: { ...l.goalStatus, [g.id]: status } }));
-    d.push(action === 'pause' ? '目标已暂停' : action === 'resume' ? '目标已恢复 │ 被中断的任务不会自动重跑' : '目标已核验并完成');
+    d.push(action === 'pause' ? '目标已暂停' : action === 'resume' ? '目标已恢复 │ 已中断的任务不会自动重新运行' : '目标已校验并完成');
     d.reload();
   };
 
   /** POST /agent/artifacts/revert writes the kept previous version back as a new version. */
   const revert = (delivery: Delivery, a: Artifact) =>
     post('/agent/artifacts/revert', { run_id: delivery.run_id, path: a.path, expected_version: a.version }).then(() => {
-      d.push(`已撤回：${a.name} 现在是 v${a.version + 1}，内容同 v${a.version - 1}`);
+      d.push(`已恢复版本：${a.name} 现为 v${a.version + 1}，内容与 v${a.version - 1} 一致`);
       d.reload();
     }, fail);
 

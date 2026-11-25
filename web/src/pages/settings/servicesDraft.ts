@@ -75,25 +75,25 @@ export function problem(d: ServiceRecord): ['url' | 'ssh_host' | 'command', stri
   } catch {
     // stays null
   }
-  if (!u || (u.protocol !== 'http:' && u.protocol !== 'https:')) return ['url', '地址要以 http:// 或 https:// 开头'];
+  if (!u || (u.protocol !== 'http:' && u.protocol !== 'https:')) return ['url', '地址须以 http:// 或 https:// 开头'];
   // The shell and agentd refuse these too.
-  if (u.username || u.password || u.search || u.hash) return ['url', '地址不能带用户名、密码、查询串或片段'];
+  if (u.username || u.password || u.search || u.hash) return ['url', '地址不得包含用户名、密码、查询参数或片段标识符'];
   if (d.mode === 'url') return null;
-  if (!LOOPBACK.has(u.hostname) || !u.port) return ['url', '要填回环地址和端口'];
-  if (d.mode === 'ssh' && !d.ssh_host) return ['ssh_host', 'SSH 主机没填'];
-  if (d.mode === 'local' && d.command.length === 0) return ['command', '命令没填'];
+  if (!LOOPBACK.has(u.hostname) || !u.port) return ['url', '本地或 SSH 模式须填写回环地址与端口号'];
+  if (d.mode === 'ssh' && !d.ssh_host) return ['ssh_host', '请填写 SSH 主机'];
+  if (d.mode === 'local' && d.command.length === 0) return ['command', '请填写启动命令'];
   return null;
 }
 
 type SaveError = Exclude<Extract<ServicesSaveResult, { ok: false }>['error'], 'invalid_record' | 'declined'>;
 const SAVE_REASON: Record<SaveError, string> = {
-  config_unreadable: '读不到配置文件',
-  write_failed: '配置文件写不进去',
-  token_not_cleared: '旧的语音令牌删不掉，地址没有改',
-  unknown_service: '外壳不认识这个服务',
+  config_unreadable: '无法读取配置文件',
+  write_failed: '写入配置文件失败',
+  token_not_cleared: '未能清除旧的语音令牌，服务地址未更改',
+  unknown_service: '应用未识别该服务',
 };
 
-export const TOKEN_CLEARED = '语音服务地址换了，旧令牌已删除，请在「服务 › 语音服务」里重新保存令牌';
+export const TOKEN_CLEARED = '语音服务地址已更改，原有令牌已清除，请在「设置 › 服务 › 语音服务」中重新保存令牌';
 
 /** A field the check or the shell refused, with its reason. */
 export interface ServiceRejected { field: string; message: string }
@@ -106,14 +106,14 @@ export type ServiceApplied =
 /** Saves one card's draft through `services.save`, which restarts the service and the backend. */
 export async function applyService(id: ServiceId, draft: ServiceDraft): Promise<ServiceApplied> {
   const record = recordOf(draft);
-  const fail = (why: string, rejected?: ServiceRejected): ServiceApplied => ({ ok: false, message: `没有保存${SERVICE_NAME[id]}：${why}`, rejected });
+  const fail = (why: string, rejected?: ServiceRejected): ServiceApplied => ({ ok: false, message: `未能保存${SERVICE_NAME[id]}：${why}`, rejected });
   const bad = problem(record);
   if (bad) return fail(bad[1], { field: bad[0], message: bad[1] });
   let r: ServicesSaveResult;
   try {
     r = await getBridge().services.save(id, record);
   } catch {
-    return fail('外壳没有响应');
+    return fail('客户端无响应');
   }
   if (r.ok) return { ok: true, record, tokenCleared: r.ttsTokenCleared === true };
   if (r.error === 'declined') return { ok: false, message: null };

@@ -76,7 +76,7 @@ export function questionCard(q: Interaction, now: number): Json {
   const approval = q.kind === 'approval';
   const item: Json = {
     id: q.request_id, kind: 'question', task_id: job !== null ? `job:${job}` : null, title: questionsOf(q)[0]?.question ?? '',
-    source: approval ? '角色 · 请求批准' : '角色', since: ms(q.created_at ?? 0), resolved: q.state !== 'pending', revision: q.revision,
+    source: approval ? '角色 │ 请求批准' : '角色', since: ms(q.created_at ?? 0), resolved: q.state !== 'pending', revision: q.revision,
     interaction_kind: approval ? 'approval' : 'question', state: q.state, questions, run_id: q.run_id ?? '', job_id: job,
     generation: q.generation ?? 0, expires_at: expires === 0 ? null : ms(expires), conversation_id: q.conversation_id ?? null,
     options: (questionsOf(q)[0]?.options ?? []).map((o) => o.label), seconds_left: expires === 0 ? null : Math.max(0, expires - now / 1000),
@@ -116,7 +116,7 @@ export function reviewCard(row: TaskRow, d: Delivery): Json {
   const title = deliveryTitle(row, d), id = `r-${d.delivery_id}`;
   const item: Json = {
     id, kind: 'review', task_id: d.canonical_task_id ?? row.canonical_task_id, delivery_id: d.delivery_id,
-    title: `${title} v${d.delivery_version ?? 1}`, source: `角色任务 · ${title}`, since: ms(d.presented_at ?? d.produced_at ?? 0),
+    title: `${title} v${d.delivery_version ?? 1}`, source: `角色任务 │ ${title}`, since: ms(d.presented_at ?? d.produced_at ?? 0),
     revision: d.revision, generation: d.generation, verification_source: verification(d.verification_source ?? row.verification_source),
   };
   return { id, kind: 'review', source: 'delivery', item, delivery: deliveryJson(row, d), summary: d.summary ?? '', lifeS: 60, lifeTotalS: 60 };
@@ -129,19 +129,19 @@ export function deliveryCard(row: TaskRow, d: Delivery): Json {
 
 /** ErrorText.text of the reasons a `/tasks` result carries (agentd sessions/tasks.py and own.py). */
 const CODING_REASONS: Record<string, string> = {
-  timeout: '请求超时，请重试。', restart: '后台已重启，任务已中断，可以继续处理。', cancelled: '本轮已取消。',
-  no_verify_cmd: '没有设置检查命令，结果需要你复核。', not_started: '检查命令无法运行，请检查命令和目录。',
-  invalid_verify_cmd: '检查命令不被允许，请换用只读或安全的命令。',
+  timeout: '请求超时，请重试。', restart: '后台服务已重启，任务已中断，可继续处理。', cancelled: '本轮已取消。',
+  no_verify_cmd: '未配置校验命令，请人工复核结果。', not_started: '校验命令无法启动，请检查命令与工作目录。',
+  invalid_verify_cmd: '校验命令未通过安全检查，请改用只读或安全命令。',
 };
 /** An unknown status. */
-const UNKNOWN_REASON = '出了点问题（查看详情）';
+const UNKNOWN_REASON = '执行异常，请查看详情';
 
 /** A coding task waiting for 验收: no delivery record, so the delivery fields are placeholders the page does not send back. */
 export function codingCard(t: CodingTask): Json {
   const id = `c-${t.task_id}`, task = `task:${t.task_id}`, title = t.title ?? '', since = ms(t.updated_at ?? 0);
   const reason = t.result?.reason;
   const summary = reason != null ? CODING_REASONS[reason] ?? UNKNOWN_REASON : t.result?.output_tail ?? '';
-  const item: Json = { id, kind: 'review', task_id: task, delivery_id: '', title, source: `${agentName(t.target)} · ${title}`, since,
+  const item: Json = { id, kind: 'review', task_id: task, delivery_id: '', title, source: `${agentName(t.target)} │ ${title}`, since,
     revision: 0, generation: 0, verification_source: 'unverified' };
   const delivery: Json = {
     id: '', task_id: task, version: 1, revision: 0, generation: 0, run_id: t.result?.run_id ?? '', job_id: null, title, summary, outcome: '',
@@ -157,10 +157,10 @@ export function voiceCard(hint: VoiceHint): Json {
   const card: Json = { id: VOICE_HINT_ID, kind: 'notice', variant: 'voice' };
   if (hint.kind === 'listening') Object.assign(card, { phase: 'listening', title: '正在录音', text: hint.text, elapsed_s: Math.trunc(hint.elapsed) });
   else if (hint.kind === 'sent') Object.assign(card, { phase: 'sent', title: '已发送', text: hint.text });
-  else if (hint.kind === 'discarded') Object.assign(card, { phase: 'discarded', title: '没发送', text: hint.reason });
-  else if (hint.kind === 'downloading') Object.assign(card, { phase: 'downloading', title: '第一次用，要先下载识别模型', fraction: hint.fraction,
+  else if (hint.kind === 'discarded') Object.assign(card, { phase: 'discarded', title: '未发送', text: hint.reason });
+  else if (hint.kind === 'downloading') Object.assign(card, { phase: 'downloading', title: '首次使用需下载语音识别模型', fraction: hint.fraction,
     received_mb: hint.receivedMB, total_mb: hint.totalMB });
-  else Object.assign(card, { phase: 'mic_denied', title: '麦克风被拒', text: 'Agentic Complex 没有麦克风权限，按住说话用不了' });
+  else Object.assign(card, { phase: 'mic_denied', title: '未授予麦克风权限', text: 'Agentic Complex 尚未获得麦克风权限，无法使用按住语音输入' });
   return card;
 }
 

@@ -28,8 +28,8 @@ export function ErrorStackCard({ card, top, highlight, act }: ErrorStackCardProp
         onClose={() => act({ type: 'archive', id: card.id })}
         escKey={top && keycapsFor(card).esc}
         footer={
-          <Btn variant="secondary" size="sm" onClick={() => act({ type: 'open', to: { page: 'overview', sel: card.task_id }, message: `已在主窗口打开：任务 › ${card.title}` })}>
-            看出错
+          <Btn variant="secondary" size="sm" onClick={() => act({ type: 'open', to: { page: 'overview', sel: card.task_id }, message: `已在主窗口打开：每日简报 › ${card.title}` })}>
+            查看详情
           </Btn>
         }
       >

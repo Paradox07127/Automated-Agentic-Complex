@@ -94,7 +94,7 @@ describe('settings › 角色内核 › 按用途指定', () => {
     );
     const grid = screen.getByRole('grid', { name: '按用途指定' });
     const rows = within(grid).getAllByRole('row').slice(1);
-    expect(rows.map((r) => r.querySelector('td')?.textContent)).toEqual(['对话', '后台任务', '主动判断', '屏幕理解', '记忆与日志', '电脑操控']);
+    expect(rows.map((r) => r.querySelector('td')?.textContent)).toEqual(['对话', '后台任务', '主动判断', '屏幕理解', '记忆与日志', '电脑操作']);
     expect(rows).toHaveLength(ROUTES.length);
     for (const [i, r] of rows.entries()) {
       const name = r.querySelector('td')?.textContent;

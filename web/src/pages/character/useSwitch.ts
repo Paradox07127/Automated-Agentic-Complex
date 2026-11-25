@@ -44,16 +44,16 @@ export function useSwitch(o: SwitchOptions) {
   };
 
   const confirm = (target: CharacterProfile, note: string) =>
-    o.ask({ title: `切换到 ${target.name}？`, note, confirmLabel: '切换', cancelLabel: '先不切换', onConfirm: () => start(target) });
+    o.ask({ title: `切换至 ${target.name}？`, note, confirmLabel: '切换', cancelLabel: '暂不切换', onConfirm: () => start(target) });
 
   /** Always confirms; the note names the tasks that keep running while input pauses. */
   const request = (target: CharacterProfile, current: string, currentName = '当前角色') => {
     if (target.id === current || state.phase === 'running') return;
-    const swap = `${currentName} 先从桌面隐藏，资源加载完成后显示 ${target.name}。切换期间约 2 秒不接受输入。`;
+    const swap = `${currentName} 将先退出桌面显示，资源加载完成后显示 ${target.name}。切换期间约 2 秒暂不接收输入。`;
     const n = ++asked.current;
     o.runningTasks().then(
-      (tasks) => n === asked.current && confirm(target, tasks.length === 0 ? swap : `${swap}现在有 ${tasks.length} 个任务在跑（${tasks.map((t) => t.title).join('、')}），任务不会停。`),
-      () => n === asked.current && confirm(target, `${swap}没读到任务列表。`),
+      (tasks) => n === asked.current && confirm(target, tasks.length === 0 ? swap : `${swap}当前有 ${tasks.length} 个任务正在运行（${tasks.map((t) => t.title).join('、')}），任务不会中断。`),
+      () => n === asked.current && confirm(target, `${swap}未能读取任务列表。`),
     );
   };
 

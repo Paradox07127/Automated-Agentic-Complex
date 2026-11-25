@@ -41,7 +41,7 @@ describe('编排 › 角色建议', () => {
       expect(proposals()).toEqual([RELAX_SP, `${P}uiteam_idle_loop`, `${P}customized_state_stretch_start`]);
       expect(proposal(RELAX_SP).textContent).toContain('ui_relax_sp');
       expect(proposal(RELAX_SP).textContent).toContain('token:ui_relax');
-      await click(within(proposal(RELAX_SP)).getByRole('button', { name: '收下' }));
+      await click(within(proposal(RELAX_SP)).getByRole('button', { name: '采纳' }));
       expect(rows()).toEqual([FIDGET, RELAX_SP]);
       expect(weight(RELAX_SP).value).toBe('3');
       expect(weight(RELAX_SP).disabled).toBe(false);
@@ -60,7 +60,7 @@ describe('编排 › 角色建议', () => {
     const set = vi.spyOn(bridge.avatar.motionOverrides, 'set');
     await mount(toast);
     await ready();
-    await click(within(proposal(RELAX_SP)).getByRole('button', { name: '不要' }));
+    await click(within(proposal(RELAX_SP)).getByRole('button', { name: '忽略' }));
     expect(proposals()).toEqual([`${P}uiteam_idle_loop`, `${P}customized_state_stretch_start`]);
     expect(rows()).toEqual([FIDGET]);
     expect(screen.getByRole('group', { name: '保存动作设置' }).textContent).toContain('已保存');
@@ -80,9 +80,9 @@ describe('编排 › 角色建议', () => {
     await ready();
     const lane = document.querySelector<HTMLElement>('[data-lane="idle.t1"] [data-proposed]')!;
     expect(lane.textContent).toBe('3');
-    await click(within(proposal(RELAX_SP)).getByRole('button', { name: '不要' }));
+    await click(within(proposal(RELAX_SP)).getByRole('button', { name: '忽略' }));
     expect(document.querySelector('[data-lane="idle.t1"] [data-proposed]')!.textContent).toBe('2');
-    await click(within(proposal(`${P}uiteam_idle_loop`)).getByRole('button', { name: '收下' }));
+    await click(within(proposal(`${P}uiteam_idle_loop`)).getByRole('button', { name: '采纳' }));
     expect(document.querySelector('[data-lane="idle.t1"] [data-proposed]')!.textContent).toBe('1');
     await toEvent('session.thinking');
     expect(document.querySelector('[data-pool-cell="session.thinking"] [data-proposed]')!.textContent).toBe('1');
@@ -96,11 +96,11 @@ describe('编排 › 角色建议', () => {
     await mount(toast);
     await ready();
     expect(pool().querySelector('[data-stub="TitleBar"]')!.textContent).toContain('64/64');
-    const take = within(proposal(RELAX_SP)).getByRole('button', { name: '收下' });
+    const take = within(proposal(RELAX_SP)).getByRole('button', { name: '采纳' });
     expect(take.getAttribute('aria-disabled')).toBe('true');
     await click(take);
     expect(rows()).toHaveLength(64);
-    expect(within(proposal(RELAX_SP)).getByRole('button', { name: '不要' }).hasAttribute('aria-disabled')).toBe(false);
+    expect(within(proposal(RELAX_SP)).getByRole('button', { name: '忽略' }).hasAttribute('aria-disabled')).toBe(false);
     expect(screen.getByRole('button', { name: '往 idle.t1 加链' }).getAttribute('aria-disabled')).toBe('true');
   });
 });
@@ -110,12 +110,12 @@ describe('编排 › 没收的、没进任何池', () => {
     const sequence = vi.spyOn(bridge.avatar.preview, 'sequence');
     await mount(toast);
     await ready();
-    const refused = fold('没收的');
+    const refused = fold('未收录');
     expect(refused.getAttribute('aria-expanded')).toBe('false');
-    expect(pool().textContent).not.toContain('站姿和池子不一致');
+    expect(pool().textContent).not.toContain('姿态与动作池不一致');
     await click(refused);
-    expect(pool().querySelector('[data-refused="A_clip_birch_customized_state_sit_loop"]')!.textContent).toContain('站姿和池子不一致');
-    const outside = fold('没进任何池');
+    expect(pool().querySelector('[data-refused="A_clip_birch_customized_state_sit_loop"]')!.textContent).toContain('姿态与动作池不一致');
+    const outside = fold('未归入任何动作池');
     expect(outside.getAttribute('aria-expanded')).toBe('false');
     expect(document.querySelector('[data-outside]')).toBeNull();
     await click(outside);
@@ -127,8 +127,8 @@ describe('编排 › 没收的、没进任何池', () => {
     await click(out('shared_walk_loop').querySelector('button[aria-pressed]')!);
     await waitFor(() => expect(sequence).toHaveBeenCalledWith({ clips: [`${P}shared_walk_loop`], blend_s: [] }));
     await toEvent('session.thinking');
-    await click(fold('没收的'));
-    expect(pool().textContent).toContain('回不到站姿');
+    await click(fold('未收录'));
+    expect(pool().textContent).toContain('无法回到基础站姿');
   });
 
   it('reads the counts in one line at the top', async () => {
@@ -136,7 +136,7 @@ describe('编排 › 没收的、没进任何池', () => {
     await ready();
     const c = MOTION_GROUPS.counts;
     expect(document.querySelector('[data-counts]')!.textContent).toBe(
-      `片段 ${c.clips}已入池 ${c.pooled}建议 ${c.proposals}没收 ${c.rejected}排除 ${c.excluded}未分类 ${c.unclassified}`,
+      `片段 ${c.clips}已入池 ${c.pooled}建议 ${c.proposals}未收录 ${c.rejected}排除 ${c.excluded}未分类 ${c.unclassified}`,
     );
   });
 
@@ -152,7 +152,7 @@ describe('编排 › 没收的、没进任何池', () => {
     expect(screen.getAllByRole('alert')).toHaveLength(1);
     expect(alert.textContent).toContain('读取动作池失败');
     expect(document.querySelector('[data-counts]')).toBeNull();
-    expect(screen.queryByRole('button', { name: /^没进任何池/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^未归入任何动作池/ })).toBeNull();
     expect(rows()).toEqual([FIDGET]);
     await click(screen.getByRole('button', { name: /^往 idle\.t1 加链/ }));
     await click(screen.getByRole('button', { name: /^挥手/ }));

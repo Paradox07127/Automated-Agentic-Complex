@@ -12,7 +12,7 @@ let toast: Mock<Toast>;
 let stage: HTMLElement;
 
 const previewBtn = () => within(detail()).getByRole('button', { name: /舞台预览|预览中/ }) as HTMLButtonElement;
-const playBtn = () => within(detail()).getByRole('button', { name: '桌面播一次' }) as HTMLButtonElement;
+const playBtn = () => within(detail()).getByRole('button', { name: '桌面播放一次' }) as HTMLButtonElement;
 
 beforeEach(() => {
   bridge = createFakeBridge({ surface: 'main', still: true });
@@ -41,7 +41,7 @@ describe('编排 预览和桌面播放', () => {
     expect(show).toHaveBeenCalledTimes(1);
     expect(sequence).toHaveBeenLastCalledWith({ clips: [PONDER, PONDER_LOOP, PONDER_END], blend_s: [0.5, 0.25] });
     expect(show.mock.invocationCallOrder[0]!).toBeLessThan(sequence.mock.invocationCallOrder[0]!);
-    expect(toast).toHaveBeenLastCalledWith('预览里正在播放「dialog_state_think_start」');
+    expect(toast).toHaveBeenLastCalledWith('正在预览播放「dialog_state_think_start」');
     stage.setAttribute('data-live', 'true');
     // The row's ▶ plays it too, without opening anything else.
     await click(playRow(PONDER));
@@ -68,7 +68,7 @@ describe('编排 预览和桌面播放', () => {
     await openChain(PONDER);
     await click(previewBtn());
     expect(sequence).not.toHaveBeenCalled();
-    expect(toast).toHaveBeenLastCalledWith('实时预览没有打开', { severity: 'warning' });
+    expect(toast).toHaveBeenLastCalledWith('实时预览未开启', { severity: 'warning' });
     expect(previewBtn().disabled).toBe(false);
   });
 
@@ -78,7 +78,7 @@ describe('编排 预览和桌面播放', () => {
     await openChain(PONDER);
     await click(playBtn());
     expect(play).toHaveBeenLastCalledWith('si', { start: PONDER });
-    expect(toast).toHaveBeenLastCalledWith('桌面上正在播放「dialog_state_think_start」');
+    expect(toast).toHaveBeenLastCalledWith('正在桌面端播放「dialog_state_think_start」');
   });
 
   it('greys out a button the renderer does not support and says why', async () => {
@@ -89,10 +89,10 @@ describe('编排 预览和桌面播放', () => {
     await openChain(PONDER);
     await click(previewBtn());
     expect(previewBtn().disabled).toBe(true);
-    expect(detail().textContent).toContain('这个版本的渲染器还不支持预览动作链');
+    expect(detail().textContent).toContain('当前版本渲染器暂不支持预览动作链');
     await click(playBtn());
     expect(playBtn().disabled).toBe(true);
-    expect(detail().textContent).toContain('这个版本还不支持在桌面上播放');
+    expect(detail().textContent).toContain('当前版本暂不支持于桌面播放');
   });
 
   it('greys out both while the avatar is not running, and a row ▶ only says why', async () => {
@@ -102,9 +102,9 @@ describe('编排 预览和桌面播放', () => {
     await openChain(PONDER);
     expect(previewBtn().disabled).toBe(true);
     expect(playBtn().disabled).toBe(true);
-    expect(detail().querySelector('[data-block]')!.textContent).toBe('角色未运行');
+    expect(detail().querySelector('[data-block]')!.textContent).toBe('角色进程未运行');
     await click(playRow(PONDER));
-    expect(toast).toHaveBeenLastCalledWith('角色未运行', { severity: 'warning' });
+    expect(toast).toHaveBeenLastCalledWith('角色进程未运行', { severity: 'warning' });
     expect(sequence).not.toHaveBeenCalled();
     expect(play).not.toHaveBeenCalled();
   });

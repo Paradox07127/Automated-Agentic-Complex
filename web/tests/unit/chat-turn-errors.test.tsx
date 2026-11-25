@@ -73,12 +73,12 @@ describe('a failed chat turn says why and what to do next', () => {
     expect(await within(auth).findByText(/登录已过期，请重新登录/)).toBeTruthy();
     expect(within(quota).getByText(/可用额度已用完，请检查账户额度/)).toBeTruthy();
     expect(within(net).getByText(/连接服务失败，请稍后重试/)).toBeTruthy();
-    for (const row of [auth, quota, net]) expect(within(row).queryByText(/没有回复/)).toBeNull();
+    for (const row of [auth, quota, net]) expect(within(row).queryByText(/未返回回复/)).toBeNull();
 
-    expect(within(quota).queryByRole('button', { name: '去登录' })).toBeNull();
-    expect(within(net).queryByRole('button', { name: '去登录' })).toBeNull();
+    expect(within(quota).queryByRole('button', { name: '前往登录' })).toBeNull();
+    expect(within(net).queryByRole('button', { name: '前往登录' })).toBeNull();
     expect(within(net).queryByRole('button', { name: '查看用量' })).toBeNull();
-    fireEvent.click(within(auth).getByRole('button', { name: '去登录' }));
+    fireEvent.click(within(auth).getByRole('button', { name: '前往登录' }));
     expect(window.location.hash).toContain('/settings?group=kernel');
     fireEvent.click(within(quota).getByRole('button', { name: '查看用量' }));
     expect(window.location.hash).toContain('/diag?tab=flow&item=usage');
@@ -89,7 +89,7 @@ describe('a failed chat turn says why and what to do next', () => {
     const thread = await mount();
     const row = await send(thread, '你好', 1);
     fail(emit, 1, 'bundled_cli_missing', { code: 'unknown', retryable: false, public_message: '本次请求失败，请稍后再试。' });
-    expect(await within(row).findByText(/应用自带的内核文件不全/)).toBeTruthy();
+    expect(await within(row).findByText(/内置执行内核文件不完整/)).toBeTruthy();
   });
 
   it('an unknown code shows the backend public_message', async () => {
@@ -117,7 +117,7 @@ describe('a failed chat turn says why and what to do next', () => {
     const emit = bridge();
     const thread = await mount();
     fireEvent.click(within(thread).getByRole('button', { name: '附加' }));
-    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '这句不记' }));
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '此轮不记录' }));
     fireEvent.keyDown(document, { key: 'Escape' });
     const net = await send(thread, '只说一次', 1);
     fail(emit, 1, 'network', { code: 'network', retryable: true, public_message: '连接服务失败，请稍后重试。' });

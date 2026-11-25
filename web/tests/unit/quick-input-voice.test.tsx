@@ -45,24 +45,24 @@ async function mount(hotkeys: Record<string, string>, voice: DesktopState['pips'
 }
 
 describe('快速输入 voice hint', () => {
-  it('shows 按住 <key> 说话 with a push-to-talk key', async () => {
+  it('shows 按住 <key> 语音输入 with a push-to-talk key', async () => {
     await mount({ hk_ptt: '右⌥', hk_quick: '⌃Space' });
-    const hint = await screen.findByText('说话', { exact: false });
-    expect(hint.textContent).toBe('按住右⌥说话');
+    const hint = await screen.findByText('语音输入', { exact: false });
+    expect(hint.textContent).toBe('按住右⌥语音输入');
     expect(hint.querySelector('kbd')?.textContent).toBe('右⌥');
   });
 
   it('shows nothing without one', async () => {
     const dialog = await mount({ hk_quick: '⌃Space' });
     expect(screen.queryByText(/按住/)).toBeNull();
-    expect(Array.from(dialog.querySelectorAll('kbd'), (el) => el.textContent)).toEqual(['⌘J', '⏎']);
+    expect(Array.from(dialog.querySelectorAll('kbd'), (el) => el.textContent)).toEqual(['⌘2', '⏎']);
   });
 
   it('shows nothing while push-to-talk is off or the microphone is denied, though the key is saved', async () => {
     for (const voice of ['off', 'denied'] as const) {
       const dialog = await mount({ hk_ptt: '右⌥' }, voice);
       expect(screen.queryByText(/按住/)).toBeNull();
-      expect(Array.from(dialog.querySelectorAll('kbd'), (el) => el.textContent)).toEqual(['⌘J', '⏎']);
+      expect(Array.from(dialog.querySelectorAll('kbd'), (el) => el.textContent)).toEqual(['⌘2', '⏎']);
       cleanup();
     }
   });

@@ -21,10 +21,10 @@ export interface VoiceTrial { levels: number[]; elapsed: string; transcript: str
 
 /** The recording hint's reasons. */
 export const HINT = {
-  tooShort: '按住不到 0.3 秒',
-  nothingHeard: '没听清，没转出文字',
-  notSent: '没发出去',
-  micAllowed: '已允许麦克风，再按住说话',
+  tooShort: '按住时长不足 0.3 秒',
+  nothingHeard: '未识别到有效语音内容',
+  notSent: '消息未发送',
+  micAllowed: '麦克风已授权，可重新按住语音输入',
 };
 
 /** Right Option alone counts as push-to-talk once held this long. */
@@ -94,25 +94,25 @@ export function speechLocale(setting: string, preferred: readonly string[]): str
 
 /** ErrorText.recovery with `short`. */
 function shortRecovery(code: string, runtime: string | null): string | null {
-  if (code === 'native_login_required' && runtime === 'codex') return '角色内核未登录：终端运行 codex login';
-  if (code === 'native_login_required' && runtime === 'claude') return '角色内核未登录：终端运行 claude auth login';
-  if (code === 'local_runtime_missing' || code === 'bundled_runtime_missing') return '没找到 Codex CLI 或 ACP agent';
-  if (code === 'runtime_protocol_unavailable' || code === 'runtime_version_not_verified') return '内核协议不可用，请更新 CLI 后重新检测';
+  if (code === 'native_login_required' && runtime === 'codex') return '执行内核未登录：请在终端运行 codex login';
+  if (code === 'native_login_required' && runtime === 'claude') return '执行内核未登录：请在终端运行 claude auth login';
+  if (code === 'local_runtime_missing' || code === 'bundled_runtime_missing') return '未检测到 Codex CLI 或 ACP 智能体';
+  if (code === 'runtime_protocol_unavailable' || code === 'runtime_version_not_verified') return '执行内核协议不可用，请更新 CLI 后重新检测';
   return null;
 }
 
 const REJECTED: Record<string, string> = {
-  no_reminder_time: '没听出提醒时间，再说一次',
-  no_commitments: '提醒现在用不了',
-  switching: '正在换角色，没发出去',
-  no_llm: '对话没启用，没发出去',
-  invalid_text: '说得太长了，没发出去',
-  no_pending_approval: '现在没有等你批准的卡',
-  ambiguous_approval: '有好几张审批卡，去卡上点',
-  no_task: '现在没有在跑的任务',
-  ambiguous_task: '有好几个任务在跑，去会话页停',
-  shutting_down: '后台正在退出，没发出去',
-  resetting: '正在删除本地数据，没发出去',
+  no_reminder_time: '未识别到提醒时间，请重新说明',
+  no_commitments: '当前暂不支持创建提醒',
+  switching: '正在切换角色，消息未发送',
+  no_llm: '对话功能未启用，消息未发送',
+  invalid_text: '输入内容过长，消息未发送',
+  no_pending_approval: '当前没有待批准的请求',
+  ambiguous_approval: '存在多项待批准请求，请在对应卡片上操作',
+  no_task: '当前没有运行中的任务',
+  ambiguous_task: '存在多个运行中的任务，请前往每日简报或任务页停止',
+  shutting_down: '后台服务正在退出，消息未发送',
+  resetting: '正在清除本地数据，消息未发送',
 };
 
 /** What a `/say` refusal shows; `runtime` is the role runtime a 503 names. */

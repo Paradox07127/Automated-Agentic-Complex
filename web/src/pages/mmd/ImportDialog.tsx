@@ -57,11 +57,11 @@ export function ImportDialog({ token, scan, onImport, onCancel, onPickAudio }: I
   const items = picked.map((body) => ({ body, title: itemTitle(song, scan, body) }));
   const why =
     picked.length === 0
-      ? '至少勾一条身体动作'
+      ? '请至少勾选一条身体动作'
       : !titleOk(song) || !items.every((i) => titleOk(i.title))
-        ? '名字要 1–64 个字'
+        ? '名称须为 1–64 个字符'
         : audio !== NONE && bgmStartS === undefined
-          ? '音乐偏移要是秒数'
+          ? '音乐偏移须为数字（秒）'
           : null;
   const submit = () => {
     if (why != null) return;
@@ -90,7 +90,7 @@ export function ImportDialog({ token, scan, onImport, onCancel, onPickAudio }: I
     >
       <div className={styles.form} data-mmd-import="">
         <label className={`${modal.field} ${styles.song}`}>
-          曲名
+          舞蹈名称
           <input className={modal.input} value={song} autoComplete="off" spellCheck={false} onChange={(e) => setSong(e.currentTarget.value)} />
         </label>
         <fieldset className={styles.group}>
@@ -125,8 +125,8 @@ export function ImportDialog({ token, scan, onImport, onCancel, onPickAudio }: I
           <Select label="口型" prefix="口型" value={face} options={options(scan.faces)} onChange={setFace} />
           <Select label="镜头" prefix="镜头" value={camera} options={options(scan.cameras)} onChange={setCamera} />
           <div className={styles.audio}>
-            <Select label="音源" prefix="音源" value={audio} options={options(scan.audio)} onChange={setAudio} />
-            <IconBtn icon="folder" label="选择其它音频" size="sm" onClick={pickAudio} />
+            <Select label="音频" prefix="音频" value={audio} options={options(scan.audio)} onChange={setAudio} />
+            <IconBtn icon="folder" label="选择其他音频" size="sm" onClick={pickAudio} />
           </div>
           <label className={styles.offset}>
             音乐偏移

@@ -83,7 +83,7 @@ describe('motion library', () => {
     await click(screen.getByRole('tab', { name: '动作表' }));
     await waitFor(() => expect(rowOf()).not.toBeNull());
     expect(within(rowOf()!).getByText('BVH')).toBeTruthy();
-    const only = screen.getByRole('button', { name: /只看导入/ });
+    const only = screen.getByRole('button', { name: /仅显示导入动作/ });
     expect(only.getAttribute('aria-pressed')).toBe('false');
     await click(only);
     expect(only.getAttribute('aria-pressed')).toBe('true');
@@ -93,7 +93,7 @@ describe('motion library', () => {
 
     await click(screen.getByRole('tab', { name: '导入' }));
     await click(within(itemOf()!).getByRole('button', { name: '改名' }));
-    let dialog = screen.getByRole('dialog', { name: '改名' });
+    let dialog = screen.getByRole('dialog', { name: '重命名' });
     let input = within(dialog).getByRole('textbox') as HTMLInputElement;
     expect(input.value).toBe('示例舞蹈');
     fireEvent.change(input, { target: { value: '慢舞' } });
@@ -103,7 +103,7 @@ describe('motion library', () => {
     await waitFor(() => expect(itemOf()?.textContent).toContain('慢舞'));
 
     await click(within(itemOf()!).getByRole('button', { name: '改名' }));
-    dialog = screen.getByRole('dialog', { name: '改名' });
+    dialog = screen.getByRole('dialog', { name: '重命名' });
     input = within(dialog).getByRole('textbox') as HTMLInputElement;
     fireEvent.change(input, { target: { value: '不要' } });
     await act(async () => void fireEvent.keyDown(input, { key: 'Escape' }));
@@ -123,7 +123,7 @@ describe('motion library', () => {
     await mount('&pane=motion');
     await screen.findAllByText('点头附和');
     await waitFor(() => expect(list).toHaveBeenCalled());
-    expect(screen.queryByRole('button', { name: /只看导入/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /仅显示导入动作/ })).toBeNull();
     await click(screen.getByRole('tab', { name: '导入' }));
     expect(screen.queryByRole('list', { name: '导入的动作' })).toBeNull();
     expect(screen.queryByRole('button', { name: '改名' })).toBeNull();
@@ -169,7 +169,7 @@ describe('motion library', () => {
     await click(await screen.findByRole('button', { name: /^导入动作…/ }));
     await waitFor(() => expect(itemOf()).not.toBeNull());
     await click(within(itemOf()!).getByRole('button', { name: '改名' }));
-    const input = within(screen.getByRole('dialog', { name: '改名' })).getByRole('textbox');
+    const input = within(screen.getByRole('dialog', { name: '重命名' })).getByRole('textbox');
     fireEvent.change(input, { target: { value: '慢舞' } });
     await act(async () => void fireEvent.keyDown(input, { key: 'Enter' }));
     expect(rename).toHaveBeenCalledWith('si', ID, '慢舞');

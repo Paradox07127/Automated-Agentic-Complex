@@ -14,9 +14,9 @@ type Supervised = Partial<Record<ProcKey, ProcessState>>;
 
 /** The services' rows: name and what the shell's process is for. */
 export const SERVICE_ROWS: readonly [ServiceId, string, string][] = [
-  ['tts', '语音服务', '连语音'],
-  ['motion', '动作服务', '连动作生成'],
-  ['llm', '模型服务', '连兼容模型'],
+  ['tts', '语音服务', '连接语音服务'],
+  ['motion', '动作服务', '连接动作生成服务'],
+  ['llm', '模型服务', '连接兼容模型服务'],
 ];
 
 /** One supervised child. */
@@ -68,11 +68,11 @@ export interface DiagProcess {
 /** tts last result codes (server.py `_tts_last`), shown when the voice is not ready. */
 const TTS_RESULT: Readonly<Record<string, string>> = {
   connection_lost: '连接断开',
-  unreachable: '连不上',
+  unreachable: '无法连接',
   tts_unavailable: '服务不可用',
-  timeout: '超时',
-  bad_stream: '音频流坏了',
-  empty_stream: '没回音频',
+  timeout: '响应超时',
+  bad_stream: '音频流损坏',
+  empty_stream: '未返回音频',
 };
 /** speech.py also reports `http_<status>` when the TTS answers with an error. */
 export const ttsText = (code: string): string => TTS_RESULT[code] ?? (/^http_\d+$/.test(code) ? `服务返回错误 ${code.slice(5)}` : '其他原因');
@@ -83,7 +83,7 @@ export function processesOf(sup: Supervised | null, connection: AgentdConnection
     const c = parseChild(sup?.[key]?.state);
     let [tone, text] = CHILD_TEXT[c.kind];
     if (c.kind === 'failed' && c.reason) text = `${text}：${c.reason}`;
-    if (key === 'agentd' && connection != null && connection !== 'connected' && c.kind === 'running') [tone, text] = ['failed', connection === 'unauthorized' ? '拒绝连接' : '没有响应'];
+    if (key === 'agentd' && connection != null && connection !== 'connected' && c.kind === 'running') [tone, text] = ['failed', connection === 'unauthorized' ? '拒绝连接' : '无响应'];
     return {
       key,
       name,
@@ -149,47 +149,47 @@ const CAP_ORDER = ['generation', 'mouth', 'voice'];
 
 /** Capability reason codes from agentd (capabilities.py, trace_format.py). */
 export const CAP_REASON: Readonly<Record<string, string>> = {
-  missing_api_key: '没有 API key',
-  sign_in_required: 'ChatGPT 没登录',
-  plan_usage_not_enabled: '没授权订阅额度',
+  missing_api_key: '未配置 API 密钥',
+  sign_in_required: '未登录 ChatGPT',
+  plan_usage_not_enabled: '未授权订阅额度',
   secret_store_unavailable: '系统凭据存储无法访问',
-  credential_permissions: '设置文件权限不是 600',
-  settings_unreadable: '设置文件读不出来',
-  no_tts: '没配置 TTS，台词只出文字',
-  no_llm: '角色运行环境没准备好',
+  credential_permissions: '凭据文件权限须为 600',
+  settings_unreadable: '无法读取配置文件',
+  no_tts: '未配置语音合成，当前仅展示文字',
+  no_llm: '角色运行环境未就绪',
   tts_unavailable: 'TTS 服务不可用',
-  unreachable: '连不上 TTS 服务',
-  bad_stream: 'TTS 回的音频流坏了',
-  empty_stream: 'TTS 没回音频',
-  not_running: '没在运行',
+  unreachable: '无法连接 TTS 服务',
+  bad_stream: 'TTS 返回的音频流损坏',
+  empty_stream: 'TTS 未返回音频',
+  not_running: '未运行',
   // personal_agent / generation: the runtime status error (character_agent/integration.py).
-  runtime_missing: '内核没有安装',
-  local_runtime_missing: '没找到本机的内核程序',
-  bundled_runtime_missing: '应用自带的内核不完整',
-  runtime_discovery_pending: '正在检测内核',
-  runtime_probe_pending: '正在检查内核程序',
-  local_node_missing: '没找到本机的 Node',
-  runtime_version_not_verified: '内核兼容检查未通过',
+  runtime_missing: '执行内核未安装',
+  local_runtime_missing: '未找到本地执行内核程序',
+  bundled_runtime_missing: '应用内置内核不完整',
+  runtime_discovery_pending: '正在检测执行内核',
+  runtime_probe_pending: '正在检查执行内核程序',
+  local_node_missing: '未找到本地 Node.js',
+  runtime_version_not_verified: '内核兼容性检查未通过',
   runtime_protocol_unavailable: '角色入口不可用',
   sdk_protocol_unavailable: '内核缺少必要接口',
   sdk_policy_capability_missing: '内核缺少必要的权限控制能力',
-  sdk_effort_capability_missing: '内核缺少需要的推理设置能力',
-  codex_model_catalog_unavailable: '读取不到内核的模型目录',
-  native_login_required: '还没登录内核',
-  pi_connection_missing: 'Pi 没有能用的模型连接',
-  acp_agent_missing: '没选 ACP agent',
-  acp_auth_required: 'ACP agent 还没登录',
-  product_login_required: '还没在应用里登录内核',
+  sdk_effort_capability_missing: '内核缺少所需的推理设置能力',
+  codex_model_catalog_unavailable: '无法读取内核模型目录',
+  native_login_required: '尚未登录内核',
+  pi_connection_missing: 'Pi 无可用模型连接',
+  acp_agent_missing: '未选择 ACP 智能体',
+  acp_auth_required: 'ACP 智能体尚未登录',
+  product_login_required: '尚未在应用内登录内核',
   product_login_checking: '正在检查登录状态',
-  pi_provider_model_required: '没填服务提供方和模型',
-  character_context_unavailable: '角色资料没准备好',
-  unsupported_openai_endpoint: '这个接口地址不受支持',
-  missing_provider_api_key: '没有 API key',
-  local_no_auth_requires_compatible: '免密钥连接只用于本机兼容服务',
-  unauthenticated_provider_requires_loopback: '免密钥连接只能连本机地址',
-  native_login_requires_native_provider: '本机登录要配本机工具的服务',
-  exited: '端侧模型进程退出了',
-  timeout: '超时没有响应',
+  pi_provider_model_required: '未填写服务提供方和模型',
+  character_context_unavailable: '角色资料未就绪',
+  unsupported_openai_endpoint: '不支持此接口地址',
+  missing_provider_api_key: '未配置 API 密钥',
+  local_no_auth_requires_compatible: '免密钥连接仅限本地兼容服务',
+  unauthenticated_provider_requires_loopback: '免密钥连接仅限本地回环地址',
+  native_login_requires_native_provider: '本地登录须配合本地工具服务使用',
+  exited: '本地模型进程已退出',
+  timeout: '响应超时',
 };
 
 const CAP_FIX: Readonly<Record<string, NavTarget>> = {
@@ -215,7 +215,7 @@ export function issuesOf(caps: WireCapabilities | null): DiagIssue[] {
     .map(([name, it]) => ({
       id: name,
       title: `${CAP_LABEL[name] ?? name}${it.state === 'unavailable' ? '不可用' : '受限'}`,
-      detail: it.reason ? (CAP_REASON[it.reason] ?? '其他原因') : '后台没给原因',
+      detail: it.reason ? (CAP_REASON[it.reason] ?? '其他原因') : '后台服务未返回原因',
       ...(it.reason ? { code: it.reason } : {}),
       to: (it.reason ? REASON_FIX[it.reason] : undefined) ?? CAP_FIX[name] ?? null,
     }));

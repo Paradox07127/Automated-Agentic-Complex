@@ -142,27 +142,27 @@ export class AvatarLooks {
   /** setAppearanceAndWait: returns once the current character wears `id`; throws when she does not. */
   async setAppearance(id: string): Promise<void> {
     const link = this.o.link, character = link.currentCharacter;
-    if (character === null || !link.appearances.some((a) => a.id === id)) throw failed('角色没有这个外观');
+    if (character === null || !link.appearances.some((a) => a.id === id)) throw failed('角色不含该外观');
     if (link.currentAppearance === id) return;
-    if (link.appearanceSwitching || !link.sendSetAppearance(id)) throw failed('角色没有连上，或者正在换外观');
+    if (link.appearanceSwitching || !link.sendSetAppearance(id)) throw failed('角色未连接，或正在切换外观');
     const reason = await this.reply('appearance', (e) => (e.kind === 'appearance' && e.event.kind !== 'list' && e.event.id === id
       ? (e.event.kind === 'changed' ? 'ok' : e.event.reason) : null));
-    if (link.currentCharacter !== character || link.currentAppearance !== id) throw failed(`外观没有换成：${reason === 'ok' ? 'load_failed' : reason}`);
+    if (link.currentCharacter !== character || link.currentAppearance !== id) throw failed(`外观切换失败：${reason === 'ok' ? '加载失败' : reason}`);
   }
 
   /** setLayersAndWait: hides `hide` and shows `show` in the whole hidden set (every appearance's layers), returns once she
    *  reports it; a failure leaves the old set. */
   async setLayers(change: { hide: string[]; show: string[] }): Promise<void> {
     const link = this.o.link, character = link.currentCharacter, ids = link.layers.map((l) => l.id);
-    if (character === null || ids.length === 0) throw failed('这个角色没有可以隐藏的层');
-    if (![...change.hide, ...change.show].every((h) => ids.includes(h))) throw failed('这个角色没有这一层');
+    if (character === null || ids.length === 0) throw failed('当前角色没有可隐藏的图层');
+    if (![...change.hide, ...change.show].every((h) => ids.includes(h))) throw failed('当前角色不含该图层');
     const hidden = [...new Set([...link.hiddenLayers.filter((h) => !change.show.includes(h)), ...change.hide])];
     const same = (a: string[]) => new Set(a).size === new Set(hidden).size && a.every((h) => hidden.includes(h));
     if (same(link.hiddenLayers)) return;
-    if (link.layersSwitching || !link.sendSetLayers(hidden)) throw failed('角色没有连上，或者正在换服装分层');
+    if (link.layersSwitching || !link.sendSetLayers(hidden)) throw failed('角色未连接，或正在切换服装分层');
     const reason = await this.reply('layers', (e) => (e.kind === 'layers' && e.event.kind !== 'list'
       ? (e.event.kind === 'changed' ? 'ok' : e.event.reason) : null));
-    if (link.currentCharacter !== character || !same(link.hiddenLayers)) throw failed(`服装分层没有换成：${reason === 'ok' ? 'load_failed' : reason}`);
+    if (link.currentCharacter !== character || !same(link.hiddenLayers)) throw failed(`服装分层切换失败：${reason === 'ok' ? '加载失败' : reason}`);
   }
 
   /** Stores the user's table, then sends it; the store stays when this throws. */

@@ -20,14 +20,14 @@ const LABEL: Record<ApprovalOutcome['kind'], string> = {
   approved: '已批准',
   denied: '已拒绝',
   expired: '已超时 │ 请求已失效',
-  failed: '没能送达决定',
-  elsewhere: '已在终端批准',
+  failed: '未能送达处理结果',
+  elsewhere: '已在其他位置处理',
 };
 
 export function DecisionReceipt({ outcome, agent = '会话', onGoTerminal, origin }: DecisionReceiptProps) {
   const { kind } = outcome;
   const hook = origin === 'hook';
-  const label = kind === 'expired' && hook ? '已超时 │ 已回到终端里确认' : kind === 'failed' || kind === 'expired' ? LABEL[kind] : (outcome.text ?? LABEL[kind]);
+  const label = kind === 'expired' && hook ? '已超时 │ 已交回终端处理' : kind === 'failed' || kind === 'expired' ? LABEL[kind] : (outcome.text ?? LABEL[kind]);
   return (
     <div data-stub="DecisionReceipt" className={styles.root} data-kind={kind} role="status">
       <div className={styles.line}>
@@ -48,7 +48,7 @@ export function DecisionReceipt({ outcome, agent = '会话', onGoTerminal, origi
           {hook && <> <span className={styles.unverified}>▲ 未验证</span></>}
         </p>
       )}
-      {kind === 'elsewhere' && <p className={styles.note}>这张卡被别处处理了，这里不用再点</p>}
+      {kind === 'elsewhere' && <p className={styles.note}>该请求已在其他位置处理，无需重复操作</p>}
       {kind === 'failed' && outcome.text && <p className={styles.note}>{outcome.text}</p>}
       {hook && (kind === 'expired' || kind === 'failed') && (
         // Wrapped so the grid does not stretch the link across the card.

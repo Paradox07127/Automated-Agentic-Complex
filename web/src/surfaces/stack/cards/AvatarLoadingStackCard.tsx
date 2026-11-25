@@ -62,12 +62,12 @@ export function AvatarLoadingStackCard({ card, top, now, highlight, act }: Avata
             </div>
           </div>
         )}
-        {restart.state === 'failed' && <p className={styles.err}>没能重新启动：{restart.text}</p>}
+        {restart.state === 'failed' && <p className={styles.err}>重启失败：{restart.text}</p>}
         {failed && (
           <Fold id={`loading-${card.id}`} label="说明">
-            <p className={body.desc}>可以重新启动角色后再试；还是不行就去诊断看角色进程。</p>
-            <Btn variant="ghost" size="sm" onClick={() => act({ type: 'open', to: { page: 'diag', item: 'avatar', focus: 'proc-avatar' }, message: '已在主窗口打开：诊断 › 角色' })}>
-              去诊断
+            <p className={body.desc}>可尝试重新启动角色进程；若仍异常，请前往诊断页检查进程状态。</p>
+            <Btn variant="ghost" size="sm" onClick={() => act({ type: 'open', to: { page: 'diag', item: 'avatar', focus: 'proc-avatar' }, message: '已在主窗口打开：诊断 › 角色进程' })}>
+              前往诊断
             </Btn>
           </Fold>
         )}

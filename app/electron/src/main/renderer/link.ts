@@ -88,20 +88,20 @@ export class ActionFailure extends Error {
 }
 
 const REJECTED: Record<string, string> = {
-  missing: '这个动作缺资源', unknown_action: '角色没有这个动作', not_playable: '这个动作不能单独播', busy: '角色正在做别的动作',
+  missing: '该动作缺少资源文件', unknown_action: '角色无此动作', not_playable: '该动作不支持单独播放', busy: '角色正在执行其他动作',
 };
 const rejected = (reason: string) => new ActionFailure(reason, REJECTED[reason] ?? '正在切换角色');
-const unsupported = () => new ActionFailure('not_implemented', '这个版本的角色不支持动作设置');
-const disconnected = () => new ActionFailure('failed', '和角色的连接断了');
-const timedOut = () => new ActionFailure('failed', '角色没有回应');
+const unsupported = () => new ActionFailure('not_implemented', '当前版本角色不支持动作设置');
+const disconnected = () => new ActionFailure('failed', '角色连接已断开');
+const timedOut = () => new ActionFailure('failed', '角色渲染进程无响应');
 
 /** The mod settings failures' texts. */
-const MOD_FAILURES: Record<string, string> = { unsupported: '这个版本的角色不支持 mod 设置', busy: '角色正在切换，过一会儿再试',
-  refused: '角色没有接受这组 mod 设置（这个外观可能没有开关表）' };
+const MOD_FAILURES: Record<string, string> = { unsupported: '当前版本角色不支持外观模组设置', busy: '正在切换角色，请稍后再试',
+  refused: '角色未应用该组外观模组设置（当前外观可能不含开关表）' };
 
 /** The motion override failures' texts. */
-const OVERRIDE_FAILURES = { unsupported: '这个版本的角色不支持动作设置', tooLarge: '改动太多，一次发不下，角色上没有生效',
-  busy: '角色正在切换或动作还没加载好，过一会儿再试', refused: '角色没有接受这份动作设置' };
+const OVERRIDE_FAILURES = { unsupported: '当前版本角色不支持动作设置', tooLarge: '变更项过多，超出单次传输限制，未能生效',
+  busy: '正在切换角色或动作尚未加载完成，请稍后再试', refused: '角色未接受该动作设置' };
 
 /** Seconds; `character` is rule 14's, `appearance` rules 16 and 46's, `capture` rule 50's, `attention` rule 39's,
  *  `cameraLive` rule 49's, `lineInteractive` how long her line keeps the `interactive` tier, `playBusy` how long a user
@@ -1306,7 +1306,7 @@ export class HostLink {
           w.notReady = true;
         } else {
           this.listWaiters.delete(w);
-          w.reject(new ActionFailure('failed', m.error === 'too_large' ? '这个角色的动作清单太长，读不出来' : '正在切换角色，没有保存到角色上'));
+          w.reject(new ActionFailure('failed', m.error === 'too_large' ? '当前角色的动作列表过长，无法读取' : '正在切换角色，设置未保存'));
         }
       }
       return;
@@ -1363,11 +1363,11 @@ export class HostLink {
   controlAction(op: TransportOp, at?: number): Promise<void> {
     const c = this.listing('action_transport');
     if (c === null) return Promise.reject(unsupported());
-    if (this.playing === null) return Promise.reject(new ActionFailure('not_playing', '桌面上没有在播的动作'));
+    if (this.playing === null) return Promise.reject(new ActionFailure('not_playing', '当前没有正在播放的动作'));
     const m: C3Message = { v: 1, type: 'control_action', play_id: this.playing, op };
     if (op === 'seek') m.at_s = at;
     return new Promise((resolve, reject) => {
-      const refused = new ActionFailure('failed', '角色没有接受这次操作');
+      const refused = new ActionFailure('failed', '角色未执行该操作');
       const sent = this.checked(c, m, 'command', (r) => {
         if (r.ok) return resolve();
         reject(r.reason === 'timeout' ? timedOut() : r.reason === 'disconnected' ? disconnected()
@@ -1387,7 +1387,7 @@ export class HostLink {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         if (!this.listWaiters.delete(w)) return;
-        reject(w.notReady ? new ActionFailure('not_ready', '角色的动作还没加载好，过一会儿再试') : timedOut());
+        reject(w.notReady ? new ActionFailure('not_ready', '角色动作仍在加载，请稍后再试') : timedOut());
       }, LINK_TIMING.reply * 1000);
       const w = { character, notReady: false, resolve: (a: Actions) => { clearTimeout(timer); resolve(a); },
         reject: (e: Error) => { clearTimeout(timer); reject(e); } };

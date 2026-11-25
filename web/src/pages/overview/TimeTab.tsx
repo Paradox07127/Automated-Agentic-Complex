@@ -113,12 +113,12 @@ export function TimeTab({ day }: BriefTabProps) {
             <small>{limit == null ? ' 张' : ` / ${limit} 张`}</small>
           </Pill>
         ) : (
-          <Pill icon={glyph('M2 5h20v14H2zM5 8v8h14V8zM7 10h10v4H7z')} label="外发前遮蔽" ratio={items.mask.today / Math.max(1, items.mask.today, items.mask.avg7 ?? 0)}>
+          <Pill icon={glyph('M2 5h20v14H2zM5 8v8h14V8zM7 10h10v4H7z')} label="发送前脱敏" ratio={items.mask.today / Math.max(1, items.mask.today, items.mask.avg7 ?? 0)}>
             {items.mask.today}
             <small>{` 处 │ 均值 ${items.mask.avg7 ?? '—'}`}</small>
           </Pill>
         )}
-        <Pill icon={glyph('M3 3h18v13H10l-5 4v-4H3z')} label="角色开口你回了" ratio={said.said.self ? said.said.replied / said.said.self : 0}>
+        <Pill icon={glyph('M3 3h18v13H10l-5 4v-4H3z')} label="主动发言已回复" ratio={said.said.self ? said.said.replied / said.said.self : 0}>
           {said.said.replied}
           <small>{` / ${said.said.self} 次`}</small>
         </Pill>

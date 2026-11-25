@@ -46,7 +46,7 @@ export function useOutfitImport(
   }
   const why = (e: unknown) => {
     const err = e as Partial<BridgeError> | null;
-    return err?.code === 'not_implemented' ? '这个版本还不支持' : err?.code ? outfitImportReason(err.code, err.detail) : '桌面角色没有回应';
+    return err?.code === 'not_implemented' ? '当前版本暂不支持' : err?.code ? outfitImportReason(err.code, err.detail) : '角色渲染进程无响应';
   };
   const run = () => {
     const of = character;

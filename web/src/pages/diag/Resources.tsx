@@ -48,7 +48,7 @@ export function Resources({ samples, renderWhy, details, onProc, onLogs }: Resou
             <span>近 60 秒 │ 每秒一个读数</span>
             {none && (
               <Btn size="sm" onClick={onProc}>
-                去进程
+                查看进程
               </Btn>
             )}
           </>
@@ -60,7 +60,7 @@ export function Resources({ samples, renderWhy, details, onProc, onLogs }: Resou
         <ReadTick size="lg" value={num1(cur?.gpu_ms)} unit="ms" label="GPU" tone="ink" />
         <ReadTick size="lg" value={p ? String(Math.round(p.gpuAllocatedMB)) : '—'} unit={p ? 'MB' : undefined} label="显存" tone="ink" />
         <span className={styles.opt}>
-          <ReadTick size="lg" value={p ? String(p.fpsRequested) : '—'} unit={p ? 'fps' : undefined} label={p ? `请求帧率 │ ${p.suspended != null || p.fpsRequested === 0 ? '暂停中' : '没有暂停'}` : '请求帧率'} tone="ink" />
+          <ReadTick size="lg" value={p ? String(p.fpsRequested) : '—'} unit={p ? 'fps' : undefined} label={p ? `请求帧率 │ ${p.suspended != null || p.fpsRequested === 0 ? '暂停中' : '未暂停'}` : '请求帧率'} tone="ink" />
         </span>
       </div>
       <div className={styles.charts}>
@@ -129,9 +129,9 @@ export function Resources({ samples, renderWhy, details, onProc, onLogs }: Resou
               <KV
                 items={[
                   { key: '描边', value: p?.outline ?? null },
-                  { key: '暂停', value: p ? (p.suspended != null ? suspendedText(p.suspended) : '没有') : null },
+                  { key: '暂停', value: p ? (p.suspended != null ? suspendedText(p.suspended) : '无') : null },
                   {
-                    key: '上次出错',
+                    key: '上次异常',
                     value: p?.error && onLogs ? (
                       <>
                         {p.error}{' '}
@@ -139,7 +139,7 @@ export function Resources({ samples, renderWhy, details, onProc, onLogs }: Resou
                           日志
                         </Btn>
                       </>
-                    ) : (p?.error ?? (p ? '没有' : null)),
+                    ) : (p?.error ?? (p ? '无' : null)),
                   },
                 ]}
               />

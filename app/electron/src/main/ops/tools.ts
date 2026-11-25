@@ -46,11 +46,11 @@ export function validationHost(avatarExecutable: string | null, avatarApp: strin
       if (name !== undefined) host = join(avatarApp, 'Contents', 'MacOS', name);
     } catch { /* no bundle */ }
   }
-  if (host === '') throw new Error('未配置 Metal 宿主可执行文件');
+  if (host === '') throw new Error('未配置角色渲染可执行文件');
   try {
     accessSync(host, constants.X_OK);
   } catch {
-    throw new Error(`Metal 宿主可执行文件不存在或无法执行：${host}`);
+    throw new Error(`角色渲染可执行文件不存在或无法执行：${host}`);
   }
   return host;
 }

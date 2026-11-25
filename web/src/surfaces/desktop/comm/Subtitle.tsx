@@ -15,14 +15,14 @@ export function Subtitle({ bar, name, onOpen }: { bar: Bar; name: string; onOpen
         <div className={styles.text}>
           <p className={styles.lines}>
             <span key={bar.id} className={styles.line}>
-              {bar.phase === 'thinking' ? '在想' : bar.text}
+              {bar.phase === 'thinking' ? '思考中' : bar.text}
               {bar.phase === 'streaming' && <span className={bubble.cursor} aria-hidden="true" />}
             </span>
           </p>
         </div>
         {bar.phase !== 'thinking' && (
           <button type="button" className={styles.open} onClick={onOpen}>
-            在对话中打开 ↗
+            在对话页打开 ↗
           </button>
         )}
       </div>

@@ -39,8 +39,8 @@ export function WorkspaceRow({ indent }: { indent?: boolean }) {
       indent={indent}
       control={
         <>
-          <code className={styles.path}>{workspace ? String(workspace) : '~/AgenticComplex'}</code>
-          <Btn disabled={ro || !caps.nativeFilePicker} disabledReason="这个平台没有原生文件选择器" onClick={() => void pick()}>
+          <code className={styles.path}>{workspace ? String(workspace) : bridge.platform === 'windows' ? '%USERPROFILE%\\AgenticComplex' : '~/AgenticComplex'}</code>
+          <Btn disabled={ro || !caps.nativeFilePicker} disabledReason="当前平台不支持原生文件选择器" onClick={() => void pick()}>
             选择…
           </Btn>
         </>

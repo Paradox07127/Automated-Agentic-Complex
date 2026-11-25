@@ -6,16 +6,16 @@ import { stateLabel } from '../../src/surfaces/desktop/tags/presence';
 
 /** One word per session state (desktop_presence.py LABELS). */
 const TABLE: Readonly<Record<string, string>> = {
-  thinking: '在想',
-  running_tool: '在跑',
+  thinking: '思考中',
+  running_tool: '工具执行中',
   awaiting_approval: '待批准',
   awaiting_input: '待回答',
-  compacting: '在整理上下文',
-  subagent: '在派子任务',
-  done: '完成',
-  background: '在后台做',
-  error: '出错了',
-  stale: '没有新动静',
+  compacting: '整理上下文中',
+  subagent: '派发子任务中',
+  done: '已完成',
+  background: '后台执行中',
+  error: '出错',
+  stale: '无更新',
   idle: '空闲',
 };
 
@@ -39,7 +39,7 @@ describe('session state words', () => {
       const cards = buildCards({ ...view, activeRuns }, undefined, now);
       return cards[0]!.stateText;
     };
-    expect(read({ 'tk-1': { state: 'running_tool', tool: 'Bash' } as ActiveRun })).toBe('在跑 │ Bash');
-    expect(read({})).toBe('在跑');
+    expect(read({ 'tk-1': { state: 'running_tool', tool: 'Bash' } as ActiveRun })).toBe('工具执行中 │ Bash');
+    expect(read({})).toBe('进行中');
   });
 });

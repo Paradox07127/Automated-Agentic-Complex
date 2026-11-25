@@ -54,7 +54,7 @@ describe('tasks page: shared components', () => {
   });
 
   it('a group head is a SecHead with the count and the note behind ⓘ', () => {
-    render(<Group group={{ key: 'run', title: '在跑', note: '角色任务和派出的编码会话', rows: [] }} start={0} selected={null} onSelect={noop} />);
+    render(<Group group={{ key: 'run', title: '在跑', note: '角色任务与派发编码会话', rows: [] }} start={0} selected={null} onSelect={noop} />);
     const head = screen.getByRole('heading', { name: '在跑' }).closest('[data-stub="SecHead"]');
     expect(head).toBeTruthy();
     expect(head?.textContent).toContain('0');
@@ -94,7 +94,7 @@ describe('每日简报: shared components', () => {
     const day = (await bridge.agentd.request<BriefDay>('GET', '/brief/day?date=2026-11-20')).body!;
     const pins = ITEM_ORDER.slice(0, 6);
     render(<DetailTab day={day} pins={pins} onPins={noop} go={noop} links={{}} />);
-    const star = screen.getAllByRole('button', { name: /^放进总览：/ })[0]!;
+    const star = screen.getAllByRole('button', { name: /^添加至总览：/ })[0]!;
     expect(star.getAttribute('data-stub')).toBe('IconBtn');
     expect(star.getAttribute('data-shape')).toBe('round');
     expect(star.getAttribute('aria-disabled')).toBe('true');
@@ -121,8 +121,8 @@ describe('每日简报: the day pager says why it stops', () => {
         <RouterProvider router={router} />
       </QueryClientProvider>,
     );
-    const next = await screen.findByRole('button', { name: '后一天' });
+    const next = await screen.findByRole('button', { name: '后一日' });
     await waitFor(() => expect(next.getAttribute('aria-disabled')).toBe('true'));
-    expect(document.getElementById(next.getAttribute('aria-describedby')!)?.textContent).toContain('今天');
+    expect(document.getElementById(next.getAttribute('aria-describedby')!)?.textContent).toContain('最新日期');
   });
 });

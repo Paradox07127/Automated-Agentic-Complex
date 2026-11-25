@@ -72,25 +72,25 @@ describe('diag › codes in Chinese', () => {
       },
     });
     for (const i of issues) expect(i.detail).not.toMatch(/[a-z]_[a-z]/);
-    expect(issues.find((i) => i.id === 'generation')?.detail).toBe('角色资料没准备好');
+    expect(issues.find((i) => i.id === 'generation')?.detail).toBe('角色资料未就绪');
     expect(issues.find((i) => i.id === 'voice')).toMatchObject({ detail: '其他原因', code: 'brand_new_code' });
-    expect(issues.find((i) => i.id === 'personal_agent')?.detail).toBe('还没登录内核');
+    expect(issues.find((i) => i.id === 'personal_agent')?.detail).toBe('尚未登录内核');
   });
 
   it('NowPanel shows why and when the last line was not spoken', () => {
     const d = { ...DIAG_STATE, mouth_voice: { ...DIAG_STATE.mouth_voice, speech_failed: { speech_id: 's1', reason: 'unreachable', at: isoWithOffset(NOW - 65_000) } } };
     render(<NowPanel d={d} />);
-    expect(screen.getByText('上次没说出口')).toBeTruthy();
-    expect(screen.getByText('14:31:05，语音合成失败：连不上')).toBeTruthy();
+    expect(screen.getByText('上次输出失败')).toBeTruthy();
+    expect(screen.getByText('14:31:05，语音合成失败：无法连接')).toBeTruthy();
   });
 
   it('NowPanel names the body behavior and the running ones in Chinese', () => {
     const d = { ...DIAG_STATE, body: { ...DIAG_STATE.body, activity: 'relax' }, behavior: { ...DIAG_STATE.behavior, running: [{ behavior_id: 'b', type: 'sit', target: null, since: isoWithOffset(NOW) }] } };
     render(<NowPanel d={d} />);
     const body = screen.getByText(/放松/);
-    expect(body.textContent).toContain('在做 坐着');
+    expect(body.textContent).toContain('执行中：坐姿');
     expect(body.textContent).not.toMatch(/relax|sit/);
-    expect(screen.getByText(/关注 写代码/)).toBeTruthy();
+    expect(screen.getByText(/当前焦点：编程/)).toBeTruthy();
   });
 
   it('NowPanel shows her mood code as its Chinese word', () => {

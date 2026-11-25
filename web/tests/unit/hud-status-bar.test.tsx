@@ -123,9 +123,9 @@ describe('status bar rows', () => {
     expect(line(reviewCard.id).dataset.status).toBe('waiting');
     const review = line(reviewCard.id).querySelector<HTMLElement>(`[data-card-id="${reviewCard.id}"]`)!;
     expect(document.body.textContent).not.toMatch(/REVIEW|Delivery/);
-    fireEvent.click(within(review).getByRole('button', { name: '接受这一版' }));
+    fireEvent.click(within(review).getByRole('button', { name: '接受当前版本' }));
     expect(decide).toHaveBeenCalledWith(reviewCard.id, expect.objectContaining({ kind: 'accept' }));
-    fireEvent.click(within(review).getByRole('button', { name: '驳回这一版' }));
+    fireEvent.click(within(review).getByRole('button', { name: '驳回当前版本' }));
     expect(within(review).getByRole('button', { name: '驳回并继续' })).toBeTruthy();
     const delivery = line(deliveryCard.id).querySelector<HTMLElement>(`[data-card-id="${deliveryCard.id}"]`)!;
     fireEvent.click(within(delivery).getByRole('button', { name: '看结果' }));
@@ -169,7 +169,7 @@ describe('status bar rows', () => {
     const jump = vi.spyOn(m.bridge.open, 'jumpToSession').mockResolvedValue();
     const request = vi.spyOn(m.bridge.agentd, 'request').mockResolvedValue({ status: 200, body: { seen: true } });
     m.push([], [
-      wireRow('s-stale', { status: 'stale', state: 'stale', doing: '3 分钟没动静', activity: '没有新动静', updated_at: S - 180 }),
+      wireRow('s-stale', { status: 'stale', state: 'stale', doing: '3 分钟没动静', activity: '无更新', updated_at: S - 180 }),
       wireRow('s-done', { status: 'done', state: 'done', updated_at: S }),
       wireRow('s-run'),
     ]);

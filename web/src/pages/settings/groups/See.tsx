@@ -65,19 +65,19 @@ export function SeeGroup() {
     <>
       <OutboundPlate />
 
-      <Band plugin="screen_awareness" fold="窗口文字、看多细、网页正文、你输入的文字、操作时间线">
-        <SetRow id="wintext" title={labelOf('wintext')} desc="前台窗口里看得见的字" indent control={c.toggle('wintext')} />
+      <Band plugin="screen_awareness" fold="窗口文本、屏幕读取粒度、网页正文、输入文本、操作时间线">
+        <SetRow id="wintext" title={labelOf('wintext')} desc="读取前台窗口中可见的文本内容" indent control={c.toggle('wintext')} />
         <SetRow
           id="grain"
           title={labelOf('grain')}
-          desc="越细越懂你手头的事，发出的字越多"
-          info="仅读状态：只知道你在用哪个应用，不读窗口里的文字。焦点语义：再读前台窗口里看得见的文字。窗口摘要：在焦点语义之上，读不到文字的窗口用截图做文字识别，要同时打开「识读时附上截图」。"
+          desc="粒度越细，上下文理解越准确，发送至模型的文本越多"
+          info="仅应用状态：仅记录当前前台应用，不读取窗口内文字。焦点内容：额外读取前台焦点区域可见文本。窗口摘要：在此基础上，对无法直接提取文本的窗口使用 OCR 识读（须同时开启「屏幕识读时附带截图」）。"
           indent
-          control={model.value('wintext') === false ? <Dis link={{ label: '去打开', onClick: () => goRow('wintext') }}>要先打开「窗口文字」</Dis> : c.seg('grain')}
+          control={model.value('wintext') === false ? <Dis link={{ label: '开启', onClick: () => goRow('wintext') }}>需先开启「允许读取窗口文本」</Dis> : c.seg('grain')}
         />
-        <SetRow id="web" title={labelOf('web')} desc="关掉时删掉已收集的摘要和由它推出的记忆" indent control={c.toggle('web')} />
-        <SetRow id="typing" title={labelOf('typing')} desc="关着时只记发送时间和字数" indent control={c.toggle('typing')} />
-        <SetRow id="actions" title={labelOf('actions')} desc="每 10 分钟一段，回看手头的工作" indent control={c.toggle('actions')} />
+        <SetRow id="web" title={labelOf('web')} desc="关闭时将同步删除已收集的网页摘要及衍生记忆" indent control={c.toggle('web')} />
+        <SetRow id="typing" title={labelOf('typing')} desc="关闭时仅统计发送时间与字数" indent control={c.toggle('typing')} />
+        <SetRow id="actions" title={labelOf('actions')} desc="按 10 分钟分片记录工作活动轨迹" indent control={c.toggle('actions')} />
         {keysRow}
       </Band>
       {!awareness && keysRow}
@@ -86,14 +86,14 @@ export function SeeGroup() {
         <SetRow
           id="shot"
           title={labelOf('shot')}
-          desc={shots ? `今天已发 ${shots.used} / ${shots.limit} 张，超出后只发文字` : '超出每天的额度后只发文字'}
+          desc={shots ? `今日已发送 ${shots.used} / ${shots.limit} 张，超出每日上限后仅发送文字` : '超出每日上限后仅发送文字'}
           indent
           control={c.toggle('shot', labelOf('shot'))}
         />
       </Band>
 
-      <Band plugin="coding_sessions" fold="读会话内容、Claude Code、Codex">
-        <SetRow id="agent_sessions" title={labelOf('agent_sessions')} desc="用来理解你手头的工作；关掉会删已存的会话内容" indent control={c.toggle('agent_sessions')} />
+      <Band plugin="coding_sessions" fold="读取会话工具输入输出、Claude Code、Codex">
+        <SetRow id="agent_sessions" title={labelOf('agent_sessions')} desc="用于跟踪开发进度；关闭时将清除已保存的会话内容" indent control={c.toggle('agent_sessions')} />
         <HookRows />
       </Band>
 

@@ -6,7 +6,7 @@ import type { ChatCharacter } from './useChatData';
 export function tabMenu(c: ChatCharacter, present: string | null, working: boolean, onNew: () => void, onSwap: () => void): MenuItem[] {
   return [
     { kind: 'item', label: '新话题', disabled: c.id === present && working, reason: '角色执行中，结束后可新建', onSelect: onNew },
-    { kind: 'item', label: `换${c.name}出来`, disabled: c.id === present, reason: `${c.name}已在桌面`, onSelect: onSwap },
-    { kind: 'item', label: `${c.name}的专属记忆`, onSelect: () => navigate({ page: 'memory', view: 'about', owner: c.id }) },
+    { kind: 'item', label: `切换「${c.name}」出场`, disabled: c.id === present, reason: `${c.name} 已在桌面显示`, onSelect: onSwap },
+    { kind: 'item', label: `${c.name} 的专属记忆`, onSelect: () => navigate({ page: 'memory', view: 'about', owner: c.id }) },
   ];
 }

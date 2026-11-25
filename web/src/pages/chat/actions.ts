@@ -139,19 +139,19 @@ export function createChatActions(d: ChatDeps) {
       }),
 
     answer: (q: Question, answers: Record<string, string[]>) =>
-      attempt('回答没有送达', async () => {
+      attempt('回答未能送达', async () => {
         const reply = await post<WireInteraction & { resume_required?: boolean }>(`/agent/interactions/${seg(q.id)}/answer`, interactionAnswer(q, answers));
         const txt = Object.values(answers).flat().join(' │ ');
         d.setLocal((l) => ({ ...l, resolved: { ...l.resolved, [q.id]: true } }));
         d.setAnswered((m) => ({ ...m, [q.id]: txt }));
         // An answer that lands while another turn runs waits for an explicit 继续 (interactions.py respond).
         const resume = () =>
-          attempt('没有继续', async () => {
+          attempt('未能继续执行', async () => {
             // A continue refused as busy has still moved the revision on (claimed, then settled back).
             const now = (await get<{ requests: WireInteraction[] }>('/agent/interactions')).requests.find((r) => r.request_id === q.id);
             if (!now) throw { code: 'interaction_version_changed' };
             await post(`/agent/interactions/${seg(q.id)}/continue`, { expected_version: now.revision });
-            d.push('角色已继续');
+            d.push('已继续执行');
             d.reload.tasks();
           });
         d.push(`已回答：${txt}`, reply.resume_required ? { action: { label: '继续', onClick: () => void resume() } } : undefined);
@@ -160,7 +160,7 @@ export function createChatActions(d: ChatDeps) {
 
     /** Called by QuestionCard once its 5 s undo window has passed; the card itself shows the receipt. */
     dismiss: (q: Question) =>
-      attempt('取消没有送达', async () => {
+      attempt('取消操作未能送达', async () => {
         await post(`/agent/interactions/${seg(q.id)}/dismiss`, interactionDismiss(q));
         d.setLocal((l) => ({ ...l, resolved: { ...l.resolved, [q.id]: true } }));
         d.setCancelled((m) => ({ ...m, [q.id]: true }));
@@ -168,7 +168,7 @@ export function createChatActions(d: ChatDeps) {
       }),
 
     queueSide: (text: string) =>
-      attempt('没有派发任务', async () => {
+      attempt('未能派发任务', async () => {
         // /agent/jobs names no conversation: it works for the character on the desktop.
         if (d.character != null && d.present != null && d.character !== d.present) throw { code: 'character_not_present' };
         const title = clip(text, 16);
@@ -178,7 +178,7 @@ export function createChatActions(d: ChatDeps) {
       }),
 
     newConversation: (character = d.character) =>
-      attempt('没有新建', async () => {
+      attempt('未能新建对话', async () => {
         const row = await post<WireConversation>('/conversations', character ? conversationCreate(character) : {});
         d.select(row.id);
         d.editTitle(row.id);
@@ -186,32 +186,32 @@ export function createChatActions(d: ChatDeps) {
       }),
 
     pin: (c: Conversation) =>
-      attempt(c.pinned ? '没有取消置顶' : '没有置顶', async () => {
+      attempt(c.pinned ? '未能取消置顶' : '未能置顶', async () => {
         await put(`/conversations/${seg(c.id)}`, conversationPatch(c, { pinned: !c.pinned }));
         d.reload.list();
       }),
 
     rename: (c: Conversation, title: string) =>
-      attempt('没有改名', async () => {
+      attempt('未能重命名', async () => {
         await put(`/conversations/${seg(c.id)}`, conversationPatch(c, { title }));
         d.reload.list();
-        d.push(`已改名为「${title}」`);
+        d.push(`已重命名为「${title}」`);
       }),
 
     restore: (c: Conversation) =>
-      attempt('没有恢复', async () => {
+      attempt('未能恢复对话', async () => {
         await put(`/conversations/${seg(c.id)}`, conversationPatch(c, { archived: false }));
         d.reload.list();
         d.push(`已恢复「${c.title}」`);
       }),
 
     archive: (c: Conversation) =>
-      attempt('没有归档', async () => {
+      attempt('未能归档', async () => {
         const row = await put<WireConversation>(`/conversations/${seg(c.id)}`, conversationPatch(c, { archived: true }));
         if (d.conv?.id === c.id) d.select(null);
         d.reload.list();
         const undo = () =>
-          void attempt('没有撤销', async () => {
+          void attempt('未能撤销', async () => {
             await put(`/conversations/${seg(c.id)}`, conversationPatch(fromConversation(row, clock()), { archived: false }));
             d.reload.list();
           });
@@ -219,7 +219,7 @@ export function createChatActions(d: ChatDeps) {
       }),
 
     remove: (c: Conversation) =>
-      attempt('没有删除', async () => {
+      attempt('未能删除', async () => {
         await del(`/conversations/${seg(c.id)}`, conversationDelete(c));
         if (d.conv?.id === c.id) d.select(null);
         d.reload.list();
@@ -228,16 +228,16 @@ export function createChatActions(d: ChatDeps) {
 
     /** 换她出来 from her tab. */
     swap: (id: string, name: string) =>
-      attempt('没有换出来', async () => {
+      attempt('未能切换出场角色', async () => {
         await bringOut(id);
         d.reload.present();
         d.reload.list();
-        d.push(`已换${name}出来`);
+        d.push(`已切换「${name}」出场`);
       }),
 
     /** Opening a topic or 继续此对话: make it its character's active one. */
     activate: (c: Conversation) =>
-      attempt('没有切换', async () => {
+      attempt('未能切换对话', async () => {
         await post(`/conversations/${seg(c.id)}/activate`, conversationDelete(c));
         d.reload.list();
         d.reload.turns();
@@ -246,9 +246,9 @@ export function createChatActions(d: ChatDeps) {
     async recheck() {
       const r = await d.reload.runtime(true).catch(() => undefined);
       // agentd answers a line through the quick route or the chat route, whatever the main kernel is.
-      const off = r ? ([['chat', '完整内核'], ['quick', '快速回复']] as const).find(([route]) => !r.wire.routes[route].ready) : undefined;
-      if (r && !off) d.push('内核已就绪', { severity: 'success' });
-      else d.push(`重新检测：${off?.[1] ?? '内核'}仍未就绪`, { severity: 'warning' });
+      const off = r ? ([['chat', '主执行内核'], ['quick', '快速回复']] as const).find(([route]) => !r.wire.routes[route].ready) : undefined;
+      if (r && !off) d.push('执行内核已就绪', { severity: 'success' });
+      else d.push(`重新检测：${off?.[1] ?? '执行内核'}仍未就绪`, { severity: 'warning' });
     },
 
     async onDrawer(a: TaskAction) {
@@ -260,14 +260,14 @@ export function createChatActions(d: ChatDeps) {
           const delivery = d.view?.deliveries.find((x) => x.id === a.deliveryId);
           if (!task || !delivery) return;
           d.setBusyDecide(true);
-          await attempt(a.kind === 'accept' ? '没有接受' : '已退回未生效', async () => {
+          await attempt(a.kind === 'accept' ? '未能接受' : '驳回未生效', async () => {
             if (a.kind === 'accept') await post(`/agent/tasks/${seg(task.id)}/accept`, deliveryDecision(delivery));
             else await post(`/agent/tasks/${seg(task.id)}/reject`, deliveryDecision(delivery));
             d.setLocal((l) => ({ ...l, decided: { ...l.decided, [delivery.id]: { state: a.kind === 'accept' ? 'accepted' : 'rejected', at: clock() } } }));
-            d.push(a.kind === 'accept' ? `已接受 v${delivery.version}` : `已退回 v${delivery.version}`);
+            d.push(a.kind === 'accept' ? `已接受 v${delivery.version}` : `已驳回 v${delivery.version}`);
             d.reload.tasks();
             if (a.kind === 'reject' && a.note.trim()) {
-              await attempt('已退回，补充要求没有送达', async () => {
+              await attempt('已驳回，补充要求未能送达', async () => {
                 await carryOn(task, a.note.trim(), a.useCurrentKernel);
                 d.reload.tasks();
               });
@@ -277,29 +277,29 @@ export function createChatActions(d: ChatDeps) {
           return;
         }
         case 'continue':
-          return attempt('补充要求没有送达', async () => {
+          return attempt('补充要求未能送达', async () => {
             if (!task || (!task.job_id && !task.task_id)) throw { code: 'no_task' };
             await carryOn(task, a.note, a.useCurrentKernel);
             d.push('已提交补充要求');
             d.reload.tasks();
           });
         case 'open_artifact':
-          return attempt('没有打开', async () => {
+          return attempt('未能打开文件', async () => {
             await bridge.open.artifact(a.path);
             d.push(`已打开：${fileName(a.path)}`);
             const view = d.view;
             if (!task || !view) return;
-            await attempt('打开过没有记下', async () => {
+            await attempt('未能记录已打开状态', async () => {
               if (await sendOpened(view.deliveries, task.id, a.path)) d.reload.tasks();
             });
           });
         case 'reveal_artifact':
-          return attempt('没有显示', async () => {
+          return attempt('未能在文件管理器中显示', async () => {
             await bridge.open.revealInFinder(a.path);
             d.push(revealText(`已在 Finder 中显示：${fileName(a.path)}`));
           });
         case 'copy_path':
-          return attempt('没有复制', async () => {
+          return attempt('未能复制路径', async () => {
             await bridge.clipboard.writeText(a.path);
             d.push(`已复制路径：${a.path}`);
           });

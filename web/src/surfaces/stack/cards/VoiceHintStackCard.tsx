@@ -38,21 +38,21 @@ export function VoiceHintStackCard({ card, top, highlight, act }: VoiceHintStack
         onClose={denied ? () => act({ type: 'archive', id: card.id }) : undefined}
         footer={
           denied && (
-            <Btn variant="secondary" size="sm" onClick={() => act({ type: 'open', to: { page: 'settings', group: 'perm' }, message: '已在主窗口打开：设置 › 权限与授权' })}>
-              去权限与授权
+            <Btn variant="secondary" size="sm" onClick={() => act({ type: 'open', to: { page: 'settings', group: 'perm', item: 'perms' }, message: '已在主窗口打开：设置 › 能力 › 系统权限' })}>
+              前往系统权限
             </Btn>
           )
         }
       >
         {card.phase === 'downloading' ? (
           <>
-            <p className={body.line}>下载会继续，可以松开 │ {Math.round(fraction * 100)}%</p>
+            <p className={body.line}>下载将在后台继续，可松开按键 │ {Math.round(fraction * 100)}%</p>
             <div className={styles.prog} role="progressbar" aria-label="下载进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(fraction * 100)}>
               <i style={{ width: `${fraction * 100}%` }} />
             </div>
           </>
         ) : (
-          <p className={body.t}>{card.text || '正在听…'}</p>
+          <p className={body.t}>{card.text || '正在录音…'}</p>
         )}
       </HudCard>
     </CardFrame>

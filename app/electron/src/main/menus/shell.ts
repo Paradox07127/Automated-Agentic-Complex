@@ -89,7 +89,7 @@ export function shellMenus(o: ShellMenusOptions): ShellMenus {
     return {
       ...MENU_STATE_DEFAULTS,
       recent: o.recent?.rows() ?? [],
-      configError: characters ? null : '请查看设置',
+      configError: characters ? null : '请检查配置文件或前往设置排查',
       quiet: (observation?.quietUntil() ?? null) !== null,
       freeRoam: !['stay', 'bust'].includes(saved.stay_mode as string),
       characters: characters ?? [],

@@ -24,7 +24,7 @@ export function CommitBar(p: CommitBarProps) {
         micro="Commit"
         left={
           p.offline ? (
-            <span className={styles.st}>角色未运行 │ 只读</span>
+            <span className={styles.st}>角色进程未运行 │ 只读</span>
           ) : p.n > 0 ? (
             <span className={styles.st}>
               <Diamond tone="yellow" size={8} />

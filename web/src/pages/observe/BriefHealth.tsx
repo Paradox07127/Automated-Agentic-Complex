@@ -38,7 +38,7 @@ export function BriefHealth({ attempts, onRetry }: { attempts: ObservationBriefs
   const retry = async (a: (typeof latest)[number]) => {
     setBusy(a.id);
     try { await onRetry(a.period,a.date); toast('已请求重新生成，用量上限仍然生效'); }
-    catch (e) { toast(`没有重试：${briefError(e)}`); }
+    catch (e) { toast(`重试失败：${briefError(e)}`); }
     finally { setBusy(null); }
   };
   const failed = latest.filter((a) => a.state === 'failed' || a.state === 'interrupted');

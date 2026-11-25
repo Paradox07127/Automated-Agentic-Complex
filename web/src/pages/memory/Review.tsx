@@ -131,7 +131,7 @@ export function Review({ reads = true }: { reads?: boolean }) {
   const label = KINDS.find((k) => k.id === kind)?.label ?? '';
 
   let body;
-  if (list.isError) body = <List>{<ErrBar message={`没有读到记录：${errorText(list.error)}`} onRetry={() => void list.refetch()} />}</List>;
+  if (list.isError) body = <List>{<ErrBar message={`未能读取记录：${errorText(list.error)}`} onRetry={() => void list.refetch()} />}</List>;
   else if (!list.data)
     body = (
       <List>
@@ -143,15 +143,15 @@ export function Review({ reads = true }: { reads?: boolean }) {
       <List>
         <Empty
           size="compact"
-          title={query ? '没有符合搜索的活动' : kind === 'work_events' ? '还没有整理出的工作片段' : '当前没有可读取的观察'}
-          {...(query ? {} : { action: <Btn onClick={() => go({ page: 'settings', group: 'privacy' })}>打开观察设置</Btn> })}
+          title={query ? '未找到匹配的屏幕活动' : kind === 'work_events' ? '尚未整理出工作片段' : '当前无可读的屏幕观察记录'}
+          {...(query ? {} : { action: <Btn onClick={() => go({ page: 'settings', group: 'privacy' })}>打开感知设置</Btn> })}
         />
       </List>
     );
   else
     body = (
       <List label={label}>
-        <SecHead title={label} count={items.length} right={<InfoTip>原始观察过期后只剩整理过的片段</InfoTip>} />
+        <SecHead title={label} count={items.length} right={<InfoTip>原始观察过期后仅保留整理后的工作片段</InfoTip>} />
         {items.map((item, i) => {
           const slice = Math.floor(item.at / SLICE_SECONDS);
           const start = slice * SLICE_SECONDS * 1000;
@@ -180,7 +180,7 @@ export function Review({ reads = true }: { reads?: boolean }) {
         {list.hasNextPage && (
           <span className={styles.more}>
             <Btn variant="secondary" loading={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()}>
-              加载更早的
+              加载更早记录
             </Btn>
           </span>
         )}
@@ -201,7 +201,7 @@ export function Review({ reads = true }: { reads?: boolean }) {
             <SearchField
               value={draft}
               label="搜索活动"
-              placeholder="搜索角色看到的内容（按回车）"
+              placeholder="搜索屏幕观察内容（按 Enter 提交）"
               shortcut={keyText('⌘F')}
               maxLength={500}
               onChange={(v) => {
@@ -254,7 +254,7 @@ function ActivityDetail({ item, onBrief, onClose }: { item: Activity; onBrief: (
     queryFn: async ({ pageParam }) => {
       const chars = target.startsWith('work-') ? 64000 : 8000;
       const reply = await get<SourceRead>(`/observation/sources/${seg(target)}?offset=${pageParam}&max_chars=${chars}&part=${source.part === 'tree' ? 'tree' : 'text'}`);
-      if (reply.error) throw new Error('这条出处已过期、被排除或没有读取权限');
+      if (reply.error) throw new Error('该来源已过期、已被排除或无读取权限');
       return reply;
     },
     getNextPageParam: (last) => last.next_offset ?? undefined,
@@ -270,7 +270,7 @@ function ActivityDetail({ item, onBrief, onClose }: { item: Activity; onBrief: (
     queryFn: async () => {
       const reply = await get<{ content?: Array<{ mimeType: string; data: string }> }>(`/observation/sources/${seg(target)}/image`);
       const data = reply.content?.find((entry) => entry.mimeType === 'image/png')?.data;
-      if (!data || data.length > 6 * 1024 * 1024) throw new Error('这张截图已过期或没有读取权限');
+      if (!data || data.length > 6 * 1024 * 1024) throw new Error('该截图已过期或无读取权限');
       return `data:image/png;base64,${data}`;
     },
   });
@@ -286,9 +286,9 @@ function ActivityDetail({ item, onBrief, onClose }: { item: Activity; onBrief: (
           返回片段
         </Btn>
       )}
-      <Note>每天的整段经过在每日简报里看</Note>
+      <Note>每日完整经过可在「每日简报」中查看</Note>
       <Spacer />
-      <Lnk onClick={onBrief}>去简报 ›</Lnk>
+      <Lnk onClick={onBrief}>前往简报 ›</Lnk>
     </>
   );
   return (

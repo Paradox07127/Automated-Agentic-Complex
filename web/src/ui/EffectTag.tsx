@@ -16,7 +16,7 @@ export function EffectTag({ target, pending }: EffectTagProps) {
       data-stub="EffectTag"
       data-target={target}
       data-pending={pending || undefined}
-      title={pending ? `已保存，重启${who}后生效` : `改了要重启${who}才生效`}
+      title={pending ? `已保存，重启${who}后生效` : `修改后须重启${who}生效`}
     >
       <span aria-hidden="true">⟳</span>
       {who}

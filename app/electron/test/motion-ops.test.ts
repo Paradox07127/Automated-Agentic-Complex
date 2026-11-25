@@ -137,7 +137,7 @@ const OVERRIDES = {
   blend_in: { A_think_start: 0.3 }, notes: { A_chain_start: '应该放在日常' },
 };
 const err = (code: string, detail: string) => ({ error: { code, detail } });
-const NOT_LISTED = '这个版本的角色不支持动作设置';
+const NOT_LISTED = '当前版本角色不支持动作设置';
 const OVERRIDES_ARGS = '{chains ≤512, pools ≤64 of 1–64 {clip, weight 1–100000}, blend_in ≤512 of 0–2}';
 
 test('avatar.motionOverrides.set stores the whole set with its notes, sends it without them and answers her receipt; get reads it back', async () => {
@@ -196,7 +196,7 @@ test('avatar.motionOverrides.set: a renderer that does not list motion_overrides
 test('avatar.motionOverrides and playChain meant for a character no longer current are refused; the current one\'s set stays', async () => {
   const f = fixture({ config: { mute: false, motion_overrides: { si: OVERRIDES } } });
   try {
-    const changed = err('character_changed', '角色刚换过，这次没有改');
+    const changed = err('character_changed', '当前角色已切换，本次修改未生效');
     assert.deepEqual(await f.call('avatar.motionOverrides.set', 'cedar', { chains: {}, pools: {}, blend_in: {} }), changed);
     assert.deepEqual((f.config().motion_overrides as Record<string, unknown>), { si: OVERRIDES });
     assert.deepEqual(f.link!.overrides, []);
@@ -268,9 +268,9 @@ test('avatar.playChain: a rejected play takes its reason as the code, an ack err
   const f = fixture();
   try {
     f.link!.chainPlayed = { phase: 'rejected', reason: 'busy' };
-    assert.deepEqual(await f.call('avatar.playChain', 'si', { start: 'a' }), err('busy', '角色正在做别的动作'));
+    assert.deepEqual(await f.call('avatar.playChain', 'si', { start: 'a' }), err('busy', '角色正在执行其他动作'));
     f.link!.chainAck = { ok: false, reason: 'invalid' };
-    assert.deepEqual(await f.call('avatar.playChain', 'si', { start: 'a' }), err('failed', '角色没有这条链'));
+    assert.deepEqual(await f.call('avatar.playChain', 'si', { start: 'a' }), err('failed', '角色不含该动作编排链'));
     f.link!.chainAck = { ok: false, reason: 'unsupported' };
     assert.deepEqual(await f.call('avatar.playChain', 'si', { start: 'a' }), err('not_implemented', NOT_LISTED));
     f.link!.chainAck = { ok: true };
@@ -278,7 +278,7 @@ test('avatar.playChain: a rejected play takes its reason as the code, an ack err
     const pending = f.call('avatar.playChain', 'si', { start: 'a' });
     await sleep(20);
     f.link!.emit({ kind: 'lost', reason: 'eof' });
-    assert.deepEqual(await pending, err('failed', '和角色的连接断了'));
+    assert.deepEqual(await pending, err('failed', '角色连接已断开'));
   } finally {
     f.done();
   }

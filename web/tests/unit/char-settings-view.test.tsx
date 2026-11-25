@@ -65,7 +65,7 @@ describe('CharacterSettings', () => {
       ['镜头', true],
       ['性能', true],
     ]);
-    expect(screen.getAllByText('原作镜头预设').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('镜头预设').length).toBeGreaterThan(0);
     expect(screen.queryByText('镜头、帧率、环境光和光线包裹只作用在桌面上的角色，预览不跟随')).toBeNull();
   });
 
@@ -76,16 +76,16 @@ describe('CharacterSettings', () => {
       view('render');
       const bar = await screen.findByRole('tablist', { name: '设定' });
       const pad = screen.getByRole('radiogroup', { name: '主光方向' });
-      fireEvent.click(within(pad).getByRole('radio', { name: '原作，抬高 10°' }));
+      fireEvent.click(within(pad).getByRole('radio', { name: '原作（0°），抬高 10°' }));
       await waitFor(() => expect(save).toHaveBeenLastCalledWith({ 'rnd.lightYaw': '0', 'rnd.lightPitch': '10' }));
-      fireEvent.click(within(screen.getByRole('radiogroup', { name: '景深' })).getByRole('radio', { name: '近景时' }));
+      fireEvent.click(within(screen.getByRole('radiogroup', { name: '景深效果' })).getByRole('radio', { name: '仅近景启用' }));
       await waitFor(() => expect(save).toHaveBeenLastCalledWith({ 'rnd.dof': 'closeup' }));
-      await waitFor(() => expect(screen.getByText('已改').parentElement?.textContent).toContain('已改2/ 19 项'));
+      await waitFor(() => expect(screen.getByText('已修改').parentElement?.textContent).toContain('已修改2/ 19 项'));
       expect(within(bar).getByRole('tab', { name: '画面' }).getAttribute('aria-describedby')).not.toBeNull();
       expect(within(bar).getByRole('tab', { name: '行为' }).getAttribute('aria-describedby')).toBeNull();
-      fireEvent.click(screen.getByRole('button', { name: '恢复原作' }));
+      fireEvent.click(screen.getByRole('button', { name: '恢复本页默认' }));
       await waitFor(() => expect(save).toHaveBeenLastCalledWith({ 'rnd.lightPitch': '0', 'rnd.dof': 'off' }));
-      await waitFor(() => expect(screen.getByText('已改').parentElement?.textContent).toContain('已改0/ 19 项'));
+      await waitFor(() => expect(screen.getByText('已修改').parentElement?.textContent).toContain('已修改0/ 19 项'));
     } finally {
       save.mockRestore();
     }
@@ -94,7 +94,7 @@ describe('CharacterSettings', () => {
   it('draws the behavior rows and asks for another page through onTab', async () => {
     const onTab = view('behavior');
     const menu = await screen.findByRole('tablist', { name: '设定' });
-    expect(screen.getAllByText('坐在窗口顶上').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('允许坐在窗口顶部').length).toBeGreaterThan(0);
     fireEvent.click(within(menu).getByRole('tab', { name: '画面' }));
     expect(onTab).toHaveBeenCalledWith('render');
   });
@@ -124,7 +124,7 @@ describe('CharacterSettings', () => {
   it('saves a dragged slider without toasts and toasts once for the value it is released at', async () => {
     const toast = vi.fn();
     view('render', vi.fn(), toast);
-    const yaw = await screen.findByRole('slider', { name: '水平朝向' });
+    const yaw = await screen.findByRole('slider', { name: '水平旋转' });
     const save = vi.spyOn(getBridge().settings, 'save');
     const drag = async (values: string[]) => {
       fireEvent.pointerDown(yaw);
@@ -142,7 +142,7 @@ describe('CharacterSettings', () => {
       await drag(['40', '50']);
       await waitFor(() => expect(toast).toHaveBeenCalledTimes(2));
       expect(save).toHaveBeenLastCalledWith({ 'rnd.yaw': 50 });
-      expect(toast.mock.calls[1]![0]).toBe('没有保存「水平朝向」：原生设置服务没有响应');
+      expect(toast.mock.calls[1]![0]).toBe('未能保存「水平旋转」：应用设置服务无响应');
       await new Promise((r) => setTimeout(r, 60));
       expect(toast).toHaveBeenCalledTimes(2);
     } finally {
@@ -153,29 +153,29 @@ describe('CharacterSettings', () => {
   it('writes a save that fails mid-drag on its row, and clears it once a save of the row goes through', async () => {
     const toast = vi.fn();
     view('render', vi.fn(), toast);
-    const yaw = await screen.findByRole('slider', { name: '水平朝向' });
+    const yaw = await screen.findByRole('slider', { name: '水平旋转' });
     const row = document.getElementById('set-rnd.yaw')!;
     const save = vi.spyOn(getBridge().settings, 'save').mockRejectedValue(new Error('down'));
     fireEvent.pointerDown(yaw);
     fireEvent.change(yaw, { target: { value: '10' } });
-    expect(await within(row).findByText('没有保存「水平朝向」：原生设置服务没有响应')).toBeTruthy();
+    expect(await within(row).findByText('未能保存「水平旋转」：应用设置服务无响应')).toBeTruthy();
     expect(toast).not.toHaveBeenCalled();
     save.mockRestore();
     fireEvent.pointerUp(window);
-    await waitFor(() => expect(within(row).queryByText('没有保存「水平朝向」：原生设置服务没有响应')).toBeNull());
+    await waitFor(() => expect(within(row).queryByText('未能保存「水平旋转」：应用设置服务无响应')).toBeNull());
     expect(toast).toHaveBeenCalledWith('已保存 │ 立即生效');
   });
 
   it('R20-12: puts a slider back on the stored value when the shell refuses the value it was moved to', async () => {
     const toast = vi.fn();
     view('render', vi.fn(), toast);
-    const pitch = (await screen.findByRole('slider', { name: '俯仰朝向' })) as HTMLInputElement;
+    const pitch = (await screen.findByRole('slider', { name: '俯仰角度' })) as HTMLInputElement;
     const stored = pitch.value;
     const save = vi.spyOn(getBridge().settings, 'save').mockResolvedValue({ restart: 'none', notApplied: [], error: 'refused' });
     try {
       fireEvent.change(pitch, { target: { value: '15' } });
       await waitFor(() => expect(save).toHaveBeenLastCalledWith({ 'rnd.pitch': 15 }));
-      await waitFor(() => expect(toast).toHaveBeenCalledWith('没有保存「俯仰朝向」：桌面端没有接受这次修改', expect.anything()));
+      await waitFor(() => expect(toast).toHaveBeenCalledWith('未能保存「俯仰角度」：应用宿主未接受本次修改', expect.anything()));
       await waitFor(() => expect(pitch.value).toBe(stored));
     } finally {
       save.mockRestore();
@@ -186,13 +186,13 @@ describe('CharacterSettings', () => {
     setDevMode(false);
     view('render');
     await screen.findByRole('tablist', { name: '设定' });
-    fireEvent.click(within(screen.getByRole('radiogroup', { name: '景深' })).getByRole('radio', { name: '近景时' }));
-    const reset = () => screen.getByRole('button', { name: '恢复原作' }) as HTMLButtonElement;
+    fireEvent.click(within(screen.getByRole('radiogroup', { name: '景深效果' })).getByRole('radio', { name: '仅近景启用' }));
+    const reset = () => screen.getByRole('button', { name: '恢复本页默认' }) as HTMLButtonElement;
     await waitFor(() => expect(reset().disabled).toBe(false));
     let done!: (r: { restart: 'none'; notApplied: string[] }) => void;
     const save = vi.spyOn(getBridge().settings, 'save').mockReturnValueOnce(new Promise((r) => (done = r)));
     try {
-      fireEvent.click(within(screen.getByRole('radiogroup', { name: '主光方向' })).getByRole('radio', { name: '原作，抬高 10°' }));
+      fireEvent.click(within(screen.getByRole('radiogroup', { name: '主光方向' })).getByRole('radio', { name: '原作（0°），抬高 10°' }));
       expect(save).toHaveBeenCalledTimes(1);
       expect(reset().disabled).toBe(true);
       await act(async () => done({ restart: 'none', notApplied: [] }));
@@ -210,7 +210,7 @@ describe('CharacterSettings', () => {
     });
     try {
       view('behavior');
-      fireEvent.click(await screen.findByRole('switch', { name: '头发衣物物理' }));
+      fireEvent.click(await screen.findByRole('switch', { name: '头发与衣物物理模拟' }));
       const tag = () => document.getElementById('set-beh.physics')!.querySelector('[data-stub="EffectTag"]')!;
       await waitFor(() => expect(tag().getAttribute('data-pending')).toBe('true'));
       const s = await getBridge().app.runtime();
@@ -254,7 +254,7 @@ describe('角色 page 设定 view', () => {
     const bar = await screen.findByRole('tablist', { name: '角色页签' });
     expect(within(bar).getAllByRole('tab').map((t) => t.getAttribute('data-tab'))).toEqual(['behavior', 'render', 'scene']);
     expect(within(bar).getByRole('tab', { name: '画面' }).getAttribute('aria-selected')).toBe('true');
-    await screen.findByRole('slider', { name: '水平朝向' });
+    await screen.findByRole('slider', { name: '水平旋转' });
     expect(screen.queryByRole('tablist', { name: '设定' })).toBeNull();
     expect(document.querySelector('[data-character-preview]')).not.toBeNull();
   });

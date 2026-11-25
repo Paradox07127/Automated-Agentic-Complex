@@ -21,7 +21,7 @@ export interface MmdImport {
 }
 
 const quoted = (actions: ImportedMotion[]) => actions.map((a) => `「${a.title}」`).join('');
-const thrown = (e: unknown) => ((e as { code?: string } | null)?.code === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应');
+const thrown = (e: unknown) => ((e as { code?: string } | null)?.code === 'not_implemented' ? '当前版本暂不支持' : '角色渲染进程无响应');
 const hints = (actions: ImportedMotion[]) => {
   const n = actions.reduce((sum, a) => sum + a.warnings.length, 0);
   return n ? `，有 ${n} 条提示` : '';
@@ -33,7 +33,7 @@ export function useMmdImport(onImported: () => void): MmdImport {
   const [running, setRunning] = useState(false);
   const [note, setNote] = useState<MmdImport['note']>(null);
   const [pending, setPending] = useState<MmdImport['pending']>(null);
-  const failed = (reason: string, head = '导入没有完成') => setNote({ ok: false, text: `${head}：${reason}`, reason });
+  const failed = (reason: string, head = '导入未完成') => setNote({ ok: false, text: `${head}：${reason}`, reason });
 
   const scan = (folder: boolean) => {
     setRunning(true);
@@ -44,11 +44,11 @@ export function useMmdImport(onImported: () => void): MmdImport {
         (r) => {
           setRunning(false);
           if (r.ok) setPending({ token: r.token, scan: r.scan });
-          else if (r.reason !== 'cancelled') failed(motionImportReason(r.reason, r.detail), '没有读出这个 MMD 工程');
+          else if (r.reason !== 'cancelled') failed(motionImportReason(r.reason, r.detail), '未能解析此 MMD 工程');
         },
         (e: unknown) => {
           setRunning(false);
-          failed(thrown(e), '没有读出这个 MMD 工程');
+          failed(thrown(e), '未能解析此 MMD 工程');
         },
       );
   };
@@ -67,7 +67,7 @@ export function useMmdImport(onImported: () => void): MmdImport {
             const reason = motionImportReason(r.reason, r.detail);
             const stuck = plan.items[r.actions.length]?.title;
             if (r.actions.length === 0) failed(reason);
-            else setNote({ ok: false, text: `已导入${quoted(r.actions)}，「${stuck}」没有完成：${reason}`, reason });
+            else setNote({ ok: false, text: `已导入${quoted(r.actions)}，「${stuck}」未完成：${reason}`, reason });
           }
         },
         (e: unknown) => {
@@ -93,11 +93,11 @@ export function useMmdImport(onImported: () => void): MmdImport {
             setPending((p) => (p?.token === was.token ? { token: p.token, scan: r.scan } : p));
             return r.audio;
           }
-          if (r.reason !== 'cancelled') failed(motionImportReason(r.reason, r.detail), '音源没有换成');
+          if (r.reason !== 'cancelled') failed(motionImportReason(r.reason, r.detail), '音频更换失败');
           return null;
         },
         (e: unknown) => {
-          failed(thrown(e), '音源没有换成');
+          failed(thrown(e), '音频更换失败');
           return null;
         },
       );
@@ -112,13 +112,13 @@ export function useMmdImport(onImported: () => void): MmdImport {
         (r) => {
           setRunning(false);
           if (r.ok) {
-            setNote({ ok: true, text: media.bgm === 'pick' ? `「${r.action.title}」换了音源` : `「${r.action.title}」去掉了音源` });
+            setNote({ ok: true, text: media.bgm === 'pick' ? `已为「${r.action.title}」更换音频` : `已移除「${r.action.title}」的音频` });
             onImported();
-          } else if (r.reason !== 'cancelled') failed(motionImportReason(r.reason, r.detail), '音源没有换成');
+          } else if (r.reason !== 'cancelled') failed(motionImportReason(r.reason, r.detail), '音频更换失败');
         },
         (e: unknown) => {
           setRunning(false);
-          failed(thrown(e), '音源没有换成');
+          failed(thrown(e), '音频更换失败');
         },
       );
   };

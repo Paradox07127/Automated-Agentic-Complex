@@ -19,8 +19,8 @@ test('外观 has one config.json key per row, in 显示, taken at once', () => {
   const rows: [string, string, [string, string][], string][] = [
     ['appTheme', 'app_theme', [['system', '跟随系统'], ['light', '浅色'], ['dark', '深色']], 'system'],
     ['winBg', 'window_background', [['glass', '磨砂'], ['opaque', '不透明']], 'glass'],
-    ['glassAlpha', 'window_glass_alpha', [['35', '轻'], ['55', '中'], ['75', '重']], '55'],
-    ['reduceMotion', 'reduce_motion', [['system', '跟随系统'], ['on', '开']], 'system'],
+    ['glassAlpha', 'window_glass_alpha', [['35', '轻度'], ['55', '适中'], ['75', '较强']], '55'],
+    ['reduceMotion', 'reduce_motion', [['system', '跟随系统'], ['on', '开启']], 'system'],
     ['uiZoom', 'ui_zoom', [['90', '90 %'], ['100', '100 %'], ['110', '110 %'], ['125', '125 %']], '100'],
   ];
   for (const [id, key, options, value] of rows) {

@@ -136,11 +136,11 @@ export function Operator(p: OperatorProps) {
       .then(
         () => {
           look.setId(l.id);
-          p.toast(`已换成「${l.name}」外观`);
+          p.toast(`已切换外观为「${l.name}」`);
           return true;
         },
         (e: unknown) => {
-          failed('换外观', p.toast)(e);
+          failed('切换外观', p.toast)(e);
           return false;
         },
       );
@@ -165,7 +165,7 @@ export function Operator(p: OperatorProps) {
   const switching = p.switching ?? p.sw.state.phase === 'running';
   const importing = importState.running || p.motionImport?.running === true || outfit.state === 'busy';
   const why = blockedReason(motion, p.offline, switching);
-  const blocked = why ?? (importing ? '导入中' : m.previewing ? '正在请求桌面预览' : null);
+  const blocked = why ?? (importing ? '导入中' : m.previewing ? '正在请求实时预览' : null);
   // A renderer that sends `media` retimes the BGM; without it BGM plays at 1× only.
   const oneSpeed = motion != null && motion.media == null && (p.library?.byId[motion.id]?.hasBgm ?? false);
   const appearances = ch?.appearances ?? [];
@@ -209,10 +209,10 @@ export function Operator(p: OperatorProps) {
   };
 
   // Without an avatar host 动作表, 编排 and 导入 stay under 未接入; 导入 also while she is not running.
-  const noAvatar = canAvatar ? null : '这个外壳没有接入桌面角色，动作、编排和导入暂不可用';
+  const noAvatar = canAvatar ? null : '当前运行环境未接入角色渲染进程，动作、编排与导入功能暂不可用';
   const unlinked = (reason: string | null, node: ReactNode) =>
     reason == null ? node : (
-      <PowerState state="unlinked" mode="block" title="桌面角色" reason={reason} action={{ label: '重启角色', onClick: p.onRestart }}>
+      <PowerState state="unlinked" mode="block" title="桌面角色" reason={reason} action={{ label: '重启角色进程', onClick: p.onRestart }}>
         {node}
       </PowerState>
     );
@@ -293,7 +293,7 @@ export function Operator(p: OperatorProps) {
               onShowAll={showAll}
               mods={mods}
               modsUnreadable={modTable.unreadable}
-              ro={p.offline ? '角色未运行' : switching ? '切换中' : null}
+              ro={p.offline ? '角色进程未运行' : switching ? '切换中' : null}
               outfit={{
                 ...outfit,
                 run: () => {
@@ -306,7 +306,7 @@ export function Operator(p: OperatorProps) {
             />
           ) : (
             unlinked(
-              noAvatar ?? (p.offline ? '角色未运行，导入暂停' : null),
+              noAvatar ?? (p.offline ? '角色进程未运行，导入功能已暂停' : null),
               <ImportPane
                 {...(p.onImportPackage ? { onImportPackage: p.onImportPackage } : {})}
                 offline={p.offline}

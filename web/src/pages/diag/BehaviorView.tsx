@@ -61,30 +61,30 @@ export function BehaviorView({ tabs }: { tabs: ReactNode }) {
       (e: unknown) => {
         const f = failure(e);
         if (f.kind === 'conflict') void cs.refetch();
-        fb.toast(f.kind === 'other' ? `重置没有完成：${f.text}` : f.text, { severity: 'danger' });
+        fb.toast(f.kind === 'other' ? `重置失败：${f.text}` : f.text, { severity: 'danger' });
       },
     );
   };
   const ask = () =>
     fb.ask({
-      title: '重置角色的状态？',
-      note: '精神和心情回到默认值，变化原因和状态历史都会删除。记忆不受影响。',
+      title: '重置角色状态？',
+      note: '精力与心情将恢复默认值，变化原因及状态历史将被清除；记忆数据不受影响。',
       danger: true,
       confirmLabel: '重置',
       children: (
         <ul className={styles.list}>
           <li>
-            状态历史：近 24 小时的 <b>{log.data?.length ?? 0}</b> 个点
+            状态历史：近 24 小时的 <b>{log.data?.length ?? 0}</b> 个记录点
           </li>
           <li>
             变化原因：<b>{cs.data?.causes.length ?? 0}</b> 条
           </li>
-          <li className={styles.keep}>留着：行为决策记录、记忆、动作开关</li>
+          <li className={styles.keep}>保留：行为决策记录、记忆与动作开关</li>
         </ul>
       ),
       onConfirm: reset,
     });
-  const resetWhy = disconnected ? '后台已断开' : !cs.data || none ? '还没有状态可以重置' : undefined;
+  const resetWhy = disconnected ? '后台已断开' : !cs.data || none ? '尚无状态可重置' : undefined;
 
   return (
     <div className={styles.page} data-page="diag" data-tab="behavior">
@@ -102,7 +102,7 @@ export function BehaviorView({ tabs }: { tabs: ReactNode }) {
               <StatusLamp state={disconnected ? 'broken' : 'ok'} label={disconnected ? '后台已断开' : '已连接'} />
               {readAt != null && (
                 <span data-fold="1">
-                  {disconnected ? '停在' : '读取于'} <b>{formatClock(readAt, { seconds: true })}</b>
+                  {disconnected ? '停于' : '读取于'} <b>{formatClock(readAt, { seconds: true })}</b>
                 </span>
               )}
             </span>
@@ -118,8 +118,8 @@ export function BehaviorView({ tabs }: { tabs: ReactNode }) {
       />
       {(stateError || disconnected) && (
         <div className={styles.bars}>
-          {stateError && <ErrBar message={`读取角色状态失败：${cs.error ? failure(cs.error).text : '桌面角色没有回应'}`} {...(readAt != null ? { staleAt: readAt } : {})} onRetry={() => void cs.refetch()} />}
-          {disconnected && <ErrBar message={`后台已断开 │ 状态和决策停在 ${readAt != null ? formatClock(readAt) : '断开前'}`} tone="warning" onRetry={restartAgentd} />}
+          {stateError && <ErrBar message={`读取角色状态失败：${cs.error ? failure(cs.error).text : '角色渲染进程无响应'}`} {...(readAt != null ? { staleAt: readAt } : {})} onRetry={() => void cs.refetch()} />}
+          {disconnected && <ErrBar message={`后台服务已断开 │ 状态与决策停于 ${readAt != null ? formatClock(readAt) : '断开前'}`} tone="warning" onRetry={restartAgentd} />}
         </div>
       )}
       <Behavior

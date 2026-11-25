@@ -141,7 +141,7 @@ function Op(over: Partial<OperatorProps> = {}) {
 describe('operator view', () => {
   it('names the activity key in words on 总览', () => {
     render(<Op pane="overview" />);
-    expect(document.querySelector('[data-stage]')?.textContent).toContain('坐着');
+    expect(document.querySelector('[data-stage]')?.textContent).toContain('坐姿待机');
   });
 
   it('starts the look and size at what the avatar reports and leaves out the weapon switch without a host op', async () => {
@@ -186,19 +186,19 @@ describe('motions (avatar.actions shape)', () => {
     fireEvent.click(screen.getByRole('button', { name: '保存' }));
     await waitFor(() => expect(set).toHaveBeenCalledWith('si', { nod: false }));
     await waitFor(() => expect(toast).toHaveBeenCalled());
-    expect(String(toast.mock.calls[0]?.[0])).toContain('分区里至少留一个');
+    expect(String(toast.mock.calls[0]?.[0])).toContain('分区内至少保留一项');
     expect(isOn(toggle('点头附和'))).toBe(true);
   });
 
   it('shows a default-off action off and writes true when the user first turns it on', async () => {
-    const attack = { id: 'attack', label: '攻击', enabled: false, defaultEnabled: false, section: 'react', trigger: '手动', durationS: 1.5, isNew: false, missingReason: null, playable: true };
+    const attack = { id: 'attack', label: '动作展示', enabled: false, defaultEnabled: false, section: 'react', trigger: '手动', durationS: 1.5, isNew: false, missingReason: null, playable: true };
     const set = vi.spyOn(bridge.avatar, 'setActionSwitches').mockResolvedValue({ switches: { attack: true }, adjusted: [] });
     render(<Op actions={[...MOTIONS, attack]} />);
-    expect(isOn(toggle('攻击'))).toBe(false);
-    flip(toggle('攻击'));
+    expect(isOn(toggle('动作展示'))).toBe(false);
+    flip(toggle('动作展示'));
     fireEvent.click(screen.getByRole('button', { name: '保存' }));
     await waitFor(() => expect(set).toHaveBeenCalledWith('si', { attack: true }));
-    await waitFor(() => expect(isOn(toggle('攻击'))).toBe(true));
+    await waitFor(() => expect(isOn(toggle('动作展示'))).toBe(true));
   });
 
   it('names why the host refused to play', async () => {
@@ -207,7 +207,7 @@ describe('motions (avatar.actions shape)', () => {
     render(<Op toast={toast} />);
     fireEvent.click(screen.getByRole('button', { name: /桌面预览/ }));
     await waitFor(() => expect(toast).toHaveBeenCalled());
-    expect(String(toast.mock.calls.at(-1)?.[0])).toContain('稍后再播');
+    expect(String(toast.mock.calls.at(-1)?.[0])).toContain('当前无法切换动作，请稍后再试');
   });
 
   it('says the host gave no reason, in Chinese, for codes it does not know', async () => {
@@ -221,8 +221,8 @@ describe('motions (avatar.actions shape)', () => {
     fireEvent.click(screen.getByRole('button', { name: '保存' }));
     await waitFor(() => expect(toast).toHaveBeenCalledTimes(2));
     const said = toast.mock.calls.map((c) => String(c[0]));
-    expect(said[0]).toContain('桌面角色未确认播放');
-    expect(said[1]).toContain('桌面角色没有给出原因');
+    expect(said[0]).toContain('角色渲染进程未确认播放');
+    expect(said[1]).toContain('角色渲染进程未返回原因');
     expect(said.join()).not.toMatch(/queue_full|table_locked/);
   });
 });
@@ -269,7 +269,7 @@ describe('switching', () => {
     render(<Asking />);
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'go' })));
     expect(ask).toHaveBeenCalledTimes(1);
-    expect(ask.mock.calls[0]?.[0].note).toContain('示例乙 先从桌面隐藏');
+    expect(ask.mock.calls[0]?.[0].note).toContain('示例乙 将先退出桌面显示');
     expect(to).not.toHaveBeenCalled();
   });
 
@@ -287,7 +287,7 @@ describe('switching', () => {
     render(<Harness />);
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'go' })));
     const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain('被后来的切换取代');
+    expect(alert.textContent).toContain('已被后续切换请求替代');
     expect(alert.textContent).not.toContain('superseded');
     expect(alert.textContent).toContain('停在这里');
   });
@@ -304,7 +304,7 @@ describe('switching', () => {
     render(<Harness />);
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'go' })));
     const status = screen.getByRole('status');
-    expect(status.textContent).toContain('正在切换到 示例丙');
+    expect(status.textContent).toContain('正在切换至 示例丙');
     expect(status.textContent).not.toContain('完成');
   });
 
@@ -313,7 +313,7 @@ describe('switching', () => {
     render(<Harness />);
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'go' })));
     const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain('桌面角色没有给出原因');
+    expect(alert.textContent).toContain('角色渲染进程未返回原因');
     expect(alert.textContent).not.toMatch(/bundle_mismatch|Bundle hash/);
   });
 });
@@ -321,13 +321,13 @@ describe('switching', () => {
 describe('offline overlay', () => {
   it('says the backoff seconds without a made-up countdown', () => {
     render(<Stage {...stageProps} offline backoff={8} />);
-    expect(screen.getByRole('status').textContent).toContain('退避 8 秒后重试');
+    expect(screen.getByRole('status').textContent).toContain('将在 8 秒后重试');
     expect(screen.queryByRole('timer')).toBeNull();
   });
 
   it('leaves out the backoff when the shell gives none', () => {
     render(<Stage {...stageProps} offline />);
     expect(screen.getByRole('status').textContent).not.toContain('退避');
-    expect(screen.getByRole('button', { name: '重启角色' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '重启角色进程' })).toBeTruthy();
   });
 });

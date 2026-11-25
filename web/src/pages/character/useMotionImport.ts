@@ -27,13 +27,13 @@ export function useMotionImport(call: () => Promise<MotionImportResult>, onImpor
           } else if (r.reason === 'cancelled') setNote(null);
           else {
             const reason = motionImportReason(r.reason, r.detail);
-            setNote({ ok: false, text: `导入没有完成：${reason}`, reason });
+            setNote({ ok: false, text: `导入未完成：${reason}`, reason });
           }
         },
         (e: unknown) => {
           setRunning(false);
-          const reason = (e as { code?: string } | null)?.code === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应';
-          setNote({ ok: false, text: `导入没有完成：${reason}`, reason });
+          const reason = (e as { code?: string } | null)?.code === 'not_implemented' ? '当前版本暂不支持' : '角色渲染进程无响应';
+          setNote({ ok: false, text: `导入未完成：${reason}`, reason });
         },
       );
   };

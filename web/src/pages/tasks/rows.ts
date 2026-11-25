@@ -34,7 +34,7 @@ export interface RowGroup {
 
 const toolWho = (t: Pick<Task, 'agent' | 'target'>) => (/codex/i.test(`${t.agent ?? ''} ${t.target ?? ''}`) ? 'CDX' : 'CC');
 const stepsText = (t: Task) => (t.steps_total ? `第 ${Math.min(t.steps_done + 1, t.steps_total)} / ${t.steps_total} 步` : t.steps.length ? `第 ${Math.min(t.steps_done + 1, t.steps.length)} / ${t.steps.length} 步` : null);
-const dirOf = (t: Task) => (t.cwd ?? '').split('/').filter(Boolean).pop() ?? null;
+const dirOf = (t: Task) => (t.cwd ?? '').split(/[\\/]/).filter(Boolean).pop() ?? null;
 
 /** 进行中: the cards still live, waiting ones in 要你处理; external sessions stay with 编码会话. */
 export function runGroups(view: TasksView, cards: readonly BoardCard[], who: string, now: number): RowGroup[] {
@@ -50,25 +50,25 @@ export function runGroups(view: TasksView, cards: readonly BoardCard[], who: str
     const review = open.find((p) => p.kind === 'review');
     const left = approval?.seconds_left ?? null;
     const sub = queued
-      ? ['等前台任务结束后开始']
+      ? ['等待当前前台任务结束后开始']
       : code
         ? [c.tool === 'codex' ? 'Codex' : 'Claude Code', dirOf(t)].filter((x): x is string => !!x)
         : [stepsText(t), t.started_at != null ? formatDuration(now - t.started_at) : null].filter((x): x is string => !!x);
     const row: ListRow = {
       id: t.id,
       title: t.title,
-      state: queued ? '排队' : c.stateText,
+      state: queued ? '排队中' : c.stateText,
       sub,
       shape: c.status === 'wait' ? 'trkY' : queued ? 'hatch' : 'trk',
       src: code ? 'code' : 'role',
       who: code ? toolWho(t) : who,
-      ...(left != null ? { tag: { tone: 'y' as const, text: '', clock: left, icon: 'clock' as const } } : review && t.delivery ? { tag: { tone: 'w' as const, text: `v${t.delivery.version} 待你看` } } : {}),
+      ...(left != null ? { tag: { tone: 'y' as const, text: '', clock: left, icon: 'clock' as const } } : review && t.delivery ? { tag: { tone: 'w' as const, text: `v${t.delivery.version} 待复核` } } : {}),
     };
     (c.status === 'wait' ? wait : run).push(row);
   }
   return [
-    ...(wait.length ? [{ key: 'wait', title: '要你处理', vital: true, rows: wait }] : []),
-    ...(run.length ? [{ key: 'run', title: '在跑', note: '角色任务和派出的编码会话', rows: run }] : []),
+    ...(wait.length ? [{ key: 'wait', title: '待处理', vital: true, rows: wait }] : []),
+    ...(run.length ? [{ key: 'run', title: '运行中', note: '角色任务与派发编码会话', rows: run }] : []),
   ];
 }
 
@@ -81,9 +81,9 @@ export function endedTasks(view: TasksView): Task[] {
 /** 已接受、完成、出错、已驳回、已停止… and its shape. */
 export function endState(t: Task, view: TasksView): { text: string; shape: Shape; err: boolean } {
   const eff = view.effective[t.id];
-  if (eff === 'failed') return { text: t.status === 'rejected' ? '已驳回' : t.status === 'denied' ? '已拒绝' : '出错', shape: 'forbid', err: true };
+  if (eff === 'failed') return { text: t.status === 'rejected' ? '已驳回' : t.status === 'denied' ? '已拒绝' : '执行失败', shape: 'forbid', err: true };
   if (eff === 'stopped') return { text: t.status === 'interrupted' ? '已中断' : t.status === 'expired' ? '已过期' : '已停止', shape: 'hatch', err: false };
-  return { text: t.status === 'accepted' ? '已接受' : '完成', shape: 'ok', err: false };
+  return { text: t.status === 'accepted' ? '已接受' : '已完成', shape: 'ok', err: false };
 }
 
 const dayKey = (ms: number, now: number) => dayText(ms, now).replace(/ \d\d:\d\d$/, '');
@@ -120,17 +120,17 @@ export function schedGroups(list: readonly Schedule[], now: number): RowGroup[] 
   const row = (s: Schedule): ListRow => ({
     id: s.schedule_id,
     title: s.title,
-    state: s.last_error ? '上次没跑成' : proposal(s) ? '角色提议' : s.enabled ? '开着' : '暂停',
-    sub: [triggerText(s.trigger), ...(s.enabled ? [s.next_run_at != null ? `下次 ${dayText(s.next_run_at, now)}` : s.trigger.kind === 'session_done' ? '等会话结束' : '下次 —'] : [])],
+    state: s.last_error ? '上次运行失败' : proposal(s) ? '角色建议' : s.enabled ? '已启用' : '已暂停',
+    sub: [triggerText(s.trigger), ...(s.enabled ? [s.next_run_at != null ? `下次 ${dayText(s.next_run_at, now)}` : s.trigger.kind === 'session_done' ? '会话结束后触发' : '下次 —'] : [])],
     shape: s.last_error ? 'forbid' : s.enabled ? 'trk' : 'hatch',
     src: 'sched',
     who: '',
-    ...(proposal(s) ? { tag: { tone: 'y' as const, text: '待你决定', icon: 'chat' as const } } : {}),
+    ...(proposal(s) ? { tag: { tone: 'y' as const, text: '待处理', icon: 'chat' as const } } : {}),
   });
   const groups: RowGroup[] = [
-    { key: 'proposal', title: '角色提议的', vital: true, rows: list.filter(proposal).map(row) },
-    { key: 'on', title: '开着', rows: list.filter((s) => s.enabled).map(row) },
-    { key: 'off', title: '暂停', rows: list.filter((s) => !s.enabled && !proposal(s)).map(row) },
+    { key: 'proposal', title: '角色建议', vital: true, rows: list.filter(proposal).map(row) },
+    { key: 'on', title: '已启用', rows: list.filter((s) => s.enabled).map(row) },
+    { key: 'off', title: '已暂停', rows: list.filter((s) => !s.enabled && !proposal(s)).map(row) },
   ];
   return groups.filter((g) => g.rows.length > 0);
 }

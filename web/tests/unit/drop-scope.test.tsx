@@ -8,7 +8,7 @@ import { dropOverflows, type Attachment } from '../../src/surfaces/desktop/cmd/i
 afterEach(cleanup);
 
 const dropped = (text: string): Attachment => ({ kind: 'scope', files: 0, items: [{ kind: 'text', text }] });
-const OVER = '拖入的内容太长，发送时只带前面一部分';
+const OVER = '附带内容超出长度限制，发送时将仅截取前段';
 
 describe('dropOverflows', () => {
   it('is true when the drop would be cut, with or without what is typed', () => {

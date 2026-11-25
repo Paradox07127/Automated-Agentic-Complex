@@ -89,11 +89,11 @@ describe('总览', () => {
     const restart = vi.fn();
     render(<Operator {...props} offline backoff={8} onRestart={restart} />);
     const status = screen.getByRole('status');
-    expect(status.textContent).toContain('角色未运行');
-    expect(status.textContent).toContain('退避 8 秒后重试');
+    expect(status.textContent).toContain('角色进程未运行');
+    expect(status.textContent).toContain('将在 8 秒后重试');
     expect(stageRect().contains(status)).toBe(false);
     expect(within(stageRect()).queryAllByRole('button')).toEqual([]);
-    fireEvent.click(within(status).getByRole('button', { name: '重启角色' }));
+    fireEvent.click(within(status).getByRole('button', { name: '重启角色进程' }));
     expect(restart).toHaveBeenCalledTimes(1);
   });
 
@@ -103,10 +103,10 @@ describe('总览', () => {
     const target = props.roster[1]!;
     render(<Operator {...props} sw={{ state: { phase: 'failed', target, stage: 1, reason: '加载资源超时' }, request: noop, retry, dismiss }} />);
     const alert = screen.getByRole('alert');
-    expect(alert.textContent).toContain('切换到 示例甲 没有完成');
-    expect(alert.textContent).toContain('仍是 示例乙');
+    expect(alert.textContent).toContain('未能切换至 示例甲');
+    expect(alert.textContent).toContain('当前仍为 示例乙');
     expect(alert.textContent).toContain('加载资源超时');
-    expect(alert.textContent).toContain('加载资源，停在这里');
+    expect(alert.textContent).toContain('加载资源，中止于此步骤');
     expect(stageRect().contains(alert)).toBe(false);
     fireEvent.click(within(alert).getByRole('button', { name: '重试' }));
     fireEvent.click(within(alert).getByRole('button', { name: '关闭' }));
@@ -117,7 +117,7 @@ describe('总览', () => {
   it('says a switch is running without buttons', () => {
     render(<Operator {...props} sw={{ state: { phase: 'running', target: props.roster[1]! }, request: noop, retry: noop, dismiss: noop }} />);
     const status = screen.getByRole('status');
-    expect(status.textContent).toContain('正在切换到 示例甲');
+    expect(status.textContent).toContain('正在切换至 示例甲');
     expect(within(status).queryAllByRole('button')).toEqual([]);
   });
 });

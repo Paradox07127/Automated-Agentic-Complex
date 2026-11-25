@@ -73,7 +73,7 @@ function SummarySheet({ row, onClose }: { row: WireSessionSummary; onClose: () =
           </div>
         )}
         <div>
-          <div className={s.eb}>做了什么</div>
+          <div className={s.eb}>执行内容</div>
           {row.did.length ? (
             <ul className={s.items}>
               {row.did.map((d, i) => (
@@ -83,12 +83,12 @@ function SummarySheet({ row, onClose }: { row: WireSessionSummary; onClose: () =
               ))}
             </ul>
           ) : (
-            <p className={s.cap}>没有记下</p>
+            <p className={s.cap}>无记录</p>
           )}
         </div>
         <div>
           <div className={s.eb}>结果</div>
-          <p data-selectable="">{row.outcome || '还没有结果'}</p>
+          <p data-selectable="">{row.outcome || '尚无结果'}</p>
         </div>
         {row.next_steps.length > 0 && (
           <div>
@@ -115,7 +115,7 @@ export function DayTimeline({ q, summaries, now, title = '今日时间线', onOp
   return (
     <div data-nav-target="timeline" data-g="rewards">
       <Fold id="timeline" variant="head" label={title} count={q.data?.length} defaultOpen autoOpen={q.status === 'error'}>
-        <Region q={q} what="时间线" reserve={{ rows: 6 }} empty={{ text: '这一天还没有活动' }}>
+        <Region q={q} what="时间线" reserve={{ rows: 6 }} empty={{ text: '当日无活动记录' }}>
           {(entries) => (
             <>
               <ul className={s.list}>
@@ -153,7 +153,7 @@ export function EpisodeSheet({ ep, onClose }: { ep: string; onClose: () => void 
   return (
     <>
       <Sheet open title="活动片段" width={480} onClose={onClose}>
-        <Region q={d.src.eps} what="活动片段" reserve={{ height: 160 }} isEmpty={() => !e} empty={{ text: '这个片段已经不在了' }}>
+        <Region q={d.src.eps} what="活动片段" reserve={{ height: 160 }} isEmpty={() => !e} empty={{ text: '该活动片段已不存在' }}>
           {() => (
             <EpisodeDetail
               episode={e}

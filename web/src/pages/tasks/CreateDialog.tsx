@@ -40,9 +40,9 @@ export function CreateDialog({ draft, setDraft, goals, push, onCreated }: Create
     try {
       const h = await bridge.files.pickFolder({ purpose: 'session_cwd' });
       if (h) setDraft({ ...draft, cwd: h });
-      else push('没有选择目录');
+      else push('未选择目录');
     } catch {
-      push('这台电脑的外壳暂不支持选择目录', { severity: 'danger' });
+      push('当前客户端环境暂不支持选择目录', { severity: 'danger' });
     }
   };
   const submit = async () => {
@@ -51,11 +51,11 @@ export function CreateDialog({ draft, setDraft, goals, push, onCreated }: Create
     try {
       const r = await submitDraft(draft);
       setDraft(null);
-      push(`已交派：${r.label}`);
+      push(`已派发：${r.label}`);
       onCreated(r.select);
     } catch (e) {
       const text = isPluginOff(e) ? offText(draft.kind) : failMessage(e);
-      if (text !== null) push(`交派失败：${text}`, { severity: 'danger' });
+      if (text !== null) push(`派发失败：${text}`, { severity: 'danger' });
     } finally {
       setBusy(false);
     }
@@ -64,7 +64,7 @@ export function CreateDialog({ draft, setDraft, goals, push, onCreated }: Create
   return (
     <Dialog
       open
-      title="新建"
+      title="新建任务"
       onClose={() => setDraft(null)}
       footer={
         <>
@@ -72,7 +72,7 @@ export function CreateDialog({ draft, setDraft, goals, push, onCreated }: Create
             取消
           </Btn>
           <Btn variant="primary" kbd={keyText('⌘↵')} loading={busy} disabled={problem != null} disabledReason={problem ?? undefined} onClick={() => void submit()}>
-            交派
+            派发
           </Btn>
         </>
       }

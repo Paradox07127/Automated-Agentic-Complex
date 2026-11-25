@@ -66,7 +66,7 @@ const mount = async (toast: Toast = noop) => {
   return { ...ui, show: (pane: 'import' | 'look' | 'motion', current?: string) => ui.rerender(at(pane, current)) };
 };
 
-const key = () => screen.findByRole('button', { name: '选择 mod 目录…' });
+const key = () => screen.findByRole('button', { name: '选择模组目录…' });
 /** An appearance row of 外观 and what sits on it (删除…, WEARING). */
 const look = async (name: string) => within((await screen.findByRole('button', { name: new RegExp(`^${name}`) })).closest('[data-look]') as HTMLElement);
 
@@ -75,7 +75,7 @@ describe('角色页 · 导入外观', () => {
     use(false);
     await mount();
     await screen.findByRole('heading', { name: '导入外观模组' });
-    expect(screen.queryByRole('button', { name: '选择 mod 目录…' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '选择模组目录…' })).toBeNull();
   });
 
   it('imports on 导入 only, and offers 删除… on the imported rows of 外观 only', async () => {
@@ -86,7 +86,7 @@ describe('角色页 · 导入外观', () => {
     expect(screen.queryByRole('group', { name: '外观' })).toBeNull();
     show('look');
     await screen.findByRole('group', { name: '外观' });
-    expect(screen.queryByRole('button', { name: '选择 mod 目录…' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '选择模组目录…' })).toBeNull();
     expect((await look('夏装')).getByRole('button', { name: '删除…' })).toBeTruthy();
     expect((await look('野外装')).getByRole('button', { name: '删除…' })).toBeTruthy();
     expect((await look('日常')).queryByRole('button', { name: '删除…' })).toBeNull();
@@ -109,14 +109,14 @@ describe('角色页 · 导入外观', () => {
     const toast = vi.fn();
     const { show } = await mount(toast);
     fireEvent.click(await key());
-    await waitFor(() => expect(toast).toHaveBeenCalledWith('已导入「示例外观」，有 1 处要留意：这个开关在 mod 里写死了，不能切换', { severity: 'warning' }));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith('已导入「示例外观」，有 1 处要留意：该开关已在模组中固定，不支持切换', { severity: 'warning' }));
     // It has no switches, so it stays on 导入 and the banner waits on 外观.
     expect(screen.queryByRole('list', { name: '「示例外观」导入提示' })).toBeNull();
     show('look');
     const banner = (await screen.findByText(/已导入/)).closest('[role="status"]') as HTMLElement;
     expect(banner.textContent).toContain('已导入「示例外观」');
     expect(banner.textContent).toContain('1 处导入提示');
-    expect(within(screen.getByRole('list', { name: '「示例外观」导入提示' })).getByRole('listitem').textContent).toBe('01这个开关在 mod 里写死了，不能切换');
+    expect(within(screen.getByRole('list', { name: '「示例外观」导入提示' })).getByRole('listitem').textContent).toBe('01该开关已在模组中固定，不支持切换');
     expect((await look('示例外观')).getByRole('button', { pressed: true }).textContent).toBe('示例外观MOD导入的外观');
     fireEvent.click(within(banner).getByRole('button', { name: '收起提示' }));
     expect(screen.queryByRole('list', { name: '「示例外观」导入提示' })).toBeNull();
@@ -134,8 +134,8 @@ describe('角色页 · 导入外观', () => {
     show('look');
     const tab = await screen.findByRole('tab', { name: '模组设置' });
     expect(tab.getAttribute('aria-selected')).toBe('true');
-    expect(await screen.findByRole('group', { name: 'mod 设置' })).toBeTruthy();
-    expect(screen.getByText(/已导入/).closest('[role="status"]')?.textContent).toContain('已导入「野外装」，6 个开关按类别排好');
+    expect(await screen.findByRole('group', { name: '模组设置' })).toBeTruthy();
+    expect(screen.getByText(/已导入/).closest('[role="status"]')?.textContent).toContain('已导入「野外装」，已按类别整理 6 个开关项');
     fireEvent.click(screen.getByRole('tab', { name: '外观' }));
     expect((await look('野外装')).getByRole('button', { pressed: true })).toBeTruthy();
     // The banner belongs to 模组设置 while she wears it.
@@ -173,7 +173,7 @@ describe('角色页 · 导入外观', () => {
     fireEvent.click(await key());
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(
-        '导入外观没有完成：模组里的「TextureOverrideBody」对不上这个角色的模型，可能是给别的角色做的；请确认角色，或换一个模组',
+        '导入外观没有完成：模组中的「TextureOverrideBody」无法匹配当前角色模型，可能适用于其他角色；请确认目标角色或更换模组',
         { severity: 'danger' },
       ),
     );
@@ -189,7 +189,7 @@ describe('角色页 · 导入外观', () => {
     fireEvent.click(await key());
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(
-        '已导入「示例外观」，有 3 处要留意：贴图「Textures/Body-Emission.dds」找不到该套的部件，没有用上；贴图「Textures/Body-Diffuse.dds」没有缩小用的多级图，远看可能发虚',
+        '已导入「示例外观」，有 3 处要留意：贴图「Textures/Body-Emission.dds」未找到对应部件，未应用；贴图「Textures/Body-Diffuse.dds」缺少多级渐远纹理（Mipmaps），远景显示可能较模糊',
         { severity: 'warning' },
       ),
     );
@@ -223,7 +223,7 @@ describe('角色页 · 导入进度', () => {
     vi.spyOn(bridge.character, 'importState').mockResolvedValue({ running: true, kind: 'motion', title: 'Dance', stage: 'retarget', fraction: 0.4 });
     await mount();
     await waitFor(async () => expect(((await key()) as HTMLButtonElement).disabled).toBe(true));
-    expect((await key()).title).toBe('另一个导入还没完成');
+    expect((await key()).title).toBe('另一项导入尚未完成');
     expect(screen.queryByRole('progressbar')).toBeNull();
   });
 });
@@ -245,7 +245,7 @@ describe('角色页 · 导入外观之后', () => {
     const toast = vi.fn();
     await mount(toast);
     fireEvent.click(await key());
-    await waitFor(() => expect(toast).toHaveBeenCalledWith('换外观没有完成：桌面角色没有回应', { severity: 'danger' }));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith('切换外观未完成：角色渲染进程无响应', { severity: 'danger' }));
     await waitFor(() => expect(read.mock.calls.filter(([, path]) => path === '/characters/si/mod-settings').length).toBeGreaterThan(1));
     await Promise.all(read.mock.results.map((r) => r.value));
     await act(async () => {});
@@ -350,7 +350,7 @@ describe('角色页 · 删除导入的外观', () => {
     fireEvent.click((await look('示例外观')).getByRole('button', { name: '删除…' }));
     const dialog = await screen.findByRole('dialog', { name: '删除「示例外观」' });
     expect(dialog.textContent).toContain('模组设置');
-    expect(dialog.textContent).toContain('恢复成导入前的样子');
+    expect(dialog.textContent).toContain('恢复至导入前状态');
     expect(remove).not.toHaveBeenCalled();
     fireEvent.click(within(dialog).getByRole('button', { name: '删除' }));
     expect(remove).toHaveBeenCalledWith('si', 'mod_1a2b3c4d');
@@ -393,28 +393,28 @@ describe('角色页 · 删除导入的外观', () => {
     expect(((await look('夏装')).getByRole('button', { name: '删除…' }) as HTMLButtonElement).disabled).toBe(true);
     show('import');
     expect(((await key()) as HTMLButtonElement).disabled).toBe(true);
-    expect((await key()).title).toBe('删除外观还没完成');
+    expect((await key()).title).toBe('删除外观尚未完成');
   });
 });
 
 describe('导入外观 · 要留意的地方', () => {
   it('names the file or section after the code, and keeps a code it does not know as it came', () => {
-    expect(outfitImportWarning('texture_unbound:Textures/a.dds')).toBe('贴图「Textures/a.dds」找不到该套的部件，没有用上');
-    expect(outfitImportWarning('bones_appended:S_actor_body:3')).toBe('模组给「S_actor_body」新加了骨骼');
-    expect(outfitImportWarning('shapekey_ignored')).toBe('模组的形态键没有套上');
+    expect(outfitImportWarning('texture_unbound:Textures/a.dds')).toBe('贴图「Textures/a.dds」未找到对应部件，未应用');
+    expect(outfitImportWarning('bones_appended:S_actor_body:3')).toBe('模组为「S_actor_body」追加了骨骼');
+    expect(outfitImportWarning('shapekey_ignored')).toBe('模组的形态键未应用');
     expect(outfitImportWarning('brand_new:x')).toBe('brand_new:x');
   });
 
   it('names after a skipped shader patch the textures that only it reads', () => {
-    expect(outfitImportWarning('shader_patch_ignored:Cutout.ini')).toBe('模组的「Cutout.ini」改的是游戏的着色器，没有套上');
+    expect(outfitImportWarning('shader_patch_ignored:Cutout.ini')).toBe('模组中的「Cutout.ini」修改了游戏着色器，未应用');
     expect(outfitImportWarning('shader_patch_ignored:Skin.ini:Assets/a.dds:Assets/b.dds'))
-      .toBe('模组的「Skin.ini」改的是游戏的着色器，没有套上，只给它用的贴图「Assets/a.dds」「Assets/b.dds」也没用上');
+      .toBe('模组中的「Skin.ini」修改了游戏着色器，未应用；其专用贴图「Assets/a.dds」「Assets/b.dds」亦未应用');
   });
 
   it('says the mod-settings codes in one sentence each', () => {
-    expect(outfitImportWarning('setting_fixed:glow')).toBe('这个开关在 mod 里写死了，不能切换');
-    expect(outfitImportWarning('variant_unplaced')).toBe('有贴图变体找不到对应部件，没有导入');
-    expect(outfitImportWarning('segment_unmappable:3')).toBe('有部件对不上角色模型，没有导入');
+    expect(outfitImportWarning('setting_fixed:glow')).toBe('该开关已在模组中固定，不支持切换');
+    expect(outfitImportWarning('variant_unplaced')).toBe('部分贴图变体未找到对应部件，未导入');
+    expect(outfitImportWarning('segment_unmappable:3')).toBe('部分部件无法匹配当前角色模型，未导入');
   });
 });
 
@@ -433,13 +433,13 @@ describe('导入外观 · 失败原因', () => {
 
   it('names the mod file or section a prefixed detail carries', () => {
     expect(outfitImportReason('texture_mismatch', 'summer: texture_mismatch:3:body.dds: candidates a; b')).toBe(
-      '认不出模组的贴图「body.dds」该套在哪个部件上；可以换一个模组，或等更新',
+      '无法识别模组贴图「body.dds」对应的模型部件；请更换模组或等待后续版本支持',
     );
     expect(outfitImportReason('unsupported_geometry', 'unsupported_geometry:custom_shader_output:ResourceBodyPosition')).toBe(
-      '模组的「ResourceBodyPosition」用自己的着色器生成模型，本程序还不支持；可以换一个模组，或等更新',
+      '模组中的「ResourceBodyPosition」使用自定义着色器生成模型，当前版本暂不支持；请更换模组或等待后续版本支持',
     );
     expect(outfitImportReason('unsupported_geometry', 'unsupported_geometry:shapekey_default:2')).toBe(
-      '模组默认打开了形态键，本程序还不支持；可以换一个模组，或等更新',
+      '模组默认启用了形态键，当前版本暂不支持；请更换模组或等待后续版本支持',
     );
     expect(outfitImportReason('unsupported_mod', 'summer: unsupported_mod:nothing_to_import')).toBe(OUTFIT_IMPORT_REASON.nothing_to_import);
   });

@@ -181,9 +181,9 @@ test('permissions.openSettings on Windows opens the microphone page; other panes
   const win = setup({ platform: 'windows' });
   assert.equal(value(await win.call('permissions.openSettings', ['microphone'])), null);
   assert.deepEqual(win.calls, ['openExternal ms-settings:privacy-microphone']);
-  assert.deepEqual(failure(await win.call('permissions.openSettings', ['accessibility'])), { code: 'failed', detail: '打不开系统设置' });
+  assert.deepEqual(failure(await win.call('permissions.openSettings', ['accessibility'])), { code: 'failed', detail: '无法打开系统设置' });
   const broken = setup({ openExternal: async () => { throw new Error('no handler'); } });
-  assert.deepEqual(failure(await broken.call('permissions.openSettings', ['microphone'])), { code: 'failed', detail: '打不开系统设置' });
+  assert.deepEqual(failure(await broken.call('permissions.openSettings', ['microphone'])), { code: 'failed', detail: '无法打开系统设置' });
 });
 
 const session = (id: string, origin: Record<string, unknown> | null, extra: Record<string, unknown> = {}) => ({
@@ -199,10 +199,10 @@ test('open.jumpToSession focuses a Terminal tab through the helper once Terminal
   assert.deepEqual(helper.requests, [['apps.running', {}], ['terminal.focus', { app: 'terminal', tty: '/dev/ttys004' }]]);
   const text = async (table: ConstructorParameters<typeof FakeHelper>[0]) =>
     failure(await setup({ helper: new FakeHelper(table), sessions }).call('open.jumpToSession', ['s1'])).detail;
-  assert.equal(await text({ 'apps.running': running, 'terminal.focus': ok({ focused: false }) }), 'Terminal 里没找到该会话');
-  assert.equal(await text({ 'apps.running': running, 'terminal.focus': err('not_found') }), 'Terminal 里没找到该会话');
-  assert.equal(await text({ 'apps.running': running, 'terminal.focus': err('automation_denied') }), '需要在系统设置里允许 Agentic Complex 控制 Terminal');
-  assert.equal(await text({ 'apps.running': ok({ apps: [] }) }), 'Terminal 没在运行');
+  assert.equal(await text({ 'apps.running': running, 'terminal.focus': ok({ focused: false }) }), 'Terminal 中未找到该会话');
+  assert.equal(await text({ 'apps.running': running, 'terminal.focus': err('not_found') }), 'Terminal 中未找到该会话');
+  assert.equal(await text({ 'apps.running': running, 'terminal.focus': err('automation_denied') }), '请在系统设置中允许 Agentic Complex 控制 Terminal');
+  assert.equal(await text({ 'apps.running': ok({ apps: [] }) }), 'Terminal 未运行');
 });
 
 test('open.jumpToSession activates the session\'s app or process, and says why when it cannot', async () => {
@@ -214,12 +214,12 @@ test('open.jumpToSession activates the session\'s app or process, and says why w
   assert.equal(value(await call('open.jumpToSession', ['app'])), null);
   assert.deepEqual(helper.requests, [['apps.activate', { pid: 4321, ancestors: true }], ['apps.activate', { app_id: 'com.example.ide' }]]);
   const off = setup({ helper: new FakeHelper({ 'apps.activate': ok({ activated: false, pid: null }) }), sessions });
-  assert.equal(failure(await off.call('open.jumpToSession', ['pid'])).detail, '没找到进程 4321 所在的 app');
-  assert.equal(failure(await off.call('open.jumpToSession', ['app'])).detail, 'com.example.ide 没在运行');
+  assert.equal(failure(await off.call('open.jumpToSession', ['pid'])).detail, '未找到进程 4321 所属应用');
+  assert.equal(failure(await off.call('open.jumpToSession', ['app'])).detail, 'com.example.ide 未运行');
   const gone = setup({ helper: new FakeHelper({ 'apps.activate': err('process_gone') }), sessions });
-  assert.equal(failure(await gone.call('open.jumpToSession', ['pid'])).detail, '没找到进程 4321 所在的 app');
-  assert.equal(failure(await off.call('open.jumpToSession', ['nope'])).detail, '没找到这个会话');
-  assert.equal(failure(await setup({ sessionsStatus: 500 }).call('open.jumpToSession', ['pid'])).detail, '后台没有回应，暂时跳不过去');
+  assert.equal(failure(await gone.call('open.jumpToSession', ['pid'])).detail, '未找到进程 4321 所属应用');
+  assert.equal(failure(await off.call('open.jumpToSession', ['nope'])).detail, '未找到该会话');
+  assert.equal(failure(await setup({ sessionsStatus: 500 }).call('open.jumpToSession', ['pid'])).detail, '后台服务无响应，暂时无法跳转');
   assert.deepEqual(failure(await off.call('open.jumpToSession', [''])), { code: 'invalid_args', detail: 'session id' });
 });
 
@@ -240,11 +240,11 @@ test('an own session opens on the main window\'s sessions route, there, from a f
   assert.deepEqual([opened, stack.routes], [['/overview?sel=mine%201&focus=task-mine%201'], []]);
   // Another tool's session still jumps to its terminal.
   const other = setup({ sessions: [session('theirs', null)], surface: 'stack', openMain: (route) => { opened.push(route); } });
-  assert.equal(failure(await other.call('open.jumpToSession', ['theirs'])).detail, '没有可用的跳转方式');
+  assert.equal(failure(await other.call('open.jumpToSession', ['theirs'])).detail, '当前会话无可用跳转方式');
   assert.equal(opened.length, 1);
   // Without a main window to open.
   const none = setup({ sessions, surface: 'stack' });
-  assert.equal(failure(await none.call('open.jumpToSession', ['mine 1'])).detail, '没有可用的跳转方式');
+  assert.equal(failure(await none.call('open.jumpToSession', ['mine 1'])).detail, '当前会话无可用跳转方式');
   assert.deepEqual(none.routes, []);
   const noMain = setup({ sessions, helper: new FakeHelper({ 'apps.running': ok({ apps: [] }) }) });
   assert.equal(failure(await noMain.call('open.runFeedCommand', [{ action: 'jump', target: 'mine' }])).detail, '没找到「mine」');
@@ -287,7 +287,7 @@ test('open.jumpToSession opens a Claude Desktop session by its local id, else ac
     const { calls, call } = setup({ helper, sessions });
     assert.equal(value(await call('open.jumpToSession', ['claude:cli-1'])), null);
     assert.deepEqual(calls.filter((c) => c.startsWith('openExternal')), ['openExternal claude://code/continue?session=local_ab-1']);
-    assert.equal(failure(await call('open.jumpToSession', ['claude:cli-2'])).detail, 'Desktop 没找到该会话，已激活 Desktop');
+    assert.equal(failure(await call('open.jumpToSession', ['claude:cli-2'])).detail, 'Desktop 中未找到该会话，已激活 Desktop');
     assert.deepEqual(helper.requests, [['apps.activate', { app_id: 'com.anthropic.claudefordesktop' }]]);
   } finally {
     for (const [k, v] of Object.entries(saved)) if (v === undefined) delete process.env[k]; else process.env[k] = v;
@@ -309,7 +309,7 @@ test('open.jumpToSession on Windows reads Claude Desktop\'s sessions under APPDA
     const { calls, call } = setup({ helper, sessions, platform: 'windows' });
     assert.equal(value(await call('open.jumpToSession', ['claude:cli-1'])), null);
     assert.deepEqual(calls.filter((c) => c.startsWith('openExternal')), ['openExternal claude://code/continue?session=local_w-1']);
-    assert.equal(failure(await call('open.jumpToSession', ['claude:cli-2'])).detail, 'Desktop 没找到该会话，已激活 Desktop');
+    assert.equal(failure(await call('open.jumpToSession', ['claude:cli-2'])).detail, 'Desktop 中未找到该会话，已激活 Desktop');
     assert.deepEqual(helper.requests, [['apps.running', { regular_only: true }], ['apps.activate', { pid: 30 }]]);
   } finally {
     if (saved === undefined) delete process.env.APPDATA; else process.env.APPDATA = saved;
@@ -345,7 +345,7 @@ test('open.jumpToSession on Windows activates a running app found by exe name or
     ['apps.running', { regular_only: true }], ['apps.activate', { pid: 9 }], ['apps.activate', { pid: 4321, ancestors: true }],
     ['apps.activate', { app_id: 'notepad.exe' }]]);
   const none = setup({ helper: new FakeHelper({ 'apps.running': ok({ apps: [] }) }), sessions, platform: 'windows' });
-  assert.equal(failure(await none.call('open.jumpToSession', ['code'])).detail, 'VS Code 没在运行');
+  assert.equal(failure(await none.call('open.jumpToSession', ['code'])).detail, 'VS Code 未运行');
 });
 
 test('desktopLocalId reads only <root>/*/*/local_*.json records that list the CLI session', () => {
@@ -397,7 +397,7 @@ test('open.runFeedCommand jumps to the matching session, else activates a runnin
     ['apps.activate', { pid: 30 }]]);
   assert.equal(failure(await call('open.runFeedCommand', [{ action: 'jump', target: 'helper' }])).detail, '没找到「helper」');
   const off = setup({ helper: new FakeHelper({ 'apps.activate': ok({ activated: false, pid: null }) }), sessions });
-  assert.equal(failure(await off.call('open.runFeedCommand', [{ action: 'jump', target: 'proj' }])).detail, '没找到进程 22 所在的 app');
+  assert.equal(failure(await off.call('open.runFeedCommand', [{ action: 'jump', target: 'proj' }])).detail, '未找到进程 22 所属应用');
   const noAgentd = setup({ helper, sessionsStatus: 503 });
   assert.equal(value(await noAgentd.call('open.runFeedCommand', [{ action: 'jump', target: 'notes' }])), null, 'no sessions: apps');
   const e = failure(await setup({ helper: exited }).call('open.runFeedCommand', [{ action: 'jump', target: 'notes' }]));
@@ -407,7 +407,7 @@ test('open.runFeedCommand jumps to the matching session, else activates a runnin
 test('open.runInTerminal checks the command, asks first, then has Terminal run it', async () => {
   const { calls, call } = setup();
   assert.equal(value(await call('open.runInTerminal', ['echo "a\\b"'])), null);
-  assert.deepEqual(calls, ['confirm 在终端运行这条命令？\n\necho "a\\b"',
+  assert.deepEqual(calls, ['confirm 确认在终端运行以下命令？\n\necho "a\\b"',
     'run /usr/bin/osascript -e tell application "Terminal"\nactivate\ndo script "echo \\"a\\\\b\\""\nend tell']);
   for (const bad of ['', 'a\nb', 'a‮b', 'a b', 'x'.repeat(4097), 42]) {
     assert.deepEqual(failure(await call('open.runInTerminal', [bad])), { code: 'invalid_args', detail: 'a one-line command' }, String(bad));
@@ -430,7 +430,7 @@ test('systemCommands.run kills at its limit, and with none waits', { skip: proce
 test('open.runInTerminal says what Terminal refused; on Windows it fails before asking', async () => {
   const refused = setup({ run: async () => ({ ok: false, message: '0:50: execution error: Not authorized to send Apple events to Terminal. (-1743)' }) });
   assert.deepEqual(failure(await refused.call('open.runInTerminal', ['ls'])),
-    { code: 'failed', detail: '需要在系统设置里允许 Agentic Complex 控制 Terminal' });
+    { code: 'failed', detail: '请在系统设置中允许 Agentic Complex 控制终端' });
   const other = setup({ run: async () => ({ ok: false, message: '0:10: execution error: Terminal got an error. (-1728)' }) });
   assert.deepEqual(failure(await other.call('open.runInTerminal', ['ls'])), { code: 'failed', detail: 'Terminal 出错：-1728' });
   const odd = setup({ run: async () => ({ ok: false, message: '无法启动 /usr/bin/osascript' }) });

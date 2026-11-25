@@ -187,7 +187,7 @@ export function useLivePreview(stage: HTMLElement | null, want: LivePreviewWant)
       const reject = () => {
         if (n !== seq) return;
         failed = drawing;
-        hide('实时预览没有加载，仍可查看角色外观');
+        hide('实时预览加载失败，可点击重试');
       };
       preview.show(at).then(
         (on) => {

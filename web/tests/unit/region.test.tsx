@@ -85,7 +85,7 @@ describe('Region: the eight placeholder states', () => {
         {list}
       </Region>,
     );
-    expect(screen.getByRole('status').textContent).toBe('还没有会话');
+    expect(screen.getByRole('status').textContent).toBe('尚无会话');
     expect(screen.queryByText(/暂无/)).toBeNull();
   });
 
@@ -102,7 +102,7 @@ describe('Region: the eight placeholder states', () => {
       </Region>,
     );
     expect(screen.getAllByRole('listitem')).toHaveLength(2);
-    expect(screen.getByRole('alert').textContent).toBe('没有读到步骤：接口不可用 │ 重试');
+    expect(screen.getByRole('alert').textContent).toBe('无法读取步骤：接口不可用 │ 重试');
     fireEvent.click(screen.getByRole('button', { name: '重试' }));
     expect(retry).toHaveBeenCalledOnce();
   });
@@ -137,7 +137,7 @@ describe('Region: the eight placeholder states', () => {
     const bars = screen.getAllByRole('alert');
     expect(bars).toHaveLength(1);
     expect(bars[0]?.textContent).toContain('读取会话、任务失败：后台没有响应');
-    expect(bars[0]?.textContent).toContain('下面是 14:31 的数据');
+    expect(bars[0]?.textContent).toContain('以下为 14:31 的缓存数据');
     // The banner carries 14:31 once; the sections do not repeat it.
     expect(container.querySelectorAll('[data-stub="Region"] [role="status"]')).toHaveLength(0);
   });
@@ -153,7 +153,7 @@ describe('Region: the eight placeholder states', () => {
         </Region>
       </PageIssues>,
     );
-    expect(screen.getByRole('alert').textContent).toContain('下面是 14:31 的数据');
+    expect(screen.getByRole('alert').textContent).toContain('以下为 14:31 的缓存数据');
     const tags = [...container.querySelectorAll('[data-stub="Region"] [role="status"]')].map((t) => t.textContent);
     expect(tags).toEqual(['14:51 的数据']);
   });
@@ -190,7 +190,7 @@ describe('Region: the eight placeholder states', () => {
     );
     expect(region(container).dataset.state).toBe('failed');
     expect(region(container).style.minHeight).toBe('180px');
-    expect(screen.getByRole('alert').textContent).toBe('没有读到会话：后台没有响应 │ 重试');
+    expect(screen.getByRole('alert').textContent).toBe('无法读取会话：后台没有响应 │ 重试');
     fireEvent.click(screen.getByRole('button', { name: '重试' }));
     expect(refetch).toHaveBeenCalledOnce();
   });
@@ -232,13 +232,13 @@ describe('Missing', () => {
       </>,
     );
     expect(container.querySelector('[title]')).toBeNull();
-    const tips = screen.getAllByRole('button', { name: '为什么没有值' });
+    const tips = screen.getAllByRole('button', { name: '无数据说明' });
     expect(tips).toHaveLength(2);
     fireEvent.focus(tips[0]!);
-    expect(screen.getByRole('tooltip').textContent).toBe('后台暂不提供');
+    expect(screen.getByRole('tooltip').textContent).toBe('后台服务暂未提供');
     fireEvent.blur(tips[0]!);
     fireEvent.focus(tips[1]!);
-    expect(screen.getByRole('tooltip').textContent).toBe('没读到：后台拒绝访问');
+    expect(screen.getByRole('tooltip').textContent).toBe('读取失败：后台拒绝访问');
     expect(container.textContent?.match(/—/g)).toHaveLength(2);
   });
 

@@ -119,7 +119,7 @@ test('begin opens main.html#/onboarding in a 1080×760 resizable, closable, mini
 });
 
 test('on macOS the page draws up to the top edge, its top bar holding the traffic lights; Windows keeps the system frame', () => {
-  const base = { width: 1080, height: 760, useContentSize: true, title: '首次启动引导', resizable: true, minWidth: 900, minHeight: 560,
+  const base = { width: 1080, height: 760, useContentSize: true, title: '首次设置向导', resizable: true, minWidth: 900, minHeight: 560,
     maximizable: false, fullscreenable: false, minimizable: true, closable: true, show: false };
   const area = { width: 1920, height: 1055 };
   assert.deepEqual(windowOptions(area, 'mac'), { ...base, titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 14, y: 17 } });
@@ -445,7 +445,7 @@ test('完成 that cannot write config.json keeps the guide open with the error',
     const reply = await g.complete();
     chmodSync(dir, 0o700);
     assert.ok(reply.ok);
-    assert.equal((reply.value as { completionError: string | null }).completionError, '配置没有存上，请检查配置文件权限后再点完成重试');
+    assert.equal((reply.value as { completionError: string | null }).completionError, '配置未能保存，请检查配置文件写入权限后点击“完成”重试');
     assert.deepEqual([g.ends, g.restarts(), g.greets()], [[], 0, []]);
   } finally {
     chmodSync(dir, 0o700);
@@ -555,7 +555,7 @@ test('app.openQuickInput opens the desktop 快速输入; without config it fails
     assert.deepEqual(await call(ops, 'app.openQuickInput', [], undefined, 'main'), { ok: true, value: null });
     assert.equal(opened, 1);
     assert.deepEqual(await call(registry(context(dir, { surface: 'main', openQuickInput: null })), 'app.openQuickInput', [], undefined, 'main'),
-      { ok: false, error: { code: 'failed', detail: '快速输入不可用（配置出错）' } });
+      { ok: false, error: { code: 'failed', detail: '快速输入不可用（配置异常）' } });
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -585,8 +585,8 @@ test('app.info gives the hook installer\'s dry run and install steps when the sh
     const cmd = "'/py' '/agentd/tools/install_hooks.py' --hook-script '/s/bin/agentic-complex-hook'";
     assert.deepEqual(await steps({ catalog: null, launched: '', characterName: '', hookCommand: cmd, validationHost: () => '',
       runTool: async () => ({ last: '', status: 0, stderr: '' }), rosterChanged: () => {} }), [
-      { label: '先看会改什么', command: `${cmd} --dry-run`, terminal: true },
-      { label: '确认改动后执行', command: cmd, terminal: true },
+      { label: '预览将修改的项', command: `${cmd} --dry-run`, terminal: true },
+      { label: '确认并执行安装', command: cmd, terminal: true },
     ]);
     assert.deepEqual(await steps(null), [], 'config.json did not load');
   } finally {

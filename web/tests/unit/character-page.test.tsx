@@ -108,9 +108,9 @@ describe('character · 角色与动作', () => {
   it('filters to missing motions and searches across sections', async () => {
     await mount('&pane=motion');
     const grid = await screen.findByRole('grid', { name: '全部动作' });
-    fireEvent.click(screen.getByRole('button', { name: /仅显示缺资源/ }));
+    fireEvent.click(screen.getByRole('button', { name: /仅显示缺少资源/ }));
     expect([...grid.querySelectorAll('[data-motion]')].map((r) => r.getAttribute('data-motion'))).toEqual(['think', 'lean']);
-    fireEvent.click(screen.getByRole('button', { name: /仅显示缺资源/ }));
+    fireEvent.click(screen.getByRole('button', { name: /仅显示缺少资源/ }));
     fireEvent.change(screen.getByRole('textbox', { name: '搜索动作' }), { target: { value: '窗' } });
     expect([...grid.querySelectorAll('[data-motion]')].map((r) => r.getAttribute('data-motion'))).toEqual(['sit', 'lean']);
   });
@@ -136,7 +136,7 @@ describe('character · 角色与动作', () => {
 describe('角色 page layout', () => {
   it('puts the name block with what she is doing on 总览 only, apart from the selected motion on 动作', async () => {
     await mount();
-    await waitFor(() => expect(stage().querySelector('[data-nameplate]')?.textContent).toContain('在做坐着'));
+    await waitFor(() => expect(stage().querySelector('[data-nameplate]')?.textContent).toContain('当前状态坐姿待机'));
     expect(stage().querySelector('[data-nameplate]')?.textContent).toContain('示例乙');
     cleanup();
     await mount('&pane=motion');
@@ -151,7 +151,7 @@ describe('角色 page layout', () => {
     const grid = await screen.findByRole('grid', { name: '全部动作' });
     const tabs = screen.getByRole('group', { name: '跳转到分区' });
     const current = () => within(tabs).getAllByRole('button').filter((b) => b.hasAttribute('aria-current')).map((b) => b.textContent);
-    expect(current()).toEqual(['说话']);
+    expect(current()).toEqual(['对话']);
     fireEvent.click(within(tabs).getByRole('button', { name: '跳转到 互动' }));
     expect(current()).toEqual(['互动']);
     await act(async () => void fireEvent.click(grid.querySelector('[data-motion="click"] button')!));
@@ -240,7 +240,7 @@ describe('character · availability and refetches', () => {
     await screen.findByText('示例乙');
     expect(screen.queryByText('角色未运行')).toBeNull();
     await push({ state: 'backoff', backoff: 8 });
-    expect((await screen.findByText('角色未运行')).closest('[role="status"]')?.textContent).toContain('退避 8 秒后重试');
+    expect((await screen.findByText('角色进程未运行')).closest('[role="status"]')?.textContent).toContain('将在 8 秒后重试');
     await push({ state: 'running', backoff: null });
     await waitFor(() => expect(screen.queryByText('角色未运行')).toBeNull());
   });
@@ -253,7 +253,7 @@ describe('character · availability and refetches', () => {
     vi.spyOn(bridge.character, 'list').mockRejectedValue({ code: 'failed', detail: 'catalog' });
     await act(async () => void fireEvent.click(screen.getByRole('button', { name: '更多' })));
     await act(async () => void fireEvent.click(screen.getByRole('menuitem', { name: '重新读取角色目录' })));
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('读取角色目录失败'));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('读取角色列表失败'));
     expect(screen.getByRole('grid', { name: '全部动作' })).toBeTruthy();
     expect(screen.getByText(/已修改/).textContent).toContain('2');
   });
@@ -267,9 +267,9 @@ describe('character · availability and refetches', () => {
     await mount();
     await screen.findByText('示例乙');
     await push({ state: 'stopped' });
-    await act(async () => void fireEvent.click(await screen.findByRole('button', { name: '重启角色' })));
-    await waitFor(() => expect(pushToast).toHaveBeenCalledWith('没有重启角色：桌面角色没有回应', { severity: 'danger' }));
-    expect(pushToast).not.toHaveBeenCalledWith('正在重启角色…');
+    await act(async () => void fireEvent.click(await screen.findByRole('button', { name: '重启角色进程' })));
+    await waitFor(() => expect(pushToast).toHaveBeenCalledWith('未能重启角色进程：角色渲染进程无响应', { severity: 'danger' }));
+    expect(pushToast).not.toHaveBeenCalledWith('正在重启角色进程…');
   });
 
   it('shows the overview activity only of the character it shows', async () => {

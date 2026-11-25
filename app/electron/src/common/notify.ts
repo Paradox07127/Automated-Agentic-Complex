@@ -3,7 +3,7 @@ import { mainRoute } from './stack-cards.ts';
 import type { AnnounceKind, SystemNote } from './stack-source.ts';
 
 /** Announcement.kindLabel. */
-const KIND_LABELS: Record<AnnounceKind, string> = { done: '完成', waiting: '待确认', error: '出错', brief: '简短', reminder: '提醒' };
+const KIND_LABELS: Record<AnnounceKind, string> = { done: '完成', waiting: '待处理', error: '出错', brief: '简报', reminder: '提醒' };
 /** The thread each kind's notifications group under. */
 const SETTING_KEYS: Record<AnnounceKind, string> = {
   done: 'notify_done', waiting: 'notify_approval', error: 'notify_error', brief: 'notify_brief', reminder: 'notify_reminder',

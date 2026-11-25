@@ -8,7 +8,7 @@ const IDLE: PlaylistState = { playing: false, index: null, id: null };
 
 const failed = (what: string, toast: Toast) => (e: unknown) => {
   const code = (e as { code?: string } | null)?.code;
-  toast(`${what}没有完成：${code === 'not_implemented' ? '这个版本还不支持' : code === 'character_changed' ? hostReason(code) : '桌面角色没有回应'}`, { severity: 'danger' });
+  toast(`${what}未完成：${code === 'not_implemented' ? '当前版本暂不支持' : code === 'character_changed' ? hostReason(code) : '角色渲染进程无响应'}`, { severity: 'danger' });
 };
 
 export interface Setlist {
@@ -76,7 +76,7 @@ export function useSetlist(character: string, ids: string[], toast: Toast): Setl
       .character.setPlaylist(character, next)
       .catch((e: unknown) => {
         if (n === last.current) setSaved(before);
-        failed('改 MMD 列表', toast)(e);
+        failed('修改 MMD 列表', toast)(e);
       });
   };
   const put = (next: string[]) => save({ ...saved, items: next });
@@ -99,7 +99,7 @@ export function useSetlist(character: string, ids: string[], toast: Toast): Setl
         : getBridge()
             .avatar.playPlaylist()
             .then((r) => {
-              if (!r.ok) toast(r.reason === 'empty' ? '连播没有开始：列表里没有动作' : '连播没有开始：角色没有接受', { severity: 'danger' });
+              if (!r.ok) toast(r.reason === 'empty' ? '无法开始连播：列表中无舞蹈' : '无法开始连播：角色进程未接受请求', { severity: 'danger' });
               poll();
             }, failed('连播', toast))),
   };

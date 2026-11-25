@@ -45,14 +45,14 @@ export function DeleteCard({ fact, gone, onCancel, onConfirm }: { fact: Fact; go
         <span className={styles.wi} aria-hidden="true">
           !
         </span>
-        删除这条记忆？
+        删除该条记忆？
       </h4>
       <q>{factText(fact)}</q>
       <ul>
-        <li>以后不会再引用它，也不会从同一出处再记一次。</li>
-        <li>删除后找不回。</li>
+        <li>删除后将不再被引用，也不会从同一来源再次自动记录。</li>
+        <li>删除后无法恢复。</li>
       </ul>
-      {gone.length > 0 && <Gone gone={gone} what="删了它" />}
+      {gone.length > 0 && <Gone gone={gone} what="删除该条后" />}
       <div className={styles.btns}>
         <Btn variant="secondary" onClick={onCancel}>
           取消
@@ -70,14 +70,14 @@ function Gone({ gone, what }: { gone: Array<Fact | null>; what: string }) {
   const shown = gone.filter((f): f is Fact => f != null);
   return (
     <>
-      <p>它和下面这些出自同一段观察的总结；{what}，那段总结和这些记忆会一起删除，找不回。</p>
+      <p>该条目与以下内容出自同一段屏幕观察总结；{what}，该总结及关联记忆将一并删除且无法恢复。</p>
       <ul>
         {shown.map((f) => (
           <li key={f.id}>{factText(f)}</li>
         ))}
         {shown.length < gone.length && (
           <li>
-            另有 <span className="num">{gone.length - shown.length}</span> 条不在当前列表里
+            另有 <span className="num">{gone.length - shown.length}</span> 条不在当前列表中
           </li>
         )}
       </ul>
@@ -94,10 +94,10 @@ export function CorrectCard({ fact, gone, onCancel, onConfirm }: { fact: Fact; g
         <span className={styles.wi} aria-hidden="true">
           !
         </span>
-        修改这条会删掉另外 {gone.length} 条记忆
+        修改该条目将同步删除另外 {gone.length} 条记忆
       </h4>
       <q>{factText(fact)}</q>
-      <Gone gone={gone} what="改了它" />
+      <Gone gone={gone} what="修改该条后" />
       <div className={styles.btns}>
         <Btn variant="secondary" onClick={onCancel}>
           取消
@@ -121,16 +121,16 @@ export function ClearCard({ who, count, onCancel, onConfirm }: { who: string | n
         <span className={styles.wi} aria-hidden="true">
           !
         </span>
-        {who ? `清空${who}的记忆？` : '清空全部记忆？'}
+        {who ? `清空「${who}」的专属记忆？` : '清空全部记忆？'}
       </h4>
       <p>
         {who ? (
           <>
-            删掉只有{who}知道的 <b className="num">{count}</b> 条记忆，共享的和其他角色的不动，找不回。输入「删除」确认。
+            将删除仅属于 {who} 的 <b className="num">{count}</b> 条记忆（共享记忆与其他角色的记忆保留），删除后无法恢复。请输入「删除」确认。
           </>
         ) : (
           <>
-            删掉 <b className="num">{count}</b> 条记忆，称呼和生日保留。所有角色都会忘掉这些事，找不回。输入「删除」确认。
+            将删除 <b className="num">{count}</b> 条记忆（称呼与生日保留），删除后所有角色均不再保留这些记忆且无法恢复。请输入「删除」确认。
           </>
         )}
       </p>
@@ -139,7 +139,7 @@ export function ClearCard({ who, count, onCancel, onConfirm }: { who: string | n
         <Btn variant="secondary" onClick={onCancel}>
           取消
         </Btn>
-        <Btn variant="danger" disabled={!armed} disabledReason="先输入「删除」" onClick={onConfirm}>
+        <Btn variant="danger" disabled={!armed} disabledReason="请先输入「删除」" onClick={onConfirm}>
           清空
         </Btn>
       </div>
@@ -162,9 +162,9 @@ export function AddPop({ onCancel, onSave }: { onCancel: () => void; onSave: (te
     <Overlay labelledBy={id} pop onClose={onCancel}>
       <DetailHead title={<span id={id}>新增一条记忆</span>} micro="New / Memory" />
       <div className={styles.pb}>
-        <TextArea label="内容" value={text} maxLength={500} rows={3} placeholder="要记住的事，比如：周五下午不开会" onChange={setText} />
+        <TextArea label="内容" value={text} maxLength={500} rows={3} placeholder="输入需记住的内容，例如：周五下午不安排会议" onChange={setText} />
         <GameSeg label="分类" caption="分类" micro="Kind" value={kind} options={ADD_CATS.map((c) => ({ value: c.kind, label: c.label }))} onChange={(v) => setKind(v as FactKind)} />
-        <p>来源记为「用户陈述」，所有角色下一句起就会用。</p>
+        <p>来源将记为「用户陈述」，后续对话将直接生效。</p>
       </div>
       <div className={styles.pf}>
         <Btn variant="secondary" onClick={onCancel}>

@@ -183,7 +183,7 @@ class BriefDayTest(unittest.TestCase):
             ('A_clip_aster_wave', '挥手'), ('wave_a', '挥手'), ('A_clip_aster_nod', 'A_clip_aster_nod'),
             ('A_clip_other', 'A_clip_other')])
         self.assertEqual([(w['key'], w['label']) for w in her['why']], [
-            ('break', '提醒你休息'), ('dispatch_review', '派的任务待复核'), ('later_kind', 'later_kind')])
+            ('break', '休息提醒'), ('dispatch_review', '委派任务待复核'), ('later_kind', 'later_kind')])
         self.server.characters = SimpleNamespace(package=lambda cid: (_ for _ in ()).throw(ValueError(cid)))
         self.assertEqual(self.brief()['her']['motions'][0]['label'], 'A_clip_aster_wave')
 
@@ -339,7 +339,7 @@ class BriefDayTest(unittest.TestCase):
         code, previous = self.request('date=' + str(self.day - timedelta(days=1)))
         self.assertEqual(code, 200)
         self.assertEqual(previous['her']['desk'], [
-            {'key': 'window_top', 'label': '坐窗顶', 'count': 1, 'minutes': 1}])
+            {'key': 'window_top', 'label': '停靠窗口顶部', 'count': 1, 'minutes': 1}])
         self.assertEqual(her['mood'], [[self.start + i, 0.8, 0.5] for i in (4, 6)])
 
     def test_forwarded_touches_and_greetings_count_on_their_day_and_hour(self):
@@ -354,11 +354,11 @@ class BriefDayTest(unittest.TestCase):
         touch = body['items']['touch']
         self.assertEqual((touch['today'], touch['hours'][9], sum(touch['hours'])), (5, 5, 5))
         self.assertEqual((touch['yesterday'], touch['avg7']), (1, 1 / 7))
-        self.assertEqual(body['her']['desk'], [{'key': 'greet', 'label': '迎接', 'count': 1, 'minutes': None}])
+        self.assertEqual(body['her']['desk'], [{'key': 'greet', 'label': '欢迎交互', 'count': 1, 'minutes': None}])
         _, previous = self.request('date=' + str(self.day - timedelta(days=1)))
         self.assertEqual(previous['her']['touch'], {'pat': 1, 'pinch': 0, 'drag': 0, 'wheel': 0})
         self.assertEqual(previous['items']['touch']['hours'][20], 1)
-        self.assertEqual(previous['her']['desk'], [{'key': 'greet', 'label': '迎接', 'count': 1, 'minutes': None}])
+        self.assertEqual(previous['her']['desk'], [{'key': 'greet', 'label': '欢迎交互', 'count': 1, 'minutes': None}])
 
     def test_a_bad_record_body_is_400_and_records_nothing(self):
         for body in (None, [], {}, {'kind': 'poke'}, {'kind': 'pat', 'at': 1}, {'kind': ['pat']}):
@@ -391,7 +391,7 @@ class BriefDayTest(unittest.TestCase):
             self.at = self.clock(hours)
             self.desk.span('edge', on)
         self.at = self.now
-        self.assertEqual(self.brief()['her']['desk'], [{'key': 'edge', 'label': '屏幕边缘陪你', 'count': 1, 'minutes': 20}])
+        self.assertEqual(self.brief()['her']['desk'], [{'key': 'edge', 'label': '停靠屏幕边缘', 'count': 1, 'minutes': 20}])
 
     def test_a_drag_that_cancels_a_behavior_counts_once(self):
         self.record(self.clock(9), 'drag')

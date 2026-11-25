@@ -7,10 +7,10 @@ import styles from './Views.module.css';
 
 /** Each source in a few words: who it came from. */
 const SRC_DESC: Readonly<Record<MemorySource, string>> = {
-  asserted_by_user: '你亲口说的',
-  observed_context: '从观察整理的',
-  confirmed_by_user: '你确认过的推断',
-  inferred_hypothesis: '推断、未确认',
+  asserted_by_user: '用户直接陈述',
+  observed_context: '从观察记录整理',
+  confirmed_by_user: '经用户确认的推断',
+  inferred_hypothesis: '系统推断（待确认）',
 };
 
 const COLS = [
@@ -78,18 +78,18 @@ export function StoreView({ bySource, added, since, selected, onSelect, onSource
       pct: <span className={`${styles.right} ${styles.dimText} num`}>{total ? Math.round((bySource[s] / total) * 100) : 0}%</span>,
     },
     end: (
-      <Btn size="sm" variant="ghost" disabled={bySource[s] === 0} disabledReason="这一类还没有记忆" onClick={() => onSource(SRC[s].key)}>
-        去看
+      <Btn size="sm" variant="ghost" disabled={bySource[s] === 0} disabledReason="该分类尚无记忆条目" onClick={() => onSource(SRC[s].key)}>
+        查看
       </Btn>
     ),
   }));
   return (
     <div className={styles.cols}>
       <Panel title="按来源" count={total} micro="BY SOURCE">
-        {total > 0 ? <GameTable label="按来源" columns={COLS} rows={rows} selected={selected} onSelect={onSelect} /> : <None title="还没有记忆" icon="hub" />}
+        {total > 0 ? <GameTable label="按来源" columns={COLS} rows={rows} selected={selected} onSelect={onSelect} /> : <None title="尚无记忆条目" icon="hub" />}
       </Panel>
       <GameFrame variant="chart" title="14 天新增" micro="ADDED / 14 DAYS" label="14 天新增">
-        <div className={styles.chart}>{sum(added) > 0 ? <Spark pts={added} since={since} /> : <None title="14 天里没有新增" icon="hub" />}</div>
+        <div className={styles.chart}>{sum(added) > 0 ? <Spark pts={added} since={since} /> : <None title="近 14 天无新增记忆" icon="hub" />}</div>
       </GameFrame>
     </div>
   );

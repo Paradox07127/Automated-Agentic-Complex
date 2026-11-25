@@ -68,9 +68,9 @@ describe('her hover buttons', () => {
 
   it('say 未接入 while agentd is away, and name the microphone permission when it is denied', () => {
     const items = dockItems(STATE, { offline: true }, null);
-    for (const id of ['chat', 'talk', 'look']) expect(items.find((i) => i.id === id)?.off).toBe('未接入：连不上后台');
+    for (const id of ['chat', 'talk', 'look']) expect(items.find((i) => i.id === id)?.off).toBe('未接入：无法连接后台服务');
     const talk = dockItems({ ...STATE, pips: { ...STATE.pips, voice: 'denied' } }, null, null).find((i) => i.id === 'talk');
-    expect(talk?.off).toMatch(/^未接入：没有麦克风权限/);
+    expect(talk?.off).toMatch(/^未接入：缺少麦克风权限/);
   });
 });
 
@@ -95,7 +95,7 @@ describe('控制台 offline', () => {
 
   it('shows 未接入 over her card with 重启后台, and the 后台 cell as the plug mark', async () => {
     const restart = open();
-    const status = screen.getByRole('status', { name: '后台没有响应' });
+    const status = screen.getByRole('status', { name: '后台服务无响应' });
     expect(status.textContent).toContain('未接入');
     await flush(async () => fireEvent.click(within(status).getByRole('button', { name: /重启后台/ })));
     expect(restart).toHaveBeenCalledWith('agentd');
@@ -157,7 +157,7 @@ describe('快速输入', () => {
 
   it('opens as 未接入 while agentd is away, with 重启后台', async () => {
     const m = mount({ presence: { offline: true } });
-    const status = await screen.findByRole('status', { name: '后台没有响应' });
+    const status = await screen.findByRole('status', { name: '后台服务无响应' });
     expect(status.textContent).toContain('未接入');
     fireEvent.click(within(status).getByRole('button', { name: /重启后台/ }));
     expect(m.restart).toHaveBeenCalledWith('agentd');
@@ -165,8 +165,8 @@ describe('快速输入', () => {
 
   it('opens as 未接入 without a model, and the button opens the model account row', async () => {
     const m = mount({ runtime: { ready: false, error: 'native_login_required' } });
-    const status = await screen.findByRole('status', { name: '没有可用的模型' });
-    fireEvent.click(within(status).getByRole('button', { name: /前往设置连接/ }));
+    const status = await screen.findByRole('status', { name: '未配置可用模型' });
+    fireEvent.click(within(status).getByRole('button', { name: /前往设置/ }));
     expect(m.openMain).toHaveBeenCalledTimes(1);
     expect(m.openMain.mock.calls[0]![0]).toMatch(/^\/settings\?.*group=kernel.*item=svc/);
   });
@@ -190,7 +190,7 @@ describe('电脑操作 off', () => {
     flush(() => push({ phase: 'disabled', targetApp: null, action: '', scopeChips: [], permissions: {}, pendingGrants: [], showsPermissionChoices: false, canResume: false, challenge: '' }));
     const status = screen.getByRole('status', { name: '电脑操作' });
     expect(status.textContent).toContain('已关闭');
-    fireEvent.click(within(status).getByRole('button', { name: /前往设置打开/ }));
+    fireEvent.click(within(status).getByRole('button', { name: /前往设置/ }));
     expect(openMain.mock.calls[0]![0]).toMatch(/^\/settings\?.*group=perm.*item=plugins\.computer_use/);
   });
 });

@@ -10,8 +10,8 @@ type When = 'asked' | 'active';
 
 /** What each choice writes: config.json `speakUp` and agentd's companion_mode. Staying silent altogether is 出声 off plus 只在我问时. */
 const SPEAK_WHEN: Array<{ value: When; label: string; speakUp: boolean; companion: boolean }> = [
-  { value: 'asked', label: '只在我问时', speakUp: false, companion: false },
-  { value: 'active', label: '主动', speakUp: true, companion: true },
+  { value: 'asked', label: '仅响应对话', speakUp: false, companion: false },
+  { value: 'active', label: '自动触发', speakUp: true, companion: true },
 ];
 
 const TITLE = labelOf('speakWhen');
@@ -50,8 +50,8 @@ export function SpeakWhenRow({ ps, disabled, children, asked }: { ps: ProactiveS
       try {
         await ps.saveCompanion(w.companion);
       } catch (e) {
-        const before = nativeOk ? '' : `没有保存「${names}」；`;
-        model.notify({ message: `${before}没能${w.companion ? '开启' : '关闭'}主动提示：${failure(e).text}`, severity: 'danger', persistent: true });
+        const before = nativeOk ? '' : `未能保存「${names}」；`;
+        model.notify({ message: `${before}未能${w.companion ? '开启' : '关闭'}主动提示：${failure(e).text}`, severity: 'danger', persistent: true });
       }
     }
   };
@@ -61,10 +61,10 @@ export function SpeakWhenRow({ ps, disabled, children, asked }: { ps: ProactiveS
       <SetRow
         id="speakWhen"
         title={TITLE}
-        desc={chosen?.value === 'active' ? '看到能帮忙的时机会提一句，也会说出想法' : '只回答你；任务结果和你设的提醒照常送达'}
-        info="主动：看到能帮忙的时机时提示，也会说出想法；要「感知 › 屏幕感知」打开才有时机可判断。完全不出声：再把上面的「出声」改成只显示文字。"
+        desc={chosen?.value === 'active' ? '检测到可辅助的场景或关联思考时主动提示' : '仅在您发起对话时回复；任务结果与已设提醒仍正常送达'}
+        info="自动触发：检测到可辅助的场景或关联思考时将主动提示，需开启「设置 › 感知 › 屏幕感知」。如需完全静音，请将上方「语音播报」设为「仅文字」。"
         disabled={disabled}
-        disabledReason="后台不可写"
+        disabledReason="后台服务当前不可写"
         control={<GameSeg variant="setting" label={TITLE} value={chosen?.value ?? ''} options={SPEAK_WHEN} disabled={disabled} onChange={(v) => void pick(v)} />}
       />
       {chosen?.value === 'active' ? children : asked}

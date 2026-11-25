@@ -10,30 +10,30 @@ import { MODE, OBS_REASON } from './labels';
 export const OBS_ID = /^[0-9a-f]{12}$/;
 
 const STATUS: Readonly<Record<string, string>> = {
-  pending: '正在观察',
-  ready: '看到了',
-  declined: '被挡住',
+  pending: '观察中',
+  ready: '已获取',
+  declined: '已拦截',
   failed: '失败',
   expired: '超时',
-  cancelled: '取消',
-  unavailable: '看不到',
+  cancelled: '已取消',
+  unavailable: '不可用',
 };
 
 function reasonOf(e: unknown): string {
   if (!(e instanceof AgentdCallError)) return '读取失败';
-  if (e.code === 'offline') return '后台已断开';
+  if (e.code === 'offline') return '后台服务已断开';
   const fault = serverFaultText(e);
   if (fault) return fault;
-  if (e.code === 'observation_not_found') return '这条观察已经不在后台内存里';
-  if (e.code === 'observation_unavailable') return '后台没有开启观察';
-  return e.status === 0 ? '请求没有发出' : `后台返回 ${e.status}`;
+  if (e.code === 'observation_not_found') return '该观察记录已从后台内存中清除';
+  if (e.code === 'observation_unavailable') return '后台服务未开启观察功能';
+  return e.status === 0 ? '未能发送请求' : `后台服务返回状态码 ${e.status}`;
 }
 
 function summaryOf(d: ObservationDetail): string[] {
   const head = [MODE[d.mode] ?? d.mode, STATUS[d.status] ?? d.status, d.app].filter(Boolean).join(' │ ');
-  const used = d.usedInLastTurn == null ? '' : d.usedInLastTurn ? '，最近一轮用了它' : '，最近一轮没用它';
-  const ctx = `${d.current ? '读取时可用于上下文' : '读取时不可用于当前上下文'}${used}`;
-  const desc = d.description != null ? '下面是视觉模型的描述，原始截图不保存在这里' : d.status === 'pending' ? '正在观察，还没有结果' : '没有可展开的视觉描述';
+  const used = d.usedInLastTurn == null ? '' : d.usedInLastTurn ? '，已用于最近一轮对话' : '，未用于最近一轮对话';
+  const ctx = `${d.current ? '读取时可用于当前上下文' : '读取时不可用于当前上下文'}${used}`;
+  const desc = d.description != null ? '以下为视觉模型生成的文本描述，原始截图不保存在此处' : d.status === 'pending' ? '正在观察中，尚无结果' : '无可用视觉描述';
   return [head, ctx, desc];
 }
 
@@ -57,7 +57,7 @@ export function ObsRecord({ id }: { id: string }) {
         items={[
           { key: '来源', value: d.app ?? '已遮蔽或不可见' },
           { key: '请求时间', value: at(d.requestedAt, '—') },
-          { key: '观察时间', value: at(d.observedAt, '没有结果') },
+          { key: '观察时间', value: at(d.observedAt, '无结果') },
           ...(d.reason ? [{ key: '原因', value: OBS_REASON[d.reason] ?? '其他原因' }] : []),
           { key: '请求', value: d.id, mono: true },
         ]}

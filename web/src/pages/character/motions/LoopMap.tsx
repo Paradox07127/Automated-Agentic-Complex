@@ -75,7 +75,7 @@ function Ring({ ix }: { ix: GraphIndex }) {
             {time && <span className={styles.time}>{time}</span>}
           </>
         ) : (
-          <b>没有基础站姿</b>
+          <b>未配置基础站姿</b>
         )}
       </div>
       <ul className={styles.bases} aria-label="其他站姿">
@@ -112,7 +112,7 @@ export function LoopMap({ ix, lanes, sel, onSel }: LoopMapProps) {
     <div className={styles.map} style={{ '--map-h': `${height}px`, '--lanes': lanes.length } as CSSProperties}>
       <Ring ix={ix} />
       {lanes.length === 0 ? (
-        <p className={styles.none}>角色包里没有空闲档</p>
+        <p className={styles.none}>当前角色包未配置空闲档位</p>
       ) : (
         <div className={styles.lanes} role="radiogroup" aria-label="空闲档" onKeyDown={onKey}>
           <div className={styles.axis} aria-hidden="true">
@@ -126,7 +126,7 @@ export function LoopMap({ ix, lanes, sel, onSel }: LoopMapProps) {
             const p = l.pool;
             const text = laneText(p);
             const on = p.key === sel;
-            const full = [`${tierName(p.key)} ${stanceWord(p.posture)}`, text ?? '包里没有写抽取时间', `${l.n} 条`, l.hard > 0 ? `${l.hard} 条会硬切` : null, l.proposed > 0 ? `建议 ${l.proposed}` : null].filter(Boolean).join(' │ ');
+            const full = [`${tierName(p.key)} ${stanceWord(p.posture)}`, text ?? '角色包未定义触发时间', `${l.n} 条`, l.hard > 0 ? `${l.hard} 条存在硬切` : null, l.proposed > 0 ? `建议 ${l.proposed}` : null].filter(Boolean).join(' │ ');
             const a = p.after_s ? along(p.after_s[0]) : 0;
             const b = p.after_s ? along(p.after_s[1]) : 0;
             return (
@@ -155,7 +155,7 @@ export function LoopMap({ ix, lanes, sel, onSel }: LoopMapProps) {
                   {p.after_s && <i className={styles.first} style={{ left: `${a * 100}%`, width: `${Math.max(1, (b - a) * 100)}%` }} />}
                   {p.after_s && p.interval_s && <i className={styles.rep} style={{ left: `${b * 100}%` }} />}
                   <span className={styles.tx} style={1 - b >= a ? { left: `${b * 100 + 1.5}%` } : { right: `${100 - a * 100 + 1.5}%` }}>
-                    {text ?? '包里没有写抽取时间'}
+                    {text ?? '角色包未定义触发时间'}
                   </span>
                   {(l.hard > 0 || l.proposed > 0) && (
                     <span className={styles.tags}>

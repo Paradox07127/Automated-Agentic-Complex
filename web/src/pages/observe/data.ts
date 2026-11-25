@@ -239,24 +239,24 @@ export function rulesOf(b: WireBlacklist | undefined): ExRule[] {
 export const ruleLabel = (r: ExRule) => (r.kind === 'title' ? `窗口标题含「${r.value}」` : r.value);
 
 const REASON: Readonly<Record<string, string>> = {
-  unknown_fact: '这一条已经不在了',
-  no_episodes: '活动记录没有开启',
-  unknown_episode: '这个片段已经不在了',
-  evidence_expired: '出处只保留 48 小时，已经清理',
-  task_understanding_unavailable: '任务推断没有开启',
-  task_hypothesis_changed: '这条推断已经变了',
-  no_attention: '观察没有开启',
-  invalid_range: '时间段不对',
-  invalid_payload: '内容不对',
+  unknown_fact: '该条目已不存在',
+  no_episodes: '活动记录未开启',
+  unknown_episode: '该活动片段已不存在',
+  evidence_expired: '出处仅保留 48 小时，现已清理',
+  task_understanding_unavailable: '任务推断功能未开启',
+  task_hypothesis_changed: '该任务推断已变更',
+  no_attention: '观察功能未开启',
+  invalid_range: '时间范围无效',
+  invalid_payload: '请求内容无效',
 };
 
 /** One short line for a failed request; never the raw JSON. */
 export function errorText(e: unknown): string {
-  if (!(e instanceof AgentdCallError)) return '没有完成';
-  if (e.code === 'offline') return '后台已断开';
+  if (!(e instanceof AgentdCallError)) return '操作未完成';
+  if (e.code === 'offline') return '后台服务已断开';
   const fault = serverFaultText(e);
   if (fault) return fault;
-  if (e.status === 409 || CONFLICT_CODES.has(e.code)) return '已在别处更新';
-  if (BRIDGE_REFUSED.has(e.code)) return '这个窗口不能发这个请求';
-  return REASON[e.code] ?? `后台没有接受（${e.status}）`;
+  if (e.status === 409 || CONFLICT_CODES.has(e.code)) return '数据已在别处更新';
+  if (BRIDGE_REFUSED.has(e.code)) return '当前窗口无权发送此请求';
+  return REASON[e.code] ?? `后台服务未接受（${e.status}）`;
 }

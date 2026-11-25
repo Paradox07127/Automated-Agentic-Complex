@@ -17,8 +17,8 @@ const FIELD: Array<{ value: BlacklistField; label: string; hint: string }> = [
 ];
 const PREFIX: Record<BlacklistField, string> = { app_names: '应用', bundle_ids: '应用', domains: '网站', title_patterns: '标题' };
 const MODE: Array<{ value: WireBlacklist['mode']; label: string }> = [
-  { value: 'allow', label: '只读名单里的' },
-  { value: 'deny', label: '名单外都读' },
+  { value: 'allow', label: '仅允许名单' },
+  { value: 'deny', label: '排除名单' },
 ];
 /** Chips shown before the fold; the fold takes the rest only when they are more than 3. */
 const FOLD = 8;
@@ -59,25 +59,25 @@ export function ExcludeList() {
   const remove = (f: BlacklistField, v: string) =>
     void removeBlacklist(f, v).then(() => {
       reload('blacklist');
-      model.notify({ message: `已移除「${v}」，以后会照常读取` });
-    }, fail(`没能移除「${v}」`));
+      model.notify({ message: `已移除「${v}」，此后将恢复正常读取` });
+    }, fail(`移除「${v}」失败`));
   const restore = () =>
     model.ask({
-      title: '恢复默认排除？',
-      note: '把默认不看的加回来：密码管理器、聊天软件、银行和支付网站。你自己加的不动。',
+      title: '恢复默认排除名单？',
+      note: '将重新加入系统预设的排除项（密码管理器、即时通讯、银行及支付网站），自定义项保持不变。',
       confirmLabel: '恢复默认',
       onConfirm: () =>
         restoreBlacklist().then((r) => {
           reload('blacklist');
-          model.notify({ message: r.added ? `已加回 ${r.added} 项默认排除` : '默认排除都在，没有要加回的' });
-        }, fail('没能恢复默认排除')),
+          model.notify({ message: r.added ? `已恢复 ${r.added} 项默认排除项` : '默认排除项已全部存在' });
+        }, fail('恢复默认排除名单失败')),
     });
   const setMode = (m: string) =>
     void setBlacklistMode(m as WireBlacklist['mode']).then(() => {
       reload('blacklist');
-      model.notify({ message: `已改为「${MODE.find((x) => x.value === m)?.label}」` });
-    }, fail('没能切换读取方式'));
-  const modeSeg = <GameSeg variant="setting" label="读取方式" value={blacklist?.mode ?? ''} options={MODE} disabled={ro || blacklist == null} onChange={setMode} />;
+      model.notify({ message: `已切换为「${MODE.find((x) => x.value === m)?.label}」模式` });
+    }, fail('切换名单过滤模式失败'));
+  const modeSeg = <GameSeg variant="setting" label="名单过滤模式" value={blacklist?.mode ?? ''} options={MODE} disabled={ro || blacklist == null} onChange={setMode} />;
 
   const chip = (x: { field: BlacklistField; value: string }) => (
     <span key={`${x.field}:${x.value}`} className={styles.xchip}>
@@ -88,7 +88,7 @@ export function ExcludeList() {
 
   if (blacklist?.mode === 'allow') return <AllowList right={modeSeg} />;
   return (
-    <Slab id="exclude" title={labelOf('exclude')} desc={blacklist?.incognito ? '不读取、不外发；无痕窗口一律不看' : '不读取、不外发'} right={modeSeg}>
+    <Slab id="exclude" title="排除的应用与网站" desc={blacklist?.incognito ? '列表内应用与网站及无痕窗口一律不读取、不外发' : '列表内的应用与网站不读取、不外发'} right={modeSeg}>
       <div className={styles.chips}>
         {blacklist == null && <span className={styles.t2}>—</span>}
         {shown.map(chip)}

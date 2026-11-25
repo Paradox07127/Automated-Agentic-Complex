@@ -52,7 +52,7 @@ test('a new current character runs mmd-sync once, shows its progress and reloads
     { running: true, character: 'si', total: 4, done: 2, failed: 0, stage: 'write', fraction: 0.5 },
   ], 'a line within 0.01 of the bar moves it only with a new total');
   assert.throws(() => f.sync.checkIdle(), (e: unknown) => e instanceof MotionFailureError
-    && e.failure.reason === 'busy' && e.failure.detail === '正在给角色烘共享库里的 MMD 动作');
+    && e.failure.reason === 'busy' && e.failure.detail === '正在为角色转换共享库中的 MMD 动作');
   run.end({ ...RESULT, failed: [{ id: 'mmd_b', reason: 'missing_bones', detail: 'x' }] });
   await done;
   assert.equal(f.reloads(), 1);

@@ -221,7 +221,7 @@ test('character.switchTo: prepare, one set_character with her remembered appeara
 test("a switch the renderer refuses aborts agentd's prepared switch and keeps the character; before a hello there is no avatar", { skip: UNIX_LINK }, async () => {
   const s = await stack({ state: { last_character: 'aster' } });
   try {
-    assert.deepEqual(await s.call('character.switchTo', 'birch'), { ok: false, error: { code: 'unavailable', detail: '角色还没连上' } });
+    assert.deepEqual(await s.call('character.switchTo', 'birch'), { ok: false, error: { code: 'unavailable', detail: '角色渲染进程尚未连接' } });
     await s.avatar('mac');
     assert.deepEqual(await s.call('character.switchTo', 'cedar'), { ok: true, value: { ok: false, stage: 'avatar', reason: 'unknown_character' } });
     assert.deepEqual(s.agentd.calls, ['POST /character/prepare cedar', 'POST /character/abort s-cedar']);
@@ -245,10 +245,10 @@ test('the Windows renderer answers no set_character: after rule 14\'s 11 s it fa
     assert.equal(readState(s.support).last_character, 'aster');
     assert.ok(s.lines.includes('set_character id=birch timed out'), s.lines.join('\n'));
     // Rule 16: no appearance list from efw, so there is nothing to switch to; layers need both hellos to list `layers`.
-    assert.deepEqual(await s.call('avatar.setAppearance', 'default'), { ok: false, error: { code: 'failed', detail: '角色没有这个外观' } });
-    assert.deepEqual(await s.call('avatar.setLayers', 'aster', { hide: [], show: [] }), { ok: false, error: { code: 'failed', detail: '这个角色没有可以隐藏的层' } });
+    assert.deepEqual(await s.call('avatar.setAppearance', 'default'), { ok: false, error: { code: 'failed', detail: '角色不含该外观' } });
+    assert.deepEqual(await s.call('avatar.setLayers', 'aster', { hide: [], show: [] }), { ok: false, error: { code: 'failed', detail: '当前角色没有可隐藏的图层' } });
     assert.deepEqual(await s.call('avatar.modSettings.set', { character: 'aster', appearance: 'default', values: {} }),
-      { ok: false, error: { code: 'failed', detail: '这个版本的角色不支持 mod 设置' } });
+      { ok: false, error: { code: 'failed', detail: '当前版本角色不支持外观模组设置' } });
 
     // Rule 14: a character_changed of the timed-out request is logged, and the switch puts her back on the current character.
     a.send({ type: 'character_changed', id: 'birch', ms: 9000 });
@@ -268,7 +268,7 @@ test('avatar.setAppearance and avatar.setLayers wait for the reply and remember 
     assert.deepEqual((readState(s.support).last_appearance as Record<string, string>).aster, 'summer');
     assert.deepEqual(await s.call('avatar.setAppearance', 'summer'), { ok: true, value: null }, 'already worn: nothing is sent');
     assert.equal(a.sent('set_appearance').length, 1);
-    assert.deepEqual(await s.call('avatar.setAppearance', 'winter'), { ok: false, error: { code: 'failed', detail: '角色没有这个外观' } });
+    assert.deepEqual(await s.call('avatar.setAppearance', 'winter'), { ok: false, error: { code: 'failed', detail: '角色不含该外观' } });
     assert.deepEqual(await s.call('avatar.setAppearance', ''), { ok: false, error: { code: 'invalid_args', detail: 'appearance id' } });
 
     assert.deepEqual(await s.call('avatar.setLayers', 'aster', { hide: ['coat'], show: [] }), { ok: true, value: null });
@@ -279,20 +279,20 @@ test('avatar.setAppearance and avatar.setLayers wait for the reply and remember 
     assert.deepEqual(a.sent('set_layers').at(-1), { v: 1, type: 'set_layers', hidden: ['coat', 'hat'] });
     assert.deepEqual(await s.call('avatar.setLayers', 'aster', { hide: [], show: ['hat'] }), { ok: true, value: null });
     assert.deepEqual(a.sent('set_layers').at(-1), { v: 1, type: 'set_layers', hidden: ['coat'] });
-    assert.deepEqual(await s.call('avatar.setLayers', 'aster', { hide: ['scarf'], show: [] }), { ok: false, error: { code: 'failed', detail: '这个角色没有这一层' } });
+    assert.deepEqual(await s.call('avatar.setLayers', 'aster', { hide: ['scarf'], show: [] }), { ok: false, error: { code: 'failed', detail: '当前角色不含该图层' } });
     assert.deepEqual(await s.call('avatar.setLayers', 'aster', { hide: ['coat', ''], show: [] }),
       { ok: false, error: { code: 'invalid_args', detail: '{hide, show: layer ids}' } });
     const sent = a.sent('set_layers').length;
     assert.deepEqual(await s.call('avatar.setLayers', 'birch', { hide: [], show: ['coat'] }),
-      { ok: false, error: { code: 'character_changed', detail: '角色刚换过，这次没有改' } }, 'meant for a character no longer current');
+      { ok: false, error: { code: 'character_changed', detail: '当前角色已切换，本次修改未生效' } }, 'meant for a character no longer current');
     assert.equal(a.sent('set_layers').length, sent);
 
     // Rule 16: no reply within 10 s (here 0.1 s) is a failure, and the remembered appearance stays.
     a.ignore.add('set_appearance');
-    assert.deepEqual(await s.call('avatar.setAppearance', 'default'), { ok: false, error: { code: 'failed', detail: '外观没有换成：timeout' } });
+    assert.deepEqual(await s.call('avatar.setAppearance', 'default'), { ok: false, error: { code: 'failed', detail: '外观切换失败：timeout' } });
     assert.deepEqual((readState(s.support).last_appearance as Record<string, string>).aster, 'summer');
     a.ignore.add('set_layers');
-    assert.deepEqual(await s.call('avatar.setLayers', 'aster', { hide: [], show: ['coat'] }), { ok: false, error: { code: 'failed', detail: '服装分层没有换成：timeout' } });
+    assert.deepEqual(await s.call('avatar.setLayers', 'aster', { hide: [], show: ['coat'] }), { ok: false, error: { code: 'failed', detail: '服装分层切换失败：timeout' } });
     assert.deepEqual((readState(s.support).hidden_layers as Record<string, string[]>).aster, ['coat']);
   } finally {
     s.done();
@@ -346,7 +346,7 @@ test('avatar.modSettings.set sends one appearance\'s set and stores what she dre
       { v: 1, type: 'set_mod_settings', req: 0, character: 'aster', appearance: 'summer', values: { coat: 1 } });
     assert.deepEqual(await s.call('avatar.modSettings.get', { character: 'aster' }), { ok: true, value: { appearances: { summer: { coat: 1, color: 0 } } } });
     assert.deepEqual(await s.call('avatar.modSettings.set', { character: 'aster', appearance: 'plain', values: {} }),
-      { ok: false, error: { code: 'failed', detail: '角色没有接受这组 mod 设置（这个外观可能没有开关表）' } });
+      { ok: false, error: { code: 'failed', detail: '角色未应用该组外观模组设置（当前外观可能不含开关表）' } });
     assert.deepEqual(storedModSettings(s.config(), 'aster'), { summer: { coat: 1, color: 0 } });
     assert.deepEqual(await s.call('avatar.modSettings.set', { character: 'aster', appearance: 'summer', values: { Coat: 1 } }),
       { ok: false, error: { code: 'invalid_args', detail: '{character, appearance of 1–64 bytes, values: ≤64 switch ids → 0–255}' } });
@@ -386,7 +386,7 @@ test('rule 26: one switch at a time; choices made while one runs keep only the l
   assert.deepEqual(await sw.switchOutcome('e'), { kind: 'failed', stage: 'prepare', reason: 'busy' });
   assert.deepEqual(sent, ['b', 'd']);
   sw.held = true;
-  assert.deepEqual(await sw.switchOutcome('e'), { kind: 'failed', stage: 'prepare', reason: '正在导入动作，导入完再切换' });
+  assert.deepEqual(await sw.switchOutcome('e'), { kind: 'failed', stage: 'prepare', reason: '正在导入动作，请在导入完成后再切换角色' });
 });
 
 test('agentd without a character (an empty library) is a read, not a failed one: no retries, no failure line', async () => {

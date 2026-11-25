@@ -50,9 +50,9 @@ export function AllowList({ right }: { right: ReactNode }) {
   );
 
   return (
-    <Slab id="exclude" title="只读取这些应用和网站" right={right}>
+    <Slab id="exclude" title="允许读取的应用与网站" right={right}>
       <div className={styles.chips}>
-        {entries.length === 0 && <span className={styles.t2}>什么都不读</span>}
+        {entries.length === 0 && <span className={styles.t2}>当前列表为空，不会读取任何应用或网站</span>}
         {shown.map(chip)}
       </div>
       {rest.length > 0 && (

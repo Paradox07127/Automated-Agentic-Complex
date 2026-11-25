@@ -186,20 +186,20 @@ describe('kernel readiness reasons', () => {
   it('names a missing API key and links to the row that fixes it', async () => {
     const goRow = vi.fn();
     render(<Harness d={{ ...d, runtime: { ...unready('codex', 'missing_provider_api_key'), auth_source: 'api_key' } }} o={{ goRow }}><KernelGroup /></Harness>);
-    expect(screen.getByText('未就绪：还没有保存这个服务的 API Key')).toBeTruthy();
-    await click(screen.getByRole('button', { name: '去填写 API Key' }));
+    expect(screen.getByText('未就绪：尚未保存该服务的 API Key')).toBeTruthy();
+    await click(screen.getByRole('button', { name: '填写 API Key' }));
     expect(goRow).toHaveBeenCalledWith('apikey');
   });
 
   it('says what Pi still needs instead of a missing executable', () => {
     render(<Harness d={{ ...d, runtime: unready('pi', 'pi_provider_model_required') }}><KernelGroup /></Harness>);
-    expect(screen.getByText('未就绪：Pi 要写明服务提供方和模型')).toBeTruthy();
-    expect(screen.queryByText(/没找到可执行文件/)).toBeNull();
+    expect(screen.getByText('未就绪：Pi 需要同时指定服务提供方与模型')).toBeTruthy();
+    expect(screen.queryByText(/未找到可执行文件/)).toBeNull();
   });
 
   it('an unknown code reads as a plain sentence; the code stays off screen', () => {
     render(<Harness d={{ ...d, runtime: unready('codex', 'brand_new_reason') }}><KernelGroup /></Harness>);
-    expect(screen.getByText('未就绪：后台报告这个内核还不能用')).toBeTruthy();
+    expect(screen.getByText('未就绪：后台服务报告该执行内核暂不可用')).toBeTruthy();
     expect(document.body.textContent).not.toContain('brand_new_reason');
   });
 });
@@ -209,14 +209,14 @@ describe('mute row', () => {
     render(<Harness d={{ ...d, diag: { ...DIAG, mouth_voice: { mouth: 'idle', voice: null, muted: true, avatar_visible: true, speech_failed: null } } }}><SpeakGroup /></Harness>);
     const row = document.querySelector('[data-row="mute"]')!;
     expect(row.textContent).not.toContain('菜单');
-    expect(row.textContent).toContain('后台现在静音');
+    expect(row.textContent).toContain('当前已静音');
   });
 });
 
 describe('restart notice', () => {
   it('keeps the restart notice after leaving the page', async () => {
     const first = render(<Harness d={d}><ActGroup /><ApplyBar /></Harness>);
-    await click(screen.getByRole('switch', { name: '外部智能体接入' }));
+    await click(screen.getByRole('switch', { name: '外部接入' }));
     first.unmount();
     render(<Harness d={d}><ApplyBar /></Harness>);
     expect(screen.getByRole('region', { name: '未应用的改动' }).textContent).toContain('1 项重启后台服务后生效');
@@ -224,7 +224,7 @@ describe('restart notice', () => {
 
   it('drops the notice once agentd started after the change', async () => {
     const first = render(<Harness d={d}><ActGroup /></Harness>);
-    await click(screen.getByRole('switch', { name: '外部智能体接入' }));
+    await click(screen.getByRole('switch', { name: '外部接入' }));
     first.unmount();
     const later = { ...DIAG, connections: { ...WIRE_DIAG_CONNECTIONS, agentd: { ...WIRE_DIAG_CONNECTIONS.agentd, started_at: '2099-01-01T00:00:00Z' } } };
     render(<Harness d={{ ...d, diag: later }}><ApplyBar /></Harness>);
@@ -248,7 +248,7 @@ describe('恢复默认 wording', () => {
     render(<Harness d={off}><DataGroup /></Harness>);
     await click(screen.getByRole('button', { name: '恢复默认…' }));
     const text = screen.getByRole('dialog').textContent ?? '';
-    expect(text).toContain('会打开：键鼠计数');
+    expect(text).toContain('将开启：记录键鼠交互频次');
     expect(text).not.toContain('读取类的开关都会关掉');
   });
 });
@@ -260,8 +260,8 @@ describe('coding-tool hooks', () => {
     render(<Harness d={{ ...d, diag: { ...DIAG, hooks } }}><SeeGroup /></Harness>);
     const steps = within(document.querySelector('[data-row="hooks2"]') as HTMLElement).getByRole('list', { name: 'Codex 接入步骤' });
     expect(within(steps).getAllByRole('listitem').map((i) => i.textContent)).toEqual([
-      expect.stringContaining('先看会改什么'),
-      expect.stringContaining('确认改动后执行'),
+      expect.stringContaining('预览将修改的项'),
+      expect.stringContaining('确认并执行安装'),
       expect.stringContaining('/hooks'),
     ]);
     // The capsule is disabled by aria-disabled until the app's installer steps are read.
@@ -304,7 +304,7 @@ describe('permission rows', () => {
     const perms = PERMISSIONS.map((p) => (p.kind === 'microphone' ? { ...p, state: 'notDetermined' as const } : p));
     render(<Harness d={d}><SettingsCtx.Consumer>{(c) => <SettingsCtx.Provider value={{ ...c!, perms }}><ActGroup /></SettingsCtx.Provider>}</SettingsCtx.Consumer></Harness>);
     await openPerms();
-    await click(within(document.querySelector('[data-row="microphone"]') as HTMLElement).getByRole('button', { name: '允许' }));
+    await click(within(document.querySelector('[data-row="microphone"]') as HTMLElement).getByRole('button', { name: '请求授权' }));
     expect(ask).toHaveBeenCalledWith('microphone');
   });
 
@@ -313,16 +313,16 @@ describe('permission rows', () => {
     const open = vi.spyOn(window.agenticComplex!.permissions, 'openSettings');
     const perms = [
       ...PERMISSIONS.map((p) => (p.kind === 'microphone' ? { ...p, state: 'notDetermined' as const } : p)),
-      { kind: 'inputMonitoring' as const, label: '输入监控', purpose: '按住说话的热键', features: ['按住说话'], state: 'notDetermined' as const },
+      { kind: 'inputMonitoring' as const, label: '输入监控', purpose: '用于按住语音输入全局快捷键', features: ['按住说话'], state: 'notDetermined' as const },
     ];
     render(<Harness d={d}><SettingsCtx.Consumer>{(c) => <SettingsCtx.Provider value={{ ...c!, perms }}><ActGroup /></SettingsCtx.Provider>}</SettingsCtx.Consumer></Harness>);
     await openPerms();
     const mic = within(document.querySelector('[data-row="microphone"]') as HTMLElement);
-    expect(within(document.querySelector('[data-row="inputMonitoring"]') as HTMLElement).getByRole('button', { name: '去系统设置' })).toBeTruthy();
-    await click(mic.getByRole('button', { name: '允许' }));
+    expect(within(document.querySelector('[data-row="inputMonitoring"]') as HTMLElement).getByRole('button', { name: '打开系统设置' })).toBeTruthy();
+    await click(mic.getByRole('button', { name: '请求授权' }));
     expect(open).toHaveBeenCalledWith('microphone');
-    expect(mic.getByRole('button', { name: '去系统设置' })).toBeTruthy();
-    expect(screen.getByTestId('toast').textContent).toBe('已打开系统设置 › 麦克风与语音识别 │ 允许 Agentic Complex 后回来点「重新检测」');
+    expect(mic.getByRole('button', { name: '打开系统设置' })).toBeTruthy();
+    expect(screen.getByTestId('toast').textContent).toBe('已打开系统设置 › 麦克风与语音识别 │ 完成授权后请返回点击「重新检测」');
   });
 
   it('reports failure when the native system settings pane cannot open', async () => {
@@ -330,9 +330,9 @@ describe('permission rows', () => {
     const perms = PERMISSIONS.map((p) => p.kind === 'microphone' ? { ...p, state: 'denied' as const } : p);
     render(<Harness d={d}><SettingsCtx.Consumer>{(c) => <SettingsCtx.Provider value={{ ...c!, perms }}><ActGroup /></SettingsCtx.Provider>}</SettingsCtx.Consumer></Harness>);
     await openPerms();
-    await click(within(document.querySelector('[data-row="microphone"]') as HTMLElement).getByRole('button', { name: '去系统设置' }));
+    await click(within(document.querySelector('[data-row="microphone"]') as HTMLElement).getByRole('button', { name: '打开系统设置' }));
     expect(open).toHaveBeenCalledWith('microphone');
-    expect(screen.getByTestId('toast').textContent).toContain('没能打开系统设置');
+    expect(screen.getByTestId('toast').textContent).toContain('未能打开系统设置');
   });
 
   it('gives the actual Terminal dependency when the automation probe is inconclusive', async () => {
@@ -340,9 +340,9 @@ describe('permission rows', () => {
     const perms = PERMISSIONS.map((p) => p.kind === 'automation' ? { ...p, state: 'notDetermined' as const } : p);
     render(<Harness d={d}><SettingsCtx.Consumer>{(c) => <SettingsCtx.Provider value={{ ...c!, perms }}><ActGroup /></SettingsCtx.Provider>}</SettingsCtx.Consumer></Harness>);
     await openPerms();
-    await click(within(document.querySelector('[data-row="automation"]') as HTMLElement).getByRole('button', { name: '允许' }));
+    await click(within(document.querySelector('[data-row="automation"]') as HTMLElement).getByRole('button', { name: '请求授权' }));
     expect(ask).toHaveBeenCalledWith('automation');
-    expect(screen.getByTestId('toast').textContent).toContain('请先打开「终端」');
+    expect(screen.getByTestId('toast').textContent).toContain('请先启动「终端」');
   });
 
   it('the 操作电脑 band switch in 能做 can be turned on in the native main window, and there is no second switch for it', async () => {
@@ -350,9 +350,9 @@ describe('permission rows', () => {
     expect(window.agenticComplex!.capabilities.computerUse).toBe(false);
     render(<Harness d={d}><ActGroup /></Harness>);
     const band = document.querySelector('[data-row="plugins.computer_use"]') as HTMLElement;
-    expect(screen.getAllByRole('switch', { name: '操作电脑' })).toEqual([within(band).getByRole('switch', { name: '操作电脑' })]);
+    expect(screen.getAllByRole('switch', { name: '电脑操作' })).toEqual([within(band).getByRole('switch', { name: '电脑操作' })]);
     expect(band.textContent).not.toContain('不支持');
-    await click(within(band).getByRole('switch', { name: '操作电脑' }));
+    await click(within(band).getByRole('switch', { name: '电脑操作' }));
     expect(save).toHaveBeenCalledWith({ 'plugins.computer_use': true });
   });
 });

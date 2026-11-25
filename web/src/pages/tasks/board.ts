@@ -123,13 +123,13 @@ function statusOf(t: Task, view: TasksView): { status: CardStatus; text: string;
     const first = [...p].sort((a, b) => WAIT_RANK[a.kind] - WAIT_RANK[b.kind])[0];
     return { status: 'wait', text: first ? WAIT_TEXT[first.kind] : '待处理', since: p.length > 0 ? Math.min(...p.map((x) => x.since)) : null };
   }
-  if (eff === 'failed') return { status: 'err', text: '出错', since: null };
-  if (eff === 'done') return { status: 'done', text: '完成', since: null };
+  if (eff === 'failed') return { status: 'err', text: '执行失败', since: null };
+  if (eff === 'done') return { status: 'done', text: '已完成', since: null };
   if (eff === 'stopped') return { status: 'done', text: '已停止', since: null };
   if (eff === 'idle') return { status: 'idle', text: '空闲', since: ses?.since ?? null };
   const run = view.activeRuns[t.id];
-  if (run?.state === 'thinking' || ses?.state === 'thinking') return { status: 'think', text: '思考', since: null };
-  return { status: 'tool', text: run?.tool ? `在跑 │ ${run.tool}` : '在跑', since: null };
+  if (run?.state === 'thinking' || ses?.state === 'thinking') return { status: 'think', text: '思考中', since: null };
+  return { status: 'tool', text: run?.tool ? `工具执行中 │ ${run.tool}` : '进行中', since: null };
 }
 
 /** Cards active today: every task row, then ledger sessions no row covers. */
@@ -169,7 +169,7 @@ export function buildCards(view: TasksView, board: BoardData | undefined, now: n
     used.add(s.key);
     const ended = s.end != null && now - s.end > 10 * 60_000;
     // A failed gate is the session's own business, not a failure of the session.
-    const base = ended ? { status: 'done' as const, stateText: '完成' } : { status: 'tool' as const, stateText: '在跑' };
+    const base = ended ? { status: 'done' as const, stateText: '已完成' } : { status: 'tool' as const, stateText: '执行中' };
     out.push(sessionCard(`ses:${s.key}`, s, base.status, base.stateText, now));
   }
   return out;
@@ -203,7 +203,7 @@ export const sortCards = (cards: readonly BoardCard[]) => [...cards].sort((a, b)
 /** Gantt states; greys for work, colour only for waiting and failure. */
 export const GANTT_STATES = {
   live: { color: 'var(--ef-ink-s1)', label: '进行中' },
-  tool: { color: 'var(--ef-ink-s1)', label: '在跑' },
+  tool: { color: 'var(--ef-ink-s1)', label: '工具执行中' },
   think: { color: 'var(--ef-ink-s2)', label: '思考' },
   wait: { color: 'var(--ef-attention)', label: '待批准' },
   review: { color: 'var(--ef-attention)', label: '待复核' },

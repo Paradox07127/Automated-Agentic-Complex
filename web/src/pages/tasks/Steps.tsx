@@ -27,7 +27,7 @@ function StepIcon({ status }: { status: PlanStep['status'] }) {
   return <span className={styles.sq} aria-hidden="true" />;
 }
 
-const WORD: Record<PlanStep['status'], string> = { completed: '做完了', in_progress: '在做', waiting: '待你决定', failed: '没做成', pending: '还没开始' };
+const WORD: Record<PlanStep['status'], string> = { completed: '已完成', in_progress: '进行中', waiting: '待处理', failed: '执行失败', pending: '未开始' };
 
 function Cell({ status, children }: { status: PlanStep['status']; children: ReactNode }) {
   return (
@@ -64,7 +64,7 @@ export function Steps({ steps, decision, folded = false }: StepsProps) {
     <div className={styles.steps} role="list" aria-label="步骤">
       {fold && (
         <Cell status="completed">
-          <Fold label="做完了" count={done.length} rows={done.length} summary={done.map((s) => s.text).join('、')}>
+          <Fold label="已完成" count={done.length} rows={done.length} summary={done.map((s) => s.text).join('、')}>
             <div className={styles.done}>
               {done.map((s, i) => (
                 <div key={`${i}-${s.text}`} className={styles.d}>

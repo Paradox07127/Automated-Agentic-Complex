@@ -29,12 +29,12 @@ const run = (result: unknown): WireRun => ({
 
 describe('kernel failure text', () => {
   it('a job refused for a missing login says so at once', () => {
-    expect(failureText({ status: 503, code: 'native_login_required' }).text).toBe('还没有登录这个内核');
-    expect(failMessage(new AgentdCallError(503, 'native_login_required', undefined, { error: 'native_login_required', runtime: 'codex' }, 'native_login_required'))).toBe('还没有登录这个内核');
+    expect(failureText({ status: 503, code: 'native_login_required' }).text).toBe('当前执行内核尚未登录');
+    expect(failMessage(new AgentdCallError(503, 'native_login_required', undefined, { error: 'native_login_required', runtime: 'codex' }, 'native_login_required'))).toBe('当前执行内核尚未登录');
   });
 
   it('an unclassified api_error points at the kernel settings; a classified one keeps its reason', () => {
-    const recheck = '内核调用失败，请在 设置 › 角色内核 重新检测';
+    const recheck = '执行内核调用失败，请在「设置 › 内核」重新检测';
     expect(runFailure(run({ error: 'api_error', failure: { code: 'unknown', public_message: '本次请求失败，请稍后再试。' } }))?.reason).toBe(recheck);
     expect(runFailure(run({ error: 'api_error' }))?.reason).toBe(recheck);
     expect(runFailure(run({ error: 'api_error', failure: { code: 'auth_expired', public_message: '登录已过期，请重新登录。' } }))?.reason).toBe('登录已过期，请重新登录。');

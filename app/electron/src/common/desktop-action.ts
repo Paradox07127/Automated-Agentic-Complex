@@ -223,13 +223,13 @@ export function localIso(ms: number, offset: number): string {
 export function ritualFailure(status: number, body: unknown, count: number | null): string | null {
   if (status === 202) return null;
   const o = typeof body === 'object' && body !== null && !Array.isArray(body) ? body as Record<string, unknown> : {};
-  if (status === 409 && o.while === 'working') return '角色在忙，等这一轮做完';
+  if (status === 409 && o.while === 'working') return '角色正在处理上一轮对话，请稍候';
   // A direct character click already cut the voice off.
-  if (status === 409 && o.while === 'speaking') return count === null ? '角色正在说话，稍后再试' : null;
-  if (status === 409 && o.error === 'switching') return '角色正在切换，稍后再试';
-  if (status === 503 && o.error === 'no_llm') return '角色内核未就绪';
-  if (status === 200) return count === null ? '这次没有可播放的回应' : null;
-  return '没能收到角色回应，稍后再试';
+  if (status === 409 && o.while === 'speaking') return count === null ? '角色正在语音播报，请稍后再试' : null;
+  if (status === 409 && o.error === 'switching') return '正在切换角色，请稍后再试';
+  if (status === 503 && o.error === 'no_llm') return '执行内核尚未就绪';
+  if (status === 200) return count === null ? '本次没有可播放的回应' : null;
+  return '未能收到角色回应，请稍后再试';
 }
 
 /** In order of preference. */
@@ -277,7 +277,7 @@ export class DesktopPlay {
   stop(send: (m: C3Message) => boolean, capabilities: readonly string[]): void {
     if (this.play === null) return;
     if (!capabilities.includes('action_loop') || !send({ v: 1, type: 'stop_action', play_id: this.play.playId })) {
-      throw new Error('这个版本的角色不能停下动作');
+      throw new Error('当前版本角色暂不支持停止动作');
     }
   }
 }

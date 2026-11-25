@@ -327,9 +327,9 @@ test('AvatarPoses.listed: a slot per pose name from the list; a stored lock on a
   const slots = s.poses.listed('aster', [row('wave', undefined), row('pose_stand', 'stand'), row('pose_sit', 'sit'), row('pose_lie', 'lie', '缺资源')]);
   assert.deepEqual(slots, [
     { slot: 'stand', id: 'pose_stand', available: true, reason: null },
-    { slot: 'akimbo', id: null, available: false, reason: '这个角色没有这个姿态的原作动作' },
+    { slot: 'akimbo', id: null, available: false, reason: '该角色未配置此姿态的原作动作' },
     { slot: 'sit', id: 'pose_sit', available: true, reason: null },
-    { slot: 'floor', id: null, available: false, reason: '这个角色没有这个姿态的原作动作' },
+    { slot: 'floor', id: null, available: false, reason: '该角色未配置此姿态的原作动作' },
     { slot: 'lie', id: 'pose_lie', available: false, reason: '缺资源' }]);
   assert.deepEqual(s.calls, ['set_pose pose_sit true']);
   s.locks.set('aster', 'pose_lie');
@@ -345,13 +345,13 @@ test('AvatarPoses.listed: a slot per pose name from the list; a stored lock on a
 
 test('AvatarPoses.set: stores the lock once the avatar acks ok; refusals, no reply and no character throw their error texts', async () => {
   const s = poseSetup();
-  await assert.rejects(s.poses.set('pose_sit', true), { message: '这个版本的角色不支持姿态' });
+  await assert.rejects(s.poses.set('pose_sit', true), { message: '当前版本角色不支持姿态设置' });
   s.poses.listed('aster', [row('pose_sit', 'sit')]);
   await s.poses.set('pose_sit', true);
   await s.poses.set(null, false);
   assert.deepEqual(s.calls, ['set_pose pose_sit true', 'lock aster=pose_sit', 'set_pose null false', 'lock aster=null']);
-  for (const [reason, text] of [['invalid', '角色没有这个姿态'], ['busy', '角色正在做别的动作'], ['disconnected', '和角色的连接断了'],
-    ['unsupported', '这个版本的角色不支持姿态'], ['timeout', '角色没有回应'], ['odd', '没能摆出这个姿态']]) {
+  for (const [reason, text] of [['invalid', '角色不支持该姿态'], ['busy', '角色正在执行其他动作'], ['disconnected', '角色连接已断开'],
+    ['unsupported', '当前版本角色不支持姿态设置'], ['timeout', '角色渲染进程无响应'], ['odd', '未能切换至该姿态']]) {
     const f = poseSetup({ ok: false, reason: reason! });
     f.poses.listed('aster', []);
     await assert.rejects(f.poses.set('pose_sit', true), { message: text });
@@ -359,13 +359,13 @@ test('AvatarPoses.set: stores the lock once the avatar acks ok; refusals, no rep
   }
   const unsent = poseSetup({ ok: true }, false);
   unsent.poses.listed('aster', []);
-  await assert.rejects(unsent.poses.set('pose_sit', false), { message: '这个版本的角色不支持姿态' });
+  await assert.rejects(unsent.poses.set('pose_sit', false), { message: '当前版本角色不支持姿态设置' });
   const silent = poseSetup(null);
   silent.poses.listed('aster', []);
   const waiting = silent.poses.set('pose_sit', false);
   assert.deepEqual(silent.clock.pending, [2]);
   silent.clock.advance(2);
-  await assert.rejects(waiting, { message: '角色没有回应' });
+  await assert.rejects(waiting, { message: '角色渲染进程无响应' });
 });
 
 test('pose menu: the slots with their titles only when one has a row; 自动 releases the lock, a held lock carries over, 锁定 toggles it', async () => {
@@ -389,7 +389,7 @@ test('pose menu: the slots with their titles only when one has a row; 自动 rel
   f.poses.listed('aster', []);
   poseMenuActions(f.poses, (line) => logs.push(line)).setPose('pose_sit');
   await settle();
-  assert.deepEqual(logs, ['set_pose id=pose_sit lock=false failed: 角色正在做别的动作']);
+  assert.deepEqual(logs, ['set_pose id=pose_sit lock=false failed: 角色正在执行其他动作']);
 });
 
 test('the desktop wheel\'s poses: the menu\'s titles, ids and reasons and the held id, null as the menu; its set fails with why', async () => {
@@ -398,16 +398,16 @@ test('the desktop wheel\'s poses: the menu\'s titles, ids and reasons and the he
   s.poses.listed('aster', [row('pose_stand', 'stand'), row('pose_sit', 'sit', '缺资源')]);
   s.poses.state({ character: 'aster', id: 'pose_stand', locked: true });
   assert.deepEqual(desktopPoses(s.poses), { current: 'pose_stand', slots: [
-    { title: '站', id: 'pose_stand', reason: null }, { title: '叉腰', id: null, reason: '这个角色没有这个姿态的原作动作' },
-    { title: '坐', id: 'pose_sit', reason: '缺资源' }, { title: '坐地', id: null, reason: '这个角色没有这个姿态的原作动作' },
-    { title: '躺', id: null, reason: '这个角色没有这个姿态的原作动作' }] });
+    { title: '站', id: 'pose_stand', reason: null }, { title: '叉腰', id: null, reason: '该角色未配置此姿态的原作动作' },
+    { title: '坐', id: 'pose_sit', reason: '缺资源' }, { title: '坐地', id: null, reason: '该角色未配置此姿态的原作动作' },
+    { title: '躺', id: null, reason: '该角色未配置此姿态的原作动作' }] });
   // As the menu's: a held lock carries over, 自动 releases it.
   await wheelPose(s.poses, 'pose_stand');
   await wheelPose(s.poses, null);
   assert.deepEqual(s.calls.filter((c) => c.startsWith('set_pose')), ['set_pose pose_stand true', 'set_pose null false']);
   const f = poseSetup({ ok: false, reason: 'busy' });
   f.poses.listed('aster', []);
-  await assert.rejects(wheelPose(f.poses, 'pose_sit'), { message: '角色正在做别的动作' });
+  await assert.rejects(wheelPose(f.poses, 'pose_sit'), { message: '角色正在执行其他动作' });
 });
 
 test('linkPoses: her lists reach AvatarPoses, the lock is read from and written to config.json pose_lock, other keys kept', async () => {

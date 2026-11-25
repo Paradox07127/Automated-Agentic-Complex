@@ -39,24 +39,24 @@ type Kind = MotionOverrideAdjusted['kind'];
 type Mode = 'idle' | 'event';
 
 const codeOf = (e: unknown) => (e as { code?: string } | null)?.code;
-const hostText = (e: unknown) => (codeOf(e) === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应');
+const hostText = (e: unknown) => (codeOf(e) === 'not_implemented' ? '当前版本暂不支持' : '角色渲染进程无响应');
 /** Why a save was refused, by code. */
-const SAVE_FAILED: Record<string, string> = { failed: '角色没有接受', not_stored: '设置文件写不进去', character_changed: '角色刚被换过' };
+const SAVE_FAILED: Record<string, string> = { failed: '角色进程未接受', not_stored: '无法写入配置文件', character_changed: '当前角色已切换' };
 const ADJUSTED: Record<MotionOverrideAdjusted['reason'], string> = {
-  unknown_chain: '角色包里没有这条链',
+  unknown_chain: '角色包中不存在该动作链',
   required: REQUIRED_TEXT,
-  unknown_pool: '角色包里没有这个池子，或者它不能改',
-  unknown_clip: '有片段不在角色包里',
-  excluded_family: '有片段起始或收尾在排除的姿势族，运行时不会抽到',
-  no_return: '有片段的链最后回不到站姿',
-  stance_mismatch: '有片段的站姿和池子不一致',
+  unknown_pool: '角色包中不存在该动作池，或该动作池不可修改',
+  unknown_clip: '存在角色包未包含的动作片段',
+  excluded_family: '部分片段的起始或结束姿态处于已排除姿态族，运行时不会触发',
+  no_return: '部分动作链末端无法回到基础站姿',
+  stance_mismatch: '部分动作片段的姿态与动作池不一致',
 };
-const BLEND_ADJUSTED = '角色包里没有这个片段';
-const NO_PLAY = '这个版本还不支持在桌面上播放';
-const NO_SEQUENCE = '这个版本的渲染器还不支持预览动作链';
-const NO_LIVE = '实时预览没有打开';
-const NO_SHA = '取不到当前角色包的版本（package_sha256），不能检查或应用';
-const GROUPS_FAIL: Record<string, string> = { not_current: '不是当前角色', motion_graph_missing: '角色包还没有动作图' };
+const BLEND_ADJUSTED = '角色包中不存在该动作片段';
+const NO_PLAY = '当前版本暂不支持于桌面播放';
+const NO_SEQUENCE = '当前版本渲染器暂不支持预览动作链';
+const NO_LIVE = '实时预览未开启';
+const NO_SHA = '无法获取当前角色包版本校验值，无法检查或应用';
+const GROUPS_FAIL: Record<string, string> = { not_current: '非当前加载角色', motion_graph_missing: '该角色包未包含动作图' };
 const STANDBY: Record<string, string> = { stand: '站姿待机', sit: '坐姿待机', floor: '坐地上待机', boss: 'Boss 待机' };
 const POSTURE: Record<string, string> = { sit: '坐着', floor: '坐地上', lie: '躺着' };
 const BANDS: GapBand[] = [1, 2, 3, 4, 0];
@@ -97,7 +97,7 @@ function Settings({ character: id, switching, offline, toast }: MotionSettingsPr
   if (g === null)
     return (
       <div className={styles.missing} role="status">
-        这个角色包还没有动作图，需要重建角色包
+        该角色包尚未生成动作图，请重新构建角色包
       </div>
     );
   if (ov.isError) return <ErrBar message={`读取动作设置失败：${hostText(ov.error)}`} onRetry={() => void ov.refetch()} />;
@@ -109,7 +109,7 @@ function Settings({ character: id, switching, offline, toast }: MotionSettingsPr
   const value = (k: string) => d.draft.chains[k] ?? savedValue(k);
   const note = (k: string) => d.draft.notes[k] ?? stored.notes?.[k] ?? '';
   const blendIn = (clip: string) => (clip in d.draft.blend ? d.draft.blend[clip] : stored.blend_in[clip]) ?? undefined;
-  const lock = offline ? '角色未运行' : switching ? '角色正在切换' : null;
+  const lock = offline ? '角色进程未运行' : switching ? '角色切换中' : null;
   // The draft is cleared when the save lands, so it takes no edits until then.
   const draftLock = lock ?? (saving ? '正在保存' : null);
   const labelOf = (clip: string) => byKey.get(clip)?.label ?? shortName(clip);
@@ -150,9 +150,9 @@ function Settings({ character: id, switching, offline, toast }: MotionSettingsPr
           for (const a of reply.adjusted) marks[a.kind][a.key] = a.kind === 'blend_in' ? BLEND_ADJUSTED : ADJUSTED[a.reason];
           setAdjusted(marks);
           const n = reply.adjusted.length;
-          toast(n > 0 ? `已保存 │ ${n} 项没有生效` : '已保存', n > 0 ? { severity: 'warning' } : undefined);
+          toast(n > 0 ? `已保存 │ ${n} 项未生效` : '已保存', n > 0 ? { severity: 'warning' } : undefined);
         },
-        (e: unknown) => toast(`动作设置没有保存：${SAVE_FAILED[codeOf(e) ?? ''] ?? hostText(e)}`, { severity: 'danger' }),
+        (e: unknown) => toast(`动作设置保存失败：${SAVE_FAILED[codeOf(e) ?? ''] ?? hostText(e)}`, { severity: 'danger' }),
       )
       .finally(() => setSaving(false));
   };
@@ -161,16 +161,16 @@ function Settings({ character: id, switching, offline, toast }: MotionSettingsPr
     void getBridge()
       .avatar.playChain(id, { start: r.key })
       .then(
-        () => toast(`桌面上正在播放「${r.label}」`),
+        () => toast(`正在桌面端播放「${r.label}」`),
         (e: unknown) => {
           if (codeOf(e) === 'not_implemented') {
             setNoPlay(true);
             toast(NO_PLAY, { severity: 'warning' });
-          } else toast(`没有播放：${codeOf(e) === 'unknown_action' ? '角色包里没有这条链' : '桌面角色没有回应'}`, { severity: 'danger' });
+          } else toast(`播放失败：${codeOf(e) === 'unknown_action' ? '角色包中不存在该动作链' : '角色渲染进程无响应'}`, { severity: 'danger' });
         },
       );
 
-  const previewBlock = offline ? '角色未运行' : noSequence ? NO_SEQUENCE : null;
+  const previewBlock = offline ? '角色进程未运行' : noSequence ? NO_SEQUENCE : null;
   const preview = (label: string, clips: string[], blend_s: number[]) => {
     if (previewBlock) {
       toast(previewBlock, { severity: 'warning' });
@@ -179,13 +179,13 @@ function Settings({ character: id, switching, offline, toast }: MotionSettingsPr
     setPreviewing(true);
     void previewChain(clips, blend_s)
       .then(
-        (on) => (on ? toast(`预览里正在播放「${label}」`) : toast(NO_LIVE, { severity: 'warning' })),
+        (on) => (on ? toast(`正在预览播放「${label}」`) : toast(NO_LIVE, { severity: 'warning' })),
         (e: unknown) => {
           const code = codeOf(e);
           if (code === 'not_implemented') {
             setNoSequence(true);
             toast(NO_SEQUENCE, { severity: 'warning' });
-          } else toast(`没有预览：${code === 'unavailable' ? NO_LIVE : '桌面角色没有回应'}`, { severity: 'danger' });
+          } else toast(`预览失败：${code === 'unavailable' ? NO_LIVE : '角色渲染进程无响应'}`, { severity: 'danger' });
         },
       )
       .finally(() => setPreviewing(false));
@@ -228,8 +228,8 @@ function Settings({ character: id, switching, offline, toast }: MotionSettingsPr
         on={value(key)}
         lock={draftLock}
         previewBlock={previewBlock}
-        playBlock={offline ? '角色未运行' : noPlay ? NO_PLAY : null}
-        removeBlock={draftLock ?? (entries.length <= 1 ? '池子里至少要有一条' : null)}
+        playBlock={offline ? '角色进程未运行' : noPlay ? NO_PLAY : null}
+        removeBlock={draftLock ?? (entries.length <= 1 ? '动作池至少须保留一条动作链' : null)}
         previewing={previewing}
         onBlend={d.setBlend}
         onNote={(t) => d.setNote(key, t)}
@@ -350,7 +350,7 @@ function Settings({ character: id, switching, offline, toast }: MotionSettingsPr
               <PoolProposals
                 group={mg.pools[pool.key]!}
                 pending={pendingOf(pool)}
-                acceptBlock={draftLock ?? (entries.length >= MAX_ENTRIES ? `一个池子最多 ${MAX_ENTRIES} 条` : null)}
+                acceptBlock={draftLock ?? (entries.length >= MAX_ENTRIES ? `单个动作池最多包含 ${MAX_ENTRIES} 条` : null)}
                 onPreview={previewClip}
                 onAccept={(x) => d.setPool(pool.key, [...entries, { clip: x.clip, weight: asWeight(x.weight) }])}
                 onDrop={(clip) => setDropped((s) => new Set(s).add(`${id}\n${pool.key}\n${clip}`))}
@@ -359,7 +359,7 @@ function Settings({ character: id, switching, offline, toast }: MotionSettingsPr
           }
         />
       ) : (
-        <p className={styles.none}>角色包里没有能改的池子</p>
+        <p className={styles.none}>当前角色包中没有可编辑的动作池</p>
       )}
       {mg && <Outside groups={mg} onPreview={previewClip} />}
       {ce.editing && (

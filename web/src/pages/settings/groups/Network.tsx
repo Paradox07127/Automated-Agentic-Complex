@@ -15,7 +15,7 @@ export function NetworkSection() {
   const [bad, setBad] = useState<string | null>(null);
   const commit = (raw: string) => {
     const v = raw.trim();
-    if (v !== '' && !PROXY_URL.test(v)) return setBad('要以 http:// 或 https:// 开头，只写主机和端口');
+    if (v !== '' && !PROXY_URL.test(v)) return setBad('须以 http:// 或 https:// 开头，仅包含主机与端口，不可携带用户名或密码');
     setBad(null);
     if (v !== saved) model.set('proxy', v);
   };
@@ -24,9 +24,9 @@ export function NetworkSection() {
       <SetRow
         id="proxy"
         title={labelOf('proxy')}
-        desc={bad ?? (saved ? '后台服务和内核经这里连外网' : '留空时不另设代理')}
+        desc={bad ?? (saved ? '后台服务及 Pi、Codex、Claude Code 内核通过此代理连接外网' : '留空时不配置额外代理')}
         descTone={bad ? 'bad' : undefined}
-        info="后台服务和它启动的 Pi、Codex、Claude Code 连模型服务时走这个 HTTP 代理；本机地址和上面各项服务的主机直连。地址里可以带用户名和密码，会以明文存进配置文件。"
+        info="后台服务及其启动的 Pi、Codex、Claude Code 连接模型服务时将使用此 HTTP(S) 代理；本机回环地址与上方自建服务主机保持直连。仅支持填写主机与端口（不支持携带用户名或密码）。"
         control={
           <Field
             key={saved}

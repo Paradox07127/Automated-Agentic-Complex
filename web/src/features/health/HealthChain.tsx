@@ -34,16 +34,25 @@ interface ChainNode {
   backoff?: number;
 }
 
-const ST_TEXT: Record<NodeSt, string> = { done: '在线', broken: '断开', unreachable: '不可达', idle: '待定' };
+const ST_TEXT: Record<NodeSt, string> = { done: '在线', broken: '异常', unreachable: '不可达', idle: '未启用或待检测' };
 const VOICE_ST: Record<Health['voice']['state'], NodeSt> = { ready: 'done', unreachable: 'broken', off: 'idle', unknown: 'idle', probing: 'idle', cold: 'idle' };
-const KERNEL_ERR: Record<string, string> = { not_authenticated: '未登录', not_installed: '未安装', unsupported: '版本不可用' };
+const KERNEL_ERR: Record<string, string> = {
+  not_authenticated: '未登录',
+  not_installed: '未安装',
+  unsupported: '版本不兼容',
+  native_login_required: '未登录',
+  bundled_cli_missing: '内置文件缺失',
+  bundled_runtime_missing: '未安装该内核',
+  runtime_protocol_unavailable: '入口不可用',
+  api_error: '调用失败',
+};
 
 function nodesOf(h: Health, now: number, wide: boolean, retryLeft: number | null): [ChainNode, ChainNode[]] {
   const up = h.agentd.up;
   const child = h.avatar.child;
-  const root: ChainNode = { key: 'agentd', label: wide ? '后台服务' : '后台', st: up ? 'done' : 'broken', sub: up ? formatDuration(now - h.agentd.started_at) : '没有响应', fix: '重启后台服务' };
+  const root: ChainNode = { key: 'agentd', label: wide ? '后台服务' : '后台', st: up ? 'done' : 'broken', sub: up ? formatDuration(now - h.agentd.started_at) : '无响应', fix: '重启后台服务' };
   const branches: ChainNode[] = [
-    { key: 'runtime', label: wide ? '角色内核' : '内核', st: h.runtime.ready ? 'done' : 'broken', sub: h.runtime.ready ? h.runtime.name : (KERNEL_ERR[h.runtime.error ?? ''] ?? h.runtime.error ?? '不可用'), fix: '前往设置重新检测' },
+    { key: 'runtime', label: wide ? '执行内核' : '内核', st: h.runtime.ready ? 'done' : 'broken', sub: h.runtime.ready ? h.runtime.name : (KERNEL_ERR[h.runtime.error ?? ''] ?? '未就绪'), fix: '前往设置重新检测' },
     typeof child === 'object'
       ? { key: 'avatar', label: wide ? '桌面角色' : '角色', st: 'broken', sub: `${child.backoff} s 后重启`, fix: '查看进程', backoff: child.backoff }
       : { key: 'avatar', label: wide ? '桌面角色' : '角色', st: child === 'running' ? 'done' : 'broken', sub: child === 'running' ? (h.avatar.fps != null ? `${h.avatar.fps} fps` : '运行中') : '已停止', fix: '重启角色' },
@@ -58,6 +67,7 @@ export function HealthChain({ health, now, layout = 'card', onNode, onVoiceReset
   const retryLeft = useCountdown(health.voice.retryAfterS);
   const [root, branches] = nodesOf(health, now, wide, retryLeft);
   const bad = [root, ...branches].filter((n) => n.st === 'broken');
+  const allDone = root.st === 'done' && branches.every((b) => b.st === 'done');
   const node = (n: ChainNode) => {
     const inner = (
       <>
@@ -69,8 +79,9 @@ export function HealthChain({ health, now, layout = 'card', onNode, onVoiceReset
       </>
     );
     const aria = `${n.label}：${ST_TEXT[n.st]}，${n.sub}`;
+    const actionTip = n.st === 'done' ? '点击查看详情' : '点击查看或处理';
     return onNode ? (
-      <button type="button" className={styles.node} data-st={n.st} aria-label={aria} title={`${n.label} │ ${n.sub}\n点击去处理`} onClick={() => onNode(n.key)}>
+      <button type="button" className={styles.node} data-st={n.st} aria-label={aria} title={`${n.label} │ ${n.sub}\n${actionTip}`} onClick={() => onNode(n.key)}>
         {inner}
       </button>
     ) : (
@@ -98,7 +109,7 @@ export function HealthChain({ health, now, layout = 'card', onNode, onVoiceReset
       {layout !== 'desk' && (
         <div className={styles.foot}>
           {bad.length === 0 ? (
-            <span className={styles.ok}>✓ 全部在线</span>
+            <span className={styles.ok}>{allDone ? '✓ 全部在线' : '✓ 核心服务在线'}</span>
           ) : (
             bad.slice(0, 2).map((n) => (
               <span key={n.key} className={styles.issue}>

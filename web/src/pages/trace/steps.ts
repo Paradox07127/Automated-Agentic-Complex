@@ -54,11 +54,11 @@ const textOf = (e: TextEvent | undefined) => str(e?.text?.text);
 const d = (t: string): Part => ({ t, k: 'd' });
 const m = (t: string): Part => ({ t, k: 'm' });
 
-const INPUT: Readonly<Record<string, string>> = { text: '文字', voice: '语音', desktop: '桌面输入', quick: '桌面输入', gift: '你递来的东西', proactive: '角色自己起意',
-  announce: '角色自己起意', ritual: '角色自己起意', tap: '你碰角色', background: '后台任务' };
-const JUDGE: Readonly<Record<string, string>> = { speak: '开口', wait: '等等', silent: '不说', want_comment: '想搭话', useful: '内容有用', need_image: '要截图', next_check: '下次再看' };
-const TOOL: Readonly<Record<string, string>> = { exec_command: '跑命令', shell: '跑命令', bash: '跑命令', Bash: '跑命令', read_file: '读文件', Read: '读文件',
-  list_dir: '列目录', write_file: '写文件', Write: '写文件', Edit: '改文件', apply_patch: '改文件', move_files: '移动文件', web_search: '搜网页', fetch: '读网页' };
+const INPUT: Readonly<Record<string, string>> = { text: '文本', voice: '语音', desktop: '桌面输入', quick: '桌面输入', gift: '用户交互', proactive: '主动发起',
+  announce: '主动发起', ritual: '主动发起', tap: '触碰交互', background: '后台任务' };
+const JUDGE: Readonly<Record<string, string>> = { speak: '发言', wait: '等待', silent: '静默', want_comment: '评估主动发言', useful: '内容有效', need_image: '请求截图', next_check: '延后重检' };
+const TOOL: Readonly<Record<string, string>> = { exec_command: '执行命令', shell: '执行命令', bash: '执行命令', Bash: '执行命令', read_file: '读取文件', Read: '读取文件',
+  list_dir: '列出目录', write_file: '写入文件', Write: '写入文件', Edit: '编辑文件', apply_patch: '编辑文件', move_files: '移动文件', web_search: '网页搜索', fetch: '访问网页' };
 const toolName = (t: string) => TOOL[t] ?? t;
 const lines = (s: string) => s.replace(/\n$/, '').split('\n');
 
@@ -124,12 +124,12 @@ export function buildTurn({ row, events, skew = {}, items = [], mems = [], learn
     const kinds = [...new Set(ctxItems.map((i) => str(i.type)).filter((t): t is string => t !== null))];
     const sum: Part[] = [];
     if (mems.length > 0) sum.push({ t: '引用记忆 ' }, { t: String(mems.length), k: 'b' }, { t: ' 条' });
-    if (app) sum.push(...(sum.length ? [d(' │ ')] : []), { t: `看了 ${app}${title ? ` — ${title}` : ''}` }, d(shot ? ' │ 带截图' : ' │ 只读文字'));
-    else if (sum.length === 0) sum.push(d(ctxItems.length ? `带进去 ${ctxItems.length} 项` : '没有观察'));
-    else sum.push(d(' │ 没有观察'));
+    if (app) sum.push(...(sum.length ? [d(' │ ')] : []), { t: `读取 ${app}${title ? ` — ${title}` : ''}` }, d(shot ? ' │ 含截图' : ' │ 仅文本'));
+    else if (sum.length === 0) sum.push(d(ctxItems.length ? `已注入 ${ctxItems.length} 项` : '无观察记录'));
+    else sum.push(d(' │ 无观察记录'));
     const kv: Step['kv'] = [];
-    if (seen) kv.push(['观察', [{ t: app ?? '—' }, ...(title ? [{ t: ` — ${title}` }] : []), d(` │ ${shot ? '文字 + 截图' : '只读文字'} │ ${str(seen.e.attrs.state) ?? ''}`)]]);
-    if (ctxItems.length) kv.push(['带进去的', [{ t: `${ctxItems.length} 项` }, ...(kinds.length ? [d(` │ ${kinds.join('、')}`)] : [])]]);
+    if (seen) kv.push(['观察', [{ t: app ?? '—' }, ...(title ? [{ t: ` — ${title}` }] : []), d(` │ ${shot ? '文本 + 截图' : '仅文本'} │ ${str(seen.e.attrs.state) ?? ''}`)]]);
+    if (ctxItems.length) kv.push(['上下文项', [{ t: `${ctxItems.length} 项` }, ...(kinds.length ? [d(` │ ${kinds.join('、')}`)] : [])]]);
     steps.push({
       id: 'ctx', icon: 'ctx', name: '上下文', sub: false, t0: ctxSpan?.t0 ?? 0, dur: ctxSpan ? ctxSpan.end - ctxSpan.t0 : 0, st: ctx.some((x) => x.e.status === 'failed') ? 'fail' : 'ok',
       sum, kv, mems: [...mems, ...learned.map((f) => ({ ...f, fresh: true }))],
@@ -144,10 +144,10 @@ export function buildTurn({ row, events, skew = {}, items = [], mems = [], learn
     const rows = answers.map((a) => ({ label: JUDGE[String(a.id)] ?? String(a.id), p: num(a.prob) ?? 0, on: a.value === true || a.value === 'yes' }));
     const pick = rows.find((r) => r.on);
     const sum: Part[] = pick ? [{ t: `${pick.label} ` }, { t: pick.p.toFixed(2), k: 'b' }, d(rows.filter((r) => r !== pick).map((r) => ` │ ${r.label} ${r.p.toFixed(2)}`).join(''))] : [];
-    if (gate) sum.push(...(sum.length ? [d(' │ ')] : []), { t: gate.e.attrs.speak === false ? '门禁：不说' : '门禁：放行' }, ...(str(gate.e.attrs.reason) ? [d(` │ ${str(gate.e.attrs.reason)}`)] : []));
+    if (gate) sum.push(...(sum.length ? [d(' │ ')] : []), { t: gate.e.attrs.speak === false ? '门禁：拦截' : '门禁：放行' }, ...(str(gate.e.attrs.reason) ? [d(` │ ${str(gate.e.attrs.reason)}`)] : []));
     steps.push({
       id: 'judge', icon: 'judge', name: '判断', sub: false, t0: s.t0, dur: s.end - s.t0, st: gate?.e.status === 'blocked' ? 'skip' : 'ok', sum,
-      kv: [...(str(judged?.e.attrs.backend) ? [['判断用的', [{ t: String(judged!.e.attrs.backend) }]] as [string, Part[]]] : [])],
+      kv: [...(str(judged?.e.attrs.backend) ? [['判断引擎', [{ t: String(judged!.e.attrs.backend) }]] as [string, Part[]]] : [])],
       ...(rows.length ? { judge: rows } : {}),
     });
   }
@@ -177,9 +177,9 @@ export function buildTurn({ row, events, skew = {}, items = [], mems = [], learn
     const st: StepSt = outcome === 'failed' ? 'fail' : outcome === 'waiting_user' ? 'wait' : !settled ? (open ? 'run' : 'ok') : 'ok';
     subs.push({
       id: `tool-${id || i}`, icon: 'tool', name: toolName(tool), sub: true, t0: s.t0, dur: s.end - s.t0, st,
-      sum: [m(tool), ...(rec?.call.summary ? [d(` │ ${rec.call.summary}`)] : []), ...(code ? [d(' │ '), m(code)] : !settled && open ? [d(' │ 还在跑')] : [])],
+      sum: [m(tool), ...(rec?.call.summary ? [d(` │ ${rec.call.summary}`)] : []), ...(code ? [d(' │ '), m(code)] : !settled && open ? [d(' │ 执行中')] : [])],
       kv: code ? [['错误', [m(code)]]] : [],
-      ...(out ? { raw: { label: st === 'fail' ? '工具输出（出错）' : '工具输出', lines: lines(out), ...(st === 'fail' ? { open: true } : {}) } } : {}),
+      ...(out ? { raw: { label: st === 'fail' ? '工具输出（失败）' : '工具输出', lines: lines(out), ...(st === 'fail' ? { open: true } : {}) } } : {}),
     });
   });
   if (tools.length === 0) {
@@ -209,8 +209,8 @@ export function buildTurn({ row, events, skew = {}, items = [], mems = [], learn
     const [name, st]: [string, StepSt] = !done ? ['待批准', 'wait'] : done.e.kind === 'approval.retired' ? ['已收回', 'skip'] : decision === 'deny' ? ['已拒绝', 'fail'] : ['已允许', 'ok'];
     subs.push({
       id: `ask-${id}`, icon: 'shield', name, sub: true, t0, dur: wait, st,
-      sum: [...(tool ? [m(tool)] : [{ t: '一次操作' }]), d(done ? ` │ ${decision === 'allow' ? '你点了「允许」' : decision === 'allow_session' ? '你点了「本对话都允许」' : decision === 'deny' ? '你点了「拒绝」' : decision ?? '收回了'}` : ' │ 还没批')],
-      kv: [['判定', [{ t: decision ?? '还没定' }]], ...(by ? [['谁批的', [{ t: by === 'card' ? '你，在桌面审批卡上' : '你，在系统弹窗上' }]] as [string, Part[]]] : []), ['等了', [{ t: fmtMs(wait) }]]],
+      sum: [...(tool ? [m(tool)] : [{ t: '一次操作' }]), d(done ? ` │ ${decision === 'allow' ? '选择「允许」' : decision === 'allow_session' ? '选择「本对话都允许」' : decision === 'deny' ? '选择「拒绝」' : decision ?? '已收回'}` : ' │ 待确认')],
+      kv: [['判定', [{ t: decision ?? '待确定' }]], ...(by ? [['操作来源', [{ t: by === 'card' ? '用户通过桌面确认卡片操作' : '用户通过系统弹窗操作' }]] as [string, Part[]]] : []), ['等待时长', [{ t: fmtMs(wait) }]]],
     });
   }
   subs.sort((a, b) => a.t0 - b.t0);
@@ -224,21 +224,21 @@ export function buildTurn({ row, events, skew = {}, items = [], mems = [], learn
     const toolN = subs.filter((s) => s.icon === 'tool').length;
     const askN = subs.filter((s) => s.icon === 'shield').length;
     const sum: Part[] = failed
-      ? [{ t: '模型没给出回答' }, ...(stop ? [d(' │ '), m(stop)] : [])]
+      ? [{ t: '模型未返回结果' }, ...(stop ? [d(' │ '), m(stop)] : [])]
       : open && !fin
-        ? [{ t: '还在想' }, ...(toolN ? [d(` │ 已调 ${toolN} 次工具`)] : [])]
-        : [{ t: toolN ? `调了 ${toolN} 次工具` : '写了回复' }, ...(askN ? [d(` │ ${askN} 次要你批准`)] : toolN ? [] : [d(' │ 没调工具')]), ...(stop ? [d(' │ 停在 '), m(stop)] : [])];
+        ? [{ t: '推理中' }, ...(toolN ? [d(` │ 已调用工具 ${toolN} 次`)] : [])]
+        : [{ t: toolN ? `调用工具 ${toolN} 次` : '生成回复' }, ...(askN ? [d(` │ ${askN} 次请求用户确认`)] : toolN ? [] : [d(' │ 未调用工具')]), ...(stop ? [d(' │ 结束原因：'), m(stop)] : [])];
     const tin = num(fin?.e.attrs.input_tokens), tout = num(fin?.e.attrs.output_tokens);
     const cache = num(fin?.e.attrs.cache_read_tokens) ?? num(fin?.e.attrs.cached_tokens);
     const cost = num(fin?.e.attrs.cost_usd);
     const kv: Step['kv'] = [];
     if (name) kv.push(['模型', [{ t: name }]]);
     if (tin != null) kv.push(['token', [{ t: `入 ${tin.toLocaleString('en-US')} │ 出 ${(tout ?? 0).toLocaleString('en-US')}` }, ...(cache != null ? [d(` │ 缓存 ${cache.toLocaleString('en-US')}`)] : [])]]);
-    if (stop) kv.push(['停在', [m(stop)]]);
+    if (stop) kv.push(['结束原因', [m(stop)]]);
     if (firstTok) kv.push(['首字', [{ t: fmtMs(firstTok.at) }]]);
     kv.push(['花费', [{ t: cost == null ? '—' : `$${cost.toFixed(3)}` }]]);
     steps.push({
-      id: 'model', icon: 'kernel', name: '想', sub: false, t0, dur: Math.max(0, end - t0), st: failed ? 'fail' : open && !fin ? 'run' : 'ok', sum, kv,
+      id: 'model', icon: 'kernel', name: '推理', sub: false, t0, dur: Math.max(0, end - t0), st: failed ? 'fail' : open && !fin ? 'run' : 'ok', sum, kv,
       ...(firstTok ? { ttft: firstTok.at } : {}),
     });
     steps.push(...subs);
@@ -250,7 +250,7 @@ export function buildTurn({ row, events, skew = {}, items = [], mems = [], learn
     const text = said.map((x) => textOf(x.e)).find((t) => t !== null) ?? null;
     steps.push({
       id: 'line', icon: 'say', name: '回复', sub: false, t0: s.t0, dur: s.end - s.t0, st: 'ok',
-      sum: text ? [{ t: lines(text)[0] ?? '' }] : [d('角色回了话（原文没有留下）')], kv: [],
+      sum: text ? [{ t: lines(text)[0] ?? '' }] : [d('已生成回复（未保留正文）')], kv: [],
       ...(text ? { raw: { label: '回复全文', lines: lines(text) } } : {}),
     });
   }
@@ -267,9 +267,9 @@ export function buildTurn({ row, events, skew = {}, items = [], mems = [], learn
     steps.push({
       id: 'tts', icon: 'voice', name: '语音', sub: false, t0: s.t0, dur: s.end - s.t0, st: failed ? 'fail' : cut ? 'cut' : 'ok',
       sum: [
-        ...(audio && req ? [{ t: '首段音频 ' }, { t: fmtMs(audio.at - req.at), k: 'b' as const }] : [{ t: '请求了语音' }]),
-        d(cut ? ` │ 播到一半被打断：${str(cut.e.attrs.reason) ?? ''}` : ended ? ' │ 播完' : open ? ' │ 在播' : ' │ 没收到播完的回执'),
-        ...(degraded ? [d(` │ ${str(degraded.e.attrs.reason) ?? '降级'}`)] : []),
+        ...(audio && req ? [{ t: '首段音频 ' }, { t: fmtMs(audio.at - req.at), k: 'b' as const }] : [{ t: '已请求语音' }]),
+        d(cut ? ` │ 播放中断：${str(cut.e.attrs.reason) ?? ''}` : ended ? ' │ 播放完成' : open ? ' │ 播放中' : ' │ 未收到播放完成回执'),
+        ...(degraded ? [d(` │ ${str(degraded.e.attrs.reason) ?? '已降级'}`)] : []),
       ],
       kv: [],
     });
@@ -306,7 +306,7 @@ export function buildTurn({ row, events, skew = {}, items = [], mems = [], learn
   };
 }
 
-const PHASE: Readonly<Record<string, string>> = { accepted: '宿主已接受', running: '在做', completed: '宿主已完成', cancelled: '取消了', interrupted: '被打断', rejected: '宿主拒绝', blocked: '做不了' };
+const PHASE: Readonly<Record<string, string>> = { accepted: '宿主已接受', running: '执行中', completed: '宿主已完成', cancelled: '已取消', interrupted: '已中断', rejected: '宿主已拒绝', blocked: '无法执行' };
 
 /** The longest top-level step that did not fail (not 收到): drawn in the accent colour. */
 export const longestOf = (steps: readonly Step[]) => steps.filter((s) => !s.sub && s.st !== 'fail' && s.id !== 'in').reduce<Step | null>((a, s) => (!a || s.dur > a.dur ? s : a), null);

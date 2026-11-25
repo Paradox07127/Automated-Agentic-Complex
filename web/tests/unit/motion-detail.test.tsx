@@ -86,7 +86,7 @@ describe('链检视', () => {
     expect(set).toHaveBeenLastCalledWith('si', { chains: {}, pools: {}, blend_in: { [PONDER_LOOP]: 0.5, [PONDER_END]: 0.55 } });
     await act(async () => void fireEvent.keyDown(wedge('dialog_state_think_end'), { key: 'Delete' }));
     await click(wedge('dialog_state_think_loop'));
-    await click(within(detail()).getByRole('button', { name: '用包里的' }));
+    await click(within(detail()).getByRole('button', { name: '恢复默认' }));
     await save();
     expect(set).toHaveBeenLastCalledWith('si', { chains: {}, pools: {}, blend_in: {} });
   });
@@ -101,18 +101,18 @@ describe('链检视', () => {
     await click(wedge('dialog_state_think_end'));
     await act(async () => void fireEvent.change(slider('dialog_state_think_end'), { target: { value: '1' } }));
     await save();
-    expect(detail().querySelector(`[data-seg="${PONDER_END}"]`)!.textContent).toContain('角色包里没有这个片段');
-    expect(toast).toHaveBeenLastCalledWith(expect.stringContaining('1 项没有生效'), expect.objectContaining({ severity: 'warning' }));
+    expect(detail().querySelector(`[data-seg="${PONDER_END}"]`)!.textContent).toContain('角色包中不存在该动作片段');
+    expect(toast).toHaveBeenLastCalledWith(expect.stringContaining('1 项未生效'), expect.objectContaining({ severity: 'warning' }));
   });
 
   it('skips a chain in every pool through its 开 / 关 switch and keeps base chains on', async () => {
     const set = vi.spyOn(bridge.avatar.motionOverrides, 'set');
     await mount(toast);
     await openChain(PONDER);
-    const plays = within(detail()).getByRole('switch', { name: /^所有池抽到/ });
+    const plays = within(detail()).getByRole('switch', { name: /^所有动作池触发/ });
     expect(plays.getAttribute('aria-checked')).toBe('true');
     await click(plays);
-    expect(row(PONDER).textContent).toContain('已关 │ 抽到跳过');
+    expect(row(PONDER).textContent).toContain('已关闭 │ 触发时跳过');
     await save();
     expect(set).toHaveBeenLastCalledWith('si', { chains: { [PONDER]: false }, pools: {}, blend_in: {} });
     // A base chain added to a pool: its switch is locked.
@@ -120,8 +120,8 @@ describe('链检视', () => {
     await click(screen.getByRole('button', { name: '往 idle.t1 加链' }));
     await click(screen.getByRole('button', { name: /idle_to_relax/ }));
     await click(within(row(TO_RELAX)).getByRole('button', { name: /^展开/ }));
-    expect(detail().textContent).toContain('基础动作，不能关');
-    expect(within(detail()).queryByRole('switch', { name: /^所有池抽到/ })).toBeNull();
+    expect(detail().textContent).toContain('基础动作，不可关闭');
+    expect(within(detail()).queryByRole('switch', { name: /^所有动作池触发/ })).toBeNull();
   });
 
   it('keeps one note per chain in notes and drops it when cleared', async () => {
@@ -149,7 +149,7 @@ describe('链检视', () => {
     await click(wedge('dialog_state_think_loop'));
     expect(slider('dialog_state_think_loop').disabled).toBe(true);
     expect((within(detail()).getByRole('textbox', { name: /备注/ }) as HTMLTextAreaElement).disabled).toBe(true);
-    expect(within(detail()).getByRole('switch', { name: /^所有池抽到/ }).getAttribute('aria-disabled')).toBe('true');
+    expect(within(detail()).getByRole('switch', { name: /^所有动作池触发/ }).getAttribute('aria-disabled')).toBe('true');
   });
 });
 

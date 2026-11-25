@@ -44,7 +44,7 @@ export interface TiSpan {
 }
 
 export type TurnSource = 'user' | 'proactive' | 'desktop' | 'background';
-export type TurnRes = '成功' | '失败' | '打断' | '跳过' | '进行中' | '待确认' | '仅生成文字' | '回执不全';
+export type TurnRes = '成功' | '失败' | '打断' | '跳过' | '进行中' | '待处理' | '仅生成文字' | '状态未知';
 export interface TiMem {
   id: string;
   text: string;
@@ -83,9 +83,9 @@ const RES: Readonly<Record<string, TurnRes>> = { ok: '成功', completed: '成�
 export const TERMINAL_LABEL: Readonly<Record<string, string>> = { completed: '已完成', failed: '失败', cancelled: '已取消', interrupted: '被打断', waiting_user: '等待用户' };
 export const OUTCOME_LABEL: Readonly<Record<string, string>> = { succeeded: '执行成功', failed: '执行失败', needs_review: '待复核' };
 /** judge.decided answer ids (proactive.py, capture.py) and the prototype's three choices. */
-const JUDGE_LABEL: Readonly<Record<string, string>> = { speak: '发言', wait: '等待', silent: '沉默', want_comment: '想搭话', useful: '内容有用', need_image: '需要截图', next_check: '下次查看' };
+const JUDGE_LABEL: Readonly<Record<string, string>> = { speak: '发言', wait: '等待', silent: '沉默', want_comment: '倾向发言', useful: '内容有用', need_image: '需要截图', next_check: '下次检查' };
 
-export const resultOf = (r: string, turnState?: string | null): TurnRes => turnState === 'waiting_user' ? '待确认' : RES[r] ?? '回执不全';
+export const resultOf = (r: string, turnState?: string | null): TurnRes => turnState === 'waiting_user' ? '待处理' : RES[r] ?? '状态未知';
 export const sourceOf = (s: string): TurnSource => (s === 'background' ? 'background' : s === 'proactive' || s === 'announce' || s === 'ritual' || s === 'tap' ? 'proactive' : s === 'desktop' || s === 'quick' ? 'desktop' : 'user');
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);

@@ -21,7 +21,7 @@ describe('HealthChain voice node', () => {
     expect(node?.getAttribute('aria-label')).toContain(sub);
     expect(node?.textContent).not.toContain('✕');
     expect(screen.queryByRole('button', { name: '重新连接' })).toBeNull();
-    expect(document.body.textContent).toContain('✓ 全部在线');
+    expect(document.body.textContent).toContain('✓ 核心服务在线');
   });
 
   it('unreachable is broken, listed with the seconds until a retry, and its fix resets the voice', () => {

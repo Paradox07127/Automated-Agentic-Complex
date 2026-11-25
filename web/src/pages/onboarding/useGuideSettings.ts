@@ -131,7 +131,7 @@ export function useGuideSettings(): GuideSettings {
         else {
           setRestarting(false);
           void loadDiag();
-          toast('后台还没有重启好，账号这一块先只读；可以稍后点「重新连接」', { severity: 'warning', persistent: true });
+          toast('后台服务尚未重启完成，账号配置暂为只读，可稍后点击「重新连接」', { severity: 'warning', persistent: true });
         }
       };
       window.setTimeout(poll, RESTART_POLL_MS);
@@ -153,7 +153,7 @@ export function useGuideSettings(): GuideSettings {
         (res) => {
           if (res.error) {
             console.warn('settings.save refused', res.error);
-            notify({ message: `没有保存「${labelOf(id)}」：桌面端没有接受这次修改`, severity: 'danger', persistent: true });
+            notify({ message: `未能保存「${labelOf(id)}」：配置校验未通过`, severity: 'danger', persistent: true });
             return;
           }
           setVals((vals) => {
@@ -162,9 +162,9 @@ export function useGuideSettings(): GuideSettings {
             return next;
           });
           if (res.restart === 'backend') waitBackend(startedAt.current);
-          if (res.notApplied.length) notify({ message: `已保存，${res.notApplied.map(labelOf).join('、')}要重启 Agentic Complex 后生效`, severity: 'warning', persistent: true });
+          if (res.notApplied.length) notify({ message: `已保存，${res.notApplied.map(labelOf).join('、')}需重启 Agentic Complex 后生效`, severity: 'warning', persistent: true });
         },
-        () => notify({ message: `没有保存「${labelOf(id)}」：原生设置服务没有响应`, severity: 'danger', persistent: true }),
+        () => notify({ message: `未能保存「${labelOf(id)}」：配置服务无响应`, severity: 'danger', persistent: true }),
       );
     },
     [bridge, save, setVals, notify, waitBackend],
@@ -179,8 +179,8 @@ export function useGuideSettings(): GuideSettings {
   const runTest = useCallback(() => {
     setTest({ state: 'testing', text: '' });
     testModels().then(
-      (r) => setTest(r.ok ? { state: 'ok', text: `已连上 │ 回复 ${(r.elapsed_ms / 1000).toFixed(1)} s` } : { state: 'bad', text: '没连上：模型没有回复' }),
-      (e: unknown) => setTest({ state: 'bad', text: `没连上：${failure(e).text}` }),
+      (r) => setTest(r.ok ? { state: 'ok', text: `已连接 │ 耗时 ${(r.elapsed_ms / 1000).toFixed(1)} s` } : { state: 'bad', text: '连接失败：模型未响应' }),
+      (e: unknown) => setTest({ state: 'bad', text: `连接失败：${failure(e).text}` }),
     );
   }, []);
 
@@ -208,7 +208,7 @@ export function useGuideSettings(): GuideSettings {
       const before = new Map(permsNow.current.map((p) => [p.kind, p.state]));
       void recheckPerms().then(() => {
         for (const p of permsNow.current) {
-          if (GUIDE_PERMS.includes(p.kind) && p.state === 'granted' && before.get(p.kind) !== 'granted') toast(`${p.label}：已允许，${p.features.join('、')}可以用了`, { severity: 'success' });
+          if (GUIDE_PERMS.includes(p.kind) && p.state === 'granted' && before.get(p.kind) !== 'granted') toast(`${p.label}：已授予，${p.features.join('、')}现已可用`, { severity: 'success' });
         }
       });
       if (!restarting) void loadDiag();

@@ -88,7 +88,7 @@ describe('播放方式', () => {
     render(<Op />);
     const loop = mode('循环');
     expect(loop.disabled).toBe(true);
-    expect(loop.closest('[title]')?.getAttribute('title')).toBe('这个版本的角色还不支持循环');
+    expect(loop.closest('[title]')?.getAttribute('title')).toBe('当前版本角色暂不支持循环播放');
     expect(mode('一次').disabled).toBe(false);
   });
 });

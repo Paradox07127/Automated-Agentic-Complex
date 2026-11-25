@@ -175,7 +175,7 @@ describe('tasks: stop replies in agentd\'s shapes', () => {
     await createTasksActions(d).stopNow([T1]);
     const said = d.push.mock.calls.map((c) => String(c[0]));
     expect(said.some((t) => t.includes('已停止'))).toBe(false);
-    expect(said.join()).toContain('这个任务待验收，不能停止');
+    expect(said.join()).toContain('当前任务待复核，无法停止');
   });
 
   it('cancelled:false on a job that already ended says it ended, not that it waits for review', async () => {
@@ -184,7 +184,7 @@ describe('tasks: stop replies in agentd\'s shapes', () => {
     const d = deps({ ...v, tasks: v.tasks.map((t) => (t.id === T1 ? { ...t, status: 'succeeded' as const } : t)) });
     await createTasksActions(d).stopNow([T1]);
     const said = d.push.mock.calls.map((c) => String(c[0])).join();
-    expect(said).toContain('这个任务已经结束，不用停止');
+    expect(said).toContain('该任务已结束，无需停止');
     expect(said).not.toContain('验收');
     expect(said).not.toContain('已停止');
   });
@@ -265,7 +265,7 @@ describe('tasks: continue, session message, approvals, questions, goals', () => 
     const d = deps();
     await createTasksActions(d).onTask(pick(TASKS, T2))({ kind: 'send_session', text: '先跑测试' });
     expect(writes(calls)).toEqual([{ method: 'POST', path: `/sessions/${S_C07A}/messages`, body: { text: '先跑测试' } }]);
-    expect(d.push).toHaveBeenCalledWith('已发送到编码会话');
+    expect(d.push).toHaveBeenCalledWith('已发送至编码会话');
   });
 
   it('approval decision carries the card generation; a 409 says 已在别处更新 and reloads', async () => {
@@ -278,7 +278,7 @@ describe('tasks: continue, session message, approvals, questions, goals', () => 
     install(() => ({ status: 409, body: { ok: false, error: 'generation_mismatch' }, error: { code: 'generation_mismatch' } }));
     const d = deps();
     await createTasksActions(d).approve([A2], 'deny');
-    expect(d.push).toHaveBeenCalledWith('已在别处更新', { severity: 'danger' });
+    expect(d.push).toHaveBeenCalledWith('已在其他位置更新', { severity: 'danger' });
     expect(d.reload).toHaveBeenCalled();
   });
 
@@ -305,7 +305,7 @@ describe('tasks: continue, session message, approvals, questions, goals', () => 
     install((method) => (method === 'POST' ? { status: 0, body: null, error: { code: 'offline' } } : null));
     const d = deps();
     await createTasksActions(d).goal(pick(GOALS, G1), 'pause');
-    expect(d.push).toHaveBeenCalledWith('后台已断开', { severity: 'danger' });
+    expect(d.push).toHaveBeenCalledWith('后台服务已断开', { severity: 'danger' });
   });
 });
 
@@ -332,8 +332,8 @@ describe('tasks: create', () => {
   });
 
   it('a code task needs a picked folder; an artifact must be a relative md/txt/csv/json path', () => {
-    expect(draftProblem({ ...draftFor('code'), cwd: null }, true)).toBe('先选目录');
-    expect(draftProblem({ ...draftFor('code'), cwd: null }, false)).toBe('这台电脑的外壳不支持原生目录选择');
+    expect(draftProblem({ ...draftFor('code'), cwd: null }, true)).toBe('请先选择工作目录');
+    expect(draftProblem({ ...draftFor('code'), cwd: null }, false)).toBe('当前客户端环境不支持原生目录选择');
     expect(draftProblem({ ...draftFor('role'), title: '测试', brief: '测试要求', acceptanceOpen: true, artifact: '/abs/a.md' }, true)).toContain('相对路径');
     expect(draftProblem({ ...draftFor('role'), title: '测试', brief: '测试要求', acceptanceOpen: true, artifact: 'a.docx' }, true)).toContain('相对路径');
   });
@@ -362,7 +362,7 @@ describe('tasks: reads', () => {
     expect(gets).toEqual(expect.arrayContaining([`/agent/tasks/${T6}/steps`, `/agent/tasks/${T6}/files`, '/agent/runs?run_id=run-0f11', '/agent/runs/run-0f11/items']));
     expect(x.steps[0]?.at).toBeGreaterThan(1e12);
     expect(x.tools.every((t) => t.kind === 'tool_call')).toBe(true);
-    expect(x.failure?.reason).toContain('资料授权已撤销');
+    expect(x.failure?.reason).toContain('资料访问授权已撤销');
     expect(x.moreSteps).toBe(false);
     const t1 = await loadTaskExtras(pick(TASKS, T1), false);
     expect(t1.plan?.steps.map((s) => s.status)).toContain('in_progress');
@@ -431,7 +431,7 @@ describe('tasks: what the page shows', () => {
 
   it('a revoked delivery shows one placeholder line instead of the files', () => {
     render(<Artifacts deliveries={[{ ...delivery(DLV_T1_V2), redacted: true, artifacts: [] }]} canReveal={false} nativeOff={{}} onOpen={noop} onReveal={noop} onCopy={noop} onRevert={noop} />);
-    expect(document.body.textContent).toContain('这一版已撤回');
+    expect(document.body.textContent).toContain('该版本已撤回');
     expect(screen.queryByRole('group', { name: '产物' })).toBeNull();
   });
 });
@@ -454,7 +454,7 @@ describe('tasks: failure reasons and native entries', () => {
     install((method, path) => (path.endsWith('/messages') ? { status: 409, body: { error: 'busy' }, error: { code: 'busy' } } : null));
     const d = deps();
     await createTasksActions(d).onTask(pick(TASKS, T2))({ kind: 'send_session', text: '先跑测试' });
-    expect(d.push).toHaveBeenCalledWith('会话正在执行这一轮，等它结束再发', { severity: 'danger' });
+    expect(d.push).toHaveBeenCalledWith('会话正在执行当前轮次，请等待结束后发送', { severity: 'danger' });
     expect(d.reload).not.toHaveBeenCalled();
   });
 
@@ -507,7 +507,7 @@ describe('tasks: failure reasons and native entries', () => {
     let fail = true;
     const { calls } = install((method, path) => (path.endsWith('/lines') && fail ? { status: 500, body: { error: 'internal' }, error: { code: 'internal' } } : null));
     mountDetail(T2);
-    await waitFor(() => expect(document.body.textContent).toContain('会话输出没读到'));
+    await waitFor(() => expect(document.body.textContent).toContain('未能读取会话输出'));
     expect(document.body.textContent).not.toContain('还没有输出');
     fail = false;
     fireEvent.click(screen.getByRole('button', { name: '重试' }));
@@ -601,7 +601,7 @@ describe('tasks: own coding session rename, archive, delete (⋯)', () => {
     fireEvent.change(input, { target: { value: '  HostLink 重连  ' } });
     fireEvent.click(within(dlg).getByRole('button', { name: '保存' }));
     await waitFor(() => expect(writes(calls)).toEqual([{ method: 'PUT', path: `/sessions/${S_C07A}`, body: { expected_version: 1, title: 'HostLink 重连' } }]));
-    expect(await screen.findByText('已改名：HostLink 重连')).toBeTruthy();
+    expect(await screen.findByText('已重命名为：HostLink 重连')).toBeTruthy();
   });
 
   it('archive PUTs {expected_version, archived: true}', async () => {
@@ -617,7 +617,7 @@ describe('tasks: own coding session rename, archive, delete (⋯)', () => {
     mountSelected();
     await item('删除…');
     let dlg = screen.getByRole('dialog', { name: /删除会话「修 HostLink 断线重连」/ });
-    fireEvent.click(within(dlg).getByRole('button', { name: '不删除' }));
+    fireEvent.click(within(dlg).getByRole('button', { name: '取消' }));
     expect(writes(calls)).toEqual([]);
     await item('删除…');
     dlg = screen.getByRole('dialog', { name: /删除会话/ });
@@ -631,12 +631,12 @@ describe('tasks: own coding session rename, archive, delete (⋯)', () => {
     const { calls } = install((method, path) => (method !== 'GET' && path.startsWith('/sessions/own:') ? { status: 409, body: { error: code }, error: { code } } : null));
     mountSelected();
     await item('归档');
-    expect(await screen.findByText('已在别处更新')).toBeTruthy();
+    expect(await screen.findByText('已在其他位置更新')).toBeTruthy();
     await waitFor(() => expect(calls.filter((c) => c.method === 'GET' && c.path === '/sessions')).toHaveLength(2));
     code = 'busy';
     await item('删除…');
     fireEvent.click(within(screen.getByRole('dialog', { name: /删除会话/ })).getByRole('button', { name: '删除' }));
-    expect(await screen.findByText('会话正在执行这一轮，先停下再归档或删除')).toBeTruthy();
+    expect(await screen.findByText('会话正在执行当前轮次，请先停止后再归档或删除')).toBeTruthy();
   });
 
   it('an external session has no ⋯ session menu', async () => {
@@ -656,7 +656,7 @@ describe('chat TaskDrawer: what it offers', () => {
   it('a failed role job whose latest version was decided still offers 继续', () => {
     const decided: Delivery = { ...v2, state: 'rejected', decided_at: NOW - 60_000 };
     render(<TaskDrawer task={{ ...t1, status: 'failed' }} effective="failed" now={NOW} delivery={decided} />);
-    expect(screen.getByText(/这一版已退回/)).toBeTruthy();
+    expect(screen.getByText(/当前版本已驳回/)).toBeTruthy();
     expect(continueBox()).not.toBeNull();
   });
 
@@ -732,7 +732,7 @@ describe('tasks: 看那次任务 opens that job where it is', () => {
   it("a schedule whose last job is still running shows that job's detail on 进行中", async () => {
     const { bridge } = install((m, p) => (m === 'GET' && p === '/schedules' ? listed({ ...SCHED, last_job_id: hexOf(T3) }) : null));
     mountPage(bridge, `&tab=sched&sel=${SCHED.schedule_id}`);
-    fireEvent.click(await screen.findByRole('button', { name: '看那次任务' }));
+    fireEvent.click(await screen.findByRole('button', { name: '查看该次任务' }));
     expect(await screen.findByRole('heading', { name: '汇总 10 月开销表' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: /进行中/ }).getAttribute('aria-selected')).toBe('true');
     await waitFor(() => expect(document.querySelector(`[data-row="${T3}"]`)?.getAttribute('aria-selected')).toBe('true'));
@@ -741,7 +741,7 @@ describe('tasks: 看那次任务 opens that job where it is', () => {
   it('a selection that is not among the rows says so instead of showing the first row', async () => {
     const { bridge } = install();
     mountPage(bridge, `&tab=done&sel=${T3}`);
-    expect(await screen.findByText('不在这个列表里')).toBeTruthy();
+    expect(await screen.findByText('未在当前列表中找到该项')).toBeTruthy();
     expect(document.querySelector('[data-row][aria-selected="true"]')).toBeNull();
   });
 
@@ -754,7 +754,7 @@ describe('tasks: 看那次任务 opens that job where it is', () => {
     const { bridge } = install((m, p) => (m === 'GET' && p.startsWith('/agent/tasks?') ? { status: 200, body: { tasks: [...WIRE_TASK_ROWS, ...old], next_cursor: null } } : null));
     mountPage(bridge, `&tab=done&sel=${old[24]!.canonical_task_id}`);
     expect(await screen.findByRole('heading', { name: '旧任务 25' })).toBeTruthy();
-    expect(screen.queryByText('不在这个列表里')).toBeNull();
+    expect(screen.queryByText('未在当前列表中找到该项')).toBeNull();
   });
 });
 
@@ -764,7 +764,7 @@ describe('tasks: a pending read that half failed', () => {
   it('says so on 进行中 instead of listing no approvals', async () => {
     const { bridge } = install((m, p) => (m === 'GET' && p === '/approvals' ? { status: 503, body: null, error: { code: 'unavailable' } } : null));
     mountPage(bridge, '');
-    expect(await screen.findByText('待处理没读全')).toBeTruthy();
+    expect(await screen.findByText('待处理任务未能完整读取')).toBeTruthy();
   });
 
   it('a part whose plug-in is off is not a failure', async () => {
@@ -772,7 +772,7 @@ describe('tasks: a pending read that half failed', () => {
     mountPage(bridge, '');
     expect(await screen.findByRole('tab', { name: /进行中/ })).toBeTruthy();
     await waitFor(() => expect(document.querySelector('[data-row]')).not.toBeNull());
-    expect(screen.queryByText('待处理没读全')).toBeNull();
+    expect(screen.queryByText('待处理任务未能完整读取')).toBeNull();
   });
 });
 
@@ -783,11 +783,11 @@ describe('tasks: an accepted proposal that was paused', () => {
     const paused: WireSchedule = { ...SCHED, created_from: 'agent_proposal', enabled: false, accepted_at: NOW_S - 3600, last_error: null, scope_id: null };
     const { bridge } = install((m, p) => (m === 'GET' && p === '/schedules' ? listed(paused) : null));
     mountPage(bridge, `&tab=sched&sel=${SCHED.schedule_id}`);
-    const group = await screen.findByRole('listbox', { name: '暂停' });
-    expect(within(group).getByRole('option', { name: `${SCHED.title}，暂停` })).toBeTruthy();
-    expect(screen.queryByRole('listbox', { name: '角色提议的' })).toBeNull();
+    const group = await screen.findByRole('listbox', { name: '已暂停' });
+    expect(within(group).getByRole('option', { name: `${SCHED.title}，已暂停` })).toBeTruthy();
+    expect(screen.queryByRole('listbox', { name: '角色建议' })).toBeNull();
     expect(screen.getByRole('switch', { name: `启用「${SCHED.title}」` })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '不要' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '忽略' })).toBeNull();
   });
 });
 
@@ -797,10 +797,10 @@ describe('tasks: a coding session made from the editor', () => {
     vi.spyOn(bridge.files, 'pickFolder').mockResolvedValue({ handle: 'h-1', displayName: 'agent' } as never);
     mountPage(bridge, '&create=code');
     const form = await screen.findByRole('form', { name: '派发任务' });
-    fireEvent.change(within(form).getByLabelText('要求'), { target: { value: '补测试' } });
+    fireEvent.change(within(form).getByLabelText('任务要求'), { target: { value: '补测试' } });
     fireEvent.click(within(form).getByRole('button', { name: '选择…' }));
     await waitFor(() => expect((within(form).getByLabelText('目录') as HTMLInputElement).value).toBe('agent'));
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: '派出去' })));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '立即派发' })));
   };
 
   it('gets its own row in 进行中, selected', async () => {
@@ -832,7 +832,7 @@ describe('tasks: a coding session made from the editor', () => {
   it('a plugin_off refusal says the switch is off', async () => {
     const { bridge } = install((m, p) => (m === 'POST' && p === '/sessions' ? { status: 409, body: { error: 'plugin_off', plugin: 'coding_sessions' }, error: { code: 'plugin_off' } } : null));
     await send(bridge);
-    expect(await screen.findByText('交派失败：设置里关着「编码会话」')).toBeTruthy();
+    expect(await screen.findByText('派发失败：已在设置中关闭「编码会话」')).toBeTruthy();
   });
 });
 

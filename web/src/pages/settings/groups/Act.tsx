@@ -13,12 +13,12 @@ import { SetSection } from '../SetSection';
 import styles from '../groups.module.css';
 
 const STATE: Record<PermRow['state'], [VisualStateKey, string]> = {
-  granted: ['ok', '已允许'],
-  denied: ['broken', '没允许'],
-  notDetermined: ['waiting', '还没问过'],
-  unsupported: ['stopped', '这个平台没有'],
+  granted: ['ok', '已授予'],
+  denied: ['broken', '未授予'],
+  notDetermined: ['waiting', '尚未请求系统授权'],
+  unsupported: ['stopped', '当前平台不支持'],
   loading: ['idle', '读取中'],
-  unread: ['idle', '未读到'],
+  unread: ['idle', '未读取'],
 };
 
 /** Kinds whose system prompt only shows on request; 去系统设置 stays beside 允许, since a request can come back unanswered or be ignored after a refusal. */
@@ -34,8 +34,8 @@ export function ActGroup() {
         <SetRow
           id="k_ask"
           title={labelOf('k_ask')}
-          desc={model.value('k_ask') === false ? '关掉后角色不再用提问卡问你' : '缺你才知道的信息时，角色出一张提问卡问你'}
-          info="只管角色的提问卡。关掉时没做完的后台任务会取消。工具和编码会话的审批卡不受这里影响，照常弹出；已授权文件夹里的文件操作按授权范围执行。"
+          desc={model.value('k_ask') === false ? '关闭后，角色将不再弹出提问卡片' : '当缺少关键信息时，角色可弹出提问卡片向您确认'}
+          info="仅控制角色的提问卡片；关闭时将取消未完成的后台提问任务。工具审批与编码会话审批卡片不受此开关影响，已授权工作区内的文件操作按授权范围正常执行。"
           control={c.toggle('k_ask', labelOf('k_ask'))}
         />
       </SetSection>
@@ -50,11 +50,11 @@ export function ActGroup() {
           <SetRow
             id="motionJump"
             title="动作服务"
-            desc="地址和令牌在「服务 › 动作服务」里"
+            desc="服务地址与令牌配置位于「设置 › 服务 › 动作服务」"
             indent
             control={
               <Btn go onClick={() => goRow('motionToken', 'services')}>
-                去服务
+                前往配置
               </Btn>
             }
           />
@@ -80,27 +80,27 @@ function PermSection({ open: linked }: { open: boolean }) {
   const openSettings = async (p: PermRow) => {
     try {
       await bridge.permissions.openSettings(p.kind);
-      model.notify({ message: `已打开系统设置 › ${p.label} │ 允许 Agentic Complex 后回来点「重新检测」`, persistent: true });
+      model.notify({ message: `已打开系统设置 › ${p.label} │ 完成授权后请返回点击「重新检测」`, persistent: true });
     } catch {
-      model.notify({ message: `没能打开系统设置。请手动检查「${p.label}」。`, severity: 'danger', persistent: true });
+      model.notify({ message: `未能打开系统设置，请手动前往系统隐私设置检查「${p.label}」。`, severity: 'danger', persistent: true });
     }
   };
   const recheck = async (p: PermRow) => {
     const s = await recheckPerms(p.kind);
-    if (s === 'granted') model.notify({ message: `${p.label}：已允许，${p.features.join('、')} 可以用了`, severity: 'success' });
-    else model.notify({ message: `${p.label}：${s ? `仍${STATE[s][1]}` : '没读到权限状态'}`, severity: 'warning', persistent: true });
+    if (s === 'granted') model.notify({ message: `${p.label}：已授予，${p.features.join('、')} 现已可用`, severity: 'success' });
+    else model.notify({ message: `${p.label}：${s ? `当前状态为${STATE[s][1]}` : '未能读取权限状态'}`, severity: 'warning', persistent: true });
   };
   const ask = async (p: PermRow) => {
     let s;
     try {
       s = await bridge.permissions.request(p.kind);
     } catch {
-      return model.notify({ message: `${p.label}：这个外壳还不能弹出系统询问，请去系统设置里打开`, severity: 'warning', persistent: true });
+      return model.notify({ message: `${p.label}：当前环境无法直接拉起系统授权弹窗，请前往系统设置手动开启`, severity: 'warning', persistent: true });
     }
     await recheckPerms(p.kind);
-    if (s === 'granted') model.notify({ message: `${p.label}：已允许，${p.features.join('、')} 可以用了`, severity: 'success' });
+    if (s === 'granted') model.notify({ message: `${p.label}：已授予，${p.features.join('、')} 现已可用`, severity: 'success' });
     // Terminal answers only while it runs, and the system lists it under the app only after that.
-    else if (s === 'notDetermined' && p.kind === 'automation') model.notify({ message: '读不到「终端」的授权。请先打开「终端」，再点「允许」。', severity: 'warning', persistent: true });
+    else if (s === 'notDetermined' && p.kind === 'automation') model.notify({ message: '未检测到「终端」自动化授权。请先启动「终端」，然后重新点击「请求授权」。', severity: 'warning', persistent: true });
     // No prompt came up, or it was refused: the switch is in system settings.
     else await openSettings(p);
   };
@@ -108,19 +108,19 @@ function PermSection({ open: linked }: { open: boolean }) {
   const summary = reading ? (
     <StatusLamp size="sm" state="idle" label="读取中" />
   ) : unread ? (
-    <StatusLamp size="sm" state="idle" label="未读到" />
+    <StatusLamp size="sm" state="idle" label="未读取" />
   ) : missing.length ? (
-    <StatusLamp size="sm" state="waiting" label={`${known.length - missing.length} 项已允许 │ ${missing.length} 项没开`} />
+    <StatusLamp size="sm" state="waiting" label={`${known.length - missing.length} 项已授予 │ ${missing.length} 项未授权`} />
   ) : (
-    <StatusLamp size="sm" state="ok" label="全部已允许" />
+    <StatusLamp size="sm" state="ok" label="全部已授予" />
   );
 
   return (
-    <SetSection title="系统权限" right={bridge.platform === 'windows' ? '只列系统真有的项' : undefined}>
+    <SetSection title="系统权限" right={bridge.platform === 'windows' ? '仅显示当前平台适用项' : undefined}>
       <SetRow
         id="perms"
         title={labelOf('perms')}
-        desc={missing.length ? `没开的会让这些功能不可用：${missing.flatMap((p) => p.features).join('、')}` : '各项能力要的系统权限'}
+        desc={missing.length ? `未授予以下权限将导致对应功能不可用：${missing.flatMap((p) => p.features).join('、')}` : '各项能力所需的系统权限'}
         descTone={missing.length ? 'attention' : undefined}
         control={summary}
       />
@@ -130,7 +130,7 @@ function PermSection({ open: linked }: { open: boolean }) {
             const ok = p.state === 'granted';
             const isKnown = p.state !== 'loading' && p.state !== 'unread';
             const askable = p.state === 'notDetermined' && ASKABLE.has(p.kind);
-            const [tone, text] = p.kind === 'automation' && p.state === 'notDetermined' ? (['waiting', '未确认'] as const) : STATE[p.state];
+            const [tone, text] = p.kind === 'automation' && p.state === 'notDetermined' ? (['waiting', '尚未确认'] as const) : STATE[p.state];
             return (
               <SetRow
                 key={p.kind}
@@ -141,10 +141,10 @@ function PermSection({ open: linked }: { open: boolean }) {
                 control={
                   <>
                     <StatusLamp size="sm" state={tone} label={text} />
-                    {askable && <Btn onClick={() => void ask(p)}>允许</Btn>}
+                    {askable && <Btn onClick={() => void ask(p)}>请求授权</Btn>}
                     {isKnown && !ok && p.state !== 'unsupported' && (
-                      <Btn go disabled={!caps.systemSettings} disabledReason="这个平台不能从这里打开系统设置，请手动打开系统的隐私设置" onClick={() => void openSettings(p)}>
-                        去系统设置
+                      <Btn go disabled={!caps.systemSettings} disabledReason="当前平台不支持直接跳转，请手动打开系统隐私与安全设置" onClick={() => void openSettings(p)}>
+                        打开系统设置
                       </Btn>
                     )}
                     {!ok && p.state !== 'loading' && p.state !== 'unsupported' && <Btn onClick={() => void recheck(p)}>重新检测</Btn>}

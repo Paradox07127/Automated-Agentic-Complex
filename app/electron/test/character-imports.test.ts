@@ -219,13 +219,13 @@ test('character.importMotion: busy while switching or holding, internal without 
   }
   const bare = fixture({ catalog: false });
   try {
-    assert.deepEqual(await bare.call('character.importMotion'), { ok: false, reason: 'internal', detail: '没有配置角色目录' });
+    assert.deepEqual(await bare.call('character.importMotion'), { ok: false, reason: 'internal', detail: '未配置角色库目录' });
   } finally {
     bare.done();
   }
   const unlinked = fixture({ link: false });
   try {
-    assert.deepEqual(await unlinked.call('character.importMotion'), { ok: false, reason: 'internal', detail: '角色还没连上（配置出错）' });
+    assert.deepEqual(await unlinked.call('character.importMotion'), { ok: false, reason: 'internal', detail: '角色渲染进程未连接（配置异常）' });
   } finally {
     unlinked.done();
   }
@@ -292,7 +292,7 @@ test('mmd.scan asks for files or a folder without holding the switch, scans into
     assert.deepEqual((reply.scan.bodies as unknown[])[0], { path: join(unpack, 'a[f-19].vmd'), name: 'a[f-19].vmd', label: 'SampleDancerA',
       model: 'サンプルモデルA', durationS: 223.33, placeFrame: -19, hasMorph: true });
     assert.deepEqual(f.calls, ['pick held=false', 'tool held=false']);
-    assert.deepEqual(f.asked, [{ title: '导入 MMD', message: '选择 MMD 工程的文件夹、ZIP，或 VMD 和音频文件；可多选',
+    assert.deepEqual(f.asked, [{ title: '导入 MMD 舞蹈', message: '选择 MMD 工程文件夹、ZIP 压缩包，或 VMD 与音频文件；支持多选',
       extensions: ['vmd', 'zip', 'wav', 'mp3', 'm4a', 'aac', 'flac', 'aif', 'aiff'], folder: false }]);
     f.picks = [[pack]];
     await f.call('mmd.scan', { folder: true });
@@ -432,7 +432,7 @@ test('mmd.pickScanAudio adds music from outside the scan once, and mmd.importSca
     const audio = [...scan.audio, { path: song, name: 'off vocal.wav' }];
     const picked = await f.call('mmd.pickScanAudio', token) as { ok: true; scan: { audio: unknown[] }; audio: number };
     assert.deepEqual([picked.ok, picked.scan.audio, picked.audio], [true, audio, 1]);
-    assert.deepEqual(f.asked.at(-1), { title: '选择音源', message: '和这支舞一起播放的音频', extensions: ['wav', 'mp3', 'm4a', 'aac', 'flac', 'aif', 'aiff'],
+    assert.deepEqual(f.asked.at(-1), { title: '选择配套音频', message: '选择与该舞蹈同步播放的音频文件', extensions: ['wav', 'mp3', 'm4a', 'aac', 'flac', 'aif', 'aiff'],
       multiple: false });
     const again = await f.call('mmd.pickScanAudio', token) as { scan: { audio: unknown[] }; audio: number };
     assert.deepEqual([again.scan.audio, again.audio], [audio, 1]);
@@ -470,7 +470,7 @@ test('mmd.setMedia picks the music while holding the switch, runs mmd-media with
     f.picks = [[song]];
     const changed = { ok: true, action: { id: 'mmd_1', title: 'サンプル', durationS: 223.3, hasBgm: true, format: 'vmd', warnings: [] } };
     assert.deepEqual(await f.call('mmd.setMedia', 'mmd_1', { bgm: 'pick', bgmStartS: -0.633 }), changed);
-    assert.deepEqual(f.asked, [{ title: '选择音源', message: '和这支舞一起播放的音频',
+    assert.deepEqual(f.asked, [{ title: '选择配套音频', message: '选择与该舞蹈同步播放的音频文件',
       extensions: ['wav', 'mp3', 'm4a', 'aac', 'flac', 'aif', 'aiff'], multiple: false }]);
     assert.deepEqual(f.calls, ['pick held=true', 'tool held=true', 'restartAvatar held=true']);
     assert.deepEqual(await f.call('mmd.setMedia', 'mmd_1', { bgm: 'none', bgmStartS: null }), changed);
@@ -527,7 +527,7 @@ test('character.importOutfit asks for the mod folder while holding the switch, r
     assert.deepEqual(f.tools, [['outfit_tool.py', 'import', '--library', LIBRARY(f), '--character', 'si', '--source', mod,
       '--validate-with', 'host-bin']]);
     assert.deepEqual(f.calls, ['pick held=true', 'tool held=true', 'restartAvatar held=true']);
-    assert.equal(f.asked[0]!.title, '导入外观（EFMI mod）');
+    assert.equal(f.asked[0]!.title, '导入外观模组');
     assert.equal(f.switcher.held, false);
   } finally {
     f.done();
@@ -556,7 +556,7 @@ test('character.importOutfit rejects with cancelled, outfit_tool\'s reason after
   }
   const bare = fixture({ catalog: false });
   try {
-    assert.deepEqual(await bare.call('character.importOutfit'), err('internal', '没有配置角色目录'));
+    assert.deepEqual(await bare.call('character.importOutfit'), err('internal', '未配置角色库目录'));
   } finally {
     bare.done();
   }
@@ -595,7 +595,7 @@ test('character.removeOutfit: bad_args for a bad id, outfit_tool\'s reason, busy
   }
   const bare = fixture({ catalog: false });
   try {
-    assert.deepEqual(await bare.call('character.removeOutfit', 'si', 'mod_1'), err('internal', '没有配置角色目录'));
+    assert.deepEqual(await bare.call('character.removeOutfit', 'si', 'mod_1'), err('internal', '未配置角色库目录'));
   } finally {
     bare.done();
   }
@@ -750,7 +750,7 @@ test('while the shared MMD library bakes, the motion imports, mmd.importScan, se
     const running = { running: true, character: 'si', total: 0, done: 0, failed: 0, stage: null, fraction: 0 };
     assert.deepEqual(await f.call('mmd.syncState'), running);
     assert.deepEqual(f.synced, [running]);
-    const SYNCING = { ok: false, reason: 'busy', detail: '正在给角色烘共享库里的 MMD 动作' };
+    const SYNCING = { ok: false, reason: 'busy', detail: '正在为角色转换共享库中的 MMD 动作' };
     f.picks = [[join(f.dir, 'dance.vmd')]];
     assert.deepEqual(await f.call('character.importMotion'), SYNCING);
     assert.deepEqual(await f.call('mmd.importScan', { ...PLAN, token: 'x' }), { ...SYNCING, actions: [] });

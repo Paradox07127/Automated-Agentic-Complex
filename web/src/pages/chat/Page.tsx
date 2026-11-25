@@ -346,7 +346,7 @@ export function ChatPage() {
         {convs.data && state !== 'empty' && <ChatReadBanner errors={[convs.error, turns.query.error, tasksQ.error]} disconnected={convs.data.offline} readAt={convs.dataUpdatedAt} onRetry={retryLoad} />}
         {empty ? (
           <ChatEmpty still={still}>
-            <Empty icon="send" title="还没有对话" action={<Btn variant="primary" icon="plus" tail="plus" onClick={() => void actions.newConversation()}>新建对话</Btn>} />
+            <Empty icon="send" title="尚无对话" action={<Btn variant="primary" icon="plus" tail="plus" onClick={() => void actions.newConversation()}>新建对话</Btn>} />
           </ChatEmpty>
         ) : (
           <div className={styles.msgs} ref={scroller} data-g="messages">

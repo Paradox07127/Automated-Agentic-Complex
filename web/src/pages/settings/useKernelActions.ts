@@ -5,9 +5,9 @@ import { useSettings } from './ctx';
 import { RUNTIME_ERROR, RUNTIME_ERROR_UNKNOWN } from './fields';
 import { runInTerminal } from './terminal';
 
-const STEP = ['已安装', '版本可用', '已登录'];
+const STEP = ['已安装', '入口可用', '已登录'];
 /** What a re-check that stops at that node still lacks. */
-const STILL = ['仍没找到可执行文件', '版本仍不可用', '仍未登录'];
+const STILL = ['仍未找到可执行文件', '入口仍不可用', '仍未登录'];
 
 /** Kernel actions shared by the current-kernel card and the picker cards. */
 export function useKernelActions() {
@@ -19,8 +19,8 @@ export function useKernelActions() {
       void runInTerminal(bridge, cmd).then((how) =>
         model.notify(
           how === 'ran'
-            ? { message: `已在终端运行：${cmd} │ 登录后点「重新检测」` }
-            : { message: `已复制「${cmd}」 │ 这个外壳还不能直接打开终端，粘贴到终端运行后点「重新检测」`, persistent: true },
+            ? { message: `已在终端运行：${cmd} │ 登录后请点击「重新检测」` }
+            : { message: `已复制「${cmd}」 │ 当前环境无法直接拉起终端，请粘贴至终端运行后点击「重新检测」`, persistent: true },
         ),
       ),
     /** Applies at once through PUT /character/runtime, like 改用 on the desktop kernel card; not a draft. */

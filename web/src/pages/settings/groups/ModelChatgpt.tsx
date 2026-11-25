@@ -35,14 +35,14 @@ export function ChatgptRow() {
     <SetRow
       id="chatgpt"
       title="ChatGPT 账号"
-      desc={gpt?.pending ? '在浏览器里完成登录后回来' : active ? `正在用 ${name(active)}` : profiles.length ? '选一个账号使用' : '还没有连接'}
+      desc={gpt?.pending ? '请在浏览器中完成登录后返回' : active ? `当前使用：${name(active)}` : profiles.length ? '请选择一个已连接账号' : '尚未连接'}
       control={
         gpt?.pending ? (
-          <Btn disabled={ro} onClick={() => act(chatgptCancel, '已取消登录', '没能取消')}>
+          <Btn disabled={ro} onClick={() => act(chatgptCancel, '已取消登录', '未能取消登录')}>
             取消登录
           </Btn>
         ) : (
-          <Btn disabled={ro} onClick={() => act(() => chatgptStart(), '已在浏览器打开 ChatGPT 登录', '没能开始登录')}>
+          <Btn disabled={ro} onClick={() => act(() => chatgptStart(), '已在浏览器中打开 ChatGPT 登录页面', '未能发起登录')}>
             {profiles.length ? '添加账号' : '连接 ChatGPT'}
           </Btn>
         )
@@ -58,17 +58,17 @@ export function ChatgptRow() {
                 {p.email && <span className={styles.t3}>{p.email}</span>}
                 {stateOf(p, on)}
                 {!on && p.connected && (
-                  <Btn disabled={busy} onClick={() => act(() => chatgptSelect(p.id), `已改用 ${name(p)}`, '没能切换账号')}>
+                  <Btn disabled={busy} onClick={() => act(() => chatgptSelect(p.id), `已切换至 ${name(p)}`, '未能切换账号')}>
                     使用
                   </Btn>
                 )}
                 {!p.connected && (
-                  <Btn disabled={busy} onClick={() => act(() => chatgptStart(p.id), '已在浏览器打开 ChatGPT 登录', '没能开始登录')}>
+                  <Btn disabled={busy} onClick={() => act(() => chatgptStart(p.id), '已在浏览器中打开 ChatGPT 登录页面', '未能发起登录')}>
                     重新连接
                   </Btn>
                 )}
                 {p.connected && (
-                  <Btn disabled={ro} onClick={() => act(() => chatgptLogout(p.id), `已退出 ${name(p)}`, '没能退出')}>
+                  <Btn disabled={ro} onClick={() => act(() => chatgptLogout(p.id), `已退出 ${name(p)}`, '未能退出登录')}>
                     退出
                   </Btn>
                 )}

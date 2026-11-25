@@ -118,7 +118,7 @@ describe('error codes in banners and toasts', () => {
   });
   it('chat load errors name no code', () => {
     const e = loadError(new AgentdCallError(400, 'invalid_query', undefined, null, 'invalid_query'), 'connected', '读取对话失败');
-    expect(e.message).toBe('读取对话失败：后台不接受这次查询');
+    expect(e.message).toBe('读取对话失败：查询参数无效，未被后台服务接受');
     const u = loadError(new AgentdCallError(500, 'mystery', undefined, null, 'mystery'), 'connected', '读取对话失败');
     expect(u.message).not.toContain('mystery');
     expect(u.code).toBe('mystery');
@@ -127,7 +127,7 @@ describe('error codes in banners and toasts', () => {
     const text = failMessage(new AgentdCallError(500, 'mystery_code', undefined, null, 'mystery_code'));
     expect(text).not.toContain('mystery_code');
     expect(text).toMatch(/[一-鿿]/);
-    expect(failMessage(new AgentdCallError(503, 'character_runtime_unavailable', undefined, null, ''))).toBe('角色内核没有启动');
+    expect(failMessage(new AgentdCallError(503, 'character_runtime_unavailable', undefined, null, ''))).toBe('执行内核尚未启动');
   });
 });
 
@@ -258,8 +258,8 @@ describe('chat composer look / no_memory', () => {
     render(<Composer {...props({ onSend })} />);
     fireEvent.change(screen.getByLabelText('消息'), { target: { value: '帮我看一下这个报错' } });
     fireEvent.click(screen.getByRole('button', { name: '附加' }));
-    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '让角色看一眼屏幕' }));
-    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '这句不记' }));
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '附带当前屏幕识读' }));
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '此轮不记录' }));
     fireEvent.click(screen.getByRole('button', { name: /发送/ }));
     expect(onSend).toHaveBeenLastCalledWith('帮我看一下这个报错', { look: true, no_memory: true });
   });

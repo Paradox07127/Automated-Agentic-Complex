@@ -199,16 +199,16 @@ function SettingsBody() {
   }, [group, goGroup]);
 
   const marks: Partial<Record<GroupId, string>> = {};
-  if (data.view.voice?.state === 'unreachable') marks.speak = '语音服务未接入';
+  if (data.view.voice?.state === 'unreachable') marks.speak = '语音服务未连接';
   const missing = perms.filter((p) => p.state === 'denied' || p.state === 'notDetermined');
-  if (missing.length) marks.perm = `${missing.map((p) => p.label).join('、')}没开`;
-  if (runtime && !runtime.ready) marks.kernel = '内核没就绪';
+  if (missing.length) marks.perm = `${missing.map((p) => p.label).join('、')}未授予`;
+  if (runtime && !runtime.ready) marks.kernel = '执行内核未就绪';
   const drafts = [...new Set(Object.keys(model.draft).map((k) => SECTION_GROUP[DRAFT_SECTION[k] ?? ''] ?? null))].filter((g): g is GroupId => g != null);
 
   const ctx: SettingsCtxValue = {
     model,
     ro,
-    roReason: nativeRo ? NATIVE_RO : '后台服务未接入，这一组暂时只读',
+    roReason: nativeRo ? NATIVE_RO : '后台服务未连接，该分组暂为只读',
     agentdOff,
     hl,
     demo,
@@ -248,7 +248,7 @@ function SettingsBody() {
   const openConfig = () =>
     void bridge.app.action('open_config').then(
       () => model.notify({ message: '已打开配置文件' }),
-      () => model.notify({ message: '这个外壳还不能打开配置文件', severity: 'warning' }),
+      () => model.notify({ message: '当前客户端环境暂不支持直接打开配置文件', severity: 'warning' }),
     );
 
   // Only the groups holding config.json rows wait for it; a failed read leaves them read-only under the error bar.
@@ -266,8 +266,8 @@ function SettingsBody() {
         state="unlinked"
         mode="block"
         title="后台服务"
-        reason="后台已断开，AI 这一组暂时只读"
-        action={{ label: '重启后台', onClick: () => void model.restartBackend() }}
+        reason="后台服务已断开，执行内核相关配置暂为只读"
+        action={{ label: '重启后台服务', onClick: () => void model.restartBackend() }}
       >
         <Group />
       </PowerState>

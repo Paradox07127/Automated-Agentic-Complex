@@ -39,7 +39,7 @@ function hashQuery(): URLSearchParams {
 describe('设置 › 显示', () => {
   it('sends each display section to its 角色 › 设定 tab and row', async () => {
     await mount('&group=display');
-    const sec = await screen.findByRole('region', { name: '角色设定' });
+    const sec = await screen.findByRole('region', { name: '角色画面与性能' });
     expect([...sec.querySelectorAll('[data-row]')].map((r) => r.querySelector('[id$="-title"]')?.textContent)).toEqual(['画面', '镜头', '性能', '场景']);
     for (const [id, tab, at] of [
       ['disp_render', 'render', 'rnd.lightYaw'],
@@ -55,11 +55,11 @@ describe('设置 › 显示', () => {
 
   it('holds the recording and switch-title switches, which 交流 no longer has', async () => {
     await mount('&group=display');
-    expect(await screen.findByRole('switch', { name: '录屏和共享屏幕时隐藏角色' })).toBeTruthy();
-    expect(screen.getByRole('switch', { name: '切换角色时的雷霆大字' })).toBeTruthy();
+    expect(await screen.findByRole('switch', { name: '屏幕录制或共享时隐藏' })).toBeTruthy();
+    expect(screen.getByRole('switch', { name: '切换角色时显示标题动画' })).toBeTruthy();
     cleanup();
     await mount('&group=speak');
-    await screen.findByRole('region', { name: '通知方式' });
+    await screen.findByRole('region', { name: '通知送达' });
     expect(row('capHide')).toBeNull();
     expect(row('switchTitle')).toBeNull();
   });

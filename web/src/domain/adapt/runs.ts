@@ -19,11 +19,11 @@ export function fromRun(w: WireRun): Run {
 
 /** Error codes a run ends with (runtime.py) that the user can act on. */
 const RUN_ERROR: Readonly<Record<string, { reason: string; fix?: string }>> = {
-  scope_revoked: { reason: '资料授权已撤销', fix: '去权限与授权' },
+  scope_revoked: { reason: '资料访问授权已撤销', fix: '前往设置恢复授权' },
   timeout: { reason: '运行超时' },
   cancelled: { reason: '已取消' },
-  interrupted: { reason: '后台重启时中断' },
-  character_busy: { reason: '角色正忙' },
+  interrupted: { reason: '任务已中断' },
+  character_busy: { reason: '角色正在执行其他任务' },
 };
 
 const record = (v: unknown): Record<string, unknown> | null => (v != null && typeof v === 'object' ? (v as Record<string, unknown>) : null);

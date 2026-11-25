@@ -147,8 +147,8 @@ describe('chat: read-only side answers', () => {
 describe('chat: empty state', () => {
   it('says 还没有对话 once and offers 新建对话, without an input', async () => {
     const thread = await mountChat('&state=empty');
-    expect(within(thread).getByText('还没有对话')).toBeTruthy();
-    expect(screen.getAllByText(/还没有对话|暂无对话/)).toHaveLength(1);
+    expect(within(thread).getByText('尚无对话')).toBeTruthy();
+    expect(screen.getAllByText('尚无对话')).toHaveLength(1);
     expect(screen.queryByRole('region', { name: '全部台词' })).toBeNull();
     expect(within(thread).getByRole('button', { name: /新建对话/ })).toBeTruthy();
     expect(within(thread).queryByRole('textbox', { name: '消息' })).toBeNull();
@@ -167,10 +167,10 @@ describe('chat: kernel not ready', () => {
       },
     ]);
     const thread = await mountChat('&demo=kernel');
-    const title = await within(thread).findByText('角色内核未就绪');
+    const title = await within(thread).findByText('执行内核未就绪');
     const block = title.closest<HTMLElement>('[role="alert"]')!;
     expect(block.textContent).toContain('Codex 未就绪');
-    expect(within(block).getByRole('link', { name: '设置 › 角色内核' }).getAttribute('href')).toBe('#/settings?group=kernel');
+    expect(within(block).getByRole('link', { name: '设置 › 内核' }).getAttribute('href')).toBe('#/settings?group=kernel');
     expect((within(thread).getByRole('textbox', { name: '消息' }) as HTMLTextAreaElement).disabled).toBe(false);
   });
 
@@ -193,7 +193,7 @@ describe('chat: kernel not ready', () => {
     loggedIn = false;
     fireEvent.change(input, { target: { value: '在吗' } });
     fireEvent.click(within(thread).getByRole('button', { name: /发送/ }));
-    const notice = (await within(thread).findByText(/没有可用的模型/)).closest<HTMLElement>('[role="status"]')!;
+    const notice = (await within(thread).findByText(/尚无可用模型|无可用模型/)).closest<HTMLElement>('[role="status"]')!;
     expect(input.disabled).toBe(false);
     loggedIn = true;
     fireEvent.click(within(notice).getByRole('button', { name: '重新检测' }));
@@ -215,13 +215,13 @@ describe('chat: kernel not ready', () => {
       },
     ]);
     const thread = await mountDefault();
-    await within(thread).findByText('角色内核未就绪');
+    await within(thread).findByText('执行内核未就绪');
     loggedIn = true;
     act(() => {
       focusManager.setFocused(false);
       focusManager.setFocused(true);
     });
-    await waitFor(() => expect(within(thread).queryByText('角色内核未就绪')).toBeNull());
+    await waitFor(() => expect(within(thread).queryByText('执行内核未就绪')).toBeNull());
     focusManager.setFocused(undefined);
   });
 
@@ -232,9 +232,9 @@ describe('chat: kernel not ready', () => {
       { method: 'GET', path: '/character/runtime', handler: () => ({ status: 200, body: started ? WIRE_RUNTIME : { ...WIRE_RUNTIME, ready: false } }) },
     ]);
     const thread = await mountDefault();
-    await within(thread).findByText('角色内核未就绪');
+    await within(thread).findByText('执行内核未就绪');
     started = true;
-    await waitFor(() => expect(within(thread).queryByText('角色内核未就绪')).toBeNull(), { timeout: 5000 });
+    await waitFor(() => expect(within(thread).queryByText('执行内核未就绪')).toBeNull(), { timeout: 5000 });
   }, 8000);
 
   const piRuntime = (error: string | null) => ({ ...WIRE_RUNTIME, backend: 'pi' as const, ready: false, error, selected_runtime: null });
@@ -242,17 +242,17 @@ describe('chat: kernel not ready', () => {
   it('Pi without a model connection shows 未接入 over the input with its settings button', async () => {
     bridgeWith([idle, { method: 'GET', path: '/character/runtime', handler: () => ({ status: 200, body: piRuntime('pi_connection_missing') }) }]);
     const thread = await mountDefault();
-    const notice = (await within(thread).findByText(/没有可用的模型/)).closest<HTMLElement>('[role="status"]')!;
+    const notice = (await within(thread).findByText(/尚无可用模型|无可用模型/)).closest<HTMLElement>('[role="status"]')!;
     expect(notice.textContent).toContain('未接入');
-    expect(within(notice).getByRole('button', { name: /前往设置连接/ })).toBeTruthy();
-    expect(within(thread).queryByText('Pi 未就绪')).toBeNull();
+    expect(within(notice).getByRole('button', { name: /前往配置/ })).toBeTruthy();
+    expect(within(thread).queryByText('执行内核未就绪')).toBeNull();
   });
 
   it('Pi not ready for another reason keeps the kernel block, without the no-model notice', async () => {
     bridgeWith([idle, { method: 'GET', path: '/character/runtime', handler: () => ({ status: 200, body: piRuntime(null) }) }]);
     const thread = await mountDefault();
-    expect(await within(thread).findByText('Pi 未就绪')).toBeTruthy();
-    expect(within(thread).queryByText(/没有可用的模型/)).toBeNull();
+    expect(await within(thread).findByText('执行内核未就绪')).toBeTruthy();
+    expect(within(thread).queryByText(/尚无可用模型|无可用模型/)).toBeNull();
   });
 });
 
@@ -286,7 +286,7 @@ describe('chat: deleting a conversation', () => {
     await within(thread).findByText(/超时阈值是 1.5 s/);
     fireEvent.contextMenu(within(screen.getByRole('navigation', { name: '话题' })).getByText('HostLink 断线排查').closest('button')!, { clientX: 40, clientY: 60 });
     fireEvent.click(screen.getByRole('menuitem', { name: /删除/ }));
-    const dlg = screen.getByRole('dialog', { name: '删除「HostLink 断线排查」？' });
+    const dlg = screen.getByRole('dialog', { name: '确认删除「HostLink 断线排查」？' });
     expect(dlg.textContent).not.toContain('//');
   });
 });

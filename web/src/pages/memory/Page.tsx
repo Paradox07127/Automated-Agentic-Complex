@@ -102,7 +102,7 @@ export function MemoryPage() {
   }, [qc]);
 
   const report = (r: WriteResult, done: string, verb: string): boolean => {
-    toast(r.ok ? done : r.conflict ? `没有${verb}：已在别处更新，已重新读取` : `没有${verb}：${r.message}`);
+    toast(r.ok ? done : r.conflict ? `未能${verb}：已在其他位置更新，已重新读取` : `未能${verb}：${r.message}`);
     return r.ok;
   };
   const write = {
@@ -113,23 +113,23 @@ export function MemoryPage() {
       try {
         gone = await readCascade(f);
       } catch (e) {
-        toast(`没有修改：${errorText(e)}`);
+        toast(`未能修改：${errorText(e)}`);
         return false;
       }
       if (gone.length > 0 && !(await new Promise<boolean>((done) => setFixing({ fact: f, gone, done })))) return false;
-      return report(await model.correct(f, text, gone), isCandidate(f) ? `已按修改记住：${text}` : '改好了，下一句起按新的说', '修改');
+      return report(await model.correct(f, text, gone), isCandidate(f) ? `已按修改内容记住：${text}` : '已更新记忆，后续对话将按新内容生效', '修改');
     },
-    reject: async (f: Fact) => report(await model.reject(f), `已划掉：${f.text}`, '划掉'),
+    reject: async (f: Fact) => report(await model.reject(f), `已忽略：${f.text}`, '忽略'),
     forget: async (f: Fact, gone: string[]) => report(await model.forget(f, gone), `已删除：${factText(f)}`, '删除'),
     mark: async (f: Fact, mark: 'locked' | 'quiet', on: boolean) =>
       report(
         await model.mark(f, mark, on),
-        mark === 'locked' ? `${on ? '已锁定' : '已解锁'}：${factText(f)}` : on ? `不再提及：${factText(f)} │ 记忆保留` : `恢复提及：${factText(f)}`,
+        mark === 'locked' ? `${on ? '已锁定' : '已解锁'}：${factText(f)}` : on ? `已设为不再提及：${factText(f)} │ 记忆仍保留` : `已恢复提及：${factText(f)}`,
         mark === 'locked' ? (on ? '锁定' : '解锁') : on ? '设为不再提及' : '恢复提及',
       ),
     add: async (text: string, kind: FactKind) => {
       const r = await model.add(text, kind);
-      toast(!r.ok ? `没有保存：${r.message}` : r.reinforced ? '已有这条记忆，已加强' : '已新增 1 条记忆 │ 来源「用户陈述」');
+      toast(!r.ok ? `未能保存：${r.message}` : r.reinforced ? '已存在该条记忆，已强化权重' : '已新增 1 条记忆 │ 来源「用户陈述」');
       return r.ok;
     },
   };
@@ -140,27 +140,27 @@ export function MemoryPage() {
       const r = await put<{ paused: boolean }>('/memory/paused', { paused: !on });
       setPausedDemo(false);
       qc.setQueryData<MemoryView>(factsKey(owner), (d) => d && { ...d, recording: !r.paused });
-      toast(r.paused ? '暂停记忆：不记新的事，已记住的照常用' : '已恢复记忆');
+      toast(r.paused ? '已暂停记录新记忆，既有记忆仍正常使用' : '已恢复记忆记录');
     } catch (e) {
-      toast(`没有切换：${errorText(e)}`);
+      toast(`未能切换状态：${errorText(e)}`);
     }
   };
   const onExport = async () => {
     try {
       const path = owner ? `/memory/export?owner=${encodeURIComponent(owner)}` as const : '/memory/export';
       const saved = await getBridge().files.saveAgentdExport({ path, suggestedName: '记忆.json' });
-      toast(saved ? (who ? `已导出${who}的记忆` : '已导出全部记忆') : '没有导出：保存面板已取消');
+      toast(saved ? (who ? `已导出 ${who} 的记忆` : '已导出全部记忆') : '已取消导出');
     } catch (e) {
       const code = (e as BridgeError | null)?.code;
-      if (code === 'not_implemented' || code === 'op_not_allowed') setExportOff('这个窗口还不能保存文件');
-      toast(code === 'offline' ? '没有导出：后台已断开' : code === 'not_implemented' || code === 'op_not_allowed' ? '没有导出：这个窗口还不能保存文件' : '没有导出：文件没有保存成功');
+      if (code === 'not_implemented' || code === 'op_not_allowed') setExportOff('当前窗口不支持保存文件');
+      toast(code === 'offline' ? '未能导出：后台服务已断开' : code === 'not_implemented' || code === 'op_not_allowed' ? '未能导出：当前窗口不支持保存文件' : '未能导出：文件保存失败');
     }
   };
   const onClear = () => {
     setClearing(false);
     void del<{ facts_deleted: number }>(owner ? `/memory?scope=facts&owner=${encodeURIComponent(owner)}` : '/memory?scope=facts')
-      .then((r) => toast(who ? `已清空${who}的 ${r.facts_deleted} 条记忆` : `已清空 ${r.facts_deleted} 条记忆，称呼和生日保留`))
-      .catch((e: unknown) => toast(`没有清空：${errorText(e)}`))
+      .then((r) => toast(who ? `已清空 ${who} 的 ${r.facts_deleted} 条记忆` : `已清空 ${r.facts_deleted} 条记忆（称呼与生日保留）`))
+      .catch((e: unknown) => toast(`未能清空：${errorText(e)}`))
       .finally(() => void qc.invalidateQueries({ queryKey: ['memory'] }));
   };
 
@@ -181,14 +181,14 @@ export function MemoryPage() {
         label="管理"
         align="right"
         items={[
-          { kind: 'item', label: who ? `导出${who}的记忆` : '导出全部记忆', disabled: !any || exportOff != null, reason: exportOff ?? '还没有可导出的记忆', onSelect: () => void onExport() },
+          { kind: 'item', label: who ? `导出 ${who} 的记忆` : '导出全部记忆', disabled: !any || exportOff != null, reason: exportOff ?? '尚无可导出的记忆', onSelect: () => void onExport() },
           ...(any ? [{ kind: 'sep' as const }, { kind: 'item' as const, label: '清空记忆…', danger: true, onSelect: () => setClearing(true) }] : []),
         ]}
       />
     </>
   );
   const tabs = [
-    { id: 'about', label: '档案', icon: 'file' as const, ...(asks > 0 && view !== 'about' ? { mark: '有待确认' } : {}) },
+    { id: 'about', label: '档案', icon: 'file' as const, ...(asks > 0 && view !== 'about' ? { mark: '有待处理' } : {}) },
     { id: 'projects', label: '项目', icon: 'folder' as const },
     { id: 'activity', label: '回顾', icon: 'history' as const },
     ...(dev ? [{ id: 'pipeline', label: '管线', icon: 'hub' as const }] : []),
@@ -222,7 +222,7 @@ export function MemoryPage() {
   const rec = (
     <span className={styles.rec} role="status" data-off={!recording || undefined}>
       <i aria-hidden="true" />
-      {recording ? '记录中' : '已暂停记忆'}
+      {recording ? '记录中' : '已暂停记录'}
       {lastRun !== undefined && (
         <small data-fold="1">
           {lastRun != null ? (
@@ -230,7 +230,7 @@ export function MemoryPage() {
               上次整理 <span className="num">{hm(lastRun)}</span>
             </>
           ) : (
-            '还没有整理'
+            '尚未整理'
           )}
         </small>
       )}
@@ -246,11 +246,11 @@ export function MemoryPage() {
         action={
           recording ? (
             <Btn size="sm" variant="secondary" onClick={() => void onRecording(false)}>
-              暂停记忆
+              暂停记录
             </Btn>
           ) : (
             <Btn size="sm" variant="secondary" tail="play" onClick={() => void onRecording(true)}>
-              恢复记忆
+              恢复记录
             </Btn>
           )
         }
@@ -259,7 +259,7 @@ export function MemoryPage() {
         <PipelineView />
       ) : view === 'projects' ? (
         !plugins.daily_brief ? (
-          <Off plugin="daily_brief" title="每日简报" reason="隐私设置里关掉了「每日简报」，不整理你的工作项目。">
+          <Off plugin="daily_brief" title="每日简报" reason="已在「设置 › 感知」中关闭「每日简报」，暂不整理工作项目。">
             {projects}
           </Off>
         ) : (
@@ -269,12 +269,12 @@ export function MemoryPage() {
         plugins.screen_awareness ? (
           <Review />
         ) : (
-          <Off plugin="screen_awareness" title="屏幕感知" reason="隐私设置里关掉了「屏幕感知」，不看屏幕，也不整理工作片段。">
+          <Off plugin="screen_awareness" title="屏幕感知" reason="已在「设置 › 感知」中关闭「屏幕感知」，不读取屏幕内容且不整理工作片段。">
             <Review reads={false} />
           </Off>
         )
       ) : offline ? (
-        <Unlinked title="后台服务" reason="后台已断开，记忆读不到也存不进；重启后台后恢复。">
+        <Unlinked title="后台服务" reason="后台服务已断开，无法读取或写入记忆；请重启后台服务后恢复。">
           {archive}
         </Unlinked>
       ) : (

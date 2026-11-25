@@ -71,7 +71,7 @@ export function bundleBuild(contents: string | null, platform: ShellPlatform = '
 
 export function appOps(ctx: OpsContext): Ops {
   const supportDir = () => {
-    if (ctx.config.supportDir === null) throw new BridgeFailure('failed', '没有数据目录（配置出错）');
+    if (ctx.config.supportDir === null) throw new BridgeFailure('failed', '未配置数据目录（配置异常）');
     return ctx.config.supportDir;
   };
   const opened = async (path: string) => {
@@ -83,7 +83,7 @@ export function appOps(ctx: OpsContext): Ops {
     // Without a coordinator both answer not_implemented.
     ...(runtime && { 'app.runtime': () => runtime.snapshot(), 'app.onRuntime': watch('app.onRuntime', runtime.events) }),
     'app.look': async () => {
-      if (!ctx.look) throw new BridgeFailure('offline', '屏幕识读不可用（配置出错）');
+      if (!ctx.look) throw new BridgeFailure('offline', '屏幕识读不可用（配置异常）');
       const r = await ctx.look();
       switch (r.kind) {
         case 'requested': return { requestId: r.requestId };
@@ -98,8 +98,8 @@ export function appOps(ctx: OpsContext): Ops {
         version: ctx.app.version, buildGit: ctx.app.buildGit ?? '', os: ctx.app.os,
         loadAverage: loadavg()[0], cores: availableParallelism(), source: ctx.config.devResources === null ? 'bundle' : 'dev',
         ...devReceipt(ctx.config.devResources),
-        hookInstallSteps: hook === '' ? [] : [{ label: '先看会改什么', command: `${hook} --dry-run`, terminal: true },
-          { label: '确认改动后执行', command: hook, terminal: true }],
+        hookInstallSteps: hook === '' ? [] : [{ label: '预览将修改的项', command: `${hook} --dry-run`, terminal: true },
+          { label: '确认并执行安装', command: hook, terminal: true }],
       };
     },
     'app.action': async ([name]) => {
@@ -107,7 +107,7 @@ export function appOps(ctx: OpsContext): Ops {
       if (!ACTIONS.has(name)) throw new BridgeFailure('not_implemented', name);
       switch (name) {
         case 'restart_backend':
-          if (!ctx.supervisor) throw new BridgeFailure('failed', '没有数据目录（配置出错）');
+          if (!ctx.supervisor) throw new BridgeFailure('failed', '未配置数据目录（配置异常）');
           ctx.supervisor.restart();
           return null;
         case 'reveal_logs':
@@ -152,7 +152,7 @@ export function appOps(ctx: OpsContext): Ops {
       }
     },
     'app.openQuickInput': () => {
-      if (!ctx.openQuickInput) throw new BridgeFailure('failed', '快速输入不可用（配置出错）');
+      if (!ctx.openQuickInput) throw new BridgeFailure('failed', '快速输入不可用（配置异常）');
       ctx.openQuickInput();
       return null;
     },

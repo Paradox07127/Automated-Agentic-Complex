@@ -81,17 +81,17 @@ function ObsBrief({ date }: { date: string }) {
       <Fold
         id="obs"
         variant="head"
-        label="前一天的观察日报"
-        summary={r ? `看到 ${r.observed_details.length} │ 卡住 ${r.recurring_problems.length} │ 建议 ${r.next_steps.length}` : undefined}
+        label="前一日观察日报"
+        summary={r ? `记录 ${r.observed_details.length} │ 问题 ${r.recurring_problems.length} │ 建议 ${r.next_steps.length}` : undefined}
         autoOpen={b.list.isError}
-        right={<Btn size="sm" variant="text" onClick={() => setOpen(true)}>看全文 ›</Btn>}
+        right={<Btn size="sm" variant="text" onClick={() => setOpen(true)}>查看全文 ›</Btn>}
       >
-        <Region q={b.list} what="观察日报" reserve={{ rows: 3 }} isEmpty={() => !r} empty={{ text: '前一天没有观察日报' }}>
+        <Region q={b.list} what="观察日报" reserve={{ rows: 3 }} isEmpty={() => !r} empty={{ text: '前一日无观察日报' }}>
           {() =>
             r && (
               <>
                 <div className={s.yb}>
-                  {([[r.observed_details.length, '看到的事'], [r.recurring_problems.length, '反复卡住的'], [r.next_steps.length, '建议下一步']] as const).map(([n, k]) => (
+                  {([[r.observed_details.length, '观察记录'], [r.recurring_problems.length, '反复问题'], [r.next_steps.length, '建议步骤']] as const).map(([n, k]) => (
                     <div key={k}>
                       <b className="num">{n}</b>
                       <span>{k}</span>
@@ -120,8 +120,8 @@ function ObsBrief({ date }: { date: string }) {
 /** Each error kind's word, and the title of a row without one. */
 const ERR_KIND: Record<WireBriefError['kind'], [string, string]> = {
   task: ['任务', '未命名任务'],
-  run: ['角色运行', '角色运行失败'],
-  turn: ['对话', '一轮对话没有完成'],
+  run: ['角色进程', '角色运行失败'],
+  turn: ['对话', '该轮对话未能完成'],
   session: ['编码会话', '编码会话出错'],
 };
 
@@ -129,8 +129,8 @@ const ERR_KIND: Record<WireBriefError['kind'], [string, string]> = {
  *  诊断 › 对话轮次; a task's row with a trace also opens that trace. A coding session has nowhere to open. */
 export function ErrorSheet({ errors, isToday, go, onClose }: { errors: WireBriefError[] | undefined; isToday: boolean; go: Go; onClose: () => void }) {
   return (
-    <Sheet open title="出错" width={480} onClose={onClose}>
-      <Region q={{ status: errors ? 'success' : 'pending', data: errors && [...errors].sort((a, b) => b.at - a.at) }} what="出错" reserve={{ rows: 3 }} empty={{ text: isToday ? '今天没有出错' : '那天没有出错' }}>
+    <Sheet open title="异常记录" width={480} onClose={onClose}>
+      <Region q={{ status: errors ? 'success' : 'pending', data: errors && [...errors].sort((a, b) => b.at - a.at) }} what="异常记录" reserve={{ rows: 3 }} empty={{ text: isToday ? '今日无异常记录' : '当日无异常记录' }}>
         {(list) => (
           <div className={s.rows}>
             {list.map((e) => {
@@ -170,7 +170,7 @@ export function ErrorSheet({ errors, isToday, go, onClose }: { errors: WireBrief
 
 const KIND: Record<'self' | 'reply' | 'miss', string> = { self: '主动', reply: '回你', miss: '没回' };
 
-const reminderRow = (r: Reminder) => <Row key={r.id} height="compact" title={r.title} sub={r.triggered ? '已提醒' : '还没到'} right={<span className="num">{formatClock(r.due_at)}</span>} />;
+const reminderRow = (r: Reminder) => <Row key={r.id} height="compact" title={r.title} sub={r.triggered ? '已提醒' : '未到时间'} right={<span className="num">{formatClock(r.due_at)}</span>} />;
 
 export function OverviewTab(p: OverviewTabProps) {
   const { day, isToday } = p;
@@ -186,9 +186,9 @@ export function OverviewTab(p: OverviewTabProps) {
   const foldPast = p.reminders.length > 3 && past.length > 0;
   return (
     <div className={s.ov} data-tab="ov">
-      <Panel title="今日一句" right={p.line?.origin === 'local' ? '今天的读数，不是角色写的日报' : undefined}>
+      <Panel title={isToday ? '今日摘要' : '当日摘要'} right={p.line?.origin === 'local' ? `${isToday ? '今日' : '当日'}数据汇总，非角色生成日报` : undefined}>
         <p className={s.line} data-selectable="">
-          {p.line === undefined ? '—' : (p.line?.text ?? '这一天还没有日报')}
+          {p.line === undefined ? '—' : (p.line?.text ?? '当日尚无日报')}
         </p>
       </Panel>
       <ul className={s.band} aria-label="读数">
@@ -203,7 +203,7 @@ export function OverviewTab(p: OverviewTabProps) {
               <span className={`${s.v} num`}>{amount(meta, it.today)}</span>
               <span className={s.k}>
                 <span className={s.kn}>{meta.name}</span>
-                {diff != null && <InfoTip label={`${meta.name}：和近 7 天比`}>{`比近 7 天均值${diff < 0 ? '少' : '多'} ${amountText(meta, Math.abs(diff))}`}</InfoTip>}
+                {diff != null && <InfoTip label={`${meta.name}：与近 7 日均值对比`}>{`较近 7 日均值${diff < 0 ? '少' : '多'} ${amountText(meta, Math.abs(diff))}`}</InfoTip>}
               </span>
             </li>
           );
@@ -217,13 +217,13 @@ export function OverviewTab(p: OverviewTabProps) {
               <Fold
                 id="done"
                 variant="head"
-                label="做完了"
+                label="已完成"
                 count={p.done?.length}
                 rows={p.done?.length}
                 autoOpen={!!p.done?.some((x) => x.failed)}
                 summary={latest && <>最近：{latest.task.title || '未命名任务'} <span className="num">{formatClock(latest.task.updated_at)}</span></>}
               >
-                <Region q={{ status: p.done ? 'success' : 'pending', data: p.done }} what="做完的任务" reserve={{ rows: 3 }} empty={{ text: isToday ? '今天还没有做完的任务' : '那天没有做完的任务' }}>
+                <Region q={{ status: p.done ? 'success' : 'pending', data: p.done }} what="已完成任务" reserve={{ rows: 3 }} empty={{ text: isToday ? '今日尚无已完成任务' : '当日无已完成任务' }}>
                   {(rows) => (
                     <div className={s.rows}>
                       {rows.map(({ task, failed }) => (
@@ -248,13 +248,13 @@ export function OverviewTab(p: OverviewTabProps) {
             <Fold
               id="convs"
               variant="head"
-              label={isToday ? '今天聊了什么' : '那天聊了什么'}
+              label={isToday ? '今日对话' : '当日对话'}
               count={p.convs?.length}
               rows={p.convs?.length}
               autoOpen={p.convs === null}
               summary={lastConv && <>最近：{lastConv.title} <span className="num">{formatClock(lastConv.turns[0]?.t0 ?? lastConv.updated_at)}</span></>}
             >
-              <Region q={{ status: p.convs === undefined ? 'pending' : p.convs ? 'success' : 'error', data: p.convs ?? undefined, error: p.convs === null ? new Error('对话没有读到') : undefined }} what="对话" reserve={{ rows: 3 }} empty={{ text: '没有对话' }}>
+              <Region q={{ status: p.convs === undefined ? 'pending' : p.convs ? 'success' : 'error', data: p.convs ?? undefined, error: p.convs === null ? new Error('未能读取对话记录') : undefined }} what="对话" reserve={{ rows: 3 }} empty={{ text: '无对话记录' }}>
                 {(rows) => (
                   <div className={s.rows}>
                     {rows.map((c) => (
@@ -290,13 +290,13 @@ export function OverviewTab(p: OverviewTabProps) {
                 )}
               </div>
             ) : (
-              <Empty inline title={isToday ? '今天没有提醒' : '那天没有提醒'} />
+              <Empty inline title={isToday ? '今日无提醒事项' : '当日无提醒事项'} />
             )}
           </Panel>
           {sw.read ? (
             <ObsBrief date={day.date} />
           ) : (
-            <Panel title="角色今天说的一句" right={<Btn size="sm" variant="text" onClick={() => p.go('char')}>看角色这一天 ›</Btn>}>
+            <Panel title={isToday ? '角色今日发言' : '角色当日发言'} right={<Btn size="sm" variant="text" onClick={() => p.go('char')}>查看角色动态 ›</Btn>}>
               {her ? (
                 <div className={s.said}>
                   <p data-selectable="">{her.text}</p>
@@ -309,7 +309,7 @@ export function OverviewTab(p: OverviewTabProps) {
                   </footer>
                 </div>
               ) : (
-                <Empty inline title="这一天没有开口" />
+                <Empty inline title={isToday ? '今日尚未发言' : '当日未见发言'} />
               )}
             </Panel>
           )}

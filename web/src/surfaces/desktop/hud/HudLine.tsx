@@ -2,7 +2,7 @@ import type { Act } from '../../stack/actions';
 import type { HudRow, HudStatus } from './rows';
 import styles from './HudLine.module.css';
 
-const GLYPH_LABEL: Record<HudStatus, string> = { waiting: '待处理', error: '出错', running: '运行中', done: '完成', stale: '没有新动静' };
+const GLYPH_LABEL: Record<HudStatus, string> = { waiting: '待处理', error: '出错', running: '进行中', done: '已完成', stale: '无更新' };
 
 /** Mission icons: blue ring running, blue ring with the red-dot diamond waiting, red cross, yellow tick, faint ring stale. */
 export function StatusGlyph({ status }: { status: HudStatus }) {
@@ -46,7 +46,7 @@ export function HudLine({ row, folded, total, act, onHandle }: HudLineProps) {
     : row.session
       ? () => act({ type: 'open-session', sessionId: row.id, title: row.title })
       : row.task
-        ? () => act({ type: 'open', to: { page: 'overview', sel: row.task ?? undefined }, message: `已在主窗口打开：任务 › ${row.title}` })
+        ? () => act({ type: 'open', to: { page: 'overview', sel: row.task ?? undefined }, message: `已在主窗口打开：每日简报 › ${row.title}` })
         : null;
   return (
     <div className={styles.line}>

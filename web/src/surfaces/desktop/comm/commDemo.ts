@@ -17,7 +17,7 @@ const LONG = [
   '还有两件没做完：任务轨的步骤展开，和角色面板的镜头按钮，我记在待处理里了。',
   '要我把这份总结写进周报吗？',
 ].join('');
-const SIDE = '主任务那边还在跑测试。你问的那个文件在 web/src/surfaces 下面，我只读看了一眼，没有改动。';
+const SIDE = '主任务那边正在执行测试。你问的那个文件在 web/src/surfaces 下面，我只读看了一眼，没有改动。';
 
 const line = (id: string, text: string, extra: Line = {}): Line => ({
   line_id: id,
@@ -56,7 +56,7 @@ function script(demo: CommDemo): Line[] {
       return [line('d-err', '我去读一下那个日志'), line('d-err', '', { final: true, error: 'kernel_timeout' })];
     case 'side': {
       const run = { run_id: 'd-run', lane: 'agent' };
-      return [line('d-run', '正在跑完整测试，跑完我把失败的用例列给你。', run), ...streamed('d-side', SIDE, { lane: 'side' })];
+      return [line('d-run', '正在运行完整测试，完成后我将把失败的用例列给你。', run), ...streamed('d-side', SIDE, { lane: 'side' })];
     }
   }
 }

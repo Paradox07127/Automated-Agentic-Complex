@@ -12,13 +12,13 @@ import styles from '../groups.module.css';
 
 /** Rows in schema order; the combos themselves come from settings.read() and the schema defaults. */
 const HOTKEYS: Array<{ id: string; desc?: string }> = [
-  { id: 'hk_ptt', desc: '只有这一项能单用右 ⌥' },
+  { id: 'hk_ptt', desc: '仅此项支持单独使用右 ⌥' },
   { id: 'hk_quick' },
   { id: 'hk_look' },
   { id: 'hk_hide' },
   { id: 'hk_pass' },
   { id: 'hk_wheel' },
-  { id: 'hk_sel', desc: '没选中时读剪贴板；安全输入和不看的窗口不读' },
+  { id: 'hk_sel', desc: '无选中文本时读取剪贴板；安全输入与排除名单窗口不读取' },
 ];
 
 /** ⌃Space also switches the input method on macOS and in Windows' Chinese input methods; the shell cannot tell, so the row says so. */
@@ -58,8 +58,8 @@ export function KeysGroup() {
     } catch (error) {
       const code = (error as BridgeError | null)?.code;
       const message = code === 'invalid_hotkey'
-        ? `${hotkeyText(combo)} 不能用作热键：${hotkeyText('要带 ⌃、⌥ 或 ⌘')}，或者用 F1–F12`
-        : '无法检查快捷键，请确认设置可以读取后重试';
+        ? `${hotkeyText(combo)} 不能用作快捷键：${hotkeyText('须包含 ⌃、⌥ 或 ⌘')}，或使用 F1–F12`
+        : '无法校验快捷键，请确认配置可读后重试';
       model.notify({ message, severity: 'warning', persistent: true });
       return null;
     }
@@ -74,10 +74,10 @@ export function KeysGroup() {
     setRecording(id);
     try {
       const combo = await bridge.settings.recordHotkey(id);
-      if (!combo) return model.notify({ message: `没有录到新的按键，「${label}」保持不变` });
+      if (!combo) return model.notify({ message: `未检测到有效按键，「${label}」保持不变` });
       await use(id, label, combo);
     } catch {
-      model.notify({ message: `无法录制「${label}」的快捷键，请重试`, severity: 'warning', persistent: true });
+      model.notify({ message: `无法录制「${label}」快捷键，请重试`, severity: 'warning', persistent: true });
     } finally {
       setRecording(null);
     }
@@ -91,8 +91,8 @@ export function KeysGroup() {
 
   return (
     <>
-      <SetSection title="全局快捷键" info="在任何应用里按都有效，不用先切到主窗口。轮盘、菜单和提示里显示的热键都取自这里。">
-        {noHotkeys && <p className={styles.note}>这个平台不支持全局热键，只在主窗口内有效</p>}
+      <SetSection title="全局快捷键" info="在任意应用中均可全局触发，无需切回主窗口。轮盘、菜单及悬浮提示中的快捷键均与此处保持一致。">
+        {noHotkeys && <p className={styles.note}>当前平台不支持全局快捷键，仅在主窗口内有效</p>}
         {HOTKEYS.map((h) => {
           const label = labelOf(h.id);
           const saved = model.value(h.id);
@@ -119,7 +119,7 @@ export function KeysGroup() {
                   <Btn
                     loading={recording === h.id}
                     disabled={ro || noHotkeys || (recording !== null && recording !== h.id)}
-                    disabledReason={recording ? '正在录制快捷键' : noHotkeys ? '这个平台不支持全局热键' : '设置当前不可写'}
+                    disabledReason={recording ? '正在录制快捷键' : noHotkeys ? '当前平台不支持全局快捷键' : '设置当前不可写'}
                     onClick={() => void record(h.id, label)}
                   >
                     更改

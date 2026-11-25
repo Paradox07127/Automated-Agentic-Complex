@@ -30,15 +30,15 @@ export interface LiveTailProps extends MessageMenuProps {
 
 /** The one next step a failed reply offers for its code. */
 const NEXT: Readonly<Record<string, { label: string; to: NavTarget }>> = {
-  auth_expired: { label: '去登录', to: { page: 'settings', group: 'kernel', item: 'kcur' } },
-  native_login_required: { label: '去登录', to: { page: 'settings', group: 'kernel', item: 'kcur' } },
+  auth_expired: { label: '前往登录', to: { page: 'settings', group: 'kernel', item: 'kcur' } },
+  native_login_required: { label: '前往登录', to: { page: 'settings', group: 'kernel', item: 'kcur' } },
   quota_exhausted: { label: '查看用量', to: { page: 'diag', tab: 'flow', item: 'usage' } },
 };
 
 /** Why a reply failed: the sentence for its run's or its line's code, else agentd's public_message. */
 function failedOf(r: LiveReply): { reason: string; code: string | null } {
   const code = [r.failure?.code, r.error].find((c) => codeText(c)) ?? null;
-  return { reason: codeText(code) ?? r.failure?.public_message ?? '没有回复', code };
+  return { reason: codeText(code) ?? r.failure?.public_message ?? '未返回回复', code };
 }
 
 /** Typing bubble before her first character: three dots in her bubble; the words stay for screen readers. */
@@ -51,7 +51,7 @@ function Thinking({ roleName, headUrl }: { roleName: string; headUrl: string | u
           <i aria-hidden="true" />
           <i aria-hidden="true" />
           <i aria-hidden="true" />
-          <span className={styles.sr}>在想</span>
+          <span className={styles.sr}>思考中</span>
         </p>
       </div>
     </div>
@@ -97,7 +97,7 @@ export function LiveTail({ replies, roleName, headUrl, roleId: _roleId, frontTit
           </div>
         );
       })}
-      {incomplete && <p className={styles.note}>实时输出有中断，回复结束后显示完整内容</p>}
+      {incomplete && <p className={styles.note}>实时输出曾中断，回复完成后将显示完整内容</p>}
       {runEnd && (
         <p className={styles.endline}>
           <span className={styles.endText}>{runEnd}</span>

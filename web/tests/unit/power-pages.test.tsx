@@ -51,7 +51,7 @@ describe('设置 · 未接入', () => {
     const block = power(row('tts'));
     expect(block?.dataset.state).toBe('unlinked');
     expect(block?.dataset.mode).toBe('block');
-    await click(within(block!).getByRole('button', { name: '前往设置连接' }));
+    await click(within(block!).getByRole('button', { name: '前往配置' }));
     await waitFor(() => expect(row('svc_tts')).not.toBeNull());
   });
 
@@ -65,7 +65,7 @@ describe('设置 · 未接入', () => {
       return b!;
     });
     expect(block.dataset.state).toBe('unlinked');
-    await click(within(block).getByRole('button', { name: '重启后台' }));
+    await click(within(block).getByRole('button', { name: '重启后台服务' }));
     expect(restart).toHaveBeenCalledWith('agentd');
   });
 
@@ -76,7 +76,7 @@ describe('设置 · 未接入', () => {
     const block = power(row('wintext'));
     expect(block?.dataset.state).toBe('unlinked');
     expect(power(row('web'))).toBeNull();
-    await click(within(block!).getByRole('button', { name: '前往设置连接' }));
+    await click(within(block!).getByRole('button', { name: '查看系统权限' }));
     await waitFor(() => expect(row('perms')).not.toBeNull());
   });
 });
@@ -92,8 +92,8 @@ describe('角色 · 未接入', () => {
       return b!;
     });
     expect(block.dataset.state).toBe('unlinked');
-    expect(block.textContent).toContain('角色未运行');
-    await click(within(block).getByRole('button', { name: '重启角色' }));
+    expect(block.textContent).toContain('角色进程未运行');
+    await click(within(block).getByRole('button', { name: '重启角色进程' }));
     expect(restart).toHaveBeenCalledWith('avatar');
   });
 
@@ -101,10 +101,10 @@ describe('角色 · 未接入', () => {
     const bridge = install();
     const restart = vi.spyOn(bridge.supervisor, 'restart');
     await mount('character', CharacterPage, '&demo=offline&tab=render');
-    const set = await screen.findByText('Diff from original');
+    const set = await screen.findByText('Diff from default');
     const block = power(set);
     expect(block?.dataset.mode).toBe('block');
-    await click(within(block!).getByRole('button', { name: '重启角色' }));
+    await click(within(block!).getByRole('button', { name: '重启角色进程' }));
     expect(restart).toHaveBeenCalledWith('avatar');
   });
 
@@ -137,7 +137,7 @@ describe('角色 · 未接入', () => {
       return b!;
     });
     expect(block.dataset.state).toBe('unlinked');
-    await click(within(block).getByRole('button', { name: '重启后台' }));
+    await click(within(block).getByRole('button', { name: '重启后台服务' }));
     expect(restart).toHaveBeenCalledWith('agentd');
   });
 });

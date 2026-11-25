@@ -96,7 +96,7 @@ export function Timeline(p: TimelineProps) {
   return (
     <section className={styles.tl} aria-label="时间线" data-source={desk ? 'desktop' : 'preview'}>
       <div className={styles.ctl}>
-        <button type="button" className={styles.pp} aria-label={paused ? '继续' : '暂停'} title={now ? (paused ? '继续' : '暂停') : '页内预览没有在播这支舞'} disabled={!now} onClick={toggle}>
+        <button type="button" className={styles.pp} aria-label={paused ? '继续' : '暂停'} title={now ? (paused ? '继续' : '暂停') : '当前未在页内预览中播放该舞蹈'} disabled={!now} onClick={toggle}>
           {paused ? <Icon name="play" size={14} /> : <i className={styles.pause} aria-hidden="true" />}
         </button>
         <span className={styles.clock} aria-label="时钟">
@@ -136,7 +136,7 @@ export function Timeline(p: TimelineProps) {
         <Lane row={4} label="镜头" micro="CAM" name="镜头切点">
           {cuts && total > 0 && <Cuts cuts={cuts} total={total} />}
         </Lane>
-        <Lane row={5} label="音源" micro="BGM" name="音源">
+        <Lane row={5} label="音频" micro="BGM" name="音频">
           {lanes?.loudness && <Bars values={lanes.loudness} kind="wave" />}
         </Lane>
         <div

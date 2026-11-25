@@ -30,7 +30,7 @@ export function EventGrid({ cells, groupTitle, sel, onSel }: EventGridProps) {
     onSel(key);
     refs.current.get(key)?.focus();
   };
-  if (cells.length === 0) return <p className={styles.none}>角色包里没有能改的事件池</p>;
+  if (cells.length === 0) return <p className={styles.none}>当前角色包中没有可编辑的事件池</p>;
   return (
     <div className={styles.events} role="radiogroup" aria-label="事件池" onKeyDown={onKey}>
       {groups.map(([id, list]) => (

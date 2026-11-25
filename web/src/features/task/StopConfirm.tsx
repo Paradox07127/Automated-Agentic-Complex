@@ -16,15 +16,15 @@ const ENDED = new Set<Task['status']>(['succeeded', 'accepted', 'rejected', 'fai
 
 /** Why a job cancel answered cancelled:false: jobs.py settles only a queued, running, interrupted or waiting_user job. */
 export function notStopped(t: Task): string {
-  if (t.status === 'needs_review') return '这个任务待验收，不能停止';
-  if (ENDED.has(t.status)) return '这个任务已经结束，不用停止';
-  return '后台没有停下这个任务：它的状态已经变了，刷新后再看';
+  if (t.status === 'needs_review') return '当前任务待复核，无法停止';
+  if (ENDED.has(t.status)) return '该任务已结束，无需停止';
+  return '后台服务未能停止该任务：任务状态已变更，请刷新查看';
 }
 
 const AFTER: Record<StopResume, string> = {
-  all: '已写出的产物保留，之后可以在任务里「继续」。',
-  none: '已写出的产物保留，不能恢复执行。',
-  some: '已写出的产物保留；角色台账任务之后可以「继续」，其他任务不能恢复执行。',
+  all: '已生成的产物会保留，后续可在任务详情中「继续」。',
+  none: '已生成的产物会保留，停止后无法恢复执行。',
+  some: '已生成的产物会保留；角色任务后续可「继续」，其余任务停止后无法恢复执行。',
 };
 
 /** 停止任务确认：全站一个动词、一个确认框；默认焦点在「不停止」；写明产物保留，以及之后能不能「继续」。 */

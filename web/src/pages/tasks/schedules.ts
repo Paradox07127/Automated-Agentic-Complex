@@ -14,11 +14,11 @@ import type { WireScope } from '../settings/wire';
 /** Why a schedule could not run or be saved, for the codes that name a fix. */
 export function scheduleError(code: string | null): string | null {
   switch (code) {
-    case 'scope_expired': return '资料授权已到期，编辑任务重新选资料';
-    case 'scope_revoked': return '资料授权已撤销，编辑任务重新选资料';
-    case 'unknown_scope': return '原资料范围已不可用，编辑任务重新选资料';
-    case 'scope_changed': return '原资料已移动或替换，编辑任务重新选资料';
-    case 'schedule_conversation_unavailable': return '原对话已不可用，编辑任务重新选对话';
+    case 'scope_expired': return '资料授权已过期，请编辑任务重新选择资料范围';
+    case 'scope_revoked': return '资料授权已撤销，请编辑任务重新选择资料范围';
+    case 'unknown_scope': return '原资料范围已不可用，请编辑任务重新选择资料范围';
+    case 'scope_changed': return '原资料已移动或替换，请编辑任务重新选择资料范围';
+    case 'schedule_conversation_unavailable': return '原关联对话已不可用，请编辑任务重新选择对话';
     default: return null;
   }
 }
@@ -26,7 +26,7 @@ export function scheduleError(code: string | null): string | null {
 export function scheduleErrMsg(e: unknown): string {
   if (e instanceof AgentdCallError) return scheduleError(e.code) ?? failureText(e).text;
   if (e instanceof Error && e.message) return e.message;
-  return '操作没有完成，稍后再试';
+  return '操作未完成，请稍后重试';
 }
 
 export function useSchedules(state: DemoState | null, enabled: boolean) {
@@ -104,7 +104,7 @@ export function useScheduleWrites(push: PushToast) {
     sending.current.add(id);
     setRunning(new Set(sending.current));
     try {
-      return await run(() => post(`/schedules/${seg(id)}/run`, {}), `已开始运行「${s.title}」，在「进行中」里看`);
+      return await run(() => post(`/schedules/${seg(id)}/run`, {}), `已启动「${s.title}」，可在「进行中」查看`);
     } finally {
       sending.current.delete(id);
       setRunning(new Set(sending.current));

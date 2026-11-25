@@ -32,7 +32,6 @@ export function TaskSections({ task, now, deliveries = [], steps = [], tools = [
               generation={gen}
               onGeneration={setGen}
               onRetry={() => onAction?.({ kind: 'retry_steps' })}
-              failedPath={`/agent/tasks/${task.id}/steps`}
             />
           </Fold>
         </section>
@@ -46,22 +45,19 @@ export function TaskSections({ task, now, deliveries = [], steps = [], tools = [
       )}
       {task.source === 'role' && !queued && (
         <section className={styles.sec}>
-          <SecHead no="03" title="文件" count={files.length} right={<span className={styles.cap}>读过、写过、改过的文件</span>} />
+          <SecHead no="03" title="文件" count={files.length} right={<span className={styles.cap}>读取、写入或修改过的文件</span>} />
           <FileImpact files={files} status={stepsStatus} onOpen={(path) => onAction?.({ kind: 'open_artifact', path })} />
         </section>
       )}
       {codeLive && (
         <section className={styles.sec}>
-          <SecHead no="01" title="记录" right={<span className={styles.cap}>{task.agent} │ 只显示最近几行</span>} />
-          <pre className={styles.log} data-selectable="">
-            {'› 读取 Sources/CompanionCore/HostLink.swift\n› 运行 swift test --filter HostLinkTests（42 通过，1 失败）\n› 修改 reconnect()：心跳超时从 1.5 s 放宽到 3 s\n› 待批准：修改 HostLink.swift、运行 swift test'}
-          </pre>
+          <SecHead no="01" title="会话控制" right={<span className={styles.cap}>{task.agent} │ 实时输出请在终端查看</span>} />
           <div className={styles.send}>
-            <input className={styles.input} placeholder="给这个会话补一句…" value={msg} onChange={(e) => setMsg(e.target.value)} aria-label="给编码会话发消息" />
+            <input className={styles.input} placeholder="向当前编码会话发送补充指令…" value={msg} onChange={(e) => setMsg(e.target.value)} aria-label="向编码会话发送指令" />
             <Btn
               variant="ghost"
               disabled={msg.trim() === ''}
-              disabledReason="先写要发的话"
+              disabledReason="请先输入要发送的内容"
               onClick={() => {
                 onAction?.({ kind: 'send_session', text: msg.trim() });
                 setMsg('');
@@ -72,8 +68,8 @@ export function TaskSections({ task, now, deliveries = [], steps = [], tools = [
             <Btn variant="ghost" icon="stop" onClick={() => onAction?.({ kind: 'stop' })}>
               停止任务
             </Btn>
-            <Btn variant="text" icon="ext" disabled={!sessionId} disabledReason="没有找到会话" onClick={() => sessionId && onAction?.({ kind: 'jump_terminal', sessionId })}>
-              跳到终端
+            <Btn variant="text" icon="ext" disabled={!sessionId} disabledReason="未找到关联会话" onClick={() => sessionId && onAction?.({ kind: 'jump_terminal', sessionId })}>
+              跳转至终端
             </Btn>
           </div>
         </section>
@@ -91,7 +87,7 @@ export function TaskSections({ task, now, deliveries = [], steps = [], tools = [
             <dd>
               <span className="num">{task.run_count}</span> 次{' '}
               <Btn size="sm" variant="text" icon="ext" onClick={() => onAction?.({ kind: 'open_timeline' })}>
-                在对话轮次里看
+                查看对话轮次
               </Btn>
             </dd>
           </>
@@ -99,14 +95,14 @@ export function TaskSections({ task, now, deliveries = [], steps = [], tools = [
         {queued && (
           <>
             <dt>排队</dt>
-            <dd>等前台任务结束后开始</dd>
+            <dd>等待前台任务完成后开始</dd>
           </>
         )}
         {task.status === 'interrupted' && (
           <>
             <dt>中断</dt>
             <dd>
-              后台服务重启时中断（{task.ended_at != null ? formatClock(task.ended_at) : '—'}）。不会自动重跑。
+              任务已中断（{task.ended_at != null ? formatClock(task.ended_at) : '—'}），不会自动重新运行。
             </dd>
           </>
         )}

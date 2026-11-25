@@ -113,7 +113,7 @@ export class OnboardingModel {
 
   completionNotSaved(): void {
     this.completed = false;
-    this.completionError = '配置没有存上，请检查配置文件权限后再点完成重试';
+    this.completionError = '配置未能保存，请检查配置文件写入权限后点击“完成”重试';
   }
 
   /** The `onboarding.*` value; `done` is this guide's own end, not config.json's mark. */

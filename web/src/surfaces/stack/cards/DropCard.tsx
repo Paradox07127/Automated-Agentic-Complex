@@ -179,7 +179,11 @@ export function DropCard({ card, top, highlight, act }: DropCardProps) {
               '已撤销读取授权'
             ) : (
               <>
-                <span className={desk.meta}>{`可读这 ${scope.files.length} 个文件 │ ${formatClock(scope.expires_at * 1000)} 失效`}</span>
+                <span className={desk.meta}>
+                  {scope.files.length > 0
+                    ? `授权读取 ${scope.files.length} 个文件 │ ${formatClock(scope.expires_at * 1000)} 失效`
+                    : `已授权临时读取 │ ${formatClock(scope.expires_at * 1000)} 失效`}
+                </span>
                 <Btn variant="text" size="sm" disabled={busy} onClick={() => void revoke(scope.scope_id)}>
                   撤销
                 </Btn>
@@ -188,7 +192,7 @@ export function DropCard({ card, top, highlight, act }: DropCardProps) {
           </p>
         )}
         {status && <p className={status.tone === 'err' ? desk.err : body.meta}>{status.text}</p>}
-        {files.length > 0 && <p className={body.meta}>结果存在后台数据目录，重置后台时删除</p>}
+        {files.length > 0 && <p className={body.meta}>产物保存在本地数据目录，清除所有本地数据时会一并删除</p>}
       </HudCard>
     </CardFrame>
   );

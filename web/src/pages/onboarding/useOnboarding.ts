@@ -9,9 +9,9 @@ import { demoOps, demoRoster } from './demo';
 export type OpName = 'advance' | 'back' | 'goto' | 'skip' | 'complete';
 
 const OP_TEXT: Record<string, string> = {
-  busy: '上一步还在处理，请稍候再试',
-  invalid_state: '这一步现在不能这样操作，请重新打开首次设置',
-  offline: '没有连上桌面端，请重试',
+  busy: '上一步操作仍在处理，请稍候重试',
+  invalid_state: '当前步骤无法执行该操作，请重新打开首次设置',
+  offline: '未能连接应用主进程，请重试',
 };
 
 export function opErrorText(e: unknown): string {
@@ -92,9 +92,9 @@ export function useOnboarding(): Onboarding {
         .character.switchTo(id)
         .then(
           (r) => {
-            if (!r.ok) toast(`没能换角色：${hostReason(r.reason)}`, { severity: 'danger', persistent: true });
+            if (!r.ok) toast(`切换角色失败：${hostReason(r.reason)}`, { severity: 'danger', persistent: true });
           },
-          () => toast('没能换角色：桌面角色没有回应', { severity: 'danger' }),
+          () => toast('切换角色失败：角色渲染进程无响应', { severity: 'danger' }),
         )
         .finally(() => {
           setSwitching(null);
@@ -114,10 +114,10 @@ export function useOnboarding(): Onboarding {
               toast('已导入角色');
               readCharacters();
             } else if (r.reason === 'cancelled') toast('已取消导入');
-            else toast(`导入没有完成：${hostReason(r.reason)}`, { severity: 'danger', persistent: true });
+            else toast(`导入失败：${hostReason(r.reason)}`, { severity: 'danger', persistent: true });
           },
           (e: unknown) =>
-            toast(`导入没有完成：${(e as { code?: string } | null)?.code === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}`, { severity: 'danger' }),
+            toast(`导入失败：${(e as { code?: string } | null)?.code === 'not_implemented' ? '当前版本暂不支持导入' : '角色包处理服务无响应'}`, { severity: 'danger' }),
         ),
     [readCharacters],
   );

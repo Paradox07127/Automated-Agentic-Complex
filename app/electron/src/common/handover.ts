@@ -80,7 +80,7 @@ export function pointWindow(result: Json): PointWindow | null {
 export function windowHandover(optionDown: boolean, allowsText: boolean, window: PointWindow | null):
   { kind: 'ignore' } | { kind: 'refuse'; text: string } | WindowCommand {
   if (!optionDown) return { kind: 'ignore' };
-  if (!allowsText) return { kind: 'refuse', text: '读窗口文字没有打开，可以在设置的隐私里打开' };
-  if (window === null) return { kind: 'refuse', text: '这里没有可以读的窗口' };
+  if (!allowsText) return { kind: 'refuse', text: '未开启窗口文本读取，可在「设置 › 感知」中启用' };
+  if (window === null) return { kind: 'refuse', text: '当前位置没有可读取的窗口' };
   return { kind: 'window', ...window };
 }

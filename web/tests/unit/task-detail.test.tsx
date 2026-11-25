@@ -56,18 +56,18 @@ describe('task detail: a decision sits in the step she waits on', () => {
     const code = mount(T2, view({ approvals: scoped }));
     const paper = code.container.querySelector('[data-focus-card]') as HTMLElement;
     expect(paper.closest('[data-s="waiting"], [data-s="in_progress"]')).not.toBeNull();
-    expect(within(paper).getByRole('button', { name: '这次会话都允许' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '这个任务里都允许' })).toBeNull();
+    expect(within(paper).getByRole('button', { name: '当前会话均允许' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '当前任务均允许' })).toBeNull();
     cleanup();
     mount(T3, view({ questions: [...QUESTIONS, ROLE_ASK] }));
-    expect(screen.getByRole('button', { name: '这个任务里都允许' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '这次会话都允许' })).toBeNull();
+    expect(screen.getByRole('button', { name: '当前任务均允许' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '当前会话均允许' })).toBeNull();
   });
 
   it('a role approval whose run belongs to a conversation offers 本对话都允许, the grant agentd keys by conversation', () => {
     mount(T3, view({ questions: [...QUESTIONS, { ...ROLE_ASK, conversation_id: 'conv-1' }] }));
-    expect(screen.getByRole('button', { name: '本对话都允许' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '这个任务里都允许' })).toBeNull();
+    expect(screen.getByRole('button', { name: '当前对话均允许' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '当前任务均允许' })).toBeNull();
   });
 
   it('Esc on an approval paper denies nothing; ⏎ approves, and on a dangerous call it only says to use the mouse', () => {
@@ -83,7 +83,7 @@ describe('task detail: a decision sits in the step she waits on', () => {
     fireEvent.keyDown(container.querySelector('[data-focus-card]') as HTMLElement, { key: 'Enter' });
     expect(onDecide).toHaveBeenCalledTimes(1);
     expect(onMouseOnly).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole('button', { name: '这个任务里都允许' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '当前任务均允许' })).toBeNull();
   });
 
   it('a version waiting for review is one paper with 接受 v2 as the yellow button; an open question takes the yellow instead', () => {
@@ -118,10 +118,10 @@ describe('task detail: notes and messages', () => {
     const v = view();
     const t3 = pick(v.tasks, T3);
     bottom({ ...t3, status: 'running' }, v);
-    expect(screen.queryByRole('button', { name: /补一句/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /补充说明/ })).toBeNull();
     cleanup();
     bottom({ ...t3, status: 'waiting_user' }, v);
-    expect(screen.getByRole('button', { name: /补一句/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /补充说明/ })).toBeTruthy();
   });
 
   it('a message the coding session refused stays in the field', async () => {
@@ -195,7 +195,7 @@ describe('task detail: 产物', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     fireEvent.contextMenu(files.getByRole('button', { name: /2026-W44 周报/ }));
     fireEvent.click(screen.getByRole('menuitem', { name: '撤回到 v1' }));
-    const ask = await screen.findByRole('dialog', { name: /撤回到 v1/ });
+    const ask = await screen.findByRole('dialog', { name: /恢复至 v1/ });
     expect(onRevert).not.toHaveBeenCalled();
     fireEvent.click(within(ask).getByRole('button', { name: '撤回' }));
     const v2 = pick(DELIVERIES, DLV_T1_V2);
@@ -211,7 +211,7 @@ describe('task detail: 产物', () => {
     const file = v2.artifacts.find((a) => a.name === '2026-W44 周报.md')!;
     await createTasksActions(d).revert(v2, file);
     expect(spy).toHaveBeenCalledWith('POST', '/agent/artifacts/revert', { run_id: v2.run_id, path: file.path, expected_version: 2 });
-    expect(d.push).toHaveBeenCalledWith('已撤回：2026-W44 周报.md 现在是 v3，内容同 v1');
+    expect(d.push).toHaveBeenCalledWith('已恢复版本：2026-W44 周报.md 现为 v3，内容与 v1 一致');
     expect(d.reload).toHaveBeenCalled();
   });
 });
@@ -261,7 +261,7 @@ describe('create dialog', () => {
     const dialog = screen.getByRole('dialog');
     expect(dialog.closest('[data-stub="Dialog"]')).not.toBeNull();
     expect(document.querySelector('[data-stub="Modal"]')).toBeNull();
-    expect(within(dialog).getByRole('heading').textContent).toBe('新建');
+    expect(within(dialog).getByRole('heading').textContent).toBe('新建任务');
     expect(dialog.textContent).not.toContain('NEW');
     fireEvent.keyDown(within(dialog).getByDisplayValue(draft.brief), { key: 'Enter', metaKey: true });
     await waitFor(() => expect(onCreated).toHaveBeenCalled());

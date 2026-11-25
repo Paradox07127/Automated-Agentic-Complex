@@ -127,23 +127,23 @@ export function PipelineView() {
             <ObsDots recent={recent.slice(0, 6)} />
           </>
         ) : diagData ? (
-          '还没有请求'
+          '尚无请求'
         ) : null,
     },
     interp: {
       value: big(interpData?.length, 'interp'),
-      note: '今天理解',
+      note: '今日理解',
       sub: nowData?.activity ? (
         <>
-          角色认为你在 <b className={styles.subValue}>{nowData.activity.label}</b>
+          推断当前活动：<b className={styles.subValue}>{nowData.activity.label}</b>
         </>
       ) : diagData ? (
-        '还没有推断'
+        '尚无推断'
       ) : null,
     },
     mem: {
       value: big(runData && todayDone.length, 'mem'),
-      note: '今天整理批次',
+      note: '今日整理批次',
       sub:
         runData && runData.length > 0 ? (
           <>
@@ -155,12 +155,12 @@ export function PipelineView() {
             </span>
           </>
         ) : runData ? (
-          '还没有整理'
+          '尚无整理记录'
         ) : null,
     },
     store: {
       value: big(facts && active.length, 'store'),
-      note: '已记住',
+      note: '已存储条目',
       sub:
         facts && facts.length > 0 ? (
           <>
@@ -172,7 +172,7 @@ export function PipelineView() {
             </span>
           </>
         ) : facts ? (
-          '还没有记忆'
+          '尚无记忆'
         ) : null,
     },
   };
@@ -199,13 +199,13 @@ export function PipelineView() {
             at: 'interp',
             text: (
               <>
-                <span className="num">{formatClock(interpData[0].at)}</span> 理解失败：{interpData[0].error ?? '没有写原因'}
+                <span className="num">{formatClock(interpData[0].at)}</span> 理解失败：{interpData[0].error ?? '未说明原因'}
               </>
             ),
             onClick: () => pick('interp'),
           }
         : trouble === 'obs'
-          ? { at: 'obs', text: '截图额度已满，只读窗口文字', onClick: () => pick('obs') }
+          ? { at: 'obs', text: '截图额度已用尽，当前仅读取窗口文本', onClick: () => pick('obs') }
           : null;
 
   // Row ids of the open station, in table order, for ↑ / ↓.
@@ -302,11 +302,11 @@ export function PipelineView() {
       </Btn>
     ) : sel === 'store' && candidates > 0 ? (
       <Btn variant="primary" onClick={() => go({ page: 'memory', view: 'about' })}>
-        去确认 {candidates} 条
+        处理 {candidates} 条待确认
       </Btn>
     ) : sel === 'mem' || sel === 'store' ? (
       <Btn variant="secondary" onClick={() => go({ page: 'memory', view: 'about' })}>
-        去档案
+        查看记忆档案
       </Btn>
     ) : null;
 
@@ -315,7 +315,7 @@ export function PipelineView() {
       <PageHeaderSlot
         right={
           <span className={styles.reads}>
-            <span data-fold="1">今天 00:00 起</span>
+            <span data-fold="1">今日 00:00 起</span>
             {word && (
               <>
                 <i className={styles.sl} data-fold="1" aria-hidden="true" />
@@ -337,7 +337,7 @@ export function PipelineView() {
         }
         actions={action}
       />
-      {offline && <ErrBar message="后台已断开 │ 管线停在断开前的数据" staleAt={diag.dataUpdatedAt || undefined} onRetry={retry} />}
+      {offline && <ErrBar message="后台服务已断开 │ 管线数据显示断开前缓存状态" staleAt={diag.dataUpdatedAt || undefined} onRetry={retry} />}
       <Line states={states} cards={cards} selected={sel} onSelect={pick} flow={{ obs: (diagData?.observation?.pending?.length ?? 0) > 0, mem: lastExtract?.state === 'running' }} stale={offline} alert={alert} />
       <div className={styles.detail}>
         <GameFrame label="工位详情">
@@ -355,5 +355,5 @@ export function PipelineView() {
 }
 
 function Unread({ what, onRetry }: { what: string; onRetry: () => void }) {
-  return <ErrBar message={`读不到${what}`} onRetry={onRetry} />;
+  return <ErrBar message={`无法读取${what}`} onRetry={onRetry} />;
 }

@@ -125,7 +125,7 @@ describe('the bubble opens only for something to read or answer', () => {
     await b.line('l0', '上一句');
     const card = document.querySelector('[data-bubble]');
     await b.accepted('u1');
-    screen.getByText('在想');
+    screen.getByText('思考中');
     expect(document.querySelector('[data-bubble]')).toBe(card);
     await b.line('u1', '我看看');
     screen.getByText('我看看');

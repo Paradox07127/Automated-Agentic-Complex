@@ -101,12 +101,12 @@ describe('settings › 观察 › 每日简报', () => {
     );
     // The 每日简报 band's own switch carries the same name; the brief's switch is the one in its row.
     const dailyRow = () => within(document.getElementById('set-brief_daily')!);
-    const daily = await dailyRow().findByRole('switch', { name: '每日简报' });
+    const daily = await dailyRow().findByRole('switch', { name: '启用每日简报' });
     expect(daily.getAttribute('aria-checked')).toBe('true');
-    expect(screen.getByRole('switch', { name: '每周简报' }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('switch', { name: '启用每周简报' }).getAttribute('aria-checked')).toBe('true');
     await act(async () => fireEvent.click(daily));
     await waitFor(() => expect(sent(spy, 'POST', '/observation/briefs/settings')).toEqual([['POST', '/observation/briefs/settings', { daily: false }]]));
-    await waitFor(() => expect(dailyRow().getByRole('switch', { name: '每日简报' }).getAttribute('aria-checked')).toBe('false'));
+    await waitFor(() => expect(dailyRow().getByRole('switch', { name: '启用每日简报' }).getAttribute('aria-checked')).toBe('false'));
   });
 
   it('turns the switches read-only while agentd is down', async () => {
@@ -117,7 +117,7 @@ describe('settings › 观察 › 每日简报', () => {
         <SeeGroup />
       </Harness>,
     );
-    const weekly = await screen.findByRole('switch', { name: '每周简报' });
+    const weekly = await screen.findByRole('switch', { name: '启用每周简报' });
     expect(weekly.getAttribute('aria-disabled')).toBe('true');
   });
 });
@@ -155,9 +155,9 @@ describe('简报 section', () => {
     const spy = install([{ method: 'POST', path: '/observation/briefs', handler: () => ({ status: 409, body: { error: 'brief_busy' } }) }]);
     mountObserve();
     const sec = await screen.findByRole('region', { name: '简报' });
-    await act(async () => fireEvent.click(within(sec).getByRole('button', { name: '现在生成' })));
+    await act(async () => fireEvent.click(within(sec).getByRole('button', { name: '立即生成' })));
     expect(sent(spy, 'POST', '/observation/briefs')).toEqual([['POST', '/observation/briefs', { period: 'daily', retry: true }]]);
-    expect(await screen.findByText(/已有一份简报正在生成/)).toBeTruthy();
+    expect(await screen.findByText(/已有简报正在生成/)).toBeTruthy();
   });
 
   it('rereads the list when agentd publishes the brief it finished writing', async () => {
@@ -183,7 +183,7 @@ describe('简报 section', () => {
     mountObserve();
     const sec = await screen.findByRole('region', { name: '简报' });
     expect(await within(sec).findAllByRole('button', { name: /^(日报|周报) │ / })).toHaveLength(2);
-    await act(async () => fireEvent.click(within(sec).getByRole('button', { name: '现在生成' })));
+    await act(async () => fireEvent.click(within(sec).getByRole('button', { name: '立即生成' })));
     await waitFor(() => expect(sent(spy, 'POST', '/observation/briefs')).toHaveLength(1));
     written = true;
     const done: StreamEvent = { event: 'observation_brief', id: null, data: JSON.stringify({ id: 'brief-9d8c7b6a5f4e3d2c1b0a998877665544', period: 'daily', date: '2026-10-30', state: 'completed' }) };

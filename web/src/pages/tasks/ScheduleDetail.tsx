@@ -21,6 +21,8 @@ export interface ScheduleDetailProps {
   onGoChat: (id: string) => void;
 }
 
+const SCOPE_ERR = new Set(['scope_expired', 'scope_revoked', 'unknown_scope', 'scope_changed']);
+
 export function ScheduleDetail({ s, now, scopes, convTitle, onToggle, onEdit, onDecline, onOpenJob, onGoChat }: ScheduleDetailProps) {
   const proposal = s.created_from === 'agent_proposal' && s.accepted_at == null;
   const scope = s.scope_id ? scopes?.find((x) => x.id === s.scope_id) : null;
@@ -47,7 +49,7 @@ export function ScheduleDetail({ s, now, scopes, convTitle, onToggle, onEdit, on
           <Pin />
           <span>
             {triggerText(t)}
-            {s.created_from === 'agent_proposal' ? ' │ 角色提议的' : ''}
+            {s.created_from === 'agent_proposal' ? ' │ 由角色建议生成' : ''}
           </span>
         </div>
         <div className={styles.meta}>
@@ -58,13 +60,13 @@ export function ScheduleDetail({ s, now, scopes, convTitle, onToggle, onEdit, on
                 <>
                   {' │ '}
                   <Btn size="sm" variant="text" onClick={() => onOpenJob(`job:${s.last_job_id}`)}>
-                    看那次任务
+                    查看该次任务
                   </Btn>
                 </>
               )}
             </span>
           ) : (
-            <span>还没跑过</span>
+            <span>尚未运行</span>
           )}
         </div>
         <div className={styles.sep} />
@@ -72,18 +74,18 @@ export function ScheduleDetail({ s, now, scopes, convTitle, onToggle, onEdit, on
       <div className={styles.scroll}>
         {proposal && (
           <div className={paper.paper} data-depth="" data-theme="light">
-            <h4>角色提议：{triggerText(t)} {s.title}</h4>
-            <p>启用后按时自己跑{scope ? `，读「${scope.label}」` : ''}。</p>
+            <h4>角色建议：{triggerText(t)} {s.title}</h4>
+            <p>启用后将按计划自动执行{scope ? `，并读取「${scope.label}」` : ''}。</p>
             <div className={paper.btns}>
               <Btn size="sm" variant="primary" onClick={() => onToggle(true)}>
                 启用
               </Btn>
               <Btn size="sm" variant="secondary" onClick={onDecline}>
-                不要
+                忽略
               </Btn>
               <span className={paper.sp} />
               <Btn size="sm" variant="text" onClick={onEdit}>
-                先编辑
+                编辑后再启用
               </Btn>
             </div>
           </div>
@@ -92,12 +94,14 @@ export function ScheduleDetail({ s, now, scopes, convTitle, onToggle, onEdit, on
           <div className={page.tipsR} role="status">
             <Warn />
             <span>
-              <b>上次没跑成</b>
-              <small>{scheduleError(s.last_error) ?? '上次运行没提交成功，再试一次或查看诊断'}</small>
+              <b>上次运行失败</b>
+              <small>{scheduleError(s.last_error) ?? '上次执行未能成功提交，请重试或前往诊断页查看详情'}</small>
             </span>
-            <Btn size="sm" variant="ghost" onClick={onEdit}>
-              重新选资料
-            </Btn>
+            {SCOPE_ERR.has(s.last_error) && (
+              <Btn size="sm" variant="ghost" onClick={onEdit}>
+                重新选择资料
+              </Btn>
+            )}
           </div>
         )}
         {s.enabled && (
@@ -116,22 +120,22 @@ export function ScheduleDetail({ s, now, scopes, convTitle, onToggle, onEdit, on
             </span>
             {s.next_run_at != null && (
               <span className={styles.r}>
-                还有 <b className="num">{spanText(s.next_run_at - now)}</b>
+                剩余 <b className="num">{spanText(s.next_run_at - now)}</b>
               </span>
             )}
           </div>
         )}
         <p className={styles.desc}>{s.instruction}</p>
-        <SecHead title="用到的" />
+        <SecHead title="关联配置" />
         <div className={styles.kv}>
           <div>
             <span>授权资料</span>
-            <b className="num">{s.scope_id ? (scope?.label ?? (scopes ? '原授权当前不可用' : '—')) : '不读资料'}</b>
+            <b className="num">{s.scope_id ? (scope?.label ?? (scopes ? '原授权当前不可用' : '—')) : '未关联资料范围'}</b>
             <em className="num">{scope ? `${new Date(scope.expires).getMonth() + 1}.${new Date(scope.expires).getDate()} 到期` : ''}</em>
           </div>
           <div>
             <span>关联对话</span>
-            <b>{s.conversation_id ? `「${convTitle(s.conversation_id) ?? '对话'}」` : '独立任务'}</b>
+            <b>{s.conversation_id ? `「${convTitle(s.conversation_id) ?? '对话'}」` : '独立定时任务'}</b>
             <em>
               {s.conversation_id && (
                 <Btn size="sm" variant="text" onClick={() => onGoChat(s.conversation_id!)}>

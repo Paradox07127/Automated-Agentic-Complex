@@ -42,7 +42,7 @@ describe('the bubble approval card', () => {
     const b = mountBubble();
     const open = vi.spyOn(b.bridge.window, 'openMain').mockImplementation(() => {});
     await b.cards([approval]);
-    const card = screen.getByRole('alertdialog', { name: /^要你批准：/ });
+    const card = screen.getByRole('alertdialog', { name: /^待批准：/ });
     fireEvent.click(within(card).getByRole('button', { name: '详情' }));
     expect(open).toHaveBeenCalledTimes(1);
     const route = open.mock.calls[0]![0];
@@ -57,14 +57,14 @@ describe('the bubble approval card', () => {
     const plain = demoCard('confirm');
     const b = mountBubble();
     await b.cards([danger]);
-    expect(screen.getByRole('alertdialog', { name: /^要你批准：/ }).hasAttribute('data-danger')).toBe(true);
+    expect(screen.getByRole('alertdialog', { name: /^待批准：/ }).hasAttribute('data-danger')).toBe(true);
     await b.cards([plain]);
-    expect(screen.getByRole('alertdialog', { name: /^要你批准：/ }).hasAttribute('data-danger')).toBe(false);
+    expect(screen.getByRole('alertdialog', { name: /^待批准：/ }).hasAttribute('data-danger')).toBe(false);
   });
 });
 
 describe('the bubble approval card: a dangerous 批准', () => {
-  const allowButton = () => within(screen.getByRole('alertdialog', { name: /^要你批准：/ })).getByRole('button', { name: /批准$/ });
+  const allowButton = () => within(screen.getByRole('alertdialog', { name: /^待批准：/ })).getByRole('button', { name: /批准$/ });
 
   it('takes two clicks: the first turns it into 确认批准, only the second decides with { confirmed: true }', async () => {
     const danger = demoCard('confirm-danger');
@@ -85,7 +85,7 @@ describe('the bubble approval card: a dangerous 批准', () => {
     vi.spyOn(b.bridge.stack, 'decide').mockRejectedValue(Object.assign(new Error('declined: native confirmation'), { code: 'declined' }));
     await b.cards([plain]);
     await flush(async () => fireEvent.click(allowButton()));
-    const card = screen.getByRole('alertdialog', { name: /^要你批准：/ });
+    const card = screen.getByRole('alertdialog', { name: /^待批准：/ });
     expect(within(card).getByRole('alert').textContent).toBe(DECLINED_TOAST);
     expect(within(card).getByRole('button', { name: '拒绝' })).toBeTruthy();
     expect(allowButton()).toBeTruthy();

@@ -84,15 +84,15 @@ describe('a send to a character who is not on the desktop', () => {
     const b = bridge();
     const thread = await mount();
     await goToHer(thread);
-    flag(thread, '这句不记');
+    flag(thread, '此轮不记录');
     type(thread, '我看完了');
     press(thread);
-    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '先不换' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '取消' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(box(thread).value).toBe('我看完了');
-    expect(within(thread).getByRole('button', { name: '取消这句不记' })).toBeTruthy();
+    expect(within(thread).getByRole('button', { name: '取消「此轮不记录」' })).toBeTruthy();
     press(thread);
-    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '换出来并发送' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '切换并发送' }));
     await waitFor(() => expect(b.of('POST', `/conversations/${HANDOVER}/messages`).map((c) => c.body)).toEqual([{ text: '我看完了', no_memory: true }]));
     await waitFor(() => expect(box(thread).value).toBe(''));
   });
@@ -107,12 +107,12 @@ describe('a send to a character who is not on the desktop', () => {
     await within(thread).findByText(FILE.displayName);
     type(thread, '汇总一下');
     press(thread);
-    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '先不换' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '取消' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(made).toEqual([]);
     expect(within(thread).getByText(FILE.displayName)).toBeTruthy();
     press(thread);
-    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '换出来并发送' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '切换并发送' }));
     await waitFor(() => expect(b.of('POST', `/conversations/${HANDOVER}/messages`).map((c) => c.body)).toEqual([{ text: '汇总一下', scope_id: 'scope-1' }]));
     expect(made).toEqual([{ files: [FILE] }]);
   });
@@ -123,7 +123,7 @@ describe('a send to a character who is not on the desktop', () => {
     await goToHer(thread);
     type(thread, '我看完了');
     press(thread);
-    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '换出来并发送' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '切换并发送' }));
     await waitFor(() => expect(thread.querySelector('[data-live]')).toBeTruthy());
     expect(thread.querySelector('[data-live] [data-kind="side"]')).toBeNull();
   });
@@ -165,7 +165,7 @@ describe('what a late answer may touch', () => {
     await goToHer(thread);
     type(thread, '我看完了');
     press(thread);
-    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '换出来并发送' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '切换并发送' }));
     await within(thread).findByText('我看完了', { selector: 'span' });
     fireEvent.click(tab('示例乙'));
     await within(thread).findByText('统计表好了吗？', { selector: 'span' });
@@ -385,7 +385,7 @@ describe('deliver', () => {
     const pushed: string[] = [];
     const { a } = await deps({ character: 'voice_a', push: (m) => void pushed.push(m) }, []);
     await a.queueSide('顺便查下');
-    expect(pushed).toEqual(['没有派发任务：角色不在桌面上']);
+    expect(pushed).toEqual(['未能派发任务：角色当前未在桌面显示']);
   });
 
   it('重新检测 judges by the chat and quick routes, not the main kernel', async () => {
@@ -396,7 +396,7 @@ describe('deliver', () => {
     await ready.a.recheck();
     const quickOff = await deps({ push: (m) => void pushed.push(m), reload: { list: () => {}, turns: () => {}, tasks: () => {}, present: () => {}, runtime: runtime(true, false) } }, []);
     await quickOff.a.recheck();
-    expect(pushed).toEqual(['内核已就绪', '重新检测：快速回复仍未就绪']);
+    expect(pushed).toEqual(['执行内核已就绪', '重新检测：快速回复仍未就绪']);
   });
 });
 

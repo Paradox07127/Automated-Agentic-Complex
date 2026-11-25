@@ -25,13 +25,13 @@ export const viewLogs = (key: ProcessKey) => navigate({ page: 'diag', tab: 'logs
 export const serviceSettings = (key: ServiceId) => navigate({ page: 'settings', group: 'services', item: `svc_${key}` });
 
 export const CONFIRM: Record<RestartTarget, { title: string; note: string; danger: boolean; label: string }> = {
-  all: { title: '全部重启？', note: '依次重启后台服务和角色。进行中的任务会中断，重启后不会自动重跑。', danger: true, label: '全部重启' },
-  agentd: { title: '重启后台服务？', note: '进行中的任务会中断，重启后不会自动重跑。', danger: true, label: '重启后台服务' },
-  avatar: { title: '重启角色？', note: '角色会消失几秒再出现，任务不受影响。', danger: false, label: '重启角色' },
+  all: { title: '全部重启？', note: '依次重启后台服务与角色进程。进行中的任务将中断，重启后不会自动重新运行。', danger: true, label: '全部重启' },
+  agentd: { title: '重启后台服务？', note: '进行中的任务将中断，重启后不会自动重新运行。', danger: true, label: '重启后台服务' },
+  avatar: { title: '重启角色进程？', note: '角色进程将重启并短暂中断画面显示数秒；运行中的任务不受影响。', danger: false, label: '重启角色进程' },
 };
 
 /** A bridge op's rejection as one short reason; the shell may not implement the op. */
-export const why = (e: unknown) => ((e as { code?: string } | null)?.code === 'not_implemented' ? '这个版本的窗口不支持' : '没有成功');
+export const why = (e: unknown) => ((e as { code?: string } | null)?.code === 'not_implemented' ? '当前版本窗口不支持' : '操作失败');
 
 /** How long a dispatched restart waits for supervisor.state to show the process up again. */
 const RESTART_WAIT_MS = 60_000;
@@ -67,14 +67,14 @@ export function useDiagActions(now: number, toast: PushToast, sup: Partial<Recor
       inFlight.current.delete(key);
       r.result[key] = result === 'ok' ? 'ok' : 'failed';
       const at = clock();
-      mark([key], { kind: 'restart', phase: 'done', at, text: result === 'ok' ? `✓ 已重启 │ ${formatClock(at)}` : result === 'failed' ? '■ 重启失败' : '■ 没看到重启' });
+      mark([key], { kind: 'restart', phase: 'done', at, text: result === 'ok' ? `✓ 已重启 │ ${formatClock(at)}` : result === 'failed' ? '■ 重启失败' : '■ 未检测到重启' });
       if (r.keys.some((k) => !r.result[k])) return;
       clearTimeout(r.timer);
       clearInterval(r.poll);
       const ok = r.keys.filter((k) => r.result[k] === 'ok');
       const bad = r.keys.filter((k) => r.result[k] !== 'ok');
       if (bad.length === 0) toast(r.target === 'all' ? `已全部重启：${names(ok)}` : `已重启${names(ok)}`, { severity: 'success' });
-      else toast([ok.length ? `已重启${names(ok)}` : '', `${names(bad)}没有重新起来`].filter(Boolean).join('；'), { severity: 'danger', persistent: true });
+      else toast([ok.length ? `已重启${names(ok)}` : '', `${names(bad)}未能重新启动`].filter(Boolean).join('；'), { severity: 'danger', persistent: true });
     },
     [mark, toast],
   );

@@ -41,13 +41,13 @@ describe('brief detail tab', () => {
   it('stars an item through onPins', async () => {
     const five = DEFAULT_PINS.slice(0, 5);
     const onPins = show(await read(), five);
-    fireEvent.click(screen.getByRole('button', { name: '放进总览：发言' }));
+    fireEvent.click(screen.getByRole('button', { name: '添加至总览：角色发言' }));
     expect(onPins).toHaveBeenCalledWith([...five, 'line']);
   });
 
   it('does not add a seventh star', async () => {
     const onPins = show(await read());
-    const star = screen.getByRole('button', { name: '放进总览：动作播放' });
+    const star = screen.getByRole('button', { name: '添加至总览：动作播放' });
     expect(star.getAttribute('aria-disabled')).toBe('true');
     fireEvent.click(star);
     expect(onPins).not.toHaveBeenCalled();
@@ -57,7 +57,7 @@ describe('brief detail tab', () => {
     const day = await read();
     show(day);
     fireEvent.click(screen.getByRole('button', { name: '排序' }));
-    fireEvent.click(screen.getByRole('option', { name: '比平时多' }));
+    fireEvent.click(screen.getByRole('option', { name: '高于均值' }));
     const ratio = (id: BriefItemId) => (day.items[id].today - day.items[id].avg7!) / day.items[id].avg7!;
     const top = [...ITEM_ORDER].sort((a, b) => ratio(b) - ratio(a))[0]!;
     expect(within(rows()[0]!).getByText(ITEMS[top].name)).toBeTruthy();

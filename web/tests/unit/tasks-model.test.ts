@@ -101,7 +101,7 @@ describe('run waterfall lanes', () => {
     expect(lanes?.rows.map((r) => r.id)).toEqual(['g0', 'g1']);
     expect(lanes?.terminal).toBeNull();
     expect(lanes?.segments.filter((s) => s.status === 'current')).toHaveLength(1);
-    expect(lanes?.marks.map((m) => m.label)).toEqual(expect.arrayContaining(['v1 已退回', '交付 v2']));
+    expect(lanes?.marks.map((m) => m.label)).toEqual(expect.arrayContaining(['v1 已驳回', '交付 v2']));
   });
 
   it('ends with ✕ on failure and ✓ on success', () => {

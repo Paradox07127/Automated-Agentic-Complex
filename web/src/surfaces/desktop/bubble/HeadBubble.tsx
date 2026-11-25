@@ -8,8 +8,8 @@ export type BubbleKind = 'speech' | 'remind' | 'done' | 'error' | 'notice';
 /** The kind row of the kinds that have one: its icon and word. */
 const HEAD: Partial<Record<BubbleKind, { icon: IconName; word: string }>> = {
   remind: { icon: 'bell', word: '提醒' },
-  done: { icon: 'check', word: '做完了' },
-  error: { icon: 'warn', word: '出错了' },
+  done: { icon: 'check', word: '已完成' },
+  error: { icon: 'warn', word: '出错' },
 };
 
 export interface HeadBubbleProps {

@@ -336,7 +336,7 @@ export class ControlHost {
         if (method === 'desktop_status') return okResponse(id, await this.status(session, params));
         if (!this.ports.enabled()) {
           this.consent.revoke();
-          throw new ControlError('disabled', '电脑操作未启用：设置 › 能力 中启用后重启后台');
+          throw new ControlError('disabled', '电脑操作未启用：请在「设置 › 能力」中启用后重启后台服务');
         }
         if (!['desktop_observe', 'desktop_act', 'desktop_verify'].includes(method)) throw new ControlError('unknown_method', '未知的桌面工具');
         if (method !== 'desktop_observe' && this.userPaused && this.consent.sessionId === session) {
@@ -440,12 +440,12 @@ export class ControlHost {
         this.interruption.prepare(session);
       }
       this.publish('waitingPermission', MESSAGES.waiting);
-      throw new ControlError('permission_required', `请在角色头顶小窗授权 ${permission}，然后重试；不要循环轮询`);
+      throw new ControlError('permission_required', `请在桌面操作卡片中授予「${PERMISSION_TITLES[permission]}」权限后重试，请勿循环轮询`);
     }
-    if (this.userPaused) throw new ControlError('user_paused', '用户已接管；请在授权卡点击继续');
-    if (this.interruption.isStopped) throw new ControlError('stopped', '用户已停止此任务');
+    if (this.userPaused) throw new ControlError('user_paused', '用户已接管输入，请在授权卡片点击继续');
+    if (this.interruption.isStopped) throw new ControlError('stopped', '用户已停止当前任务');
     if (permission === 'control' && !this.inputMonitorAvailable) {
-      throw new ControlError('input_monitor_unavailable', '用户接管监听未就绪，不执行操作；请重新打开App后再试');
+      throw new ControlError('input_monitor_unavailable', '输入监听尚未就绪，暂不执行操作，请重启应用后重试');
     }
   }
 
@@ -477,7 +477,7 @@ export class ControlHost {
   private async valid(session: string, params: Record<string, unknown>, permission: ControlPermission) {
     const id = params.snapshot_id;
     const snap = typeof id === 'string' ? this.snapshots.get(id) : undefined;
-    if (typeof id !== 'string' || snap === undefined) throw new ControlError('stale_snapshot', '请先取得新的desktop_observe结果');
+    if (typeof id !== 'string' || snap === undefined) throw new ControlError('stale_snapshot', '窗口状态已过期，请先重新执行页面观察');
     await this.current(snap.target);
     this.require(permission, session, snap.target);
     this.consent.validate(id, session, snap.target, permission, this.now());
@@ -486,17 +486,17 @@ export class ControlHost {
 
   private async act(session: string, params: Record<string, unknown>): Promise<Record<string, unknown>> {
     const { id, target, elements } = await this.valid(session, params, 'control');
-    if (this.now() - this.lastActionAt < ACTION_GAP_SECONDS) throw new ControlError('action_cooldown', '操作间隔太短，请先检查结果');
+    if (this.now() - this.lastActionAt < ACTION_GAP_SECONDS) throw new ControlError('action_cooldown', '操作间隔过短，请先检查执行结果');
     const action = params.action;
-    if (typeof action !== 'string') throw new ControlError('invalid_action', '缺少动作类型');
-    if (!this.actions.includes(action)) throw new ControlError('unsupported', `只支持${this.actions.join('/')}`);
-    this.publish('executing', `正在执行 ${action}；你的输入可随时中止`);
+    if (typeof action !== 'string') throw new ControlError('invalid_action', '缺少操作类型');
+    if (!this.actions.includes(action)) throw new ControlError('unsupported', `仅支持 ${this.actions.join(' / ')}`);
+    this.publish('executing', `正在执行 ${action}（输入操作可随时接管中止）`);
     const text = action === 'set_value' || action === 'type';
     if (text) this.require('text', session, target);
     const elementId = params.element_id;
     const helperParams = actParams(id, params, target.frame, typeof elementId === 'string' && elements.has(elementId));
     if (this.interruption.isStopped) {
-      throw action === 'click' || action === 'scroll' ? new ControlError('stopped', '操作已停止') : new ControlError('action_refused', '控件未接受动作；请观察结果，不要盲目重放');
+      throw action === 'click' || action === 'scroll' ? new ControlError('stopped', '操作已停止') : new ControlError('action_refused', '控件未响应此操作，请重新观察后再决定下一步');
     }
     this.consumeSnapshot(text);
     const acting = this.acting = new AbortController();
@@ -504,15 +504,15 @@ export class ControlHost {
     this.lastActionAt = this.now();
     const effect = r.effect === 'confirmed' ? 'confirmed' : 'unverifiable';
     // A desktop mutation invalidates every old target reference. Verify starts from a fresh observation.
-    this.publish('verifying', effect === 'confirmed' ? '已读回确认文字；后续操作需新观察' : '动作已发送，效果尚未确认；请重新观察后验证');
+    this.publish('verifying', effect === 'confirmed' ? '已读回确认结果，后续操作需重新观察' : '操作已发送，结果待验证，请重新观察确认');
     return { action_id: this.ports.newId(), effect, verified: effect === 'confirmed', requires_fresh_observation: true, target: targetJSON(target) };
   }
 
   private async verify(session: string, params: Record<string, unknown>): Promise<Record<string, unknown>> {
     const { id, target, elements } = await this.valid(session, params, 'observation');
-    this.publish('verifying', '正在读取控件以检查结果');
+    this.publish('verifying', '正在读取控件状态以核验结果');
     const ref = params.element_id;
-    if (typeof ref !== 'string' || !elements.has(ref)) throw new ControlError('element_required', '验证需要新观察中的element_id');
+    if (typeof ref !== 'string' || !elements.has(ref)) throw new ControlError('element_required', '结果核验需要最新观察中的目标控件标识');
     const expectedValue = typeof params.expected_value === 'string' ? params.expected_value : null;
     const expectedTitle = typeof params.expected_title === 'string' ? params.expected_title : null;
     if (expectedValue === null && expectedTitle === null) return { effect: 'unknown', verified: false, reason: '需要明确预期值或标题' };

@@ -63,14 +63,14 @@ describe('主动提示 and developer proactive readout', () => {
         <SpeakGroup />
       </Harness>,
     );
-    const seg = await screen.findByRole('radiogroup', { name: '主动开口' });
+    const seg = await screen.findByRole('radiogroup', { name: '主动交互' });
     await act(async () => {});
-    const active = within(seg).getByRole('radio', { name: '主动' });
+    const active = within(seg).getByRole('radio', { name: '自动触发' });
     expect(active.getAttribute('aria-checked')).toBe('false');
     // What 主动 does sits in the row's ⓘ; the line under 只在我问时 says results and reminders still arrive.
     const row = within(document.getElementById('set-speakWhen')!);
-    expect(row.getByRole('tooltip', { hidden: true }).textContent).toMatch(/^主动：看到能帮忙的时机时提示，也会说出想法/);
-    row.getByText('只回答你；任务结果和你设的提醒照常送达');
+    expect(row.getByRole('tooltip', { hidden: true }).textContent).toMatch(/^自动触发：检测到可辅助的场景或关联思考时将主动提示/);
+    row.getByText('仅在您发起对话时回复；任务结果与已设提醒仍正常送达');
 
     await act(async () => {
       fireEvent.click(active);
@@ -79,7 +79,7 @@ describe('主动提示 and developer proactive readout', () => {
     expect(active.getAttribute('aria-checked')).toBe('true');
 
     await act(async () => {
-      fireEvent.click(within(seg).getByRole('radio', { name: '只在我问时' }));
+      fireEvent.click(within(seg).getByRole('radio', { name: '仅响应对话' }));
     });
     expect(request).toHaveBeenCalledWith('PUT', '/proactive/settings', { companion_mode: false });
     expect(active.getAttribute('aria-checked')).toBe('false');
@@ -98,9 +98,9 @@ describe('主动提示 and developer proactive readout', () => {
         <SpeakGroup />
       </Harness>,
     );
-    await screen.findByRole('group', { name: '会话出事时告诉你' });
-    screen.getByRole('group', { name: '任务停了时提醒' });
-    screen.getByRole('group', { name: '重复的事建议做成定时任务' });
+    await screen.findByRole('group', { name: '会话异常时通知' });
+    screen.getByRole('group', { name: '任务中止时通知' });
+    screen.getByRole('group', { name: '检测到重复操作时建议创建定时任务' });
   });
 
   it('shows proactive stats readout in GatePanel only when developer mode is on', async () => {
@@ -111,7 +111,7 @@ describe('主动提示 and developer proactive readout', () => {
     setDevMode(true);
     render(<GatePanel cooldowns={[]} gate={WIRE_DIAG_GATE} />);
     const line = await screen.findByText(/近 7 天主动/);
-    expect(line.textContent).toBe('近 7 天主动 10 条 │ 有回应 5（50%） │ 点了建议 2');
+    expect(line.textContent).toBe('近 7 天主动 10 条 │ 有回应 5（50%） │ 采纳建议 2');
     const table = screen.getByRole('table', { name: '近 7 天主动发言回应' });
     expect(table.textContent).toContain('comment');
     expect(table.textContent).toContain('stuck');
@@ -129,7 +129,7 @@ describe('主动提示 and developer proactive readout', () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(screen.getByText(/近 7 天主动/).textContent).toBe('近 7 天主动 0 条 │ 有回应 0（—） │ 点了建议 0');
+    expect(screen.getByText(/近 7 天主动/).textContent).toBe('近 7 天主动 0 条 │ 有回应 0（—） │ 采纳建议 0');
     expect(request).toHaveBeenCalledTimes(1);
 
     await act(async () => {

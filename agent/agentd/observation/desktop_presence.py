@@ -12,9 +12,9 @@ ACTIVE = frozenset(('thinking', 'running_tool', 'awaiting_approval', 'awaiting_i
                     'background'))
 # Fixed text the desktop shows, by reply language code; "harness" (None) takes the Chinese one.
 LABELS = {
-    'zh-Hans': {'thinking': '在想', 'running_tool': '在跑', 'awaiting_approval': '待批准',
-                'awaiting_input': '待回答', 'compacting': '在整理上下文', 'subagent': '在派子任务',
-                'done': '完成', 'background': '在后台做', 'error': '出错了', 'stale': '没有新动静', 'idle': '空闲'},
+    'zh-Hans': {'thinking': '思考中', 'running_tool': '工具执行中', 'awaiting_approval': '待批准',
+                'awaiting_input': '待回答', 'compacting': '整理上下文中', 'subagent': '派发子任务中',
+                'done': '已完成', 'background': '后台执行中', 'error': '出错', 'stale': '无更新', 'idle': '空闲'},
     'en': {'thinking': 'Thinking', 'running_tool': 'Running', 'awaiting_approval': 'Needs approval',
            'awaiting_input': 'Needs an answer', 'compacting': 'Tidying context', 'subagent': 'Delegating a sub-task',
            'done': 'Done', 'background': 'Working in the background', 'error': 'Error', 'stale': 'No recent activity',
@@ -23,9 +23,9 @@ LABELS = {
            'awaiting_input': '回答待ち', 'compacting': 'コンテキスト整理中', 'subagent': 'サブタスクを依頼中',
            'done': '完了', 'background': 'バックグラウンドで作業中', 'error': 'エラー', 'stale': '動きなし', 'idle': '待機中'}}
 TOOL_VERBS = {
-    'zh-Hans': {'Edit': '改', 'MultiEdit': '改', 'NotebookEdit': '改', 'apply_patch': '改',
-                'Write': '写入', 'Read': '读取', 'Bash': '运行', 'shell': '运行',
-                'exec_command': '运行', 'local_shell': '运行', 'WebFetch': '访问',
+    'zh-Hans': {'Edit': '编辑', 'MultiEdit': '编辑', 'NotebookEdit': '编辑', 'apply_patch': '编辑',
+                'Write': '写入', 'Read': '读取', 'Bash': '执行', 'shell': '执行',
+                'exec_command': '执行', 'local_shell': '执行', 'WebFetch': '访问',
                 'WebSearch': '搜索', 'Glob': '查找', 'Grep': '搜索'},
     'en': {'Edit': 'Edit', 'MultiEdit': 'Edit', 'NotebookEdit': 'Edit', 'apply_patch': 'Edit',
            'Write': 'Write', 'Read': 'Read', 'Bash': 'Run', 'shell': 'Run',
@@ -37,8 +37,8 @@ TOOL_VERBS = {
            'WebSearch': '検索', 'Glob': '探索', 'Grep': '検索'}}
 ACTIVITIES = {
     'zh-Hans': {'think': '思考中', 'wait': '等待回应', 'sleep': '休息中', 'relax': '空闲',
-                'read': '阅读中', 'reading': '阅读中', 'sit': '坐着陪你', 'observe': '留意周围',
-                'short_walk': '散步中', 'climb_window_top': '坐到窗口边', 'lean': '靠着窗沿'},
+                'read': '阅读中', 'reading': '阅读中', 'sit': '伴随待机', 'observe': '观察周围',
+                'short_walk': '短距移动', 'climb_window_top': '停靠窗口顶部', 'lean': '倚靠窗口边缘'},
     'en': {'think': 'Thinking', 'wait': 'Waiting for a reply', 'sleep': 'Resting', 'relax': 'Idle',
            'read': 'Reading', 'reading': 'Reading', 'sit': 'Sitting with you', 'observe': 'Looking around',
            'short_walk': 'Taking a walk', 'climb_window_top': 'Sitting on the window edge',
@@ -47,14 +47,14 @@ ACTIVITIES = {
            'read': '読書中', 'reading': '読書中', 'sit': 'そばに座っている', 'observe': '周りを見ている',
            'short_walk': '散歩中', 'climb_window_top': 'ウィンドウの縁に座っている', 'lean': 'ウィンドウにもたれている'}}
 INTENTIONS = {
-    'zh-Hans': {'running': '我在整理这次请求。', 'capabilities_checked': '我在整理这次请求。',
-                'first_token': '我在组织回答。', 'tool_started': '我在处理任务所需的资料和操作。',
-                'tool_finished': '我在检查工具返回的结果。', 'task_started': '我正在处理这项任务。',
-                'verified': '结果已通过检查，正在整理交付。', 'needs_review': '结果还需要确认。',
-                'background_pending': '后台任务仍在继续。', 'verifying': '我在核验实际结果。',
-                'verification_failed': '结果没有通过检查。', 'waiting_user': '我在等你的回答。',
-                'resume_required': '回答已收到，等待继续任务。', 'awaiting_approval': '这一步需要你批准。',
-                'completed': '这一轮已结束。'},
+    'zh-Hans': {'running': '正在整理当前请求。', 'capabilities_checked': '正在整理当前请求。',
+                'first_token': '正在组织回复。', 'tool_started': '正在处理任务所需资料与操作。',
+                'tool_finished': '正在检查工具返回结果。', 'task_started': '正在执行当前任务。',
+                'verified': '结果已通过验证，正在整理交付。', 'needs_review': '结果尚待确认。',
+                'background_pending': '后台任务仍在运行。', 'verifying': '正在核验实际结果。',
+                'verification_failed': '结果未通过验证。', 'waiting_user': '等待用户回复。',
+                'resume_required': '已收到回复，等待继续任务。', 'awaiting_approval': '此步骤需要确认。',
+                'completed': '本轮已结束。'},
     'en': {'running': "I'm sorting out this request.", 'capabilities_checked': "I'm sorting out this request.",
            'first_token': "I'm putting the answer together.",
            'tool_started': "I'm working on the material and steps the task needs.",
@@ -74,11 +74,11 @@ INTENTIONS = {
            'resume_required': '答えを受け取りました。タスクの再開を待っています。',
            'awaiting_approval': 'この手順にはあなたの承認が必要です。', 'completed': 'このラウンドは終わりました。'}}
 TOOL_INTENTIONS = {
-    'zh-Hans': {'knowledge_search': '我先查查与你有关的记录。', 'knowledge_read': '我在核对找到的资料。',
-                'behavior_context': '我在确认眼前的情况。', 'artifact_verify': '我在检查结果是否符合要求。',
-                'memory_propose': '我在整理值得记住的内容。',
-                'desktop_observe': '我先看看你授权的窗口。', 'desktop_act': '我正在操作你授权的窗口。',
-                'desktop_verify': '我在确认刚才的操作结果。'},
+    'zh-Hans': {'knowledge_search': '正在检索相关记录。', 'knowledge_read': '正在核对检索到的资料。',
+                'behavior_context': '正在确认当前场景上下文。', 'artifact_verify': '正在检查产物是否符合要求。',
+                'memory_propose': '正在整理待记录内容。',
+                'desktop_observe': '正在读取已授权窗口。', 'desktop_act': '正在操作已授权窗口。',
+                'desktop_verify': '正在确认上一步操作结果。'},
     'en': {'knowledge_search': "I'm checking the records about you first.", 'knowledge_read': "I'm checking what I found.",
            'behavior_context': "I'm confirming what is in front of me.",
            'artifact_verify': "I'm checking whether the result meets the requirements.",
@@ -93,13 +93,13 @@ TOOL_INTENTIONS = {
            'desktop_verify': 'さっきの操作の結果を確かめています。'}}
 # The role's doing by tool category.
 ROLE_DOING = {
-    'zh-Hans': {'command': '在跑命令', 'read': '在读文件', 'write': '在改文件', 'search': '在查资料'},
+    'zh-Hans': {'command': '执行命令中', 'read': '读取文件中', 'write': '编辑文件中', 'search': '检索资料中'},
     'en': {'command': 'Running a command', 'read': 'Reading a file', 'write': 'Editing a file', 'search': 'Looking things up'},
     'ja': {'command': 'コマンド実行中', 'read': 'ファイルを読んでいる', 'write': 'ファイルを編集中', 'search': '調べ物中'}}
 PHRASES = {
-    'zh-Hans': {'unknown': '状态不明', 'use': '用 {tool}', 'use_of': '用 {server} 的 {name}', 'subtask': '{place} · 子任务',
-                'background': '后台任务', 'working': '我正在处理这次请求。', 'review': '待你复核',
-                'passed': '结果已通过检查。', 'approval': '需要你批准一次操作', 'stale': '{minutes} 分钟没动静'},
+    'zh-Hans': {'unknown': '状态未知', 'use': '使用 {tool}', 'use_of': '使用 {server} 的 {name}', 'subtask': '{place} │ 子任务',
+                'background': '后台任务', 'working': '正在处理当前请求。', 'review': '待复核',
+                'passed': '结果已通过验证。', 'approval': '操作需要确认', 'stale': '{minutes} 分钟无活动'},
     'en': {'unknown': 'Unknown state', 'use': 'Using {tool}', 'use_of': 'Using {name} from {server}',
            'subtask': '{place} · sub-task', 'background': 'Background task', 'working': "I'm working on this request.",
            'review': 'Needs your review', 'passed': 'The result passed its check.',

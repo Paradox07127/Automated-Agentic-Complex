@@ -64,7 +64,7 @@ describe('product review regressions', () => {
     expect(show).toHaveBeenCalledWith(true); expect(play).toHaveBeenCalledWith(motion.id,1);
     visible=false; show.mockResolvedValue(); play.mockClear();
     await act(()=>result.current.preview(motion,1));
-    expect(play).not.toHaveBeenCalled(); expect(toast.mock.calls.at(-1)?.[0]).toContain('角色仍然隐藏');
+    expect(play).not.toHaveBeenCalled(); expect(toast.mock.calls.at(-1)?.[0]).toContain('角色仍处于隐藏状态');
   });
 
   it('records presentation and viewing only when visible, serializes revisions and deduplicates remount callbacks', async () => {

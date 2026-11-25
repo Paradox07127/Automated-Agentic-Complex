@@ -42,9 +42,9 @@ export function SetRow(p: SetRowProps) {
     <PowerState
       state="unlinked"
       mode="block"
-      title="本机助手"
-      reason="助手没有提供这项功能，先看系统权限是否都已允许"
-      action={{ label: '前往设置连接', onClick: () => goRow('perms', 'perm') }}
+      title="系统辅助组件"
+      reason="尚未检测到所需系统辅助能力，请先检查对应系统权限是否已授予"
+      action={{ label: '查看系统权限', onClick: () => goRow('perms', 'perm') }}
     >
       <Row {...p} />
     </PowerState>

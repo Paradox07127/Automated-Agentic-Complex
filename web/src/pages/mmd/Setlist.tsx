@@ -93,7 +93,7 @@ export function Setlist({ who, cards, list, blocked }: SetlistProps) {
             icon={now.playing ? 'stop' : 'play'}
             micro={now.playing ? 'PLAYING' : 'SETLIST'}
             disabled={off != null || (!now.playing && items.length === 0)}
-            disabledReason={off ?? '先把动作加入列表'}
+            disabledReason={off ?? '请先将舞蹈加入列表'}
             onClick={list.toggle}
           />
           <div className={styles.segs}>
@@ -105,17 +105,17 @@ export function Setlist({ who, cards, list, blocked }: SetlistProps) {
       <div className={styles.strip}>
         <div className={styles.sum}>
           <span>
-            <span className="num">{items.length}</span> 首 │ 共 <span className="num">{total.toFixed(1)}</span> s
+            <span className="num">{items.length}</span> 项 │ 共 <span className="num">{total.toFixed(1)}</span> s
           </span>
           <i className={styles.ln} aria-hidden="true" />
           {now.playing && now.index != null && (
             <span role="status">
-              桌面正在播第 <span className="num">{now.index + 1}</span> 首
+              桌面正在播放第 <span className="num">{now.index + 1}</span> 项
             </span>
           )}
         </div>
         {cards.length === 0 ? (
-          <p className={styles.ghost}>列表是空的：在右边曲库里点一支已同步的舞右端的 ＋</p>
+          <p className={styles.ghost}>列表为空：在右侧舞蹈库中点击已同步舞蹈右侧的 ＋ 添加</p>
         ) : (
           <ol className={styles.track} aria-label="演出曲目">
             {cards.map((c, i) => {
@@ -151,10 +151,10 @@ export function Setlist({ who, cards, list, blocked }: SetlistProps) {
                     <Barcode width={40} height={9} />
                   </span>
                   <span className={styles.mv}>
-                    <Btn variant="text" size="sm" dense label="前移" disabled={off != null || i === 0} disabledReason={off ?? '已在最前'} onClick={() => list.move(i, -1)}>
+                    <Btn variant="text" size="sm" dense label="前移" disabled={off != null || i === 0} disabledReason={off ?? '已位于首位'} onClick={() => list.move(i, -1)}>
                       ◀
                     </Btn>
-                    <Btn variant="text" size="sm" dense label="后移" disabled={off != null || i === items.length - 1} disabledReason={off ?? '已在最后'} onClick={() => list.move(i, 1)}>
+                    <Btn variant="text" size="sm" dense label="后移" disabled={off != null || i === items.length - 1} disabledReason={off ?? '已位于末位'} onClick={() => list.move(i, 1)}>
                       ▶
                     </Btn>
                     <Btn variant="text" size="sm" dense disabled={off != null} disabledReason={off ?? ''} onClick={() => list.put(items.filter((x) => x !== c.id))}>

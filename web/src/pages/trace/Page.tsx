@@ -145,7 +145,7 @@ export function TraceView({ tab, tabs }: TraceViewProps) {
   const laneSt: ChartStatus = state === 'loading' || (live && lanes.isPending) ? 'loading' : state === 'error' || lanes.isError ? 'error' : 'ok';
 
   const copy = useCallback((text: string, done: string) => {
-    getBridge().clipboard.writeText(text).then(() => toast(done)).catch(() => toast('没有复制成功', { severity: 'danger' }));
+    getBridge().clipboard.writeText(text).then(() => toast(done)).catch(() => toast('复制失败', { severity: 'danger' }));
   }, [toast]);
   const reveal = () => {
     getBridge().app.action('reveal_logs').then(() => toast(revealText('已在 Finder 中显示日志文件'))).catch(() => toast('显示日志失败', { severity: 'danger' }));
@@ -239,9 +239,9 @@ export function TraceView({ tab, tabs }: TraceViewProps) {
   const onIds = new Set(f.on ?? filledSources(logs));
   const today = logs.lines.filter((l) => onIds.has(l.source) && l.at != null && dayOf(l.at) === dayOf(now));
   const lamp: [VisualStateKey, string] = tab === 'logs'
-    ? logs.status === 'missing' || logs.status === 'error' ? ['broken', '读不到'] : !f.follow ? ['stopped', '已暂停'] : ['ok', '实时']
-    : tab === 'lanes' && lanes.isError ? ['broken', '读不到']
-    : listSt === 'error' ? ['broken', '后台已断开'] : ['ok', '实时'];
+    ? logs.status === 'missing' || logs.status === 'error' ? ['broken', '读取失败'] : !f.follow ? ['stopped', '已暂停'] : ['ok', '实时']
+    : tab === 'lanes' && lanes.isError ? ['broken', '读取失败']
+    : listSt === 'error' ? ['broken', '后台服务已断开'] : ['ok', '实时'];
   const conv = selRow?.conversation_id ?? null;
   const detail = (
     <TurnDetail
@@ -249,7 +249,7 @@ export function TraceView({ tab, tabs }: TraceViewProps) {
       no={no}
       turn={turn}
       st={detailSt}
-      emptyText={turnParam ? '这一轮没有保留追踪事件' : all.length ? '选一轮看经过' : '这里会显示一轮的经过'}
+      emptyText={turnParam ? '该轮次未保留追踪事件' : all.length ? '请选择轮次查看执行轨迹' : '此处将显示单轮执行轨迹'}
       convTitle={conv ? (convs.data?.get(conv) ?? null) : null}
       related={related}
       onRetry={() => void (selRow ? ev.refetch() : exact.refetch())}
@@ -300,13 +300,13 @@ export function TraceView({ tab, tabs }: TraceViewProps) {
           tab === 'lanes' ? undefined : tab === 'turns' ? (
             selRow ? (
               <>
-                <span className={bs.note}>第 {no} 轮的日志</span>
-                <Btn variant="ghost" icon="file" onClick={toLogs}>看日志</Btn>
+                <span className={bs.note}>第 {no} 轮日志</span>
+                <Btn variant="ghost" icon="file" onClick={toLogs}>查看日志</Btn>
               </>
             ) : undefined
           ) : (
             <>
-              <Btn variant="ghost" icon="copy" disabled={sel.size === 0} disabledReason="先点选日志行" onClick={copySel}>{sel.size ? `复制所选 ${sel.size} 行` : '复制所选'}</Btn>
+              <Btn variant="ghost" icon="copy" disabled={sel.size === 0} disabledReason="请先选择日志行" onClick={copySel}>{sel.size ? `复制所选 ${sel.size} 行` : '复制所选'}</Btn>
               <Btn variant="secondary" tail="folder" onClick={reveal}>{revealText('在 Finder 中显示')}</Btn>
             </>
           )

@@ -22,13 +22,13 @@ export interface ModSettingsProps {
 }
 
 const ADJUSTED: Record<ModSettingAdjusted['reason'], string> = {
-  defaulted: '角色包里没有这个值，按默认值画',
-  unsupported: '角色不认识这个开关',
+  defaulted: '当前角色包未包含该配置值，已按默认值渲染',
+  unsupported: '当前角色模型不支持该开关',
 };
 
 const why = (e: unknown) => {
   const code = (e as { code?: string } | null)?.code;
-  return code === 'failed' ? '角色没有接受' : code === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应';
+  return code === 'failed' ? '角色渲染进程拒绝了该设置' : code === 'not_implemented' ? '当前版本暂不支持此功能' : '角色渲染进程无响应';
 };
 
 const nameOf = (s: ModSettingRow, v: number) => s.values.find((x) => x.value === v)?.name ?? String(v);
@@ -93,7 +93,7 @@ export function ModSettings({ character, appearance, settings, ro, toast }: ModS
         (e: unknown) => {
           if (!live) return;
           setStored((x) => (x?.character === character ? x : { character, values: {} }));
-          setUnread({ character, why: (e as { code?: string } | null)?.code === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应' });
+          setUnread({ character, why: (e as { code?: string } | null)?.code === 'not_implemented' ? '当前版本暂不支持此功能' : '角色渲染进程无响应' });
         },
       );
     return () => {
@@ -138,10 +138,10 @@ export function ModSettings({ character, appearance, settings, ro, toast }: ModS
   };
   const pick = (s: ModSettingRow, v: number) => {
     const was = value(s);
-    send({ values: { [s.id]: v }, what: s.name, done: `「${s.name}」已改成「${nameOf(s, v)}」`, fail: (w) => `「${s.name}」没有改成：${w}，已改回「${nameOf(s, was)}」`, at: s.id });
+    send({ values: { [s.id]: v }, what: s.name, done: `「${s.name}」已调整为「${nameOf(s, v)}」`, fail: (w) => `「${s.name}」未能更改：${w}，已还原为「${nameOf(s, was)}」`, at: s.id });
   };
   const reset = (title: string, rows: ModSettingRow[], at: string | null) =>
-    send({ values: Object.fromEntries(rows.map((s) => [s.id, s.default])), what: title, done: `「${title}」已恢复默认`, fail: (w) => `「${title}」没有恢复默认：${w}`, at });
+    send({ values: Object.fromEntries(rows.map((s) => [s.id, s.default])), what: title, done: `「${title}」已恢复默认`, fail: (w) => `「${title}」未能恢复默认：${w}`, at });
   const flip = (s: ModSettingRow) => {
     const v = before[s.id];
     if (v !== undefined && v !== value(s) && !off) pick(s, v);
@@ -205,14 +205,14 @@ export function ModSettings({ character, appearance, settings, ro, toast }: ModS
       </div>
     ) : null;
 
-  const sync = ro ?? (failedRead ? '读不到已存的设置，只读' : run ? `正在应用「${run.what}」…` : mark?.fail ? '上次改动没成功，已改回' : '预览与桌面一致');
+  const sync = ro ?? (failedRead ? '无法读取已保存的设置（当前只读）' : run ? `正在应用「${run.what}」…` : mark?.fail ? '上次修改未生效，已恢复原值' : '设置与实时显示一致');
   const anyMoved = settings.some(moved);
 
   return (
-    <div ref={root} className={styles.mods} role="group" aria-label="mod 设置" data-off={off || undefined} onKeyDown={onKey}>
+    <div ref={root} className={styles.mods} role="group" aria-label="模组设置" data-off={off || undefined} onKeyDown={onKey}>
       <div className={head.card} data-mod-card="">
         <span className={head.flag} aria-hidden="true">
-          <span>MOD</span>
+          <span>模组</span>
         </span>
         <div className={head.info}>
           <div className={head.t}>
@@ -228,7 +228,7 @@ export function ModSettings({ character, appearance, settings, ro, toast }: ModS
           </div>
         </div>
       </div>
-      {failedRead && <ErrBar message={`读取 mod 设置失败：${failedRead}`} onRetry={() => setReads((n) => n + 1)} />}
+      {failedRead && <ErrBar message={`读取模组设置失败：${failedRead}`} onRetry={() => setReads((n) => n + 1)} />}
       {failBar(null)}
       <div className={head.jump} role="group" aria-label="跳到类别">
         <span className={head.jumpLbl}>跳到</span>

@@ -31,9 +31,9 @@ export function Inspector({ entry, detail, roster, editOff, onMedia, onRename, o
   const bgm = detail?.bgm;
   const unmapped = face?.unmapped ?? [];
   return (
-    <section className={styles.insp} data-theme="dark" aria-label="这支舞" data-mmd-detail={entry.id}>
+    <section className={styles.insp} data-theme="dark" aria-label="当前舞蹈" data-mmd-detail={entry.id}>
       <div className={styles.ihd}>
-        <h3>这支舞</h3>
+        <h3>当前舞蹈</h3>
         <MicroLabel>DANCE / DETAIL</MicroLabel>
       </div>
       <dl className={styles.facts}>
@@ -47,9 +47,9 @@ export function Inspector({ entry, detail, roster, editOff, onMedia, onRename, o
         {face && (
           <Fact k="口型" at="face">
             <span>
-              <b className={styles.y}>{face.mapped.length}</b> 种表情对上
+              <b className={styles.y}>{face.mapped.length}</b> 种表情已映射
             </span>
-            <span className={styles.m}>{face.blinkFromDance ? '眨眼跟着舞' : '自动眨眼'}</span>
+            <span className={styles.m}>{face.blinkFromDance ? '沿用舞蹈眨眼动作' : '自动眨眼'}</span>
           </Fact>
         )}
         {cam && (
@@ -57,11 +57,11 @@ export function Inspector({ entry, detail, roster, editOff, onMedia, onRename, o
             <span>
               <b className={styles.y}>{cam.cuts.length}</b> 次切镜
             </span>
-            <span className={styles.m}>{`视角 ${Math.round(cam.fovDeg[0])}–${Math.round(cam.fovDeg[1])}°`}</span>
+            <span className={styles.m}>{`视场角 ${Math.round(cam.fovDeg[0])}–${Math.round(cam.fovDeg[1])}°`}</span>
           </Fact>
         )}
         {bgm && (
-          <Fact k="音源" at="bgm">
+          <Fact k="音频" at="bgm">
             <span className={styles.file} title={bgm.name}>
               {bgm.name}
             </span>
@@ -86,7 +86,7 @@ export function Inspector({ entry, detail, roster, editOff, onMedia, onRename, o
           </ul>
         </Fact>
         {unmapped.length > 0 && (
-          <Fact k="没对上" at="unmapped">
+          <Fact k="未映射表情" at="unmapped">
             <span className={styles.miss} title={unmapped.join('、')}>
               <span className="num">{unmapped.length}</span> 种：{unmapped.slice(0, UNMAPPED_SHOWN).join('、')}
               {unmapped.length > UNMAPPED_SHOWN ? '…' : ''}
@@ -95,11 +95,11 @@ export function Inspector({ entry, detail, roster, editOff, onMedia, onRename, o
         )}
       </dl>
       <div className={styles.ops} role="group" aria-label="MMD 操作">
-        <Btn variant="secondary" icon="voice" label="换音源" disabled={editOff != null} disabledReason={editOff ?? ''} onClick={onMedia}>
-          换音源
+        <Btn variant="secondary" icon="voice" label="更换音频" disabled={editOff != null} disabledReason={editOff ?? ''} onClick={onMedia}>
+          更换音频
         </Btn>
-        <Btn variant="secondary" icon="g-rename" label="改名" disabled={editOff != null} disabledReason={editOff ?? ''} onClick={onRename}>
-          改名
+        <Btn variant="secondary" icon="g-rename" label="重命名" disabled={editOff != null} disabledReason={editOff ?? ''} onClick={onRename}>
+          重命名
         </Btn>
         <Btn variant="secondary" icon="del" label="删除" disabled={editOff != null} disabledReason={editOff ?? ''} onClick={onRemove}>
           删除

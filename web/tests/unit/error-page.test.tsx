@@ -53,11 +53,11 @@ describe('page error', () => {
         <RouterProvider router={router} />
       </QueryClientProvider>,
     );
-    expect(await screen.findByText('这一页出错了，已记到日志')).toBeTruthy();
+    expect(await screen.findByText('当前页面发生错误，已写入日志')).toBeTruthy();
     expect(screen.getByRole('navigation', { name: '主导航' })).toBeTruthy();
     expect(screen.queryByText('Something went wrong!')).toBeNull();
     const main = document.querySelector('main') as HTMLElement;
-    expect(main.textContent).toContain('这一页出错了');
+    expect(main.textContent).toContain('当前页面发生错误');
     // The English message is only inside a closed fold.
     const fold = screen.getByRole('button', { name: '详情' });
     expect(fold.getAttribute('aria-expanded')).toBe('false');
@@ -72,7 +72,7 @@ describe('page error', () => {
     boom.fail = false;
     fireEvent.click(screen.getByRole('button', { name: '重试' }));
     expect(await screen.findByText('页面恢复了')).toBeTruthy();
-    expect(screen.queryByText('这一页出错了，已记到日志')).toBeNull();
+    expect(screen.queryByText('当前页面发生错误，已写入日志')).toBeNull();
   });
 });
 
@@ -111,7 +111,7 @@ describe('main window root error', () => {
         <Shell />
       </RootErrorBoundary>,
     );
-    expect(screen.getByText('主窗口出错了，已记到日志')).toBeTruthy();
+    expect(screen.getByText('主窗口发生错误，已写入日志')).toBeTruthy();
     expect(container.textContent).not.toMatch(/kaboom/);
     const reports = errors.mock.calls.map((c) => String(c[0])).filter((m) => m.startsWith('page_exception: '));
     expect(reports).toHaveLength(1);

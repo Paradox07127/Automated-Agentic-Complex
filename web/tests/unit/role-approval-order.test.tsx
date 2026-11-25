@@ -115,7 +115,7 @@ describe(' answering a role approval', () => {
     vi.spyOn(getBridge().stack, 'decide').mockRejectedValue(stale());
     const { dispatch, result } = hook(plain);
     result.current.act(allow(plain));
-    await waitFor(() => expect(dispatch).toHaveBeenCalledWith({ type: 'patch', id: plain.id, patch: { receipt: '已在别处处理' } }));
+    await waitFor(() => expect(dispatch).toHaveBeenCalledWith({ type: 'patch', id: plain.id, patch: { receipt: '已在其他位置处理' } }));
   });
 });
 

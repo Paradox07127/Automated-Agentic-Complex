@@ -19,10 +19,10 @@ NEED = {'done': ('agent', 'code'), 'err': (), 'turn': (), 'line': (), 'fg': ('sc
         'say': (), 'motion': (), 'touch': (), 'voice': ('voice',), 'mem': (), 'cost': (),
         'code': ('code',), 'shot': ('shot',), 'mask': ('scr', 'shot'), 'rem': ()}
 # proactive_log triggers of channel 'line': Proactive's reason kinds and dispatch_report's announcement and job states
-TRIGGERS = {'comment': '主动搭话', 'back': '你回来了', 'break': '提醒你休息', 'water': '提醒你喝水',
-            'stuck': '你卡住了，问要不要帮忙', 'dispatch_done': '派的任务做完了',
-            'dispatch_review': '派的任务待复核', 'dispatch_failed': '派的任务没做成',
-            'succeeded': '后台的活做完了', 'needs_review': '后台的活待复核', 'failed': '后台的活没做成'}
+TRIGGERS = {'comment': '主动发起对话', 'back': '返回桌面', 'break': '休息提醒', 'water': '饮水提醒',
+            'stuck': '检测到操作停滞，询问是否需要协助', 'dispatch_done': '委派任务已完成',
+            'dispatch_review': '委派任务待复核', 'dispatch_failed': '委派任务未完成',
+            'succeeded': '后台任务已完成', 'needs_review': '后台任务待复核', 'failed': '后台任务未完成'}
 
 
 def _error(kind, ident, at, title=None, reason=None, **ids):
@@ -300,10 +300,10 @@ def _traces(rows, switches, spatial, since, start, stop, now, add):
                 seat_spans.append((max(began, start), min(now, stop)))
     desk = {}
     if seats or seat_spans:
-        desk['window_top'] = {'key': 'window_top', 'label': '坐窗顶', 'count': seats,
+        desk['window_top'] = {'key': 'window_top', 'label': '停靠窗口顶部', 'count': seats,
                               'minutes': sum(b - a for a, b in _union(seat_spans)) / 60}
     if give_way:
-        desk['give_way'] = {'key': 'give_way', 'label': '给窗口让路', 'count': give_way, 'minutes': None}
+        desk['give_way'] = {'key': 'give_way', 'label': '避让前台窗口', 'count': give_way, 'minutes': None}
     return motions, desk
 
 
@@ -327,10 +327,10 @@ def _desk_log(rows, running, since, start, stop, end, add):
                 edges += at >= start
     desk = {}
     if edges or spans['edge']:
-        desk['edge'] = {'key': 'edge', 'label': '屏幕边缘陪你', 'count': edges,
+        desk['edge'] = {'key': 'edge', 'label': '停靠屏幕边缘', 'count': edges,
                         'minutes': sum(b - a for a, b in _union(spans['edge'])) / 60}
     if greets:
-        desk['greet'] = {'key': 'greet', 'label': '迎接', 'count': greets, 'minutes': None}
+        desk['greet'] = {'key': 'greet', 'label': '欢迎交互', 'count': greets, 'minutes': None}
     on_desk = sum(b - a for a, b in _union(spans['visible'])) / 60 if spans['visible'] else None
     return touch, desk, on_desk
 
@@ -374,7 +374,7 @@ def brief_day(server, day: date, now: float):
         if source in ('text', 'voice') and resume is None:
             add('turn', at)
             if at >= start:
-                lines['reply'] = {'at': at, 'kind': 'reply', 'text': reply, 'note': '回你的问题'}
+                lines['reply'] = {'at': at, 'kind': 'reply', 'text': reply, 'note': '回复用户提问'}
     for at, reason, text, outcome in rows(
             "SELECT shown_at,trigger,text,outcome FROM proactive_log WHERE channel='line' AND shown_at>=? AND shown_at<?"
             " ORDER BY shown_at,rowid", (since, stop)):
@@ -385,7 +385,7 @@ def brief_day(server, day: date, now: float):
             answered = outcome == 'replied'
             replied += answered
             kind = 'self' if answered else 'miss'
-            lines[kind] = {'at': at, 'kind': kind, 'text': text, 'note': '你回了这句' if answered else '你没回'}
+            lines[kind] = {'at': at, 'kind': kind, 'text': text, 'note': '用户已回复' if answered else '用户未回复'}
 
     for key, query in (
             ('mem', 'SELECT recorded_at FROM facts WHERE version=1 AND recorded_at>=? AND recorded_at<?'),

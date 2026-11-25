@@ -48,11 +48,11 @@ test('a runtime refusal is kernel with its fix, another is rejected with the bar
   const r = parseSay({ text: 'x', attachWindow: false, noMemory: false });
   const lines: string[] = [];
   assert.deepEqual(await say(r, answering(503, { error: 'native_login_required', runtime: 'codex' }), (l) => lines.push(l)),
-    { ok: false, reason: 'kernel', detail: '在终端运行 codex login，完成后到 设置 › 内核 点「重新检测」再发' });
+    { ok: false, reason: 'kernel', detail: '请在终端运行 codex login，完成后前往「设置 › 内核」点击「重新检测」再试' });
   assert.deepEqual(await say(r, answering(409, { error: 'switching' }), () => {}),
-    { ok: false, reason: 'rejected', detail: '正在换角色，这条没收下' });
+    { ok: false, reason: 'rejected', detail: '正在切换角色，消息未接收' });
   assert.deepEqual(await say(r, answering(418, { error: 'teapot' }), () => {}),
-    { ok: false, reason: 'rejected', detail: 'agentd 没收下这条（418 teapot）' });
+    { ok: false, reason: 'rejected', detail: '后台服务未接收该消息（418 teapot）' });
   assert.deepEqual(await say(r, async () => { throw new Error('ECONNREFUSED'); }, () => {}), { ok: false, reason: 'agentd' });
   assert.deepEqual(await say(r, answering(200, { command: 'stop' }), () => {}), { ok: true });
   assert.deepEqual(lines, ['QUICKINPUT web say chars=1 attach=false no_memory=false status=503']);

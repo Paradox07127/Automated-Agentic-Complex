@@ -389,7 +389,7 @@ test('host link: hello handshake, fps_tier, avatar ops over C3, rule 17 kill, th
       assert.deepEqual(await call('avatar.stopAction'), { ok: true, value: null });
       assert.ok(await until(1, () => avatar!.types().includes('stop_action')));
       assert.deepEqual(avatar.got.find((m) => m.type === 'stop_action'), { v: 1, type: 'stop_action', play_id: play.play_id });
-      assert.deepEqual(await call('avatar.playAction', 'walk', 2), { ok: false, error: { code: 'not_playable', detail: '这个动作不能单独播' } });
+      assert.deepEqual(await call('avatar.playAction', 'walk', 2), { ok: false, error: { code: 'not_playable', detail: '该动作不支持单独播放' } });
       assert.deepEqual(await call('avatar.playAction', 'wave', 3), { ok: false, error: { code: 'invalid_args',
         detail: 'action id, speed 0.5, 1 or 2, and {loop?}' } });
       assert.deepEqual(await call('avatar.setVisible', false), { ok: true, value: null });
@@ -418,7 +418,7 @@ test('host link: hello handshake, fps_tier, avatar ops over C3, rule 17 kill, th
     second.send({ type: 'hello', role: 'avatar', pid: 100, protocol: 1, character: 'cedar', capabilities: [] });
     assert.ok(await until(2, () => link.hello?.pid === 100), lines.join('\n'));
     assert.equal(link.currentCharacter, 'cedar');
-    assert.deepEqual(await call2(link, 'avatar.actions'), { ok: false, error: { code: 'not_implemented', detail: '这个版本的角色不支持动作设置' } });
+    assert.deepEqual(await call2(link, 'avatar.actions'), { ok: false, error: { code: 'not_implemented', detail: '当前版本角色不支持动作设置' } });
     second.socket.write(`${'x'.repeat(70000)}\n`);
     assert.ok(await until(2, () => !link.connected), lines.join('\n'));
     assert.ok(lines.some((l) => l.includes('行超过 65536 字节')), lines.join('\n'));

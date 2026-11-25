@@ -79,28 +79,28 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
   const end = endState(task, view);
   const code = task.source === 'code';
   // A role grant is keyed by the run's conversation when it has one (interactions.py), else by the run.
-  const scopeLabel = (a: AskItem) => (code ? '这次会话都允许' : a.kind === 'question' && a.conversation_id ? '本对话都允许' : '这个任务里都允许');
+  const scopeLabel = (a: AskItem) => (code ? '当前会话均允许' : a.kind === 'question' && a.conversation_id ? '当前对话均允许' : '当前任务均允许');
 
   const decide = (a: AskItem, v: Verdict, mode?: string) => {
     if (a.kind === 'approval') void actions.approve([a.id], v, mode);
     else void actions.answer(a, askAnswer(a, v));
   };
-  const mouseOnly = () => desk.push('危险操作只能用鼠标点「批准」；回车不会批准');
+  const mouseOnly = () => desk.push('危险操作仅支持鼠标点击「批准」；回车键不会触发批准');
   const papers: ReactNode[] = [
     // One yellow button: a question's 提交 first, then the first approval, then the review.
     ...asks.map((a, i) => <ApprovalPaper key={a.id} item={a} kernelName={desk.kernel.data ?? undefined} scopeLabel={scopeLabel(a)} onDecide={(v, m) => decide(a, v, m)} onMouseOnly={mouseOnly} quiet={i > 0 || questions.length > 0} />),
     ...questions.map((q) => <QuestionPaper key={q.id} question={q} now={desk.now} onAnswer={(ans) => void actions.answer(q, ans)} onCancel={() => void actions.cancelQuestion(q)} />),
   ];
   const first = asks[0] ?? questions[0];
-  const decision = first ? { title: first.title, note: asks.length ? '待批准 │ 停在这一步' : '待回答 │ 停在这一步', papers } : null;
+  const decision = first ? { title: first.title, note: asks.length ? '待批准 │ 当前步骤已暂停' : '待回答 │ 当前步骤已暂停', papers } : null;
 
   const chip: { k: keyof typeof CHIP; text: string } = eff === 'waiting'
     ? { k: 'wait', text: asks.length ? '待批准' : review || codeReview ? '待复核' : questions.length ? '待回答' : '待处理' }
     : ended
       ? { k: end.err ? 'err' : end.shape === 'ok' ? 'done' : 'off', text: end.text }
       : task.status === 'queued'
-        ? { k: 'off', text: '排队' }
-        : { k: 'run', text: '在跑' };
+        ? { k: 'off', text: '排队中' }
+        : { k: 'run', text: '进行中' };
   const conv = task.conversation_id;
   const where = code ? (
     <span>
@@ -148,18 +148,18 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
         <div className={styles.meta}>
           {ended && endAt != null ? (
             <span>
-              <b>{dayText(endAt, desk.now)}</b> {end.text === '完成' || end.text === '已接受' ? '完成' : end.text}
+              <b>{dayText(endAt, desk.now)}</b> {end.text === '已完成' || end.text === '已接受' ? '已完成' : end.text}
             </span>
           ) : task.started_at != null ? (
             <span>
               <b>{formatClock(task.started_at)}</b> 开始
             </span>
           ) : (
-            <span>还没开始</span>
+            <span>尚未开始</span>
           )}
           {task.started_at != null && (
             <span>
-              {ended ? '用时' : '已'} <b>{formatDuration((endAt ?? desk.now) - task.started_at)}</b>
+              {ended ? '总耗时' : '已耗时'} <b>{formatDuration((endAt ?? desk.now) - task.started_at)}</b>
             </span>
           )}
         </div>
@@ -181,18 +181,18 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
         )}
         {stopped && (
           <p className={styles.desc} data-dim="" role="status">
-            已停止 │ <span className="num">{endAt != null ? formatClock(endAt) : '—'}</span> │ 已写的文件留着，不能接着做
+            已停止 │ <span className="num">{endAt != null ? formatClock(endAt) : '—'}</span> │ 已写入的文件将保留，无法继续执行此任务
           </p>
         )}
         {task.status === 'interrupted' && (
           <p className={styles.desc} data-dim="" role="status">
-            后台重启时中断 │ <span className="num">{endAt != null ? formatClock(endAt) : '—'}</span>
+            后台服务重启时已中断 │ <span className="num">{endAt != null ? formatClock(endAt) : '—'}</span>
           </p>
         )}
         {task.status === 'queued' && (
           <div className={styles.timer}>
             <Clock size={22} />
-            <span>排队：等前台任务结束后开始</span>
+            <span>排队中：等待当前前台任务结束后自动开始</span>
           </div>
         )}
         {summary && (
@@ -212,14 +212,14 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
                     重试
                   </Btn>
                 ) : (
-                  '最近 6 行 │ 全部在终端里'
+                  '最近 6 行 │ 完整输出请在终端中查看'
                 )
               }
             />
-            <pre className={styles.logs}>{lines.isError ? '会话输出没读到' : lines.data == null ? '正在读取会话输出…' : lines.data.length ? lines.data.slice(-6).map((l) => `› ${l}`).join('\n') : '还没有输出'}</pre>
+            <pre className={styles.logs}>{lines.isError ? '未能读取会话输出' : lines.data == null ? '正在读取会话输出…' : lines.data.length ? lines.data.slice(-6).map((l) => `› ${l}`).join('\n') : '尚无输出'}</pre>
             <div className={styles.send}>
-              <Field label="给编码会话发消息" placeholder="给这个会话补一句…" value={msg} onChange={setMsg} />
-              <Btn size="sm" variant="ghost" disabled={!msg.trim()} disabledReason="先写要发的话" onClick={async () => {
+              <Field label="给编码会话发消息" placeholder="向该会话发送补充指令…" value={msg} onChange={setMsg} />
+              <Btn size="sm" variant="ghost" disabled={!msg.trim()} disabledReason="请先输入发送内容" onClick={async () => {
                 const sent = msg;
                 if (await actions.onTask(task)({ kind: 'send_session', text: sent.trim() })) setMsg((m) => (m === sent ? '' : m));
               }}>
@@ -256,8 +256,8 @@ export function TaskDetail({ task, desk, who, convTitle, onGoChat, note, onNote 
         )}
         {note && (
           <div className={paper.paper} data-depth="" data-theme="light" data-task-note="">
-            <h4>补一句{ended ? '再让角色接着做' : ''}</h4>
-            <p>{ended ? '角色从停下的那一步接着做，带上这句话。' : '角色收到后照这句话接着做。'}</p>
+            <h4>{ended ? '补充说明并继续执行' : '向任务补充说明'}</h4>
+            <p>{ended ? '角色将结合以下补充说明，从中断位置继续执行该任务。' : '角色收到以下补充说明后将据此调整执行。'}</p>
             <RejectBox
               mode="continue"
               kernelName={desk.kernel.data ?? undefined}

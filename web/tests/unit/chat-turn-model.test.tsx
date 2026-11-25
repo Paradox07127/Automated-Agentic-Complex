@@ -21,9 +21,9 @@ describe('turn model identity', () => {
     render(<Composer {...composer} modelError="missing_api_key" />);
     const strip = screen.getByRole('status');
     expect(strip.textContent).toContain('未接入');
-    expect(strip.textContent).toContain('没有可用的模型');
-    expect(strip.textContent).toContain('登录 Claude Code 或 Codex，或在设置里给 pi 填一个 API key');
-    fireEvent.click(within(strip).getByRole('button', { name: /前往设置连接/ }));
+    expect(strip.textContent).toContain('无可用模型');
+    expect(strip.textContent).toContain('请在「设置 › 内核」中登录 Claude Code / Codex，或为 Pi 配置 API Key');
+    fireEvent.click(within(strip).getByRole('button', { name: /前往配置/ }));
     const q = new URLSearchParams(window.location.hash.slice(window.location.hash.indexOf('?') + 1));
     expect(q.get('group')).toBe('kernel');
     expect(q.get('item')).toBe('svc');

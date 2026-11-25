@@ -33,21 +33,25 @@ export function kernelBreak(r: RuntimeInfo): number {
 /** Nodes up to the break are done, the break is ✕, everything after it is unreachable. */
 export function kernelNodes(r: RuntimeInfo): ChainNode[] {
   const bi = kernelBreak(r);
-  const subs = [r.path ? pathParts(r.path).slice(-2).join('/') : r.id === 'pi' && r.available ? '随应用的 SDK' : '没找到', r.version ?? '—', r.authenticated == null ? '不适用' : r.authenticated ? '已登录' : '未登录'];
+  const subs = [
+    r.path ? pathParts(r.path).slice(-2).join('/') : r.id === 'pi' && r.available ? '内置 SDK' : r.id === 'acp' && r.available ? '已检测' : '未检测到',
+    r.version ?? '—',
+    r.authenticated == null ? '无需登录' : r.authenticated ? '已登录' : '未登录',
+  ];
   return STEPS.map((label, i) => {
     const state = bi < 0 || i < bi ? 'done' : i === bi ? 'broken' : 'unreachable';
     return { label, state, sub: state === 'unreachable' ? '不可达' : subs[i], tip: `${label} │ ${subs[i]}` };
   });
 }
 
-const REASON = ['本机没有发现可执行文件，安装后重新检测', '角色入口不可用，请更新 CLI 后重新检测'];
+const REASON = ['未检测到可执行文件，安装后请点击「重新检测」', '执行内核入口不可用，请更新 CLI 工具后点击「重新检测」'];
 
 export function KernelChain({ runtime, alternative = null, surface = 'main', onCopy, onRunInTerminal, onSwitch, onRecheck }: KernelChainProps) {
   const bi = kernelBreak(runtime);
   const cmd = bi === 2 ? (runtime.login_command ?? null) : null;
   const size = surface === 'desk' ? 'desk' : surface === 'inline' ? 'compact' : 'main';
   return (
-    <div data-stub="KernelChain" data-surface={surface} className={styles.root} aria-label={`${runtime.name} 就绪链`}>
+    <div data-stub="KernelChain" data-surface={surface} className={styles.root} aria-label={`${runtime.name} 就绪状态`}>
       <NodeChain nodes={kernelNodes(runtime)} label={`${runtime.name} 就绪状态`} size={size} />
       {bi >= 0 && (
         <div className={styles.fix}>
@@ -63,7 +67,7 @@ export function KernelChain({ runtime, alternative = null, surface = 'main', onC
               </Btn>
             </>
           ) : (
-            <span className={styles.reason}>{bi === 2 ? '没有登录命令，请按内核文档登录后重新检测' : REASON[bi]}</span>
+            <span className={styles.reason}>{bi === 2 ? '无自动登录命令，请按工具文档完成登录后点击「重新检测」' : REASON[bi]}</span>
           )}
           {onRecheck && (
             <Btn size="sm" variant="ghost" icon="refresh" onClick={onRecheck}>

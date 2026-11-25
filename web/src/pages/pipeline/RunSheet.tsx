@@ -33,33 +33,33 @@ interface WireRunDetail {
 }
 
 /** Proposal operations (memory_service.py). */
-const OP: Readonly<Record<string, string>> = { add: '记下', correct: '更正', forget: '删除' };
+const OP: Readonly<Record<string, string>> = { add: '新增', correct: '更正', forget: '删除' };
 /** Receipt outcomes (memory_service.py `_change`, memory_pipeline.py). */
 const OUTCOME: Readonly<Record<string, string>> = {
-  stored: '已记下',
+  stored: '已写入',
   candidate: '待确认',
   corrected: '已更正',
   forgotten: '已删除',
-  unchanged: '已有，没有变化',
+  unchanged: '已存在，未变更',
 };
 /** Why the detail was dropped (memory_service.py, integration.py `redact`). */
 const REDACTED: Readonly<Record<string, string>> = {
   expired: '超过 48 小时',
   context_revoked: '来源权限已撤回',
   scope_revoked: '资料授权已撤回',
-  context_changed: '隐私设置变了',
-  memory_changed: '相关记忆被更正或删除',
+  context_changed: '隐私设置已变更',
+  memory_changed: '关联记忆已更正或删除',
 };
-const PURPOSE: Readonly<Record<string, string>> = { memory_extract: '记忆提炼（后台整理）', conversation: '对话中记下' };
+const PURPOSE: Readonly<Record<string, string>> = { memory_extract: '记忆提炼（后台整理）', conversation: '对话记录' };
 
 function reasonOf(e: unknown): string {
   if (!(e instanceof AgentdCallError)) return '读取失败';
-  if (e.code === 'offline') return '后台已断开';
+  if (e.code === 'offline') return '后台服务已断开';
   const fault = serverFaultText(e);
   if (fault) return fault;
-  if (e.code === 'unknown_memory_run') return '这条生成记录已经不在了';
-  if (e.code === 'no_memory') return '后台没有开启记忆';
-  return e.status === 0 ? '请求没有发出' : `后台返回 ${e.status}`;
+  if (e.code === 'unknown_memory_run') return '该生成记录已不存在';
+  if (e.code === 'no_memory') return '后台服务未开启记忆功能';
+  return e.status === 0 ? '未能发送请求' : `后台服务返回状态码 ${e.status}`;
 }
 
 function rawOf(r: WireRunDetail): string {
@@ -106,19 +106,19 @@ export function RunSheet({ id, onClose }: { id: string | null; onClose: () => vo
           />
           {bad && <ErrBar message={`${RUN_STATE[r.state] ?? '失败'}${code ? `（${code}）` : ''}`} />}
           {r.detail == null ? (
-            <p className={styles.note}>详细内容已清理（{REDACTED[r.redacted_reason ?? ''] ?? '已过保留期'}），只剩操作回执。</p>
+            <p className={styles.note}>详细内容已清理（{REDACTED[r.redacted_reason ?? ''] ?? '已过保留期'}），仅保留操作回执。</p>
           ) : (
             <>
               {r.detail.user_input && (
                 <section className={styles.part}>
-                  <SecHead title="这一轮的用户陈述" />
+                  <SecHead title="本轮用户陈述" />
                   <p className={styles.quote}>{r.detail.user_input}</p>
                 </section>
               )}
               <section className={styles.part}>
-                <SecHead title="提出要记的" count={r.detail.proposals.length} />
+                <SecHead title="提炼候选项" count={r.detail.proposals.length} />
                 {r.detail.proposals.length === 0 ? (
-                  <p className={styles.note}>这一次没有提出要记的内容</p>
+                  <p className={styles.note}>本次未产生待记录候选项</p>
                 ) : (
                   <ol className={styles.list}>
                     {r.detail.proposals.map((p, i) => (
@@ -127,7 +127,7 @@ export function RunSheet({ id, onClose }: { id: string | null; onClose: () => vo
                         <span className={styles.text}>{p.proposal.text || p.proposal.evidence_quote || '—'}</span>
                         {p.proposal.evidence_quote && p.proposal.evidence_quote !== p.proposal.text && <span className={styles.caption}>依据原文：{p.proposal.evidence_quote}</span>}
                         <span className={styles.result} title={p.receipt.error?.code}>
-                          结果：{p.receipt.error ? '没有通过校验' : (OUTCOME[p.receipt.outcome ?? ''] ?? '其他结果')}
+                          结果：{p.receipt.error ? '未通过校验' : (OUTCOME[p.receipt.outcome ?? ''] ?? '其他结果')}
                         </span>
                       </li>
                     ))}

@@ -72,7 +72,7 @@ export function Overview(p: OverviewProps) {
     <div className={styles.view}>
       {gone && (
         <ErrBar
-          message="后台服务没有响应"
+          message="后台服务无响应"
           staleAt={p.staleAt || undefined}
           extra={
             <>
@@ -87,7 +87,7 @@ export function Overview(p: OverviewProps) {
       {p.screenOff && (
         <ErrBar
           tone="warning"
-          message={p.textOnly ? '屏幕录制没有授权 │ 观察只读取窗口文字，不截图' : '屏幕录制没有授权'}
+          message={p.textOnly ? '屏幕录制未授权 │ 观察功能仅读取窗口文本，不截取画面' : '屏幕录制未授权'}
           extra={
             <Btn size="sm" onClick={() => p.go({ page: 'settings', group: 'perm', item: 'screenRecording' })}>
               前往设置
@@ -160,10 +160,10 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
     name: '后台服务',
     sub: agentd?.pid != null ? `agentd │ pid ${agentd.pid}` : 'agentd',
     state: gone ? 'failed' : agentd ? lampOf(agentd) : 'idle',
-    stateLabel: gone ? '没有响应' : (agentd?.status_text ?? '未知'),
-    why: gone ? (at ? `${at} 之后没有回应` : '读不到后台') : h?.agentd.up && h.agentd.started_at ? `运行 ${formatDuration(p.now - h.agentd.started_at)} │ 连接正常` : '连接正常',
+    stateLabel: gone ? '无响应' : (agentd?.status_text ?? '未知'),
+    why: gone ? (at ? `自 ${at} 起无响应` : '无法读取后台状态') : h?.agentd.up && h.agentd.started_at ? `运行 ${formatDuration(p.now - h.agentd.started_at)} │ 连接正常` : '连接正常',
     reads: [tick(cpuV, cpuU, 'CPU', levelOf(gone ? null : (agentd?.cpu_percent ?? null), LIMITS.agentd.cpu) ?? 'main'), tick(memV, memU, '内存', levelOf(gone ? null : (agentd?.memory_mb ?? null), LIMITS.agentd.mem) ?? 'ink', true)],
-    go: { label: '去进程', onClick: () => p.onTab('proc') },
+    go: { label: '查看进程', onClick: () => p.onTab('proc') },
   };
 
   const kernelIssue = caps((id) => KERNEL_CAPS.has(id))[0];
@@ -171,16 +171,16 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
   const runtimeRow: Row = {
     key: 'runtime',
     icon: 'kernel',
-    name: '角色内核',
+    name: '执行内核',
     sub: [h?.runtime.name || null, rt?.model || null].filter(Boolean).join(' │ ') || '—',
     child: 'mid',
     ...(gone
-      ? { state: 'idle' as const, stateLabel: '未知', why: '后台断开，读不到内核状态', dim: true }
+      ? { state: 'idle' as const, stateLabel: '未知', why: '后台服务已断开，无法读取内核状态', dim: true }
       : h?.runtime.ready
         ? kernelIssue
           ? { state: 'warning' as const, stateLabel: kernelIssue.title, why: kernelIssue.detail }
           : { state: 'ok' as const, stateLabel: '就绪', why: '内核检测通过' }
-        : { state: 'failed' as const, stateLabel: '不可用', why: kernelIssue?.detail ?? (h?.runtime.error ? (CAP_REASON[h.runtime.error] ?? '其他原因') : '读不到内核状态') }),
+        : { state: 'failed' as const, stateLabel: '不可用', why: kernelIssue?.detail ?? (h?.runtime.error ? (CAP_REASON[h.runtime.error] ?? '其他原因') : '无法读取内核状态') }),
     micro: 'RUNTIME',
     go: { label: '设置 › 内核', external: true, onClick: () => p.go(kernelIssue?.to ?? { page: 'settings', group: 'kernel', item: 'kernel' }) },
   };
@@ -204,11 +204,11 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
               ? `近 60 秒 P95 超出预算 ${p.over} 秒`
               : '帧率稳定'
             : p.renderWhy
-          : '桌面上看不到角色',
+          : '当前未显示角色',
     actions:
       avatar && avatar.tone !== 'running' && backoff == null ? (
         <Btn size="sm" variant="secondary" icon="refresh" onClick={() => p.onRestart('avatar')}>
-          重启角色
+          重启角色进程
         </Btn>
       ) : undefined,
     reads:
@@ -216,7 +216,7 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
         ? [tick(String(Math.round(p.fps)), 'fps', '帧率'), tick(...p95(p.p95), 'P95', p.over > 0 ? 'warn' : 'ink', true)]
         : undefined,
     micro: 'AVATAR',
-    go: { label: '去帧与负载', onClick: () => p.onTab('render') },
+    go: { label: '查看帧与负载', onClick: () => p.onTab('render') },
   };
 
   const tts = p.d?.connections.tts;
@@ -232,12 +232,12 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
     micro: 'TTS',
     go: { label: '设置 › 交流', external: true, onClick: () => p.go({ page: 'settings', group: 'speak', item: 'tts' }) },
     ...(gone
-      ? { state: 'idle' as const, stateLabel: '未知', why: '后台断开，读不到语音状态', dim: true }
+      ? { state: 'idle' as const, stateLabel: '未知', why: '后台服务已断开，无法读取语音状态', dim: true }
       : v === 'unreachable'
         ? {
             state: 'failed' as const,
-            stateLabel: '连不上',
-            why: [tts?.result && tts.result !== 'complete' && tts.result !== 'cancelled' ? ttsText(tts.result) : voiceIssue?.detail, retry ? `${Math.ceil(retry)} 秒后自动再试，这段时间台词只出文字` : '台词只出文字'].filter(Boolean).join(' │ '),
+            stateLabel: '无法连接',
+            why: [tts?.result && tts.result !== 'complete' && tts.result !== 'cancelled' ? ttsText(tts.result) : voiceIssue?.detail, retry ? `${Math.ceil(retry)} 秒后自动重试，期间仅展示文字回复` : '当前仅展示文字回复'].filter(Boolean).join(' │ '),
             actions: (
               <Btn size="sm" variant="secondary" icon="refresh" onClick={p.onVoiceReset}>
                 重新连接
@@ -255,7 +255,7 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
     child: i === services.length - 1 ? 'last' : 'mid',
     state: lampOf(s),
     stateLabel: s.status_text,
-    why: s.backoff_s != null ? `${s.backoff_s} 秒后自动重启` : '外壳替它起的隧道或本机进程',
+    why: s.backoff_s != null ? `${s.backoff_s} 秒后自动重启` : '由应用托管的隧道或本地进程',
     actions:
       lampOf(s) === 'ok' ? undefined : (
         <Btn size="sm" go onClick={() => p.go({ page: 'settings', group: 'services', item: `svc_${s.key}` })}>
@@ -263,7 +263,7 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
         </Btn>
       ),
     micro: s.key.toUpperCase(),
-    go: { label: '去进程', onClick: () => p.onTab('proc') },
+    go: { label: '查看进程', onClick: () => p.onTab('proc') },
   }));
 
   const f = p.flow;
@@ -272,17 +272,17 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
     icon: 'hub',
     name: '轮次管道',
     sub: '近 1 小时',
-    go: { label: '去链路', onClick: () => p.onTab('flow') },
+    go: { label: '查看链路', onClick: () => p.onTab('flow') },
     reads: [tick(String(f.turns), undefined, '轮'), tick(String(f.fails), undefined, '失败', f.fails ? 'bad' : 'ink', true)],
     ...(gone
-      ? { state: 'idle' as const, stateLabel: at ? `停在 ${at}` : '未知', why: '后台断开，下面是最后读到的数据', dim: true }
+      ? { state: 'idle' as const, stateLabel: at ? `停于 ${at}` : '未知', why: '后台服务已断开，以下为最后缓存的数据', dim: true }
       : f.fails > 0
-        ? { state: 'warning' as const, stateLabel: '有失败', why: [f.worst ? `「${f.worst.label}」失败 ${f.worst.n} 次` : null, f.approvals ? `「审批」有 ${f.approvals} 个待处理` : null].filter(Boolean).join(' │ ') }
+        ? { state: 'warning' as const, stateLabel: '存在失败', why: [f.worst ? `「${f.worst.label}」失败 ${f.worst.n} 次` : null, f.approvals ? `待处理审批 ${f.approvals} 项` : null].filter(Boolean).join(' │ ') }
         : f.approvals
-          ? { state: 'waiting' as const, stateLabel: '需要注意', why: `「审批」有 ${f.approvals} 个待处理` }
+          ? { state: 'waiting' as const, stateLabel: '需要注意', why: `待处理审批 ${f.approvals} 项` }
           : f.turns === 0
-            ? { state: 'idle' as const, stateLabel: '空闲', why: '近 1 小时没有跑过一轮' }
-            : { state: 'ok' as const, stateLabel: '正常', why: '近 1 小时没有失败' }),
+            ? { state: 'idle' as const, stateLabel: '空闲', why: '近 1 小时无对话轮次' }
+            : { state: 'ok' as const, stateLabel: '正常', why: '近 1 小时无失败' }),
   };
 
   const g = p.d?.gate;
@@ -293,13 +293,13 @@ export function rowsOf(p: OverviewProps): { link: Row[]; run: Row[] } {
     icon: 'radio',
     name: '主动发言',
     sub: '今天',
-    go: { label: '去内部状态', onClick: () => p.onTab('state') },
+    go: { label: '查看内部状态', onClick: () => p.onTab('state') },
     ...(gone || !g
-      ? { state: 'idle' as const, stateLabel: '未知', why: gone ? '后台断开' : '读不到闸门状态', dim: gone, micro: 'GATE' }
+      ? { state: 'idle' as const, stateLabel: '未知', why: gone ? '后台服务已断开' : '无法读取闸门状态', dim: gone, micro: 'GATE' }
       : {
           state: (holds.length ? 'warning' : 'ok') as VisualStateKey,
-          stateLabel: holds.length ? '暂时不说' : '可以说',
-          why: holds.length ? holds.join(' │ ') : cool.length ? `没有拦着的条件 │ 冷却还剩 ${formatDuration(secToMs(Math.min(...cool)))}` : '没有拦着的条件',
+          stateLabel: holds.length ? '暂不允许' : '允许',
+          why: holds.length ? holds.join(' │ ') : cool.length ? `无拦截条件 │ 冷却剩余 ${formatDuration(secToMs(Math.min(...cool)))}` : '无拦截条件',
           reads: [tick(String(g.today), `/${g.daily_limit}`, '今天'), tick(String(g.blocked_today), undefined, '被拦', 'ink', true)],
           actions: g.enabled ? undefined : (
             <Btn size="sm" go onClick={() => p.go(SPEAK_WHEN)}>

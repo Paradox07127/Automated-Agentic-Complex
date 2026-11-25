@@ -11,14 +11,14 @@ export const isStation = (v: string | null): v is StationId => v != null && (STA
 /** 全站状态词：在跑 / 空闲 / 堵住 / 出错了 / 已暂停 / 待确认，加上读取中和读不到。 */
 export type Phase = 'run' | 'idle' | 'block' | 'fail' | 'pause' | 'wait' | 'loading' | 'unread';
 export const PHASE: Readonly<Record<Phase, { key: VisualStateKey; label: string }>> = {
-  run: { key: 'running', label: '在跑' },
+  run: { key: 'running', label: '运行中' },
   idle: { key: 'idle', label: '空闲' },
   block: { key: 'blocked', label: stateVisual('blocked').label },
-  fail: { key: 'failed', label: '出错了' },
+  fail: { key: 'failed', label: '异常' },
   pause: { key: 'paused', label: stateVisual('paused').label },
   wait: { key: 'waiting', label: '待确认' },
   loading: { key: 'idle', label: '读取中' },
-  unread: { key: 'idle', label: '读不到' },
+  unread: { key: 'idle', label: '读取失败' },
 };
 
 export interface StationState {
@@ -39,15 +39,15 @@ export interface ObsSeen {
 
 /** 观察：关 / 暂停 / 安静 / 开会 → 已暂停；额度用完 → 堵住；有等待中的请求 → 在跑。 */
 export function obsState(o: ObsSeen | undefined, shots: { used: number; limit: number } | null): StationState {
-  if (o?.off) return at('pause', '观察已关');
+  if (o?.off) return at('pause', '观察已关闭');
   const paused = isoToMsOrNull(o?.paused_until);
-  if (paused != null) return at('pause', `到 ${formatClock(paused)}`);
+  if (paused != null) return at('pause', `暂停至 ${formatClock(paused)}`);
   const quiet = isoToMsOrNull(o?.quiet_until);
-  if (quiet != null) return at('pause', `安静到 ${formatClock(quiet)}`);
-  if (o?.meeting) return at('pause', '开会中');
-  if (shots && shots.limit > 0 && shots.used >= shots.limit) return at('block', '截图额度已满');
+  if (quiet != null) return at('pause', `免打扰至 ${formatClock(quiet)}`);
+  if (o?.meeting) return at('pause', '会议中');
+  if (shots && shots.limit > 0 && shots.used >= shots.limit) return at('block', '截图额度已用尽');
   const n = o?.pending?.length ?? 0;
-  return n > 0 ? at('run', `等 ${n} 个请求`) : at('idle');
+  return n > 0 ? at('run', `排队 ${n} 个请求`) : at('idle');
 }
 
 /** 理解：最近一次失败 → 出错了（原因只用回包的 error）；否则空闲，写上次的时间。 */

@@ -51,7 +51,7 @@ describe('切换角色时的雷霆大字', () => {
         <RouterProvider router={router} />
       </QueryClientProvider>,
     );
-    const toggle = await screen.findByRole('switch', { name: '切换角色时的雷霆大字' });
+    const toggle = await screen.findByRole('switch', { name: '切换角色时显示标题动画' });
     await waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('true'));
     await act(async () => void fireEvent.click(toggle));
     expect(save).toHaveBeenCalledWith({ switchTitle: false });

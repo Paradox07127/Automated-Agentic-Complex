@@ -17,7 +17,7 @@ export interface Waiting {
 }
 
 /** Approvals first, then her questions, then results to look at (the order the brief's 待处理 decides them in). */
-const KINDS: ReadonlyArray<[string, string]> = [['approvals', '要你批准'], ['questions', '角色在问你'], ['results', '交付待看']];
+const KINDS: ReadonlyArray<[string, string]> = [['approvals', '待批准'], ['questions', '待回答'], ['results', '待复核']];
 
 export function waitingOf(presence: unknown): Waiting | null {
   const pending = obj(obj(presence)?.pending);
@@ -81,7 +81,7 @@ const TTS: Record<RuntimeSnapshot['tts']['state'], [Tone, string]> = {
   probing: ['idle', '检测中'],
   unknown: ['idle', '检测中'],
   cold: ['paused', '待唤醒'],
-  unreachable: ['failed', '连不上'],
+  unreachable: ['failed', '无法连接'],
   off: ['idle', '未配置'],
 };
 

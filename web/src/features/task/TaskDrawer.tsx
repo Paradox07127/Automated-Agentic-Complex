@@ -153,7 +153,7 @@ export function TaskDrawer({ task, effective, now, delivery: latest = null, deli
           {/* The picked version's decision; running and 继续 are the task's, whatever version is shown. */}
           {delivery?.decided_at != null && (
             <p className={styles.done} role="status">
-              ✓ 这一版{delivery.state === 'accepted' ? '已接受' : '已退回'}
+              ✓ 当前版本{delivery.state === 'accepted' ? '已接受' : '已驳回'}
             </p>
           )}
           {jobRunning ? (

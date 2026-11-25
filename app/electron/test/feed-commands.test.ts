@@ -118,7 +118,7 @@ test('jump: a matching session jumps without a notice, its failure only logged; 
   const gone = setup({ sessions: [session], helper: { 'apps.activate': err('process_gone') } });
   gone.command('jump', 'endfield');
   assert.ok(await until(1, () => gone.log.length === 1));
-  assert.deepEqual(gone.log, ['FEED command action=jump result=session_jump note=com.example.term 没在运行']);
+  assert.deepEqual(gone.log, ['FEED command action=jump result=session_jump note=com.example.term 未运行']);
   assert.deepEqual(gone.notices, []);
   const app = setup({ sessionsStatus: 503, helper: { 'apps.activate': ok({ activated: true }) } });
   app.command('jump', 'safari');

@@ -23,7 +23,7 @@ export function GuideCard({ n, en, title, lead, tag }: GuideCardProps) {
       </span>
       {en && (
         <span className={styles.mi} aria-hidden="true">
-          <MicroLabel>{`Step ${pad2(n)} / 03 / ${en}`}</MicroLabel>
+          <MicroLabel>{`Step ${pad2(n)} / 04 / ${en}`}</MicroLabel>
           <span className={styles.rec}>SET</span>
         </span>
       )}

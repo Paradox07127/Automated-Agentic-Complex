@@ -165,7 +165,7 @@ describe('外观 · 导入提示', () => {
     expect(row.queryByRole('list', { name: '「野外装」导入提示' })).toBeNull();
     fireEvent.click(fold);
     const items = () => within(row.getByRole('list', { name: '「野外装」导入提示' })).getAllByRole('listitem').map((li) => li.textContent);
-    expect(items()).toEqual(['01这个开关在 mod 里写死了，不能切换', `02${outfitImportWarning('texture_unbound:Tex/14.dds')}`]);
+    expect(items()).toEqual(['01该开关已在模组中固定，不支持切换', `02${outfitImportWarning('texture_unbound:Tex/14.dds')}`]);
     fireEvent.click(fold);
     expect(row.queryByRole('list', { name: '「野外装」导入提示' })).toBeNull();
     fireEvent.click(fold);
@@ -187,11 +187,11 @@ describe('设定 · deep link (5220#24)', () => {
           <CharacterSettings tab="render" row="rnd.dof" offline={false} onRestart={noop} avatar={false} onTab={noop} toast={noop} />
         </QueryClientProvider>,
       );
-      await screen.findByRole('radiogroup', { name: '景深' });
+      await screen.findByRole('radiogroup', { name: '景深效果' });
       await waitFor(() => expect(into).toHaveBeenCalledTimes(1));
-      fireEvent.click(within(screen.getByRole('radiogroup', { name: '景深' })).getByRole('radio', { name: '近景时' }));
+      fireEvent.click(within(screen.getByRole('radiogroup', { name: '景深效果' })).getByRole('radio', { name: '仅近景启用' }));
       await waitFor(() => expect(save).toHaveBeenLastCalledWith({ 'rnd.dof': 'closeup' }));
-      await waitFor(() => expect(within(screen.getByRole('radiogroup', { name: '景深' })).getByRole('radio', { name: '近景时' }).getAttribute('aria-checked')).toBe('true'));
+      await waitFor(() => expect(within(screen.getByRole('radiogroup', { name: '景深效果' })).getByRole('radio', { name: '仅近景启用' }).getAttribute('aria-checked')).toBe('true'));
       expect(into).toHaveBeenCalledTimes(1);
     } finally {
       delete (Element.prototype as Partial<Element>).scrollIntoView;
@@ -257,10 +257,10 @@ describe('动作表 · 只看导入 (949c#25)', () => {
 
   it('stays off after the last imported row goes and a new one comes', () => {
     const ui = render(at({ [a.id]: imp }));
-    fireEvent.click(screen.getByRole('button', { name: '只看导入1' }));
-    expect(screen.getByRole('button', { name: '只看导入1' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: '仅显示导入动作1' }));
+    expect(screen.getByRole('button', { name: '仅显示导入动作1' }).getAttribute('aria-pressed')).toBe('true');
     ui.rerender(at({}));
     ui.rerender(at({ [a.id]: imp }));
-    expect(screen.getByRole('button', { name: '只看导入1' }).getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByRole('button', { name: '仅显示导入动作1' }).getAttribute('aria-pressed')).toBe('false');
   });
 });

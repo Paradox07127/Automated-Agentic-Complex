@@ -75,10 +75,10 @@ describe('observe actions', () => {
     const qc = new QueryClient();
     const actions = mount(qc);
     act(() => actions().deleteEpisode(EPISODE, 0, () => {}));
-    expect(screen.getByText('这个片段的摘要将被删除，相关记忆也会删除。')).toBeTruthy();
+    expect(screen.getByText('该片段的摘要将被删除，相关记忆亦将删除。')).toBeTruthy();
     expect(screen.queryByText(/截图/)).toBeNull();
     act(() => qc.setQueryData(KEY.memory, { facts: [] }));
     act(() => actions().deleteEpisode(EPISODE, 2, () => {}));
-    expect(screen.getByText('这个片段的摘要将被删除，由它生成的 2 条记忆也会一并删除。')).toBeTruthy();
+    expect(screen.getByText('该片段的摘要将被删除，由其生成的 2 条记忆亦将一并删除。')).toBeTruthy();
   });
 });

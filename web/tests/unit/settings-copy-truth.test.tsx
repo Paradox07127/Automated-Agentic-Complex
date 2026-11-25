@@ -62,7 +62,7 @@ describe('settings copy matches behavior', () => {
         <SpeakGroup />
       </Harness>,
     );
-    await screen.findByText('在气泡「更多操作」里点「关闭此类」加进来');
+    await screen.findByText('可通过气泡「更多操作」中的「关闭此类」添加');
     expect(row(container, 'mutes')).not.toContain('长按或右键');
   });
 });

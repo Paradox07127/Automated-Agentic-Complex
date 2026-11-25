@@ -8,10 +8,10 @@ const all = (over: Partial<States>): States => ({ obs: idle, interp: idle, mem: 
 
 describe('station states', () => {
   it('观察: paused before full, full before waiting', () => {
-    expect(obsState({ off: true, pending: [1] }, { used: 200, limit: 200 })).toEqual({ phase: 'pause', why: '观察已关' });
+    expect(obsState({ off: true, pending: [1] }, { used: 200, limit: 200 })).toEqual({ phase: 'pause', why: '观察已关闭' });
     expect(obsState({ meeting: true }, null).phase).toBe('pause');
-    expect(obsState({ pending: [1] }, { used: 200, limit: 200 })).toEqual({ phase: 'block', why: '截图额度已满' });
-    expect(obsState({ pending: [1, 2] }, { used: 3, limit: 200 })).toEqual({ phase: 'run', why: '等 2 个请求' });
+    expect(obsState({ pending: [1] }, { used: 200, limit: 200 })).toEqual({ phase: 'block', why: '截图额度已用尽' });
+    expect(obsState({ pending: [1, 2] }, { used: 3, limit: 200 })).toEqual({ phase: 'run', why: '排队 2 个请求' });
     expect(obsState({ pending: [] }, { used: 3, limit: 200 }).phase).toBe('idle');
   });
 
@@ -41,15 +41,15 @@ describe('the line', () => {
   it('points at a failed station before a blocked one, and counts them for the top bar', () => {
     const s = all({ obs: { phase: 'block', why: null }, mem: { phase: 'fail', why: null } });
     expect(troubled(s)).toBe('mem');
-    expect(lineWord(s)).toEqual({ phase: 'fail', text: '1 处出错了' });
+    expect(lineWord(s)).toEqual({ phase: 'fail', text: '1 处异常' });
     expect(lineWord(all({}))).toEqual({ phase: 'ok', text: '全线正常' });
     expect(lineWord(all({ obs: { phase: 'loading', why: null } }))).toBeNull();
   });
 
   it('堵住 and 已暂停 are the shared blocked and paused states', () => {
-    expect(PHASE.block).toEqual({ key: 'blocked', label: '堵住' });
+    expect(PHASE.block).toEqual({ key: 'blocked', label: '已阻塞' });
     expect(PHASE.pause).toEqual({ key: 'paused', label: '已暂停' });
-    expect(lineWord(all({ obs: { phase: 'block', why: null } }))?.text).toBe('1 处堵住');
+    expect(lineWord(all({ obs: { phase: 'block', why: null } }))?.text).toBe('1 处已阻塞');
     expect(lineWord(all({ mem: { phase: 'pause', why: null } }))?.text).toBe('1 处已暂停');
   });
 });

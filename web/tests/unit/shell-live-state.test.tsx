@@ -98,12 +98,12 @@ describe('⌘K 停止说话', () => {
     const stop = vi.spyOn(bridge.avatar, 'stopSpeech').mockResolvedValueOnce().mockRejectedValueOnce({ code: 'failed', detail: '角色没有连上' });
     for (let i = 0; i < 2; i++) {
       const ui = mount();
-      const option = within(screen.getByRole('listbox')).getByRole('option', { name: /停止说话/ });
+      const option = within(screen.getByRole('listbox')).getByRole('option', { name: /停止语音播报/ });
       await act(async () => fireEvent.click(option));
       ui.unmount();
     }
     expect(stop).toHaveBeenCalledTimes(2);
-    expect(toasts()).toEqual(['已停止说话', '没有停下：角色没有连上']);
+    expect(toasts()).toEqual(['已停止语音播报', '未能停止语音播报：角色渲染进程未连接']);
   });
 });
 

@@ -22,10 +22,10 @@ export function Plate({ plate, selected, onClick }: { plate: PlateData | null; s
       <span className={styles.halo} aria-hidden="true" />
       <MicroLabel>You / Profile</MicroLabel>
       <span className={styles.who}>
-        <b>{plate == null ? '—' : (plate.name ?? '还不知道怎么称呼你')}</b>
-        {plate?.name != null && <small>角色们这样叫你</small>}
+        <b>{plate == null ? '—' : (plate.name ?? '尚未记录您的称呼')}</b>
+        {plate?.name != null && <small>当前使用的称呼</small>}
       </span>
-      <span className={styles.pkv}>{none ? '对话里说一次，就会记下' : fields}</span>
+      <span className={styles.pkv}>{none ? '在对话中提及一次即可自动记录' : fields}</span>
     </button>
   );
 }

@@ -87,7 +87,7 @@ describe('diag page', () => {
     await mount();
     expect((await procRow('agentd')).textContent).toMatch(/4242.*运行中/);
     expect((await procRow('avatar')).textContent).toMatch(/4343.*运行中/);
-    await waitFor(async () => expect((await procRow('voice')).textContent).toMatch(/连不上.*连接断开/));
+    await waitFor(async () => expect((await procRow('voice')).textContent).toMatch(/无法连接.*连接断开/));
   });
 
   it('turns a supervisor backoff(8) into the row and link reading', async () => {
@@ -117,8 +117,8 @@ describe('diag page', () => {
     const base = window.agenticComplex!;
     window.agenticComplex = { ...base, permissions: { ...base.permissions, status: async () => ({ ...(await base.permissions.status()), screenRecording: 'denied' }) } };
     await mount();
-    const bar = (await screen.findByText(/屏幕录制没有授权/)).closest('[role="alert"]') as HTMLElement;
-    expect(bar.textContent).toContain('观察只读取窗口文字，不截图');
+    const bar = (await screen.findByText(/屏幕录制未授权/)).closest('[role="alert"]') as HTMLElement;
+    expect(bar.textContent).toContain('观察功能仅读取窗口文本，不截取画面');
     expect(within(bar).getByRole('button', { name: '前往设置' })).toBeTruthy();
   });
 
@@ -158,7 +158,7 @@ describe('diag page', () => {
     expect(actions).toEqual(['copy_diagnostics']);
     expect(clipboard).toEqual([]);
     fireEvent.click(within(row).getByRole('button', { name: '重启' }));
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: '重启角色' })));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '重启角色进程' })));
     expect(restarts).toEqual(['avatar']);
     // 日志 opens that process's source on 诊断 › 日志; 在 Finder 中显示 lives only there.
     await act(async () => fireEvent.click(within(row).getByRole('button', { name: '日志' })));
@@ -171,7 +171,7 @@ describe('diag page', () => {
     const details = async () => ({ renderer: null, build: null, pipeline: null, placement: null });
     window.agenticComplex = { ...base, avatar: { ...base.avatar, onStats: () => () => {}, details } };
     await mount('&tab=render');
-    await waitFor(() => expect(screen.getByRole('region', { name: '帧率' }).textContent).toContain('宿主没有上报帧数据'));
+    await waitFor(() => expect(screen.getByRole('region', { name: '帧率' }).textContent).toContain('宿主未上报帧数据'));
     expect(screen.queryByRole('region', { name: '宿主详情' })).toBeNull();
   });
 
@@ -182,13 +182,13 @@ describe('diag page', () => {
     await waitFor(() => expect(document.querySelector('[data-nav-target="diag-render"]')?.textContent).toMatch(/^60\s*fps/));
   });
 
-  it('an offline /diag/state is 后台服务没有响应, not raw JSON', async () => {
+  it('an offline /diag/state is 后台服务无响应, not raw JSON', async () => {
     window.agenticComplex = {
       ...window.agenticComplex!,
       agentd: { ...window.agenticComplex!.agentd, request: async () => ({ status: 0, body: null, error: { code: 'offline' } }) },
     };
     await mount();
-    const fail = (await screen.findByText('后台服务没有响应')).closest('[role="alert"]');
+    const fail = (await screen.findByText('后台服务无响应')).closest('[role="alert"]');
     expect(fail).not.toBeNull();
     expect(fail?.textContent).not.toMatch(/[{}]/);
     expect(screen.getAllByText(/已断开/).length).toBeGreaterThan(0);
@@ -210,7 +210,7 @@ describe('diag turns', () => {
     expect(document.querySelector('button[aria-label^="记忆提取 │ "]')?.getAttribute('aria-label')).toBe('记忆提取 │ 次数在记忆管线页');
   });
 
-  it('a failed /trace/turns read says so in 管道, not 后台服务没有响应', async () => {
+  it('a failed /trace/turns read says so in 管道, not 后台服务无响应', async () => {
     const base = window.agenticComplex!;
     window.agenticComplex = {
       ...base,
@@ -220,8 +220,8 @@ describe('diag turns', () => {
       },
     };
     await mount('&tab=flow');
-    await waitFor(() => expect(screen.getByRole('region', { name: '管道' }).textContent).toContain('读不到轮次：'));
-    expect(document.body.textContent).not.toContain('后台服务没有响应');
+    await waitFor(() => expect(screen.getByRole('region', { name: '管道' }).textContent).toContain('无法读取轮次：'));
+    expect(document.body.textContent).not.toContain('后台服务无响应');
   });
 
   it('a live input.received re-reads the turn list', async () => {
@@ -254,8 +254,8 @@ describe('diag model', () => {
     const gate = { ...DIAG_STATE.gate, quiet_hours: [[22, 8]] as [number, number][] };
     expect(gateHolds(gate)).toEqual([]);
     render(<GatePanel cooldowns={[]} gate={gate} />);
-    expect(screen.getAllByText(/^(开着|没在开会|没有)$/)).toHaveLength(4);
-    expect(screen.getByText('免打扰时段').nextElementSibling?.textContent).toBe('已设');
+    expect(screen.getAllByText(/^(已开启|无|否)$/)).toHaveLength(4);
+    expect(screen.getByText('免打扰时段').nextElementSibling?.textContent).toBe('已设置');
   });
 
   it('draws today’s model calls by channel and by call', () => {

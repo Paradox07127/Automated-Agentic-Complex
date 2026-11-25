@@ -64,7 +64,7 @@ describe('deny with a reason', () => {
 describe('expired receipt', () => {
   it('a hook card says the call went back to the terminal', () => {
     const { container } = render(<ApprovalCard approval={{ ...tool, seconds_left: 0 }} />);
-    expect(container.querySelector('[data-stub="DecisionReceipt"]')?.textContent).toContain('已超时 │ 已回到终端里确认');
+    expect(container.querySelector('[data-stub="DecisionReceipt"]')?.textContent).toContain('已超时 │ 已交回终端处理');
   });
 
   it('a dispatch card, a role card and a bare receipt keep 请求已失效', () => {

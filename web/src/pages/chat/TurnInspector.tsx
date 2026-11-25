@@ -20,7 +20,7 @@ export interface TurnInspectorProps {
   emptyText?: string;
 }
 
-const RES_TONE: Readonly<Record<TurnRes, PillProps['tone']>> = { 成功: 'success', 失败: 'danger', 打断: 'attention', 跳过: 'neutral', 进行中: 'info', 待确认: 'attention', 仅生成文字: 'neutral', 回执不全: 'attention' };
+const RES_TONE: Readonly<Record<TurnRes, PillProps['tone']>> = { 成功: 'success', 失败: 'danger', 打断: 'attention', 跳过: 'neutral', 进行中: 'info', 待处理: 'attention', 仅生成文字: 'neutral', 状态未知: 'attention' };
 const MOTION_PHASE: Readonly<Record<string, string>> = { accepted: '宿主已接受', running: '执行中', completed: '已完成', cancelled: '已取消', interrupted: '已中断', rejected: '宿主拒绝', blocked: '执行受阻' };
 const pad2 = (n: number) => String(n).padStart(2, '0');
 

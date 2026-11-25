@@ -44,7 +44,7 @@ describe('her hover buttons', () => {
   it('show 对话, 说话, 给角色看 and 隐藏 without their keys while native has them open, and nothing while closed', async () => {
     const d = mount();
     await flush(async () => {});
-    expect(within(group()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['对话', '说话', '给角色看', '隐藏']);
+    expect(within(group()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['对话', '语音输入', '屏幕识读', '隐藏']);
     expect(group().textContent).not.toContain('⌃Space');
     expect(group().querySelector('kbd')).toBeNull();
     expect(document.querySelector('[data-surface-root="dock"] [data-region]')).not.toBeNull();
@@ -64,7 +64,7 @@ describe('her hover buttons', () => {
   it('对话, 给角色看 and 隐藏 go through desktop.action', async () => {
     const d = mount();
     await flush(async () => {});
-    for (const name of [/^对话$/, /^给角色看$/, /^隐藏$/]) await flush(async () => fireEvent.click(row(name)));
+    for (const name of [/^对话$/, /^屏幕识读$/, /^隐藏$/]) await flush(async () => fireEvent.click(row(name)));
     expect(d.action.mock.calls).toEqual([['quickInput', undefined], ['look', undefined], ['hide', undefined]]);
   });
 
@@ -72,12 +72,12 @@ describe('her hover buttons', () => {
     const d = mount();
     await flush(async () => {});
     const now = vi.spyOn(performance, 'now').mockReturnValue(1000);
-    await flush(async () => fireEvent.pointerDown(row(/^说话$/), { button: 0, pointerId: 1 }));
+    await flush(async () => fireEvent.pointerDown(row(/^语音输入$/), { button: 0, pointerId: 1 }));
     expect(d.action.mock.calls).toEqual([['talk', 'start']]);
-    expect(within(group()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['在听…松开发送']);
+    expect(within(group()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['录音中…松开发送']);
     now.mockReturnValue(1000 + TAP_MS + 300);
-    await flush(async () => fireEvent.pointerUp(row(/^在听/), { button: 0, pointerId: 1 }));
-    await flush(async () => fireEvent.click(row(/^说话$/)));
+    await flush(async () => fireEvent.pointerUp(row(/^录音中/), { button: 0, pointerId: 1 }));
+    await flush(async () => fireEvent.click(row(/^语音输入$/)));
     expect(d.action.mock.calls).toEqual([['talk', 'start'], ['talk', 'stop']]);
   });
 
@@ -85,13 +85,13 @@ describe('her hover buttons', () => {
     const d = mount();
     await flush(async () => {});
     const now = vi.spyOn(performance, 'now').mockReturnValue(1000);
-    await flush(async () => fireEvent.pointerDown(row(/^说话$/), { button: 0, pointerId: 1 }));
+    await flush(async () => fireEvent.pointerDown(row(/^语音输入$/), { button: 0, pointerId: 1 }));
     now.mockReturnValue(1000 + TAP_MS - 50);
-    await flush(async () => fireEvent.pointerUp(row(/^在听/), { button: 0, pointerId: 1 }));
-    await flush(async () => fireEvent.click(row(/^在听/)));
-    expect(row(/^在听/).getAttribute('aria-label')).toBe('在听…再点一下发送');
+    await flush(async () => fireEvent.pointerUp(row(/^录音中/), { button: 0, pointerId: 1 }));
+    await flush(async () => fireEvent.click(row(/^录音中/)));
+    expect(row(/^录音中/).getAttribute('aria-label')).toBe('录音中…再次点击发送');
     expect(d.action.mock.calls).toEqual([['talk', 'start']]);
-    await flush(async () => fireEvent.pointerDown(row(/^在听/), { button: 0, pointerId: 1 }));
+    await flush(async () => fireEvent.pointerDown(row(/^录音中/), { button: 0, pointerId: 1 }));
     expect(d.action.mock.calls).toEqual([['talk', 'start'], ['talk', 'stop']]);
   });
 
@@ -99,22 +99,22 @@ describe('her hover buttons', () => {
     const d = mount();
     await flush(async () => {});
     const now = vi.spyOn(performance, 'now').mockReturnValue(1000);
-    await flush(async () => fireEvent.pointerDown(row(/^说话$/), { button: 0, pointerId: 1 }));
+    await flush(async () => fireEvent.pointerDown(row(/^语音输入$/), { button: 0, pointerId: 1 }));
     now.mockReturnValue(1000 + TAP_MS + 300);
-    await flush(async () => fireEvent.pointerCancel(row(/^在听/), { pointerId: 1 }));
+    await flush(async () => fireEvent.pointerCancel(row(/^录音中/), { pointerId: 1 }));
     expect(d.action.mock.calls).toEqual([['talk', 'start'], ['talk', 'stop']]);
-    expect(within(group()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['对话', '说话', '给角色看', '隐藏']);
+    expect(within(group()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['对话', '语音输入', '屏幕识读', '隐藏']);
   });
 
   it('说话 cancelled before a tap would count stops recording, and the next Enter on it starts afresh', async () => {
     const d = mount();
     await flush(async () => {});
     const now = vi.spyOn(performance, 'now').mockReturnValue(1000);
-    await flush(async () => fireEvent.pointerDown(row(/^说话$/), { button: 0, pointerId: 1 }));
+    await flush(async () => fireEvent.pointerDown(row(/^语音输入$/), { button: 0, pointerId: 1 }));
     now.mockReturnValue(1000 + TAP_MS - 50);
-    await flush(async () => fireEvent.pointerCancel(row(/^在听/), { pointerId: 1 }));
+    await flush(async () => fireEvent.pointerCancel(row(/^录音中/), { pointerId: 1 }));
     expect(d.action.mock.calls).toEqual([['talk', 'start'], ['talk', 'stop']]);
-    await flush(async () => fireEvent.click(row(/^说话$/)));
+    await flush(async () => fireEvent.click(row(/^语音输入$/)));
     expect(d.action.mock.calls).toEqual([['talk', 'start'], ['talk', 'stop'], ['talk', 'start']]);
   });
 
@@ -135,18 +135,18 @@ describe('her hover buttons', () => {
     const action = vi.spyOn(bridge.desktop, 'action').mockResolvedValue(undefined);
     render(<DockRoot />);
     await flush(async () => {});
-    for (const name of [/^对话$/, /^说话$/, /^给角色看$/]) expect(row(name).getAttribute('aria-disabled')).toBe('true');
-    expect(row(/^说话$/).getAttribute('title')).toBe('未接入：连不上后台');
-    await flush(async () => fireEvent.pointerDown(row(/^说话$/), { button: 0, pointerId: 1 }));
+    for (const name of [/^对话$/, /^语音输入$/, /^屏幕识读$/]) expect(row(name).getAttribute('aria-disabled')).toBe('true');
+    expect(row(/^语音输入$/).getAttribute('title')).toBe('未接入：无法连接后台服务');
+    await flush(async () => fireEvent.pointerDown(row(/^语音输入$/), { button: 0, pointerId: 1 }));
     expect(action).not.toHaveBeenCalled();
   });
 
   it('without the microphone 说话 is greyed, records nothing, and a click opens 设置 at the microphone permission', async () => {
     const d = mount({ ...STATE, pips: { ...STATE.pips, voice: 'denied' } });
     await flush(async () => {});
-    expect(row(/^说话$/).getAttribute('aria-disabled')).toBe('true');
-    await flush(async () => fireEvent.pointerDown(row(/^说话$/), { button: 0, pointerId: 1 }));
-    await flush(async () => fireEvent.click(row(/^说话$/)));
+    expect(row(/^语音输入$/).getAttribute('aria-disabled')).toBe('true');
+    await flush(async () => fireEvent.pointerDown(row(/^语音输入$/), { button: 0, pointerId: 1 }));
+    await flush(async () => fireEvent.click(row(/^语音输入$/)));
     expect(d.action).not.toHaveBeenCalled();
     expect(d.openMain.mock.calls).toEqual([[navRoute({ page: 'settings', group: 'perm', item: 'microphone' })]]);
   });
@@ -154,7 +154,7 @@ describe('her hover buttons', () => {
   it('a greyed row for any other reason opens nothing', async () => {
     const d = mount({ ...STATE, plugins: ['light_ai'] });
     await flush(async () => {});
-    await flush(async () => fireEvent.click(row(/^给角色看$/)));
+    await flush(async () => fireEvent.click(row(/^屏幕识读$/)));
     expect(d.action).not.toHaveBeenCalled();
     expect(d.openMain).not.toHaveBeenCalled();
   });

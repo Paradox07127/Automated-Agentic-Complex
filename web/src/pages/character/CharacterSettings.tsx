@@ -109,9 +109,9 @@ export function CharacterSettings(p: CharacterSettingsProps) {
     return () => void getBridge().avatar.keepClearOfMain(false).catch(() => {});
   }, [p.avatar]);
 
-  if (q.isError) return <ErrBar message={`读取设置失败：${readFail(q.error)}`} onRetry={() => void q.refetch()} />;
+  if (q.isError) return <ErrBar message={`未能读取设置：${readFail(q.error)}`} onRetry={() => void q.refetch()} />;
   if (!n) return <Skel rows={8} />;
-  if (!tab) return <div className={styles.none}>没有可调的设置</div>;
+  if (!tab) return <div className={styles.none}>当前无可用设置项</div>;
 
   // `quiet`: a slider value sent mid-drag; the released value is saved again with its toast, a failure stays on the row.
   const save = (changes: Record<string, SettingValue>, fail: string, quiet = false) => {
@@ -131,11 +131,10 @@ export function CharacterSettings(p: CharacterSettingsProps) {
       return true;
     });
   };
-  const set = (id: string, v: SettingValue, quiet?: boolean) => save({ [id]: v }, `没有保存「${n.rows[id]?.label ?? id}」`, quiet);
+  const set = (id: string, v: SettingValue, quiet?: boolean) => save({ [id]: v }, `未能保存「${n.rows[id]?.label ?? id}」`, quiet);
   const ids = tabRows(n, tab);
   const changed = ids.filter((id) => isChanged(n, id));
-  const reset = () => save(Object.fromEntries(changed.map((id) => [id, n.rows[id]!.default])), '没有恢复默认');
-  const look = tab === 'render';
+  const reset = () => save(Object.fromEntries(changed.map((id) => [id, n.rows[id]!.default])), '未能恢复本页默认设置');
 
   return (
     <div className={styles.set}>
@@ -143,17 +142,17 @@ export function CharacterSettings(p: CharacterSettingsProps) {
       <Linked offline={p.offline} onRestart={p.onRestart}>
         <div className={styles.sum}>
           <span className={styles.en}>
-            <MicroLabel>{look ? 'Diff from original' : 'Diff from default'}</MicroLabel>
+            <MicroLabel>Diff from default</MicroLabel>
           </span>
-          <span className={styles.k}>已改</span>
+          <span className={styles.k}>已修改</span>
           <b className={styles.n}>{changed.length}</b>
           <span className={styles.k}>/ {ids.length} 项</span>
           <span className={styles.sp} />
           <WhiteCapsule
-            label={look ? '恢复原作' : '恢复默认'}
+            label="恢复本页默认"
             icon="refresh"
             disabled={p.offline || changed.length === 0 || saving > 0}
-            disabledReason={p.offline ? '角色未运行' : changed.length === 0 ? '没有改动' : '还有设置在保存'}
+            disabledReason={p.offline ? '角色进程未运行' : changed.length === 0 ? '当前均为默认值' : '正在保存更改'}
             onClick={reset}
           />
         </div>
@@ -162,7 +161,7 @@ export function CharacterSettings(p: CharacterSettingsProps) {
             n={n}
             tab={tab}
             set={set}
-            setMany={(changes) => save(changes, '没有保存「主光方向」')}
+            setMany={(changes) => save(changes, '未能保存「主光方向」')}
             pending={new Set(Object.keys(pending))}
             failed={failed}
             offline={p.offline}
@@ -178,7 +177,7 @@ function Linked({ offline, onRestart, children }: { offline: boolean; onRestart:
   if (!offline) return <>{children}</>;
   return (
     <div className={styles.linked}>
-      <PowerState state="unlinked" mode="block" title="桌面角色" reason="角色未运行，设定暂为只读" action={{ label: '重启角色', onClick: onRestart }}>
+      <PowerState state="unlinked" mode="block" title="桌面角色" reason="角色进程未运行，当前设定为只读" action={{ label: '重启角色进程', onClick: onRestart }}>
         {children}
       </PowerState>
     </div>

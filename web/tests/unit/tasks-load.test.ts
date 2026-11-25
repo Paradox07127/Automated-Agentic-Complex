@@ -57,7 +57,7 @@ describe('task page load errors', () => {
     install('connected', (path) => (path === '/sessions' ? { status: 500, body: null, error: { code: 'internal', detail: 'boom' } } : null));
     const e = await failure(loadTasksBase(false, { sessions: true, agent: true }));
     expect(e.kind).toBe('other');
-    expect(e.message).toBe('读取任务失败：后台出错了');
+    expect(e.message).toBe('读取任务失败：后台服务处理出错');
     expect(e.code).toBe('internal');
   });
 
@@ -84,8 +84,8 @@ describe('task page reads split', () => {
   it('a pending read failure names 待处理 and keeps the cause apart', async () => {
     install('connected', (path) => (path === '/approvals' || path === '/agent/interactions' ? { status: 500, body: null, error: { code: 'internal' } } : null));
     const e = await failure(loadPending());
-    expect(e.message).toBe('读取待处理失败：后台出错了');
-    expect(e.reason).toBe('后台出错了');
+    expect(e.message).toBe('读取待处理失败：后台服务处理出错');
+    expect(e.reason).toBe('后台服务处理出错');
   });
 
   it('a failed /agent/interactions keeps the approvals and carries its error', async () => {
@@ -93,7 +93,7 @@ describe('task page reads split', () => {
     const p = await loadPending();
     expect(p.approvals.length).toBeGreaterThan(0);
     expect(p.questions).toEqual([]);
-    expect(p.failed?.message).toBe('读取待处理失败：后台出错了');
+    expect(p.failed?.message).toBe('读取待处理失败：后台服务处理出错');
   });
 
   it("an approval's countdown starts when /approvals answers, not after the slower read", async () => {

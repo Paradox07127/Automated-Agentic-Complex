@@ -21,11 +21,11 @@ export const SPEAK_WHEN: NavTarget = { page: 'settings', group: 'speak', item: '
 /** What currently holds proactive speech back (gate switches and the shared cooldown); empty when nothing does. */
 export function gateHolds(g: WireDiagGate): string[] {
   const out: string[] = [];
-  if (!g.enabled) out.push('主动发言已关');
-  if (g.meeting) out.push('开会中');
+  if (!g.enabled) out.push('主动发言已关闭');
+  if (g.meeting) out.push('会议中');
   if (g.fullscreen) out.push('前台全屏');
-  if (g.user_speaking) out.push('你在说话');
-  if (g.cross_cooldown_s > 0) out.push(`刚说过话，${formatDuration(secToMs(g.cross_cooldown_s))} 后可再说`);
+  if (g.user_speaking) out.push('用户正在语音输入');
+  if (g.cross_cooldown_s > 0) out.push(`处于发言冷却中，${formatDuration(secToMs(g.cross_cooldown_s))} 后可再次发言`);
   return out;
 }
 
@@ -62,10 +62,10 @@ export function GatePanel({ cooldowns, gate }: GatePanelProps) {
   const accepted = entries.reduce((s, [, v]) => s + v.accepted, 0);
   const responded = replied + accepted;
   const conds: Array<[string, boolean, string, string]> = [
-    ['主动发言开关', gate.enabled, '开着', '关了'],
-    ['开会', !gate.meeting, '没在开会', '开会中'],
-    ['前台全屏', !gate.fullscreen, '没有', '全屏中'],
-    ['你在说话', !gate.user_speaking, '没有', '在说'],
+    ['主动发言开关', gate.enabled, '已开启', '已关闭'],
+    ['会议状态', !gate.meeting, '无', '会议中'],
+    ['前台全屏', !gate.fullscreen, '否', '全屏中'],
+    ['语音输入状态', !gate.user_speaking, '无', '语音输入中'],
   ];
 
   return (
@@ -101,13 +101,13 @@ export function GatePanel({ cooldowns, gate }: GatePanelProps) {
       {/* agentd sends the configured periods, not whether one is on now. */}
       <div className={styles.gr}>
         <span className={styles.k}>免打扰时段</span>
-        <span className={styles.v}>{gate.quiet_hours.length > 0 ? '已设' : '没有设'}</span>
+        <span className={styles.v}>{gate.quiet_hours.length > 0 ? '已设置' : '未设置'}</span>
       </div>
       {dev && stats != null && (
         <>
           <MicroLabel>LAST 7 DAYS</MicroLabel>
           <span className={styles.dim}>
-            近 7 天主动 <span className="num">{shown}</span> 条 │ 有回应 <span className="num">{responded}</span>（<span className="num">{pct(responded, shown)}</span>） │ 点了建议{' '}
+            近 7 天主动 <span className="num">{shown}</span> 条 │ 有回应 <span className="num">{responded}</span>（<span className="num">{pct(responded, shown)}</span>） │ 采纳建议{' '}
             <span className="num">{accepted}</span>
           </span>
           {entries.length > 0 && (
@@ -117,7 +117,7 @@ export function GatePanel({ cooldowns, gate }: GatePanelProps) {
                   <th scope="col">触发</th>
                   <th scope="col">主动</th>
                   <th scope="col">有回应</th>
-                  <th scope="col">点了建议</th>
+                  <th scope="col">采纳建议</th>
                   <th scope="col">回应率</th>
                 </tr>
               </thead>

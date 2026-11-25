@@ -98,7 +98,7 @@ describe('角色页 · 服装分层', () => {
     render(<Op toast={toast} />);
     fireEvent.click(screen.getByRole('tab', { name: '显示' }));
     hide('外套');
-    await waitFor(() => expect(toast).toHaveBeenCalledWith('服装分层没有完成：桌面角色没有回应', { severity: 'danger' }));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith('服装分层未完成：角色渲染进程无响应', { severity: 'danger' }));
     hide('披风');
     await waitFor(() => expect(layer('披风').getAttribute('aria-checked')).toBe('false'));
     expect(layer('外套').getAttribute('aria-checked')).toBe('true');
@@ -211,6 +211,6 @@ describe('角色页 · 大小', () => {
     preset('150%');
     expect(slider().value).toBe('150');
     await waitFor(() => expect(slider().value).toBe('100'));
-    expect(toast).toHaveBeenCalledWith('改大小没有完成：桌面角色没有回应', { severity: 'danger' });
+    expect(toast).toHaveBeenCalledWith('调整缩放未能完成：角色渲染进程无响应', { severity: 'danger' });
   });
 });

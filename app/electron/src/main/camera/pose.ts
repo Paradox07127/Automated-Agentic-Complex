@@ -28,16 +28,16 @@ export interface PosePorts {
 /** C3 rule 47 `actions[].pose`, in menu order. */
 export const POSE_SLOTS = ['stand', 'akimbo', 'sit', 'floor', 'lie'] as const;
 export const POSE_TITLES: Readonly<Record<string, string>> = { stand: '站', akimbo: '叉腰', sit: '坐', floor: '坐地', lie: '躺' };
-const NO_ROW = '这个角色没有这个姿态的原作动作';
+const NO_ROW = '该角色未配置此姿态的原作动作';
 const REPLY_TIMEOUT = 2;
-const FAILURES: Readonly<Record<string, string>> = { unsupported: '这个版本的角色不支持姿态', timeout: '角色没有回应', invalid: '角色没有这个姿态',
-  busy: '角色正在做别的动作', disconnected: '和角色的连接断了' };
+const FAILURES: Readonly<Record<string, string>> = { unsupported: '当前版本角色不支持姿态设置', timeout: '角色渲染进程无响应', invalid: '角色不支持该姿态',
+  busy: '角色正在执行其他动作', disconnected: '角色连接已断开' };
 
 /** AvatarPoses.Failure: `reason` is `unsupported`, `timeout` or the `ack.error`. */
 export class PoseFailure extends Error {
   readonly reason: string;
   constructor(reason: string) {
-    super(FAILURES[reason] ?? '没能摆出这个姿态');
+    super(FAILURES[reason] ?? '未能切换至该姿态');
     this.reason = reason;
   }
 }

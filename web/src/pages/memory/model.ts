@@ -13,10 +13,10 @@ export const SRC_ORDER: MemorySource[] = ['asserted_by_user', 'observed_context'
 
 /** The line under 来源 in the detail; a confirmed fact read from an episode was seen before it was confirmed. */
 export function howText(f: Pick<Fact, 'source' | 'evidence'>): string {
-  if (f.source === 'asserted_by_user') return '你在对话里亲口说的';
-  if (f.source === 'observed_context') return '从屏幕上看到的，还没问过你';
-  if (f.source === 'inferred_hypothesis') return '猜的';
-  return f.evidence.some((r) => r.startsWith('episode:')) ? '看到后，你点了「记住」' : '猜的，你点了「记住」';
+  if (f.source === 'asserted_by_user') return '由您在对话中直接陈述';
+  if (f.source === 'observed_context') return '由屏幕观察记录提取，尚未经过您确认';
+  if (f.source === 'inferred_hypothesis') return '由系统推断生成';
+  return f.evidence.some((r) => r.startsWith('episode:')) ? '来自屏幕观察，经您确认保留' : '由系统推断，经您确认保留';
 }
 
 /** The archive's categories over agentd's kinds (memory.py KINDS); 用户档案 is the nameplate, not a cell. */
@@ -108,9 +108,9 @@ export const sum = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0);
 
 export type Sort = 'new' | 'used' | 'idle';
 export const SORTS: Array<{ value: Sort; label: string }> = [
-  { value: 'new', label: '最新记下' },
-  { value: 'used', label: '最常用到' },
-  { value: 'idle', label: '最久没用' },
+  { value: 'new', label: '最新记录' },
+  { value: 'used', label: '最常调用' },
+  { value: 'idle', label: '最久未用' },
 ];
 const lastUse = (f: Fact) => f.last_used_at ?? f.recorded_at;
 export const SORTERS: Record<Sort, (a: Fact, b: Fact) => number> = {

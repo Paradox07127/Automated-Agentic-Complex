@@ -78,7 +78,7 @@ export function Line({ states, cards, selected, onSelect, flow, stale, alert }: 
         />
         {alert?.at === k && (
           <span className={styles.alert} data-at={k}>
-            <AlertTip label={`出事的工位：${NAME[k].name}`} pointAt={k === 'obs' ? '50cqw' : k === 'store' ? 'calc(100% - 50cqw)' : undefined} onClick={alert.onClick}>
+            <AlertTip label={`异常工位：${NAME[k].name}`} pointAt={k === 'obs' ? '50cqw' : k === 'store' ? 'calc(100% - 50cqw)' : undefined} onClick={alert.onClick}>
               {alert.text}
             </AlertTip>
           </span>

@@ -12,7 +12,7 @@ export function trayMenu(s: MenuState, ports: MenuPorts): MenuItem[] {
   if (s.configError !== null) {
     return [
       label('configError', `配置错误：${s.configError}`), SEPARATOR, home, SEPARATOR, diag,
-      item('restartChildren', '重启后台和角色', ports.restartChildren, { enabled: false }), quitItem,
+      item('restartChildren', '重启后台服务与角色', ports.restartChildren, { enabled: false }), quitItem,
     ];
   }
   const unread = s.recent.filter((a) => a.unread).length, open = ports.openAnnouncement;
@@ -23,19 +23,19 @@ export function trayMenu(s: MenuState, ports: MenuPorts): MenuItem[] {
     SEPARATOR, item('markAllRead', '全部标为已读', ports.markAllAnnouncementsRead, { enabled: unread > 0 }),
   ];
   const e: MenuItem[] = [
-    home, item('conversation', '对话', page(ports, MENU_ROUTES.conversation), { accelerator: 'Command+J' }), SEPARATOR,
+    home, item('conversation', '对话', page(ports, MENU_ROUTES.conversation), { accelerator: 'Command+2' }), SEPARATOR,
     submenu('recent', '最近播报', recent), SEPARATOR,
     quietItem(s, ports),
   ];
   const freeRoam = freeRoamItem(s, ports);
   if (freeRoam) e.push(freeRoam);
-  e.push(item('resetPosition', '放回默认位置', ports.resetPosition), item('resetPanels', '复位浮窗', ports.resetPanels), SEPARATOR,
+  e.push(item('resetPosition', '重置角色位置', ports.resetPosition), item('resetPanels', '重置桌面浮窗', ports.resetPanels), SEPARATOR,
     submenu('characters', '切换角色', characterEntries(s, ports), { enabled: !s.characterSwitching }));
   const looks = appearanceItem(s, ports);
   if (looks) e.push(looks);
   e.push(SEPARATOR, item('settings', '设置…', page(ports, MENU_ROUTES.settings), { accelerator: 'Command+,' }),
     diag, item('turns', '对话轮次', page(ports, MENU_ROUTES.turns)),
-    item('restartChildren', '重启后台和角色', ports.restartChildren), quitItem);
+    item('restartChildren', '重启后台服务与角色', ports.restartChildren), quitItem);
   return e;
 }
 

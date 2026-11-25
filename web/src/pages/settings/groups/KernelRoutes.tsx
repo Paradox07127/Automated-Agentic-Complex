@@ -13,7 +13,7 @@ const PURPOSE: Record<TableRoute, string> = {
   judge: '主动判断',
   understand: '屏幕理解',
   memory: '记忆与日志',
-  computer: '电脑操控',
+  computer: '电脑操作',
 };
 
 /** 按用途指定: each purpose's kernel, model and effort; a row on 跟随主内核 runs on the kernel picked above, with its model and effort, so it shows no controls for them. */

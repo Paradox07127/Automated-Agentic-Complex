@@ -246,7 +246,7 @@ export function kernelState(r: ChatRuntime | undefined) {
 
 /** `/capabilities` share_screenshots (capabilities.py): why 附加窗口 cannot attach the window, or null when it can or nothing was read. */
 export function lookOffReason(caps: { items: Record<string, { state: string; reason: string | null }> } | null): string | null {
-  return caps?.items.share_screenshots?.reason === 'off' ? '隐私设置里没打开「屏幕识读」时附加截图' : null;
+  return caps?.items.share_screenshots?.reason === 'off' ? '请在「设置 › 感知」中开启「屏幕识读附带截图」' : null;
 }
 
 export function useLookOff(enabled: boolean) {

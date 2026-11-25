@@ -98,7 +98,7 @@ export function MotionTable(p: MotionTableProps) {
     const on = p.sel === a.id;
     const count = sum(p.hours?.[a.id]);
     const imp = imported[a.id];
-    const lockReason = p.offline ? '角色未运行' : p.lock ? '切换中 │ 输入暂停' : a.missing ? '缺资源' : a.requiredReason;
+    const lockReason = p.offline ? '角色进程未运行' : p.lock ? '切换中 │ 输入暂停' : a.missing ? '缺少资源' : a.requiredReason;
     const mark: DarkRowMark = a.missing ? 'missing' : a.playable === false ? 'auto' : 'play';
     return (
       <div
@@ -136,8 +136,8 @@ export function MotionTable(p: MotionTableProps) {
                     </span>
                   )}
                 </span>
-                <span className={styles.tr} title={a.missing ? (a.missingReason ?? '缺资源') : (a.trigger ?? undefined)}>
-                  {a.missing ? `⊘ ${(a.missingReason ?? '缺资源').replace(/^缺少\s*/, '缺 ')}` : (a.trigger ?? '')}
+                <span className={styles.tr} title={a.missing ? (a.missingReason ?? '缺少资源') : (a.trigger ?? undefined)}>
+                  {a.missing ? `⊘ ${(a.missingReason ?? '缺少资源').replace(/^缺少\s*/, '缺少 ')}` : (a.trigger ?? '')}
                 </span>
                 <span className={styles.du}>
                   {a.durationS != null ? (
@@ -205,7 +205,7 @@ export function MotionTable(p: MotionTableProps) {
         <FilterChips
           label="筛选动作"
           multiple
-          options={[{ value: 'miss', label: '仅显示缺资源', count: missN }, ...(impN > 0 ? [{ value: 'imp', label: '只看导入', count: impN }] : [])]}
+          options={[{ value: 'miss', label: '仅显示缺少资源', count: missN }, ...(impN > 0 ? [{ value: 'imp', label: '仅显示导入动作', count: impN }] : [])]}
           value={[...(onlyMiss ? ['miss'] : []), ...(onlyImp ? ['imp'] : [])]}
           onChange={(v) => {
             setOnlyMiss(v.includes('miss'));
@@ -250,7 +250,7 @@ export function MotionTable(p: MotionTableProps) {
                 />
               </div>
               {shown.map(row)}
-              {shown.length === 0 && <div className={styles.none}>{onlyMiss ? '本组无缺资源动作' : onlyImp ? '本组无导入动作' : '无匹配动作'}</div>}
+              {shown.length === 0 && <div className={styles.none}>{onlyMiss ? '本组无缺少资源的动作' : onlyImp ? '本组无导入动作' : '无匹配动作'}</div>}
             </div>
           );
         })}

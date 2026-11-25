@@ -61,19 +61,19 @@ test('menus: the tray menu has every title, submenus included', () => {
     '打开主页', '对话',
     '最近播报', '● claude:agentd 在等你批准', '● codex 会话没能启动', 'HostLink 的 click 已经接上', '已跳转到 Terminal',
     'TTS 隧道断开', '全部标为已读',
-    '免打扰', '30 分钟', '1 小时', '到明早 7:00', '结束免打扰', '自由活动', '放回默认位置', '复位浮窗',
-    '切换角色', '示例甲', '示例乙', '角色卡…', '外观', '标准制服', '外勤', '休息日',
-    '设置…', '诊断', '对话轮次', '重启后台和角色', '退出 Agentic Complex',
+    '免打扰', '30 分钟', '1 小时', '到明早 7:00', '结束免打扰', '自由活动', '重置角色位置', '重置桌面浮窗',
+    '切换角色', '示例甲', '示例乙', '打开角色页…', '外观', '标准制服', '外勤', '休息日',
+    '设置…', '诊断', '对话轮次', '重启后台服务与角色', '退出 Agentic Complex',
   ]);
-  // Separators after 对话, 最近播报, 复位浮窗, 外观.
-  assert.deepEqual(menu.flatMap((i, n) => (i.type === 'separator' ? [menu[n - 1]!.label] : [])), ['对话', '最近播报', '复位浮窗', '外观']);
+  // Separators after 对话, 最近播报, 重置桌面浮窗, 外观.
+  assert.deepEqual(menu.flatMap((i, n) => (i.type === 'separator' ? [menu[n - 1]!.label] : [])), ['对话', '最近播报', '重置桌面浮窗', '外观']);
   assert.deepEqual(sub(menu, '免打扰').map((i) => i.type ?? i.label), ['30 分钟', '1 小时', '到明早 7:00', 'separator', '结束免打扰']);
 });
 
 test('menus: tray shortcuts, checks and greyed items follow the state; unread 最近播报 lead with a dot, not a check', () => {
   const menu = trayMenu(SAMPLE, ports().ports);
   const accel = Object.fromEntries(menu.filter((i) => i.accelerator).map((i) => [i.label, i.accelerator]));
-  assert.deepEqual(accel, { 打开主页: 'Command+0', 对话: 'Command+J', '设置…': 'Command+,', '退出 Agentic Complex': 'Command+Q' });
+  assert.deepEqual(accel, { 打开主页: 'Command+0', 对话: 'Command+2', '设置…': 'Command+,', '退出 Agentic Complex': 'Command+Q' });
   const recent = sub(menu, '最近播报');
   assert.deepEqual(recent.slice(0, 5).map((i) => [i.label, i.type, i.checked, i.sublabel]), [
     ['● claude:agentd 在等你批准', undefined, undefined, '14:35'], ['● codex 会话没能启动', undefined, undefined, '14:40'],
@@ -88,17 +88,17 @@ test('menus: tray shortcuts, checks and greyed items follow the state; unread �
   // Switching, one appearance.
   const switching = trayMenu({ ...SAMPLE, characterSwitching: true }, ports().ports);
   assert.equal(find(switching, '切换角色').enabled, false);
-  assert.ok(sub(switching, '切换角色').filter((i) => i.label !== '角色卡…' && i.type !== 'separator').every((i) => i.enabled === false));
+  assert.ok(sub(switching, '切换角色').filter((i) => i.label !== '打开角色页…' && i.type !== 'separator').every((i) => i.enabled === false));
   assert.equal(find(switching, '外观').enabled, false);
   assert.ok(!titles(trayMenu({ ...SAMPLE, appearances: SAMPLE.appearances.slice(0, 1) }, ports().ports)).includes('外观'));
   const loading = sub(trayMenu({ ...SAMPLE, appearanceSwitchingTo: 'field' }, ports().ports), '外观');
-  assert.deepEqual(loading.map((i) => [i.label, i.enabled]), [['标准制服', false], ['外勤 · 切换中…', false], ['休息日', false]]);
+  assert.deepEqual(loading.map((i) => [i.label, i.enabled]), [['标准制服', false], ['外勤（切换中）', false], ['休息日', false]]);
 });
 
 test('menus: on Windows the tray icon\'s menu is the Mac\'s without its Command+ shortcuts, a config error\'s included', () => {
   const deep = (menu: MenuItem[]): MenuItem[] => menu.flatMap((i) => [i, ...deep((i.submenu as MenuItem[] | undefined) ?? [])]);
   const h = ports();
-  for (const s of [SAMPLE, { ...SAMPLE, configError: '请查看设置' }]) {
+  for (const s of [SAMPLE, { ...SAMPLE, configError: '请检查配置文件或前往设置排查' }]) {
     const menu = trayContextMenu('windows', s, h.ports);
     assert.deepEqual(deepTitles(menu), deepTitles(trayMenu(s, h.ports)));
     assert.deepEqual(deep(menu).filter((i) => i.accelerator).map((i) => i.label), []);
@@ -111,13 +111,13 @@ test('menus: on Windows the tray icon\'s menu is the Mac\'s without its Command+
   assert.equal(find(trayContextMenu('mac', SAMPLE, h.ports), '退出 Agentic Complex').accelerator, 'Command+Q', 'the Mac keeps its own');
 });
 
-test('menus: a config error keeps only the error, 打开主页, 诊断, a grey 重启后台和角色 and 退出', () => {
+test('menus: a config error keeps only the error, 打开主页, 诊断, a grey 重启后台服务与角色 and 退出', () => {
   const h = ports();
   const menu = trayMenu({ ...SAMPLE, configError: '服务 tts 的地址无效' }, h.ports);
-  assert.deepEqual(titles(menu), ['配置错误：服务 tts 的地址无效', '打开主页', '诊断', '重启后台和角色', '退出 Agentic Complex']);
+  assert.deepEqual(titles(menu), ['配置错误：服务 tts 的地址无效', '打开主页', '诊断', '重启后台服务与角色', '退出 Agentic Complex']);
   assert.equal(menu.filter((i) => i.type === 'separator').length, 2);
   assert.equal(find(menu, '配置错误：服务 tts 的地址无效').enabled, false);
-  assert.equal(find(menu, '重启后台和角色').enabled, false);
+  assert.equal(find(menu, '重启后台服务与角色').enabled, false);
   for (const label of ['打开主页', '诊断', '退出 Agentic Complex']) click(find(menu, label));
   assert.deepEqual(h.calls, ['openMain "/home"', 'openMain "/diag"', 'quit']);
 });
@@ -125,12 +125,12 @@ test('menus: a config error keeps only the error, 打开主页, 诊断, a grey �
 test('menus: each tray item calls its port; a missing port greys its item', async () => {
   const h = ports();
   const menu = trayMenu(SAMPLE, h.ports);
-  for (const label of ['打开主页', '对话', '自由活动', '放回默认位置', '复位浮窗', '设置…', '诊断', '对话轮次', '重启后台和角色',
+  for (const label of ['打开主页', '对话', '自由活动', '重置角色位置', '重置桌面浮窗', '设置…', '诊断', '对话轮次', '重启后台服务与角色',
     '退出 Agentic Complex']) click(find(menu, label));
   click(find(sub(menu, '最近播报'), '● codex 会话没能启动'));
   click(find(sub(menu, '最近播报'), '全部标为已读'));
   click(find(sub(menu, '切换角色'), '示例乙'));
-  click(find(sub(menu, '切换角色'), '角色卡…'));
+  click(find(sub(menu, '切换角色'), '打开角色页…'));
   click(find(sub(menu, '外观'), '外勤'));
   assert.deepEqual(h.calls, ['openMain "/home"', 'openMain "/chat"', 'toggleFreeRoam', 'resetPosition',
     'resetPanels', 'openMain "/settings"', 'openMain "/diag"', 'openMain "/diag?tab=turns"', 'restartChildren', 'quit',
@@ -138,14 +138,14 @@ test('menus: each tray item calls its port; a missing port greys its item', asyn
 
   const bare = trayMenu(SAMPLE, ports(['setQuiet', 'toggleFreeRoam', 'resetPosition', 'resetPanels', 'switchCharacter', 'switchAppearance',
     'restartChildren', 'openAnnouncement', 'markAllAnnouncementsRead']).ports);
-  for (const label of ['自由活动', '放回默认位置', '复位浮窗', '重启后台和角色']) {
+  for (const label of ['自由活动', '重置角色位置', '重置桌面浮窗', '重启后台服务与角色']) {
     assert.equal(find(bare, label).enabled, false, label);
     assert.equal(find(bare, label).click, undefined, label);
   }
   assert.ok(sub(bare, '免打扰').every((i) => i.type === 'separator' || i.enabled === false));
   assert.ok(sub(bare, '最近播报').every((i) => i.type === 'separator' || i.enabled === false));
   assert.equal(find(sub(bare, '切换角色'), '示例甲').enabled, false);
-  assert.equal(find(sub(bare, '切换角色'), '角色卡…').enabled, true);
+  assert.equal(find(sub(bare, '切换角色'), '打开角色页…').enabled, true);
   assert.equal(find(sub(bare, '外观'), '外勤').enabled, false);
   for (const label of ['打开主页', '对话', '设置…', '诊断', '对话轮次', '退出 Agentic Complex']) assert.equal(find(bare, label).enabled, true);
   await settle();

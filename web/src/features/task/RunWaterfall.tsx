@@ -31,13 +31,13 @@ export interface RunWaterfallProps {
   failedPath?: string;
 }
 
-export function RunWaterfall({ steps, tools, deliveries = [], now, status = 'ok', queued, highlightTool = null, generation = null, onGeneration, onRetry, failedPath }: RunWaterfallProps) {
+export function RunWaterfall({ steps, tools, deliveries = [], now, status = 'ok', queued, highlightTool = null, generation = null, onGeneration, onRetry }: RunWaterfallProps) {
   const lanes = useMemo(() => buildLanes(steps, tools, deliveries, now), [steps, tools, deliveries, now]);
   const [picked, setPicked] = useState<number | null>(null);
   if (status === 'error') {
     return (
       <div data-stub="RunWaterfall" data-nav-target="run-waterfall" className={styles.root}>
-        <ErrBar message={`步骤接口不可用${failedPath ? `（${failedPath} 返回 404）` : ''}`} onRetry={onRetry} />
+        <ErrBar message="运行步骤详情暂不可用" onRetry={onRetry} />
       </div>
     );
   }
@@ -46,7 +46,7 @@ export function RunWaterfall({ steps, tools, deliveries = [], now, status = 'ok'
       <div data-stub="RunWaterfall" data-nav-target="run-waterfall" className={styles.root}>
         <div className={styles.queued}>
           <span className={styles.lab}>第 1 次</span>
-          <span className={styles.dash}>还没开始运行 │ 排队中</span>
+          <span className={styles.dash}>{queued ? '尚未开始运行 │ 排队中' : '尚无步骤记录'}</span>
         </div>
       </div>
     );
@@ -79,7 +79,7 @@ export function RunWaterfall({ steps, tools, deliveries = [], now, status = 'ok'
                 className={styles.gen}
                 data-outcome={g.outcome}
                 aria-pressed={generation === g.generation}
-                title={`第 ${ordinal(g.generation)} 次 │ ${g.outcome === 'failed' ? '失败' : g.outcome === 'ok' ? '完成' : '进行中'} │ ${g.runId}`}
+                title={`第 ${ordinal(g.generation)} 次 │ ${g.outcome === 'failed' ? '失败' : g.outcome === 'ok' ? '已完成' : '进行中'}`}
                 onClick={() => {
                   setPicked(null);
                   onGeneration?.(generation === g.generation ? null : g.generation);

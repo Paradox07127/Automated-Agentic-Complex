@@ -32,13 +32,13 @@ export function AboutGroup() {
   const act = (name: AppActionName, done: string, what: string) => () =>
     void bridge.app.action(name).then(
       () => model.notify({ message: done }),
-      () => model.notify({ message: `这个外壳还不能${what}`, severity: 'warning' }),
+      () => model.notify({ message: `当前环境暂不支持${what}`, severity: 'warning' }),
     );
   const version = info ? `Agentic Complex ${info.version} │ ${info.buildGit} │ ${info.os}` : '';
   const copyVersion = () =>
     void bridge.clipboard.writeText(version).then(
       () => model.notify({ message: '版本信息已复制' }),
-      () => model.notify({ message: '没复制成', severity: 'warning' }),
+      () => model.notify({ message: '复制失败', severity: 'warning' }),
     );
 
   return (
@@ -59,11 +59,23 @@ export function AboutGroup() {
       </Slab>
 
       <SetSection title="启动">
-        <SetRow id="login" title={labelOf('login')} desc={native?.statuses.login ?? (model.value('login') === true ? '已在系统「登录项」里允许' : '关闭')} control={c.toggle('login')} />
+        <SetRow
+          id="login"
+          title={labelOf('login')}
+          desc={
+            native?.statuses.login ??
+            (model.value('login') === true
+              ? bridge.platform === 'windows'
+                ? '已在系统「启动应用」中启用开机自启'
+                : '已在系统「登录项」中允许自启'
+              : '已关闭')
+          }
+          control={c.toggle('login')}
+        />
       </SetSection>
 
       <SetSection title="排障">
-        <SetRow id="copydiag" title={labelOf('copydiag')} desc="不含对话和记忆内容" control={<Btn onClick={act('copy_diagnostics', '诊断信息已复制', '复制诊断信息')}>复制</Btn>} />
+        <SetRow id="copydiag" title={labelOf('copydiag')} desc="不含对话正文与记忆内容" control={<Btn onClick={act('copy_diagnostics', '诊断信息已复制', '复制诊断信息')}>复制</Btn>} />
         <SetRow id="logdir" title={labelOf('logdir')} control={<Btn go onClick={act('reveal_logs', '已打开日志目录', '打开日志目录')}>打开</Btn>} />
         <SetRow
           id="onb"
@@ -78,7 +90,7 @@ export function AboutGroup() {
                   onConfirm: () =>
                     bridge.app.action('open_onboarding').then(
                       () => model.notify({ message: '已打开首次设置' }),
-                      () => model.notify({ message: '这个外壳还不能打开首次设置', severity: 'warning' }),
+                      () => model.notify({ message: '当前环境暂不支持打开首次设置', severity: 'warning' }),
                     ),
                 })
               }
@@ -110,8 +122,8 @@ export function AboutGroup() {
         <SetRow
           id="dev"
           title={labelOf('dev')}
-          desc="显示诊断页和给开发者的设置项"
-          info="打开后显示诊断和记忆管线页，设置里给开发者的项，角色设定 › 画面里的画质细项（2× SSAA、渲染尺寸、自阴影精度），以及轮次号、截图配额等内部数据。"
+          desc="显示诊断页与开发者设置项"
+          info="开启后将显示「诊断」页面、开发者专属设置项、角色页渲染高级画质选项（2× SSAA、渲染尺寸、自阴影精度），以及轮次编号与截图配额等内部运行指标。"
           control={<Switch variant="setting" checked={devMode} label={labelOf('dev')} onChange={setDevMode} />}
         />
         {shown('agentd') && (
@@ -120,10 +132,10 @@ export function AboutGroup() {
             title={labelOf('agentd')}
             control={
               <>
-                <StatusLamp size="sm" state={running ? 'ok' : 'broken'} label={running ? `运行中${agentd?.pid ? ` │ 进程 ${agentd.pid}` : ''}` : '没有运行'} />
+                <StatusLamp size="sm" state={running ? 'ok' : 'broken'} label={running ? `运行中${agentd?.pid ? ` │ PID ${agentd.pid}` : ''}` : '未运行'} />
                 {running ? (
                   <Btn go onClick={() => goPage({ page: 'diag' })}>
-                    去诊断
+                    前往诊断
                   </Btn>
                 ) : (
                   <Btn loading={model.restarting} onClick={() => void model.restartBackend()}>
@@ -134,7 +146,7 @@ export function AboutGroup() {
             }
           />
         )}
-        <SetRow id="devparams" title={labelOf('devparams')} desc="只能在配置文件里改" control={<Btn go onClick={act('open_config', '已打开配置文件', '打开配置文件')}>打开配置文件</Btn>} />
+        <SetRow id="devparams" title={labelOf('devparams')} desc="仅支持在配置文件中修改" control={<Btn go onClick={act('open_config', '已打开配置文件', '打开配置文件')}>打开配置文件</Btn>} />
       </SetSection>
     </>
   );

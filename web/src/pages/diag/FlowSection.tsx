@@ -73,7 +73,7 @@ export function FlowSection(p: FlowSectionProps) {
       />
       {p.error && (
         <p className={styles.note} role="status">
-          读不到轮次：{p.error}{' '}
+          无法读取轮次：{p.error}{' '}
           <Btn size="sm" icon="refresh" onClick={p.onRetry}>
             重试
           </Btn>
@@ -81,9 +81,9 @@ export function FlowSection(p: FlowSectionProps) {
       )}
       {!p.loading && !p.error && p.turns === 0 && (
         <p className={styles.note}>
-          近 1 小时没有跑过一轮{' '}
+          近 1 小时无对话轮次{' '}
           <Btn size="sm" onClick={p.onChat}>
-            去对话
+            前往对话
           </Btn>
         </p>
       )}
@@ -91,7 +91,7 @@ export function FlowSection(p: FlowSectionProps) {
         <div className={styles.face}>
           {p.loading ? <Skel rows={3} shape="cards" /> : <DgFlow nodes={p.nodes} edges={p.edges} sel={p.sel} onPick={p.onPick} onStation={p.onStation} live={p.live} dead={p.dead} calm={p.calm} />}
         </div>
-        <Sheet open={node != null} title={node ? `${node.label}节点` : '读法'} head="none" dockFrom={1200} onClose={p.onClear}>
+        <Sheet open={node != null} title={node ? `${node.label}节点` : '说明'} head="none" dockFrom={1200} onClose={p.onClear}>
           {node ? <NodeDetail node={node} fails={p.failsOf(node.id)} approvals={p.approvals} onTasks={p.onTasks} onTrace={p.onTrace} onClear={p.onClear} onVoice={p.onVoice} /> : <Legend />}
         </Sheet>
       </div>
@@ -115,9 +115,9 @@ function NodeDetail({ node, fails, approvals, onTasks, onTrace, onClear, onVoice
       </div>
       {node.id === 'appr' && approvals > 0 && (
         <div className={styles.gr}>
-          <span>审批有 {approvals} 个待处理</span>
+          <span>待处理审批：{approvals} 项</span>
           <Btn size="sm" onClick={onTasks}>
-            去任务
+            前往任务
           </Btn>
         </div>
       )}
@@ -147,7 +147,7 @@ function NodeDetail({ node, fails, approvals, onTasks, onTrace, onClear, onVoice
           }))}
         />
       ) : (
-        <p className={styles.note}>近 1 小时没有失败</p>
+        <p className={styles.note}>近 1 小时无失败记录</p>
       )}
       <div className={styles.acts}>
         {node.id === 'tts' && node.state === 'att' && (
@@ -156,7 +156,7 @@ function NodeDetail({ node, fails, approvals, onTasks, onTrace, onClear, onVoice
           </Btn>
         )}
         <Btn size="sm" onClick={() => onTrace(null)}>
-          在对话轮次里看
+          在对话轮次中查看
         </Btn>
         <Btn size="sm" variant="secondary" onClick={onClear}>
           取消选中
@@ -168,15 +168,15 @@ function NodeDetail({ node, fails, approvals, onTasks, onTrace, onClear, onVoice
 
 function Legend() {
   const rows: Array<[NodeState, string]> = [
-    ['ok', '近 1 小时走过、没失败'],
-    ['fail', '红角标是失败次数'],
-    ['att', '语音连不上，或审批在等'],
-    ['idle', '近 1 小时没有经过'],
+    ['ok', '近 1 小时内经过且无失败'],
+    ['fail', '红色角标表示失败次数'],
+    ['att', '语音服务连接失败或存在待处理确认'],
+    ['idle', '近 1 小时内未经过'],
   ];
   return (
     <div className={styles.side}>
       <div className={styles.sideHead}>
-        <b>读法</b>
+        <b>说明</b>
       </div>
       {rows.map(([st, text]) => (
         <div key={st} className={styles.gr}>
@@ -184,7 +184,7 @@ function Legend() {
           <span>{text}</span>
         </div>
       ))}
-      <p className={styles.note}>点一个节点看它的失败；单独一轮的经过在对话轮次里看。</p>
+      <p className={styles.note}>点击节点可查看对应失败详情；单轮执行轨迹请在「对话轮次」查看。</p>
     </div>
   );
 }

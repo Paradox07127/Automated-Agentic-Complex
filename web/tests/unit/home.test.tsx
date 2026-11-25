@@ -50,9 +50,9 @@ const TODAY_READS = ['/agent/snapshot', '/sessions', '/agent/runs', '/trace/turn
 const names = (group: HTMLElement) => within(group).getAllByRole('button').map((b) => b.getAttribute('aria-label'));
 /** The left keys. */
 const LEFT = (...ids: string[]) => ids.map(title);
-const ACTIONS = ['派发任务', '搜索', '快速输入', '屏幕识读', '停止说话'];
+const ACTIONS = ['派发任务', '搜索', '快速输入', '屏幕识读', '停止语音播报'];
 /** The right-hand list with every plug-in on, outside 开发者模式; 时间 goes with 屏幕感知. */
-const RIGHT = [...ACTIONS, '定时', '档案', '回顾', '外观', '动作表', 'MMD', '角色这一天', '时间', '能力', '感知'];
+const RIGHT = [...ACTIONS, '定时', '档案', '回顾', '外观', '动作表', 'MMD', '角色当日动态', '时间', '能力', '感知'];
 /** Appended in 开发者模式. */
 const RIGHT_DEV = ['诊断', '对话轮次', '日志', '管线'];
 const noTime = RIGHT.filter((n) => n !== '时间');
@@ -118,7 +118,7 @@ describe('home tiles', () => {
     fireEvent.click(screen.getByRole('button', { name: title('diag') }));
     expect(window.location.hash).toMatch(/^#\/diag\?/);
     fireEvent.click(screen.getByRole('button', { name: '派发任务' }));
-    fireEvent.click(within(await screen.findByRole('dialog', { name: '新建' })).getByRole('button', { name: /取消/ }));
+    fireEvent.click(within(await screen.findByRole('dialog', { name: '新建任务' })).getByRole('button', { name: /取消/ }));
     const open = vi.fn();
     window.addEventListener(OPEN_PALETTE, open);
     fireEvent.click(screen.getByRole('button', { name: '搜索' }));
@@ -146,7 +146,7 @@ describe('home disc', () => {
       fireEvent.click(screen.getByRole('button', { name }));
       expect(window.location.hash).toMatch(/^#\/overview\?/);
     }
-    const disc = screen.getByRole('region', { name: '待批准' });
+    const disc = screen.getByRole('region', { name: '待处理' });
     expect(within(disc).getByRole('button', { name: `另有 ${n - 1} 件待处理` })).toBeTruthy();
     const first = within(disc).getByRole('group', { name: /^(审批|提问|复核)：/ });
     fireEvent.click(within(first).getAllByRole('button')[0]!);
@@ -211,9 +211,9 @@ describe('home disc', () => {
   it('turns the disc to 在做 and lists what runs, with no 今日 page: the counts are on 每日简报', async () => {
     mount();
     const tabs = await screen.findByRole('tablist', { name: '圆盘' }, { timeout: 3000 });
-    expect(within(tabs).getAllByRole('tab').map((t) => t.textContent?.replace(/\d+/g, ''))).toEqual(['待批准', '在做']);
-    fireEvent.click(within(tabs).getByRole('tab', { name: /^在做/ }));
-    const running = screen.getByRole('tabpanel', { name: '在做' });
+    expect(within(tabs).getAllByRole('tab').map((t) => t.textContent?.replace(/\d+/g, ''))).toEqual(['待处理', '进行中']);
+    fireEvent.click(within(tabs).getByRole('tab', { name: /^进行中/ }));
+    const running = screen.getByRole('tabpanel', { name: '进行中' });
     expect(within(running).getAllByRole('button', { name: /^(对话|任务|编码)：/ }).length).toBeGreaterThan(0);
   });
 
@@ -221,18 +221,18 @@ describe('home disc', () => {
     mount();
     await screen.findByRole('tablist', { name: '圆盘' }, { timeout: 3000 });
     const page = () => screen.getByRole('tabpanel').getAttribute('aria-label');
-    expect(page()).toBe('待批准');
+    expect(page()).toBe('待处理');
     fireEvent.pointerDown(screen.getByRole('tabpanel'), { clientX: 200, clientY: 100 });
     fireEvent.pointerUp(screen.getByRole('tabpanel'), { clientX: 200, clientY: 20 });
-    expect(page()).toBe('待批准');
+    expect(page()).toBe('待处理');
     fireEvent.pointerDown(screen.getByRole('tabpanel'), { clientX: 200, clientY: 100 });
     fireEvent.pointerUp(screen.getByRole('tabpanel'), { clientX: 120, clientY: 110 });
-    expect(page()).toBe('在做');
+    expect(page()).toBe('进行中');
     fireEvent.pointerDown(screen.getByRole('tabpanel'), { clientX: 100, clientY: 100 });
     fireEvent.pointerUp(screen.getByRole('tabpanel'), { clientX: 200, clientY: 100 });
-    expect(page()).toBe('待批准');
+    expect(page()).toBe('待处理');
     fireEvent.wheel(screen.getByRole('tabpanel'), { deltaX: 60, deltaY: 2 });
-    expect(page()).toBe('在做');
+    expect(page()).toBe('进行中');
   });
 
   it('keeps a swipe from pressing the button it starts on, turns on a release outside the panel and lets slow wheel jitter fade', async () => {
@@ -246,7 +246,7 @@ describe('home disc', () => {
     fireEvent.pointerUp(more, { clientX: 200, clientY: 100 });
     fireEvent.click(more);
     expect(window.location.hash).toBe('');
-    expect(page()).toBe('待批准');
+    expect(page()).toBe('待处理');
     // A plain click still works.
     fireEvent.pointerDown(more, { clientX: 100, clientY: 100 });
     fireEvent.pointerUp(more, { clientX: 101, clientY: 100 });
@@ -254,14 +254,14 @@ describe('home disc', () => {
     expect(window.location.hash).toMatch(/^#\/overview\?/);
     fireEvent.pointerDown(screen.getByRole('tabpanel'), { clientX: 200, clientY: 100 });
     fireEvent.pointerUp(document.body, { clientX: 100, clientY: 100 });
-    expect(page()).toBe('在做');
+    expect(page()).toBe('进行中');
     // Two small sideways nudges far apart in time are not one swipe.
     // jsdom stamps an event with Date.now().
     const at = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
     fireEvent.wheel(screen.getByRole('tabpanel'), { deltaX: 25, deltaY: 0 });
     at.mockReturnValue(1_002_000);
     fireEvent.wheel(screen.getByRole('tabpanel'), { deltaX: 25, deltaY: 0 });
-    expect(page()).toBe('在做');
+    expect(page()).toBe('进行中');
   });
 
   it('steps the banner by its arrows, names the shell components with their state and closes the window', async () => {
@@ -338,7 +338,7 @@ describe('home disc', () => {
     expect(await screen.findAllByRole('button', { name: '待处理 0' }, { timeout: 3000 })).toHaveLength(1);
     expect(await screen.findByRole('button', { name: '今日任务 完成 0 / 0' })).toBeTruthy();
     expect(screen.queryAllByRole('group', { name: /^(审批|提问|复核)：/ })).toEqual([]);
-    expect(screen.getByText('没有要你批准的事')).toBeTruthy();
+    expect(screen.getByText('当前无待处理事项')).toBeTruthy();
   });
 });
 
@@ -497,8 +497,8 @@ describe('home with the plug-ins at their defaults', () => {
     expect(names(await screen.findByRole('group', { name: '工具' }))).toEqual(noTime);
     expect(screen.getByRole('button', { name: '派发任务' }).hasAttribute('disabled')).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: '派发任务' }));
-    const dialog = await screen.findByRole('dialog', { name: '新建' });
-    expect(within(dialog).getByRole('button', { name: /交派/ })).toBeTruthy();
+    const dialog = await screen.findByRole('dialog', { name: '新建任务' });
+    expect(within(dialog).getByRole('button', { name: /派发/ })).toBeTruthy();
     expect(window.location.hash).not.toMatch(/overview/);
   });
 
@@ -528,10 +528,10 @@ describe('home with the plug-ins at their defaults', () => {
   it('the report counts no 在做 while neither 编码会话 nor 个人代理 is on', async () => {
     pluginsOn('daily_brief');
     mount('&state=empty');
-    expect((await screen.findByRole('button', { name: /^今日任务/ }, { timeout: 3000 })).textContent).not.toContain('在做');
+    expect((await screen.findByRole('button', { name: /^今日任务/ }, { timeout: 3000 })).textContent).not.toContain('进行中');
     cleanup();
     pluginsOn('daily_brief', 'coding_sessions');
     mount('&state=empty');
-    expect((await screen.findByRole('button', { name: /^今日任务/ }, { timeout: 3000 })).textContent).toContain('在做 0');
+    expect((await screen.findByRole('button', { name: /^今日任务/ }, { timeout: 3000 })).textContent).toContain('进行中 0');
   });
 });

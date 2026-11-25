@@ -2,6 +2,7 @@ import { formatClock, formatDuration, isReviewableDelivery, type ActiveRun, type
 import { Btn, ErrBar, Icon, StatusTag } from '../../ui';
 import { DeliveryBox, useDeliveryVisibility, type OnDeliveryReceipt } from '../delivery';
 import { RejectBox } from './RejectBox';
+import { canContinue } from './StopConfirm';
 import { TaskNeeds, type DecideFailCode } from './TaskNeeds';
 import { TaskSections } from './TaskSections';
 import { StatusLamp } from '../../ui/game/StatusLamp';
@@ -101,7 +102,8 @@ export function TaskDetail(props: TaskDetailProps) {
       {stopped && (
         <div className={styles.note} role="status">
           <span>
-            已停止 │ <span className="num">{stoppedAt != null ? formatClock(stoppedAt) : task.ended_at != null ? formatClock(task.ended_at) : '—'}</span> │ 已写出的产物保留，不能恢复执行
+            已停止 │ <span className="num">{stoppedAt != null ? formatClock(stoppedAt) : task.ended_at != null ? formatClock(task.ended_at) : '—'}</span> │{' '}
+            {canContinue(task) ? '已生成的产物会保留，可在下方继续补充指令。' : '已生成的产物会保留，停止后无法恢复执行。'}
           </span>
         </div>
       )}
@@ -133,9 +135,9 @@ export function TaskDetail(props: TaskDetailProps) {
       <TaskSections {...props} />
       {task.source === 'ext' && (
         <div className={styles.note}>
-          <span>外部会话不是本 app 派发的，这里只显示状态，不画运行瀑布。</span>
-          <Btn size="sm" variant="text" icon="ext" disabled={!sessionId} disabledReason="没有找到会话" onClick={() => sessionId && onAction?.({ kind: 'jump_terminal', sessionId })}>
-            跳到终端
+          <span>外部会话并非由本应用派发，此处仅展示状态，不提供运行瀑布流。</span>
+          <Btn size="sm" variant="text" icon="ext" disabled={!sessionId} disabledReason="未找到关联会话" onClick={() => sessionId && onAction?.({ kind: 'jump_terminal', sessionId })}>
+            跳转至终端
           </Btn>
         </div>
       )}

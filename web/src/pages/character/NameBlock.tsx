@@ -66,9 +66,9 @@ export function NameBlock(p: NameBlockProps) {
           {(p.active || p.en) && (
             <span className={styles.row} data-wrap={(p.en && p.en.length > EN_INLINE) || undefined}>
               {p.active && (
-                <span className={styles.desk} title="桌面上的是这个角色">
+                <span className={styles.desk} title="当前在桌面展示的角色">
                   <DeskGlyph />
-                  在桌面
+                  当前在桌面
                 </span>
               )}
               {p.active && p.en && <i className={styles.rule} aria-hidden="true" />}
@@ -89,7 +89,7 @@ export function NameBlock(p: NameBlockProps) {
       {!p.offline && p.activity && (
         <div className={styles.tags} data-g="tags">
           <span className={styles.tag}>
-            <span className={styles.tagK}>在做</span>
+            <span className={styles.tagK}>当前状态</span>
             {p.activity}
           </span>
         </div>
@@ -123,9 +123,9 @@ function StateRow({ title, sub, children }: { title: string; sub?: ReactNode; ch
 export function OfflineRow({ backoff, onRestart }: { backoff: number | null; onRestart: () => void }) {
   return (
     <div className={rows.state} role="status">
-      <StateRow title="角色未运行" {...(backoff != null ? { sub: `退避 ${backoff} 秒后重试` } : {})} />
+      <StateRow title="角色进程未运行" {...(backoff != null ? { sub: `将在 ${backoff} 秒后重试` } : {})} />
       <div className={rows.acts}>
-        <WhiteCapsule label="重启角色" icon="refresh" tone="accent" onClick={onRestart} />
+        <WhiteCapsule label="重启角色进程" icon="refresh" tone="accent" onClick={onRestart} />
       </div>
     </div>
   );
@@ -136,20 +136,20 @@ export function SwitchRow({ sw, currentName, onRetry, onDismiss }: { sw: Exclude
   if (sw.phase === 'running')
     return (
       <div className={rows.state} role="status">
-        <StateRow title={`正在切换到 ${sw.target.name}`} sub="输入暂停" />
+        <StateRow title={`正在切换至 ${sw.target.name}`} sub="输入暂停" />
       </div>
     );
   const at = sw.stage;
   return (
     <div className={rows.state} role="alert">
-      <StateRow title={`切换到 ${sw.target.name} 没有完成`} sub={`仍是 ${currentName} │ ■ ${sw.reason}`}>
+      <StateRow title={`未能切换至 ${sw.target.name}`} sub={`当前仍为 ${currentName} │ ■ ${sw.reason}`}>
         {at != null && (
           <span className={rows.chain}>
             {SWITCH_STAGES.map((stage, i) => (
               <span key={stage} className={rows.node} data-state={i === at ? 'broken' : i < at ? 'done' : 'unreachable'}>
                 <Diamond tone={i === at ? 'orange' : i < at ? 'white' : 'hollow'} size={8} />
                 {SWITCH_STAGE_LABELS[stage]}
-                {i <= at && <span className={rows.vh}>{i === at ? '，停在这里' : '，完成'}</span>}
+                {i <= at && <span className={rows.vh}>{i === at ? '，中止于此步骤' : '，已完成'}</span>}
               </span>
             ))}
           </span>

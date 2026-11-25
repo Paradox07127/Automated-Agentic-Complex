@@ -96,7 +96,7 @@ describe('诊断 jumps to where a problem is fixed', () => {
     const base = window.agenticComplex!;
     window.agenticComplex = { ...base, agentd: { ...base.agentd, request: async () => ({ status: 0, body: null, error: { code: 'offline' } }) } };
     mount('');
-    const bar = (await screen.findByText('后台服务没有响应')).closest('[role="alert"]') as HTMLElement;
+    const bar = (await screen.findByText('后台服务无响应')).closest('[role="alert"]') as HTMLElement;
     fireEvent.click(within(bar).getByRole('button', { name: '日志' }));
     expect(window.location.hash).toBe('#/diag?tab=logs&src=agentd');
   });
@@ -152,7 +152,7 @@ describe('日志 copy text', () => {
         'code: rate_limited',
         'trace_id: 9f3a77',
         '',
-        `#2 ${isoWithOffset(AT + 1000)} │ 警告 │ 外壳 (companion) │ ×2`,
+        `#2 ${isoWithOffset(AT + 1000)} │ 警告 │ 应用宿主 (companion) │ ×2`,
         'helper: hello timed out after 5s; retrying',
       ].join('\n'),
     );

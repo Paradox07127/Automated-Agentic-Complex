@@ -138,12 +138,12 @@ export function MemView({ runs, digest, today, picked, selected, onSelect, onRec
     return (
       <Panel title="整理记录" count={0} micro="CONSOLIDATE LOG">
         <None
-          title="还没有整理记录"
-          desc="聊几句，后台约 2 分钟后开始第一次整理"
+          title="尚无整理记录"
+          desc="对话后，后台约每 2 分钟执行一次记忆整理"
           icon="data"
           action={
             <Btn size="sm" variant="secondary" onClick={onChat}>
-              去对话
+              前往对话
             </Btn>
           }
         />
@@ -153,13 +153,13 @@ export function MemView({ runs, digest, today, picked, selected, onSelect, onRec
     <>
       <Reads
         cells={[
-          { value: all.add + all.upd + all.del, unit: opsText(all) || undefined, label: '今天写入（新增、更新、删除）' },
+          { value: all.add + all.upd + all.del, unit: opsText(all) || undefined, label: '今日写入（新增、更新、删除）' },
           { value: p50 == null ? '—' : Math.round(p50 / 1000), unit: p50 == null ? undefined : 's', label: '用时中位数', opt: true },
           { value: fails, label: '失败 / 校验未通过', tone: fails > 0 ? 'bad' : 'ink' },
           { value: last ? formatClock(last.end ?? last.at) : '—', label: '上次整理', tone: 'ink' },
         ]}
       />
-      <Panel title="整理记录" count={runs.length} micro="CONSOLIDATE LOG" tip="生成记录只保留 48 小时，过后只剩操作回执">
+      <Panel title="整理记录" count={runs.length} micro="CONSOLIDATE LOG" tip="生成记录仅保留 48 小时，过期后仅保留操作回执">
         <GameTable label="整理记录" columns={COLS} endWidth="auto" rows={rows} selected={selected} onSelect={onSelect} expanded={expanded} onExpandedChange={setExpanded} />
       </Panel>
     </>

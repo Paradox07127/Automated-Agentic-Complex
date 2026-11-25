@@ -96,7 +96,7 @@ describe('memory owner › page', () => {
 
   it('导出 in her archive exports only her facts, and without an owner the whole memory', async () => {
     const spy = vi.spyOn(getBridge().files, 'saveAgentdExport').mockResolvedValue(true);
-    for (const [at, path, label] of [['?still=1&view=about&owner=si', '/memory/export?owner=si', '导出示例乙的记忆'],
+    for (const [at, path, label] of [['?still=1&view=about&owner=si', '/memory/export?owner=si', '导出 示例乙 的记忆'],
       ['?still=1&view=about', '/memory/export', '导出全部记忆']] as const) {
       window.location.hash = `#/memory${at}`;
       const root = createRootRoute({ component: () => <MemoryPage /> });
@@ -132,13 +132,13 @@ describe('memory owner › page', () => {
     await waitFor(() => expect(document.querySelectorAll('[data-fact]').length).toBe(2));
     fireEvent.click(screen.getByRole('button', { name: /^管理/ }));
     fireEvent.click(await screen.findByRole('menuitem', { name: /清空记忆/ }));
-    const ask = await screen.findByRole('alertdialog', { name: '清空示例乙的记忆？' });
+    const ask = await screen.findByRole('alertdialog', { name: '清空「示例乙」的专属记忆？' });
     expect(ask.querySelector('b.num')?.textContent).toBe('2');
     fireEvent.change(within(ask).getByRole('textbox', { name: '输入删除确认' }), { target: { value: '删除' } });
     fireEvent.click(within(ask).getByRole('button', { name: '清空' }));
     await waitFor(() => expect(spy.mock.calls.filter(([m]) => m === 'DELETE').map(([, p]) => p)).toEqual(['/memory?scope=facts&owner=si']));
     await expect(spy.mock.results.find((_, i) => spy.mock.calls[i]?.[0] === 'DELETE')?.value).resolves.toMatchObject({ body: { facts_deleted: 2 } });
-    expect(await screen.findByText('已清空示例乙的 2 条记忆')).toBeTruthy();
+    expect(await screen.findByText('已清空 示例乙 的 2 条记忆')).toBeTruthy();
     expect(screen.queryByText(/称呼和生日保留/)).toBeNull();
     expect((await read('?owner=si')).facts).toEqual([]);
     expect((await read('?owner=shared')).facts.length).toBeGreaterThan(0);

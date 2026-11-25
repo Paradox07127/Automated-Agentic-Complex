@@ -160,8 +160,8 @@ test('opsMotionImport runs character.importMotion on the dropped files without a
 test('windowHandover: no Option ignores; text sharing off or no window refuses with a line; else 快速输入 gets the window', () => {
   const w = { windowId: 7, pid: 42, title: 'Doc', app: 'Pages' };
   assert.deepEqual(windowHandover(false, false, w), { kind: 'ignore' });
-  assert.deepEqual(windowHandover(true, false, w), { kind: 'refuse', text: '读窗口文字没有打开，可以在设置的隐私里打开' });
-  assert.deepEqual(windowHandover(true, true, null), { kind: 'refuse', text: '这里没有可以读的窗口' });
+  assert.deepEqual(windowHandover(true, false, w), { kind: 'refuse', text: '未开启窗口文本读取，可在「设置 › 感知」中启用' });
+  assert.deepEqual(windowHandover(true, true, null), { kind: 'refuse', text: '当前位置没有可读取的窗口' });
   assert.deepEqual(windowHandover(true, true, w), { kind: 'window', windowId: 7, pid: 42, title: 'Doc', app: 'Pages' });
 });
 
@@ -196,11 +196,11 @@ test('dragRelease: no Option asks for no window; text sharing off or level statu
   for (const settings of [{}, { share_window_text: true, screen_context_level: 'status' }]) {
     const s = up(true, window, settings);
     await dragRelease(s.ports, { x: 1, y: 1 }, []);
-    assert.deepEqual(s.desktop.calls, ['notice 读窗口文字没有打开，可以在设置的隐私里打开']);
+    assert.deepEqual(s.desktop.calls, ['notice 未开启窗口文本读取，可在「设置 › 感知」中启用']);
   }
   const none = up(true, null, { share_window_text: true });
   await dragRelease(none.ports, { x: 1, y: 1 }, []);
-  assert.deepEqual(none.desktop.calls, ['notice 这里没有可以读的窗口']);
+  assert.deepEqual(none.desktop.calls, ['notice 当前位置没有可读取的窗口']);
   const untitled = up(true, window, { share_window_text: true });
   await dragRelease(untitled.ports, { x: 1, y: 1 }, []);
   assert.deepEqual(untitled.desktop.calls, ['quickInput {"kind":"window","windowId":1,"pid":2,"title":null,"app":null}']);

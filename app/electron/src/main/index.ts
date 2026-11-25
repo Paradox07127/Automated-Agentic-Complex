@@ -768,9 +768,9 @@ const log = (line: string) => appendLog(supportDir, 'web-main', line);
 function webMissingPage(): string {
   const html = `<!doctype html><meta charset="utf-8"><title>Agentic Complex</title>
 <body style="font: 15px system-ui; margin: 48px; color: #222">
-<h2>界面文件缺失</h2>
-<p>找不到 <code>${WEB_DIST.replaceAll('&', '&amp;').replaceAll('<', '&lt;')}</code>。先运行 <code>npm --prefix web run build</code>，再重新打开主窗口。</p>
-<p>托盘和后台照常运行。</p></body>`;
+<h2>界面资源缺失</h2>
+<p>未找到 <code>${WEB_DIST.replaceAll('&', '&amp;').replaceAll('<', '&lt;')}</code>。请先运行 <code>npm --prefix web run build</code>，再重新打开主窗口。</p>
+<p>托盘菜单与后台服务仍在运行。</p></body>`;
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
 
@@ -1020,7 +1020,7 @@ const guide = onboardingWindow({
   workArea: () => screen.getPrimaryDisplay().workAreaSize,
   // 在桌面上 on the last step reads the desktop panels' state.
   ops: () => (config ? new Map([...surfaceOps('onboarding'), ['desktop.onState', (args, page) => {
-    if (!desktop) throw new BridgeFailure('unavailable', '没有桌面层');
+    if (!desktop) throw new BridgeFailure('unavailable', '桌面悬浮层尚未就绪');
     return watch('desktop.onState', desktop.stateSource)(args, page);
   }]]) : null),
   register: (contents, page, guideOps) => pages.set(contents.id, { surface: 'onboarding', page, ops: guideOps }),

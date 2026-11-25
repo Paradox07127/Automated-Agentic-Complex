@@ -24,14 +24,14 @@ export const DECIDE_FAIL: Record<DecideFailCode, { text: string; next?: string; 
   task_not_reviewable: { text: '这项任务现在不能复核' },
   delivery_superseded: { text: '已有更新的一版', next: '看最新版', action: { kind: 'open_latest' } },
   delivery_already_decided: { text: '这一版已经处理过' },
-  delivery_scope_revoked: { text: '资料授权已撤销，不能接受', next: '去权限与授权', action: { kind: 'open_settings', group: 'perm', item: 'scope' } },
-  invalid_delivery_revision: { text: '这一版的版本号对不上', next: '看最新版', action: { kind: 'open_latest' } },
-  delivery_version_changed: { text: '这一版刚在别处更新过', next: '看最新版', action: { kind: 'open_latest' } },
-  delivery_revoked: { text: '这一版已撤回，不能再决定' },
-  unknown_delivery: { text: '找不到这一版交付' },
-  unknown_task: { text: '找不到这项任务' },
-  invalid_canonical_task: { text: '任务编号无效' },
-  invalid_delivery_payload: { text: '决定没送到：请求内容不完整' },
+  delivery_scope_revoked: { text: '资料授权已撤销，无法接受当前版本', next: '前往设置 › 能力', action: { kind: 'open_settings', group: 'perm', item: 'scope' } },
+  invalid_delivery_revision: { text: '版本校验未通过', next: '查看最新版', action: { kind: 'open_latest' } },
+  delivery_version_changed: { text: '当前版本已在其他位置更新', next: '查看最新版', action: { kind: 'open_latest' } },
+  delivery_revoked: { text: '当前版本已撤回，无法操作' },
+  unknown_delivery: { text: '未找到该交付版本' },
+  unknown_task: { text: '未找到该任务' },
+  invalid_canonical_task: { text: '任务标识无效' },
+  invalid_delivery_payload: { text: '提交失败：请求内容不完整' },
 };
 
 export interface TaskNeedsProps {

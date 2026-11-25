@@ -661,7 +661,7 @@ test('the helper not running: native_error, and the panel says the tool did not 
   try {
     h.helper['apps.running'] = err('helper_exited');
     const r = await h.ask('desktop_observe', TARGET);
-    assert.deepEqual(r.error, { code: 'native_error', message: '桌面工具未能完成', retryable: false });
+    assert.deepEqual(r.error, { code: 'native_error', message: '桌面控制组件执行失败', retryable: false });
     assert.equal(h.host.state.phase, 'failed');
     assert.ok(h.logs.some((l) => l.includes('apps.running failed code=helper_exited')));
   } finally { h.cleanup(); }

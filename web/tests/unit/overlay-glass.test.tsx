@@ -69,7 +69,7 @@ describe('error card', () => {
   it('offers 看出错 and no settings button unrelated to the cause', () => {
     const card = stackScenario('task-error').cards.find((c) => c.kind === 'error')!;
     render(<StackCardView card={card} index={1} total={1} top now={0} act={() => {}} />);
-    expect(screen.getByRole('button', { name: '看出错' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '查看详情' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '去权限与授权' })).toBeNull();
   });
 });

@@ -60,7 +60,7 @@ function DeliveryReviewCard({ card, now, highlight, act }: ReviewStackCardProps 
             layout="rows"
             canReveal={getBridge().capabilities.revealInFinder}
             onReveal={(path) => act({ type: 'reveal', path })}
-            onOpen={(path) => openTask(`已打开产物 ${path.split('/').at(-1) ?? ''} │ 已发送查看回执`)}
+            onOpen={(path) => openTask(`已打开产物 ${path.split(/[\\/]/).at(-1) ?? ''}`)}
             onCopyPath={(text) => act({ type: 'copy', text })}
           />
         </Fold>
@@ -78,12 +78,12 @@ function DeliveryReviewCard({ card, now, highlight, act }: ReviewStackCardProps 
             kind="review"
             primary={
               rejecting
-                ? { label: '驳回并继续', disabled: !note.trim(), disabledReason: '先写下补充要求', onClick: () => act({ type: 'reject', id: card.id, note: note.trim(), ...ref }) }
-                : { label: '接受这一版', onClick: () => act({ type: 'accept', id: card.id, ...ref }) }
+                ? { label: '驳回并继续', disabled: !note.trim(), disabledReason: '请先填写补充要求', onClick: () => act({ type: 'reject', id: card.id, note: note.trim(), ...ref }) }
+                : { label: '接受当前版本', onClick: () => act({ type: 'accept', id: card.id, ...ref }) }
             }
-            secondary={rejecting ? [{ label: '不驳回', onClick: () => setRejecting(false) }] : [{ label: '驳回这一版', onClick: () => setRejecting(true) }]}
+            secondary={rejecting ? [{ label: '取消', onClick: () => setRejecting(false) }] : [{ label: '驳回当前版本', onClick: () => setRejecting(true) }]}
             more={[
-              { kind: 'item', label: '打开产物', disabled: !first, onSelect: () => first && openTask(`已打开产物 ${first.name} │ 已发送查看回执`) },
+              { kind: 'item', label: '打开产物', disabled: !first, onSelect: () => first && openTask(`已打开产物 ${first.name}`) },
               { kind: 'item', label: '稍后', onSelect: () => act({ type: 'collapse', id: card.id }) },
             ]}
           />

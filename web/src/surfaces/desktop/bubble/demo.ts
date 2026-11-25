@@ -17,7 +17,7 @@ export function bubblePresence(raw: unknown, demo?: string | null): unknown {
   const at = typeof p.sampled_at === 'number' ? p.sampled_at : Date.now() / 1000;
   const thought = demo === 'offer' ? { ...THOUGHT, offer: LONG_OFFER } : demo === 'thought' ? THOUGHT : null;
   const ritual = demo === 'offer' ? { kind: 'report', since: at - 60 } : p.ritual;
-  return { ...p, thought, ritual, role: { ...(p.role as Obj), doing: '在跑 swift test', since: at - 4 * 60 } };
+  return { ...p, thought, ritual, role: { ...(p.role as Obj), doing: '正在执行 swift test', since: at - 4 * 60 } };
 }
 
 function approval(now: number, dangerous = false): Card {

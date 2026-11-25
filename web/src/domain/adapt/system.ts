@@ -179,13 +179,13 @@ export function fromCooldowns(gate: WireDiagGate): Cooldown[] {
 
 /** server.py PHASES order with their display labels. */
 const PHASE_LABEL: ReadonlyArray<[string, string]> = [
-  ['received', '收到输入'],
-  ['waiting_observation', '等观察'],
+  ['received', '接收输入'],
+  ['waiting_observation', '等待观察'],
   ['assembling', '组装上下文'],
-  ['calling_model', '调模型'],
-  ['streaming', '出字'],
-  ['synthesizing', '合成'],
-  ['playing', '播放'],
+  ['calling_model', '调用模型'],
+  ['streaming', '流式输出'],
+  ['synthesizing', '语音合成'],
+  ['playing', '语音播放'],
   ['ended', '结束'],
 ];
 

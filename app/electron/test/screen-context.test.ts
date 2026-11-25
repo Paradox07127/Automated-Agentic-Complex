@@ -373,8 +373,8 @@ test('SelectionReadPolicy.decide: secure input and a block refuse before anythin
   let reads = 0;
   const ax = async () => { reads += 1; return 'x'; };
   const clip = async () => { reads += 1; return { types: ['public.utf8-plain-text'], text: 'y' }; };
-  assert.deepEqual(await decideSelection(true, null, ax, pass, clip, 10), { kind: 'refused', message: '安全输入中，没有读取' });
-  assert.deepEqual(await decideSelection(false, 'incognito', ax, pass, clip, 10), { kind: 'refused', message: '无痕窗口，没有读取' });
+  assert.deepEqual(await decideSelection(true, null, ax, pass, clip, 10), { kind: 'refused', message: '当前处于安全输入状态，未读取内容' });
+  assert.deepEqual(await decideSelection(false, 'incognito', ax, pass, clip, 10), { kind: 'refused', message: '当前为无痕浏览器窗口，未读取内容' });
   assert.equal(reads, 0);
 });
 
@@ -398,9 +398,9 @@ test('SelectionReadPolicy.decide: a block found after the selection read refuses
   let clipboardRead = false;
   const clip = async () => { clipboardRead = true; return { types: ['public.utf8-plain-text'], text: 'y' }; };
   assert.deepEqual(await decideSelection(false, null, async () => null, async () => 'secure_input', clip, 10),
-    { kind: 'refused', message: '安全输入中，没有读取' });
+    { kind: 'refused', message: '当前处于安全输入状态，未读取内容' });
   assert.deepEqual(await decideSelection(false, null, async () => 'sel', async () => 'incognito', clip, 10),
-    { kind: 'refused', message: '无痕窗口，没有读取' });
+    { kind: 'refused', message: '当前为无痕浏览器窗口，未读取内容' });
   assert.equal(clipboardRead, false);
 });
 

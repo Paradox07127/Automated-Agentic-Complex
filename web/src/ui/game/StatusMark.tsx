@@ -55,10 +55,10 @@ export function StatusMark({ state, cap, count, tip, label, plug, mirror, onClic
 }
 
 export const StatusMarkDemos: Array<{ name: string; props: StatusMarkProps }> = [
-  { name: 'busy', props: { state: 'running', label: '在忙', tip: '在跑 swift test │ 4 分钟' } },
+  { name: 'busy', props: { state: 'running', label: '运行中', tip: '正在执行 swift test │ 4 分钟' } },
   { name: 'wait', props: { state: 'awaiting_approval', cap: '待批准', count: 1 } },
-  { name: 'error', props: { state: 'error', cap: '出错了' } },
-  { name: 'done', props: { state: 'done', label: '做完了' } },
-  { name: 'offline', props: { state: 'unreachable', cap: '连不上后台', plug: true } },
-  { name: 'offline-mirror', props: { state: 'unreachable', cap: '连不上后台', plug: true, mirror: true } },
+  { name: 'error', props: { state: 'error', cap: '出错' } },
+  { name: 'done', props: { state: 'done', label: '已完成' } },
+  { name: 'offline', props: { state: 'unreachable', cap: '后台服务未连接', plug: true } },
+  { name: 'offline-mirror', props: { state: 'unreachable', cap: '后台服务未连接', plug: true, mirror: true } },
 ];

@@ -111,7 +111,7 @@ describe('files on the chat composer', () => {
     const b = bridge();
     const thread = await mount();
     fireEvent.click(within(thread).getByRole('button', { name: '附加' }));
-    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '这句不记' }));
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '此轮不记录' }));
     expect(screen.getByRole('menuitem', { name: /^添加文件或图片/ }).getAttribute('aria-disabled')).toBe('true');
     fireEvent.keyDown(document, { key: 'Escape' });
     await send(thread, '只说一次', 1);
@@ -124,7 +124,7 @@ describe('files on the chat composer', () => {
     await attach(thread);
     fireEvent.change(within(thread).getByRole('textbox', { name: '消息' }), { target: { value: '汇总一下' } });
     fireEvent.click(within(thread).getByRole('button', { name: /发送/ }));
-    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '先不换' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '取消' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(b.made).toHaveLength(1);
     await send(thread, '汇总一下', 1);

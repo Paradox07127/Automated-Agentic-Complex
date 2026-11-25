@@ -28,15 +28,15 @@ export const SWITCH_NAME: Record<PluginId, string> = {
   screen_reading: '屏幕识读',
   daily_brief: '每日简报',
   coding_sessions: '编码会话',
-  personal_agent: '派发任务和定时任务',
-  harness_bridge: '改用 Codex、Claude Code 或 ACP',
-  computer_use: '操作电脑',
+  personal_agent: '派发任务与定时任务',
+  harness_bridge: '外部执行内核接入（Codex / Claude Code / ACP）',
+  computer_use: '电脑操作',
   external_access: '外部智能体接入',
-  motion_generation: '生成新动作',
+  motion_generation: '动作生成',
 };
 
 /** Why an entry is 已关闭 while its plug-in is off. */
-export const offReason = (id: PluginId) => `已关闭：设置里关着「${SWITCH_NAME[id]}」`;
+export const offReason = (id: PluginId) => `已关闭：请在设置中开启「${SWITCH_NAME[id]}」`;
 
 /** The reason a page's menu entry carries while its plug-in is off. */
 export function routeOff(r: PageRoute, plugins: PluginState): string | undefined {

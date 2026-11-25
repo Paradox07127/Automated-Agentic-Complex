@@ -28,10 +28,10 @@ export const CHIP_PANEL = { width: CHIP_HIT + 2 * (TIP_GAP + TIP_W), height: CHI
 /** How each kind shows on the mark: its state word, the capsule's text, and the line its tip says. */
 const MARK: Record<ChipKind, { state: VisualStateKey; label: string; cap?: string }> = {
   waiting: { state: 'awaiting_approval', label: '待批准', cap: '待批准' },
-  error: { state: 'error', label: '出错了', cap: '出错了' },
-  running: { state: 'running', label: '在忙' },
-  done: { state: 'done', label: '做完了' },
-  offline: { state: 'unreachable', label: '未接入：连不上后台，点按重启后台', cap: '未接入' },
+  error: { state: 'error', label: '出错', cap: '出错' },
+  running: { state: 'running', label: '执行中' },
+  done: { state: 'done', label: '已完成' },
+  offline: { state: 'unreachable', label: '未接入：无法连接后台服务，点击重启', cap: '未接入' },
 };
 
 /** Her main line, as the bubble picks it; an error line counts once the bubble has put it away, and stays until it is seen. */

@@ -64,10 +64,10 @@ function DrawnHead({ id }: { id: string }) {
 }
 
 const DESK: Record<Desk, [VisualStateKey, string]> = {
-  unread: ['idle', '没读到桌面状态'],
-  appearing: ['waiting', '正在出现…'],
-  here: ['ok', '在桌面上'],
-  hidden: ['stopped', '隐藏着'],
+  unread: ['idle', '未读取桌面状态'],
+  appearing: ['waiting', '正在加载…'],
+  here: ['ok', '已在桌面运行'],
+  hidden: ['stopped', '已隐藏'],
 };
 
 /** 01 角色: the roster (a cell switches her), 导入 as the last cell, and whether she is on the desktop. */
@@ -115,8 +115,8 @@ export function StepChar({ o }: { o: Onboarding }) {
       {c && (
         <SetRow
           id="onDesk"
-          title={`${c.name} 在桌面上`}
-          desc={c.voice ? '有声线：连上语音服务后能念出来' : '没有声线：只显示文字，不会出声'}
+          title={`已选择 ${c.name}`}
+          desc={c.voice ? '包含角色声线：连接语音服务后可进行语音播报' : '无配套声线：将以文字形式回复'}
           control={<StatusLamp size="sm" state={DESK[o.desk][0]} label={DESK[o.desk][1]} />}
         />
       )}
@@ -155,7 +155,7 @@ function AccountRows() {
       <SetRow
         id="svc"
         title={labelOf('svc')}
-        desc="Pi 用它；Codex 和 Claude Code 用自己的登录"
+        desc="适用于 Pi 内核；Codex 与 Claude Code 使用各自的账号登录"
         control={<Select label={labelOf('svc')} value={svc} options={GUIDE_SVC} disabled={ro} onChange={(v) => model.set('svc', v)} />}
       />
       {(svc === 'anthropic' || svc === 'openai') && <SetRow id="apiBase" title={labelOf('apiBase')} control={c.text('apiBase', labelOf('apiBase'), 'https://…', ro)} />}
@@ -165,19 +165,19 @@ function AccountRows() {
         <SetRow
           id="apikey"
           title={labelOf('apikey')}
-          desc={cfg?.has_key ? `只送给后台，存进${getBridge().platform === 'windows' ? '系统凭据（DPAPI）' : '钥匙串'}，不回显` : '还没有保存'}
+          desc={cfg?.has_key ? `仅传至后台服务并加密存入${getBridge().platform === 'windows' ? '系统凭据存储' : '系统钥匙串'}，不回显` : '尚未保存'}
           descTone={cfg?.has_key ? undefined : 'attention'}
           control={
             cfg?.has_key && !replacing ? (
               <>
                 <Masked>已保存</Masked>
                 <Btn disabled={ro} onClick={() => setReplacing(true)}>
-                  替换
+                  更换
                 </Btn>
               </>
             ) : (
               <>
-                <Field type="password" label="API Key" placeholder={cfg?.has_key ? '输入新 Key 替换' : '粘贴 API Key'} value={key} disabled={ro} onChange={setKey} />
+                <Field type="password" label="API Key" placeholder={cfg?.has_key ? '输入新 Key 以更换' : '粘贴 API Key'} value={key} disabled={ro} onChange={setKey} />
                 <Btn disabled={ro || !key} onClick={saveKey}>
                   保存
                 </Btn>
@@ -195,29 +195,29 @@ export function StepChat({ g }: { g: GuideSettings }) {
   const { ctx, restarting, agentdOff, connected, test, runTest } = g;
   const ro = agentdOff || restarting;
   const testTone: VisualStateKey = test.state === 'ok' ? 'ok' : test.state === 'bad' ? 'broken' : test.state === 'testing' ? 'waiting' : 'idle';
-  const testText = test.state === 'testing' ? '连接中…' : test.state === 'idle' ? '没连上' : test.text;
+  const testText = test.state === 'testing' ? '连接测试中…' : test.state === 'idle' ? '未连接' : test.text;
   return (
     <Frame n={2}>
       {agentdOff && !restarting && (
         <ErrBar
-          message="后台服务没有运行，账号这一块暂时只读"
+          message="后台服务未运行，账号配置暂为只读"
           extra={<Btn onClick={g.retryAgentd}>重新连接</Btn>}
         />
       )}
-      {restarting && <ErrBar tone="warning" message="正在重启后台… 回来后账号这一块就能用" />}
+      {restarting && <ErrBar tone="warning" message="正在重启后台服务，就绪后可恢复编辑账号配置" />}
       <Band plugin="light_ai" fold="模型提供方、账号、测试连接">
-        <SettingsCtx.Provider value={{ ...ctx, ro, roReason: restarting ? '正在重启后台' : '后台服务没有运行' }}>
+        <SettingsCtx.Provider value={{ ...ctx, ro, roReason: restarting ? '正在重启后台服务' : '后台服务未运行' }}>
           <AccountRows />
           <SetRow
             id="mtest"
             title={labelOf('mtest')}
             indent
-            desc={test.state === 'ok' ? '现在能和你对话了' : connected ? '发一句话给模型，看能不能回' : '先连上账号再测'}
+            desc={test.state === 'ok' ? '模型连接正常，可正常对话' : connected ? '发送一条测试请求以验证模型连通性' : '请先连接账号后再测试'}
             descTone={test.state === 'ok' ? 'ok' : undefined}
             control={
               <>
                 <StatusLamp size="sm" state={testTone} label={testText} />
-                <Btn loading={test.state === 'testing'} disabled={ro || !connected} disabledReason="先连上账号" onClick={runTest}>
+                <Btn loading={test.state === 'testing'} disabled={ro || !connected} disabledReason="请先连接账号" onClick={runTest}>
                   测试
                 </Btn>
               </>
@@ -247,21 +247,21 @@ export function StepDone({ o, g, missing, goto }: { o: Onboarding; g: GuideSetti
   const copy = doneCopy(her?.name ?? null, ready);
   const quick = o.hotkeys.hk_quick ?? String(model.value('hk_quick') ?? '');
   const lines: Array<[string, ReactNode, ReactNode]> = [
-    ['角色', her ? <StatusLamp size="sm" state="ok" label={`${her.name} 在桌面上`} /> : <StatusLamp size="sm" state="idle" label="还没有角色" />, !her && <Btn variant="link" onClick={() => goto(1)}>导入</Btn>],
+    ['角色', her ? <StatusLamp size="sm" state={DESK[o.desk][0]} label={o.desk === 'here' ? `${her.name} 已在桌面运行` : `${her.name} │ ${DESK[o.desk][1]}`} /> : <StatusLamp size="sm" state="idle" label="未选择角色" />, !her && <Btn variant="link" onClick={() => goto(1)}>导入</Btn>],
     [
       '对话',
-      !g.talks ? <StatusLamp size="sm" state="stopped" label="关着，只陪伴" /> : ready ? <StatusLamp size="sm" state="ok" label={`已连上 │ ${g.service ?? ''}`} /> : <StatusLamp size="sm" state="waiting" label="没连上账号" />,
-      g.talks && !ready && <Btn variant="link" onClick={() => goto(2)}>去连</Btn>,
+      !g.talks ? <StatusLamp size="sm" state="stopped" label="未启用（仅桌面陪伴）" /> : ready ? <StatusLamp size="sm" state="ok" label={`已连接 │ ${g.service ?? ''}`} /> : <StatusLamp size="sm" state="waiting" label="未连接账号" />,
+      g.talks && !ready && <Btn variant="link" onClick={() => goto(2)}>前往配置</Btn>,
     ],
     [
-      '角色的声音',
-      her && !her.voice ? <StatusLamp size="sm" state="idle" label="没有声线，只显示文字" /> : g.talks && g.ctx.diag.voice != null && !g.ctx.diag.voiceNone ? <StatusLamp size="sm" state="ok" label="外部服务" /> : <StatusLamp size="sm" state="idle" label="只显示文字" />,
+      '语音播报',
+      her && !her.voice ? <StatusLamp size="sm" state="idle" label="无配套声线（仅文字）" /> : g.talks && g.ctx.diag.voice != null && !g.ctx.diag.voiceNone && g.ctx.diag.voice?.state === 'ready' ? <StatusLamp size="sm" state="ok" label="外部语音服务已连接" /> : <StatusLamp size="sm" state="idle" label="仅文字回复" />,
       null,
     ],
     [
-      '按住说话',
-      !g.talks ? <StatusLamp size="sm" state="stopped" label="对话关着" /> : missing.length ? <StatusLamp size="sm" state="waiting" label={`${missing.map((p) => p.label).join('、')}没开`} /> : <StatusLamp size="sm" state="ok" label="可以用" />,
-      g.talks && missing.length > 0 && <Btn variant="link" onClick={() => goto(3)}>去开</Btn>,
+      '按住语音输入',
+      !g.talks ? <StatusLamp size="sm" state="stopped" label="对话未启用" /> : missing.length ? <StatusLamp size="sm" state="waiting" label={`缺少${missing.map((p) => p.label).join('、')}权限`} /> : <StatusLamp size="sm" state="ok" label="已就绪" />,
+      g.talks && missing.length > 0 && <Btn variant="link" onClick={() => goto(3)}>前往授权</Btn>,
     ],
   ];
   return (
@@ -275,13 +275,13 @@ export function StepDone({ o, g, missing, goto }: { o: Onboarding; g: GuideSetti
         )}
         <span className={styles.line} />
         <span className={styles.here}>
-          {her ? <StatusLamp size="sm" state={DESK[o.desk][0]} label={DESK[o.desk][1]} /> : <StatusLamp size="sm" state="idle" label="桌面上还没有角色" />}
+          {her ? <StatusLamp size="sm" state={DESK[o.desk][0]} label={DESK[o.desk][1]} /> : <StatusLamp size="sm" state="idle" label="当前桌面未加载角色" />}
           <MicroLabel>Desk / Live</MicroLabel>
         </span>
       </div>
       <div className={styles.side} data-g="text">
         <span className={styles.mi}>
-          <MicroLabel>Setup Complete 03 / 03</MicroLabel>
+          <MicroLabel>Setup Complete 04 / 04</MicroLabel>
         </span>
         <h1 className={card.h1} data-g="title">
           {copy.title}
@@ -302,25 +302,25 @@ export function StepDone({ o, g, missing, goto }: { o: Onboarding; g: GuideSetti
             ))}
           </div>
         </Slab>
-        <Slab id="calls" variant="plate" title={`怎么叫${her?.name ?? '角色'}`}>
+        <Slab id="calls" variant="plate" title={`与${her?.name ?? '角色'}交互方式`}>
           <div className={styles.calls}>
             <div className={styles.call}>
               <span className={styles.how}>
                 <Mouse side="left" />
-                点角色
+                左键点击角色
               </span>
-              <b>互动、摸头</b>
+              <b>互动与触碰反馈</b>
             </div>
             <div className={styles.call}>
               <span className={styles.how}>
                 <Mouse side="right" />
-                右键角色
+                右键点击角色
               </span>
               <b>快捷轮盘</b>
             </div>
             <div className={styles.call}>
               <KeyCell keys={quick ? capsOf(hotkeyText(quick)) : undefined} none={quick === ''} />
-              <b>{g.talks ? '聊天' : '快速输入'}</b>
+              <b>{g.talks ? '打开对话' : '快速输入'}</b>
             </div>
           </div>
         </Slab>

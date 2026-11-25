@@ -75,8 +75,8 @@ describe('运行记录 动作线 reads /trace/events', () => {
 
   it('says it cannot read when agentd refuses', async () => {
     mount(() => ({ status: 503, body: { error: 'no_trace' } }));
-    expect(await screen.findByText('读不到这段时间的事件')).toBeTruthy();
-    expect(screen.getAllByRole('status').map((s) => s.textContent)).toContain('读不到');
+    expect(await screen.findByText('无法读取该时段的事件')).toBeTruthy();
+    expect(screen.getAllByRole('status').map((s) => s.textContent)).toContain('读取失败');
   });
 });
 

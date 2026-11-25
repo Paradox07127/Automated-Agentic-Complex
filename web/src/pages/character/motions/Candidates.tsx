@@ -27,8 +27,8 @@ export interface CandidatesProps {
 
 const cm = (gap: number | null | undefined) => (gap == null ? '未测' : String(gap));
 const lenText = (c: GraphClip | undefined) => (c?.length_s == null ? '' : `${c.loop ? '一圈 ' : ''}${Math.round(c.length_s * 100) / 100} s`);
-const END_HINT = '接在最后一段后面：从下面 8 cm 内能接上的片段里选；第一段不能换，也不能插在它前面。';
-const NO_GHOST_HINT = '8 cm 内没有能接在后面的片段；第一段不能换，也不能插在它前面。';
+const END_HINT = '追加至末尾段之后：从下方 8 cm 衔接阈值内匹配的片段中选择（首段不可替换或前置插入）。';
+const NO_GHOST_HINT = '8 cm 衔接阈值内无可用后继片段（首段不可替换或前置插入）。';
 
 function Gap({ gap }: { gap: number | null | undefined }) {
   return <span data-band={gapBand(gap ?? null)}>{cm(gap)}</span>;
@@ -45,8 +45,8 @@ export function Candidates(p: CandidatesProps) {
       ) : (
         <>
           <div className={styles.h}>
-            <b>第 {p.index + 1} 段：换成或插在它前面</b>
-            <span className={styles.opt}>同站姿、同姿势族 │ {p.options.length} 个 │ 按衔接排</span>
+            <b>第 {p.index + 1} 段：替换或在前方插入</b>
+            <span className={styles.opt}>同姿态、同姿势族 │ {p.options.length} 项 │ 按衔接匹配度排序</span>
             <span className={styles.sp} />
             {p.loop && (
               <span className={styles.hold}>
@@ -55,7 +55,7 @@ export function Candidates(p: CandidatesProps) {
               </span>
             )}
           </div>
-          {p.options.length === 0 && <p className={styles.pickHint}>没有同站姿、同姿势族的片段可换</p>}
+          {p.options.length === 0 && <p className={styles.pickHint}>无同姿态、同姿势族的可替换片段</p>}
           <ul className={styles.list} aria-label={`换「${name}」或插在它前面的片段`}>
             {p.options.map((o) => (
               <li key={o.clip} className={styles.cand} data-cand={o.clip}>
@@ -74,7 +74,7 @@ export function Candidates(p: CandidatesProps) {
                 </span>
                 <span className={styles.l}>{lenText(p.clipOf(o.clip))}</span>
                 <span className={styles.sp} />
-                <WhiteCapsule label="换成" icon="sync" size="sm" disabled={off} onClick={() => p.onReplace(o.clip)} />
+                <WhiteCapsule label="替换" icon="sync" size="sm" disabled={off} onClick={() => p.onReplace(o.clip)} />
                 <WhiteCapsule label="在此前插入" icon="plus" size="sm" disabled={off} onClick={() => p.onInsert(o.clip)} />
               </li>
             ))}
@@ -84,7 +84,7 @@ export function Candidates(p: CandidatesProps) {
       {p.ghosts.length > 0 && (
         <>
           <div className={styles.h}>
-            <b>8 cm 内能接上的（任何组）</b>
+            <b>8 cm 衔接阈值内可连接的片段（全部组）</b>
           </div>
           <ul className={styles.list} aria-label="8 cm 内能接上的片段">
             {p.ghosts.map((x) => (
@@ -97,7 +97,7 @@ export function Candidates(p: CandidatesProps) {
                 </span>
                 <span className={styles.l}>{lenText(p.clipOf(x.clip))}</span>
                 <span className={styles.sp} />
-                <WhiteCapsule label="插在它后面" icon="plus" size="sm" disabled={off} onClick={() => p.onInsertAt(x.at + 1, x.clip)} />
+                <WhiteCapsule label="在其后插入" icon="plus" size="sm" disabled={off} onClick={() => p.onInsertAt(x.at + 1, x.clip)} />
               </li>
             ))}
           </ul>

@@ -198,7 +198,7 @@ describe('session lines on the HUD', () => {
     const m = await mount();
     m.push([], ['needs_you', 'error', 'done', 'running'].map((status, i) => wireRow(`s-${i}`, { status, updated_at: S })));
     expand();
-    expect(lines().map((e) => e.querySelector('[data-glyph]')?.getAttribute('aria-label'))).toEqual(['待处理', '出错', '运行中', '完成']);
+    expect(lines().map((e) => e.querySelector('[data-glyph]')?.getAttribute('aria-label'))).toEqual(['待处理', '出错', '进行中', '已完成']);
   });
 
   it('keeps the expanded state across later pushes', async () => {
@@ -225,12 +225,12 @@ describe('session lines on the HUD', () => {
 
     const answered: StackCard = { ...pending, outcome: { kind: 'elsewhere', at: NOW, text: '已在别处处理' } };
     m.push([answered], rows);
-    expect(screen.getByText('这张卡被别处处理了，这里不用再点')).toBeTruthy();
+    expect(screen.getByText('该请求已在其他位置处理，无需重复操作')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '批准' })).toBeNull();
     act(() => vi.advanceTimersByTime(1600));
     m.push([{ ...answered }], rows, 0, NOW + 1600);
     act(() => vi.advanceTimersByTime(1599));
-    expect(screen.getByText('这张卡被别处处理了，这里不用再点')).toBeTruthy();
+    expect(screen.getByText('该请求已在其他位置处理，无需重复操作')).toBeTruthy();
     act(() => vi.advanceTimersByTime(1));
     const line = lines()[0]!;
     expect(line.querySelector('[data-stub="SessionApproval"]')).toBeNull();

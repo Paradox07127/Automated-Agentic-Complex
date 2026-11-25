@@ -10,20 +10,20 @@ const sectionsOf = (s: string) => s.split(/[、,，;；\n]+/).map((x) => x.trim(
 /** Why the draft cannot be sent yet; null when it can. */
 export function draftProblem(d: CreateDraft, canPick: boolean): string | null {
   if (d.kind === 'code') {
-    if (!canPick) return '这台电脑的外壳不支持原生目录选择';
-    if (!d.cwd) return '先选目录';
-    return d.brief.trim() ? null : '先写要求';
+    if (!canPick) return '当前客户端环境不支持原生目录选择';
+    if (!d.cwd) return '请先选择工作目录';
+    return d.brief.trim() ? null : '请填写任务要求';
   }
-  if (!d.title.trim()) return '先写标题';
-  if (!d.brief.trim()) return '先写要求';
+  if (!d.title.trim()) return '请填写任务标题';
+  if (!d.brief.trim()) return '请填写任务要求';
   const artifact = d.artifact.trim();
-  if (artifact && !ARTIFACT.test(artifact)) return '预期产物写相对路径，后缀 md、txt、csv 或 json';
-  if (!artifact && sectionsOf(d.sections).length > 0) return '先填写预期产物';
+  if (artifact && !ARTIFACT.test(artifact)) return '预期产物须为相对路径，支持 .md、.txt、.csv 或 .json';
+  if (!artifact && sectionsOf(d.sections).length > 0) return '请先填写预期产物路径';
   return null;
 }
 
 /** The refusal of a send whose plug-in agentd does not run. */
-export const offText = (kind: CreateKind) => `设置里关着「${kind === 'code' ? '编码会话' : '派发任务和定时任务'}」`;
+export const offText = (kind: CreateKind) => `已在设置中关闭「${kind === 'code' ? '编码会话' : '个人代理与自主能力'}」`;
 
 /** Sends the draft; `select` is the new task row's id (a coding session's own id), `label` names it in the toast. */
 export async function submitDraft(d: CreateDraft): Promise<{ select: string; label: string }> {

@@ -652,7 +652,7 @@ class ProactiveTest(unittest.TestCase):
         self.assertNotIn("error: x", text)
         self.assertEqual(material, 'Doing before leaving: Endfield; stuck on "error: x"')
         self.assertIn("you were just", text)
-        self.assertEqual(reason, {"code": "back", "kind": "back", "text": "你离开了 20 分钟，刚回来", "away_min": 20,
+        self.assertEqual(reason, {"code": "back", "kind": "back", "text": "检测到离开 20 分钟后返回", "away_min": 20,
                                   "before": True})
         [nudge] = self.nudges("back")
         self.assertTrue(nudge["speak"])
@@ -793,7 +793,7 @@ class ProactiveTest(unittest.TestCase):
         [(line_id, text, reason)] = self.claims
         self.assertEqual({k: nudge[k] for k in ("level", "line_id", "speak", "gate")},
                          {"level": "P2", "line_id": line_id, "speak": True, "gate": None})
-        self.assertEqual(reason, {"code": "break", "kind": "break", "text": "你已经连续用电脑 45 分钟", "minutes": 45})
+        self.assertEqual(reason, {"code": "break", "kind": "break", "text": "已连续使用电脑 45 分钟", "minutes": 45})
         self.assertIn("45 minutes", text)
         self.assertNotIn("SECRET-TITLE", text)
         self.desk(1)  # the clock started again
@@ -805,7 +805,7 @@ class ProactiveTest(unittest.TestCase):
                           self.gate.check("break", last + datetime.timedelta(minutes=45))), ("same_cooldown", None))
 
     def test_the_reason_text_is_in_the_reply_language(self):
-        for language, text in (("zh-Hans", "你已经连续用电脑 45 分钟"), (None, "你已经连续用电脑 45 分钟"),
+        for language, text in (("zh-Hans", "已连续使用电脑 45 分钟"), (None, "已连续使用电脑 45 分钟"),
                                ("en", "You have been at the computer for 45 min straight"),
                                ("ja", "もう 45 分続けてパソコンを使っている")):
             with self.subTest(language=language):
@@ -941,7 +941,7 @@ class StuckTest(unittest.TestCase):
         self.assertIn(f"{PROMPT_USER} seems to have been stuck on a problem for a while; where is in the live material.",
                       text)
         self.assertIn("ask whether they want you to help take a look", text)
-        self.assertEqual(reason, {"code": "stuck", "kind": "stuck", "text": "你像是卡在一个问题上 2 分钟了", "minutes": 2})
+        self.assertEqual(reason, {"code": "stuck", "kind": "stuck", "text": "当前任务疑似已停滞 2 分钟", "minutes": 2})
 
     def test_no_input_pauses_by_idle_s(self):
         for _ in range(14):
@@ -1207,7 +1207,7 @@ class ProactiveServerTest(test_server.FeedServerCase):
         line_id, lines = self.comment_line()
         self.assertEqual({line["line_id"] for line in lines}, {line_id})
         self.assertEqual([line["reason"] for line in lines],
-                         [{"code": "long_dwell", "kind": "comment", "text": "你在这个窗口停了 3 分钟",
+                         [{"code": "long_dwell", "kind": "comment", "text": "已在当前窗口停留 3 分钟",
                            "activity": None, "dwell_min": 3}] * len(lines))
 
     def test_dont_disturb_with_mute_silences_the_kind_until_restored(self):

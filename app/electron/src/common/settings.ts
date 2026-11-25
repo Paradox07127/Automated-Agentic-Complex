@@ -8,8 +8,8 @@ import { contextPolicy, revokedKinds } from './screen-context.ts';
 export type SettingValue = boolean | number | string;
 
 const PLUGIN_LABELS: Readonly<Record<PluginId, string>> = {
-  light_ai: '轻量 AI（对话、语音、记忆）', screen_awareness: '屏幕感知', screen_reading: '屏幕识读', daily_brief: '日报',
-  coding_sessions: '编码会话', personal_agent: '个人代理', harness_bridge: 'harness 桥接', computer_use: '电脑操作',
+  light_ai: '轻量 AI（对话、语音、记忆）', screen_awareness: '屏幕感知', screen_reading: '屏幕识读', daily_brief: '每日简报',
+  coding_sessions: '编码会话', personal_agent: '个人代理', harness_bridge: '外部框架桥接', computer_use: '电脑操作',
   external_access: '外部接入', motion_generation: '动作生成',
 };
 
@@ -59,87 +59,87 @@ const slider = (key: string, label: string, min: number, max: number, step: numb
 const hotkey = (key: string, label: string, value: string): Item => ({ key, label, control: { kind: 'hotkey', value }, restart: 'none' });
 const text = (key: string, label: string, value: string): Item => ({ key, label, control: { kind: 'text', value }, restart: 'backend' });
 
-const NOTIFY: [string, string][] = [['sound', '出声'], ['card', '只出卡'], ['silent', '不提示']];
+const NOTIFY: [string, string][] = [['sound', '卡片并提示音'], ['card', '仅显示卡片'], ['silent', '不提示']];
 
 /** The items the web rows use (the first item of each key). */
 const ITEMS: Item[] = [
-  toggle('launch_at_login', '登录时启动', true),
-  choice('stay_mode', '待在原地 / 自由活动', [['stay', '待在原地'], ['roam', '自由活动'], ['bust', '半身固定']], 'roam'),
-  toggle('sit_on_windows', '坐在窗口顶上', true),
-  toggle('lean_on_edges', '扶着窗沿', true),
-  toggle('look_at_cursor', '看向鼠标', true),
+  toggle('launch_at_login', '登录后自动启动', true),
+  choice('stay_mode', '活动模式', [['stay', '原地停驻'], ['roam', '自由活动'], ['bust', '半身固定']], 'roam'),
+  toggle('sit_on_windows', '允许坐在窗口顶部', true),
+  toggle('lean_on_edges', '允许扶靠窗口边缘', true),
+  toggle('look_at_cursor', '注视鼠标指针', true),
   toggle('drag_inertia', '拖动惯性', true),
-  toggle('render_secondary_motion', '头发衣物物理', true, 'avatar'),
-  toggle('speech_expressions', '说话时有表情', true, 'avatar'),
-  toggle('touch_regions', '点不同部位有不同反应', true),
-  toggle('head_pat', '摸头', true),
-  toggle('cheek_pinch', '捏脸（按住脸颊拖动）', false),
-  toggle('greet_on_resume', '锁屏或睡眠回来时迎接', true),
-  toggle('state_affects_behavior', '状态影响行为', true),
-  choice('viewport', '活动范围', [['default', '默认'], ['window', '小窗口'], ['fullscreen', '整块屏']], 'default', 'avatar'),
-  choice('scene_mode', '场景', [['off', '关'], ['box', '舞台盒'], ['stage', '展示台']], 'off', 'avatar'),
+  toggle('render_secondary_motion', '头发与衣物物理模拟', true, 'avatar'),
+  toggle('speech_expressions', '语音同步表情', true, 'avatar'),
+  toggle('touch_regions', '分区域触碰响应', true),
+  toggle('head_pat', '头部抚摸互动', true),
+  toggle('cheek_pinch', '脸颊捏持互动（按住脸颊拖动）', false),
+  toggle('greet_on_resume', '唤醒或解锁时问候', true),
+  toggle('state_affects_behavior', '角色状态影响行为表现', true),
+  choice('viewport', '活动范围', [['default', '默认（全屏）'], ['window', '小窗口'], ['fullscreen', '全屏']], 'default', 'avatar'),
+  choice('scene_mode', '场景模式', [['off', '关闭'], ['box', '舞台盒'], ['stage', '展示台']], 'off', 'avatar'),
   toggle('scene_parallax', '背景视差', true, 'avatar'),
-  toggle('hide_on_screen_capture', '录屏时隐藏角色', true),
-  toggle('switch_title', '切换角色时的雷霆大字', true),
-  dropdown('interaction_preset', '交互档位', [['quiet', '安静'], ['balanced', '均衡'], ['active', '主动']], 'balanced'),
+  toggle('hide_on_screen_capture', '屏幕录制或共享时隐藏', true),
+  toggle('switch_title', '切换角色时显示标题动画', true),
+  dropdown('interaction_preset', '主动交互频率', [['quiet', '静默'], ['balanced', '均衡'], ['active', '高频']], 'balanced'),
   toggle('render_ssaa', '2× SSAA', true, 'avatar'),
-  dropdown('render_resolution', '渲染尺寸', [['authored', '原始尺寸'], ['display', '跟随显示像素（试验）']], 'authored', 'avatar'),
-  dropdown('render_shadow', '自阴影精度', [['1024', '高 · 1024'], ['512', '中 · 512'], ['256', '低 · 256']], '1024', 'avatar'),
-  dropdown('render_fps', '帧率上限（空闲自动节能在此之下）', [['60', '60 fps'], ['45', '45 fps'], ['30', '30 fps']], '60'),
-  dropdown('render_outline', '角色边界', [['original', '原作'], ['subtle', '柔和外轮廓'], ['contrast', '增强外轮廓']], 'original'),
-  dropdown('render_ground_shadow', '脚下阴影', [['off', '关'], ['contact', '接触阴影'], ['cast', '真实投影']], 'cast'),
-  dropdown('render_ambient', '环境取色', [['off', '关'], ['wallpaper', '壁纸颜色'], ['screen', '屏幕取色']], 'off'),
+  dropdown('render_resolution', '渲染尺寸', [['authored', '原始分辨率'], ['display', '匹配显示器像素（实验性）']], 'authored', 'avatar'),
+  dropdown('render_shadow', '自阴影精度', [['1024', '高（1024）'], ['512', '中（512）'], ['256', '低（256）']], '1024', 'avatar'),
+  dropdown('render_fps', '帧率上限', [['60', '60 fps'], ['45', '45 fps'], ['30', '30 fps']], '60'),
+  dropdown('render_outline', '角色描边', [['original', '原作'], ['subtle', '柔和外轮廓'], ['contrast', '增强外轮廓']], 'original'),
+  dropdown('render_ground_shadow', '地面阴影', [['off', '关闭'], ['contact', '接触阴影'], ['cast', '实时投影']], 'cast'),
+  dropdown('render_ambient', '环境光照取色', [['off', '关闭'], ['wallpaper', '跟随壁纸'], ['screen', '跟随屏幕内容']], 'off'),
   toggle('render_light_wrap', '边缘环境光', false),
-  choice('render_weather', '天气', [['clear', '晴'], ['rain', '雨'], ['snow', '雪']], 'clear'),
+  choice('render_weather', '环境天气', [['clear', '晴朗'], ['rain', '降雨'], ['snow', '降雪']], 'clear'),
   slider('render_weather_intensity', '强度', 0, 1, 0.05, 'percent', 0.6),
-  dropdown('render_dof', '景深', [['off', '关'], ['closeup', '近景时']], 'off'),
-  dropdown('render_light_yaw', '主光水平微调', [['-15', '左偏 15°'], ['0', '原作'], ['15', '右偏 15°']], '0'),
-  dropdown('render_light_pitch', '主光俯仰微调', [['-10', '降低 10°'], ['0', '原作'], ['10', '抬高 10°']], '0'),
-  dropdown('render_light_strength', '主光强度', [['0.5', '50 %'], ['0.75', '75 %'], ['1', '原作 · 100 %'], ['1.25', '125 %'], ['1.5', '150 %']], '1'),
-  dropdown('render_facing_mode', '陪看朝向', [['auto', '由角色决定'], ['front', '面向用户'], ['side', '轻微侧身 · 30°'], ['back', '完全转身 · 180°']], 'auto'),
-  dropdown('render_camera_mode', '原作镜头预设', [['show', '角色展示'], ['overview', '总览'], ['document', '档案']], 'show'),
-  slider('render_camera_yaw', '水平朝向', -180, 180, 0.5, 'degrees', 0),
-  slider('render_camera_pitch', '俯仰朝向', -20, 20, 0.5, 'degrees', 0),
+  dropdown('render_dof', '景深效果', [['off', '关闭'], ['closeup', '仅近景启用']], 'off'),
+  dropdown('render_light_yaw', '主光源水平角度', [['-15', '左偏 15°'], ['0', '原作（0°）'], ['15', '右偏 15°']], '0'),
+  dropdown('render_light_pitch', '主光源俯仰角度', [['-10', '降低 10°'], ['0', '原作（0°）'], ['10', '抬高 10°']], '0'),
+  dropdown('render_light_strength', '主光源强度', [['0.5', '50 %'], ['0.75', '75 %'], ['1', '原作（100 %）'], ['1.25', '125 %'], ['1.5', '150 %']], '1'),
+  dropdown('render_facing_mode', '伴随朝向', [['auto', '自动调整'], ['front', '面向用户'], ['side', '侧身 30°'], ['back', '背向（180°）']], 'auto'),
+  dropdown('render_camera_mode', '镜头预设', [['show', '角色展示'], ['overview', '全景总览'], ['document', '档案视角']], 'show'),
+  slider('render_camera_yaw', '水平旋转', -180, 180, 0.5, 'degrees', 0),
+  slider('render_camera_pitch', '俯仰角度', -20, 20, 0.5, 'degrees', 0),
   slider('render_camera_zoom', '镜头缩放', 1, 4, 0.05, 'percent', 1),
-  toggle('render_camera_sway', '呼吸晃动', false),
-  choice('render_camera_auto_closeup', '对话近景', [['off', '关'], ['session', '会话面板打开时']], 'off'),
+  toggle('render_camera_sway', '呼吸微动', false),
+  choice('render_camera_auto_closeup', '自动近景切换', [['off', '关闭'], ['session', '总览任务进行时']], 'off'),
   choice('render_camera_track', '舞蹈播放', [['off', '原地'], ['stage', '全屏居中']], 'stage'),
-  toggle('idle_low_fps', '空闲时降到 30 fps', false),
-  toggle('battery_low_fps', '电池供电时降帧', true),
-  hotkey('hotkey_toggle_avatar', '显示 / 隐藏角色', 'control+option+h'),
-  hotkey('hotkey_click_through', '临时全部点穿', 'control+option+p'),
-  hotkey('hotkey_quick_input', '快速输入', 'control+option+space'),
-  hotkey('hotkey_radial_menu', '角色快捷轮盘', 'control+option+r'),
-  hotkey('hotkey_selection', '读取选中文字', 'control+option+s'),
-  toggle('desktop_presence', '头顶任务与角色状态', true),
+  toggle('idle_low_fps', '空闲时降至 30 fps', false),
+  toggle('battery_low_fps', '使用电池供电时降低帧率', true),
+  hotkey('hotkey_toggle_avatar', '显示或隐藏角色', 'control+option+h'),
+  hotkey('hotkey_click_through', '切换全局鼠标穿透', 'control+option+p'),
+  hotkey('hotkey_quick_input', '打开快速输入', 'control+option+space'),
+  hotkey('hotkey_radial_menu', '打开快捷轮盘', 'control+option+r'),
+  hotkey('hotkey_selection', '读取当前选中文本', 'control+option+s'),
+  toggle('desktop_presence', '角色状态气泡', true),
   toggle('desktop_hover_hints', '悬浮快捷键提示', true),
-  hotkey('voice_hotkey', '按住说话', 'right_option'),
-  choice('asr_locale', '识别语言', [['auto', '跟随系统'], ['zh-CN', '中文'], ['en-US', 'English']], 'auto'),
-  toggle('mute', '只出字、不出声', false),
-  toggle('proactive_speech', '主动说话', true),
+  hotkey('voice_hotkey', '按住语音输入', 'right_option'),
+  choice('asr_locale', '语音识别语言', [['auto', '跟随系统'], ['zh-CN', '中文'], ['en-US', 'English']], 'auto'),
+  toggle('mute', '静音（仅文字回复）', false),
+  toggle('proactive_speech', '主动交互', true),
   text('proxy_url', '代理', ''),
-  dropdown('screen_context_level', '屏幕理解粒度', [['status', '仅读状态'], ['focused', '焦点语义'], ['window', '窗口摘要']], 'focused'),
-  toggle('share_page_text', '读取网页正文', false),
-  toggle('share_window_text', '读取窗口文字', false),
-  toggle('share_typed_text', '读取输入的文字', false),
+  dropdown('screen_context_level', '屏幕读取粒度', [['status', '仅应用状态'], ['focused', '焦点内容'], ['window', '窗口摘要']], 'focused'),
+  toggle('share_page_text', '允许读取网页正文', false),
+  toggle('share_window_text', '允许读取窗口文本', false),
+  toggle('share_typed_text', '允许读取当前输入文本', false),
   toggle('share_actions', '记录操作时间线', false, 'none'),
-  toggle('share_agent_sessions', '读取编码会话', true),
-  toggle('share_screenshots', '屏幕识读时附上截图', false),
-  toggle('sense_input_counts', '键鼠计数', true),
-  toggle('redact_sensitive', '发出前遮蔽敏感内容', true),
-  toggle('system_notifications', '改走 macOS 系统通知', true),
+  toggle('share_agent_sessions', '允许读取编码会话', true),
+  toggle('share_screenshots', '屏幕识读时附带截图', false),
+  toggle('sense_input_counts', '记录键鼠交互频次', true),
+  toggle('redact_sensitive', '发送前脱敏敏感信息', true),
+  toggle('system_notifications', '使用系统通知', true),
   choice('notify_done', '完成', NOTIFY, 'card'),
   choice('notify_approval', '待批准', NOTIFY, 'sound'),
   choice('notify_error', '出错', NOTIFY, 'sound'),
   choice('notify_brief', '简短播报', NOTIFY, 'card'),
   choice('notify_reminder', '提醒', NOTIFY, 'sound'),
   choice('avatar_click', '点击角色', [['interact', '角色互动'], ['quick_input', '打开快速输入']], 'interact'),
-  hotkey('hotkey_look', '屏幕识读', 'control+option+l'),
-  choice('app_theme', '主题', [['system', '跟随系统'], ['light', '浅色'], ['dark', '深色']], 'system'),
+  hotkey('hotkey_look', '触发屏幕识读', 'control+option+l'),
+  choice('app_theme', '界面主题', [['system', '跟随系统'], ['light', '浅色'], ['dark', '深色']], 'system'),
   choice('window_background', '窗口背景', [['glass', '磨砂'], ['opaque', '不透明']], 'glass'),
-  choice('window_glass_alpha', '磨砂强度', [['35', '轻'], ['55', '中'], ['75', '重']], '55'),
-  choice('reduce_motion', '减少动效', [['system', '跟随系统'], ['on', '开']], 'system'),
-  choice('ui_zoom', '界面大小', [['90', '90 %'], ['100', '100 %'], ['110', '110 %'], ['125', '125 %']], '100'),
+  choice('window_glass_alpha', '磨砂强度', [['35', '轻度'], ['55', '适中'], ['75', '较强']], '55'),
+  choice('reduce_motion', '减弱动态效果', [['system', '跟随系统'], ['on', '开启']], 'system'),
+  choice('ui_zoom', '界面缩放', [['90', '90 %'], ['100', '100 %'], ['110', '110 %'], ['125', '125 %']], '100'),
   // config.json's `plugins` object, one `plugins.<id>` item each.
   ...PLUGINS.map((p) => toggle(`plugins.${p.id}`, PLUGIN_LABELS[p.id], p.default, 'backend')),
 ];
@@ -196,7 +196,7 @@ export const ROWS: Row[] = [...REGISTRY_ROWS, ...CHARACTER_ROWS.map(([id, key]):
 const PLATFORM_DEFAULTS: Record<ShellPlatform, Record<string, SettingValue>> = { mac: {}, windows: { hide_on_screen_capture: false } };
 const defaultOf = (item: Item, platform: ShellPlatform): SettingValue => PLATFORM_DEFAULTS[platform][item.key] ?? item.control.value;
 /** What 窗口背景 says on a system that draws no window glass (Windows before 11 22H2). */
-const NO_GLASS = '要 Windows 11 22H2 或更新才有磨砂';
+const NO_GLASS = '需要 Windows 11 22H2 或更高版本以启用磨砂效果';
 
 export const rowById = (id: string) => ROWS.find((r) => r.id === id);
 const rowByKey = (key: string) => ROWS.find((r) => r.item.key === key);
@@ -366,11 +366,11 @@ export function snapshot(saved: Record<string, SettingValue>, login: boolean | n
   platform: ShellPlatform = 'mac', refused: Record<string, string> = {}, glass = true): Record<string, unknown> {
   const state = current(saved, login, platform, refused);
   const statuses: Record<string, string> = {};
-  for (const [id, raw] of Object.entries(state.broken)) statuses[id] = `配置里的「${raw}」不是有效热键，按默认显示`;
+  for (const [id, raw] of Object.entries(state.broken)) statuses[id] = `配置中的「${raw}」不是有效的快捷键格式，已按默认值显示`;
   const caps = (name: string) => (platform === 'windows' ? windowsCaps(webHotkey(name) ?? name) : webHotkey(name) ?? name);
-  for (const [id, name] of Object.entries(state.unregistered)) statuses[id] = `「${caps(name)}」没设上，可能被别的程序占用，请换一个`;
-  if (!state.loginFromSystem) statuses.login = '测试实例不改系统登录项';
-  if (!cameraBust) statuses['beh.stay'] = '这个版本的角色还不支持半身固定';
+  for (const [id, name] of Object.entries(state.unregistered)) statuses[id] = `快捷键「${caps(name)}」未能注册，可能已被其他应用占用，请更换`;
+  if (!state.loginFromSystem) statuses.login = '非正式打包实例不修改系统开机启动项';
+  if (!cameraBust) statuses['beh.stay'] = '当前版本角色暂不支持半身固定模式';
   const values = Object.fromEntries(ROWS.map((row) => [row.id, webValue(row, state.values[row.item.key]!)]));
   if (!glass) {
     values.winBg = 'opaque';
@@ -409,12 +409,12 @@ export function parseChanges(changes: Record<string, unknown>, log: (line: strin
   const launch = ids.find((id) => LAUNCH_KEYS.has(id));
   if (launch !== undefined) {
     log(`settings save refused launch key ${launch}`);
-    throw new Rejection(`「${launch}」是启动参数，只能在配置文件里改`);
+    throw new Rejection(`「${launch}」属于启动参数，须在配置文件中修改`);
   }
   const values: Record<string, SettingValue> = {};
   for (const id of ids) {
     const row = rowById(id);
-    if (!row) throw new Rejection(`「${id}」不是可以在这里改的设置`);
+    if (!row) throw new Rejection(`「${id}」不支持在此处修改`);
     values[row.item.key] = parseValue(changes[id], row, platform);
   }
   return values;
@@ -435,13 +435,13 @@ function parseValue(raw: unknown, row: Row, platform: ShellPlatform): SettingVal
     }
   }
   let allowed: string;
-  if (c.kind === 'choice' || c.kind === 'dropdown') allowed = '可选 ' + c.options.map(([k, l]) => `${k}（${l}）`).join(' / ');
-  else if (c.kind === 'hotkey') allowed = '要用带 ⌃、⌥ 或 ⌘ 的组合键，或 F1–F12' + (allowsRightOption(row) ? '，或 右⌥' : '');
+  if (c.kind === 'choice' || c.kind === 'dropdown') allowed = '可选值：' + c.options.map(([k, l]) => `${k}（${l}）`).join(' / ');
+  else if (c.kind === 'hotkey') allowed = '须使用包含 ⌃、⌥ 或 ⌘ 的组合键，或 F1–F12' + (allowsRightOption(row) ? '，或右 ⌥' : '');
   else if (c.kind === 'slider') allowed = `范围 ${c.min.toFixed(1)}…${c.max.toFixed(1)}`;
-  else if (c.kind === 'text') allowed = '要以 http:// 或 https:// 开头，只写主机和端口，不带用户名和密码，或留空';
-  else allowed = '可选 true / false';
+  else if (c.kind === 'text') allowed = '须以 http:// 或 https:// 开头，仅包含主机与端口，不含凭据，或留空';
+  else allowed = '可选值：true / false';
   const shown = c.kind === 'hotkey' && platform === 'windows' ? windowsCaps : (s: string) => s;
-  throw new Rejection(`「${row.item.label}」不能设成 ${shown(describe(raw))}：${shown(allowed)}`);
+  throw new Rejection(`「${row.item.label}」不可设为 ${shown(describe(raw))}：${shown(allowed)}`);
 }
 
 /** The page's fixed ⌘K, which it reads as Ctrl+K on Windows. */

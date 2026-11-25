@@ -9,7 +9,7 @@ import { chainFailure, reasonText } from './chainReasons';
 export type ChainOutcome = { check: ChainCheck } | { failed: string; problems: ChainProblem[] };
 
 /** Said when the graph was read again from another pack since the first edit: its positions may no longer be the ones edited. */
-const STALE = '角色包在你编辑之后变过了，请放弃改动后重新编辑';
+const STALE = '角色包在编辑后已变更，请放弃当前修改后重新编辑';
 
 /** `sha` is the installed pack's character.json sha256 the graph was read from; `onApplied` reads the rebuilt pack again. */
 export function useChainEdit(character: string, sha: string | undefined, toast: Toast, onApplied: () => void) {

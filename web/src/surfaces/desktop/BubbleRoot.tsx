@@ -185,9 +185,9 @@ export function BubbleRoot() {
     away = { key: `card:${f.id}`, text, ms: ERROR_MS };
   } else if (bar?.phase === 'error') {
     kind = 'error';
-    main = <p className={bubble.text}>这一轮出错了，没能说完</p>;
+    main = <p className={bubble.text}>本轮回复出错，未能完整输出</p>;
     text = bar.text;
-    one = <Btn variant="text" size="sm" onClick={() => openChat(bar.id)}>看详情</Btn>;
+    one = <Btn variant="text" size="sm" onClick={() => openChat(bar.id)}>查看详情</Btn>;
     onClose = () => dispatch({ type: 'close', id: bar.id });
   } else if (cards.done) {
     const d = cards.done;

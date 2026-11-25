@@ -177,7 +177,7 @@ async function switchTmux(commands: Commands, socket: string, pane: string): Pro
     const c = { tty: parts[0]!, pid: Number(parts[1]), activity: Number(parts[2]) };
     if (client === null || client.activity < c.activity) client = c;
   }
-  if (client === null) return { text: 'tmux 会话没有连接的终端' };
+  if (client === null) return { text: 'tmux 会话未关联终端' };
   const switched = await commands.run(tmux, ['-S', socket, 'switch-client', '-c', client.tty, '-t', pane]);
   if (!switched.ok) return { text: `tmux 切换失败：${switched.message}` };
   return { pid: client.pid };
@@ -186,20 +186,20 @@ async function switchTmux(commands: Commands, socket: string, pane: string): Pro
 async function runThenActivate(ctx: OpsContext, commands: Commands, name: string, candidates: string[], args: string[], bundleId: string):
   Promise<string> {
   const path = commands.executable(candidates);
-  const result: RunResult = path === null ? { ok: false, message: `没找到 ${name} 的命令行工具` } : await commands.run(path, args);
+  const result: RunResult = path === null ? { ok: false, message: `未找到 ${name} 命令行工具` } : await commands.run(path, args);
   if (!result.ok) return `${name} 切换失败：${result.message}`;
-  return (await activate(ctx, { app_id: bundleId })) ? JUMPED : `已切换 ${name} 窗格，但没能激活 ${name}`;
+  return (await activate(ctx, { app_id: bundleId })) ? JUMPED : `已切换 ${name} 窗格，但未能激活 ${name}`;
 }
 
 /** Only to a running app (an Apple event would launch it), then the helper's `terminal.focus`. */
 async function focusTerminal(ctx: OpsContext, name: string, bundleId: string, params: Record<string, unknown>): Promise<string> {
   const running = await helperResult(ctx, 'apps.running', {});
   const apps = Array.isArray(running.apps) ? running.apps as { app_id?: unknown }[] : [];
-  if (!apps.some((a) => a.app_id === bundleId)) return `${name} 没在运行`;
+  if (!apps.some((a) => a.app_id === bundleId)) return `${name} 未运行`;
   const r = await helperReply(ctx, 'terminal.focus', params, ['automation_denied', 'not_found', 'script_failed']);
-  if (!r.ok && r.error.code === 'automation_denied') return `需要在系统设置里允许 Agentic Complex 控制 ${name}`;
+  if (!r.ok && r.error.code === 'automation_denied') return `请在系统设置中允许 Agentic Complex 控制 ${name}`;
   if (!r.ok && r.error.code === 'script_failed') return `${name} 出错：${r.error.message}`;
-  return r.ok && r.result.focused === true ? JUMPED : `${name} 里没找到该会话`;
+  return r.ok && r.result.focused === true ? JUMPED : `${name} 中未找到该会话`;
 }
 
 export async function jump(ctx: OpsContext, plan: JumpPlan): Promise<string> {
@@ -218,12 +218,12 @@ export async function jump(ctx: OpsContext, plan: JumpPlan): Promise<string> {
         } catch { /* activates Desktop below */ }
       }
       const activated = windows ? await activateWindowsApp(ctx, windowsApp(DESKTOP_BUNDLE)!) : await activate(ctx, { app_id: DESKTOP_BUNDLE });
-      return activated ? 'Desktop 没找到该会话，已激活 Desktop' : 'Claude Desktop 没在运行';
+      return activated ? 'Desktop 中未找到该会话，已激活 Desktop' : 'Claude Desktop 未运行';
     }
     case 'tmux': {
       const r = await switchTmux(commands, plan.socket, plan.pane);
       if ('text' in r) return r.text;
-      return (await activate(ctx, { pid: r.pid, ancestors: true })) ? JUMPED : '已切换 tmux 窗格，但没找到外层终端';
+      return (await activate(ctx, { pid: r.pid, ancestors: true })) ? JUMPED : '已切换 tmux 窗格，但未找到外层终端';
     }
     case 'wezterm':
       return runThenActivate(ctx, commands, 'WezTerm', ['/Applications/WezTerm.app/Contents/MacOS/wezterm', '/opt/homebrew/bin/wezterm'],
@@ -239,10 +239,10 @@ export async function jump(ctx: OpsContext, plan: JumpPlan): Promise<string> {
       return focusTerminal(ctx, 'Ghostty', 'com.mitchellh.ghostty', { app: 'ghostty', cwd: plan.cwd });
     case 'activateBundle': {
       const app = windows ? windowsApp(plan.bundleId) : null;
-      if (app !== null) return (await activateWindowsApp(ctx, app)) ? JUMPED : `${app.name} 没在运行`;
-      return (await activate(ctx, { app_id: plan.bundleId })) ? JUMPED : `${plan.bundleId} 没在运行`;
+      if (app !== null) return (await activateWindowsApp(ctx, app)) ? JUMPED : `${app.name} 未运行`;
+      return (await activate(ctx, { app_id: plan.bundleId })) ? JUMPED : `${plan.bundleId} 未运行`;
     }
     case 'activatePid':
-      return (await activate(ctx, { pid: plan.pid, ancestors: true })) ? JUMPED : `没找到进程 ${plan.pid} 所在的 app`;
+      return (await activate(ctx, { pid: plan.pid, ancestors: true })) ? JUMPED : `未找到进程 ${plan.pid} 所属应用`;
   }
 }

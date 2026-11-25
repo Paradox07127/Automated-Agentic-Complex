@@ -20,7 +20,7 @@ export function Missing({ why, reason }: MissingProps) {
   return (
     <span className={styles.missing} data-stub="Missing" data-why={why}>
       <span className={styles.dash}>—</span>
-      <InfoTip label="为什么没有值">{why === 'unsupported' ? '后台暂不提供' : `没读到：${reason ?? '原因不明'}`}</InfoTip>
+      <InfoTip label="无数据说明">{why === 'unsupported' ? '后台服务暂未提供' : `读取失败：${reason ?? '原因未知'}`}</InfoTip>
     </span>
   );
 }

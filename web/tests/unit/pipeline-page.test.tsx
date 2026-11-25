@@ -99,8 +99,8 @@ describe('管线页签', () => {
     fireEvent.keyDown(window, { key: 'e' });
     expect(screen.getByRole('region', { name: '最近请求' })).toBeTruthy();
     fireEvent.keyDown(window, { key: 'ArrowRight' });
-    expect(await screen.findByRole('region', { name: '现在的理解' }, T)).toBeTruthy();
-    expect(screen.getByRole('region', { name: '最近理解' })).toBeTruthy();
+    expect(await screen.findByRole('region', { name: '当前推断' }, T)).toBeTruthy();
+    expect(screen.getByRole('region', { name: '近期记录' })).toBeTruthy();
   });
 
   it('记忆库 lists the sources and offers to confirm the candidates', async () => {
@@ -108,13 +108,13 @@ describe('管线页签', () => {
     const src = await screen.findByRole('group', { name: '按来源' }, T);
     expect(within(src).getByText('陈述')).toBeTruthy();
     expect(screen.getByRole('img', { name: /^14 天新增/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /^去确认 \d+ 条/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^处理 \d+ 条待确认/ })).toBeTruthy();
   });
 
   it('with the backend gone it says so and every station reads 读不到', async () => {
     mountAt(PipelineView, '&state=error');
-    expect((await screen.findAllByText(/后台已断开/, {}, T)).length).toBeGreaterThan(0);
-    for (const tab of screen.getAllByRole('tab')) expect(tab.getAttribute('aria-label')).toContain('读不到');
+    expect((await screen.findAllByText(/后台服务已断开/, {}, T)).length).toBeGreaterThan(0);
+    for (const tab of screen.getAllByRole('tab')) expect(tab.getAttribute('aria-label')).toContain('读取失败');
   });
 
   it('is no page of its own: no /pipeline route and nothing in the command bar page menu', async () => {
@@ -136,7 +136,7 @@ describe('管线页签', () => {
       return { status: 200, body: { date: '2026-10-29', runs } };
     });
     mountAt(PipelineView, '&station=interp');
-    const log = await screen.findByRole('region', { name: '最近理解' }, T);
+    const log = await screen.findByRole('region', { name: '近期记录' }, T);
     expect(await within(log).findByText('模型超时', {}, T)).toBeTruthy();
     expect(within(log).getAllByText('失败').length).toBe(1);
   });

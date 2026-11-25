@@ -3,7 +3,7 @@ import { motionImportReason, NO_REASON } from '../../src/pages/character/labels'
 
 describe('motionImportReason zip and edit codes', () => {
   it('words bad_zip', () => {
-    expect(motionImportReason('bad_zip', undefined)).toBe('压缩包打不开或不安全');
+    expect(motionImportReason('bad_zip', undefined)).toBe('压缩包无法读取或存在路径安全风险');
   });
 
   it('words the motion edit refusals linked_motion and outside_package, not the host fallback', () => {

@@ -143,9 +143,9 @@ describe('今天: timeline', () => {
 describe('今天: 今日一句', () => {
   it('without a day summary 今日一句 carries today’s counts; with one it carries its headline', async () => {
     mount();
-    const local = await screen.findByRole('region', { name: '今日一句' }, { timeout: 3000 });
+    const local = await screen.findByRole('region', { name: '今日摘要' }, { timeout: 3000 });
     await waitFor(() => expect(local.textContent).toMatch(/个编码会话/), { timeout: 3000 });
-    expect(local.textContent).toMatch(/^今日一句今天的读数，不是角色写的日报/);
+    expect(local.textContent).toMatch(/^今日摘要今日数据汇总，非角色生成日报/);
     cleanup();
     const request = getBridge().agentd.request.bind(getBridge().agentd);
     vi.spyOn(getBridge().agentd, 'request').mockImplementation(((method: string, path: string, body?: unknown) =>
@@ -153,8 +153,8 @@ describe('今天: 今日一句', () => {
         ? Promise.resolve({ status: 200, body: { days: [{ ...L3, date: dayOf(clock()) }] } })
         : request(method as never, path, body)) as typeof request);
     mount();
-    const l3 = await screen.findByRole('region', { name: '今日一句' }, { timeout: 3000 });
-    await waitFor(() => expect(l3.textContent).toBe(`今日一句${L3.headline}`), { timeout: 3000 });
+    const l3 = await screen.findByRole('region', { name: '今日摘要' }, { timeout: 3000 });
+    await waitFor(() => expect(l3.textContent).toBe(`今日摘要${L3.headline}`), { timeout: 3000 });
   });
 });
 
@@ -162,8 +162,8 @@ describe('今天: 今日一句 without the coding-sessions plug-in', () => {
   it('leaves the coding part out instead of saying there are no sessions', async () => {
     setPlugins({ 'plugins.coding_sessions': false });
     mount();
-    const line = await screen.findByRole('region', { name: '今日一句' }, { timeout: 3000 });
-    await waitFor(() => expect(line.textContent).toMatch(/^今日一句今天的读数，不是角色写的日报下一条提醒 /), { timeout: 3000 });
+    const line = await screen.findByRole('region', { name: '今日摘要' }, { timeout: 3000 });
+    await waitFor(() => expect(line.textContent).toMatch(/^今日摘要今日数据汇总，非角色生成日报下一条提醒 /), { timeout: 3000 });
     expect(line.textContent).not.toMatch(/编码会话/);
   });
 });
@@ -172,7 +172,7 @@ describe('今天: work memory first, today’s reads when it is absent', () => {
   it('keeps project inferences out of Today without requesting the project list', async () => {
     const request = vi.spyOn(getBridge().agentd, 'request');
     mount();
-    const line = await screen.findByRole('region', { name: '今日一句' }, { timeout: 3000 });
+    const line = await screen.findByRole('region', { name: '今日摘要' }, { timeout: 3000 });
     await waitFor(() => expect(line.textContent).toMatch(/个编码会话/), { timeout: 3000 });
     expect(screen.queryByRole('region', { name: '当前任务' })).toBeNull();
     expect(request.mock.calls.some(([, path]) => path.startsWith('/memory/tasks'))).toBe(false);
@@ -189,7 +189,7 @@ describe('今天: work memory first, today’s reads when it is absent', () => {
     const row = await within(sec).findByRole('button', { name: new RegExp(L1.title) }, { timeout: 3000 });
     fireEvent.click(row);
     const sheet = await screen.findByRole('dialog', { name: L1.title }, { timeout: 3000 });
-    expect(sheet.textContent).toContain('做了什么');
+    expect(sheet.textContent).toContain('执行内容');
     expect(sheet.textContent).toContain(L1.did[0]!.text);
     expect(sheet.textContent).toContain('结果');
     expect(sheet.textContent).toContain(L1.outcome);

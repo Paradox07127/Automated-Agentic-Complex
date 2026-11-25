@@ -27,37 +27,37 @@ export const CAUSE_SHORT: Record<string, string> = {
 
 /** character_state.py DOING: the raw activity key in words. */
 const DOING: Record<string, string> = {
-  sit: '坐着',
-  observe: '看着窗口',
-  idle: '待着',
-  short_walk: '走动',
-  hold_window_edge: '扶着窗边',
-  climb_window_top: '待在窗顶',
+  sit: '坐姿待机',
+  observe: '观察屏幕',
+  idle: '待机',
+  short_walk: '短距离移动',
+  hold_window_edge: '扶靠窗沿',
+  climb_window_top: '倚坐窗顶',
   relax: '放松',
-  think: '想事情',
-  wait: '等着',
-  sleep: '睡觉',
+  think: '思考中',
+  wait: '等待中',
+  sleep: '休眠',
 };
 
 export const doing = (key: string | null): string | null => (key == null ? null : (DOING[key] ?? key));
 
 /** character_state.py `_labels()` codes in words, per attribute. */
 const STATE_WORDS: Record<'energy' | 'mood' | 'engagement', Record<string, string>> = {
-  energy: { lively: '很好', okay: '还行', sleepy: '有点困', very_sleepy: '很困' },
-  mood: { good: '不错', low: '有点低落', steady: '平稳' },
-  engagement: { absorbed: '很投入', some: '一般', idle: '空闲' },
+  energy: { lively: '充沛', okay: '正常', sleepy: '疲倦', very_sleepy: '极疲倦' },
+  mood: { good: '良好', low: '低落', steady: '平稳' },
+  engagement: { absorbed: '专注', some: '一般', idle: '空闲' },
 };
 
 export const stateWord = (attr: keyof typeof STATE_WORDS, code: string): string => STATE_WORDS[attr][code] ?? code;
 
 /** Action section names and notes. */
 export const SECTIONS: Record<string, { name: string; note: string }> = {
-  talk: { name: '说话', note: '说话时随机挑' },
-  react: { name: '反应', note: '事件触发' },
-  idle: { name: '待机', note: '没事做时轮换' },
-  move: { name: '移动与姿态', note: '全屏层里走动' },
-  touch: { name: '互动', note: '鼠标操作' },
-  battle: { name: '攻击', note: '待机时偶尔拔武器出招' },
+  talk: { name: '对话', note: '语音或对话期间随机触发' },
+  react: { name: '反应', note: '由事件触发' },
+  idle: { name: '待机', note: '空闲时轮换播放' },
+  move: { name: '移动与姿态', note: '在全屏层移动' },
+  touch: { name: '互动', note: '光标交互触发' },
+  battle: { name: '动作展示', note: '待机时偶发展示动作' },
 };
 
 /** behavior.ticked `chosen` (behavior.py ACTIVITIES). */
@@ -78,25 +78,25 @@ export const BEHAVIOR: Record<string, string> = {
 export const BEAT_SOURCE = { model: '模型', rules: '规则', hard: '硬规则' } as const;
 
 /** Said for a host code this page has no words for. */
-export const NO_REASON = '桌面角色没有给出原因';
+export const NO_REASON = '角色渲染进程未返回原因';
 
 /** CharacterSwitch failure reasons: the shell's own codes and agentd's switch errors. */
 const SWITCH_REASON: Record<string, string> = {
-  superseded: '被后来的切换取代',
-  not_connected: '桌面角色没有连上',
-  connection_lost: '和桌面角色的连接断了',
-  timeout: '桌面角色没有及时回应',
-  switching: '另一次切换还在进行',
-  unknown_character: '后台不认识这个角色',
-  same_character: '已经是这个角色',
-  character_changed: '角色刚被换过',
-  unknown_switch: '后台找不到这次切换',
-  wrong_character: '桌面上载入的是别的角色',
-  load_failed: '角色加载失败',
-  pack_rejected: '角色资源包没有通过校验',
-  no_state: '后台还没准备好',
-  outbound_blocked: '新角色的设定没有通过后台的出站检查',
-  commit_failed: '后台没能换上这个角色',
+  superseded: '已被后续切换请求替代',
+  not_connected: '角色渲染进程未连接',
+  connection_lost: '与角色渲染进程的连接中断',
+  timeout: '角色渲染进程响应超时',
+  switching: '另一项角色切换仍在进行中',
+  unknown_character: '后台服务未找到该角色',
+  same_character: '当前已是该角色',
+  character_changed: '角色状态已变更',
+  unknown_switch: '后台服务未找到该切换记录',
+  wrong_character: '桌面当前加载的是其他角色',
+  load_failed: '角色资源加载失败',
+  pack_rejected: '角色资源包未通过校验',
+  no_state: '后台服务尚未就绪',
+  outbound_blocked: '新角色配置未通过出站策略检查',
+  commit_failed: '后台服务未能完成角色切换',
 };
 
 /** A host reason in words: a known code, the host's own Chinese text, else NO_REASON (never an English detail). */
@@ -105,32 +105,32 @@ export const hostReason = (reason: string | undefined): string =>
 
 /** motion_tool's reason codes for a VMD it did not import. */
 const MOTION_IMPORT_REASON: Record<string, string> = {
-  too_many_actions: '动作已满 128 条',
-  too_many_media: '动作媒体已满 128 条',
-  bad_vmd: '读不了这个 VMD 文件',
-  too_long: '动作超过 360 秒',
-  missing_bones: '这个角色的骨骼接不上 MMD 动作',
-  busy: '正在切换角色或另一个导入还没完成，稍后再试',
-  validate_failed: '桌面角色校验没有通过',
-  unsupported_format: '不支持这种文件',
-  bad_source: '文件读不出来',
-  no_animation: '文件里没有动作',
-  unmapped_skeleton: '骨架认不出人形骨',
-  already_imported: '这个动作已经导入过',
-  unknown_action: '找不到这个动作',
-  not_imported: '这不是导入的动作',
-  bad_title: '名字要 1–64 个字',
-  linked_motion: '别的动作会接到这个动作，或别的动作行用到了它，所以不能删',
-  outside_package: '角色包指向了包外的文件，为安全起见没有改',
-  bad_zip: '压缩包打不开或不安全',
+  too_many_actions: '动作数量已达上限（128 条）',
+  too_many_media: '动作配套媒体已达上限（128 条）',
+  bad_vmd: '无法读取该 VMD 文件',
+  too_long: '动作时长超过 360 秒上限',
+  missing_bones: '当前角色骨骼与该 MMD 动作不兼容',
+  busy: '正在切换角色或有其他导入任务进行中，请稍后重试',
+  validate_failed: '角色渲染进程校验未通过',
+  unsupported_format: '不支持该文件格式',
+  bad_source: '无法读取源文件',
+  no_animation: '文件中未包含有效动作数据',
+  unmapped_skeleton: '无法识别标准人形骨骼映射',
+  already_imported: '该动作已导入',
+  unknown_action: '未找到该动作',
+  not_imported: '该动作并非用户导入项',
+  bad_title: '名称须为 1–64 个字符',
+  linked_motion: '存在关联的动作衔接或其他动作行引用，无法删除',
+  outside_package: '角色包包含指向包外的路径，出于安全限制未予修改',
+  bad_zip: '压缩包无法读取或存在路径安全风险',
   scan_gone: '识别结果已失效，请重新导入',
 };
 
 /** motion_tool mmd-scan's reasons for a file of the project it left out. */
 export const MMD_IGNORED_REASON: Record<string, string> = {
-  not_motion: '不是动作或音频',
-  no_keys: '没有关键帧',
-  bad_vmd: '读不了',
+  not_motion: '非动作或音频文件',
+  no_keys: '无有效关键帧',
+  bad_vmd: '无法读取该文件',
 };
 
 /** A motion import failure in words; `internal` shows motion_tool's detail, the only place it says the cause. */
@@ -139,65 +139,65 @@ export const motionImportReason = (reason: string, detail: string | undefined): 
 
 /** outfit_tool's reason codes (IMPORT_REASONS and its own) for an EFMI mod it did not import or an appearance it did not remove. */
 export const OUTFIT_IMPORT_REASON: Record<string, string> = {
-  unsupported_mod: '读不懂这个模组，它可能不是 EFMI 模组，或用了本程序还不支持的写法；可以换一个模组，或等更新',
-  merged_skeleton: '这个模组用了合并骨架的写法，本程序还不支持；可以换一个模组，或等更新',
-  unsafe_path: '模组里有指向模组目录之外的文件，为安全起见没有导入；请换一个来源可靠的模组',
-  unmapped_component: '模组里有部件对不上这个角色的模型，可能是给别的角色做的；请确认角色，或换一个模组',
-  bone_out_of_range: '模组用到的骨骼超出这个角色的骨架，可能是给别的角色做的；请确认角色，或换一个模组',
-  missing_channel: '模组缺少这个角色的模型需要的数据，文件可能不完整；请重新下载，或换一个模组',
-  texture_mismatch: '认不出模组的贴图该套在哪个部件上；可以换一个模组，或等更新',
-  nothing_to_import: '模组没有给这个角色换上任何贴图或模型，导入了也看不出变化；请换一个模组',
-  not_this_character: '这个模组不是给这个角色做的；请切到对应的角色再导入，或换一个模组',
-  unsupported_texture_format: '模组里有贴图用的是本程序还不支持的格式；可以换一个模组，或等更新',
-  unsupported_geometry: '模组改模型的写法本程序还不支持；可以换一个模组，或等更新',
-  geometry_invalid: '模组的模型文件损坏或前后对不上；请重新下载，或换一个模组',
-  channel_unresolved: '本程序补不全这个模组的模型数据；可以换一个模组，或等更新',
-  geometry_too_large: '模组的模型太大，超过本程序能导入的上限；请换一个精简些的模组',
-  ambiguous_ini: '模组目录里有多个 .ini 都像入口，分不出用哪个；请只留下要用的那个 .ini 再导入',
-  absent_template_mesh: '模组要替换的模型在这个角色身上找不到；请确认角色，或换一个模组',
-  absent_template_submesh: '模组要替换的部分在这个角色的模型里找不到；请确认角色，或换一个模组',
-  index_format: '模组的模型数据格式本程序还不支持；可以换一个模组，或等更新',
-  unknown_bone: '模组用到了这个角色没有的骨骼，可能是给别的角色做的；请确认角色，或换一个模组',
-  duplicate_bone: '模组新加的骨骼和角色已有的骨骼重了，本程序还处理不了；可以换一个模组，或等更新',
-  duplicate_submesh: '模组有两处替换同一块模型，分不出用哪个；可以换一个模组，或等更新',
-  graph_store_missing: '本程序的导入组件不完整；请重新安装，或等更新',
-  skin_matrices_layout: '这个角色的骨骼数据本程序还接不上模组的模型；可以等更新',
-  channel_size: '模组的模型数据长短对不上，文件可能已损坏；请重新下载，或换一个模组',
-  texture_size: '模组的贴图文件大小不对，可能已损坏；请重新下载，或换一个模组',
-  buffer_size: '模组的模型文件大小不对，可能已损坏；请重新下载，或换一个模组',
-  mod_too_large: '模组文件太大，超过本程序能导入的上限；请换一个小一些的模组',
-  duplicate_appearance: '这个模组已经导入过，外观里已经有它',
-  invalid_mapping: '指定的部件对照文件读不了；请检查这份文件，或不带它再导入',
-  invalid_slot_hints: '本程序自带的贴图对照表损坏；请重新安装，或等更新',
-  invalid_lod1_bones: '本程序自带的骨骼对照表损坏；请重新安装，或等更新',
-  invalid_mod_settings: '模组的开关整理出的设置表没有通过检查，角色没有改动；可以换一个模组，或等更新',
-  busy: '另一个外观导入还没完成，稍后再试',
-  validate_failed: '导入结果没有通过桌面角色的校验，角色没有改动；可以换一个模组，或等更新',
-  not_imported: '这不是导入的外观',
+  unsupported_mod: '无法识别此模组：可能并非 EFMI 模组，或使用了当前版本尚不支持的格式；请更换模组或等待后续版本支持',
+  merged_skeleton: '此模组使用了合并骨架格式，当前版本暂不支持；请更换模组或等待后续版本支持',
+  unsafe_path: '模组包含指向模组目录之外的路径，出于安全限制未导入；请更换来源可靠的模组',
+  unmapped_component: '模组存在无法匹配当前角色模型的部件，可能适用于其他角色；请确认目标角色或更换模组',
+  bone_out_of_range: '模组引用的骨骼超出当前角色骨架范围，可能适用于其他角色；请确认目标角色或更换模组',
+  missing_channel: '模组缺少当前角色模型所需的数据通道，文件可能不完整；请重新下载或更换模组',
+  texture_mismatch: '无法识别模组贴图对应的模型部件；请更换模组或等待后续版本支持',
+  nothing_to_import: '该模组未对当前角色应用任何贴图或模型变更，导入后无视觉变化；请更换模组',
+  not_this_character: '该模组不适用于当前角色；请切换至对应角色后再导入，或更换模组',
+  unsupported_texture_format: '模组包含当前版本暂不支持的贴图格式；请更换模组或等待后续版本支持',
+  unsupported_geometry: '模组使用的模型修改方式当前版本暂不支持；请更换模组或等待后续版本支持',
+  geometry_invalid: '模组模型文件已损坏或数据不一致；请重新下载或更换模组',
+  channel_unresolved: '当前版本无法补全此模组的模型数据；请更换模组或等待后续版本支持',
+  geometry_too_large: '模组模型体积超出导入上限；请更换更精简的模组',
+  ambiguous_ini: '模组目录中存在多个入口 .ini 文件，无法确定使用哪一个；请仅保留目标 .ini 文件后重试',
+  absent_template_mesh: '当前角色模型中不存在该模组试图替换的网格；请确认目标角色或更换模组',
+  absent_template_submesh: '当前角色模型中不存在该模组试图替换的子网格部分；请确认目标角色或更换模组',
+  index_format: '模组模型索引数据格式当前版本暂不支持；请更换模组或等待后续版本支持',
+  unknown_bone: '模组引用了当前角色不存在的骨骼，可能适用于其他角色；请确认目标角色或更换模组',
+  duplicate_bone: '模组新增的骨骼与角色现有骨骼重名，当前版本暂不支持处理；请更换模组或等待后续版本支持',
+  duplicate_submesh: '模组存在两处配置替换同一模型区块，无法确定优先级；请更换模组或等待后续版本支持',
+  graph_store_missing: '当前应用的导入组件不完整；请重新安装应用或等待版本更新',
+  skin_matrices_layout: '当前角色骨骼数据布局与该模组模型暂不兼容；请等待后续版本支持',
+  channel_size: '模组模型数据长度与预期不符，文件可能已损坏；请重新下载或更换模组',
+  texture_size: '模组贴图文件大小异常，文件可能已损坏；请重新下载或更换模组',
+  buffer_size: '模组模型缓冲区文件大小异常，文件可能已损坏；请重新下载或更换模组',
+  mod_too_large: '模组文件体积超出导入上限；请更换体积较小的模组',
+  duplicate_appearance: '该模组已导入，外观列表中已存在此项目',
+  invalid_mapping: '指定的部件映射文件无法读取；请检查该文件或取消指定后重新导入',
+  invalid_slot_hints: '内置贴图槽位映射表已损坏；请重新安装应用或等待版本更新',
+  invalid_lod1_bones: '内置骨骼映射表已损坏；请重新安装应用或等待版本更新',
+  invalid_mod_settings: '模组开关生成的配置表未通过校验，未对角色做出更改；请更换模组或等待后续版本支持',
+  busy: '另一项外观导入尚未完成，请稍后再试',
+  validate_failed: '导入结果未通过角色渲染进程校验，未对角色做出更改；请更换模组或等待后续版本支持',
+  not_imported: '该外观并非用户导入项',
 };
 
 /** Said for an outfit_tool code this page has no words for. */
-export const OUTFIT_IMPORT_UNKNOWN = '导入器给出了这个版本还不认识的原因；可以换一个模组，或等更新';
+export const OUTFIT_IMPORT_UNKNOWN = '导入器返回了当前版本尚未适配的错误代码；请更换模组或等待后续版本支持';
 
 /** Codes whose detail names the mod's file or section after the code: `n` is that name. */
 const OUTFIT_IMPORT_NAMED: Record<string, (n: string) => string> = {
-  unmapped_component: (n) => `模组里的「${n}」对不上这个角色的模型，可能是给别的角色做的；请确认角色，或换一个模组`,
-  texture_mismatch: (n) => `认不出模组的贴图「${n}」该套在哪个部件上；可以换一个模组，或等更新`,
+  unmapped_component: (n) => `模组中的「${n}」无法匹配当前角色模型，可能适用于其他角色；请确认目标角色或更换模组`,
+  texture_mismatch: (n) => `无法识别模组贴图「${n}」对应的模型部件；请更换模组或等待后续版本支持`,
 };
 
 /** `unsupported_geometry:<kind>:<name>` and `geometry_invalid:<kind>:<name>` by kind; `n` is the mod's section or resource. */
 const OUTFIT_GEOMETRY: Record<string, (n: string) => string> = {
-  custom_shader_output: (n) => `模组的「${n}」用自己的着色器生成模型，本程序还不支持；可以换一个模组，或等更新`,
-  shapekey_default: () => '模组默认打开了形态键，本程序还不支持；可以换一个模组，或等更新',
-  stream_only: (n) => `模组的「${n}」只换了模型的一部分数据，本程序还不支持；可以换一个模组，或等更新`,
-  buffer_layout: (n) => `模组的「${n}」模型数据排布本程序还不认识；可以换一个模组，或等更新`,
-  no_draw: (n) => `模组的「${n}」默认不画出模型，本程序还不支持；可以换一个模组，或等更新`,
-  submesh: (n) => `认不出模组的「${n}」要替换角色模型的哪一部分；可以换一个模组，或等更新`,
-  bone_unresolved: () => '模组用到的骨骼对不上这个角色的骨架，可能是给别的角色做的；请确认角色，或换一个模组',
+  custom_shader_output: (n) => `模组中的「${n}」使用自定义着色器生成模型，当前版本暂不支持；请更换模组或等待后续版本支持`,
+  shapekey_default: () => '模组默认启用了形态键，当前版本暂不支持；请更换模组或等待后续版本支持',
+  stream_only: (n) => `模组中的「${n}」仅修改了部分模型数据流，当前版本暂不支持；请更换模组或等待后续版本支持`,
+  buffer_layout: (n) => `模组中的「${n}」模型数据排布格式暂未适配；请更换模组或等待后续版本支持`,
+  no_draw: (n) => `模组中的「${n}」默认不绘制模型，当前版本暂不支持；请更换模组或等待后续版本支持`,
+  submesh: (n) => `无法识别模组中的「${n}」应替换当前角色模型的哪一部分；请更换模组或等待后续版本支持`,
+  bone_unresolved: () => '模组引用的骨骼无法匹配当前角色骨架，可能适用于其他角色；请确认目标角色或更换模组',
   unknown_bone: () => OUTFIT_IMPORT_REASON.unknown_bone!,
-  buffer_size: (n) => `模组的模型文件「${n}」大小不对，可能没下载完整；请重新下载，或换一个模组`,
-  index_range: (n) => `模组的「${n}」模型数据超出范围，文件可能已损坏；请重新下载，或换一个模组`,
-  stream_count: (n) => `模组的「${n}」几份模型数据长短不一，文件可能已损坏；请重新下载，或换一个模组`,
+  buffer_size: (n) => `模组模型文件「${n}」大小异常，文件可能未下载完整；请重新下载或更换模组`,
+  index_range: (n) => `模组中的「${n}」模型索引超出范围，文件可能已损坏；请重新下载或更换模组`,
+  stream_count: (n) => `模组中的「${n}」多项模型数据长度不一致，文件可能已损坏；请重新下载或更换模组`,
 };
 
 /** An outfit import failure in words. The detail holds `<reason>:<parts>` (the app puts the mod folder in front);
@@ -216,33 +216,33 @@ export const outfitImportReason = (reason: string, detail: string | undefined): 
 
 /** The import report's warnings by code (import_outfit, efmi_mod, efmi_geometry): `n` is the file, section or shader after the code. */
 const OUTFIT_IMPORT_WARNING: Record<string, (n: string) => string> = {
-  texture_unbound: (n) => `贴图「${n}」找不到该套的部件，没有用上`,
-  texture_unsupported: (n) => `贴图「${n}」的格式本程序还不支持，没有用上`,
-  external_namespace: (n) => `贴图「${n}」要借别的模组的部件才套得上，没有用上`,
-  needs_mips: (n) => `贴图「${n}」没有缩小用的多级图，远看可能发虚`,
-  format_tag: (n) => `贴图「${n}」文件名写的格式和实际的不同，已按实际格式用上`,
-  geometry_not_applied: (n) => `模组的「${n}」改了模型，没有套上`,
-  stale_hash: (n) => `模组的「${n}」写的是旧版游戏的部件，这里照样套上了，游戏里它不会生效`,
-  stream_only_ignored: (n) => `模组的「${n}」只换了模型的一部分数据，没有套上`,
+  texture_unbound: (n) => `贴图「${n}」未找到对应部件，未应用`,
+  texture_unsupported: (n) => `贴图「${n}」格式暂不支持，未应用`,
+  external_namespace: (n) => `贴图「${n}」依赖其他模组部件，无法匹配，未应用`,
+  needs_mips: (n) => `贴图「${n}」缺少多级渐远纹理（Mipmaps），远景显示可能较模糊`,
+  format_tag: (n) => `贴图「${n}」文件名标注格式与实际不符，已按实际格式加载`,
+  geometry_not_applied: (n) => `模组对「${n}」的模型修改未应用`,
+  stale_hash: (n) => `模组中的「${n}」指向旧版部件标识，此处仍已应用，但在原游戏中不会生效`,
+  stream_only_ignored: (n) => `模组中的「${n}」仅修改了部分模型数据流，未应用`,
   shader_patch_ignored: (n) => {
     const [ini, ...files] = n.split(':');
-    return `模组的「${ini}」改的是游戏的着色器，没有套上${files.length ? `，只给它用的贴图${files.map((f) => `「${f}」`).join('')}也没用上` : ''}`;
+    return `模组中的「${ini}」修改了游戏着色器，未应用${files.length ? `；其专用贴图${files.map((f) => `「${f}」`).join('')}亦未应用` : ''}`;
   },
-  custom_shader_ignored: (n) => `模组的「${n}」用自己的着色器做的效果，没有套上`,
-  shader_textures_ignored: (n) => `只给模组自己的着色器用的贴图${n.split(':').map((f) => `「${f}」`).join('')}没有用上`,
-  shapekey_ignored: () => '模组的形态键没有套上',
-  morph_ignored: () => '模组的变形效果没有套上',
-  weights_renormalized: () => '模组模型的骨骼权重加起来不对，已按比例改过',
-  zero_weights_fixed: () => '模组模型有些地方没有骨骼权重，已经补上',
-  bones_appended: (n) => `模组给「${n.split(':')[0]}」新加了骨骼`,
-  normals_recomputed: () => '模组模型的法线重新算过，光影可能和原来略有不同',
-  outline_normals_recomputed: () => '模组模型的描边方向重新算过，描边可能和原来略有不同',
-  color0_ignored: () => '模组模型的顶点颜色没有用上',
-  setting_fixed: () => '这个开关在 mod 里写死了，不能切换',
-  variant_unplaced: () => '有贴图变体找不到对应部件，没有导入',
-  segment_unmappable: () => '有部件对不上角色模型，没有导入',
-  eff_target_absent: (n) => `模组要换的「${n}」这个角色身上没有，没有套上`,
-  eff_material_other: (n) => `模组的「${n}」用的是别的部件的材质，保留了原来的贴图`,
+  custom_shader_ignored: (n) => `模组中的「${n}」使用的自定义着色器效果未应用`,
+  shader_textures_ignored: (n) => `仅用于模组自定义着色器的贴图${n.split(':').map((f) => `「${f}」`).join('')}未应用`,
+  shapekey_ignored: () => '模组的形态键未应用',
+  morph_ignored: () => '模组的变形效果未应用',
+  weights_renormalized: () => '模组模型骨骼权重之和异常，已自动按比例归一化',
+  zero_weights_fixed: () => '模组模型部分顶点缺少骨骼权重，已自动补全',
+  bones_appended: (n) => `模组为「${n.split(':')[0]}」追加了骨骼`,
+  normals_recomputed: () => '模组模型法线已重新计算，光影效果可能与原模组略有差异',
+  outline_normals_recomputed: () => '模组模型描边法线已重新计算，描边效果可能与原模组略有差异',
+  color0_ignored: () => '模组模型的顶点颜色未应用',
+  setting_fixed: () => '该开关已在模组中固定，不支持切换',
+  variant_unplaced: () => '部分贴图变体未找到对应部件，未导入',
+  segment_unmappable: () => '部分部件无法匹配当前角色模型，未导入',
+  eff_target_absent: (n) => `当前角色不存在模组需替换的目标「${n}」，未应用`,
+  eff_material_other: (n) => `模组中的「${n}」引用了其他部件的材质，已保留原贴图`,
 };
 
 /** One import report warning (`<code>` or `<code>:<name>`) in words; a code this page does not know stays as it came. */
@@ -259,15 +259,15 @@ export const motionFormatLabel = (format: string): string => MOTION_FORMAT[forma
 
 /** Why the host refused to play an action. */
 export const PLAY_REFUSED: Record<string, string> = {
-  not_playable: '这个动作不能单独播放',
-  missing: '这个动作缺资源，播不了',
-  unknown_action: '桌面上的角色没有这个动作',
-  wrong_character: '桌面上不是这个角色',
-  switching: '角色正在切换，切完再播',
-  releasing: '角色正在切换，切完再播',
-  busy: '角色暂时无法切换动作，稍后再播',
-  not_ready: '角色的动作还在加载，稍后再播',
-  not_implemented: '这个版本还不支持桌面预览',
+  not_playable: '此动作不支持单独播放',
+  missing: '此动作缺少所需资源，无法播放',
+  unknown_action: '当前角色不包含此动作',
+  wrong_character: '当前加载的角色与该动作不匹配',
+  switching: '角色切换进行中，完成后可播放',
+  releasing: '角色切换进行中，完成后可播放',
+  busy: '角色当前无法切换动作，请稍后再试',
+  not_ready: '角色动作资源仍在加载中，请稍后再试',
+  not_implemented: '当前版本暂不支持实时预览',
 };
 
 /** Refusals that pass on their own: they warn rather than report an error. */
@@ -277,7 +277,7 @@ export const playRefusedSeverity = (code: string): 'warning' | 'danger' => (PLAY
 
 /** Why the host changed a switch back after a save. */
 export const ADJUSTED: Record<string, string> = {
-  required: '必需动作',
-  missing: '缺资源',
-  last_in_section: '分区里至少留一个',
+  required: '核心必需动作',
+  missing: '缺少资源',
+  last_in_section: '分区内至少保留一项',
 };

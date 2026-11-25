@@ -55,7 +55,7 @@ function contentText(item: Record<string, unknown>): string | null {
   if (c == null || c === '') return null;
   if (typeof c === 'string') return `内容：${c}`;
   if (!isObj(c)) return null;
-  if (item.kind === 'role_task') return `结果：${item.verified === true ? '任务完成' : c.error != null || c.reason != null ? '任务没有完成' : '任务有结果，待复核'}`;
+  if (item.kind === 'role_task') return `结果：${item.verified === true ? '任务已完成' : c.error != null || c.reason != null ? '任务未完成' : '任务已产出结果，待复核'}`;
   return textOf(c.text) || null;
 }
 
@@ -65,7 +65,7 @@ function lineOf(text: string): { text: string; raw: boolean } {
   try {
     const item = JSON.parse(text) as Record<string, unknown>;
     const parts = [textOf(item.user) && `用户：${textOf(item.user)}`, textOf(item.assistant) && `回复：${textOf(item.assistant)}`, contentText(item)].filter(Boolean);
-    return parts.length > 0 ? { text: parts.join(' │ '), raw: isObj(item.content) } : { text: '这一条没有可显示的内容', raw: true };
+    return parts.length > 0 ? { text: parts.join(' │ '), raw: isObj(item.content) } : { text: '该条目无可用显示内容', raw: true };
   } catch {
     return { text, raw: false };
   }
@@ -119,7 +119,7 @@ export function EpisodeEvidence({ id, onClose }: { id: string | null; onClose: (
                           ]
                         : []),
                     ]
-                  : [{ key: '结果', value: '没有运行回执' }]
+                  : [{ key: '结果', value: '无运行回执' }]
               }
             />
             <ol className={s.evLines}>

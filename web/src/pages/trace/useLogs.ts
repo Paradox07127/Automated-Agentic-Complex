@@ -5,7 +5,7 @@ import { getBridge } from '../../bridge';
 import type { LogLevel, LogLine, LogSourceId, LogSourceInfo } from '../../bridge/logs';
 
 export const LOG_IDS: LogSourceId[] = ['agentd', 'companion', 'avatar', 'helper', 'services', 'ui', 'motion'];
-export const LOG_NAME: Readonly<Record<LogSourceId, string>> = { agentd: '后台服务', companion: '外壳', avatar: '角色', helper: '辅助程序', services: '外部服务', ui: '界面', motion: '动作' };
+export const LOG_NAME: Readonly<Record<LogSourceId, string>> = { agentd: '后台服务', companion: '应用宿主', avatar: '角色', helper: '辅助程序', services: '外部服务', ui: '界面', motion: '动作' };
 export const LEVEL_NAME: Readonly<Record<LogLevel, string>> = { err: '错误', warn: '警告', info: '信息', dbg: '调试' };
 
 const POLL_MS = 1500;

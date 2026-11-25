@@ -319,11 +319,11 @@ test('requests with replies: ack results and their timeout, capture and set_moti
       adjusted: [{ kind: 'blend_in', key: 'a_start', reason: 'unknown_clip' }] });
     assert.deepEqual(await saved, { req: mreq, character: 'aster', applied: { chains: 1, pools: 0, blend_in: 0 },
       adjusted: [{ kind: 'blend_in', key: 'a_start', reason: 'unknown_clip' }], truncated: false });
-    await assert.rejects(link.setMotionOverrides('aster', overrides), { code: 'failed', message: '角色没有回应' });
+    await assert.rejects(link.setMotionOverrides('aster', overrides), { code: 'failed', message: '角色渲染进程无响应' });
     const refused = link.setMotionOverrides('aster', overrides);
     assert.ok(await until(1, () => a.got.filter((m) => m.type === 'set_motion_overrides').length === 3));
     a.send({ type: 'ack', req: a.last('set_motion_overrides')!.req, ok: false, error: 'busy' });
-    await assert.rejects(refused, { message: '角色正在切换或动作还没加载好，过一会儿再试' });
+    await assert.rejects(refused, { message: '正在切换角色或动作尚未加载完成，请稍后再试' });
 
     // Rules 18, 50, 51: everything open fails when the link drops.
     const lost: unknown[] = [];
@@ -332,7 +332,7 @@ test('requests with replies: ack results and their timeout, capture and set_moti
     assert.ok(await until(1, () => a.got.filter((m) => m.type === 'set_motion_overrides').length === 4));
     a.socket.destroy();
     await assert.rejects(shot2, { code: 'failed', message: 'disconnected' });
-    await assert.rejects(saved2, { message: '和角色的连接断了' });
+    await assert.rejects(saved2, { message: '角色连接已断开' });
     assert.deepEqual(lost, [{ ok: false, reason: 'disconnected' }]);
     assert.equal(link.sendSetRender({ facing: 'front' }), false);
     await assert.rejects(link.capture(), { code: 'unsupported' });

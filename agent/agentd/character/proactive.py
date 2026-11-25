@@ -62,9 +62,9 @@ MUTABLE = ("comment", "back", "break", "water", "stuck", "thought", "session", "
 LINE_KINDS = 64  # started lines whose category a later /feedback mute can find
 LESS_STEP, LESS_MAX = 1.5, 4  # each 少说点 multiplies the shared line and thought factor by LESS_STEP, up to LESS_MAX
 # A line's "why now" text, shown with it, by reply language code; "harness" (None) takes the Chinese one.
-REASONS = {"zh-Hans": {"back": "你离开了 {minutes} 分钟，刚回来", "break": "你已经连续用电脑 {minutes} 分钟",
-                       "water": "可以喝口水", "stuck": "你像是卡在一个问题上 {minutes} 分钟了",
-                       "result": "你等的一件事有结果了", "long_dwell": "你在这个窗口停了 {minutes} 分钟"},
+REASONS = {"zh-Hans": {"back": "检测到离开 {minutes} 分钟后返回", "break": "已连续使用电脑 {minutes} 分钟",
+                       "water": "建议补充水分", "stuck": "当前任务疑似已停滞 {minutes} 分钟",
+                       "result": "等待的任务已有新进展", "long_dwell": "已在当前窗口停留 {minutes} 分钟"},
            "en": {"back": "You were away for {minutes} min and just came back",
                   "break": "You have been at the computer for {minutes} min straight", "water": "Time for some water",
                   "stuck": "You seem to have been stuck on a problem for {minutes} min",

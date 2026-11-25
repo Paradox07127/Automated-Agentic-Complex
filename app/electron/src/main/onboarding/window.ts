@@ -94,7 +94,7 @@ export function windowOptions(area: { width: number; height: number }, platform:
   const minWidth = 900, minHeight = 560;
   return {
     width: Math.max(minWidth, Math.min(1080, area.width - FRAME)), height: Math.max(minHeight, Math.min(760, area.height - FRAME)),
-    useContentSize: true, title: '首次启动引导', resizable: true, minWidth, minHeight, maximizable: false, fullscreenable: false,
+    useContentSize: true, title: '首次设置向导', resizable: true, minWidth, minHeight, maximizable: false, fullscreenable: false,
     minimizable: true, closable: true, show: false,
     ...(platform === 'mac' && { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 14, y: 17 } }),
   };

@@ -43,7 +43,7 @@ describe('运行记录 动作线', () => {
   it('hides a lane from the menu and clears the pick on Escape', async () => {
     mount('&tab=lanes');
     const board = await screen.findByRole('region', { name: '事件线' });
-    fireEvent.click(screen.getByRole('button', { name: '显示哪些线' }));
+    fireEvent.click(screen.getByRole('button', { name: '筛选事件线' }));
     fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '语音' }));
     expect(screen.queryByRole('group', { name: '语音' })).toBeNull();
     fireEvent.mouseDown(document.body);

@@ -104,15 +104,15 @@ export function AcpAgentSlab({ acp, onSwitch }: { acp: AcpState; onSwitch: (id: 
             <TableCell>
               {a.native_backend ? (
                 <span className={styles.cellActs} onClick={(e) => e.stopPropagation()}>
-                  <StatusLamp size="sm" state="idle" label="用直连" />
-                  <Btn disabled={ro || !native || !usable(native)} disabledReason={`本机没有 ${nativeName}`} onClick={() => onSwitch(a.native_backend!)}>{`改用 ${nativeName}`}</Btn>
+                  <StatusLamp size="sm" state="idle" label="直连模式" />
+                  <Btn disabled={ro || !native || !usable(native)} disabledReason={`本机未检测到 ${nativeName}`} onClick={() => onSwitch(a.native_backend!)}>{`改用 ${nativeName}`}</Btn>
                 </span>
               ) : a.source !== 'local' ? (
                 <span className={styles.cellActs} onClick={(e) => e.stopPropagation()}>
-                  <Btn disabled={off} disabledReason={runnable(a) ? undefined : `本机没有 ${a.source}`} onClick={() => pickAcp(key)}>
+                  <Btn disabled={off} disabledReason={runnable(a) ? undefined : `本机未安装 ${a.source}`} onClick={() => pickAcp(key)}>
                     下载并运行
                   </Btn>
-                  <Btn loading={installing === a.id} disabled={ro || agentdOff || installing != null} disabledReason={agentdOff ? '后台服务没有运行' : '正在安装'} onClick={() => void installAcp(a)}>
+                  <Btn loading={installing === a.id} disabled={ro || agentdOff || installing != null} disabledReason={agentdOff ? '后台服务未运行' : '正在安装'} onClick={() => void installAcp(a)}>
                     安装
                   </Btn>
                 </span>
@@ -121,7 +121,7 @@ export function AcpAgentSlab({ acp, onSwitch }: { acp: AcpState; onSwitch: (id: 
               ) : a.probe.ok ? (
                 <StatusLamp size="sm" state="ok" label="可用" />
               ) : (
-                <StatusLamp size="sm" state="broken" label={names ? `要登录：${names}` : '检测失败'} />
+                <StatusLamp size="sm" state="broken" label={names ? `需登录：${names}` : '检测失败'} />
               )}
               {on && ('acpAgent' in model.draft || 'acpLauncher' in model.draft) && <span className={styles.att}> │ 未应用</span>}
             </TableCell>
@@ -137,17 +137,17 @@ export function AcpAgentSlab({ acp, onSwitch }: { acp: AcpState; onSwitch: (id: 
       indent
       title={labelOf('acpAgent')}
       right={
-        <Btn loading={acp.probing} disabled={agentdOff} disabledReason="后台服务没有运行" onClick={() => void acp.refresh()}>
+        <Btn loading={acp.probing} disabled={agentdOff} disabledReason="后台服务未运行" onClick={() => void acp.refresh()}>
           重新检测
         </Btn>
       }
     >
       {acp.error && !acp.list ? (
-        <p className={styles.note}>{`读不到 ACP 智能体：${acp.error}`}</p>
+        <p className={styles.note}>{`无法读取 ACP 智能体列表：${acp.error}`}</p>
       ) : !acp.list ? (
-        <Skel rows={2} label="正在读取 ACP 智能体…" />
+        <Skel rows={2} label="正在读取 ACP 智能体列表…" />
       ) : agents.length === 0 ? (
-        <p className={styles.note}>本机没有 ACP 智能体，也没有 npx 或 uvx</p>
+        <p className={styles.note}>本机未检测到 ACP 智能体，且未安装 npx 或 uvx</p>
       ) : (
         <>
           {installed.length > 0 && acpTable('ACP 智能体', installed)}

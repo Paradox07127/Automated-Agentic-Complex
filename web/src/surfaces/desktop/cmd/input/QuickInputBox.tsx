@@ -1,5 +1,6 @@
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
-import type { SayRequest, SayResult } from '../../../../bridge';
+import { type SayRequest, type SayResult } from '../../../../bridge';
+import { keyText } from '../../../../bridge/platformText';
 import { Btn, ErrBar, FilterChips, IconBtn, Kbd, TextArea, type FilterChip } from '../../../../ui';
 import { PowerMark, PowerState, type PowerStateProps } from '../../../../ui/game';
 import styles from './QuickInputBox.module.css';
@@ -82,7 +83,7 @@ export function QuickInputBox(p: QuickInputBoxProps) {
   };
 
   // 附上当前窗口 is left out while it cannot be turned on (a window is attached already).
-  const opts: FilterChip[] = [...(p.onAttach && !p.attachDisabled ? [{ value: 'attach', label: '附上当前窗口' }] : []), { value: 'nomem', label: '这一轮不记' }];
+  const opts: FilterChip[] = [...(p.onAttach && !p.attachDisabled ? [{ value: 'attach', label: '附上当前窗口' }] : []), { value: 'nomem', label: '无痕对话（本轮不记入记忆）' }];
   const picked = [...(p.attach ? ['attach'] : []), ...(p.noMemory ? ['nomem'] : [])];
   const pick = (v: string[]) => {
     if (v.includes('attach') !== p.attach) p.onAttach?.(!p.attach);
@@ -136,37 +137,37 @@ export function QuickInputBox(p: QuickInputBoxProps) {
       {err && (
         <div className={styles.err} data-theme="dark">
           {err.reason === 'agentd' && (
-            <ErrBar message="后台服务没有运行" detail="原文已保留"
+            <ErrBar message="后台服务未运行" detail="已保留输入内容"
               actions={<Btn variant="ghost" size="sm" onClick={p.onRestartBackend}>重启后台服务</Btn>} />
           )}
           {err.reason === 'kernel' && (
-            <ErrBar tone="warning" message="角色内核未就绪" detail={err.detail ?? '原文已保留'}
-              actions={<Btn variant="ghost" size="sm" icon="refresh" onClick={p.onRecheck}>重新检测</Btn>} />
+            <ErrBar tone="warning" message="执行内核未就绪" detail={err.detail ?? '已保留输入内容'}
+              actions={<Btn variant="ghost" size="sm" icon="refresh" onClick={p.onRecheck}>重试发送</Btn>} />
           )}
-          {err.reason === 'rejected' && <ErrBar message={`没有发出去：${err.detail ?? '后台不接受这条'}`} detail="原文已保留" />}
+          {err.reason === 'rejected' && <ErrBar message={`发送失败：${err.detail ?? '后台服务未接收该消息'}`} detail="已保留输入内容" />}
         </div>
       )}
       <div className={styles.opts}>
         {p.onLookOff && (
-          <span title="已关闭：设置 › 感知里关着「屏幕识读」，点按前往设置打开">
+          <span title="已关闭：请在「设置 › 感知」中开启「屏幕识读」，点击前往设置">
             <Btn variant="text" size="sm" onClick={p.onLookOff}>
               <PowerMark state="off" compact />
               附上当前窗口
             </Btn>
           </span>
         )}
-        <FilterChips label="这一轮的选项" multiple options={opts} value={picked} onChange={pick} />
+        <FilterChips label="本轮对话选项" multiple options={opts} value={picked} onChange={pick} />
       </div>
       <div className={styles.footer}>
-        <Btn variant="text" size="sm" kbd="⌘J" onClick={p.onOpenChat}>
+        <Btn variant="text" size="sm" kbd={keyText('⌘2')} onClick={p.onOpenChat}>
           对话
         </Btn>
         {p.talkKey && (
           <span className={styles.talk}>
-            按住<Kbd>{p.talkKey}</Kbd>说话
+            按住<Kbd>{p.talkKey}</Kbd>语音输入
           </span>
         )}
-        <Btn variant="primary" icon="send" kbd="⏎" disabled={!said} disabledReason="输入消息后发送" loading={p.sending} onClick={send}>
+        <Btn variant="primary" icon="send" kbd="⏎" disabled={!said} disabledReason="请输入消息后再发送" loading={p.sending} onClick={send}>
           发送消息
         </Btn>
       </div>

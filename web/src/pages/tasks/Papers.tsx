@@ -61,10 +61,10 @@ export function ApprovalPaper({ item, kernelName, scopeLabel, onDecide, onMouseO
     else decide('allow');
   };
   return (
-    <div className={styles.paper} data-depth="" data-theme="light" data-warn={danger || undefined} tabIndex={0} onKeyDown={onKey} data-focus-card aria-label={danger ? `审批：${item.title}，只能用鼠标点批准` : `审批：${item.title}，回车批准`}>
+    <div className={styles.paper} data-depth="" data-theme="light" data-warn={danger || undefined} tabIndex={0} onKeyDown={onKey} data-focus-card aria-label={danger ? `审批：${item.title}，仅支持鼠标点击批准` : `审批：${item.title}，回车键批准`}>
       <h4>{item.title}</h4>
       <p>
-        {who} 要调用 {tool ? <code>{tool}</code> : '一个工具'}，内容如下：
+        {who} 请求调用 {tool ? <code>{tool}</code> : '工具'}，详情如下：
       </p>
       {rule && <p className={styles.rule}>{rule}</p>}
       {broker?.cmd && <CmdBlock cmd={broker.cmd} truncated={broker.summary_truncated} origLen={broker.orig_len} paper />}
@@ -98,7 +98,7 @@ export function ApprovalPaper({ item, kernelName, scopeLabel, onDecide, onMouseO
             拒绝
           </Btn>
           <span className={styles.sp} />
-          <span className={styles.hint}>{danger ? '危险操作只能用鼠标点批准' : <><Kbd>⏎</Kbd>批准</>}</span>
+          <span className={styles.hint}>{danger ? '危险操作仅支持鼠标点击批准' : <><Kbd>⏎</Kbd> 批准</>}</span>
         </div>
       )}
     </div>
@@ -137,7 +137,7 @@ export function ReviewPaper({ review, kernelName, busy, decideFail, onAction, qu
             已看
           </>
         )}
-        。接受后任务记为完成；驳回时写一句要改什么，角色按补充要求再做一版。
+        。接受后任务记为已完成；驳回时请填写修改说明，角色将按补充要求继续生成下一版本。
       </p>
       <div className={styles.btns}>
         <Btn size="sm" variant={quiet ? 'ghost' : 'primary'} disabled={busy} disabledReason="正在提交" onClick={() => onAction({ kind: 'accept', deliveryId: review.id })}>
@@ -177,7 +177,7 @@ export function CodeReviewPaper({ verify, onReview }: { verify: { exit_code: num
   return (
     <div className={styles.paper} data-depth="" data-theme="light">
       <h4>验收编码结果</h4>
-      <p>{verify ? (verify.reason === 'no_verify_cmd' ? `${verifyText(verify)}，结果待复核` : verifyText(verify)) : '没有检查结果'}</p>
+      <p>{verify ? (verify.reason === 'no_verify_cmd' ? `${verifyText(verify)}，结果待复核` : verifyText(verify)) : '无检查结果'}</p>
       <div className={styles.btns}>
         <Btn size="sm" variant="primary" onClick={() => onReview('accept')}>
           验收

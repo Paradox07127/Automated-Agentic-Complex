@@ -98,17 +98,17 @@ describe('check-copy old wording', () => {
       '1  [运行工具]  运行工具',
       '1  [待审批, 等待审批]  等待审批',
     ]);
-    expect(oldWordHits('x.tsx', "const a = ['待批准 · 2 张', '在跑', '在想', '待回答'];")).toEqual([]);
+    expect(oldWordHits('x.tsx', "const a = ['待批准 · 2 张', '工具执行中', '思考中', '待回答'];")).toEqual([]);
   });
 
   it('matches 执行工具 and 运行工具 only as status text', () => {
-    expect(oldWordHits('x.tsx', "const a = [' 执行工具 ', '执行工具 · Bash', '运行工具 · Edit', '在跑 · Bash', '内核原生执行工具', '运行工具时提醒'];")).toEqual([
+    expect(oldWordHits('x.tsx', "const a = [' 执行工具 ', '执行工具 · Bash', '运行工具 · Edit', '工具执行中 · Bash', '内核原生执行工具', '运行工具时提醒'];")).toEqual([
       '1  [执行工具]  执行工具',
       '1  [执行工具]  执行工具 · Bash',
       '1  [运行工具]  运行工具 · Edit',
     ]);
     expect(oldWordHits('x.tsx', "const a = ['内核待审批', '先等待审批再说'];")).toEqual(['1  [待审批]  内核待审批', '1  [待审批, 等待审批]  先等待审批再说']);
-    expect(oldWordHits('x.tsx', "const a = ['执行工具 │ Bash', '在跑 │ Bash'];")).toEqual(['1  [执行工具]  执行工具 │ Bash']);
+    expect(oldWordHits('x.tsx', "const a = ['执行工具 │ Bash', '工具执行中 │ Bash'];")).toEqual(['1  [执行工具]  执行工具 │ Bash']);
   });
 
   it('lists 她 in visible strings, except in the character-authored chat fixture', () => {

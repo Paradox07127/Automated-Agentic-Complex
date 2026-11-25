@@ -54,13 +54,13 @@ export const SHOWN_WHEN: Readonly<Record<string, (saved: Readonly<Record<string,
 export const DEV_ONLY_ROWS: ReadonlySet<string> = new Set(['rnd.aa', 'rnd.size', 'rnd.shadow']);
 
 export const ROW_DESC: Readonly<Record<string, string>> = {
-  'beh.sit': '坐在窗口顶沿',
-  'beh.lean': '靠近窗沿时扶住',
-  'beh.mouse': '视线跟随指针',
-  'beh.inertia': '松开后短距离滑行',
-  'beh.mood': '精神偏低时走速降低',
-  avatar_click: '角色互动：摸头、问候等；打开快速输入：点角色就能打字',
-  'rnd.dof': '镜头处于近景时虚化角色身上离焦的部分；全身景别下看不出',
+  'beh.sit': '坐在窗口顶部边缘',
+  'beh.lean': '靠近窗口边缘时扶住窗口',
+  'beh.mouse': '视线跟随光标',
+  'beh.inertia': '松开后惯性滑行一段距离',
+  'beh.mood': '精力较低时移动速度降低',
+  avatar_click: '角色互动：触发摸头、问候等交互；快速输入：点击角色即可输入文本',
+  'rnd.dof': '镜头处于近景时虚化角色焦点外区域；全身景别下效果不明显',
 };
 
 export const OTHER_TITLE = '其他';

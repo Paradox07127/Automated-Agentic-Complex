@@ -76,9 +76,9 @@ function mount(at = '?still=1') {
 const rows = () => [...document.querySelectorAll('[data-fact]')].map((r) => r.getAttribute('data-fact'));
 const row = (key: string) => document.querySelector(`[data-fact="${v31Id(key)}"] button`) as HTMLElement;
 const sent = (method: string, prefix: string) => calls.filter(([m, p]) => m === method && p.startsWith(prefix));
-const cell = (label: string) => screen.getByRole('button', { name: new RegExp(`^${label}`) });
-const cards = () => screen.queryAllByRole('region', { name: /^待确认：/ });
-const card = (text: string) => screen.findByRole('region', { name: `待确认：${text}` });
+const cell = (label: string) => screen.getByRole('button', { name: label === '全部' ? /^全部(?!确认)/ : new RegExp(`^${label}`) });
+const cards = () => screen.queryAllByRole('region', { name: /^待处理记忆：/ });
+const card = (text: string) => screen.findByRole('region', { name: `待处理记忆：${text}` });
 /** 待确认 opens by default while it has asks; waits for its cards. */
 const openAsks = async () => await waitFor(() => expect(cards()).toHaveLength(3), { timeout: 3000 });
 /** Leaves 待确认 for 全部 once the list has loaded. */
@@ -92,66 +92,66 @@ describe('memory › 档案', () => {
   it('opens on 待确认 with one vote card per candidate; the plate and the cells count the rest', async () => {
     mount();
     await openAsks();
-    expect(cell('待确认').getAttribute('aria-pressed')).toBe('true');
+    expect(cell('待处理').getAttribute('aria-pressed')).toBe('true');
     const plate = screen.getByRole('button', { name: '用户档案：小林' });
     expect(plate.textContent).toContain('3月2日');
     expect(plate.textContent).toContain('上海');
-    for (const [label, n] of [['待确认', 3], ['全部', 18], ['偏好', 6], ['约定', 4], ['经历', 4], ['其他线索', 1]] as const) expect(cell(label).textContent).toBe(`${label}${n}`);
-    for (const c of cards()) expect(within(within(c).getByRole('group', { name: '怎么处理' })).getAllByRole('button').map((b) => b.textContent?.replace(/\d$/, ''))).toEqual(['对，记住', '差不多，我来改', '不是这样']);
+    for (const [label, n] of [['待处理', 3], ['全部', 18], ['偏好', 6], ['约定', 4], ['经历', 4], ['其他线索', 1]] as const) expect(cell(label).textContent).toBe(`${label}${n}`);
+    for (const c of cards()) expect(within(within(c).getByRole('group', { name: '确认操作' })).getAllByRole('button').map((b) => b.textContent?.replace(/\d$/, ''))).toEqual(['确认并记住', '修改后记住', '不属实']);
     expect(rows()).toEqual([]);
     // The count sits on the cell only; the head names the group and the explanation is behind its ⓘ.
-    const asks = screen.getByRole('region', { name: '待确认' });
-    expect(within(asks).getByRole('heading', { name: '待确认' })).toBeTruthy();
+    const asks = screen.getByRole('region', { name: '待处理' });
+    expect(within(asks).getByRole('heading', { name: '待处理' })).toBeTruthy();
     expect(asks.textContent).not.toContain('[3]');
-    expect(within(asks).getByRole('tooltip', { hidden: true }).textContent).toContain('同一件事在 3 个不同的日子都有把握地看到，就会记住');
+    expect(within(asks).getByRole('tooltip', { hidden: true }).textContent).toContain('在 3 个不同日期均稳定观察到后将自动转入正式记忆');
     expect(document.body.textContent).not.toMatch(/USR|CONFIRM|FACTS|CHANGES/);
   });
 
   it('a card folds where she read it: closed, the kind and time; open, the chat line or the episode she saw', async () => {
     mount();
     const chat = await card('周报按项目分组，不按日期');
-    const chatFold = within(chat).getByRole('button', { name: /^出处对话 │/ });
+    const chatFold = within(chat).getByRole('button', { name: /^来源出处对话 │/ });
     expect(chatFold.getAttribute('aria-expanded')).toBe('false');
-    expect(within(chat).queryByRole('button', { name: /去对话看原文/ })).toBeNull();
+    expect(within(chat).queryByRole('button', { name: /查看对话原文/ })).toBeNull();
     fireEvent.click(chatFold);
     await waitFor(() => expect(chat.textContent).toContain('「按项目分组，不要按日期。」'));
-    expect(within(chat).getByRole('button', { name: /去对话看原文/ })).toBeTruthy();
+    expect(within(chat).getByRole('button', { name: /查看对话原文/ })).toBeTruthy();
     const seen = await card('写代码时减少主动发言');
-    fireEvent.click(within(seen).getByRole('button', { name: /^出处观察 │/ }));
-    await waitFor(() => expect(seen.textContent).toMatch(/角色看到：/));
-    expect(within(seen).getByRole('button', { name: /在简报里看这一段/ })).toBeTruthy();
+    fireEvent.click(within(seen).getByRole('button', { name: /^来源出处观察 │/ }));
+    await waitFor(() => expect(seen.textContent).toMatch(/观察摘要：/));
+    expect(within(seen).getByRole('button', { name: /在简报中查看此段/ })).toBeTruthy();
   });
 
   it('对，记住 confirms with the row version; 差不多，我来改 patches the new text', async () => {
     mount();
-    fireEvent.click(within(await card('周报按项目分组，不按日期')).getByRole('button', { name: '对，记住' }));
+    fireEvent.click(within(await card('周报按项目分组，不按日期')).getByRole('button', { name: '确认并记住' }));
     await waitFor(() => expect(sent('POST', '/memory/facts/')).toEqual([['POST', `/memory/facts/${v31Id('c1')}/confirm`, { expected_version: 1 }]]));
     expect(await screen.findByText('已记住：周报按项目分组，不按日期')).toBeTruthy();
     const c3 = await card('构建习惯用 swift build -c release');
-    fireEvent.click(within(c3).getByRole('button', { name: '差不多，我来改' }));
-    fireEvent.change(within(c3).getByRole('textbox', { name: '改成' }), { target: { value: '发布构建用 swift build -c release' } });
-    fireEvent.click(within(c3).getByRole('button', { name: /改好并记住/ }));
+    fireEvent.click(within(c3).getByRole('button', { name: '修改后记住' }));
+    fireEvent.change(within(c3).getByRole('textbox', { name: '修改内容' }), { target: { value: '发布构建用 swift build -c release' } });
+    fireEvent.click(within(c3).getByRole('button', { name: /保存并记住/ }));
     // c3 shares its observation with other facts, so the correction asks first.
-    fireEvent.click(within(await screen.findByRole('alertdialog', { name: /^修改这条会删掉另外/ })).getByRole('button', { name: '仍然修改' }));
+    fireEvent.click(within(await screen.findByRole('alertdialog', { name: /^修改该条目将同步删除另外/ })).getByRole('button', { name: '仍然修改' }));
     await waitFor(() => expect(sent('PATCH', '/memory/facts/')).toEqual([['PATCH', `/memory/facts/${v31Id('c3')}`, { expected_version: 1, text: '发布构建用 swift build -c release', cascade: [v31Id('a3'), v31Id('c2')].sort() }]]));
   });
 
   it('不是这样 rejects only after the 4-second undo window; 撤销 keeps the card', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     mount();
-    fireEvent.click(within(await card('写代码时减少主动发言')).getByRole('button', { name: '不是这样' }));
-    expect(await screen.findByText('划掉了，不会再记这件事')).toBeTruthy();
+    fireEvent.click(within(await card('写代码时减少主动发言')).getByRole('button', { name: '不属实' }));
+    expect(await screen.findByText('已忽略该条，将不再记录')).toBeTruthy();
     expect(sent('POST', '/memory/facts/')).toEqual([]);
     act(() => void vi.advanceTimersByTime(UNDO_MS));
     await waitFor(() => expect(sent('POST', '/memory/facts/')).toEqual([['POST', `/memory/facts/${v31Id('c2')}/reject`, { expected_version: 1 }]]));
 
     const c1 = await card('周报按项目分组，不按日期');
-    fireEvent.click(within(c1).getByRole('button', { name: '不是这样' }));
+    fireEvent.click(within(c1).getByRole('button', { name: '不属实' }));
     const undo = await waitFor(() => screen.getAllByRole('button', { name: '撤销' }).at(-1)!);
     fireEvent.click(undo);
     act(() => void vi.advanceTimersByTime(UNDO_MS));
     expect(sent('POST', `/memory/facts/${v31Id('c1')}`)).toEqual([]);
-    expect(within(c1).getByRole('button', { name: '对，记住' })).toBeTruthy();
+    expect(within(c1).getByRole('button', { name: '确认并记住' })).toBeTruthy();
   });
 
   it('剩下 N 条全部记住 confirms each card on its own; key 1 confirms the first open card', async () => {
@@ -159,7 +159,7 @@ describe('memory › 档案', () => {
     await openAsks();
     fireEvent.keyDown(window, { key: '1' });
     await waitFor(() => expect(sent('POST', '/memory/facts/')).toHaveLength(1));
-    fireEvent.click(screen.getByRole('button', { name: /^剩下 \d 条全部记住/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^全部确认（\d+ 条）/ }));
     await waitFor(() => expect([...new Set(sent('POST', '/memory/facts/').map(([, p]) => p))].sort()).toEqual(['c1', 'c2', 'c3'].map((k) => `/memory/facts/${v31Id(k)}/confirm`).sort()));
   });
 
@@ -169,7 +169,7 @@ describe('memory › 档案', () => {
     expect(rows()).toHaveLength(18);
     for (const g of ['用户档案', '偏好', '约定', '经历', '其他线索']) expect(screen.getByRole('group', { name: g })).toBeTruthy();
     const detail = screen.getByRole('complementary', { name: '这条记忆' });
-    expect(within(detail).getByRole('region', { name: '出处' })).toBeTruthy();
+    expect(within(detail).getByRole('region', { name: '来源出处' })).toBeTruthy();
     expect(within(detail).getByRole('img', { name: /近 14 天用到 \d+ 次/ })).toBeTruthy();
     expect(document.querySelector('[data-fact] button')?.getAttribute('aria-pressed')).toBe('true');
     expect(within(document.querySelector(`[data-fact="${v31Id('a2')}"]`)!).getByText('30 天没用到')).toBeTruthy();
@@ -193,7 +193,7 @@ describe('memory › 档案', () => {
     fireEvent.click(screen.getByRole('button', { name: '清除搜索' }));
     expect(screen.getByRole('button', { name: '排序' }).querySelector('[data-prefix]')?.textContent).toBe('排序');
     fireEvent.click(screen.getByRole('button', { name: '排序' }));
-    fireEvent.click(screen.getByRole('option', { name: '最久没用' }));
+    fireEvent.click(screen.getByRole('option', { name: '最久未用' }));
     expect(screen.queryByRole('group', { name: '偏好' })).toBeNull();
     expect(rows()).toHaveLength(18);
   });
@@ -202,15 +202,15 @@ describe('memory › 档案', () => {
     mount(`?still=1&sel=${v31Id('g2')}`);
     const detail = await screen.findByRole('complementary', { name: '这条记忆' });
     expect(await within(detail).findByText(/以后提交前先跑一遍 swift test。/)).toBeTruthy();
-    expect(within(detail).getByRole('button', { name: /去对话看原文/ })).toBeTruthy();
-    expect(within(detail).getByText('你在对话里亲口说的')).toBeTruthy();
+    expect(within(detail).getByRole('button', { name: /查看对话原文/ })).toBeTruthy();
+    expect(within(detail).getByText('由您在对话中直接陈述')).toBeTruthy();
   });
 
   it('an observed fact names what she saw', async () => {
     mount(`?still=1&sel=${v31Id('a3')}`);
     const detail = await screen.findByRole('complementary', { name: '这条记忆' });
-    expect(await within(detail).findByText(/角色看到：/)).toBeTruthy();
-    expect(within(detail).getByRole('button', { name: /在简报里看这一段/ })).toBeTruthy();
+    expect(await within(detail).findByText(/观察摘要：/)).toBeTruthy();
+    expect(within(detail).getByRole('button', { name: /在简报中查看此段/ })).toBeTruthy();
   });
 
   it('删除 asks on a paper card first, then sends DELETE with the version', async () => {
@@ -218,7 +218,7 @@ describe('memory › 档案', () => {
     const detail = await screen.findByRole('complementary', { name: '这条记忆' });
     fireEvent.click(within(detail).getByRole('button', { name: '删除' }));
     expect(sent('DELETE', '/memory/facts/')).toEqual([]);
-    const ask = await screen.findByRole('alertdialog', { name: '删除这条记忆？' });
+    const ask = await screen.findByRole('alertdialog', { name: '删除该条记忆？' });
     fireEvent.click(within(ask).getByRole('button', { name: '删除' }));
     await waitFor(() => expect(sent('DELETE', '/memory/facts/')).toEqual([['DELETE', `/memory/facts/${v31Id('p5')}?expected_version=1&cascade=`, undefined]]));
   });
@@ -227,7 +227,7 @@ describe('memory › 档案', () => {
     mount(`?still=1&sel=${v31Id('a3')}`);
     const detail = await screen.findByRole('complementary', { name: '这条记忆' });
     fireEvent.click(within(detail).getByRole('button', { name: '删除' }));
-    const ask = await screen.findByRole('alertdialog', { name: '删除这条记忆？' });
+    const ask = await screen.findByRole('alertdialog', { name: '删除该条记忆？' });
     const items = [...ask.querySelectorAll('li')].map((li) => li.textContent);
     expect(items).toContain('写代码时减少主动发言');
     expect(items).toContain('构建习惯用 swift build -c release');
@@ -240,7 +240,7 @@ describe('memory › 档案', () => {
     mount(`?still=1&sel=${v31Id('p2')}`);
     const detail = await screen.findByRole('complementary', { name: '这条记忆' });
     fireEvent.click(within(detail).getByRole('button', { name: /^修改/ }));
-    const input = within(detail).getByRole('textbox', { name: '修改这条记忆' });
+    const input = within(detail).getByRole('textbox', { name: '编辑此条记忆' });
     fireEvent.change(input, { target: { value: '晚上 11 点后不主动提醒' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     await waitFor(() => expect(sent('PATCH', '/memory/facts/')).toEqual([['PATCH', `/memory/facts/${v31Id('p2')}`, { expected_version: 1, text: '晚上 11 点后不主动提醒', cascade: [] }]]));
@@ -259,13 +259,13 @@ describe('memory › 档案', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '这条记忆' })).toBeNull());
   });
 
-  it('暂停记忆 sends PUT /memory/paused and the header says 已暂停记忆', async () => {
+  it('暂停记录 sends PUT /memory/paused and the header says 已暂停记录', async () => {
     mount();
     await openAsks();
-    fireEvent.click(screen.getByRole('button', { name: '暂停记忆' }));
+    fireEvent.click(screen.getByRole('button', { name: '暂停记录' }));
     await waitFor(() => expect(sent('PUT', '/memory/paused')).toEqual([['PUT', '/memory/paused', { paused: true }]]));
-    expect(await screen.findByRole('button', { name: /恢复记忆/ })).toBeTruthy();
-    expect(screen.getAllByRole('status').some((el) => el.textContent?.startsWith('已暂停记忆'))).toBe(true);
+    expect(await screen.findByRole('button', { name: /恢复记录/ })).toBeTruthy();
+    expect(screen.getAllByRole('status').some((el) => el.textContent?.startsWith('已暂停记录'))).toBe(true);
   });
 
   it('a /feed memory event re-reads the facts', async () => {
@@ -304,15 +304,15 @@ describe('memory › demos', () => {
     mount('?still=1&demo=sparse');
     await waitFor(() => expect(rows().length).toBeGreaterThan(0), { timeout: 3000 });
     expect(cell('全部').getAttribute('aria-pressed')).toBe('true');
-    expect(screen.queryByRole('button', { name: /^待确认/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^待处理/ })).toBeNull();
     expect(cards()).toEqual([]);
   });
 
   it('empty: one line with 去对话, and 新增 still opens the add card', async () => {
     mount('?still=1&state=empty');
-    expect(await screen.findByText('还没记住你的事')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /去对话/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '用户档案' }).textContent).toContain('还不知道怎么称呼你');
+    expect(await screen.findByText('尚未记录您的相关信息')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /前往对话/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '用户档案' }).textContent).toContain('尚未记录您的称呼');
     expect(document.body.textContent).not.toContain('暂无');
     fireEvent.click(screen.getByRole('button', { name: /^新增/ }));
     expect(await screen.findByRole('dialog', { name: '新增一条记忆' })).toBeTruthy();
@@ -321,25 +321,25 @@ describe('memory › demos', () => {
   it('empty 回顾: one line with the reason and one action', async () => {
     mount('?still=1&state=empty&view=activity');
     const review = await screen.findByRole('region', { name: '回顾' });
-    expect(await within(review).findByText('还没有整理出的工作片段')).toBeTruthy();
+    expect(await within(review).findByText('尚未整理出工作片段')).toBeTruthy();
     expect(review.textContent).not.toContain('可切换到原始观察');
-    expect(within(review).getByRole('button', { name: '打开观察设置' })).toBeTruthy();
+    expect(within(review).getByRole('button', { name: '打开感知设置' })).toBeTruthy();
   });
 
   it('error: one banner with 重试, no rows', async () => {
     mount('?still=1&state=error');
-    expect(await screen.findByText(/没有读到记忆：记忆库正在被另一个进程写入/)).toBeTruthy();
+    expect(await screen.findByText(/未能读取记忆：记忆库正在被另一个进程写入/)).toBeTruthy();
     expect(screen.getAllByRole('alert')).toHaveLength(1);
     expect(screen.getByRole('button', { name: '重试' })).toBeTruthy();
     expect(rows()).toEqual([]);
   });
 
-  it('paused: 恢复记忆 in the command bar and the header says 已暂停记忆', async () => {
+  it('paused: 恢复记录 in the command bar and the header says 已暂停记录', async () => {
     mount('?still=1&demo=paused');
     await openAsks();
-    expect(screen.getByRole('button', { name: /恢复记忆/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /恢复记录/ })).toBeTruthy();
     expect(document.querySelectorAll('[data-variant="primary"]').length).toBeLessThanOrEqual(1);
-    expect(screen.getAllByRole('status').some((el) => el.textContent?.startsWith('已暂停记忆'))).toBe(true);
+    expect(screen.getAllByRole('status').some((el) => el.textContent?.startsWith('已暂停记录'))).toBe(true);
   });
 });
 

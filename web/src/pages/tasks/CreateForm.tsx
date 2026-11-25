@@ -45,8 +45,8 @@ export function draftFor(kind: CreateKind): CreateDraft {
 
 /** What each mode lets the coding tool do (own.py MODES: Claude permission mode, Codex sandbox). */
 const MODE_NOTE: Record<CodeMode, string> = {
-  read_only: 'Claude 每次改动都要你批准；Codex 在只读沙箱里运行',
-  workspace_write: 'Claude 自动接受改动；Codex 可以改这个目录里的文件',
+  read_only: 'Claude Code 每次修改均须手动批准；Codex 运行于只读沙箱',
+  workspace_write: 'Claude Code 自动接受修改；Codex 允许修改当前目录内文件',
 };
 
 export interface CreateFormProps {
@@ -73,12 +73,12 @@ export function CreateForm({ draft, onChange, goals, canPick, onPickFolder }: Cr
       {draft.kind === 'role' && (
         <label className={styles.field}>
           <span>标题</span>
-          <Field label="标题" placeholder="给任务起个名字" value={draft.title} onChange={(v) => set({ title: v })} />
+          <Field label="标题" placeholder="请输入任务标题" value={draft.title} onChange={(v) => set({ title: v })} />
         </label>
       )}
       <label className={styles.field}>
         <span>要求</span>
-        <TextArea label="要求" rows={3} placeholder="要做什么，做到什么程度？" value={draft.brief} onChange={(v) => set({ brief: v })} />
+        <TextArea label="要求" rows={3} placeholder="请描述具体任务内容与预期完成标准" value={draft.brief} onChange={(v) => set({ brief: v })} />
       </label>
       {draft.kind === 'role' && (
         <>
@@ -127,7 +127,7 @@ export function CreateForm({ draft, onChange, goals, canPick, onPickFolder }: Cr
             <span>目录</span>
             <span className={styles.line}>
               <Field label="目录" mono value={draft.cwd?.displayName ?? ''} placeholder="还没有选目录" readOnly />
-              <Btn size="sm" variant="ghost" icon="folder" disabled={!canPick} disabledReason="这台电脑的外壳不支持原生目录选择" onClick={onPickFolder}>
+              <Btn size="sm" variant="ghost" icon="folder" disabled={!canPick} disabledReason="当前运行环境不支持原生目录选择" onClick={onPickFolder}>
                 选择…
               </Btn>
             </span>

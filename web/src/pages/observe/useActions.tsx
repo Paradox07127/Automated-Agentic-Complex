@@ -124,7 +124,7 @@ export function useActions(setPausedDemo: (v: number | null | undefined) => void
               const r = await del<{ facts?: number }>(`/observation?range=${range}`);
               toast(`已清除${CLEAR_LABEL[range]}的观察记录${r.facts ? ` │ 连带删除 ${r.facts} 条记忆` : ''}`);
             } catch (e) {
-              toast(`没有清除：${errorText(e)}`);
+              toast(`清除失败：${errorText(e)}`);
             }
             void qc.invalidateQueries({ queryKey: ['observe'] });
           })(),
@@ -133,8 +133,8 @@ export function useActions(setPausedDemo: (v: number | null | undefined) => void
       setConfirm({
         title: `删除片段「${e.title}」？`,
         // `memories` counts the facts of /memory, which reads 0 until it answers.
-        note: `这个片段的摘要将被删除${
-          qc.getQueryData(KEY.memory) === undefined ? '，相关记忆也会删除。' : memories > 0 ? `，由它生成的 ${memories} 条记忆也会一并删除。` : '。'
+        note: `该片段的摘要将被删除${
+          qc.getQueryData(KEY.memory) === undefined ? '，相关记忆亦将删除。' : memories > 0 ? `，由其生成的 ${memories} 条记忆亦将一并删除。` : '。'
         }`,
         warning: '删除后无法恢复',
         danger: true,
@@ -146,7 +146,7 @@ export function useActions(setPausedDemo: (v: number | null | undefined) => void
               toast(r.facts > 0 ? `已删除片段 │ 连带删除 ${r.facts} 条记忆` : '已删除片段');
               done();
             } catch (err) {
-              toast(`没有删除：${errorText(err)}`);
+              toast(`删除失败：${errorText(err)}`);
             }
             refresh(KEY.episodes, KEY.memory);
           })(),

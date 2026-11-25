@@ -108,10 +108,10 @@ export function paletteItems(
     .filter((r) => r.nav !== false && (!r.devOnly || isDevMode()) && has(`${r.title} ${r.en} ${r.id}`))
     .map((r) => ({ key: `page-${r.id}`, group: '跳页', label: r.title, ...(r.icon ? { icon: r.icon } : {}), hint: routeOff(r, plugins) ? '已关闭' : '', shortcut: r.hotkey, run: { kind: 'nav', target: { page: r.id as PageId } } }));
   const actions: PaletteItem[] = [
-    { key: 'quick-input', group: '动作' as const, label: '快速输入', shortcut: keys.hk_quick, words: 'input quick 输入 桌面', ...desktop('quickInput', '桌面上的输入框', off) },
+    { key: 'quick-input', group: '动作' as const, label: '快速输入', shortcut: keys.hk_quick, words: 'input quick 输入 桌面', ...desktop('quickInput', '打开桌面快速输入框', off) },
     { key: 'look', group: '动作' as const, label: '屏幕识读', shortcut: keys.hk_look, words: 'look observe 屏幕 识读', ...(plugins.screen_reading ? desktop('look', '识读前台窗口', off) : closed('screen_reading')) },
-    { key: 'quiet', group: '动作' as const, label: '免打扰 30 分钟', hint: '提醒暂停，到点自动恢复', words: 'quiet dnd 安静 勿扰', run: { kind: 'quiet' as const } },
-    { key: 'recheck', group: '动作' as const, label: '重新检测内核', words: 'kernel runtime recheck 运行时', ...(plugins.harness_bridge ? { hint: settingPath('kernel'), run: { kind: 'recheck' as const } } : closed('harness_bridge')) },
+    { key: 'quiet', group: '动作' as const, label: '免打扰 30 分钟', hint: '暂停非紧急提醒，到期自动恢复', words: 'quiet dnd 安静 勿扰', run: { kind: 'quiet' as const } },
+    { key: 'recheck', group: '动作' as const, label: '重新检测内核', words: 'kernel runtime recheck 运行时 执行内核', ...(plugins.harness_bridge ? { hint: settingPath('kernel'), run: { kind: 'recheck' as const } } : closed('harness_bridge')) },
     ...(index?.tasks ?? []).filter(stoppable).map((t) => ({
       key: `stop-${t.id}`,
       group: '动作' as const,
@@ -121,7 +121,7 @@ export function paletteItems(
       run: { kind: 'stop' as const, task: t },
     })),
     // After the task stops, so 「停止」 still lands on a task first.
-    { key: 'stop-speech', group: '动作' as const, label: '停止说话', words: 'stop speech mute 别说了 闭嘴', ...desktop('stopSpeech', '打断角色正在说的这句', off) },
+    { key: 'stop-speech', group: '动作' as const, label: '停止语音播报', words: 'stop speech mute 停止语音 停止播报', ...desktop('stopSpeech', '中止当前语音播报', off) },
   ]
     .filter((a) => has(`${a.label} ${a.words}`))
     .map(({ words: _words, ...a }) => a);

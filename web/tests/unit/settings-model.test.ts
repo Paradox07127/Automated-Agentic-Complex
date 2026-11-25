@@ -49,7 +49,7 @@ describe('settings: registry and search', () => {
   it('has the history-archive row, defaulting to keep everything', () => {
     expect(REGISTRY.find((r) => r.id === 'archive')?.group).toBe('data');
     expect(WIRE_RUNTIME.history_retention).toBe('keep');
-    expect(ARCHIVE.find((o) => o.value === 'keep')?.label).toBe('不清理');
+    expect(ARCHIVE.find((o) => o.value === 'keep')?.label).toBe('长期保留');
   });
 
   it('finds rows by label, section or keyword', () => {
@@ -86,7 +86,7 @@ describe('KernelChain', () => {
     const runtime = fromRuntimePublic(wire).runtimes.find((r) => r.id === 'pi')!;
     expect(runtime.path).toBeNull();
     expect(kernelBreak(runtime)).toBe(-1);
-    expect(kernelNodes(runtime)[0]?.sub).toBe('随应用的 SDK');
+    expect(kernelNodes(runtime)[0]?.sub).toBe('内置 SDK');
   });
 
   it('does not ask for native CLI login when the saved runtime uses an API key', () => {

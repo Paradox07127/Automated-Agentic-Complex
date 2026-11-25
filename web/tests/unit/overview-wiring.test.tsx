@@ -125,7 +125,7 @@ describe('overview reads', () => {
     expect(s.health).toBeNull();
     expect(s.diag_error).toBe('回复无法读取');
     expect(s.kernel?.runtime.id).toBe('codex');
-    expect(s.day.lane_errors).toEqual({ code: '读取编码记录失败：后台出错（500）' });
+    expect(s.day.lane_errors).toEqual({ code: '读取编码记录失败：后台服务处理出错（500）' });
     expect(s.pending).toHaveLength(5);
   });
 
@@ -133,8 +133,8 @@ describe('overview reads', () => {
     serve();
     const e = await readSnapshot(null, true).catch((x: unknown) => x);
     expect(e).toBeInstanceOf(AgentdCallError);
-    expect(errText(e)).toBe('后台出错（500）');
-    expect(errText(new AgentdCallError(0, 'offline', undefined, null, 'offline'))).toBe('后台已断开');
+    expect(errText(e)).toBe('后台服务处理出错（500）');
+    expect(errText(new AgentdCallError(0, 'offline', undefined, null, 'offline'))).toBe('后台服务已断开');
   });
 });
 
@@ -174,7 +174,7 @@ describe('overview writes', () => {
     const { toast, refetch, hook } = actions(s, [{ method: 'POST', path: '/approvals/:id/decision', handler: () => ({ status: 409, body: { ok: false, error: 'generation_mismatch' } }) }]);
     act(() => void hook.result.current.onApprove(s.pending.find((p) => p.id === A2) as Approval, 'deny'));
     await waitFor(() => expect(refetch).toHaveBeenCalled());
-    expect(toast).toHaveBeenCalledWith('提交决定：已在别处更新，已重新读取', { severity: 'warning' });
+    expect(toast).toHaveBeenCalledWith('提交决定：已在其他位置更新，已重新读取', { severity: 'warning' });
   });
 
   it('snoozes by 10 or 60, completes and cancels reminders without a body', async () => {
@@ -237,7 +237,7 @@ describe('overview writes', () => {
     await waitFor(() => expect(runtimeOf(client.getQueryData(RUNTIME_KEY)!).kernel?.runtime.id).toBe('codex'));
     expect(spy.mock.calls).toEqual([['GET', '/character/runtime?refresh=1', undefined]]);
     expect(refetch).not.toHaveBeenCalled();
-    expect(toast).toHaveBeenCalledWith('已重新检测内核');
+    expect(toast).toHaveBeenCalledWith('已完成执行内核检测');
     spy.mockClear();
     act(() => hook.result.current.onKernel('switch', 'pi'));
     expect(go).toHaveBeenCalledWith({ page: 'settings', group: 'kernel' });

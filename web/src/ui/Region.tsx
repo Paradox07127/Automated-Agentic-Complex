@@ -59,7 +59,7 @@ export function RegionFail({ what, reason, onRetry }: RegionFailProps) {
     <p role="alert" className={styles.fail} data-region-fail="">
       <span className={styles.sq} aria-hidden="true" />
       <span>
-        没有读到{what}：{reason}
+        无法读取{what}：{reason}
         <Retry onRetry={onRetry} />
       </span>
     </p>
@@ -108,7 +108,7 @@ export function Region<T>({ q, what, reserve, skel, isEmpty, empty, onRetry, chi
         <div className={styles.region} data-stub="Region" data-state="empty">
           <p role="status" className={styles.empty}>
             <Icon name="grid" size={14} />
-            <span>{empty?.text ?? `还没有${what}`}</span>
+            <span>{empty?.text ?? `尚无${what}`}</span>
             {empty?.action}
           </p>
         </div>
@@ -133,7 +133,7 @@ export function Region<T>({ q, what, reserve, skel, isEmpty, empty, onRetry, chi
                     <span className={styles.num}>{formatClock(v.at)}</span> 的数据
                   </>
                 ) : (
-                  '之前读到的数据'
+                  '之前读取的缓存数据'
                 )}
               </span>
               {v.state === 'stale' && !atPage && (

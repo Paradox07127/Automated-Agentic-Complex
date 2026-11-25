@@ -16,7 +16,7 @@ export function SaveNote({ offline, n, sparse }: SaveNoteProps) {
   if (offline)
     return (
       <>
-        <StatusTag state="unreachable" label="角色未运行" />
+        <StatusTag state="unreachable" label="角色进程未运行" />
         <span className={styles.cap}>只读</span>
       </>
     );
@@ -63,7 +63,7 @@ export interface CommitProps {
 }
 
 const SPEEDS = ['0.5', '1', '2'].map((s) => ({ value: s, label: `${s}×` }));
-const NO_LOOP = '这个版本的角色还不支持循环';
+const NO_LOOP = '当前版本角色暂不支持循环播放';
 
 /** 动作页底部动作条：左边桌面预览（黄键，循环时白色停止）、速度和播放方式，桌面播放时换成播放器；右边改了哪些、撤销、保存。 */
 export function Commit(p: CommitProps) {

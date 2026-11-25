@@ -25,7 +25,7 @@ export function ErrBar({ message, tone = 'danger', staleAt, onRetry, extra, deta
   const words = (
     <>
       <span className={styles.msg}>{message}</span>
-      {staleAt != null && <span className={styles.stale}>下面是 {formatClock(staleAt)} 的数据</span>}
+      {staleAt != null && <span className={styles.stale}>以下为 {formatClock(staleAt)} 的缓存数据</span>}
     </>
   );
   return (

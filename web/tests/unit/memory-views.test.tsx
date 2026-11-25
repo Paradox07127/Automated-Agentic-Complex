@@ -48,7 +48,7 @@ const tab = (name: string) => screen.findByRole('tab', { name: new RegExp(`^${na
 describe('记忆页', () => {
   it('has neither the source ratio nor the consolidation batches', async () => {
     mount();
-    await screen.findAllByRole('region', { name: /^待确认：/ }, { timeout: 3000 });
+    await screen.findAllByRole('region', { name: /^待处理记忆：/ }, { timeout: 3000 });
     expect(screen.queryByRole('region', { name: '记忆概况' })).toBeNull();
     expect(screen.queryByText(/来源占比/)).toBeNull();
     expect(screen.queryByRole('region', { name: '最近变化' })).toBeNull();
@@ -60,7 +60,7 @@ describe('记忆页', () => {
     mount();
     expect((await tab('档案')).getAttribute('aria-selected')).toBe('true');
     expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['档案', '项目', '回顾', '管线']);
-    expect((await screen.findAllByRole('region', { name: /^待确认：/ }, { timeout: 3000 })).length).toBeGreaterThan(0);
+    expect((await screen.findAllByRole('region', { name: /^待处理记忆：/ }, { timeout: 3000 })).length).toBeGreaterThan(0);
   });
 
   it('回顾 lists the records; a record opens in the detail column and its evidence opens in place', async () => {
@@ -87,7 +87,7 @@ describe('记忆页', () => {
     expect(detail.textContent).toContain('断线后自动恢复会话');
     expect(detail.textContent).toContain('已定位心跳超时');
     expect(await within(detail).findByText(/验证断线恢复/)).toBeTruthy();
-    fireEvent.click(within(detail).getByRole('button', { name: /在简报里看/ }));
+    fireEvent.click(within(detail).getByRole('button', { name: /在简报中查看/ }));
     expect(window.location.hash).toContain('/overview?sel=ses-');
   });
 
@@ -98,7 +98,7 @@ describe('记忆页', () => {
       method === 'PATCH' ? { status: 200, body: {} } : read(method as 'GET', path, body)) as typeof bridge.agentd.request);
     mount('&view=projects');
     const detail = await screen.findByRole('complementary', { name: '这个项目' }, { timeout: 3000 });
-    fireEvent.click(within(detail).getByRole('button', { name: /^改目标/ }));
+    fireEvent.click(within(detail).getByRole('button', { name: /^修改目标/ }));
     fireEvent.change(within(detail).getByRole('textbox', { name: '目标' }), { target: { value: '断线 3 秒内恢复会话' } });
     fireEvent.click(within(detail).getByRole('button', { name: /^保存/ }));
     await waitFor(() => expect(spy.mock.calls.filter(([m]) => m === 'PATCH')).toEqual([['PATCH', '/memory/tasks/task-hostlink', { expected_revision: expect.any(Number), goal: '断线 3 秒内恢复会话' }]]));
@@ -134,7 +134,7 @@ describe('记忆页', () => {
 
   it('a search on 项目 filters the projects', async () => {
     mount('&view=projects&q=周报');
-    expect(await screen.findByText('没有符合条件的项目', {}, { timeout: 3000 })).toBeTruthy();
+    expect(await screen.findByText('无匹配的项目', {}, { timeout: 3000 })).toBeTruthy();
     expect(projects()).toEqual([]);
     fireEvent.click(screen.getByRole('button', { name: '清除搜索' }));
     await waitFor(() => expect(projects()).toEqual(['task-hostlink']));
@@ -148,7 +148,7 @@ describe('记忆页', () => {
     mount('&view=projects');
     expect((await tab('项目')).getAttribute('aria-selected')).toBe('true');
     const bar = await screen.findByRole('alert', {}, { timeout: 3000 });
-    expect(bar.textContent).toContain('没有读到项目');
+    expect(bar.textContent).toContain('未能读取项目');
     expect(within(bar).getByRole('button', { name: /重试/ })).toBeTruthy();
     expect(screen.queryByText('未接入')).toBeNull();
   });
@@ -168,15 +168,15 @@ describe('记忆页', () => {
     const qc = mount('&view=projects');
     const detail = await screen.findByRole('complementary', { name: '这个项目' }, { timeout: 3000 });
     await within(detail).findByText(/验证断线恢复/);
-    fireEvent.click(within(detail).getByRole('button', { name: /^改目标/ }));
+    fireEvent.click(within(detail).getByRole('button', { name: /^修改目标/ }));
     latest = { ...task, goal: '断线后 10 秒内恢复', revision: task.revision + 1 };
     await act(() => qc.invalidateQueries({ queryKey: ['memory', 'task', 'task-hostlink'] }));
-    await within(detail).findByText(/已在别处更新为/);
+    await within(detail).findByText(/已在其他位置更新为/);
     const box = within(detail).getByRole('textbox', { name: '目标' });
     fireEvent.change(box, { target: { value: '断线 5 秒内恢复会话' } });
     fireEvent.click(within(detail).getByRole('button', { name: /^保存/ }));
     await waitFor(() => expect(spy.mock.calls.filter(([m]) => m === 'PATCH')).toEqual([['PATCH', '/memory/tasks/task-hostlink', { expected_revision: task.revision, goal: '断线 5 秒内恢复会话' }]]));
-    await screen.findByText('没有改：已在别处更新，已重新读取');
+    expect((await screen.findAllByText('未能修改：已在其他位置更新，已重新读取')).length).toBeGreaterThanOrEqual(1);
     expect((within(detail).getByRole('textbox', { name: '目标' }) as HTMLTextAreaElement).value).toBe('断线 5 秒内恢复会话');
     fireEvent.click(within(detail).getByRole('button', { name: '载入最新目标' }));
     expect((within(detail).getByRole('textbox', { name: '目标' }) as HTMLTextAreaElement).value).toBe('断线后 10 秒内恢复');
@@ -203,15 +203,15 @@ describe('记忆页', () => {
     fireEvent.click(within(detail).getByRole('button', { name: /^修改/ }));
     await read('PATCH', `/memory/facts/${id}`, { expected_version: 1, text: '晚上 11 点后不主动提醒', cascade: [] });
     await act(() => qc.invalidateQueries({ queryKey: ['memory', 'facts'] }));
-    await within(detail).findByText(/已在别处更新为「晚上 11 点后不主动提醒」/);
-    const box = within(detail).getByRole('textbox', { name: '修改这条记忆' });
+    await within(detail).findByText(/已在其他位置更新为「晚上 11 点后不主动提醒」/);
+    const box = within(detail).getByRole('textbox', { name: '编辑此条记忆' });
     fireEvent.change(box, { target: { value: '晚上 9 点后不主动提醒' } });
     fireEvent.keyDown(box, { key: 'Enter' });
     await waitFor(() => expect(spy.mock.calls.filter(([m]) => m === 'PATCH')).toEqual([['PATCH', `/memory/facts/${id}`, { expected_version: 1, text: '晚上 9 点后不主动提醒', cascade: [] }]]));
-    await screen.findByText('没有修改：已在别处更新，已重新读取');
-    expect((within(detail).getByRole('textbox', { name: '修改这条记忆' }) as HTMLTextAreaElement).value).toBe('晚上 9 点后不主动提醒');
+    expect((await screen.findAllByText('未能修改：已在其他位置更新，已重新读取')).length).toBeGreaterThanOrEqual(1);
+    expect((within(detail).getByRole('textbox', { name: '编辑此条记忆' }) as HTMLTextAreaElement).value).toBe('晚上 9 点后不主动提醒');
     fireEvent.click(within(detail).getByRole('button', { name: '载入最新版本' }));
-    expect((within(detail).getByRole('textbox', { name: '修改这条记忆' }) as HTMLTextAreaElement).value).toBe('晚上 11 点后不主动提醒');
+    expect((within(detail).getByRole('textbox', { name: '编辑此条记忆' }) as HTMLTextAreaElement).value).toBe('晚上 11 点后不主动提醒');
   });
 
   it('text typed while 修改 saves stays in the editor', async () => {
@@ -223,14 +223,14 @@ describe('记忆页', () => {
     mount(`&view=about&sel=${v31Id('p1')}`);
     const detail = await screen.findByRole('complementary', { name: '这条记忆' }, { timeout: 3000 });
     fireEvent.click(within(detail).getByRole('button', { name: /^修改/ }));
-    const box = within(detail).getByRole('textbox', { name: '修改这条记忆' });
+    const box = within(detail).getByRole('textbox', { name: '编辑此条记忆' });
     fireEvent.change(box, { target: { value: '回答先给结论' } });
     fireEvent.keyDown(box, { key: 'Enter' });
     fireEvent.change(box, { target: { value: '回答先给结论，再给理由' } });
     await waitFor(() => expect(reply).not.toBeNull());
     await act(async () => reply?.({ status: 200, body: { version: 2 } }));
-    await screen.findByText('改好了，下一句起按新的说');
-    expect((within(detail).getByRole('textbox', { name: '修改这条记忆' }) as HTMLTextAreaElement).value).toBe('回答先给结论，再给理由');
+    await screen.findByText('已更新记忆，后续对话将按新内容生效');
+    expect((within(detail).getByRole('textbox', { name: '编辑此条记忆' }) as HTMLTextAreaElement).value).toBe('回答先给结论，再给理由');
   });
 
   it('a rewrite agentd refuses comes back in the vote card editor', async () => {
@@ -239,26 +239,26 @@ describe('记忆页', () => {
     vi.spyOn(bridge.agentd, 'request').mockImplementation((async (method: string, path: string, body?: unknown) =>
       method === 'PATCH' ? { status: 400, body: { error: 'invalid_text' } } : read(method as 'GET', path, body)) as typeof bridge.agentd.request);
     mount('&view=about');
-    const c1 = await screen.findByRole('region', { name: '待确认：周报按项目分组，不按日期' }, { timeout: 3000 });
-    fireEvent.click(within(c1).getByRole('button', { name: '差不多，我来改' }));
-    fireEvent.change(within(c1).getByRole('textbox', { name: '改成' }), { target: { value: '周报按项目分组' } });
-    fireEvent.click(within(c1).getByRole('button', { name: /改好并记住/ }));
-    await screen.findByText(/^没有修改：/);
-    expect((within(c1).getByRole('textbox', { name: '改成' }) as HTMLTextAreaElement).value).toBe('周报按项目分组');
+    const c1 = await screen.findByRole('region', { name: '待处理记忆：周报按项目分组，不按日期' }, { timeout: 3000 });
+    fireEvent.click(within(c1).getByRole('button', { name: '修改后记住' }));
+    fireEvent.change(within(c1).getByRole('textbox', { name: '修改内容' }), { target: { value: '周报按项目分组' } });
+    fireEvent.click(within(c1).getByRole('button', { name: /保存并记住/ }));
+    await screen.findByText(/^未能修改：/);
+    expect((within(c1).getByRole('textbox', { name: '修改内容' }) as HTMLTextAreaElement).value).toBe('周报按项目分组');
   });
 
   it('撤销 after the rejection was already sent says so instead of 撤销了', async () => {
     const bridge = getBridge();
     const spy = vi.spyOn(bridge.agentd, 'request');
     mount('&view=about');
-    const c2 = await screen.findByRole('region', { name: '待确认：写代码时减少主动发言' }, { timeout: 3000 });
-    fireEvent.click(within(c2).getByRole('button', { name: '不是这样' }));
+    const c2 = await screen.findByRole('region', { name: '待处理记忆：写代码时减少主动发言' }, { timeout: 3000 });
+    fireEvent.click(within(c2).getByRole('button', { name: '不属实' }));
     const undo = await screen.findByRole('button', { name: '撤销' });
-    fireEvent.click(screen.getByRole('button', { name: /^全部/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^全部(?!确认)/ }));
     await waitFor(() => expect(spy.mock.calls.filter(([m, p]) => m === 'POST' && String(p).endsWith('/reject'))).toHaveLength(1));
     fireEvent.click(undo);
-    expect(await screen.findByText('已经划掉了，撤销不了')).toBeTruthy();
-    expect(screen.queryByText('撤销了，这条还在待确认里')).toBeNull();
+    expect(await screen.findByText('操作已提交，无法撤销')).toBeTruthy();
+    expect(screen.queryByText('已撤销，条目已恢复至待处理列表')).toBeNull();
   });
 
   it('?view=pipeline&station= opens 管线 at that station in 开发者模式', async () => {
@@ -273,15 +273,15 @@ describe('记忆页', () => {
   it('改好并记住 on a candidate that shares an observation lists what else goes and 取消 keeps the draft', async () => {
     const spy = vi.spyOn(getBridge().agentd, 'request');
     mount('&view=about');
-    const c3 = await screen.findByRole('region', { name: '待确认：构建习惯用 swift build -c release' }, { timeout: 3000 });
-    fireEvent.click(within(c3).getByRole('button', { name: '差不多，我来改' }));
-    fireEvent.change(within(c3).getByRole('textbox', { name: '改成' }), { target: { value: '构建用 swift build' } });
-    fireEvent.click(within(c3).getByRole('button', { name: /改好并记住/ }));
-    const ask = await screen.findByRole('alertdialog', { name: /^修改这条会删掉另外 \d 条记忆$/ });
+    const c3 = await screen.findByRole('region', { name: '待处理记忆：构建习惯用 swift build -c release' }, { timeout: 3000 });
+    fireEvent.click(within(c3).getByRole('button', { name: '修改后记住' }));
+    fireEvent.change(within(c3).getByRole('textbox', { name: '修改内容' }), { target: { value: '构建用 swift build' } });
+    fireEvent.click(within(c3).getByRole('button', { name: /保存并记住/ }));
+    const ask = await screen.findByRole('alertdialog', { name: /^修改该条目将同步删除另外 \d+ 条记忆$/ });
     expect([...ask.querySelectorAll('li')].map((li) => li.textContent)).toContain('在 Endfield 仓库开发角色应用，主要改 app/ 和 agent/');
     fireEvent.click(within(ask).getByRole('button', { name: '取消' }));
-    await waitFor(() => expect(within(c3).getByRole('textbox', { name: '改成' })).toBeTruthy());
-    expect((within(c3).getByRole('textbox', { name: '改成' }) as HTMLTextAreaElement).value).toBe('构建用 swift build');
+    await waitFor(() => expect(within(c3).getByRole('textbox', { name: '修改内容' })).toBeTruthy());
+    expect((within(c3).getByRole('textbox', { name: '修改内容' }) as HTMLTextAreaElement).value).toBe('构建用 swift build');
     expect(spy.mock.calls.filter(([m]) => m === 'PATCH')).toEqual([]);
   });
 
@@ -291,14 +291,14 @@ describe('记忆页', () => {
     mount(`&view=about&sel=${id}`);
     const detail = await screen.findByRole('complementary', { name: '这条记忆' }, { timeout: 3000 });
     fireEvent.click(within(detail).getByRole('button', { name: /^修改/ }));
-    const box = within(detail).getByRole('textbox', { name: '修改这条记忆' });
+    const box = within(detail).getByRole('textbox', { name: '编辑此条记忆' });
     fireEvent.change(box, { target: { value: '在 Endfield 仓库开发角色应用' } });
     fireEvent.keyDown(box, { key: 'Enter' });
-    const ask = await screen.findByRole('alertdialog', { name: /^修改这条会删掉另外 \d 条记忆$/ });
+    const ask = await screen.findByRole('alertdialog', { name: /^修改该条目将同步删除另外 \d+ 条记忆$/ });
     expect([...ask.querySelectorAll('li')].map((li) => li.textContent)).toContain('构建习惯用 swift build -c release');
     expect(spy.mock.calls.filter(([m]) => m === 'PATCH')).toEqual([]);
     fireEvent.click(within(ask).getByRole('button', { name: '仍然修改' }));
-    await screen.findByText('改好了，下一句起按新的说');
+    await screen.findByText('已更新记忆，后续对话将按新内容生效');
     expect(spy.mock.calls.filter(([m]) => m === 'PATCH')).toEqual([['PATCH', `/memory/facts/${id}`, expect.objectContaining({ text: '在 Endfield 仓库开发角色应用', cascade: expect.arrayContaining([v31Id('c3')]) })]]);
   });
 

@@ -68,7 +68,7 @@ describe('a chat line shows the moment it is sent', () => {
     const [row] = live(thread);
     expect(row).toBeTruthy();
     expect(within(row!).getByText('先回显这句')).toBeTruthy();
-    expect(within(row!).getByText('在想')).toBeTruthy();
+    expect(within(row!).getByText('思考中')).toBeTruthy();
 
     await reply(1, accepted(1));
     await waitFor(() => expect(thread.querySelector('[data-live="line-1"]')).toBeTruthy());
@@ -111,11 +111,11 @@ describe('a chat line shows the moment it is sent', () => {
     send(thread, '你好');
     await reply(1, accepted(1));
     const row = await waitFor(() => thread.querySelector<HTMLElement>('[data-live="line-1"]')!);
-    expect(within(row).getByText('在想')).toBeTruthy();
+    expect(within(row).getByText('思考中')).toBeTruthy();
 
     emit('line', { line_id: 'line-1', text_delta: '在这儿', final: false, conversation_id: C1, run_id: 'run-1' });
     expect(await within(row).findByText('在这儿')).toBeTruthy();
-    expect(within(row).queryByText('在想')).toBeNull();
+    expect(within(row).queryByText('思考中')).toBeNull();
   });
 
   it('two quick lines each take their own 202', async () => {

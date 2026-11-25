@@ -12,7 +12,7 @@ const KEY = ['character', 'settings'];
 /** Why settings.read failed, for the 读取设置失败 bars. */
 export const readFail = (e: unknown): string => {
   const code = (e as { code?: string } | null)?.code;
-  return code === 'config_unreadable' ? '读不了 config.json' : code === 'not_implemented' ? '这个版本还不支持' : '原生设置服务没有响应';
+  return code === 'config_unreadable' ? '无法读取 config.json' : code === 'not_implemented' ? '当前版本暂不支持' : '应用设置服务无响应';
 };
 
 export function useCharSettings(enabled = true) {
@@ -25,7 +25,7 @@ export function useCharSettings(enabled = true) {
   return { q, merge };
 }
 
-const RESTART: Record<string, string> = { none: '立即生效', avatar: '角色正在重新出现', backend: '重启后台服务后生效' };
+const RESTART: Record<string, string> = { none: '立即生效', avatar: '正在重载角色进程', backend: '重启后台服务后生效' };
 
 /** settings.save and one toast from its receipt: `ok · what happened`, or `fail：the shell's reason`. */
 export async function saveSettings(
@@ -38,17 +38,17 @@ export async function saveSettings(
   try {
     res = await getBridge().settings.save(changes);
   } catch {
-    toast(`${text.fail}：原生设置服务没有响应`, { severity: 'danger', persistent: true });
+    toast(`${text.fail}：应用设置服务无响应`, { severity: 'danger', persistent: true });
     return false;
   }
   if (res.error) {
     // The shell's text may carry an option key or a system message: logged, not shown.
     console.warn('settings.save refused', res.error);
-    toast(`${text.fail}：桌面端没有接受这次修改`, { severity: 'danger', persistent: true });
+    toast(`${text.fail}：应用宿主未接受本次修改`, { severity: 'danger', persistent: true });
     return false;
   }
   toast(`${text.ok} │ ${RESTART[res.restart] ?? RESTART.none}`);
-  if (res.notApplied.length) toast(`${res.notApplied.map((id) => `「${rows[id]?.label ?? id}」`).join('')}要重启 Agentic Complex 后生效`, { severity: 'warning', persistent: true });
+  if (res.notApplied.length) toast(`${res.notApplied.map((id) => `「${rows[id]?.label ?? id}」`).join('')}须重启 Agentic Complex 后生效`, { severity: 'warning', persistent: true });
   return true;
 }
 

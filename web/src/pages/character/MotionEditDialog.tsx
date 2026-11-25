@@ -24,21 +24,21 @@ export function MotionEditDialog({ edit, removeNote, onEdit, library }: { edit: 
     return (
       <Dialog
         open
-        title="改名"
+        title="重命名"
         onClose={close}
         footer={
           <>
             <Btn variant="secondary" onClick={close}>
               取消
             </Btn>
-            <Btn variant="primary" disabled={!titleOk(edit.title)} disabledReason="名字要 1–64 个字" onClick={() => saveTitle(edit.title)}>
+            <Btn variant="primary" disabled={!titleOk(edit.title)} disabledReason="名称须为 1–64 个字符" onClick={() => saveTitle(edit.title)}>
               保存
             </Btn>
           </>
         }
       >
         <label className={modal.field}>
-          动作名
+          动作名称
           <input
             className={modal.input}
             value={edit.title}

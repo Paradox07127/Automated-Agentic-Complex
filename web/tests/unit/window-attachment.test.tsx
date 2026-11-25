@@ -94,7 +94,7 @@ describe('window attachment', () => {
       expect(say.mock.calls[0]![0]).toMatchObject({ text: '这是什么', lookWindow: { windowId: 77, pid: 123 }, noMemory: false });
       return say;
     }
-    const recheck = () => flush(async () => fireEvent.click(screen.getByRole('button', { name: '重新检测' })));
+    const recheck = () => flush(async () => fireEvent.click(screen.getByRole('button', { name: '重试发送' })));
 
     it('without the window ✕ took off', async () => {
       const say = await failOnce();
@@ -107,7 +107,7 @@ describe('window attachment', () => {
 
     it('with 这一轮不记 turned on after the failure', async () => {
       const say = await failOnce();
-      fireEvent.click(screen.getByRole('button', { name: /这一轮不记/ }));
+      fireEvent.click(screen.getByRole('button', { name: /无痕对话/ }));
       await recheck();
       expect(say.mock.calls[1]![0]).toMatchObject({ text: '这是什么', noMemory: true, lookWindow: { windowId: 77, pid: 123 } });
     });

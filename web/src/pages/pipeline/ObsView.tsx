@@ -19,12 +19,12 @@ const COLS = [
 
 /** What switches observation off right now, else 开着. */
 function switchWord(o: DiagRead['observation']): string {
-  if (o?.off) return '观察已关';
+  if (o?.off) return '观察已关闭';
   const paused = isoToMsOrNull(o?.paused_until);
-  if (paused != null) return `暂停到 ${formatClock(paused)}`;
+  if (paused != null) return `暂停至 ${formatClock(paused)}`;
   const quiet = isoToMsOrNull(o?.quiet_until);
-  if (quiet != null) return `安静到 ${formatClock(quiet)}`;
-  return o?.meeting ? '开会中' : '开着';
+  if (quiet != null) return `免打扰至 ${formatClock(quiet)}`;
+  return o?.meeting ? '会议中' : '已开启';
 }
 
 /** 观察：额度读数和最近的请求，一行一次，展开看那一次的详情。 */
@@ -72,14 +72,14 @@ export function ObsView({ diag, readAt, now, selected, onSelect }: { diag: DiagR
     <>
       <Reads
         cells={[
-          { value: shots ? shots.limit - shots.used : '—', label: '今天还能截图', tone: full ? 'warn' : 'main' },
-          { value: shots?.reserved ?? '—', label: '预留（等结果）' },
-          { value: shots?.released ?? '—', label: '已释放（没用上，已退回）', opt: true },
+          { value: shots ? shots.limit - shots.used : '—', label: '今日剩余截图额度', tone: full ? 'warn' : 'main' },
+          { value: shots?.reserved ?? '—', label: '已预留（待完成）' },
+          { value: shots?.released ?? '—', label: '已释放（未使用，已返还）', opt: true },
           { value: switchWord(o), label: '观察开关', tone: 'ink' },
         ]}
       />
-      <Panel title="最近请求" count={recent.length} micro="REQUESTS" tip="后台只留最近几条；详情在后台内存里，重启就没了">
-        {rows.length > 0 ? <GameTable label="最近请求" columns={COLS} rows={rows} selected={selected} onSelect={onSelect} /> : <None title="还没有观察请求" desc="开关和排除名单在底栏「观察设置」" icon="look" />}
+      <Panel title="最近请求" count={recent.length} micro="REQUESTS" tip="后台服务仅保留最近若干条记录；详情暂存于内存，重启服务后清空">
+        {rows.length > 0 ? <GameTable label="最近请求" columns={COLS} rows={rows} selected={selected} onSelect={onSelect} /> : <None title="尚无观察请求" desc="开关与排除名单配置位于底栏「观察设置」" icon="look" />}
       </Panel>
     </>
   );

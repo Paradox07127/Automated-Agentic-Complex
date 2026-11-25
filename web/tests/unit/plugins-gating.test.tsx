@@ -99,8 +99,8 @@ describe('settings rows of a plug-in', () => {
     await mount('');
     fireEvent.change(await screen.findByRole('textbox', { name: '搜索设置' }), { target: { value: '简报' } });
     // The band and the brief's own row share the name; only the band is offered while the plug-in is off.
-    expect(hits('每日简报')).toHaveLength(1);
-    expect(hits('每周简报')).toEqual([]);
+    expect(hits('每日简报功能')).toHaveLength(1);
+    expect(hits('启用每周简报')).toEqual([]);
     cleanup();
     // The page takes the switches from config.json, so the plug-in is saved on there too, in a bridge of this test's own.
     pluginsOn('daily_brief');
@@ -109,8 +109,8 @@ describe('settings rows of a plug-in', () => {
       await window.agenticComplex.settings.save({ 'plugins.daily_brief': true });
       await mount('');
       fireEvent.change(await screen.findByRole('textbox', { name: '搜索设置' }), { target: { value: '简报' } });
-      expect(hits('每日简报')).toHaveLength(2);
-      expect(hits('每周简报')).toHaveLength(1);
+      expect(hits('启用每日简报')).toHaveLength(1);
+      expect(hits('启用每周简报')).toHaveLength(1);
     } finally {
       delete window.agenticComplex;
     }
@@ -118,14 +118,14 @@ describe('settings rows of a plug-in', () => {
 
   it('leave 感知 with the outbound plate, the folded bands and the redaction switch, and hide no group', async () => {
     await mount('&group=privacy');
-    expect(await screen.findByRole('switch', { name: '发出前遮蔽敏感内容' })).toBeTruthy();
-    for (const gone of ['窗口文字', '读会话里的工具输入输出', '识读时附上截图']) expect(screen.queryByRole('switch', { name: gone })).toBeNull();
+    expect(await screen.findByRole('switch', { name: '发送前脱敏敏感信息' })).toBeTruthy();
+    for (const gone of ['允许读取窗口文本', '允许读取编码会话', '屏幕识读时附带截图']) expect(screen.queryByRole('switch', { name: gone })).toBeNull();
     expect(screen.queryByRole('button', { name: '暂停 1 小时' })).toBeNull();
     expect(document.querySelector('[data-row="out"]')).not.toBeNull();
     // Besides the bands' own switches, 键鼠计数 is the only reading left: the coarse beat reads it with screen awareness off.
     const rows = [...document.querySelectorAll('[data-row]:not([data-row^="plugins."])')].filter((r) => r.querySelector('[role="switch"]'));
     expect(rows.map((r) => r.getAttribute('data-row'))).toEqual(['keys', 'mask']);
-    expect(screen.getByText(/^关着 │ 打开后可以设：窗口文字/)).toBeTruthy();
+    expect(screen.getByText(/^关着 │ 打开后可以设：窗口文本/)).toBeTruthy();
     const nav = screen.getByRole('tablist', { name: '设置分组' });
     expect(within(nav).getAllByRole('tab').map((t) => t.getAttribute('title'))).toEqual(['交流', '能力', '感知', '显示', '内核', '服务', '快捷键', '数据', '关于']);
   });
@@ -194,17 +194,16 @@ describe('settings › the plug-in bands', () => {
 
   it('give eight plug-ins a band with a switch each in the group they affect; AI has its one 「AI 对话」 switch instead', async () => {
     const bands: Record<string, string[]> = {
-      perm: ['操作电脑', '派发任务和定时任务', '外部智能体接入', '生成新动作'],
-      privacy: ['屏幕感知', '屏幕识读', '编码会话', '每日简报'],
-      kernel: ['AI 对话'],
+      perm: ['电脑操作', '派发任务与定时任务', '外部接入', '动作生成'],
+      privacy: ['屏幕感知', '屏幕识读', '编码会话', '每日简报功能'],
+      kernel: ['轻量 AI（对话、语音、记忆）'],
     };
     for (const [group, names] of Object.entries(bands)) {
       await mount(`&group=${group}`);
       await screen.findAllByRole('switch');
-      if (group === 'kernel') await screen.findByRole('switch', { name: 'AI 对话' });
+      if (group === 'kernel') await screen.findByRole('switch', { name: '轻量 AI（对话、语音、记忆）' });
       const shown = [...document.querySelectorAll('[data-row^="plugins."]')];
       expect(shown.map((b) => within(b as HTMLElement).getByRole('switch').getAttribute('aria-label')), group).toEqual(names);
-      expect(screen.queryByText(/轻量/)).toBeNull();
       cleanup();
     }
     // The permissions a band needs sit on it as chips; ✕ marks one not granted.
@@ -219,7 +218,7 @@ describe('settings › the plug-in bands', () => {
     const save = vi.spyOn(getBridge().settings, 'save');
     await mount('&group=privacy');
     await screen.findAllByRole('switch');
-    const sw = within(band('daily_brief')).getByRole('switch', { name: '每日简报' });
+    const sw = within(band('daily_brief')).getByRole('switch', { name: '每日简报功能' });
     expect(getPlugins().daily_brief).toBe(false);
     await act(async () => fireEvent.click(sw));
     expect(save).toHaveBeenCalledWith({ 'plugins.daily_brief': true });

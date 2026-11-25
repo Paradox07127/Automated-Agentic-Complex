@@ -35,7 +35,7 @@ async function mount(search = '') {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  await (search ? screen.findByRole('navigation', { name: '角色分区' }) : screen.findByRole('region', { name: 'MMD 库' }));
+  await (search ? screen.findByRole('navigation', { name: '角色分区' }) : screen.findByRole('region', { name: 'MMD 舞蹈库' }));
   await act(async () => {});
 }
 
@@ -116,7 +116,7 @@ describe('MMD list', () => {
     await add('mmd_a');
     expect(set).toHaveBeenLastCalledWith('si', { items: ['mmd_a'], loop: 'off', speed: 1 });
     await waitFor(() => expect(row('mmd_a')).toBeNull());
-    expect(vi.mocked(pushToast)).toHaveBeenLastCalledWith('改 MMD 列表没有完成：角色刚被换过', { severity: 'danger' });
+    expect(vi.mocked(pushToast)).toHaveBeenLastCalledWith('修改 MMD 列表未完成：角色状态已变更', { severity: 'danger' });
   });
 
   it('plays and stops the list from one key and marks the card playing now', async () => {
@@ -128,7 +128,7 @@ describe('MMD list', () => {
     await list();
     await waitFor(() => expect(row('mmd_b').getAttribute('aria-current')).toBe('true'));
     expect(row('mmd_a').getAttribute('aria-current')).toBeNull();
-    expect((await list()).textContent).toContain('桌面正在播第 2 首');
+    expect((await list()).textContent).toContain('桌面正在播放第 2 项');
     expect(within(await list()).queryByRole('button', { name: /连播/ })).toBeNull();
     state.mockResolvedValue({ playing: false, index: null, id: null });
     await click(within(await list()).getByRole('button', { name: /停止/ }));
@@ -142,7 +142,7 @@ describe('MMD list', () => {
     await mount();
     const key = within(await list()).getByRole('button', { name: /连播/ }) as HTMLButtonElement;
     expect(key.disabled).toBe(true);
-    expect(key.title).toBe('先把动作加入列表');
+    expect(key.title).toBe('请先将舞蹈加入列表');
   });
 });
 

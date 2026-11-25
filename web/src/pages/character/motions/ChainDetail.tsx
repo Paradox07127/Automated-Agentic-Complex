@@ -8,7 +8,7 @@ import type { Junction } from './joints';
 import styles from './Detail.module.css';
 
 export const NOTE_MAX = 500;
-export const REQUIRED_TEXT = '基础动作，不能关';
+export const REQUIRED_TEXT = '基础动作，不可关闭';
 
 export interface ChainDetailProps {
   row: ChainRow;
@@ -81,7 +81,7 @@ export function ChainDetail(p: ChainDetailProps) {
       {!p.edit.on &&
         (at != null && clip ? (
           <div className={styles.blend}>
-            <span className={styles.k} title="进入混合按片段生效：所有进入这个片段的地方都用这个秒数">
+            <span className={styles.k} title="入向混合时间按动作片段生效：所有接入该片段的位置均使用此数值">
               进入 <b>{shortName(clip)}</b> 的混合
             </span>
             <span className={styles.sl}>
@@ -101,10 +101,10 @@ export function ChainDetail(p: ChainDetailProps) {
             </span>
             <span className={styles.val}>{blendOf(at).toFixed(2)} s</span>
             <span className={styles.pack}>包里 {pack(at).toFixed(2)} s</span>
-            {p.blendIn(clip) !== undefined && <WhiteCapsule label="用包里的" icon="refresh" disabled={off} {...(off ? { disabledReason: p.lock! } : {})} onClick={() => onBlend(at, null)} />}
+            {p.blendIn(clip) !== undefined && <WhiteCapsule label="恢复默认" icon="refresh" disabled={off} {...(off ? { disabledReason: p.lock! } : {})} onClick={() => onBlend(at, null)} />}
           </div>
         ) : (
-          <p className={styles.hint}>点一个衔接改混合秒数；也可以左右拖它，或用 ← → 键。</p>
+          <p className={styles.hint}>点击衔接节点可调整混合时长；亦支持左右拖拽或使用 ← → 方向键调节。</p>
         ))}
       {p.edit.on && p.edit.panel}
       <div className={styles.acts}>
@@ -116,17 +116,17 @@ export function ChainDetail(p: ChainDetailProps) {
           {...(p.previewBlock != null ? { disabledReason: p.previewBlock } : {})}
           onClick={() => p.onPreview(path.segs.map((s) => s.seg.clip), path.segs.slice(1).map((_, i) => blendOf(i + 1)))}
         />
-        <WhiteCapsule label="桌面播一次" icon="play" disabled={p.playBlock != null} {...(p.playBlock != null ? { disabledReason: p.playBlock } : {})} onClick={p.onPlay} />
+        <WhiteCapsule label="桌面播放一次" icon="play" disabled={p.playBlock != null} {...(p.playBlock != null ? { disabledReason: p.playBlock } : {})} onClick={p.onPlay} />
         <WhiteCapsule label={p.edit.on ? '结束编辑' : '编辑结构'} icon="tool" onClick={p.edit.onToggle} />
         <WhiteCapsule label="备注" icon="file" onClick={() => setNoting(!noting)} />
-        <WhiteCapsule label="从这个池去掉" icon="del" disabled={p.removeBlock != null} {...(p.removeBlock != null ? { disabledReason: p.removeBlock } : {})} onClick={p.onRemove} />
+        <WhiteCapsule label="从此动作池移除" icon="del" disabled={p.removeBlock != null} {...(p.removeBlock != null ? { disabledReason: p.removeBlock } : {})} onClick={p.onRemove} />
         <span className={styles.sp} />
         <span className={styles.oo}>
-          <span className={styles.lbl}>所有池抽到时</span>
+          <span className={styles.lbl}>所有动作池触发时</span>
           {row.required ? (
             <span className={styles.req}>{REQUIRED_TEXT}</span>
           ) : (
-            <Switch variant="setting" label={`所有池抽到「${row.label}」时`} checked={p.on} disabled={off} onChange={p.onToggle} />
+            <Switch variant="setting" label={`所有动作池触发「${row.label}」时`} checked={p.on} disabled={off} onChange={p.onToggle} />
           )}
         </span>
       </div>
@@ -147,7 +147,7 @@ export function ChainDetail(p: ChainDetailProps) {
             maxLength={NOTE_MAX}
             rows={2}
             disabled={off}
-            placeholder="写给自己看的，不会发给角色"
+            placeholder="仅作本地记录，不会发送给角色"
             onChange={(e) => p.onNote(e.currentTarget.value.slice(0, NOTE_MAX))}
           />
           <span className={styles.count}>

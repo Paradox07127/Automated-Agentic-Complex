@@ -202,8 +202,8 @@ describe('NotFound', () => {
 
   it('offers 回到主页', () => {
     render(<NotFound />);
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('没有这个页面');
-    fireEvent.click(screen.getByRole('button', { name: /回到主页/ }));
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('页面不存在');
+    fireEvent.click(screen.getByRole('button', { name: /返回主页/ }));
     expect(window.location.hash).toMatch(/^#\/home\?/);
   });
 });

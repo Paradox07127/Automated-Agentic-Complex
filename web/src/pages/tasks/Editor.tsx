@@ -12,8 +12,8 @@ import styles from './Editor.module.css';
 
 /** What each mode lets the coding tool do (own.py MODES: Claude permission mode, Codex sandbox). */
 const MODE_NOTE = {
-  read_only: 'Claude 每次改动都要你批准；Codex 在只读沙箱里',
-  workspace_write: 'Claude 自动接受改动；Codex 能改这个目录里的文件',
+  read_only: 'Claude Code 每次修改均须手动批准；Codex 运行于只读沙箱',
+  workspace_write: 'Claude Code 自动接受修改；Codex 允许修改当前目录内文件',
 } as const;
 
 export interface EditorProps {
@@ -83,29 +83,29 @@ export function Editor({ draft: d, onChange, who, scopes, conversations, canPick
           <h2>{title}</h2>
         </div>
         <div className={detail.meta}>
-          <span>{repeat ? '保存后按时间自己跑；开关随时能停' : '派出去后在「进行中」里看做到哪一步'}</span>
+          <span>{repeat ? '保存后将按计划自动执行，可随时通过开关停用' : '派发后可在「进行中」列表查看执行进度'}</span>
         </div>
         <div className={detail.sep} />
       </div>
       <div className={detail.scroll}>
         <div className={styles.form} role="form" aria-label={title} data-nav-target="task-create">
           {!d.scheduleId && (
-            <Row label="交给谁">
-              <GameSeg label="交给谁" value={d.type} options={[{ value: 'role', label: `${who}（角色任务）` }, ...(codeOn ? [{ value: 'code', label: '编码会话' }] : [])]} onChange={(v) => set({ type: v as EditDraft['type'], ...(v === 'code' ? { when: 'now' as const } : {}) })} />
+            <Row label="执行主体">
+              <GameSeg label="执行主体" value={d.type} options={[{ value: 'role', label: `${who}（角色任务）` }, ...(codeOn ? [{ value: 'code', label: '编码会话' }] : [])]} onChange={(v) => set({ type: v as EditDraft['type'], ...(v === 'code' ? { when: 'now' as const } : {}) })} />
             </Row>
           )}
           {role && !d.scheduleId && (
-            <Row label="什么时候">
-              <GameSeg label="什么时候" value={d.when} options={[{ value: 'now', label: '现在' }, { value: 'repeat', label: '按时重复' }]} onChange={(v) => set({ when: v as EditDraft['when'] })} />
+            <Row label="执行方式">
+              <GameSeg label="执行方式" value={d.when} options={[{ value: 'now', label: '立即执行' }, { value: 'repeat', label: '定时重复' }]} onChange={(v) => set({ when: v as EditDraft['when'] })} />
             </Row>
           )}
           {role && (
             <Row label="标题">
-              <Field label="标题" value={d.title} placeholder={repeat ? '例如：每日代码变更小结' : '给任务起个名字'} onChange={(v) => set({ title: v })} />
+              <Field label="标题" value={d.title} placeholder={repeat ? '例如：每日代码变更小结' : '请输入任务标题'} onChange={(v) => set({ title: v })} />
             </Row>
           )}
-          <Row label={repeat ? '指令' : '要求'} note={repeat ? '每次运行都照这段做' : '要做什么，做到什么程度'} top>
-            <TextArea label={repeat ? '指令' : '要求'} rows={3} value={d.brief} placeholder={repeat ? '交给后台作业执行的说明' : '要做什么，做到什么程度？'} onChange={(v) => set({ brief: v })} />
+          <Row label={repeat ? '执行指令' : '任务要求'} note={repeat ? '每次触发均按此指令执行' : '请描述任务目标与完成标准'} top>
+            <TextArea label={repeat ? '执行指令' : '任务要求'} rows={3} value={d.brief} placeholder={repeat ? '提供给定时任务的执行指令' : '请描述具体任务内容与预期完成标准'} onChange={(v) => set({ brief: v })} />
           </Row>
           {!role && (
             <>
@@ -114,9 +114,9 @@ export function Editor({ draft: d, onChange, who, scopes, conversations, canPick
               </Row>
               <Row label="目录">
                 <span className={styles.dir}>
-                  <Field label="目录" mono readOnly value={d.cwd?.displayName ?? ''} placeholder="还没有选目录" />
+                  <Field label="目录" mono readOnly value={d.cwd?.displayName ?? ''} placeholder="尚未选择目录" />
                 </span>
-                <Btn size="sm" variant="ghost" icon="folder" disabled={!canPick} disabledReason="这台电脑的外壳不支持原生目录选择" onClick={onPickFolder}>
+                <Btn size="sm" variant="ghost" icon="folder" disabled={!canPick} disabledReason="当前客户端环境暂不支持原生目录选择" onClick={onPickFolder}>
                   选择…
                 </Btn>
               </Row>
@@ -158,31 +158,31 @@ export function Editor({ draft: d, onChange, who, scopes, conversations, canPick
             </Row>
           )}
           {repeat && d.trig === 'session_done' && (
-            <Row label="哪个工具">
-              <GameSeg label="哪个工具" value={d.target ?? 'all'} options={[{ value: 'all', label: '不限' }, { value: 'claude', label: 'Claude Code' }, { value: 'codex', label: 'Codex' }]} onChange={(v) => set({ target: v === 'all' ? null : (v as 'claude' | 'codex') })} />
+            <Row label="触发工具">
+              <GameSeg label="触发工具" value={d.target ?? 'all'} options={[{ value: 'all', label: '不限' }, { value: 'claude', label: 'Claude Code' }, { value: 'codex', label: 'Codex' }]} onChange={(v) => set({ target: v === 'all' ? null : (v as 'claude' | 'codex') })} />
               <span className={styles.project}>
-                <Field label="项目" value={d.project} placeholder="项目，留空匹配所有项目" onChange={(v) => set({ project: v })} />
+                <Field label="项目" value={d.project} placeholder="项目名，留空匹配所有项目" onChange={(v) => set({ project: v })} />
               </span>
             </Row>
           )}
           {role && (
-            <Row label="授权资料" note={repeat ? '只读这里选的；到期后暂停' : '只读这里选的'}>
-              <Pick label="授权资料" value={d.scopeId} options={scopes} missing="不读资料" onChange={(v) => set({ scopeId: v })} />
+            <Row label="授权资料" note={repeat ? '仅限读取所选范围；过期后自动暂停' : '仅限读取所选范围'}>
+              <Pick label="授权资料" value={d.scopeId} options={scopes} missing="未关联资料范围" onChange={(v) => set({ scopeId: v })} />
             </Row>
           )}
           {repeat && (
             <Row label="关联对话">
-              <Pick label="关联对话" value={d.conversationId} options={conversations} missing="独立任务" onChange={(v) => set({ conversationId: v })} />
+              <Pick label="关联对话" value={d.conversationId} options={conversations} missing="独立定时任务" onChange={(v) => set({ conversationId: v })} />
             </Row>
           )}
           {role && !repeat && (
             <Fold label="验收条件" summary={d.artifact.trim() || undefined}>
               <div className={styles.form}>
-                <Row label="预期产物" note="相对产物文件夹；md / txt / csv / json">
+                <Row label="预期产物" note="相对于产物输出目录；支持 md / txt / csv / json">
                   <Field label="预期产物" mono value={d.artifact} placeholder="例如：汇总.md" onChange={(v) => set({ artifact: v })} />
                 </Row>
-                <Row label="必须有的章节">
-                  <Field label="必须有的章节" value={d.sections} placeholder="用顿号隔开" onChange={(v) => set({ sections: v })} />
+                <Row label="必须包含的章节">
+                  <Field label="必须包含的章节" value={d.sections} placeholder="用顿号（、）分隔" onChange={(v) => set({ sections: v })} />
                 </Row>
               </div>
             </Fold>

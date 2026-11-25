@@ -208,11 +208,11 @@ const TRANSPORT_OPS: readonly unknown[] = ['pause', 'resume', 'seek'];
 const progressJson = (p: ActionProgress | null) => (p === null ? null : { id: p.id, tS: p.t, durationS: p.duration, paused: p.paused });
 /** Metrics.avatarScale. */
 const SCALES = { min: 0.5, max: 2 };
-const NO_LINK = '角色还没连上（配置出错）';
+const NO_LINK = '角色渲染进程未连接（配置异常）';
 /** A renderer that does not list the capability. */
-const UNLISTED = '这个版本的角色不支持动作设置';
+const UNLISTED = '当前版本角色不支持动作设置';
 /** Said when the character a page meant is no longer the current one. */
-const CHANGED = '角色刚换过，这次没有改';
+const CHANGED = '当前角色已切换，本次修改未生效';
 
 /** HostLink `listing`: both sides list `capability`, and she lists each of `hers` too. */
 const listing = (host: AvatarHost, capability: string, ...hers: string[]): boolean =>
@@ -627,7 +627,7 @@ export function avatarOps(ctx: OpsContext): Ops {
         writeObject(ctx.config.path, storeOverrides(readObject(ctx.config.path), character, overrides));
       } catch (e) {
         ctx.log(`motion_overrides ${character} not stored: ${e instanceof Error ? e.message : String(e)}`);
-        throw new BridgeFailure('not_stored', `动作设置没有存下：${e instanceof Error ? e.message : String(e)}`);
+        throw new BridgeFailure('not_stored', `动作设置保存失败：${e instanceof Error ? e.message : String(e)}`);
       }
       if (link.hello === null || !listing(link, 'motion_overrides', 'actions', 'ack')) throw new BridgeFailure('not_implemented', UNLISTED);
       return bridged(async () => {
@@ -656,9 +656,9 @@ export function avatarOps(ctx: OpsContext): Ops {
           if (failure) reject(failure);
           else resolve(null);
         };
-        const timer = setTimeout(() => finish(new BridgeFailure('failed', '角色没有回应')), LINK_TIMING.playStart * 1000);
+        const timer = setTimeout(() => finish(new BridgeFailure('failed', '角色渲染进程无响应')), LINK_TIMING.playStart * 1000);
         const off = link.on!((e) => {
-          if (e.kind === 'lost') finish(new BridgeFailure('failed', '和角色的连接断了'));
+          if (e.kind === 'lost') finish(new BridgeFailure('failed', '角色连接已断开'));
           if (e.kind !== 'message' || e.message.type !== 'action_played' || e.message.play_id !== playId) return;
           const m = e.message as ActionPlayed;
           finish(m.phase === 'rejected' ? chainRejected(m.reason ?? '') : null);

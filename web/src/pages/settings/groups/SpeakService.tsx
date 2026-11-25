@@ -9,10 +9,10 @@ import { SetRow } from '../SetRow';
 /** POST /voice/test `reason` → what the test row says. */
 function voiceTestFailure(reason: string | null): string {
   const status = /^http_(\d+)$/.exec(reason ?? '')?.[1];
-  if (reason === 'http_401') return '令牌不对';
-  if (status) return `服务返回 ${status}`;
-  const text: Record<string, string> = { invalid_url: '地址不可用：要以 http:// 或 https:// 开头', unreachable: '连不上', bad_stream: '返回的不是语音流', timeout: '超时' };
-  return text[reason ?? ''] ?? '没有通过';
+  if (reason === 'http_401') return '令牌无效';
+  if (status) return `服务返回状态码 ${status}`;
+  const text: Record<string, string> = { invalid_url: '地址格式无效：须以 http:// 或 https:// 开头', unreachable: '无法连接', bad_stream: '返回值非有效语音流', timeout: '请求超时' };
+  return text[reason ?? ''] ?? '测试未通过';
 }
 
 /**
@@ -32,16 +32,16 @@ export function TtsSecretRows({ pending }: { pending: boolean }) {
         reload('diag');
         model.notify({ message: '令牌已保存', severity: 'success' });
       },
-      (e) => model.notify({ message: `没能保存令牌：${failure(e).text}`, severity: 'danger', persistent: true }),
+      (e) => model.notify({ message: `未能保存令牌：${failure(e).text}`, severity: 'danger', persistent: true }),
     );
   const runTest = async () => {
     setTesting(true);
     const t = token.trim();
     try {
       const r = await testVoice(t ? { token: t } : {});
-      setTest({ ok: r.ok, text: r.ok ? `通过 │ 首声 ${r.first_audio_ms} ms` : voiceTestFailure(r.reason) });
+      setTest({ ok: r.ok, text: r.ok ? `通过 │ 首包延迟 ${r.first_audio_ms} ms` : voiceTestFailure(r.reason) });
     } catch (e) {
-      setTest({ ok: false, text: e instanceof AgentdCallError && e.code === 'no_tts' ? '语音没有启用' : failure(e).text });
+      setTest({ ok: false, text: e instanceof AgentdCallError && e.code === 'no_tts' ? '语音服务未启用' : failure(e).text });
     }
     setTesting(false);
   };
@@ -51,12 +51,12 @@ export function TtsSecretRows({ pending }: { pending: boolean }) {
       <SetRow
         id="ttsToken"
         title="令牌"
-        desc={diag.voiceTokenSet ? '令牌已保存' : '令牌不回显'}
-        info="令牌只送给后台，不回显；在这张卡上换语音服务地址会删掉旧令牌。"
+        desc={diag.voiceTokenSet ? '令牌已保存' : '令牌仅保存于后台服务，不予回显'}
+        info="令牌仅保存于后台服务；更改语音服务地址后将自动清除旧令牌。"
         control={
           <>
             <Field type="password" label="令牌" placeholder="粘贴令牌" value={token} disabled={agentdOff} onChange={setToken} />
-            <Btn disabled={agentdOff || !token.trim() || pending} disabledReason={pending ? '先应用上面的改动' : undefined} onClick={saveToken}>
+            <Btn disabled={agentdOff || !token.trim() || pending} disabledReason={pending ? '请先点击底部「应用」保存上方更改' : undefined} onClick={saveToken}>
               保存
             </Btn>
           </>
@@ -68,7 +68,7 @@ export function TtsSecretRows({ pending }: { pending: boolean }) {
         control={
           <>
             {test && <StatusLamp size="sm" state={test.ok ? 'ok' : 'broken'} label={test.text} />}
-            <Btn loading={testing} disabled={agentdOff || pending} disabledReason={agentdOff ? '后台服务没有运行' : '先应用上面的改动'} onClick={() => void runTest()}>
+            <Btn loading={testing} disabled={agentdOff || pending} disabledReason={agentdOff ? '后台服务未运行' : '请先点击底部「应用」保存上方更改'} onClick={() => void runTest()}>
               测试
             </Btn>
           </>

@@ -8,7 +8,7 @@ import { OverviewPage } from './Page';
 export function OverviewGate() {
   if (usePlugins().daily_brief) return <OverviewPage />;
   return (
-    <PowerState state="off" mode="page" title="每日简报" reason="设置里关掉了「每日简报」，不汇总今天做了什么，也不记新的工作记录。" action={{ label: '前往设置打开', onClick: () => navigate({ page: 'settings', group: 'privacy', item: 'plugins.daily_brief' }) }}>
+    <PowerState state="off" mode="page" title="每日简报" reason="已在设置中关闭「每日简报」，将不汇总当日工作摘要与生成新的工作记录。" action={{ label: '前往开启', onClick: () => navigate({ page: 'settings', group: 'privacy', item: 'plugins.daily_brief' }) }}>
       <SlotsOff>
         <OverviewPage />
       </SlotsOff>

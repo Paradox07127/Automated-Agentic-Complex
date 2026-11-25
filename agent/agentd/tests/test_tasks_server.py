@@ -169,7 +169,7 @@ class TaskServerTest(unittest.TestCase):
         second.recover_tasks()
         [interrupted] = self.announced(second)
         self.assertEqual((interrupted["kind"], interrupted["level"], interrupted["headline"], interrupted["state"]),
-                         ("task_interrupted", "P1", "「改一下 README」被重启打断了", "terminal"))
+                         ("task_interrupted", "P1", "「改一下 README」因服务重启而中断", "terminal"))
         self.assertEqual(second.tasks.get(task["task_id"])["state"], "interrupted")
         third = self.start()
         third.recover_tasks()
@@ -180,7 +180,7 @@ class TaskServerTest(unittest.TestCase):
         second = self.start()
         second.recover_tasks()
         self.assertEqual([(a["kind"], a["level"], a["headline"]) for a in self.announced(second)],
-                         [("task_expired", "P2", "「改一下 README」没开始就过期了")])
+                         [("task_expired", "P2", "「改一下 README」尚未开始即已过期")])
 
     def test_accept_and_reject_settle_only_a_task_that_needs_review(self):
         accepted, session = self.dispatch()

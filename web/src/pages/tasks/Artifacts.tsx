@@ -20,7 +20,7 @@ export interface ArtifactsProps {
   onRevert: (d: Delivery, a: Artifact) => void;
 }
 
-const check = (a: Artifact) => (a.validation ? (a.validation.ok ? '检查通过' : '检查没过') : a.self_checked ? '尝试自检' : '未检查');
+const check = (a: Artifact) => (a.validation ? (a.validation.ok ? '检查通过' : '检查未通过') : a.self_checked ? '已自检' : '未检查');
 const bar = (a: Artifact) => (a.validation ? (a.validation.ok ? 'var(--ef-mission-accent)' : 'var(--ef-danger-vivid)') : 'var(--ef-g-lock)');
 const verdict = (d: Delivery) => (d.state === 'accepted' ? `已接受${d.decided_at ? ` ${formatClock(d.decided_at)}` : ''}` : d.state === 'rejected' ? '已驳回' : '待复核');
 
@@ -57,7 +57,7 @@ export function Artifacts({ deliveries, canReveal, nativeOff, onOpen, onReveal, 
       <SecHead
         title="产物"
         count={d.artifacts.length}
-        right={<InfoTip>{`${d.verification_source === 'auto' ? '已自动检查' : '未验证'}。点开文件；右键${canReveal ? `${revealText('在 Finder 中显示')}、` : ''}复制路径。`}</InfoTip>}
+        right={<InfoTip>{`${d.verification_source === 'auto' ? '已自动检查' : '未验证'}。点击打开文件；右键可${canReveal ? `${revealText('在 Finder 中显示')}或` : ''}复制路径。`}</InfoTip>}
       />
       <div className={styles.rw}>
         <Box className={styles.wm} />
@@ -65,13 +65,13 @@ export function Artifacts({ deliveries, canReveal, nativeOff, onOpen, onReveal, 
           <span className={styles.v}>v{d.version}</span>
           <small>{verdict(d)}</small>
           <small>
-            看过 <span className="num">{open} / {d.artifacts.length}</span>
+            已查看 <span className="num">{open} / {d.artifacts.length}</span>
           </small>
           <Micro />
         </div>
         {d.redacted ? (
           <p className={detail.desc} data-dim="" role="status">
-            这一版已撤回：标题、摘要和产物都不再显示
+            该版本已撤回：标题、摘要及产物已隐藏
           </p>
         ) : (
           <div className={styles.files} role="group" aria-label="产物">
@@ -100,7 +100,7 @@ export function Artifacts({ deliveries, canReveal, nativeOff, onOpen, onReveal, 
                     {a.name.split('.').pop()}
                   </span>
                 </span>
-                {!a.opened && <span className={styles.seen} title="还没打开过" />}
+                {!a.opened && <span className={styles.seen} title="尚未打开" />}
                 <b>{a.name}</b>
                 <small>{check(a)}</small>
               </button>
@@ -116,7 +116,7 @@ export function Artifacts({ deliveries, canReveal, nativeOff, onOpen, onReveal, 
       <ContextMenu label={menu?.a.name ?? ''} items={menu ? items(menu.a) : []} at={menu} onClose={() => setMenu(null)} />
       <Dialog
         open={revert != null}
-        title={`把「${revert?.name ?? ''}」撤回到 v${(revert?.version ?? 2) - 1}？`}
+        title={`确认将「${revert?.name ?? ''}」恢复至 v${(revert?.version ?? 2) - 1}？`}
         onClose={() => setRevert(null)}
         footer={
           <>

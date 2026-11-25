@@ -154,7 +154,7 @@ export function HomePage() {
     const closed = k.plugin && !plugins[k.plugin] ? offReason(k.plugin) : undefined;
     const base = { id: k.id, icon: k.icon, title: k.title, hotkey: k.hotkey };
     if (k.act) return [{ ...base, off: closed ?? (k.act in off ? off[k.act as keyof typeof off] : undefined), onClick: acts[k.act] }];
-    return [{ ...base, mark: closed ? <PowerMark state="off" compact reason={closed} /> : undefined, dot: k.id === 'facts' && asks > 0 ? `${asks} 条待确认` : undefined, onClick: () => to && go(to) }];
+    return [{ ...base, mark: closed ? <PowerMark state="off" compact reason={closed} /> : undefined, dot: k.id === 'facts' && asks > 0 ? `${asks} 条待处理` : undefined, onClick: () => to && go(to) }];
   });
   const next = q.data ? nextReminder(snap.reminders, now) : null;
   const t0 = new Date(now).setHours(0, 0, 0, 0);
@@ -203,7 +203,7 @@ export function HomePage() {
               : { id: r.id, kind: '编码', title: r.session.title, sub: r.session.agent, go: () => go({ page: 'overview', sel: r.session.task_id ?? r.id }) },
         )
       : null;
-  const doing = [snap.role?.app ? `正在看 ${snap.role.app}` : null, snap.role?.doing].filter(Boolean).join(' │ ');
+  const doing = [snap.role?.app ? `当前应用：${snap.role.app}` : null, snap.role?.doing].filter(Boolean).join(' │ ');
 
   return (
     <div ref={fit} className={styles.page} data-page="home" onPointerMove={onMove} onPointerLeave={onLeave} onScroll={keepPut}>
@@ -237,7 +237,7 @@ export function HomePage() {
             </div>
             <div className={styles.layer} style={z(12)}>
             <Disc
-              title="待批准"
+              title="待处理"
               urgent={today && q.data ? pending : []}
               report={report}
               running={runItems}
@@ -245,7 +245,7 @@ export function HomePage() {
               go={go}
               off={
                 !todayOn && (
-                  <PowerState state="off" mode="block" title="每日简报" reason="待批准、在做和今日任务都从每日简报读，它在设置里关着。" action={{ label: '前往设置打开', onClick: () => go({ page: 'settings', group: 'privacy', item: 'plugins.daily_brief' }) }}>
+                  <PowerState state="off" mode="block" title="每日简报" reason="「待处理」、「进行中」与「今日任务」均依赖「每日简报」，该功能当前已在设置中关闭。" action={{ label: '前往开启', onClick: () => go({ page: 'settings', group: 'privacy', item: 'plugins.daily_brief' }) }}>
                     {null}
                   </PowerState>
                 )

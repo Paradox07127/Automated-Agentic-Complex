@@ -36,10 +36,10 @@ export function StateStrip({ state, label, why }: StateStripProps) {
 }
 
 export const StateStripDemos: Array<{ name: string; props: StateStripProps }> = [
-  { name: 'running', props: { state: 'running', label: '在跑', why: '等 2 个请求' } },
+  { name: 'running', props: { state: 'running', label: '运行中', why: '排队 2 个请求' } },
   { name: 'idle', props: { state: 'idle', why: '上次 14:02' } },
   { name: 'waiting', props: { state: 'waiting', label: '待确认', why: '3 条' } },
-  { name: 'failed', props: { state: 'failed', label: '出错了', why: '整理失败' } },
-  { name: 'blocked', props: { state: 'warning', label: '堵住', why: '截图额度已满' } },
-  { name: 'paused', props: { state: 'stopped', label: '已暂停', why: '观察已关' } },
+  { name: 'failed', props: { state: 'failed', label: '出错', why: '整理失败' } },
+  { name: 'blocked', props: { state: 'warning', label: '已阻塞', why: '截图额度已用尽' } },
+  { name: 'paused', props: { state: 'stopped', label: '已暂停', why: '观察已关闭' } },
 ];

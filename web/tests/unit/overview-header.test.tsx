@@ -31,7 +31,7 @@ function mount(search: string) {
 describe('每日简报 pip', () => {
   it('shows nothing once read', async () => {
     mount('');
-    await waitFor(() => expect(document.body.textContent).toMatch(/比近 7 天均值/), { timeout: 3000 });
+    await waitFor(() => expect(document.body.textContent).toMatch(/较近 7 日均值/), { timeout: 3000 });
     expect(screen.queryByText('已连接')).toBeNull();
   });
 

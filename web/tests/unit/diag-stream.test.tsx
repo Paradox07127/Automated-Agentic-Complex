@@ -59,12 +59,12 @@ it('agentd leaving running in the shell\'s runtime push turns the header off 实
   );
   const lamp = () => screen.getAllByRole('status').map((s) => s.textContent ?? '').join(' ');
   await waitFor(() => expect(lamp()).toContain('实时'));
-  expect(screen.queryByText('后台服务没有响应')).toBeNull();
+  expect(screen.queryByText('后台服务无响应')).toBeNull();
   const reads = connection.mock.calls.length;
   act(() => runtime({ ...snap, processes: { ...snap.processes, agentd: { ...snap.processes.agentd, state: 'stopped', pid: null } } }));
   await waitFor(() => expect(lamp()).toContain('已断开'));
   expect(lamp()).not.toContain('实时');
-  expect(screen.getByText('后台服务没有响应')).toBeTruthy();
+  expect(screen.getByText('后台服务无响应')).toBeTruthy();
   act(() => runtime({ ...snap, processes: { ...snap.processes, agentd: { ...snap.processes.agentd, state: 'running', pid: 2 } } }));
   await waitFor(() => expect(lamp()).toContain('实时'));
   expect(connection.mock.calls.length).toBeGreaterThan(reads);

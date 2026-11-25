@@ -61,8 +61,8 @@ describe('settings › 声音 › muted kinds', () => {
     const { container } = render(<Harness><SpeakGroup /></Harness>);
     await act(async () => {});
     expect(screen.queryByText('想法需要打开「主动发言」')).toBeNull();
-    expect(container.textContent?.match(/想法/g)).toHaveLength(1);
-    expect(container.querySelector('[data-row="speakWhen"]')?.textContent).toContain('想法');
+    expect(container.textContent?.match(/关联思考/g)).toHaveLength(1);
+    expect(container.querySelector('[data-row="speakWhen"]')?.textContent).toContain('关联思考');
   });
 
   it('lists each muted kind with 恢复, which puts the rest back', async () => {
@@ -74,11 +74,11 @@ describe('settings › 声音 › muted kinds', () => {
         <SpeakGroup />
       </Harness>,
     );
-    const comment = await screen.findByRole('group', { name: '久盯一个窗口时搭话' });
-    screen.getByRole('group', { name: '卡住时问要不要帮忙' });
+    const comment = await screen.findByRole('group', { name: '长时间注视同一窗口时发起提醒' });
+    screen.getByRole('group', { name: '检测到操作受阻时主动询问' });
     await act(async () => fireEvent.click(within(comment).getByRole('button', { name: '恢复' })));
     expect(request).toHaveBeenCalledWith('PUT', '/proactive/mutes', { muted: ['stuck'] });
-    expect(screen.queryByRole('group', { name: '久盯一个窗口时搭话' })).toBeNull();
+    expect(screen.queryByRole('group', { name: '长时间注视同一窗口时发起提醒' })).toBeNull();
   });
 
   it('restores one kind against the list as it is now, keeping a kind the bubble muted since the page read it', async () => {
@@ -93,11 +93,11 @@ describe('settings › 声音 › muted kinds', () => {
         <SpeakGroup />
       </Harness>,
     );
-    const comment = await screen.findByRole('group', { name: '久盯一个窗口时搭话' });
-    expect(screen.queryByRole('group', { name: '卡住时问要不要帮忙' })).toBeNull();
+    const comment = await screen.findByRole('group', { name: '长时间注视同一窗口时发起提醒' });
+    expect(screen.queryByRole('group', { name: '检测到操作受阻时主动询问' })).toBeNull();
     await act(async () => fireEvent.click(within(comment).getByRole('button', { name: '恢复' })));
     expect(request).toHaveBeenCalledWith('PUT', '/proactive/mutes', { muted: ['stuck'] });
-    expect(screen.getByRole('group', { name: '卡住时问要不要帮忙' })).toBeTruthy();
+    expect(screen.getByRole('group', { name: '检测到操作受阻时主动询问' })).toBeTruthy();
   });
 
   it('leaves the row out while none is muted, and drops it once the last kind is restored', async () => {
@@ -109,7 +109,7 @@ describe('settings › 声音 › muted kinds', () => {
     );
     await act(async () => {});
     expect(container.querySelector('[data-row="mutes"]')).toBeNull();
-    expect(screen.queryByText('已关掉的主动发言')).toBeNull();
+    expect(screen.queryByText('已关闭的主动交互类别')).toBeNull();
     cleanup();
     vi.restoreAllMocks();
     vi.spyOn(window.agenticComplex!.agentd, 'request').mockImplementation(async (method) => ({ status: 200, body: { muted: method === 'GET' ? ['comment'] : [] } }) as never);
@@ -118,8 +118,8 @@ describe('settings › 声音 › muted kinds', () => {
         <SpeakGroup />
       </Harness>,
     );
-    const comment = await screen.findByRole('group', { name: '久盯一个窗口时搭话' });
-    expect(again.container.querySelector('[data-row="mutes"]')?.textContent).toContain('在气泡「更多操作」里点「关闭此类」加进来');
+    const comment = await screen.findByRole('group', { name: '长时间注视同一窗口时发起提醒' });
+    expect(again.container.querySelector('[data-row="mutes"]')?.textContent).toContain('可通过气泡「更多操作」中的「关闭此类」添加');
     await act(async () => fireEvent.click(within(comment).getByRole('button', { name: '恢复' })));
     expect(again.container.querySelector('[data-row="mutes"]')).toBeNull();
   });

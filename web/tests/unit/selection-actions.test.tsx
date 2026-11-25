@@ -69,7 +69,7 @@ describe('selection actions', () => {
   it('a cut clipboard read says so', async () => {
     const { dialog } = await openInput({ ...SELECTION, source: 'clipboard', app: null, truncated: true });
     expect(dialog.textContent).toContain('剪贴板');
-    expect(dialog.textContent).toContain('只取了前 2000 字');
+    expect(dialog.textContent).toContain('已截取前 2000 字');
   });
 
   it('翻译 previews the line and sends exactly it without memory', async () => {
@@ -91,7 +91,7 @@ describe('selection actions', () => {
     expect(preview()).toBe(SELECTION.text);
     pick('记住');
     expect(preview()).toBe(`记住 ${SELECTION.text}`);
-    expect(dialog.textContent).toContain('会记住这段文字');
+    expect(dialog.textContent).toContain('写入记忆');
     pick('提醒');
     expect(preview()).toBeUndefined();
     pick('1 小时');
@@ -187,7 +187,7 @@ describe('drop card 问', () => {
 
   it('a 快速输入 opened with a scope sends with it, and ✕ drops it', async () => {
     const { say, dialog } = await openInput({ kind: 'scope', scopeId: 's1', files: 2 });
-    within(dialog).getByText('可读 2 个文件');
+    within(dialog).getByText('可读取 2 个文件');
     const box = within(dialog).getByRole('textbox');
     fireEvent.change(box, { target: { value: '这两份讲了什么' } });
     await flush(async () => fireEvent.keyDown(box, { key: 'Enter' }));
@@ -196,8 +196,8 @@ describe('drop card 问', () => {
 
   it('✕ on the scope sends without it', async () => {
     const { say, dialog } = await openInput({ kind: 'scope', scopeId: 's1', files: 2 });
-    fireEvent.click(within(dialog).getByRole('button', { name: '不带这些文件' }));
-    expect(within(dialog).queryByText('可读 2 个文件')).toBeNull();
+    fireEvent.click(within(dialog).getByRole('button', { name: '移除附件' }));
+    expect(within(dialog).queryByText('可读取 2 个文件')).toBeNull();
     const box = within(dialog).getByRole('textbox');
     fireEvent.change(box, { target: { value: '你好' } });
     await flush(async () => fireEvent.keyDown(box, { key: 'Enter' }));

@@ -92,7 +92,7 @@ export function Library(p: LibraryProps) {
   if (p.error !== false || d?.ok === false)
     return (
       <LibraryError
-        message={`读取 MMD 库失败：${p.error === false && d?.ok === false ? motionImportReason(d.reason, d.detail) : p.error === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}`}
+        message={`读取 MMD 舞蹈库失败：${p.error === false && d?.ok === false ? motionImportReason(d.reason, d.detail) : p.error === 'not_implemented' ? '当前版本暂不支持' : '角色渲染进程无响应'}`}
         onRetry={p.onRetry}
       />
     );
@@ -101,10 +101,10 @@ export function Library(p: LibraryProps) {
     return (
       <Empty
         icon="upload"
-        title="曲库里还没有舞"
+        title="MMD 舞蹈库尚无内容"
         desc={
           <>
-            点右上 <b>导入 MMD</b> 选 MMD 工程的文件夹、ZIP 或 VMD；导入后每个角色共用，切到别的角色时会自动同步过去。
+            点击右上角 <b>导入 MMD</b> 选择 MMD 工程文件夹、ZIP 或 VMD 文件；导入后由所有角色共用，切换角色时将自动同步。
           </>
         }
       />
@@ -131,7 +131,7 @@ export function Library(p: LibraryProps) {
         <div className={styles.find}>
           {p.onQuery && (
             <span className={styles.search} data-theme="light">
-              <SearchField value={p.query ?? ''} label="搜索曲名" placeholder="搜索曲名" onChange={p.onQuery} />
+              <SearchField value={p.query ?? ''} label="搜索舞蹈" placeholder="搜索舞蹈" onChange={p.onQuery} />
             </span>
           )}
           {tabs && (
@@ -207,7 +207,7 @@ export function AddKey({ off, onAdd }: { off: string | null; onAdd: () => void }
 /** Her list's place of a dance in its row: yellow and not a control. */
 export function InList({ n }: { n: number }) {
   return (
-    <span className={styles.inq} title={`演出列表第 ${n} 首`}>
+    <span className={styles.inq} title={`演出列表第 ${n} 项`}>
       <span className="num">{two(n)}</span>
       <MicroLabel>SET</MicroLabel>
     </span>

@@ -67,8 +67,8 @@ const note = (o: Partial<SystemNote> = {}): SystemNote => ({
 });
 
 test('content: the title is the kind label, the body the line, the group its notify_* key, and only a sound mode sounds', () => {
-  const kinds = [['done', '完成', 'notify_done'], ['waiting', '待确认', 'notify_approval'], ['error', '出错', 'notify_error'],
-    ['brief', '简短', 'notify_brief'], ['reminder', '提醒', 'notify_reminder']] as const;
+  const kinds = [['done', '完成', 'notify_done'], ['waiting', '待处理', 'notify_approval'], ['error', '出错', 'notify_error'],
+    ['brief', '简报', 'notify_brief'], ['reminder', '提醒', 'notify_reminder']] as const;
   for (const [kind, title, group] of kinds) {
     assert.deepEqual(noteContent(note({ id: `n-${kind}`, kind })),
       { id: `n-${kind}`, title, body: '周报整理好了', groupId: group, silent: true });

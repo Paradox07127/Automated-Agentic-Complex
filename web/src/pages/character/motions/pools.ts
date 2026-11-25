@@ -24,9 +24,9 @@ export interface Pool {
 
 const KINDS = new Set<string>(['event', 'tier', 'activity', 'intent', 'speech']);
 const LOCKED: Record<string, string> = {
-  activity: '活动的池子由行为决定，不能在这里改',
-  intent: '说话意图的池子不能在这里改',
-  speech: '说话手势的池子不能在这里改',
+  activity: '活动动作池由行为系统控制，不可在此修改',
+  intent: '对话意图动作池不可在此修改',
+  speech: '对话手势动作池不可在此修改',
 };
 
 export const editable = (kind: PoolKind, key: string) => kind === 'event' || (kind === 'tier' && /^idle\.t\d+$/.test(key));
@@ -43,7 +43,7 @@ export function poolsOf(g: MotionGraph, mg?: MotionGroups): Pool[] {
       let p = pools.get(id);
       if (!p) {
         const posture = kind === 'event' ? (u.posture ?? 'stand') : kind === 'tier' ? (u.stance ?? 'stand') : 'stand';
-        p = { key: u.key, kind, group: u.group ?? 'idle', posture, locked: editable(kind, u.key) ? null : (LOCKED[kind] ?? '这个池子不能改'), entries: [] };
+        p = { key: u.key, kind, group: u.group ?? 'idle', posture, locked: editable(kind, u.key) ? null : (LOCKED[kind] ?? '该动作池不可修改'), entries: [] };
         if (u.after_s) p.after_s = u.after_s;
         if (u.interval_s) p.interval_s = u.interval_s;
         if (u.no_repeat != null) p.no_repeat = u.no_repeat;

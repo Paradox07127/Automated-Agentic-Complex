@@ -50,7 +50,7 @@ describe('diag page', () => {
     const heads = [...document.querySelectorAll('[data-stub="SecHead"] h3')].map((h) => h.textContent);
     expect(heads).toEqual(['链路', '运行', '错误']);
     expect([...document.querySelectorAll('[data-row]')].map((r) => r.getAttribute('data-row'))).toEqual(['agentd', 'runtime', 'avatar', 'voice', 'flow', 'gate']);
-    expect(within(row('voice')!).getByText('连不上')).toBeTruthy();
+    expect(within(row('voice')!).getByText('无法连接')).toBeTruthy();
     expect(within(row('voice')!).getByRole('button', { name: '重新连接' })).toBeTruthy();
     expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['总览', '进程', '帧与负载', '链路', '内部状态', '对话轮次', '事件线', '行为决策', '日志']);
   });
@@ -58,7 +58,7 @@ describe('diag page', () => {
   it('a row\'s › opens its tab', async () => {
     mount('');
     await waitFor(() => expect(row('flow')).not.toBeNull());
-    fireEvent.click(within(row('flow')!).getByRole('button', { name: '去链路' }));
+    fireEvent.click(within(row('flow')!).getByRole('button', { name: '查看链路' }));
     expect(window.location.hash).toContain('/diag?tab=flow');
   });
 
@@ -135,7 +135,7 @@ describe('diag page', () => {
 
   it('error: agentd gone shows the alert with 重启后台服务 and disables 暂停', async () => {
     mount('state=error');
-    const alert = (await screen.findByText('后台服务没有响应')).closest('[role="alert"]') as HTMLElement;
+    const alert = (await screen.findByText('后台服务无响应')).closest('[role="alert"]') as HTMLElement;
     expect(within(alert).getByRole('button', { name: /重启后台服务/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: '暂停' }).getAttribute('aria-disabled')).toBe('true');
   });
@@ -208,7 +208,7 @@ describe('diag restart', () => {
     act(() => push({ event: 'state', id: 'b-1', data: JSON.stringify(DIAG_STATE) } as StreamEvent));
     await waitFor(() => expect(screen.getByText('■ 重启失败')).toBeTruthy());
     expect(document.body.textContent).not.toContain('已重启');
-    expect(screen.getByText('后台服务没有重新起来')).toBeTruthy();
+    expect(screen.getByText('后台服务未能重新启动')).toBeTruthy();
   });
 });
 

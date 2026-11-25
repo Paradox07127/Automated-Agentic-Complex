@@ -79,15 +79,15 @@ describe('agentd call errors', () => {
   it('throws AgentdCallError with code, detail and the whole body on non-2xx', async () => {
     install([
       { method: 'POST', path: '/c', handler: () => ({ status: 409, body: { error: 'version_conflict', current_version: 3 } }) },
-      { method: 'GET', path: '/d', handler: () => ({ status: 503, body: { error: 'no_memory', detail: '记忆没有开启', runtime: 'codex' } }) },
+      { method: 'GET', path: '/d', handler: () => ({ status: 503, body: { error: 'no_memory', detail: '记忆功能未开启', runtime: 'codex' } }) },
       { method: 'GET', path: '/e', handler: () => ({ status: 500, body: { ok: false } }) },
     ]);
     const c = await thrown(post('/c', { expected_version: 2 }));
     expect([c.status, c.code, c.detail, c.body]).toEqual([409, 'version_conflict', undefined, { error: 'version_conflict', current_version: 3 }]);
     expect(CONFLICT_CODES.has(c.code)).toBe(true);
     const d = await thrown(get('/d'));
-    expect([d.status, d.code, d.detail, d.message]).toEqual([503, 'no_memory', '记忆没有开启', '记忆没有开启']);
-    expect(d.body).toEqual({ error: 'no_memory', detail: '记忆没有开启', runtime: 'codex' });
+    expect([d.status, d.code, d.detail, d.message]).toEqual([503, 'no_memory', '记忆功能未开启', '记忆功能未开启']);
+    expect(d.body).toEqual({ error: 'no_memory', detail: '记忆功能未开启', runtime: 'codex' });
     const e = await thrown(get('/e'));
     expect([e.status, e.code, e.body]).toEqual([500, 'http_500', { ok: false }]);
   });
@@ -146,8 +146,8 @@ describe('classify', () => {
   });
 
   it('says why in words, never the code or an English detail', () => {
-    expect(failText({ status: 0, body: null, error: { code: 'route_class', detail: 'host_only' } })).toBe('桌面端拒绝了这个请求');
-    expect(failText({ status: 500, body: null, error: { code: 'internal', detail: 'boom' } })).toBe('后台出错了');
+    expect(failText({ status: 0, body: null, error: { code: 'route_class', detail: 'host_only' } })).toBe('请求未获应用批准');
+    expect(failText({ status: 500, body: null, error: { code: 'internal', detail: 'boom' } })).toBe('后台服务处理出错');
     expect(failText({ status: 400, body: null, error: { code: 'no_history', detail: '聊天记录没有开启' } })).toBe('尚未开启对话记录，无法读取或管理历史');
     expect(failText({ status: 400, body: null, error: { code: 'odd', detail: '聊天记录没有开启' } })).toBe('聊天记录没有开启');
   });

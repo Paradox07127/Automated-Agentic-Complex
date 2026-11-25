@@ -53,14 +53,14 @@ describe('屏幕识读 off', () => {
   it('the open hover buttons show 给角色看 disabled', async () => {
     mount('#/dock?still=1', { ...STATE, dock: { open: true, side: 'right', compact: false } });
     const group = await screen.findByRole('group', { name: '角色的按钮' });
-    expect(within(group).getByRole('button', { name: '给角色看' }).getAttribute('aria-disabled')).toBe('true');
+    expect(within(group).getByRole('button', { name: '屏幕识读' }).getAttribute('aria-disabled')).toBe('true');
     expect(within(group).getAllByRole('button')).toHaveLength(4);
   });
 
   it('快速输入 shows 附上当前窗口 as 已关闭; with it on it attaches', async () => {
     mount('#/bubble?mode=input&still=1', STATE);
     const dialog = await screen.findByRole('dialog', { name: '快速输入' });
-    expect(within(dialog).getByRole('button', { name: '这一轮不记' })).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: '无痕对话（本轮不记入记忆）' })).toBeTruthy();
     expect(within(dialog).queryByRole('button', { name: '附上当前窗口' })).toBeNull();
     expect(within(dialog).getByRole('button', { name: /^已关闭\s*附上当前窗口$/ })).toBeTruthy();
     cleanup();

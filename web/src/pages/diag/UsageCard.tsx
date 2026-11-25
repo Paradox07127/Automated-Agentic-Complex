@@ -74,7 +74,7 @@ export function UsageCard({ budget, loading }: UsageCardProps) {
       <GameFrame label="今天的模型调用">
         <div className={styles.calls}>
           <MicroLabel>BY CALL</MicroLabel>
-          {calls.length > 0 ? <DgBars label="按调用次数" rows={calls} /> : <p className={styles.note}>{loading ? '正在读取' : '今天还没有模型调用'}</p>}
+          {calls.length > 0 ? <DgBars label="按调用次数" rows={calls} /> : <p className={styles.note}>{loading ? '正在读取' : '今日尚无模型调用'}</p>}
           <MicroLabel>BY CHANNEL TOKEN</MicroLabel>
           {chans.length > 0 ? (
             <div className={styles.bars} role="list" aria-label="按通道 token">

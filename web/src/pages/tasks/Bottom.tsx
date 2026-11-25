@@ -55,14 +55,14 @@ export function BottomBar(p: BottomBarProps) {
   let right: ReactNode = null;
   if (p.draft) {
     const repeat = p.draft.when === 'repeat';
-    tip = repeat ? '保存后在「定时」里' : '派出去后在「进行中」里';
+    tip = repeat ? '保存后可在「定时」列表查看' : '派发后可在「进行中」列表查看';
     right = (
       <>
         <Btn variant="secondary" kbd="esc" onClick={p.onCancel}>
           取消
         </Btn>
         <Btn variant="primary" kbd={keyText('⌘↵')} loading={p.busy} disabled={p.problem != null} disabledReason={p.problem ?? undefined} onClick={p.onSubmit}>
-          {p.draft.scheduleId ? '保存' : repeat ? '保存定时' : '派出去'}
+          {p.draft.scheduleId ? '保存' : repeat ? '保存定时' : '立即派发'}
         </Btn>
       </>
     );
@@ -74,7 +74,7 @@ export function BottomBar(p: BottomBarProps) {
     const term =
       task.source === 'code' && session ? (
         <Btn variant="ghost" icon="ext" disabled={!!desk.nativeOff.jump} disabledReason={desk.nativeOff.jump} onClick={() => act({ kind: 'jump_terminal', sessionId: session.id })}>
-          跳到终端
+          跳转终端
         </Btn>
       ) : null;
     const trace = p.dev ? (
@@ -84,7 +84,7 @@ export function BottomBar(p: BottomBarProps) {
     ) : null;
     const stopped = task.status === 'cancelled' || desk.view.stopped[task.id] != null;
     if (ended) {
-      tip = '再派一次：同样的标题新派一个任务';
+      tip = '再次派发：使用相同标题新建同类任务';
       const more = task.source === 'role' && !stopped && ['failed', 'rejected', 'interrupted'].includes(task.status) || (stopped && canContinue(task));
       right = (
         <>
@@ -93,7 +93,7 @@ export function BottomBar(p: BottomBarProps) {
           {trace}
           {more && (
             <Btn variant="ghost" onClick={p.onNote}>
-              补一句接着做
+              补充说明并继续
             </Btn>
           )}
           <Btn variant="ghost" tail="refresh" onClick={p.onAgain}>
@@ -110,12 +110,12 @@ export function BottomBar(p: BottomBarProps) {
           {trace}
           {task.source === 'role' && task.job_id && RESUMABLE.includes(task.status) && (
             <Btn variant="ghost" onClick={p.onNote}>
-              补一句…
+              补充说明…
             </Btn>
           )}
           {live && (
             <>
-              <InfoTip label="停止后会怎样">停止后已写的文件留着，不能接着做</InfoTip>
+              <InfoTip label="停止任务说明">停止后已写入的文件将保留，但无法继续执行该任务</InfoTip>
               <Btn variant="secondary" tail="close" onClick={() => act({ kind: 'stop' })}>
                 停止任务
               </Btn>

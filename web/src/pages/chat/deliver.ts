@@ -23,7 +23,7 @@ interface SayReply {
   skipped?: 'paused' | 'no_memory' | 'no_memory_store';
 }
 
-const SKIPPED: Record<NonNullable<SayReply['skipped']>, string> = { paused: '记忆已暂停，没记', no_memory: '这一轮不记，没记', no_memory_store: '没有记忆库，没记' };
+const SKIPPED: Record<NonNullable<SayReply['skipped']>, string> = { paused: '记忆已暂停，未记录', no_memory: '已开启「此轮不记录」，未记录', no_memory_store: '未配置记忆库，未记录' };
 
 /** The local confirmation of a command reply that brings no line. */
 function commandNote(r: SayReply): string {
@@ -31,13 +31,13 @@ function commandNote(r: SayReply): string {
     const { due_at, trigger, text } = r.commitment;
     if (due_at !== null) {
       const today = new Date(due_at * 1000).toDateString() === new Date().toDateString();
-      return `好，${today ? formatClock(due_at * 1000) : formatScheduleTime(due_at * 1000)} 提醒你：${text}`;
+      return `已设置提醒：${today ? formatClock(due_at * 1000) : formatScheduleTime(due_at * 1000)} 提醒「${text}」`;
     }
-    return trigger?.kind === 'session_done' ? `好，等 ${trigger.agent ?? 'agent'} 做完提醒你：${text}` : `好，到时提醒你：${text}`;
+    return trigger?.kind === 'session_done' ? `已设置提醒：将在 ${trigger.agent ?? '任务'} 完成后提醒「${text}」` : `已设置提醒：到时将提醒「${text}」`;
   }
-  if (r.command === 'remember') return r.skipped ? SKIPPED[r.skipped] : r.reinforced ? '这条已经记着了' : '记住了';
-  if (r.command === 'dispatch') return '已开确认卡';
-  return '好';
+  if (r.command === 'remember') return r.skipped ? SKIPPED[r.skipped] : r.reinforced ? '该条目已存在于记忆中' : '已记入记忆';
+  if (r.command === 'dispatch') return '已弹出派发确认卡';
+  return '已处理';
 }
 
 /** Ids of lines shown before their 202; a command reply keeps its id, as it brings no line_id. */
@@ -73,7 +73,7 @@ export const createDeliver = (d: ChatDeps) => async (text: string, options: Part
       try {
         scope_id = (await post<WireScope>('/agent/scopes', { files: options.files })).scope_id;
       } catch (e) {
-        if (d.shown() === convId) d.setNotice(`附件没有带上：${reasonOf(e)}`);
+        if (d.shown() === convId) d.setNotice(`附件未能附加：${reasonOf(e)}`);
         return 'spent';
       }
     }

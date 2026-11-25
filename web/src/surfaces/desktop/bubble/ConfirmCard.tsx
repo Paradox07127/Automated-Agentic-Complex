@@ -52,12 +52,12 @@ export function ConfirmCard({ card, more, tail = null, act, onDetails, note = nu
       data-danger={v.dangerous || undefined}
       data-tail={tail ?? undefined}
       role="alertdialog"
-      aria-label={`要你批准：${v.title}`}
+      aria-label={`待批准：${v.title}`}
     >
       <span className={styles.drag} data-drag="" aria-hidden="true" />
       <p className={styles.tag}>
-        <span aria-hidden="true">◆</span> 要你批准{more > 0 && ` │ 还有 ${more} 项`}
-        {v.secondsLeft != null && <span className={styles.time}>剩 {Math.ceil(v.secondsLeft)} 秒</span>}
+        <span aria-hidden="true">◆</span> 待批准{more > 0 && ` │ 另有 ${more} 项`}
+        {v.secondsLeft != null && <span className={styles.time}>剩余 {Math.ceil(v.secondsLeft)} 秒</span>}
         <button type="button" className={styles.fold} aria-label="折起" title="折起" onClick={() => act({ type: 'collapse', id: card.id })}>
           <Icon name="close" size={14} />
         </button>

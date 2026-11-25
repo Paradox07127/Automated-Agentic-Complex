@@ -156,7 +156,7 @@ export function NowView({ tab, item, onTab, tabs }: NowViewProps) {
   });
   const hooks = d?.hooks;
   const hookLast = Math.max(0, ...[hooks?.claude.last_at, hooks?.codex.last_at].map((x) => isoToMsOrNull(x) ?? 0));
-  const hookSub = !hooks ? '没读到' : hooks.claude.installed || hooks.codex.installed ? (hookLast ? formatAgo(now - hookLast) : '已安装') : '未安装';
+  const hookSub = !hooks ? '读取失败' : hooks.claude.installed || hooks.codex.installed ? (hookLast ? formatAgo(now - hookLast) : '已安装') : '未安装';
   const { nodes, edges } = flowOf({
     turns: allTurns,
     decisions: decisions.data ?? [],
@@ -228,13 +228,13 @@ export function NowView({ tab, item, onTab, tabs }: NowViewProps) {
   }, [node, offline, togglePause]);
 
   const gone = staleAt != null && tab !== 'overview' && (
-    <ErrBar message="后台服务没有响应" staleAt={staleAt || undefined} extra={<RestartAgentd onClick={() => setConfirm('agentd')} />} />
+    <ErrBar message="后台服务无响应" staleAt={staleAt || undefined} extra={<RestartAgentd onClick={() => setConfirm('agentd')} />} />
   );
   const c = confirm ? CONFIRM[confirm] : null;
   const close = () => setConfirm(null);
   const marks: Partial<Record<Tab, string>> = {
-    ...(health?.avatar && procs?.find((p) => p.key === 'avatar')?.tone === 'failed' ? { proc: '角色没有在运行' } : {}),
-    ...(staleAt != null ? { proc: '后台服务没有响应' } : {}),
+    ...(health?.avatar && procs?.find((p) => p.key === 'avatar')?.tone === 'failed' ? { proc: '角色进程未运行' } : {}),
+    ...(staleAt != null ? { proc: '后台服务无响应' } : {}),
     ...(hourFails > 0 && !offline ? { flow: `近 1 小时失败 ${hourFails} 轮` } : {}),
   };
 
@@ -288,7 +288,7 @@ export function NowView({ tab, item, onTab, tabs }: NowViewProps) {
               align="right"
               items={[
                 { kind: 'item', label: '重启后台服务', onSelect: () => setConfirm('agentd') },
-                { kind: 'item', label: '重启角色', onSelect: () => setConfirm('avatar') },
+                { kind: 'item', label: '重启角色进程', onSelect: () => setConfirm('avatar') },
                 { kind: 'sep' },
                 { kind: 'item', label: '全部重启…', danger: true, onSelect: () => setConfirm('all') },
               ]}
@@ -362,7 +362,7 @@ export function NowView({ tab, item, onTab, tabs }: NowViewProps) {
           ) : loading ? (
             <Skel rows={3} shape="cards" />
           ) : (
-            <Empty size="compact" title="后台断开时没有内部状态" desc={staleAt ? `最后一次读到是 ${formatClock(staleAt)}，重启后会重新读` : '重启后台服务后会重新读'} />
+            <Empty size="compact" title="后台服务断开时无法读取内部状态" desc={staleAt ? `最后记录时间为 ${formatClock(staleAt)}，重启后台服务后将重新读取` : '重启后台服务后将重新读取'} />
           )}
         </div>
       )}
@@ -374,7 +374,7 @@ export function NowView({ tab, item, onTab, tabs }: NowViewProps) {
           footer={
             <>
               <Btn variant="secondary" onClick={close}>
-                不重启
+                取消
               </Btn>
               <Btn
                 variant={c.danger ? 'danger' : 'primary'}

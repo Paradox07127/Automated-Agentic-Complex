@@ -24,7 +24,7 @@ async function mount() {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  await screen.findByRole('region', { name: 'MMD 库' });
+  await screen.findByRole('region', { name: 'MMD 舞蹈库' });
   // 导入 MMD stays disabled until her roster is read.
   await waitFor(() => expect(screen.getByRole<HTMLButtonElement>('button', { name: '导入 MMD' }).disabled).toBe(false));
 }
@@ -71,17 +71,17 @@ describe('导入 MMD 确认单', () => {
     await mount();
     await open();
     expect(scan).toHaveBeenCalledWith({ folder: false });
-    expect(field('曲名').value).toBe('サンプルダンス');
+    expect(field('舞蹈名称').value).toBe('サンプルダンス');
     expect([tick(0).checked, tick(1).checked]).toEqual([true, false]);
     expect(body(0).textContent).toBe('SampleDancerAサンプルモデルA ver1.20223.3 s');
     expect(chosen('口型')).toBe('口型无');
     expect(chosen('镜头')).toBe('镜头camera_v1.0.vmd');
-    expect(chosen('音源')).toBe('音源サンプルダンス_inst.wav');
+    expect(chosen('音频')).toBe('音频サンプルダンス_inst.wav');
     expect(field('音乐偏移').value).toBe('-0.633');
     const fold = within(sheet()).getByRole('button', { name: /未使用的文件/ });
     expect(fold.getAttribute('aria-expanded')).toBe('false');
     await click(fold);
-    expect(within(sheet()).getByRole('list', { name: '未使用的文件' }).textContent).toBe('Readme.txt不是动作或音频pose_start.vmd没有关键帧');
+    expect(within(sheet()).getByRole('list', { name: '未使用的文件' }).textContent).toBe('Readme.txt非动作或音频文件pose_start.vmd无有效关键帧');
   });
 
   it('imports the suggested body under the song’s title and its part, with the shared choices', async () => {
@@ -99,7 +99,7 @@ describe('导入 MMD 确认单', () => {
     await mount();
     await open();
     await act(async () => void fireEvent.click(tick(1)));
-    fireEvent.change(field('曲名'), { target: { value: ' サンプル ' } });
+    fireEvent.change(field('舞蹈名称'), { target: { value: ' サンプル ' } });
     await choose('镜头', '无');
     fireEvent.change(field('音乐偏移'), { target: { value: '1.25' } });
     await click(within(sheet()).getByRole('button', { name: '导入' }));
@@ -118,7 +118,7 @@ describe('导入 MMD 确认单', () => {
     const imp = vi.spyOn(bridge.mmd, 'importScan');
     await mount();
     await open();
-    await choose('音源', '无');
+    await choose('音频', '无');
     expect(field('音乐偏移').disabled).toBe(true);
     await click(within(sheet()).getByRole('button', { name: '导入' }));
     expect(imp).toHaveBeenCalledWith(expect.objectContaining({ items: [{ body: 0, title: 'サンプルダンス' }], audio: null, bgmStartS: null }));
@@ -152,7 +152,7 @@ describe('导入 MMD 确认单', () => {
     expect(go()).toBe(true);
     fireEvent.change(field('音乐偏移'), { target: { value: '' } });
     expect(go()).toBe(false);
-    fireEvent.change(field('曲名'), { target: { value: '  ' } });
+    fireEvent.change(field('舞蹈名称'), { target: { value: '  ' } });
     expect(go()).toBe(true);
   });
 
@@ -171,17 +171,17 @@ describe('导入 MMD 确认单', () => {
     const drop = vi.spyOn(bridge.mmd, 'dropScan');
     await mount();
     const d = await open();
-    fireEvent.change(field('曲名'), { target: { value: 'サンプル' } });
+    fireEvent.change(field('舞蹈名称'), { target: { value: 'サンプル' } });
     await act(async () => void fireEvent.mouseDown(d.parentElement!));
     expect(drop).not.toHaveBeenCalled();
-    expect(field('曲名').value).toBe('サンプル');
+    expect(field('舞蹈名称').value).toBe('サンプル');
   });
 
   it('says what a scan failed for and opens no 确认单; a cancelled panel says nothing', async () => {
     const scan = vi.spyOn(bridge.mmd, 'scan').mockResolvedValue({ ok: false, reason: 'bad_zip', detail: 'x' });
     await mount();
     await click(screen.getByRole('button', { name: '导入 MMD' }));
-    await waitFor(() => expect(document.querySelector('[data-motion-import]')?.textContent).toBe('没有读出这个 MMD 工程：压缩包打不开或不安全'));
+    await waitFor(() => expect(document.querySelector('[data-motion-import]')?.textContent).toBe('未能解析此 MMD 工程：压缩包无法读取或存在路径安全风险'));
     expect(screen.queryByRole('dialog')).toBeNull();
     scan.mockResolvedValue({ ok: false, reason: 'cancelled' });
     await click(screen.getByRole('button', { name: '导入 MMD' }));
@@ -196,7 +196,7 @@ describe('导入 MMD 确认单', () => {
     await act(async () => void fireEvent.click(tick(1)));
     await click(within(sheet()).getByRole('button', { name: '导入' }));
     await waitFor(() => expect(document.querySelector('[data-motion-import]')?.textContent)
-      .toBe('已导入「サンプルダンス · SampleDancerA」，「サンプルダンス · SampleDancerB」没有完成：动作超过 360 秒'));
+      .toBe('已导入「サンプルダンス · SampleDancerA」，「サンプルダンス · SampleDancerB」未完成：动作时长超过 360 秒上限'));
   });
 
   it('选择其它音频 adds the picked file to 音源 and chooses it; 导入 sends its index; the sheet stays open', async () => {
@@ -204,27 +204,27 @@ describe('导入 MMD 确认单', () => {
     const imp = vi.spyOn(bridge.mmd, 'importScan');
     await mount();
     await open();
-    await choose('音源', '无');
-    await click(within(sheet()).getByRole('button', { name: '选择其它音频' }));
+    await choose('音频', '无');
+    await click(within(sheet()).getByRole('button', { name: '选择其他音频' }));
     expect(pick).toHaveBeenCalledWith('scan_1');
-    await waitFor(() => expect(chosen('音源')).toBe('音源song.wav'));
+    await waitFor(() => expect(chosen('音频')).toBe('音频song.wav'));
     expect(field('音乐偏移').disabled).toBe(false);
-    await click(within(sheet()).getByRole('button', { name: '音源' }));
-    expect(within(screen.getByRole('listbox', { name: '音源' })).getAllByRole('option').map((o) => o.textContent))
-      .toEqual(['无', '愛包ダンスホール_inst.wav', 'song.wav']);
-    await click(within(sheet()).getByRole('button', { name: '音源' }));
+    await click(within(sheet()).getByRole('button', { name: '音频' }));
+    expect(within(screen.getByRole('listbox', { name: '音频' })).getAllByRole('option').map((o) => o.textContent))
+      .toEqual(['无', 'サンプルダンス_inst.wav', 'song.wav']);
+    await click(within(sheet()).getByRole('button', { name: '音频' }));
     await click(within(sheet()).getByRole('button', { name: '导入' }));
     expect(imp).toHaveBeenCalledWith(expect.objectContaining({ token: 'scan_1', audio: 1 }));
   });
 
-  it('a cancelled 选择其它音频 leaves 音源 as it was', async () => {
+  it('a cancelled 选择其它音频 leaves 音频 as it was', async () => {
     vi.spyOn(bridge.mmd, 'pickScanAudio').mockResolvedValue({ ok: false, reason: 'cancelled' });
     await mount();
     await open();
-    await click(within(sheet()).getByRole('button', { name: '选择其它音频' }));
-    expect(chosen('音源')).toBe('音源愛包ダンスホール_inst.wav');
-    await click(within(sheet()).getByRole('button', { name: '音源' }));
-    expect(within(screen.getByRole('listbox', { name: '音源' })).getAllByRole('option')).toHaveLength(2);
+    await click(within(sheet()).getByRole('button', { name: '选择其他音频' }));
+    expect(chosen('音频')).toBe('音频サンプルダンス_inst.wav');
+    await click(within(sheet()).getByRole('button', { name: '音频' }));
+    expect(within(screen.getByRole('listbox', { name: '音频' })).getAllByRole('option')).toHaveLength(2);
     expect(document.querySelector('[data-motion-import]')).toBeNull();
   });
 
@@ -242,7 +242,7 @@ describe('导入 MMD 确认单', () => {
   });
 });
 
-describe('换音源', () => {
+describe('更换音频', () => {
   const DANCE: MmdEntry = { id: 'mmd_dance_1', title: 'サンプル', durationS: 223.3, hasBgm: true, hasCamera: true, hasFace: true, project: 'サンプル',
     role: 'SampleDancerA', createdAt: '2026-11-25T10:00:00+00:00', characters: [{ id: 'si', state: 'baked', reason: null }] };
 
@@ -252,17 +252,17 @@ describe('换音源', () => {
       format: 'vmd', warnings: [] } });
     await mount();
     const detail = await screen.findByRole('group', { name: 'MMD 操作' });
-    await click(within(detail).getByRole('button', { name: '换音源' }));
-    let dialog = screen.getByRole('dialog', { name: '换音源' });
+    await click(within(detail).getByRole('button', { name: '更换音频' }));
+    let dialog = screen.getByRole('dialog', { name: '更换音频' });
     fireEvent.change(within(dialog).getByRole('textbox', { name: '音乐偏移' }), { target: { value: '-0.5' } });
     await click(within(dialog).getByRole('button', { name: '选择音频' }));
     expect(set).toHaveBeenLastCalledWith('mmd_dance_1', { bgm: 'pick', bgmStartS: -0.5 });
-    await waitFor(() => expect(document.querySelector('[data-motion-import]')?.textContent).toBe('「サンプル」换了音源'));
-    await click(within(screen.getByRole('group', { name: 'MMD 操作' })).getByRole('button', { name: '换音源' }));
-    dialog = screen.getByRole('dialog', { name: '换音源' });
-    await click(within(dialog).getByRole('radio', { name: '不要音源' }));
+    await waitFor(() => expect(document.querySelector('[data-motion-import]')?.textContent).toBe('已为「サンプル」更换音频'));
+    await click(within(screen.getByRole('group', { name: 'MMD 操作' })).getByRole('button', { name: '更换音频' }));
+    dialog = screen.getByRole('dialog', { name: '更换音频' });
+    await click(within(dialog).getByRole('radio', { name: '无音频' }));
     expect((within(dialog).getByRole('textbox', { name: '音乐偏移' }) as HTMLInputElement).disabled).toBe(true);
-    await click(within(dialog).getByRole('button', { name: '去掉音源' }));
+    await click(within(dialog).getByRole('button', { name: '移除音频' }));
     expect(set).toHaveBeenLastCalledWith('mmd_dance_1', { bgm: 'none', bgmStartS: null });
   });
 });

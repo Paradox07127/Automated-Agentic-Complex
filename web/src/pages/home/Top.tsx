@@ -33,7 +33,7 @@ const PROCESS: Record<RuntimeChildState, [Lamp, string]> = {
   backoff: ['paused', '等待重启'],
   gpu_hold: ['paused', '等待显卡'],
   port_in_use: ['failed', '端口占用'],
-  failed: ['failed', '失败'],
+  failed: ['failed', '异常'],
   stopped: ['idle', '未运行'],
 };
 
@@ -42,7 +42,7 @@ const TTS: Record<RuntimeSnapshot['tts']['state'], [Lamp, string]> = {
   probing: ['idle', '检测中'],
   unknown: ['idle', '检测中'],
   cold: ['paused', '待唤醒'],
-  unreachable: ['failed', '连不上'],
+  unreachable: ['failed', '无法连接'],
   off: ['idle', '未配置'],
 };
 
@@ -53,7 +53,7 @@ const CONN: Record<Conn, [Lamp, string]> = {
   loading: ['idle', '读取中'],
   failed: ['failed', '读取失败'],
   refused: ['failed', '拒绝访问'],
-  lost: ['failed', '未接入'],
+  lost: ['failed', '未连接'],
   stale: ['failed', '刷新失败'],
   ok: ['ok', '已连接'],
 };

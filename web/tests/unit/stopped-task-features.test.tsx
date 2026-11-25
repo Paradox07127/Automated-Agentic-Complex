@@ -50,17 +50,17 @@ describe('StopConfirm: what happens after a stop, by task kind', () => {
     expect(resumeOf([t1])).toBe('none');
     expect(resumeOf([t1, ledger])).toBe('some');
     const ui = render(<StopConfirm open target={ledger.title} resume="all" />);
-    expect(note()).toContain('之后可以在任务里「继续」');
+    expect(note()).toContain('后续可在任务详情中「继续」');
     expect(note()).not.toContain('重新交派');
     ui.unmount();
     render(<StopConfirm open target={t1.title} resume="none" />);
-    expect(note()).toContain('不能恢复执行');
+    expect(note()).toContain('无法恢复执行');
     expect(note()).not.toContain('重新交派');
   });
 
   it('a mixed selection says both', () => {
     render(<StopConfirm open target={2} resume="some" />);
-    expect(note()).toContain('角色台账任务之后可以「继续」，其他任务不能恢复执行');
+    expect(note()).toContain('角色任务后续可「继续」，其余任务停止后无法恢复执行');
   });
 });
 
@@ -68,22 +68,22 @@ describe('ApprovalCard: why the session link is off', () => {
   const link = () => screen.getByRole('button', { name: '会话 ↗' });
 
   it('shows the reason it is given', () => {
-    render(<ApprovalCard approval={pick(APPROVALS, A2)} sessionReason="这台电脑的外壳暂不支持跳到终端" />);
+    render(<ApprovalCard approval={pick(APPROVALS, A2)} sessionReason="当前客户端环境暂不支持跳转至终端" />);
     expect(link().getAttribute('aria-disabled')).toBe('true');
-    expect(link().getAttribute('title')).toBe('这台电脑的外壳暂不支持跳到终端');
+    expect(link().getAttribute('title')).toBe('当前客户端环境暂不支持跳转至终端');
   });
 
   it('the task page passes its own reason to 跳到终端 in its bottom bar', () => {
     const noop = () => {};
     const own = { id: S_C07A, task_id: T2, kind: 'code' as const, own: true, target: 'codex' as const, display_session: null, agent: 'Codex', title: 'companion', state: 'running' as const, since: NOW, cwd: '~/Endfield/app' };
     const view = deriveView({ tasks: TASKS, deliveries: [], sessions: [own], approvals: [], questions: [], goals: [], activeRuns: {}, roleMissing: false }, emptyLocal());
-    const desk = { view, actions: { onTask: () => noop }, local: emptyLocal(), nativeOff: { jump: '这台电脑的外壳暂不支持跳到终端' } } as unknown as TaskDesk;
+    const desk = { view, actions: { onTask: () => noop }, local: emptyLocal(), nativeOff: { jump: '当前客户端环境暂不支持跳转至终端' } } as unknown as TaskDesk;
     render(
       <BottomBar tab="run" empty={false} newLabel="派发任务" onNew={noop} draft={null} problem={null} busy={false} onCancel={noop} onSubmit={noop} task={pick(view.tasks, T2)} desk={desk} dev={false} schedule={null} onNote={noop} onAgain={noop} onGoChat={noop} onEdit={noop} onRunNow={noop} runOff={null} runBusy={false} onDelete={noop} />,
     );
-    const jump = screen.getByRole('button', { name: '跳到终端' });
+    const jump = screen.getByRole('button', { name: '跳转终端' });
     expect(jump.getAttribute('aria-disabled')).toBe('true');
-    expect(jump.getAttribute('title')).toBe('这台电脑的外壳暂不支持跳到终端');
+    expect(jump.getAttribute('title')).toBe('当前客户端环境暂不支持跳转至终端');
   });
 });
 

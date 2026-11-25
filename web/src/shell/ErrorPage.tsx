@@ -35,7 +35,7 @@ export class RootErrorBoundary extends Component<{ children: ReactNode }, { fail
     if (!this.state.failed) return this.props.children;
     return (
       <section className={styles.root}>
-        <ErrBar message="主窗口出错了，已记到日志" onRetry={() => this.setState({ failed: false })} />
+        <ErrBar message="主窗口发生错误，已写入日志" onRetry={() => this.setState({ failed: false })} />
       </section>
     );
   }
@@ -57,7 +57,7 @@ export function ErrorPage({ error, reset }: ErrorComponentProps) {
   return (
     <section className={styles.root}>
       <ErrBar
-        message="这一页出错了，已记到日志"
+        message="当前页面发生错误，已写入日志"
         onRetry={() => {
           reset();
           void router.invalidate();

@@ -86,7 +86,7 @@ export function playChainArg(value: unknown): { start: string; speed: number } {
 
 /** The failure texts for `play_chain`. */
 const PLAYED_REJECTED: Record<string, string> = {
-  missing: '这个动作缺资源', unknown_action: '角色没有这个动作', not_playable: '这个动作不能单独播', busy: '角色正在做别的动作',
+  missing: '该动作缺少资源文件', unknown_action: '角色无此动作', not_playable: '该动作不支持单独播放', busy: '角色正在执行其他动作',
 };
 
 /** `action_played` `rejected` takes its reason as the code. */
@@ -94,8 +94,8 @@ export const chainRejected = (reason: string) => new BridgeFailure(reason, PLAYE
 
 /** `play_chain`'s `ack` error: `timeout` and other refusals are `failed`, `unsupported` is `not_implemented`. */
 export function chainRefused(reason: string): BridgeFailure {
-  if (reason === 'unsupported') return new BridgeFailure('not_implemented', '这个版本的角色不支持动作设置');
-  if (reason === 'timeout') return new BridgeFailure('failed', '角色没有回应');
-  if (reason === 'disconnected') return new BridgeFailure('failed', '和角色的连接断了');
-  return new BridgeFailure('failed', reason === 'invalid' ? '角色没有这条链' : '正在切换角色，没有保存到角色上');
+  if (reason === 'unsupported') return new BridgeFailure('not_implemented', '当前版本角色不支持动作设置');
+  if (reason === 'timeout') return new BridgeFailure('failed', '角色渲染进程无响应');
+  if (reason === 'disconnected') return new BridgeFailure('failed', '角色连接已断开');
+  return new BridgeFailure('failed', reason === 'invalid' ? '角色不含该动作编排链' : '正在切换角色，设置未保存');
 }

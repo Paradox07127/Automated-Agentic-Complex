@@ -38,16 +38,16 @@ export function MotionTokenRow({ pending }: { pending: boolean }) {
     <SetRow
       id="motionToken"
       title="令牌"
-      desc={src == null ? '还没读到后台的设置' : '令牌只送给后台，不回显；换地址后要重新保存'}
+      desc={src == null ? '尚未读取后台服务配置' : '令牌仅保存于后台服务，不予回显；更换地址后须重新保存'}
       control={
         <>
           {src?.token_set && !token ? <Masked>已保存</Masked> : <Field type="password" label="动作服务令牌" placeholder="粘贴令牌" value={token} disabled={off} onChange={setToken} />}
           {src?.token_set && !token ? (
-            <Btn disabled={off || pending} disabledReason={pending ? '先应用上面的改动' : undefined} onClick={() => save({ token: '' }, '已删除动作服务令牌', '没能删除令牌')}>
+            <Btn disabled={off || pending} disabledReason={pending ? '请先点击底部「应用」保存上方更改' : undefined} onClick={() => save({ token: '' }, '已删除动作服务令牌', '未能删除令牌')}>
               移除
             </Btn>
           ) : (
-            <Btn disabled={off || !token.trim() || pending} disabledReason={pending ? '先应用上面的改动' : undefined} onClick={() => save({ token: token.trim() }, '令牌已保存', '没能保存令牌')}>
+            <Btn disabled={off || !token.trim() || pending} disabledReason={pending ? '请先点击底部「应用」保存上方更改' : undefined} onClick={() => save({ token: token.trim() }, '令牌已保存', '未能保存令牌')}>
               保存
             </Btn>
           )}
@@ -69,7 +69,7 @@ export function LlmSecretRows({ pending }: { pending: boolean }) {
       const r = await testModels();
       setTest({ ok: r.ok, text: `已连通 │ ${modelTestText(r)}` });
     } catch (e) {
-      setTest({ ok: false, text: `没连通：${failure(e).text}` });
+      setTest({ ok: false, text: `未能连通：${failure(e).text}` });
     }
     setTesting(false);
   };
@@ -84,11 +84,11 @@ export function LlmSecretRows({ pending }: { pending: boolean }) {
       <SetRow
         id="svc_llm_test"
         title="测试连接"
-        desc={inUse ? (pending ? '先应用上面的改动再测' : undefined) : '要 AI 的内核是 Pi、模型提供方选「兼容 API」才能测'}
+        desc={inUse ? (pending ? '请先点击底部「应用」保存上方更改后再测试' : undefined) : '需将执行内核设为 Pi 且模型提供方选择「兼容 API」后方可测试'}
         control={
           <>
             {test && <StatusLamp size="sm" state={test.ok ? 'ok' : 'broken'} label={test.text} />}
-            <Btn loading={testing} disabled={ro || agentdOff || !inUse || pending} disabledReason={inUse ? '先应用上面的改动' : 'Pi 没在用这个接口'} onClick={() => void runTest()}>
+            <Btn loading={testing} disabled={ro || agentdOff || !inUse || pending} disabledReason={inUse ? '请先点击底部「应用」保存上方更改' : 'Pi 当前未使用该接口'} onClick={() => void runTest()}>
               测试
             </Btn>
           </>

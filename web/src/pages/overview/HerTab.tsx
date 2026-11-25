@@ -65,7 +65,7 @@ export function Bars({ rows, label, yellow }: { rows: Array<{ key: string; label
   );
 }
 
-const KIND = { self: '主动', miss: '主动 │ 没回', reply: '回你' } as const;
+const KIND = { self: '主动', miss: '主动 │ 未回复', reply: '回复' } as const;
 
 const TOUCH: Array<{ key: keyof BriefDay['her']['touch']; label: string; d: string }> = [
   { key: 'pat', label: '摸头', d: 'M5 12V6a1.5 1.5 0 0 1 3 0v5h1V4a1.5 1.5 0 0 1 3 0v7h1V5a1.5 1.5 0 0 1 3 0v7h1V8a1.5 1.5 0 0 1 3 0v8a7 7 0 0 1-7 7h-2a7 7 0 0 1-6-3.5L2 14l2-1.5z' },
@@ -79,6 +79,7 @@ const counted = (list: BriefCount[], unit: string) => list.map((c) => ({ key: c.
 export function HerTab({ day }: BriefTabProps) {
   const go = useGo();
   const { items, her } = day;
+  const isToday = day.partial;
   const { hour, now } = dayClock(day);
   const hours = items.line.hours ?? [];
   const why = her.why.reduce((n, c) => n + c.count, 0);
@@ -90,10 +91,10 @@ export function HerTab({ day }: BriefTabProps) {
   );
   return (
     <div className={st.view}>
-      <section className={st.power} data-theme="dark" aria-label="角色这一天">
+      <section className={st.power} data-theme="dark" aria-label="角色动态">
         <div className={st.chart}>
           <HourArea
-            label="每小时发言和精神、心情"
+            label="每小时发言数与状态趋势"
             name="发言"
             unit="句 / 小时"
             hours={hours}
@@ -101,7 +102,7 @@ export function HerTab({ day }: BriefTabProps) {
             now={now}
             lineRange={[-0.4, 1]}
             lines={[
-              { id: 'energy', label: '精神', pts: her.mood.map(([t, e]) => [hour(t), e]) },
+              { id: 'energy', label: '精力', pts: her.mood.map(([t, e]) => [hour(t), e]) },
               { id: 'mood', label: '心情', dash: true, pts: her.mood.map(([t, , v]) => [hour(t), v]) },
             ]}
             tip={(v) => `发言 ${v} 句`}
@@ -126,7 +127,7 @@ export function HerTab({ day }: BriefTabProps) {
                   <small>m</small>
                 </>
               }
-              k="出声"
+              k="语音播报"
             />
           ) : (
             <Big
@@ -136,7 +137,7 @@ export function HerTab({ day }: BriefTabProps) {
                   <small>次</small>
                 </>
               }
-              k="你碰角色"
+              k="互动触碰"
             />
           )}
           <Big
@@ -146,12 +147,12 @@ export function HerTab({ day }: BriefTabProps) {
                 <small>次</small>
               </>
             }
-            k={her.motions[0] ? `动作 │ 最多是${her.motions[0].label}` : '动作'}
+            k={her.motions[0] ? `动作 │ 高频：${her.motions[0].label}` : '动作'}
           />
         </div>
       </section>
       <div className={st.gridA}>
-        <Panel tag="今天的话" count={her.lines.length} act={actBtn('在对话里看全部', () => go({ page: 'chat' }))}>
+        <Panel tag={isToday ? '今日发言' : '当日发言'} count={her.lines.length} act={actBtn('在对话中查看全部', () => go({ page: 'chat' }))}>
           <ul className={st.lines}>
             {her.lines.map((l) => (
               <li key={`${l.kind}${l.at}`}>
@@ -168,7 +169,7 @@ export function HerTab({ day }: BriefTabProps) {
           </ul>
         </Panel>
         <div className={st.col}>
-          <Panel tag="你碰角色">
+          <Panel tag="互动触碰">
             <ul className={st.touch}>
               {TOUCH.map((t) => (
                 <li key={t.key}>
@@ -181,16 +182,16 @@ export function HerTab({ day }: BriefTabProps) {
               ))}
             </ul>
           </Panel>
-          <Panel tag="为什么开口" sub={`共 ${why} 次 │ 你回了 ${her.said.replied} 次`}>
-            <Bars label="为什么开口" rows={counted(her.why, '次')} />
+          <Panel tag="主动触发原因" sub={`共 ${why} 次 │ 已回复 ${her.said.replied} 次`}>
+            <Bars label="主动触发原因" rows={counted(her.why, '次')} />
           </Panel>
         </div>
       </div>
       <div className={st.gridC}>
-        <Panel tag="做得最多的动作">
-          <Bars label="做得最多的动作" rows={counted(her.motions, '次')} yellow />
+        <Panel tag="高频动作">
+          <Bars label="高频动作" rows={counted(her.motions, '次')} yellow />
         </Panel>
-        <Panel tag="新记住的事" act={actBtn('去记忆', () => go({ page: 'memory', view: 'about' }))}>
+        <Panel tag="新增记忆" act={actBtn('前往记忆', () => go({ page: 'memory', view: 'about' }))}>
           <Big
             lead
             v={
@@ -199,17 +200,17 @@ export function HerTab({ day }: BriefTabProps) {
                 <small>条</small>
               </>
             }
-            k={`近 7 天日均 ${items.mem.avg7 ?? '—'} 条`}
+            k={`近 7 日均值 ${items.mem.avg7 ?? '—'} 条`}
           />
         </Panel>
         {tools.enabled ? (
-          <Panel tag="替你动手">
-            <Bars label="替你动手" rows={counted(tools.by_name, '次')} />
-            <p className={st.sub}>{`改了 ${tools.files_changed} 个文件 │ 跑了 ${Math.floor(tools.run_minutes / 60)} h ${pad(tools.run_minutes % 60)} m │ ${tools.asked} 次先问了你`}</p>
+          <Panel tag="工具执行">
+            <Bars label="工具执行" rows={counted(tools.by_name, '次')} />
+            <p className={st.sub}>{`修改 ${tools.files_changed} 个文件 │ 运行 ${Math.floor(tools.run_minutes / 60)} h ${pad(tools.run_minutes % 60)} m │ ${tools.asked} 次询问确认`}</p>
           </Panel>
         ) : (
-          <Panel tag="在桌面上">
-            <Bars label="在桌面上" rows={her.desk.map((d) => ({ key: d.key, label: d.label, value: d.minutes ?? d.count, readout: d.minutes == null ? `${d.count} 次` : `${d.minutes} m` }))} />
+          <Panel tag="桌面行为">
+            <Bars label="桌面行为" rows={her.desk.map((d) => ({ key: d.key, label: d.label, value: d.minutes ?? d.count, readout: d.minutes == null ? `${d.count} 次` : `${d.minutes} m` }))} />
           </Panel>
         )}
       </div>

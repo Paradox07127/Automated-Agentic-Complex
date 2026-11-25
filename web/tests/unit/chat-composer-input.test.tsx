@@ -53,7 +53,7 @@ describe('chat composer keys', () => {
   it('Enter sends, and the placeholder speaks to her', async () => {
     const onSend = vi.fn(async () => 'sent' as const);
     render(<Composer {...props({ onSend })} />);
-    expect(box().placeholder).toBe('对陈千语说…');
+    expect(box().placeholder).toBe('向 陈千语 发送消息…');
     type('在吗');
     fireEvent.keyDown(box(), { key: 'Enter' });
     expect(onSend).toHaveBeenLastCalledWith('在吗', { look: false, no_memory: false });
@@ -112,10 +112,10 @@ describe('chat composer tray', () => {
     const onSend = vi.fn(async () => 'sent' as const);
     render(<Composer {...props({ onSend })} />);
     fireEvent.click(screen.getByRole('button', { name: '附加' }));
-    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '让陈千语看一眼屏幕' }));
-    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '这句不记' }));
-    expect(screen.getByRole('button', { name: '不看屏幕' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '取消这句不记' }));
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '附带当前屏幕识读' }));
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '此轮不记录' }));
+    expect(screen.getByRole('button', { name: '移除屏幕识读' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '取消「此轮不记录」' }));
     type('看下这个');
     fireEvent.keyDown(box(), { key: 'Enter' });
     expect(onSend).toHaveBeenLastCalledWith('看下这个', { look: true, no_memory: false });
@@ -137,7 +137,7 @@ describe('chat composer quote', () => {
   it('× removes the quote', () => {
     const onClearQuote = vi.fn();
     render(<Composer {...props({ onClearQuote, quote: { text: '周三下午三点', turn_id: 'tr7', part: 'user' } })} />);
-    fireEvent.click(screen.getByRole('button', { name: '不引用' }));
+    fireEvent.click(screen.getByRole('button', { name: '取消引用' }));
     expect(onClearQuote).toHaveBeenCalled();
   });
 });
@@ -163,7 +163,7 @@ describe('chat composer kernel', () => {
     const alert = screen.getByRole('alert');
     expect(alert.querySelector('[data-stub="KernelChain"]')).toBeNull();
     expect(screen.queryByRole('button', { name: /切换|改用/ })).toBeNull();
-    expect(screen.getByRole('link', { name: '设置 › 角色内核' }).getAttribute('href')).toBe('#/settings?group=kernel');
+    expect(screen.getByRole('link', { name: '设置 › 内核' }).getAttribute('href')).toBe('#/settings?group=kernel');
     expect(box().disabled).toBe(false);
   });
 });
@@ -212,7 +212,7 @@ describe('chat composer: pasted and dropped files', () => {
     const base = createFakeBridge({ surface: 'main', still: true });
     window.agenticComplex = { ...base, files: { ...base.files, adoptDropped: async () => [] } };
     render(<Composer {...props({ dropped: { files: [new File(['x'], 'a.exe')], topic: null } })} />);
-    await waitFor(() => expect(screen.getByText('1 个文件没带上')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('1 个文件未能附加')).toBeTruthy());
   });
 });
 

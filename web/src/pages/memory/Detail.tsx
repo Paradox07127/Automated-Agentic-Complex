@@ -41,18 +41,18 @@ function UseAxis({ spark, now }: { spark: number[]; now: number }) {
 /** 出处: the chat line it was read from, or the episode she saw; nothing at all means the user added it here. */
 export function Source({ fact, now, onJump }: { fact: Fact; now: number; onJump: (k: 'chat' | 'obs') => void }) {
   const { ev } = useEvidence(fact, now);
-  if (!ev) return <Quote>你在这里手动加的，或者在设置时填的</Quote>;
+  if (!ev) return <Quote>由手动添加，或由外部工具写入（无关联对话或观察记录）</Quote>;
   if (ev.k === 'chat')
     return (
       <Quote
         meta={
           <>
             对话 │ <span className="num">{ev.when}</span>
-            <Lnk onClick={() => onJump('chat')}>去对话看原文 ›</Lnk>
+            <Lnk onClick={() => onJump('chat')}>查看对话原文 ›</Lnk>
           </>
         }
       >
-        {ev.quote ? `「${ev.quote}」` : '原句只保留 48 小时，这一段已经清理'}
+        {ev.quote ? `「${ev.quote}」` : '原文仅保留 48 小时，该片段已过期清理'}
       </Quote>
     );
   return (
@@ -60,11 +60,11 @@ export function Source({ fact, now, onJump }: { fact: Fact; now: number; onJump:
       meta={
         <>
           <span className="num">{ev.when}</span>
-          <Lnk onClick={() => onJump('obs')}>在简报里看这一段 ›</Lnk>
+          <Lnk onClick={() => onJump('obs')}>在简报中查看此段 ›</Lnk>
         </>
       }
     >
-      角色看到：{ev.title ?? '一段观察'}
+      观察摘要：{ev.title ?? '屏幕观察片段'}
       {ev.quote && <span className={styles.apps}>{ev.quote}</span>}
     </Quote>
   );
@@ -184,12 +184,12 @@ export function Detail({ fact: f, now, editing, onEdit, onSave, onDelete, onMark
     <Frame id={f.id} head={<DetailHead title={cat?.label ?? ''} micro={`${cat?.en ?? ''} / ${f.id.slice(0, 6)}`} {...(onClose ? { onClose } : {})} />} foot={foot}>
         {editing && base.version !== f.version && (
           <Note>
-            已在别处更新为「{factText(f)}」 <Lnk onClick={reload}>载入最新版本</Lnk>
+            已在其他位置更新为「{factText(f)}」 <Lnk onClick={reload}>载入最新版本</Lnk>
           </Note>
         )}
         {editing ? (
           <TextArea
-            label="修改这条记忆"
+            label="编辑此条记忆"
             value={draft}
             maxLength={500}
             rows={3}
@@ -215,7 +215,7 @@ export function Detail({ fact: f, now, editing, onEdit, onSave, onDelete, onMark
           <div className={styles.tags}>
             {f.locked && <Pill tone="mission">已锁定</Pill>}
             {f.quiet && <Pill tone="mission">不再提及</Pill>}
-            {isDormant(f) && <Pill dashed>30 天没用到</Pill>}
+            {isDormant(f) && <Pill dashed>30 天未使用</Pill>}
           </div>
         )}
         <div className={styles.kv}>
@@ -224,20 +224,20 @@ export function Detail({ fact: f, now, editing, onEdit, onSave, onDelete, onMark
             {SRC[f.source].full}
             <small>{howText(f)}</small>
           </Kv>
-          <Kv k="记下">
+          <Kv k="记录时间">
             <span className="num">
               {ymd(f.recorded_at)} {hm(f.recorded_at)}
             </span>
           </Kv>
         </div>
-        <Block title="出处">
+        <Block title="来源出处">
           <Source fact={f} now={now} onJump={onJump} />
         </Block>
         <Block
-          title="角色用到它"
+          title="调用记录"
           note={
             <>
-              近 14 天 <span className="num">{recentText(f, now) ?? 0}</span> 次
+              近 14 日 <span className="num">{recentText(f, now) ?? 0}</span> 次
             </>
           }
         >
@@ -246,12 +246,12 @@ export function Detail({ fact: f, now, editing, onEdit, onSave, onDelete, onMark
             <Lines>
               {f.uses.slice(0, 3).map((u) => (
                 <Line key={`${u.line_id}-${u.at}`} at={stamp(u.at, now)}>
-                  {u.how === 'injected' ? '带进了角色的回答' : '在回答里提到'}
+                  {u.how === 'injected' ? '注入角色回复上下文' : '在回复中被提及'}
                 </Line>
               ))}
             </Lines>
           ) : (
-            <Note>{isDormant(f) ? '30 天没用到，不会主动提，但问到时还会想起来' : '还没用到过'}</Note>
+            <Note>{isDormant(f) ? '已连续 30 天未调用，将不再主动提及（被问及时仍可检索）' : '尚未被调用过'}</Note>
           )}
         </Block>
         {versions && versions.length > 1 && (

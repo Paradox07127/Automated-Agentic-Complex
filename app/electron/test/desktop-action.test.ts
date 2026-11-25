@@ -78,8 +78,8 @@ test('wired actions reach their function and answer null', async () => {
 });
 
 test('claimRitual fails with why agentd took no tap, and a failed gift fails the action', async () => {
-  const { calls, run } = setup(false, '角色在忙，等这一轮做完');
-  assert.deepEqual(await failure(run(['claimRitual'], null)), { code: 'failed', detail: '角色在忙，等这一轮做完' });
+  const { calls, run } = setup(false, '角色正在处理上一轮对话，请稍候');
+  assert.deepEqual(await failure(run(['claimRitual'], null)), { code: 'failed', detail: '角色正在处理上一轮对话，请稍候' });
   const gift = desktopAction({ ...setup().ports, gift: async () => { throw new Error('当前角色包尚未导入原作收礼动作'); } });
   // The bridge answers `failed` with the message.
   await assert.rejects(async () => gift(['gift'], null), { message: '当前角色包尚未导入原作收礼动作' });
@@ -178,13 +178,13 @@ test('the tap\'s `at` is ISO 8601 in the local zone, without fractions', () => {
 test('claimRitual\'s answers: what a click on her says, and what the ritual tag says', () => {
   const cases: [number, unknown, string | null, string | null][] = [
     [202, {}, null, null],
-    [409, { while: 'working' }, '角色在忙，等这一轮做完', '角色在忙，等这一轮做完'],
-    [409, { while: 'speaking' }, null, '角色正在说话，稍后再试'],
-    [409, { error: 'switching' }, '角色正在切换，稍后再试', '角色正在切换，稍后再试'],
-    [503, { error: 'no_llm' }, '角色内核未就绪', '角色内核未就绪'],
-    [200, {}, null, '这次没有可播放的回应'],
-    [503, { error: 'other' }, '没能收到角色回应，稍后再试', '没能收到角色回应，稍后再试'],
-    [0, null, '没能收到角色回应，稍后再试', '没能收到角色回应，稍后再试'],
+    [409, { while: 'working' }, '角色正在处理上一轮对话，请稍候', '角色正在处理上一轮对话，请稍候'],
+    [409, { while: 'speaking' }, null, '角色正在语音播报，请稍后再试'],
+    [409, { error: 'switching' }, '正在切换角色，请稍后再试', '正在切换角色，请稍后再试'],
+    [503, { error: 'no_llm' }, '执行内核尚未就绪', '执行内核尚未就绪'],
+    [200, {}, null, '本次没有可播放的回应'],
+    [503, { error: 'other' }, '未能收到角色回应，请稍后再试', '未能收到角色回应，请稍后再试'],
+    [0, null, '未能收到角色回应，请稍后再试', '未能收到角色回应，请稍后再试'],
   ];
   for (const [status, body, click, tag] of cases) {
     assert.equal(ritualFailure(status, body, 2), click, `${status} ${JSON.stringify(body)} click`);
@@ -212,8 +212,8 @@ test('DesktopPlay: a play from its `started` until a final receipt of it or the 
   assert.equal(p.id, 'mmd_jile');
   p.stop((m) => sent.push(m) > 0, ['actions', 'action_loop']);
   assert.deepEqual(sent, [{ v: 1, type: 'stop_action', play_id: 'b' }]);
-  assert.throws(() => p.stop(() => true, ['actions']), { message: '这个版本的角色不能停下动作' });
-  assert.throws(() => p.stop(() => false, ['action_loop']), { message: '这个版本的角色不能停下动作' });
+  assert.throws(() => p.stop(() => true, ['actions']), { message: '当前版本角色暂不支持停止动作' });
+  assert.throws(() => p.stop(() => false, ['action_loop']), { message: '当前版本角色暂不支持停止动作' });
   assert.equal(p.lost(), true);
   assert.equal(p.lost(), false);
   assert.equal(p.id, null);

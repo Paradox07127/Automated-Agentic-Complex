@@ -39,7 +39,7 @@ afterEach(() => {
 describe('settings search · 角色 rows', () => {
   it('opens 描边 on the 画面 tab at its row', async () => {
     await search('描边');
-    fireEvent.click(await screen.findByRole('button', { name: /角色边界/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /角色轮廓描边/ }));
     expect(window.location.hash.startsWith('#/character?')).toBe(true);
     expect(hashQuery().get('tab')).toBe('render');
     expect(hashQuery().get('row')).toBe('rnd.outline');
@@ -48,7 +48,7 @@ describe('settings search · 角色 rows', () => {
   it('lists the 画面 quality rows only in developer mode', async () => {
     setDevMode(false);
     await search('抗锯齿');
-    expect(await screen.findByText(/^没有找到「抗锯齿」，/)).toBeTruthy();
+    expect(await screen.findByText(/^未找到「抗锯齿」，/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /2× SSAA/ })).toBeNull();
     cleanup();
     setDevMode(true);
@@ -70,9 +70,9 @@ describe('settings search · 角色 rows', () => {
 describe('settings search · Pi-only rows', () => {
   it('leaves 执行命令 and 单次费用上限 out while the kernel is not Pi', async () => {
     await search('执行命令');
-    expect(await screen.findByText(/^没有找到「执行命令」，/)).toBeTruthy();
+    expect(await screen.findByText(/^未找到「执行命令」，/)).toBeTruthy();
     cleanup();
     await search('费用上限');
-    expect(await screen.findByText(/^没有找到「费用上限」，/)).toBeTruthy();
+    expect(await screen.findByText(/^未找到「费用上限」，/)).toBeTruthy();
   });
 });

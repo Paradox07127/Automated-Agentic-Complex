@@ -161,7 +161,7 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, wri
   };
 
   let list: ReactNode;
-  if (error != null) list = <List>{<ErrBar message={`没有读到记忆：${error}`} onRetry={onRetry} />}</List>;
+  if (error != null) list = <List>{<ErrBar message={`未能读取记忆：${error}`} onRetry={onRetry} />}</List>;
   else if (facts == null)
     list = (
       <List>
@@ -173,11 +173,11 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, wri
       <List>
         <Empty
           icon="data"
-          title="还没记住你的事"
-          desc="你在对话里说过的偏好、约定和经历，会记在这里；你说「记住……」就马上记下。"
+          title="尚未记录您的相关信息"
+          desc="您在对话中表达的偏好、约定与经历将记录于此；发送「记住……」可立即写入记忆。"
           action={
             <Btn icon="send" onClick={onChat}>
-              去对话
+              前往对话
             </Btn>
           }
         />
@@ -186,7 +186,7 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, wri
   else if (shown.length === 0)
     list = (
       <List>
-        <Empty inline title="没有符合条件的记忆" action={<Lnk onClick={() => setQ('')}>清除条件</Lnk>} />
+        <Empty inline title="无匹配的记忆条目" action={<Lnk onClick={() => setQ('')}>清除条件</Lnk>} />
       </List>
     );
   else if (grouped) {
@@ -215,21 +215,21 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, wri
   }
 
   const cells: Array<{ id: Pick; label: string; icon: GlyphName }> = [
-    ...(asks.length > 0 ? [{ id: 'pending' as const, label: '待确认', icon: 'vote' as const }] : []),
+    ...(asks.length > 0 ? [{ id: 'pending' as const, label: '待处理', icon: 'vote' as const }] : []),
     { id: 'all', label: '全部', icon: 'grid' },
     ...CATS.filter((c) => c.id !== 'about').map((c) => ({ id: c.id, label: c.label, icon: ICON[c.id as Exclude<Cat, 'about'>] })),
   ];
   const wide = cat === 'pending' || !listing;
   const legend: Array<[string[], string]> =
     cat === 'pending'
-      ? [[['1', '2', '3'], '记住 / 改 / 不是这样']]
+      ? [[['1', '2', '3'], '确认 / 修改 / 不属实']]
       : [
           [['↑', '↓'], '选择'],
-          [['Enter'], '修改'],
+          [['Enter'], '编辑'],
           [['Del'], '删除'],
         ];
   if (tabbed) legend.push([['Q', 'E'], '切页签']);
-  legend.push([['Esc'], '回主页']);
+  legend.push([['Esc'], '返回主页']);
 
   return (
     <div className={styles.body} data-wide={wide || undefined}>
@@ -246,7 +246,7 @@ export function Archive({ facts, error, onRetry, now, still, fresh, initial, wri
         <section className={styles.ccol} aria-label="记忆">
           <div className={styles.crow}>
             <span className={styles.search}>
-              <SearchField value={q} label="搜索记忆" placeholder="搜索记住的事" shortcut={keyText('⌘F')} maxLength={500} onChange={setQ} />
+              <SearchField value={q} label="搜索记忆" placeholder="搜索记忆条目" shortcut={keyText('⌘F')} maxLength={500} onChange={setQ} />
             </span>
             <span className={styles.sp} />
             <Select label="排序" prefix="排序" value={sort} options={SORTS} width={124} onChange={(v) => setSort(v as Sort)} />

@@ -43,7 +43,7 @@ describe('编排', () => {
         <MotionSettings character="voice_a" switching={false} offline={false} toast={toast} />
       </QueryClientProvider>,
     );
-    expect(await screen.findByText('这个角色包还没有动作图，需要重建角色包')).toBeTruthy();
+    expect(await screen.findByText('该角色包尚未生成动作图，请重新构建角色包')).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
     expect(document.querySelector('[data-chain]')).toBeNull();
     expect(toast).not.toHaveBeenCalled();
@@ -134,10 +134,10 @@ describe('编排', () => {
     await click(screen.getByRole('button', { name: /^挥手/ }));
     expect(rows()).toEqual([FIDGET, WAVE]);
     await click(within(row(FIDGET)).getByRole('button', { name: /^展开/ }));
-    await click(screen.getByRole('button', { name: '从这个池去掉' }));
+    await click(screen.getByRole('button', { name: '从此动作池移除' }));
     expect(rows()).toEqual([WAVE]);
     await click(within(row(WAVE)).getByRole('button', { name: /^展开/ }));
-    expect((screen.getByRole('button', { name: '从这个池去掉' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: '从此动作池移除' }) as HTMLButtonElement).disabled).toBe(true);
     await save();
     expect(set).toHaveBeenCalledWith('si', { chains: {}, pools: { 'idle.t1': [{ clip: WAVE, weight: 1 }] }, blend_in: {} });
   });
@@ -154,14 +154,14 @@ describe('编排', () => {
     await mount(toast);
     await setWeight(FIDGET, '2');
     await save();
-    expect(toast).toHaveBeenLastCalledWith('已保存 │ 3 项没有生效', { severity: 'warning' });
-    expect(pool().textContent).toContain('上次保存没有生效：有片段不在角色包里');
+    expect(toast).toHaveBeenLastCalledWith('已保存 │ 3 项未生效', { severity: 'warning' });
+    expect(pool().textContent).toContain('上次保存未生效：存在角色包未包含的动作片段');
     expect(screen.getByRole('radio', { name: /^T1/ }).hasAttribute('data-bad')).toBe(true);
     await toEvent('session.thinking');
     expect(document.querySelector('[data-pool-cell="session.thinking"]')!.hasAttribute('data-bad')).toBe(true);
-    expect(pool().textContent).toContain('有片段的站姿和池子不一致');
-    expect(row(PONDER).textContent).toContain('角色包里没有这条链');
-    expect(row(THINK).textContent).not.toContain('角色包里没有这条链');
+    expect(pool().textContent).toContain('部分动作片段的姿态与动作池不一致');
+    expect(row(PONDER).textContent).toContain('角色包中不存在该动作链');
+    expect(row(THINK).textContent).not.toContain('角色包中不存在该动作链');
   });
 
   it('gives a stored pool back to the pack and undoes everything unsaved at once', async () => {
@@ -170,11 +170,11 @@ describe('编排', () => {
     await mount(toast);
     expect(weight(FIDGET).value).toBe('3');
     expect(screen.getByRole('radio', { name: /^T1/ }).querySelector('[data-stub="Diamond"]')).toBeTruthy();
-    await click(within(pool()).getByRole('button', { name: '用包里的' }));
+    await click(within(pool()).getByRole('button', { name: '恢复默认' }));
     expect(weight(FIDGET).value).toBe('1');
     await click(screen.getByRole('button', { name: '全部撤销' }));
     expect(weight(FIDGET).value).toBe('3');
-    await click(within(pool()).getByRole('button', { name: '用包里的' }));
+    await click(within(pool()).getByRole('button', { name: '恢复默认' }));
     await save();
     expect(set).toHaveBeenCalledWith('si', { chains: {}, pools: {}, blend_in: {} });
   });
@@ -184,7 +184,7 @@ describe('编排', () => {
     await mount(toast);
     await setWeight(FIDGET, '4');
     await save();
-    expect(toast).toHaveBeenLastCalledWith(expect.stringContaining('没有保存'), expect.objectContaining({ severity: 'danger' }));
+    expect(toast).toHaveBeenLastCalledWith(expect.stringContaining('动作设置保存失败'), expect.objectContaining({ severity: 'danger' }));
     expect(screen.getByRole('button', { name: '保存' })).toBeTruthy();
   });
 
@@ -213,10 +213,10 @@ describe('编排', () => {
     await mount(toast);
     await setWeight(FIDGET, '4');
     await save();
-    expect(toast).toHaveBeenLastCalledWith('动作设置没有保存：角色刚被换过', expect.objectContaining({ severity: 'danger' }));
+    expect(toast).toHaveBeenLastCalledWith('动作设置保存失败：当前角色已切换', expect.objectContaining({ severity: 'danger' }));
     set.mockRejectedValueOnce({ code: 'not_stored', detail: '动作设置没有存下：EACCES' });
     await save();
-    expect(toast).toHaveBeenLastCalledWith('动作设置没有保存：设置文件写不进去', expect.objectContaining({ severity: 'danger' }));
+    expect(toast).toHaveBeenLastCalledWith('动作设置保存失败：无法写入配置文件', expect.objectContaining({ severity: 'danger' }));
     expect(screen.getByRole('button', { name: '保存' })).toBeTruthy();
   });
 
@@ -224,7 +224,7 @@ describe('编排', () => {
     await mount(toast, true);
     expect(weight(FIDGET).disabled).toBe(true);
     expect(screen.getByRole('button', { name: '往 idle.t1 加链' }).getAttribute('aria-disabled')).toBe('true');
-    expect(screen.getByRole('group', { name: '保存动作设置' }).textContent).toContain('角色未运行 │ 只读');
+    expect(screen.getByRole('group', { name: '保存动作设置' }).textContent).toContain('角色进程未运行 │ 只读');
     await toEvent('click.head');
     expect(rows()).toEqual([PAT]);
   });

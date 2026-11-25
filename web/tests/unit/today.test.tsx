@@ -100,13 +100,13 @@ describe('今天', () => {
     mount('&demo=pause');
     await waitFor(() => expect(screen.getAllByRole('status').some((s) => s.textContent?.startsWith('观察暂停'))).toBe(true), { timeout: 3000 });
     const pause = screen.getAllByRole('status').find((s) => s.textContent?.startsWith('观察暂停'))!;
-    expect(within(pause).getByRole('button', { name: '现在恢复' })).toBeTruthy();
+    expect(within(pause).getByRole('button', { name: '立即恢复' })).toBeTruthy();
   });
 
   it('heads the day with 今日一句 and the readouts; 待处理 leads the left column, 进行中 the right', async () => {
     mount();
-    const line = await screen.findByRole('region', { name: '今日一句' }, { timeout: 3000 });
-    await waitFor(() => expect(line.textContent).toMatch(/^今日一句今天的读数，不是角色写的日报今天 \d+ 个编码会话/), { timeout: 3000 });
+    const line = await screen.findByRole('region', { name: '今日摘要' }, { timeout: 3000 });
+    await waitFor(() => expect(line.textContent).toMatch(/^今日摘要今日数据汇总，非角色生成日报今天 \d+ 个编码会话/), { timeout: 3000 });
     // 聊了什么 and 进行中 count those; the line does not say them again.
     expect(line.textContent).not.toMatch(/段对话|进行中|待批准/);
     expect(within(screen.getByRole('list', { name: '读数' })).getAllByRole('listitem').length).toBeGreaterThan(0);

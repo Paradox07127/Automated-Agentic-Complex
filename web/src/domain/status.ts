@@ -110,8 +110,8 @@ const SHAPE: Record<VisualTone, VisualShape> = {
 
 const MAP: Record<VisualStateKey, [VisualTone, string]> = {
   queued: ['idle', '排队中'],
-  thinking: ['running', '在想'],
-  running_tool: ['running', '在跑'],
+  thinking: ['running', '思考中'],
+  running_tool: ['running', '工具执行中'],
   verifying: ['running', '验证中'],
   running: ['running', '进行中'],
   in_progress: ['running', '进行中'],
@@ -130,7 +130,7 @@ const MAP: Record<VisualStateKey, [VisualTone, string]> = {
   presented: ['waiting', '已送达'],
   viewed: ['waiting', '已查看'],
   warning: ['warning', '注意'],
-  blocked: ['warning', '堵住'],
+  blocked: ['warning', '已阻塞'],
   paused: ['cancelled', '已暂停'],
   succeeded: ['ok', '已完成'],
   completed: ['ok', '已完成'],
@@ -143,13 +143,13 @@ const MAP: Record<VisualStateKey, [VisualTone, string]> = {
   cancelled: ['cancelled', '已取消'],
   interrupted: ['cancelled', '已中断'],
   stopped: ['cancelled', '已停止'],
-  rejected: ['cancelled', '已退回'],
+  rejected: ['cancelled', '已驳回'],
   idle: ['idle', '空闲'],
   pending: ['idle', '未开始'],
   todo: ['idle', '未到达'],
   unreachable: ['idle', '不可达'],
   skipped: ['idle', '跳过'],
-  unknown: ['warning', '回执不全'],
+  unknown: ['warning', '状态未知'],
 };
 
 /** Colour + shape + text for a state. Interrupted and cancelled share the hollow square. */

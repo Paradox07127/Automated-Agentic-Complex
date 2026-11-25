@@ -46,14 +46,14 @@ export function useConvTitles(enabled: boolean) {
 
 /** Who started a turn, by `input.received` source. */
 export const SRC_LABEL: Readonly<Record<string, string>> = {
-  text: '你说', voice: '你说（语音）', desktop: '桌面输入', quick: '桌面输入', gift: '你递来东西', proactive: '主动发起', announce: '主动发起', ritual: '主动发起',
-  tap: '你碰角色', background: '后台任务',
+  text: '用户输入', voice: '用户语音', desktop: '桌面输入', quick: '桌面输入', gift: '用户交互', proactive: '主动发起', announce: '主动发起', ritual: '主动发起',
+  tap: '触碰交互', background: '后台任务',
 };
-export const srcLabel = (s: string) => SRC_LABEL[s] ?? '你说';
+export const srcLabel = (s: string) => SRC_LABEL[s] ?? '用户输入';
 
 /** The list's source filter groups. */
 export type SrcGroup = 'all' | 'user' | 'proactive' | 'tap' | 'background';
-export const SRC_GROUPS: ReadonlyArray<[SrcGroup, string]> = [['all', '全部来源'], ['user', '你说（含语音）'], ['proactive', '主动发起'], ['tap', '你碰角色'], ['background', '后台任务']];
+export const SRC_GROUPS: ReadonlyArray<[SrcGroup, string]> = [['all', '全部来源'], ['user', '用户输入（含语音）'], ['proactive', '主动发起'], ['tap', '触碰交互'], ['background', '后台任务']];
 export function groupOf(s: string): Exclude<SrcGroup, 'all'> {
   if (s === 'background') return 'background';
   if (s === 'tap') return 'tap';
@@ -63,7 +63,7 @@ export function groupOf(s: string): Exclude<SrcGroup, 'all'> {
 
 /** A turn's state as a shape and words. */
 export type Shape = 'ok' | 'fail' | 'cut' | 'run' | 'wait' | 'skip' | 'text' | 'unk';
-export const SHAPE_LABEL: Readonly<Record<Shape, string>> = { ok: '完成', fail: '出错了', cut: '打断', run: '在跑', wait: '待批准', skip: '跳过', text: '只出了文字', unk: '回执不全' };
+export const SHAPE_LABEL: Readonly<Record<Shape, string>> = { ok: '已完成', fail: '失败', cut: '已中断', run: '执行中', wait: '待批准', skip: '已跳过', text: '仅文本输出', unk: '状态未知' };
 /** The lamp for a result; the words stay the page's own. */
 export const LAMP: Readonly<Record<Shape, VisualStateKey>> = { ok: 'done', fail: 'failed', cut: 'interrupted', run: 'running', wait: 'awaiting_approval', skip: 'skipped', text: 'idle', unk: 'warning' };
 export function shapeOf(r: Pick<WireTraceTurn, 'result' | 'turn_state'>): Shape {

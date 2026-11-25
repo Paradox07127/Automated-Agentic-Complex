@@ -20,26 +20,26 @@ export function MediaDialog({ entry, onSave, onCancel }: MediaDialogProps) {
   return (
     <Dialog
       open
-      title="换音源"
+      title="更换音频"
       onClose={onCancel}
       footer={
         <>
           <Btn variant="secondary" onClick={onCancel}>
             取消
           </Btn>
-          <Btn variant="primary" disabled={bad} disabledReason="音乐偏移要是秒数" onClick={() => onSave({ bgm, bgmStartS: bgm === 'pick' ? n : null })}>
-            {bgm === 'pick' ? '选择音频' : '去掉音源'}
+          <Btn variant="primary" disabled={bad} disabledReason="音乐偏移须为数字（秒）" onClick={() => onSave({ bgm, bgmStartS: bgm === 'pick' ? n : null })}>
+            {bgm === 'pick' ? '选择音频' : '移除音频'}
           </Btn>
         </>
       }
     >
       <div className={styles.form} data-mmd-media={entry.id}>
         <GameSeg
-          label="音源"
+          label="音频"
           value={bgm}
           options={[
-            { value: 'pick', label: '换一个音频' },
-            { value: 'none', label: '不要音源', disabled: !entry.hasBgm, title: '这支舞没有音源' },
+            { value: 'pick', label: '选择新音频' },
+            { value: 'none', label: '无音频', disabled: !entry.hasBgm, title: '该舞蹈未绑定音频' },
           ]}
           onChange={(v) => setBgm(v as 'pick' | 'none')}
         />

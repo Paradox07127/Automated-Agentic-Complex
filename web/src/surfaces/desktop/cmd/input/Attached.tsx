@@ -35,16 +35,16 @@ export function Attached({ attachment: a, typed, sending, onDrop, onSend }: Atta
           }),
       ),
     ];
-    const unreadable = types.length > 0 ? `读不了 ${types.join('、')}，只把路径发给角色` : null;
+    const unreadable = types.length > 0 ? `无法读取 ${types.join('、')} 内容，将仅发送文件路径` : null;
     const words = (a.items ?? []).filter((i) => i.kind !== 'file').map((i) => (i.kind === 'url' ? i.url : i.text));
     return (
       <div className={styles.att}>
         <div className={styles.meta}>
-          <span>{a.files > 0 ? `可读 ${a.files} 个文件` : (unreadable ?? `拖入 ${words.length} 项`)}</span>
-          <IconBtn icon="close" size="sm" label="不带这些文件" onClick={onDrop} />
+          <span>{a.files > 0 ? `可读取 ${a.files} 个文件` : (unreadable ?? `已附带 ${words.length} 项内容`)}</span>
+          <IconBtn icon="close" size="sm" label="移除附件" onClick={onDrop} />
         </div>
         {a.files > 0 && unreadable && <p className={styles.line}>{unreadable}</p>}
-        {dropOverflows(typed ?? '', a) && <p className={styles.line}>拖入的内容太长，发送时只带前面一部分</p>}
+        {dropOverflows(typed ?? '', a) && <p className={styles.line}>附带内容超出长度限制，发送时将仅截取前段</p>}
         {words.length > 0 && (
           <pre className={styles.text} data-attachment-text="">
             {words.join('\n')}
@@ -68,7 +68,7 @@ export function Attached({ attachment: a, typed, sending, onDrop, onSend }: Atta
   }
 
   const request = action && (action !== 'remind' || when) ? selectionSay(action, a.text, when ?? '') : null;
-  const meta = [SOURCE[a.source], a.app, `${[...a.text].length} 字`, a.truncated && '太长，只取了前 2000 字'].filter(Boolean).join(' │ ');
+  const meta = [SOURCE[a.source], a.app, `${[...a.text].length} 字`, a.truncated && '内容过长，已截取前 2000 字'].filter(Boolean).join(' │ ');
   return (
     <div className={styles.att}>
       <div className={styles.meta}>
@@ -106,7 +106,7 @@ export function Attached({ attachment: a, typed, sending, onDrop, onSend }: Atta
       </div>
       {request && (
         <div className={styles.preview}>
-          <span className={styles.label}>{request.noMemory ? '将发给角色 │ 这一轮不记' : action === 'remember' ? '将发给角色 │ 会记住这段文字' : '将发给角色'}</span>
+          <span className={styles.label}>{request.noMemory ? '发送至角色 │ 无痕对话（本轮不记入记忆）' : action === 'remember' ? '发送至角色 │ 写入记忆' : '发送至角色'}</span>
           <pre className={styles.text} data-say-preview="">
             {request.text}
           </pre>

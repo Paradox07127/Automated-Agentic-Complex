@@ -25,13 +25,13 @@ export function KernelLoginRow({ backend, methods = [] }: { backend: string; met
     );
   const deepseek = backend === 'deepseek';
   const start = (method?: Method) =>
-    act(() => loginStart(method?.id), deepseek ? '已打开 DeepSeek 客户端，在里面登录' : '已打开登录页，在浏览器里完成登录', '没能开始登录');
+    act(() => loginStart(method?.id), deepseek ? '已打开 DeepSeek 客户端，请在其中完成登录' : '已在浏览器中打开登录页面，请完成登录', '未能发起登录');
   const failed = login.error ? [RUNTIME_ERROR[login.error]?.label ?? codeText(login.error) ?? login.error, login.detail].filter(Boolean).join('：') : null;
   const desc = login.pending
     ? deepseek
-      ? '在 DeepSeek 客户端里登录后回来'
-      : '在浏览器里完成登录后回来'
-    : (failed ?? (account?.signed_in ? [account.email, account.plan].filter(Boolean).join(' │ ') || '已登录' : account ? '还没有登录' : undefined));
+      ? '请在 DeepSeek 客户端中完成登录后返回'
+      : '请在浏览器中完成登录后返回'
+    : (failed ?? (account?.signed_in ? [account.email, account.plan].filter(Boolean).join(' │ ') || '已登录' : account ? '尚未登录' : undefined));
   const again = account?.signed_in ? '重新登录' : '登录';
 
   return (
@@ -42,7 +42,7 @@ export function KernelLoginRow({ backend, methods = [] }: { backend: string; met
       descTone={failed && !login.pending ? 'bad' : undefined}
       control={
         login.pending ? (
-          <Btn disabled={off} onClick={() => act(loginCancel, '已取消登录', '没能取消登录')}>
+          <Btn disabled={off} onClick={() => act(loginCancel, '已取消登录', '未能取消登录')}>
             取消登录
           </Btn>
         ) : (
@@ -59,7 +59,7 @@ export function KernelLoginRow({ backend, methods = [] }: { backend: string; met
               </Btn>
             )}
             {((account?.signed_in && !deepseek) || backend === 'acp') && (
-              <Btn disabled={off} onClick={() => act(loginLogout, '已登出', '没能登出')}>
+              <Btn disabled={off} onClick={() => act(loginLogout, '已退出登录', '未能退出登录')}>
                 登出
               </Btn>
             )}

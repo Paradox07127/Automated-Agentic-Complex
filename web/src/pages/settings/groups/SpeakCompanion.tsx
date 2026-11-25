@@ -45,7 +45,7 @@ export function QuietHoursRow({ ps, disabled }: { ps: ProactiveState; disabled: 
   const { model } = useSettings();
   const { quiet } = ps;
   const save = (body: { quiet_enabled?: boolean; quiet_ranges?: QuietRange[] }) =>
-    void ps.saveQuiet(body).catch((e) => model.notify({ message: `没能保存免打扰时段：${failure(e).text}`, severity: 'danger', persistent: true }));
+    void ps.saveQuiet(body).catch((e) => model.notify({ message: `未能保存免打扰时段：${failure(e).text}`, severity: 'danger', persistent: true }));
   if (quiet == null) {
     return (
       <SetRow
@@ -53,8 +53,8 @@ export function QuietHoursRow({ ps, disabled }: { ps: ProactiveState; disabled: 
         title={labelOf('quiet_hours')}
         indent
         control={
-          <span className={styles.t3} title="免打扰时段：还没读到后台的状态">
-            未读到
+          <span className={styles.t3} title="免打扰时段：尚未读取后台状态">
+            未读取
           </span>
         }
       />
@@ -76,7 +76,7 @@ export function QuietHoursRow({ ps, disabled }: { ps: ProactiveState; disabled: 
       <SetRow
         id="quiet_hours"
         title={labelOf('quiet_hours')}
-        desc="这些时段里不主动开口"
+        desc="在以下时段内不主动发起交互"
         indent
         control={
           <>

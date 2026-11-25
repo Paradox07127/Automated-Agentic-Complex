@@ -19,12 +19,12 @@ EXPIRE_EVERY = 60.0  # seconds between timeline expiries, which otherwise run on
 JOB_REPORT_WITHIN = 24 * 3600.0  # seconds after a conversation job ends that she still tells its result
 # Announcement headlines by reply language code; "harness" (None) takes the Chinese ones.
 HEADLINES = {
-    'zh-Hans': {'task_expired': '「{title}」没开始就过期了', 'task_interrupted': '「{title}」被重启打断了',
-                'reminder_wait': '好，等 {awaited}提醒你{what}。', 'reminder_set': '好，{day}{time}提醒你{what}。',
+    'zh-Hans': {'task_expired': '「{title}」尚未开始即已过期', 'task_interrupted': '「{title}」因服务重启而中断',
+                'reminder_wait': '已记录：将在 {awaited} 时提醒「{what}」。', 'reminder_set': '已记录：将在 {day}{time} 提醒「{what}」。',
                 'daily': '每天 ', 'weekdays': '工作日 ', 'tomorrow': '明天 ', 'date': '{month:02d}-{day:02d} 周{weekday} ',
                 'weekday_names': '一二三四五六日',
-                'missed_wait': '错过了提醒：{text}（24 小时没等到 {awaited}）', 'missed_time': '错过了提醒：{text}（原定 {time}）',
-                'due': '提醒你：{items}', 'separator': '；'},
+                'missed_wait': '未触发的提醒：{text}（等待 {awaited} 超过 24 小时）', 'missed_time': '未触发的提醒：{text}（原定时间：{time}）',
+                'due': '日程提醒：{items}', 'separator': '；'},
     'en': {'task_expired': '"{title}" expired before it started', 'task_interrupted': '"{title}" was cut off by a restart',
            'reminder_wait': "OK, when {awaited}, I'll remind you: {what}.",
            'reminder_set': "OK, I'll remind you {day}at {time}: {what}.",

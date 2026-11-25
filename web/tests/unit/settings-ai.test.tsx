@@ -96,7 +96,7 @@ describe('settings › AI › 用谁的账号', () => {
     expect(within(pi).getByRole('group', { name: '模型提供方' })).toBeTruthy();
     for (const id of ['acct', 'kernelLogin', 'mainModel']) expect(row(id), id).toBeNull();
     expect(within(screen.getByRole('region', { name: '模型' })).getByRole('group', { name: '模型' })).toBeTruthy();
-    expect(within(screen.getByRole('region', { name: 'Pi 运行' })).getByRole('group', { name: '写文件和运行命令前先问你' })).toBeTruthy();
+    expect(within(screen.getByRole('region', { name: 'Pi 运行' })).getByRole('group', { name: '写文件或运行命令前请求批准' })).toBeTruthy();
   });
 
   it('follows a kernel picked but not applied yet', async () => {
@@ -305,7 +305,7 @@ describe('settings › AI › AI 对话', () => {
         <KernelGroup />
       </Harness>,
     );
-    const sw = () => screen.getByRole('switch', { name: 'AI 对话' });
+    const sw = () => screen.getByRole('switch', { name: '轻量 AI（对话、语音、记忆）' });
     expect(sw().getAttribute('aria-checked')).toBe('true');
     await click(sw());
     expect(save).toHaveBeenLastCalledWith({ 'plugins.light_ai': false });
@@ -357,6 +357,6 @@ describe('settings › AI tab and old links', () => {
     // The old name still finds the rows; no row or section is called that any more.
     expect(searchSettings('模型服务').map((r) => r.id)).toEqual(['svc', 'svc_llm']);
     expect(searchSettings('').concat(searchSettings('服务'), searchSettings('模型')).filter((r) => `${r.label}${r.section}`.includes('模型服务'))).toEqual([]);
-    expect(searchSettings('AI 对话').map((r) => r.id)).toContain('plugins.light_ai');
+    expect(searchSettings('轻量 AI').map((r) => r.id)).toContain('plugins.light_ai');
   });
 });

@@ -465,11 +465,11 @@ export function selectionBlockReason(front: CaptureWindow | null, rules: Blackli
 
 export function selectionMessage(reason: string): string {
   switch (reason) {
-    case 'secure_input': return '安全输入中，没有读取';
-    case 'blacklisted': return '这个窗口在黑名单里，没有读取';
-    case 'incognito': return '无痕窗口，没有读取';
-    case 'browser_unknown': return '看不出这个浏览器窗口是不是无痕，没有读取';
-    default: return '没找到前台窗口，没有读取';
+    case 'secure_input': return '当前处于安全输入状态，未读取内容';
+    case 'blacklisted': return '当前窗口位于排除名单内，未读取内容';
+    case 'incognito': return '当前为无痕浏览器窗口，未读取内容';
+    case 'browser_unknown': return '无法确认该浏览器窗口是否为无痕模式，未读取内容';
+    default: return '未检测到有效前台窗口，未读取内容';
   }
 }
 

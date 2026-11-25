@@ -84,7 +84,7 @@ describe('编辑结构', () => {
     expect(seg(PONDER_LOOP).getAttribute('aria-pressed')).toBe('true');
     expect(seg(PONDER).tagName).toBe('DIV');
     await click(seg(PONDER_END));
-    expect(detail().textContent).toContain('第 3 段：换成或插在它前面');
+    expect(detail().textContent).toContain('第 3 段：替换或在前方插入');
     expect(cands().slice(0, 3).map((c) => [c.dataset.cand, c.children[1]!.textContent])).toEqual([
       [FIDGET, '前 1 cm'],
       [THINK, '前 5 cm'],
@@ -93,7 +93,7 @@ describe('编辑结构', () => {
     // Unmeasured last, by name; clips already in the chain are not offered.
     expect(cands().slice(-3).map((c) => c.dataset.cand)).toEqual([PAT, RELAX, TO_RELAX]);
     expect(cands().some((c) => c.dataset.cand!.includes('dialog_state_think'))).toBe(false);
-    await click(within(cand(THINK)).getByRole('button', { name: '换成' }));
+    await click(within(cand(THINK)).getByRole('button', { name: '替换' }));
     expect(segs()).toEqual([PONDER, PONDER_LOOP, THINK]);
     expect(seg(THINK).hasAttribute('data-new')).toBe(true);
     // Entry 12 (edge), 3.1 (edge), then the new joint measured from the poses: loop start 6 against THINK's 1.
@@ -132,7 +132,7 @@ describe('编辑结构', () => {
         { op: 'insert', chain: PONDER, index: 1, clip: FIDGET },
       ],
     });
-    expect(band().textContent).toContain('检查通过，会改动 1 条链');
+    expect(band().textContent).toContain('检查通过，将修改 1 条动作链');
     check.mockResolvedValueOnce({
       ok: false,
       problems: [
@@ -143,9 +143,9 @@ describe('编辑结构', () => {
       graph_changes: { chains_added: [], chains_removed: [], chains_changed: [] },
     });
     await click(within(band()).getByRole('button', { name: '检查' }));
-    expect(seg(FIDGET).textContent).toContain('idle_fidget_01 接 dialog_state_think_loop 时站姿接不上');
-    expect(seg(PONDER_LOOP).textContent).toContain('保持秒数只能给循环段，且不能小于 0');
-    expect(band().querySelector('[data-problems]')!.textContent).toContain('以 dialog_state_think_start 起头的链最后回不到起头的站姿');
+    expect(seg(FIDGET).textContent).toContain('idle_fidget_01 与 dialog_state_think_loop 的姿态无法连续衔接');
+    expect(seg(PONDER_LOOP).textContent).toContain('保持时长仅适用于循环段，且不可小于 0');
+    expect(band().querySelector('[data-problems]')!.textContent).toContain('以 dialog_state_think_start 起始的动作链末端无法回到起始站姿');
   });
 
   it('names every reason motion_tool gives in Chinese', () => {
@@ -161,11 +161,11 @@ describe('编辑结构', () => {
     const request = vi.spyOn(bridge.agentd, 'request');
     await edit(PONDER);
     await click(seg(PONDER_END));
-    await click(within(cand(FIDGET)).getByRole('button', { name: '换成' }));
+    await click(within(cand(FIDGET)).getByRole('button', { name: '替换' }));
     await click(within(band()).getByRole('button', { name: '应用到角色包（重建）' }));
     const dialog = screen.getByRole('dialog', { name: '应用到角色包（重建）' });
-    expect(dialog.textContent).toContain('一两分钟');
-    expect(dialog.textContent).toContain('重新载入');
+    expect(dialog.textContent).toContain('1–2 分钟');
+    expect(dialog.textContent).toContain('重新加载');
     expect(apply).not.toHaveBeenCalled();
     const reads = request.mock.calls.filter((c) => String(c[1]).endsWith('/motion-graph')).length;
     await click(within(dialog).getByRole('button', { name: '重建' }));
@@ -188,16 +188,16 @@ describe('编辑结构', () => {
     });
     await edit(PONDER);
     await click(seg(PONDER_END));
-    await click(within(cand(FIDGET)).getByRole('button', { name: '换成' }));
+    await click(within(cand(FIDGET)).getByRole('button', { name: '替换' }));
     await click(within(band()).getByRole('button', { name: '应用到角色包（重建）' }));
     await click(within(screen.getByRole('dialog')).getByRole('button', { name: '重建' }));
     expect(apply).toHaveBeenCalledTimes(1);
-    expect(within(band()).getByRole('alert').textContent).toContain('角色包没有接受这份改动');
-    expect(seg(FIDGET).textContent).toContain('以 dialog_state_think_start 起头的链会绕回自己');
+    expect(within(band()).getByRole('alert').textContent).toContain('角色包未接受该项修改，具体原因已标注于对应段旁');
+    expect(seg(FIDGET).textContent).toContain('以 dialog_state_think_start 起始的动作链会形成自身闭环');
     apply.mockRejectedValueOnce({ code: 'stale', detail: '[{"edit": null, "reason": "stale"}]' });
     await click(within(band()).getByRole('button', { name: '应用到角色包（重建）' }));
     await click(within(screen.getByRole('dialog')).getByRole('button', { name: '重建' }));
-    expect(within(band()).getByRole('alert').textContent).toContain('角色包在你编辑之后变过了');
+    expect(within(band()).getByRole('alert').textContent).toContain('角色包在编辑后已发生变更，请放弃本次修改后重新编辑');
     await click(within(band()).getByRole('button', { name: '放弃改动' }));
     expect(segs()).toEqual([PONDER, PONDER_LOOP, PONDER_END]);
     expect(within(band()).queryByRole('alert')).toBeNull();
@@ -209,7 +209,7 @@ describe('编辑结构', () => {
     const request = vi.spyOn(bridge.agentd, 'request');
     await edit(PONDER);
     await click(seg(PONDER_END));
-    await click(within(cand(FIDGET)).getByRole('button', { name: '换成' }));
+    await click(within(cand(FIDGET)).getByRole('button', { name: '替换' }));
     const reads = request.mock.calls.filter((c) => String(c[1]).endsWith('/motion-graph')).length;
     // A motion import rebuilt the pack.
     request.mockImplementation(async (method, path, body) => {
@@ -221,7 +221,7 @@ describe('编辑结构', () => {
       focusManager.setFocused(true);
     });
     await waitFor(() => expect(request.mock.calls.filter((c) => String(c[1]).endsWith('/motion-graph')).length).toBeGreaterThan(reads));
-    await waitFor(() => expect(band().textContent).toContain('角色包在你编辑之后变过了'));
+    await waitFor(() => expect(band().textContent).toContain('角色包在编辑后已变更，请放弃当前修改后重新编辑'));
     await click(within(band()).getByRole('button', { name: '应用到角色包（重建）' }));
     const dialog = screen.queryByRole('dialog');
     if (dialog) await click(within(dialog).getByRole('button', { name: '重建' }));
@@ -236,10 +236,10 @@ describe('编辑结构', () => {
     );
     await edit(PONDER);
     await click(seg(PONDER_END));
-    await click(within(cand(FIDGET)).getByRole('button', { name: '换成' }));
+    await click(within(cand(FIDGET)).getByRole('button', { name: '替换' }));
     await click(within(band()).getByRole('button', { name: '应用到角色包（重建）' }));
     await click(within(screen.getByRole('dialog')).getByRole('button', { name: '重建' }));
-    for (const b of within(detail().querySelector<HTMLElement>('[data-candidates]')!).getAllByRole('button', { name: '换成' })) {
+    for (const b of within(detail().querySelector<HTMLElement>('[data-candidates]')!).getAllByRole('button', { name: '替换' })) {
       expect((b as HTMLButtonElement).disabled).toBe(true);
     }
     await act(async () => answer());
@@ -248,9 +248,9 @@ describe('编辑结构', () => {
   it('greys out 检查 and 应用 when the graph does not name the pack it was read from', async () => {
     delete (MOTION_GRAPH as Record<string, unknown>).package_sha256;
     await edit(PONDER);
-    await click(within(cand(FIDGET)).getByRole('button', { name: '换成' }));
+    await click(within(cand(FIDGET)).getByRole('button', { name: '替换' }));
     expect((within(band()).getByRole('button', { name: '检查' }) as HTMLButtonElement).disabled).toBe(true);
     expect((within(band()).getByRole('button', { name: '应用到角色包（重建）' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(band().textContent).toContain('取不到当前角色包的版本');
+    expect(band().textContent).toContain('无法获取当前角色包版本校验值，无法检查或应用');
   });
 });

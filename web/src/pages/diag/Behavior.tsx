@@ -49,7 +49,7 @@ function stateCells(s: CharacterState | null, offline: boolean, compact: boolean
     s?.engagement != null
       ? { label: '投入', meter: compact ? undefined : <BracketMeter value={s.engagement} max={1} tone="level" size={size} readout="" label="投入" />, value: s.engagement.toFixed(2), word: word(stateWord('engagement', s.labels.engagement)) }
       : { label: '投入', value: '—' },
-    { label: '在做', word: <span className={styles.doing}>{(!offline && doing(s?.activity ?? null)) || '—'}</span> },
+    { label: '当前活动', word: <span className={styles.doing}>{(!offline && doing(s?.activity ?? null)) || '—'}</span> },
     {
       label: null,
       end: true,
@@ -85,7 +85,7 @@ export function Behavior(p: BehaviorProps) {
       {s === undefined ? (
         <Skel rows={1} shape="block" />
       ) : (
-        <ReadoutPlate label="角色现在的状态" eyebrow="STATE CURRENT" cells={stateCells(s, p.offline, compact)} compact={compact} />
+        <ReadoutPlate label="角色当前状态" eyebrow="STATE CURRENT" cells={stateCells(s, p.offline, compact)} compact={compact} />
       )}
       <section className={styles.sec} aria-label="状态与决策">
         <SecHead
@@ -115,7 +115,7 @@ export function Behavior(p: BehaviorProps) {
         />
         <div className={styles.grid}>
           <GameFrame title="精神与心情 │ 行为决策" micro={micro} foot={`AIC BEHAVIOR ${micro}`} label="精神与心情 │ 行为决策">
-            {p.capped != null && <span className={styles.capped}>只显示最近 {p.capped} 条决策</span>}
+            {p.capped != null && <span className={styles.capped}>仅显示最近 {p.capped} 条决策</span>}
             {s === undefined ? (
               <div className={styles.chartSkel}>
                 <Skel rows={1} shape="chart" />
@@ -129,18 +129,18 @@ export function Behavior(p: BehaviorProps) {
                 t1={p.now}
                 step={p.range === 'today' ? 3 : 4}
                 stoppedAt={p.stoppedAt}
-                noCurve={s ? undefined : '状态还没开始记录 │ 角色第一次活动后开始画'}
-                noBeats={`${span}还没有行为决策 │ 角色每次选动作时记一次`}
+                noCurve={s ? undefined : '状态尚未开始记录 │ 角色首次活动后开始绘制'}
+                noBeats={`${span}尚无行为决策 │ 角色每次选择动作时记录`}
                 pick={pick}
                 onPick={setPicked}
-                label={`精神和心情曲线，下面是同一时间轴上的行为决策，${span}`}
+                label={`精神和心情曲线，下方为同一时间轴上的行为决策（${span}）`}
               />
             )}
           </GameFrame>
           <GameFrame title="变化原因" micro={`LAST ${causes.length}`} label="变化原因">
             <div className={styles.causes}>
               {causes.length === 0 ? (
-                <p className={styles.empty}>还没有变化原因</p>
+                <p className={styles.empty}>尚无变化原因</p>
               ) : (
                 <ol>
                   {causes.map((c) => (

@@ -1,4 +1,5 @@
 import type { KeyboardEvent, MouseEvent } from 'react';
+import { revealText } from '../../bridge/platformText';
 import type { Artifact } from '../../domain';
 import { Icon, Menu, type MenuItem } from '../../ui';
 import styles from './ArtifactList.module.css';
@@ -42,7 +43,7 @@ export function ArtifactList({ artifacts, layout = 'chips', canReveal, onOpen, o
   };
   const menu = (a: Artifact): MenuItem[] => [
     { kind: 'item', label: '打开', hint: '⏎', onSelect: () => onOpen?.(a.absolute_path) },
-    ...(canReveal ? [{ kind: 'item' as const, label: '在 Finder 中显示', onSelect: () => onReveal?.(a.absolute_path) }] : []),
+    ...(canReveal ? [{ kind: 'item' as const, label: revealText('在 Finder 中显示'), onSelect: () => onReveal?.(a.absolute_path) }] : []),
     { kind: 'item', label: '复制路径', onSelect: () => onCopyPath?.(a.absolute_path) },
   ];
   return (

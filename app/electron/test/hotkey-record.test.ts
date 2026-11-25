@@ -222,7 +222,7 @@ test('WebSettings.current: a stored hot key the system refused reads as none wit
     assert.ok(read.ok);
     const value = read.value as { saved: Record<string, unknown>; statuses: Record<string, string> };
     assert.equal(value.saved.hk_pass, '');
-    assert.equal(value.statuses.hk_pass, '「⌃⌥P」没设上，可能被别的程序占用，请换一个');
+    assert.equal(value.statuses.hk_pass, '快捷键「⌃⌥P」未能注册，可能已被其他应用占用，请更换');
     // Only a name config.json stores is checked: the default stands without a status.
     assert.equal(value.saved.hk_quick, '⌃⌥Space');
     assert.equal(value.statuses.hk_quick, undefined);

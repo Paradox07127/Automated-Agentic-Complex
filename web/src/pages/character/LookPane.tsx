@@ -44,7 +44,7 @@ type ModLooks = Readonly<Record<string, ModSettingRow[]>>;
 
 const failed = (what: string, toast: Toast) => (e: unknown) => {
   const code = (e as { code?: string } | null)?.code;
-  toast(`${what}没有完成：${code === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}`, { severity: 'danger' });
+  toast(`${what}未能完成：${code === 'not_implemented' ? '当前版本暂不支持此功能' : '角色渲染进程无响应'}`, { severity: 'danger' });
 };
 
 const NONE: ModLooks = {};
@@ -109,12 +109,12 @@ function Landed({ outfit, switches }: { outfit: OutfitImport; switches: number |
     <>
       <div className={imp.landed} role="status">
         <span className={imp.landedTag}>
-          刚导入
-          <MicroLabel>New mod</MicroLabel>
+          新导入
+          <MicroLabel>外观模组</MicroLabel>
         </span>
         <span className={imp.landedTx}>
           已导入<b>「{l.name}」</b>
-          {switches != null && <span className={imp.wide}>，{switches} 个开关按类别排好</span>}
+          {switches != null && <span className={imp.wide}>，已按类别整理 {switches} 个开关项</span>}
           {l.warnings.length > 0 && (
             <>
               {' │ '}
@@ -167,7 +167,7 @@ export function LookPane(p: LookPaneProps) {
       .avatar.setScale(v / 100)
       .catch((e: unknown) => {
         if (k === sizeAsked.current) p.look.setScale(was);
-        failed('改大小', p.toast)(e);
+        failed('调整缩放', p.toast)(e);
       });
   };
   const outfitBusy = outfit.state === 'busy' || outfit.removing;
@@ -175,7 +175,7 @@ export function LookPane(p: LookPaneProps) {
   const landedOnMod = p.mods != null && outfit.landed?.id === p.lookId;
   const hidden = p.layers.filter((l) => !l.visible).length;
   const scale = p.look.scale;
-  const keyOff = p.ro ?? (outfit.state === 'busy' ? null : outfitBusy ? '删除外观还没完成' : importing.running ? '另一个导入还没完成' : null);
+  const keyOff = p.ro ?? (outfit.state === 'busy' ? null : outfitBusy ? '删除外观尚未完成' : importing.running ? '另一项导入尚未完成' : null);
   const stage = STAGES.indexOf(importing.stage ?? '');
   const pct = Math.round(importing.fraction * 100);
 
@@ -191,7 +191,7 @@ export function LookPane(p: LookPaneProps) {
                 {p.appearances.map((l) => {
                   const worn = l.id === p.lookId;
                   const imported = l.kind === 'imported';
-                  const sub = imported && p.modsUnreadable ? '设置表读不了：安装后文件被改过' : l.desc;
+                  const sub = imported && p.modsUnreadable ? '无法读取设置表：安装后的文件已被修改' : l.desc;
                   const removing = outfit.removing && removingId === l.id;
                   return (
                     <div key={l.id} className={styles.item} data-look={l.id} data-imported={imported || undefined}>
@@ -302,10 +302,10 @@ export function LookPane(p: LookPaneProps) {
           <TitleBar title="导入外观模组" micro="Import / EFMI" />
           {getBridge().capabilities.nativeFilePicker && (
             <div className={imp.drop}>
-              <YellowKey label={outfit.state === 'busy' || importing.kind === 'outfit' ? '导入中…' : '选择 mod 目录…'} icon="folder" micro="Select mod folder" disabled={outfit.state === 'busy' || keyOff != null} disabledReason={keyOff ?? '导入中'} onClick={outfit.run} />
+              <YellowKey label={outfit.state === 'busy' || importing.kind === 'outfit' ? '导入中…' : '选择模组目录…'} icon="folder" micro="Select mod folder" disabled={outfit.state === 'busy' || keyOff != null} disabledReason={keyOff ?? '导入中'} onClick={outfit.run} />
               <span className={imp.dropTx}>
-                <b>选择包含 mod.ini 的 mod 目录；只导入到本机</b>
-                <span>导入完会自动穿上，有开关的直接打开「模组设置」</span>
+                <b>选择包含 mod.ini 的外观模组目录（仅导入至本地）</b>
+                <span>导入完成后将自动应用该外观；若包含可配置开关，将自动打开「模组设置」</span>
               </span>
             </div>
           )}
@@ -332,8 +332,8 @@ export function LookPane(p: LookPaneProps) {
                 <b style={{ width: `${pct}%` }} />
               </div>
               <div className={imp.ft}>
-                <span>导入期间动作预览暂停</span>
-                <span>完成后角色会重新载入一次</span>
+                <span>导入期间将暂停动作预览</span>
+                <span>完成后角色将重新加载</span>
               </div>
             </div>
           )}
@@ -362,7 +362,7 @@ export function LookPane(p: LookPaneProps) {
             </>
           }
         >
-          <p>这个外观和它的模组设置都会删掉，角色包恢复成导入前的样子；角色会重新载入一次</p>
+          <p>将删除此外观及其模组设置，并将角色包恢复至导入前状态；完成后角色将重新加载</p>
         </Dialog>
       )}
     </section>

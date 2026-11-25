@@ -87,7 +87,7 @@ describe('an empty-pack pool on 编排', () => {
     expect(rows()).toEqual([]);
     expect(pool().textContent).toContain('角色建议');
     expect([...pool().querySelectorAll<HTMLElement>('[data-proposal]')].map((x) => x.dataset.proposal)).toEqual([PAT, WAVE]);
-    await click(within(pool().querySelector(`[data-proposal="${PAT}"]`)!).getByRole('button', { name: '收下' }));
+    await click(within(pool().querySelector(`[data-proposal="${PAT}"]`)!).getByRole('button', { name: '采纳' }));
     expect(rows()).toEqual([PAT]);
     await save();
     expect(set.mock.lastCall![1].pools).toEqual({ 'click.cheek': [{ clip: PAT, weight: 1 }] });

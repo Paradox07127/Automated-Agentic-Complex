@@ -108,9 +108,9 @@ function Head({ row, no, shape, title, sub }: { row: WireTraceTurn | null; no: n
 export function TurnDetail({ row, no, turn, st, emptyText, convTitle, related, onRetry, onOpenChat, onLogs, onCopy }: TurnDetailProps) {
   const shape = row ? shapeOf(row) : null;
   if (!row || !turn || st !== 'ok') {
-    const msg = st === 'error' ? '读不到这一轮' : st === 'loading' ? '正在读…' : emptyText;
+    const msg = st === 'error' ? '无法读取该轮次' : st === 'loading' ? '正在读取…' : emptyText;
     return (
-      <GameFrame label="这一轮">
+      <GameFrame label="本轮详情">
         <div className={d.dt}>
           <Head row={row} no={no} title={row?.head ?? ''} />
           <div className={d.scroll}>
@@ -137,7 +137,7 @@ export function TurnDetail({ row, no, turn, st, emptyText, convTitle, related, o
   const relatedBlock: ReactNode =
     related.length > 0 ? (
       <div className={cd.related}>
-        <span>这一轮前后的日志 │ {related.length} 行</span>
+        <span>本轮前后日志 │ {related.length} 行</span>
         {related.map((l) => (
           <div key={l.key} className={cd.rl} data-l={l.level}>
             <span>{l.at != null ? clockOf(l.at, true) : '—'}</span>
@@ -146,13 +146,13 @@ export function TurnDetail({ row, no, turn, st, emptyText, convTitle, related, o
           </div>
         ))}
         <span>
-          <Btn variant="text" size="sm" onClick={onLogs}>在日志里看这一轮前后 ›</Btn>
+          <Btn variant="text" size="sm" onClick={onLogs}>在日志中查看本轮上下文 ›</Btn>
         </span>
       </div>
     ) : null;
   const failed = turn.steps.some((x) => x.st === 'fail');
   return (
-    <GameFrame label="这一轮">
+    <GameFrame label="本轮详情">
       <div className={d.dt}>
         <Head row={row} no={no} shape={shape} title={title} sub={<>{convTitle ? `对话「${convTitle}」 │ ` : ''}trace {row.trace_id.slice(0, 8)}…</>} />
         <div className={d.scroll} key={row.turn_id}>
@@ -188,13 +188,13 @@ export function TurnDetail({ row, no, turn, st, emptyText, convTitle, related, o
               <span>花费</span>
             </div>
             <div className={d.ro} data-k="txt">
-              <b>{turn.model ?? '没调模型'}</b>
+              <b>{turn.model ?? '未调用模型'}</b>
               <span>{[row.provider, row.account_label].filter(Boolean).join(' │ ') || '—'}</span>
             </div>
           </div>
-          <section className={cd.pn} aria-label="经过">
+          <section className={cd.pn} aria-label="执行轨迹">
             <SecHead
-              title="经过"
+              title="执行轨迹"
               count={turn.steps.length}
               right={
                 <span className={cd.sub}>

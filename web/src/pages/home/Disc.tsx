@@ -71,7 +71,7 @@ function Focus({ item, act, go }: { item: PendingItem; act: DiscProps['act']; go
             <Btn key={o.label} size="sm" variant="secondary" loading={busy} onClick={send(() => act.onReply(item, { [one.id]: [o.label] }))}>{o.label}</Btn>
           ))
         ) : (
-          <Btn size="sm" variant="secondary" onClick={open}>{item.kind === 'review' ? '去复核' : '去回答'}</Btn>
+          <Btn size="sm" variant="secondary" onClick={open}>{item.kind === 'review' ? '前往复核' : '前往回答'}</Btn>
         )}
       </div>
     </div>
@@ -100,7 +100,7 @@ function ReportPlate({ done, total, running, onClick }: Report & { onClick: () =
         <span className={styles.repLabel}>今日任务</span>
         <b className="num">{String(done).padStart(2, '0')}</b>
         <span className={`${styles.repOf} num`}>/ {String(total).padStart(2, '0')}</span>
-        {running != null && <span className={styles.repRun}>在做 {running}</span>}
+        {running != null && <span className={styles.repRun}>进行中 {running}</span>}
       </span>
       <span className={styles.repBar} aria-hidden="true">
         <i style={{ width: `${pct}%` }} />
@@ -128,7 +128,7 @@ type Tab = 'pending' | 'running';
 const RUN_ROWS = 3;
 
 function Running({ items, go }: { items: readonly RunItem[]; go: Go }) {
-  if (items.length === 0) return <p className={styles.calm}>没有正在做的事</p>;
+  if (items.length === 0) return <p className={styles.calm}>当前无进行中的任务或对话</p>;
   const more = items.length - RUN_ROWS;
   return (
     <div className={styles.list}>
@@ -143,9 +143,9 @@ function Running({ items, go }: { items: readonly RunItem[]; go: Go }) {
         </button>
       ))}
       {more > 0 && (
-        <button type="button" className={styles.row} aria-label={`另有 ${more} 个在做`} onClick={() => go({ page: 'overview', focus: 'running' })}>
+        <button type="button" className={styles.row} aria-label={`另有 ${more} 项进行中`} onClick={() => go({ page: 'overview', focus: 'running' })}>
           <Icon name="bolt" size={14} />
-          <span className={styles.rowT}>另有 {more} 个</span>
+          <span className={styles.rowT}>另有 {more} 项</span>
           <Icon name="chev" size={12} />
         </button>
       )}
@@ -153,7 +153,7 @@ function Running({ items, go }: { items: readonly RunItem[]; go: Go }) {
   );
 }
 
-const TAB_NAME: Record<Tab, string> = { pending: '待批准', running: '在做' };
+const TAB_NAME: Record<Tab, string> = { pending: '待处理', running: '进行中' };
 
 /** A drag or trackpad swipe this far across the panel, in stage px, turns the page. */
 const SWIPE = 40;
@@ -256,7 +256,7 @@ export function Disc({ title, urgent, report, running, act, go, off }: DiscProps
             )}
           </>
         ) : (
-          <p className={styles.calm}>没有要你批准的事</p>
+          <p className={styles.calm}>当前无待处理事项</p>
         )}
       </div>
       {report && <ReportPlate {...report} onClick={() => go({ page: 'overview' })} />}

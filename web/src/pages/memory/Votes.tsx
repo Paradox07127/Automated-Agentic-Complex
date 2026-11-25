@@ -70,15 +70,15 @@ export function Votes({ asks, now, still, onConfirm, onFix, onDeny, onJump }: Vo
       };
       denies.current.set(f.id, commit);
       timers.current.set(f.id, setTimeout(commit, UNDO_MS));
-      toast('划掉了，不会再记这件事', {
+      toast('已忽略该条，将不再记录', {
         action: {
           label: '撤销',
           onClick: () => {
-            if (!denies.current.has(f.id)) return void toast('已经划掉了，撤销不了');
+            if (!denies.current.has(f.id)) return void toast('操作已提交，无法撤销');
             clearTimeout(timers.current.get(f.id));
             denies.current.delete(f.id);
             put(f.id, null);
-            toast('撤销了，这条还在待确认里');
+            toast('已撤销，条目已恢复至待处理列表');
           },
         },
       });
@@ -129,21 +129,21 @@ export function Votes({ asks, now, still, onConfirm, onFix, onDeny, onJump }: Vo
   }, []);
 
   return (
-    <section className={styles.votes} aria-label="待确认">
+    <section className={styles.votes} aria-label="待处理">
       <SecHead
-        title="待确认"
+        title="待处理"
         right={
           <>
-            <InfoTip>猜的和看到的先放在这里，记住之前不拿来用。你点「记住」，或者同一件事在 3 个不同的日子都有把握地看到，就会记住。</InfoTip>
+            <InfoTip>系统推测与观察到的待定记忆会暂存于此，确认前不用于对话引用。点击「确认并记住」，或在 3 个不同日期均稳定观察到后将自动转入正式记忆。</InfoTip>
             <Btn
               variant="primary"
               disabled={open.length === 0}
-              disabledReason="没有剩下要确认的"
+              disabledReason="当前无待处理条目"
               onClick={() => {
                 for (const f of open) decide(f, 'keep');
               }}
             >
-              剩下 {open.length} 条全部记住
+              全部确认（{open.length} 条）
             </Btn>
           </>
         }
@@ -167,7 +167,7 @@ export function Votes({ asks, now, still, onConfirm, onFix, onDeny, onJump }: Vo
   );
 }
 
-const RESULT: Record<How, string> = { keep: '记住', fix: '改过后记住', no: '不是这样' };
+const RESULT: Record<How, string> = { keep: '已确认记住', fix: '修改并记住', no: '不属实 / 忽略' };
 
 interface CardProps {
   fact: Fact;
@@ -183,10 +183,10 @@ interface CardProps {
 function Card({ fact: f, i, now, held, draft, onDraft, onDecide, onJump }: CardProps) {
   const { ev } = useEvidence(f, now);
   return (
-    <section className={styles.vote} data-theme="light" data-leaving={held?.phase === 'leave' || undefined} data-ask={f.id} style={{ '--i': i } as CSSProperties} aria-label={`待确认：${f.text}`}>
+    <section className={styles.vote} data-theme="light" data-leaving={held?.phase === 'leave' || undefined} data-ask={f.id} style={{ '--i': i } as CSSProperties} aria-label={`待处理记忆：${f.text}`}>
       <div className={styles.vt}>
         <Glyph name="vote" />
-        <b>记下了，对吗？</b>
+        <b>请确认以下记忆是否准确</b>
         <span>
           {catLabel(f)} │ {SRC[f.source].full}
         </span>
@@ -205,7 +205,7 @@ function Card({ fact: f, i, now, held, draft, onDraft, onDecide, onJump }: CardP
       ) : draft != null ? (
         <>
           <TextArea
-            label="改成"
+            label="修改内容"
             value={draft}
             maxLength={500}
             rows={2}
@@ -223,19 +223,19 @@ function Card({ fact: f, i, now, held, draft, onDraft, onDecide, onJump }: CardP
               取消
             </Btn>
             <Btn icon="check" disabled={!draft.trim()} disabledReason="内容不能为空" onClick={() => onDecide('fix', draft.trim())}>
-              改好并记住
+              保存并记住
             </Btn>
           </div>
         </>
       ) : (
-        <div className={styles.opts} role="group" aria-label="怎么处理">
+        <div className={styles.opts} role="group" aria-label="确认操作">
           <Btn variant="secondary" tail="check" onClick={() => onDecide('keep')}>
-            对，记住
+            确认并记住
           </Btn>
           <Btn variant="secondary" onClick={() => onDraft(f.text)}>
-            差不多，我来改
+            修改后记住
           </Btn>
-          <Btn onClick={() => onDecide('no')}>不是这样</Btn>
+          <Btn onClick={() => onDecide('no')}>不属实</Btn>
         </div>
       )}
     </section>
@@ -246,18 +246,18 @@ function Card({ fact: f, i, now, held, draft, onDraft, onDecide, onJump }: CardP
 function Source({ ev, onJump }: { ev: Evidence | null; onJump: (k: 'chat' | 'obs') => void }) {
   if (!ev)
     return (
-      <Fold label="出处" rows={1}>
-        <span className={styles.src}>没有出处，是外接工具写来的</span>
+      <Fold label="来源出处" rows={1}>
+        <span className={styles.src}>由外部接入工具写入，无对话或屏幕观察出处</span>
       </Fold>
     );
   const chat = ev.k === 'chat';
   return (
-    <Fold label="出处" summary={`${chat ? '对话' : '观察'} │ ${ev.when}`}>
-      <span className={styles.src}>{chat ? (ev.quote ? `「${ev.quote}」` : '原句只保留 48 小时，这一段已经清理') : `角色看到：${ev.title ?? '一段观察'}`}</span>
+    <Fold label="来源出处" summary={`${chat ? '对话' : '观察'} │ ${ev.when}`}>
+      <span className={styles.src}>{chat ? (ev.quote ? `「${ev.quote}」` : '原文仅保留 48 小时，该片段已过期清理') : `观察摘要：${ev.title ?? '屏幕观察片段'}`}</span>
       <span className={styles.srcm}>
         {chat && '对话 │ '}
         <span className="num">{ev.when}</span>
-        <Lnk onClick={() => onJump(ev.k)}>{chat ? '去对话看原文 ›' : '在简报里看这一段 ›'}</Lnk>
+        <Lnk onClick={() => onJump(ev.k)}>{chat ? '查看对话原文 ›' : '在简报中查看此段 ›'}</Lnk>
       </span>
     </Fold>
   );

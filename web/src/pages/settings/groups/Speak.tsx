@@ -23,11 +23,11 @@ import { SILENT_LEVEL, SpeakWhenRow } from './SpeakWhen';
 import styles from '../groups.module.css';
 
 const NOTIFY: Array<[id: string, label: string, note: string]> = [
-  ['n_done', '完成', '任务做完'],
-  ['n_appr', '待批准', '只作用于审批卡'],
-  ['n_err', '出错', '任务失败'],
-  ['n_brief', '简短播报', '进度一句话'],
-  ['n_remind', '提醒', '你设的提醒'],
+  ['n_done', '完成', '任务已完成'],
+  ['n_appr', '待批准', '仅作用于审批卡'],
+  ['n_err', '出错', '任务执行出错'],
+  ['n_brief', '简短播报', '进度摘要播报'],
+  ['n_remind', '提醒', '已设定的提醒事项'],
 ];
 
 export const VOICE_TONE: Record<VoiceState, VisualStateKey> = { ready: 'ok', unknown: 'idle', probing: 'waiting', cold: 'waiting', unreachable: 'broken', off: 'stopped' };
@@ -56,42 +56,42 @@ export function SpeakGroup() {
       (r) => setReset({ from, voice: voiceState(r.tts), source: r.tts }),
       (e) => {
         setReset(null);
-        model.notify({ message: `没能重新连接语音：${failure(e).text}`, severity: 'danger', persistent: true });
+        model.notify({ message: `重新连接语音服务失败：${failure(e).text}`, severity: 'danger', persistent: true });
       },
     );
   };
   const down = voice?.state === 'unreachable';
   const levels = optionsOf(native?.rows.proactive).filter((o) => o.value !== SILENT_LEVEL);
   const notifyLevels = optionsOf(native?.rows.n_done);
-  // agentd mutes live on a spoken「静音」; this row is config.json, which it reads at start.
-  const muteNote = diag.muted == null || diag.muted === (model.value('mute') === true) ? null : diag.muted ? '重启后台服务后按这里的设置出声' : '后台现在仍会出声；重启后台服务后生效';
+  // agentd updates mute live when saved; diag.muted reflects runtime temporary mute vs saved setting.
+  const muteNote = diag.muted == null || diag.muted === (model.value('mute') === true) ? null : '当前运行时静音状态与此处配置不一致，切换上方开关即可即时同步';
   const mute = model.value('mute');
-  const toService = { label: '前往设置连接', onClick: () => goRow('svc_tts', 'services') };
+  const toService = { label: '前往配置', onClick: () => goRow('svc_tts', 'services') };
 
   const voiceDesc = (
     <>
-      {voice && <StatusLamp size="sm" state={VOICE_TONE[voice.state]} label={voiceText(voice.state, retryLeft)} />} <span>{down ? '这段时间只显示文字' : `${sourceLabel ? `${sourceLabel} │ ` : ''}自己部署的语音服务，app 只连接`}</span>
+      {voice && <StatusLamp size="sm" state={VOICE_TONE[voice.state]} label={voiceText(voice.state, retryLeft)} />} <span>{down ? '当前仅使用文字回复' : `${sourceLabel ? `${sourceLabel} │ ` : ''}需自行部署外部语音服务，本应用仅连接使用`}</span>
     </>
   );
 
   return (
     <>
-      <SetSection title="声音">
+      <SetSection title="语音与播报">
         <SetRow
           id="mute"
           title={labelOf('mute')}
-          desc={muteNote ?? '只显示文字时照样回答，只是不念'}
+          desc={muteNote ?? '仅文字模式下仍正常生成回复，不播放语音'}
           descTone={muteNote ? 'attention' : undefined}
-          info="把角色的回答和主动发言念出来，要下面的语音服务在线。"
+          info="使用语音播放角色回复与主动发言，需确保下方外部语音服务处于在线状态。"
           control={
             <>
-              {diag.muted && <StatusLamp size="sm" state="waiting" label="后台现在静音" />}
+              {diag.muted && <StatusLamp size="sm" state="waiting" label="当前已静音" />}
               <GameSeg variant="setting"
                 label={labelOf('mute')}
                 value={typeof mute === 'boolean' ? String(mute) : ''}
                 options={[
-                  { value: 'false', label: '念出来' },
-                  { value: 'true', label: '只显示文字' },
+                  { value: 'false', label: '开启' },
+                  { value: 'true', label: '仅文字' },
                 ]}
                 disabled={groupRo}
                 onChange={(v) => model.set('mute', v === 'true')}
@@ -100,8 +100,8 @@ export function SpeakGroup() {
           }
         />
         {diag.voiceNone ? (
-          <PowerState state="unlinked" mode="block" title="语音服务" reason="后台启动时没有配置语音服务，台词只显示文字" action={toService}>
-            <SetRow id="tts" title={labelOf('tts')} desc="台词只显示文字" control={null} />
+          <PowerState state="unlinked" mode="block" title="语音服务" reason="后台启动时未配置语音服务，回复仅以文字呈现" action={toService}>
+            <SetRow id="tts" title={labelOf('tts')} desc="当前仅文字回复" control={null} />
           </PowerState>
         ) : (
           <Linked down={down} action={toService}>
@@ -110,10 +110,10 @@ export function SpeakGroup() {
               title={labelOf('tts')}
               desc={voiceDesc}
               descTone={down ? 'bad' : undefined}
-              info="把台词合成语音。要你自己部署的语音服务，地址在「服务」里；app 不打包模型，只用你的服务。"
+              info="用于将文本合成为语音。需自行部署外部语音服务并在「服务」中配置地址；本应用不内置语音合成模型。"
               control={
                 (voice?.state === 'unreachable' || voice?.state === 'cold') && (
-                  <Btn disabled={agentdOff} disabledReason="后台服务没有运行" onClick={reconnect}>
+                  <Btn disabled={agentdOff} disabledReason="后台服务未运行" onClick={reconnect}>
                     重新连接
                   </Btn>
                 )
@@ -121,44 +121,44 @@ export function SpeakGroup() {
             />
             <SetRow
               id="ttsJump"
-              title="令牌和测试"
-              desc="在「服务 › 语音服务」里"
+              title="令牌与连接测试"
+              desc="位于「设置 › 服务 › 语音服务」"
               indent
               control={
                 <Btn go onClick={() => goRow('ttsToken', 'services')}>
-                  去服务
+                  前往服务
                 </Btn>
               }
             />
           </Linked>
         )}
-        <SetRow id="asr" title={labelOf('asr')} desc="按住说话时用" info="跟随系统：按系统的首选语言识别语音。实际说的语言和这里不一致时，识别会出错。" control={c.seg('asr')} />
+        <SetRow id="asr" title={labelOf('asr')} desc="按住语音输入时使用的识别语言" info="跟随系统：使用操作系统首选语言进行识别。若实际语音语种与所选语言不符，可能导致识别错误。" control={c.seg('asr')} />
         <SetRow
           id="replyLang"
           title={labelOf('replyLang')}
-          info="跟随对话：你用什么语言说，角色就用什么语言回答。按内核设置：这里不指定，由内核自己的设置决定。"
+          info="跟随对话：根据用户输入语言自动匹配回复语言；按内核设置：交由执行内核自身配置决定。"
           control={c.select('replyLang', REPLY_LANGUAGE)}
         />
       </SetSection>
 
-      <SetSection title="主动交流">
+      <SetSection title="主动交互">
         <SpeakWhenRow
           ps={ps}
           disabled={ro}
-          asked={<SetRow id="proactive" title={labelOf('proactive')} indent control={<Dis>只在你问时开口，不会主动</Dis>} />}
+          asked={<SetRow id="proactive" title={labelOf('proactive')} indent control={<Dis>仅在用户主动发起对话时响应</Dis>} />}
         >
           <SetRow
             id="proactive"
             title={labelOf('proactive')}
-            desc="主动发言和动作的频率"
-            info="均衡：约每 3 分钟看一次你手头的事，同类话题 10 分钟内不重复。主动：约每 2 分钟看一次，同类话题 5 分钟后就能再提，自己走动也更多。"
+            desc="主动发言与桌面行为的触发频率"
+            info="均衡：约每 3 分钟检查一次上下文，同类话题 10 分钟内不重复触发。高频：约每 2 分钟检查一次，同类话题冷却时间缩短至 5 分钟，主动动作更频繁。"
             indent control={c.select('proactive', levels, ['active'])} />
           <QuietHoursRow ps={ps} disabled={ro} />
         </SpeakWhenRow>
         <MutedRow disabled={ro} />
       </SetSection>
 
-      <SetSection title="通知方式">
+      <SetSection title="通知送达">
         <Slab id="n_done" label="各类通知">
           <div className={styles.mx} role="table" aria-label="各类通知">
             <span role="row" className={styles.mxHead}>
@@ -187,13 +187,13 @@ export function SpeakGroup() {
         <SetRow
           id="sysnotify"
           title={labelOf('sysnotify')}
-          desc="角色隐藏或前台全屏时生效"
+          desc="角色隐藏或前台应用全屏时改为通过系统通知中心送达"
           control={<Switch variant="setting" checked={model.value('sysnotify') === true} label={labelOf('sysnotify')} disabled={groupRo} onChange={(on) => void sysNotify(on)} />}
         />
         <SetRow
           id="testcard"
           title={labelOf('testcard')}
-          desc="在角色旁显示一张通知卡，检查位置和声音"
+          desc="在桌面角色旁展示测试卡片，以校验位置与提示音效果"
           control={
             <>
               <Btn onClick={() => void testCard('test_approval_card', '测试审批卡')}>测试审批卡</Btn>
@@ -214,10 +214,10 @@ export function SpeakGroup() {
   async function testCard(action: 'test_approval_card' | 'test_announcement', what: string) {
     try {
       await bridge.app.action(action);
-      model.notify({ message: `${what}已显示，看看角色身边` });
+      model.notify({ message: `${what}已显示在桌面角色旁` });
     } catch (e) {
       const detail = (e as { detail?: string } | null)?.detail;
-      model.notify({ message: detail || `没有显示${what}，请先显示角色`, severity: 'warning' });
+      model.notify({ message: detail || `无法显示${what}，请先确保角色已在桌面显示`, severity: 'warning' });
     }
   }
 }
@@ -226,7 +226,7 @@ export function SpeakGroup() {
 function Linked({ down, action, children }: { down: boolean; action: { label: string; onClick: () => void }; children: ReactNode }) {
   if (!down) return <>{children}</>;
   return (
-    <PowerState state="unlinked" mode="block" title="语音服务" reason="连不上你部署的语音服务，这段时间台词只显示文字" action={action}>
+    <PowerState state="unlinked" mode="block" title="语音服务" reason="无法连接外部语音服务，当前仅使用文字回复" action={action}>
       {children}
     </PowerState>
   );
@@ -250,19 +250,19 @@ function MutedRow({ disabled }: { disabled: boolean }) {
   const restore = (kind: string, label: string) =>
     void readMutes().then((r) => saveMutes(r.muted.filter((k) => k !== kind))).then(
       (r) => setMuted(r.muted),
-      (e) => model.notify({ message: `没能恢复「${label}」：${failure(e).text}`, severity: 'danger', persistent: true }),
+      (e) => model.notify({ message: `未能恢复「${label}」：${failure(e).text}`, severity: 'danger', persistent: true }),
     );
   if (muted?.length === 0) return null;
   return (
     <SetRow
       id="mutes"
       title={labelOf('mutes')}
-      desc="在气泡「更多操作」里点「关闭此类」加进来"
+      desc="可通过气泡「更多操作」中的「关闭此类」添加"
       wrap
       control={
         muted == null ? (
-          <span className={styles.t3} title="已关掉的主动发言：还没读到后台的状态">
-            未读到
+          <span className={styles.t3} title="已关闭的主动交互类别：尚未读取到后台服务状态">
+            未读取
           </span>
         ) : (
           muted.map((kind) => {

@@ -100,8 +100,8 @@ describe('no character to show', () => {
     const calls = { lists: 0 };
     noState(calls);
     mountPage();
-    expect(await screen.findByText('还没有角色')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '去角色页导入' }));
+    expect(await screen.findByText('尚无可用角色')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '前往角色页导入' }));
     expect(window.location.hash).toMatch(/\/character\?.*pane=import/);
     const before = calls.lists;
     fireEvent.click(screen.getByRole('button', { name: '重试' }));
@@ -118,8 +118,8 @@ describe('no character to show', () => {
       agentd: { ...base.agentd, request: (async () => ({ status: 500, body: null })) as never },
     };
     mountPage();
-    expect(await screen.findByText(/读取角色失败/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: '去角色页导入' })).toBeTruthy();
+    expect(await screen.findByText(/读取角色列表失败/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: '前往角色页导入' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /重试/ }));
     await waitFor(() => expect(lists).toBeGreaterThan(1));
   });
@@ -153,7 +153,7 @@ describe('the topic column and the tabs', () => {
     bridge();
     await mount();
     rightClick(tab('示例甲'));
-    fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: '示例甲的专属记忆' }));
+    fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: '示例甲 的专属记忆' }));
     expect(window.location.hash).toMatch(/\/memory\?.*owner=voice_a/);
   });
 
@@ -197,10 +197,10 @@ describe('the cards cover the whole window', () => {
     fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: /删除/ }));
     const del = await screen.findByRole('dialog', { name: /删除/ });
     expect(root.contains(del)).toBe(true);
-    fireEvent.click(within(del).getByRole('button', { name: '先不删' }));
+    fireEvent.click(within(del).getByRole('button', { name: '取消' }));
     fireEvent.change(within(thread).getByRole('textbox', { name: '消息' }), { target: { value: '我看完了' } });
     fireEvent.click(within(thread).getByRole('button', { name: '发送' }));
-    const swap = await screen.findByRole('dialog', { name: /出来回你/ });
+    const swap = await screen.findByRole('dialog', { name: /切换角色/ });
     expect(root.contains(swap)).toBe(true);
   });
 });

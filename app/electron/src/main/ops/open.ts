@@ -109,13 +109,13 @@ export function openOps(ctx: OpsContext): Ops {
       if (typeof path !== 'string') throw new BridgeFailure('invalid_args', 'path');
       const file = existingArtifact(path);
       if (file === null || (await ctx.shell.openPath(file)) !== '') {
-        throw new BridgeFailure('failed', '文件可能已被移动、删除或替换。请让角色重新检查结果。');
+        throw new BridgeFailure('failed', '文件可能已被移动、删除或替换，请让角色重新检查结果。');
       }
       return null;
     },
     'open.revealInFinder': ([path]) => {
       if (typeof path !== 'string' || !localPath(path)) throw new BridgeFailure('invalid_args', 'an absolute path');
-      if (!exists(path)) throw new BridgeFailure('failed', '找不到这个文件或文件夹');
+      if (!exists(path)) throw new BridgeFailure('failed', '找不到该文件或文件夹');
       ctx.shell.showItemInFolder(path);
       return null;
     },
@@ -125,10 +125,10 @@ export function openOps(ctx: OpsContext): Ops {
       try {
         list = await sessions(ctx);
       } catch {
-        throw new Error('后台没有回应，暂时跳不过去');
+        throw new Error('后台服务无响应，暂时无法跳转');
       }
       const session = list.find((s) => s.sessionId === id);
-      if (!session) throw new Error('没找到这个会话');
+      if (!session) throw new Error('未找到该会话');
       // An own session opens on the main window's sessions route.
       if (session.own && ctx.surface === 'main') {
         page.pushRoute(sessionsRoute(id));
@@ -139,7 +139,7 @@ export function openOps(ctx: OpsContext): Ops {
         return null;
       }
       const plan = jumpPlan(session);
-      if (!plan) throw new Error('没有可用的跳转方式');
+      if (!plan) throw new Error('当前会话无可用跳转方式');
       const text = await jump(ctx, plan);
       if (text !== JUMPED) throw new Error(text);
       return null;
@@ -160,13 +160,13 @@ export function openOps(ctx: OpsContext): Ops {
       if (typeof command !== 'string' || command === '' || Buffer.byteLength(command) > 4096 || /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(command)) {
         throw new BridgeFailure('invalid_args', 'a one-line command');
       }
-      if ((ctx.platform ?? 'mac') !== 'mac') throw new Error('这个系统上还不能在终端里运行命令');
-      if (!(await ctx.confirm(`在终端运行这条命令？\n\n${command}`))) throw new BridgeFailure('declined', 'open.runInTerminal');
+      if ((ctx.platform ?? 'mac') !== 'mac') throw new Error('当前系统暂不支持在终端中执行命令');
+      if (!(await ctx.confirm(`确认在终端运行以下命令？\n\n${command}`))) throw new BridgeFailure('declined', 'open.runInTerminal');
       // It may wait on the Automation prompt or on Terminal starting.
       const result = await (ctx.commands ?? systemCommands).run('/usr/bin/osascript', ['-e', runInTerminalScript(command)], null);
       if (result.ok) return null;
       const number = appleScriptError(result.message);
-      if (number === -1743) throw new Error('需要在系统设置里允许 Agentic Complex 控制 Terminal');
+      if (number === -1743) throw new Error('请在系统设置中允许 Agentic Complex 控制终端');
       throw new Error(`Terminal 出错：${number ?? 'unknown'}`);
     },
   };

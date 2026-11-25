@@ -7,14 +7,14 @@ import { BriefHealth } from './BriefHealth';
 
 const PERIOD: Readonly<Record<string, string>> = { daily: '日报', weekly: '周报' };
 const STATE: Readonly<Record<string, string>> = {
-  completed: '已写好',
+  completed: '已生成',
   queued: '排队中',
   running: '生成中',
   scheduled: '已排队',
-  empty: '这段时间没有可写的内容',
-  interrupted: '生成中断了',
+  empty: '该时段无可用内容',
+  interrupted: '生成中断',
   cancelled: '已取消',
-  dismissed: '已不再显示',
+  dismissed: '已隐藏',
 };
 const SOURCE: Readonly<Record<string, string>> = { segment: '任务片段', episode: '活动片段', work_event: '工作记录' };
 
@@ -52,7 +52,7 @@ function Part({ title, children }: { title: string; children: ReactNode }) {
 
 /** The report as agentd returned it: plain text and its quoted evidence, no links. */
 function BriefBody({ b }: { b: BriefStatus }) {
-  if (b.state !== 'completed') return <p className={s.cap}>{STATE[b.state] ?? '这份简报还不能读'}</p>;
+  if (b.state !== 'completed') return <p className={s.cap}>{STATE[b.state] ?? '此简报暂不可读'}</p>;
   const details = b.observed_details ?? [];
   const problems = b.recurring_problems ?? [];
   const steps = b.next_steps ?? [];
@@ -60,10 +60,10 @@ function BriefBody({ b }: { b: BriefStatus }) {
   return (
     <div className={s.body}>
       <p className={s.cap}>
-        {PERIOD[b.period ?? ''] ?? '简报'} │ {dateLabel(b.period ?? '', b.date ?? '')} │ 抽样 <span className="num">{b.coverage?.source_count ?? 0}</span> 条记录，不是完整的电脑使用记录
+        {PERIOD[b.period ?? ''] ?? '简报'} │ {dateLabel(b.period ?? '', b.date ?? '')} │ 抽样 <span className="num">{b.coverage?.source_count ?? 0}</span> 条记录（非完整使用记录）
       </p>
       {details.length > 0 && (
-        <Part title="看到的细节">
+        <Part title="观察细节">
           {details.map((x, i) => (
             <li key={i} className={s.item}>
               <span className={s.text} data-selectable="">
@@ -105,7 +105,7 @@ function BriefBody({ b }: { b: BriefStatus }) {
         </Part>
       )}
       {unknowns.length > 0 && (
-        <Part title="没看清的地方">
+        <Part title="信息存疑部分">
           {unknowns.map((x, i) => (
             <li key={i} className={s.item}>
               <span className={s.text} data-selectable="">
@@ -115,7 +115,7 @@ function BriefBody({ b }: { b: BriefStatus }) {
           ))}
         </Part>
       )}
-      <p className={s.cap}>建议只是建议，不会自动执行，也不写进记忆。</p>
+      <p className={s.cap}>建议仅供参考，不会自动执行，亦不会写入记忆。</p>
     </div>
   );
 }
@@ -128,10 +128,10 @@ function BriefSheet({ id, onClose, onDismiss }: { id: string | null; onClose: ()
     setBusy(true);
     try {
       await onDismiss(id);
-      toast('这份简报不再显示');
+      toast('已隐藏此简报');
       onClose();
     } catch (e) {
-      toast(`没有完成：${briefError(e)}`);
+      toast(`操作未完成：${briefError(e)}`);
     } finally {
       setBusy(false);
     }
@@ -162,9 +162,9 @@ export function BriefsSec({ no }: { no: string }) {
     setBusy(true);
     try {
       await b.generate();
-      toast('已开始写昨天的日报，写好后出现在这里');
+      toast('已开始生成前一日的日报，完成后将在此显示');
     } catch (e) {
-      toast(`没有生成：${briefError(e)}`);
+      toast(`生成失败：${briefError(e)}`);
     } finally {
       setBusy(false);
     }
@@ -183,12 +183,12 @@ export function BriefsSec({ no }: { no: string }) {
         <>
           {b.list.data !== undefined && <span className={`${s.cap} num`}>{b.reports.length} 份</span>}
           <Btn size="sm" variant="text" loading={busy} onClick={() => void generate()}>
-            现在生成
+            立即生成
           </Btn>
         </>
       }
     >
-      <Region q={b.list} what="简报" reserve={{ rows: 2 }} isEmpty={() => b.reports.length === 0} empty={{ text: `还没有简报。观察打开时，每天 ${hour} 后根据前一天的观察写一份` }}>
+      <Region q={b.list} what="简报" reserve={{ rows: 2 }} isEmpty={() => b.reports.length === 0} empty={{ text: `尚无简报。开启观察后，每日 ${hour} 起将基于前一日的观察记录自动生成` }}>
         {() => (
           <ul className={s.rows}>
             {b.reports.map((r) => (

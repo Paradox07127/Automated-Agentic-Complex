@@ -63,7 +63,7 @@ describe('SettingRows', () => {
     const n = await demoNative(null);
     draw(n, 'render');
     const section = screen.getByRole('region', { name: '天气' });
-    expect(within(section).getByRole('group', { name: '天气' })).toBeTruthy();
+    expect(within(section).getByRole('group', { name: '环境天气' })).toBeTruthy();
     expect(within(section).queryByRole('group', { name: '强度' })).toBeNull();
     cleanup();
     draw({ ...n, saved: { ...n.saved, 'rnd.weather': 'snow' } }, 'render');
@@ -83,9 +83,9 @@ describe('SettingRows', () => {
     const pad = screen.getByRole('radiogroup', { name: '主光方向' });
     const cells = within(pad).getAllByRole('radio');
     expect(cells.map((c) => c.getAttribute('aria-label'))).toEqual([
-      '左偏 15°，抬高 10°', '原作，抬高 10°', '右偏 15°，抬高 10°',
-      '左偏 15°，原作', '原作，原作', '右偏 15°，原作',
-      '左偏 15°，降低 10°', '原作，降低 10°', '右偏 15°，降低 10°',
+      '左偏 15°，抬高 10°', '原作（0°），抬高 10°', '右偏 15°，抬高 10°',
+      '左偏 15°，原作（0°）', '原作（0°），原作（0°）', '右偏 15°，原作（0°）',
+      '左偏 15°，降低 10°', '原作（0°），降低 10°', '右偏 15°，降低 10°',
     ]);
     expect(cells[4]!.getAttribute('aria-checked')).toBe('true');
     expect(cells[4]!.hasAttribute('data-default')).toBe(true);
@@ -102,15 +102,15 @@ describe('SettingRows', () => {
     draw({ ...n, saved: { ...n.saved, 'rnd.lightStrength': '1.25', 'rnd.lightPitch': '10' } }, 'render', { set });
     const strength = document.getElementById('set-rnd.lightStrength')!;
     expect(strength.hasAttribute('data-changed')).toBe(true);
-    expect(within(strength).getByText('默认：原作 · 100 %')).toBeTruthy();
-    expect(within(within(strength).getByRole('radiogroup', { name: '主光强度' })).getAllByRole('radio').map((r) => r.textContent)).toEqual(['50', '75', '100', '125', '150']);
-    fireEvent.click(within(strength).getByRole('button', { name: '恢复「主光强度」的默认' }));
+    expect(within(strength).getByText('默认：原作（100 %）')).toBeTruthy();
+    expect(within(within(strength).getByRole('radiogroup', { name: '主光源强度' })).getAllByRole('radio').map((r) => r.textContent)).toEqual(['50', '75', '100', '125', '150']);
+    fireEvent.click(within(strength).getByRole('button', { name: '恢复「主光源强度」默认值' }));
     expect(set).toHaveBeenCalledWith('rnd.lightStrength', '1');
-    expect(within(document.getElementById('set-rnd.lightYaw')!).getByText('默认：原作（正中）')).toBeTruthy();
+    expect(within(document.getElementById('set-rnd.lightYaw')!).getByText('默认：原作（0°）（正中）')).toBeTruthy();
     const dof = document.getElementById('set-rnd.dof')!;
     expect(dof.hasAttribute('data-changed')).toBe(false);
     expect(within(dof).queryByRole('button', { name: /恢复/ })).toBeNull();
-    expect(within(dof).getByText('镜头处于近景时虚化角色身上离焦的部分；全身景别下看不出')).toBeTruthy();
+    expect(within(dof).getByText('镜头处于近景时虚化角色焦点外区域；全身景别下效果不明显')).toBeTruthy();
   });
 
   it('tags a row that brings her back with ⟳ 角色, and writes a failed save on its row', async () => {
@@ -124,8 +124,8 @@ describe('SettingRows', () => {
   it('leaves the three quality rows off 画面 outside developer mode', async () => {
     setDevMode(false);
     draw(await demoNative(null), 'render');
-    expect(shown('原作镜头预设')).toBe(true);
-    expect(shown('角色边界')).toBe(true);
+    expect(shown('镜头预设')).toBe(true);
+    expect(shown('角色描边')).toBe(true);
     for (const label of ['2× SSAA', '渲染尺寸', '自阴影精度']) expect(shown(label)).toBe(false);
   });
 
@@ -133,7 +133,7 @@ describe('SettingRows', () => {
     const n = await demoNative(null);
     const { ['rnd.outline']: _gone, ...rows } = n.rows;
     draw({ ...n, rows }, 'render');
-    expect(shown('角色边界')).toBe(false);
+    expect(shown('角色描边')).toBe(false);
   });
 
   it('puts an unplaced @character row under 其他', async () => {
@@ -145,7 +145,7 @@ describe('SettingRows', () => {
 
   it('leaves speak rows on their own page', async () => {
     draw(await demoNative(null), 'behavior');
-    expect(shown('坐在窗口顶上')).toBe(true);
+    expect(shown('允许坐在窗口顶部')).toBe(true);
     expect(shown('点击角色')).toBe(true);
     expect(shown('语音合成来源')).toBe(false);
   });
@@ -156,12 +156,12 @@ describe('SettingRows', () => {
     vi.useFakeTimers();
     try {
       render(<SettingRows n={n} tab="render" set={set} setMany={vi.fn(async () => true)} pending={new Set()} failed={{}} offline={false} />);
-      const yaw = screen.getByRole('slider', { name: '水平朝向' }) as HTMLInputElement;
+      const yaw = screen.getByRole('slider', { name: '水平旋转' }) as HTMLInputElement;
       expect([yaw.min, yaw.max, yaw.step, yaw.value]).toEqual(['-180', '180', '0.5', '0']);
       for (const v of ['10', '20', '30.5']) fireEvent.change(yaw, { target: { value: v } });
       expect(set.mock.calls).toEqual([['rnd.yaw', 10, false]]);
       expect(yaw.value).toBe('30.5');
-      expect(screen.getByRole('button', { name: '水平朝向：30.5°，点击输入' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: '水平旋转：30.5°，点击输入' })).toBeTruthy();
       vi.advanceTimersByTime(40);
       expect(set.mock.calls).toEqual([['rnd.yaw', 10, false], ['rnd.yaw', 30.5, false]]);
       const zoom = screen.getByRole('slider', { name: '镜头缩放' }) as HTMLInputElement;

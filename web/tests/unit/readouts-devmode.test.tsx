@@ -162,7 +162,7 @@ describe(' 开发者模式 off', () => {
     await character('&tab=render');
     const menu = await screen.findByRole('tablist', { name: '角色页签' });
     expect(within(menu).getByRole('tab', { name: '画面' })).toBeTruthy();
-    expect((await screen.findAllByText('角色边界')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('角色描边')).length).toBeGreaterThan(0);
     expect(screen.queryAllByText('2× SSAA')).toHaveLength(0);
   });
 
@@ -201,7 +201,7 @@ describe(' 开发者模式 on', () => {
 
   it('opens /character?tab=render with the 2× SSAA row', async () => {
     await character('&tab=render');
-    expect((await screen.findAllByText('角色边界')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('角色描边')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('2× SSAA')).length).toBeGreaterThan(0);
   });
 });

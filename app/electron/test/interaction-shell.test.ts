@@ -102,7 +102,7 @@ test('a tap agentd turns down says why in the bubble; an unreachable agentd is s
   const busy = harness({ status: 409, body: { while: 'working' } });
   busy.shell.click({ kind: 'left', at: { x: 0, y: 0 }, region: null });
   await busy.advance(1);
-  assert.deepEqual(busy.calls, ['notice 角色在忙，等这一轮做完']);
+  assert.deepEqual(busy.calls, ['notice 角色正在处理上一轮对话，请稍候']);
   assert.deepEqual(busy.lines, ['RITUAL tap status=409']);
   busy.done();
   // While she speaks a click already cut her off: nothing to say.
@@ -114,7 +114,7 @@ test('a tap agentd turns down says why in the bubble; an unreachable agentd is s
   const offline = harness({ offline: true });
   offline.shell.click({ kind: 'left', at: { x: 0, y: 0 }, region: null });
   await offline.advance(1);
-  assert.deepEqual(offline.calls, ['notice 没能收到角色回应，稍后再试']);
+  assert.deepEqual(offline.calls, ['notice 未能收到角色回应，请稍后再试']);
   assert.deepEqual(offline.lines, ['RITUAL tap status=0']);
   offline.done();
 });
@@ -178,7 +178,7 @@ test('a wheel record agentd does not take is logged', async () => {
 
 test('claimRitual (the ritual tag) taps with no count or region and fails without one', async () => {
   const h = harness({ status: 200 });
-  assert.equal(await h.shell.actions.claimRitual(), '这次没有可播放的回应');
+  assert.equal(await h.shell.actions.claimRitual(), '本次没有可播放的回应');
   assert.deepEqual(Object.keys(h.requests[0]!.json as object), ['at']);
   h.done();
   const ok = harness();
@@ -198,17 +198,17 @@ test('the gift plays her gift action at speed 1, then tells agentd; a missing on
   await assert.rejects(missing.shell.actions.gift(), { message: '缺少收礼动作的资源' });
   missing.done();
   const none = harness({ actions: [row('wave')] });
-  await assert.rejects(none.shell.actions.gift(), { message: '当前角色包尚未导入原作收礼动作' });
+  await assert.rejects(none.shell.actions.gift(), { message: '当前角色尚未导入原作赠礼动作' });
   none.done();
   const move = harness({ actions: [row('receive_gift', { section: 'move' })] });
-  await assert.rejects(move.shell.actions.gift(), { message: '这个动作不能单独播放' });
+  await assert.rejects(move.shell.actions.gift(), { message: '该动作不支持单独播放' });
   move.done();
   const unlinked = harness({ noLink: true });
-  await assert.rejects(unlinked.shell.actions.gift(), { message: '角色还没连上（配置出错）' });
+  await assert.rejects(unlinked.shell.actions.gift(), { message: '角色渲染进程未连接（配置异常）' });
   unlinked.done();
   const gone = harness({ actions: [row('receive_gift')] });
   gone.link.currentCharacter = null;
-  await assert.rejects(gone.shell.actions.gift(), { message: '角色已改变，请重新选择操作' });
+  await assert.rejects(gone.shell.actions.gift(), { message: '当前角色已变更，请重新选择操作' });
   assert.deepEqual([...missing.requests, ...none.requests, ...gone.requests], []);
   gone.done();
 });

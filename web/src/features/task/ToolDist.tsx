@@ -37,7 +37,7 @@ export function ToolDist({ tools, now, selected = null, onPick }: ToolDistProps)
         <BarList rows={toolRows(tools, now)} label="工具耗时" top={6} otherReadout={formatMs} selected={selected} onPick={(k) => onPick?.(k === selected ? null : k)} />
       )}
       <p className={styles.note}>
-        <InfoTip>点一个工具，上面的瀑布只画它的刻度</InfoTip>
+        <InfoTip>点击某个工具后，上方瀑布图仅高亮该工具的调用刻度</InfoTip>
       </p>
     </div>
   );

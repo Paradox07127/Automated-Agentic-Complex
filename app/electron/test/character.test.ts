@@ -117,7 +117,7 @@ test('while agentd does not answer the motion ops, the playlist and the list tak
   assert.deepEqual(((await call('character.list')) as { value: { id: string; active: boolean }[] }).value.map((c) => [c.id, c.active]),
     [['si', false], ['cedar', true]]);
   fake.switcher.current = null;
-  assert.deepEqual(await call('character.listImportedMotions', 'cedar'), { ok: true, value: { ok: false, reason: 'internal', detail: '角色还没连上' } });
+  assert.deepEqual(await call('character.listImportedMotions', 'cedar'), { ok: true, value: { ok: false, reason: 'internal', detail: '角色渲染进程尚未连接' } });
 }));
 
 test('character.list gives the current character the appearances and the worn appearance\'s layers the renderer reported', withDir(async (dir, fake) => {
@@ -196,7 +196,7 @@ test('motion ops check ids and titles, run motion_tool on the current character 
   fake.tool = () => ({ last: '', status: 1, stderr: '{"reason": "unknown_action", "detail": "m"}\n' });
   assert.deepEqual(await call('character.removeMotion', 'si', 'm'), { ok: true, value: { ok: false, reason: 'unknown_action', detail: 'm' } });
   fake.character = null;
-  assert.deepEqual(await call('character.listImportedMotions', 'si'), { ok: true, value: { ok: false, reason: 'internal', detail: '角色还没连上' } });
+  assert.deepEqual(await call('character.listImportedMotions', 'si'), { ok: true, value: { ok: false, reason: 'internal', detail: '角色渲染进程尚未连接' } });
   assert.deepEqual(toolFailure('Traceback\n{"reason": "nope"}\n'), { reason: 'internal', detail: 'Traceback\n{"reason": "nope"}' });
 }));
 
@@ -214,19 +214,19 @@ test('the playlist is config.json motion_playlists of the current character', wi
   assert.deepEqual(file.motion_playlists, { cedar: { items: ['a'], loop: 'one', speed: 2 }, si: { items: ['b', 'c'], loop: 'all', speed: 0.5 } });
   assert.equal(file.python, '/usr/bin/python3');
   fake.character = null;
-  assert.deepEqual(await call('character.getPlaylist', 'si'), { ok: false, error: { code: 'failed', detail: '角色还没连上' } });
+  assert.deepEqual(await call('character.getPlaylist', 'si'), { ok: false, error: { code: 'failed', detail: '角色渲染进程尚未连接' } });
 }));
 
 test('a motion edit, the motion list or a playlist call meant for a character no longer current is refused and runs nothing', withDir(async (dir, fake) => {
   const call = setUp(dir, fake);
-  const changed = { ok: true, value: { ok: false, reason: 'character_changed', detail: '角色刚换过，这次没有改' } };
+  const changed = { ok: true, value: { ok: false, reason: 'character_changed', detail: '当前角色已切换，本次修改未生效' } };
   assert.deepEqual(await call('character.removeMotion', 'cedar', 'm'), changed);
   assert.deepEqual(await call('character.renameMotion', 'cedar', 'm', '慢舞'), changed);
   assert.deepEqual(await call('character.listImportedMotions', 'cedar'), changed);
   assert.deepEqual(fake.tools, [], 'motion_tool did not run');
   assert.deepEqual(await call('character.removeMotion', '', 'm'), { ok: false, error: { code: 'bad_args', detail: 'character.removeMotion' } });
   const before = readFileSync(join(dir, 'config.json'), 'utf8');
-  const refused = { ok: false, error: { code: 'character_changed', detail: '角色刚换过，这次没有改' } };
+  const refused = { ok: false, error: { code: 'character_changed', detail: '当前角色已切换，本次修改未生效' } };
   assert.deepEqual(await call('character.setPlaylist', 'cedar', { items: ['b'], loop: 'off', speed: 1 }), refused);
   assert.equal(readFileSync(join(dir, 'config.json'), 'utf8'), before, 'neither list was written');
   assert.deepEqual(await call('character.getPlaylist', 'cedar'), refused);

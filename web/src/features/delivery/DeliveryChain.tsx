@@ -19,14 +19,14 @@ const TIPS = ['角色写出产物', '交付第一次出现在界面上', '你打
 function nodesOf(d: Delivery): ChainNode[] {
   const ts = [d.produced_at, d.presented_at, d.viewed_at, d.decided_at];
   const last = ts.reduce<number>((acc, t, i) => (t != null ? i : acc), -1);
-  const verdict = d.state === 'accepted' ? '已接受' : d.state === 'rejected' ? '已退回' : '';
+  const verdict = d.state === 'accepted' ? '已接受' : d.state === 'rejected' ? '已驳回' : '';
   return LABELS.map((label, i) => {
     const t = ts[i];
     const waiting = t == null && i === last + 1 && i >= 2;
     const state: ChainNode['state'] =
       t != null ? (i === 3 && d.state === 'accepted' ? 'ok' : 'done') : waiting ? 'current' : 'todo';
     const sub = t != null ? `${i === 3 && verdict ? `${verdict} ` : ''}${formatClock(t)}` : waiting ? '待处理' : '—';
-    return { label, state, sub, waiting, tip: `${label} │ ${t != null ? formatClock(t) : waiting ? '待处理' : '还没到'}\n${TIPS[i]}` };
+    return { label, state, sub, waiting, tip: `${label} │ ${t != null ? formatClock(t) : waiting ? '待处理' : '未到达'}\n${TIPS[i]}` };
   });
 }
 

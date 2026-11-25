@@ -32,7 +32,7 @@ async function recheck(qc: QueryClient) {
   try {
     const view = fromRuntimePublic(await refreshRuntime(qc));
     const rt = view.runtimes.find((x) => x.id === view.selected);
-    if (!rt) toast('重新检测失败：没有选中的内核', { severity: 'danger' });
+    if (!rt) toast('重新检测失败：未选中执行内核', { severity: 'danger' });
     else if (rt.authenticated === false) toast(`已重新检测：${rt.name} 未登录`, { severity: 'warning' });
     else if (!view.ready) toast(`已重新检测：${rt.name} 尚未就绪${view.error ? ` │ ${(RUNTIME_ERROR[view.error] ?? RUNTIME_ERROR_UNKNOWN).label}` : ''}`, { severity: 'warning' });
     else toast(`已重新检测：${rt.name} 已就绪`, { severity: 'success' });
@@ -60,6 +60,12 @@ export async function stopTask(task: Task) {
     toast(`停止失败：${errText(e)}`, { severity: 'danger' });
   }
 }
+
+const MISSING_LABEL: Readonly<Record<string, string>> = {
+  '/agent/tasks': '后台任务',
+  '/tasks': '角色任务',
+  '/memory': '记忆',
+};
 
 /** ⌘K: jump to a page, search tasks / memory / deliveries (Enter lands on `sel=`), or run an action. */
 export function CmdPalette({ routes, onClose }: { routes: PageRoute[]; onClose: () => void }) {
@@ -144,7 +150,7 @@ export function CmdPalette({ routes, onClose }: { routes: PageRoute[]; onClose: 
           onKeyDown={onKey}
         />
         <div className={styles.list} role="listbox" id="ef-cmd-list">
-          {hits.length === 0 && <p className={styles.empty}>{searching && data.isPending ? '正在读取任务、记忆和交付…' : '没有匹配的结果'}</p>}
+          {hits.length === 0 && <p className={styles.empty}>{searching && data.isPending ? '正在加载任务、记忆与交付记录…' : '未找到匹配结果'}</p>}
           {hits.map((h, i) => (
             <Fragment key={h.key}>
               {h.group !== hits[i - 1]?.group && (
@@ -173,7 +179,9 @@ export function CmdPalette({ routes, onClose }: { routes: PageRoute[]; onClose: 
               </button>
             </Fragment>
           ))}
-          {searching && data.data && data.data.missing.length > 0 && <p className={styles.empty}>没读到：{data.data.missing.join('、')}，这部分没有搜</p>}
+          {searching && data.data && data.data.missing.length > 0 && (
+            <p className={styles.empty}>部分数据源暂未加载（{[...new Set(data.data.missing.map((m) => MISSING_LABEL[m] ?? '其他数据'))].join('、')}），相应分类未纳入搜索</p>
+          )}
         </div>
         <div className={styles.foot}>↑ ↓ 选择 │ ⏎ 执行 │ esc 关闭</div>
       </div>

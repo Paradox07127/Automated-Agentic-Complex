@@ -7,11 +7,11 @@ import type { StageStatus } from './Stage';
 
 const ORDER = Object.keys(SECTIONS);
 const SAVE_REFUSED: Record<string, string> = {
-  wrong_character: '桌面上不是这个角色',
-  switching: '角色正在切换',
-  not_ready: '角色还在加载',
-  not_implemented: '这个版本还不支持',
-  character_changed: '角色刚被换过',
+  wrong_character: '当前加载的角色不匹配',
+  switching: '角色切换进行中',
+  not_ready: '角色仍在加载中',
+  not_implemented: '当前版本暂不支持',
+  character_changed: '当前角色已切换',
 };
 const codeOf = (e: unknown) => (e as { code?: string } | null)?.code ?? '';
 /** How long the stage says 桌面播放中 for a motion without a duration. */
@@ -116,16 +116,16 @@ export function useMotions(o: { character: string; actions: AvatarAction[]; toas
       .avatar.setActionSwitches(o.character, sent)
       .then(
         (r) => {
-          if (r.error) return o.toast(`没有保存：${SAVE_REFUSED[r.error] ?? NO_REASON}`, { severity: 'danger' });
+          if (r.error) return o.toast(`保存失败：${SAVE_REFUSED[r.error] ?? NO_REASON}`, { severity: 'danger' });
           // The host's table is the truth: it may keep required, missing or last-in-section actions on.
           setSaved((x) => ({ ...x, ...r.switches }));
           setSavedOver(o.actions);
           // A switch changed again while the save was out stays a change.
           setChanged((c) => Object.fromEntries(Object.entries(c).filter(([id, v]) => sent[id] !== v)));
           const back = r.adjusted.map((a) => `${o.actions.find((m) => m.id === a.id)?.label ?? a.id}（${ADJUSTED[a.reason] ?? NO_REASON}）`);
-          o.toast(back.length ? `动作开关已保存 │ 角色改回了 ${back.join('、')}` : `动作开关已保存 │ ${n} 项`);
+          o.toast(back.length ? `动作开关已保存 │ 以下项目已自动恢复：${back.join('、')}` : `动作开关已保存 │ ${n} 项`);
         },
-        (e: unknown) => o.toast(`没有保存：${SAVE_REFUSED[codeOf(e)] ?? '桌面角色没有回应'}`, { severity: 'danger' }),
+        (e: unknown) => o.toast(`保存失败：${SAVE_REFUSED[codeOf(e)] ?? '角色渲染进程无响应'}`, { severity: 'danger' }),
       )
       .finally(() => setSaving(false));
   };
@@ -138,7 +138,7 @@ export function useMotions(o: { character: string; actions: AvatarAction[]; toas
       if (!(await avatar.state()).visible) {
         await avatar.setVisible(true);
         if (!(await avatar.state()).visible) {
-          o.toast('没有播放：角色仍然隐藏，请先通过角色菜单显示角色', { severity: 'danger' });
+          o.toast('播放失败：角色仍处于隐藏状态，请先通过角色菜单显示角色', { severity: 'danger' });
           return;
         }
       }
@@ -146,7 +146,7 @@ export function useMotions(o: { character: string; actions: AvatarAction[]; toas
       else await avatar.playAction(a.id, speed);
       setPlay({ id: a.id, t0: Date.now(), speed, loop });
     } catch (e) {
-      o.toast(PLAY_REFUSED[codeOf(e)] ?? '没有播放：桌面角色未确认播放，请检查角色是否显示、是否连上', { severity: playRefusedSeverity(codeOf(e)) });
+      o.toast(PLAY_REFUSED[codeOf(e)] ?? '播放失败：角色渲染进程未确认播放，请检查角色是否已显示且连接正常', { severity: playRefusedSeverity(codeOf(e)) });
     } finally { setPreviewing(false); }
   };
 
@@ -155,7 +155,7 @@ export function useMotions(o: { character: string; actions: AvatarAction[]; toas
       .avatar.stopAction()
       .then(
         () => setPlay(null),
-        (e: unknown) => o.toast(`没有停止：${codeOf(e) === 'not_implemented' ? '这个版本还不支持' : '桌面角色没有回应'}`, { severity: 'danger' }),
+        (e: unknown) => o.toast(`停止失败：${codeOf(e) === 'not_implemented' ? '当前版本暂不支持' : '角色渲染进程无响应'}`, { severity: 'danger' }),
       );
 
   return {

@@ -50,7 +50,7 @@ async function mount() {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  await screen.findByRole('region', { name: 'MMD 库' });
+  await screen.findByRole('region', { name: 'MMD 舞蹈库' });
   return {
     runtime: (over: { avatar?: Runtime['processes']['avatar']['state']; switching?: boolean; current?: string } = {}) =>
       act(async () =>
@@ -90,7 +90,7 @@ describe('MMD · 停止桌面播放 belongs to the loop it stops', () => {
     const m = await mount();
     await loopA();
     await m.runtime({ current: 'voice_a' });
-    await waitFor(() => expect(screen.getByRole('region', { name: '这支舞' }).getAttribute('data-mmd-detail')).toBe('mmd_a'));
+    await waitFor(() => expect(screen.getByRole('region', { name: '当前舞蹈' }).getAttribute('data-mmd-detail')).toBe('mmd_a'));
     expect(desk('停止桌面播放')).toBeNull();
     expect(desk('桌面播放')).not.toBeNull();
   });
@@ -99,7 +99,7 @@ describe('MMD · 停止桌面播放 belongs to the loop it stops', () => {
     await mount();
     await loopA();
     await click(document.querySelector('[data-mmd="mmd_b"] button[aria-pressed]')!);
-    expect(screen.getByRole('region', { name: '这支舞' }).getAttribute('data-mmd-detail')).toBe('mmd_b');
+    expect(screen.getByRole('region', { name: '当前舞蹈' }).getAttribute('data-mmd-detail')).toBe('mmd_b');
     expect(desk('停止桌面播放')).toBeNull();
     expect(desk('桌面播放')).not.toBeNull();
   });
@@ -109,7 +109,7 @@ describe('MMD · 停止桌面播放 belongs to the loop it stops', () => {
     await loopA();
     await m.runtime({ switching: true });
     expect(desk('停止桌面播放')!.disabled).toBe(true);
-    expect(desk('停止桌面播放')!.title).toBe('角色正在切换');
+    expect(desk('停止桌面播放')!.title).toBe('角色切换中');
     expect((screen.getByRole('button', { name: '导入 MMD' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });
@@ -153,6 +153,6 @@ describe('MMD · her list', () => {
     await act(async () => result.current.put(['mmd_a', 'mmd_b']));
     await act(async () => first.reject({ code: 'failed' }));
     expect(result.current.items).toEqual(['mmd_a', 'mmd_b']);
-    expect(toast).toHaveBeenCalledWith('改 MMD 列表没有完成：桌面角色没有回应', { severity: 'danger' });
+    expect(toast).toHaveBeenCalledWith('修改 MMD 列表未完成：角色渲染进程无响应', { severity: 'danger' });
   });
 });

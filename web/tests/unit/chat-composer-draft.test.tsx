@@ -55,13 +55,13 @@ describe('composer keeps the draft until the line is taken', () => {
     render(<Composer {...props({ onSend, topicId: 'keep-a' })} />);
     attach();
     await screen.findByText('销量.csv');
-    flag('让陈千语看一眼屏幕');
+    flag('附带当前屏幕识读');
     type('汇总一下');
     fireEvent.click(sendBtn());
     await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
     expect(box().value).toBe('汇总一下');
     expect(screen.getByText('销量.csv')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '不看屏幕' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '移除屏幕识读' })).toBeTruthy();
     fireEvent.click(sendBtn());
     await waitFor(() => expect(onSend).toHaveBeenCalledTimes(2));
     expect(onSend.mock.calls[1]).toEqual(onSend.mock.calls[0]);
@@ -75,7 +75,7 @@ describe('composer keeps the draft until the line is taken', () => {
     const answers: SendResult[] = ['kept', 'sent'];
     const onSend = vi.fn(async (_text: string, _options: SendOptions) => answers.shift()!);
     render(<Composer {...props({ onSend, topicId: 'keep-b' })} />);
-    flag('这句不记');
+    flag('此轮不记录');
     type('只说一次');
     fireEvent.click(sendBtn());
     await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
@@ -181,7 +181,7 @@ describe('a finished pick, drop or paste goes to the draft that asked for it', (
     pickFrom([() => new Promise((r) => (done = r))]);
     render(<Composer {...props({ topicId: 'pick-c' })} />);
     attach();
-    flag('这句不记');
+    flag('此轮不记录');
     await act(async () => done({ handle: 'h-1', displayName: '销量.csv' }));
     expect(screen.queryByText('销量.csv')).toBeNull();
   });
@@ -190,7 +190,7 @@ describe('a finished pick, drop or paste goes to the draft that asked for it', (
     pickFrom([async () => Promise.reject(new Error('x'))]);
     render(<Composer {...props({ topicId: 'pick-d' })} />);
     attach();
-    expect(await screen.findByText(/文件没带上/)).toBeTruthy();
+    expect(await screen.findByText(/文件附加失败/)).toBeTruthy();
   });
 
   it('at most 16 files; the rest are not adopted', async () => {
@@ -201,7 +201,7 @@ describe('a finished pick, drop or paste goes to the draft that asked for it', (
     render(<Composer {...props({ topicId: 'many', dropped: { files, topic: 'many' } })} />);
     await waitFor(() => expect(adoptDropped).toHaveBeenCalled());
     expect(adoptDropped.mock.calls[0]![0]).toHaveLength(16);
-    expect(await screen.findByText(/1 个文件没带上/)).toBeTruthy();
+    expect(await screen.findByText(/1 个文件未能附加/)).toBeTruthy();
   });
 
   it('a pasted image over 5 MiB is not read; a small one is', async () => {
@@ -217,7 +217,7 @@ describe('a finished pick, drop or paste goes to the draft that asked for it', (
     await waitFor(() => expect(adoptPasted).toHaveBeenCalledTimes(1));
     expect(read).not.toHaveBeenCalled();
     expect(adoptPasted.mock.calls[0]![0]).toHaveLength(1);
-    expect(await screen.findByText(/1 个文件没带上/)).toBeTruthy();
+    expect(await screen.findByText(/1 个文件未能附加/)).toBeTruthy();
   });
 
   it('pasting text with an image keeps the text paste; the image is adopted', async () => {
@@ -237,7 +237,7 @@ describe('a finished pick, drop or paste goes to the draft that asked for it', (
     render(<Composer {...props({ topicId: 'bad-paste' })} />);
     const png = new File([new Uint8Array([1])], 'x.png', { type: 'image/png' });
     fireEvent.paste(box(), { clipboardData: { files: [png], getData: () => '' } });
-    expect(await screen.findByText(/文件没带上/)).toBeTruthy();
+    expect(await screen.findByText(/未能附加/)).toBeTruthy();
   });
 
   it('with the personal agent off, adding files is disabled with the reason', () => {
@@ -246,7 +246,7 @@ describe('a finished pick, drop or paste goes to the draft that asked for it', (
     fireEvent.click(screen.getByRole('button', { name: '附加' }));
     const item = screen.getByRole('menuitem', { name: /添加文件或图片/ });
     expect(item.getAttribute('aria-disabled')).toBe('true');
-    expect(item.textContent).toMatch(/已关闭：设置里关着「派发任务和定时任务」/);
+    expect(item.textContent).toMatch(/已关闭：请在设置中开启「派发任务与定时任务」/);
   });
 });
 

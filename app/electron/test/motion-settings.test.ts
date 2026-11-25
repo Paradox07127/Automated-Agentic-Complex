@@ -105,11 +105,11 @@ test('play_chain: argument, and the codes of a rejected play and an ack error', 
   assert.deepEqual(playChainArg({ start: 'a', speed: 0.5 }), { start: 'a', speed: 0.5 });
   assert.throws(() => playChainArg({ start: 'a', speed: null }), BridgeFailure);
   const code = (f: BridgeFailure) => [f.code, f.detail];
-  assert.deepEqual(code(chainRejected('missing')), ['missing', '这个动作缺资源']);
+  assert.deepEqual(code(chainRejected('missing')), ['missing', '该动作缺少资源文件']);
   assert.deepEqual(code(chainRejected('switching')), ['switching', '正在切换角色']);
-  assert.deepEqual(code(chainRefused('timeout')), ['failed', '角色没有回应']);
-  assert.deepEqual(code(chainRefused('unsupported')), ['not_implemented', '这个版本的角色不支持动作设置']);
-  assert.deepEqual(code(chainRefused('busy')), ['failed', '正在切换角色，没有保存到角色上']);
+  assert.deepEqual(code(chainRefused('timeout')), ['failed', '角色渲染进程无响应']);
+  assert.deepEqual(code(chainRefused('unsupported')), ['not_implemented', '当前版本角色不支持动作设置']);
+  assert.deepEqual(code(chainRefused('busy')), ['failed', '正在切换角色，设置未保存']);
 });
 
 /** A player whose sends the test reads; `sends` false makes each send fail. */

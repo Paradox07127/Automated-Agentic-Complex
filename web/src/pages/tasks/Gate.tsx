@@ -8,7 +8,7 @@ import { TasksPage } from './Page';
 export function TasksGate() {
   if (usePlugins().personal_agent) return <TasksPage />;
   return (
-    <PowerState state="off" mode="page" title="派发任务和定时任务" reason="设置里关掉了「派发任务和定时任务」，角色不接新任务，定时任务也不跑。" action={{ label: '前往设置打开', onClick: () => navigate({ page: 'settings', group: 'perm', item: 'plugins.personal_agent' }) }}>
+    <PowerState state="off" mode="page" title="个人代理与自主能力" reason="已在「设置 › 能力」中关闭「个人代理与自主能力」，角色将不接收新任务且不运行定时任务。" action={{ label: '前往开启', onClick: () => navigate({ page: 'settings', group: 'perm', item: 'plugins.personal_agent' }) }}>
       <SlotsOff>
         <TasksPage />
       </SlotsOff>

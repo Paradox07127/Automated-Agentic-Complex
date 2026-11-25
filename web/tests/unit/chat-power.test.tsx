@@ -36,7 +36,7 @@ describe('chat: AI 对话 off', () => {
     expect(thread.closest('[inert]')).not.toBeNull();
     const board = screen.getByRole('status', { name: /AI 对话/ });
     expect(board.textContent).toContain('已关闭');
-    fireEvent.click(within(board).getByRole('button', { name: /前往设置打开/ }));
+    fireEvent.click(within(board).getByRole('button', { name: /前往开启/ }));
     expect(window.location.hash.startsWith('#/settings?')).toBe(true);
     expect(hashQuery().get('group')).toBe('kernel');
     expect(hashQuery().get('item')).toBe('plugins.light_ai');
@@ -60,10 +60,10 @@ describe('chat: no model account', () => {
   it('shows 未接入 over the input on the nomodel demo, leading to the account row', async () => {
     pluginsOn();
     const thread = await mountChat('&demo=nomodel');
-    const strip = (await within(thread).findByText('没有可用的模型')).closest<HTMLElement>('[role="status"]')!;
+    const strip = (await within(thread).findByText('无可用模型')).closest<HTMLElement>('[role="status"]')!;
     expect(strip.textContent).toContain('未接入');
     expect(thread.closest('[inert]')).toBeNull();
-    fireEvent.click(within(strip).getByRole('button', { name: /前往设置连接/ }));
+    fireEvent.click(within(strip).getByRole('button', { name: /前往配置/ }));
     expect(hashQuery().get('group')).toBe('kernel');
     expect(hashQuery().get('item')).toBe('svc');
   });

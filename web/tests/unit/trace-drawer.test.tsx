@@ -37,13 +37,13 @@ describe(' 运行记录 under 1200 px', () => {
     mount('&demo=full');
     const list = await screen.findByRole('listbox', { name: '近 24 小时的轮次' });
     const rows = await within(list).findAllByRole('option');
-    expect(screen.queryByRole('region', { name: '这一轮' })).toBeNull();
+    expect(screen.queryByRole('region', { name: '本轮详情' })).toBeNull();
     expect(screen.queryByRole('dialog')).toBeNull();
 
     const row = rows[1]!;
     fireEvent.click(row);
     const drawer = await screen.findByRole('dialog');
-    expect(within(drawer).getByRole('region', { name: '这一轮' })).toBeTruthy();
+    expect(within(drawer).getByRole('region', { name: '本轮详情' })).toBeTruthy();
     await waitFor(() => expect(row.getAttribute('aria-selected')).toBe('true'));
 
     fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
@@ -66,14 +66,14 @@ describe(' 运行记录 under 1200 px', () => {
     stubMatchMedia(new Set([NARROW]));
     mount('&demo=full&turn=tr7');
     const drawer = await screen.findByRole('dialog');
-    await waitFor(() => expect(within(drawer).getByRole('region', { name: '这一轮' }).textContent).toContain('$0.013'));
+    await waitFor(() => expect(within(drawer).getByRole('region', { name: '本轮详情' }).textContent).toContain('$0.013'));
   });
 
   it('at 1200 px and wider the detail stays beside the list', async () => {
     stubMatchMedia();
     mount('&demo=full');
     await screen.findByRole('listbox', { name: '近 24 小时的轮次' });
-    expect(await screen.findByRole('region', { name: '这一轮' })).toBeTruthy();
+    expect(await screen.findByRole('region', { name: '本轮详情' })).toBeTruthy();
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
@@ -120,7 +120,7 @@ describe(' 运行记录 filters', () => {
     const router = mount('&demo=full');
     const list = await screen.findByRole('listbox', { name: '近 24 小时的轮次' });
     await within(list).findAllByRole('option');
-    const search = screen.getByRole('textbox', { name: '找一轮' });
+    const search = screen.getByRole('textbox', { name: '搜索轮次' });
     fireEvent.keyDown(window, { key: 'f', metaKey: true });
     expect(document.activeElement).toBe(search);
     fireEvent.change(search, { target: { value: '2' } });

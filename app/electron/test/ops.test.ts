@@ -179,9 +179,9 @@ test('settings.save writes the changed keys and refuses launch keys and bad valu
     assert.match((refused.value as { error: string }).error, /启动参数/);
     const bad = await call('settings.save', { asr: 'nope' });
     assert.ok(bad.ok);
-    assert.match((bad.value as { error: string }).error, /可选 auto（跟随系统）/);
+    assert.match((bad.value as { error: string }).error, /可选值：auto（跟随系统）/);
     assert.deepEqual(await call('settings.save', { hk_quick: '⌃⌥H' }),
-      { ok: true, value: { restart: 'none', notApplied: [], error: '⌃⌥H 已被「显示 / 隐藏角色」占用' } });
+      { ok: true, value: { restart: 'none', notApplied: [], error: '⌃⌥H 已被「显示或隐藏角色」占用' } });
     assert.deepEqual(await call('settings.validateHotkey', 'hk_quick', '⌘K'), { ok: true, value: { ok: false, conflictWith: '命令面板' } });
     assert.deepEqual(await call('settings.validateHotkey', 'mute', '⌃A'), { ok: false, error: { code: 'unknown_setting', detail: 'mute' } });
   } finally {
@@ -195,9 +195,9 @@ test('settings.validateHotkey on Windows finds a clash with the Windows defaults
     writeFileSync(join(dir, 'config.json'), '{}');
     const ops = registry({ ...context(dir), platform: 'windows' }), page = new PageSession(() => {});
     const call = (op: string, ...args: unknown[]) => handle('main', page0, { op, args }, ops, page);
-    assert.deepEqual(await call('settings.validateHotkey', 'hk_quick', '⌃⌥H'), { ok: true, value: { ok: false, conflictWith: '显示 / 隐藏角色' } });
+    assert.deepEqual(await call('settings.validateHotkey', 'hk_quick', '⌃⌥H'), { ok: true, value: { ok: false, conflictWith: '显示或隐藏角色' } });
     assert.deepEqual(await call('settings.validateHotkey', 'hk_quick', '⌃K'), { ok: true, value: { ok: false, conflictWith: '命令面板' } });
-    assert.equal(planSave({}, null, { hotkey_quick_input: 'control+option+h' }, 'windows').error, 'Ctrl+Alt+H 已被「显示 / 隐藏角色」占用');
+    assert.equal(planSave({}, null, { hotkey_quick_input: 'control+option+h' }, 'windows').error, 'Ctrl+Alt+H 已被「显示或隐藏角色」占用');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -746,8 +746,8 @@ test('settings.read offers 半身固定 when the connected renderer lists camera
   };
   const renderer = (capabilities: string[]) => ({ hello: { v: 1, type: 'hello', role: 'avatar', pid: 1, protocol: 1, capabilities } }) as unknown as AvatarHost;
   assert.equal((await statuses(renderer(['actions', 'camera_bust'])))['beh.stay'], undefined);
-  assert.equal((await statuses(renderer(['actions'])))['beh.stay'], '这个版本的角色还不支持半身固定');
-  assert.equal((await statuses(null))['beh.stay'], '这个版本的角色还不支持半身固定');
+  assert.equal((await statuses(renderer(['actions'])))['beh.stay'], '当前版本角色暂不支持半身固定模式');
+  assert.equal((await statuses(null))['beh.stay'], '当前版本角色暂不支持半身固定模式');
 });
 
 test('settings.wipeLocalData empties the web log and keeps config.json', async () => {
@@ -917,8 +917,8 @@ test('hot key statuses and refusals name Ctrl, Alt and Win on Windows and keep t
   const refused = { hotkey_click_through: 'control+option+p' };
   const status = (platform: 'mac' | 'windows') =>
     (snapshot(refused, null, true, platform, refused) as { statuses: Record<string, string> }).statuses.hk_pass;
-  assert.equal(status('mac'), '「⌃⌥P」没设上，可能被别的程序占用，请换一个');
-  assert.equal(status('windows'), '「Ctrl+Alt+P」没设上，可能被别的程序占用，请换一个');
+  assert.equal(status('mac'), '快捷键「⌃⌥P」未能注册，可能已被其他应用占用，请更换');
+  assert.equal(status('windows'), '快捷键「Ctrl+Alt+P」未能注册，可能已被其他应用占用，请更换');
   const refusal = (id: string, combo: string, platform: 'mac' | 'windows') => {
     try {
       parseChanges({ [id]: combo }, () => {}, platform);
@@ -927,9 +927,9 @@ test('hot key statuses and refusals name Ctrl, Alt and Win on Windows and keep t
     }
     return null;
   };
-  assert.equal(refusal('hk_ptt', '⇧K', 'mac'), '「按住说话」不能设成 ⇧K：要用带 ⌃、⌥ 或 ⌘ 的组合键，或 F1–F12，或 右⌥');
-  assert.equal(refusal('hk_ptt', '⇧K', 'windows'), '「按住说话」不能设成 Shift+K：要用带 Ctrl、Alt 或 Win 的组合键，或 F1–F12，或 右Alt');
-  assert.equal(refusal('hk_quick', '⌘⌘K', 'windows'), '「快速输入」不能设成 Win+Win+K：要用带 Ctrl、Alt 或 Win 的组合键，或 F1–F12');
+  assert.equal(refusal('hk_ptt', '⇧K', 'mac'), '「按住语音输入」不可设为 ⇧K：须使用包含 ⌃、⌥ 或 ⌘ 的组合键，或 F1–F12，或右 ⌥');
+  assert.equal(refusal('hk_ptt', '⇧K', 'windows'), '「按住语音输入」不可设为 Shift+K：须使用包含 Ctrl、Alt 或 Win 的组合键，或 F1–F12，或右 Alt');
+  assert.equal(refusal('hk_quick', '⌘⌘K', 'windows'), '「打开快速输入」不可设为 Win+Win+K：须使用包含 Ctrl、Alt 或 Win 的组合键，或 F1–F12');
 });
 
 test('app.look answers; without a look, offline 屏幕识读不可用（配置出错）', async () => {
@@ -941,5 +941,5 @@ test('app.look answers; without a look, offline 屏幕识读不可用（配置�
   assert.deepEqual(await look('stack', async () => ({ kind: 'rejected', status: 503, error: 'busy' })),
     { ok: false, error: { code: 'failed', detail: 'POST /look status 503 busy' } });
   assert.deepEqual(await look('stack', async () => ({ kind: 'failed' })), { ok: false, error: { code: 'offline', detail: '' } });
-  assert.deepEqual(await look('stack', null), { ok: false, error: { code: 'offline', detail: '屏幕识读不可用（配置出错）' } });
+  assert.deepEqual(await look('stack', null), { ok: false, error: { code: 'offline', detail: '屏幕识读不可用（配置异常）' } });
 });
