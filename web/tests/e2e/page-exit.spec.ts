@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Leaving a page keeps an inert copy of it over the new page while its out clip plays; a closing Modal plays popupOut on its copy.
+// Leaving a page keeps an inert copy of it over the new page while its out clip plays; a closing Dialog fades its copy out.
 
 interface Seen {
   sel: string;
@@ -133,7 +133,7 @@ test('a search-param change on the same page makes no copy', async ({ page }) =>
   expect(await seen(page)).toEqual([]);
 });
 
-test('closing a Modal leaves a copy that plays popupOut and is gone within 1000 ms', async ({ page }) => {
+test('closing a Dialog leaves a copy that fades out and is gone within 1000 ms', async ({ page }) => {
   await page.goto('main.html#/overview?plugins=all');
   await expect(page.locator('main[data-route-id="overview"]')).toBeVisible();
   await page.keyboard.press('ControlOrMeta+k');
@@ -143,15 +143,15 @@ test('closing a Modal leaves a copy that plays popupOut and is gone within 1000 
   await page.keyboard.press('Enter');
   const dialog = page.getByRole('dialog').filter({ hasText: '不能恢复执行' });
   await expect(dialog).toBeVisible();
-  await settle(page, '[data-stub="Modal"]');
-  await watch(page, '[data-stub="Modal"][data-closing]');
+  await settle(page, '[data-stub="Dialog"]');
+  await watch(page, '[data-stub="Dialog"][data-closing]');
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   await expect.poll(() => seen(page).then((s) => s.length)).toBe(1);
   const [copy] = await seen(page);
   expect(copy).toMatchObject({ hidden: 'true', inert: true, count: 1 });
   expect(copy!.anims).toBeGreaterThan(0);
-  await expect.poll(() => count(page, '[data-stub="Modal"][data-closing]'), { timeout: 1000 }).toBe(0);
+  await expect.poll(() => count(page, '[data-stub="Dialog"][data-closing]'), { timeout: 1000 }).toBe(0);
   const [end] = await gone(page);
   expect(end! - copy!.t).toBeLessThan(1000);
 });
