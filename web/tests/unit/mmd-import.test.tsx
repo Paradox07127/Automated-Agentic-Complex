@@ -25,6 +25,8 @@ async function mount() {
     </QueryClientProvider>,
   );
   await screen.findByRole('region', { name: 'MMD 库' });
+  // 导入 MMD stays disabled until her roster is read.
+  await waitFor(() => expect(screen.getByRole<HTMLButtonElement>('button', { name: '导入 MMD' }).disabled).toBe(false));
 }
 
 const click = (el: Element) => act(async () => void fireEvent.click(el));

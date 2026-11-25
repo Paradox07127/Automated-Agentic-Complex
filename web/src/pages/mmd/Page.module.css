@@ -54,9 +54,7 @@
   min-height: 120px;
   overflow: hidden;
   background: linear-gradient(rgb(255 255 255 / 26%), rgb(255 255 255 / 8%) 58%, rgb(0 0 0 / 4%) 58.4%, rgb(0 0 0 / 2%));
-  box-shadow:
-    inset 0 0 0 1px rgb(255 255 255 / 55%),
-    0 10px 28px rgb(0 0 0 / 16%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 55%);
 }
 
 .ticks i {
