@@ -483,7 +483,6 @@ class IntegrationTests(IntegrationFixture):
         prompt = self.sessions[-1].calls[-1]['prompt']
         self.assertIn('Selected material (read it with your own file tools', prompt)
         self.assertIn(str(sheet), prompt)
-        self.assertNotIn('workspace_list', prompt)
         self.line('汇总一下', scope_id=self.scope_id())
         self.assertIn(str(self.inputs) + '/', self.sessions[-1].calls[-1]['prompt'])
         self.line('你好')
@@ -580,9 +579,9 @@ class IntegrationTests(IntegrationFixture):
 
     def test_a_job_whose_run_never_began_settles_failed_with_its_error(self):
         from character_agent.runtime import AgentReply
-        with patch('character_agent.integration.PersonalAgentRuntime.run', return_value=AgentReply(error='checkpoint_inputs_changed')):
+        with patch('character_agent.integration.PersonalAgentRuntime.run', return_value=AgentReply(error='scope_changed')):
             row = self.settled(self.controller.submit_job('核对', '核对资料', '核对资料'))
-        self.assertEqual((row['state'], row['result']['error']), ('failed', 'checkpoint_inputs_changed'))
+        self.assertEqual((row['state'], row['result']['error']), ('failed', 'scope_changed'))
 
     def test_a_goal_whose_accepted_job_delivered_text_can_be_completed(self):
         goal = self.controller.jobs.store.create_goal('成本', '比较成本')
@@ -1088,8 +1087,7 @@ class IntegrationTests(IntegrationFixture):
         offered={d['name'] for d in self.definitions[-1]}
         self.assertNotIn('ask_user', offered)
 
-    def test_no_kernel_gets_the_replacement_tools(self):
-        replacements = {'workspace_list', 'workspace_read', 'workspace_image', 'workspace_search'}
+    def test_every_kernel_gets_the_artifact_tools_and_the_material_paths(self):
         kept = {'artifact_write', 'artifact_read', 'artifact_verify', 'ask_user', 'task_plan'}
         for backend, extra in (('pi', {'runtime_source': 'bundled'}), ('codex', {}), ('claude', {}), ('acp', {'acp_agent': 'claude-acp'})):
             with self.subTest(backend=backend):
@@ -1097,8 +1095,6 @@ class IntegrationTests(IntegrationFixture):
                 self.line('整理资料', scope_id=self.scope_id())
                 offered = {d['name'] for d in self.definitions[-1]}
                 self.assertLessEqual(kept, offered)
-                self.assertFalse(offered & replacements)
-                self.assertNotIn('workspace_list', self.sessions[-1].calls[-1]['prompt'])
                 self.assertIn(str(self.inputs), self.sessions[-1].calls[-1]['prompt'])
 
     def test_no_kernel_is_told_about_native_publish_and_skills(self):

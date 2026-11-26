@@ -536,19 +536,19 @@ class PiSDKTests(unittest.TestCase):
         inputs = self.root / 'inputs'; inputs.mkdir(); (inputs / 'notes.md').write_text('Two guests.\n', encoding='utf-8')
         service = WorkspaceService(self.root / 'workspace-state'); self.resources.append(service)
         scope = service.create_scope([str(inputs)], str(self.root / 'outputs'))['scope_id']
-        model = self.model([{'name': 'artifact_write', 'args': {'path': 'plan.md', 'content': '# Plan\nInvite two guests.', 'source_refs': []}},
+        model = self.model([{'name': 'artifact_write', 'args': {'path': 'plan.md', 'content': '# Plan\nInvite two guests.'}},
                             {'name': 'artifact_verify', 'args': {'path': 'plan.md', 'checks': {'required_sections': ['Plan']}}},
                             'The report exists and passed its checks.'])
         class Handler:
             def call_with_context(self, name, args, context):
                 return service.call(name, args, scope_id=scope, run_id=context['run_id'], effect_id=context['tool_call_id'])
-        events = self.run_session(self.session(model, service.tool_definitions(sources=False), Handler()))
+        events = self.run_session(self.session(model, service.tool_definitions(), Handler()))
         self.assertTrue(events[-1]['success'], events)
         result = service.verify_run('run-1', scope)
         self.assertTrue(result['ok'], result); self.assertTrue(result['self_checked'], result)
         self.assertEqual(len(service.run_artifacts('run-1')), 1)
         sent_tools = [x['function']['name'] for x in model.requests[0]['tools']]
-        self.assertEqual(set(sent_tools), {x['name'] for x in service.tool_definitions(sources=False)})
+        self.assertEqual(set(sent_tools), {x['name'] for x in service.tool_definitions()})
         self.assertNotIn('bash', sent_tools); self.assertNotIn('read', sent_tools)
 
     def test_builtin_call_without_native_tools_never_reaches_host(self):

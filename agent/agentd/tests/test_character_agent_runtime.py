@@ -120,8 +120,7 @@ class RuntimeTests(unittest.TestCase):
         values.update(kwargs)
         return self.runtime.run(**values)
 
-    def test_bridged_kernels_read_the_selected_material_with_their_own_tools(self):
-        readers = {'workspace_list', 'workspace_read', 'workspace_image', 'workspace_search'}
+    def test_bridged_kernels_get_the_artifact_tools_and_read_the_material_with_their_own(self):
         receipts = {'artifact_write', 'artifact_read', 'artifact_verify', 'task_plan', 'artifact_read_previous'}
         for backend in ('pi', 'codex', 'claude', 'acp'):
             with self.subTest(backend=backend):
@@ -134,7 +133,7 @@ class RuntimeTests(unittest.TestCase):
                     runtime.close()
                 offered = {d['name'] for d in self.definitions[-1]}
                 self.assertLessEqual(receipts, offered)
-                self.assertEqual(offered & readers, set())
+                self.assertEqual({name for name in offered if name.startswith('workspace_')}, set())
 
     def test_tool_trace_keeps_adapter_error_codes(self):
         def tool_failure(_session, _prompt, _options):
@@ -245,25 +244,20 @@ class RuntimeTests(unittest.TestCase):
                 self.assertEqual(reply.model_usage, {'test-model': {'costUSD': .15}})
                 self.assertEqual(reply.usage, {'input_tokens': 2, 'output_tokens': 1})
 
-    def report_script(self, *, verify=True, change_input=False, omit=False):
+    def report_script(self, *, verify=True, omit=False):
         def script(session, prompt, options):
             yield from session.use(options, 'task_plan', {'title': 'Compare sources', 'outputs': ['report.md']})
             yield from session.use(options, 'personal_profile', {})
-            listing = yield from session.use(options, 'workspace_list', {})
-            source = listing['sources'][0]['source_id']
-            yield from session.use(options, 'workspace_read', {'source_id': source})
             if not omit:
                 yield from session.use(options, 'artifact_write', {'path': 'report.md',
-                    'content': '# Conclusion\nQuiet room.\nSource: ' + source, 'source_refs': [source]})
-                if change_input: (self.inputs / 'source.md').write_text('Changed source after the report was written.', encoding='utf-8')
+                    'content': '# Conclusion\nQuiet room.\nSource: source.md'})
                 if verify: yield from session.use(options, 'artifact_verify', {'path': 'report.md'})
             yield {'type': 'result', 'success': True, 'final_text': 'Report is complete.', 'usage': {}}
         return script
 
     @staticmethod
     def expected():
-        return {'artifacts': [{'path': 'report.md', 'checks': {'required_sections': ['Conclusion'],
-                                                            'required_source_ids': ['r0:source.md']}}]}
+        return {'artifacts': [{'path': 'report.md', 'checks': {'required_sections': ['Conclusion']}}]}
 
     def test_explicit_empty_final_answer_never_falls_back_to_commentary(self):
         def script(session, prompt, options):
@@ -304,8 +298,6 @@ class RuntimeTests(unittest.TestCase):
     def test_read_only_answer_survives_an_empty_task_plan(self):
         def script(session, prompt, options):
             yield from session.use(options, 'task_plan', {'title': '读 source.md', 'outputs': []})
-            listing = yield from session.use(options, 'workspace_list', {})
-            yield from session.use(options, 'workspace_read', {'source_id': listing['sources'][0]['source_id']})
             yield {'type': 'text_delta', 'text': 'Price: 60 per hour'}
             yield {'type': 'result', 'success': True, 'final_text': 'Price: 60 per hour', 'usage': {}}
         self.script = script
@@ -448,14 +440,6 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(self.runtime.store.load_checkpoint(task_id=second.task_id)['run_id'], 'run-2')
         self.assertNotEqual(first.result['artifacts'][0]['absolute_path'], second.result['artifacts'][0]['absolute_path'])
 
-    def test_resume_blocks_changed_inputs_before_any_model_call(self):
-        self.script = self.report_script()
-        self.run_agent(expected_outputs=self.expected())
-        (self.inputs/'source.md').write_text('A different price.', encoding='utf-8')
-        result = self.run_agent(run='run-2', resume_run_id='run-1')
-        self.assertEqual(result.error, 'checkpoint_inputs_changed')
-        self.assertEqual(len(self.sessions[0].calls), 1)
-
     def test_resume_blocks_unknown_side_effect_before_any_model_call(self):
         self.script = self.report_script()
         self.run_agent(expected_outputs=self.expected())
@@ -478,10 +462,8 @@ class RuntimeTests(unittest.TestCase):
             checkpoint = self.runtime.store.load_checkpoint(run_id=options['run_id'])
             self.assertEqual(checkpoint['planned_outputs'], ['report.md'])
             yield from session.use(options, 'personal_profile', {})
-            yield from session.use(options, 'workspace_list', {})
-            yield from session.use(options, 'workspace_read', {'source_id': 'r0:source.md'})
             yield from session.use(options, 'artifact_write', {'path': 'report.md',
-                'content': '# Conclusion\nQuiet room.\nSource: r0:source.md', 'source_refs': ['r0:source.md']})
+                'content': '# Conclusion\nQuiet room.\nSource: source.md'})
             raise SystemExit('synthetic process interruption')
         return script
 
@@ -490,10 +472,8 @@ class RuntimeTests(unittest.TestCase):
             self.assertIn('report.md', prompt)
             previous = yield from session.use(options, 'artifact_read_previous', {'path': 'report.md'})
             self.assertIn('Quiet room.', previous['text'])
-            yield from session.use(options, 'workspace_list', {})
-            yield from session.use(options, 'workspace_read', {'source_id': 'r0:source.md'})
             yield from session.use(options, 'artifact_write', {'path': 'report.md',
-                'content': previous['text'] + '\nRechecked.', 'source_refs': ['r0:source.md']})
+                'content': previous['text'] + '\nRechecked.'})
             yield from session.use(options, 'artifact_verify', {'path': 'report.md'})
             yield {'type': 'result', 'success': True, 'final_text': 'Rechecked the report.'}
         return script
@@ -607,12 +587,6 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(effects, ['avatar_face'])
         self.assertEqual(self.tasks.list(), [])
 
-    def test_input_change_after_write_fails_final_check(self):
-        self.script = self.report_script(change_input=True)
-        reply = self.run_agent(expected_outputs=self.expected())
-        self.assertFalse(reply.result['ok'])
-        self.assertEqual(self.tasks.get(reply.task_id)['state'], 'failed')
-
     def test_no_terminal_adapter_result_does_not_complete_run(self):
         self.script = lambda session, prompt, options: iter([{'type': 'text_delta', 'text': 'partial'}])
         reply = self.run_agent()
@@ -622,7 +596,7 @@ class RuntimeTests(unittest.TestCase):
     def test_tool_scope_and_unknown_tool_are_enforced_outside_model(self):
         def script(session, prompt, options):
             yield from session.use(options, 'Bash', {'command': 'never runs'})
-            yield from session.use(options, 'artifact_write', {'path': 'x.md', 'content': 'x', 'source_refs': []})
+            yield from session.use(options, 'artifact_write', {'path': 'x.md', 'content': 'x'})
             yield {'type': 'result', 'success': True, 'final_text': 'Scope required'}
         self.script = script; self.run_agent(scope_id=None)
         responses = self.sessions[0].responses
@@ -636,7 +610,7 @@ class RuntimeTests(unittest.TestCase):
             yield from session.use(options, 'task_plan', {'title': 'Report', 'outputs': ['report.md']})
             yield from session.use(options, 'personal_profile', {})
             self.memory.delete(ident)
-            yield from session.use(options, 'artifact_write', {'path': 'report.md', 'content': 'old memory', 'source_refs': []})
+            yield from session.use(options, 'artifact_write', {'path': 'report.md', 'content': 'old memory'})
             yield {'type': 'result', 'success': True, 'final_text': 'Done'}
         self.script = script
         reply = self.run_agent()
@@ -648,7 +622,7 @@ class RuntimeTests(unittest.TestCase):
         def script(session, prompt, options):
             yield from session.use(options, 'task_plan', {'title': 'Report', 'outputs': ['report.md']})
             self.workspace.revoke_scope(self.scope)
-            yield from session.use(options, 'artifact_write', {'path': 'report.md', 'content': 'no', 'source_refs': []})
+            yield from session.use(options, 'artifact_write', {'path': 'report.md', 'content': 'no'})
             yield {'type': 'result', 'success': True, 'final_text': 'Done'}
         self.script = script; reply = self.run_agent()
         self.assertIsNotNone(reply.error); self.assertEqual(self.workspace.run_artifacts('run-1'), [])
@@ -660,7 +634,7 @@ class RuntimeTests(unittest.TestCase):
             yield from session.use(options, 'task_plan', {'title': 'Report', 'outputs': ['report.md']})
             session.interrupt_hook = release.set
             entered.set(); release.wait(3)
-            yield from session.use(options, 'artifact_write', {'path': 'report.md', 'content': 'late', 'source_refs': []})
+            yield from session.use(options, 'artifact_write', {'path': 'report.md', 'content': 'late'})
             yield {'type': 'result', 'success': True, 'final_text': 'Done'}
         self.script = script; replies = []
         thread = threading.Thread(target=lambda: replies.append(self.run_agent()), daemon=True); thread.start()

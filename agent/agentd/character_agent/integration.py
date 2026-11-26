@@ -431,7 +431,7 @@ class CharacterAgentController:
                         "output_tokens": answer.usage.get("output_tokens") or 0, "stop_reason": answer.error or "end_turn",
                         **finished_usage(answer)})
             task = s.tasks.get(answer.task_id) if answer.task_id and s.tasks else None
-            # A run refused before it began (checkpoint_inputs_changed, scope_changed, effect_unknown) has no row.
+            # A run refused before it began (scope_changed, effect_unknown) has no row.
             run = self.store.get(job['run_id']) or {}
             failure = (run.get('result') or {}).get('failure') or {} if answer.error else {}
             return {'job_state': 'cancelled' if not current() else 'waiting_user' if run.get('state') == 'waiting_user' else 'failed' if answer.error else task['state'] if task else 'needs_review',
@@ -1688,7 +1688,7 @@ class CharacterAgentController:
         if self.workspace is None:
             return counts
         with self.workspace.lock:
-            for table in ("scopes", "sources", "run_sources", "expectations", "cancelled_runs", "artifacts", "effects"):
+            for table in ("scopes", "expectations", "cancelled_runs", "artifacts", "effects"):
                 counts["character_workspace_" + table] = self.workspace.db.execute("SELECT COUNT(*) FROM " + table).fetchone()[0]
         return counts
 

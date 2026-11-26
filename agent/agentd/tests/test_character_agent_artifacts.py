@@ -11,7 +11,7 @@ from test_character_agent_workspace import WorkspaceCase
 
 class ArtifactTests(WorkspaceCase):
     def write(self, path='report.md', content='# Report\nA useful conclusion.', **kwargs):
-        return self.call('artifact_write', {'path': path, 'content': content, 'source_refs': [], **kwargs})
+        return self.call('artifact_write', {'path': path, 'content': content, **kwargs})
 
     def test_inapplicable_csv_assertions_do_not_poison_markdown_repair(self):
         self.write()
@@ -62,58 +62,22 @@ class ArtifactTests(WorkspaceCase):
         self.assertCode('version_conflict', lambda: self.write(content='third content', expected_version=1))
 
     def test_repeated_effect_is_idempotent_and_cannot_change_parameters(self):
-        args = {'path': 'report.md', 'content': 'one', 'source_refs': []}
+        args = {'path': 'report.md', 'content': 'one'}
         first = self.call('artifact_write', args, effect_id='tool-1')
         second = self.call('artifact_write', args, effect_id='tool-1')
         self.assertEqual(first, second)
         self.assertEqual(len(self.service.run_artifacts('run')), 1)
         self.assertCode('effect_conflict', lambda: self.call('artifact_write', {**args, 'content': 'two'}, effect_id='tool-1'))
 
-    def test_read_source_required_and_changed_input_stales_result(self):
-        source = self.source()
-        self.assertCode('source_not_read', lambda: self.write(content=source, source_refs=[source]))
-        self.call('workspace_read', {'source_id': source})
-        self.write(content=source, source_refs=[source])
-        self.assertTrue(self.call('artifact_verify', {'path': 'report.md'})['ok'])
-        (self.inputs / 'note.md').write_text('changed evidence', encoding='utf-8')
-        self.assertFalse(self.service.verify_run('run')['ok'])
-        self.call('workspace_read', {'source_id': source})
-        self.assertFalse(self.service.verify_run('run')['ok'])  # re-reading alone cannot approve the old output
-        self.write(content=source, source_refs=[source], expected_version=1)
-        self.assertTrue(self.service.verify_run('run')['ok'])
-
-    def test_fixed_numeric_csv_keeps_provenance_out_of_its_content(self):
-        source = self.source()
-        self.assertCode('source_not_read', lambda: self.write('totals.csv', 'gross,refund,net\n262,12,250\n', source_refs=[source]))
-        self.call('workspace_read', {'source_id': source})
-        spec = {'required_columns': ['gross', 'refund', 'net'], 'numeric_columns': ['gross', 'refund', 'net'], 'row_count': 1,
-                'required_source_ids': [source],
-                'calculations': [{'column': 'net', 'sum': [{'column': 'gross'}, {'column': 'refund', 'multiply': -1}]}]}
-        self.write('totals.csv', 'gross,refund,net\n262,12,250\n', source_refs=[source])
-        self.assertTrue(self.call('artifact_verify', {'path': 'totals.csv', 'checks': spec})['ok'])
-        self.assertEqual(self.service.run_artifacts('run')[0]['source_refs'], [source])
-        self.assertTrue(self.service.verify_run('run')['ok'])
-        (self.inputs / 'note.md').write_text('changed evidence', encoding='utf-8')
-        self.assertFalse(self.service.verify_run('run')['ok'])
-
     def test_explicit_inline_source_requirement_is_still_enforced(self):
-        source = self.source()
-        self.call('workspace_read', {'source_id': source})
-        self.write(content='A conclusion without inline citations.', source_refs=[source])
+        source = 'r0:note.md'
+        self.write(content='A conclusion without inline citations.')
         result = self.call('artifact_verify', {'path': 'report.md', 'checks': {'required_inline_source_ids': [source]}})
         self.assertIn({'check': 'source_reference', 'source_id': source, 'ok': False}, result['checks'])
         self.assertFalse(result['ok'])
 
-    def test_required_provenance_must_be_declared_on_the_artifact_not_only_read(self):
-        source = self.source()
-        self.call('workspace_read', {'source_id': source})
-        self.write(content='A conclusion without provenance.')
-        result = self.call('artifact_verify', {'path':'report.md','checks':{'required_source_ids':[source]}})
-        self.assertFalse(result['ok'])
-        self.assertIn({'check':'source_provenance','source_id':source,'ok':False},result['checks'])
-
     def test_idempotent_receipt_cannot_hide_external_tampering(self):
-        args = {'path': 'report.md', 'content': 'original', 'source_refs': []}
+        args = {'path': 'report.md', 'content': 'original'}
         first = self.call('artifact_write', args, effect_id='same')
         Path(first['absolute_path']).write_text('changed externally', encoding='utf-8')
         self.assertCode('artifact_changed', lambda: self.call('artifact_write', args, effect_id='same'))
@@ -148,7 +112,7 @@ class ArtifactTests(WorkspaceCase):
             calls[0] += 1
             return calls[0] < 3
         self.assertCode('run_cancelled', lambda: self.call('artifact_write',
-                        {'path': 'report.md', 'content': 'cancelled', 'source_refs': []}, is_current=current))
+                        {'path': 'report.md', 'content': 'cancelled'}, is_current=current))
         self.assertEqual(self.service.run_artifacts('run'), [])
         self.assertEqual(list(self.output.rglob('*.md')), [])
 
@@ -159,12 +123,10 @@ class ArtifactTests(WorkspaceCase):
         self.assertCode('expectations_frozen', lambda: self.service.set_expectations('run', {'artifacts': [{'path': 'other.md'}]}))
         self.assertFalse(self.service.verify_run('run')['ok'])
 
-    def test_registered_checks_and_unknown_source_cannot_be_silently_approved(self):
-        self.write(content='Required\nunknown-reference')
+    def test_registered_checks_cannot_be_silently_weakened(self):
+        self.write(content='Required')
         self.call('artifact_verify', {'path': 'report.md', 'checks': {'required_sections': ['Required']}})
         self.assertCode('checks_conflict', lambda: self.call('artifact_verify', {'path': 'report.md', 'checks': {'required_sections': []}}))
-        result = self.call('artifact_verify', {'path': 'report.md', 'checks': {'required_source_ids': ['unknown-reference']}})
-        self.assertFalse(result['ok'])
 
     def test_csv_math_failure_can_be_fixed_then_rechecked(self):
         text = 'hourly,one_time,total\n45,30,90\n'
@@ -204,15 +166,11 @@ class ArtifactTests(WorkspaceCase):
 
     def test_synthetic_venue_fixture_contract(self):
         fixture = Path(__file__).parent / 'fixtures' / 'character_agent'
-        for source in fixture.glob('venue_*.md'):
-            (self.inputs / source.name).write_bytes(source.read_bytes())
         self.service.set_expectations('run', json.loads((fixture / 'acceptance.json').read_text(encoding='utf-8')))
-        refs = [x['source_id'] for x in self.call('workspace_list', {})['sources']]
-        for source_id in refs: self.call('workspace_read', {'source_id': source_id})
-        self.write('report.md', '# 结论\n青禾符合八人和安静的要求。资料未提供实际可订时段。\n'+'\n'.join(refs), source_refs=refs)
+        self.write('report.md', '# 结论\n青禾符合八人和安静的要求。资料未提供实际可订时段。\n')
         csv = 'source_id,venue,capacity,hourly,one_time,total,fits_eight\n' + '\n'.join([
-            'r0:venue_a.md,月台,6,45,30,120,false', 'r0:venue_b.md,青禾,10,60,0,120,true', 'r0:venue_c.md,松间,8,50,10,110,true'])+'\n'
-        self.write('comparison.csv', csv, source_refs=refs)
+            'venue_a.md,月台,6,45,30,120,false', 'venue_b.md,青禾,10,60,0,120,true', 'venue_c.md,松间,8,50,10,110,true'])+'\n'
+        self.write('comparison.csv', csv)
         for path in ('report.md', 'comparison.csv'): self.assertTrue(self.call('artifact_verify', {'path': path})['ok'])
         self.assertTrue(self.service.verify_run('run')['ok'])
         self.assertTrue(self.service.verify_run('run')['self_checked'])

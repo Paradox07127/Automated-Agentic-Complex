@@ -314,14 +314,14 @@ class BriefDayTest(unittest.TestCase):
         store.db.execute("INSERT INTO character_runs(run_id,conversation_id,character_id,generation,state,started_at,ended_at)"
                          " VALUES('r','c','aster',1,'completed',?,?)", (self.now - 120, self.now))
         store.db.execute("INSERT INTO character_run_events VALUES('r',1,'tool_started',?,?)",
-                         (json.dumps({'tool': 'workspace_read', 'tool_call_id': 'c1'}), self.now))
+                         (json.dumps({'tool': 'artifact_read', 'tool_call_id': 'c1'}), self.now))
         result = self.brief()
         self.assertEqual([result['items'][k]['today'] for k in ('done', 'err', 'code')], [2, 0, 0])
         self.assertEqual(result['her']['tools']['run_minutes'], 2)
         self.assertEqual(result['her']['tools']['files_changed'], 1)
         self.assertEqual(result['her']['tools']['asked'], 1)
         self.assertEqual(result['her']['tools']['by_name'], [
-            {'key': 'workspace_read', 'label': 'workspace_read', 'count': 1}])
+            {'key': 'artifact_read', 'label': 'artifact_read', 'count': 1}])
 
     def test_desk_receipts_and_mood(self):
         for phase, delta, reason in (('running', -60, None), ('cancelled', 120, 'give_way')):

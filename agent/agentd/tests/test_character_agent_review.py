@@ -69,7 +69,7 @@ class ReviewLockOrderTests(unittest.TestCase):
                 bridge._tool_result = received
                 phase = True
                 bridge._dispatch_tool(None, bridge._generation, {'run_id':options['run_id'], 'tool_call_id':'write',
-                    'name':'artifact_write', 'args':{'path':'blocked.md','content':'must-not-be-written','source_refs':[]}})
+                    'name':'artifact_write', 'args':{'path':'blocked.md','content':'must-not-be-written'}})
                 assert held_workspace.wait(2), 'workspace lock not reached'
                 bridge._dispatch_tool(None, bridge._generation, {'run_id':options['run_id'], 'tool_call_id':'knowledge',
                     'name':'personal_profile','args':{}})

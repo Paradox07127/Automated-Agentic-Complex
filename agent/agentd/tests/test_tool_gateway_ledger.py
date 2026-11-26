@@ -66,7 +66,7 @@ class ReconcileTest(WorkspaceCase):
         try:
             with mock.patch('character_agent.services.workspace.os.link', side_effect=OSError('simulated crash')):
                 with self.assertRaises(OSError):
-                    self.call('artifact_write', {'path': 'report.md', 'content': '# Report\nDone.', 'source_refs': []})
+                    self.call('artifact_write', {'path': 'report.md', 'content': '# Report\nDone.'})
             self.assertEqual([e['state'] for e in EffectLedger(store).reconcile('run', self.service)], ['unknown'])
         finally:
             store.close()

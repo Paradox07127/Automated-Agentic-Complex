@@ -6,11 +6,6 @@
         "required_sections": [
           "结论",
           "资料未提供"
-        ],
-        "required_source_ids": [
-          "r0:venue_a.md",
-          "r0:venue_b.md",
-          "r0:venue_c.md"
         ]
       }
     },
@@ -33,11 +28,6 @@
           "total"
         ],
         "row_count": 3,
-        "required_source_ids": [
-          "r0:venue_a.md",
-          "r0:venue_b.md",
-          "r0:venue_c.md"
-        ],
         "calculations": [
           {
             "column": "total",

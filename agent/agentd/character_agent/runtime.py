@@ -351,10 +351,6 @@ class PersonalAgentRuntime:
                 previous["artifacts"] = self.workspace.run_artifacts(resume_run_id)
                 if not knowledge.valid(previous.get("dependencies", [])):
                     raise ValueError("checkpoint_context_changed")
-                if scope_id:
-                    checks = self.workspace.validate_inputs(resume_run_id, scope_id)
-                    if not checks.get("ok", False):
-                        raise ValueError("checkpoint_inputs_changed")
                 original_goal = previous["goal"]
                 expected_outputs = expected_outputs or previous.get("expected_outputs")
                 planned_outputs = previous.get("planned_outputs")
@@ -392,7 +388,7 @@ class PersonalAgentRuntime:
             # embodied_only lets the role turn its body without file, desktop, memory or background-work mutations.
             mode = mode or ("actions" if allow_actions else "read_only")
             at = time.monotonic()
-            task_tools = ([*self.workspace.tool_definitions(sources=self.backend not in ("claude", "codex", "acp", "pi")),
+            task_tools = ([*self.workspace.tool_definitions(),
                            TASK_TOOL, PREVIOUS_ARTIFACT_TOOL] if self.workspace is not None else [])
             offer = self.tools.registry.offer(mode, [*knowledge.tool_definitions(), *self.native_tools,
                 *task_tools,

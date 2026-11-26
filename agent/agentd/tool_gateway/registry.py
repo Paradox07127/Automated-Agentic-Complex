@@ -42,9 +42,7 @@ BUILTIN = {
         ("avatar_motions_list", "read", "none", False), ("avatar_motion", "embodied", "none", False),
         ("avatar_outfits_list", "read", "none", False), ("avatar_outfit", "embodied", "none", False)]),
     **_family("workspace", ("actions", "background"), _WORK, [
-        ("workspace_list", "read", "scope", False), ("workspace_read", "read", "scope", False),
-        ("workspace_image", "read", "scope", False), ("workspace_search", "read", "scope", False), ("artifact_write", "write", "scope", False),
-        ("artifact_read", "read", "scope", False), ("artifact_verify", "read", "scope", False)]),
+        ("artifact_write", "write", "scope", False), ("artifact_read", "read", "scope", False), ("artifact_verify", "read", "scope", False)]),
     **_family("task", ("actions", "background"), _WORK, [
         ("task_plan", "write", "run_actions", False), ("artifact_read_previous", "read", "scope", False)]),
     **_family("memory", ("actions",), _FOREGROUND, [("memory_propose", "write", "run_actions", False)]),
