@@ -36,12 +36,12 @@ def check_manifest_file(source, name, what):
         raise ValueError(what + ' file outside its directory: ' + name)
 
 
-def copy_ui_art(source, target):
-    """Copy the files art-manifest.json lists after checking each SHA-256; web pages load them from ui/art/."""
+def copy_ui_art(source, target, skipped=()):
+    """Copy the files art-manifest.json lists but skipped after checking each SHA-256; web pages load them from ui/art/."""
     manifest_path = source / 'art-manifest.json'
     manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
     for entry in manifest['files']: check_manifest_file(source, entry['file'], 'UI art')
-    files = [entry['file'] for entry in manifest['files']]
+    files = [entry['file'] for entry in manifest['files'] if entry['file'] not in skipped]
     for entry in manifest['files']:
         if digest(source / entry['file']) != entry['sha256']: raise ValueError('UI art hash mismatch: ' + entry['file'])
     for file in files:
@@ -50,11 +50,11 @@ def copy_ui_art(source, target):
     return dict(files=len(files), manifest_sha256=digest(manifest_path))
 
 
-def stage_ui(web_dist, ui_art, target):
+def stage_ui(web_dist, ui_art, target, skipped_art=()):
     """Copy ui/ and ui-bridge/ into target; return the UI art receipt."""
     ui = target / 'ui'
     shutil.copytree(web_dist, ui)
-    ui_art_receipt = copy_ui_art(ui_art, ui / 'art') if ui_art else None
+    ui_art_receipt = copy_ui_art(ui_art, ui / 'art', skipped_art) if ui_art else None
     (target / 'ui-bridge').mkdir()
     shutil.copy2(ROOT / 'protocol/ui-bridge/routes.json', target / 'ui-bridge/routes.json')
     return ui_art_receipt
@@ -149,7 +149,11 @@ def stage_runtime_python(stage, *, python, prepared_site, pins):
 
 
 # Base prefix parts a relocated python.exe does not run from; Scripts' launchers name the build host's python.exe by path.
-WINDOWS_PYTHON_SKIPPED = ('Doc', 'include', 'libs', 'Scripts', 'Tools', 'Lib/site-packages', 'Lib/test')
+# The Lib/ packages are ones agentd never imports.
+WINDOWS_PYTHON_SKIPPED = ('Doc', 'include', 'libs', 'Scripts', 'Tools', 'Lib/site-packages', 'Lib/test',
+                          'Lib/ensurepip', 'Lib/venv', 'Lib/pydoc_data', 'Lib/lib2to3')
+# The app icon's sources: the Windows exe and Setup.exe take their icon from the UI art directory, and no page loads them.
+WINDOWS_UI_ART_SKIPPED = ('brand/AppIcon-1024.png', 'brand/AppIcon.icns')
 
 
 def stage_runtime_python_windows(stage, *, python, prepared_site, pins):
@@ -164,6 +168,12 @@ def stage_runtime_python_windows(stage, *, python, prepared_site, pins):
         name for name in names if name == '__pycache__' or name.endswith('.pyc') or Path(directory, name) in skipped])
     runtime_site = runtime / 'Lib/site-packages'
     copy_python_site(prepared_site, runtime_site)
+    # Test suites, type stubs and pywin32's Pythonwin IDE and help file: nothing in the runtime loads them.
+    for tests in sorted(runtime_site.rglob('tests')):
+        if tests.is_dir(): shutil.rmtree(tests)
+    for stub in runtime_site.rglob('*.pyi'): stub.unlink()
+    shutil.rmtree(runtime_site / 'pythonwin')
+    (runtime_site / 'PyWin32.chm').unlink()
     shutil.copytree(prepared_site / ('numpy-' + pins['numpy'] + '.dist-info/licenses'), runtime / 'licenses/numpy')
     return dict(id='runtime.python', version=version, entrypoints={'python': 'python.exe'}, provides={}, requires={})
 
@@ -273,7 +283,7 @@ def stage_components(stage, *, python, harness_runtime, web_dist, ui_art, librar
                      'install_hooks': 'agentd/tools/install_hooks.py', 'distribution_seed': 'agentd/distribution_seed.py',
                      'fbx_tool': 'tools/' + fbx_name},
         provides={'C6': '1', 'C9': '1'}, requires={'runtime.python': python_version}))
-    stage_ui(web_dist, ui_art, stage / 'web-ui/payload')
+    stage_ui(web_dist, ui_art, stage / 'web-ui/payload', WINDOWS_UI_ART_SKIPPED if platform == 'windows-x64' else ())
     components.append(dict(id='web-ui', version=build_version, entrypoints={'index': 'ui/main.html'},
                            provides={}, requires={}))
     for package in packages:

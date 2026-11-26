@@ -23,7 +23,10 @@ LOCKS = ('agent/agentd/requirements-character-agent.lock', 'app/packaging/requir
          'agent/agentd/character_agent/pi-runtime/package-lock.json', 'app/packaging/node-runtime.lock.json')
 PYTHON_LOCKS = LOCKS[:2]
 EXPECTED = {'numpy': '2.5.4'}
-PI_UNUSED = ('.map', '.d.ts', '.d.mts')
+PI_UNUSED = ('.map', '.d.ts', '.d.mts', '.d.cts')
+PI_SOURCES = ('.ts', '.mts', '.cts')
+# Pi reads its own README.md, CHANGELOG.md and docs/ (its dist/config.js) and points the model to its examples/.
+PI_OWN = '@earendil-works/pi-coding-agent'
 HOST = 'win32-x64' if sys.platform == 'win32' else 'darwin-arm64'
 # Paths in the prepared runtime (node/ is the official archive's root) and in a venv.
 LAYOUT = {'darwin-arm64': {'node': 'node/bin/node', 'npm': 'node/lib/node_modules/npm/bin/npm-cli.js', 'venv_python': 'bin/python'},
@@ -124,6 +127,20 @@ def copy_python_site(overlay, destination):
                                                      or Path(directory) == overlay and name == 'bin'])
 
 
+def prune_pi_modules(modules, host):
+    """Remove from Pi's node_modules what node never loads: source maps and type declarations (nothing turns source maps
+    on), TypeScript sources, documents other than licences and native prebuilds of other platforms. PI_OWN keeps its
+    documents and sources, which Pi reads and points the model to."""
+    for prebuilt in list(modules.glob('**/prebuilds/*')):
+        if prebuilt.is_dir() and prebuilt.name != host: shutil.rmtree(prebuilt)
+    for path in modules.rglob('*'):
+        if not path.is_file(): continue
+        name = path.name.lower()
+        own = path.relative_to(modules).as_posix().startswith(PI_OWN + '/')
+        document = name.endswith('.md') and not name.startswith(('license', 'licence', 'notice', 'copying'))
+        if name.endswith(PI_UNUSED) or not own and (name.endswith(PI_SOURCES) or document): path.unlink()
+
+
 def prepare(destination, python, root=ROOT):
     destination = Path(destination).resolve(); python = Path(python).absolute()
     if destination.exists():
@@ -161,9 +178,7 @@ def prepare(destination, python, root=ROOT):
         from character_agent.harness.pi_install_runtime import install_runtime
         install_runtime(staging / 'pi-runtime', staging / layout['npm'],
                         source=root / 'agent/agentd/character_agent/pi-runtime', node=staging / layout['node'])
-        # Source maps and type declarations: Pi's node loads neither (nothing turns source maps on).
-        for path in (staging / 'pi-runtime/node_modules').rglob('*'):
-            if path.name.endswith(PI_UNUSED) and path.is_file(): path.unlink()
+        prune_pi_modules(staging / 'pi-runtime/node_modules', HOST)
         manifest = {'schema': 'endfield-personal-agent-runtime/v1', 'locks': lock_hashes(root),
                     'node_version': lock['version'], 'pi_version': '1.4.0', 'python_packages': EXPECTED,
                     'files': inventory_tree(staging)}

@@ -15,7 +15,7 @@ import build_components
 import component_manifest
 import package_windows
 import windows_exe
-from test_harness_runtime import prepared_fixture
+from test_harness_runtime import prepared_fixture, write_manifest
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / 'agent/agentd/tests'))
@@ -40,6 +40,11 @@ class PackageWindowsTests(unittest.TestCase):
             (python / relative).parent.mkdir(parents=True, exist_ok=True); (python / relative).write_text('python ' + relative)
         self.python = python
         self.prepared = prepared_fixture(self.root / 'harness', platform='win32-x64')
+        # pywin32's IDE and help file, which every Windows site has.
+        for relative in ('pythonwin/win32ui.pyd', 'PyWin32.chm'):
+            (self.prepared / 'python-site' / relative).parent.mkdir(exist_ok=True)
+            (self.prepared / 'python-site' / relative).write_text('site ' + relative)
+        write_manifest(self.prepared)
         self.web = self.root / 'web'; self.web.mkdir()
         for name in ('main.html', 'stack.html'): (self.web / name).write_text('web ' + name)
         electron = self.root / 'electron-v45.4.1-win32-x64'
@@ -156,6 +161,20 @@ class PackageWindowsTests(unittest.TestCase):
         self.assertFalse([f for f in files if f.startswith('bin/')])
         # The build host's installer stays out.
         self.assertFalse([f for f in files if f.startswith(('Lib/site-packages/pip/', 'Lib/site-packages/pip-'))])
+
+    def test_runtime_python_leaves_out_tests_stubs_pythonwin_and_the_stdlib_agentd_never_imports(self):
+        for relative in ('Lib/ensurepip/__init__.py', 'Lib/venv/__init__.py', 'Lib/pydoc_data/topics.py', 'Lib/lib2to3/__init__.py'):
+            (self.python / relative).parent.mkdir(parents=True); (self.python / relative).write_text('python ' + relative)
+        site = self.prepared / 'python-site'
+        for relative in ('numpy/core.py', 'numpy/core.pyi', 'numpy/tests/test_core.py'):
+            (site / relative).parent.mkdir(parents=True, exist_ok=True); (site / relative).write_text('site ' + relative)
+        write_manifest(self.prepared)
+        self.stage()
+        files = self.files(self.output / 'Agentic Complex/resources/components/runtime.python/payload')
+        self.assertIn('Lib/site-packages/numpy/core.py', files)
+        self.assertEqual([f for f in files if f.startswith(('Lib/ensurepip/', 'Lib/venv/', 'Lib/pydoc_data/', 'Lib/lib2to3/',
+                          'Lib/site-packages/numpy/tests/', 'Lib/site-packages/pythonwin/')) or f.endswith('.pyi')
+                          or f == 'Lib/site-packages/PyWin32.chm'], [])
 
     def test_every_manifest_and_the_lock_are_windows_x64_and_compose(self):
         self.stage()
@@ -311,8 +330,9 @@ class PackageWindowsTests(unittest.TestCase):
         receipt, *_ = self.stage(ui_art=art)
         ui = self.output / 'Agentic Complex/resources/components/web-ui/payload/ui'
         self.assertEqual((ui / 'art/common/tab.png').read_bytes(), b'tab')
-        self.assertTrue((ui / 'art/brand/AppIcon-1024.png').is_file())
-        self.assertEqual(receipt['ui_art'], dict(files=2, manifest_sha256=package_windows.digest(art / 'art-manifest.json')))
+        # The exe's icon comes from the UI art itself; no page loads the app icon.
+        self.assertFalse((ui / 'art/brand/AppIcon-1024.png').exists())
+        self.assertEqual(receipt['ui_art'], dict(files=1, manifest_sha256=package_windows.digest(art / 'art-manifest.json')))
         self.assertEqual(self.order, ['brand', 'brand', 'brand', 'fuses', 'vpk'])
         calls = [(Path(call.args[0]).name, *call.args[1:])
                  for call in self.brand.call_args_list]

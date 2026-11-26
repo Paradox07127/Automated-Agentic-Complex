@@ -7,8 +7,8 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from harness_runtime import (HOST, LAYOUT, ROOT, inventory_tree, lock_hashes, locked, copy_python_site, python_pins,
-                             validate_runtime, verify_node)
+from harness_runtime import (HOST, LAYOUT, ROOT, inventory_tree, lock_hashes, locked, copy_python_site, prune_pi_modules,
+                             python_pins, validate_runtime, verify_node)
 
 
 def distribution(site, name, version, payload=None):
@@ -64,6 +64,20 @@ class HarnessPackagingTests(unittest.TestCase):
             write_manifest(directory)
             with self.assertRaisesRegex(ValueError, 'unrelated-package'):
                 validate_runtime(directory)
+
+    def test_pi_modules_keep_runtime_code_licences_pi_s_own_docs_and_the_host_s_prebuilds(self):
+        keep = ['openai/index.js', 'openai/LICENSE.md', '@earendil-works/pi-coding-agent/README.md',
+                '@earendil-works/pi-coding-agent/docs/extensions.md', '@earendil-works/pi-coding-agent/examples/hello.ts',
+                '@earendil-works/pi-tui/native/win32/prebuilds/win32-x64/win32-platform.node']
+        drop = ['openai/src/index.ts', 'openai/index.d.ts', 'openai/index.js.map', 'openai/README.md', 'openai/CHANGELOG.md',
+                'lib/a.cts', 'lib/b.d.mts', '@earendil-works/pi-tui/native/darwin/prebuilds/darwin-arm64/darwin-platform.node',
+                '@earendil-works/pi-tui/native/win32/prebuilds/win32-arm64/win32-platform.node']
+        with tempfile.TemporaryDirectory() as temporary:
+            modules = Path(temporary)
+            for relative in keep + drop:
+                (modules / relative).parent.mkdir(parents=True, exist_ok=True); (modules / relative).write_text(relative)
+            prune_pi_modules(modules, 'win32-x64')
+            self.assertEqual({path.relative_to(modules).as_posix() for path in modules.rglob('*') if path.is_file()}, set(keep))
 
     def test_agentd_http_client_and_transport_are_in_the_release_lock(self):
         self.assertLessEqual({'httpx', 'httpcore', 'certifi'}, python_pins().keys())
