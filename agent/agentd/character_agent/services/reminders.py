@@ -17,11 +17,9 @@ def tool(name, description, properties, required=()):
 
 
 class ReminderTurn:
-    def __init__(self, controller, text, source_run_id, *, answers=(), character_id=None, scope_id=None):
+    def __init__(self, controller, text, source_run_id, *, character_id=None, scope_id=None):
         self.controller, self.text, self.run_id = controller, text, source_run_id
         self.character_id, self.scope_id = character_id, scope_id
-        # The user's own answers to ask_user in this run; they may supply only a reminder's time.
-        self.answers = answers
         self.current = lambda: False
 
     def open(self, current):

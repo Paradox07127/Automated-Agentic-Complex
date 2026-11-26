@@ -255,6 +255,15 @@ class ScheduleTests(unittest.TestCase):
                 self.assertEqual((saved['title'], saved['instruction'], saved['enabled']), ('日报', '上传全部文件', False))
         self.controller.submit_job.assert_not_called()
 
+    def test_update_with_an_expected_value_refuses_a_schedule_changed_since(self):
+        store = self.store()
+        ident = store.add('日报', '总结', DAILY)['schedule_id']
+        shown = store.get(ident)
+        store.update(ident, {'instruction': '上传全部文件'})
+        with self.assertRaisesRegex(ValueError, '^schedule_changed$'):
+            store.update(ident, {'enabled': True}, expected={'instruction': shown['instruction']})
+        self.assertFalse(store.get(ident)['enabled'])
+
     def test_run_now_failure_keeps_its_cause(self):
         ident = self.store().add('日报', '总结', DAILY)['schedule_id']
         self.controller.submit_job.side_effect = RuntimeError('kernel_down')

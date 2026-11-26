@@ -30,7 +30,7 @@ def bound_prompt(server):
     from brain.provider import chat_system
     from character.binding import effective
     mouth = server.mouth
-    return chat_system(mouth.card, effective(server), mouth.egress, mouth.motion_phrases)[0]
+    return chat_system(mouth.card, effective(server), mouth.motion_phrases)[0]
 
 
 UI, EVENTS = support.UI, "events-token"

@@ -2327,6 +2327,8 @@ class ScopedCancelTests(unittest.TestCase):
 
     def test_correct_memory_and_start_task_in_one_turn(self):
         fact = self.server.memory.add('报告使用旧格式', 'asserted_by_user')
+        approve = patch.object(self.c.interactions, 'approve', return_value={'request_id': 'card', 'input_sha256': 'x'})
+        self.addCleanup(approve.stop); approve.start()
         started = threading.Event()
         def factory(definitions):
             def work(session, prompt, options):
@@ -2369,6 +2371,8 @@ class ScopedCancelTests(unittest.TestCase):
 
     def test_a_turn_that_corrects_a_fact_keeps_its_own_items_and_the_observations(self):
         fact = self.server.memory.add('报告使用旧格式', 'asserted_by_user')
+        approve = patch.object(self.c.interactions, 'approve', return_value={'request_id': 'card', 'input_sha256': 'x'})
+        self.addCleanup(approve.stop); approve.start()
         def factory(definitions):
             def work(session, prompt, options):
                 yield from session.use(options, 'knowledge_read', {'source': 'memory', 'id': fact})
@@ -2384,6 +2388,7 @@ class ScopedCancelTests(unittest.TestCase):
             answer = self.c.prepare('correction-turn', '更正报告使用旧格式，报告使用新格式',
                 threading.Event(), self.server.turn_generation, 'text', {'remember': True, 'reset': -1})
         self.assertIsNone(answer.error)
+        approve.assert_called_once()
         observations.assert_not_called(); briefs.assert_not_called()
         said = next(i for i in self.c.store.items('correction-turn') if i['item_id'] == 'said')
         self.assertEqual(said['summary'], '记下了')

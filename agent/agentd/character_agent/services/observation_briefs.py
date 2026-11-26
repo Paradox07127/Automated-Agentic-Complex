@@ -167,7 +167,7 @@ class ObservationBriefs:
             text, start, end, units = row['text'], float(seg), float(seg + SEGMENT_S), [f'timeline:{seg}']
         else: return None
         return {'source_id': kind+':'+str(ident), 'kind':kind, 'id':str(ident), 'start':start, 'end':end, 'stored_hash':before,
-                'text':self.controller.knowledge().sanitize(text, part='observation_brief_source', observed=True), 'units':units}
+                'text':self.controller.knowledge().sanitize(text, part='observation_brief_source'), 'units':units}
 
     def _stored_hash(self, kind, ident):
         """Caller holds memory.lock; final comparison shares the commit fence."""
@@ -426,7 +426,7 @@ class ObservationBriefs:
         run = None
         try:
             run = self.controller.semantic.run('observation_brief',INSTRUCTIONS,{'period':period,'date':date,'timezone':config['timezone'],'coverage':coverage,'sources':sources},valid=valid,validate_output=lambda v:self.validate(v,validation_sources))
-            value = self.controller.knowledge().sanitize(self.validate(run['value'],validation_sources),part='observation_brief',observed=True)
+            value = self.controller.knowledge().sanitize(self.validate(run['value'],validation_sources),part='observation_brief')
             if not valid() or not self._dependencies_valid(deps): raise ValueError('brief_sources_changed')
             report = {'id':ident,'state':'completed','period':period,'date':date,'timezone':config['timezone'], 'start':start,'end':end,
                 'character_id':character,'generated_at':now,'run_id':run['run_id'],'backend':run['backend'],'model':run['model'],

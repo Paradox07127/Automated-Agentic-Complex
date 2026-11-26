@@ -137,9 +137,6 @@ class EgressPolicy:
     def set_redact(self, on):
         self._redact = on
 
-    def authored(self, part, text):
-        return text
-
     def observed(self, text):
         return self._masked(text, True)
 
@@ -155,6 +152,3 @@ class EgressPolicy:
             for key, count in counts.items():
                 self.redactions[key] += count
         return text
-
-    def replayed(self, part, text):
-        return self.observed(text)

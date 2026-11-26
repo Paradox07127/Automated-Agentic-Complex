@@ -339,10 +339,11 @@ class MemoryPipeline:
                 if any(db.execute('SELECT version FROM agent_memory_processed WHERE source_id=?',(r['source_id'],)).fetchone() == (r['version'],) for r in sources):
                     raise ValueError('memory_sources_already_processed')
                 episode = None
-                # With no project the summary carries no thread, so a revoked permission could never find it.
-                if not findings['noop'] and (findings['projects'] or findings['accepted']):
+                requirements = sorted({r for item in sources for r in item.get('requires',[])})
+                # With no project the summary carries no thread, so a revoked permission could never find it: an observed
+                # batch then keeps only its facts.
+                if not findings['noop'] and (findings['projects'] or findings['accepted'] and not requirements):
                     projects = findings['projects']
-                    requirements = sorted({r for item in sources for r in item.get('requires',[])})
                     scopes = sorted({item['scope_id'] for item in sources if item.get('scope_id')})
                     apps = list({item['content']['app'] for item in sources if item['kind']=='authorized_observation' and item['content'].get('app')})
                     titles = list({item['content']['title'] for item in sources if item['kind']=='authorized_observation' and item['content'].get('title')})
@@ -370,7 +371,7 @@ class MemoryPipeline:
                                     if normalized_text(row[2]) == normalized_text(text)), None)
                     if old and memory._locked(old[0]):
                         findings['rejected'].append({'proposal':item,'reason':'memory_locked'}); continue
-                    evidence = [f'episode:{episode}@{time.strftime("%Y-%m-%d",time.localtime(self.clock()))}', 'agent_run:'+run['run_id']]
+                    evidence = ([f'episode:{episode}@{time.strftime("%Y-%m-%d",time.localtime(self.clock()))}'] if episode else []) + ['agent_run:'+run['run_id']]
                     supported = {ref['source_id'] for ref in item['evidence']}
                     sightings = [src for src in sources if src['source_id'] in supported]
                     if old:

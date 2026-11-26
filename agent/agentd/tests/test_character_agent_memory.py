@@ -51,6 +51,12 @@ class RoleMemoryTests(unittest.TestCase):
         self.assertEqual(run['detail']['usage']['input_tokens'], 3)
         self.assertEqual(run['events'][0]['outcome'], 'stored')
 
+    def test_a_quoted_name_or_birthday_waits_for_the_users_confirmation(self):
+        for kind, text in (('name', '我叫林澄'), ('birthday', '我生日是三月五日')):
+            result = self.add(self.turn('记住：' + text, run=kind), text, kind=kind)
+            self.assertEqual(result['outcome'], 'candidate', kind)
+        self.assertEqual(self.memory.active(), [])
+
     def test_proposal_reserves_writer_before_reading_snapshot(self):
         claim = '虚构纸模展「雪松桥」使用验收代号琥珀鸢尾-472，撤展条件是灯光复测签字。'
         turn = self.turn('记住：' + claim)

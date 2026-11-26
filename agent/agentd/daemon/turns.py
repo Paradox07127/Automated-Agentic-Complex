@@ -512,10 +512,12 @@ class TurnsMixin:
                     if hasattr(mouth, "dispatch_allowed"):
                         mouth.dispatch_allowed = lambda: not self._stale(cancel, generation)
                         mouth.history_text = _kept(source, text)
+                # The character agent's preparation already recorded what its context used for this line.
+                prepared_line, prepared_kinds = self._line_context.get(cancel, (None, set()))
                 if cancel not in self._side_lines:  # a main line's context replaces the last main line's
                     for key in [key for key in tuple(self._line_context) if key not in self._side_lines]:
                         self._line_context.pop(key, None)
-                self._line_context[cancel] = (line_id, {kind for kind, _ in used})
+                self._line_context[cancel] = (line_id, {kind for kind, _ in used} | (prepared_kinds if prepared_line == line_id else set()))
                 past = getattr(mouth, "history", [])
                 last_before = past[-1] if past else None  # the last turn before this line's stream
                 earlier = [turn[0] for turn in past]

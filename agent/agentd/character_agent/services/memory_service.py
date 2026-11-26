@@ -33,7 +33,7 @@ def error(code):
 
 
 class MemoryJournal:
-    def __init__(self, memory, clock=time.time, *, interactions=None, language=lambda: None):
+    def __init__(self, memory, clock=time.time, *, interactions, language=lambda: None):
         """interactions: the approval cards correct and forget wait for; None asks no one.
         language: the reply language code for those cards."""
         self.memory, self.clock = memory, clock
@@ -373,7 +373,8 @@ class MemoryTurn:
         if op == "add":
             if ident is not None or version is not None:
                 raise ValueError("invalid_memory_proposal")
-            explicit = quote is not None and text == quote and quote in self.text
+            # A name or birthday becomes the user's own only when they confirm it themselves (Memory.add).
+            explicit = quote is not None and text == quote and quote in self.text and kind not in ("name", "birthday")
             source, state = ("asserted_by_user", "active") if explicit else ("inferred_hypothesis", "candidate")
             # Her own guess must not bring back words the user had erased; the user asking again may.
             if not explicit and self.memory._suppressed(text):

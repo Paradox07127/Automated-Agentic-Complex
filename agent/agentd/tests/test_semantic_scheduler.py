@@ -81,7 +81,7 @@ class SemanticAdmissionTests(unittest.TestCase):
         turn = journal.turn('old','','codex','fixture','aster',{'prompt':'private-old'})
         turn.open(lambda:True); turn.record('tool',{'result':'private-old'}); turn.finish('completed')
         future = time.time()+RUN_KEEP+1
-        MemoryJournal(self.server.memory,clock=lambda:future)
+        MemoryJournal(self.server.memory,clock=lambda:future, interactions=None)
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM memory_agent_runs').fetchone()[0],0)
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM memory_agent_events').fetchone()[0],0)
 
@@ -154,7 +154,7 @@ class SemanticAdmissionTests(unittest.TestCase):
         detail = {'request':json.dumps(turn.request),'output':'private-output','trace':['private-tool']}
         self.db.execute("UPDATE memory_agent_runs SET state='failed',detail=? WHERE run_id='failed-old'",(json.dumps(detail),))
         self.db.commit()
-        journal = MemoryJournal(self.server.memory)
+        journal = MemoryJournal(self.server.memory, interactions=None)
         rows = self.db.execute("SELECT detail FROM memory_agent_runs WHERE run_id='failed-old'").fetchall()
         self.assertFalse('private-' in str(rows),'startup retains old failure text')
         self.assertEqual(json.loads(rows[0][0])['prompt']['length'],len('private-old'))
@@ -165,7 +165,7 @@ class SemanticAdmissionTests(unittest.TestCase):
         turn.open(lambda:True); turn.finish('completed')
         now = [time.time()]
         with patch('threading.Timer') as timer:
-            journal = MemoryJournal(self.server.memory,clock=lambda:now[0])
+            journal = MemoryJournal(self.server.memory,clock=lambda:now[0], interactions=None)
             self.assertTrue(timer.called)
             self.assertEqual(timer.call_args.args[0],3600)
             now[0] += DETAIL_KEEP+1

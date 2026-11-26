@@ -246,20 +246,17 @@ class EgressPolicyTest(unittest.TestCase):
         self.assertNotIn('alice@example.com', sent['evidence']['observed'])
         self.assertEqual(policy.redactions, {'key': 1, 'email': 1, 'phone': 0})
 
-    def test_authored_observed_and_replayed_have_distinct_rules(self):
+    def test_observed_masks_contacts(self):
         from brain.egress import EgressPolicy
         policy = EgressPolicy()
-        self.assertEqual(policy.authored("test", "alice@example.com"), "alice@example.com")
-        self.assertEqual(policy.redactions, {"key": 0, "email": 0, "phone": 0})
         self.assertEqual(policy.observed("甲乙 alice@example.com"), "甲乙 [已遮蔽:邮箱]")
-        self.assertEqual(policy.replayed("test", "alice@example.com"), "[已遮蔽:邮箱]")
 
     def test_redactions_accumulate_across_threads(self):
         from brain.egress import EgressPolicy
         policy = EgressPolicy()
         with ThreadPoolExecutor(8) as pool:
             list(pool.map(policy.observed, ["ghp_abcdef alice@example.com 13800138000"] * 100))
-        policy.replayed("history", "alice@example.com")
+        policy.observed("alice@example.com")
         self.assertEqual(policy.redactions, {"key": 100, "email": 101, "phone": 100})
 
     def test_user_text_keeps_contacts_and_masks_keys(self):
@@ -279,7 +276,6 @@ class EgressPolicyTest(unittest.TestCase):
         policy = EgressPolicy(redact=False)
         text = "ghp_abcdef alice@example.com 13800138000"
         self.assertEqual(policy.observed(text), text)
-        self.assertEqual(policy.replayed("history", text), text)
         self.assertEqual(policy.redactions, {"key": 0, "email": 0, "phone": 0})
 
 

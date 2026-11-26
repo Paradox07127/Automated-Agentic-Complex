@@ -241,7 +241,7 @@ class EpisodeV2EndpointsTest(test_server.FeedServerCase):
         from character_agent.services.memory_service import MemoryJournal
         from types import SimpleNamespace
         memory=Memory(self.db,lock=self.episodes.lock)
-        journal=MemoryJournal(memory,clock=lambda:self.now)
+        journal=MemoryJournal(memory,clock=lambda:self.now, interactions=None)
         self.server.character_agent=SimpleNamespace(memory_journal=journal,close=lambda:None)
         self.now=at(DAY2,10)
         turn=journal.turn('native-extract','', 'codex','native','aster',{'private':'原始证据'},purpose='memory_extract')
@@ -259,7 +259,7 @@ class EpisodeV2EndpointsTest(test_server.FeedServerCase):
     def test_runs_lists_user_vision_beside_observation_vision(self):
         from character_agent.services.memory_service import MemoryJournal
         from types import SimpleNamespace
-        journal=MemoryJournal(Memory(self.db,lock=self.episodes.lock),clock=lambda:self.now)
+        journal=MemoryJournal(Memory(self.db,lock=self.episodes.lock),clock=lambda:self.now, interactions=None)
         self.server.character_agent=SimpleNamespace(memory_journal=journal,close=lambda:None)
         for hour,run_id,purpose in ((10,'shot-auto','observation_vision'),(11,'shot-user','user_vision')):
             self.now=at(DAY2,hour)

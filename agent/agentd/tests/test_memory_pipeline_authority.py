@@ -67,6 +67,18 @@ class MemoryAuthorityTests(unittest.TestCase):
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM episodes').fetchone()[0], 0)
         self.assertFalse(self.pipeline.sources())
 
+    def test_an_observed_batch_with_no_project_keeps_its_memory_and_indexes_no_summary(self):
+        self.source()
+        sources = self.pipeline.sources
+        self.pipeline.sources = lambda: [{**item, 'requires': ['window_text']} for item in sources()]
+        self.reply = {**self.findings(), 'projects': []}
+        result = self.pipeline.run_once()
+        self.assertIsNone(result['episode_id'])
+        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM episodes').fetchone()[0], 0)
+        [fact] = result['memories']
+        evidence = json.loads(self.db.execute('SELECT evidence FROM facts WHERE fact_id=?', (fact['fact_id'],)).fetchone()[0])
+        self.assertFalse([ref for ref in evidence if ref.startswith('episode:')])
+
     def test_observed_preference_is_added_only_as_a_candidate(self):
         memory = self.server.memory
         self.assertIsInstance(memory.add('晚上 11 点后还在写代码', 'observed_context', kind='preference', state='candidate'), str)

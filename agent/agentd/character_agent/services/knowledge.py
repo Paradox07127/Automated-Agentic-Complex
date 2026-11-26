@@ -148,17 +148,15 @@ class KnowledgeService:
                 return False
         return source not in DERIVED
 
-    def sanitize(self, value, part="knowledge", depth=0, *, observed=None, complete=False):
+    def sanitize(self, value, part="knowledge", depth=0, *, complete=False):
         """Mask/bound already-authorized context; this does not grant source access."""
-        if observed is None:
-            observed=self.observation_mode or isinstance(value,dict) and value.get('source') in ('observations','task_context','behavior','briefs')
         if isinstance(value,dict) and value.get('source')=='observations': complete=True
         if depth > 12 and not complete:
             return "[nested content omitted]"
         if isinstance(value, str):
-            return self.egress.observed(value) if observed else self.egress.replayed(part, value)
+            return self.egress.observed(value)
         if isinstance(value, list):
-            return [self.sanitize(item,part,depth+1,observed=observed,complete=complete) for item in (value if complete else value[:100])]
+            return [self.sanitize(item,part,depth+1,complete=complete) for item in (value if complete else value[:100])]
         if isinstance(value, dict):
             identifiers={'id','source_id','observation_id','previous_id','reference','version','revision','hash','source_sha256','image_sha256','content_hash'}
             def clean(key,item):
@@ -167,9 +165,9 @@ class KnowledgeService:
                     if key == 'job_id' and re.fullmatch(r'[a-f0-9]{32}', item): return item
                     if key == 'run_id' and re.fullmatch(r'bg-[a-f0-9]{32}', item): return item
                 if key in identifiers and isinstance(item,str) and re.fullmatch(r'(?:[a-z_]+:)?(?:(?:obs|work|brief|analysis|semantic|seg)-)?(?:[a-f0-9]{32}|[a-f0-9]{64}|[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12})',item): return item
-                return self.sanitize(item,part,depth+1,observed=observed,complete=complete)
+                return self.sanitize(item,part,depth+1,complete=complete)
             items=list(value.items())
-            return {self.sanitize(str(key),part,depth+1,observed=observed,complete=complete):clean(key,item)
+            return {self.sanitize(str(key),part,depth+1,complete=complete):clean(key,item)
                     for key,item in (items if complete else items[:100])}
         return value if value is None or isinstance(value, (bool, int, float)) else str(type(value).__name__)
 

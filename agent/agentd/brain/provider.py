@@ -9,13 +9,11 @@ from brain.egress import EgressPolicy
 from brain.lorebook import Lorebook
 
 
-def chat_system(card, binding, egress, motion_phrases=None):
+def chat_system(card, binding, motion_phrases=None):
     """(the persona's system text, the card it was rendered from) for card under binding
     (character.binding.effective; None: the card alone). motion_phrases: the pack's gestures listed for [motion:]."""
     card, motion = bound(card, binding)
     text = render_persona(card, motion, motion_phrases)
-    egress.authored("system", text)
-    egress.authored("instructions", card["post_history_instructions"])
     return text, card
 
 
@@ -42,7 +40,7 @@ class Mouth:
     def refresh_system(self, binding=None):
         """Checks the card's system text against egress again. binding: the character's effective binding
         (character.binding.effective), whose persona overrides and motion driver apply; None: the card alone."""
-        chat_system(self.card, binding, self.egress, self.motion_phrases)
+        chat_system(self.card, binding, self.motion_phrases)
 
     def pick_lore(self, text):
         """This turn's lorebook entries with their hit reasons; selecting twice would advance the sticky and

@@ -302,7 +302,7 @@ class WorkLogService:
         """One semantic run with material: (outcome, model, the reply object). outcome is "usage_cap" or
         "unavailable" when no answer came to judge, else "failed" or "completed"."""
         knowledge = self.controller.knowledge()
-        material = knowledge.sanitize(material, part="worklog_source", observed=True)
+        material = knowledge.sanitize(material, part="worklog_source")
         reply = self.controller.semantic.reply()
         system = system.format(title=f"{TITLE[0]}-{room(TITLE[1], reply)}", headline=room(HEADLINE, reply))
         instructions = system + "\nThe returned object follows this JSON Schema: " + json.dumps(schema, ensure_ascii=False)

@@ -245,10 +245,9 @@ class SemanticService:
                 context['profile'] = knowledge.call('personal_profile', {'limit': 6, 'max_chars': 4000})
             if 'goals' in needs and c.jobs:
                 context['goals'] = [{k:g[k] for k in ('goal_id','title','objective','state')} for g in c.jobs.store.goals()[:8]]
-            context = knowledge.sanitize(context,part='semantic_context',observed=knowledge.observation_mode,
+            context = knowledge.sanitize(context,part='semantic_context',
                 complete=purpose=='observation_interpret')
             prompt = json.dumps(context, ensure_ascii=False, allow_nan=False)
-            system = s.egress.authored('system', system)
             tools = [] if purpose in NO_TOOLS else knowledge.tool_definitions()
             if purpose == 'memory_extract':
                 tools = [tool for tool in tools if tool['name'] != 'task_context']

@@ -117,7 +117,8 @@ class Schedules:
                  now if enabled else None))
         return self.get(ident)
 
-    def update(self, ident, changes):
+    def update(self, ident, changes, *, expected=None):
+        """expected: field -> value the caller last saw; schedule_changed when any differs now."""
         if not isinstance(changes, dict) or not changes or set(changes) - {'title', 'instruction', 'trigger', 'enabled',
                                                                           'conversation_id', 'scope_id'}:
             raise ValueError('invalid_schedule')
@@ -125,6 +126,8 @@ class Schedules:
             saved = self._get(ident)
             if saved is None:
                 raise ValueError('unknown_schedule')
+            if expected and any(saved[key] != value for key, value in expected.items()):
+                raise ValueError('schedule_changed')
             item = {**saved, **changes}
             if not _text(item['title'], 200) or not _text(item['instruction'], 8000) or type(item['enabled']) is not bool \
                     or not _binding(item['conversation_id']) or not _binding(item['scope_id']):

@@ -28,11 +28,11 @@ SETTINGS_CARD = {
 # Single-use approval card titles for changes to the user's own work, by reply language code.
 WORK_CARD = {
     'zh-Hans': {'cancel_job': '取消后台任务：{}', 'continue': '继续任务：{}（{}）', 'completed': '完成目标：{}',
-                'cancelled': '取消目标：{}'},
+                'cancelled': '取消目标：{}', 'paused': '暂停目标：{}'},
     'en': {'cancel_job': 'Cancel background job: {}', 'continue': 'Continue task: {} ({})', 'completed': 'Complete goal: {}',
-           'cancelled': 'Cancel goal: {}'},
+           'cancelled': 'Cancel goal: {}', 'paused': 'Pause goal: {}'},
     'ja': {'cancel_job': 'バックグラウンドタスクを取り消す：{}', 'continue': 'タスクを続ける：{}（{}）', 'completed': '目標を完了する：{}',
-           'cancelled': '目標を取り消す：{}'},
+           'cancelled': '目標を取り消す：{}', 'paused': '目標を一時停止する：{}'},
 }
 # The schedule fields a card's action relies on; a change to any while it waits voids the approval.
 SCHEDULE_SHOWN = ('title', 'instruction', 'trigger', 'enabled', 'conversation_id', 'scope_id')
@@ -51,13 +51,13 @@ def tool(name, description, properties=None, required=()):
 
 
 class OrchestrationTurn:
-    def __init__(self, controller, text, config, character_id, scope_id, source_run_id, *, utterance=None, answers=()):
+    def __init__(self, controller, text, config, character_id, scope_id, source_run_id, *, utterance=None):
         self.controller, self.text, self.config = controller, text, dict(config)
         self.character_id, self.scope_id, self.source_run_id = character_id, scope_id, source_run_id
         self.current = lambda: False
         self.spawned = []
         from character_agent.services.reminders import ReminderTurn
-        self.reminders = ReminderTurn(controller, text, source_run_id, answers=answers, character_id=character_id,
+        self.reminders = ReminderTurn(controller, text, source_run_id, character_id=character_id,
                                       scope_id=scope_id)
         from character_agent.services.dispatch_tool import DispatchTurn
         self.dispatch = DispatchTurn(controller, text if utterance is None else utterance, source_run_id, character_id)
@@ -239,7 +239,7 @@ class OrchestrationTurn:
                     raise ValueError('explicit_goal_instruction_required')
                 return c.jobs.store.create_goal(args['title'], quote)
             if name == 'goal_update':
-                if args['state'] in ('completed', 'cancelled'):
+                if args['state'] in ('completed', 'cancelled', 'paused'):
                     goal = c.jobs.store.goal(args['goal_id'])
                     if goal is None:
                         raise ValueError('unknown_goal')
@@ -325,7 +325,7 @@ class OrchestrationTurn:
         if action == 'run_now':
             job = c.server._submit_schedule(store, store.run_now(ident), manual=True)
             return {'schedule': store.get(ident), 'job_id': job['job_id']}
-        return {'schedule': store.update(ident, changes)}
+        return {'schedule': store.update(ident, changes, expected={key: item[key] for key in SCHEDULE_SHOWN})}
 
     def _settings_read(self):
         from brain.language import SETTINGS

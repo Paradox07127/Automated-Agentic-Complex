@@ -170,8 +170,8 @@ class ReminderToolsTests(unittest.TestCase):
             case.tearDown()
             case.doCleanups()
 
-    def answered(self, text, answers):
-        turn = ReminderTurn(self.controller, text, 'run-1', answers=answers)
+    def answered(self, text):
+        turn = ReminderTurn(self.controller, text, 'run-1')
         turn.open(lambda: True)
         return turn
 
@@ -180,7 +180,7 @@ class ReminderToolsTests(unittest.TestCase):
                 'time_quote': '11月28日上午十点', **args}
 
     def test_time_can_come_from_the_users_answer_to_her_question(self):
-        turn = self.answered('提醒我月底前续费', ('11月28日上午十点',))
+        turn = self.answered('提醒我月底前续费')
         result = turn.call('reminder_create', self.answer_args())
         self.assertTrue(result.get('saved'), result)
         self.assertEqual(result['reminder']['due_at'], self.now + 28 * 86400)
@@ -188,16 +188,15 @@ class ReminderToolsTests(unittest.TestCase):
         self.assertEqual(len(self.store.list()), 1)
 
     def test_time_quote_is_part_of_the_request_identity(self):
-        turn = self.answered('提醒我月底前续费', ('11月28日上午十点', '28号十点'))
+        turn = self.answered('提醒我月底前续费')
         first = turn.call('reminder_create', self.answer_args())
         second = turn.call('reminder_create', self.answer_args(time_quote='28号十点'))
         self.assertNotEqual(first['reminder']['id'], second['reminder']['id'])
 
     def test_blank_instruction_text_is_refused(self):
-        answers = ('11月28日上午十点',)
-        saved = self.answered('提醒我月底前续费', answers).call('reminder_create', self.answer_args(text='月底前续费会员'))
+        saved = self.answered('提醒我月底前续费').call('reminder_create', self.answer_args(text='月底前续费会员'))
         self.assertTrue(saved.get('saved'), saved)
-        blank = self.answered('提醒我月底前续费', answers).call('reminder_create', self.answer_args(text='   '))
+        blank = self.answered('提醒我月底前续费').call('reminder_create', self.answer_args(text='   '))
         self.assertEqual(blank.get('error', {}).get('code'), 'reminder_instruction_required', blank)
         self.assertEqual(len(self.store.list()), 1)
 

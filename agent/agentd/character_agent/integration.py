@@ -182,7 +182,8 @@ class CharacterAgentController:
         self._acp_logins = {}
         from character_agent.services.kernel_login import KernelLogin
         self.logins = KernelLogin(self.state_dir, on_acp_login=self._acp_signed_in)
-        self.memory_journal = MemoryJournal(server.memory) if server.memory is not None else None
+        self.memory_journal = (MemoryJournal(server.memory, interactions=self.interactions, language=lambda: self.semantic.reply())
+                               if server.memory is not None else None)
         from character_agent.services.semantic import SemanticService
         from character_agent.services.memory_pipeline import MemoryPipeline
         from brain.language import ReplyLanguage
@@ -412,7 +413,7 @@ class CharacterAgentController:
             resume_id = job['previous_run_id']
             if not resume_id or not self.store.load_checkpoint(run_id=resume_id):
                 resume_id = p.get('resume_run_id')
-            answer = runtime.run(run_id=job['run_id'], text=s.egress.user_text(p['user_request']), system_prompt=s.egress.authored('system', system),
+            answer = runtime.run(run_id=job['run_id'], text=s.egress.user_text(p['user_request']), system_prompt=system,
                 history=[], context=json.dumps(context,ensure_ascii=False), before_input=self.reply_language.tag(setting), language=self.semantic.reply(),
                 character_id=cid, generation=job['generation'], conversation_id=job['conversation_id'], scope_id=p['scope_id'], cancelled=cancel, is_current=current,
                 expected_outputs=p.get('expected_outputs'), resume_run_id=None if p.get('start_fresh') else resume_id,
@@ -1887,16 +1888,15 @@ class CharacterAgentController:
                        "those, ask them to switch back to a normal conversation first.")
         if setting != "harness":
             system += "\n" + SYSTEM_RULE
-        egress.authored("system", system)
         # The card's style note and the reply language come last, right before the user's words.
-        before_input = "<reply_style>\n" + egress.authored("instructions", card["post_history_instructions"]) + "\n</reply_style>" + \
+        before_input = "<reply_style>\n" + card["post_history_instructions"] + "\n</reply_style>" + \
             ("\n" + self.reply_language.tag(setting) if setting != "harness" else "")
         replayed, missed = [], []
         for index, turn in enumerate(history):
             for message in turn:
                 # Her lines may retell the screen; the user's own words keep their contacts.
-                message["content"] = egress.user_text(egress.authored("history", message["content"])) \
-                    if message.get("role") == "user" else egress.replayed("history", message["content"])
+                message["content"] = egress.user_text(message["content"]) \
+                    if message.get("role") == "user" else egress.observed(message["content"])
             replayed.append(turn)
             if index in unheard:
                 missed.append({'user': turn[0]['content'], 'you': turn[1]['content']})
@@ -1916,9 +1916,6 @@ class CharacterAgentController:
         memory_session = self.memory_journal.turn(line_id, egress.user_text(text), runtime.backend, runtime.model,
             server.character, {"system_prompt": system, "history": history, "context": context},
             allowed=source in ("text", "voice") and trace.get("remember", True)) if self.memory_journal and main_session else None
-        pending = (self.store.load_checkpoint(run_id=resume_run_id) or {}).get('pending_tool') if resume_run_id else None
-        answers = tuple(value for values in pending['result']['answers'].values() for value in values) \
-            if pending and pending['name'] == 'ask_user' and pending.get('result') else ()
         span, started = new_span_id(), time.monotonic()
         server._step(trace, "model.started", span, attrs={"model": runtime.model or DEFAULT_MODEL, "call": "character_agent"})
         # Only the user's own remembered turn gets the harness's own file and shell tools; no other turn reuses its session.
@@ -1936,7 +1933,7 @@ class CharacterAgentController:
                     remember=trace.get("remember", True),
                     knowledge_service=knowledge, memory_session=memory_session, harness_tools=native,
                     orchestration_session=OrchestrationTurn(self, egress.user_text(text), self.settings.snapshot(), server.character,
-                        scope_id, line_id, utterance=text, answers=answers) if main_session and self.jobs and trace.get('remember', True) else None,
+                        scope_id, line_id, utterance=text) if main_session and self.jobs and trace.get('remember', True) else None,
                     question_session=QuestionTurn(self.interactions, self.settings.snapshot()['interactive_tools'], line_id,
                                                   server.character, egress.user_text(text), scope_id)
                         if main_session and self.jobs and trace.get("remember", True) else None,

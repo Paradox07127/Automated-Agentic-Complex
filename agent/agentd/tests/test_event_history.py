@@ -65,6 +65,21 @@ class EventHistoryTest(HistoryServerCase):
         self.assertEqual(self.server.mouth.history[-1][0]["content"], CUE)
 
 
+class ContextLines(PreparedLines):
+    """Records, as the character agent's preparation does, that the line's context used the page."""
+    def prepare(self, line_id, text, cancel, generation, source, trace, wait=None, refused=None, **options):
+        self.server._line_context[cancel] = (line_id, {"page"})
+        return super().prepare(line_id, text, cancel, generation, source, trace, wait, refused, **options)
+
+
+class PreparedContextTest(HistoryServerCase):
+    def test_delivery_keeps_the_context_its_preparation_used(self):
+        self.server.character_agent = ContextLines(self.server)
+        self.server.start_line("l-page", "这页讲什么", source="text")
+        self.assertTrue(wait_for(lambda: any(r["turn_id"] == "l-page" for r in self.rows())))
+        self.assertIn(("l-page", {"page"}), list(self.server._line_context.values()))
+
+
 class CutCueLineTest(test_playback_server.PlaybackCase):
     FIRST = "第一句话说完了。"
 
