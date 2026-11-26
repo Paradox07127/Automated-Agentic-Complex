@@ -290,7 +290,7 @@ test('AvatarScaleRequests: the first value is the baseline, each change sends on
   }
 });
 
-test('放回默认位置 and 放到这块屏: set_placement to the default anchor in fullscreen; move_window to the default origin, remembered, in a window', () => {
+test('放回默认位置: set_placement to the default anchor in fullscreen; move_window to the default origin, remembered, in a window', () => {
   const s = placer();
   try {
     s.link.hello();
@@ -298,17 +298,11 @@ test('放回默认位置 and 放到这块屏: set_placement to the default ancho
     s.link.message({ type: 'placement', x: 2000, y: 500, scale: 1, display_id: 2, reason: 'drag' });
     s.p.resetPosition();
     assert.deepEqual(s.link.take(), [{ v: 1, type: 'set_placement', x: 3160, y: 0 }], "the anchor's screen");
-    assert.equal(s.p.placeOnScreen(1), true);
-    assert.deepEqual(s.link.take(), [{ v: 1, type: 'set_placement', x: 1240, y: 70 }], 'a point on another screen switches it');
-    assert.equal(s.p.placeOnScreen(99), false);
-    assert.deepEqual(s.logs, ['place on screen: no screen 99']);
 
     s.windowFrame(frame(500, 500), 'window');
     s.p.resetPosition();
     assert.deepEqual(s.link.take(), [{ v: 1, type: 'move_window', x: 1056, y: 94 }]);
-    s.p.placeOnScreen(2);
-    assert.deepEqual(s.link.take(), [{ v: 1, type: 'move_window', x: 2976, y: 24 }]);
-    assert.deepEqual(new PlacementFiles(s.dir).positions, { aster: { 1: { x: 1056, y: 94 }, 2: { x: 2976, y: 24 } } });
+    assert.deepEqual(new PlacementFiles(s.dir).positions, { aster: { 1: { x: 1056, y: 94 } } });
   } finally {
     s.done();
   }

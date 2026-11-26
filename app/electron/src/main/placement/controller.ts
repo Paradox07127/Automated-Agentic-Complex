@@ -156,18 +156,6 @@ export class AvatarPlacer {
     this.moveToDefault(screens);
   }
 
-  /** 放到这块屏: the default position on screen `id`; false when there is no such screen. */
-  placeOnScreen(id: number): boolean {
-    const screen = this.o.space.screens().find((s) => s.id === id);
-    if (!screen) {
-      this.o.log(`place on screen: no screen ${id}`);
-      return false;
-    }
-    if (this.viewport === 'fullscreen') this.setAnchor(defaultAnchor(screen.visibleFrame));
-    else this.moveToDefault([screen]);
-    return true;
-  }
-
   /** `avatar.keepClearOfMain`: while on, the main window is a `dialog` she walks clear of. */
   keepClearOfMain(on: boolean): void {
     this.keepClearOfMainOn = on;
