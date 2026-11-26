@@ -1,5 +1,6 @@
 import type { NavTarget } from '../../../shell/nav';
 import { Btn } from '../../../ui/Btn';
+import { StopAct } from '../bubble/Acts';
 import { failOf, type Bar } from './commReducer';
 import bubble from '../bubble/Bubble.module.css';
 import styles from './Subtitle.module.css';
@@ -32,7 +33,7 @@ export function Subtitle({ bar, name, onOpen, go, onStop = null }: { bar: Bar; n
         </div>
         {(onStop || next || bar.phase !== 'thinking') && (
           <span className={bubble.acts}>
-            {onStop && <Btn variant="ghost" size="sm" onClick={onStop}>停止</Btn>}
+            {onStop && <StopAct onStop={onStop} />}
             {next && <Btn variant="ghost" size="sm" onClick={() => go(next.to)}>{next.label}</Btn>}
             {bar.phase !== 'thinking' && (
               <button type="button" className={styles.open} onClick={onOpen}>

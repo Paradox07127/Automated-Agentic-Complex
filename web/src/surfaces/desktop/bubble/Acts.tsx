@@ -22,10 +22,21 @@ export interface ActsProps {
   onClose: (() => void) | null;
   /** 有用 and 少说点, for a thought or a line she said on her own: the vote already sent for it; null hides them. */
   vote: { sent: Vote | null; send: (value: Vote) => void } | null;
+  /** 停止, while her foreground turn thinks or streams; null hides it. */
+  onStop?: (() => void) | null;
+}
+
+/** 停止 in the bubble's own capsule, beside 回复 or alone while she thinks. */
+export function StopAct({ onStop }: { onStop: () => void }) {
+  return (
+    <button type="button" className={styles.act} data-region="" onClick={onStop}>
+      停止
+    </button>
+  );
 }
 
 /** The bubble keeps reply in view and puts copying and feedback in a disclosure. */
-export function Acts({ text, replyLabel = '回复', onReply, onMute, onClose, vote }: ActsProps) {
+export function Acts({ text, replyLabel = '回复', onReply, onMute, onClose, vote, onStop = null }: ActsProps) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState<'idle' | 'done' | 'failed'>('idle');
   const moreId = useId();
@@ -34,6 +45,7 @@ export function Acts({ text, replyLabel = '回复', onReply, onMute, onClose, vo
       <button type="button" className={styles.act} data-region="" onClick={onReply}>
         {replyLabel}
       </button>
+      {onStop && <StopAct onStop={onStop} />}
       {text && <button type="button" className={styles.act} data-region="" title="更多操作" aria-label="更多操作" aria-expanded={expanded} aria-controls={moreId} onClick={() => setExpanded((value) => !value)}>
         <Icon name="more" size={16} />
       </button>}

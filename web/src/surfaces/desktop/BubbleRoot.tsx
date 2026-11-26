@@ -10,7 +10,7 @@ import { stackQuery } from '../stack/demos';
 import { useHover } from '../stack/useHover';
 import { useSeenReceipt } from '../stack/useSeenReceipt';
 import { useStackActions } from '../stack/useStackActions';
-import { Acts, type ActsProps, type Vote } from './bubble/Acts';
+import { Acts, type ActsProps, StopAct, type Vote } from './bubble/Acts';
 import { BubbleInput } from './bubble/BubbleInput';
 import { ConfirmCard } from './bubble/ConfirmCard';
 import { bubbleCards, bubbleLine, bubblePresence } from './bubble/demo';
@@ -136,10 +136,6 @@ export function BubbleRoot() {
     b.kind === 'main' && (b.phase === 'thinking' || b.phase === 'streaming')
       ? () => void bridge.agentd.request('POST', '/turn/cancel', { reason: 'client_cancel', line_id: b.id })
       : null;
-  const stopBtn = (b: Bar) => {
-    const stop = stopOf(b);
-    return stop && <Btn variant="ghost" size="sm" onClick={stop}>停止</Btn>;
-  };
   const feedback = (id: string, value: Vote | 'dismissed') => bridge.agentd.request('POST', '/feedback', { line_id: id, value });
   const voteOn = (id: string): ActsProps['vote'] => ({
     sent: voted?.id === id ? voted.value : null,
@@ -165,6 +161,7 @@ export function BubbleRoot() {
   let text = '';
   let time: string | undefined;
   let one: ReactNode = null;
+  let stop: (() => void) | null = null;
   let away: CollapseTarget | null = null;
   let replyTo: SayReplyTo | undefined;
   let onMute: (() => void) | null = null;
@@ -225,11 +222,11 @@ export function BubbleRoot() {
     away = { key: `card:${cards.look.id}`, text, ms: NOTICE_MS };
   } else if (bar?.phase === 'thinking') {
     main = <Speech bar={bar} name="" onOpen={() => openChat(bar.id)} />;
-    one = stopBtn(bar);
+    stop = stopOf(bar);
     line = true;
   } else if (bar) {
     main = <Speech bar={bar} name="" onOpen={() => openChat(bar.id)} />;
-    one = stopBtn(bar);
+    stop = stopOf(bar);
     line = true;
     text = bar.text;
     replyTo = { kind: 'line', id: bar.id };
@@ -296,8 +293,8 @@ export function BubbleRoot() {
   const room = anchor?.room.width ?? 0;
   const sizing = room > 0 ? ({ '--bubble-w': `${Math.max(160, Math.min(300, Math.floor(room) - 40))}px` } as CSSProperties) : undefined;
   const acts = replyTo || onClose ? (
-    <Acts key={replyTo?.id ?? 'idle'} text={text} replyLabel="回复" onReply={() => input.reply(text, replyTo)} onMute={onMute} onClose={onClose} vote={vote} />
-  ) : null;
+    <Acts key={replyTo?.id ?? 'idle'} text={text} replyLabel="回复" onReply={() => input.reply(text, replyTo)} onMute={onMute} onClose={onClose} vote={vote} onStop={stop} />
+  ) : stop ? <StopAct onStop={stop} /> : null;
 
   let body: ReactNode = null;
   if (input.open) {
