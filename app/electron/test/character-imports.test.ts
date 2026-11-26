@@ -15,7 +15,7 @@ import { PageSession } from '../src/common/page.ts';
 import { PushSource } from '../src/common/push.ts';
 import { ORIGIN } from '../src/common/ui.ts';
 import type { AvatarHost } from '../src/main/ops/avatar.ts';
-import { characterOps, type ImportPicker, mmdOps } from '../src/main/ops/character.ts';
+import { characterOps, dropMmdScans, type ImportPicker, mmdOps, mmdScanRoot } from '../src/main/ops/character.ts';
 import type { OpsContext, ToolResult } from '../src/main/ops/context.ts';
 import { runAgentdTool } from '../src/main/ops/tools.ts';
 
@@ -326,6 +326,24 @@ test('mmd.scan keeps one scan: a new scan or mmd.dropScan deletes the folder of 
   }
 });
 
+test('each support dir has its own scan root under the temporary folder; dropMmdScans deletes every scan under one', async () => {
+  const f = fixture();
+  try {
+    assert.equal(mmdScanRoot(f.dir).startsWith(tmpdir()), true);
+    assert.equal(mmdScanRoot(f.dir), mmdScanRoot(f.dir));
+    assert.notEqual(mmdScanRoot(join(f.dir, 'a')), mmdScanRoot(join(f.dir, 'b')));
+    scanTool(f);
+    f.picks = [[join(f.dir, 'a.zip')]];
+    await f.call('mmd.scan', { folder: false });
+    assert.equal(existsSync(arg(f.tools[0]!, '--unpack-to')), true);
+    dropMmdScans(SCANS(f));
+    assert.equal(existsSync(SCANS(f)), false);
+    dropMmdScans(SCANS(f));
+  } finally {
+    f.done();
+  }
+});
+
 test('mmd.scan: a cancelled panel runs nothing; a failed scan deletes its folder and passes on the reason; a missing component asks nothing', async () => {
   const f = fixture();
   try {
@@ -509,6 +527,8 @@ test('mmd.detail runs mmd-detail on the current character without holding the sw
     f.tool = () => ({ last: '', status: 2, stderr: '{"ok": false, "reason": "unknown_action", "detail": "mmd_1"}' });
     assert.deepEqual(await f.call('mmd.detail', 'mmd_1'), { ok: false, reason: 'unknown_action', detail: 'mmd_1' });
     assert.deepEqual(await f.call('mmd.detail', 1), err('bad_args', 'mmd.detail'));
+    assert.deepEqual(await f.call('mmd.detail', ''), err('bad_args', 'mmd.detail'));
+    assert.deepEqual(await f.call('mmd.detail', 'x'.repeat(65)), err('bad_args', 'mmd.detail'));
     assert.equal(f.tools.length, 3);
   } finally {
     f.done();

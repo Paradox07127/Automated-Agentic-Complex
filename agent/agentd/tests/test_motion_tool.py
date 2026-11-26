@@ -924,6 +924,43 @@ class MotionToolTests(unittest.TestCase):
         self.assertEqual(self.failure(tool_command("motion_tool.py", "mmd-media", "--library", str(self.library.root), "--character", "fixture",
                                                    "--action", "mmd_nope", "--no-bgm", "--validate-with", str(self.host())))["reason"], "unknown_action")
 
+    def unkeepable_music(self):
+        """Music paths no import may keep: no file, a folder, no audio, a link to a wav."""
+        notes = self.root / "notes.txt"; notes.write_text("hi", encoding="utf-8")
+        folder = self.root / "folder.wav"; folder.mkdir()
+        songs = [self.root / "missing.wav", folder, notes]
+        if sys.platform != "win32":
+            link = self.root / "linked.wav"; link.symlink_to(self.wav("outside.wav")); songs.append(link)
+        return songs
+
+    def refused_music(self, run, songs):
+        """Each song refused by run(song) as bad_source, with the library untouched; also a wav over the size limit and any wav on
+        Windows."""
+        from unittest import mock
+        import motion_tool  # imported before sys.platform changes
+        from agentic_complex_build import import_vmd
+        before = self.files()
+        failed = lambda: json.loads(run(song)[2].strip().splitlines()[-1])["reason"]
+        for song in songs: self.assertEqual(failed(), "bad_source", song)
+        song = self.wav("song.wav")
+        with mock.patch.object(import_vmd, "MAX_MUSIC_BYTES", song.stat().st_size - 1): self.assertEqual(failed(), "bad_source")
+        with mock.patch.object(sys, "platform", "win32"): self.assertEqual(failed(), "bad_source")
+        self.assertEqual({p: b for p, b in self.files().items() if p.parts[0] != ".vmd-stage"},
+                         {p: b for p, b in before.items() if p.parts[0] != ".vmd-stage"})
+
+    def test_mmd_media_refuses_music_it_cannot_keep_for_a_dance_the_character_has_not_baked(self):
+        self.install(); self.shared_dance("0123456789abcdef", bgm=False)
+        self.refused_music(lambda song: self.in_process("mmd-media", "--library", str(self.library.root), "--character", "fixture",
+                                                        "--action", "mmd_0123456789abcdef", "--bgm", str(song), "--validate-with", str(self.host())),
+                           self.unkeepable_music())
+
+    def test_import_refuses_music_it_cannot_keep_before_reading_the_motion(self):
+        self.install()
+        self.refused_music(lambda song: self.in_process("import", "--library", str(self.library.root), "--character", "fixture",
+                                                        "--source", str(self.root / "unread.vmd"), "--bgm", str(song),
+                                                        "--validate-with", str(self.host())),
+                           self.unkeepable_music())
+
     def tone(self, name):
         """A second of a square wave, unlike wav's silence."""
         path = self.root / name

@@ -1,0 +1,2 @@
+{"v":1,"type":"hello","role":"avatar","pid":4242,"protocol":1,"character":"aster","capabilities":["heartbeat","ack","drop"],"build":{"git":"89f61ffe","renderer":"vulkan"}}
+{"v":1,"type":"drop","items":[{"kind":"file","path":"C:\\Users\\someone\\Desktop\\报告 2026.pdf"},{"kind":"file","path":"\\\\fileserver\\team\\dances\\set.zip"},{"kind":"file","path":"\\\\?\\D:\\very\\long\\path\\dance.vmd"}],"x":1470.5,"y":420}

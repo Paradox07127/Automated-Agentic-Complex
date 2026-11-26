@@ -11,7 +11,7 @@ import { homedir, release } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import routes from '../../../../protocol/ui-bridge/routes.json' with { type: 'json' };
 import { a11ySource } from '../common/a11y.ts';
-import { APPEARANCE_CHANNEL, appearanceOf, applyAppearance, glassSupported, mainWindowGround } from '../common/appearance.ts';
+import { appearanceOf, applyAppearance, glassSupported, mainWindowGround } from '../common/appearance.ts';
 import { type ChildState } from '../common/agentd.ts';
 import type { Rect as HelperRect } from '../common/attention.ts';
 import { boot, BridgeFailure, handle, type Handler, type Reply, type Surface } from '../common/bridge.ts';
@@ -85,7 +85,7 @@ import { greetOnDesktop, onboardingWindow, type OnboardingDestination, playToEnd
 import { adoptPasted, adoptPaths, clearPasted, filePage, SCOPE_FILE_TYPES } from './ops/adopt.ts';
 import { bundleBuild } from './ops/app.ts';
 import { cpuSecondsReader, processUsageReader } from './ops/avatar.ts';
-import { characterArt, shellMmdSync } from './ops/character.ts';
+import { characterArt, dropMmdScans, mmdScanRoot, shellMmdSync } from './ops/character.ts';
 import { reloadAvatar } from './ops/holding.ts';
 import { watch } from './ops/events.ts';
 import { type OpsContext, registry } from './ops/index.ts';
@@ -342,7 +342,7 @@ const camera = config && hostLink && shellCamera({ link: hostLink, configPath, a
     presses: (listener) => watchers?.onMouseDown(listener) ?? (() => {}),
     register: (contents, page, panelOps) => pages.set(contents.id, { surface: 'stack', page, ops: panelOps }),
     unregister: (id) => pages.delete(id),
-    get baseOps() { return surfaceOps('stack'); },
+    get baseOps() { return overlayOps('camera'); },
     camera: target,
   }),
   log: (line) => appendLog(config!.supportDir, 'companion', line) });
@@ -797,8 +797,16 @@ const glassOnSystem = glassSupported(shellPlatform(), release());
 /** The 外观 rows as config.json holds them; no glass while the system reduces transparency. */
 const appearanceNow = () => appearanceOf(current(settingValues(readObject(configPath)), null, shellPlatform()).values,
   glassOnSystem && !nativeTheme.prefersReducedTransparency);
-/** The theme for every window, the main window's ground, page and zoom. */
-const applyAppearanceNow = () => applyAppearance(appearanceNow(), shellPlatform(), { theme: nativeTheme, window: mainWindow });
+/** The first-run guide's window while it is open. */
+let guideWindow: BrowserWindow | null = null;
+/** The guide's ground and page; its zoom stays 1, its window being sized for the page at 1. */
+const applyGuideAppearance = () => applyAppearance({ ...appearanceNow(), zoom: 1 }, shellPlatform(),
+  { theme: nativeTheme, window: guideWindow && !guideWindow.isDestroyed() ? guideWindow : null });
+/** The theme for every window, the main window's ground, page and zoom, and the guide's. */
+const applyAppearanceNow = () => {
+  applyAppearance(appearanceNow(), shellPlatform(), { theme: nativeTheme, window: mainWindow });
+  applyGuideAppearance();
+};
 
 /** `activate: false` shows it without taking the front app. */
 function openMain(activate = true): void {
@@ -874,6 +882,15 @@ async function pick(properties: ('openFile' | 'openDirectory')[], message: strin
 
 function surfaceOps(surface: Surface): ReadonlyMap<string, Handler<PageSession>> {
   return registry(opsContext(surface));
+}
+
+/** Each overlay's `stack` ops, made at its first open, once what they read is up, and kept for the window it makes again at
+ *  each open: a registry's feed source stays subscribed to the store. */
+const overlayRegistries = new Map<string, ReadonlyMap<string, Handler<PageSession>>>();
+function overlayOps(overlay: 'camera' | 'resize' | 'photo'): ReadonlyMap<string, Handler<PageSession>> {
+  let ops = overlayRegistries.get(overlay);
+  if (ops === undefined) overlayRegistries.set(overlay, ops = surfaceOps('stack'));
+  return ops;
 }
 
 function opsContext(surface: Surface): OpsContext {
@@ -1029,10 +1046,9 @@ const guide = onboardingWindow({
   makeWindow: (options) => {
     const win = new BrowserWindow({ ...options, ...mainWindowGround(shellPlatform(), appearanceNow().glass),
       webPreferences: { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false } });
-    win.webContents.on('dom-ready', () => {
-      const { glass, glassAlpha, reduceMotion } = appearanceNow();
-      win.webContents.send(APPEARANCE_CHANNEL, { glass, glassAlpha, reduceMotion });
-    });
+    guideWindow = win;
+    win.on('closed', () => { if (guideWindow === win) guideWindow = null; });
+    win.webContents.on('dom-ready', () => applyGuideAppearance());
     return win;
   },
   served: () => serve !== null,
@@ -1334,6 +1350,8 @@ app.on('will-quit', (e) => {
   controlPanel?.stop();
   looks?.stop();
   devReloader?.stop();
+  // Windows refuses to delete a file a scan still running has open.
+  if (config) void stop('mmd scans', async () => dropMmdScans(mmdScanRoot(config!.supportDir)));
   if (!supervisor && !renderer && !helper && !services) return;
   e.preventDefault();
   stopping = true;
@@ -1351,6 +1369,12 @@ app.on('will-quit', (e) => {
 
 void app.whenReady().then(async () => {
   clearPasted(config?.supportDir ?? supportDir);
+  // Left by a crash or a quit that could not delete them.
+  try {
+    if (config) dropMmdScans(mmdScanRoot(config.supportDir));
+  } catch (e) {
+    log(`mmd scans not deleted: ${e instanceof Error ? e.message : String(e)}`);
+  }
   setNotificationId(app);
   hideFromDock(app);
   // Electron's own handlers, installed by now, quit once and then restore the default action (quit.ts).
@@ -1391,7 +1415,7 @@ void app.whenReady().then(async () => {
       presses: (listener) => watchers?.onMouseDown(listener) ?? (() => {}),
       register: (contents, page, panelOps) => pages.set(contents.id, { surface: 'stack', page, ops: panelOps }),
       unregister: (id) => pages.delete(id),
-      get baseOps() { return surfaceOps('stack'); },
+      get baseOps() { return overlayOps('resize'); },
       target: p,
     });
     photoOverlay = new PhotoOverlayWindow({
@@ -1409,7 +1433,7 @@ void app.whenReady().then(async () => {
       presses: (listener) => watchers?.onMouseDown(listener) ?? (() => {}),
       register: (contents, page, panelOps) => pages.set(contents.id, { surface: 'stack', page, ops: panelOps }),
       unregister: (id) => pages.delete(id),
-      get baseOps() { return surfaceOps('stack'); },
+      get baseOps() { return overlayOps('photo'); },
       // As 调整镜头's: her visual rect, else her body's, else her window's.
       figure: () => {
         const s = p.anchorSample(), r = c3Rect(s.visual ?? s.body ?? null);

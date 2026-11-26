@@ -25,6 +25,8 @@ from .stance import stances
 from .motion_import.edit import write_document
 from .motion_graph import FILE as GRAPH,pack_graph,text
 
+MAX_MUSIC_BYTES = 256 * 1024**2
+
 
 def _read_checked_vmd_raw(path):
     """Validate VMD 0002 bounds and section offsets before allocating arrays."""
@@ -224,7 +226,7 @@ def prepare_music(source, output, start, duration):
     """Use the OS decoder, then trim/pad to the motion's exact 48k stereo clock; a negative start leads with -start
     seconds of silence."""
     need(math.isfinite(start), 'invalid_bgm_start')
-    source = Path(source); need(source.is_file() and source.stat().st_size <= 256*1024**2, 'bgm_file_limit')
+    source = Path(source); need(source.is_file() and source.stat().st_size <= MAX_MUSIC_BYTES, 'bgm_file_limit')
     with tempfile.TemporaryDirectory(prefix='endfield-bgm-') as tmp:
         decoded = Path(tmp)/'decoded.wav'
         result = subprocess.run(['/usr/bin/afconvert','-f','WAVE','-d','LEI16@48000','-c','2',str(source),str(decoded)], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=120)
@@ -264,7 +266,7 @@ def import_motion(package_path, vmd_path, output, source_model=None, duration=No
     sample_rate = int(round(sample_rate))
     need(math.isfinite(morph_fps) and 1 <= morph_fps <= 240, 'invalid_morph_fps')
     need(math.isfinite(preroll) and 0 <= preroll <= 10.0, 'invalid_preroll')
-    if bgm:need(Path(bgm).is_file() and Path(bgm).stat().st_size<=256*1024**2,'bgm_file_limit')
+    if bgm:need(Path(bgm).is_file() and Path(bgm).stat().st_size<=MAX_MUSIC_BYTES,'bgm_file_limit')
     vmd=checked_vmd(vmd_path)
     extra_morph=checked_morph_vmd(morph_vmd) if morph_vmd else None
     camera_vmd=checked_camera_vmd(camera) if camera else None

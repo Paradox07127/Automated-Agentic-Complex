@@ -40,12 +40,16 @@ def extract(zip_path: Path, dest: Path) -> list[Path]:
 
 
 def walk(folder: Path) -> list[Path]:
-    """The files below folder, sorted, leaving out hidden entries and __MACOSX."""
+    """The files below folder, sorted, leaving out hidden entries and __MACOSX; bad_source when a link or junction is among them."""
     files, total = [], 0
     for top, dirs, names in os.walk(folder):
         dirs[:] = [d for d in dirs if not (d.startswith(".") or d == "__MACOSX")]
+        names = [name for name in names if not name.startswith(".")]
+        for name in dirs + names:
+            path = Path(top) / name
+            # A Windows junction is no symlink to islink.
+            if os.path.islink(path) or os.path.isjunction(path): fail("bad_source", "%s is a link" % path)
         for name in names:
-            if name.startswith("."): continue
             path = Path(top) / name
             files.append(path); total += path.stat().st_size
             if len(files) > MAX_FILES: fail("bad_source", "%s holds more than %d files" % (folder, MAX_FILES))

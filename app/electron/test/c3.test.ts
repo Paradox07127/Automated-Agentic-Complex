@@ -145,9 +145,11 @@ test('Frames that stop growing while active for 4 s kill; idle does not', () => 
   }
 });
 
-test('A drop path is POSIX absolute or Win32 absolute (a drive, UNC or \\\\?\\), nothing else', () => {
+test('A drop path is POSIX absolute or Win32 absolute (a drive, \\\\host\\share or \\\\?\\X:\\), nothing else', () => {
   const drop = (path: string) => dropProblem({ v: 1, type: 'drop', x: 300, y: 350, items: [{ kind: 'file', path }] });
   for (const path of ['/Users/someone/note.txt', 'C:\\Users\\someone\\note.txt', 'd:\\a b\\猫.txt', '\\\\server\\share\\note.txt',
-    '\\\\?\\C:\\very\\long\\path.txt']) assert.equal(drop(path), null, path);
-  for (const path of ['note.txt', 'C:note.txt', 'C:/Users/note.txt', '\\Users\\note.txt', '', '1:\\note.txt']) assert.equal(drop(path), 'item', path);
+    '\\\\server\\share', '\\\\?\\C:\\very\\long\\path.txt']) assert.equal(drop(path), null, path);
+  for (const path of ['note.txt', 'C:note.txt', 'C:/Users/note.txt', '\\Users\\note.txt', '', '1:\\note.txt', '\\\\', '\\\\server',
+    '\\\\server\\', '\\\\.\\pipe\\x', '\\\\.\\PhysicalDrive0', '\\\\?\\', '\\\\?\\C:', '\\\\?\\UNC\\server\\share\\note.txt',
+    '\\\\\\share\\note.txt']) assert.equal(drop(path), 'item', path);
 });

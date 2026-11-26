@@ -24,7 +24,7 @@ AGENTD = Path(__file__).resolve().parent
 sys.path.insert(0, str(AGENTD))  # -I leaves the script's folder off the path
 from character_library import Library, Package, PackageError, digest, read_json, validate_pack, write_json
 from infra.platform import lock_file
-from motion.zip_import import Failure, classify, extract, fail, placed, walk
+from motion.zip_import import AUDIO, Failure, classify, extract, fail, placed, walk
 
 # The host refuses a character with more action rows or motion media tracks than this.
 HOST_ROWS = 128
@@ -150,6 +150,18 @@ def keep(path, folder):
     return name
 
 
+def music(path):
+    """path, the music a user named, or None for None; bad_source unless it is a regular file, no link, of an audio suffix and
+    within prepare_music's size limit, and on Windows, where prepare_music has no decoder program."""
+    if path is None: return None
+    if sys.platform == "win32": fail("bad_source", "bgm_unsupported_on_windows: " + str(path))
+    if path.is_symlink() or not path.is_file(): fail("bad_source", "the music is no regular file: " + str(path))
+    if path.suffix.lower() not in AUDIO: fail("bad_source", "the music is no audio file: " + str(path))
+    limit = importlib.import_module(importer() + ".import_vmd").MAX_MUSIC_BYTES
+    if path.stat().st_size > limit: fail("bad_source", "the music is over %d MiB: %s" % (limit // 1024 ** 2, path))
+    return path
+
+
 def finite(seconds):
     """--bgm-start: any finite number of seconds; a negative one starts the music after that much silence."""
     if seconds is not None and not math.isfinite(seconds): fail("bad_source", "--bgm-start must be a finite number of seconds")
@@ -178,7 +190,7 @@ def inputs(args, paths):
         left = [item["name"] for kind in ("bodies", "faces", "cameras", "audio") for item in found[kind]
                 if Path(item["path"]) not in (body, morph, camera, bgm)]
         warnings = ["ignored_file: " + name for name in sorted(left + [item["name"] for item in found["ignored"]])]
-    return body, morph, camera, bgm, start if bgm else None, warnings
+    return body, morph, camera, music(bgm), start if bgm else None, warnings
 
 
 def mmd_rows(package):
@@ -504,6 +516,7 @@ def mmd_media(args):
     host = args.validate_with.resolve()
     if not (host.is_file() and os.access(host, os.X_OK)): fail("validate_failed", "host executable is missing or not executable: " + str(host))
     finite(args.bgm_start)
+    bgm = music(args.bgm)
     progress = Progress().span(MEDIA_STAGES); progress("read", 0)
     library = Library(args.library)
     package = find(library, args.character)
@@ -514,7 +527,6 @@ def mmd_media(args):
         shared = load_mmd(library)
         entry = next((e for e in shared["entries"] if e["id"] == args.action and e["removed_at"] is None), None)
         if entry is None: fail("unknown_action", args.action + " is not in the MMD library")
-        bgm = args.bgm
         bgm_start = args.bgm_start if bgm else None
         version = package.version
         progress("read", 1)

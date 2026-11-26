@@ -452,8 +452,9 @@ export const attachProblem = (m: Fields): string | null => (m.track_id === null 
 
 export const DROP_LIMITS = { items: 16, textBytes: 16384 } as const;
 
-/** Dropped file `path`: POSIX absolute, or Win32 absolute, which begins with a drive (`X:\`) or with `\\` (UNC, `\\?\`). */
-const absolutePath = (p: string) => p.startsWith('/') || /^[A-Za-z]:\\/.test(p) || p.startsWith('\\\\');
+/** Dropped file `path`: POSIX absolute, or Win32 absolute: a drive (`X:\`), a share (`\\host\share`, then `\` or the end) or
+ *  `\\?\X:\`. No host has a `?`, which leaves out `\\?\UNC\`, and `\\.\` is a device. validate.py's ABSOLUTE_PATH. */
+const absolutePath = (p: string) => /^(?:\/|[A-Za-z]:\\|\\\\(?!\.\\)[^\\/?]+\\[^\\/]+(?:\\|$)|\\\\\?\\[A-Za-z]:\\)/.test(p);
 
 /** Drop payload: 1–16 items of one field each. */
 export function dropProblem(m: Fields): string | null {

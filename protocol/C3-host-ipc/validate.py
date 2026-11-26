@@ -51,8 +51,9 @@ PIPELINE_SUSPENDED = {"system_sleep", "screen_sleep", "session_inactive", "switc
 MAX_DROP_ITEMS = 16
 MAX_DROP_TEXT = 16384
 DROP_FIELDS = {"file": "path", "url": "url", "text": "text"}
-# A POSIX absolute path, or a Win32 one, which begins with a drive (X:\) or with \\ (UNC, \\?\).
-ABSOLUTE_PATH = re.compile(r"/|[A-Za-z]:\\|\\\\")
+# A POSIX absolute path, or a Win32 one: a drive (X:\), a share (\\host\share, then \ or the end) or \\?\X:\. No host has
+# a ?, which leaves out \\?\UNC\, and \\.\ is a device.
+ABSOLUTE_PATH = re.compile(r"/|[A-Za-z]:\\|\\\\(?!\.\\)[^\\/?]+\\[^\\/]+(?:\\|\Z)|\\\\\?\\[A-Za-z]:\\")
 ATTENTION_SOURCES = {"panel", "focus"}
 SIDES = ("left", "right")
 MAX_MOTION_REQUEST_LINE = 4096

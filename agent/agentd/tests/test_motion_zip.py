@@ -1,9 +1,11 @@
 """motion.zip_import unpacks a dropped motion ZIP safely, walks a folder and sorts the files into bodies, faces, cameras and audio."""
+import os
 from pathlib import Path
 import stat
 import sys
 import tempfile
 import unittest
+from unittest import mock
 import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -87,6 +89,27 @@ class WalkTests(unittest.TestCase):
         self.put(*("%03d.txt" % i for i in range(257)))
         with self.assertRaises(zip_import.Failure) as caught: zip_import.walk(self.root)
         self.assertEqual(caught.exception.reason, "bad_source")
+
+    def refused(self):
+        with self.assertRaises(zip_import.Failure) as caught: zip_import.walk(self.root / "song")
+        self.assertEqual(caught.exception.reason, "bad_source")
+
+    @unittest.skipIf(sys.platform == "win32", "creating a symlink needs a privilege Windows does not give by default")
+    def test_a_link_to_a_file_outside_the_folder_is_a_bad_source(self):
+        self.put("song/a.vmd", "outside/secret.txt")
+        (self.root / "song/c.wav").symlink_to(self.root / "outside/secret.txt")
+        self.refused()
+
+    @unittest.skipIf(sys.platform == "win32", "creating a symlink needs a privilege Windows does not give by default")
+    def test_a_broken_link_is_a_bad_source(self):
+        self.put("song/a.vmd")
+        (self.root / "song/b.wav").symlink_to(self.root / "missing.wav")
+        self.refused()
+
+    def test_a_windows_junction_is_a_bad_source(self):
+        self.put("song/a.vmd", "song/joined/x.vmd")
+        real = os.path.isjunction
+        with mock.patch("os.path.isjunction", lambda p: Path(p).name == "joined" or real(p)): self.refused()
 
 
 class ClassifyTests(unittest.TestCase):

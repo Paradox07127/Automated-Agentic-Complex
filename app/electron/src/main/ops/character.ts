@@ -501,9 +501,19 @@ function mmdDetail(line: Record<string, unknown>): Record<string, unknown> {
   };
 }
 
+/** Where the app instance of `supportDir` unpacks its MMD scans: instances of other support dirs run beside it. */
+export function mmdScanRoot(supportDir: string): string {
+  return join(tmpdir(), 'agentic-complex-mmd-scan', createHash('sha256').update(supportDir).digest('hex').slice(0, 16));
+}
+
+/** Deletes every scan under `scanRoot`: at start-up none is waiting for its import, at quit none will be imported. */
+export function dropMmdScans(scanRoot: string): void {
+  rmSync(scanRoot, { recursive: true, force: true });
+}
+
 /** `mmd.scan` unpacks into a fresh folder under `scanRoot`; the one scan waiting for its import keeps its folder until a new
- *  scan, its import or `mmd.dropScan`. */
-export function mmdOps(ctx: OpsContext, picker: ImportPicker = electronPicker, scanRoot = join(tmpdir(), 'agentic-complex-mmd-scan')): Ops {
+ *  scan, its import or `mmd.dropScan`. Without a support dir there is no library to scan for. */
+export function mmdOps(ctx: OpsContext, picker: ImportPicker = electronPicker, scanRoot = mmdScanRoot(ctx.config.supportDir ?? '')): Ops {
   let pending: { token: string; dir: string; scan: MmdScan } | null = null;
   const drop = () => {
     if (pending !== null) rmSync(pending.dir, { recursive: true, force: true });
@@ -537,8 +547,9 @@ export function mmdOps(ctx: OpsContext, picker: ImportPicker = electronPicker, s
       }
     },
     /** Read-only: no switch hold, so it answers while another import runs. */
-    'mmd.detail': async ([id]) => {
-      if (typeof id !== 'string') throw new BridgeFailure('bad_args', 'mmd.detail');
+    'mmd.detail': async ([value]) => {
+      const id = motionID(value);
+      if (id === null) throw new BridgeFailure('bad_args', 'mmd.detail');
       try {
         const library = libraryDir(ctx);
         const character = await currentCharacter(ctx);
