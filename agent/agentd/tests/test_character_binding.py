@@ -167,6 +167,11 @@ class BoundPromptTest(BindingCase):
         self.server.mouth = Mouth(character="aster")
         self.server.mouth.refresh_system(effective(self.server))  # as main() does once the bindings exist
 
+    def bind(self, cid, body):
+        from character.binding import effective
+        self.assertEqual(self.server.bindings.update(cid, body)[0], 200)
+        self.server.mouth.refresh_system(effective(self.server))
+
     def text(self):
         return bound_prompt(self.server)
 
@@ -176,8 +181,7 @@ class BoundPromptTest(BindingCase):
 
     def test_a_generated_binding_follows_its_character_through_switches(self):
         self.assertNotIn(persona.MOTION_RULE, self.text())
-        self.assertEqual(self.request("PUT", "/characters/aster/binding",
-                                      {"revision": 0, "motion": {"driver": "generated"}})[0], 200)
+        self.bind("aster", {"revision": 0, "motion": {"driver": "generated"}})
         self.assertEqual(self.settings.backend, "game")
         self.assertIn(persona.MOTION_RULE, self.text())
         self.assertTrue(self.server.set_character("birch"))
@@ -190,8 +194,7 @@ class BoundPromptTest(BindingCase):
 
     def test_a_persona_override_reaches_the_next_turn_prompt(self):
         overrides = {"identity": self.IDENTITY, "post_history_instructions": "回答控制在两句以内。"}
-        self.assertEqual(self.request("PUT", "/characters/aster/binding",
-                                      {"revision": 0, "persona": {"overrides": overrides}})[0], 200)
+        self.bind("aster", {"revision": 0, "persona": {"overrides": overrides}})
         self.assertIn(f"<identity>\n{self.IDENTITY}\n</identity>", self.text())
         self.assertNotIn(persona.MOTION_RULE, self.text())
         self.assertNotIn(self.IDENTITY, persona.render_persona(self.server.characters.load_card("aster")))
@@ -199,7 +202,7 @@ class BoundPromptTest(BindingCase):
         card, motion = bound(self.server.characters.load_card("aster"), effective(self.server))
         self.assertEqual((card["identity"], card["post_history_instructions"], motion),
                          (self.IDENTITY, overrides["post_history_instructions"], "game"))
-        self.assertEqual(self.request("PUT", "/characters/aster/binding", {"revision": 1, "persona": None})[0], 200)
+        self.bind("aster", {"revision": 1, "persona": None})
         self.assertEqual(self.text(), package_prompt(self.server, "aster", False))
 
     def test_bound_tells_the_generated_rule_the_game_rule_and_none_apart(self):
@@ -226,28 +229,10 @@ class BoundPromptTest(BindingCase):
     def test_post_history_override_reaches_the_mouth(self):
         self.server.mouth = Mouth(character="aster", lore_path=False)
         instructions = "回答控制在两句以内。"
-        path = "/characters/aster/binding"
-        self.assertEqual(self.request("PUT", path, {
-            "revision": 0, "persona": {"overrides": {"post_history_instructions": instructions}}})[0], 200)
+        self.bind("aster", {"revision": 0, "persona": {"overrides": {"post_history_instructions": instructions}}})
         self.assertEqual(self.instructions(), instructions)
-        self.assertEqual(self.request("PUT", path, {"revision": 1, "persona": None})[0], 200)
+        self.bind("aster", {"revision": 1, "persona": None})
         self.assertEqual(self.instructions(), self.server.mouth.card["post_history_instructions"])
-
-    def test_another_characters_binding_leaves_the_current_mouth(self):
-        before = self.text()
-        self.assertEqual(self.request("PUT", "/characters/cedar/binding", {
-            "revision": 0, "motion": {"driver": "generated"}, "persona": {"overrides": {"identity": self.IDENTITY}}})[0], 200)
-        self.assertEqual(self.text(), before)
-        self.server.mouth = helpers.FakeMouth([])
-        self.assertEqual(self.request("PUT", "/characters/birch/binding",
-                                      {"revision": 1, "motion": {"driver": "generated"}})[0], 200)
-        self.assertEqual(self.server.mouth.refreshed, 0)
-
-    def test_a_voice_only_change_does_not_refresh(self):
-        self.server.mouth = helpers.FakeMouth([])
-        self.assertEqual(self.request("PUT", "/characters/aster/binding", {
-            "revision": 0, "voice": {"voice_id": "custom", "language": "ja"}, "motion": {"driver": "game"}})[0], 200)
-        self.assertEqual(self.server.mouth.refreshed, 0)
 
 
 class BindingDefaultsTest(PackageDefaultsTest):
@@ -451,79 +436,32 @@ class BindingRoutesTest(BindingCase):
         self.server.mouth = helpers.FakeMouth([])
         self.server.mouth.history = [["user", "context", "reply"]]
 
-    def test_get_and_put_round_trip(self):
+    def test_get_reads_the_effective_binding(self):
         path = "/characters/aster/binding"
         self.assertEqual(self.request("GET", path), (200, self.server.bindings.effective("aster")))
-        status, reply = self.request("PUT", path, {"revision": 0, "motion": {"driver": "generated"},
-                                                "persona": {"overrides": {"identity": "custom"}}})
-        self.assertEqual(status, 200)
-        self.assertEqual(reply["revision"], 1)
-        self.assertEqual(self.request("GET", path), (200, reply))
-        self.assertEqual(self.settings.backend, "game")
-        self.assertEqual(self.server.mouth.refreshed, 1)
+        self.server.bindings.update("aster", {"revision": 0, "motion": {"driver": "generated"}})
+        self.assertEqual(self.request("GET", path), (200, self.server.bindings.effective("aster")))
+        self.assertEqual(self.request("GET", path)[1]["revision"], 1)
 
-    def test_routes_before_bindings_exist(self):
+    def test_route_before_bindings_exist(self):
         del self.server.bindings
-        for method in ("GET", "PUT"):
-            self.assertEqual(self.request(method, "/characters/aster/binding", {"revision": 0}),
-                             (503, {"error": "no_bindings"}))
+        self.assertEqual(self.request("GET", "/characters/aster/binding"), (503, {"error": "no_bindings"}))
 
     def test_unknown_character_and_path_limits(self):
-        for method in ("GET", "PUT"):
-            self.assertEqual(self.request(method, "/characters/unknown/binding", {"revision": 0}),
-                             (404, {"error": "unknown_character"}))
-            for cid in ("a-b_1", "a" * 64):
-                self.assertEqual(self.request(method, f"/characters/{cid}/binding", {"revision": 0}),
-                                 (404, {"error": "unknown_character"}))
-            for cid in ("", "a" * 65, "Aster", "a/b"):
-                self.assertEqual(self.request(method, f"/characters/{cid}/binding", {"revision": 0}),
-                                 (404, {"error": "not_found"}))
+        self.assertEqual(self.request("GET", "/characters/unknown/binding"), (404, {"error": "unknown_character"}))
+        for cid in ("a-b_1", "a" * 64):
+            self.assertEqual(self.request("GET", f"/characters/{cid}/binding"), (404, {"error": "unknown_character"}))
+        for cid in ("", "a" * 65, "Aster", "a/b"):
+            self.assertEqual(self.request("GET", f"/characters/{cid}/binding"), (404, {"error": "not_found"}))
 
-    def test_only_ui_token_can_read_and_write(self):
-        for method in ("GET", "PUT"):
-            for token in (None, helpers.HOOK, helpers.EVENTS):
-                with self.subTest(method=method, token=token):
-                    self.assertEqual(self.request(method, "/characters/aster/binding", {"revision": 0}, token),
-                                     (401, {"error": "unauthorized"}))
+    def test_only_ui_token_can_read(self):
+        for token in (None, helpers.HOOK, helpers.EVENTS):
+            with self.subTest(token=token):
+                self.assertEqual(self.request("GET", "/characters/aster/binding", None, token),
+                                 (401, {"error": "unauthorized"}))
 
-    def test_current_voice_put_and_reset_update_the_live_relay(self):
-        path = "/characters/aster/binding"
-        self.assertEqual(self.request("PUT", path, {"revision": 0, "voice": {"voice_id": "custom", "language": "ja"}})[0], 200)
-        self.assertEqual((self.server.speech.character, self.server.speech.language), ("custom", "ja"))
-        self.assertTrue(self.server.character_voice_enabled)
-        self.assertEqual(self.request("PUT", path, {"revision": 1, "voice": None})[0], 200)
-        self.assertEqual((self.server.speech.character, self.server.speech.language), ("voice_a", "zh"))
-        self.assertEqual(self.server.mouth.refreshed, 0)
-        self.assertEqual(self.server.mouth.history, [["user", "context", "reply"]])
-
-    def test_other_character_voice_does_not_change_current_speech(self):
-        self.assertEqual(self.request("PUT", "/characters/cedar/binding", {
-            "revision": 0, "voice": {"voice_id": "custom", "language": "en"}})[0], 200)
-        self.assertEqual((self.server.speech.character, self.server.speech.language), ("voice_a", "zh"))
-        self.assertEqual(self.server.character, "aster")
-        self.assertTrue(self.server.character_voice_enabled)
-        self.assertEqual(self.server.bindings.voice("cedar"), ("custom", "en"))
-
-    def test_voice_on_silent_character_enables_speech_and_reset_disables_it(self):
-        with self.server._mouth_lock, self.server._switch_lock:
-            self.server._swap_held("cedar", self.server.characters.load_card("cedar"), None)
-        self.assertFalse(self.server.character_voice_enabled)
-        path = "/characters/cedar/binding"
-        self.assertEqual(self.request("PUT", path, {"revision": 0, "voice": {"voice_id": "custom", "language": "en"}})[0], 200)
-        self.assertTrue(self.server.character_voice_enabled)
-        self.assertFalse(self.server._text_only("text"))
-        self.assertEqual((self.server.speech.character, self.server.speech.language), ("custom", "en"))
-        self.assertEqual(self.request("PUT", path, {"revision": 1, "voice": None})[0], 200)
-        self.assertFalse(self.server.character_voice_enabled)
-        self.assertTrue(self.server._text_only("text"))
-
-    def test_failed_put_leaves_speech_unchanged(self):
-        path = "/characters/aster/binding"
-        for body, error in ((None, "invalid_payload"), ({"revision": 0, "voice": {"voice_id": 1, "language": "zh"}}, "invalid_voice")):
-            self.assertEqual(self.request("PUT", path, body), (400, {"error": error}))
-        self.assertEqual(self.request("PUT", path, {"revision": 1, "voice": None}),
-                         (409, {"error": "revision_conflict", "revision": 0}))
-        self.assertEqual((self.server.speech.character, self.server.speech.language), ("voice_a", "zh"))
+    def test_put_is_not_a_route(self):
+        self.assertEqual(self.request("PUT", "/characters/aster/binding", {"revision": 0})[0], 404)
 
     def test_switch_and_provider_use_persisted_user_voice(self):
         from character.binding import Bindings, effective
@@ -535,12 +473,6 @@ class BindingRoutesTest(BindingCase):
             self.server._swap_held("birch", self.server.characters.load_card("birch"), None)
         self.assertEqual((self.server.speech.character, self.server.speech.language), ("custom", "ja"))
         self.assertTrue(self.server.character_voice_enabled)
-
-    def test_put_without_speech_relay(self):
-        self.server.speech = None
-        self.assertEqual(self.request("PUT", "/characters/aster/binding", {
-            "revision": 0, "voice": {"voice_id": "custom", "language": "en"}})[0], 200)
-        self.assertIsNone(self.server.speech)
 
 
 if __name__ == "__main__":

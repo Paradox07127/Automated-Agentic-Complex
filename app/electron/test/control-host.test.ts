@@ -831,7 +831,6 @@ test('the panel: waiting for a choice, the page grants, agentd acts, the page st
       raises.push(raise);
       panel.present(s, raise);
     };
-    panel.start();
     const click = (op: string, ...args: unknown[]) => panelOps.get(op)!(args, {} as never);
 
     const first = await h.ask('desktop_observe', TARGET);

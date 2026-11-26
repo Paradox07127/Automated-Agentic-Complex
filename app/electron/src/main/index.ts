@@ -33,7 +33,7 @@ import { PushSource } from '../common/push.ts';
 import { desktopScreens } from '../common/desktop-screens.ts';
 import { DEV_WEB_FLAG, devWebServer } from '../common/dev-web.ts';
 import { RecentAnnouncements } from '../common/recent-announcements.ts';
-import { PushToTalk, pushToTalkState, speechLocale } from '../common/push-to-talk.ts';
+import { PushToTalk, speechLocale } from '../common/push-to-talk.ts';
 import { startupWindow } from '../common/startup.ts';
 import { trayTitle } from '../common/tray-title.ts';
 import { TurnMarks } from '../common/turn-marks.ts';
@@ -56,7 +56,6 @@ import { CameraOverlayWindow } from './camera/overlay.ts';
 import { PhotoOverlayWindow } from './camera/photo-overlay.ts';
 import { desktopPoses, wheelPose } from './camera/pose.ts';
 import { CAMERA_OFFERS, shellCamera } from './camera/shell.ts';
-import { feedCommands } from './commands/feed.ts';
 import { looksCommands } from './commands/looks.ts';
 import {
   configPathFromArgs, DEFAULT_AGENTD_STATE_DIR, DEFAULT_SUPPORT_DIR, DEFAULT_WEB_LOGS_DIR, lastCharacter, loadConfig, quitAfterFromArgs, supportDirOf,
@@ -570,8 +569,6 @@ const processHistory = new ProcessHistory({
 processHistory.start();
 /** A test run's switch: push-to-talk is left out, so the helper registers no key and opens no microphone. */
 const noPushToTalk = process.argv.includes('--no-push-to-talk');
-/** `voice.onPushToTalk`'s values; sent as they come, none replayed. */
-const pushToTalkEvents = new PushSource('state', { replay: false });
 /** `voice.onTrial`'s values for the guide's voice step. */
 const voiceTrials = new PushSource('trial', { replay: false });
 /** 按住说话 over the helper. */
@@ -587,7 +584,6 @@ const pushToTalk = config && helper && agentdClient !== null && !noPushToTalk ? 
     ...(turnMarks && { marks: turnMarks }),
     stopSpeech: (generation) => { hostLink?.stopSpeech(generation); },
     onHint: (hint) => {
-      pushToTalkEvents.send(pushToTalkState(hint));
       desktop?.source.setVoiceHint(hint);
       menus.refreshIcon();
     },
@@ -921,17 +917,12 @@ function opsContext(surface: Surface): OpsContext {
     avatar: hostLink && linkAvatarHost(hostLink, (hidden) => setAvatarHidden(hidden), {
       captureDir: CAPTURE_DIR,
       captureSaved: notifyCaptureSaved,
-      clickThroughChanged: () => {
-        runtimeChanged();
-        desktop?.pushState();
-      },
     }),
     cpuSeconds, residentMB, processHistory,
     looks, switcher, mmdSync,
     placement: placer,
     preview,
     helper,
-    pushToTalk: pushToTalk && pushToTalkEvents,
     dropped: drops && drops.dropped,
     // Only the main window's messages are marked.
     turnMarks: surface === 'main' ? turnMarks : null,
@@ -1487,7 +1478,6 @@ void app.whenReady().then(async () => {
       unregister: (id) => pages.delete(id),
       baseOps: surfaceOps('stack'),
     });
-    controlPanel.start();
     screen.on('display-added', () => controlPanel?.place());
     screen.on('display-removed', () => controlPanel?.place());
     screen.on('display-metrics-changed', () => controlPanel?.place());
@@ -1521,9 +1511,6 @@ void app.whenReady().then(async () => {
     restartBackend: () => { void supervisor?.restart(); },
     log: (line) => appendLog(config?.supportDir ?? supportDir, 'companion', line),
   });
-  // agentd's `command` events are carried out as they come.
-  store?.subscribe(feedCommands({ ctx: opsContext('main'), notice: (text) => desktop?.notice(text),
-    log: (line) => appendLog(config?.supportDir ?? supportDir, 'companion', line) }));
   // Her own outfit changes, carried out as the menu's and answered with a receipt.
   if (looks && hostLink && agentdClient !== null) {
     const client = agentdClient;

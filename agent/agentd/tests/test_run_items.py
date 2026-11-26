@@ -236,21 +236,6 @@ class RunItemTests(unittest.TestCase):
             timer.call_args.args[1]()
             self.assertEqual([r['item_id'] for r in self.store.items('run')], ['recent'])
 
-    def test_files_route_lists_run_file_effects_or_unknown_run(self):
-        replies = []
-        files = [{'path': '/in/a.md', 'op': 'read', 'added': None, 'removed': None}]
-        workspace = SimpleNamespace(run_files=lambda run_id: files if run_id == 'run' else [])
-        handler = SimpleNamespace(server=SimpleNamespace(ui_token='ui', resetting=False, closing=False,
-            character_agent=SimpleNamespace(store=self.store, workspace=workspace)), auth=lambda token: token == 'ui',
-            json=lambda status, data: replies.append((status, data)))
-        self.assertTrue(route(handler, 'GET', '/agent/runs/run/files'))
-        self.assertEqual(replies[-1], (200, {'files': files}))
-        self.assertTrue(route(handler, 'GET', '/agent/runs/missing/files'))
-        self.assertEqual(replies[-1], (404, {'error': 'unknown_run'}))
-        handler.auth = lambda _: False
-        route(handler, 'GET', '/agent/runs/run/files')
-        self.assertEqual(replies[-1][0], 401)
-
     def test_runs_route_reads_the_named_runs_outside_the_newest_window(self):
         for k in range(60):
             self.store.begin(f'newer-{k}', 'conversation', 'character', 1)

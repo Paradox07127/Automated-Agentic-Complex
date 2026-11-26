@@ -9,8 +9,6 @@ from sessions import threads
 from api.views import _iso, _episode_json, _thread_json
 
 EPISODE_ID = re.compile(r"[0-9]{1,18}")
-EDIT_TITLE_MAX = 120
-EDIT_DESCRIPTION_MAX = 12000
 DAY_THREADS = 6  # threads GET /episodes?date= lists at most
 RUN_KINDS = ("memory_extract", "observation_interpret", "observation_vision", "user_vision", "proactive_decide", "facing_decide", "observation_brief", "review", "conversation")
 
@@ -61,36 +59,6 @@ class EpisodesMixin:
                     'outcome':run['state'],'reasons':[]}})
         if not server.page_text_allowed(): return self._json(403, {'error':'page_text_off'})
         self._json(410, {"error": "evidence_expired"})
-
-    def _episode_edit(self, raw_id):
-        """PATCH /episodes/<id> {title, description}:the user's wording replaces the episode's; the change is
-        kept in summary_corrections."""
-        try:
-            body = self._body()
-        except ValueError:
-            return self._json(400, {"error": "invalid_payload"})
-        episodes = self.server.episodes
-        if episodes is None:
-            return self._json(503, {"error": "no_episodes"})
-        if not EPISODE_ID.fullmatch(raw_id): return self._json(404, {'error':'unknown_episode'})
-        current=episodes.get(int(raw_id))
-        if current is None: return self._json(404, {'error':'unknown_episode'})
-        controller=self.server.character_agent
-        if not (controller._permitted('episodes',current) if controller else self.server.page_text_allowed()):
-            return self._json(403, {'error':'source_permission_revoked' if controller else 'page_text_off'})
-        title, description = (body.get("title"), body.get("description")) if isinstance(body, dict) else (None, None)
-        title = title.strip() if isinstance(title, str) else ""
-        description = description.strip() if isinstance(description, str) else ""
-        if not 0 < len(title) <= EDIT_TITLE_MAX:
-            return self._json(400, {"error": "invalid_title"})
-        if not 0 < len(description) <= EDIT_DESCRIPTION_MAX:
-            return self._json(400, {"error": "invalid_description"})
-        episode = episodes.edit(int(raw_id), title, description)
-        if episode is None:
-            return self._json(404, {"error": "unknown_episode"})
-        briefs = getattr(controller, 'observation_briefs', None)
-        if briefs is not None: briefs.forget_episodes([int(raw_id)])
-        self._json(200, {"episode": _episode_json(episode)})
 
     def _summary_runs(self, day):
         """GET /summary/runs?date=&kinds=:the receipts of the runs that started on day, newest first, without

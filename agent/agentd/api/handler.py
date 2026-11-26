@@ -25,7 +25,7 @@ from api.speech import SpeechMixin
 from models import capabilities
 from observation.blacklist import ALLOW_FIELDS
 from personal.commitments import TRANSITIONS
-from daemon.constants import VIEW_FRESH, RECEIPTS_KEPT, NO_HISTORY, SEEN
+from daemon.constants import VIEW_FRESH, RECEIPTS_KEPT, SEEN
 from daemon.rituals_glue import TAP_REGION_TEXT
 from sessions.events import normalize_claude, normalize_codex
 from route_registry import COMMITMENT_PATH, REGISTRY, SERVER, SESSION_PATH, TASK_PATH, routes_table
@@ -640,11 +640,6 @@ class Handler(BaseHTTPRequestHandler, HooksMixin, SessionsMixin, MemoryMixin, Ep
         if not self.server.focus_stop():
             return self._json(409, {"error": "no_focus"})
         return self._json(200, {"focus": None})
-
-    def _history_delete(self):
-        if self.server.history is None:
-            return self._json(503, NO_HISTORY)
-        return self._json(200, {"deleted": self.server.clear_history()})
 
     def _attention_delete(self):
         if self.server.attention is None:

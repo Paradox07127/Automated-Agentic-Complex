@@ -115,7 +115,6 @@ class CharacterSwitchMixin:
                 next_mouth.history = [turn for _, turn in turns]
                 self._line_entries.update(turns)
         self.retire_foreground()
-        self.feed.publish("task_understanding", {"action":"updated", "character_id":cid})
         if voice is not None and self.speech is not None:
             self.speech.character, self.speech.language = voice
         if backend is not None:

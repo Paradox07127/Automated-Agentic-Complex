@@ -30,9 +30,9 @@ function sentAsIs(path: string): boolean {
   return url.pathname + url.search === path;
 }
 
-/** `/history/export`, `/memory/export` with or without one `owner`, or one trace turn with or without its text. */
+/** `/memory/export` with or without one `owner`, or one trace turn with or without its text. */
 export function isExportPath(path: string): boolean {
-  if (path === '/history/export' || path === '/memory/export') return true;
+  if (path === '/memory/export') return true;
   return isWellFormed(path) && sentAsIs(path)
     && /^\/(trace\/turns\/[^/?]{1,64}(\?with_text=1)?|memory\/export\?owner=[^/?&]{1,192})$/u.test(path);
 }

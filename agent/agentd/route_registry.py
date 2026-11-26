@@ -16,7 +16,6 @@ TASK_PATH = re.compile(r"^/tasks/([^/]{1,64})/(accept|reject)$")
 COMMITMENT_PATH = re.compile(r"^/commitments/([^/]{1,64})/(cancel|snooze|complete)$")
 EPISODE_PATH = re.compile(r"^/episodes/(\d{1,18})$")
 TIMELINE_SUMMARY_PATH = re.compile(r"^/context/timeline/summaries/(\d{1,18})$")
-EPISODE_EDIT_PATH = re.compile(r"^/episodes/([^/]{1,64})$")
 EVIDENCE_PATH = re.compile(r"^/episodes/([^/]{1,64})/evidence$")
 MOTION_FILE_PATH = re.compile(r"^/motions/(gm-[0-9a-f]{16})/(meta|keys)$")
 MOTION_TRACKS_PATH = re.compile(r"^/motions/(gm-[0-9a-f]{16})/tracks$")
@@ -131,8 +130,6 @@ REGISTRY = (
     Route("GET", "/history", UI, "read", ("main",),
           owner=SERVER, action="_history_get", summary="Chat history page, newest first",
           response="history.json"),
-    Route("GET", "/history/export", UI, "read", ("main",),
-          owner=SERVER, action="_history_get", summary="All chat history, oldest first"),
     Route("GET", "/memory", UI, "read", ("main",),
           owner=SERVER, action="_memory_get", summary="Active memory facts and counts",
           response="memory.json"),
@@ -257,16 +254,12 @@ REGISTRY = (
           owner=AGENT_HTTP, summary="Agent runs"),
     Route("GET", re.compile(r"^/agent/runs/([A-Za-z0-9_-]{1,128})/items$"), UI, "read", ("main",), templates=("/agent/runs/:run_id/items",),
           owner=AGENT_HTTP, summary="Items of one agent run"),
-    Route("GET", re.compile(r"^/agent/runs/([A-Za-z0-9_-]{1,128})/files$"), UI, "read", ("main",), templates=("/agent/runs/:run_id/files",),
-          owner=AGENT_HTTP, summary="Files written by one agent run"),
     Route("GET", "/memory/runs", UI, "read", ("main",),
           owner=AGENT_HTTP, summary="Memory pipeline runs"),
     Route("GET", re.compile(r"^/memory/runs/([A-Za-z0-9_-]{1,128})$"), UI, "read", ("main",), templates=("/memory/runs/:run_id",),
           owner=AGENT_HTTP, summary="One memory pipeline run"),
     Route("GET", "/agent/goals", UI, "read", ("main",),
           owner=AGENT_HTTP, summary="Background goals", response="agent-goals.json"),
-    Route("GET", re.compile(r"^/agent/goals/([a-f0-9]{32})$"), UI, "read", ("main",), templates=("/agent/goals/:goal_id",),
-          owner=AGENT_HTTP, summary="One background goal"),
     Route("GET", "/agent/jobs", UI, "read", ("main",),
           owner=AGENT_HTTP, summary="Background jobs", response="agent-jobs.json"),
     Route("GET", "/agent/tasks", UI, "read", ("main",),
@@ -278,8 +271,6 @@ REGISTRY = (
           owner=AGENT_HTTP, summary="Files of one canonical task"),
     Route("GET", "/agent/deliveries", UI, "read", ("main",),
           owner=AGENT_HTTP, summary="Deliveries page"),
-    Route("GET", re.compile(r"^/agent/deliveries/delivery-[a-f0-9]{32}$"), UI, "read", ("main",), templates=("/agent/deliveries/:delivery_id",),
-          owner=AGENT_HTTP, summary="One delivery"),
     Route("POST", re.compile(r"^/agent/tasks/[^/]{1,196}/(accept|reject)$"), UI, "write", ("main", "stack"),
           templates=("/agent/tasks/:task_id/accept", "/agent/tasks/:task_id/reject"),
           owner=AGENT_HTTP, summary="Accept or reject a canonical task's delivery"),
@@ -509,8 +500,6 @@ REGISTRY = (
           owner=SERVER, action="_proactive_settings_put", summary="Set companion mode and quiet hours without restarting"),
     Route("PUT", "/motion/settings", UI, "write", ("main",),
           owner=MOTION, summary="Set the motion backend, service URL and token"),
-    Route("PUT", CHARACTER_BINDING_PATH, UI, "write", ("main",), templates=("/characters/:character_id/binding",),
-          owner=CHARACTER_BINDINGS, summary="Update a character binding at the current revision"),
     Route("PUT", "/context/activity", UI, "write", ("main",),
           owner=SERVER, action="_activity_put", summary="Correct the current activity"),
     Route("PUT", "/behavior/capabilities", UI, "host_only", (),
@@ -537,16 +526,12 @@ REGISTRY = (
           owner=CONTROL_PANEL, summary="Update an own session"),
     Route("PUT", "/character/runtime", UI, "write", ("main", "onboarding"),
           owner=AGENT_HTTP, summary="Change personal agent runtime settings"),
-    Route("PATCH", EPISODE_EDIT_PATH, UI, "write", ("main",), templates=("/episodes/:episode_id",),
-          owner=SERVER, action="_episode_edit", summary="Edit a summary's title and description"),
     Route("PATCH", FACT_PATH, UI, "write", ("main",), templates=("/memory/facts/:fact_id",),
           owner=SERVER, action="_fact_patch", summary="Correct a memory fact"),
     Route("DELETE", "/attention", UI, "write", ("main",),
           owner=SERVER, action="_attention_delete", summary="Clear attention and browser context"),
     Route("DELETE", "/focus", UI, "write", ("main", "stack"),
           owner=SERVER, action="_focus_delete", summary="End the focus session early"),
-    Route("DELETE", "/history", UI, "write", ("main",),
-          owner=SERVER, action="_history_delete", summary="Clear chat history"),
     Route("DELETE", "/memory", UI, "write", ("main",),
           owner=SERVER, action="_memory_remove", summary="Delete facts, history or both"),
     Route("DELETE", "/observation", UI, "write", ("main",),

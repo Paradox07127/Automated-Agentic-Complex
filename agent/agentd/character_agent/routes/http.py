@@ -19,10 +19,9 @@ def route(handler, method, path):
     job = re.fullmatch(r'/agent/jobs/([a-f0-9]{32})(?:/(cancel|resume))?', path)
     run = re.fullmatch(r'/agent/runs/([A-Za-z0-9_-]{1,128})/cancel', path)
     run_items = re.fullmatch(r'/agent/runs/([A-Za-z0-9_-]{1,128})/items', path)
-    run_files = re.fullmatch(r'/agent/runs/([A-Za-z0-9_-]{1,128})/files', path)
     canonical = re.fullmatch(r'/agent/tasks/([^/]{1,196})(?:/(steps|files|accept|reject))?', path)
     delivery = re.fullmatch(r'/agent/deliveries/(delivery-[a-f0-9]{32})(?:/(presented|viewed|opened))?', path)
-    if path not in ("/character/runtime", "/character/capabilities", "/character/acp/agents", "/character/acp/install", "/character/login/start", "/character/login/cancel", "/character/login/logout", "/agent/scopes", "/agent/runs", "/memory/runs", '/agent/goals', '/agent/jobs', '/agent/interactions', '/agent/tasks', '/agent/deliveries', '/agent/artifacts/revert') and not interaction and not task and not scope and not memory_run and not goal and not job and not run and not run_items and not run_files and not canonical and not delivery:
+    if path not in ("/character/runtime", "/character/capabilities", "/character/acp/agents", "/character/acp/install", "/character/login/start", "/character/login/cancel", "/character/login/logout", "/agent/scopes", "/agent/runs", "/memory/runs", '/agent/goals', '/agent/jobs', '/agent/interactions', '/agent/tasks', '/agent/deliveries', '/agent/artifacts/revert') and not interaction and not task and not scope and not memory_run and not goal and not job and not run and not run_items and not canonical and not delivery:
         return False
     h, server = handler, handler.server
     def reply(status, data):
@@ -62,9 +61,6 @@ def route(handler, method, path):
                 if canonical and canonical[2] is None:
                     value = service.task(ident)
                     return reply(200, {'task': value}) if value else reply(404, {'error': 'unknown_task'})
-                if delivery and delivery[2] is None:
-                    value = service.get(delivery[1])
-                    return reply(200, {'delivery': value}) if value else reply(404, {'error': 'unknown_delivery'})
                 return reply(405, {'error': 'method_not_allowed'})
             if method != 'POST': return reply(405, {'error': 'method_not_allowed'})
             body = h.body()
@@ -83,13 +79,13 @@ def route(handler, method, path):
             return reply(405, {'error': 'method_not_allowed'})
         if method == "GET":
             if path == '/agent/interactions': return reply(200, {'requests': controller.interactions.list()})
-            if path in ('/agent/goals', '/agent/jobs') or goal or job:
+            if path in ('/agent/goals', '/agent/jobs') or job:
                 if controller.jobs is None: return reply(503, {'error': 'job_store_unavailable'})
                 if job and job[2] is not None: return reply(405, {'error':'method_not_allowed'})
                 controller._recover_jobs()
                 if path == '/agent/goals': return reply(200, {'goals': controller.jobs.store.goals()})
                 if path == '/agent/jobs': return reply(200, {'jobs': controller.jobs.store.list()})
-                value = controller.jobs.store.goal(goal[1]) if goal else controller.jobs.store.get(job[1])
+                value = controller.jobs.store.get(job[1])
                 return reply(200, value) if value else reply(404, {'error': 'not_found'})
             if path == "/character/capabilities":
                 return reply(200, controller.public(discover=True)["capabilities"])
@@ -128,10 +124,6 @@ def route(handler, method, path):
                 if controller.store.get(run_items[1]) is None:
                     return reply(404, {"error": "unknown_run"})
                 return reply(200, {"items": controller.store.items(run_items[1])})
-            if run_files:
-                if controller.store.get(run_files[1]) is None:
-                    return reply(404, {"error": "unknown_run"})
-                return reply(200, {"files": controller.workspace.run_files(run_files[1])})
             return reply(405, {"error": "method_not_allowed"})
         body = h.body()
         if not isinstance(body, dict):

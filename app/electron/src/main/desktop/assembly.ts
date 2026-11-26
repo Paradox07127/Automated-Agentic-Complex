@@ -1,6 +1,6 @@
 // The desktop panels this shell has (the bubble `#/bubble`, her hover buttons `#/dock`, the wheel `#/cmd`, the console
 // `#/console` and the status chip `#/chip`): the card source, each panel's `stack` bridge ops, `desktop.onState`, `desktop.onPresence`,
-// `desktop.action` and `desktop.say`, the keyboard (`window.requestKey`, `releaseKey`), the 快速输入 hot key, the hover buttons'
+// `desktop.action` and `desktop.say`, the keyboard (`window.releaseKey`), the 快速输入 hot key, the hover buttons'
 // dead zone, the mouse downs that close the wheel and the console (`syncClickMonitors`), her
 // lines' `noteLine` (`lineWatch`), and the follower that moves the panels after her.
 import { randomUUID } from 'node:crypto';
@@ -530,7 +530,6 @@ export class DesktopAssembly {
     const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
     const own: [string, Handler<PageSession>][] = [
       ['window.onAnchor', watch('window.onAnchor', p.anchor)],
-      ['window.onAnchorState', watch('window.onAnchorState', p.anchorState)],
       ['window.onVisibility', watch('window.onVisibility', p.visibility)],
       ['window.onPointer', watch('window.onPointer', p.pointer)],
       ...(this.o.a11y ? [['window.onA11y', watch('window.onA11y', this.o.a11y)] as [string, Handler<PageSession>]] : []),
@@ -569,15 +568,10 @@ export class DesktopAssembly {
         this.kick();
         return null;
       }],
-      ['window.contentRect', () => p.contentRect()],
       ['window.close', () => {
         if (kind === 'cmd') this.close();
         else if (kind === 'console') this.closeConsole();
         else p.close();
-        return null;
-      }],
-      ['window.requestKey', () => {
-        p.requestKey();
         return null;
       }],
       // The command panel's release is its layer closed, the console's the console closed, the bubble's its 快速输入 put away.

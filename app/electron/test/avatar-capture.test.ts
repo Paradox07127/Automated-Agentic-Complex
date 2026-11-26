@@ -1,4 +1,4 @@
-// `avatar.toggleClickThroughAll`, `avatar.state.clickThroughAll` and `avatar.onStats.cpuPercent` against fake links.
+// `avatar.state.clickThroughAll` and `avatar.onStats.cpuPercent` against fake links.
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -90,39 +90,18 @@ function fixture(avatar: AvatarHost | null, extra: Partial<OpsContext> = {}): Fi
     done: () => rmSync(dir, { recursive: true, force: true }),
   };
 }
-const err = (code: string, detail: string) => ({ error: { code, detail } });
 
-test('avatar.toggleClickThroughAll flips the link\'s click-through all and logs it; avatar.state reports it', async () => {
-  const link = new FakeLink(), changed: boolean[] = [];
-  const f = fixture(linkAvatarHost(link, () => true, { clickThroughChanged: () => changed.push(link.clickThroughAll) }));
+test('avatar.state reports the link\'s click-through all', async () => {
+  const link = new FakeLink();
+  const f = fixture(linkAvatarHost(link, () => true));
   try {
     assert.equal(((await f.call('avatar.state')) as Record<string, unknown>).clickThroughAll, false);
-    assert.equal(await f.call('avatar.toggleClickThroughAll'), null);
-    assert.equal(link.clickThroughAll, true);
+    link.clickThroughAll = true;
     assert.equal(((await f.call('avatar.state')) as Record<string, unknown>).clickThroughAll, true);
-    assert.equal(await f.call('avatar.toggleClickThroughAll'), null);
-    assert.equal(((await f.call('avatar.state')) as Record<string, unknown>).clickThroughAll, false);
-    assert.deepEqual(changed, [true, false]);
-    assert.deepEqual(f.calls, ['log CLICK_THROUGH on source=menu', 'log CLICK_THROUGH off source=menu']);
     // `speaking` has no source.
     assert.equal(((await f.call('avatar.state')) as Record<string, unknown>).speaking, false);
   } finally {
     f.done();
-  }
-  // Without a link (config failed) it only logs; the op still answers.
-  const none = fixture(null);
-  try {
-    assert.equal(await none.call('avatar.toggleClickThroughAll'), null);
-    assert.deepEqual(none.calls, ['log CLICK_THROUGH source=menu: no avatar link (config failed)']);
-  } finally {
-    none.done();
-  }
-  const bare = { ...linkAvatarHost(new FakeLink(), () => true), setClickThroughAll: undefined } as AvatarHost;
-  const old = fixture(bare);
-  try {
-    assert.deepEqual(await old.call('avatar.toggleClickThroughAll'), err('not_implemented', 'avatar.toggleClickThroughAll'));
-  } finally {
-    old.done();
   }
 });
 
@@ -196,9 +175,9 @@ test('over C3: click-through all pins cursor.hit false', { skip: UNIX_LINK }, as
     a.send({ type: 'hit_capsules', space: 'global', capsules: [{ a: [1150, 1100], b: [1150, 1300], r: 40 }] });
     assert.ok(await until(1, () => a.last('cursor')?.hit === true));
 
-    assert.equal(await f.call('avatar.toggleClickThroughAll'), null);
+    link.clickThroughAll = true;
     assert.ok(await until(1, () => a.last('cursor')?.hit === false), 'click-through all');
-    assert.equal(await f.call('avatar.toggleClickThroughAll'), null);
+    link.clickThroughAll = false;
     assert.ok(await until(1, () => a.last('cursor')?.hit === true), 'off again');
     a.socket.destroy();
   } finally {

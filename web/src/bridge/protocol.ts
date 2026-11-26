@@ -149,12 +149,6 @@ export interface Rect {
   height: number;
 }
 
-export interface PushToTalkState {
-  phase: 'idle' | 'listening' | 'transcribing' | 'sent' | 'error';
-  partial?: string;
-  error?: string;
-}
-
 export type ComputerUseScope = 'observation' | 'text' | 'image' | 'control';
 
 export interface ComputerUseState {
@@ -221,13 +215,12 @@ export interface AgenticComplexBridge {
   avatar: AvatarOps;
   character: CharacterOps;
   mmd: MmdOps;
-  voice: { onPushToTalk(cb: (s: PushToTalkState) => void): Unsubscribe };
   files: FileAdopt & {
     pickFile(o: { purpose: 'runtime_executable' | 'scope_file' }): Promise<PickedHandle | null>;
     pickFolder(o: { purpose: 'scope_root' | 'scope_output' | 'session_cwd' }): Promise<PickedHandle | null>;
     /** `with_text=1` on a trace turn asks natively first; false when declined or the save panel was cancelled. */
     saveAgentdExport(o: {
-      path: '/history/export' | '/memory/export' | `/memory/export?owner=${string}` | `/trace/turns/${string}`;
+      path: '/memory/export' | `/memory/export?owner=${string}` | `/trace/turns/${string}`;
       suggestedName: string;
     }): Promise<boolean>;
   };
@@ -236,7 +229,6 @@ export interface AgenticComplexBridge {
     artifact(path: string): Promise<void>;
     revealInFinder(path: string): Promise<void>;
     jumpToSession(id: string): Promise<void>;
-    runFeedCommand(c: { action: 'open' | 'jump'; target: string }): Promise<void>;
     /** Runs a shell command in a new terminal window; requires `capabilities.runInTerminal`. */
     runInTerminal(command: string): Promise<void>;
   };
@@ -251,17 +243,14 @@ export interface AgenticComplexBridge {
   resize: ResizeOps;
   photo: PhotoOps;
   window: DesktopWindowOps & {
-    contentRect(): Promise<{ width: number; height: number }>;
     /** `glass`: the page's card rects for native glass; a report without it removes the glass. */
     setInteractiveRegions(r: Region[], glass?: GlassRect[]): void;
     close(): void;
-    requestKey(): void;
     openMain(route: string): void;
     onRoute(cb: (route: string) => void): Unsubscribe;
     onVisibility(cb: (visible: boolean) => void): Unsubscribe;
     /** Hover for non-key panels. */
     onPointer(cb: (p: PointerState) => void): Unsubscribe;
-    onAnchorState(cb: (s: AnchorState) => void): Unsubscribe;
     onA11y(cb: (a: A11yState) => void): Unsubscribe;
   };
   stack: {

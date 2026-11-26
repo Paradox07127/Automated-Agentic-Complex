@@ -103,10 +103,12 @@ class BriefHTTPTests(BriefHTTPFixture):
         other,unread=episode('2026-10-29'),episode('2026-10-24')
         first,second=(self.service.run_once('daily',date)['id'] for date in ('2026-10-30','2026-10-29'))
         states=lambda:dict(self.db.execute('SELECT id,state FROM observation_briefs').fetchall())  # noqa: E731
-        edit=lambda ident:self.request('PATCH',f'/episodes/{ident}',{'title':'改过的标题','description':'渲染测试失败，改过的描述'})[0]  # noqa: E731
-        self.assertEqual(edit(unread),200)
+        def edit(ident):
+            self.server.episodes.edit(ident,'改过的标题','渲染测试失败，改过的描述')
+            self.c.observation_briefs.forget_episodes([ident])
+        edit(unread)
         self.assertEqual(states(),{first:'completed',second:'completed'})
-        self.assertEqual(edit(self.episode_id),200)
+        edit(self.episode_id)
         self.assertEqual(states(),{first:'invalidated',second:'completed'})
         self.assertEqual(self.request('DELETE',f'/episodes/{other}')[0],200)
         self.assertEqual(states(),{first:'invalidated',second:'invalidated'})

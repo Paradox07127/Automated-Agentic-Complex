@@ -21,7 +21,7 @@ CHAIN_METHODS = {
     "_attention_events", "_browser", "_context_text", "_context_image", "_sessions_post", "_trace_events",
     "_memory_post", "_task_review", "_commitment_action", "_idempotent", "_say", "_hook", "_observation_put",
     "_activity_put", "_capabilities_put", "_switches_put", "_avatar_put", "_state_switch_put", "_memory_body",
-    "_episode_edit", "_episode_delete",
+    "_episode_delete",
     "_context_item_delete", "_memory_delete", "_observation_delete", "_blacklist_remove",
 }
 

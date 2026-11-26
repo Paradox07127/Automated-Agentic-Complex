@@ -128,18 +128,6 @@ export function rejectedHint(error: string, runtime: string | null): string {
   return shortRecovery(error, runtime) ?? REJECTED[error] ?? HINT.notSent;
 }
 
-/** Protocol.ts `PushToTalkState` of a hint; null for a download, which has no phase. */
-export function pushToTalkState(hint: VoiceHint | null): { phase: string; partial?: string; error?: string } | null {
-  if (hint === null) return { phase: 'idle' };
-  switch (hint.kind) {
-    case 'downloading': return null;
-    case 'listening': return { phase: 'listening', partial: hint.text };
-    case 'sent': return { phase: 'sent', partial: hint.text };
-    case 'discarded': return { phase: 'error', error: hint.reason };
-    case 'micDenied': return { phase: 'error', error: 'mic_denied' };
-  }
-}
-
 /** A bar's height as a share of the full height: a log scale over the 50 dB above −50 dBFS. */
 const bar = (rms: number) => (rms > 0 ? Math.min(Math.max((20 * Math.log10(rms) + 50) / 50, 0), 1) : 0);
 

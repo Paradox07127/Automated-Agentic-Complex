@@ -93,42 +93,6 @@ export function jumpPlan(s: SessionInfo): JumpPlan | null {
   return null;
 }
 
-/** Without a trailing `.app`, without white space, case and width folded (`normalizedName`; NFKC stands for the width folding). */
-export function normalizedName(s: string): string {
-  const name = s.toLowerCase().endsWith('.app') ? s.slice(0, -4) : s;
-  return name.replace(/\s/gu, '').normalize('NFKC').toLowerCase();
-}
-
-/** NSString `lastPathComponent`; a Windows path splits at backslashes too. */
-function lastComponent(path: string): string {
-  const trimmed = path.replace(/[/\\]+$/, '');
-  return trimmed === '' ? path : trimmed.slice(Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\')) + 1);
-}
-
-/** The path of the candidate whose file name or display name matches `target` (`matchApp`). */
-export function matchApp(target: string, candidates: { path: string; displayName: string }[]): string | null {
-  const t = normalizedName(target);
-  if (t === '') return null;
-  const names = candidates.map((c) => [normalizedName(lastComponent(c.path)), normalizedName(c.displayName)]);
-  const exact = names.findIndex((n) => n.includes(t));
-  if (exact !== -1) return candidates[exact]!.path;
-  const partial = names.flatMap((n, i) => (n.some((x) => x.includes(t)) ? [i] : []));
-  return partial.length === 1 ? candidates[partial[0]!]!.path : null;
-}
-
-/** The most recently updated session whose cwd folder, title or target matches `target` (`matchSession`). */
-export function matchSession(target: string, sessions: SessionInfo[]): SessionInfo | null {
-  const t = normalizedName(target);
-  if (t === '') return null;
-  let best: SessionInfo | null = null;
-  for (const s of sessions) {
-    const hit = (s.cwd !== null && normalizedName(lastComponent(s.cwd)) === t) || (s.title !== null && normalizedName(s.title).includes(t))
-      || normalizedName(s.target) === t;
-    if (hit && (best === null || best.updatedAt < s.updatedAt)) best = s;
-  }
-  return best;
-}
-
 /** Terminal runs `command` the user confirmed. */
 export function runInTerminalScript(command: string): string {
   const quoted = command.replaceAll('\\', '\\\\').replaceAll('"', '\\"');

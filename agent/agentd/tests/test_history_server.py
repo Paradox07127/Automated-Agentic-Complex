@@ -173,10 +173,10 @@ class StateTest(HistoryServerCase):
 
 
 class ClearTest(HistoryServerCase):
-    def test_delete_clears_store_and_window(self):
+    def test_clear_clears_store_and_window(self):
         self.line("第一句")
         self.line("第二句")
-        self.assertEqual(self.request("DELETE", "/history"), (200, {"deleted": 2}))
+        self.assertEqual(self.server.clear_history(), 2)
         self.assertEqual(self.rows(), [])
         self.assertEqual(self.server.mouth.history, [])
         self.line("再来")
@@ -202,9 +202,6 @@ class ClearTest(HistoryServerCase):
         self.assertEqual(dict(self.server._line_entries), {})
         self.assertEqual(open_store(self.db).execute("SELECT COUNT(*) FROM trace_events").fetchone()[0], 0)
 
-    def test_delete_mid_line_keeps_that_line_out(self):
-        self.clear_mid_line("/history", {"deleted"})
-
     def test_clearing_history_from_memory_mid_line_keeps_that_line_out(self):
         self.clear_mid_line("/memory?scope=history", {"facts_deleted", "history_deleted"})
 
@@ -212,13 +209,9 @@ class ClearTest(HistoryServerCase):
         self.server.cancel_turn = lambda reason: None  # the line finishes after the clear
         self.clear_mid_line("/memory?scope=all", {"facts_deleted", "history_deleted"})
 
-    def test_delete_without_a_mouth(self):
+    def test_clear_without_a_mouth(self):
         self.server.mouth = None
-        self.assertEqual(self.request("DELETE", "/history"), (200, {"deleted": 0}))
-
-    def test_delete_needs_the_ui_token(self):
-        self.assertEqual(self.request("DELETE", "/history", token=EVENTS)[0], 401)
-        self.assertEqual(self.request("DELETE", "/nothing")[0], 404)
+        self.assertEqual(self.server.clear_history(), 0)
 
 
 class PageTest(HistoryServerCase):
@@ -246,18 +239,12 @@ class PageTest(HistoryServerCase):
         for query in ("limit=0", "limit=201", "limit=x", "before=x"):
             self.assertEqual(self.request("GET", f"/history?{query}"), (400, {"error": "invalid_cursor"}))
 
-    def test_export_is_oldest_first(self):
-        status, body = self.request("GET", "/history/export")
-        self.assertEqual((status, [t["user_text"] for t in body["turns"]]), (200, ["问0", "问1", "问2"]))
-
     def test_events_token_is_refused(self):
-        for path in ("/history", "/history/export"):
-            self.assertEqual(self.request("GET", path, token=EVENTS)[0], 401)
+        self.assertEqual(self.request("GET", "/history", token=EVENTS)[0], 401)
 
     def test_no_history_is_503(self):
         self.server.history = None
-        for method, path in (("GET", "/history"), ("GET", "/history/export"), ("DELETE", "/history")):
-            self.assertEqual(self.request(method, path), (503, {"error": "no_history", "detail": "对话记录未开启"}))
+        self.assertEqual(self.request("GET", "/history"), (503, {"error": "no_history", "detail": "对话记录未开启"}))
 
 
 class RecallTest(HistoryServerCase):

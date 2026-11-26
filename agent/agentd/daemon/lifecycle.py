@@ -64,7 +64,7 @@ class LifecycleMixin:
                 workspace.forget()
 
     def clear_history(self):
-        """DELETE /history and /memory?scope=history|all, in /reset's order: the live turn ends, then nothing a line
+        """/memory?scope=history|all, in /reset's order: the live turn ends, then nothing a line
         from before stores lands, then the rows, the mouth's window and the trace go. The rows deleted."""
         self.cancel_turn("client_cancel")
         with self._write_lock:

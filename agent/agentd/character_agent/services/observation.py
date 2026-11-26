@@ -1207,7 +1207,6 @@ class ObservationService:
                 self.db.execute('DELETE FROM ' + table + ' WHERE id' + among, (gone,))
             self.db.execute('DELETE FROM observation_content WHERE hash' + among + ' AND hash NOT IN (SELECT content_hash FROM observation_frames)', (hashes,))
         self.last_signature = None
-        self.server.feed.publish('task_understanding', {'action': 'deleted'})
 
     def clear(self):
         self.epoch+=1
@@ -1216,8 +1215,6 @@ class ObservationService:
             for table in ('observation_frames','observation_content','observation_analyses','observation_work_events','observation_processed','observation_input_identity','observation_aliases'): self.db.execute('DELETE FROM '+table)
             self.db.commit()
         self.last_signature=None;self.phase='pending'
-        feed = getattr(self.server, 'feed', None)
-        if feed is not None: feed.publish('task_understanding', {'action': 'deleted'})
 
     def correct_task(self, ident, revision, *, action, text=None):
         if action not in ('reject','correct') or action=='correct' and (not isinstance(text,str) or not 1<=len(text.strip())<=1000): raise ValueError('invalid_task_correction')
@@ -1233,7 +1230,6 @@ class ObservationService:
             self.db.execute('UPDATE observation_analyses SET body=? WHERE id=?',(dump(body),row[0]));self.db.commit()
             self.epoch+=1
         self.controller.semantic.cancel()
-        self.server.feed.publish('task_understanding',{'action':action,'id':ident,'revision':revision+1})
         return {'id':ident,**corrections[task['task_key']]}
 
     def close(self):

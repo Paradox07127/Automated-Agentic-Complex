@@ -37,7 +37,6 @@ export const AGENTD_ROUTES: readonly AgentdRoute[] = [
   { method: 'GET', path: '/attention/browser', templates: ['/attention/browser'], class: 'read', surfaces: ['main'], plugin: 'screen_awareness' },
   { method: 'GET', path: '/sessions', templates: ['/sessions'], class: 'read', surfaces: ['main'], plugin: 'coding_sessions' },
   { method: 'GET', path: '/history', templates: ['/history'], class: 'read', surfaces: ['main'], plugin: 'light_ai', response: 'history.json' },
-  { method: 'GET', path: '/history/export', templates: ['/history/export'], class: 'read', surfaces: ['main'], plugin: 'light_ai' },
   { method: 'GET', path: '/memory', templates: ['/memory'], class: 'read', surfaces: ['main'], plugin: 'light_ai', response: 'memory.json' },
   { method: 'GET', path: '/memory/sessions', templates: ['/memory/sessions'], class: 'read', surfaces: ['main'], plugin: 'daily_brief', response: 'memory-sessions.json' },
   { method: 'GET', path: '/memory/tasks', templates: ['/memory/tasks'], class: 'read', surfaces: ['main'], plugin: 'daily_brief', response: 'memory-tasks.json' },
@@ -90,17 +89,14 @@ export const AGENTD_ROUTES: readonly AgentdRoute[] = [
   { method: 'GET', path: '/agent/scopes', templates: ['/agent/scopes'], class: 'read', surfaces: ['main', 'stack'], plugin: 'personal_agent' },
   { method: 'GET', path: '/agent/runs', templates: ['/agent/runs'], class: 'read', surfaces: ['main'], plugin: 'personal_agent' },
   { method: 'GET', path: '^/agent/runs/([A-Za-z0-9_-]{1,128})/items$', templates: ['/agent/runs/:run_id/items'], class: 'read', surfaces: ['main'], plugin: 'personal_agent' },
-  { method: 'GET', path: '^/agent/runs/([A-Za-z0-9_-]{1,128})/files$', templates: ['/agent/runs/:run_id/files'], class: 'read', surfaces: ['main'], plugin: 'personal_agent' },
   { method: 'GET', path: '/memory/runs', templates: ['/memory/runs'], class: 'read', surfaces: ['main'], plugin: 'light_ai' },
   { method: 'GET', path: '^/memory/runs/([A-Za-z0-9_-]{1,128})$', templates: ['/memory/runs/:run_id'], class: 'read', surfaces: ['main'], plugin: 'light_ai' },
   { method: 'GET', path: '/agent/goals', templates: ['/agent/goals'], class: 'read', surfaces: ['main'], plugin: 'personal_agent', response: 'agent-goals.json' },
-  { method: 'GET', path: '^/agent/goals/([a-f0-9]{32})$', templates: ['/agent/goals/:goal_id'], class: 'read', surfaces: ['main'], plugin: 'personal_agent' },
   { method: 'GET', path: '/agent/jobs', templates: ['/agent/jobs'], class: 'read', surfaces: ['main'], plugin: 'personal_agent', response: 'agent-jobs.json' },
   { method: 'GET', path: '/agent/tasks', templates: ['/agent/tasks'], class: 'read', surfaces: ['main'], plugin: 'personal_agent', response: 'agent-tasks.json' },
   { method: 'GET', path: '^/agent/tasks/[^/]{1,196}(?:/steps)?$', templates: ['/agent/tasks/:task_id', '/agent/tasks/:task_id/steps'], class: 'read', surfaces: ['main'], plugin: 'personal_agent' },
   { method: 'GET', path: '^/agent/tasks/[^/]{1,196}/files$', templates: ['/agent/tasks/:task_id/files'], class: 'read', surfaces: ['main'], plugin: 'personal_agent' },
   { method: 'GET', path: '/agent/deliveries', templates: ['/agent/deliveries'], class: 'read', surfaces: ['main'], plugin: 'personal_agent' },
-  { method: 'GET', path: '^/agent/deliveries/delivery-[a-f0-9]{32}$', templates: ['/agent/deliveries/:delivery_id'], class: 'read', surfaces: ['main'], plugin: 'personal_agent' },
   { method: 'POST', path: '^/agent/tasks/[^/]{1,196}/(accept|reject)$', templates: ['/agent/tasks/:task_id/accept', '/agent/tasks/:task_id/reject'], class: 'write', surfaces: ['main', 'stack'], plugin: 'personal_agent' },
   { method: 'POST', path: '^/agent/deliveries/delivery-[a-f0-9]{32}/(presented|viewed)$', templates: ['/agent/deliveries/:delivery_id/presented', '/agent/deliveries/:delivery_id/viewed'], class: 'write', surfaces: ['main'], plugin: 'personal_agent' },
   { method: 'POST', path: '^/agent/deliveries/delivery-[a-f0-9]{32}/opened$', templates: ['/agent/deliveries/:delivery_id/opened'], class: 'write', surfaces: ['main'], plugin: 'personal_agent' },
@@ -205,7 +201,6 @@ export const AGENTD_ROUTES: readonly AgentdRoute[] = [
   { method: 'PUT', path: '/proactive/mutes', templates: ['/proactive/mutes'], class: 'write', surfaces: ['main', 'stack'], plugin: 'light_ai' },
   { method: 'PUT', path: '/proactive/settings', templates: ['/proactive/settings'], class: 'write', surfaces: ['main', 'onboarding'], plugin: 'light_ai' },
   { method: 'PUT', path: '/motion/settings', templates: ['/motion/settings'], class: 'write', surfaces: ['main'], plugin: 'motion_generation' },
-  { method: 'PUT', path: '^/characters/([a-z0-9_-]{1,64})/binding$', templates: ['/characters/:character_id/binding'], class: 'write', surfaces: ['main'] },
   { method: 'PUT', path: '/context/activity', templates: ['/context/activity'], class: 'write', surfaces: ['main'], plugin: 'screen_awareness' },
   { method: 'PUT', path: '/behavior/capabilities', templates: ['/behavior/capabilities'], class: 'host_only', surfaces: [] },
   { method: 'PUT', path: '/behavior/motion_prefs', templates: ['/behavior/motion_prefs'], class: 'host_only', surfaces: [] },
@@ -218,11 +213,9 @@ export const AGENTD_ROUTES: readonly AgentdRoute[] = [
   { method: 'PUT', path: '^/conversations/([a-f0-9]{32})$', templates: ['/conversations/:conversation_id'], class: 'write', surfaces: ['main'] },
   { method: 'PUT', path: '^/sessions/(own:[a-f0-9]{12})$', templates: ['/sessions/:session_id'], class: 'write', surfaces: ['main'], plugin: 'coding_sessions' },
   { method: 'PUT', path: '/character/runtime', templates: ['/character/runtime'], class: 'write', surfaces: ['main', 'onboarding'] },
-  { method: 'PATCH', path: '^/episodes/([^/]{1,64})$', templates: ['/episodes/:episode_id'], class: 'write', surfaces: ['main'], plugin: 'daily_brief' },
   { method: 'PATCH', path: '^/memory/facts/([^/]{1,64})$', templates: ['/memory/facts/:fact_id'], class: 'write', surfaces: ['main'], plugin: 'light_ai' },
   { method: 'DELETE', path: '/attention', templates: ['/attention'], class: 'write', surfaces: ['main'], plugin: 'screen_awareness' },
   { method: 'DELETE', path: '/focus', templates: ['/focus'], class: 'write', surfaces: ['main', 'stack'] },
-  { method: 'DELETE', path: '/history', templates: ['/history'], class: 'write', surfaces: ['main'], plugin: 'light_ai' },
   { method: 'DELETE', path: '/memory', templates: ['/memory'], class: 'write', surfaces: ['main'], plugin: 'light_ai' },
   { method: 'DELETE', path: '/observation', templates: ['/observation'], class: 'write', surfaces: ['main'] },
   { method: 'DELETE', path: '/blacklist', templates: ['/blacklist'], class: 'write', surfaces: ['main'], plugin: 'screen_awareness' },
@@ -240,12 +233,12 @@ export type AgentdRouteKey =
   | 'GET /character/state' | 'GET /character/state/history' | `GET /characters/${string}/binding`
   | `GET /characters/${string}/motion-graph` | `GET /characters/${string}/motion-groups`
   | `GET /characters/${string}/mod-settings` | 'GET /approvals' | 'GET /feed' | 'GET /agent/snapshot'
-  | 'GET /attention/summary' | 'GET /attention/browser' | 'GET /sessions' | 'GET /history' | 'GET /history/export'
-  | 'GET /memory' | 'GET /memory/sessions' | 'GET /memory/tasks' | `GET /memory/tasks/${string}`
-  | `PATCH /memory/tasks/${string}` | 'GET /memory/days' | `GET /memory/days/${string}` | 'GET /memory/export'
-  | `GET /memory/facts/${string}/versions` | `GET /memory/facts/${string}/cascade` | 'GET /diag/state'
-  | 'GET /diag/stream' | 'GET /blacklist' | 'GET /desktop/presence' | 'GET /user/now' | 'POST /desktop/sessions/seen'
-  | 'GET /model/settings' | 'GET /motion/settings' | `GET /motions/${string}/meta` | `GET /motions/${string}/keys`
+  | 'GET /attention/summary' | 'GET /attention/browser' | 'GET /sessions' | 'GET /history' | 'GET /memory'
+  | 'GET /memory/sessions' | 'GET /memory/tasks' | `GET /memory/tasks/${string}` | `PATCH /memory/tasks/${string}`
+  | 'GET /memory/days' | `GET /memory/days/${string}` | 'GET /memory/export' | `GET /memory/facts/${string}/versions`
+  | `GET /memory/facts/${string}/cascade` | 'GET /diag/state' | 'GET /diag/stream' | 'GET /blacklist'
+  | 'GET /desktop/presence' | 'GET /user/now' | 'POST /desktop/sessions/seen' | 'GET /model/settings'
+  | 'GET /motion/settings' | `GET /motions/${string}/meta` | `GET /motions/${string}/keys`
   | `GET /motions/${string}/tracks` | 'GET /tasks' | 'GET /capabilities' | 'GET /day/segments' | 'GET /episodes'
   | 'GET /commitments' | 'GET /schedules' | 'POST /schedules' | `PUT /schedules/${string}`
   | `DELETE /schedules/${string}` | `POST /schedules/${string}/run` | 'GET /focus' | 'GET /proactive/mutes'
@@ -254,17 +247,16 @@ export type AgentdRouteKey =
   | `GET /trace/turns/${string}` | `GET /episodes/${string}/evidence` | `GET /diag/observations/${string}`
   | 'GET /conversations' | `GET /conversations/${string}/turns` | 'GET /character/runtime'
   | 'GET /character/capabilities' | 'GET /character/acp/agents' | 'GET /agent/scopes' | 'GET /agent/runs'
-  | `GET /agent/runs/${string}/items` | `GET /agent/runs/${string}/files` | 'GET /memory/runs'
-  | `GET /memory/runs/${string}` | 'GET /agent/goals' | `GET /agent/goals/${string}` | 'GET /agent/jobs'
-  | 'GET /agent/tasks' | `GET /agent/tasks/${string}` | `GET /agent/tasks/${string}/steps`
-  | `GET /agent/tasks/${string}/files` | 'GET /agent/deliveries' | `GET /agent/deliveries/${string}`
-  | `POST /agent/tasks/${string}/accept` | `POST /agent/tasks/${string}/reject`
-  | `POST /agent/deliveries/${string}/presented` | `POST /agent/deliveries/${string}/viewed`
-  | `POST /agent/deliveries/${string}/opened` | 'GET /task-understanding' | 'GET /observation/state'
-  | 'GET /observation/sources' | `GET /observation/sources/${string}` | `GET /observation/sources/${string}/changes`
-  | `GET /observation/sources/${string}/image` | 'POST /observation/analyze' | 'POST /observation/refresh'
-  | 'GET /observation/briefs' | 'GET /observation/briefs/settings' | `GET /observation/briefs/${string}`
-  | 'POST /observation/briefs' | 'POST /observation/briefs/settings' | `DELETE /observation/briefs/${string}`
+  | `GET /agent/runs/${string}/items` | 'GET /memory/runs' | `GET /memory/runs/${string}` | 'GET /agent/goals'
+  | 'GET /agent/jobs' | 'GET /agent/tasks' | `GET /agent/tasks/${string}` | `GET /agent/tasks/${string}/steps`
+  | `GET /agent/tasks/${string}/files` | 'GET /agent/deliveries' | `POST /agent/tasks/${string}/accept`
+  | `POST /agent/tasks/${string}/reject` | `POST /agent/deliveries/${string}/presented`
+  | `POST /agent/deliveries/${string}/viewed` | `POST /agent/deliveries/${string}/opened` | 'GET /task-understanding'
+  | 'GET /observation/state' | 'GET /observation/sources' | `GET /observation/sources/${string}`
+  | `GET /observation/sources/${string}/changes` | `GET /observation/sources/${string}/image`
+  | 'POST /observation/analyze' | 'POST /observation/refresh' | 'GET /observation/briefs'
+  | 'GET /observation/briefs/settings' | `GET /observation/briefs/${string}` | 'POST /observation/briefs'
+  | 'POST /observation/briefs/settings' | `DELETE /observation/briefs/${string}`
   | `POST /task-understanding/${string}/correct` | `GET /agent/jobs/${string}` | 'GET /agent/interactions'
   | 'POST /hook/claude' | 'POST /hook/codex' | 'POST /context/browser' | 'POST /integration/notify'
   | 'POST /integration/reminders' | `GET /integration/reminders/${string}` | 'GET /integration/memory'
@@ -293,15 +285,14 @@ export type AgentdRouteKey =
   | `POST /agent/interactions/${string}/continue` | 'POST /agent/goals' | `POST /agent/goals/${string}`
   | 'POST /agent/jobs' | `POST /agent/jobs/${string}/cancel` | `POST /agent/jobs/${string}/resume`
   | 'PUT /observation/paused' | 'PUT /observation/meeting' | 'PUT /observation/quiet' | 'PUT /proactive/mutes'
-  | 'PUT /proactive/settings' | 'PUT /motion/settings' | `PUT /characters/${string}/binding` | 'PUT /context/activity'
-  | 'PUT /behavior/capabilities' | 'PUT /behavior/motion_prefs' | 'PUT /behavior/switches' | 'PUT /settings/live'
-  | 'PUT /avatar/visibility' | 'PUT /character/state/switch' | 'PUT /memory/paused'
-  | `PUT /memory/facts/${string}/locked` | `PUT /memory/facts/${string}/quiet` | `PUT /conversations/${string}`
-  | `PUT /sessions/${string}` | 'PUT /character/runtime' | `PATCH /episodes/${string}` | `PATCH /memory/facts/${string}`
-  | 'DELETE /attention' | 'DELETE /focus' | 'DELETE /history' | 'DELETE /memory' | 'DELETE /observation'
-  | 'DELETE /blacklist' | 'DELETE /character/state' | `DELETE /memory/facts/${string}`
-  | `DELETE /context/items/${string}` | `DELETE /episodes/${string}` | `DELETE /conversations/${string}`
-  | `DELETE /sessions/${string}`;
+  | 'PUT /proactive/settings' | 'PUT /motion/settings' | 'PUT /context/activity' | 'PUT /behavior/capabilities'
+  | 'PUT /behavior/motion_prefs' | 'PUT /behavior/switches' | 'PUT /settings/live' | 'PUT /avatar/visibility'
+  | 'PUT /character/state/switch' | 'PUT /memory/paused' | `PUT /memory/facts/${string}/locked`
+  | `PUT /memory/facts/${string}/quiet` | `PUT /conversations/${string}` | `PUT /sessions/${string}`
+  | 'PUT /character/runtime' | `PATCH /memory/facts/${string}` | 'DELETE /attention' | 'DELETE /focus'
+  | 'DELETE /memory' | 'DELETE /observation' | 'DELETE /blacklist' | 'DELETE /character/state'
+  | `DELETE /memory/facts/${string}` | `DELETE /context/items/${string}` | `DELETE /episodes/${string}`
+  | `DELETE /conversations/${string}` | `DELETE /sessions/${string}`;
 
 /** protocol/C6-agentd-api/fixtures/health.json */
 export interface HealthResponse { status: string; degraded: string[]; c6_contract: string }

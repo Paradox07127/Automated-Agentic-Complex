@@ -1,14 +1,14 @@
-// `open.*`: URLs, artifacts and Finder; jumping to a session and feed commands
+// `open.*`: URLs, artifacts and Finder; jumping to a session
 // through the platform helper; running a confirmed command in Terminal.
 import { realpathSync, statSync } from 'node:fs';
 import { extname, normalize } from 'node:path';
 import { BridgeFailure } from '../../common/bridge.ts';
 import {
-  appleScriptError, jumpPlan, matchApp, matchSession, parseSessions, runInTerminalScript, type SessionInfo,
+  appleScriptError, jumpPlan, parseSessions, runInTerminalScript, type SessionInfo,
 } from '../../common/session-jump.ts';
 import { localPath } from '../platform/index.ts';
 import type { Ops, OpsContext } from './context.ts';
-import { activate, helperResult, jump, JUMPED, systemCommands } from './jump.ts';
+import { jump, JUMPED, systemCommands } from './jump.ts';
 
 /** An absolute text deliverable (md, txt, csv, json) that is a regular, non-executable file
  *  reached without symlinks. */
@@ -40,54 +40,9 @@ async function sessions(ctx: OpsContext): Promise<SessionInfo[]> {
   return parseSessions(JSON.parse(reply.body.toString('utf8')));
 }
 
-const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
-
 /** The sessions page's route, on session `id` when given: a hash route without `#`. */
 export function sessionsRoute(id?: string): string {
   return id === undefined ? '/overview?focus=running' : `/overview?sel=${encodeURIComponent(id)}&focus=task-${encodeURIComponent(id)}`;
-}
-
-/** Null when the command was carried out, else why not. */
-async function feedCommand(ctx: OpsContext, action: 'open' | 'jump', target: string): Promise<string | null> {
-  const done = (result: string, failure: string | null) => {
-    ctx.log(`FEED command action=${action} result=${result}`);
-    return failure;
-  };
-  if (action === 'open') {
-    const installed = await helperResult(ctx, 'apps.installed', {});
-    const apps = (Array.isArray(installed.apps) ? installed.apps : []).filter(isObject)
-      .filter((a) => typeof a.path === 'string').map((a) => ({ path: a.path as string, displayName: typeof a.name === 'string' ? a.name : '' }));
-    const path = matchApp(target, apps);
-    if (path === null) return done('not_found', `没找到应用「${target}」`);
-    if ((await ctx.shell.openPath(path)) !== '') return done('open_failed', `打不开「${target}」`);
-    return done('opened', null);
-  }
-  let list: SessionInfo[] = [];
-  try {
-    list = await sessions(ctx);
-  } catch { /* no sessions: the running apps below */ }
-  const s = matchSession(target, list);
-  // The agent's entry, so a focused main window keeps its page.
-  if (s?.own && ctx.openMain) {
-    ctx.openMain(sessionsRoute(s.sessionId), false);
-    return done(`session_panel selected=${s.sessionId}`, null);
-  }
-  const plan = s && jumpPlan(s);
-  if (plan) {
-    const text = await jump(ctx, plan);
-    return done(`session_jump note=${text}`, text === JUMPED ? null : text);
-  }
-  // The match comes back as a path, so every candidate needs a distinct one.
-  const running = await helperResult(ctx, 'apps.running', { regular_only: true });
-  const apps = (Array.isArray(running.apps) ? running.apps : []).filter(isObject)
-    .filter((a) => a.regular !== false && typeof a.path === 'string' && Number.isInteger(a.pid));
-  const path = matchApp(target, apps.map((a) => ({ path: a.path as string, displayName: typeof a.name === 'string' ? a.name : '' })));
-  const app = apps.find((a) => a.path === path);
-  if (path !== null && app) {
-    await activate(ctx, { pid: app.pid });
-    return done('activated', null);
-  }
-  return done('not_found', `没找到「${target}」`);
 }
 
 export function openOps(ctx: OpsContext): Ops {
@@ -142,16 +97,6 @@ export function openOps(ctx: OpsContext): Ops {
       if (!plan) throw new Error('当前会话无可用跳转方式');
       const text = await jump(ctx, plan);
       if (text !== JUMPED) throw new Error(text);
-      return null;
-    },
-    'open.runFeedCommand': async ([command]) => {
-      const c = isObject(command) ? command : {};
-      const { action, target } = c;
-      if ((action !== 'open' && action !== 'jump') || typeof target !== 'string' || target === '' || Buffer.byteLength(target) > 1024) {
-        throw new BridgeFailure('invalid_args', '{action: open|jump, target}');
-      }
-      const failure = await feedCommand(ctx, action, target);
-      if (failure !== null) throw new Error(failure);
       return null;
     },
     /** The checks, the confirmation, then Terminal through osascript. */

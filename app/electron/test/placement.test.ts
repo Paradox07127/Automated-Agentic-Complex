@@ -604,9 +604,9 @@ test('Windows: DIPs go to physical pixels by dipToScreenRect, then y up; C3 (phy
   }
 });
 
-test('avatar.setScale, avatar.keepClearOfMain and avatar.resetPosition check their arguments and reach the placement', async () => {
+test('avatar.setScale and avatar.keepClearOfMain check their arguments and reach the placement', async () => {
   const calls: string[] = [];
-  const placement = { setScale: (v: number) => calls.push(`scale ${v}`), resetPosition: () => calls.push('reset'),
+  const placement = { setScale: (v: number) => calls.push(`scale ${v}`),
     keepClearOfMain: (on: boolean) => calls.push(`keepClear ${on}`) };
   const call = (ctx: Partial<OpsContext>, op: string, ...args: unknown[]) => handle('main', { mainFrame: true, origin: ORIGIN }, { op, args },
     new Map(Object.entries(avatarOps({ surface: 'main', routes, ...ctx } as OpsContext))), new PageSession(() => {}));
@@ -614,9 +614,9 @@ test('avatar.setScale, avatar.keepClearOfMain and avatar.resetPosition check the
     assert.deepEqual(await call({ placement }, 'avatar.setScale', bad), { ok: false, error: { code: 'invalid_args', detail: 'scale 0.5...2.0' } }, String(bad));
   }
   assert.deepEqual(await call({ placement }, 'avatar.keepClearOfMain', 'yes'), { ok: false, error: { code: 'invalid_args', detail: 'on' } });
-  for (const [op, arg] of [['avatar.setScale', 0.5], ['avatar.setScale', 2], ['avatar.keepClearOfMain', true], ['avatar.resetPosition', undefined]] as const) {
-    assert.deepEqual(await call({ placement }, op, ...(arg === undefined ? [] : [arg])), { ok: true, value: null }, op);
+  for (const [op, arg] of [['avatar.setScale', 0.5], ['avatar.setScale', 2], ['avatar.keepClearOfMain', true]] as const) {
+    assert.deepEqual(await call({ placement }, op, arg), { ok: true, value: null }, op);
   }
-  assert.deepEqual(calls, ['scale 0.5', 'scale 2', 'keepClear true', 'reset']);
-  assert.deepEqual(await call({ placement: null }, 'avatar.resetPosition'), { ok: false, error: { code: 'failed', detail: '角色还没连上（配置出错）' } });
+  assert.deepEqual(calls, ['scale 0.5', 'scale 2', 'keepClear true']);
+  assert.deepEqual(await call({ placement: null }, 'avatar.setScale', 1), { ok: false, error: { code: 'failed', detail: '角色还没连上（配置出错）' } });
 });

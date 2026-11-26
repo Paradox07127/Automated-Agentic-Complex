@@ -41,12 +41,12 @@ const IMPLEMENTED = [
   'mmd.list', 'mmd.dropScan', 'mmd.syncState', 'onboarding.state', 'onboarding.advance', 'onboarding.back', 'onboarding.goto', 'onboarding.skip',
   'onboarding.complete',
   'avatar.state', 'avatar.details', 'avatar.setVisible', 'avatar.stopSpeech', 'avatar.actions', 'avatar.playAction', 'avatar.stopAction',
-  'avatar.setScale', 'avatar.keepClearOfMain', 'avatar.resetPosition', 'avatar.preview.show', 'avatar.preview.hide',
+  'avatar.setScale', 'avatar.keepClearOfMain', 'avatar.preview.show', 'avatar.preview.hide',
   'avatar.preview.sequence', 'avatar.preview.view', 'avatar.preview.control','avatar.setAppearance', 'avatar.setLayers', 'avatar.setActionSwitches', 'avatar.modSettings.get',
   'avatar.modSettings.set', 'character.switchTo', 'permissions.status', 'permissions.request', 'permissions.openSettings',
-  'open.jumpToSession', 'open.runFeedCommand', 'open.runInTerminal',
+  'open.jumpToSession', 'open.runInTerminal',
   'avatar.motionOverrides.get', 'avatar.motionOverrides.set', 'avatar.playChain', 'avatar.motionChain.check', 'avatar.motionChain.apply',
-  'avatar.playPlaylist', 'avatar.stopPlaylist', 'avatar.playlistState', 'avatar.toggleClickThroughAll',
+  'avatar.playPlaylist', 'avatar.stopPlaylist', 'avatar.playlistState',
   'app.openQuickInput',
   'settings.recordHotkey',
   'logs.sources', 'logs.read', 'logs.errors',
@@ -89,7 +89,6 @@ const avatar: AvatarHost = {
   send: () => true,
   on: (listener) => { linkListeners.add(listener); return () => linkListeners.delete(listener); },
   clickThroughAll: false,
-  setClickThroughAll: () => {},
 };
 
 /** The web mock answers these as agentd's 404; routes.json does not classify them, so the bridge refuses them before
@@ -108,8 +107,8 @@ const answers = new Map<string, { status: number; body: unknown }>([
   ['POST /context/privacy/sync', { status: 200, body: { counts: { episodes: 1 } } }],
   ['POST /look', { status: 202, body: { request_id: 'look-1' } }],
   ['POST /reset', { status: 200, body: { deleted: { episodes: 1 }, logs: [] } }],
-  ['GET /history/export', { status: 200, body: { turns: [] } }],
   ['GET /memory', { status: 200, body: { facts: [] } }],
+  ['GET /memory/export', { status: 200, body: { facts: [] } }],
   ['GET /diag/state', { status: 200, body: { hooks: { claude: { installed: true, last_at: '2026-11-19T10:00:00.000Z' } } } }],
   ['GET /sessions', { status: 200, body: { sessions: [{ session_id: 'session', own: false, target: 'claude', cwd: null, state: 'idle',
     updated_at: 1, title: null, origin: { kind: 'unknown', pid: 2 } }] } }],
@@ -200,7 +199,7 @@ function context(surface: Surface): OpsContext {
         setTimeout(() => { (avatar as { hello: AvatarHost['hello'] }).hello = hello; }, 150);
       } },
     avatar,
-    placement: { setScale: () => {}, resetPosition: () => {}, keepClearOfMain: () => {} },
+    placement: { setScale: () => {}, keepClearOfMain: () => {} },
     // Like the web mock: no main window draws a preview, so show answers false.
     preview: { show: async () => false, hide: () => {}, sequence: async () => {}, progress: new PushSource('progress'), view: () => {},
       control: () => {}, position: new PushSource('position') },

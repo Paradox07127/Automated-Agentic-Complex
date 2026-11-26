@@ -276,8 +276,6 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
       setVisible: async (v) => void (avatar.visible = v),
       setScale: async (s) => void (avatar.scale = s),
       keepClearOfMain: async () => {},
-      resetPosition: done,
-      toggleClickThroughAll: async () => void (avatar.clickThroughAll = !avatar.clickThroughAll),
       stopSpeech: async () => void (avatar.speaking = false),
       actions: async () => [...MOTIONS.map((a) => ({ ...a })), ...imports.actions()],
       playAction: done, stopAction: done, controlAction: done, onActionProgress: () => none, ...fakeMotion(() => character),
@@ -331,13 +329,12 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
       setPlaylist: async (c, p) => (mine(c), (playlist = { ...p, items: [...p.items] }), { ok: true }),
     },
     mmd: imports.mmd,
-    voice: { onPushToTalk: () => none },
     files: {
       pickFile: async () => null,
       pickFolder: async () => null,
       saveAgentdExport: async () => false,
     },
-    open: { url: done, artifact: done, revealInFinder: done, jumpToSession: done, runFeedCommand: done, runInTerminal: done },
+    open: { url: done, artifact: done, revealInFinder: done, jumpToSession: done, runInTerminal: done },
     clipboard: { writeText: done },
     logs: fakeLogs(still),
     computerUse: {
@@ -354,19 +351,16 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
     resize: { onState: (cb) => (cb(RESIZE_DEMO), none), drag: done, endDrag: done, act: done },
     photo: { onState: (cb) => (cb(PHOTO_DEMO), none), set: done, capture: async () => ({ file: `Agentic Complex-${character}-20261116-120000.png` }), close: done },
     window: {
-      contentRect: async () => ({ width: window.innerWidth, height: window.innerHeight }),
       setInteractiveRegions: (r, glass) => sent('window.setInteractiveRegions', r, glass),
       setContentSize: (s) => sent('window.setContentSize', s),
       releaseKey: () => {},
       logInfo: () => {},
       close: () => {},
-      requestKey: () => {},
       // The stack has no main window beside it in a browser, so it navigates to main.html instead.
       openMain: (route) => (opts.surface === 'stack' ? window.location.assign(`main.html#${route}`) : void (window.location.hash = route)),
       onRoute: () => none,
       onVisibility: () => none,
       onPointer: () => none,
-      onAnchorState: () => none,
       onA11y: (cb) => {
         const queries = ['(prefers-reduced-motion: reduce)', '(prefers-reduced-transparency: reduce)', '(prefers-contrast: more)'];
         const lists = queries.map((m) => window.matchMedia(m));

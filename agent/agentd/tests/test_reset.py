@@ -618,7 +618,7 @@ class ResetTest(unittest.TestCase):
             self.turn(marker)
             self.server._open_trace(f"line-{n}", 1, "text", marker)
         self.assertIn(marker.encode(), self.db.read_bytes() + Path(f"{self.db}-wal").read_bytes())
-        self.assertEqual(self.request("DELETE", "/history"), (200, {"deleted": 20}))
+        self.assertEqual(self.server.clear_history(), 20)
         self.assert_gone(marker)
 
     def test_deleting_a_fact_leaves_no_bytes_of_it_or_the_turns_that_said_it(self):

@@ -88,13 +88,11 @@ class TaskHTTPTests(test_server.FeedServerCase):
         self.assertEqual(code,200);self.assertFalse(body['available'])
         self.assertEqual(self.request('POST',path,{'revision':1,'action':'reject'})[0],409)
 
-    def test_blacklist_and_clear_remove_derived_context_and_emit_reload(self):
+    def test_blacklist_and_clear_remove_derived_context(self):
         code,body=self.request('POST','/blacklist',{'field':'app_names','value':'Fixture','delete_existing':True})
         self.assertEqual(code,200,body)
         self.assertEqual(self.request('GET','/task-understanding')[1]['hypotheses'],[])
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM observation_frames').fetchone()[0],0)
-        self.assertTrue(any(event['event']=='task_understanding' and event['data'].get('action')=='deleted'
-                            for event in self.server.feed.since(0)))
 
     def test_allow_list_removal_and_mode_switch_keep_records_and_drop_the_running_analysis(self):
         observations=self.controller.observations

@@ -61,8 +61,6 @@ export type AvatarOps = MotionAvatarOps & {
   setScale(scale: number): Promise<void>;
   /** While on, she walks clear of the main window in fullscreen. Main surface only. */
   keepClearOfMain(on: boolean): Promise<void>;
-  resetPosition(): Promise<void>;
-  toggleClickThroughAll(): Promise<void>;
   stopSpeech(): Promise<void>;
   actions(): Promise<AvatarAction[]>;
   /**

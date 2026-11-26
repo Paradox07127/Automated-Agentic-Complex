@@ -55,9 +55,6 @@ export class ControlPanel {
 
   get isShown(): boolean { return this.shown; }
 
-  /** Loads the page lazily when first needed; kept compatible as a lifecycle no-op. */
-  start(): void {}
-
   private ensureWindow(): BrowserWindow | null {
     if (this.win && !this.win.isDestroyed()) return this.win;
     const win = this.win = this.o.makeWindow();

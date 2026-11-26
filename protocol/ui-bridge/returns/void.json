@@ -60,18 +60,6 @@
     "kind": "undefined"
   },
   {
-    "op": "avatar.resetPosition",
-    "surface": "main",
-    "args": [],
-    "kind": "undefined"
-  },
-  {
-    "op": "avatar.toggleClickThroughAll",
-    "surface": "main",
-    "args": [],
-    "kind": "undefined"
-  },
-  {
     "op": "avatar.stopSpeech",
     "surface": "main",
     "args": [],
@@ -169,17 +157,6 @@
     "surface": "main",
     "args": [
       "session"
-    ],
-    "kind": "undefined"
-  },
-  {
-    "op": "open.runFeedCommand",
-    "surface": "main",
-    "args": [
-      {
-        "action": "open",
-        "target": "session"
-      }
     ],
     "kind": "undefined"
   },

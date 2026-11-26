@@ -54,9 +54,8 @@ export interface AvatarHost {
   playChain?(playId: string, character: string, start: string, speed?: number, onResult?: (r: CommandResult) => void): boolean;
   send?(m: C3Message): boolean;
   on?(listener: (e: LinkEvent) => void): () => void;
-  /** HostLink.clickThroughAll (临时全部点穿); without `setClickThroughAll` `avatar.toggleClickThroughAll` is `not_implemented`. */
+  /** HostLink.clickThroughAll (临时全部点穿), reported by `avatar.state`. */
   readonly clickThroughAll?: boolean;
-  setClickThroughAll?(on: boolean): void;
   /** HostLink.sendPhoto, for 拍照's window: false when not sent (both sides list `render_live` and `photo`). */
   sendPhoto?(active: boolean, aperture: number, focus: number | null): boolean;
   /** HostLink.capture: her `captured` file name and size; without it `photo.capture` is `not_implemented`. */
@@ -79,7 +78,6 @@ export interface LooksHost {
 /** What the ops need of the placement (src/main/placement/controller.ts). */
 export interface AvatarPlacement {
   setScale(scale: number): void;
-  resetPosition(): void;
   keepClearOfMain(on: boolean): void;
 }
 
@@ -493,23 +491,6 @@ export function avatarOps(ctx: OpsContext): Ops {
     'avatar.keepClearOfMain': ([on]) => {
       if (typeof on !== 'boolean') throw new BridgeFailure('invalid_args', 'on');
       placement().keepClearOfMain(on);
-      return null;
-    },
-    'avatar.resetPosition': () => {
-      placement().resetPosition();
-      return null;
-    },
-    'avatar.toggleClickThroughAll': () => {
-      // As the menu's.
-      const link = ctx.avatar;
-      if (!link) {
-        ctx.log('CLICK_THROUGH source=menu: no avatar link (config failed)');
-        return null;
-      }
-      if (!link.setClickThroughAll) throw new BridgeFailure('not_implemented', 'avatar.toggleClickThroughAll');
-      const on = !(link.clickThroughAll ?? false);
-      link.setClickThroughAll(on);
-      ctx.log(`CLICK_THROUGH ${on ? 'on' : 'off'} source=menu`);
       return null;
     },
     'avatar.stopSpeech': () => {

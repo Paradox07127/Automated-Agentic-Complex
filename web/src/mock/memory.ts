@@ -300,21 +300,6 @@ export const routes: MockRoute[] = [
     },
   },
   {
-    method: 'PATCH',
-    path: '/episodes/:id',
-    handler: ({ params, body }) => {
-      const e = episodes.find((x) => String(x.id) === params.id);
-      if (!e) return bad('unknown_episode', 404);
-      const b = obj(body);
-      const title = text(b.title, 120);
-      const description = text(b.description, 12_000);
-      if (title == null) return bad('invalid_title');
-      if (description == null) return bad('invalid_description');
-      Object.assign(e, { title, description, edited: true });
-      return ok({ episode: e });
-    },
-  },
-  {
     method: 'DELETE',
     path: '/episodes/:id',
     handler: ({ params }) => {

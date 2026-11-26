@@ -38,7 +38,6 @@ export interface PanelOptions {
 export const MAX_REGIONS = 32;
 const FREEZE_SLOP = 12;
 const HIDE_DELAY_MS = 1000;
-const KEY_GRACE_MS = 1000;
 const THAW_DELAY_MS = 400;
 const SIZE_STEP = 2;
 /** `releaseKey` hides these routes' panels instead of ordering them front again. */
@@ -51,7 +50,6 @@ const within = (r: { x: number; y: number; width: number; height: number }, x: n
 
 export class DesktopPanel implements FollowPanel {
   readonly pointer = new PushSource('pointer');
-  readonly anchorState = new PushSource('anchor');
   readonly visibility = new PushSource('visibility');
   readonly anchor = new PushSource('anchor');
   isShown = false;
@@ -80,7 +78,6 @@ export class DesktopPanel implements FollowPanel {
   private ignoring = true;
   private hideTimer: ReturnType<typeof setTimeout> | null = null;
   private alive = false;
-  private placed: 'docked' | 'settled' = 'docked';
   /** Command panels only accept regions while their owner has opened a command. */
   private commandRequested = false;
   /** `takeKey` came while hidden: the panel takes key when it shows. */
@@ -229,12 +226,6 @@ export class DesktopPanel implements FollowPanel {
     this.preferredSize = size;
   }
 
-  /** `window.contentRect`. */
-  contentRect(): { width: number; height: number } {
-    const b = this.win?.getBounds();
-    return { width: b?.width ?? 0, height: b?.height ?? 0 };
-  }
-
   /** `window.close`: hidden until a new card arrives; the command panel shows again with its next layer's regions. */
   close(): void {
     if (this.isCommand) {
@@ -245,13 +236,6 @@ export class DesktopPanel implements FollowPanel {
       this.closedCards = this.cards;
     }
     this.hide('window.close');
-  }
-
-  /** `window.requestKey`: makes the panel key, without activating the app, only right after a click in a region. */
-  requestKey(): boolean {
-    if (!this.isShown || !this.clickedInRegion()) return false;
-    this.makeKey();
-    return true;
   }
 
   /** Makes the panel key for a command the app started, with no click needed; a hidden panel takes key when it shows. */
@@ -315,8 +299,6 @@ export class DesktopPanel implements FollowPanel {
 
   pushAnchor(anchor: AnchorPayload): void {
     this.anchor.send(anchor);
-    this.placed = anchor.docked ? 'docked' : 'settled';
-    this.pushAnchorState();
   }
 
   /** One pointer poll from the owner's clock; none while hidden. */
@@ -347,7 +329,6 @@ export class DesktopPanel implements FollowPanel {
       this.thawFrom = null;
       if (this.frozen) return;
       this.frozen = true;
-      this.pushAnchorState();
     } else if (this.frozen) {
       const since = this.thawFrom ?? Date.now();
       this.thawFrom = since;
@@ -355,7 +336,6 @@ export class DesktopPanel implements FollowPanel {
       this.thawFrom = null;
       this.frozen = false;
       this.lastPollKey = null;
-      this.pushAnchorState();
     }
   }
 
@@ -382,15 +362,6 @@ export class DesktopPanel implements FollowPanel {
     if (!this.regions.some((r) => within(r, x, y))) return;
     this.lastRegionClick = Date.now();
     this.pressedInRegion = true;
-  }
-
-  /** Whether the panel saw a mouse down in a region less than `KEY_GRACE_MS` ago. */
-  clickedInRegion(): boolean {
-    return this.lastRegionClick !== null && Date.now() - this.lastRegionClick < KEY_GRACE_MS;
-  }
-
-  private pushAnchorState(): void {
-    this.anchorState.send(this.frozen ? 'frozen' : this.placed);
   }
 
   private updateShown(): void {
@@ -425,7 +396,6 @@ export class DesktopPanel implements FollowPanel {
     this.drag = null;
     this.frozen = false;
     this.thawFrom = null;
-    this.pushAnchorState();
     this.visibility.send(false);
     this.onVisibility();
   }

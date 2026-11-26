@@ -190,47 +190,11 @@ class EpisodeV2EndpointsTest(test_server.FeedServerCase):
         self.server.share_page_text = False
         self.assertEqual(self.request("GET", f"/episodes/{episode_id}/evidence"), (403, {"error": "page_text_off"}))
 
-    def test_patch_rewrites_the_title_description_and_index_and_records_the_correction(self):
-        episode_id = self.episode("写代码")
-        status, body = self.request("PATCH", f"/episodes/{episode_id}",
-                                    {"title": "  重构日志模块  ", "description": "你在重构日志模块。"})
-        self.assertEqual(status, 200)
-        [listed] = self.request("GET", f"/episodes?date={DAY2}")[1]["episodes"]
-        self.assertEqual(body, {"episode": listed})
-        self.assertEqual((listed["title"], listed["description"], listed["edited"], listed["outcome"]),
-                         ("重构日志模块", "你在重构日志模块。", True, None))
-        self.assertEqual([e["id"] for e in self.episodes.search("日志")], [episode_id])
-        self.assertEqual(self.episodes.search("写代码"), [])
-        self.assertEqual(self.db.execute("SELECT episode_id, at, old_title, old_description, new_title,"
-                                         " new_description FROM summary_corrections").fetchall(),
-                         [(episode_id, self.now, "写代码", "你在写代码。", "重构日志模块", "你在重构日志模块。")])
-
-    def test_patch_refuses_a_bad_title_or_description_an_unknown_id_and_without_consent(self):
-        episode_id = self.episode()
-        patch = lambda title="修端口", description="你在修端口。", path=f"/episodes/{episode_id}", **kw: \
-            self.request("PATCH", path, {"title": title, "description": description}, **kw)  # noqa: E731
-        for title in ("一" * 121, "   ", "", 5):
-            with self.subTest(title=title):
-                self.assertEqual(patch(title=title), (400, {"error": "invalid_title"}))
-        for description in ("", "  ", "一" * 12001, None):
-            with self.subTest(description=description):
-                self.assertEqual(patch(description=description), (400, {"error": "invalid_description"}))
-        self.assertEqual(patch(title="一" * 120, description="一" * 12000)[0], 200)
-        self.assertEqual(patch(path="/episodes/999"), (404, {"error": "unknown_episode"}))
-        self.assertEqual(patch(path="/episodes/abc"), (404, {"error": "unknown_episode"}))
-        self.assertEqual(patch(token="nope")[0], 401)
-        self.server.share_page_text = False
-        self.assertEqual(patch(), (403, {"error": "page_text_off"}))
-        self.server.share_page_text, self.server.resetting = True, True
-        self.assertEqual(patch(), (503, {"error": "resetting"}))
-        self.assertEqual(len(self.corrections()), 1)
-
     def test_deleting_an_episode_or_the_attention_takes_its_corrections(self):
         gone = self.episode("上午", hour=9)
         kept = self.episode("中午", hour=12)
         for episode_id in (gone, kept):
-            self.assertEqual(self.request("PATCH", f"/episodes/{episode_id}",
-                                          {"title": "改过", "description": "你改过了。"})[0], 200)
+            self.episodes.edit(episode_id, "改过", "你改过了。")
         self.assertEqual(self.request("DELETE", f"/episodes/{gone}")[0], 200)
         self.assertEqual(self.corrections(), [kept])
         self.server.trace = None

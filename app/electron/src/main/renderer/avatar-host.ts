@@ -3,8 +3,8 @@ import { mkdirSync } from 'node:fs';
 import { type AvatarHost, resendOverrides } from '../ops/avatar.ts';
 import type { OfferedCapability } from './link.ts';
 
-/** What of HostLink the ops reach; `setVisible` goes through the shell's own, click-through all through `setClickThroughAll`. */
-export type AvatarLink = Omit<Required<AvatarHost>, 'setVisible' | 'setClickThroughAll' | 'clickThroughAll'> & { clickThroughAll: boolean };
+/** What of HostLink the ops reach; `setVisible` goes through the shell's own. */
+export type AvatarLink = Omit<Required<AvatarHost>, 'setVisible' | 'clickThroughAll'> & { clickThroughAll: boolean };
 
 /** The link's hello lists these; the ops send their messages. */
 export const MOTION_OFFERS: readonly OfferedCapability[] = ['motion_overrides', 'play_chain', 'action_transport'];
@@ -17,8 +17,6 @@ export interface AvatarShell {
   captureDir?: string;
   /** notifyCaptureSaved: 已保存截图 with the file name. */
   captureSaved?(file: string): void;
-  /** refreshStatusIcon after a toggle. */
-  clickThroughChanged?(): void;
 }
 
 /** The link as the ops see it, with `avatar.setVisible` through `setHidden`. */
@@ -37,10 +35,6 @@ export function linkAvatarHost(link: AvatarLink, setHidden: (hidden: boolean) =>
     playChain: (playId, character, start, speed, onResult) => link.playChain(playId, character, start, speed, onResult),
     send: (m) => link.send(m), on: (listener) => link.on(listener),
     get clickThroughAll() { return link.clickThroughAll; },
-    setClickThroughAll: (on) => {
-      link.clickThroughAll = on;
-      shell.clickThroughChanged?.();
-    },
     sendPhoto: (active, aperture, focus) => link.sendPhoto(active, aperture, focus),
     ...(captureDir === undefined ? {} : {
       capture: async (background: string) => {

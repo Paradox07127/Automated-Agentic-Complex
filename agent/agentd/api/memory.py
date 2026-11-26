@@ -14,8 +14,6 @@ class MemoryMixin:
         history = self.server.history
         if history is None:
             return self._json(503, NO_HISTORY)
-        if path == "/history/export":
-            return self._json(200, {"turns": history.export()})
         try:
             before = int(query["before"][0]) if "before" in query else None
             turns, after = history.page(before, int(query.get("limit", ["50"])[0]))

@@ -79,7 +79,6 @@ function panelWith(o: { webDesktop?: boolean; screens?: ScreenInfo[]; toDip?: Co
     register: (_c, _p, m) => { ops = m; }, unregister: () => {},
     baseOps: new Map([['computerUse.stop', () => { clicks.push('stop'); return null; }]]),
   });
-  panel.start();
   const pushed: unknown[] = [];
   const page = new PageSession((_sub, _stream, _kind, payload) => { if (payload) pushed.push(JSON.parse(payload.data)); });
   const call = (op: string, ...args: unknown[]) => ops.get(op)!(args, page);

@@ -3,12 +3,24 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  type HelperAnswer, HINT, normalizeTranscript, PushToTalk, pushToTalkState, rejectedHint, speechLocale, type VoiceHint,
+  type HelperAnswer, HINT, normalizeTranscript, PushToTalk, rejectedHint, speechLocale, type VoiceHint,
 } from '../src/common/push-to-talk.ts';
 import { TurnMarks } from '../src/common/turn-marks.ts';
 
 const ok = (result: Record<string, unknown>): HelperAnswer => ({ ok: true, result });
 const err = (code: string): HelperAnswer => ({ ok: false, error: { code } });
+
+/** A hint as a phase; a download has none. */
+function pushToTalkState(hint: VoiceHint | null): { phase: string; partial?: string; error?: string } | null {
+  if (hint === null) return { phase: 'idle' };
+  switch (hint.kind) {
+    case 'downloading': return null;
+    case 'listening': return { phase: 'listening', partial: hint.text };
+    case 'sent': return { phase: 'sent', partial: hint.text };
+    case 'discarded': return { phase: 'error', error: hint.reason };
+    case 'micDenied': return { phase: 'error', error: 'mic_denied' };
+  }
+}
 
 type Answer = HelperAnswer | ((params: Record<string, unknown>) => HelperAnswer | Promise<HelperAnswer>);
 type AgentdAnswer = { status: number; body: unknown } | 'down' | (() => Promise<{ status: number; body: unknown }>)
@@ -80,7 +92,7 @@ function setup(o: { name?: string; helper?: Record<string, Answer>; ops?: string
   const s = {
     ptt, requests, posts, headers, stops, hints, logs, settle,
     ops: () => requests.map(([op]) => op),
-    /** The page's `voice.onPushToTalk` values so far. */
+    /** The hints so far as phases; a download has none. */
     states: () => hints.map(pushToTalkState),
     last: () => pushToTalkState(hints.at(-1) ?? null),
     async advance(ms: number) {
@@ -128,14 +140,6 @@ test('a refused /say shows the short recovery for a role runtime, the code\'s se
   assert.equal(rejectedHint('local_runtime_missing', null), '未检测到 Codex CLI 或 ACP 智能体');
   assert.equal(rejectedHint('switching', null), '正在切换角色，消息未发送');
   assert.equal(rejectedHint('whatever', null), HINT.notSent);
-});
-
-test('the hint as protocol.ts PushToTalkState (pushToTalkState)', () => {
-  assert.deepEqual(pushToTalkState(null), { phase: 'idle' });
-  assert.deepEqual(pushToTalkState({ kind: 'listening', levels: [0.2], elapsed: 1, text: '明天下午' }), { phase: 'listening', partial: '明天下午' });
-  assert.deepEqual(pushToTalkState({ kind: 'sent', text: '明天下午', elapsed: 2 }), { phase: 'sent', partial: '明天下午' });
-  assert.deepEqual(pushToTalkState({ kind: 'discarded', reason: HINT.tooShort, elapsed: 0.1 }), { phase: 'error', error: '按住时长不足 0.3 秒' });
-  assert.deepEqual(pushToTalkState({ kind: 'micDenied' }), { phase: 'error', error: 'mic_denied' });
 });
 
 test('the hot key registers once agentd and the helper run, again after each helper restart, and goes when agentd stops', async () => {
@@ -521,7 +525,6 @@ test('speech.download while mic.start runs shows the download in MB, logged once
   await s.event('speech.download', { session: 'other', fraction: 0.9, completed: 1, total: 2 });
   await s.event('speech.download', { session, fraction: 0.5, completed: 104_000_000, total: 208_000_000 });
   assert.deepEqual(s.hints.at(-1), { kind: 'downloading', fraction: 0.5, receivedMB: 104, totalMB: 208 });
-  assert.equal(pushToTalkState(s.hints.at(-1)!), null, 'the page gets no state for a download (WebBridge.pushToTalkState)');
   assert.equal(s.logs.filter((l) => l === 'VOICE asset_download').length, 1);
   started.resolve(ok({ session, locale: 'zh-CN', sample_rate: 48000 }));
   await s.settle();

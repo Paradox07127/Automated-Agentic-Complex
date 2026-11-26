@@ -116,11 +116,11 @@ class HttpGuardTest(unittest.TestCase):
 
     def test_history_and_run_files_routes_require_the_ui_token(self):
         self.assertIn(("GET", "/character/state/history", ("ui_token",)), ROUTES)
-        for path in ("/agent/runs/run-1/files", "/agent/tasks/job:a/files"):
+        for path in ("/agent/tasks/job:a/files",):
             self.assertTrue(any(method == "GET" and not isinstance(pattern, str)
                                 and pattern.fullmatch(path) and allowed == ("ui_token",)
                                 for method, pattern, allowed in ROUTES))
-        for path in ("/character/state/history", "/agent/runs/run-1/files", "/agent/tasks/job:a/files"):
+        for path in ("/character/state/history", "/agent/tasks/job:a/files"):
             for token in (None, TOKENS["hook_token"], TOKENS["events_token"]):
                 with self.subTest(path=path, token=token):
                     self.assertEqual(self.request("GET", path, token), (401, {"error": "unauthorized"}))

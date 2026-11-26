@@ -1,5 +1,5 @@
 // The ops that go through the platform helper (C12): `permissions.*`,
-// `open.jumpToSession`, `runFeedCommand` and `runInTerminal`, against a fake helper that records its requests and answers
+// `open.jumpToSession` and `runInTerminal`, against a fake helper that records its requests and answers
 // from a table. Nothing here asks the real system: no prompt, no app activation, no terminal.
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -10,7 +10,7 @@ import routes from '../../../protocol/ui-bridge/routes.json' with { type: 'json'
 import { handle, type Reply, type Surface } from '../src/common/bridge.ts';
 import { silentSource } from '../src/common/feed.ts';
 import { PageSession } from '../src/common/page.ts';
-import { jumpPlan, matchApp, matchSession, normalizedName, parseSessions } from '../src/common/session-jump.ts';
+import { jumpPlan, parseSessions } from '../src/common/session-jump.ts';
 import { ORIGIN } from '../src/common/ui.ts';
 import type { AgentdClient } from '../src/main/agentd/client.ts';
 import { type HelperReply, localError } from '../src/main/helper/client.ts';
@@ -223,17 +223,12 @@ test('open.jumpToSession activates the session\'s app or process, and says why w
   assert.deepEqual(failure(await off.call('open.jumpToSession', [''])), { code: 'invalid_args', detail: 'session id' });
 });
 
-test('an own session opens on the main window\'s sessions route, there, from a feed command and from the panels through openMain', async () => {
+test('an own session opens on the main window\'s sessions route, there and from the panels through openMain', async () => {
   const sessions = [session('mine 1', null, { own: true, cwd: '/work/mine' })];
-  // The feed command is the agent's entry (activate: false), which leaves a focused main window on its page: openMain's.
-  const entries: [string, boolean | undefined][] = [];
-  const main = setup({ sessions, openMain: (route, activate) => { entries.push([route, activate]); } });
+  const main = setup({ sessions });
   assert.equal(value(await main.call('open.jumpToSession', ['mine 1'])), null);
-  assert.equal(value(await main.call('open.runFeedCommand', [{ action: 'jump', target: 'mine' }])), null);
   assert.deepEqual(main.routes, ['/overview?sel=mine%201&focus=task-mine%201']);
-  assert.deepEqual(entries, [['/overview?sel=mine%201&focus=task-mine%201', false]]);
-  assert.deepEqual(main.lines, ['FEED command action=jump result=session_panel selected=mine 1']);
-  assert.deepEqual(main.calls, ['agentd GET /sessions', 'agentd GET /sessions']);
+  assert.deepEqual(main.calls, ['agentd GET /sessions']);
   const opened: string[] = [];
   const stack = setup({ sessions, surface: 'stack', openMain: (route) => { opened.push(route); } });
   assert.equal(value(await stack.call('open.jumpToSession', ['mine 1'])), null);
@@ -246,9 +241,6 @@ test('an own session opens on the main window\'s sessions route, there, from a f
   const none = setup({ sessions, surface: 'stack' });
   assert.equal(failure(await none.call('open.jumpToSession', ['mine 1'])).detail, '当前会话无可用跳转方式');
   assert.deepEqual(none.routes, []);
-  const noMain = setup({ sessions, helper: new FakeHelper({ 'apps.running': ok({ apps: [] }) }) });
-  assert.equal(failure(await noMain.call('open.runFeedCommand', [{ action: 'jump', target: 'mine' }])).detail, '没找到「mine」');
-  assert.deepEqual(noMain.routes, []);
 });
 
 test('open.jumpToSession fails with the reason when the helper is not there', async () => {
@@ -364,46 +356,6 @@ test('desktopLocalId reads only <root>/*/*/local_*.json records that list the CL
   }
 });
 
-test('open.runFeedCommand opens an installed app the helper lists, by file or display name', async () => {
-  const helper = new FakeHelper({ 'apps.installed': ok({ apps: [{ path: '/Applications/Safari.app', name: 'Safari' },
-    { path: '/System/Applications/Notes.app', name: '备忘录' }] }) });
-  const { calls, call } = setup({ helper });
-  assert.equal(value(await call('open.runFeedCommand', [{ action: 'open', target: 'safari' }])), null);
-  assert.equal(value(await call('open.runFeedCommand', [{ action: 'open', target: '备忘录' }])), null);
-  assert.deepEqual(calls, ['openPath /Applications/Safari.app', 'openPath /System/Applications/Notes.app']);
-  assert.equal(failure(await call('open.runFeedCommand', [{ action: 'open', target: 'Xcode' }])).detail, '没找到应用「Xcode」');
-  const broken = setup({ helper, openPath: async () => 'no app' });
-  assert.equal(failure(await broken.call('open.runFeedCommand', [{ action: 'open', target: 'Safari' }])).detail, '打不开「Safari」');
-  for (const bad of [null, { action: 'run', target: 'x' }, { action: 'open', target: '' }, { action: 'open', target: 'x'.repeat(1025) }]) {
-    assert.deepEqual(failure(await call('open.runFeedCommand', [bad])), { code: 'invalid_args', detail: '{action: open|jump, target}' });
-  }
-  for (const gone of [exited, null]) {
-    const e = failure(await setup({ helper: gone }).call('open.runFeedCommand', [{ action: 'open', target: 'Safari' }]));
-    assert.equal(e.code, 'failed');
-    assert.match(e.detail, /系统助手/);
-  }
-});
-
-test('open.runFeedCommand jumps to the matching session, else activates a running app', async () => {
-  const sessions = [session('old', { kind: 'unknown', pid: 11 }, { cwd: '/work/proj', updated_at: 1 }),
-    session('new', { kind: 'unknown', pid: 22 }, { cwd: '/other/proj/', updated_at: 2 })];
-  const helper = new FakeHelper({ 'apps.activate': ok({ activated: true, pid: 1 }),
-    'apps.running': ok({ apps: [{ pid: 30, name: 'Notes', app_id: 'com.apple.Notes', path: '/System/Applications/Notes.app', regular: true },
-      { pid: 31, name: 'Helper', app_id: 'com.example.helper' }] }) });
-  const { call } = setup({ helper, sessions });
-  assert.equal(value(await call('open.runFeedCommand', [{ action: 'jump', target: 'Proj' }])), null);
-  assert.equal(value(await call('open.runFeedCommand', [{ action: 'jump', target: 'notes' }])), null);
-  assert.deepEqual(helper.requests, [['apps.activate', { pid: 22, ancestors: true }], ['apps.running', { regular_only: true }],
-    ['apps.activate', { pid: 30 }]]);
-  assert.equal(failure(await call('open.runFeedCommand', [{ action: 'jump', target: 'helper' }])).detail, '没找到「helper」');
-  const off = setup({ helper: new FakeHelper({ 'apps.activate': ok({ activated: false, pid: null }) }), sessions });
-  assert.equal(failure(await off.call('open.runFeedCommand', [{ action: 'jump', target: 'proj' }])).detail, '未找到进程 22 所属应用');
-  const noAgentd = setup({ helper, sessionsStatus: 503 });
-  assert.equal(value(await noAgentd.call('open.runFeedCommand', [{ action: 'jump', target: 'notes' }])), null, 'no sessions: apps');
-  const e = failure(await setup({ helper: exited }).call('open.runFeedCommand', [{ action: 'jump', target: 'notes' }]));
-  assert.match(e.detail, /系统助手/);
-});
-
 test('open.runInTerminal checks the command, asks first, then has Terminal run it', async () => {
   const { calls, call } = setup();
   assert.equal(value(await call('open.runInTerminal', ['echo "a\\b"'])), null);
@@ -455,20 +407,4 @@ test('jumpPlan picks the most precise way', () => {
   assert.equal(plan(null), null);
   assert.equal(plan({ kind: 'terminal', pid: 3 }, { own: true }), null);
   assert.throws(() => parseSessions({ sessions: [{ session_id: 1 }] }));
-});
-
-test('feed targets match apps and sessions', () => {
-  assert.equal(normalizedName(' Visual Studio Code.APP'), 'visualstudiocode');
-  assert.equal(normalizedName('ＳＡＦＡＲＩ'), 'safari');
-  const apps = [{ path: '/A/Code.app', displayName: 'Visual Studio Code' }, { path: '/A/Coder.app', displayName: 'Coder' },
-    { path: '/A/Codex.app', displayName: 'Codex' }];
-  assert.equal(matchApp('code', apps), '/A/Code.app');
-  assert.equal(matchApp('cod', apps), null, 'more than one partial match');
-  assert.equal(matchApp('studio', apps), '/A/Code.app');
-  assert.equal(matchApp(' ', apps), null);
-  const sessions = parseSessions({ sessions: [session('a', null, { title: 'Fix the parser', updated_at: 5 }),
-    session('b', null, { target: 'codex', updated_at: 3 }), session('c', null, { title: 'parser notes', updated_at: 9 })] });
-  assert.equal(matchSession('parser', sessions)?.sessionId, 'c');
-  assert.equal(matchSession('Codex', sessions)?.sessionId, 'b');
-  assert.equal(matchSession('cod', sessions), null);
 });

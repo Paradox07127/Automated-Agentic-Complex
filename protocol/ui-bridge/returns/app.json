@@ -210,18 +210,10 @@
     "surface": "main",
     "args": [
       {
-        "path": "/history/export",
-        "suggestedName": "history.json"
+        "path": "/memory/export",
+        "suggestedName": "memory.json"
       }
     ],
     "value": false
-  },
-  {
-    "op": "window.contentRect",
-    "surface": "stack",
-    "value": {
-      "width": 800,
-      "height": 600
-    }
   }
 ]
