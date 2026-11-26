@@ -4,7 +4,7 @@
 import { BridgeFailure, type Handler } from './bridge.ts';
 import type { ActionPlayed, ActionRow, C3Message } from './c3.ts';
 
-export const DESKTOP_ACTIONS = ['look', 'hide', 'show', 'clickThroughAll', 'quiet', 'quietEnd', 'gift', 'freeRoam', 'resetPosition', 'photo', 'quit',
+export const DESKTOP_ACTIONS = ['look', 'hide', 'show', 'clickThroughAll', 'quiet', 'quietEnd', 'gift', 'freeRoam', 'resetPosition', 'resize', 'photo', 'quit',
   'resetBoxes', 'openStack', 'claimRitual', 'quickInput', 'talk', 'stopPlay', 'pose'] as const;
 export type DesktopActionName = (typeof DESKTOP_ACTIONS)[number];
 
@@ -30,6 +30,8 @@ export interface DesktopActionPorts {
   openStack?(): void;
   /** The ritual tag's tap: null when agentd took it, else why not. */
   claimRitual?(): Promise<string | null>;
+  /** Opens 调整大小's frame on her; nothing without her frame. */
+  resize?(): void;
   /** Opens 拍照's bar under her; nothing without her figure. */
   photo?(): void;
   /** 说话: `start` as a press of the push-to-talk key, `stop` as its release, on the same recording. */
@@ -116,6 +118,7 @@ export function desktopAction<P>(ports: DesktopActionPorts): Handler<P> {
       case 'gift': await given(ports.gift)(); break;
       case 'freeRoam': await given(ports.freeRoam)(); break;
       case 'openStack': given(ports.openStack)(); break;
+      case 'resize': given(ports.resize)(); break;
       case 'photo': given(ports.photo)(); break;
       case 'claimRitual': {
         const failure = await given(ports.claimRitual)();

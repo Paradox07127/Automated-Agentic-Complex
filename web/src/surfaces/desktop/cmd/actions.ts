@@ -5,7 +5,7 @@ import type { NavTarget } from '../../../shell/nav';
 import type { GameWheelItem } from '../../../ui/game/GameWheel';
 
 export type CmdActionId =
-  | 'goChat' | 'pending' | 'quiet' | 'quietEnd' | 'photo' | 'home' | 'roam' | 'actions' | 'stop' | 'goCharacter'
+  | 'goChat' | 'resize' | 'quiet' | 'quietEnd' | 'photo' | 'home' | 'roam' | 'actions' | 'stop' | 'goCharacter'
   | 'dance' | 'poses' | 'gift' | 'pose';
 
 /** The levels under the first, named as the slot that opens each. */
@@ -36,15 +36,13 @@ export function giftOff(actions: readonly AvatarAction[]): string | null {
   return null;
 }
 
-/** The wheel's 8 slots clockwise from the top; the toggles follow the desktop state, 待处理 is greyed with nothing waiting,
- *  拍照 while her renderer lists no `capture`, and 动作 is 停止 while she plays, named from her `actions`. */
-export function wheelItems(s: DesktopState | null, pending: number, now = Date.now(), actions: readonly AvatarAction[] = []): CmdItem[] {
+/** The wheel's 8 slots clockwise from the top; the toggles follow the desktop state, 拍照 is greyed while her renderer lists
+ *  no `capture`, and 动作 is 停止 while she plays, named from her `actions`. */
+export function wheelItems(s: DesktopState | null, now = Date.now(), actions: readonly AvatarAction[] = []): CmdItem[] {
   const quiet = s?.quietUntil != null && s.quietUntil > now;
   return [
     { id: 'goChat', label: '打开对话', icon: 'file', desc: '在主窗口打开对话页', to: { page: 'chat' } },
-    pending > 0
-      ? { id: 'pending', label: '待处理', icon: 'bell', desc: `${pending} 项待处理`, count: pending, to: { page: 'overview', focus: 'pending' } }
-      : { id: 'pending', label: '待处理', icon: 'bell', off: '当前无待处理事项' },
+    { id: 'resize', label: '调整大小', icon: 'tune', desc: '拖动四角调整角色大小' },
     quiet
       ? { id: 'quietEnd', label: '结束免打扰', icon: 'moon', desc: '恢复主动交互', on: true }
       : { id: 'quiet', label: '免打扰', icon: 'moon', desc: '暂停主动交互 30 分钟' },
@@ -98,7 +96,7 @@ export function poseItems(s: DesktopState | null): CmdItem[] {
   ];
 }
 
-/** 待处理 on the wheel: questions, approvals and results in agentd's `/desktop/presence`, counting the rows past the first 3. */
+/** 待处理 in the console: questions, approvals and results in agentd's `/desktop/presence`, counting the rows past the first 3. */
 export function pendingCount(presence: unknown): number {
   const pending = (presence as { pending?: Record<string, unknown> } | null)?.pending;
   if (!pending || typeof pending !== 'object') return 0;

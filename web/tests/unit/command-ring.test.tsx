@@ -65,8 +65,8 @@ const runs = (i: CmdItem | null | undefined): RunItem => {
   return { ...i, id: i.id };
 };
 
-const item = (id: CmdItem['id'], s: DesktopState | null = STATE, pending = 2): RunItem =>
-  runs([...wheelItems(s, pending), ...actionItems(s, [], [])].find((i) => i?.id === id));
+const item = (id: CmdItem['id'], s: DesktopState | null = STATE): RunItem =>
+  runs([...wheelItems(s), ...actionItems(s, [], [])].find((i) => i?.id === id));
 
 const dance = (id: string, label: string, durationS = 252): AvatarAction => ({ id, label, enabled: true, section: 'mmd', durationS, playable: true });
 const DANCES: AvatarAction[] = [
@@ -92,20 +92,19 @@ const POSES: NonNullable<DesktopState['poses']> = {
 
 describe('the action table', () => {
   it('has the 8 slots of the design, clockwise from the top', () => {
-    expect(wheelItems(STATE, 2).map((i) => i.label)).toEqual(['打开对话', '待处理', '免打扰', '拍照', '重置位置', '自由活动', '动作', '角色设置']);
-    expect(wheelItems(STATE, 2).map((i) => i.id)).toEqual(['goChat', 'pending', 'quiet', 'photo', 'home', 'roam', 'actions', 'goCharacter']);
-    expect(wheelItems(STATE, 2)[1]).toMatchObject({ count: 2 });
+    expect(wheelItems(STATE).map((i) => i.label)).toEqual(['打开对话', '调整大小', '免打扰', '拍照', '重置位置', '自由活动', '动作', '角色设置']);
+    expect(wheelItems(STATE).map((i) => i.id)).toEqual(['goChat', 'resize', 'quiet', 'photo', 'home', 'roam', 'actions', 'goCharacter']);
   });
 
   it('07 is 动作, opening a level, while nothing plays, and 停止 naming the play while she plays', () => {
     const now = 1_800_000_000_000;
-    expect(wheelItems(STATE, 0, now, DANCES)[6]).toMatchObject({ id: 'actions', label: '动作', icon: 'play', deeper: true });
-    expect(wheelItems({ ...STATE, playing: null }, 0, now, DANCES)[6]?.id).toBe('actions');
-    const stop = wheelItems({ ...STATE, playing: 'mmd_lamb' }, 0, now, DANCES)[6];
+    expect(wheelItems(STATE, now, DANCES)[6]).toMatchObject({ id: 'actions', label: '动作', icon: 'play', deeper: true });
+    expect(wheelItems({ ...STATE, playing: null }, now, DANCES)[6]?.id).toBe('actions');
+    const stop = wheelItems({ ...STATE, playing: 'mmd_lamb' }, now, DANCES)[6];
     expect(stop).toMatchObject({ id: 'stop', label: '停止动作', icon: 'stop', on: true, desc: 'Lamb.' });
     expect(stop?.deeper).toBeUndefined();
     // A play her list does not name is named by its id.
-    expect(wheelItems({ ...STATE, playing: 'chain_x' }, 0, now, DANCES)[6]).toMatchObject({ id: 'stop', desc: 'chain_x' });
+    expect(wheelItems({ ...STATE, playing: 'chain_x' }, now, DANCES)[6]).toMatchObject({ id: 'stop', desc: 'chain_x' });
   });
 
   it('动作\'s level: the first 6 dances of her setlist in its order, 姿态 at 07 and 送礼物 at 08 in place, fewer dances leave holes', () => {
@@ -133,19 +132,19 @@ describe('the action table', () => {
     for (const s of [STATE, { ...STATE, poses: null }]) expect(actionItems(s, [], DANCES)[6]).toMatchObject({ id: 'poses', off: '当前版本角色不支持姿态设置' });
   });
 
-  it('待处理 with nothing waiting is greyed with its reason; the toggles follow the desktop state', () => {
+  it('02 is 调整大小; the toggles follow the desktop state', () => {
     const now = 1_800_000_000_000;
-    expect(wheelItems(STATE, 0, now)[1]).toMatchObject({ id: 'pending', off: '当前无待处理事项' });
-    const on = wheelItems({ ...STATE, freeRoam: true, quietUntil: now + 60_000 }, 0, now);
+    expect(wheelItems(STATE, now)[1]).toMatchObject({ id: 'resize', label: '调整大小', icon: 'tune', desc: '拖动四角调整角色大小' });
+    const on = wheelItems({ ...STATE, freeRoam: true, quietUntil: now + 60_000 }, now);
     expect(on[2]).toMatchObject({ id: 'quietEnd', label: '结束免打扰', on: true });
     expect(on[5]).toMatchObject({ id: 'roam', on: true });
-    expect(wheelItems({ ...STATE, quietUntil: now - 60_000 }, 0, now)[2]?.id).toBe('quiet');
+    expect(wheelItems({ ...STATE, quietUntil: now - 60_000 }, now)[2]?.id).toBe('quiet');
   });
 
   it('04 is 拍照, greyed with why while her renderer lists no `capture`', () => {
-    expect(wheelItems(STATE, 0)[3]).toMatchObject({ id: 'photo', label: '拍照', icon: 'eye', desc: '调节光圈与对焦，拍摄透明背景图像' });
-    expect(wheelItems({ ...STATE, capture: true }, 0)[3]?.off).toBeUndefined();
-    expect(wheelItems({ ...STATE, capture: false }, 0)[3]).toMatchObject({ id: 'photo', off: '当前渲染器未提供截图能力' });
+    expect(wheelItems(STATE)[3]).toMatchObject({ id: 'photo', label: '拍照', icon: 'eye', desc: '调节光圈与对焦，拍摄透明背景图像' });
+    expect(wheelItems({ ...STATE, capture: true })[3]?.off).toBeUndefined();
+    expect(wheelItems({ ...STATE, capture: false })[3]).toMatchObject({ id: 'photo', off: '当前渲染器未提供截图能力' });
   });
 
   it('送礼物 is greyed with why when her package has no gift action, or has it missing', () => {
@@ -160,6 +159,7 @@ describe('the action table', () => {
     expect(pendingCount({ pending: { questions: [{}], questions_more: 0, approvals: [{}, {}, {}], approvals_more: 2, results: [], tasks: [{}] } })).toBe(6);
     expect(pendingCount(null)).toBe(0);
   });
+
 });
 
 describe('the wheel', () => {
@@ -172,10 +172,10 @@ describe('the wheel', () => {
   });
 
   it('shows 8 slots with their names, one level, and the key help only while ⌘ is held', () => {
-    render(<CommandRing items={wheelItems(STATE, 3)} center={center} onRun={() => {}} onClose={() => {}} />);
+    render(<CommandRing items={wheelItems(STATE)} center={center} onRun={() => {}} onClose={() => {}} />);
     const wheel = screen.getByRole('menu', { name: '角色的轮盘' });
     expect(within(wheel).getAllByRole('menuitem')).toHaveLength(8);
-    expect(within(wheel).getByRole('menuitem', { name: '2 待处理 3' })).toBeTruthy();
+    expect(within(wheel).getByRole('menuitem', { name: '2 调整大小' })).toBeTruthy();
     expect(wheel.textContent).toContain('示例甲');
     expect(wheel.closest('[data-keys]')).toBeNull();
     flush(() => void fireEvent.keyDown(window, { key: 'Meta', metaKey: true }));
@@ -187,23 +187,23 @@ describe('the wheel', () => {
   it('1–8 run their slot directly, a greyed slot does not run, esc closes', () => {
     const onRun = vi.fn();
     const onClose = vi.fn();
-    render(<CommandRing items={wheelItems(STATE, 0)} center={center} onRun={onRun} onClose={onClose} />);
+    render(<CommandRing items={wheelItems({ ...STATE, capture: false })} center={center} onRun={onRun} onClose={onClose} />);
     const wheel = screen.getByRole('menu', { name: '角色的轮盘' });
-    fireEvent.keyDown(wheel, { key: '2' });
-    expect(onRun).not.toHaveBeenCalled();
-    expect(wheel.textContent).toContain('当前无待处理事项');
     fireEvent.keyDown(wheel, { key: '4' });
-    expect(onRun).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'photo' }));
+    expect(onRun).not.toHaveBeenCalled();
+    expect(wheel.textContent).toContain('当前渲染器未提供截图能力');
+    fireEvent.keyDown(wheel, { key: '2' });
+    expect(onRun).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'resize' }));
     fireEvent.keyDown(wheel, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('opened by a right click it centres on the click; the hot key\'s sits in the middle of its box', () => {
-    const at = render(<CommandRing items={wheelItems(STATE, 0)} center={center} at={{ x: 300, y: 250 }} onRun={() => {}} onClose={() => {}} />);
+    const at = render(<CommandRing items={wheelItems(STATE)} center={center} at={{ x: 300, y: 250 }} onRun={() => {}} onClose={() => {}} />);
     const placed = at.container.querySelector<HTMLElement>('[data-stub="GameWheel"]');
     expect([placed?.style.left, placed?.style.top]).toEqual(['40px', '-10px']);
     at.unmount();
-    render(<CommandRing items={wheelItems(STATE, 0)} center={center} onRun={() => {}} onClose={() => {}} />);
+    render(<CommandRing items={wheelItems(STATE)} center={center} onRun={() => {}} onClose={() => {}} />);
     expect(document.querySelector<HTMLElement>('[data-stub="GameWheel"]')?.style.left).toBe('');
   });
 
@@ -225,7 +225,7 @@ describe('the wheel', () => {
     expect(onBack).toHaveBeenCalledTimes(3);
     expect(onClose).not.toHaveBeenCalled();
     view.unmount();
-    render(<CommandRing items={wheelItems(STATE, 0)} center={center} onRun={onRun} onClose={onClose} />);
+    render(<CommandRing items={wheelItems(STATE)} center={center} onRun={onRun} onClose={onClose} />);
     fireEvent.keyDown(screen.getByRole('menu', { name: '角色的轮盘' }), { key: 'Backspace' });
     fireEvent.keyDown(screen.getByRole('menu', { name: '角色的轮盘' }), { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -235,7 +235,7 @@ describe('the wheel', () => {
     const onRun = vi.fn();
     const rest = (ms: number) => flush(() => new Promise((r) => setTimeout(r, ms)));
     const props = { center, onClose: () => {}, onRun };
-    const level1 = wheelItems(STATE, 0);
+    const level1 = wheelItems(STATE);
     const view = render(<CommandRing {...props} items={level1} press={{ phase: 'move', x: -100, y: 0 }} />);
     await rest(200);
     expect(onRun).not.toHaveBeenCalled();
@@ -256,7 +256,7 @@ describe('the wheel', () => {
     const onRun = vi.fn();
     const rest = (ms: number) => flush(() => new Promise((r) => setTimeout(r, ms)));
     const props = { center, onClose: () => {}, onRun };
-    const view = render(<CommandRing {...props} items={wheelItems(STATE, 0)} press={{ phase: 'move', x: -100, y: 0 }} />);
+    const view = render(<CommandRing {...props} items={wheelItems(STATE)} press={{ phase: 'move', x: -100, y: 0 }} />);
     await rest(350);
     const level2 = actionItems({ ...STATE, poses: POSES }, ['mmd_jile'], DANCES);
     view.rerender(<CommandRing {...props} items={level2} level="actions" press={{ phase: 'move', x: -100, y: 0 }} />);
@@ -274,7 +274,7 @@ describe('the wheel', () => {
     const view = render(<CommandRing {...props} items={level2} level="actions" onBack={() => {}} press={press} />);
     await rest(100);
     fireEvent.keyDown(screen.getByRole('menu', { name: '角色的轮盘' }), { key: 'Escape' });
-    view.rerender(<CommandRing {...props} items={wheelItems(STATE, 0)} press={press} />);
+    view.rerender(<CommandRing {...props} items={wheelItems(STATE)} press={press} />);
     await rest(350);
     expect(onRun).not.toHaveBeenCalled();
   });
@@ -282,7 +282,7 @@ describe('the wheel', () => {
   it('Enter on a slot that opened a level does not run the slot in its place on the new level; held keys do not repeat', () => {
     const onRun = vi.fn();
     const props = { center, onClose: () => {}, onRun };
-    const view = render(<CommandRing {...props} items={wheelItems(STATE, 0)} />);
+    const view = render(<CommandRing {...props} items={wheelItems(STATE)} />);
     const wheel = () => screen.getByRole('menu', { name: '角色的轮盘' });
     fireEvent.keyDown(wheel(), { key: '4', repeat: true });
     fireEvent.keyDown(wheel(), { key: 'ArrowLeft' });
@@ -297,7 +297,7 @@ describe('the wheel', () => {
 
   it('on Windows the key help shows while Ctrl is held, not the Windows key', () => {
     window.agenticComplex = { ...createFakeBridge({ surface: 'stack', still: true }), platform: 'windows' };
-    render(<CommandRing items={wheelItems(STATE, 0)} center={center} onRun={() => {}} onClose={() => {}} />);
+    render(<CommandRing items={wheelItems(STATE)} center={center} onRun={() => {}} onClose={() => {}} />);
     const wheel = screen.getByRole('menu', { name: '角色的轮盘' });
     flush(() => void fireEvent.keyDown(window, { key: 'Meta', metaKey: true }));
     expect(wheel.closest('[data-keys]')).toBeNull();
@@ -377,7 +377,7 @@ describe('wheel actions', () => {
     const now = 1_800_000_000_000;
     expect(await runCmdAction(item('quiet'), ctx(bridge, STATE, now))).toMatchObject({ kind: 'receipt', tone: 'success', text: expect.stringContaining('免打扰已开启') });
     const quiet = { ...STATE, quietUntil: now + 60_000 };
-    const end = wheelItems(quiet, 0, now)[2];
+    const end = wheelItems(quiet, now)[2];
     expect(await runCmdAction(runs(end), ctx(bridge, quiet, now))).toMatchObject({ kind: 'receipt', text: '免打扰已结束' });
     expect(action.mock.calls.map((c) => c[0])).toEqual(['quiet', 'quietEnd']);
     expect(request).not.toHaveBeenCalled();
@@ -404,6 +404,13 @@ describe('wheel actions', () => {
     expect(action.mock.calls).toEqual([['photo']]);
   });
 
+  it('调整大小 opens the resize frame on her through native and closes the wheel', async () => {
+    const bridge = stackBridge();
+    const action = vi.spyOn(bridge.desktop, 'action');
+    expect(await runCmdAction(item('resize'), ctx(bridge))).toEqual({ kind: 'close' });
+    expect(action.mock.calls).toEqual([['resize']]);
+  });
+
   it('送礼物 goes to native and asks agentd nothing; one native could not play shows its reason', async () => {
     const bridge = stackBridge();
     const request = vi.spyOn(bridge.agentd, 'request');
@@ -415,11 +422,11 @@ describe('wheel actions', () => {
     expect(await runCmdAction(item('gift'), ctx(bridge))).toMatchObject({ kind: 'receipt', tone: 'danger', text: expect.stringContaining('当前角色尚未导入原作赠礼动作') });
   });
 
-  it('对话页, 待处理 and 角色页 open the main window', async () => {
+  it('对话页 and 角色页 open the main window', async () => {
     const bridge = stackBridge();
     const openMain = vi.spyOn(bridge.window, 'openMain').mockImplementation(() => {});
-    for (const id of ['goChat', 'pending', 'goCharacter'] as const) expect(await runCmdAction(item(id), ctx(bridge))).toEqual({ kind: 'close' });
-    expect(openMain.mock.calls.map((c) => c[0])).toEqual([expect.stringMatching(/^\/chat/), expect.stringMatching(/^\/overview\?.*focus=pending/), expect.stringMatching(/^\/character/)]);
+    for (const id of ['goChat', 'goCharacter'] as const) expect(await runCmdAction(item(id), ctx(bridge))).toEqual({ kind: 'close' });
+    expect(openMain.mock.calls.map((c) => c[0])).toEqual([expect.stringMatching(/^\/chat/), expect.stringMatching(/^\/character/)]);
   });
 
   it('a layer the page closed itself is dropped when native hides the panel', () => {
@@ -518,7 +525,7 @@ describe('wheel actions', () => {
     const action = vi.spyOn(bridge.desktop, 'action');
     const play = vi.spyOn(bridge.avatar, 'playPlaylist');
     const playing = { ...STATE, playing: 'mmd_lamb' };
-    const stop = wheelItems(playing, 0, Date.now(), DANCES)[6];
+    const stop = wheelItems(playing, Date.now(), DANCES)[6];
     expect(await runCmdAction(runs(stop), ctx(bridge, playing))).toEqual({ kind: 'receipt', tone: 'success', text: '动作已停止' });
     const [first] = actionItems(STATE, ['mmd_gone', 'mmd_jile'], DANCES);
     play.mockResolvedValueOnce({ ok: true });

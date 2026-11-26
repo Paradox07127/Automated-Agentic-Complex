@@ -2,14 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { getBridge, type AvatarAction } from '../../../../bridge';
 import type { WheelPress } from '../../../../ui/game/GameWheel';
 import type { CommandSlotProps } from '../../types';
-import { actionItems, giftOff, pendingCount, poseItems, wheelItems, type CmdItem, type CmdLevel } from '../actions';
+import { actionItems, giftOff, poseItems, wheelItems, type CmdItem, type CmdLevel } from '../actions';
 import { CommandRing, WHEEL_BOX } from './CommandRing';
 import { runCmdAction } from './run';
 import styles from './RingSlot.module.css';
 
 /** Her wheel, centred where she was right-clicked. 动作 and 姿态 open their level in place; any other chosen item closes the
  *  panel, and its receipt goes to her bubble. */
-export function RingSlot({ state, presence, command, close }: CommandSlotProps) {
+export function RingSlot({ state, command, close }: CommandSlotProps) {
   const bridge = getBridge();
   const [round, setRound] = useState(0);
   const mounted = useRef(false);
@@ -77,7 +77,7 @@ export function RingSlot({ state, presence, command, close }: CommandSlotProps) 
       ? poseItems(state)
       : level === 'actions'
         ? actionItems(state, setlist, names, actions ? giftOff(actions) : null)
-        : wheelItems(state, pendingCount(presence), Date.now(), names);
+        : wheelItems(state, Date.now(), names);
   // A level's centre names the slot that opened it: 07 on the level above.
   const center =
     level === null

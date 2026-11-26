@@ -27,6 +27,7 @@ function setup(quietFails = false, ritual: string | null = null) {
     gift: async () => { calls.push(['gift']); },
     freeRoam: async () => { calls.push(['freeRoam']); },
     openStack: () => calls.push(['openStack']),
+    resize: () => calls.push(['resize']),
     photo: () => calls.push(['photo']),
     talk: (phase) => calls.push(['talk', phase]),
     stopPlay: () => calls.push(['stopPlay']),
@@ -52,7 +53,7 @@ async function failure(p: unknown): Promise<{ code: string; detail: string }> {
 
 test('the names are DesktopAction\'s', () => {
   assert.deepEqual([...DESKTOP_ACTIONS], ['look', 'hide', 'show', 'clickThroughAll', 'quiet', 'quietEnd', 'gift', 'freeRoam',
-    'resetPosition', 'photo', 'quit', 'resetBoxes', 'openStack', 'claimRitual', 'quickInput', 'talk', 'stopPlay', 'pose']);
+    'resetPosition', 'resize', 'photo', 'quit', 'resetBoxes', 'openStack', 'claimRitual', 'quickInput', 'talk', 'stopPlay', 'pose']);
 });
 
 test('wired actions reach their function and answer null', async () => {
@@ -60,13 +61,13 @@ test('wired actions reach their function and answer null', async () => {
   for (const [name, arg] of [['look'], ['hide'], ['show'], ['quiet'], ['quietEnd'],
     ['resetPosition'], ['quit'], ['quickInput'], ['quickInput', '{"scopeId":"s1","files":2}'],
     ['resetBoxes'], ['clickThroughAll'], ['gift'], ['freeRoam'], ['openStack'],
-    ['claimRitual'], ['photo'], ['talk', 'start'], ['talk', 'stop'], ['stopPlay'], ['pose', 'pose_sit'], ['pose']] as [string, string?][]) {
+    ['claimRitual'], ['resize'], ['photo'], ['talk', 'start'], ['talk', 'stop'], ['stopPlay'], ['pose', 'pose_sit'], ['pose']] as [string, string?][]) {
     assert.equal(await run(arg === undefined ? [name] : [name, arg], null), null, name);
   }
   assert.deepEqual(calls, [['look'], ['setHidden', true], ['setHidden', false], ['setQuiet', 1_800_000_000 + 1800], ['setQuiet', null],
     ['resetPosition'], ['quit'], ['quickInput', null],
     ['quickInput', { scopeId: 's1', files: 2 }], ['resetBoxes'],
-    ['clickThroughAll'], ['gift'], ['freeRoam'], ['openStack'], ['claimRitual'], ['photo'], ['talk', 'start'],
+    ['clickThroughAll'], ['gift'], ['freeRoam'], ['openStack'], ['claimRitual'], ['resize'], ['photo'], ['talk', 'start'],
     ['talk', 'stop'], ['stopPlay'], ['pose', 'pose_sit'], ['pose', null]]);
 });
 
@@ -92,9 +93,9 @@ test('quickInput takes only a {scopeId, files} scope and talk only start or stop
 test('an action whose port the shell does not give is not_implemented', async () => {
   const { calls, ports } = setup();
   const { clickThroughAll: _a, gift: _b, freeRoam: _c, openStack: _e, claimRitual: _f, talk: _h, stopPlay: _i,
-    pose: _j, photo: _k, ...bare } = ports;
+    pose: _j, photo: _k, resize: _l, ...bare } = ports;
   const run = desktopAction(bare);
-  for (const name of ['clickThroughAll', 'gift', 'freeRoam', 'openStack', 'claimRitual', 'photo', 'stopPlay', 'pose']) {
+  for (const name of ['clickThroughAll', 'gift', 'freeRoam', 'openStack', 'claimRitual', 'resize', 'photo', 'stopPlay', 'pose']) {
     assert.deepEqual(await failure(run([name], null)), { code: 'not_implemented', detail: `desktop.action ${name}` });
   }
   assert.deepEqual(await failure(run(['talk', 'start'], null)), { code: 'not_implemented', detail: 'desktop.action talk' });

@@ -1236,6 +1236,7 @@ function startDesktop(): void {
         desktop?.pushState();
       },
       resetPosition: () => placer?.resetPosition(),
+      resize: () => { resizeOverlay?.begin(); },
       photo: () => { photoOverlay?.begin(); },
       quit: () => app.quit(),
       stopPlay: () => play.stop((m) => hostLink?.send(m) ?? false, hostLink?.capabilities ?? []),

@@ -67,6 +67,8 @@ export type DesktopActionName =
   | 'resetPosition'
   /** Her wheel's 拍照: the photo bar under her. */
   | 'photo'
+  /** Her wheel's 调整大小: the resize frame on her. */
+  | 'resize'
   | 'quit'
   | 'resetBoxes'
   | 'openStack'

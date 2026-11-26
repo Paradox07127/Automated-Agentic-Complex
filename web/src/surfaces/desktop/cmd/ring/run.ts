@@ -41,7 +41,6 @@ export async function runCmdAction(item: RunItem, { bridge, state, now }: RunCon
   try {
     switch (item.id) {
       case 'goChat':
-      case 'pending':
       case 'goCharacter':
         if (item.to) bridge.window.openMain(navRoute(item.to));
         return CLOSE;
@@ -56,6 +55,9 @@ export async function runCmdAction(item: RunItem, { bridge, state, now }: RunCon
         return receipt(state?.clickThroughAll ? '已关闭全部点穿' : `已开启临时鼠标穿透${keys.hk_pass ? ` │ ${keys.hk_pass} 关闭` : ''}`);
       case 'photo':
         await bridge.desktop.action('photo');
+        return CLOSE;
+      case 'resize':
+        await bridge.desktop.action('resize');
         return CLOSE;
       case 'quiet':
         await bridge.desktop.action('quiet');
