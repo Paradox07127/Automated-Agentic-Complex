@@ -1859,6 +1859,22 @@ class TurnContextTests(unittest.TestCase):
         self.assertNotIn(style, call['system_prompt'])
         self.assertIn(f'<reply_style>\n{style}\n</reply_style>\n<reply_language>', call['prompt'])
 
+    def test_her_state_line_ends_every_prompt_even_while_she_is_as_usual(self):
+        import datetime
+        from character.character_state import CharacterState
+        db = open_store(self.fixture.root / 'state.sqlite')
+        self.addCleanup(db.close)
+        noon = time.mktime(datetime.datetime.now().replace(hour=12, minute=0, second=0, microsecond=0).timetuple())
+        self.server.state = CharacterState(db, lambda cid: None, clock=lambda: noon)
+        self.server.state.use(self.server.character)
+        line = self.server.state_view.summary(self.server.user_title())
+        self.assertIn('mood steady', line)
+        for text in ('在吗', '你最近怎么样'):
+            self.prepare(text)
+            prompt = self.sessions[-1].calls[-1]['prompt']
+            self.assertTrue(prompt.endswith('</reply_language>\n' + line + '\n' + text), prompt[-300:])
+            self.assertNotIn('You yourself', prompt.split('</observed_context>')[0])
+
     def test_history_keeps_the_users_own_phone_and_masks_her_retelling(self):
         self.server.mouth.history = [
             [{'role': 'user', 'content': '我的电话是 13812345678'},

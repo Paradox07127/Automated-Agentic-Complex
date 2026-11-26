@@ -124,8 +124,9 @@ class ServerAddressTest(test_server.FeedServerCase):
         return text
 
     def state_context(self):
+        """Her state line as the chat prompt ends with it."""
         self.server.state = test_server.SayTest.her_state(self, 1, walks=2)
-        return self.server.context()
+        return self.server.state_view.summary(self.server.user_title())
 
     def test_the_cards_title_names_the_user(self):
         self.use(card(user_title="博士", pronoun="他"))

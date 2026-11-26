@@ -121,12 +121,11 @@ class ContextMixin:
                             f"{s['effective_state']}" for s in snapshot["sessions"][:8]) or "none" \
             if shared else str(len(snapshot["sessions"]))
         focus = f"{snapshot['focus']['display_session'] or 'none'} " if shared else ""
-        mine = self.state_view.summary(self.user_title()) if self.state is not None else ""  # "" while her state is as usual
         lines = (f"Local time: {local_time(now)}",
                  f"Sessions: {sessions}", f"Focus: {focus}{snapshot['focus']['state']}",
                  self._approvals_context(snapshot) if shared else f"Pending approvals: {len(self.broker.pending())}",
                  self._tasks_context(), self._interrupted(),
-                 self._attention_context(said, look, refused, used, window), mine)
+                 self._attention_context(said, look, refused, used, window))
         return "\n".join(line for line in lines if line)
 
     def _approvals_context(self, snapshot):

@@ -436,7 +436,7 @@ class ServerTest(unittest.TestCase):
         read = lambda: (view.weights(kinds), view.tick_scale(), view.walk_scale(), view.intensity_range(),  # noqa: E731
                         view.comment_scale(), view.mood_label("normal"))
         self.assertTrue(all(a != b for a, b in zip(read(), neutral)), read())
-        self.assertIn("You yourself", self.server.context())
+        self.assertIn("mood good", view.summary(self.server.user_title()))
         for body in ({}, {"affects_behavior": 1}, {"affects_behavior": False, "x": 1}):
             self.assertEqual(self.request("PUT", "/character/state/switch", body), (400, {"error": "invalid_payload"}))
         off = {"affects_behavior": False}
@@ -445,7 +445,6 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(read(), neutral)
         self.assertEqual((view.summary(self.server.user_title()), view.labels()), ("", None))
         self.assertGreaterEqual(view.snapshot()["energy"], character_state.TIRED)  # Behavior's yawn and sleep
-        self.assertNotIn("You yourself", self.server.context())
         view.on_event("behavior_sent", behavior_id="w9", type="short_walk", priority=1)  # still recorded
         view.on_event("behavior_ended", behavior_id="w9", type="short_walk", outcome="done")
         _, body = self.request("GET", "/character/state")
@@ -1643,16 +1642,13 @@ class SayTest(FeedServerCase):
             state.on_event("behavior_ended", behavior_id=f"w{i}", type="short_walk", outcome="done")
         return state
 
-    def test_context_names_her_own_state_only_when_it_is_off_baseline(self):
-        self.assertNotIn("You yourself", self.server.context())  # no state: as before
-        self.server.state = self.her_state(12)
-        self.assertNotIn("You yourself", self.server.context())  # a steady noon
+    def test_context_leaves_her_own_state_to_the_end_of_the_prompt(self):
         self.server.state = self.her_state(1, walks=2)
         self.assertAlmostEqual(self.server.state.snapshot()["energy"], 0.2)
-        context = self.server.context()
-        self.assertIn("You yourself", context)
-        self.assertIn("sleepy", context)
-        self.assertNotRegex(context, r"管理员[^.;]*(sleepy|tired|mood|happy|sad|low|good|angry|annoyed)")
+        self.assertNotIn("You yourself", self.server.context())
+        line = self.server.state_view.summary(self.server.user_title())
+        self.assertIn("sleepy", line)
+        self.assertNotRegex(line, r"管理员[^.;]*(sleepy|tired|mood|happy|sad|low|good|angry|annoyed)")
 
     def test_stop_cancels_the_running_line(self):
         self.server.mouth = FakeMouth(["[intent:explain]一"] + ["二"] * 50, delay=0.05)

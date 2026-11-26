@@ -1,4 +1,4 @@
-/** Cause names: character_state.py BECAUSE keys. */
+/** Cause names: character_state.py VALENCE keys. */
 export const CAUSE_LABELS: Record<string, string> = {
   session_done: '对话刚结束',
   dispatch_done: '委派的任务已完成',
@@ -8,7 +8,6 @@ export const CAUSE_LABELS: Record<string, string> = {
   session_error: '对话发生异常',
   user_spoke: '与你对话',
   feedback_useful: '你标记了有用',
-  blocked: '连续两次路径受阻',
 };
 
 /** Switch stages, in CharacterSwitch's order; a failure stops at one stage with its reason. */

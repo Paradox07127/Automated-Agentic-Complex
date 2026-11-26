@@ -10,7 +10,7 @@ import { at, HOUR, NOW, STATE_LOG, WIRE_CHARACTER_STATE } from './fixtures';
  * 7-day dips. The backend keeps the newest 8, so the oldest 7-day dip has none.
  */
 const EXTRA_CAUSES: WireCharacterState['causes'] = [
-  { attr: 'valence', cause: 'blocked', delta: -0.1, at: isoWithOffset(at(13, 40)) },
+  { attr: 'valence', cause: 'dispatch_failed', delta: -0.1, at: isoWithOffset(at(13, 40)) },
   { attr: 'valence', cause: 'task_failed', delta: -0.12, at: isoWithOffset(NOW - (56 - 39) * 3 * HOUR) },
   { attr: 'valence', cause: 'task_failed', delta: -0.12, at: isoWithOffset(NOW - (56 - 22) * 3 * HOUR) },
 ];

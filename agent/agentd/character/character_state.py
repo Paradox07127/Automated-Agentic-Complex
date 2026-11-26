@@ -21,7 +21,6 @@ VALENCE = {"session_done": 0.1, "dispatch_done": 0.15, "dispatch_failed": -0.1, 
            "task_verified": 0.1, "task_failed": -0.1, "user_spoke": 0.05, "feedback_useful": 0.1}
 VALENCE_STEP, VALENCE_SPAN = 0.15, 0.6  # most one change and the whole offset from the baseline may move it
 SPOKE_ONCE_PER = 600.0
-BLOCKED_IN_A_ROW, BLOCKED = 2, -0.05
 NORMAL_END = ("done", "expired")  # any other end of a counted behavior is an interruption
 ONE_SHOT = ("fidget", "react", "yawn")  # behavior-tick activities that are not sustained
 ENGAGED = 0.6
@@ -35,11 +34,6 @@ DOING = {"sit": "sitting", "observe": "watching the window", "idle": "staying pu
          "hold_window_edge": "holding the window edge", "climb_window_top": "sitting on the window top",
          "relax": "relaxing", "think": "thinking", "wait": "waiting", "sleep": "sleeping",
          "fly": "casting arts in midair", "guard": "standing guard"}
-BECAUSE = {"session_done": "a session just finished", "dispatch_done": "a dispatched task just finished",
-           "dispatch_failed": "a dispatched task did not succeed", "task_verified": "your own task just passed its check",
-           "task_failed": "your own task did not pass its check", "session_error": "a session hit an error",
-           "user_spoke": "{user_title} just talked to you", "feedback_useful": "{user_title} said it was useful",
-           "blocked": "you could not get through twice in a row"}
 DISCLAIMER = "This is your state, not {user_title}'s; do not ask anything of {user_title} because of it."
 
 
@@ -90,7 +84,7 @@ class CharacterState:
                 self.energy, self.valence, self.causes, self._at = row[0], row[1], causes, row[3]
             self.engagement, self.activity, self._engaged = 0.0, None, None
             self._running, self._sustained = {}, None
-            self._lines, self._spoke, self._blocked = [], None, 0
+            self._lines, self._spoke = [], None
             self._written, self._dirty, self._cause = None, False, None
             self._advance(now)
 
@@ -124,10 +118,6 @@ class CharacterState:
                     self.activity = self._engaged = None
                 if outcome == "done" and attrs["type"] in EXERTION:
                     self._change("energy", attrs["type"], EXERTION[attrs["type"]], now)
-                self._blocked = self._blocked + 1 if outcome == "blocked" else 0
-                if self._blocked == BLOCKED_IN_A_ROW:
-                    self._blocked = 0
-                    self._change("valence", "blocked", BLOCKED, now)
             elif kind == "activity":
                 activity = attrs["activity"]
                 if activity not in ONE_SHOT and activity != self._sustained:
@@ -175,20 +165,14 @@ class CharacterState:
                     for at, energy, valence, cause in reversed(rows)]
 
     def summary(self, user):
-        """One sentence for the mouth, from her side; "" while nothing stands out. user: the card's user_title."""
+        """Her state for the end of every chat prompt, a usual one too, without causes. user: the card's user_title."""
         with self._lock:
-            parts = []
-            if self.energy < SLEEPY:
-                parts.append("a bit sleepy")
-            if self.engagement >= ENGAGED and self.activity in DOING:
-                parts.append(f"absorbed in {DOING[self.activity]}")
-            offset = self.valence - self._baseline()
-            if abs(offset) >= MOOD_OFF:
-                why = next((c["cause"] for c in reversed(self.causes)
-                            if c["attr"] == "valence" and c["delta"] * offset > 0), None)
-                mood = "in a good mood" if offset > 0 else "in a bit of a low mood"
-                parts.append(f"{mood} (because {BECAUSE[why].format(user_title=user)})" if why in BECAUSE else mood)
-            return f"You yourself are now {', '.join(parts)}. {DISCLAIMER.format(user_title=user)}" if parts else ""
+            labels = self._labels()
+            energy, mood = (LABEL_WORDS.get(labels[key], labels[key]) for key in ("energy", "mood"))
+            doing = f", absorbed in {DOING[self.activity]}" if self.engagement >= ENGAGED and self.activity in DOING else ""
+            # A reused harness session keeps every earlier prompt; this line has to say that it overrides theirs.
+            return (f"<your_state>You yourself now: energy {energy}, mood {mood}{doing}. This line is your current state "
+                    f"and replaces any earlier one. {DISCLAIMER.format(user_title=user)}</your_state>")
 
     def weights(self, kinds):
         """Random tick weight of each kind: the card's constant times what energy and mood make of it."""

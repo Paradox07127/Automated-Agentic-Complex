@@ -1897,9 +1897,10 @@ class CharacterAgentController:
                        "those, ask them to switch back to a normal conversation first.")
         if setting != "harness":
             system += "\n" + SYSTEM_RULE
-        # The card's style note and the reply language come last, right before the user's words.
+        # The card's style note, the reply language and her state come last, right before the user's words.
+        mine = server.state_view.summary(server.user_title())  # "" with affects_behavior off or no character
         before_input = "<reply_style>\n" + card["post_history_instructions"] + "\n</reply_style>" + \
-            ("\n" + self.reply_language.tag(setting) if setting != "harness" else "")
+            ("\n" + self.reply_language.tag(setting) if setting != "harness" else "") + ("\n" + mine if mine else "")
         replayed, missed = [], []
         for index, turn in enumerate(history):
             for message in turn:

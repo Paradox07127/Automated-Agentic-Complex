@@ -1,7 +1,7 @@
 // Words for the backend keys this page shows.
 import { CAUSE_LABELS } from './tables';
 
-/** character_state.py BECAUSE keys plus the causes of her own behaviors. */
+/** character_state.py VALENCE keys, plus the causes of her own behaviors. */
 export const CAUSES: Record<string, string> = {
   ...CAUSE_LABELS,
   short_walk: '走了一段',
@@ -19,7 +19,6 @@ export const CAUSE_SHORT: Record<string, string> = {
   session_error: '会话出错',
   user_spoke: '对话',
   feedback_useful: '反馈有用',
-  blocked: '受阻',
   short_walk: '走动',
   climb_window_top: '爬上窗顶',
   line: '发言',

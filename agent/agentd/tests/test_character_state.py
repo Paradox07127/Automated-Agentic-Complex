@@ -97,16 +97,18 @@ class CharacterStateTest(unittest.TestCase):
         state.on_event("user_spoke")
         state.on_event("user_spoke")  # within 10 min: no change, no cause
         state.on_event("line")
+        valence = state.snapshot()["valence"]
         state.on_event("behavior_sent", behavior_id="b1", type="observe", priority=0)
         state.on_event("behavior_ended", behavior_id="b1", type="observe", outcome="blocked")
         state.on_event("behavior_sent", behavior_id="b2", type="observe", priority=0)
         state.on_event("behavior_ended", behavior_id="b2", type="observe", outcome="blocked")
+        # a blocked path is the desktop's doing, not hers or the user's: no mood change, no cause
+        self.assertAlmostEqual(state.snapshot()["valence"], valence)
         state.on_event("behavior_sent", behavior_id="b3", type="short_walk", priority=0)
         state.on_event("behavior_ended", behavior_id="b3", type="short_walk", outcome="done")
         causes = [(c["attr"], c["cause"], c["delta"]) for c in state.snapshot()["causes"]]
         self.assertEqual(causes, [("valence", "dispatch_done", 0.15), ("valence", "user_spoke", 0.05),
-                                  ("energy", "line", -0.005), ("valence", "blocked", -0.05),
-                                  ("energy", "short_walk", -0.05)])
+                                  ("energy", "line", -0.005), ("energy", "short_walk", -0.05)])
         # a line costs at most 0.05 an hour; past that it changes nothing and names nothing
         for _ in range(12):
             state.on_event("line")
@@ -121,14 +123,15 @@ class CharacterStateTest(unittest.TestCase):
         state.flush()
         self.assertEqual(json.loads(self.row("aster")[2]), state.snapshot()["causes"])
 
-    def test_the_mood_names_a_cause_that_moved_it_its_way(self):
+    def test_the_state_line_names_no_cause(self):
         state = self.make()
         for kind in ("session_done", "dispatch_done", "dispatch_done", "session_error"):
             state.on_event(kind)
         self.assertAlmostEqual(state.snapshot()["valence"] - DEFAULT_PROFILE["mood_baseline"], 0.3)
         summary = state.summary(PROMPT_USER)
-        self.assertIn("in a good mood (because a dispatched task just finished)", summary)
-        self.assertNotIn("error", summary)
+        self.assertIn("mood good", summary)
+        self.assertNotIn("(because", summary)
+        self.assertNotRegex(summary, "session|dispatch|task|error")
 
     def test_valence_returns_to_baseline_and_never_goes_sad_without_an_event(self):
         state = self.make()
@@ -137,17 +140,17 @@ class CharacterStateTest(unittest.TestCase):
             self.at(state, NOON + hour * 3600)
             self.assertAlmostEqual(state.snapshot()["valence"], 0.2)
             self.assertEqual(state.mood_label("normal"), "normal")
-            self.assertEqual(state.summary(PROMPT_USER), "")
+            self.assertIn("mood steady", state.summary(PROMPT_USER))  # every turn gets a line, a usual one too
         for kind in ("dispatch_done", "session_done", "feedback_useful"):
             state.on_event(kind)
         self.assertAlmostEqual(state.snapshot()["valence"], 0.55)
         self.assertEqual(state.mood_label("normal"), "happy")
         self.assertEqual(state.labels()["mood"], "good")
         summary = state.summary(PROMPT_USER)
-        self.assertTrue(summary.startswith("You yourself are now "), summary)
-        self.assertIn(f"(because {PROMPT_USER} said it was useful)", summary)
+        self.assertTrue(summary.startswith("<your_state>You yourself now: energy lively, mood good."), summary)
+        self.assertIn("This line is your current state and replaces any earlier one.", summary)
         self.assertTrue(summary.endswith(f"This is your state, not {PROMPT_USER}'s; do not ask anything of {PROMPT_USER} "
-                                         "because of it."), summary)
+                                         "because of it.</your_state>"), summary)
         # daytime energy above 0.7 adds its own ×1.3
         self.assertEqual([round(w, 6) for w in state.weights(["observe", "short_walk", "sit"])], [1.56, 1.56, 1.0])
         self.at(state, self.now + 20 * MIN)  # 20 min half-life
