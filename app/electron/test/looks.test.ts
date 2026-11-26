@@ -173,7 +173,7 @@ async function stack(o: { state?: Record<string, unknown>; config?: Record<strin
   const agentd = fakeAgentd();
   const restarts: string[] = [];
   const switcher = new CharacterSwitch(linkSwitchPorts({ link, supportDir: support, agentd: agentd.request, agentdRunning: () => true,
-    restartAvatar: (id) => restarts.push(id), renderable: () => true, log }));
+    restartAvatar: (id) => restarts.push(id), renderable: () => true, known: (id) => id !== 'cedar', log }));
   link.on((e) => { if (e.kind === 'character') switcher.avatar(e.event); });
   await link.start();
   const ctx = { surface: 'main', routes, config: { path: configPath, supportDir: support, devResources: null }, agentd: null,
@@ -367,7 +367,7 @@ test('One switch at a time; choices made while one runs keep only the last; prep
     setAgentdCharacter: async (id) => (calls.push(`set ${id}`), { kind: 'changed', changed: true }),
     readAgentd: async () => ({ character: 'a' }),
     setCharacter: (id) => (sent.push(id), true), restartAvatar: () => {}, persist: (id) => calls.push(`persist ${id}`),
-    renderable: () => true, log: () => {},
+    renderable: () => true, known: () => true, log: () => {},
   };
   const sw = new CharacterSwitch(ports);
   sw.avatar({ kind: 'current', id: 'a' });
@@ -397,7 +397,7 @@ test('agentd without a character (an empty library) is a read, not a failed one:
     return { status, body: new TextEncoder().encode(JSON.stringify({ character: null, switching: null })) };
   });
   const sw = new CharacterSwitch({ ...agentd, agentdRunning: () => true, setCharacter: () => true, restartAvatar: () => {}, persist: () => {},
-    renderable: () => true, log: (line) => logs.push(line) });
+    renderable: () => true, known: () => true, log: (line) => logs.push(line) });
   sw.readRetry = 0.001;
   await sw.agentdReady();
   assert.deepEqual([reads, logs], [1, []]);
@@ -413,7 +413,7 @@ test('a switch to or from a text-only character restarts the renderer as it and 
     agentdRunning: () => false, prepare: async () => ({ kind: 'failed', reason: 'down' }), commit: async () => ({ kind: 'committed' }),
     abort: async () => ({ kind: 'aborted' }), setAgentdCharacter: async () => ({ kind: 'changed', changed: true }), readAgentd: async () => null,
     setCharacter: () => true, restartAvatar: (id) => restarts.push(id), persist: (id) => persisted.push(id),
-    renderable: (id) => id !== 'aide', log: () => {},
+    renderable: (id) => id !== 'aide', known: () => true, log: () => {},
   };
   const sw = new CharacterSwitch(ports);
   sw.agentdReported('aide');
@@ -441,7 +441,7 @@ test('restartOnly (Windows, efw takes no set_character): a switch restarts the r
     readAgentd: async () => ({ character: 'aster' }),
     setCharacter: (id) => (sent.push(id), true), restartAvatar: () => calls.push(`restart ${remembered}`),
     persist: (id) => { remembered = id; },
-    renderable: () => true, log: () => {},
+    renderable: () => true, known: () => true, log: () => {},
   };
   const sw = new CharacterSwitch(ports);
   sw.restartOnly = true;

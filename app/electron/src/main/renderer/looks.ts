@@ -49,11 +49,11 @@ export function rememberedLooks(supportDir: string, configPath: string): Remembe
 export function linkSwitchPorts(o: {
   link: Pick<HostLink, 'sendSetCharacter'>; supportDir: string;
   agentd: ((method: string, path: string, json?: unknown) => Promise<{ status: number; body: Uint8Array }>) | null;
-  agentdRunning(): boolean; restartAvatar(id: string): void; renderable(id: string): boolean; log(line: string): void;
+  agentdRunning(): boolean; restartAvatar(id: string): void; renderable(id: string): boolean; known(id: string): boolean; log(line: string): void;
 }): SwitchPorts {
   const agentd = agentdSwitchPorts(o.agentd ?? (async () => { throw new Error('agentd 没有配置'); }));
   return {
-    ...agentd, agentdRunning: o.agentdRunning, restartAvatar: o.restartAvatar, renderable: o.renderable,
+    ...agentd, agentdRunning: o.agentdRunning, restartAvatar: o.restartAvatar, renderable: o.renderable, known: o.known,
     setCharacter: (id) => o.link.sendSetCharacter(id, lastAppearance(o.supportDir, id)),
     persist: (id) => saveLastCharacter(o.supportDir, id),
     log: (line) => o.log(`AVATAR ${line}`),

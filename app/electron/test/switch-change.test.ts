@@ -15,7 +15,7 @@ function setup(over: Partial<SwitchPorts> = {}) {
     abort: async () => ({ kind: 'aborted' }),
     setAgentdCharacter: async () => ({ kind: 'changed', changed: true }),
     readAgentd: async () => null,
-    setCharacter: () => true, restartAvatar: () => {}, persist: () => {}, renderable: () => true, log: () => {},
+    setCharacter: () => true, restartAvatar: () => {}, persist: () => {}, renderable: () => true, known: () => true, log: () => {},
     ...over,
   };
   const sw = new CharacterSwitch(ports);

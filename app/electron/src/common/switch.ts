@@ -33,6 +33,8 @@ export interface SwitchPorts {
   persist(id: string): void;
   /** False for a text-only character: no renderer runs for it. */
   renderable(id: string): boolean;
+  /** True for a character of the current roster. */
+  known(id: string): boolean;
   log(line: string): void;
 }
 
@@ -262,6 +264,8 @@ export class CharacterSwitch {
     }
     if (this.restartOnly || !this.ports.renderable(o) || !this.ports.renderable(x)) return this.relaunch(o, x, switchId);
     const reply = await this.show(x);
+    // efw takes its characters as launch arguments, so one imported after it started is known only to a new renderer.
+    if (reply.kind === 'failed' && reply.reason === 'unknown_character' && this.ports.known(x)) return this.relaunch(o, x, switchId);
     if (reply.kind !== 'changed') {
       this.ports.log(`character switch ${o} -> ${x} failed on the avatar: ${reply.reason}`);
       this._failure = { target: x, stage: 'avatar', reason: reply.reason };

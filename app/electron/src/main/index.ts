@@ -463,6 +463,7 @@ const switcher = config && hostLink && (() => {
     link: hostLink, supportDir: config.supportDir, agentd: client && ((method, path, json) => client.request(method, path, json)),
     agentdRunning: () => agentdState.kind === 'running', restartAvatar: () => { void renderer?.restart(); },
     renderable: (id) => config!.characters.find((c) => c.id === id)?.renderEnabled !== false,
+    known: (id) => config!.characters.some((c) => c.id === id),
     log: (line) => appendLog(config!.supportDir, 'companion', line),
   }));
   hostLink.on((e) => { if (e.kind === 'character') sw.avatar(e.event); });

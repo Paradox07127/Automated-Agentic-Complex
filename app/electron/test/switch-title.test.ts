@@ -47,7 +47,7 @@ function setup() {
     abort: async () => ({ kind: 'aborted' }),
     setAgentdCharacter: async () => ({ kind: 'changed', changed: true }),
     readAgentd: async () => null,
-    setCharacter: () => true, restartAvatar: () => {}, persist: () => {}, renderable: () => true, log: () => {},
+    setCharacter: () => true, restartAvatar: () => {}, persist: () => {}, renderable: () => true, known: () => true, log: () => {},
   };
   const sw = new CharacterSwitch(ports);
   const windows: ReturnType<typeof fakeWindow>[] = [];

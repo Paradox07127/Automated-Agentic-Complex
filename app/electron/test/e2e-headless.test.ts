@@ -191,7 +191,7 @@ class Stack {
     const switcher = this.switcher = new CharacterSwitch(linkSwitchPorts({ link, supportDir: support,
       agentd: (method, path, json) => client.request(method, path, json), agentdRunning: () => this.supervisor.state.kind === 'running',
       restartAvatar: () => { void avatar.restart(); }, renderable: (id) => this.config.characters.find((c) => c.id === id)?.renderEnabled !== false,
-      log }));
+      known: (id) => this.config.characters.some((c) => c.id === id), log }));
     this.link.on((e) => { if (e.kind === 'character') switcher.avatar(e.event); });
     await this.link.start();
     avatar.start();
@@ -925,7 +925,8 @@ if (process.platform === 'win32') for (const restartOnly of [false, true]) test(
     const client = new AgentdClient(stack.runtimePath);
     const sw = new CharacterSwitch(linkSwitchPorts({ link, supportDir: support, agentd: (method, path, json) => client.request(method, path, json),
       agentdRunning: () => stack.supervisor.state.kind === 'running', restartAvatar: () => { void renderer.restart(); },
-      renderable: (id) => config.characters.find((c) => c.id === id)?.renderEnabled !== false, log }));
+      renderable: (id) => config.characters.find((c) => c.id === id)?.renderEnabled !== false,
+      known: (id) => config.characters.some((c) => c.id === id), log }));
     sw.restartOnly = restartOnly;
     link.on((e) => { if (e.kind === 'character') sw.avatar(e.event); });
     const commandLine = (pid: number) => execFileSync('powershell.exe', ['-NoProfile', '-Command',

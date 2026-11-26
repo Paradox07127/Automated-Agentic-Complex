@@ -14,7 +14,7 @@ function setup(over: Partial<SwitchPorts> = {}) {
     abort: async () => ({ kind: 'aborted' }),
     setAgentdCharacter: async () => ({ kind: 'changed', changed: true }),
     readAgentd: async () => null,
-    setCharacter: () => true, restartAvatar: () => {}, persist: () => {}, renderable: () => true, log: () => {},
+    setCharacter: () => true, restartAvatar: () => {}, persist: () => {}, renderable: () => true, known: () => true, log: () => {},
     ...over,
   };
   return new CharacterSwitch(ports);
@@ -114,4 +114,20 @@ test('prepare\'s same_character, then the avatar refuses: agentd is set back ont
   await settle();
   assert.deepEqual(posts, ['a']);
   assert.equal(sw.agentd, 'a');
+});
+
+test('a renderer that does not know the target (unknown_character) restarts as the target, which then counts as switched', async () => {
+  const restarts: string[] = [];
+  const commits: string[] = [];
+  const sw = setup({ restartAvatar: (id) => { restarts.push(id); }, commit: async (id) => { commits.push(id); return { kind: 'committed' }; } });
+  sw.avatar({ kind: 'current', id: 'a' });
+  const outcome = sw.switchOutcome('b');
+  await settle();
+  sw.avatar({ kind: 'failed', id: 'b', reason: 'unknown_character' });
+  await settle();
+  assert.deepEqual(restarts, ['b']);
+  sw.avatar({ kind: 'current', id: 'b' });
+  assert.deepEqual(await outcome, { kind: 'switched' });
+  assert.equal(sw.current, 'b');
+  assert.deepEqual(commits, ['b']);
 });
