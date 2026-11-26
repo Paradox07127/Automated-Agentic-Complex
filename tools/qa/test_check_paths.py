@@ -78,6 +78,26 @@ class Components(unittest.TestCase):
         code, out = self.run_check()
         self.assertEqual(code, 0, out)
 
+    def test_class_and_function_docstrings_are_not_references(self):
+        self.write('b/tool.py', 'class C:\n    """Reads\n    "a-state.json"."""\n\n    def f(self):\n'
+                                '        \'\'\'Also "a-state.json".\'\'\'\n        return 1\n')
+        code, out = self.run_check()
+        self.assertEqual(code, 0, out)
+
+    def test_path_in_a_generated_script_string_is_a_reference(self):
+        self.write('b/gen.py', '"""Writes a script."""\nSCRIPT = \'\'\'\nopen("a-state.json")\n\'\'\'\n'
+                               'def f():\n    x = 1\n    """not a docstring: "a-state.json" """\n')
+        code, out = self.run_check()
+        self.assertEqual(code, 1, out)
+        self.assertIn('b/gen.py:3: a-state.json', out)
+        self.assertIn('b/gen.py:7: a-state.json', out)
+
+    def test_path_in_a_shell_heredoc_with_triple_quotes_is_a_reference(self):
+        self.write('b/run.sh', 'python3 - <<\'EOF\'\n"""\nopen("a-state.json")\n"""\nEOF\n')
+        code, out = self.run_check()
+        self.assertEqual(code, 1, out)
+        self.assertIn('b/run.sh:3: a-state.json', out)
+
     def test_unquoted_shell_word_is_a_reference(self):
         self.write('b/run.sh', 'cat a-state.json\nf=a-state.json\n')
         code, out = self.run_check()

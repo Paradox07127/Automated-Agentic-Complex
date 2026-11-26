@@ -4,9 +4,10 @@ When private/suites.json exists, its suites join the gate and its phases follow 
 
 Usage: gate.py --profile <name> [--checkout <dir>] [--logs <dir>] [--perf] [--jobs N] [--only a,b | --changed <base>]
        [--no-cache] [--dry-run] | --list
---changed runs only the suites whose paths hold a file changed since <base> (committed, staged, unstaged or untracked),
-plus the suites they require; a changed file that no suite and no_suite lists runs the full profile, and so does no
-changed file unless the profile sets "empty_changes": "none".
+--changed runs only the suites whose paths hold a file changed since <base> (committed, staged, unstaged or untracked,
+or under a private/ path git ignores and modified after <base>'s commit time), plus the suites they require; a changed
+file that no suite and no_suite lists runs the full profile, and so does no changed file unless the profile sets
+"empty_changes": "none".
 Phases run one after another, the lanes of a phase at once. Prints each suite's result lines in profile order, then
 `receipt: <path>` and GATE PASS or GATE FAIL; exits 1 on failure. Without --logs the logs are deleted after the run.
 A suite with paths, outside a lock block and not fatal reuses a stored PASS of the same inputs (see cache_keys) unless
@@ -290,6 +291,26 @@ def select(doc, changed):
                 picked.add(need)
                 todo.append(need)
     return picked, None
+
+
+def private_changes(repo, doc, base):
+    """The files under the suites' private/ paths, which git does not list, modified after base's commit time;
+    UNHASHED_DIRS are skipped as blobs skips them."""
+    since = int(git(repo, 'show', '-s', '--format=%ct', base))
+    entries = sorted({path for suite in doc['suites'].values() for path in suite.get('paths', [])
+                      if path.startswith('private/')})
+    found = set()
+    for entry in entries:
+        root = Path(repo, entry)
+        if root.is_file() and root.stat().st_mtime > since:
+            found.add(entry)
+        for directory, dirnames, filenames in os.walk(root):
+            dirnames[:] = [name for name in dirnames if name not in UNHASHED_DIRS]
+            for name in filenames:
+                path = Path(directory, name)
+                if name != '.DS_Store' and path.is_file() and path.stat().st_mtime > since:
+                    found.add(path.relative_to(repo).as_posix())
+    return found
 
 
 def fill(text, ctx):
@@ -754,7 +775,8 @@ def main(argv=None):
             changed_files = sorted({path for listing in (git(repo, 'diff', '--name-only', f'{args.changed}...HEAD'),
                                                          git(repo, 'diff', '--name-only', 'HEAD'),
                                                          git(repo, 'ls-files', '--others', '--exclude-standard'))
-                                    for path in listing.splitlines() if path})
+                                    for path in listing.splitlines() if path}
+                                   | private_changes(repo, doc, args.changed))
             only, full = select(doc, changed_files)
             if not changed_files and doc['profiles'][args.profile].get('empty_changes') == 'none':
                 only, full = set(), None

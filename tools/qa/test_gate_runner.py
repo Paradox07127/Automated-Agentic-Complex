@@ -170,6 +170,28 @@ class StubTree(unittest.TestCase):
         self.assertEqual(result.stdout.splitlines()[:2], ['SELECT: 1 of 1 suites for 1 changed files since main',
                                                           'agentd: Ran 4 tests in 3 modules'])
 
+    def test_changed_runs_a_private_suite_whose_ignored_files_are_newer_than_the_base(self):
+        write(self.root / '.git/info/exclude', '/private/\n')
+        write(self.root / 'private/suites.json', json.dumps({'schema': gate.SCHEMA, 'suites': {'private-p': {
+            'paths': ['private/p/'], 'run': [sys.executable, '-I', '-c', 'pass'], 'parse': 'exit',
+            'line': {'pass': 'PRIVATE-P ok', 'fail': 'PRIVATE-P fail'}}},
+            'profiles': {'agentd': {'phases': [{'lanes': [['private-p']]}]}}}))
+        write(self.root / 'docs/n.md', 'note\n')
+        source = self.root / 'private/p/x.py'
+        write(source, 'x = 1\n')
+        base = int(subprocess.run(['git', '-C', str(self.root), 'show', '-s', '--format=%ct', 'main'],
+                                  capture_output=True, text=True, check=True).stdout)
+        os.utime(source, (base - 10, base - 10))
+        result = self.gate('--profile', 'agentd', '--changed', 'main')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(result.stdout.splitlines()[0], 'SELECT: 0 of 2 suites for 1 changed files since main')
+        os.utime(source, (base + 10, base + 10))
+        result = self.gate('--profile', 'agentd', '--changed', 'main')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(result.stdout.splitlines()[:2], ['SELECT: 1 of 2 suites for 2 changed files since main',
+                                                          'PRIVATE-P ok'])
+        self.assertEqual(self.receipt()['selection']['changed'], ['docs/n.md', 'private/p/x.py'])
+
     def test_dev_profile_runs_nothing_without_changes(self):
         dev = profile_ids(gate.load_suites(gate.SUITES_FILE, private=self.root / 'private/suites.json'), 'dev')
         result = self.gate('--profile', 'dev', '--changed', 'HEAD')

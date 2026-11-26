@@ -240,6 +240,13 @@ class CompareLayoutsTests(unittest.TestCase):
         (self.split / 'Agentic Complex.app/Contents/Resources/host-data/UI.bundle/Contents/_CodeSignature/CodeDirectory').write_bytes(b'other')
         self.assert_different('host:', 'UI.bundle/Contents/_CodeSignature/CodeDirectory', 'sha256')
 
+    def test_executable_bit_lost(self):
+        for output in (self.portable, self.split):
+            (self.component(output, 'agentd') / 'payload/nested/data.txt').chmod(0o755)
+        self.assert_same()
+        (self.component(self.split, 'agentd') / 'payload/nested/data.txt').chmod(0o644)
+        self.assert_different('agentd:', 'nested/data.txt', 'executable bit differs')
+
     def test_changed_file_under_placed_directory(self):
         (self.split / 'Agentic Complex.app/Contents/Resources/host-data/nested/data.txt').write_bytes(b'changed')
         self.assert_different('host:', 'assets/nested/data.txt', 'sha256')

@@ -97,6 +97,8 @@ def component_difference(left, right, left_contents, right_contents):
         right_kind, right_value = file_value(right_files[relative], relative == host_executable)
         if left_kind != right_kind: return f'{relative}: file type differs'
         if left_value != right_value: return f'{relative}: {left_kind} differs'
+        left_x, right_x = (files[relative].lstat().st_mode & 0o111 != 0 for files in (left_files, right_files))
+        if left_kind != 'symlink target' and left_x != right_x: return f'{relative}: executable bit differs'
     return None
 
 

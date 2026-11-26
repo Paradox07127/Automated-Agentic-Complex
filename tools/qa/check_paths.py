@@ -7,7 +7,7 @@ usage: check_paths.py [--old PREFIX ...] [--links] [--components]
   --components  also check that shipped source names another component's paths only where protocol/cross-paths.json allows it.
 Always checks: every tracked symlink resolves, and nothing tracked under docs/ or in code links into notes/.
 """
-import argparse, itertools, json, re, subprocess, sys
+import argparse, ast, itertools, json, re, subprocess, sys
 from collections import defaultdict
 from pathlib import Path
 
@@ -44,13 +44,27 @@ def strip_comment(line, mark):
     return line
 
 
+def blank_docstrings(text):
+    """text with each module, class and function docstring blanked, its line breaks kept."""
+    lines = text.encode().split(b'\n')
+    for node in ast.walk(ast.parse(text)):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and node.body \
+                and isinstance(doc := node.body[0], ast.Expr) and isinstance(doc.value, ast.Constant) \
+                and isinstance(doc.value.value, str):
+            # ast columns are UTF-8 byte offsets.
+            first, last = doc.lineno - 1, doc.end_lineno - 1
+            head, tail = lines[first][:doc.col_offset], lines[last][doc.end_col_offset:]
+            lines[first:last + 1] = [head] + [b''] * (last - first - 1) + [tail] if last > first else [head + tail]
+    return b'\n'.join(lines).decode()
+
+
 def code_lines(path, text):
-    """(line number, line) with comments and Python triple-quoted strings blanked."""
+    """(line number, line) with comments and Python docstrings blanked."""
     ext = path.rsplit('.', 1)[-1]
     blank = lambda m: '\n' * m.group(0).count('\n')
-    if ext in ('py', 'sh'):
-        text = re.sub(r'"""[\s\S]*?"""|\'\'\'[\s\S]*?\'\'\'', blank, text)
-    elif ext != 'json':
+    if ext == 'py':
+        text = blank_docstrings(text)
+    elif ext not in ('json', 'sh'):
         text = re.sub(r'/\*[\s\S]*?\*/', blank, text)
     mark = {'py': '#', 'sh': '#', 'json': None}.get(ext, '//')
     for i, line in enumerate(text.split('\n'), 1):
