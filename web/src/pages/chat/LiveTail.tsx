@@ -1,5 +1,5 @@
-import { codeText } from '../../domain/errorText';
-import { navigate, type NavTarget } from '../../shell/nav';
+import { failedOf, NEXT } from '../../domain/replyFailure';
+import { navigate } from '../../shell/nav';
 import { Btn } from '../../ui';
 import type { MessageMenuProps } from './MessageMenu';
 import { SideMessage } from './SideMessage';
@@ -26,19 +26,6 @@ export interface LiveTailProps extends MessageMenuProps {
   queueOff?: string | null;
   /** Sends a failed line's text again as a new line. */
   onRetry: (reply: LiveReply) => void;
-}
-
-/** The one next step a failed reply offers for its code. */
-const NEXT: Readonly<Record<string, { label: string; to: NavTarget }>> = {
-  auth_expired: { label: '前往登录', to: { page: 'settings', group: 'kernel', item: 'kcur' } },
-  native_login_required: { label: '前往登录', to: { page: 'settings', group: 'kernel', item: 'kcur' } },
-  quota_exhausted: { label: '查看用量', to: { page: 'diag', tab: 'flow', item: 'usage' } },
-};
-
-/** Why a reply failed: the sentence for its run's or its line's code, else agentd's public_message. */
-function failedOf(r: LiveReply): { reason: string; code: string | null } {
-  const code = [r.failure?.code, r.error].find((c) => codeText(c)) ?? null;
-  return { reason: codeText(code) ?? r.failure?.public_message ?? '未返回回复', code };
 }
 
 /** Typing bubble before her first character: three dots in her bubble; the words stay for screen readers. */

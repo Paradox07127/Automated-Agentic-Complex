@@ -8,7 +8,9 @@ export function useComm(demo: CommDemo | null, still: boolean) {
   const [state, dispatch] = useReducer(commReducer, INITIAL);
 
   useEffect(() => {
+    const lost = () => dispatch({ type: 'lost' });
     const onEvent = (e: StreamEvent) => {
+      if (e.event === 'reset' || e.event === 'gap') return lost();
       if (e.event === 'turn_accepted') {
         const turn = parseAccepted(e.data);
         if (turn) dispatch({ type: 'accepted', ...turn });
@@ -19,7 +21,7 @@ export function useComm(demo: CommDemo | null, still: boolean) {
       if (line) dispatch({ type: 'line', line });
     };
     if (demo) return playDemo(demo, still, onEvent);
-    return getBridge().feed.subscribe(onEvent, () => {});
+    return getBridge().feed.subscribe(onEvent, lost);
   }, [demo, still]);
 
   const nextMs = state.bars

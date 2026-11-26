@@ -6,7 +6,7 @@ import { Speech } from '../../src/surfaces/desktop/bubble/Speech';
 afterEach(cleanup);
 
 const bar = (text: string, phase: Phase = 'linger'): Bar => ({
-  id: 'l1', kind: 'main', text, phase, reason: null, pinned: false, held: false, left: 0, total: 0, seq: 1,
+  id: 'l1', kind: 'main', text, phase, reason: null, error: null, pinned: false, held: false, left: 0, total: 0, seq: 1,
 });
 
 const say = (text: string, phase?: Phase) => {

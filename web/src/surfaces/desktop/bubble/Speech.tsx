@@ -1,10 +1,15 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { messageBlocks } from '../../../pages/chat/MessageText';
-import type { Bar } from '../comm/commReducer';
+import type { NavTarget } from '../../../shell/nav';
+import { Btn } from '../../../ui/Btn';
+import { failOf, type Bar } from '../comm/commReducer';
 import styles from './Bubble.module.css';
 
-/** Her line as radio chatter: her name between two rules over the line. The full reply stays scrollable and can also open in the main window. */
-export function Speech({ bar, name, onOpen }: { bar: Bar; name: string; onOpen: () => void }) {
+/**
+ * Her line as radio chatter: her name between two rules over the line. The full reply stays scrollable and can also open in the main window.
+ * An error says why, with its next step through `go`.
+ */
+export function Speech({ bar, name, onOpen, go }: { bar: Bar; name: string; onOpen: () => void; go?: (to: NavTarget) => void }) {
   const body = useRef<HTMLDivElement>(null);
   const [clamped, setClamped] = useState(false);
   useLayoutEffect(() => {
@@ -20,6 +25,8 @@ export function Speech({ bar, name, onOpen }: { bar: Bar; name: string; onOpen: 
     observer.observe(el);
     return () => observer.disconnect();
   }, [bar.id, bar.phase, bar.text]);
+  const fail = bar.phase === 'error' ? failOf(bar) : null;
+  const next = fail?.next ?? null;
 
   return (
     <>
@@ -33,7 +40,12 @@ export function Speech({ bar, name, onOpen }: { bar: Bar; name: string; onOpen: 
             {bar.phase === 'streaming' && <span className={styles.cursor} aria-hidden="true" />}
           </div>
         )}
-        {bar.phase === 'error' && <p className={styles.err}>本轮回复出错，未能完整输出</p>}
+        {fail && <p className={styles.err}>{fail.reason}</p>}
+        {next && go && (
+          <span className={styles.acts}>
+            <Btn variant="ghost" size="sm" onClick={() => go(next.to)}>{next.label}</Btn>
+          </span>
+        )}
         {bar.phase === 'interrupted' && <p className={styles.note}>已打断</p>}
         {clamped && (
           <button type="button" className={styles.more} data-region="" onClick={onOpen}>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import { getBridge, type DesktopAnchor, type DockReason, type SayReplyTo } from '../../bridge';
 import { formatClock } from '../../domain';
 import { useSystemTheme } from '../../shell/useSystemTheme';
-import { navRoute } from '../../shell/nav';
+import { navRoute, type NavTarget } from '../../shell/nav';
 import { Btn } from '../../ui/Btn';
 import { AvatarLoadingStackCard } from '../stack/cards/AvatarLoadingStackCard';
 import { VoiceHintStackCard } from '../stack/cards/VoiceHintStackCard';
@@ -23,7 +23,7 @@ import { useCollapse, type CollapseTarget } from './bubble/useCollapse';
 import { useQuickInput } from './bubble/useQuickInput';
 import { useSpeech } from './bubble/useSpeech';
 import { useThoughtMute } from './bubble/useThoughtMute';
-import { asksFeedback, canMute, ERROR_MS, lingerMs } from './comm/commReducer';
+import { asksFeedback, canMute, ERROR_MS, failOf, lingerMs, type Bar } from './comm/commReducer';
 import { Subtitle } from './comm/Subtitle';
 import { useAnchor } from './hooks/useAnchor';
 import { useContentSize } from './hooks/useContentSize';
@@ -104,7 +104,7 @@ export function BubbleRoot() {
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const { ref: hoverRef, hovered, handlers } = useHover<HTMLDivElement>();
   const hint = cards.voice ?? (cards.loading?.phase === 'failed' ? cards.loading : null);
-  const { bar, dispatch } = useSpeech(demoLine, still, hovered);
+  const { bar, side, dispatch } = useSpeech(demoLine, still, hovered);
   const all = cards.all;
   // A decision that did not go out (a declined native confirm, busy, offline) shows on the approval card for NOTICE_MS.
   const [decideNote, setDecideNote] = useState<{ text: string } | null>(null);
@@ -130,6 +130,16 @@ export function BubbleRoot() {
 
   const bridge = getBridge();
   const openChat = (id: string) => bridge.window.openMain(`/chat?turn=${encodeURIComponent(id)}`);
+  const go = (to: NavTarget) => bridge.window.openMain(navRoute(to));
+  // 停止 ends the foreground turn in agentd; ✕ only hides the line.
+  const stopOf = (b: Bar) =>
+    b.kind === 'main' && (b.phase === 'thinking' || b.phase === 'streaming')
+      ? () => void bridge.agentd.request('POST', '/turn/cancel', { reason: 'client_cancel', line_id: b.id })
+      : null;
+  const stopBtn = (b: Bar) => {
+    const stop = stopOf(b);
+    return stop && <Btn variant="ghost" size="sm" onClick={stop}>停止</Btn>;
+  };
   const feedback = (id: string, value: Vote | 'dismissed') => bridge.agentd.request('POST', '/feedback', { line_id: id, value });
   const voteOn = (id: string): ActsProps['vote'] => ({
     sent: voted?.id === id ? voted.value : null,
@@ -160,6 +170,8 @@ export function BubbleRoot() {
   let onMute: (() => void) | null = null;
   let onClose: (() => void) | null = null;
   let vote: ActsProps['vote'] = null;
+  /** Her line from the reducer is what the bubble shows. */
+  let line = false;
   /** A stack card the bubble shows: once put away it moves to native's history. */
   let card: string | null = null;
   if (due) {
@@ -184,11 +196,18 @@ export function BubbleRoot() {
     one = <Btn variant="text" size="sm" onClick={() => bridge.window.openMain(navRoute({ page: 'overview', sel: f.task_id }))}>看详情</Btn>;
     away = { key: `card:${f.id}`, text, ms: ERROR_MS };
   } else if (bar?.phase === 'error') {
+    const { reason, next } = failOf(bar);
     kind = 'error';
-    main = <p className={bubble.text}>本轮回复出错，未能完整输出</p>;
+    main = <p className={bubble.text}>{reason}</p>;
     text = bar.text;
-    one = <Btn variant="text" size="sm" onClick={() => openChat(bar.id)}>查看详情</Btn>;
+    one = (
+      <span className={bubble.acts}>
+        {next && <Btn variant="ghost" size="sm" onClick={() => go(next.to)}>{next.label}</Btn>}
+        <Btn variant="text" size="sm" onClick={() => openChat(bar.id)}>查看详情</Btn>
+      </span>
+    );
     onClose = () => dispatch({ type: 'close', id: bar.id });
+    line = true;
   } else if (cards.done) {
     const d = cards.done;
     kind = 'done';
@@ -206,8 +225,12 @@ export function BubbleRoot() {
     away = { key: `card:${cards.look.id}`, text, ms: NOTICE_MS };
   } else if (bar?.phase === 'thinking') {
     main = <Speech bar={bar} name="" onOpen={() => openChat(bar.id)} />;
+    one = stopBtn(bar);
+    line = true;
   } else if (bar) {
     main = <Speech bar={bar} name="" onOpen={() => openChat(bar.id)} />;
+    one = stopBtn(bar);
+    line = true;
     text = bar.text;
     replyTo = { kind: 'line', id: bar.id };
     if (canMute(bar.reason))
@@ -237,6 +260,15 @@ export function BubbleRoot() {
       };
       away = { key: `thought:${thought.id}`, text: thought.text, ms: lingerMs(thought.text) };
     }
+  }
+  // A side session's answer shows under her line.
+  if (line && side) {
+    main = (
+      <div className={bubble.main}>
+        {main}
+        <Speech bar={side} name="" onOpen={() => openChat(side.id)} go={go} />
+      </div>
+    );
   }
 
   const { collapsed: gone, timer } = useCollapse(docked || confirm ? null : away, still, hovered || input.open != null);
@@ -319,7 +351,8 @@ export function BubbleRoot() {
     <div ref={rootRef} className={styles.root} style={sizing} data-surface-root="bubble" data-side={anchor?.side} data-docked={anchor?.docked ?? undefined}>
       {docked && bar && (
         <div className={styles.sub} data-glass="">
-          <Subtitle bar={bar} name={state?.character?.name ?? ''} onOpen={() => openChat(bar.id)} />
+          <Subtitle bar={bar} name={state?.character?.name ?? ''} onOpen={() => openChat(bar.id)} go={go} onStop={stopOf(bar)} />
+          {side && <Subtitle bar={side} name="" onOpen={() => openChat(side.id)} go={go} />}
         </div>
       )}
       {shown && (

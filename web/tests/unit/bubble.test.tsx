@@ -2,6 +2,7 @@ import { act as flush, cleanup, fireEvent, render, screen, within } from '@testi
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgentdResponse, DesktopCommand, AgenticComplexBridge, StackPayload, StreamEvent } from '../../src/bridge/protocol';
+import { navRoute } from '../../src/shell/nav';
 import { BubbleRoot } from '../../src/surfaces/desktop/BubbleRoot';
 import { bubbleCards } from '../../src/surfaces/desktop/bubble/demo';
 import { sayMs } from '../../src/surfaces/desktop/bubble/sayTime';
@@ -65,6 +66,21 @@ function mountBubble(hash = '#/bubble') {
         const data = JSON.stringify({ line_id: id, conversation_id: null, source: 'text', trace_id: `tr-${id}`, side: false });
         feed.forEach((cb) => cb({ event: 'turn_accepted', id, data }));
       }),
+    /** Any `/feed` event; a `line` gets the fields `line` leaves at their defaults. */
+    send: (event: string, data: Record<string, unknown> = {}) =>
+      flush(async () => {
+        const full = event === 'line' ? { text_delta: '', final: false, cancelled: false, error: null, lane: 'character', reason: null, ...data } : data;
+        feed.forEach((cb) => cb({ event, id: String(full.line_id ?? event), data: JSON.stringify(full) }));
+      }),
+    /** Re-renders the bubble docked while she is hidden, so her lines show in the subtitle bar. */
+    dock: () => {
+      vi.spyOn(bridge.window, 'onAnchor').mockImplementation((cb) => {
+        cb({ panel: 'bubble', state: 'docked', side: 'menubar', docked: 'hidden', far: false, toHead: null, room: { width: 400, height: 200 } });
+        return () => {};
+      });
+      cleanup();
+      render(<BubbleRoot />);
+    },
   };
 }
 
@@ -711,5 +727,96 @@ describe('the bubble’s thought and mute', () => {
     await b.cards([reminder]);
     screen.getByText('c1 组会');
     expect(seen()).toEqual([['POST', '/commitments/c1/seen', {}]]);
+  });
+});
+
+describe('her reply in the bubble: side answers, endings, errors and 停止', () => {
+  const MAIN = '正在跑完整测试。';
+  const SIDE = '那个文件在 web 下面，我只读看了一眼。';
+  const before = (a: string, b: string) => {
+    const all = document.body.textContent ?? '';
+    return all.indexOf(a) >= 0 && all.indexOf(a) < all.indexOf(b);
+  };
+
+  it('a side answer shows under the foreground line and stays while it shows', async () => {
+    vi.useFakeTimers();
+    const b = mountBubble();
+    await b.presence(presenceOf({ thought: null }));
+    await b.send('line', { line_id: 'r1', text_delta: MAIN, lane: 'agent' });
+    await b.send('line', { line_id: 's1', text_delta: SIDE, lane: 'side' });
+    await b.send('line', { line_id: 's1', lane: 'side', final: true });
+    screen.getByText(MAIN);
+    screen.getByText(SIDE);
+    expect(before(MAIN, SIDE)).toBe(true);
+    expect(screen.getAllByRole('button', { name: '停止' })).toHaveLength(1);
+    await flush(async () => vi.advanceTimersByTime(lingerMs(SIDE) + 5000));
+    screen.getByText(SIDE);
+  });
+
+  it('while she is hidden the subtitle bar shows the side answer under the foreground line', async () => {
+    const b = mountBubble();
+    b.dock();
+    await b.send('line', { line_id: 'r1', text_delta: MAIN, lane: 'agent' });
+    await b.send('line', { line_id: 's1', text_delta: SIDE, lane: 'side' });
+    const bars = [...document.querySelectorAll('[data-subtitle]')].map((el) => el.textContent);
+    expect(bars).toHaveLength(2);
+    expect(bars[0]).toContain(MAIN);
+    expect(bars[1]).toContain(SIDE);
+  });
+
+  it('a reset or a gap in the feed ends her open line with why', async () => {
+    const b = mountBubble();
+    await b.presence(presenceOf({ thought: null }));
+    await b.send('line', { line_id: 'l1', text_delta: '我看看' });
+    await b.send('reset');
+    screen.getByText('后台已重启，这一轮没有完成');
+    await b.accepted('u2');
+    await b.send('gap');
+    screen.getByText('后台已重启，这一轮没有完成');
+  });
+
+  it('an error says why and offers its next step, which opens the main window there', async () => {
+    const b = mountBubble();
+    const open = vi.spyOn(b.bridge.window, 'openMain');
+    await b.presence(presenceOf({ thought: null }));
+    await b.send('line', { line_id: 'e1', text_delta: '我去读一下', final: true, error: 'auth_expired' });
+    screen.getByText('登录已过期，请重新登录');
+    expect(said('本轮回复出错，未能完整输出')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '前往登录' }));
+    expect(open).toHaveBeenCalledWith(navRoute({ page: 'settings', group: 'kernel', item: 'kcur' }));
+  });
+
+  it('the subtitle bar shows an error and an interruption as the bubble does', async () => {
+    const b = mountBubble();
+    const open = vi.spyOn(b.bridge.window, 'openMain');
+    b.dock();
+    await b.send('line', { line_id: 'e1', text_delta: '我去读一下', final: true, error: 'quota_exhausted' });
+    const bar = () => document.querySelector('[data-subtitle]')!;
+    expect(bar().textContent).toContain('可用额度已用完，请检查账户额度');
+    fireEvent.click(within(bar() as HTMLElement).getByRole('button', { name: '查看用量' }));
+    expect(open).toHaveBeenCalledWith(navRoute({ page: 'diag', tab: 'flow', item: 'usage' }));
+    await b.send('line', { line_id: 'c1', text_delta: '说到一半' });
+    await b.send('line', { line_id: 'c1', final: true, cancelled: true });
+    expect(bar().textContent).toContain('说到一半');
+    expect(bar().textContent).toContain('已打断');
+  });
+
+  it('停止 on her thinking or streaming line cancels the turn; ✕ only hides the line', async () => {
+    const b = mountBubble();
+    const request = vi.spyOn(b.bridge.agentd, 'request').mockResolvedValue({ status: 202, body: {} });
+    await b.presence(presenceOf({ thought: null }));
+    await b.accepted('u1');
+    await flush(async () => fireEvent.click(screen.getByRole('button', { name: '停止' })));
+    expect(request.mock.calls).toEqual([['POST', '/turn/cancel', { reason: 'client_cancel', line_id: 'u1' }]]);
+    await b.line('u1', '我看看。');
+    await flush(async () => fireEvent.click(screen.getByRole('button', { name: '停止' })));
+    expect(request.mock.calls).toHaveLength(2);
+    await b.line('u1', '', true);
+    expect(screen.queryByRole('button', { name: '停止' })).toBeNull();
+    await b.line('u2', '再说一句。');
+    request.mockClear();
+    await flush(async () => fireEvent.click(screen.getByRole('button', { name: '关闭' })));
+    expect(said('再说一句。')).toBeNull();
+    expect(request).not.toHaveBeenCalled();
   });
 });

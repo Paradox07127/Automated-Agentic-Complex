@@ -26,7 +26,7 @@ const THOUGHT = { id: 't1', text: '测试又红了，像是同一个超时。', 
 const role = (state: string, extra: Record<string, unknown> = {}) => ({ state, run_id: 'r1', since: SAMPLED - 300, doing: `正在 ${state}`, ...extra });
 const presenceOf = (extra: Record<string, unknown> = {}) => ({ sampled_at: SAMPLED, proactive_speech: true, thought: null, role: role('idle'), ...extra });
 const barOf = (phase: Phase, extra: Partial<Bar> = {}): Bar => ({
-  id: 'l1', kind: 'main', text: phase === 'thinking' ? '' : '好的。', phase, reason: null, pinned: false, held: false, left: 4000, total: 4000, seq: 1, ...extra,
+  id: 'l1', kind: 'main', text: phase === 'thinking' ? '' : '好的。', phase, reason: null, error: null, pinned: false, held: false, left: 4000, total: 4000, seq: 1, ...extra,
 });
 const kind = (raw: unknown, bar: Bar | null = null, now = NOW): ChipKind | null => chipOf(raw, bar, now)?.kind ?? null;
 

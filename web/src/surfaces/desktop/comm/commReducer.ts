@@ -1,5 +1,8 @@
 // 通讯条 state machine: IDLE (no bar) → STREAMING → LINGER → FADING → IDLE; INTERRUPTED and ERROR stay
 // their own time; HELD (hover or expanded) and PINNED stop the clock. Pure, so the timing is unit-tested.
+import { codeText } from '../../../domain/errorText';
+import { NEXT } from '../../../domain/replyFailure';
+import type { NavTarget } from '../../../shell/nav';
 
 /** `reason` of a proactive, ritual or tap `line` (proactive.py `line_reason`, rituals_glue.py `tap`). */
 export interface LineReason {
@@ -36,6 +39,8 @@ export interface Bar {
   text: string;
   phase: Phase;
   reason: LineReason | null;
+  /** An error bar's code: the line's `error`, or `LOST` / `NO_REPLY` when the panel ended the line itself. */
+  error: string | null;
   pinned: boolean;
   held: boolean;
   /** ms left in the current timed phase; total is that phase's whole time. */
@@ -60,16 +65,32 @@ export type CommAction =
   | { type: 'tick'; dt: number }
   | { type: 'hold'; id: string; held: boolean }
   | { type: 'pin'; id: string; pinned: boolean }
-  | { type: 'close'; id: string };
+  | { type: 'close'; id: string }
+  /** The feed sent `reset` or `gap`: the open lines' ends may never come. */
+  | { type: 'lost' };
 
 export const INTERRUPTED_MS = 4000;
 export const ERROR_MS = 8000;
 export const FADE_MS = 200;
-/** A thinking bar whose line never came goes after this long. */
+/** A thinking bar whose line never came turns into a `NO_REPLY` error after this long. */
 export const THINKING_MAX_MS = 120_000;
 export const MAX_BARS = 2;
 
+/** Error codes of lines the panel ended itself. */
+export const LOST = 'feed_lost';
+export const NO_REPLY = 'no_reply';
+const ENDED: Readonly<Record<string, string>> = {
+  [LOST]: '后台已重启，这一轮没有完成',
+  [NO_REPLY]: '后台服务无响应',
+};
+
 export const INITIAL: CommState = { bars: [], run: null, seq: 0, closed: [] };
+
+/** What an error bar says, and the one next step its code offers. */
+export function failOf(bar: Bar): { reason: string; next: { label: string; to: NavTarget } | null } {
+  const code = bar.error ?? '';
+  return { reason: ENDED[code] ?? codeText(code) ?? '本轮回复出错，未能完整输出', next: NEXT[code] ?? null };
+}
 
 /** How long a finished line stays: clamp(3.5 s + 70 ms × characters, 4 s, 15 s). */
 export function lingerMs(text: string): number {
@@ -114,7 +135,7 @@ export function parseAccepted(data: string): { id: string; side: boolean } | nul
 /** The phase a final event moves a streaming bar to; null when nothing is left to show. */
 function settle(bar: Bar, e: LineEvent): Bar | null {
   if (!e.final) return bar;
-  if (e.error) return { ...bar, phase: 'error', left: ERROR_MS, total: ERROR_MS };
+  if (e.error) return { ...bar, phase: 'error', error: e.error, left: ERROR_MS, total: ERROR_MS };
   if (!bar.text.trim()) return null;
   if (e.cancelled) return { ...bar, phase: 'interrupted', left: INTERRUPTED_MS, total: INTERRUPTED_MS };
   const t = lingerMs(bar.text);
@@ -139,14 +160,15 @@ function onLine(s: CommState, e: LineEvent): CommState {
   const at = s.bars.findIndex((b) => b.id === e.id);
   const old = s.bars[at];
   if (old) {
-    if (old.phase === 'thinking' ? !e.delta && !e.final : old.phase !== 'streaming') return { ...s, run };
-    const next = settle({ ...old, phase: 'streaming', text: old.text + e.delta }, e);
+    const waiting = old.phase === 'thinking' || old.error === NO_REPLY;
+    if (waiting ? !e.delta && !e.final : old.phase !== 'streaming') return { ...s, run };
+    const next = settle({ ...old, phase: 'streaming', error: null, text: old.text + e.delta }, e);
     return { ...s, run, bars: next ? s.bars.map((b, i) => (i === at ? next : b)) : s.bars.filter((_, i) => i !== at) };
   }
   if (!e.delta && !(e.final && e.error)) return { ...s, run };
   const kind = e.lane === 'side' || (e.lane === 'character' && s.run !== null) ? 'side' : 'main';
   const seq = kind === 'main' ? s.seq + 1 : s.seq;
-  const fresh = settle({ id: e.id, kind, text: e.delta, phase: 'streaming', reason: e.reason, pinned: false, held: false, left: 0, total: 0, seq }, e);
+  const fresh = settle({ id: e.id, kind, text: e.delta, phase: 'streaming', reason: e.reason, error: null, pinned: false, held: false, left: 0, total: 0, seq }, e);
   if (!fresh) return { ...s, run };
   return { ...s, bars: add(s.bars, fresh), run, seq };
 }
@@ -155,8 +177,16 @@ function onAccepted(s: CommState, id: string, side: boolean): CommState {
   if (s.bars.some((b) => b.id === id)) return s;
   const kind = side ? 'side' : 'main';
   const seq = kind === 'main' ? s.seq + 1 : s.seq;
-  const fresh: Bar = { id, kind, text: '', phase: 'thinking', reason: null, pinned: false, held: false, left: THINKING_MAX_MS, total: THINKING_MAX_MS, seq };
-  return { ...s, bars: add(s.bars.filter((b) => b.phase !== 'thinking'), fresh), seq };
+  const fresh: Bar = { id, kind, text: '', phase: 'thinking', reason: null, error: null, pinned: false, held: false, left: THINKING_MAX_MS, total: THINKING_MAX_MS, seq };
+  return { ...s, bars: add(s.bars.filter((b) => b.phase !== 'thinking' || b.kind !== kind), fresh), seq };
+}
+
+const open = (b: Bar) => b.phase === 'thinking' || b.phase === 'streaming';
+
+function onLost(s: CommState): CommState {
+  if (s.run === null && !s.bars.some(open)) return s;
+  const bars = s.bars.map((b): Bar => (open(b) ? { ...b, phase: 'error', error: LOST, left: ERROR_MS, total: ERROR_MS } : b));
+  return { ...s, bars, run: null };
 }
 
 function onTick(s: CommState, dt: number): CommState {
@@ -170,7 +200,8 @@ function onTick(s: CommState, dt: number): CommState {
     changed = true;
     const left = b.left - dt;
     if (left > 0) bars.push({ ...b, left });
-    else if (b.phase !== 'fading' && b.phase !== 'thinking') bars.push({ ...b, phase: 'fading', left: FADE_MS });
+    else if (b.phase === 'thinking') bars.push({ ...b, phase: 'error', error: NO_REPLY, left: ERROR_MS, total: ERROR_MS });
+    else if (b.phase !== 'fading') bars.push({ ...b, phase: 'fading', left: FADE_MS });
   }
   return changed ? { ...s, bars } : s;
 }
@@ -193,9 +224,10 @@ export function commReducer(s: CommState, a: CommAction): CommState {
     case 'close': {
       const bar = s.bars.find((b) => b.id === a.id);
       if (!bar) return s;
-      const open = bar.phase === 'thinking' || bar.phase === 'streaming';
-      return { ...s, bars: s.bars.filter((b) => b.id !== a.id), closed: open ? [...s.closed, a.id] : s.closed };
+      return { ...s, bars: s.bars.filter((b) => b.id !== a.id), closed: open(bar) ? [...s.closed, a.id] : s.closed };
     }
+    case 'lost':
+      return onLost(s);
   }
 }
 

@@ -3,10 +3,13 @@ import {
   asksFeedback,
   commReducer,
   ERROR_MS,
+  failOf,
   FADE_MS,
   INITIAL,
   INTERRUPTED_MS,
   lingerMs,
+  LOST,
+  NO_REPLY,
   parseAccepted,
   parseLine,
   THINKING_MAX_MS,
@@ -138,6 +141,28 @@ describe('comm reducer', () => {
     const s = run(INITIAL, ev('a', '完', { final: true }));
     expect(run(s, ev('a', '多余')).bars[0]?.text).toBe('完');
   });
+
+  it('an error keeps its code: the sentence for it, and the next step it offers', () => {
+    const s = run(INITIAL, ev('e', '读日志'), ev('e', '', { final: true, error: 'auth_expired' }));
+    expect(s.bars[0]).toMatchObject({ phase: 'error', error: 'auth_expired' });
+    expect(failOf(s.bars[0]!)).toEqual({ reason: '登录已过期，请重新登录', next: { label: '前往登录', to: { page: 'settings', group: 'kernel', item: 'kcur' } } });
+    const odd = run(INITIAL, ev('k', '', { final: true, error: 'kernel_timeout' })).bars[0]!;
+    expect(failOf(odd)).toEqual({ reason: '本轮回复出错，未能完整输出', next: null });
+  });
+
+  it('a lost feed ends every open line as an error and forgets the foreground run', () => {
+    let s = run(INITIAL, ev('r', '跑测试', { lane: 'agent' }), ev('d', '完了', { lane: 'side', final: true }));
+    s = commReducer(s, { type: 'lost' });
+    expect(s.run).toBeNull();
+    expect(s.bars.map((b) => [b.id, b.phase, b.error])).toEqual([['r', 'error', LOST], ['d', 'linger', null]]);
+    expect(failOf(s.bars[0]!).reason).toBe('后台已重启，这一轮没有完成');
+    s = run(s, ev('r', '后半句', { lane: 'agent' }));
+    expect(s.bars[0]).toMatchObject({ phase: 'error', text: '跑测试' });
+    const thinking = commReducer(accept(INITIAL, 't'), { type: 'lost' });
+    expect(thinking.bars[0]).toMatchObject({ phase: 'error', error: LOST, left: ERROR_MS });
+    const idle = run(INITIAL, ev('a', '完', { final: true }));
+    expect(commReducer(idle, { type: 'lost' })).toBe(idle);
+  });
 });
 
 const accept = (s: CommState, id: string, side = false) => commReducer(s, { type: 'accepted', id, side });
@@ -164,20 +189,36 @@ describe('comm reducer: 在想 from turn_accepted to the first word', () => {
     expect(accept(done, 'a')).toBe(done);
   });
 
-  it('stays until the cap, then goes', () => {
+  it('stays until the cap, then turns into an error that goes after the error time', () => {
     let s = tick(accept(INITIAL, 't'), THINKING_MAX_MS - 1);
     expect(s.bars[0]).toMatchObject({ phase: 'thinking', text: '' });
     s = tick(s, 2);
+    expect(s.bars[0]).toMatchObject({ id: 't', phase: 'error', error: NO_REPLY, left: ERROR_MS });
+    expect(failOf(s.bars[0]!)).toEqual({ reason: '后台服务无响应', next: null });
+    s = tick(s, ERROR_MS);
+    expect(s.bars[0]?.phase).toBe('fading');
+    s = tick(s, FADE_MS);
     expect(s.bars).toEqual([]);
   });
 
-  it('a side turn thinks in the side bar; a new turn replaces the one thinking before it', () => {
+  it('a late first word after the cap still fills the bar', () => {
+    const s = run(tick(accept(INITIAL, 't'), THINKING_MAX_MS), ev('t', '好的'));
+    expect(s.bars[0]).toMatchObject({ id: 't', phase: 'streaming', text: '好的' });
+  });
+
+  it('a side turn thinks in the side bar; a new turn replaces the one of its own kind thinking before it', () => {
     let s = run(INITIAL, ev('r', '跑测试', { lane: 'agent' }));
     s = accept(s, 's', true);
     expect(s.bars.map((b) => [b.id, b.kind, b.phase])).toEqual([['r', 'main', 'streaming'], ['s', 'side', 'thinking']]);
     s = accept(s, 'm');
-    expect(s.bars.map((b) => [b.id, b.phase])).toEqual([['m', 'thinking']]);
-    expect(commReducer(s, { type: 'close', id: 'm' }).bars).toEqual([]);
+    expect(s.bars.map((b) => [b.id, b.phase])).toEqual([['m', 'thinking'], ['s', 'thinking']]);
+    expect(commReducer(s, { type: 'close', id: 'm' }).bars.map((b) => b.id)).toEqual(['s']);
+  });
+
+  it('a side turn thinking keeps the foreground turn thinking', () => {
+    const s = accept(accept(INITIAL, 'm'), 's', true);
+    expect(s.bars.map((b) => [b.id, b.kind, b.phase])).toEqual([['m', 'main', 'thinking'], ['s', 'side', 'thinking']]);
+    expect(accept(s, 's2', true).bars.map((b) => [b.id, b.kind, b.phase])).toEqual([['m', 'main', 'thinking'], ['s2', 'side', 'thinking']]);
   });
 
   it('a line without an accepted turn streams as before', () => {
