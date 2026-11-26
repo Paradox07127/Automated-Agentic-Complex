@@ -1454,6 +1454,51 @@ class RunTest(SpatialCase):
             polled.clear()
 
 
+class SimulatedWake:
+    """_motion_wake on the case's clock: wait(timeout) moves it on; an untimed wait or one past `until` ends the
+    loop at `until`."""
+
+    def __init__(self, case, until, stop):
+        self.case, self.until, self.stop, self.timeouts = case, until, stop, []
+
+    def wait(self, timeout):
+        self.timeouts.append(timeout)
+        if timeout is None or self.case.now + timeout > self.until:
+            self.case.now = self.until
+            self.stop.set()
+        else:
+            self.case.now += timeout
+        return False
+
+    def clear(self):
+        pass
+
+
+class MotionLoopTest(SpatialCase):
+    """The motion clock wakes every MOTION_WAKE only while she is visible and Spatial is not skipped."""
+
+    def wakes(self, seconds, skip):
+        stop, steps = threading.Event(), []
+        wake = self.spatial._motion_wake = SimulatedWake(self, self.now + seconds, stop)
+        self.spatial.motion_step = lambda: steps.append(self.now)
+        self.spatial._motion_loop(stop, skip)
+        return wake.timeouts, steps
+
+    def test_visible_it_wakes_every_motion_wake(self):
+        timeouts, steps = self.wakes(10, lambda: False)
+        self.assertEqual(set(timeouts), {spatial.MOTION_WAKE})
+        self.assertGreaterEqual(len(steps), round(10 / spatial.MOTION_WAKE) - 1)
+
+    def test_hidden_it_waits_for_a_visibility_change(self):
+        self.spatial.avatar_visible = lambda: False
+        timeouts, steps = self.wakes(10, lambda: False)
+        self.assertEqual((timeouts[1:], steps), ([None], []))
+
+    def test_skipped_it_runs_no_frames_and_keeps_its_wake(self):
+        timeouts, steps = self.wakes(10, lambda: True)
+        self.assertEqual((set(timeouts), steps), ({spatial.MOTION_WAKE}, []))
+
+
 class ReceiptTest(SpatialCase):
     def test_unknown_after_terminal_and_stale(self):
         self.use(Prefer("idle"))
@@ -1807,6 +1852,22 @@ class SituationServerTest(ServerCase):
         self.assertFalse(self.server.spatial_situation()["voicing"])
         relay.playing = True
         self.assertTrue(self.server.spatial_situation()["voicing"])
+
+
+class MotionWakeServerTest(ServerCase):
+    def test_showing_her_resumes_the_motion_clock_within_one_wake(self):
+        stepped, stop = threading.Event(), threading.Event()
+        self.server.spatial.motion_step = stepped.set
+        self.server.spatial.avatar_visible = lambda: self.server.avatar["visible"]
+        self.server.set_avatar(False, "user")
+        loop = threading.Thread(target=self.server.spatial._motion_loop, args=(stop, lambda: False), daemon=True)
+        loop.start()
+        self.addCleanup(loop.join, 1)
+        self.addCleanup(self.server.spatial._motion_wake.set)
+        self.addCleanup(stop.set)
+        self.assertFalse(stepped.wait(3 * spatial.MOTION_WAKE))
+        self.server.set_avatar(True, "user")
+        self.assertTrue(stepped.wait(spatial.MOTION_WAKE))
 
 
 class SwitchServerTest(ServerCase):

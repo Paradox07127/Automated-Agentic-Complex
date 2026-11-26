@@ -340,6 +340,7 @@ class Spatial:
             self._wake.wait(POLL)
             self._wake.clear()
             if stop.is_set():
+                self._motion_wake.set()  # the motion clock may wait untimed while she is hidden
                 return
             if skip():
                 continue
@@ -1033,13 +1034,15 @@ class Spatial:
 
     def _motion_loop(self, stop, skip):
         # The chooser's clock is the wall clock: each wake runs the frames since the last one, so a slow wake only
-        # delays the choices it makes, never their times.
+        # delays the choices it makes, never their times. Hidden, it waits for set_avatar's wake.
+        wait = MOTION_WAKE
         while True:
-            self._motion_wake.wait(MOTION_WAKE)
+            self._motion_wake.wait(wait)
             self._motion_wake.clear()
             if stop.is_set():
                 return
-            if skip() or not self.avatar_visible():
+            wait = MOTION_WAKE if self.avatar_visible() else None
+            if wait is None or skip():
                 with self._lock:
                     self._motion_at = None  # no frames run while Spatial is skipped or hidden
                 continue
