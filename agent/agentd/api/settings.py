@@ -120,7 +120,8 @@ class SettingsMixin:
             body = self._body()
         except ValueError:
             return self._json(400, {"error": "invalid_capabilities"})
-        known = set(c1.TYPES) | {"sit@window", "attend_session@user", "sit/rest", "auto_facing", "fullscreen_give_way"}
+        known = set(c1.TYPES) | {"sit@window", "attend_session@user", "auto_facing", "fullscreen_give_way"} \
+            | {f"sit/{v}" for v in c1.VARIANTS}
         caps = body.get("capabilities") if isinstance(body, dict) else None
         character = body.get("character_id") if isinstance(body, dict) else None
         if not isinstance(character, str) or not character or not isinstance(caps, dict) or not set(caps) <= known \

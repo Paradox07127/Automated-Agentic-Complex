@@ -2170,6 +2170,16 @@ class CapabilityServerTest(ServerCase):
         self.assertEqual(self.request('PUT', '/behavior/capabilities', body)[0], 200)
         self.assertEqual(self.server.spatial.diag()['capabilities'], body['capabilities'])
 
+    def test_the_hosts_whole_table_with_sit_variants_is_accepted(self):
+        # ActorControls.behaviorCapabilities as the macOS host sends it, sit/read and sit/tea included.
+        caps = {'short_walk': None, 'face': None, 'auto_facing': None, 'observe': None, 'attend_session': None,
+                'attend_session@user': None, 'sit': None, 'sit/rest': None, 'sit@window': None, 'hold_window_edge': None,
+                'fullscreen_give_way': None, 'climb_window_top': 'no climb clips', 'perform': None,
+                'sit/read': None, 'sit/tea': '当前角色的坐姿没有 tea 变体'}
+        body = {'character_id': self.server.character, 'capabilities': caps}
+        self.assertEqual(self.request('PUT', '/behavior/capabilities', body)[0], 200)
+        self.assertEqual(self.server.spatial.diag()['capabilities'], caps)
+
 
 PACK = Path(__file__).resolve().parent / "fixtures" / "motion-chooser" / "demo"  # a runtime character directory
 
