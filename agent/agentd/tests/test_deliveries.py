@@ -213,6 +213,26 @@ class DeliveryTests(unittest.TestCase):
         self.assertIsNone(task['delivery']); self.assertEqual(task['generation'], 0)
         self.assertIsNone(self.service.produce('missing'))
 
+    def test_task_list_reads_job_runs_once_and_checkpoints_only_for_the_page(self):
+        for _ in range(3): self.produce_job()
+        for i in range(3):
+            task_id, run_id = 'standalone-%d' % i, 'standalone-run-%d' % i
+            self.tasks.create(task_id, 'codex', str(self.root), 'Standalone', 'read_only', now=10**10 + i)
+            self.runs.begin(run_id, 'conversation', 'aster', 0)
+            self.runs.checkpoint(run_id, task_id, {'task_id': task_id, 'source_run_id': 'source-%d' % i})
+        statements = []
+        self.db.set_trace_callback(statements.append)
+        with patch.object(self.runs, 'load_checkpoint', wraps=self.runs.load_checkpoint) as load:
+            page = self.service.tasks_page(limit=2)
+            self.db.set_trace_callback(None)
+            self.assertEqual(len([s for s in statements if 'personal_job_runs' in s]), 1)
+            self.assertEqual(load.call_count, 2)
+            self.assertEqual([(t['canonical_task_id'], t['source_run_id']) for t in page['tasks']],
+                             [('task:standalone-2', 'source-2'), ('task:standalone-1', 'source-1')])
+            load.reset_mock()
+            self.assertEqual(self.service.task('task:standalone-0')['source_run_id'], 'source-0')
+            self.assertEqual(load.call_count, 1)
+
     def test_temporary_turn_never_produces_delivery(self):
         job, delivery = self.produce_job()
         self.service.forget([job['run_id']])

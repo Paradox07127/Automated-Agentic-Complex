@@ -120,17 +120,22 @@ class DeliveryService:
         runs = {row['run_id']: dict(row) for row in self.runs.db.execute(
             'SELECT run_id,task_id,conversation_id,character_id,generation,state,scope_id,started_at,ended_at FROM character_runs')}
         jobs = self._job_rows()
+        attempts = {}
+        for job_id, run_id in self.db.execute('SELECT job_id,run_id FROM personal_job_runs'):
+            attempts.setdefault(job_id, set()).add(run_id)
         job_runs, task_jobs = {}, {}
         for job in jobs:
-            ids = {row[0] for row in self.db.execute('SELECT run_id FROM personal_job_runs WHERE job_id=?', (job['job_id'],))}
-            for ident in ids:
+            for ident in attempts.get(job['job_id'], ()):
                 job_runs[ident] = job['job_id']
                 if runs.get(ident, {}).get('task_id'): task_jobs[runs[ident]['task_id']] = job['job_id']
             if (job.get('result') or {}).get('task_id'): task_jobs[job['result']['task_id']] = job['job_id']
         return runs, jobs, job_runs, task_jobs
 
     def _canonical(self):
+        """Task rows carry no source_run_id until _sources() loads it for the rows a caller returns."""
         runs, jobs, job_runs, task_jobs = self._ownership()
+        task_runs = {}
+        for run in runs.values(): task_runs.setdefault(run['task_id'], []).append(run)
         from sessions.tasks import SELECT, _row
         task_rows = [_row(row) for row in self.db.execute(SELECT)] if self.tasks else []
         deliveries = [self._row(row[0]) for row in self.db.execute('SELECT delivery_id FROM personal_deliveries')]
@@ -147,19 +152,16 @@ class DeliveryService:
             values.append(value)
         for task in task_rows:
             if task['task_id'] in task_jobs: continue
-            owned = [run for run in runs.values() if run['task_id'] == task['task_id']]
+            owned = task_runs.get(task['task_id'])
             run = max(owned, key=lambda r: (r['started_at'], r['run_id'])) if owned else None
             values.append({'canonical_task_id': 'task:' + task['task_id'], 'task_id': task['task_id'], 'job_id': None,
                 'goal_id': None, 'run_id': run['run_id'] if run else None, 'source_run_id': None, 'parent_run_id': None,
                 'conversation_id': run['conversation_id'] if run else None, 'character_id': run['character_id'] if run else None,
                 'generation': run['generation'] if run else 0, 'title': task['title'], 'state': task['state'],
                 'created_at': task['created_at'], 'updated_at': task['updated_at']})
-            if run:
-                checkpoint = self.runs.load_checkpoint(run_id=run['run_id'])
-                values[-1]['source_run_id'] = (checkpoint or {}).get('source_run_id')
         for value in values:
-            value['run_count'] = sum(1 for run in runs.values() if
-                (job_runs.get(run['run_id']) == value['job_id'] if value['job_id'] else run['task_id'] == value['task_id']))
+            value['run_count'] = sum(1 for run in runs.values() if job_runs.get(run['run_id']) == value['job_id']) \
+                if value['job_id'] else len(task_runs.get(value['task_id'], ()))
             delivery = next((row for row in deliveries if row['canonical_task_id'] == value['canonical_task_id'] and
                              row['run_id'] == value['run_id'] and row['generation'] == value['generation']), None)
             value['delivery'] = delivery
@@ -169,18 +171,27 @@ class DeliveryService:
             if value['redacted']: value['title'] = ''
         return values, runs, job_runs
 
+    def _sources(self, rows):
+        """Fills source_run_id of _canonical() task rows from their latest run's checkpoint."""
+        for row in rows:
+            if row['job_id'] is None and row['run_id']:
+                row['source_run_id'] = (self.runs.load_checkpoint(run_id=row['run_id']) or {}).get('source_run_id')
+        return rows
+
     def tasks_page(self, *, cursor=None, limit=50, conversation_id=None, character_id=None):
         with self.runs.lock, self.lock:
             rows, _, _ = self._canonical()
-        rows = [row for row in rows if (conversation_id is None or row['conversation_id'] == conversation_id) and
-                (character_id is None or row['character_id'] == character_id)]
-        values, next_cursor = _page(rows, cursor, limit, ['tasks', conversation_id, character_id],
-                                    lambda row: (-row['created_at'], row['canonical_task_id']))
+            rows = [row for row in rows if (conversation_id is None or row['conversation_id'] == conversation_id) and
+                    (character_id is None or row['character_id'] == character_id)]
+            values, next_cursor = _page(rows, cursor, limit, ['tasks', conversation_id, character_id],
+                                        lambda row: (-row['created_at'], row['canonical_task_id']))
+            self._sources(values)
         return {'tasks': values, 'next_cursor': next_cursor}
 
     def task(self, canonical_task_id):
         with self.runs.lock, self.lock:
-            return next((row for row in self._canonical()[0] if row['canonical_task_id'] == canonical_task_id), None)
+            row = next((row for row in self._canonical()[0] if row['canonical_task_id'] == canonical_task_id), None)
+            return self._sources([row])[0] if row else None
 
     def produce(self, run_id, *, remember=True, summary=''):
         if remember is not True: return None
@@ -198,6 +209,7 @@ class DeliveryService:
             if task is None or task['state'] not in TERMINAL_RESULTS: return None
             if task['character_id'] != run['character_id'] or task['generation'] != run['generation']:
                 raise DeliveryError('delivery_owner_changed')
+            self._sources([task])
             result = run.get('result') or {}
             job = next((row for row in self._job_rows() if row['job_id'] == task['job_id']), None)
             if not summary and job: summary = (job.get('result') or {}).get('reply') or ''
@@ -319,7 +331,7 @@ class DeliveryService:
             except Exception:
                 self.db.rollback()
                 raise
-            result = {'task': next(row for row in self._canonical()[0] if row['canonical_task_id'] == canonical_task_id),
+            result = {'task': self._sources([next(row for row in self._canonical()[0] if row['canonical_task_id'] == canonical_task_id)])[0],
                       'delivery': self._row(ident)}
         self._emit(result['delivery'])
         return result
