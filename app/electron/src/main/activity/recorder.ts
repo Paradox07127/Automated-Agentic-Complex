@@ -7,9 +7,12 @@ import {
 } from '../../common/activity.ts';
 import { type AttentionSample, type BlacklistRules, hides } from '../../common/attention.ts';
 import type { HelperAnswer } from '../../common/push-to-talk.ts';
+import type { AxWatchMux } from '../attention/ax-watch.ts';
 
 export interface ActivityPorts {
   helper: { request(op: string, params?: Record<string, unknown>): Promise<HelperAnswer> };
+  /** Shared `ax.watch` mux; direct `helper.request` used if omitted. */
+  axWatch?: AxWatchMux;
   /** `POST /context/events`; the HTTP status, 0 when agentd could not be reached. */
   post(body: { events: Record<string, unknown>[] }): Promise<number>;
   /** `<agentd_state_dir>/blacklist.json`'s rules now. */
@@ -154,7 +157,17 @@ export class ActivityRecorder {
       return;
     }
     const selected = this.ports.policy().allowTypedText;
-    const reply = await this.ports.helper.request('ax.watch', watchParams(front, selected));
+    const manual = front.bundleId !== null && MANUAL_ACCESSIBILITY.has(front.bundleId);
+    const reply = this.ports.axWatch
+      ? (await this.ports.axWatch.set('activity', {
+          pid: front.pid,
+          notifications: NOTIFICATIONS,
+          readSelectedText: selected,
+          readValue: selected,
+          manualAccessibility: manual,
+          onNotification: (data) => this.handle(data),
+        })) ?? { ok: false as const, error: { code: 'unavailable', message: 'axWatch' } }
+      : await this.ports.helper.request('ax.watch', watchParams(front, selected));
     if (!this.running || generation !== this.generation) return;
     if (!reply.ok) {
       this.watched = null;
@@ -191,6 +204,10 @@ export class ActivityRecorder {
 
   private async unwatch(): Promise<void> {
     this.watched = null;
+    if (this.ports.axWatch) {
+      await this.ports.axWatch.set('activity', null);
+      return;
+    }
     await this.ports.helper.request('ax.watch', { pid: null, notifications: [], watch_id: WATCH_ID });
   }
 

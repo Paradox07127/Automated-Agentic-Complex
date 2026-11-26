@@ -329,6 +329,7 @@ class Spatial:
         self._lock = threading.RLock()
         self._wake = threading.Event()
         self._motion_wake = threading.Event()
+        self.avatar_visible = lambda: True
 
     def run(self, stop, skip=lambda: False):
         """skip() -> True leaves this poll and the motion clock's steps out (agentd's reset or an open character
@@ -1038,9 +1039,9 @@ class Spatial:
             self._motion_wake.clear()
             if stop.is_set():
                 return
-            if skip():
+            if skip() or not self.avatar_visible():
                 with self._lock:
-                    self._motion_at = None  # no frames run while Spatial is skipped
+                    self._motion_at = None  # no frames run while Spatial is skipped or hidden
                 continue
             try:
                 self.motion_step()

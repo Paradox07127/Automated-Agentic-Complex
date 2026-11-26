@@ -300,6 +300,8 @@ def open_derived(path, version):
         db.execute("VACUUM")
         db.setconfig(sqlite3.SQLITE_DBCONFIG_RESET_DATABASE, False)
         db.execute(f"PRAGMA user_version = {int(version)}")
+    db.execute("PRAGMA journal_mode=WAL")
+    db.execute("PRAGMA synchronous=NORMAL")
     return db
 
 

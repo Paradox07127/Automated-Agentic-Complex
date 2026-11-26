@@ -88,6 +88,7 @@ class SwitchesMixin:
                         from character_agent.services.semantic import SemanticVision
                         capture.vision = SemanticVision(self.character_agent.semantic)
         self.sync_privacy()
+        self._sync_privacy_due = True
 
     def privacy_preview(self, revoked=()):
         """POST /context/privacy/sync with dry_run: what sync_privacy(revoked) would delete now, by category;

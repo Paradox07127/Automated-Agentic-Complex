@@ -19,7 +19,7 @@ import { loadError } from '../../src/pages/chat/useChatData';
 import { reminderTime } from '../../src/pages/overview/briefModel';
 import { createTasksActions, failMessage, type ActionDeps } from '../../src/pages/tasks/actions';
 import { deriveView, emptyLocal } from '../../src/pages/tasks/model';
-import { useSessionLines, watchTasksDiag, watchTasksFeed } from '../../src/pages/tasks/useTasksData';
+import { useSessionLines, watchTasksFeed } from '../../src/pages/tasks/useTasksData';
 import { mountTaskDetail } from './taskDetailMount';
 
 afterEach(() => {
@@ -305,22 +305,17 @@ describe('chat composer look / no_memory', () => {
   });
 });
 
-describe('tasks page hears the diag stream', () => {
-  it('reloads on an approval decision and on a change of the sessions block', () => {
+describe('tasks page hears feed events', () => {
+  it('reloads on approval, task, and session feed events without subscribing to diag stream', () => {
     let onEvent: ((e: StreamEvent) => void) | null = null;
     const bridge = createFakeBridge({ surface: 'main', still: true });
-    window.agenticComplex = { ...bridge, diag: { subscribe: (e: (x: StreamEvent) => void) => ((onEvent = e), () => {}) } } as never;
+    window.agenticComplex = { ...bridge, feed: { subscribe: (e: (x: StreamEvent) => void) => ((onEvent = e), () => {}) } } as never;
     const onChange = vi.fn();
-    watchTasksDiag(onChange);
+    watchTasksFeed(() => {}, onChange, () => false);
     const emit = (event: string, data: unknown) => onEvent?.({ event, id: null, data: JSON.stringify(data) });
-    emit('decision', { kind: 'approval.decided' });
+    emit('approval', { action: 'decided', request_id: 'r1' });
     expect(onChange).toHaveBeenCalledTimes(1);
-    emit('decision', { kind: 'gate.allow' });
-    emit('state', { sessions: { sessions: [], updated_at: 'a' }, budget: { updated_at: 'a' } });
-    expect(onChange).toHaveBeenCalledTimes(1);
-    emit('state', { sessions: { sessions: [], updated_at: 'a' }, budget: { updated_at: 'b' } });
-    expect(onChange).toHaveBeenCalledTimes(1);
-    emit('state', { sessions: { sessions: [{}], updated_at: 'c' }, budget: { updated_at: 'b' } });
+    emit('session', { session_id: 'own:1', kind: 'state' });
     expect(onChange).toHaveBeenCalledTimes(2);
   });
 

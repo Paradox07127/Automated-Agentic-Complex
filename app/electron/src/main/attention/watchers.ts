@@ -14,6 +14,7 @@ import type { Subsystem } from '../../common/plugins.ts';
 import type { HelperAnswer } from '../../common/push-to-talk.ts';
 import { DEFAULT_TIMELINE_POLICY, type TimelinePolicy } from '../../common/timeline.ts';
 import { startActivity } from '../activity/recorder.ts';
+import type { AxWatchMux } from './ax-watch.ts';
 import { startGiveWay } from '../give-way/loop.ts';
 import type { SurfaceTrackEvent } from '../renderer/link.ts';
 import { type SurfaceLink, startSurfaces } from '../surfaces/source.ts';
@@ -154,7 +155,8 @@ export function shellWatchers(o: WatcherOptions): ShellWatchers | null {
     fullscreenBehavior: () => { const v = o.saved()?.fullscreen_behavior; return typeof v === 'string' ? v : 'hide'; },
     hideOnScreenCapture: () => o.platform === 'mac' && o.saved()?.hide_on_screen_capture !== false,
     // HostLink.sendSetVisible: any hide or show but FocusVisibility's own cancels its pending change.
-    avatarHidden: o.avatarHidden, setHidden: (hidden, reason) => { visibility.manual(seconds()); o.setHidden(hidden, reason); }, every: clock.every, log: (line) => o.linkLog(`HOSTLINK ${line}`), helperY: y,
+    avatarHidden: o.avatarHidden, systemPaused: () => o.attention()?.systemPaused ?? false,
+    setHidden: (hidden, reason) => { visibility.manual(seconds()); o.setHidden(hidden, reason); }, every: clock.every, log: (line) => o.linkLog(`HOSTLINK ${line}`), helperY: y,
   });
   // HostLink.avatarBodySample's frame: the bounds of this avatar's latest `hit_capsules` in global points. `at` is when they
   // came (seconds), `focusBody` her last body in global points.
@@ -215,7 +217,7 @@ export function shellWatchers(o: WatcherOptions): ShellWatchers | null {
   const stopTick = clock.every(TICK_MS, () => {
     const a = avatar, press = pressed;
     pressed = false;
-    if (!a) return;
+    if (!a || (o.attention()?.systemPaused ?? false)) return;
     const now = seconds();
     a.focusBody = bodyBox() ?? a.focusBody;
     if (o.setFocusHidden && a.viewport === 'window' && a.focusBody && (!link.hidden || visibility.hidden)) {
@@ -291,6 +293,10 @@ export function shellWatchers(o: WatcherOptions): ShellWatchers | null {
 export interface RecorderOptions {
   argv: readonly string[];
   helper: WatcherOptions['helper'];
+  /** Shared `ax.watch` mux. */
+  axWatch?: AxWatchMux;
+  /** Shared blacklist file; created if omitted. */
+  blacklist?: BlacklistFile;
   agentd: { request(method: string, path: string, json?: unknown): Promise<{ status: number }> };
   /** `agentd_state_dir`, which holds blacklist.json. */
   agentdStateDir: string;
@@ -319,7 +325,7 @@ export interface ShellRecorders {
 export function shellRecorders(o: RecorderOptions): ShellRecorders | null {
   if (o.argv.includes('--no-attention')) return null;
   const clock = o.clock ?? { every };
-  const blacklist = new BlacklistFile(join(o.agentdStateDir, 'blacklist.json'));
+  const blacklist = o.blacklist ?? new BlacklistFile(join(o.agentdStateDir, 'blacklist.json'));
   const timeline = new TimelineRecorder({
     helper: o.helper,
     post: async (body) => {
@@ -340,6 +346,7 @@ export function shellRecorders(o: RecorderOptions): ShellRecorders | null {
   });
   const activity = startActivity({
     helper: o.helper,
+    ...(o.axWatch && { axWatch: o.axWatch }),
     post: async (body) => {
       try {
         return (await o.agentd.request('POST', '/context/events', body)).status;

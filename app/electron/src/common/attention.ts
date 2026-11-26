@@ -358,6 +358,7 @@ export class PresenceEdges {
  *  once when the pause ends. `every` runs `fn` each `ms` until the returned function is called. */
 export class AttentionBeats {
   static readonly INTERVAL_MS = 1000;
+  static readonly PAUSED_INTERVAL_MS = 15_000;
   paused = false;
   private readonly beat: () => void;
   private readonly poll: () => void;
@@ -376,7 +377,7 @@ export class AttentionBeats {
 
   start(): void {
     if (this.cancel !== null) return;
-    this.cancel = this.every(AttentionBeats.INTERVAL_MS, () => this.tick());
+    this.cancel = this.every(this.paused ? AttentionBeats.PAUSED_INTERVAL_MS : AttentionBeats.INTERVAL_MS, () => this.tick());
   }
 
   stop(): void {
@@ -392,7 +393,11 @@ export class AttentionBeats {
   setPaused(value: boolean): void {
     if (value === this.paused) return;
     this.paused = value;
-    if (!value && this.running) this.beat();
+    if (this.running) {
+      this.cancel?.();
+      this.cancel = this.every(value ? AttentionBeats.PAUSED_INTERVAL_MS : AttentionBeats.INTERVAL_MS, () => this.tick());
+      if (!value) this.beat();
+    }
   }
 }
 

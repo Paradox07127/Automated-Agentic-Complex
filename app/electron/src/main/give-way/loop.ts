@@ -20,6 +20,8 @@ export interface GiveWayPorts {
   hideOnScreenCapture(): boolean;
   /** She is hidden, for any reason. */
   avatarHidden(): boolean;
+  /** Screen is locked or asleep. */
+  systemPaused?(): boolean;
   /** Hides or shows her for this rule; the caller does not call userSetHidden for these two reasons. */
   setHidden(hidden: boolean, reason: 'fullscreen' | 'fullscreen_exit'): void;
   /** Runs `fn` every `ms` until the returned function is called. */
@@ -39,6 +41,9 @@ export class GiveWay {
   private readonly failed = new Map<string, string>();
   /** `workspace.watch` answered; after a restart the supervisor asks for it again. */
   private workspaceWatched = false;
+  private lastDialogKey: string | null = null;
+  private lastDialogAt = 0;
+  private lastDialogButtons: ReturnType<typeof decodeRects> = [];
 
   constructor(ports: GiveWayPorts) {
     this.ports = ports;
@@ -125,6 +130,10 @@ export class GiveWay {
 
   private async feed(): Promise<void> {
     if (this.feeding) return;
+    if (this.ports.systemPaused?.() || this.ports.avatarHidden()) {
+      if (this.rects.length > 0) this.handOn([]);
+      return;
+    }
     this.feeding = true;
     try {
       if (this.mainHeight === null) await this.readScreens();
@@ -149,9 +158,22 @@ export class GiveWay {
     const app = r.result.app_pid;
     const focus = othersFocus(decodeFocus(r.result.focus), own);
     const pid = 'app_pid' in r.result ? (typeof app === 'number' && !own.includes(app) ? app : null) : focus?.pid ?? null;
-    if (pid === null) return { focus: null, buttons: [] };
+    if (pid === null) {
+      this.lastDialogKey = null;
+      this.lastDialogButtons = [];
+      return { focus: null, buttons: [] };
+    }
+    const key = `${pid}:${focus?.editable ? 1 : 0}:${focus?.frame ? `${focus.frame.x},${focus.frame.y},${focus.frame.width},${focus.frame.height}` : ''}`;
+    const now = performance.now();
+    if (focus?.editable && key === this.lastDialogKey && now - this.lastDialogAt < 2000) {
+      return { focus, buttons: this.lastDialogButtons };
+    }
     const b = await this.ports.helper.request('ax.dialog_buttons', { pid });
-    return { focus, buttons: this.answered('ax.dialog_buttons', b) ? decodeRects(b.result.buttons) : [] };
+    const buttons = this.answered('ax.dialog_buttons', b) ? decodeRects(b.result.buttons) : [];
+    this.lastDialogKey = key;
+    this.lastDialogAt = now;
+    this.lastDialogButtons = buttons;
+    return { focus, buttons };
   }
 }
 

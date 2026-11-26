@@ -55,9 +55,11 @@ export class ControlPanel {
 
   get isShown(): boolean { return this.shown; }
 
-  /** Loads the page hidden. */
-  start(): void {
-    if (this.win) return;
+  /** Loads the page lazily when first needed; kept compatible as a lifecycle no-op. */
+  start(): void {}
+
+  private ensureWindow(): BrowserWindow | null {
+    if (this.win && !this.win.isDestroyed()) return this.win;
     const win = this.win = this.o.makeWindow();
     const contents = win.webContents, id = contents.id;
     const page = new PageSession((sub, stream, kind, payload) => {
@@ -71,14 +73,17 @@ export class ControlPanel {
       this.o.unregister(id);
       this.win = null;
       this.shown = false;
+      this.frame = null;
     });
     void win.loadURL(this.o.url);
+    return win;
   }
 
   stop(): void {
     this.win?.destroy();
     this.win = null;
     this.shown = false;
+    this.frame = null;
   }
 
   /** `raise` false updates a shown panel in place and never brings a hidden one forward. */
@@ -87,9 +92,10 @@ export class ControlPanel {
     this.states.send(state);
     if (this.o.webDesktop() && CARD_PHASES.has(state.phase)) return this.hide();
     if (this.dismissed || !(raise || this.shown)) return;
+    const win = this.ensureWindow();
+    if (!win) return;
     this.place();
-    if (!this.win) return;
-    this.win.showInactive();
+    win.showInactive();
     this.shown = true;
   }
 
@@ -127,5 +133,8 @@ export class ControlPanel {
   private hide(): void {
     if (this.shown) this.win?.hide();
     this.shown = false;
+    this.frame = null;
+    this.win?.destroy();
+    this.win = null;
   }
 }

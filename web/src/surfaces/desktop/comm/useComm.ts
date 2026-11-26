@@ -3,9 +3,7 @@ import { getBridge, type StreamEvent } from '../../../bridge';
 import { playDemo, type CommDemo } from './commDemo';
 import { commReducer, INITIAL, parseAccepted, parseLine } from './commReducer';
 
-const TICK_MS = 100;
-
-/** The bars from `/feed` `turn_accepted` and `line` events (or a demo script), with their clocks running unless `still`. */
+/** The bars from `/feed` `turn_accepted` and `line` events (or a demo script), with exact-deadline phase transitions. */
 export function useComm(demo: CommDemo | null, still: boolean) {
   const [state, dispatch] = useReducer(commReducer, INITIAL);
 
@@ -24,17 +22,15 @@ export function useComm(demo: CommDemo | null, still: boolean) {
     return getBridge().feed.subscribe(onEvent, () => {});
   }, [demo, still]);
 
-  const timed = state.bars.some((b) => b.phase !== 'streaming');
+  const nextMs = state.bars
+    .filter((b) => b.phase !== 'streaming' && (b.phase === 'fading' || (!b.pinned && !b.held)))
+    .reduce((min, b) => Math.min(min, Math.max(1, b.left)), Number.POSITIVE_INFINITY);
+
   useEffect(() => {
-    if (still || !timed) return;
-    let last = performance.now();
-    const t = setInterval(() => {
-      const now = performance.now();
-      dispatch({ type: 'tick', dt: now - last });
-      last = now;
-    }, TICK_MS);
-    return () => clearInterval(t);
-  }, [still, timed]);
+    if (still || !Number.isFinite(nextMs)) return;
+    const t = setTimeout(() => dispatch({ type: 'tick', dt: nextMs }), nextMs);
+    return () => clearTimeout(t);
+  }, [still, nextMs, state.bars]);
 
   return [state, dispatch] as const;
 }

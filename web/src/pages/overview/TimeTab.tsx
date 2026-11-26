@@ -54,14 +54,20 @@ const glyph = (d: string) => (
   </svg>
 );
 
-/** The day's timeline: an episode opens its sheet here, a coding session on the briefing's 今日, a conversation in the chat. */
-function DayLine({ date, partial }: { date: string; partial: boolean }) {
-  const { state, demo, still } = useDemo();
-  const go = useGo();
+/** Fallback for standalone TimeTab mounts (e.g. unit tests) that do not pass `dayTimeline`. */
+function DayLineSelf({ date, partial }: { date: string; partial: boolean }) {
+  const { demo, state, still } = useDemo();
   const ov = useOverview(demo, state);
   const now = useNow(ov.data.now, still);
   const today = useToday(ov, demo, state, date, now);
+  return <DayLine date={date} partial={partial} dayTimeline={{ q: today.timeline, summaries: today.summaries, now }} />;
+}
+
+/** The day's timeline: an episode opens its sheet here, a coding session on the briefing's 今日, a conversation in the chat. */
+function DayLine({ date, partial, dayTimeline }: { date: string; partial: boolean; dayTimeline?: BriefTabProps['dayTimeline'] }) {
+  const go = useGo();
   const [ep, setEp] = useState<string | null>(null);
+  if (!dayTimeline) return <DayLineSelf date={date} partial={partial} />;
   const open = (e: TimelineEntry) => {
     if (e.open.ep) setEp(e.open.ep);
     else if (e.open.sel) go({ page: 'overview', sel: e.open.sel });
@@ -70,13 +76,13 @@ function DayLine({ date, partial }: { date: string; partial: boolean }) {
   const [, m, d] = date.split('-').map(Number);
   return (
     <>
-      <DayTimeline q={today.timeline} summaries={today.summaries} now={now} title={partial ? '今日时间线' : `${m} 月 ${d} 日时间线`} onOpen={open} />
+      <DayTimeline q={dayTimeline.q} summaries={dayTimeline.summaries} now={dayTimeline.now} title={partial ? '今日时间线' : `${m} 月 ${d} 日时间线`} onOpen={open} />
       {ep && <EpisodeSheet ep={ep} onClose={() => setEp(null)} />}
     </>
   );
 }
 
-export function TimeTab({ day }: BriefTabProps) {
+export function TimeTab({ day, dayTimeline }: BriefTabProps) {
   const { items, focus, her: said } = day;
   const { hour, now } = dayClock(day);
   const diag = useQuery({ queryKey: ['settings', 'diag'], queryFn: readDiag, enabled: items.shot.enabled });
@@ -105,7 +111,7 @@ export function TimeTab({ day }: BriefTabProps) {
           <Big v={focus.longest ? dur(focus.longest.minutes) : '—'} k={focus.longest ? `最长一段 │ ${formatClock(focus.longest.start * 1000)} 起` : '最长一段'} />
         </div>
       </section>
-      <DayLine date={day.date} partial={day.partial} />
+      <DayLine date={day.date} partial={day.partial} dayTimeline={dayTimeline} />
       <div className={st.pills}>
         {items.shot.enabled ? (
           <Pill icon={glyph('M2 2h7v3H5v4H2zM15 2h7v7h-3V5h-4zM2 15h3v4h4v3H2zM19 15h3v7h-7v-3h4zM9 9h6v6H9z')} label="截图配额" ratio={limit ? items.shot.today / limit : 0}>

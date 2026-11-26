@@ -5,6 +5,7 @@ import type { AttentionSample } from '../../common/attention.ts';
 import {
   type AgentdReply, contextPolicy, type LookResult, lookResult, resultText, type SelectionDecision,
 } from '../../common/screen-context.ts';
+import type { AxWatchMux } from '../attention/ax-watch.ts';
 import { BlacklistFile } from '../attention/blacklist.ts';
 import { NO_ANSWER, type UserAnswer } from '../attention/sampler.ts';
 import { type ContextPorts, startContext } from './capturer.ts';
@@ -15,6 +16,10 @@ export interface ShellContextOptions {
   /** The shell's arguments: `--no-attention` (test and host runs) starts no capturer, so no window is read. */
   argv: readonly string[];
   helper: ContextPorts['helper'];
+  /** Shared `ax.watch` mux. */
+  axWatch?: AxWatchMux;
+  /** Shared blacklist file; created if omitted. */
+  blacklist?: BlacklistFile;
   agentd: Agentd;
   /** `agentd_state_dir`, which holds blacklist.json. */
   agentdStateDir: string;
@@ -89,7 +94,7 @@ export function anyOwnCapture(ambient: () => { readonly ownCaptureRecent: boolea
 /** Idle until agentd runs; null with `--no-attention`. */
 export function shellContext(o: ShellContextOptions): ShellContext | null {
   if (o.argv.includes('--no-attention')) return null;
-  const blacklist = new BlacklistFile(join(o.agentdStateDir, 'blacklist.json'));
+  const blacklist = o.blacklist ?? new BlacklistFile(join(o.agentdStateDir, 'blacklist.json'));
   const clock = o.clock ?? {
     now: Date.now,
     every: (ms: number, fn: () => void) => {
@@ -102,7 +107,7 @@ export function shellContext(o: ShellContextOptions): ShellContext | null {
     },
   };
   const capturer = startContext({
-    helper: o.helper, post: agentdPost(o.agentd), blacklist: () => blacklist.rules(),
+    helper: o.helper, ...(o.axWatch && { axWatch: o.axWatch }), post: agentdPost(o.agentd), blacklist: () => blacklist.rules(),
     // `store.saved()` nil is the default policy, `contextPolicy({})`.
     policy: () => contextPolicy(o.settings()),
     user: () => o.attention()?.user ?? NO_ANSWER,

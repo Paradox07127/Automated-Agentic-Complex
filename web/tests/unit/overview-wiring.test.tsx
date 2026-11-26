@@ -250,14 +250,9 @@ describe('overview feed', () => {
     const spy = serve([], hold);
     let emit: (e: StreamEvent) => void = () => {};
     let reload: () => void = () => {};
-    let diag: (e: StreamEvent) => void = () => {};
     const feed = vi.spyOn(getBridge().feed, 'subscribe').mockImplementation((onEvent, onReload) => {
       emit = onEvent;
       reload = onReload;
-      return () => {};
-    });
-    vi.spyOn(getBridge().diag, 'subscribe').mockImplementation((onEvent) => {
-      diag = onEvent;
       return () => {};
     });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -265,7 +260,7 @@ describe('overview feed', () => {
     const hook = renderHook(() => useOverview(null, null), { wrapper });
     const snapshots = () => spy.mock.calls.filter(([, p]) => p.startsWith('/agent/snapshot')).length;
     const send = (event: string, data: unknown) => act(() => emit({ event, id: null, data: JSON.stringify(data) }));
-    return { hook, spy, feed, snapshots, send, reload: () => act(() => reload()), diag: (data: unknown) => act(() => diag({ event: 'decision', id: null, data: JSON.stringify(data) })) };
+    return { hook, spy, feed, snapshots, send, reload: () => act(() => reload()) };
   }
 
   it('subscribes after the snapshot cursor <stream_epoch>-<seq> and lays plans and tools over the live runs', async () => {
@@ -328,14 +323,14 @@ describe('overview feed', () => {
     expect(snapshots()).toBe(n + 2);
   });
 
-  it('reads again on agent_run, agent_interaction, delivery, commitment and approval decisions; a reset drops the plans', async () => {
-    const { hook, snapshots, send, reload, diag } = live();
+  it('reads again on agent_run, agent_interaction, delivery, commitment and approval feed events; a reset drops the plans', async () => {
+    const { hook, snapshots, send, reload } = live();
     await waitFor(() => expect(hook.result.current.q.data).toBeDefined());
     const n = snapshots();
     send('commitment', { action: 'snoozed', commitment: {} });
     await waitFor(() => expect(snapshots()).toBe(n + 1));
     await waitFor(() => expect(hook.result.current.q.isFetching).toBe(false));
-    diag({ kind: 'approval.opened', attrs: {} });
+    send('approval', { action: 'opened', request_id: 'r1' });
     await waitFor(() => expect(snapshots()).toBe(n + 2));
     await waitFor(() => expect(hook.result.current.q.isFetching).toBe(false));
     send('plan', { run_id: 'run-8d03', revision: 1, steps: [{ text: 'a', status: 'completed' }] });

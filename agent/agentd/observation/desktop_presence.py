@@ -359,7 +359,7 @@ class PresenceFeed:
     """Publishes `presence` on /feed when the snapshot, sampled_at aside, is not the one last published. Checked on
     each other feed item and each poke, else every `interval` seconds, at most once per `min_gap`."""
 
-    def __init__(self, server, interval=1.0, min_gap=0.25):
+    def __init__(self, server, interval=10.0, min_gap=0.25):
         self.server, self.interval, self.min_gap = server, interval, min_gap
         self._last = None
         self._poked = False

@@ -4,7 +4,7 @@ import { ApprovalCard, approvalView, QuestionBox } from '../../features/approval
 import { Btn, Empty, Fold, Paper, Receipt, Region, StatusTag, type RegionSource } from '../../ui';
 import { ExpandRow } from '../../ui/game';
 import { CompleteFx, GroupHead, useCellIn } from './MissionFx';
-import type { Go } from './nav';
+import { useNow, type Go } from './nav';
 import { focusOf, isExpired, KIND_LABEL, leftAt, requestKey } from './pending';
 import styles from './Page.module.css';
 
@@ -24,6 +24,7 @@ export interface PendingSectionProps {
   now: number;
   /** Snapshot time the seconds_left values were read at. */
   at: number;
+  still?: boolean;
   sessions: Session[];
   receipt: DecidedReceipt | null;
   go: Go;
@@ -43,7 +44,10 @@ const rowState = (item: PendingItem): VisualStateKey => (item.kind === 'question
 
 /** 01 待处理：「紧要」组头下，排在第一的那项是一张白纸卡，其余是可展开行，行尾黄块写状态；点开一行，它的卡放在行下。 */
 export function PendingSection(p: PendingSectionProps) {
-  const { items, now, at } = p;
+  const { items, at } = p;
+  const liveNow = useNow(items.length > 0 ? p.now : undefined, p.still ?? false, 1000);
+  const now = items.length > 0 ? liveNow : p.now;
+  const liveProps = now === p.now ? p : { ...p, now };
   const open = items.filter((x) => !isExpired(x, now, at));
   const focus = focusOf(items, now, at);
   const rest = focus ? open.filter((x) => x.id !== focus.id) : [];
@@ -58,10 +62,10 @@ export function PendingSection(p: PendingSectionProps) {
         <GroupHead className={styles.grp} icon={<span className={styles.grpIc}>!!!</span>}>
           紧要
         </GroupHead>
-        <Card key={requestKey(focus)} p={p} item={focus} nav />
+        <Card key={requestKey(focus)} p={liveProps} item={focus} nav />
         {rest.map((item) => (
           <RowCell key={item.id} id={item.id}>
-            <ExpandRow label={`${item.title}，${KIND_LABEL[item.kind]}`} end={<StatusTag state={rowState(item)} />} body={<Card key={requestKey(item)} p={p} item={item} />}>
+            <ExpandRow label={`${item.title}，${KIND_LABEL[item.kind]}`} end={<StatusTag state={rowState(item)} />} body={<Card key={requestKey(item)} p={liveProps} item={item} />}>
               <span className={styles.rowT}>{item.title}</span>
               <span className={styles.rowS}>
                 {KIND_LABEL[item.kind]} │ {item.source}

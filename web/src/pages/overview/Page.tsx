@@ -156,7 +156,10 @@ export function OverviewPage() {
     cost: { open: () => go({ page: 'diag', tab: 'flow', item: 'usage' }), to: '前往诊断用量页' },
     code: { open: () => go({ page: 'tasks' }), to: '前往任务' },
   };
-  const tabProps = (d: BriefTabProps['day']): BriefTabProps => ({ day: d, pins, onPins: setPins, go: (t) => put({ tab: t }), links });
+  const tabProps = (d: BriefTabProps['day']): BriefTabProps => ({
+    day: d, pins, onPins: setPins, go: (t) => put({ tab: t }), links,
+    dayTimeline: { q: todayReads.timeline, summaries: todayReads.summaries, now },
+  });
   const body = (d: BriefTabProps['day']) => {
     if (tab === 'char') return <HerTab {...tabProps(d)} />;
     if (tab === 'tm') return <TimeTab {...tabProps(d)} />;
@@ -172,6 +175,7 @@ export function OverviewPage() {
             items={pending}
             now={now}
             at={snap.now}
+            still={still}
             sessions={snap.sessions}
             receipt={a.last && a.decided[a.last.id] ? a.last : null}
             go={go}

@@ -34,20 +34,18 @@ registerHooks({
 });
 const { DesktopAssembly } = await import('../src/main/desktop/assembly.ts');
 type DesktopOptions = import('../src/main/desktop/assembly.ts').DesktopOptions;
-/** The panels' routes in the order the assembly makes their windows. */
-const ROUTES = ['/bubble', '/dock', '/cmd', '/console', '/chip'];
 /** The URLs the fake windows loaded. */
 const loaded: string[] = [];
 
 /** `shown` gets `show <route>` at each showInactive and `hide <route>` at each hide, `moved` each setBounds. */
-function fakeWindow(id: number, shown: (route: string) => void, moved: (route: string, b: Rectangle) => void) {
+function fakeWindow(route: string, id: number, shown: (route: string) => void, moved: (route: string, b: Rectangle) => void) {
   const contents = Object.assign(new EventEmitter(), { id, send() {}, isDestroyed: () => false });
   let bounds = { x: 0, y: 0, width: 100, height: 100 };
   return Object.assign(new EventEmitter(), {
     webContents: contents, setFocusable() {}, loadURL: async (url: string) => { loaded.push(url); }, getBounds: () => bounds, isDestroyed: () => false,
-    isFocused: () => false, showInactive() { shown(`show ${ROUTES[id - 1]!}`); }, hide() { shown(`hide ${ROUTES[id - 1]!}`); }, setIgnoreMouseEvents() {}, setOpacity() {}, focus() {},
+    isFocused: () => false, showInactive() { shown(`show ${route}`); }, hide() { shown(`hide ${route}`); }, setIgnoreMouseEvents() {}, setOpacity() {}, focus() {},
     destroy() {},
-    setBounds(b: typeof bounds) { bounds = b; moved(ROUTES[id - 1]!, b); },
+    setBounds(b: typeof bounds) { bounds = b; moved(route, b); },
   });
 }
 
@@ -65,11 +63,14 @@ function setup(extra: string[], o: { present?: boolean; request?: Request; marks
   /** Each panel's last bounds, in the fake DIP space. */
   const bounds = new Map<string, Rectangle>();
   let state = 0, id = 0;
+  const routes = new Map<number, string>();
   const pages = new Map<string, { page: PageSession; ops: ReadonlyMap<string, Handler<PageSession>> }>();
   const desktop = new DesktopAssembly({
     makeWindow: (kind) => {
       o.makeWindow?.(kind);
-      return fakeWindow(++id, (line) => calls.push(line), (route, b) => bounds.set(route, b)) as unknown as BrowserWindow;
+      const next = ++id;
+      routes.set(next, `/${kind}`);
+      return fakeWindow(`/${kind}`, next, (line) => calls.push(line), (route, b) => bounds.set(route, b)) as unknown as BrowserWindow;
     },
     url: (route) => `app://x/stack.html#${route}`,
     toDip: o.toDip ?? ((f) => ({ x: f.x, y: 1000 - f.y - f.h, width: f.w, height: f.h })),
@@ -80,7 +81,7 @@ function setup(extra: string[], o: { present?: boolean; request?: Request; marks
     ...(o.recent && { recent: o.recent }),
     ...(o.dockChanged && { dockChanged: o.dockChanged }),
     register: (contents, page, ops) => {
-      pages.set(ROUTES[contents.id - 1]!, { page, ops });
+      pages.set(routes.get(contents.id)!, { page, ops });
     },
     unregister: () => {},
     baseOps: new Map(),
@@ -146,19 +147,19 @@ test('--no-attention registers no 快速输入 hot key, at start or when it is s
 test('pushState sends desktop.onState now; notice and openStack reach desktop.onCommand; openSessions opens the sessions page', async () => {
   const h = setup(['--no-attention']);
   h.desktop.start();
-  const states = h.watch('/dock', 'desktop.onState');
+  const states = h.watch('/bubble', 'desktop.onState');
   const commands = h.watch('/bubble', 'desktop.onCommand');
   h.desktop.pushState();
   assert.deepEqual(states, [{ n: 1, dock: { open: false, side: 'right', compact: false } }]);
   h.desktop.notice('角色在忙，等这一轮做完');
   // 去处理 with no card says so in the bubble; with one the stack expands.
-  assert.equal(await h.call('/cmd', 'desktop.action', ['openStack']), null);
+  assert.equal(await h.call('/bubble', 'desktop.action', ['openStack']), null);
   h.desktop.agentd(true);
   assert.equal(h.desktop.testCard('approval'), true);
-  assert.equal(await h.call('/cmd', 'desktop.action', ['openStack']), null);
+  assert.equal(await h.call('/bubble', 'desktop.action', ['openStack']), null);
   assert.deepEqual(commands, [{ kind: 'notice', text: '角色在忙，等这一轮做完' }, { kind: 'notice', text: '现在没有要处理的' },
     { kind: 'expandStack' }]);
-  assert.equal(await h.call('/cmd', 'desktop.action', ['openSessions']), null);
+  assert.equal(await h.call('/bubble', 'desktop.action', ['openSessions']), null);
   assert.ok(h.calls.includes('openMain /overview?focus=running'));
   h.done();
 });
@@ -166,6 +167,7 @@ test('pushState sends desktop.onState now; notice and openStack reach desktop.on
 test('desktop.notice from the wheel page reaches the bubble as a notice command; a blank or overlong line is refused', async () => {
   const h = setup(['--no-attention']);
   h.desktop.start();
+  h.desktop.open('ring');
   const commands = h.watch('/bubble', 'desktop.onCommand');
   assert.equal(await h.call('/cmd', 'desktop.notice', ['免打扰已开始 │ 14:30 恢复']), null);
   assert.deepEqual(commands, [{ kind: 'notice', text: '免打扰已开始 │ 14:30 恢复' }]);
@@ -179,6 +181,7 @@ test('desktop.onRecent sends 最近播报 at start and on each change; the conso
   const calls: string[] = [];
   const h = setup(['--no-attention'], { recent: { rows: () => rows, open: (id) => calls.push(`open ${id}`), markAllRead: () => calls.push('markAllRead') } });
   h.desktop.start();
+  h.desktop.openConsole(null);
   const got = h.watch('/console', 'desktop.onRecent');
   assert.deepEqual(got, [rows]);
   rows[0]!.unread = false;
@@ -191,6 +194,7 @@ test('desktop.onRecent sends 最近播报 at start and on each change; the conso
   h.done();
   const bare = setup(['--no-attention']);
   bare.desktop.start();
+  bare.desktop.openConsole(null);
   assert.deepEqual(bare.watch('/console', 'desktop.onRecent'), [[]]);
   assert.throws(() => bare.call('/console', 'desktop.markAllRead', []), TypeError, 'no handler without 最近播报');
   bare.done();
@@ -206,11 +210,15 @@ test('stateSource replays the last desktop.onState to a page outside the panels 
   h.done();
 });
 
-test('each panel\'s window is made for its own overlay level', () => {
+test('each panel\'s window is made for its own overlay level (primary eager, secondary lazy on demand)', () => {
   const kinds: string[] = [];
   const h = setup(['--no-attention'], { makeWindow: (kind) => kinds.push(kind) });
   h.desktop.start();
-  assert.deepEqual(kinds, ['bubble', 'dock', 'cmd', 'console', 'chip']);
+  assert.deepEqual(kinds, ['bubble', 'chip']);
+  h.desktop.open('ring');
+  assert.deepEqual(kinds, ['bubble', 'chip', 'cmd']);
+  h.desktop.openConsole(null);
+  assert.deepEqual(kinds, ['bubble', 'chip', 'cmd', 'console']);
   h.done();
 });
 
@@ -304,7 +312,7 @@ test('A bubble left with no approval closes her snap at the push', async () => {
 test('the hover buttons open after a rest on her, go out in desktop.onState, and close with the wheel or a pick', async () => {
   const h = setup(['--no-attention'], { hovered: true });
   h.desktop.start();
-  const states = h.watch('/dock', 'desktop.onState') as { dock: { open: boolean } }[];
+  const states = h.watch('/bubble', 'desktop.onState') as { dock: { open: boolean } }[];
   const open = () => states.at(-1)?.dock.open === true;
   await new Promise((resolve) => setTimeout(resolve, 150));
   assert.equal(open(), false, 'not yet at 150 ms');
@@ -336,7 +344,7 @@ test('The hover buttons do not open while she walks, and do once she stops', asy
   const h = setup(['--no-attention'], { hovered: true });
   h.desktop.setMoving(true);
   h.desktop.start();
-  const states = h.watch('/dock', 'desktop.onState') as { dock: { open: boolean } }[];
+  const states = h.watch('/bubble', 'desktop.onState') as { dock: { open: boolean } }[];
   await new Promise((resolve) => setTimeout(resolve, 450));
   assert.equal(states.at(-1)?.dock.open, false, 'walking');
   h.desktop.setMoving(false);
@@ -348,6 +356,7 @@ test('The hover buttons do not open while she walks, and do once she stops', asy
 test('The wheel a held right press opened gets its moves and release in its page\'s CSS px; one a click opened gets none', () => {
   const h = setup(['--no-attention']);
   h.desktop.start();
+  h.desktop.open('ring');
   const commands = h.watch('/cmd', 'desktop.onCommand') as Record<string, unknown>[];
   h.call('/cmd', 'window.setContentSize', [{ width: 520, height: 520 }]);
   h.desktop.openWheel({ x: 700, y: 500 }, true);
@@ -375,7 +384,7 @@ test('说话 on the hover buttons runs the push-to-talk port and keeps them whil
   const phases: string[] = [];
   const h = setup(['--no-attention'], { hovered: true, talk: (phase) => phases.push(phase) });
   h.desktop.start();
-  const states = h.watch('/dock', 'desktop.onState') as { dock: { open: boolean } }[];
+  const states = h.watch('/bubble', 'desktop.onState') as { dock: { open: boolean } }[];
   await new Promise((resolve) => setTimeout(resolve, 450));
   assert.equal(states.at(-1)?.dock.open, true);
   assert.equal(await h.call('/dock', 'desktop.action', ['talk', 'start']), null);
@@ -386,20 +395,22 @@ test('说话 on the hover buttons runs the push-to-talk port and keeps them whil
   // Without the port the page hears not_implemented.
   const bare = setup(['--no-attention']);
   bare.desktop.start();
-  await assert.rejects(async () => bare.call('/dock', 'desktop.action', ['talk', 'start']), /not_implemented|desktop.action talk/);
+  bare.desktop.open('ring');
+  await assert.rejects(async () => bare.call('/cmd', 'desktop.action', ['talk', 'start']), /not_implemented|desktop.action talk/);
   bare.done();
 });
 
 test('desktop.say goes out with an Idempotency-Key and marks the line agentd took', async () => {
   const sent: Record<string, string>[] = [], marks: string[] = [];
   const h = setup(['--no-attention'], {
-    request: async (_method, _path, _json, headers) => {
-      sent.push(headers ?? {});
+    request: async (_method, path, _json, headers) => {
+      if (path === '/say') sent.push(headers ?? {});
       return { status: 202, body: JSON.stringify({ line_id: 'l1', trace_id: 't1', generation: 1 }) };
     },
     marks: new TurnMarks((kind) => { marks.push(kind); }),
   });
   h.desktop.start();
+  h.desktop.open('input');
   assert.deepEqual(await h.call('/cmd', 'desktop.say', [{ text: '你好', attachWindow: false, noMemory: false }]), { ok: true });
   assert.match(sent[0]!['Idempotency-Key']!, /^[0-9a-f-]{36}$/);
   assert.deepEqual(marks, ['ui.submitted', 'ui.ack']);
@@ -426,8 +437,8 @@ function pressing() {
 
 /** The command layer opened in `mode` and its page's regions in, so its panel shows and is placed. */
 function openCmd(h: ReturnType<typeof pressing>, mode: 'ring' | 'input') {
-  h.call('/cmd', 'window.setContentSize', [{ width: 300, height: 300 }]);
   h.desktop.open(mode);
+  h.call('/cmd', 'window.setContentSize', [{ width: 300, height: 300 }]);
   h.call('/cmd', 'window.setInteractiveRegions', [[{ x: 0, y: 0, width: 300, height: 300 }]]);
 }
 

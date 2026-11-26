@@ -397,6 +397,7 @@ def main(secret_store=None):
         server.worklog = WorkLog(store_db, lambda: server.character, lock=store_lock)
     if plugins.on("personal_agent"):
         server.tasks = TaskLedger(store_db, lock=store_lock)
+        server.tasks.on_change = lambda t: server.feed.publish("task", {"task_id": t["task_id"], "state": t["state"]})
     server.ledger_root = args.ledger_root
     server.memory = memory
     server.load_pause()
@@ -425,6 +426,7 @@ def main(secret_store=None):
         server.state.use(args.character)
     server.spatial.state = server.state_view
     server.spatial.stage = lambda: server.user_now.snapshot()["stage"]
+    server.spatial.avatar_visible = lambda: server.avatar["visible"]
     server.spatial.keep(paths.spatial(state_dir))
     if mouth is not None:
         server.load_window()
@@ -471,6 +473,7 @@ def main(secret_store=None):
             server.broker, server.announce, state_dir, f"http://127.0.0.1:{server.server_port}", hook_token,
             args.hook_timeout, store=store_db, computer_control=server.computer_control,
             reply_language=server.reply_language_code)
+        server.sessions.on_change = lambda ev: server.feed.publish("session", ev)
         server.sessions.tasks = server.dispatcher.tasks = server.tasks
     if light and args.tts_url:
         server.startup_stage = "speech"

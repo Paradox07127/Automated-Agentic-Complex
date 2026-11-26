@@ -203,6 +203,8 @@ class CharacterSwitchMixin:
         since = self.avatar["since"] if visible == self.avatar["visible"] else _iso(self.clock())
         hiding = self.avatar["visible"] and not visible
         self.avatar = {"visible": visible, "reason": reason, "since": since}
+        if getattr(self, "spatial", None) is not None:
+            self.spatial._motion_wake.set()
         if self.desk is not None:
             self.desk.span("visible", visible)
         voiced = self._voiced

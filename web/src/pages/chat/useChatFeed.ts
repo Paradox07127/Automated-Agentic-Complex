@@ -51,8 +51,8 @@ export interface FeedHandlers {
 }
 
 const TERMINAL = new Set(['completed', 'failed', 'cancelled', 'interrupted']);
-/** The feed events this page reads: replies, run items and ends, plans, interactions and deliveries. */
-const EVENTS = new Set(['line', 'agent_item', 'agent_run', 'plan', 'agent_interaction', 'delivery', 'background_job', 'turn_accepted']);
+/** The feed events this page reads: replies, run items and ends, plans, interactions, deliveries, approvals and tasks. */
+const EVENTS = new Set(['line', 'agent_item', 'agent_run', 'plan', 'agent_interaction', 'delivery', 'background_job', 'turn_accepted', 'approval', 'task']);
 
 type Data = Record<string, unknown>;
 const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);

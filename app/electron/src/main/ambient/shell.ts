@@ -16,6 +16,8 @@ export interface ShellAmbientOptions {
   platform: 'mac' | 'windows';
   helper: AmbientPorts['helper'];
   link: AmbientPorts['link'];
+  /** Shared blacklist file; created if omitted. */
+  blacklist?: BlacklistFile;
   /** `agentd_state_dir`, which holds blacklist.json. */
   agentdStateDir: string;
   settings(): Record<string, unknown>;
@@ -34,7 +36,7 @@ export interface ShellAmbientOptions {
 /** Idle until `start` (her renderer runs); null with `--no-attention`. */
 export function shellAmbient(o: ShellAmbientOptions): AmbientSampler | null {
   if (o.argv.includes('--no-attention')) return null;
-  const blacklist = new BlacklistFile(join(o.agentdStateDir, 'blacklist.json'));
+  const blacklist = o.blacklist ?? new BlacklistFile(join(o.agentdStateDir, 'blacklist.json'));
   const clock = o.clock ?? {
     now: () => performance.now(),
     every: (ms: number, fn: () => void) => {

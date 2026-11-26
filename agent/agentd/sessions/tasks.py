@@ -117,6 +117,14 @@ class TaskLedger:
     def __init__(self, db, lock=None, clock=time.time):
         self.db, self.clock = db, clock
         self.lock = threading.Lock() if lock is None else lock
+        self.on_change = None
+
+    def _notify(self, task):
+        if self.on_change is not None and task is not None:
+            try:
+                self.on_change(task)
+            except Exception:
+                pass
 
     def _event(self, task_id, kind, at, attrs):
         seq = self.db.execute("SELECT COALESCE(MAX(seq), 0) + 1 FROM task_events WHERE task_id = ?",
@@ -141,7 +149,9 @@ class TaskLedger:
                              json.dumps(requested_by, ensure_ascii=False) if requested_by is not None else None))
             self._event(task_id, "proposed", now, None)
             self.db.commit()
-            return self._get(task_id)
+            created = self._get(task_id)
+        self._notify(created)
+        return created
 
     def transition(self, task_id, state, now=None, **attrs):
         now = self.clock() if now is None else now
@@ -162,7 +172,9 @@ class TaskLedger:
             self.db.execute(f"UPDATE tasks SET {', '.join(sets)} WHERE task_id = ?", (*args, task_id))
             self._event(task_id, state, now, attrs)
             self.db.commit()
-            return self._get(task_id)
+            updated = self._get(task_id)
+        self._notify(updated)
+        return updated
 
     def verify(self, task_id, runner=None, now=None):
         """Run a returned task's verify command in its cwd; its exit code decides succeeded or failed."""

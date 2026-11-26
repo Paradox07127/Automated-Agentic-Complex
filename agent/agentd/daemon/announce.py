@@ -58,14 +58,18 @@ class AnnounceMixin:
         return HEADLINES.get(self.reply_language_code(), HEADLINES['zh-Hans'])
 
     def _tick_loop(self, interval):
-        checked = ritual_checked = time.monotonic()
+        checked = ritual_checked = privacy_checked = time.monotonic()
         presentation_checked = expired = 0.0
         summaries = Summarizer(self) if plugins.on("screen_awareness") else None
         while not self._stopped.wait(interval):
+            now_mono = time.monotonic()
             self._quiet_due()
-            self.sync_privacy()
-            if time.monotonic() - presentation_checked >= .5:
-                presentation_checked = time.monotonic()
+            if getattr(self, "_sync_privacy_due", False) or now_mono - privacy_checked >= 1.0:
+                self._sync_privacy_due = False
+                privacy_checked = now_mono
+                self.sync_privacy()
+            if now_mono - presentation_checked >= .5:
+                presentation_checked = now_mono
                 controller = self.character_agent
                 if controller is not None and hasattr(controller, 'refresh_presentation'):
                     controller.refresh_presentation()
@@ -81,11 +85,11 @@ class AnnounceMixin:
                 self.sessions.reap()
             if summaries and self.capture is not None and not self.observation_paused() and not self.resetting:
                 self.capture.tick()
-            if self._diag_clients and time.monotonic() - checked >= DIAG_EVERY:
-                checked = time.monotonic()
+            if self._diag_clients and now_mono - checked >= DIAG_EVERY:
+                checked = now_mono
                 self._diag_check()
-            if time.monotonic() - ritual_checked >= RITUAL_EVERY:
-                ritual_checked = time.monotonic()
+            if now_mono - ritual_checked >= RITUAL_EVERY:
+                ritual_checked = now_mono
                 try:
                     self.ritual_check()
                 except Exception:  # a failed check must not stop the registry ticks
@@ -101,8 +105,8 @@ class AnnounceMixin:
                     self._schedules_due(marker)
             except Exception:
                 pass  # a failed schedule must not stop registry ticks
-            if self.timeline is not None and time.monotonic() - expired >= EXPIRE_EVERY:
-                expired = time.monotonic()
+            if self.timeline is not None and now_mono - expired >= EXPIRE_EVERY:
+                expired = now_mono
                 try:
                     self.timeline.expire(self.clock())
                 except Exception:
@@ -116,10 +120,13 @@ class AnnounceMixin:
                     self.desk.tick()
             except Exception:
                 pass  # a failed write must not stop registry ticks
-            self._switch_due()
-            self._gift_due()
+            if self.switch is not None:
+                self._switch_due()
+            if self._gift_pending is not None:
+                self._gift_due()
             self._focus_due()
-            self._announce_due()
+            if self._announce_slots or self._ended:
+                self._announce_due()
 
     def schedules_store(self):
         if self.memory is None:

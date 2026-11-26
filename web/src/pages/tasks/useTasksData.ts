@@ -241,8 +241,8 @@ export function parsePlanEvent(data: string): (Plan & { run_id: string }) | null
   };
 }
 
-/** Events that change a task row, a pending item or a delivery; agent_run counts only on a lifecycle change, agent_item only changes the open detail. */
-const BASE_EVENTS: ReadonlySet<string> = new Set(['delivery', 'background_job', 'agent_interaction']);
+/** Events that change a task row, a pending item, a delivery, an approval or a coding session. */
+const BASE_EVENTS: ReadonlySet<string> = new Set(['delivery', 'background_job', 'agent_interaction', 'approval', 'task', 'session']);
 
 /** agent_run phases (runtime.py _emit) that happen inside a running run and change no row. */
 const IN_RUN_PHASES: ReadonlySet<string> = new Set(['capabilities_checked', 'first_token', 'tool_started', 'tool_finished']);
@@ -277,27 +277,6 @@ export function watchTasksFeed(onPlan: (runId: string, plan: Plan) => void, onCh
       }
     },
     () => onChange('base'),
-  );
-}
-
-/**
- * Subscribes to `/diag/stream` for what `/feed` does not carry: hook approvals decided anywhere (decision `approval.*`)
- * and coding sessions changing state (the `sessions` block of a `state` item). Calls `onChange` for each.
- */
-export function watchTasksDiag(onChange: () => void): () => void {
-  let sessions: unknown = null;
-  return getBridge().diag.subscribe(
-    (e) => {
-      const o = parseRecord(e.data);
-      if (e.event === 'decision') {
-        if (typeof o?.kind === 'string' && o.kind.startsWith('approval.')) onChange();
-      } else if (e.event === 'state') {
-        const at = record(o?.sessions)?.updated_at ?? null;
-        if (sessions != null && at !== sessions) onChange();
-        sessions = at;
-      }
-    },
-    onChange,
   );
 }
 
@@ -348,12 +327,10 @@ export function useTasksFeed(onChange: (what: FeedChange) => unknown, isSelected
       schedule,
       (runId) => selected.current(runId),
     );
-    const offDiag = watchTasksDiag(() => schedule('base'));
     return () => {
       live = false;
       clearTimeout(timer);
       off();
-      offDiag();
     };
   }, []);
   return plans;

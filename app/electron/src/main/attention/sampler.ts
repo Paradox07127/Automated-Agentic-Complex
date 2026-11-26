@@ -93,6 +93,8 @@ export class AttentionSampler {
   private loggedCoarse: number | null = null;
   /** `presence.watch` answered; after a restart the supervisor asks for it again. */
   private presenceWatched = false;
+  private cachedScreens: Record<string, unknown>[] | null = null;
+  private cachedTab: { key: string; at: number; reply: HelperAnswer } | null = null;
 
   constructor(ports: AttentionPorts) {
     this.ports = ports;
@@ -127,6 +129,8 @@ export class AttentionSampler {
 
   /** The helper said hello (true) or went (false). Its counters and sleep state go with it. */
   helper(running: boolean): void {
+    this.cachedScreens = null;
+    this.cachedTab = null;
     if (!running) return;
     // A new helper counts input from zero; the deltas start over.
     this.inputActivity = new InputActivity();
@@ -153,8 +157,23 @@ export class AttentionSampler {
     }
   }
 
-  /** A helper event; only `presence.edge` is read. */
+  /** Host `powerMonitor` lock/unlock signal alongside helper `presence.watch`. */
+  setSystemLock(locked: boolean): void {
+    this.presence(locked ? 'lock' : 'unlock');
+  }
+
+  /** Host `powerMonitor` suspend/resume signal alongside helper `presence.watch`. */
+  setSystemSleep(asleep: boolean): void {
+    const edge = this.sleepState.update({ system: asleep, display: asleep });
+    if (edge !== null) this.presence(edge);
+  }
+
+  /** A helper event; `presence.edge` and `workspace.changed` are read. */
   event(name: string, data: Record<string, unknown>): void {
+    if (name === 'workspace.changed' && data.reason === 'screens') {
+      this.cachedScreens = null;
+      return;
+    }
     if (name !== 'presence.edge') return;
     const change = helperEdge(data.edge);
     if (change === null) return;
@@ -284,11 +303,26 @@ export class AttentionSampler {
     const raw = decodeAttention(reply.result);
     const front = raw.front;
     const bundleId = front?.appId ?? null;
+    const nowMs = this.ports.now();
+    const tabKey = aware && browserAsks(bundleId)
+      ? `${bundleId}:${front?.pid ?? ''}:${front?.window?.windowId ?? ''}:${front?.window?.title ?? front?.focusedWindowTitle ?? ''}`
+      : null;
+    const freshTab = tabKey !== null && this.cachedTab !== null && this.cachedTab.key === tabKey && nowMs - this.cachedTab.at < 5000
+      ? this.cachedTab.reply : null;
+    const needScreens = !!front?.window && this.cachedScreens === null;
     const [tab, screens] = await Promise.all([
-      aware && browserAsks(bundleId) ? this.ports.helper.request('browser.front_tab', { app_id: bundleId }) : Promise.resolve(null),
-      front?.window ? this.ports.helper.request('screens.list') : Promise.resolve(null),
+      tabKey === null ? Promise.resolve(null) : freshTab !== null ? Promise.resolve(freshTab)
+        : this.ports.helper.request('browser.front_tab', { app_id: bundleId }).then((r) => {
+          if (r.ok && r.result.incognito !== true) this.cachedTab = { key: tabKey, at: nowMs, reply: r };
+          else if (this.cachedTab?.key === tabKey) this.cachedTab = null;
+          return r;
+        }),
+      needScreens ? this.ports.helper.request('screens.list') : Promise.resolve(null),
     ]);
-    const frames = screens?.ok && Array.isArray(screens.result.screens) ? screens.result.screens as Record<string, unknown>[] : [];
+    if (screens?.ok && Array.isArray(screens.result.screens)) {
+      this.cachedScreens = screens.result.screens as Record<string, unknown>[];
+    }
+    const frames = front?.window ? (this.cachedScreens ?? []) : [];
     const displays = frames.map((s) => decodeRect(s?.frame)).filter((r): r is Rect => r !== null);
     const main = frames.find((s) => s?.primary === true);
     const mainHeight = decodeRect(main?.frame)?.height ?? null;

@@ -1180,6 +1180,7 @@ export class HostLink {
   /** Every CURSOR.sample s; `cursor` when it moved, near her or CURSOR.keepalive
    *  since the last, `pointer` at most every CURSOR.pointerInterval when it changed. */
   private sampleCursor(): void {
+    if (this.systemPaused) return;
     const c = this.conn, f = c?.frame;
     if (!c?.hello || !f) return;
     const t = now(), g = this.options.cursor!();

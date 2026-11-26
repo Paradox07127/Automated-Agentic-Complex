@@ -231,6 +231,7 @@ export class StackSource implements EventSource {
   private running = false;
   private systemPaused = false;
   private feedCancel: Cancel | null = null;
+  private hasFeed = false;
   private refreshing = false;
   private again = false;
   /** Numbers each list read as it starts; `applied` keeps, per list, the number of the read last synced. A poll and a feed
@@ -248,6 +249,7 @@ export class StackSource implements EventSource {
   start(feed: EventSource | null): void {
     if (this.running) return;
     this.running = true;
+    this.hasFeed = feed !== null;
     this.feedCancel = feed?.subscribe(null, (e) => this.handle(e), () => {
       this.announced.clear();
       this.requestRefresh();
@@ -266,11 +268,28 @@ export class StackSource implements EventSource {
     if (!paused) this.poll(!this.loaded);
   }
 
+  private hasActiveApprovalsOrTasks(): boolean {
+    for (const id of this.order) {
+      const e = this.entries.get(id);
+      if (e?.live && (e.part === 'approvals' || e.part === 'coding')) return true;
+    }
+    return false;
+  }
+
   private poll(full: boolean): void {
     const gen = ++this.pollGen;
     // A refresh that throws is a failed read like any other: the next poll still comes.
     void this.refresh(full).catch(() => {}).then(() => {
       if (!this.running || gen !== this.pollGen || this.systemPaused) return;
+      if (this.hasFeed && this.options.pollInterval == null) {
+        if (!this.hasActiveApprovalsOrTasks() && !this.offline) {
+          this.timer = null;
+          return;
+        }
+        const safetyMs = 30_000;
+        this.timer = setTimeout(() => this.poll(false), safetyMs);
+        return;
+      }
       const interval = this.options.pollInterval ?? 1000;
       this.timer = setTimeout(() => this.poll(false), this.shown() ? interval : Math.max(interval, HIDDEN_POLL_MS));
     });
@@ -331,7 +350,7 @@ export class StackSource implements EventSource {
     else if (e.event === 'commitment') {
       this.settleCommitment(e.data);
       this.requestRefresh();
-    } else if (e.event === 'agent_interaction' || e.event === 'delivery') this.requestRefresh();
+    } else if (e.event === 'agent_interaction' || e.event === 'delivery' || e.event === 'approval' || e.event === 'task') this.requestRefresh();
   }
 
   /** A reminder cancelled, snoozed or completed elsewhere: its due card leaves for history. The `/commitments` read lists

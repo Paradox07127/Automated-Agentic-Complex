@@ -82,11 +82,15 @@ export interface DesktopOptions {
   recent?: { rows(): MenuAnnouncement[]; open(id: string): void; markAllRead(): void };
   /** Her hover buttons opened or closed (`dockShown`). */
   dockChanged?(): void;
+  /** System screen is locked or asleep. */
+  systemPaused?(): boolean;
+  /** Typing state changed (`typing`). */
+  onTypingChanged?(typing: boolean): void;
   log(line: string): void;
 }
 
 const TICK_MS = 1000 / 30;
-const PRESENCE_MS = 1000;
+const PRESENCE_MS = 10_000;
 /** The web keeps its last presence through a short failure, and marks it offline once failures last this long. */
 const PRESENCE_OFFLINE_MS = 3000;
 /** A test run opens the command layer in this mode, or the console without a menu bar button, the given seconds (default 1)
@@ -126,6 +130,7 @@ export class DesktopAssembly {
   /** The held right press that opened the wheel, since when (ms); null when a click or the hot key opened it. */
   private ringPress: number | null = null;
   private failingSince: number | null = null;
+  private lastTyping = false;
   private readonly hotkey: QuickInputHotkey;
   /** `--no-attention` (test and host runs) registers no hot key, so none is taken from the user. */
   private readonly hotkeyOn = !process.argv.includes('--no-attention');
@@ -212,16 +217,37 @@ export class DesktopAssembly {
   /** `hotkey_quick_input`'s name when it did not register; null otherwise. */
   get quickInputFailed(): string | null { return this.hotkey.failed; }
 
-  /** Loads the pages hidden; each shows once its page has something to show. */
+  private notifyTyping(): void {
+    const next = this.typing;
+    if (next === this.lastTyping) return;
+    this.lastTyping = next;
+    this.o.onTypingChanged?.(next);
+  }
+
+  /** Loads bubble and chip eagerly; secondary panels (`cmd`, `console`, `dock`) load on first demand. */
   start(): void {
-    for (const p of Object.values(this.panels)) p.start();
+    this.panels.bubble.start();
+    this.panels.chip.start();
+    if (this.testCommand) {
+      if (this.testCommand.mode === 'console') this.panels.console.start();
+      else if (this.testCommand.mode !== 'input') this.panels.cmd.start();
+    }
     this.recentChanged();
     if (this.hotkeyOn) this.hotkey.register(quickInputHotkey());
-    this.presenceTimer ??= setInterval(() => void this.pollPresence(), PRESENCE_MS);
+    void this.pollPresence();
+    this.presenceTimer ??= setInterval(() => {
+      if (this.o.systemPaused?.()) return;
+      if (!this.o.feed || this.failingSince !== null) void this.pollPresence();
+    }, PRESENCE_MS);
     this.hoverTimer ??= setInterval(() => this.hoverTick(), TICK_MS);
     if (this.unlisten.length > 0) return;
     const { noteLine, mouseDowns } = this.o;
-    if (noteLine && this.o.feed) this.unlisten.push(this.o.feed.subscribe(null, (e) => { if (e.event === 'line') noteLine(); }, () => {}));
+    if (this.o.feed) {
+      this.unlisten.push(this.o.feed.subscribe(null, (e) => {
+        if (e.event === 'line') noteLine?.();
+        else if (e.event === 'presence') void this.pollPresence();
+      }, () => { void this.pollPresence(); }));
+    }
     if (mouseDowns) this.unlisten.push(mouseDowns(() => this.mouseDown()));
   }
 
@@ -324,6 +350,7 @@ export class DesktopAssembly {
   }
 
   private openAt(mode: CmdMode, centre: Point, at: boolean, prefill?: string, first?: DesktopCommand): void {
+    this.panels.cmd.start();
     if (this.follow.cmdMode === null) this.command.send({ kind: 'close' });
     this.ringPress = null;
     if (first) this.command.send(first);
@@ -342,6 +369,7 @@ export class DesktopAssembly {
   /** Opens the console under the menu bar button `statusItem` (placement space), leaving the command layer as it is; a close
    *  goes first for a console its page closed itself. */
   openConsole(statusItem: Rect | null): void {
+    this.panels.console.start();
     if (!this.follow.consoleOpen) this.consoleCommand.send({ kind: 'close' });
     this.statusItem = statusItem;
     this.follow.openConsole(statusItem);
@@ -387,12 +415,14 @@ export class DesktopAssembly {
 
   /** One step of the hover buttons' dead zone at the pointer; `desktop.onState` goes out when `dock` changed. */
   private hoverTick(): void {
+    if (this.o.systemPaused?.() || (this.o.avatarHidden() && !dockOpen(this.dock))) return;
     const h = this.o.hover(), s = this.o.sample(), placed = this.follow.placedCard('dock');
     const within = (grow: number) => (h.within ? h.within(grow) : h.hovered);
     const blocked = !h.present || !h.hints || s.dragging || this.moving || this.follow.cmdMode === 'ring';
     const was = dockOpen(this.dock);
     this.dock = dockStep(this.dock, { p: this.o.mouse(), enter: within(ENTER_GROW), keep: within(KEEP_GROW), body: s.body,
       dock: placed?.card ?? null, blocked, held: this.talking }, performance.now() / 1000);
+    if (dockOpen(this.dock)) this.panels.dock.start();
     if (JSON.stringify(this.dockView()) !== this.dockSent) this.pushState();
     if (this.dockShown !== this.dockHeard) {
       this.dockHeard = this.dockShown;
@@ -407,7 +437,6 @@ export class DesktopAssembly {
   }
 
   private async pollPresence(): Promise<void> {
-    this.pushState();
     try {
       const reply = await this.o.request('GET', '/desktop/presence');
       if (reply.status !== 200) throw new Error(`HTTP ${reply.status}`);
@@ -422,6 +451,7 @@ export class DesktopAssembly {
 
   /** One tick now, and the 30 Hz timer running while a panel shows. */
   private kick(): void {
+    this.notifyTyping();
     this.tick();
     if (!this.follow.wantsTicks || this.timer) return;
     this.timer = setInterval(() => this.tick(), TICK_MS);

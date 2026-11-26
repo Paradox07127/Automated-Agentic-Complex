@@ -511,6 +511,7 @@ class SessionManager:
         self.computer_control = computer_control
         self.sessions, self.lock, self.store = {}, threading.RLock(), store
         self.tasks = None  # TaskLedger the dispatched sessions' tasks are in; None keeps no task rows
+        self.on_change = None  # callable(dict) fired on line/state transitions
         self.codex_checked = False
         self.closed = False  # close() has begun
         self.resetting = False  # stop_all() has begun and not yet forgotten the sessions
@@ -774,6 +775,11 @@ class SessionManager:
                     self.save(session)
             else:
                 self.save(session)
+        if self.on_change is not None:
+            try:
+                self.on_change({"session_id": session.session_id, "kind": "line", "seq": line["seq"]})
+            except Exception:
+                pass
 
     def lines(self, session_id, after):
         """(lines after seq, next cursor), or None for an unknown id."""
@@ -795,7 +801,12 @@ class SessionManager:
                 session.last_line = text[-LINE_MAX:]
             if changed:
                 self.save(session)
-            return changed
+        if changed and self.on_change is not None:
+            try:
+                self.on_change({"session_id": session.session_id, "kind": "state", "state": state})
+            except Exception:
+                pass
+        return changed
 
     def own_id(self, session_id):
         """The own:… id of the own session whose CLI calls itself session_id (a ledger line's id); else session_id."""

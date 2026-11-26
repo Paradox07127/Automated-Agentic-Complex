@@ -1,6 +1,7 @@
 // 简报四个页签共用的接口和星标存储；总览读数带和明细页的星标读写同一份。
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ComponentProps } from 'react';
 import { DEFAULT_PINS, ITEM_ORDER, type BriefDay, type BriefItemId } from './briefDay';
+import type { DayTimeline } from './DayTimeline';
 
 export type BriefTab = 'ov' | 'char' | 'tm' | 'dt';
 
@@ -19,6 +20,8 @@ export interface BriefTabProps {
   go: (tab: BriefTab) => void;
   /** Readouts that open what they count; one without a link stays a figure. */
   links: Partial<Record<BriefItemId, ItemLink>>;
+  /** Lifted day timeline props passed by OverviewPage so TimeTab reuses its overview & today queries. */
+  dayTimeline?: Pick<ComponentProps<typeof DayTimeline>, 'q' | 'summaries' | 'now'>;
 }
 
 const KEY = 'brief.pins';

@@ -138,7 +138,7 @@ class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, 
         provider.on_change = lambda state: self.feed.publish('voice_state', state.wire(provider.clock()))
 
     def __init__(self, address, hook_token, ui_token, registry=None, broker=None,
-                 tick_interval=0.1, gate=None, mouth=None,
+                 tick_interval=0.5, gate=None, mouth=None,
                  events_token=None, speech=None, attention=None, sessions=None, share_page_text=False,
                  capture=None, interaction_preset="balanced", repository=None, integration_token=None):
         """repository: the character library (brain.characters.Repository); None reads the development sources."""
@@ -324,6 +324,7 @@ class AgentdServer(AnnounceMixin, TurnsMixin, SpeechControlMixin, ContextMixin, 
         self._receipts_lock = threading.Lock()
         self.receipts_db = None  # the store load_receipts gave; None keeps receipts in memory only
         self._stopped = threading.Event()
+        self._sync_privacy_due = True
         self.closing = False  # set by shutdown_cleanly: new tasks and approvals get 503 shutting_down
         self._closing_lock = threading.Lock()
         self.resetting = False  # set while POST /reset runs: writes get 503 resetting, background writers wait

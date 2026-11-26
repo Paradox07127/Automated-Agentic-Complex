@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBridge, type AgentdConnection } from '../../bridge';
 import { AgentdCallError, get, seg } from '../../bridge/agentd';
@@ -171,7 +171,7 @@ export function useChatTasks(conv: string | null, enabled: boolean) {
     staleTime: 5_000,
     refetchOnMount: 'always',
     refetchInterval: (query) => (typeof document !== 'undefined' && document.hidden ? false
-      : query.state.data?.frontRunning || Object.keys(query.state.data?.base.activeRuns ?? {}).length > 0 ? 3_000 : false),
+      : query.state.data?.frontRunning || Object.keys(query.state.data?.base.activeRuns ?? {}).length > 0 ? 30_000 : false),
   });
   return { query, refetch: () => void (agent && query.refetch()) };
 }
@@ -187,7 +187,7 @@ export function useRunItems<T = WireRunItem[]>(runId: string | null, select?: (i
     enabled: runId != null,
     retry: false,
     staleTime: 5_000,
-    refetchInterval: () => (typeof document !== 'undefined' && document.hidden ? false : running ? 3_000 : false),
+    refetchInterval: () => (typeof document !== 'undefined' && document.hidden ? false : running ? 30_000 : false),
     ...(select ? { select } : {}),
   });
 }
@@ -207,29 +207,36 @@ export interface ChatRuntime {
   info: ReturnType<typeof fromRuntimePublic>;
 }
 
-/** How often an unready runtime is reread, in ms. */
-const UNREADY_REREAD_MS = 3000;
+/** Bounded backoff intervals for an unready runtime (stops after the final step until focus or manual recheck). */
+const UNREADY_BACKOFF_MS = [3000, 6000, 15_000, 30_000] as const;
 
 /** `GET /character/runtime`: whether the role can answer, and the kernel chain when it cannot. */
 export function useRuntime(loggedOutDemo: boolean, enabled: boolean) {
   const qc = useQueryClient();
   const key = ['chat-runtime', loggedOutDemo];
+  const unreadyTries = useRef(0);
   const query = useQuery({
     queryKey: key,
     queryFn: async (): Promise<ChatRuntime> => {
       const wire = await get<WireRuntimePublic>(`/character/runtime${demoQuery(loggedOutDemo, '?demo=logged-out')}`);
-      return { wire, info: fromRuntimePublic(wire) };
+      const r = { wire, info: fromRuntimePublic(wire) };
+      unreadyTries.current = r.info.ready ? 0 : unreadyTries.current + 1;
+      return r;
     },
     enabled,
     retry: false,
     // An unready kernel is reread on focus or remount: the user may have logged in elsewhere.
     staleTime: (q) => (q.state.data?.info.ready === false ? 0 : Number.POSITIVE_INFINITY),
-    // A kernel still starting when the page opened turns ready without a focus change.
-    refetchInterval: (q) => (typeof document !== 'undefined' && document.hidden ? false
-      : q.state.data?.info.ready === false ? UNREADY_REREAD_MS : false),
+    refetchInterval: (q) => {
+      if (typeof document !== 'undefined' && document.hidden) return false;
+      if (q.state.data?.info.ready !== false) return false;
+      const idx = Math.max(0, unreadyTries.current - 1);
+      return idx < UNREADY_BACKOFF_MS.length ? UNREADY_BACKOFF_MS[idx]! : false;
+    },
   });
   /** 重新检测: the rescanning read, kept in this page's entry too. */
   const recheck = async (): Promise<ChatRuntime> => {
+    unreadyTries.current = 0;
     const wire = await refreshRuntime(qc, loggedOutDemo ? 'logged-out' : null);
     const r = { wire, info: fromRuntimePublic(wire) };
     qc.setQueryData(key, r);

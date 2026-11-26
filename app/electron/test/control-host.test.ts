@@ -813,7 +813,7 @@ test('the panel: waiting for a choice, the page grants, agentd acts, the page st
     const shown: string[] = [];
     const win = {
       webContents: { id: 9, isDestroyed: () => false, send: () => {}, on: () => {} }, on: () => {}, loadURL: async () => {},
-      showInactive: () => shown.push('show'), hide: () => shown.push('hide'), setBounds: () => {}, destroy: () => {},
+      isDestroyed: () => false, showInactive: () => shown.push('show'), hide: () => shown.push('hide'), setBounds: () => {}, destroy: () => {},
     };
     let panelOps: ReadonlyMap<string, (args: unknown[], page: never) => unknown> = new Map();
     const panel = new ControlPanel({

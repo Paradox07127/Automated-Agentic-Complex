@@ -92,11 +92,12 @@ const waiting = (): ComputerUsePanelState => ({ ...initialPanelState(), phase: '
 test('the panel shows on a raised state over her head, updates in place without raise, and loads stack.html#/computer', () => {
   assert.deepEqual(CONTROL_PANEL_WINDOW, { transparent: false, backgroundColor: '#141414', hasShadow: true, width: 336, height: 220 });
   const p = panelWith();
-  assert.deepEqual(p.calls, ['load agentic-complex-ui://app/stack.html#/computer']);
+  assert.deepEqual(p.calls, []);
   p.panel.present({ ...initialPanelState(), phase: 'ready' }, false);
   assert.equal(p.panel.isShown, false);
+  assert.deepEqual(p.calls, []);
   p.panel.present(waiting(), true);
-  assert.deepEqual(p.calls.slice(1), ['bounds 532,168 336x220', 'showInactive']);
+  assert.deepEqual(p.calls, ['load agentic-complex-ui://app/stack.html#/computer', 'bounds 532,168 336x220', 'showInactive']);
   // The top edge stays where it was.
   p.call('window.setContentSize', { width: 336, height: 260 });
   assert.deepEqual(p.calls.slice(3), ['bounds 532,168 336x260']);
@@ -126,7 +127,7 @@ test('收起 stops the task and keeps the panel hidden until a session asks agai
   assert.throws(() => p.call('computerUse.grant', ['everything']), /invalid_args/);
   p.call('computerUse.dismiss');
   assert.deepEqual(p.clicks, ['grant control c-1', 'grant observation c-1', 'grant image null', 'resume', 'stop', 'dismiss']);
-  assert.equal(p.calls.at(-1), 'hide');
+  assert.deepEqual(p.calls.slice(-2), ['hide', 'destroy']);
   p.panel.present({ ...waiting(), phase: 'paused' }, true);
   assert.equal(p.panel.isShown, false);
   p.panel.present(waiting(), true);

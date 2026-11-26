@@ -17,6 +17,7 @@ GAZE_INPUT = 5.0  # input this recent keeps the gaze on the front window
 RETENTION = 7 * 86400
 RAW_RETENTION = 48 * 3600  # events_raw: the Companion's AX events and hook prompts
 PRUNE_EVERY = 3600
+FLUSH_EVERY = 15.0  # seconds between batch flushes of open-span duration extensions to SQLite
 TOP = 20
 WEB_PULSE = 80.0  # ActivityWatch's web watcher pulsetime; the extension beats every 60 s
 TEXT_MAX = 2000
@@ -38,6 +39,11 @@ NEAR = 2.0  # a key, click or scroll this close to an AX event marks it input_ne
 
 
 class AttentionStore:
+    _closed = False
+    _open = None
+    _open_flush_ts = float("-inf")
+    _has_pending_raw_near = False
+
     def __init__(self, path, blacklist, clock=time.time):
         self.blacklist, self.clock = blacklist, clock
         self.lock = threading.Lock()
@@ -71,12 +77,42 @@ class AttentionStore:
         self.context_generation = 0
         self.raw_floor = float("-inf")  # clock time of the last delete; nothing from before it is stored
         self._beat_ts = float("-inf")  # the ts of the last heartbeat taken
+        self._closed = False
+        self._open = {}  # bucket -> [rowid, start, duration, data, dirty] buffered in memory between flushes
+        self._open_flush_ts = float("-inf")
+        self._has_pending_raw_near = bool(self.db.execute("SELECT 1 FROM events_raw WHERE input_near IS NULL LIMIT 1").fetchone())
 
     def close(self):
         # SQLite may release the GIL in a read. Closing on another thread must
         # serialize with that read, just like every other store operation.
         with self.lock:
+            if self._closed:
+                return
+            self._closed = True
+            self._flush_open(commit=True)
             self.db.close()
+
+    def _flush_bucket(self, bucket):
+        if self._open is None:
+            return False
+        entry = self._open.get(bucket)
+        if entry is None or not entry[4]:
+            return False
+        self.db.execute("UPDATE events SET duration = ? WHERE id = ?", (entry[2], entry[0]))
+        entry[4] = False
+        return True
+
+    def _flush_open(self, commit=False, now=None):
+        flushed = False
+        if self._open is not None:
+            for bucket in list(self._open):
+                if self._flush_bucket(bucket):
+                    flushed = True
+        if flushed:
+            self._open_flush_ts = self.clock() if now is None else now
+        if commit and getattr(self.db, "in_transaction", False):
+            self.db.commit()
+        return flushed
 
     def secure_input(self):
         """The last heartbeat's secure_input flag."""
@@ -167,20 +203,33 @@ class AttentionStore:
             self._last_inputs.append((ts, last_input))
             self._trim()
             self._prune()
-            if self._last_inputs:
+            if self._last_inputs and self._has_pending_raw_near:
                 since = min(beat_ts for beat_ts, _ in self._last_inputs) - NEAR
                 pending = self.db.execute("SELECT id, ts FROM events_raw WHERE input_near IS NULL AND ts >= ?",
                                           (since,)).fetchall()
-                self.db.executemany("UPDATE events_raw SET input_near = ? WHERE id = ?",
-                                    [(near, rowid) for rowid, event_ts in pending
-                                     if (near := self._input_near(event_ts)) is not None])
+                updates = []
+                unresolved = False
+                for rowid, event_ts in pending:
+                    near = self._input_near(event_ts)
+                    if near is None:
+                        unresolved = True
+                    else:
+                        updates.append((near, rowid))
+                if updates:
+                    self.db.executemany("UPDATE events_raw SET input_near = ? WHERE id = ?", updates)
+                self._has_pending_raw_near = unresolved
             self._heartbeat("window", ts, front)
             self._afk(ts, idle, afk)
             if not afk:
                 away = mouse is not None and idle >= GAZE_INPUT and front != HIDDEN \
                     and mouse.get("window_id") != front.get("window_id")
                 self._heartbeat("focus", ts, mouse if away else front)
-            self.db.commit()
+            if self._open_flush_ts == float("-inf"):
+                self._open_flush_ts = ts
+            if ts - self._open_flush_ts >= FLUSH_EVERY:
+                self._flush_open(commit=False, now=ts)
+            if self.db.in_transaction:
+                self.db.commit()
         return True
 
     def ingest_events(self, events, typed_generation=None, agent_generation=None):
@@ -199,9 +248,12 @@ class AttentionStore:
                           else None if column == "value" and (self._secure or stale) else event.get(column)
                           for column in RAW_COLUMNS)
                     for event in kept]
-            self.db.executemany(f"INSERT INTO events_raw ({', '.join(RAW_COLUMNS)})"
-                                f" VALUES ({', '.join('?' * len(RAW_COLUMNS))})", rows)
-            self.db.commit()
+            if rows:
+                self.db.executemany(f"INSERT INTO events_raw ({', '.join(RAW_COLUMNS)})"
+                                    f" VALUES ({', '.join('?' * len(RAW_COLUMNS))})", rows)
+                if any(row[-1] is None for row in rows):
+                    self._has_pending_raw_near = True
+                self.db.commit()
         return len(kept), len(events) - len(kept)
 
     def recent_events(self, since, kinds=None, limit=500):
@@ -360,9 +412,18 @@ class AttentionStore:
         return not self.browser_capture_allowed() or self.blacklist.hides({"url_host": row[1], "title": row[2]})
 
     def _last(self, bucket):
+        if self._open is None:
+            self._open = {}
+        if bucket in self._open:
+            rowid, start, duration, data, _ = self._open[bucket]
+            return rowid, start, duration, data
         row = self.db.execute("SELECT id, start, duration, data FROM events WHERE bucket = ?"
                               " ORDER BY start DESC, id DESC LIMIT 1", (bucket,)).fetchone()
-        return None if row is None else (row[0], row[1], row[2], json.loads(row[3]))
+        if row is None:
+            return None
+        data = json.loads(row[3])
+        self._open[bucket] = [row[0], row[1], row[2], data, False]
+        return row[0], row[1], row[2], data
 
     def _heartbeat(self, bucket, ts, data, pulse=PULSE):
         last = self._last(bucket)
@@ -371,9 +432,10 @@ class AttentionStore:
             if ts < start + duration:
                 return  # older than what is stored: out of order or replayed
             if ts <= start + duration + pulse:
-                self.db.execute("UPDATE events SET duration = ? WHERE id = ?", (ts - start, rowid))
+                self._open[bucket] = [rowid, start, ts - start, previous, True]
                 if previous == data:
                     return
+                self._flush_bucket(bucket)
         self._insert(bucket, ts, 0.0, data)
 
     def _afk(self, ts, idle, afk):
@@ -381,7 +443,7 @@ class AttentionStore:
             return self._heartbeat("afk", ts, {"status": "not-afk"})
         data, last = {"status": "afk"}, self._last("afk")
         if last is not None and last[3] == data and ts <= last[1] + last[2] + PULSE:
-            self.db.execute("UPDATE events SET duration = ? WHERE id = ?", (max(last[2], ts - last[1]), last[0]))
+            self._open["afk"] = [last[0], last[1], max(last[2], ts - last[1]), data, True]
             return
         # AFK starts at the last input, so the idle run-up before the threshold is not active time;
         # across an unknown gap (or with no earlier beat) it starts now.
@@ -392,29 +454,38 @@ class AttentionStore:
             if last[3] == data:
                 start = last[1] + last[2]
             else:
-                self.db.execute("UPDATE events SET duration = ? WHERE id = ?", (max(0.0, start - last[1]), last[0]))
+                self._open["afk"] = [last[0], last[1], max(0.0, start - last[1]), last[3], True]
+                self._flush_bucket("afk")
         self._insert("afk", start, ts - start, data)
 
     def _insert(self, bucket, start, duration, data):
-        self.db.execute("INSERT INTO events (bucket, start, duration, data) VALUES (?, ?, ?, ?)",
-                        (bucket, start, duration, json.dumps(data, ensure_ascii=False, sort_keys=True)))
+        self._flush_bucket(bucket)
+        cur = self.db.execute("INSERT INTO events (bucket, start, duration, data) VALUES (?, ?, ?, ?)",
+                              (bucket, start, duration, json.dumps(data, ensure_ascii=False, sort_keys=True)))
+        self._open[bucket] = [cur.lastrowid, start, duration, data, False]
 
     def _prune(self):
         now = self.clock()
         if self._pruned is None or now - self._pruned >= PRUNE_EVERY:
-            self.db.execute("DELETE FROM events WHERE start + duration < ?", (now - RETENTION,))
-            self.db.execute("DELETE FROM context WHERE ts < ?", (now - RETENTION,))
+            self._flush_open()
+            cutoff = now - RETENTION
+            self.db.execute("DELETE FROM events WHERE start + duration < ?", (cutoff,))
+            self.db.execute("DELETE FROM context WHERE ts < ?", (cutoff,))
             self.db.execute("DELETE FROM events_raw WHERE ts < ?", (now - RAW_RETENTION,))
-            self.db.execute("DELETE FROM state_log WHERE ts < ?", (now - RETENTION,))
+            self.db.execute("DELETE FROM state_log WHERE ts < ?", (cutoff,))
+            for bucket in [b for b, entry in self._open.items() if entry[1] + entry[2] < cutoff]:
+                del self._open[bucket]
             self._pruned = now
 
     def _range(self, bucket, since, until):
+        self._flush_bucket(bucket)
         rows = self.db.execute("SELECT start, duration, data FROM events WHERE bucket = ? AND start < ?"
                                " AND start + duration > ? ORDER BY start", (bucket, until, since)).fetchall()
         return [(max(s, since), min(s + d, until), json.loads(data)) for s, d, data in rows]
 
     def events(self, bucket):
         with self.lock:
+            self._flush_bucket(bucket)
             rows = self.db.execute("SELECT start, duration, data FROM events WHERE bucket = ? ORDER BY start",
                                    (bucket,)).fetchall()
         return [{"start": s, "duration": d, "data": json.loads(data)} for s, d, data in rows]
@@ -531,6 +602,7 @@ class AttentionStore:
         """Events that start at or after cutoff and context, events_raw and state_log rows from it go; an event running
         across it ends there. Returns (events deleted, context rows deleted)."""
         with self.lock:
+            self._flush_open()
             self.raw_floor = self.clock()
             self.context_generation += 1
             events = self.db.execute("DELETE FROM events WHERE start >= ?", (cutoff,)).rowcount
@@ -539,6 +611,9 @@ class AttentionStore:
             self.db.execute("DELETE FROM events_raw WHERE ts >= ?", (cutoff,))
             self.db.execute("DELETE FROM state_log WHERE ts >= ?", (cutoff,))
             self.db.commit()
+            self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            self._open.clear()
+            self._open_flush_ts = float("-inf")
             self._ring = collections.deque(e for e in self._ring if e["ts"] < cutoff)
             self._last_inputs = collections.deque(e for e in self._last_inputs if e[0] < cutoff)
             self._browser_metrics = None
@@ -549,6 +624,7 @@ class AttentionStore:
         """Window, focus and browser events whose data hides(data) matches go, and context rows whose page it
         matches, and events_raw rows whose window it matches. Returns (events deleted, context rows deleted)."""
         with self.lock:
+            self._flush_open()
             self.context_generation += 1
             if self._browser_metrics is not None and hides(self._browser_metrics):
                 self._browser_metrics = None
@@ -563,6 +639,9 @@ class AttentionStore:
             self.db.executemany("DELETE FROM context WHERE id = ?", context)
             self.db.executemany("DELETE FROM events_raw WHERE id = ?", raw)
             self.db.commit()
+            self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            self._open.clear()
+            self._open_flush_ts = float("-inf")
         return len(events), len(context)
 
     def clear(self):
@@ -572,6 +651,7 @@ class AttentionStore:
         """Every table emptied in one transaction: {"events": deleted, "context": deleted, "events_raw": deleted};
         state_log is emptied too but not counted."""
         with self.lock:
+            self._flush_open()
             self.raw_floor = self.clock()
             self.context_generation += 1
             deleted = {"events": self.db.execute("DELETE FROM events").rowcount,
@@ -579,6 +659,10 @@ class AttentionStore:
                        "events_raw": self.db.execute("DELETE FROM events_raw").rowcount}
             self.db.execute("DELETE FROM state_log")
             self.db.commit()
+            self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            self._open.clear()
+            self._open_flush_ts = float("-inf")
+            self._has_pending_raw_near = False
             self._ring.clear()
             self._last_inputs.clear()
             self._browser_metrics = None
@@ -594,6 +678,7 @@ class AttentionStore:
             self.context_generation += 1
             self.db.execute("DELETE FROM context")
             self.db.commit()
+            self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
     def clear_typed_text(self, dry=False):
         """typed_text revoked or not allowed: every kept value goes; the rows stay.
@@ -604,6 +689,7 @@ class AttentionStore:
             self.typed_generation += 1
             self.db.execute("UPDATE events_raw SET value = NULL")
             self.db.commit()
+            self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
     def clear_agent_sessions(self):
         """agent_sessions revoked: every agent and prompt row goes."""
@@ -611,6 +697,7 @@ class AttentionStore:
             self.agent_generation += 1
             self.db.execute(f"DELETE FROM events_raw WHERE kind IN ({', '.join('?' * len(AGENT_KINDS))})", AGENT_KINDS)
             self.db.commit()
+            self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
 
 def _union(spans):

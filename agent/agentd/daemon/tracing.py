@@ -66,6 +66,8 @@ class TracingMixin:
             found["last"] = event_id or found["last"]
         if kind == "approval.decided":
             self.focus.count("approvals")
+        if kind in ("approval.opened", "approval.decided", "approval.retired"):
+            self.feed.publish("approval", {"action": kind.split(".")[1], "request_id": key})
         if kind == "judge.decided" and WANT_COMMENT["id"] in {a["id"] for a in attrs["answers"]}:
             self._last_judge = {"backend": attrs["backend"], "answers": attrs["answers"], "at": _iso(time.time())}
 

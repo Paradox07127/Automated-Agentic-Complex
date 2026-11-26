@@ -12,10 +12,13 @@ import {
   imageResult, type LookResult, lookResult, lookTitle, namedWindow, type Observation, ocrObservation, OwnCapture,
   resultText, scalarCount, SELECTION_LIMIT, selectionBlockReason, type SelectionDecision, textResult, windowNow, windowReadPlan,
 } from '../../common/screen-context.ts';
+import type { AxWatchMux } from '../attention/ax-watch.ts';
 import type { UserAnswer } from '../attention/sampler.ts';
 
 export interface ContextPorts {
   helper: { request(op: string, params?: Record<string, unknown>): Promise<HelperAnswer> };
+  /** Shared `ax.watch` mux so ContextCapturer reuses ActivityRecorder's AXObserver. */
+  axWatch?: AxWatchMux;
   /** A POST to agentd; status 0 when agentd could not be reached. */
   post(path: string, body: Record<string, unknown>): Promise<AgentdReply>;
   /** `<agentd_state_dir>/blacklist.json`'s rules now. */
@@ -187,6 +190,15 @@ export class ContextCapturer {
   private async observe(pid: number | null): Promise<void> {
     if (pid === this.observedPid) return;
     this.observedPid = pid;
+    if (this.ports.axWatch) {
+      const r = await this.ports.axWatch.set('context', pid === null ? null : {
+        pid,
+        notifications: NOTIFICATIONS,
+        onNotification: () => { if (this.observedPid === pid) this.triggers.axNotified(this.seconds()); },
+      });
+      if (r && !r.ok && pid !== null) this.ports.log(`CAPTURE ax.watch failed pid=${pid} code=${r.error.code}`);
+      return;
+    }
     const r = await this.ports.helper.request('ax.watch', { watch_id: WATCH_ID, pid, notifications: pid === null ? [] : NOTIFICATIONS });
     if (!r.ok && pid !== null) this.ports.log(`CAPTURE ax.watch failed pid=${pid} code=${r.error.code}`);
   }

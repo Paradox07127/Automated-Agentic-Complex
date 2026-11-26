@@ -13,6 +13,8 @@ export interface ShellControlOptions {
   /** The shell's arguments: `--no-attention` (test and host runs) starts no control, so no window is read or acted on. */
   argv: readonly string[];
   helper: ControlPorts['helper'];
+  /** Shared blacklist file; created if omitted. */
+  blacklist?: BlacklistFile;
   supportDir: string;
   configPath: string;
   /** `agentd_state_dir`, which holds blacklist.json. */
@@ -56,7 +58,7 @@ export function savedComputerUse(path: string, saved: ShellControlOptions['saved
 /** Idle until the helper's first hello, which asks for the endpoint; null with `--no-attention`. */
 export function shellControl(o: ShellControlOptions): ControlHost | null {
   if (o.argv.includes('--no-attention')) return null;
-  const blacklist = new BlacklistFile(join(o.agentdStateDir, 'blacklist.json'));
+  const blacklist = o.blacklist ?? new BlacklistFile(join(o.agentdStateDir, 'blacklist.json'));
   const host = new ControlHost({
     helper: o.helper, endpoint: controlEndpoint(o.supportDir, shellPlatform()), enabled: savedComputerUse(o.configPath, o.saved),
     blacklist: () => blacklist.rules(), ownPids: o.ownPids, now: Date.now,

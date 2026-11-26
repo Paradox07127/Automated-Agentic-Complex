@@ -48,6 +48,8 @@ import { AgentStore } from './agentd/store.ts';
 import { AgentdSupervisor } from './agentd/supervisor.ts';
 import type { AmbientSampler } from './ambient/sampler.ts';
 import { ambientOffers, shellAmbient } from './ambient/shell.ts';
+import { AxWatchMux } from './attention/ax-watch.ts';
+import { BlacklistFile } from './attention/blacklist.ts';
 import { shellAttention } from './attention/shell.ts';
 import { helperYFor, shellRecorders, shellWatchers, surfaceLinkOptions } from './attention/watchers.ts';
 import { CameraOverlayWindow } from './camera/overlay.ts';
@@ -525,11 +527,16 @@ async function seedTts(run: ChildState): Promise<void> {
 store?.subscribe((e) => turnMarks?.feed(e));
 store?.subscribe((e) => void handleNudge(e, hostLink, helper, { helperY: helperYFor(shellPlatform()), mainHeight: () => screen.getPrimaryDisplay().bounds.height },
   (line) => appendLog(config!.supportDir, 'companion', line)));
+const sharedBlacklist = config && !process.argv.includes('--no-attention')
+  ? new BlacklistFile(join(config.agentdStateDir, 'blacklist.json')).watch()
+  : null;
+let axWatch: AxWatchMux | null = null;
 /** The C12 platform helper; the ops reach it through `OpsContext.helper`. */
 const helper = config && new HelperSupervisor({
   executable: helperExecutable(APP_DIR, undefined, CONTENTS), supportDir: config.supportDir, clientVersion: app.getVersion(),
   onStatus: (state) => {
     helperState = state;
+    axWatch?.helper(state.kind === 'running');
     pushToTalk?.helper(state.kind === 'running');
     attention?.helper(state.kind === 'running');
     watchers?.helper(state.kind === 'running');
@@ -538,6 +545,7 @@ const helper = config && new HelperSupervisor({
     control?.helper(state.kind === 'running');
   },
   onEvent: (e) => {
+    axWatch?.event(e.event, e.data);
     pushToTalk?.event(e.event, e.data);
     attention?.event(e.event, e.data);
     watchers?.event(e.event, e.data);
@@ -547,6 +555,7 @@ const helper = config && new HelperSupervisor({
     control?.event(e.event, e.data);
   },
 });
+axWatch = helper && !process.argv.includes('--no-attention') ? new AxWatchMux(helper) : null;
 /** The status monitor's CPU and memory readings, shared across surfaces via `ac-helper` when running. */
 const processUsage = helper ? processUsageReader(helper) : null;
 const cpuSeconds = processUsage ? processUsage.cpuSeconds : cpuSecondsReader(shellPlatform(), null);
@@ -595,7 +604,7 @@ const pushToTalk = config && helper && agentdClient !== null && !noPushToTalk ? 
 })() : null;
 /** AttentionSampler over the helper; none with `--no-attention`. */
 const attention = config && helper && agentdClient !== null ? shellAttention({
-  argv: process.argv, helper, agentd: agentdClient, agentdStateDir: config.agentdStateDir,
+  argv: process.argv, helper, ...(sharedBlacklist && { blacklist: sharedBlacklist }), agentd: agentdClient, agentdStateDir: config.agentdStateDir,
   settings: () => readObject(configPath), plan,
   ownPids: () => (helper.pid === undefined ? [process.pid] : [process.pid, helper.pid]),
   userSpeaking: () => pushToTalk?.held ?? null,
@@ -640,13 +649,13 @@ const watchers = config && hostLink && helper ? shellWatchers({
 /** The activity and timeline recorders (src/main/attention/watchers.ts), each running while agentd runs with its subsystem in
  *  the plan; none with `--no-attention`. */
 const recorders = config && helper && agentdClient !== null ? shellRecorders({
-  argv: process.argv, helper, agentd: agentdClient, agentdStateDir: config.agentdStateDir,
+  argv: process.argv, helper, ...(axWatch && { axWatch }), ...(sharedBlacklist && { blacklist: sharedBlacklist }), agentd: agentdClient, agentdStateDir: config.agentdStateDir,
   saved: () => readSaved(configPath), ownPids: () => (helper.pid === undefined ? [process.pid] : [process.pid, helper.pid]), plan,
   log: (line) => appendLog(config!.supportDir, 'companion', line),
 }) : null;
 /** Ambient colours from the helper (src/main/ambient/shell.ts); none with `--no-attention`. */
 const ambient = config && hostLink && helper ? shellAmbient({
-  argv: process.argv, platform: shellPlatform(), helper, link: hostLink, agentdStateDir: config.agentdStateDir,
+  argv: process.argv, platform: shellPlatform(), helper, link: hostLink, ...(sharedBlacklist && { blacklist: sharedBlacklist }), agentdStateDir: config.agentdStateDir,
   settings: () => readObject(configPath), attention: () => attention,
   ownPids: () => (helper.pid === undefined ? [process.pid] : [process.pid, helper.pid]),
   excludePids: () => (renderer?.pid === undefined ? [process.pid] : [process.pid, renderer.pid]),
@@ -662,7 +671,7 @@ const ambient = config && hostLink && helper ? shellAmbient({
 /** ContextCapturer over the helper (src/main/context/shell.ts), running while agentd runs with `context` in the plan; none
  *  with `--no-attention`. */
 const context = config && helper && agentdClient !== null ? shellContext({
-  argv: process.argv, helper, agentd: agentdClient, agentdStateDir: config.agentdStateDir,
+  argv: process.argv, helper, ...(axWatch && { axWatch }), ...(sharedBlacklist && { blacklist: sharedBlacklist }), agentd: agentdClient, agentdStateDir: config.agentdStateDir,
   settings: () => readObject(configPath), attention: () => attention,
   ownPids: () => (helper.pid === undefined ? [process.pid] : [process.pid, helper.pid]),
   log: (line) => appendLog(config!.supportDir, 'companion', line),
@@ -676,7 +685,7 @@ const windowHandover = config && helper ? shellWindowHandover({ argv: process.ar
 /** The computer control host over the helper (src/main/control/shell.ts), for agentd's desktop tools, whatever the plug-ins:
  *  it refuses requests while computer_use is off in config.json; none with `--no-attention`. */
 const control = config && helper ? shellControl({
-  argv: process.argv, helper, supportDir: config.supportDir, configPath, agentdStateDir: config.agentdStateDir,
+  argv: process.argv, helper, ...(sharedBlacklist && { blacklist: sharedBlacklist }), supportDir: config.supportDir, configPath, agentdStateDir: config.agentdStateDir,
   saved: (path) => loadConfig(path),
   ownPids: () => (helper.pid === undefined ? [process.pid] : [process.pid, helper.pid]),
   log: (line) => appendLog(config!.supportDir, 'companion', line),
@@ -1235,13 +1244,13 @@ function startDesktop(): void {
     (changed) => { nativeTheme.on('updated', changed); }),
     recent: { rows: () => recent.rows(), open: (id) => openAnnouncement(recent, openMainAt, id), markAllRead: () => recent.markAllRead() },
     dockChanged: () => reports?.dockChanged(),
+    systemPaused: () => attention?.systemPaused ?? false,
+    onTypingChanged: (typing) => hostLink?.setInteractionVisible(typing, false),
     log: (line) => appendLog(config!.supportDir, 'companion', line),
   });
   drops?.desktopReady();
   desktop.start();
   desktop.source.onCount = (n) => menus.pendingApprovalsChanged(n);
-  // A conversation the user types in keeps the interactive frame rate; the web panels never report her bubble.
-  setInterval(() => hostLink?.setInteractionVisible(desktop?.typing ?? false, false), 250).unref();
   if (agentdState.kind === 'running') desktop.agentd(true);
   // The renderer starts before the panels.
   if (renderer) showAvatarLoading(renderer.loading);
@@ -1315,6 +1324,7 @@ app.on('will-quit', (e) => {
   photoOverlay?.stop();
   titleOverlay?.stop();
   placer?.stop();
+  sharedBlacklist?.stop();
   watchers?.stop();
   recorders?.stop();
   ambient?.stop();
@@ -1345,6 +1355,10 @@ void app.whenReady().then(async () => {
   hideFromDock(app);
   // Electron's own handlers, installed by now, quit once and then restore the default action (quit.ts).
   quitOnSignals({ on: (signal, listener) => { process.on(signal, listener); }, quit: () => app.quit() });
+  powerMonitor.on('lock-screen', () => attention?.setSystemLock(true));
+  powerMonitor.on('unlock-screen', () => attention?.setSystemLock(false));
+  powerMonitor.on('suspend', () => attention?.setSystemSleep(true));
+  powerMonitor.on('resume', () => attention?.setSystemSleep(false));
   setAppMenu();
   runtimeChanged();
   for (const service of services?.values() ?? []) service.start();

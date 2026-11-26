@@ -13,8 +13,8 @@ export function useParam(name: string): string | null {
   });
 }
 
-/** Server clock: starts at the snapshot's `now` and ticks each second while visible unless `still`. */
-export function useNow(base: number | undefined, still: boolean): number {
+/** Server clock: starts at the snapshot's `now` and ticks every `stepMs` while visible unless `still`. */
+export function useNow(base: number | undefined, still: boolean, stepMs = 60_000): number {
   const [now, setNow] = useState(base ?? 0);
   useEffect(() => {
     if (base == null) return;
@@ -28,7 +28,7 @@ export function useNow(base: number | undefined, still: boolean): number {
         return;
       }
       setNow(base + Date.now() - t0);
-      id ??= setInterval(() => setNow(base + Date.now() - t0), 1000);
+      id ??= setInterval(() => setNow(base + Date.now() - t0), stepMs);
     };
     sync();
     document.addEventListener('visibilitychange', sync);
@@ -36,7 +36,7 @@ export function useNow(base: number | undefined, still: boolean): number {
       if (id !== null) clearInterval(id);
       document.removeEventListener('visibilitychange', sync);
     };
-  }, [base, still]);
+  }, [base, still, stepMs]);
   return now;
 }
 

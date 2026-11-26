@@ -21,7 +21,7 @@ function sparseBrief(b: OverviewBrief): OverviewBrief {
 }
 
 /** Feed events after which the snapshot is read again. */
-const RELOAD_ON: ReadonlySet<string> = new Set(['agent_run', 'agent_interaction', 'delivery', 'commitment']);
+const RELOAD_ON: ReadonlySet<string> = new Set(['agent_run', 'agent_interaction', 'delivery', 'commitment', 'approval', 'task']);
 const STEP_STATUS: ReadonlySet<string> = new Set(['pending', 'in_progress', 'waiting', 'completed', 'failed']);
 const REFRESH_MS = 60_000;
 
@@ -84,17 +84,6 @@ function useLive(seq: string | null, reload: (reset?: boolean) => void, lostAtSt
       seq,
     );
   }, [seq]);
-
-  useEffect(() => {
-    if (!ready) return;
-    // Hook approvals are not on the feed; the broker's approval.* decisions are on the diag stream.
-    return getBridge().diag.subscribe(
-      (e) => {
-        if (e.event === 'decision' && String((JSON.parse(e.data) as { kind?: unknown }).kind).startsWith('approval.')) again.current();
-      },
-      () => again.current(),
-    );
-  }, [ready]);
 
   return { plans, tools, lost };
 }

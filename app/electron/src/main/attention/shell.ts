@@ -11,6 +11,8 @@ export interface ShellAttentionOptions {
   argv: readonly string[];
   helper: AttentionPorts['helper'];
   agentd: { request(method: string, path: string, json?: unknown): Promise<{ status: number; body: Buffer }> };
+  /** Shared blacklist instance; created if omitted. */
+  blacklist?: BlacklistFile;
   /** `agentd_state_dir`, which holds blacklist.json. */
   agentdStateDir: string;
   /** config.json as saved now. */
@@ -35,7 +37,7 @@ export interface ShellAttentionOptions {
 /** The sampler, idle until the helper says hello and agentd runs; null with `--no-attention`. */
 export function shellAttention(o: ShellAttentionOptions): AttentionSampler | null {
   if (o.argv.includes('--no-attention')) return null;
-  const blacklist = new BlacklistFile(join(o.agentdStateDir, 'blacklist.json'));
+  const blacklist = o.blacklist ?? new BlacklistFile(join(o.agentdStateDir, 'blacklist.json'));
   const post = agentdPost(o.agentd);
   return startAttention({
     helper: o.helper,

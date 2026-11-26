@@ -87,6 +87,7 @@ export class DesktopPanel implements FollowPanel {
   private frame: Rect | null = null;
   /** The pointer and the frame as the running drag by a drag region began; null while none runs. */
   private drag: { pointer: { x: number; y: number }; from: Rect } | null = null;
+  private lastPollKey: string | null = null;
 
   constructor(options: PanelOptions) {
     this.o = options;
@@ -253,6 +254,7 @@ export class DesktopPanel implements FollowPanel {
 
   /** Makes the panel key for a command the app started, with no click needed; a hidden panel takes key when it shows. */
   takeKey(): void {
+    if (!this.win) this.start();
     if (!this.win) return;
     if (this.isCommand) this.commandRequested = true;
     if (this.isShown && !this.awaitingFrame) this.makeKey();
@@ -285,6 +287,7 @@ export class DesktopPanel implements FollowPanel {
   private clearRegions(): void {
     this.regions = [];
     this.glass = [];
+    this.lastPollKey = null;
   }
 
   /** Places the panel for its owner; a panel waiting to be shown lands at once and then shows. */
@@ -324,6 +327,9 @@ export class DesktopPanel implements FollowPanel {
     const win = this.win;
     if (!win || win.isDestroyed()) return;
     const b = win.getBounds(), m = this.o.cursor();
+    const keyNow = `${m.x},${m.y},${b.x},${b.y},${b.width},${b.height},${this.regions.length},${this.isKey ? 1 : 0},${this.pressedInRegion ? 1 : 0}`;
+    if (keyNow === this.lastPollKey && this.thawFrom === null) return;
+    this.lastPollKey = keyNow;
     const x = m.x - b.x, y = m.y - b.y;
     const inside = this.regions.some((r) => within(r, x, y));
     const interactive = inside || this.pressedInRegion;
@@ -346,6 +352,7 @@ export class DesktopPanel implements FollowPanel {
       if (Date.now() - since < THAW_DELAY_MS) return;
       this.thawFrom = null;
       this.frozen = false;
+      this.lastPollKey = null;
       this.pushAnchorState();
     }
   }
