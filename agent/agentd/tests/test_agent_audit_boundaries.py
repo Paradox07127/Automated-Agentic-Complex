@@ -56,6 +56,12 @@ class AuditDomainTests(unittest.TestCase):
         self.assertNotIn('error', reply)
         self.assertEqual([g['objective'] for g in self.jobs.goals()], [example])
 
+    def test_natural_goal_phrasing_succeeds_while_negations_fail(self):
+        ok = self.orchestration('帮我一直盯着发布进度').call(
+            'goal_create', {'title': '盯发布进度', 'objective_quote': '帮我一直盯着发布进度'})
+        self.assertNotIn('error', ok)
+        self.assertEqual([g['title'] for g in self.jobs.goals()], ['盯发布进度'])
+
     def test_goal_state_action_is_bound_to_its_own_clause(self):
         goal = self.jobs.create_goal('资料核查', '核查资料')
         for text in ('不要取消资料核查，只取消日报生成', '资料核查先暂停；日报生成取消',

@@ -240,18 +240,24 @@ class KnowledgeService:
             authority='inferred_hypothesis', version=_digest(context),
             evidence=[ref for row in hypotheses for ref in row.get('source_refs', [])], details=context)
 
+    def _memory_fts_scores(self, query):
+        if not query.strip() or self.memory is None or not hasattr(self.memory, "search"):
+            return {}
+        return dict(self.memory.search(query, character_id=self.character_id, states=("active",), k=MAX_SCAN))
+
     def _raw_rows(self, source, query="", profile=False):
         """Yield a bounded candidate set. Item permission is checked before serialization."""
         if not self._allowed(source):
             return
         if source == "memory" and self.memory is not None:
+            fts_scores = {} if profile else self._memory_fts_scores(query)
             candidates = []
             for row in reversed(self.memory.visible(self.character_id)):
                 if self._allowed(source, row) and (row["source"] in TRUSTED or self.permitted is not None):
                     item = self._fact(row)
                     if profile and (item["kind"] not in PROFILE_KINDS or item["authority"] not in TRUSTED or row["quiet"]):
                         continue
-                    if query.strip() and _related(query, item) == 0:
+                    if query.strip() and item["id"] not in fts_scores and _related(query, item) == 0:
                         continue
                     candidates.append(item)
             yield from candidates[:MAX_SCAN]
@@ -482,7 +488,7 @@ class KnowledgeService:
         if next_offset < len(rows) and next_offset > offset:
             next_cursor = base64.urlsafe_b64encode(_json({"query": query_key, "snapshot": snapshot, "offset": next_offset}).encode()).decode()
         return {"items": items, "next_cursor": next_cursor, "truncated": truncated,
-                "retrieval": {"method": "bounded_lexical_and_alias", "candidate_limit_per_source": MAX_SCAN,
+                "retrieval": {"method": "fts5_bm25_and_alias", "candidate_limit_per_source": MAX_SCAN,
                               "complete_corpus_search": False}, "material_is_instruction": False}
 
     def call(self, name, args):
@@ -547,10 +553,15 @@ class KnowledgeService:
         return self._page(self._ranked(query, sources), args, _digest([name, query, sources]))
 
     def _ranked(self, query, sources):
+        fts_scores = self._memory_fts_scores(query) if "memory" in sources else {}
         ranked = []
         for source in sources:
             for row in self._raw_rows(source, query=query):
                 score = _related(query, row)
+                if source == "memory":
+                    bm25 = fts_scores.get(row["id"], 0.0)
+                    if bm25 > 0:
+                        score += bm25 / (1.0 + bm25)
                 if query.strip() and score == 0:
                     continue
                 ranked.append((score, row))

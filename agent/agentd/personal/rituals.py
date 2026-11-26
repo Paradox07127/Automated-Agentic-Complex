@@ -75,7 +75,7 @@ def _month_day(text):
 
 class Rituals:
     def __init__(self, db, clock=time.time, report_time="17:30", memory=None, summary=None, on_change=None, arc=None,
-                 greeted=None):
+                 greeted=None, lock=None):
         """db: the shared store; report_time: local "HH:MM"; memory: Memory, for a confirmed birthday;
         summary(day) -> day_summary.summarize's result for local date day, or None; on_change() runs after
         something that may change pending(); arc(day) -> what was worked on local date day, or None;
@@ -86,16 +86,17 @@ class Rituals:
         self.db, self.clock, self.memory, self.summary, self.on_change = db, clock, memory, summary, on_change
         self.arc, self.greeted = arc, greeted or (lambda day: False)
         self._pending = {}  # "break" / "water" -> (its template's fields, clock time it fell due)
-        self._lock = threading.Lock()
+        self._lock = threading.RLock() if lock is None else lock
         now = self.clock()
-        for kind, data, due_at in db.execute("SELECT kind, data, at FROM ritual_pending").fetchall():
-            # Water goes stale as _due drops it; a break has no such rule, so it lasts its local day.
-            fresh = (now - due_at < WATER_STALE) if kind == "water" else (_day(due_at) == _day(now))
-            if fresh:
-                self._pending[kind] = (json.loads(data), due_at)
-            else:
-                db.execute("DELETE FROM ritual_pending WHERE kind = ?", (kind,))
-        db.commit()
+        with self._lock:
+            for kind, data, due_at in db.execute("SELECT kind, data, at FROM ritual_pending").fetchall():
+                # Water goes stale as _due drops it; a break has no such rule, so it lasts its local day.
+                fresh = (now - due_at < WATER_STALE) if kind == "water" else (_day(due_at) == _day(now))
+                if fresh:
+                    self._pending[kind] = (json.loads(data), due_at)
+                else:
+                    db.execute("DELETE FROM ritual_pending WHERE kind = ?", (kind,))
+            db.commit()
 
     def pending(self, now=None):
         """The kinds a tap may say now, highest priority first; one waiting out RETRY_AFTER is still pending."""

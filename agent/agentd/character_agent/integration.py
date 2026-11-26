@@ -99,8 +99,10 @@ JOB_FAILURE_REASONS = frozenset({'auth_expired', 'rate_limited', 'quota_exhauste
 # A model span's model while the harness runs its own default: the trace format refuses an empty one.
 DEFAULT_MODEL = "default"
 LOCKED_ROUTES = ("judge", "understand", "memory", "computer")  # their runs keep the harness's own tools off
-RELATED_FACTS = 4  # confirmed memory facts a turn's context carries beside the profile, matched on the user's words
-RELATED_FACTS_CHARS = 1200  # characters of those facts' JSON (summed per item), the introducing sentence excluded
+PROFILE_LIMIT = 12  # stated/confirmed preferences & agreements injected per turn
+PROFILE_CHARS = 6000
+RELATED_FACTS = 8  # confirmed memory facts a turn's context carries beside the profile, matched on the user's words
+RELATED_FACTS_CHARS = 3000  # characters of those facts' JSON (summed per item), the introducing sentence excluded
 _INFER_CONVERSATION = object()
 
 
@@ -1810,78 +1812,12 @@ class CharacterAgentController:
                 self._side_runtimes.pop(line_id, None)
             runtime.close()
 
-    def _prepare(self, line_id, text, cancel, generation, source, trace, *, scope_id=None, expected_outputs=None,
-                 wait=None, refused=None, resume_run_id=None, runtime=None, side=False, look_wait_ms=0):
-        turn_started = datetime.now().astimezone()
-        setting = self.settings.snapshot()['reply_language']
-        server = self.server
-        _, consent_epoch = server.sync_privacy()
-        consent_epoch = server._line_consent.get(cancel, consent_epoch)
-        current = lambda: not cancel.is_set() and server.turn_generation == generation and not server.resetting \
-            and server.consent.snapshot()[1] == consent_epoch
-        quick = trace.get("route") == "quick"
-        main = runtime is None and not quick
-        runtime = runtime or self._ensure_runtime("quick" if quick else "chat", current=current)
-        if runtime is None:
-            return PreparedReply(server.mouth, "", "", error="cancelled")
-        waited = time.monotonic()
-        with server._mouth_lock:
-            lock_wait_ms = round((time.monotonic() - waited) * 1000)
-            server._apply_window_ops()
-            mouth = server.mouth
-            if not current():
-                return PreparedReply(mouth, "", runtime.model, error="cancelled")
-            if source in ("text", "voice"):
-                self.reply_language.observe(setting, text)
-            if quick and trace.get("remember", True) and server.history:
-                names = {cid: server.characters.load_card(cid)["name"] for cid in server.characters.ids()}
-                history = server.history.window(server.character, 8, names)
-            else:
-                history = copy.deepcopy(mouth.history[-8:] if quick else mouth.history)
-            unheard = set()  # indexes in history of the turns since the last delivery of a line on self.runtime
-            if main:
-                self._main_line = line_id
-                unheard = {i for i, turn in enumerate(mouth.history) if not any(turn is t for t in self._main_heard)}
-            card, motion = bound(server.characters.load_card(server.character), effective(server))
-            embodied = server.characters.package(server.character).render_enabled
-            lore = mouth.pick_lore(text) if hasattr(mouth, "pick_lore") else []
-        building = time.monotonic()
-        if not current():
-            return PreparedReply(mouth, "", runtime.model, error="cancelled")
-        egress = server.egress or mouth.egress
-        card = localized(card, self.reply_language.current(setting))
-        system = render_persona(card, motion, getattr(mouth, "motion_phrases", None), embodied=embodied) + "\n\n" + \
-            persona_personal_instructions(card) + "\n" + (SIDE_INSTRUCTIONS if side else FOREGROUND_INSTRUCTIONS)
-        if not trace.get("remember", True):
-            system += ("\nThis is a temporary conversation: nothing enters long-term memory, so propose no memory changes, write no files, "
-                       "take no desktop actions and start no background work; only answer and read existing knowledge. If the user wants "
-                       "those, ask them to switch back to a normal conversation first.")
-        if setting != "harness":
-            system += "\n" + SYSTEM_RULE
-        egress.authored("system", system)
-        # The card's style note and the reply language come last, right before the user's words.
-        before_input = "<reply_style>\n" + egress.authored("instructions", card["post_history_instructions"]) + "\n</reply_style>" + \
-            ("\n" + self.reply_language.tag(setting) if setting != "harness" else "")
-        replayed, missed = [], []
-        for index, turn in enumerate(history):
-            try:
-                for message in turn:
-                    # Her lines may retell the screen; the user's own words keep their contacts.
-                    message["content"] = egress.user_text(egress.authored("history", message["content"])) \
-                        if message.get("role") == "user" else egress.replayed("history", message["content"])
-            except OutboundBlocked:  # the whole turn stays out so user/assistant pairs remain intact
-                continue
-            replayed.append(turn)
-            if index in unheard:
-                missed.append({'user': turn[0]['content'], 'you': turn[1]['content']})
-        if len(replayed) < len(history):
-            logging.getLogger(__name__).warning('role_history_turns_dropped %d', len(history) - len(replayed))
-        history = replayed
-        unheard = '\nTurns this session has not seen, since its last reply here (oldest first; the user may answer them): ' + \
-            json.dumps(missed, ensure_ascii=False) if missed else None
+    def _assemble_turn_context(self, server, trace, text, wait, refused, turn_started, cancel, line_id,
+                               source, side, resume_run_id, lore, egress):
+        """Build turn context string once, uniting observations, active work, profile preferences and related facts."""
         used = []
         server.sync_privacy()  # a consent revoked in the saved config holds for the observation context too
-        observed = self.observations.context() if getattr(self,'observations',None) and trace.get('remember',True) else None
+        observed = self.observations.context() if getattr(self, 'observations', None) and trace.get('remember', True) else None
         front = server.capture.window_text() if server.capture is not None else None
         # The mouth's copy of the front window's text goes when a current source of the observation context is that text.
         held = front is not None and observed is not None and any(
@@ -1960,7 +1896,7 @@ class CharacterAgentController:
         context = egress.observed(context)
         server._line_context[cancel] = (line_id, {kind for kind, _ in used})
         knowledge = self.knowledge(temporary=not trace.get("remember", True))
-        profile = knowledge.call("personal_profile", {"limit": 6, "max_chars": 4000})
+        profile = knowledge.call("personal_profile", {"limit": PROFILE_LIMIT, "max_chars": PROFILE_CHARS})
         context += "\nThe user's stated preferences and agreements: " + json.dumps(profile, ensure_ascii=False)
         facts = knowledge.related_facts(text, {item["id"] for item in profile.get("items", [])},
                                         limit=RELATED_FACTS, max_chars=RELATED_FACTS_CHARS)
@@ -1975,6 +1911,80 @@ class CharacterAgentController:
         if observed is not None:
             context += '\nOngoing observations and current tasks (evidence and inferences are marked apart; never state an inference as fact; look back with observation_read or observation_image, which also read changes not yet analyzed): '+json.dumps(observed,ensure_ascii=False)
         server._context_assembled(trace, used, lore)
+        return context, knowledge
+
+    def _prepare(self, line_id, text, cancel, generation, source, trace, *, scope_id=None, expected_outputs=None,
+                 wait=None, refused=None, resume_run_id=None, runtime=None, side=False, look_wait_ms=0):
+        turn_started = datetime.now().astimezone()
+        setting = self.settings.snapshot()['reply_language']
+        server = self.server
+        _, consent_epoch = server.sync_privacy()
+        consent_epoch = server._line_consent.get(cancel, consent_epoch)
+        current = lambda: not cancel.is_set() and server.turn_generation == generation and not server.resetting \
+            and server.consent.snapshot()[1] == consent_epoch
+        quick = trace.get("route") == "quick"
+        main = runtime is None and not quick
+        runtime = runtime or self._ensure_runtime("quick" if quick else "chat", current=current)
+        if runtime is None:
+            return PreparedReply(server.mouth, "", "", error="cancelled")
+        waited = time.monotonic()
+        with server._mouth_lock:
+            lock_wait_ms = round((time.monotonic() - waited) * 1000)
+            server._apply_window_ops()
+            mouth = server.mouth
+            if not current():
+                return PreparedReply(mouth, "", runtime.model, error="cancelled")
+            if source in ("text", "voice"):
+                self.reply_language.observe(setting, text)
+            if quick and trace.get("remember", True) and server.history:
+                names = {cid: server.characters.load_card(cid)["name"] for cid in server.characters.ids()}
+                history = server.history.window(server.character, 8, names)
+            else:
+                history = copy.deepcopy(mouth.history[-8:] if quick else mouth.history)
+            unheard = set()  # indexes in history of the turns since the last delivery of a line on self.runtime
+            if main:
+                self._main_line = line_id
+                unheard = {i for i, turn in enumerate(mouth.history) if not any(turn is t for t in self._main_heard)}
+            card, motion = bound(server.characters.load_card(server.character), effective(server))
+            embodied = server.characters.package(server.character).render_enabled
+            lore = mouth.pick_lore(text) if hasattr(mouth, "pick_lore") else []
+        building = time.monotonic()
+        if not current():
+            return PreparedReply(mouth, "", runtime.model, error="cancelled")
+        egress = server.egress or mouth.egress
+        card = localized(card, self.reply_language.current(setting))
+        system = render_persona(card, motion, getattr(mouth, "motion_phrases", None), embodied=embodied) + "\n\n" + \
+            persona_personal_instructions(card) + "\n" + (SIDE_INSTRUCTIONS if side else FOREGROUND_INSTRUCTIONS)
+        if not trace.get("remember", True):
+            system += ("\nThis is a temporary conversation: nothing enters long-term memory, so propose no memory changes, write no files, "
+                       "take no desktop actions and start no background work; only answer and read existing knowledge. If the user wants "
+                       "those, ask them to switch back to a normal conversation first.")
+        if setting != "harness":
+            system += "\n" + SYSTEM_RULE
+        egress.authored("system", system)
+        # The card's style note and the reply language come last, right before the user's words.
+        before_input = "<reply_style>\n" + egress.authored("instructions", card["post_history_instructions"]) + "\n</reply_style>" + \
+            ("\n" + self.reply_language.tag(setting) if setting != "harness" else "")
+        replayed, missed = [], []
+        for index, turn in enumerate(history):
+            try:
+                for message in turn:
+                    # Her lines may retell the screen; the user's own words keep their contacts.
+                    message["content"] = egress.user_text(egress.authored("history", message["content"])) \
+                        if message.get("role") == "user" else egress.replayed("history", message["content"])
+            except OutboundBlocked:  # the whole turn stays out so user/assistant pairs remain intact
+                continue
+            replayed.append(turn)
+            if index in unheard:
+                missed.append({'user': turn[0]['content'], 'you': turn[1]['content']})
+        if len(replayed) < len(history):
+            logging.getLogger(__name__).warning('role_history_turns_dropped %d', len(history) - len(replayed))
+        history = replayed
+        unheard = '\nTurns this session has not seen, since its last reply here (oldest first; the user may answer them): ' + \
+            json.dumps(missed, ensure_ascii=False) if missed else None
+        context, knowledge = self._assemble_turn_context(
+            server, trace, text, wait, refused, turn_started, cancel, line_id,
+            source, side, resume_run_id, lore, egress)
         base_system, base_context = system, context
         while True:
             main_session = not side and not quick

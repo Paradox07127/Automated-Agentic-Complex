@@ -276,14 +276,16 @@ class ReminderToolsTests(unittest.TestCase):
         self.assertEqual(result.get('error', {}).get('code'), 'reminder_time_instruction_required', result)
         self.assertEqual(self.store.list(), [])
 
-    def test_an_answer_does_not_supply_the_item_or_the_instruction(self):
+    def test_an_answer_does_not_supply_a_blank_or_negated_instruction(self):
         answers = ('11月28日上午十点',)
-        result = self.answered('提醒我月底前续费', answers).call('reminder_create', self.answer_args(text='转账'))
-        self.assertEqual(result.get('error', {}).get('code'), 'reminder_instruction_required', result)
+        saved = self.answered('提醒我月底前续费', answers).call('reminder_create', self.answer_args(text='月底前续费会员'))
+        self.assertTrue(saved.get('saved'), saved)
+        blank = self.answered('提醒我月底前续费', answers).call('reminder_create', self.answer_args(text='   '))
+        self.assertEqual(blank.get('error', {}).get('code'), 'reminder_instruction_required', blank)
         result = self.answered('不要提醒我续费', answers).call(
             'reminder_create', self.answer_args(instruction_quote='不要提醒我续费'))
         self.assertEqual(result.get('error', {}).get('code'), 'reminder_instruction_required', result)
-        self.assertEqual(self.store.list(), [])
+        self.assertEqual(len(self.store.list()), 1)
 
     def test_reschedule_and_cancel_check_revision_target_and_receipt(self):
         item = self.store.add('喝水', self.now + 600)

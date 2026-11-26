@@ -66,10 +66,9 @@ def _next_hour(t):
 
 class CharacterState:
     def __init__(self, db, profiles, clock=time.time):
-        """db: a connection of its own on the shared store; profiles(character_id) -> the card's state_profile or
-        None."""
+        """db: shared store connection; profiles(character_id) -> the card's state_profile or None."""
         self.db, self.profiles, self.clock = db, profiles, clock
-        self._lock = threading.RLock()
+        self._lock = getattr(db, "_idle_lock", None) or threading.RLock()
         self.character = None
         self.retention = lambda: None  # -> seconds a character_state_log row is kept, None to keep every row
 

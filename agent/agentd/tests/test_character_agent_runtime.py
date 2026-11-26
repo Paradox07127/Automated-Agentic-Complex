@@ -749,7 +749,8 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(len(self.sessions), 2); self.assertGreater(self.sessions[0].closed, 0)
 
     def test_large_native_context_starts_a_new_session_next_turn(self):
-        for n, (fields, reused) in enumerate((({}, True), ({'context_tokens': 23999}, True), ({'context_tokens': 24000}, False))):
+        from character_agent.runtime import SESSION_CONTEXT_TOKENS
+        for n, (fields, reused) in enumerate((({}, True), ({'context_tokens': SESSION_CONTEXT_TOKENS - 1}, True), ({'context_tokens': SESSION_CONTEXT_TOKENS}, False))):
             with self.subTest(fields=fields):
                 self.script = lambda session, prompt, options: iter([
                     {'type': 'result', 'success': True, 'final_text': 'Hello', **fields}])
@@ -768,7 +769,7 @@ class RuntimeTests(unittest.TestCase):
         self.run_agent('run-2', history=projection)
         self.assertEqual(len(self.sessions), 2); self.assertGreater(self.sessions[0].closed, 0)
 
-    def test_out_of_voice_history_reply_is_replayed_rewritten(self):
+    def test_markdown_history_reply_is_preserved_while_ai_self_reference_is_rewritten(self):
         history = [[{'role': 'user', 'content': 'plan?'},
                     {'role': 'assistant', 'content': 'Sure.\n- one\n- two\n- three'}]]
         quick = FakeSession(chat)
@@ -777,8 +778,12 @@ class RuntimeTests(unittest.TestCase):
                 self.run_agent('run-' + str(len(options)), history=history, **options)
                 sent = (quick if options else self.sessions[-1]).calls[-1]['history']
                 self.assertEqual(sent, [[{'role': 'user', 'content': 'plan?'},
-                                         {'role': 'assistant', 'content': 'Sure.\none; two; three'}]])
-                self.assertEqual(history[0][1]['content'], 'Sure.\n- one\n- two\n- three')
+                                         {'role': 'assistant', 'content': 'Sure.\n- one\n- two\n- three'}]])
+        ai_history = [[{'role': 'user', 'content': 'who?'},
+                       {'role': 'assistant', 'content': '作为一个AI。先这样吧。'}]]
+        self.run_agent('run-ai', history=ai_history)
+        self.assertEqual(self.sessions[-1].calls[-1]['history'], [[{'role': 'user', 'content': 'who?'},
+                                                                   {'role': 'assistant', 'content': '先这样吧。'}]])
 
     def test_markdown_reply_keeps_session(self):
         self.script = lambda session, prompt, options: iter([

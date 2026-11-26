@@ -61,7 +61,7 @@ DESCRIBE = {"component": "agentd", "c1_contract": "v2.6", "c6_contract": C6_CONT
             "c9_contract": "v1"}
 
 
-def build_capture(feed, attention, semantic, state_dir, share_window_text, share_screenshots, *, budget_db=None):
+def build_capture(feed, attention, semantic, state_dir, share_window_text, share_screenshots, *, budget_db=None, budget_lock=None):
     """Local capture judgment; authorized vision uses the selected role harness."""
     from character_agent.services.semantic import SemanticVision
     def focus():
@@ -70,7 +70,7 @@ def build_capture(feed, attention, semantic, state_dir, share_window_text, share
     blacklist = attention.blacklist if attention is not None else Blacklist(paths.blacklist(state_dir))
     return CaptureManager(feed, blacklist, focus, Path(state_dir) / "capture.jsonl",
                           vision=SemanticVision(semantic) if share_screenshots else None,
-                          judge_log=Path(state_dir) / "capture-judge.jsonl", budget_db=budget_db,
+                          judge_log=Path(state_dir) / "capture-judge.jsonl", budget_db=budget_db, budget_lock=budget_lock,
                           spawn=lambda fn: threading.Thread(target=fn, daemon=True).start(), share_text=share_window_text,
                           app_category=attention.app_category if attention is not None else None)
 
@@ -328,7 +328,9 @@ def main(secret_store=None):
     if args.character is not None:
         repository.load_card(args.character)
     db = paths.agentd_db(state_dir)
-    memory = Memory(open_store(db))
+    store_db = open_store(db)
+    store_lock = store_db._idle_lock
+    memory = Memory(store_db, lock=store_lock)
     from models.model_backends import ModelSettings
     from brain.outbound import OutboundGuard, resolve_windows
     from brain.provider import Mouth
@@ -345,7 +347,7 @@ def main(secret_store=None):
     # One policy for every model call, so the diagnostics see one set of mask counts.
     egress = EgressPolicy(guard=guard, redact=args.redact)
     from models.usage import UsageMeter
-    usage = UsageMeter(open_store(db))
+    usage = UsageMeter(store_db, lock=store_lock)
     def motion_phrases(cid):
         """The phrases of cid's game gestures for the [motion:] rule; none for the development sources."""
         from motion import catalog
@@ -363,7 +365,7 @@ def main(secret_store=None):
     attention = AttentionStore(paths.attention_db(state_dir), Blacklist(paths.blacklist(state_dir))) if awareness else None
     server = AgentdServer(("127.0.0.1", args.port), hook_token, ui_token,
                           broker=ApprovalBroker(args.hook_timeout, args.margin),
-                          gate=Gate(enabled=args.proactive, interaction_preset=interaction.name, state_scale=lambda: server.state_view.comment_scale(), db=open_store(db)),
+                          gate=Gate(enabled=args.proactive, interaction_preset=interaction.name, state_scale=lambda: server.state_view.comment_scale(), db=store_db, db_lock=store_lock),
                           mouth=mouth, events_token=events_token, integration_token=integration_token,
                           attention=attention, share_page_text=awareness and args.share_page_text,
                           interaction_preset=interaction.name, repository=repository)
@@ -385,16 +387,16 @@ def main(secret_store=None):
     server.privacy_config = args.privacy_config
     server.muted = args.mute
     if chat or plugins.on("personal_agent"):
-        server.history = History(open_store(db), character_id=server.character, catalog=repository)
+        server.history = History(store_db, lock=store_lock, character_id=server.character, catalog=repository)
     if light:
-        server.proactive_log = ProactiveLog(open_store(db))
+        server.proactive_log = ProactiveLog(store_db, lock=store_lock)
         server.proactive_log.prune()
     if light or plugins.on("daily_brief"):
-        server.episodes = Episodes(open_store(db))
+        server.episodes = Episodes(store_db, lock=store_lock)
     if plugins.on("daily_brief"):
-        server.worklog = WorkLog(open_store(db), lambda: server.character)
+        server.worklog = WorkLog(store_db, lambda: server.character, lock=store_lock)
     if plugins.on("personal_agent"):
-        server.tasks = TaskLedger(open_store(db))
+        server.tasks = TaskLedger(store_db, lock=store_lock)
     server.ledger_root = args.ledger_root
     server.memory = memory
     server.load_pause()
@@ -402,9 +404,9 @@ def main(secret_store=None):
                          language=lambda: server.character_agent.semantic.reply() if server.character_agent else None)
     server.gate.focus = server.focus.running()
     server.user_now.set_overrides(focus_timer=server.gate.focus)
-    server.load_receipts(open_store(db))
-    server.trace = TraceStore(open_store(db), producer_epoch=server.registry.epoch, retention=server.history_retention)
-    server.desk = DeskLog(open_store(db), retention=server.history_retention)
+    server.load_receipts(store_db, lock=store_lock)
+    server.trace = TraceStore(store_db, lock=store_lock, producer_epoch=server.registry.epoch, retention=server.history_retention)
+    server.desk = DeskLog(store_db, lock=store_lock, retention=server.history_retention)
     server.spatial.parked = lambda on: server.desk.span("edge", on)
     from motion.performer import Performer
     server.motion = Performer(motion_settings, server.registry.publish_event,
@@ -418,7 +420,7 @@ def main(secret_store=None):
     if plugins.on("motion_generation"):
         server.motion.prewarm(server.motion.settings.backend if args.character is None else effective(server)["motion"]["driver"])
     if args.character is not None:  # without a character server.state stays None and records nothing
-        server.state = CharacterState(open_store(db), lambda cid: repository.load_card(cid).get("state_profile"))
+        server.state = CharacterState(store_db, lambda cid: repository.load_card(cid).get("state_profile"))
         server.state.retention = server.history_retention
         server.state.use(args.character)
     server.spatial.state = server.state_view
@@ -437,7 +439,7 @@ def main(secret_store=None):
         server.agent_meta = AgentMeta()
     if awareness or plugins.on("screen_reading"):
         server.capture = build_capture(server.feed, attention, None, state_dir,
-                                       args.share_window_text, args.share_screenshots, budget_db=open_store(db))
+                                       args.share_window_text, args.share_screenshots, budget_db=store_db, budget_lock=store_lock)
     startup_privacy(server)
     server.startup_stage = "character_agent"
     if needs_runtime:
@@ -467,7 +469,7 @@ def main(secret_store=None):
     if plugins.on("coding_sessions") or plugins.on("personal_agent"):
         server.sessions = server.dispatcher.sessions = SessionManager(
             server.broker, server.announce, state_dir, f"http://127.0.0.1:{server.server_port}", hook_token,
-            args.hook_timeout, store=open_store(db), computer_control=server.computer_control,
+            args.hook_timeout, store=store_db, computer_control=server.computer_control,
             reply_language=server.reply_language_code)
         server.sessions.tasks = server.dispatcher.tasks = server.tasks
     if light and args.tts_url:
@@ -496,7 +498,7 @@ def main(secret_store=None):
     server.startup_stage = "recovery"
     if server.tasks is not None:
         start_optional(server, "recover_tasks", server.recover_tasks)  # once the voice is set up, so its announcements can be spoken
-    commitments = Commitments(open_store(db))
+    commitments = Commitments(store_db, lock=store_lock)
     # server.commitments stays None on a failure, which the reminder routes and ticks answer as unavailable
     start_optional(server, "recover_commitments", lambda: server.recover_commitments(commitments))
     server.startup_stage = "memory"
@@ -508,7 +510,7 @@ def main(secret_store=None):
     if plugins.on("coding_sessions"):
         server.hook_files = {"claude": Path(paths.CLAUDE_SETTINGS).expanduser(),
                              "codex": (Path(paths.CODEX_HOME) / paths.CODEX_HOOKS).expanduser()}  # tools/install_hooks.py defaults
-    server.rituals = Rituals(open_store(db), memory=memory,
+    server.rituals = Rituals(store_db, memory=memory, lock=store_lock,
                              summary=server.day_session_summary if plugins.on("daily_brief") else None,
                              arc=server.day_arc if plugins.on("daily_brief") else None, on_change=server.ritual_check,
                              greeted=server.returning.welcomed_on)

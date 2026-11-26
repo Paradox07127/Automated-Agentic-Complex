@@ -4,6 +4,7 @@ Claude: a long-running `claude -p` with stream-json in and out; its PermissionRe
 so approvals use the same cards as external sessions. Codex: `codex app-server` JSON-RPC over stdio; agentd
 is the client and answers its approval requests from the cards."""
 from collections import deque
+import contextlib
 import itertools
 import hashlib
 import json
@@ -562,11 +563,14 @@ class SessionManager:
             return
         desktop.release_session(config, session.session_id, reason)
 
+    def _store_lock(self):
+        return self.store._idle_lock if hasattr(self.store, "_idle_lock") else contextlib.nullcontext()
+
     def save(self, session):
         # A session stop_all forgot may still report its end; its row stays deleted.
         if self.store is None or self.sessions.get(session.session_id) is not session:
             return
-        with self.lock:
+        with self.lock, self._store_lock():
             self.store.execute(f"INSERT OR REPLACE INTO own_sessions ({', '.join(COLUMNS)})"
                                f" VALUES ({', '.join('?' * len(COLUMNS))})",
                                tuple(getattr(session, column) for column in COLUMNS))
@@ -595,10 +599,11 @@ class SessionManager:
                 self.sessions.pop(session_id)
                 backend, session.backend = session.backend, None
                 if self.store is not None:
-                    self.store.execute("DELETE FROM own_session_lines WHERE session_id=?", (session_id,))
-                    self.store.execute("DELETE FROM own_sessions WHERE session_id=?", (session_id,))
-                    self.store.execute("DELETE FROM session_management WHERE session_id=?", (session_id,))
-                    self.store.commit()
+                    with self._store_lock():
+                        self.store.execute("DELETE FROM own_session_lines WHERE session_id=?", (session_id,))
+                        self.store.execute("DELETE FROM own_sessions WHERE session_id=?", (session_id,))
+                        self.store.execute("DELETE FROM session_management WHERE session_id=?", (session_id,))
+                        self.store.commit()
             else:
                 for key in ("pinned", "archived", "title"):
                     if key in body: setattr(session, key, body[key].strip() if key == "title" else body[key])
@@ -761,11 +766,14 @@ class SessionManager:
             session.lines.append(line)
             # As save(): a session stop_all forgot keeps no rows.
             if self.store is not None and self.sessions.get(session.session_id) is session:
-                self.store.execute("INSERT INTO own_session_lines (session_id, seq, role, text, ts)"
-                                   " VALUES (?, ?, ?, ?, ?)", (session.session_id, line["seq"], role, text, line["ts"]))
-                self.store.execute("DELETE FROM own_session_lines WHERE session_id = ? AND seq <= ?",
-                                   (session.session_id, session.seq - LINES_KEPT))
-            self.save(session)
+                with self._store_lock():
+                    self.store.execute("INSERT INTO own_session_lines (session_id, seq, role, text, ts)"
+                                       " VALUES (?, ?, ?, ?, ?)", (session.session_id, line["seq"], role, text, line["ts"]))
+                    self.store.execute("DELETE FROM own_session_lines WHERE session_id = ? AND seq <= ?",
+                                       (session.session_id, session.seq - LINES_KEPT))
+                    self.save(session)
+            else:
+                self.save(session)
 
     def lines(self, session_id, after):
         """(lines after seq, next cursor), or None for an unknown id."""
@@ -910,7 +918,7 @@ class SessionManager:
         """Every own_sessions row and its stored lines deleted; returns how many own_sessions rows."""
         if self.store is None:
             return 0
-        with self.lock:
+        with self.lock, self._store_lock():
             deleted = self.store.execute("DELETE FROM own_sessions").rowcount
             self.store.execute("DELETE FROM own_session_lines")
             self.store.execute("DELETE FROM session_management")

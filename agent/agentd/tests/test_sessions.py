@@ -1154,7 +1154,7 @@ class MainWiringTest(unittest.TestCase):
                                      reply_language_code=lambda: "en", computer_control=None)
             scope = {**vars(module), "server": server, "state_dir": Path(directory), "hook_token": "hook",
                      "args": SimpleNamespace(hook_timeout=5, computer_control_socket=None),
-                     "open_store": lambda db: None, "db": None}
+                     "open_store": lambda db: None, "store_db": None, "db": None}
             exec(compile(ast.Module(body=[assignment], type_ignores=[]), module.__file__, "exec"), scope)
         self.assertEqual(server.sessions.reply_language(), "en")
 

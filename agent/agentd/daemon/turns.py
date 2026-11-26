@@ -526,7 +526,7 @@ class TurnsMixin:
                 last_clause = None  # (speech_id, whether it got a clause_intent) of the latest clause voiced
                 changed = False  # a fact this line was made from changed before one of its clauses was voiced
                 shown_intent = False  # this line's one shown-only clause_intent went out
-                performed = False  # this line's first motion marker was parsed
+                performed = 0  # count of motion markers already dispatched
                 policy = "clause_end" if source == "proactive" else "immediate"
                 language = getattr(self.speech, "language", None)
                 splitter = ClauseSplitter(language if language in MIN_CLAUSE else "zh")
@@ -632,13 +632,15 @@ class TurnsMixin:
                             break
                         raw.append(delta)
                         piece, at = _marked(markers, delta) if scripted is None else ((delta, [], []), [])
-                        if markers.motions and not performed:
-                            performed, motion = True, getattr(self, "motion", None)  # None: no performer, the marker is dropped
+                        if len(markers.motions) > performed:
+                            motion = getattr(self, "motion", None)  # None: no performer, the marker is dropped
                             driver = None if motion is None else effective(self)["motion"]["driver"]
                             if driver in ("generated", "game"):
                                 play = motion.start if driver == "generated" and plugins.on("motion_generation") else motion.gesture
-                                play(markers.motions[0]["prompt"], markers.motions[0]["seconds"], generation,
-                                     trace["trace_id"], trace["remember"])
+                                for entry in markers.motions[performed:]:
+                                    play(entry["prompt"], entry["seconds"], generation,
+                                         trace["trace_id"], trace["remember"])
+                            performed = len(markers.motions)
                         marks += [(sum(map(len, spoken)) + offset, intent) for offset, intent in at]
                         spoken.append(piece[0])
                         intents += piece[1]

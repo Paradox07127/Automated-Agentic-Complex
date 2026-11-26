@@ -131,17 +131,19 @@ class IngestMixin:
             spans[-1][1] = now
         return [span for span in spans if span[1] >= now - RAW_PAST] + ([] if until is None else [[now, until]])
 
-    def load_receipts(self, db):
+    def load_receipts(self, db, lock=None):
         """At start: the newest finished receipts kept in db answer repeats of their keys; new ones are kept there.
         A request still running when agentd stopped has none, so its repeat runs again."""
-        with db:
-            # Rows written before requests were kept as digests hold the request text.
-            db.execute("DELETE FROM idempotency_receipts WHERE NOT (length(request) = 64 AND request NOT GLOB '*[^0-9a-f]*')"
-                       " AND NOT (key GLOB 'character-reminder:*' AND length(request) = 71 AND request GLOB 'sha256:*'"
-                       " AND substr(request, 8) NOT GLOB '*[^0-9a-f]*')")
-        rows = db.execute("SELECT key, request, answer FROM (SELECT rowid AS n, * FROM idempotency_receipts"
-                          " WHERE length(request) = 64 ORDER BY n DESC LIMIT ?) ORDER BY n", (RECEIPTS_KEPT,)).fetchall()
+        if lock is not None:
+            self._receipts_lock = lock
         with self._receipts_lock:
+            with db:
+                # Rows written before requests were kept as digests hold the request text.
+                db.execute("DELETE FROM idempotency_receipts WHERE NOT (length(request) = 64 AND request NOT GLOB '*[^0-9a-f]*')"
+                           " AND NOT (key GLOB 'character-reminder:*' AND length(request) = 71 AND request GLOB 'sha256:*'"
+                           " AND substr(request, 8) NOT GLOB '*[^0-9a-f]*')")
+            rows = db.execute("SELECT key, request, answer FROM (SELECT rowid AS n, * FROM idempotency_receipts"
+                              " WHERE length(request) = 64 ORDER BY n DESC LIMIT ?) ORDER BY n", (RECEIPTS_KEPT,)).fetchall()
             self.receipts_db = db
             for key, request, answer in rows:
                 done = threading.Event()

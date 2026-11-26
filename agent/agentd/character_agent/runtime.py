@@ -64,8 +64,8 @@ PREVIOUS_ARTIFACT_TOOL = {"name": "artifact_read_previous", "description":
     "input_schema": {"type": "object", "properties": {"path": {"type": "string"}},
                      "required": ["path"], "additionalProperties": False}}
 
-# Prompt tokens of a turn's last model call; stands in for where a 32768 window began to cut a 4096 output limit.
-SESSION_CONTEXT_TOKENS = 24000
+# Prompt tokens of a turn's last model call before rebuilding the SDK session.
+SESSION_CONTEXT_TOKENS = 96000
 
 
 def _turn_prompt(text, before_input, context):
@@ -538,8 +538,8 @@ class PersonalAgentRuntime:
             if unheard and quick_session is None and session_reused:
                 context += unheard
             prompt = _turn_prompt(text, before_input, context)
-            # An assistant-voice line replayed verbatim teaches the model to repeat it.
-            replayed = [[{**m, "content": for_replay(m["content"])} if m.get("role") == "assistant" and out_of_voice(m["content"]) else m
+            # Strip only AI self-reference leaks on replay; preserve Markdown formatting in assistant turns.
+            replayed = [[{**m, "content": for_replay(m["content"])} if m.get("role") == "assistant" and "ai_self_reference" in out_of_voice(m["content"]) else m
                          for m in turn] for turn in history]
             resume_options = {'ask_user_result': previous['pending_tool']} if previous and (previous.get('pending_tool') or {}).get('result') else {}
             if memory_session is not None:

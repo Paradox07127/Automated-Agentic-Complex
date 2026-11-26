@@ -4,9 +4,9 @@ import time
 
 
 class ProactiveLog:
-    def __init__(self, db):
+    def __init__(self, db, lock=None):
         self.db = db
-        self._lock = threading.Lock()
+        self._lock = threading.RLock() if lock is None else lock
 
     def shown(self, id, channel, trigger, subject, text, offer, reply, at):
         """A new thought replaces the one shown before it: earlier unanswered thoughts are ignored."""

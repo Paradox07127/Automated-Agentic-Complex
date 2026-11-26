@@ -562,17 +562,17 @@ class MotionTurnTest(MotionCase):
         _, text = self.say()
         self.assertEqual(text, "你好。")
         self.assertEqual(self.starts, [])
-        self.assertEqual([prompt for prompt, *_ in self.gestures], ["waves her right hand happily"])
+        self.assertEqual([prompt for prompt, *_ in self.gestures], ["waves her right hand happily", "bows deeply"])
 
     def test_a_generated_binding_starts_its_characters_motion_and_not_anothers(self):
         from character.binding import Bindings
         self.server.bindings = Bindings(self.state, self.server.characters, lambda: self.settings.backend)
         self.server.bindings.update("aster", {"revision": 0, "motion": {"driver": "generated"}})
         self.assertEqual(self.say()[1], "你好。")
-        self.assertEqual([prompt for prompt, *_ in self.starts], ["waves her right hand happily"])
+        self.assertEqual([prompt for prompt, *_ in self.starts], ["waves her right hand happily", "bows deeply"])
         self.assertTrue(self.server.set_character("birch"))
         self.say()
-        self.assertEqual(len(self.starts), 1)
+        self.assertEqual(len(self.starts), 2)
 
     def test_a_game_binding_outranks_a_generated_global(self):
         from character.binding import Bindings
@@ -582,14 +582,16 @@ class MotionTurnTest(MotionCase):
         self.say()
         self.assertEqual(self.starts, [])
 
-    def test_generated_mode_starts_the_first_motion_marker_once(self):
+    def test_generated_mode_starts_each_motion_marker_in_order(self):
         self.settings.update(SERVICE)
         line_id, text = self.say()
         self.assertEqual(text, "你好。")
         self.assertEqual(self.gestures, [])
-        [(prompt, seconds, generation, trace_id, remember)] = self.starts
-        self.assertEqual((prompt, seconds, generation, remember), ("waves her right hand happily", 3.0, self.server.turn_generation, True))
-        self.assertIsInstance(trace_id, str)
+        first, second = self.starts
+        self.assertEqual((first[0], first[1], first[2], first[4]), ("waves her right hand happily", 3.0, self.server.turn_generation, True))
+        self.assertEqual((second[0], second[1], second[2], second[4]), ("bows deeply", 2.0, self.server.turn_generation, True))
+        self.assertIsInstance(first[3], str)
+        self.assertIsInstance(second[3], str)
 
     def test_a_turn_not_remembered_tells_the_performer(self):
         self.settings.update(SERVICE)
@@ -618,12 +620,15 @@ class GameGestureTurnTest(MotionCase):
 
     def test_a_listed_phrase_plays_its_gesture_once_beside_the_clause_intent(self):
         intents = self.say(["[intent:greet][motion:Bows ", "slightly.|2]你好", "。[motion:nods her head|1]"])
-        [behavior] = self.behaviors()
-        self.assertEqual(c1.check_message(behavior), [])
-        self.assertEqual((behavior["type"], behavior["action"]["id"], behavior["turn_generation"]),
+        first, second = self.behaviors()
+        for behavior in (first, second):
+            self.assertEqual(c1.check_message(behavior), [])
+        self.assertEqual((first["type"], first["action"]["id"], first["turn_generation"]),
                          ("perform", "dialog_single_bow", self.server.turn_generation))
+        self.assertEqual((second["type"], second["action"]["id"], second["turn_generation"]),
+                         ("perform", "dialog_virtual_single_idle_nod", self.server.turn_generation))
         self.assertEqual([intent["intent"] for intent in intents], ["greet"])
-        self.assertEqual([kind for kind, *_ in self.traced], ["motion.matched"])
+        self.assertEqual([kind for kind, *_ in self.traced], ["motion.matched", "motion.matched"])
         self.assertEqual(self.client.calls, [])
 
     def test_an_unlisted_motion_is_dropped(self):

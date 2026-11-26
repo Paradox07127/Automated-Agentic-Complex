@@ -3,8 +3,6 @@ import re
 from brain.outbound import OutboundBlocked
 from character_agent.services.instruction_guard import CLAUSE, positive_instruction
 
-GOAL_REQUEST = re.compile(r'创建.{0,8}目标|建立.{0,8}目标|目标[是：:]|长期跟进|持续跟进|设为.{0,4}目标|作为.{0,4}目标|create.{0,8}goal', re.I)
-
 
 ACTIONS = {
     'active': re.compile(r'继续|恢复|\b(?:resume|reactivate)\b',re.I),
@@ -226,7 +224,7 @@ class OrchestrationTurn:
                     'next_offset': offset + len(page) if offset + len(page) < len(records) else None}
             if name == 'goal_create':
                 quote = args['objective_quote']
-                if len(quote) < 2 or quote not in self.text or not positive_instruction(self.text, GOAL_REQUEST, targets=(quote,)):
+                if len(quote) < 2 or quote not in self.text or not positive_instruction(self.text, re.compile(re.escape(quote)), targets=(quote,)):
                     raise ValueError('explicit_goal_instruction_required')
                 return c.jobs.store.create_goal(args['title'], quote)
             if name == 'goal_update':

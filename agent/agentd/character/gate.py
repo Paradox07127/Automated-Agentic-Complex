@@ -13,7 +13,7 @@ class Gate:
     COMPANION = ("comment", "stuck")
 
     def __init__(self, enabled=False, same_cooldown=None, cross_cooldown=30.0,
-                 daily_limit=20, state_scale=None, interaction_preset="balanced", db=None):
+                 daily_limit=20, state_scale=None, interaction_preset="balanced", db=None, db_lock=None):
         """state_scale: None, or a callable giving her state's factor on the comment cooldown; below 1 counts as 1.
         db: a store connection the day's count and refusals (gate_day) and the muted categories (gate_mute) are kept
         in; None keeps them in memory only."""
@@ -40,14 +40,15 @@ class Gate:
         self.on_decision = None  # callable(kind, attrs, key); whatever it raises is dropped
         self.db = db
         self._companion = None  # None: on with proactive speech
-        self._db_lock = threading.Lock()
+        self._db_lock = threading.RLock() if db_lock is None else db_lock
         self._settings_lock = threading.Lock()  # one decision reads enabled and the cooldowns of one setting
         if db is not None:
             today = datetime.date.today()
-            row = db.execute("SELECT count, blocked FROM gate_day WHERE day = ?", (today.isoformat(),)).fetchone()
-            if row is not None:
-                self._day, (self._count, self._blocked) = today, row
-            self.muted = frozenset(kind for (kind,) in db.execute("SELECT kind FROM gate_mute"))
+            with self._db_lock:
+                row = db.execute("SELECT count, blocked FROM gate_day WHERE day = ?", (today.isoformat(),)).fetchone()
+                if row is not None:
+                    self._day, (self._count, self._blocked) = today, row
+                self.muted = frozenset(kind for (kind,) in db.execute("SELECT kind FROM gate_mute"))
 
     @property
     def companion(self):

@@ -9,6 +9,8 @@ import time
 import unicodedata
 import uuid
 
+from personal.history import terms
+
 SOURCES = ("asserted_by_user", "observed_context", "inferred_hypothesis", "confirmed_by_user")
 TRUSTED = ("asserted_by_user", "confirmed_by_user")
 KINDS = ("fact", "preference", "experience", "agreement", "name", "birthday")
@@ -55,6 +57,15 @@ def normalized_text(text):
     return ' '.join(unicodedata.normalize('NFKC', text).casefold().split())
 
 
+def _fts_body(text):
+    return " ".join(terms(text or ""))
+
+
+def _fts_query(query):
+    tokens = list(dict.fromkeys(terms(query or "")))
+    return " OR ".join(f'"{t}"' for t in tokens) if tokens else None
+
+
 def overlap(a, b):
     """Shared bigrams over the bigrams of the shorter text: a short query or fact can match in full."""
     return _overlap(bigrams(a), bigrams(b))
@@ -96,6 +107,13 @@ class Memory:
         self.lock = threading.Lock() if lock is None else lock
         self.revision = 0  # bumped on every write; callers compare it before committing a reply
         self.content_epoch = 0  # revokes in-flight diagnostic content on pause/correction/deletion
+        with self.lock:
+            missing = self.db.execute("SELECT id, text FROM facts WHERE state IN ('active', 'candidate')"
+                                      " AND text IS NOT NULL AND id NOT IN (SELECT rowid FROM facts_fts)").fetchall()
+            if missing:
+                self.db.executemany("INSERT INTO facts_fts (rowid, body) VALUES (?, ?)",
+                                    [(row_id, _fts_body(text)) for row_id, text in missing])
+                self.db.commit()
 
     def _redact_agent_journal(self):
         """Under lock: conservative erasure of diagnostic copies, including other runs' context."""
@@ -262,6 +280,7 @@ class Memory:
             if row[0] != expected_version: raise VersionConflict(row[0])
             self.db.execute('INSERT OR REPLACE INTO memory_tombstones VALUES(?,?)',
                             (hashlib.sha256(normalized_text(row[1]).encode()).hexdigest(), self.clock()))
+            self.db.execute("DELETE FROM facts_fts WHERE rowid IN (SELECT id FROM facts WHERE fact_id=?)", (fact_id,))
             self.db.execute("UPDATE facts SET state='rejected',text=NULL WHERE fact_id=?", (fact_id,))
             self.db.execute('DELETE FROM fact_sightings WHERE fact_id=?', (fact_id,))
             self._redact_agent_journal()
@@ -292,6 +311,7 @@ class Memory:
                 if row[0] != expected_version: raise VersionConflict(row[0])
             self._check_cascade(fact_id, cascade)
             self._tombstone(fact_id)
+            self.db.execute("DELETE FROM facts_fts WHERE rowid IN (SELECT id FROM facts WHERE fact_id = ?)", (fact_id,))
             changed = self.db.execute("UPDATE facts SET state = 'deleted', text = NULL WHERE fact_id = ?",
                                       (fact_id,)).rowcount
             if not changed:
@@ -312,6 +332,8 @@ class Memory:
                 for fact_id in fact_ids: affected.update(self._tombstone(fact_id))
                 fact_ids += sorted(affected - set(fact_ids))
                 self._redact_agent_journal()
+                self.db.executemany("DELETE FROM facts_fts WHERE rowid IN (SELECT id FROM facts WHERE fact_id = ?)",
+                                    [(fact_id,) for fact_id in fact_ids])
                 self.db.executemany("UPDATE facts SET state = 'deleted', text = NULL WHERE fact_id = ?",
                                     [(fact_id,) for fact_id in fact_ids])
                 self.db.commit()
@@ -365,6 +387,8 @@ class Memory:
                 for fact_id in fact_ids: affected.update(self._tombstone(fact_id))
                 fact_ids += sorted(affected - set(fact_ids))
                 self._redact_agent_journal()
+                self.db.executemany("DELETE FROM facts_fts WHERE rowid IN (SELECT id FROM facts WHERE fact_id = ?)",
+                                    [(fact_id,) for fact_id in fact_ids])
                 self.db.executemany("UPDATE facts SET state = 'deleted', text = NULL WHERE fact_id = ?",
                                     [(fact_id,) for fact_id in fact_ids])
                 self.db.commit()
@@ -412,6 +436,22 @@ class Memory:
 
     def candidates(self, *, owner=None):
         return [{**row,'state':'candidate'} for row in self._records('candidate', owner=owner)]
+
+    def search(self, query, *, character_id=None, states=("active",), k=200):
+        """FTS5 BM25 search over indexed facts matching `states`; returns [(fact_id, score), ...] best-first."""
+        fts = _fts_query(query)
+        if fts is None or not states:
+            return []
+        marks = ", ".join("?" * len(states))
+        owner_sql = "AND f.owner IS NULL" if character_id is None else "AND (f.owner IS NULL OR f.owner = ?)"
+        args = (fts, *states, *(() if character_id is None else (character_id,)), k)
+        with self.lock:
+            rows = self.db.execute(
+                f"SELECT f.fact_id, bm25(facts_fts) FROM facts_fts JOIN facts f ON f.id = facts_fts.rowid"
+                f" WHERE facts_fts MATCH ? AND f.state IN ({marks}) {owner_sql}"
+                f" ORDER BY bm25(facts_fts), f.recorded_at DESC, f.id DESC LIMIT ?", args).fetchall()
+        # SQLite bm25() returns negative scores where lower is better; normalize to strictly positive higher-is-better.
+        return [(fact_id, max(1e-6, -float(score))) for fact_id, score in rows]
 
     def similar(self, text, kind, k=5, *, character_id=None):
         with self.lock:
@@ -603,6 +643,10 @@ class Memory:
             self._redact_agent_journal()
             self.db.execute("DELETE FROM fact_uses" + (f" WHERE fact_id IN (SELECT fact_id FROM facts{where})" if where else ""),
                             args)
+            if where:
+                self.db.execute(f"DELETE FROM facts_fts WHERE rowid IN (SELECT id FROM facts{where})", args)
+            else:
+                self.db.execute("DELETE FROM facts_fts")
             self.db.execute(f"DELETE FROM facts{where}", args)
             self.db.execute("DELETE FROM fact_marks WHERE fact_id NOT IN (SELECT fact_id FROM facts)")
             self.db.commit()
@@ -649,10 +693,12 @@ class Memory:
                 state="active", owner=None, *, by):
         """by: who wrote this version: "user" (the memory page), "character" (her memory tool), "pipeline"
         (consolidation) or "integration" (a proposal from POST /integration/memory)."""
-        self.db.execute("INSERT INTO facts (fact_id, version, kind, text, source, evidence, occurred_at, recorded_at,"
+        row_id = self.db.execute("INSERT INTO facts (fact_id, version, kind, text, source, evidence, occurred_at, recorded_at,"
                         " state, reinforcement, reinforced_at, owner, changed_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         (fact_id, version, kind, text, source, evidence, occurred_at, self.clock(), state,
-                         reinforcement, reinforced_at, owner, by))
+                         reinforcement, reinforced_at, owner, by)).lastrowid
+        if text and state in ("active", "candidate"):
+            self.db.execute("INSERT INTO facts_fts (rowid, body) VALUES (?, ?)", (row_id, _fts_body(text)))
 
     def _revise(self, fact_id, text, *, expected_version=None, cascade=None):
         """Supersede the active version with one the user has touched; text None keeps the old text."""
@@ -676,6 +722,7 @@ class Memory:
                 evidence = json.dumps([ref for ref in json.loads(evidence) if not _episode(ref) or
                     self.db.execute('SELECT 1 FROM episodes WHERE id=?', (ref.split(':', 1)[1].split('@', 1)[0],)).fetchone()])
             self.db.execute("UPDATE facts SET state = 'corrected' WHERE id = ?", (row_id,))
+            self.db.execute("DELETE FROM facts_fts WHERE rowid = ?", (row_id,))
             if text is not None: self._redact_agent_journal()
             # A corrected text is a new claim; confirming keeps the signals the same words already had.
             kept = (reinforcement, reinforced_at) if text is None else ()

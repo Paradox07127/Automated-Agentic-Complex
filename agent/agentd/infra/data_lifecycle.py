@@ -15,8 +15,8 @@ USER_DATA = frozenset(("history_turns", "own_sessions", "trace_events", "facts",
                        "observation_content", "observation_frames", "observation_analyses", "observation_work_events", "observation_processed",
                        "observation_input_identity", "observation_aliases", "session_summaries", "task_cards",
                        "day_summaries", "proactive_log"))
-# FTS5 indexes of user data: cleared through the virtual table, never counted (their rows repeat history_turns).
-FTS = frozenset(("history_fts", "episodes_fts"))
+# FTS5 indexes of user data: cleared through the virtual table, never counted (their rows repeat history_turns/episodes/facts).
+FTS = frozenset(("history_fts", "episodes_fts", "facts_fts"))
 # Settings and spent budgets survive reset: deletion must not reset a user's opt-out or evade a cap.
 RETAINED = frozenset(("memory_settings", "capture_budget", "model_usage", "gate_day", "gate_mute", "semantic_attempts",
                       "proactive_settings"))

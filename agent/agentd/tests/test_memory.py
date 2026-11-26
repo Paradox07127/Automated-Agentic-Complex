@@ -641,6 +641,24 @@ class FactMarksTest(unittest.TestCase):
         self.answer(MemoryMixin._fact_mark_put, ident, "locked", body={"locked": False})
         self.assertEqual((self.memory.active()[0]["locked"], self.memory.active()[0]["quiet"]), (False, True))
 
+    def test_fts5_search_ranks_matches_backfills_and_cleans_up_on_mutations(self):
+        self.assertEqual(self.db.execute("SELECT COUNT(*) FROM facts_fts").fetchone()[0], 0)
+        f1 = self.memory.add("平时喝绿茶", "asserted_by_user")
+        f2 = self.memory.add("加班晚上常喝热美式咖啡和黑咖啡", "asserted_by_user")
+        cand = self.memory.add("可能喜欢乌龙茶", "inferred_hypothesis", state="candidate")
+        self.assertEqual(self.db.execute("SELECT COUNT(*) FROM facts_fts").fetchone()[0], 3)
+        hits = self.memory.search("加班 美式咖啡")
+        self.assertEqual([fid for fid, _ in hits], [f2])
+        self.memory.correct(f2, "加班只喝冰水", expected_version=1)
+        self.assertEqual(self.memory.search("美式咖啡"), [])
+        self.assertEqual([fid for fid, _ in self.memory.search("冰水")], [f2])
+        self.memory.delete(f1)
+        self.assertEqual(self.memory.search("绿茶"), [])
+        self.memory.reject(cand, expected_version=1)
+        self.assertEqual(self.memory.search("乌龙茶", states=("active", "candidate")), [])
+        self.memory.clear("all")
+        self.assertEqual(self.db.execute("SELECT COUNT(*) FROM facts_fts").fetchone()[0], 0)
+
     def test_locked_fact_is_not_supported_by_consolidation(self):
         ident = self.memory.add("周报按项目分组", "observed_context", evidence=["episode:1@2026-10-31"])
         self.memory.set_mark(ident, "locked", True)

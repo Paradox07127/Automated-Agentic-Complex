@@ -149,7 +149,7 @@ class ReminderTurn:
                 if quote not in self.text:
                     raise ValueError('reminder_instruction_required')
                 if name == 'reminder_create':
-                    if args['text'] not in quote or not positive_instruction(self.text, CREATE, targets=(quote,)):
+                    if not args['text'].strip() or not positive_instruction(self.text, CREATE, targets=(quote,)):
                         raise ValueError('reminder_instruction_required')
                     if ('due_at' in args) == ('trigger' in args):
                         raise ValueError('reminder_time_or_trigger_required')

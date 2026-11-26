@@ -292,6 +292,17 @@ class KnowledgeTests(unittest.TestCase):
         self.memory.delete(ident)
         self.assertEqual(first, self.service.fingerprint())
 
+    def test_fts5_bm25_prioritizes_multi_term_match_while_keeping_alias_fallback(self):
+        weak = self.fact("晚上散步", kind="fact")
+        strong = self.fact("晚上写完代码后习惯喝乌龙茶和薄荷茶", kind="fact")
+        alias = self.fact("沟通内容保持精简。", kind="preference")
+        found = self.service.call("knowledge_search", {"query": "晚上写完代码 乌龙茶", "sources": ["memory"]})
+        self.assertEqual(found["retrieval"]["method"], "fts5_bm25_and_alias")
+        self.assertEqual(found["items"][0]["id"], strong)
+        self.assertIn(weak, [r["id"] for r in found["items"]])
+        alias_found = self.service.call("knowledge_search", {"query": "简洁", "sources": ["memory"]})
+        self.assertEqual(alias_found["items"][0]["id"], alias)
+
 
 if __name__ == "__main__":
     unittest.main()

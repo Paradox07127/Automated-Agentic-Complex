@@ -60,6 +60,7 @@ SCHEMA = (
     " kind TEXT NOT NULL, text TEXT, source TEXT NOT NULL, evidence TEXT NOT NULL, occurred_at REAL,"
     " recorded_at REAL NOT NULL, state TEXT NOT NULL, last_used_at REAL, reinforcement REAL NOT NULL DEFAULT 0,"
     " reinforced_at REAL, owner TEXT, changed_by TEXT, UNIQUE(fact_id, version))",
+    "CREATE VIRTUAL TABLE IF NOT EXISTS facts_fts USING fts5(body, tokenize='unicode61')",
     # one row per fact the user locked or marked 不再提及 on the memory page; a fact with no row is neither
     "CREATE TABLE IF NOT EXISTS fact_marks (fact_id TEXT PRIMARY KEY, locked INTEGER NOT NULL DEFAULT 0,"
     " quiet INTEGER NOT NULL DEFAULT 0)",

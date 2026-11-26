@@ -62,20 +62,22 @@ class Budget:
     With db (the shared store) each request is reserved, then sent or released once; reserved and sent
     ones count, and a restart reloads them. Without db a reservation counts at once and is never given back."""
 
-    def __init__(self, clock=time.time, min_interval=MIN_INTERVAL, per_hour=PER_HOUR, per_day=PER_DAY, db=None):
+    def __init__(self, clock=time.time, min_interval=MIN_INTERVAL, per_hour=PER_HOUR, per_day=PER_DAY, db=None, lock=None):
         self.clock, self.min_interval, self.per_hour, self.per_day = clock, min_interval, per_hour, per_day
         self.times = deque()
         self.db = db
+        self._lock = (db._idle_lock if hasattr(db, "_idle_lock") else threading.RLock()) if lock is None else lock
         self.held = {}  # with db: request_id -> reserved_at of each reserved or sent request of the last day
         if db is not None:
             now = clock()
-            # Request ids live only in the process that made them: one still reserved here can never settle.
-            db.execute("UPDATE capture_budget SET state = 'released', settled_at = ? WHERE state = 'reserved'",
-                       (now,))
-            db.commit()
-            self.held = dict(db.execute("SELECT request_id, reserved_at FROM capture_budget"
-                                        " WHERE state IN ('reserved', 'sent') AND reserved_at > ?"
-                                        " ORDER BY reserved_at", (now - 86400,)))
+            with self._lock:
+                # Request ids live only in the process that made them: one still reserved here can never settle.
+                db.execute("UPDATE capture_budget SET state = 'released', settled_at = ? WHERE state = 'reserved'",
+                           (now,))
+                db.commit()
+                self.held = dict(db.execute("SELECT request_id, reserved_at FROM capture_budget"
+                                            " WHERE state IN ('reserved', 'sent') AND reserved_at > ?"
+                                            " ORDER BY reserved_at", (now - 86400,)))
 
     def check(self, look=False):
         """None when one more upload fits, else the limit's name. look skips interval and hourly cap."""
@@ -85,8 +87,9 @@ class Budget:
                 self.times.popleft()
             times = self.times
         else:
-            self.held = {r: t for r, t in self.held.items() if t > now - 86400}
-            times = sorted(self.held.values())
+            with self._lock:
+                self.held = {r: t for r, t in self.held.items() if t > now - 86400}
+                times = sorted(self.held.values())
         if len(times) >= self.per_day:
             return "daily_cap"
         if look:
@@ -102,10 +105,11 @@ class Budget:
         if self.db is None:
             self.times.append(now)
             return
-        self.db.execute("INSERT INTO capture_budget (request_id, state, look, reserved_at)"
-                        " VALUES (?, 'reserved', ?, ?)", (request_id, int(look), now))
-        self.db.commit()
-        self.held[request_id] = now
+        with self._lock:
+            self.db.execute("INSERT INTO capture_budget (request_id, state, look, reserved_at)"
+                            " VALUES (?, 'reserved', ?, ?)", (request_id, int(look), now))
+            self.db.commit()
+            self.held[request_id] = now
 
     def sent(self, request_id):
         """The image went to the model: the reservation is spent for good."""
@@ -113,8 +117,9 @@ class Budget:
 
     def release(self, request_id):
         """The image never went out (failed, refused, expired, cancelled): the reservation is given back."""
-        if self._settle(request_id, "released"):
-            self.held.pop(request_id, None)
+        with self._lock:
+            if self._settle(request_id, "released"):
+                self.held.pop(request_id, None)
 
     def spend(self):
         """One upload without a request id: reserved and sent at once."""
@@ -129,8 +134,9 @@ class Budget:
         if self.db is None:
             return {"used": sum(1 for t in self.times if t >= midnight), "reserved": 0, "released": 0,
                     "limit": self.per_day}
-        counts = dict(self.db.execute("SELECT state, COUNT(*) FROM capture_budget WHERE reserved_at >= ?"
-                                      " GROUP BY state", (midnight,)))
+        with self._lock:
+            counts = dict(self.db.execute("SELECT state, COUNT(*) FROM capture_budget WHERE reserved_at >= ?"
+                                          " GROUP BY state", (midnight,)))
         return {"used": counts.get("sent", 0), "reserved": counts.get("reserved", 0),
                 "released": counts.get("released", 0), "limit": self.per_day}
 
@@ -138,16 +144,17 @@ class Budget:
         """reserved -> state; True when it moved. A request already sent or released stays as it is."""
         if self.db is None:
             return False
-        moved = self.db.execute("UPDATE capture_budget SET state = ?, settled_at = ?"
-                                " WHERE request_id = ? AND state = 'reserved'",
-                                (state, self.clock(), request_id)).rowcount
-        self.db.commit()
-        return bool(moved)
+        with self._lock:
+            moved = self.db.execute("UPDATE capture_budget SET state = ?, settled_at = ?"
+                                    " WHERE request_id = ? AND state = 'reserved'",
+                                    (state, self.clock(), request_id)).rowcount
+            self.db.commit()
+            return bool(moved)
 
 
 class CaptureManager:
     def __init__(self, feed, blacklist, focus, log_path, clock=time.time, rules=None, backend=None, vision=None,
-                 judge_log=None, budget_db=None, spawn=None, share_text=None, app_category=None):
+                 judge_log=None, budget_db=None, budget_lock=None, spawn=None, share_text=None, app_category=None):
         """focus() returns the scrubbed focus window or None; judgment always uses local rules.
         app_category(window) -> the window's declared app category or None; None takes the focus window's.
         vision.describe(image, user) -> text for PNG or JPEG bytes, or None for no image requests at all;
@@ -159,7 +166,7 @@ class CaptureManager:
         self.judge = Judge(rules, judge_log, clock=clock)
         self.share_text = backend is not None if share_text is None else bool(share_text)
         self.vision = vision
-        self.budget = Budget(clock, db=budget_db)
+        self.budget = Budget(clock, db=budget_db, lock=budget_lock)
         self.windows = {}  # window_id -> {"meta", "hash", "ocr_for", "block": None|"secure_input"|"incognito"}
         self.open = {}  # request_id -> (window_id, reason, deadline)
         self.due = None  # (window_id, ts) of the next text request
