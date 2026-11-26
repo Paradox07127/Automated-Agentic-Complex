@@ -16,7 +16,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from infra.secrets import MemorySecrets
 from brain import persona
 from brain.egress import EgressPolicy
-from brain.outbound import OutboundBlocked
 from brain.provider import Mouth
 from api.handler import Handler
 from daemon.agentd_server import AgentdServer
@@ -224,14 +223,14 @@ class BoundPromptTest(BindingCase):
         self.assertEqual(card["i18n"]["en"]["tone_rules"], ["package en"])
 
     def test_post_history_override_reaches_the_mouth(self):
-        guard = mock.Mock()
-        self.server.mouth = Mouth(character="aster", lore_path=False, guard=guard)
+        egress = mock.Mock(wraps=EgressPolicy())
+        self.server.mouth = Mouth(character="aster", lore_path=False, egress=egress)
         instructions = "回答控制在两句以内。"
         path = "/characters/aster/binding"
         self.assertEqual(self.request("PUT", path, {
             "revision": 0, "persona": {"overrides": {"post_history_instructions": instructions}}})[0], 200)
         self.assertEqual(self.instructions(), instructions)
-        guard.check.assert_any_call("instructions", instructions)
+        egress.authored.assert_any_call("instructions", instructions)
         self.assertEqual(self.request("PUT", path, {"revision": 1, "persona": None})[0], 200)
         self.assertEqual(self.instructions(), self.server.mouth.card["post_history_instructions"])
 

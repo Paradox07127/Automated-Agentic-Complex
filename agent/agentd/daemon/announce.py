@@ -532,18 +532,23 @@ class AnnounceMixin:
             self.feed.publish("commitment", {"action": "missed", "commitment": item})
             self._announce_commitment("reminder_missed", "P1", self._headlines()["missed_wait"].format(
                 text=item['text'], awaited=awaited(item['trigger'], self.reply_language_code())), item["id"])
-        with self.commitments.lock:  # A user action cannot race between triggering and delivery.
-            items = self.commitments.due()
-            if not items:
-                return
-            words = self._headlines()
-            headline = words["due"].format(items=words["separator"].join(i["text"] for i in items))
-            delivered = self._announce_commitment("reminder_due", "P0", headline,
-                                                  items[0]["id"], silent=silent,
-                                                  commitment_ids=[i["id"] for i in items])
-            if delivered or silent:
-                self.focus.count("reminders", len(items))
+        items = self.commitments.due()
+        if not items:
+            return
+        words = self._headlines()
+        headline = words["due"].format(items=words["separator"].join(i["text"] for i in items))
+        # Outside commitments.lock, the store's lock: the announcement takes _decision_lock and _write_lock,
+        # whose holders wait on the store.
+        delivered = self._announce_commitment("reminder_due", "P0", headline,
+                                              items[0]["id"], silent=silent,
+                                              commitment_ids=[i["id"] for i in items])
+        if delivered or silent:
+            self.focus.count("reminders", len(items))
+        with self.commitments.lock:
+            current = {i["id"]: i["revision"] for i in self.commitments.list(("triggered",))}
             for item in items:
+                if current.get(item["id"]) != item["revision"]:
+                    continue  # the user cancelled, completed or snoozed it meanwhile
                 # A repeating one re-arms even unheard, or it would stay triggered and never come again.
                 if delivered or silent or item["repeat"] is not None:
                     done = self.commitments.fulfill(item["id"], "silent_card" if silent else None)

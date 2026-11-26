@@ -1,6 +1,7 @@
 """Persistent task ledger: one row per dispatched task and an event per state change, so a restart can explain it."""
 import hashlib
 import json
+import logging
 import shlex
 import subprocess
 import threading
@@ -9,6 +10,8 @@ import time
 from infra.platform import command_line, new_group_options, release_group, signal_group, track_group
 from sessions import git_state
 from tool_gateway.policy import POLICY, READ_ONLY_PRESETS
+
+log = logging.getLogger(__name__)
 
 TRANSITIONS = {
     "proposed": ("approved", "denied", "expired", "cancelled"),
@@ -123,8 +126,8 @@ class TaskLedger:
         if self.on_change is not None and task is not None:
             try:
                 self.on_change(task)
-            except Exception:
-                pass
+            except Exception:  # the row is written; a failed notice must not fail the caller's transition
+                log.exception("task %s change notice failed", task["task_id"])
 
     def _event(self, task_id, kind, at, attrs):
         seq = self.db.execute("SELECT COALESCE(MAX(seq), 0) + 1 FROM task_events WHERE task_id = ?",

@@ -28,6 +28,8 @@ class LifecycleMixin:
         self.shutdown()
         if self.state is not None:
             self.state.flush()
+        if self.attention is not None:
+            self.attention.close()  # writes the open spans' durations it batches
 
     def _cancel_closing_turns(self):
         # An admitted line registers under this lock before starting its worker.
@@ -168,8 +170,7 @@ class LifecycleMixin:
                     deleted["timeline"], files["timeline"] = timeline.clear(), path_of(timeline.db)
             for path in set(files.values()) | lifecycle.paths:
                 compact(path)
-            owners = (self.capture, self.capture and self.capture.judge, self.proactive and self.proactive.judge,
-                      self.egress and self.egress.guard)
+            owners = (self.capture, self.capture and self.capture.judge, self.proactive and self.proactive.judge)
             logs = [Path(owner.log_path).name for owner in owners if owner is not None and owner.truncate_log()]
             if self.state_dir is not None:
                 for name in ("capture.jsonl", "capture-judge.jsonl", "proactive-judge.jsonl"):

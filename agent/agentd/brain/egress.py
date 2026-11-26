@@ -129,8 +129,7 @@ def redact(text, contacts=True):
 
 
 class EgressPolicy:
-    def __init__(self, guard=None, redact=True):
-        self.guard = guard
+    def __init__(self, redact=True):
         self._redact = redact
         self.redactions = {"key": 0, "email": 0, "phone": 0}
         self._lock = threading.Lock()
@@ -139,8 +138,6 @@ class EgressPolicy:
         self._redact = on
 
     def authored(self, part, text):
-        if self.guard is not None:
-            self.guard.check(part, text)
         return text
 
     def observed(self, text):
@@ -160,4 +157,4 @@ class EgressPolicy:
         return text
 
     def replayed(self, part, text):
-        return self.observed(self.authored(part, text))
+        return self.observed(text)

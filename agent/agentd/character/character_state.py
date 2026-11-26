@@ -5,7 +5,6 @@ after a restart. Inputs are her own behaviors and lines, session and dispatch re
 gave feedback; never what the user said or looks at, so it takes no attention store."""
 import json
 import math
-import threading
 import time
 
 DEFAULT_PROFILE = {"mood_baseline": 0.2, "energy_offset": 0.0, "activity_weights": {}}
@@ -68,7 +67,7 @@ class CharacterState:
     def __init__(self, db, profiles, clock=time.time):
         """db: shared store connection; profiles(character_id) -> the card's state_profile or None."""
         self.db, self.profiles, self.clock = db, profiles, clock
-        self._lock = getattr(db, "_idle_lock", None) or threading.RLock()
+        self._lock = db._idle_lock
         self.character = None
         self.retention = lambda: None  # -> seconds a character_state_log row is kept, None to keep every row
 

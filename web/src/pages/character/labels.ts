@@ -95,7 +95,6 @@ const SWITCH_REASON: Record<string, string> = {
   load_failed: '角色资源加载失败',
   pack_rejected: '角色资源包未通过校验',
   no_state: '后台服务尚未就绪',
-  outbound_blocked: '新角色配置未通过出站策略检查',
   commit_failed: '后台服务未能完成角色切换',
 };
 

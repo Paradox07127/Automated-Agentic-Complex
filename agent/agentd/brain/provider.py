@@ -11,8 +11,7 @@ from brain.lorebook import Lorebook
 
 def chat_system(card, binding, egress, motion_phrases=None):
     """(the persona's system text, the card it was rendered from) for card under binding
-    (character.binding.effective; None: the card alone). Raises OutboundBlocked when egress blocks the
-    system text or the card's post_history_instructions. motion_phrases: the pack's gestures listed for [motion:]."""
+    (character.binding.effective; None: the card alone). motion_phrases: the pack's gestures listed for [motion:]."""
     card, motion = bound(card, binding)
     text = render_persona(card, motion, motion_phrases)
     egress.authored("system", text)
@@ -23,16 +22,15 @@ def chat_system(card, binding, egress, motion_phrases=None):
 class Mouth:
     """No tools: the mouth can only talk. History keeps the last max_turns finished turns."""
 
-    def __init__(self, character=None, persona_path=None, lore_path=None, max_turns=8, guard=None, egress=None,
+    def __init__(self, character=None, persona_path=None, lore_path=None, max_turns=8, egress=None,
                  motion_phrases=None):
-        """guard: brain.outbound.OutboundGuard; with one, authored text that matches original lines is not sent.
-        motion_phrases: the character's game gestures render_persona lists for [motion:] (motion.catalog.phrases).
+        """motion_phrases: the character's game gestures render_persona lists for [motion:] (motion.catalog.phrases).
         persona_path / lore_path None: the character's own; lore_path False: no lorebook.
         character None: the development default."""
         if character is None:
             character = characters.default()
         self.card = json.loads(Path(persona_path or characters.card_path(character)).read_text(encoding="utf-8"))
-        self.egress = EgressPolicy(guard=guard) if egress is None else egress
+        self.egress = EgressPolicy() if egress is None else egress
         self.motion_phrases = motion_phrases
         self.refresh_system()
         if lore_path is None:

@@ -1,5 +1,4 @@
 """Persistent memory ingestion cursors and reset-aware admission backoff."""
-import hashlib
 from pathlib import Path
 import sys
 import time
@@ -10,7 +9,6 @@ import json
 import threading
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from brain.outbound import OutboundGuard
 from character_agent.services.memory_pipeline import MemoryPipeline, unsupported_recurrence
 import test_character_agent_semantic as semantic_fixture
 from test_character_agent_runtime import FakeSession
@@ -39,6 +37,14 @@ class MemoryCursorTests(unittest.TestCase):
         self.server.history.record(turn_id='cancelled',source='text',character_id='aster',persona_revision='v1',
             user_text='请记住周五需要交付报告',reply='已经替你发送了',state='cancelled',started_at=time.time()-8*3600)
         [row]=self.pipeline.sources();self.assertEqual(row['user'],'请记住周五需要交付报告');self.assertEqual(row['assistant'],'')
+
+    def test_a_turn_that_says_not_to_remember_or_to_forget_is_no_source(self):
+        now=time.time()
+        for i,text in enumerate(('不要记住我对花粉过敏','别记录这件事','忘记我住在哪','请删除关于咖啡的记忆',
+                                 "Don't remember my address",'forget my birthday','周五要交报告')):
+            self.server.history.record(turn_id='t'+str(i),source='text',character_id='aster',persona_revision='v1',
+                user_text=text,reply='好',state='completed',started_at=now-8*3600+i)
+        self.assertEqual([row['user'] for row in self.pipeline.sources()],['周五要交报告'])
 
     def test_usage_cap_defers_same_batch_until_reset_even_after_restart(self):
         self.source()

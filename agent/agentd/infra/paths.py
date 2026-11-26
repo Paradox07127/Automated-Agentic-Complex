@@ -14,7 +14,6 @@ COMPANION_SUPPORT_DIR = Path.home() / "Library/Application Support" / COMPANION_
 
 HOOK_TOKEN = "hook.token"
 AGENTD_DB = "agentd.sqlite"
-OUTBOUND_GUARD_LOG = "outbound-guard.jsonl"
 ATTENTION_DB = "attention.sqlite"
 TIMELINE_DB = "timeline.sqlite"
 BLACKLIST = "blacklist.json"
@@ -39,7 +38,6 @@ CODEX_HOOKS = "hooks.json"  # in CODEX_HOME
 
 def hook_token(state_dir): return Path(state_dir) / HOOK_TOKEN
 def agentd_db(state_dir): return Path(state_dir) / AGENTD_DB
-def outbound_guard_log(state_dir): return Path(state_dir) / OUTBOUND_GUARD_LOG
 def attention_db(state_dir): return Path(state_dir) / ATTENTION_DB
 def timeline_db(state_dir): return Path(state_dir) / TIMELINE_DB
 def blacklist(state_dir): return Path(state_dir) / BLACKLIST

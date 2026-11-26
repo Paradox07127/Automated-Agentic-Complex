@@ -57,6 +57,16 @@ class MemoryAuthorityTests(unittest.TestCase):
         result = self.pipeline.validate(value, self.pipeline.sources())
         self.assertEqual(result['accepted'][0]['source'], 'inferred_hypothesis')
 
+    def test_a_batch_with_no_project_and_no_valid_memory_indexes_no_summary(self):
+        self.source()
+        self.reply = {**self.findings(), 'projects': []}
+        self.reply['memories'][0]['evidence'][0]['quote'] = '不在来源里的引用'
+        result = self.pipeline.run_once()
+        self.assertEqual(result['rejected'][0]['reason'], 'unsupported_memory_quote')
+        self.assertIsNone(result['episode_id'])
+        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM episodes').fetchone()[0], 0)
+        self.assertFalse(self.pipeline.sources())
+
     def test_observed_preference_is_added_only_as_a_candidate(self):
         memory = self.server.memory
         self.assertIsInstance(memory.add('晚上 11 点后还在写代码', 'observed_context', kind='preference', state='candidate'), str)

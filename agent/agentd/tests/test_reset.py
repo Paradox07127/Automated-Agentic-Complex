@@ -1,5 +1,4 @@
 """Unified reset from the control panel: POST /reset stops the writers, clears every user-data store and checks it."""
-import hashlib
 import http.client
 import json
 from pathlib import Path
@@ -17,7 +16,6 @@ from observation.attention import AttentionStore  # noqa: E402
 from observation.blacklist import Blacklist  # noqa: E402
 from support import add_episode, deny_blacklist  # noqa: E402
 from brain.egress import EgressPolicy  # noqa: E402
-from brain.outbound import OutboundGuard  # noqa: E402
 from observation.capture import CaptureManager  # noqa: E402
 from character.character_state import CharacterState  # noqa: E402
 from personal.schedules import Schedules
@@ -55,7 +53,7 @@ CLEARED = {"agentd.sqlite": ("history_turns", "own_sessions", "trace_events", "f
                             "personal_delivery_events", "observation_briefs", "observation_brief_failures", "observation_content", "observation_frames", "observation_analyses", "observation_work_events", "observation_processed", "observation_input_identity", "observation_aliases"),
            "attention.sqlite": ("events", "context", "events_raw")}
 KEPT = ("memory_settings", "capture_budget", "model_usage", "gate_day")
-LOGS = ("capture.jsonl", "capture-judge.jsonl", "proactive-judge.jsonl", "outbound-guard.jsonl")
+LOGS = ("capture.jsonl", "capture-judge.jsonl", "proactive-judge.jsonl")
 
 
 class ScheduleResetTest(unittest.TestCase):
@@ -124,10 +122,7 @@ class ResetTest(unittest.TestCase):
                                         budget_db=open_store(self.db))
         server.proactive = Proactive(server.attention, server.gate, server.feed.publish, server.start_line,
                                      server.busy, judge=Judge(RulesBackend(), state / "proactive-judge.jsonl"))
-        (state / "canon-windows.json").write_text(json.dumps({
-            "n": 7, "hashes": [hashlib.sha256(b"fixture").hexdigest()[:16]]}), encoding="utf-8")
-        server.egress = EgressPolicy(guard=OutboundGuard(state / "canon-windows.json",
-                                                         state / "outbound-guard.jsonl"))
+        server.egress = EgressPolicy()
         server.state = CharacterState(open_store(self.db), lambda cid: None)
         server.state.use("aster")
         server.load_receipts(open_store(self.db))
@@ -237,7 +232,6 @@ class ResetTest(unittest.TestCase):
         server.proactive._judge_lines["old-line"] = "j2"
         server.capture.judge.feedback("j1", "useful")
         server.proactive.judge.feedback("j2", "useful")
-        server.egress.guard.check("card", "一段卡片文字")
         server.state.on_event("dispatch_done")
         server.state.flush()
         conn = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=10)
@@ -253,8 +247,6 @@ class ResetTest(unittest.TestCase):
             for table in tables:
                 self.assertGreater(self.count(name, table), 0, table)
         for log in LOGS:
-            if log == "outbound-guard.jsonl" and not (self.state / log).exists():
-                continue
             self.assertGreater((self.state / log).stat().st_size, 0, log)
         status, body = self.request("POST", "/reset", CONFIRM)
         self.assertEqual(status, 200, body)
@@ -268,8 +260,6 @@ class ResetTest(unittest.TestCase):
             for table in tables:
                 self.assertEqual(self.count(name, table), 0, table)
         for log in LOGS:
-            if log == "outbound-guard.jsonl" and not (self.state / log).exists():
-                continue
             self.assertEqual((self.state / log).stat().st_size, 0, log)
         for table in KEPT:
             self.assertGreater(self.count("agentd.sqlite", table), 0, table)

@@ -582,6 +582,12 @@ class ServerTest(unittest.TestCase):
         self.server.shutdown_cleanly()
         self.assertAlmostEqual(valence(), 0.45)
 
+    def test_shutdown_closes_the_attention_store_so_its_open_spans_are_written(self):
+        closed = []
+        self.server.attention = SimpleNamespace(close=lambda: closed.append(True))
+        self.server.shutdown_cleanly()
+        self.assertEqual(closed, [True])
+
     def test_approval_card_listed_during_quiet(self):
         self.hook("claude", "PermissionRequest", tool_name="Bash")
         self.server.set_quiet_until(time.time() + 600)
@@ -3129,7 +3135,6 @@ class CharacterSwitchTest(FeedServerCase):
                 self.assertEqual(self.prepare(body), (400, {"error": "unknown_character"}))
         self.assertEqual(self.prepare({"id": "aster"}), (409, {"error": "same_character"}))
         unchanged()
-        from brain.outbound import OutboundBlocked
         status, body = self.prepare()
         self.assertEqual(status, 200)
         self.assertEqual(self.prepare(), (409, {"error": "switching"}))

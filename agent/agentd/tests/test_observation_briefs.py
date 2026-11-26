@@ -1,6 +1,5 @@
 """Product stores + selected adapter + evidence, lifecycle and budget boundaries."""
 import datetime as dt
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -448,15 +447,6 @@ class BriefTests(unittest.TestCase):
             self.service.request('daily','2026-10-30',retry=True)
             thread.call_args.kwargs['target']()
         self.assertEqual(self.service.get(report['id'])['state'],'completed')
-
-    def test_a_source_matching_a_canon_window_is_observed_text(self):
-        from brain.outbound import OutboundGuard
-        self.ready(); line='甲乙丙丁戊己庚'; path=self.root/'windows.json'
-        path.write_text(json.dumps({'n':7,'hashes':[hashlib.sha256(line.encode()).hexdigest()[:16]]}),encoding='utf-8')
-        self.server.egress=semantic_fixture.EgressPolicy(guard=OutboundGuard(path))
-        source=self.segment(subject=line+'，渲染测试失败')
-        self.reply=self.findings(source); self.reply['observed_details'][0]['detail']=line
-        self.assertEqual(self.service.run_once('daily','2026-10-30')['observed_details'][0]['detail'],line)
 
     def test_events_after_the_period_do_not_crowd_out_the_periods_own(self):
         self.ready()

@@ -22,7 +22,6 @@ from character_agent.services.observation import CHANGED_PENDING, FIRST_PENDING,
 from character_agent.services.worklog_digest import _line
 from character_agent.services.observation_briefs import window
 from test_character_agent_runtime import FakeSession
-from brain.outbound import OutboundGuard, OutboundBlocked
 
 
 class ObservationTests(unittest.TestCase):
@@ -765,10 +764,9 @@ class ObservationTests(unittest.TestCase):
         # only the model reads the step, so it is English whatever the reply language
         self.assertEqual(self.o.context()['tasks'][0]['current_step'],'the user corrected this task')
 
-    def test_observed_evidence_keeps_original_text_and_redaction_without_disabling_persona_guard(self):
-        self.ready();line='甲乙丙丁戊己庚';path=self.root/'windows.json'
-        path.write_text(json.dumps({'n':7,'hashes':[hashlib.sha256(line.encode()).hexdigest()[:16]]}), encoding='utf-8')
-        self.server.egress=fixture.EgressPolicy(guard=OutboundGuard(path))
+    def test_observed_evidence_keeps_original_text_and_redaction(self):
+        self.ready();line='甲乙丙丁戊己庚'
+        self.server.egress=fixture.EgressPolicy()
         ident=self.source(line+' alice@example.com')
         self.assertIn(line,self.o.get(ident)['text']);self.assertNotIn('alice@example.com',self.o.get(ident)['text'])
         def factory(definitions):
@@ -780,8 +778,6 @@ class ObservationTests(unittest.TestCase):
             return FakeSession(script)
         self.c.session_factory_override=factory
         self.assertEqual(self.o.run_once()['state'],'completed')
-        with self.assertRaises(OutboundBlocked):self.server.egress.authored('system',line)
-        with self.assertRaises(OutboundBlocked):self.server.egress.replayed('test',line)
 
     def test_all_selected_sources_reach_harness_beyond_generic_hundred_item_limit(self):
         self.ready();now=time.time()

@@ -1,19 +1,15 @@
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from copy import deepcopy
-import hashlib
 import json
 from pathlib import Path
 import sys
 import subprocess
-import tempfile
 import unittest
 from unittest.mock import patch
 from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from brain.outbound import OutboundBlocked, OutboundGuard  # noqa: E402
 
 
 class RecordingClient:
@@ -236,40 +232,27 @@ class EgressPolicyTest(unittest.TestCase):
                 client.create(text=policy.user_text(json.dumps({"password": value, "other": 1234})))
                 self.assertEqual(json.loads(client.bodies[-1][2]["text"]), {"password": "[已遮蔽:密钥]", "other": 1234})
 
-    def test_thought_evidence_is_redacted_and_original_lines_stay_blocked(self):
+    def test_thought_evidence_is_redacted(self):
         from brain.egress import EgressPolicy
         from character.thoughts import Thoughts
         from test_thoughts import FakeSemantic
-        line = '甲乙丙丁戊己庚'
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / 'windows.json'
-            path.write_text(json.dumps({'n': 7, 'hashes': [hashlib.sha256(line.encode()).hexdigest()[:16]]}), encoding="utf-8")
-            policy = EgressPolicy(guard=OutboundGuard(path))
-            semantic = FakeSemantic()
-            semantic.replies.append('{"thought":"想法", "offer":null}')
-            thoughts = Thoughts(None, None, semantic, consent=lambda: True,
-                                context=lambda: line + ' alice@example.com Bearer secret-value', egress=policy)
-            self.assertEqual(thoughts._ask('activity', {}, None, [], 0), {'thought': '想法', 'offer': None, 'reply': None})
-            [sent] = semantic.calls
-            self.assertNotIn('alice@example.com', sent['evidence']['observed'])
-            self.assertEqual(policy.redactions, {'key': 1, 'email': 1, 'phone': 0})
-            with self.assertRaises(OutboundBlocked):
-                policy.authored('persona', line)
+        policy = EgressPolicy()
+        semantic = FakeSemantic()
+        semantic.replies.append('{"thought":"想法", "offer":null}')
+        thoughts = Thoughts(None, None, semantic, consent=lambda: True,
+                            context=lambda: '甲乙丙丁戊己庚 alice@example.com Bearer secret-value', egress=policy)
+        self.assertEqual(thoughts._ask('activity', {}, None, [], 0), {'thought': '想法', 'offer': None, 'reply': None})
+        [sent] = semantic.calls
+        self.assertNotIn('alice@example.com', sent['evidence']['observed'])
+        self.assertEqual(policy.redactions, {'key': 1, 'email': 1, 'phone': 0})
 
     def test_authored_observed_and_replayed_have_distinct_rules(self):
         from brain.egress import EgressPolicy
-        line = "甲乙丙丁戊己庚"
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "windows.json"
-            path.write_text(json.dumps({"n": 7, "hashes": [hashlib.sha256(line.encode()).hexdigest()[:16]]}), encoding="utf-8")
-            policy = EgressPolicy(guard=OutboundGuard(path))
-            for method in (policy.authored, policy.replayed):
-                with self.assertRaises(OutboundBlocked):
-                    method("test", line + " alice@example.com")
-            self.assertEqual(policy.redactions, {"key": 0, "email": 0, "phone": 0})
-            self.assertEqual(policy.observed(line + " alice@example.com"), line + " [已遮蔽:邮箱]")
-            self.assertEqual(policy.authored("test", "alice@example.com"), "alice@example.com")
-            self.assertEqual(policy.replayed("test", "alice@example.com"), "[已遮蔽:邮箱]")
+        policy = EgressPolicy()
+        self.assertEqual(policy.authored("test", "alice@example.com"), "alice@example.com")
+        self.assertEqual(policy.redactions, {"key": 0, "email": 0, "phone": 0})
+        self.assertEqual(policy.observed("甲乙 alice@example.com"), "甲乙 [已遮蔽:邮箱]")
+        self.assertEqual(policy.replayed("test", "alice@example.com"), "[已遮蔽:邮箱]")
 
     def test_redactions_accumulate_across_threads(self):
         from brain.egress import EgressPolicy

@@ -66,7 +66,7 @@ class Budget:
         self.clock, self.min_interval, self.per_hour, self.per_day = clock, min_interval, per_hour, per_day
         self.times = deque()
         self.db = db
-        self._lock = (db._idle_lock if hasattr(db, "_idle_lock") else threading.RLock()) if lock is None else lock
+        self._lock = (threading.RLock() if db is None else db._idle_lock) if lock is None else lock
         self.held = {}  # with db: request_id -> reserved_at of each reserved or sent request of the last day
         if db is not None:
             now = clock()

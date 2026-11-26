@@ -14,6 +14,11 @@ import uuid
 from personal.episodes import _body
 from personal.memory import TRUSTED, normalized_text
 
+# A turn whose user says not to keep it, or asks to forget, delete or correct a memory, is never extracted.
+DENY_WRITE = re.compile(r"^\s*(?:请|这轮|这一轮|本轮|请在这轮)?\s*(?:不要|别|不必)(?:再)?(?:记住|记录|保存)|"
+                        r"^\s*(?:please\s+)?(?:do not|don't)\s+(?:remember|save|store)", re.I)
+FORGET_REQUEST = re.compile(r"^\s*(?:请)?(?:忘记|删除.{0,12}记忆|更正.{0,12}记忆|forget\b)", re.I)
+
 INSTRUCTIONS = '''Extract from sources the memories that will be useful later. The reader is the character days or weeks from now: it relies on projects to carry on the user's work and on memories to remember who the user is, what they like and what they agreed on with the character. Empty lines like "you are using some app" or "opened some page" are of no use to it.
 projects keep the project's goal, constraints, decisions and their reasons, actual results, commits, test results, temporary paths, open issues and next steps; these are not copied into memories again. Write each project so whoever takes it over can continue directly, such as "the export endpoint now pages because a single request timed out; the paged version passes its tests, the front end is not wired yet", not "worked on the export". Leave fields without evidence empty.
 memories hold only lasting content: stable personal facts, clear preferences, recurring habits and agreements. Tell lasting from one-off:
@@ -134,7 +139,8 @@ class MemoryPipeline:
                 for raw in rows:
                     row = dict(zip(COLUMNS, raw)); after = row['id']
                     if row['started_at'] < cutoff or row['source'] not in ('text','voice') or row['state'] not in ('completed','interrupted','cancelled') or not row['user_text']: continue
-                    item = {'source_id':'history:'+str(row['turn_id'] or row['id']), 'user':row['user_text'],
+                    if DENY_WRITE.search(row['user_text']) or FORGET_REQUEST.match(row['user_text']): continue
+                    item ={'source_id':'history:'+str(row['turn_id'] or row['id']), 'user':row['user_text'],
                         'character_id':row['character_id'], 'assistant':row['reply'] if row['state'] != 'cancelled' else '',
                         'at':row['started_at'], 'verified':False, 'kind':'conversation', 'requires':[], '_history_id':row['id']}
                     with s.memory.lock:
@@ -333,7 +339,8 @@ class MemoryPipeline:
                 if any(db.execute('SELECT version FROM agent_memory_processed WHERE source_id=?',(r['source_id'],)).fetchone() == (r['version'],) for r in sources):
                     raise ValueError('memory_sources_already_processed')
                 episode = None
-                if not findings['noop']:
+                # With no project the summary carries no thread, so a revoked permission could never find it.
+                if not findings['noop'] and (findings['projects'] or findings['accepted']):
                     projects = findings['projects']
                     requirements = sorted({r for item in sources for r in item.get('requires',[])})
                     scopes = sorted({item['scope_id'] for item in sources if item.get('scope_id')})

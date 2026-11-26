@@ -38,8 +38,7 @@ class HookStartupTest(unittest.TestCase):
                 request = urllib.request.Request(info["base_url"] + "/model/settings",
                                                  headers={"Authorization": "Bearer " + info["ui_token"]})
                 with urllib.request.urlopen(request, timeout=3) as reply:
-                    self.assertTrue(json.load(reply)["mouth_ready"], "fresh state must have a guarded Mouth")
-                self.assertFalse((state / "canon-windows.json").exists(), "bundled hashes must stay read-only")
+                    self.assertTrue(json.load(reply)["mouth_ready"], "fresh state must have a Mouth")
                 with contextlib.redirect_stdout(io.StringIO()):
                     self.assertEqual(install_hooks.main([
                         "--claude-settings", str(claude), "--codex-home", str(codex),
@@ -65,24 +64,6 @@ class HookStartupTest(unittest.TestCase):
                     process.communicate(timeout=10)
                 except subprocess.TimeoutExpired:
                     process.kill(); process.communicate()
-
-    def test_main_rejects_corrupt_user_index_instead_of_using_bundle(self):
-        with tempfile.TemporaryDirectory() as directory:
-            home = Path(directory)
-            state = home / "state"
-            state.mkdir()
-            index = state / "canon-windows.json"
-            invalid = b'{"n":7,"hashes":[]}'
-            index.write_bytes(invalid)
-            process = subprocess.run(
-                [sys.executable, str(AGENTD / "server.py"), "--port", "0", "--state-dir", str(state),
-                 "--no-proactive", "--mute", "--plugin-on", "coding_sessions", "--ledger-root", str(home / "no-ledger")],
-                env={**os.environ, "HOME": str(home)}, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                timeout=10)
-            self.assertNotEqual(process.returncode, 0, process.stdout.decode(errors="replace"))
-            self.assertIn(b"ValueError", process.stdout)
-            self.assertFalse((state / "ui-runtime.json").exists(), "unguarded server must not accept requests")
-            self.assertEqual(index.read_bytes(), invalid)
 
 
 if __name__ == "__main__":

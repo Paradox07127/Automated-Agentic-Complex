@@ -2,6 +2,7 @@ from pathlib import Path
 import sys
 from types import SimpleNamespace
 import tempfile
+import threading
 import time
 import unittest
 
@@ -13,6 +14,7 @@ from personal.commitments import Commitments  # noqa: E402
 from daemon.agentd_server import AgentdServer  # noqa: E402
 from infra.store import open_store  # noqa: E402
 from sessions.events import normalize_claude  # noqa: E402
+from traces.trace_store import TraceStore  # noqa: E402
 import test_server  # noqa: E402
 from support import enable_plugins, serve_in_thread  # noqa: E402
 
@@ -283,6 +285,56 @@ class CommitmentServerTest(unittest.TestCase):
                 self.assertEqual(self.request("POST", f"/commitments/nope/{action}", payload),
                                  (503, {"error": "no_commitments"}))
                 self.server.commitments = commitments
+        self.assertEqual(self.changes(), [])
+
+    def test_a_due_reminder_and_a_decision_trace_on_one_store_lock_both_finish(self):
+        """The reminder tick and a decision trace share the store's lock; neither may wait on the other's."""
+        db = self.server.commitments.db
+        store_lock = db._idle_lock
+        self.server.commitments = Commitments(db, lock=store_lock, clock=lambda: self.now)
+        self.server.trace = TraceStore(db, self.server.registry.epoch, lock=store_lock)
+        self.server.commitments.add("喝水", self.now)
+        announcing, tracing, blocked = threading.Event(), threading.Event(), []
+        emit = self.server.trace.emit
+
+        def admit(kind, level):
+            announcing.set()
+            tracing.wait(5)
+            return True, None
+
+        def traced(*args, **kwargs):
+            tracing.set()
+            # Holding _decision_lock: a store lock the tick keeps across its announcement never frees.
+            if not store_lock.acquire(timeout=2):
+                blocked.append("store lock held by the reminder tick")
+                return None
+            store_lock.release()
+            return emit(*args, **kwargs)
+
+        self.server.gate.admit, self.server.trace.emit = admit, traced
+        tick = threading.Thread(target=self.server._commitments_due, daemon=True)
+        decision = threading.Thread(target=lambda: (announcing.wait(5),
+                                                    self.server._decision("gate.decided", {}, "k")), daemon=True)
+        tick.start()
+        decision.start()
+        tick.join(10)
+        decision.join(10)
+        self.assertFalse(tick.is_alive() or decision.is_alive())
+        self.assertEqual(blocked, [])
+        self.assertEqual([c["state"] for c in self.server.commitments.list()], ["fulfilled"])
+
+    def test_a_reminder_the_user_changes_while_it_is_announced_keeps_the_change(self):
+        item = self.server.commitments.add("喝水", self.now)
+        admit = self.server.gate.admit
+
+        def cancel_meanwhile(kind, level):
+            self.server.commitments.cancel(item["id"])
+            return admit(kind, level)
+
+        self.server.gate.admit = cancel_meanwhile
+        self.server._commitments_due()
+        [kept] = self.server.commitments.list()
+        self.assertEqual(kept["state"], "cancelled")
         self.assertEqual(self.changes(), [])
 
     def test_cancel_from_triggered(self):

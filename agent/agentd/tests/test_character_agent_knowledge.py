@@ -234,12 +234,15 @@ class KnowledgeTests(unittest.TestCase):
         self.assertTrue(service.valid())
 
     def test_permission_revoked_during_egress_does_not_return_material(self):
-        class Guard:
-            def check(inner, part, value):
+        test = self
+
+        class Revoking(EgressPolicy):
+            def observed(self, value):
                 if "revoke-now" in value:
-                    self.permissions["memory"] = False
+                    test.permissions["memory"] = False
+                return super().observed(value)
         self.fact("revoke-now")
-        service = self.make_service(egress=EgressPolicy(guard=Guard()))
+        service = self.make_service(egress=Revoking())
         self.assertEqual(service.call("personal_profile", {})["error"]["code"], "source_changed")
         self.assertEqual(service.dependencies(), [])
 

@@ -24,6 +24,15 @@ class TaskLedgerTest(unittest.TestCase):
         self.db.close()
         self.tmp.cleanup()
 
+    def test_a_failing_change_callback_is_logged_and_the_write_stands(self):
+        def broken(task):
+            raise RuntimeError("feed gone")
+        self.ledger.on_change = broken
+        with self.assertLogs("sessions.tasks", "ERROR") as logged:
+            self.ledger.create("d-1", "claude", self.tmp.name, "改一下 README", "workspace_write", now=1.0)
+        self.assertIn("feed gone", "\n".join(logged.output))
+        self.assertEqual(self.ledger.get("d-1")["state"], "proposed")
+
     def returned(self, task_id="d-1", verify_cmd=None):
         self.ledger.create(task_id, "claude", self.tmp.name, "改一下 README", "workspace_write", verify_cmd, now=1.0)
         self.ledger.transition(task_id, "approved", now=2.0)
