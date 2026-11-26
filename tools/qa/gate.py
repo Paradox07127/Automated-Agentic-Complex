@@ -5,7 +5,7 @@ When private/suites.json exists, its suites join the gate and its phases follow 
 Usage: gate.py --profile <name> [--checkout <dir>] [--logs <dir>] [--perf] [--jobs N] [--only a,b | --changed <base>]
        [--no-cache] [--dry-run] | --list
 --changed runs only the suites whose paths hold a file changed since <base> (committed, staged, unstaged or untracked,
-or under a private/ path git ignores and modified after <base>'s commit time), plus the suites they require; a changed
+or under a suite path git ignores and modified after <base>'s commit time), plus the suites they require; a changed
 file that no suite and no_suite lists runs the full profile, and so does no changed file unless the profile sets
 "empty_changes": "none".
 Phases run one after another, the lanes of a phase at once. Prints each suite's result lines in profile order, then
@@ -294,11 +294,15 @@ def select(doc, changed):
 
 
 def private_changes(repo, doc, base):
-    """The files under the suites' private/ paths, which git does not list, modified after base's commit time;
+    """The files under the suite paths whose top directory git ignores, modified after base's commit time;
     UNHASHED_DIRS are skipped as blobs skips them."""
     since = int(git(repo, 'show', '-s', '--format=%ct', base))
-    entries = sorted({path for suite in doc['suites'].values() for path in suite.get('paths', [])
-                      if path.startswith('private/')})
+    paths = {path for suite in doc['suites'].values() for path in suite.get('paths', [])}
+    # check-ignore refuses a path beyond a symbolic link, and a worktree's ignored top directory is one.
+    tops = sorted({path.split('/', 1)[0] for path in paths})
+    ignored = set(subprocess.run(['git', '-C', str(repo), 'check-ignore', '--no-index', '--stdin'], input='\n'.join(tops),
+                                 capture_output=True, text=True).stdout.split())
+    entries = sorted(path for path in paths if path.split('/', 1)[0] in ignored)
     found = set()
     for entry in entries:
         root = Path(repo, entry)

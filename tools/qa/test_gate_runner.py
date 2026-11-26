@@ -173,11 +173,11 @@ class StubTree(unittest.TestCase):
     def test_changed_runs_a_private_suite_whose_ignored_files_are_newer_than_the_base(self):
         write(self.root / '.git/info/exclude', '/private/\n')
         write(self.root / 'private/suites.json', json.dumps({'schema': gate.SCHEMA, 'suites': {'private-p': {
-            'paths': ['private/p/'], 'run': [sys.executable, '-I', '-c', 'pass'], 'parse': 'exit',
+            'paths': ['private/renderer/p/'], 'run': [sys.executable, '-I', '-c', 'pass'], 'parse': 'exit',
             'line': {'pass': 'PRIVATE-P ok', 'fail': 'PRIVATE-P fail'}}},
             'profiles': {'agentd': {'phases': [{'lanes': [['private-p']]}]}}}))
         write(self.root / 'docs/n.md', 'note\n')
-        source = self.root / 'private/p/x.py'
+        source = self.root / 'private/renderer/p/x.py'
         write(source, 'x = 1\n')
         base = int(subprocess.run(['git', '-C', str(self.root), 'show', '-s', '--format=%ct', 'main'],
                                   capture_output=True, text=True, check=True).stdout)
@@ -190,7 +190,7 @@ class StubTree(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(result.stdout.splitlines()[:2], ['SELECT: 1 of 2 suites for 2 changed files since main',
                                                           'PRIVATE-P ok'])
-        self.assertEqual(self.receipt()['selection']['changed'], ['docs/n.md', 'private/p/x.py'])
+        self.assertEqual(self.receipt()['selection']['changed'], ['docs/n.md', 'private/renderer/p/x.py'])
 
     def test_dev_profile_runs_nothing_without_changes(self):
         dev = profile_ids(gate.load_suites(gate.SUITES_FILE, private=self.root / 'private/suites.json'), 'dev')
