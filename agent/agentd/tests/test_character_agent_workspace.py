@@ -130,6 +130,12 @@ class WorkspaceTests(WorkspaceCase):
         for bad in ('x.env', 'x.exe'):
             self.assertCode('unsupported_format', lambda: self.call('artifact_write', {'path': bad, 'content': 'x', 'source_refs': []}))
 
+    def test_an_unsupported_format_error_names_the_text_formats_it_takes(self):
+        with self.assertRaises(WorkspaceError) as error:
+            self.call('artifact_write', {'path': 'x.exe', 'content': 'x', 'source_refs': []})
+        for name in ('MD', 'CSV', 'PY', 'SH', 'PS1', 'LOG'):
+            self.assertIn(name, error.exception.message.replace(',', ' ').split())
+
     def test_office_artifact_paths_stay_unsupported(self):
         self.assertCode('unsupported_format', lambda: self.call('artifact_write', {'path': 'x.docx', 'content': 'x', 'source_refs': []}))
 

@@ -81,7 +81,7 @@ def _relative(value):
     if path.is_absolute() or any(p in ('', '.', '..') for p in value.split('/')):
         raise WorkspaceError('invalid_path')
     if path.suffix.lower() not in TEXT_SUFFIXES:
-        raise WorkspaceError('unsupported_format', 'Supported formats: UTF-8 MD, TXT, CSV and JSON')
+        raise WorkspaceError('unsupported_format', 'Supported formats: UTF-8 ' + ', '.join(sorted(s[1:].upper() for s in TEXT_SUFFIXES)))
     return path.as_posix()
 
 

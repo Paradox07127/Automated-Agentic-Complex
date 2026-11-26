@@ -388,15 +388,15 @@ describe('deliver', () => {
     expect(pushed).toEqual(['未能派发任务：角色当前未在桌面显示']);
   });
 
-  it('重新检测 judges by the chat and quick routes, not the main kernel', async () => {
+  it('重新检测 judges by the chat route, not the main kernel', async () => {
     const pushed: string[] = [];
     const route = (ready: boolean) => ({ ready, follows_main: true, error: null });
-    const runtime = (chat: boolean, quick: boolean) => async () => ({ wire: { routes: { chat: route(chat), quick: route(quick) } }, info: { ready: false, selected: 'codex', runtimes: [{ id: 'codex', name: 'Codex' }] } }) as never;
-    const ready = await deps({ push: (m) => void pushed.push(m), reload: { list: () => {}, turns: () => {}, tasks: () => {}, present: () => {}, runtime: runtime(true, true) } }, []);
+    const runtime = (chat: boolean) => async () => ({ wire: { routes: { chat: route(chat) } }, info: { ready: false, selected: 'codex', runtimes: [{ id: 'codex', name: 'Codex' }] } }) as never;
+    const ready = await deps({ push: (m) => void pushed.push(m), reload: { list: () => {}, turns: () => {}, tasks: () => {}, present: () => {}, runtime: runtime(true) } }, []);
     await ready.a.recheck();
-    const quickOff = await deps({ push: (m) => void pushed.push(m), reload: { list: () => {}, turns: () => {}, tasks: () => {}, present: () => {}, runtime: runtime(true, false) } }, []);
-    await quickOff.a.recheck();
-    expect(pushed).toEqual(['执行内核已就绪', '重新检测：快速回复仍未就绪']);
+    const chatOff = await deps({ push: (m) => void pushed.push(m), reload: { list: () => {}, turns: () => {}, tasks: () => {}, present: () => {}, runtime: runtime(false) } }, []);
+    await chatOff.a.recheck();
+    expect(pushed).toEqual(['执行内核已就绪', '重新检测：主执行内核仍未就绪']);
   });
 });
 

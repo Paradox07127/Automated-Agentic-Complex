@@ -236,8 +236,8 @@ def run_eval(args, state_dir, out, persona, status):
         code, kernel = agent.request("GET", "/character/runtime?refresh=1", timeout=120)
         routes = {k: {"backend": v["backend"], "ready": v["ready"], "error": v["error"]} for k, v in kernel["routes"].items()}
         status["kernel"] = {"backend": kernel.get("backend"), "model": kernel.get("model"), "routes": routes}
-        print(f"persona-eval: kernel {kernel.get('backend')} {kernel.get('model')}; chat ready={routes['chat']['ready']}, "
-              f"quick ready={routes['quick']['ready']}", flush=True)
+        print(f"persona-eval: kernel {kernel.get('backend')} {kernel.get('model')}; chat ready={routes['chat']['ready']}",
+              flush=True)
         if not routes["chat"]["ready"]:
             raise RuntimeError(f"chat route not ready: {routes['chat']['error']}")
         scripts = json.loads(SCENARIOS.read_text(encoding="utf-8"))

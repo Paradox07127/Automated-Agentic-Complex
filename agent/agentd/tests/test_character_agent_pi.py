@@ -281,17 +281,6 @@ sdk.AgentSession.prototype.prompt = async function (...args) {
 await import(RUNNER_URL);
 """
 
-# pi_runner.mjs whose session.steer waits 1.5 s before Pi queues the message.
-SLOW_STEER_RUNNER = """
-const sdk = await import(SDK_URL);
-const steer = sdk.AgentSession.prototype.steer;
-sdk.AgentSession.prototype.steer = async function (...args) {
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  return steer.apply(this, args);
-};
-await import(RUNNER_URL);
-"""
-
 NODE, RUNTIME = resolve_pi_runtime()
 HAS_SDK = Path(NODE).is_file() and (Path(RUNTIME) / 'node_modules/@earendil-works/pi-coding-agent/package.json').is_file()
 
@@ -884,36 +873,42 @@ class PiSDKTests(unittest.TestCase):
         self.assertEqual(session.steer('late words', run_id='run-1'), (True, None))
         worker.join(10)
         self.assertTrue(result[-1]['success'], result)
+        self.assertEqual(result[-1]['steers_dropped'], ['late words'])
         self.assertTrue(list(session.stream('Next.', system_prompt='You are Mira, a concise personal companion.', run_id='run-2'))[-1]['success'])
         self.assertEqual(len(model.requests), 2)
         self.assertNotIn('late words', json.dumps(model.requests[1]))
 
-    def test_a_steer_queued_after_its_run_ended_is_refused_and_kept_out_of_the_next_run(self):
-        model = self.model([{'name': 'wait_for_consent', 'args': {}}, 'First answer.', 'Second answer.'])
-        runner = self.root / 'slow_steer_runner.mjs'
-        sdk = Path(RUNTIME) / 'node_modules/@earendil-works/pi-coding-agent/dist/index.js'
-        runner.write_text(SLOW_STEER_RUNNER.replace('SDK_URL', json.dumps(sdk.as_uri()))
-                          .replace('RUNNER_URL', json.dumps(RUNNER.as_uri())), encoding='utf-8')
-        entered, release, result, steered = threading.Event(), threading.Event(), [], []
+    def test_a_steer_reaches_the_model_as_the_users_words_without_command_expansion(self):
+        model = self.model([{'name': 'wait_for_consent', 'args': {}}, 'Changed course.'])
+        entered, release, result = threading.Event(), threading.Event(), []
         def handler(*_): entered.set(); release.wait(5); return {'ok': True}
         definitions = [{'name': 'wait_for_consent', 'description': 'Wait.', 'input_schema': {'type': 'object', 'properties': {}}}]
-        config = PiConfig(self.root / 'private', 'endfield-fixture', 'fixture', node=NODE, runtime_dir=RUNTIME,
-                          auth_source='none', base_url=model.url)
-        session = ManagedPiSession(config, definitions, handler, runner_path=runner)
-        self.resources.append(session)
-        worker = threading.Thread(target=lambda: result.extend(self.run_session(session)), daemon=True)
-        worker.start()
-        self.assertTrue(entered.wait(5))
-        sender = threading.Thread(target=lambda: steered.append(session.steer('late words', run_id='run-1')), daemon=True)
-        sender.start()
-        time.sleep(.2)
-        release.set()
+        session, _ = self.workspace_session(model, definitions, permission=lambda request: 'allow_once')
+        session.tool_handler = handler
+        worker = threading.Thread(target=lambda: result.extend(self.run_session(session)), daemon=True); worker.start()
+        self.assertTrue(entered.wait(10))
+        try:
+            # /mcp is a command of Pi's MCP extension; AgentSession.steer refuses to queue it.
+            self.assertEqual(session.steer('/mcp list', run_id='run-1'), (True, None))
+        finally:
+            release.set()
         worker.join(10)
-        sender.join(10)
         self.assertTrue(result[-1]['success'], result)
-        self.assertEqual(steered, [(False, 'no_active_run')])
-        self.assertTrue(list(session.stream('Next.', system_prompt='You are Mira, a concise personal companion.', run_id='run-2'))[-1]['success'])
-        self.assertNotIn('late words', json.dumps(model.requests[-1]))
+        self.assertNotIn('steers_dropped', result[-1])
+        self.assertIn('/mcp list', json.dumps(model.requests[1]['messages'][-1]))
+
+    def test_prewarm_starts_a_runner_the_first_query_initializes(self):
+        model = self.model(['Hello.'])
+        session = self.session(model)
+        session.prewarm()
+        spare = session.pid
+        self.assertIsNotNone(spare)
+        session.prewarm()
+        self.assertEqual(session.pid, spare)
+        events = self.run_session(session)
+        self.assertTrue(events[-1]['success'], events)
+        self.assertEqual(session.pid, spare)
+        self.assertEqual(events[0]['context_window'] > 0, True)
 
     def test_invalidate_recreates_native_session_with_product_history(self):
         model = self.model(['first', 'resumed'])

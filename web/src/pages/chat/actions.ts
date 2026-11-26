@@ -245,10 +245,9 @@ export function createChatActions(d: ChatDeps) {
 
     async recheck() {
       const r = await d.reload.runtime(true).catch(() => undefined);
-      // agentd answers a line through the quick route or the chat route, whatever the main kernel is.
-      const off = r ? ([['chat', '主执行内核'], ['quick', '快速回复']] as const).find(([route]) => !r.wire.routes[route].ready) : undefined;
-      if (r && !off) d.push('执行内核已就绪', { severity: 'success' });
-      else d.push(`重新检测：${off?.[1] ?? '执行内核'}仍未就绪`, { severity: 'warning' });
+      // agentd answers a line through the chat route, whatever the main kernel is.
+      if (r?.wire.routes.chat.ready) d.push('执行内核已就绪', { severity: 'success' });
+      else d.push(r ? '重新检测：主执行内核仍未就绪' : '重新检测：执行内核仍未就绪', { severity: 'warning' });
     },
 
     async onDrawer(a: TaskAction) {

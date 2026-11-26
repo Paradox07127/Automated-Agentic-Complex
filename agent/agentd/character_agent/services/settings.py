@@ -19,7 +19,7 @@ DEFAULTS = {"backend": "pi", "runtime_source": "bundled", "executable": None,
             "routes": {}, "acp_agent": None, "acp_launcher": "local", "workspace_dir": None,
             "reply_language": "auto", "pi_tool_approval": True}
 # Purposes `routes` may give their own kernel; a purpose without an entry runs on the main config.
-ROUTES = ("chat", "quick", "background", "judge", "understand", "memory", "computer")
+ROUTES = ("chat", "background", "judge", "understand", "memory", "computer")
 EFFORTS = (None, "inherit", "low", "medium", "high")
 
 
@@ -138,8 +138,6 @@ class RuntimeSettings:
     def route(config, purpose, *, pi_provider=None):
         """The kernel config `purpose` (one of ROUTES) runs on: the main config with its routes entry applied.
         `_turn_effort` is the session's reasoning effort; None leaves the harness's own."""
-        if purpose == "quick":
-            purpose = "chat"
         entry = config["routes"].get(purpose)
         value, effort = dict(config), None
         if entry is not None:

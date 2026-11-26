@@ -143,7 +143,6 @@ class RuntimeRouteTests(unittest.TestCase):
         self.assertEqual(reply['routes'], {
             **expected,
             'chat': chat_wire,
-            'quick': chat_wire,
             'judge': {**judge, 'follows_main': False, 'ready': False, 'error': 'runtime_missing'}})
         self.assertEqual(set(reply) - {'routes'}, set(self.request('GET')[1]) - {'routes'})
         self.rows.append(self.found('claude', False))
@@ -169,9 +168,8 @@ class RuntimeRouteTests(unittest.TestCase):
         found.start(); self.addCleanup(found.stop)
         unrestricted = {'ready': False, 'error': 'acp_agent_unrestricted'}
         ready = {'ready': True, 'error': None}
-        reply = self.put({'routes': {purpose: route('acp', acp_agent='goose') for purpose in ROUTES if purpose != 'quick'}})
-        self.assertEqual({purpose: {key: value[key] for key in ('ready', 'error')} for purpose, value in reply['routes'].items()
-                          if purpose != 'quick'},
+        reply = self.put({'routes': {purpose: route('acp', acp_agent='goose') for purpose in ROUTES}})
+        self.assertEqual({purpose: {key: value[key] for key in ('ready', 'error')} for purpose, value in reply['routes'].items()},
                          {'chat': ready, 'background': ready, 'judge': unrestricted, 'understand': unrestricted,
                           'memory': unrestricted, 'computer': unrestricted})
         with self.assertRaisesRegex(ValueError, '^acp_agent_unrestricted$'):

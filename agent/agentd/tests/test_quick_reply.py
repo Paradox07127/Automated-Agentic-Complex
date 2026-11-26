@@ -48,11 +48,11 @@ class QuickTests(unittest.TestCase):
                               (body['line_id'],)).fetchone()
         return events, json.loads(row[0])['attrs'].get('route')
 
-    def test_quick_route_aliases_chat_route(self):
-        config = RuntimeSettings.validate({'backend': 'codex', 'runtime_source': 'local', 'model': 'main',
-                                           'routes': {'chat': route('claude', 'sonnet', 'high')}})
-        self.assertEqual(RuntimeSettings.route(config, 'quick'), RuntimeSettings.route(config, 'chat'))
-        self.assertEqual(self.c.public()['routes']['quick'], self.c.public()['routes']['chat'])
+    def test_runtime_reports_no_quick_route_and_refuses_one(self):
+        self.assertNotIn('quick', self.c.public()['routes'])
+        with self.assertRaisesRegex(ValueError, '^invalid_routes$'):
+            RuntimeSettings.validate({'backend': 'codex', 'runtime_source': 'local',
+                                      'routes': {'quick': route('claude', 'sonnet', 'high')}})
 
     def test_chat_reuses_session_and_feeds_memory(self):
         for i in range(5):
@@ -66,15 +66,37 @@ class QuickTests(unittest.TestCase):
         self.assertIn('早上好 0', request_text)
         self.assertIn('Hello', request_text)
 
-    def test_prewarm_twice_succeeds(self):
+    def test_prewarm_answers_on_every_kernel_and_only_pi_starts_a_session(self):
         expected = json.loads((Path(__file__).resolve().parents[3] / 'protocol/C6-agentd-api/fixtures/chat-prewarm.json').read_text(encoding='utf-8'))
+        self.assertEqual(request(self.server, 'POST', '/chat/prewarm', {}), (200, expected))
+        for config in ({'backend': 'claude', 'runtime_source': 'local'},
+                       {'backend': 'acp', 'runtime_source': 'local', 'acp_agent': 'goose'}):
+            with self.subTest(config['backend']):
+                self.c.configure(config)
+                self.c.prewarm()
+        self.assertEqual(self.sessions, [])
+        self.c.configure({'backend': 'pi', 'runtime_source': 'bundled'})
         for _ in range(2):
-            self.assertEqual(request(self.server, 'POST', '/chat/prewarm', {}), (200, expected))
+            self.c.prewarm()
         self.assertEqual(len(self.sessions), 1)
-        self.assertTrue(self.sessions[0].prewarm.called)
+        self.assertEqual(self.sessions[0].prewarm.call_count, 2)
         self.assertEqual(self.sessions[0].calls, [])
+
+    def test_the_first_turn_after_prewarm_takes_over_the_warm_session(self):
+        self.c.configure({'backend': 'pi', 'runtime_source': 'bundled'})
+        self.c.prewarm()
         self.say('早上好')
-        self.assertTrue(self.sessions[-1].calls)
+        self.assertEqual(len(self.sessions), 1)
+        self.assertTrue(self.sessions[0].calls)
+        self.assertTrue(self.sessions[0].tool_definitions)
+
+    def test_a_settings_change_retires_the_warm_session(self):
+        self.c.configure({'backend': 'pi', 'runtime_source': 'bundled'})
+        self.c.prewarm()
+        self.c.configure({'backend': 'codex', 'runtime_source': 'local'})
+        self.assertGreater(self.sessions[0].closed, 0)
+        self.say('早上好')
+        self.assertEqual(len(self.sessions), 2)
 
     def test_stale_prepare_never_replaces_runtime(self):
         runtime = self.c._ensure_runtime()

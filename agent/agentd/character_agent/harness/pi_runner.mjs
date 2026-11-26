@@ -191,6 +191,10 @@ async function loadSdk(runtimeDir) {
     allowModelNetwork: false, refreshOnCreate: false });
   return { sdk, pkg, credentials, runtime, packageDir };
 }
+// A runner started with its runtime directory (argv[2]) imports the SDK while it waits for init.
+const preload = process.argv[2] ? { dir: process.argv[2], sdk: loadSdk(process.argv[2]) } : null;
+// A failed import is init's error, not an unhandled rejection.
+preload?.sdk.catch(() => {});
 // Their SDKs are pruned from the bundle (pi_install_runtime.PRUNED_SCOPES).
 const PRUNED_APIS = new Set(["bedrock-converse-stream", "google-generative-ai", "google-vertex"]);
 async function listModels(message) {
@@ -210,7 +214,8 @@ async function listModels(message) {
 async function init(message) {
   if (initialized || session) throw new Error("already_initialized");
   config = message.config;
-  const { sdk, pkg, credentials, runtime, packageDir } = await loadSdk(config.runtime_dir);
+  const { sdk, pkg, credentials, runtime, packageDir } =
+    await (preload?.dir === config.runtime_dir ? preload.sdk : loadSdk(config.runtime_dir));
   modelRuntime = runtime;
   const key = config.auth_source === "none" ? "endfield-loopback" : config.api_key;
   const trim = url => String(url || "").replace(/\/+$/, "");
@@ -281,6 +286,8 @@ async function init(message) {
   if (config.native_tools) await session.bindExtensions({});
   session.subscribe(event => {
     const run = active;
+    // Pi starts a queued steer as the same message object it was queued as.
+    if (run && event.type === "message_start") run.steers = run.steers.filter(entry => entry !== event.message);
     if (!run || run.cancelled || run.limit) return;
     if (event.type === "message_update" && event.assistantMessageEvent?.type === "text_delta") {
       // Each assistant message is one final-answer item; final_text below is all of them, as streamed.
@@ -315,6 +322,8 @@ async function init(message) {
     builtin_tools: builtin.names, builtin_tools_unavailable: builtin.unavailable, shell: builtin.shell,
     tool_approval: approval, workspace_dir: config.native_tools ? cwd : null,
     provider: config.provider, model: config.model, persist_session: false,
+    // Tokens; agentd starts a new session before a long one outgrows it.
+    ...(Number.isInteger(model.contextWindow) && model.contextWindow > 0 ? { context_window: model.contextWindow } : {}),
     modalities: acceptsImages ? ["text", "image"] : ["text"],
     auth_source: config.auth_source, authenticated: !!key || (await credentials.list()).some(x => x.providerId === config.provider),
     cost_tracking: priced ? "provider_catalog_estimate" : "unpriced_custom_endpoint",
@@ -345,7 +354,7 @@ async function query(message) {
   if (!initialized) return fail("pi_not_initialized", message.run_id);
   if (active) return fail("run_busy", message.run_id);
   const run = { id: message.run_id, quick: message.system_prompt !== undefined, started: Date.now(), cancelled: false, turns: 0, cost: 0, text: [], textItem: null,
-    usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0 } };
+    usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0 }, steers: [] };
   active = run;
   const stream = message.system_prompt !== undefined ? session.agent.streamFunction : undefined;
   try {
@@ -399,7 +408,7 @@ async function query(message) {
     const stop = run.last?.stopReason;
     const success = !run.cancelled && !run.limit && !!run.last && !["error", "aborted", "length"].includes(stop);
     const text = run.text.join("");
-    emit("result", { run_id: run.id, session_id: session.sessionId, success,
+    emit("result", { run_id: run.id, session_id: session.sessionId, success, ...unread(run),
       subtype: run.cancelled ? "cancelled" : run.limit || (success ? "success" : "model_error"),
       text, final_text: text, usage: usage(run), model: config.model, provider: config.provider,
       // The last model call's prompt size; usage(run) sums every call of the run.
@@ -409,31 +418,36 @@ async function query(message) {
       cost_tracking: priced ? "provider_catalog_estimate" : "unpriced_custom_endpoint", num_turns: run.turns,
       ...(success ? {} : { stop_reason: stop, error_message: String(run.last?.errorMessage || "").slice(0, 2000) }) });
   } catch (error) {
-    emit("result", { run_id: run.id, session_id: session?.sessionId, success: false,
+    emit("result", { run_id: run.id, session_id: session?.sessionId, success: false, ...unread(run),
       subtype: run.cancelled ? "cancelled" : run.limit || "model_error", final_text: "", usage: usage(run),
       model: config.model, provider: config.provider, cost_usd: priced ? run.cost : null,
       error_message: String(error?.message || "").slice(0, 2000) });
   } finally {
     if (message.system_prompt !== undefined) session.agent.streamFunction = stream;
-    // A steer accepted after Pi's last look at its queue would open the next run.
-    session.clearQueue();
     active = undefined; endPending();
   }
+}
+// The run's accepted steers Pi never started, as result fields; they leave the queue so they cannot open the next run.
+// Only the active run queues steers, so the whole steering queue is this run's.
+function unread(run) {
+  if (!run.steers.length) return {};
+  session.agent.clearSteeringQueue();
+  return { steers_dropped: run.steers.map(entry => entry.content[0].text) };
 }
 function steerResult(message, code = null) {
   emit("steer_result", { run_id: message.run_id, steer_id: message.steer_id, accepted: code === null, code });
 }
-// Pi hands a steering message to the model after the current assistant turn and its tool calls.
-async function steer(message) {
+// Pi hands a steering message to the model after the current assistant turn and its tool calls. It goes onto the
+// agent's queue directly: AgentSession.steer would expand skill commands and prompt templates in the user's words,
+// and its await would let the run end before the message is queued.
+function steer(message) {
   const run = active;
   if (!run || run.id !== message.run_id || run.cancelled || run.limit) return steerResult(message, "no_active_run");
   if (run.quick) return steerResult(message, "not_steerable_now");
-  let disposition;
-  try { disposition = await session.steer(message.text, undefined, { source: "rpc" }); }
-  catch { return steerResult(message, "steer_failed"); }
-  // Pi queues only after its input handlers ran; a run that ended meanwhile already cleared the queue.
-  if (active !== run) { session.clearQueue(); return steerResult(message, "no_active_run"); }
-  steerResult(message, disposition === "queued" || disposition === "handled" ? null : "steer_failed");
+  const entry = { role: "user", content: [{ type: "text", text: message.text }], timestamp: Date.now() };
+  session.agent.steer(entry);
+  run.steers.push(entry);
+  steerResult(message);
 }
 async function command(message) {
   if (!message || message.v !== 1) throw new Error("invalid_protocol");

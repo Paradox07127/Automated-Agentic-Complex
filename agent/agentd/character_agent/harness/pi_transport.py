@@ -83,10 +83,19 @@ class ManagedPiSession(ManagedClaudeSession):
         self.service_ready = service_ready
 
     def prewarm(self):
-        with self._state_lock:
-            if self._ready is not None and self._proc.poll() is None:
-                return
-        self.probe("")
+        """Start the runner without its init: it loads Pi's SDK meanwhile, and the first query's init (which needs that
+        query's system prompt and tools) only builds the session. A runner already running, or a run, is warm already."""
+        if not self._stream_lock.acquire(blocking=False):
+            return
+        try:
+            self.config.validate(require_key=False)
+            with self._state_lock:
+                if self._proc is not None and self._proc.poll() is None:
+                    return
+            self.close()
+            self._spawn(None)
+        finally:
+            self._stream_lock.release()
 
     def _queue(self, event, generation, proc):
         # The model's own error text is classified here and goes no further: it may quote request content.
@@ -129,12 +138,8 @@ class ManagedPiSession(ManagedClaudeSession):
                 raise HarnessError(str(error)) from None
         super()._write(message, proc)
 
-    def _ensure(self, system_prompt, cancelled=None):
-        self.config.validate(require_key=False)
-        if self._proc is not None and self._proc.poll() is None and self._system_prompt == system_prompt \
-                and self._ready is not None:
-            return self._ready
-        self.close()
+    def _spawn(self, system_prompt):
+        """A new runner for this session; system_prompt None marks one prewarm started, which awaits its init."""
         with self._state_lock:
             self._generation += 1
             generation = self._generation
@@ -142,17 +147,34 @@ class ManagedPiSession(ManagedClaudeSession):
             self._seen_tools = set()
             try:
                 env = pi_runner_environment(self.config.state_dir)
-                self._proc = subprocess.Popen([self.config.node, str(self.runner_path)],
+                # The runtime directory lets the runner import the SDK before its init arrives.
+                self._proc = subprocess.Popen([self.config.node, str(self.runner_path), str(self.config.runtime_dir)],
                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                     cwd=str(Path(self.config.state_dir).resolve() / "workspace"), env=env,
                     bufsize=0, close_fds=True, **new_group_options())
                 track_group(self._proc)
             except OSError as error:
                 raise HarnessError("pi_runtime_unavailable") from error
-            proc = self._proc
             self._system_prompt = system_prompt
             self._first_query = True
-            threading.Thread(target=self._read, args=(proc, generation), name="pi-runner-reader", daemon=True).start()
+            threading.Thread(target=self._read, args=(self._proc, generation), name="pi-runner-reader",
+                             daemon=True).start()
+            return self._proc
+
+    def _ensure(self, system_prompt, cancelled=None):
+        self.config.validate(require_key=False)
+        with self._state_lock:
+            running = self._proc is not None and self._proc.poll() is None
+            if running and self._system_prompt == system_prompt and self._ready is not None:
+                return self._ready
+            spare = self._proc if running and self._ready is None and self._system_prompt is None else None
+            if spare is not None:
+                self._system_prompt = system_prompt
+        if spare is not None:
+            proc = spare
+        else:
+            self.close()
+            proc = self._spawn(system_prompt)
         # Until its ready frame is published the runner is provisional: any failure closes it.
         try:
             self._write({"type": "init", "config": self.config.wire(), "system_prompt": system_prompt,

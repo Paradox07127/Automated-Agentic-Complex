@@ -475,7 +475,7 @@ class IntegrationTests(IntegrationFixture):
         finally:
             release.set(); self.controller.jobs.close()
 
-    def test_b3_turn_with_a_scope_names_its_material(self):
+    def test_turn_with_a_scope_names_its_material(self):
         sheet = self.root / 'expenses.csv'
         sheet.write_text('类别,金额\n差旅,480\n', encoding='utf-8')
         picked = self.controller.workspace.create_scope(files=[str(sheet)])['scope_id']
@@ -489,7 +489,7 @@ class IntegrationTests(IntegrationFixture):
         self.line('你好')
         self.assertNotIn('Selected material', self.sessions[-1].calls[-1]['prompt'])
 
-    def test_b3_task_continue_resumes_a_foreground_task_in_the_background(self):
+    def test_task_continue_resumes_a_foreground_task_in_the_background(self):
         seen, release = {}, threading.Event()
         def work(session, prompt, options):
             if 'background_assignment' in prompt:
@@ -527,7 +527,7 @@ class IntegrationTests(IntegrationFixture):
         self.assertEqual(seen['again'].get('error', {}).get('code'), 'job_not_resumable')
         self.assertEqual(len(self.controller.jobs.store.list(limit=None)), 1)
 
-    def test_b3_index_lists_foreground_tasks_but_not_background_ones(self):
+    def test_index_lists_foreground_tasks_but_not_background_ones(self):
         def work(session, prompt, options):
             if 'background_assignment' in prompt or '整理' in prompt:
                 yield from session.use(options, 'task_plan',
@@ -1029,7 +1029,7 @@ class IntegrationTests(IntegrationFixture):
         for turn in self.server.history.export():
             self.assertNotIn('报告用途？', turn['user_text'])
 
-    def test_c3_answered_question_supplies_the_reminder_time(self):
+    def test_answered_question_supplies_the_reminder_time(self):
         from datetime import datetime, timedelta, timezone
         from personal.commitments import Commitments
         self.server.commitments = Commitments(self.db, lock=self.server.memory.lock)
@@ -1057,7 +1057,7 @@ class IntegrationTests(IntegrationFixture):
         self.assertEqual([(i['text'], i['due_at']) for i in items], [('续费', due.timestamp())],
                          self.sessions[-1].responses)
 
-    def test_d2_the_resumed_line_does_not_show_the_users_words_again(self):
+    def test_the_resumed_line_does_not_show_the_users_words_again(self):
         from personal.commitments import Commitments
         self.server.commitments = Commitments(self.db, lock=self.server.memory.lock)
         def script(session, prompt, options):
@@ -1146,7 +1146,7 @@ class IntegrationTests(IntegrationFixture):
     def state(self, run_id):
         return self.controller.store.get(run_id)['state']
 
-    def test_p0_4_input_while_foreground_works_is_answered_by_a_side_session(self):
+    def test_input_while_foreground_works_is_answered_by_a_side_session(self):
         conn, response = self.open_feed(); self.addCleanup(conn.close)
         task = self.busy_foreground()
         results = self.calling('task_plan')
@@ -1165,7 +1165,7 @@ class IntegrationTests(IntegrationFixture):
         self.assertEqual(len(self.server.history.export()), 2)
         self.assertEqual(len(self.server.mouth.history), 2)
 
-    def test_p0_4_input_while_foreground_works_is_also_steered_into_the_foreground(self):
+    def test_input_while_foreground_works_is_also_steered_into_the_foreground(self):
         from character_agent.integration import STEER_NOTE
         conn, response = self.open_feed(); self.addCleanup(conn.close)
         task = self.busy_foreground()
@@ -1185,7 +1185,36 @@ class IntegrationTests(IntegrationFixture):
         self.gates['TASK'].set()
         self.until(lambda: self.state(task['run_id']) == 'completed' and not self.server._live_lines)
 
-    def test_p0_4_a_temporary_or_her_own_side_line_is_not_steered(self):
+    def test_a_side_turn_during_the_foreground_reaches_its_next_turn_as_unseen(self):
+        conn, response = self.open_feed(); self.addCleanup(conn.close)
+        task = self.busy_foreground()
+        status, side = self.request('POST', '/say', {'text': '顺便问一下今天几号', 'no_memory': False})
+        self.assertEqual(status, 202, side)
+        self.reply_of(response, side['line_id'])
+        self.gates['TASK'].set()
+        self.until(lambda: self.state(task['run_id']) == 'completed' and not self.server._live_lines)
+        status, body = self.request('POST', '/say', {'text': '继续'})
+        self.assertEqual(status, 202, body)
+        self.until(lambda: len(self.sessions[0].calls) == 2 and not self.server._live_lines)
+        prompt = self.sessions[0].calls[-1]['prompt']
+        self.assertIn('Turns this session has not seen', prompt)
+        self.assertIn('顺便问一下今天几号', prompt.split('Turns this session has not seen')[1])
+
+    def test_a_key_in_input_steered_into_the_foreground_is_masked(self):
+        from character_agent.integration import STEER_NOTE
+        conn, response = self.open_feed(); self.addCleanup(conn.close)
+        task = self.busy_foreground()
+        status, side = self.request('POST', '/say', {'text': '用这个 key：sk-abcdefghijklmnopqrstuvwx'})
+        self.assertEqual(status, 202, side)
+        self.reply_of(response, side['line_id'])
+        self.until(lambda: self.sessions[0].steers)
+        [(steered, _)] = self.sessions[0].steers
+        self.assertNotIn('sk-abcdefghijklmnopqrstuvwx', steered)
+        self.assertTrue(steered.startswith(STEER_NOTE + '用这个 key：'), steered)
+        self.gates['TASK'].set()
+        self.until(lambda: self.state(task['run_id']) == 'completed' and not self.server._live_lines)
+
+    def test_a_temporary_or_her_own_side_line_is_not_steered(self):
         conn, response = self.open_feed(); self.addCleanup(conn.close)
         task = self.busy_foreground()
         status, side = self.request('POST', '/say', {'text': '临时问一句', 'no_memory': True})
@@ -1355,13 +1384,13 @@ class IntegrationTests(IntegrationFixture):
         self.until(lambda: self.state(task['run_id']) == 'cancelled')
         self.assertEqual(self.request('GET', '/character/runtime')[1]['model'], 'synthetic-model')
 
-    def test_p0_4a_foreground_harness_run_lines_are_agent_lane_with_their_run_id(self):
+    def test_foreground_harness_run_lines_are_agent_lane_with_their_run_id(self):
         body, events = self.line()
         active = self.server.history.conversations.active
         self.assertEqual({(e['lane'], e['run_id'], e['conversation_id']) for e in events},
                          {('agent', body['run_id'], active)})
 
-    def test_p0_4a_side_session_lines_are_side_lane_without_run_id(self):
+    def test_side_session_lines_are_side_lane_without_run_id(self):
         conn, response = self.open_feed(); self.addCleanup(conn.close)
         self.busy_foreground()
         side = self.request('POST', '/say', {'text': '顺便问一下今天几号'})[1]
@@ -1371,7 +1400,7 @@ class IntegrationTests(IntegrationFixture):
         self.gates['TASK'].set()
         self.until(lambda: not self.server._live_lines)
 
-    def test_p0_4_voice_stops_keep_the_foreground_and_end_the_side(self):
+    def test_voice_stops_keep_the_foreground_and_end_the_side(self):
         task = self.busy_foreground()
         generation = self.server.turn_generation
         for stop in ('barge_in', '停下'):
@@ -1389,7 +1418,7 @@ class IntegrationTests(IntegrationFixture):
         self.gates['TASK'].set()
         self.until(lambda: self.state(task['run_id']) == 'completed')
 
-    def test_p0_4_stop_task_ends_foreground_and_side(self):
+    def test_stop_task_ends_foreground_and_side(self):
         task = self.busy_foreground()
         side = self.request('POST', '/say', {'text': '停止任务'})
         self.assertEqual(side[0], 202)
@@ -1399,7 +1428,7 @@ class IntegrationTests(IntegrationFixture):
         self.assertEqual(self.request('POST', f"/agent/runs/{task['run_id']}/cancel", {'generation': run['generation']})[0], 202)
         self.until(lambda: self.state(task['run_id']) == 'cancelled')
 
-    def test_p0_4_second_side_replaces_only_the_first(self):
+    def test_second_side_replaces_only_the_first(self):
         task = self.busy_foreground()
         one = self.request('POST', '/say', {'text': '第一问 SIDE'})[1]
         self.until(lambda: one['line_id'] in self.started)
@@ -1409,7 +1438,7 @@ class IntegrationTests(IntegrationFixture):
         self.assertEqual(self.state(task['run_id']), 'running')
         self.assertEqual(self.sessions[0].interrupted, 0)
 
-    def test_p0_4_main_window_stop_names_the_side_run_only(self):
+    def test_main_window_stop_names_the_side_run_only(self):
         task = self.busy_foreground()
         job = self.controller.submit_job('后台', '后台核查 SIDE', '核查')
         try:
@@ -1426,7 +1455,7 @@ class IntegrationTests(IntegrationFixture):
         finally:
             self.gates['SIDE'].set(); self.controller.jobs.close()
 
-    def test_p0_4_context_clear_after_side_delivery_still_finds_the_foreground(self):
+    def test_context_clear_after_side_delivery_still_finds_the_foreground(self):
         conn, response = self.open_feed(); self.addCleanup(conn.close)
         task = self.busy_foreground()
         self.server._line_context[self.server._line_cancel] = (task['run_id'], {'page'})
@@ -1579,7 +1608,7 @@ class TurnContextTests(unittest.TestCase):
         self.assertEqual(reply, {'job_id': job.hex, 'run_id': 'bg-' + run.hex, 'state': 'queued'})
         self.assertEqual(self.c.jobs.store.get(reply['job_id'])['run_id'], reply['run_id'])
 
-    def test_k17_turn_context_refreshes_local_date_at_midnight(self):
+    def test_turn_context_refreshes_local_date_at_midnight(self):
         from datetime import datetime, timedelta, timezone
         clock = SimpleNamespace(now=lambda: SimpleNamespace(astimezone=lambda: moments.pop(0)))
         moments = [datetime(2026, 10, 27, 23, 59, 59, tzinfo=timezone(timedelta(hours=8))),
@@ -1591,7 +1620,7 @@ class TurnContextTests(unittest.TestCase):
         self.assertIn('Local time: 2026-10-28 00:00 Wednesday (UTC+08:00)', self.sessions[0].calls[1]['prompt'])
         self.assertEqual(self.sessions[0].calls[1]['prompt'].count('Local time'), 1)
 
-    def test_k03_foreground_records_explicit_harness_identity_and_cost(self):
+    def test_foreground_records_explicit_harness_identity_and_cost(self):
         from models.usage import UsageMeter
         self.server.usage = UsageMeter(self.db, lock=self.server.memory.lock)
         def script(session, prompt, options):
@@ -1620,7 +1649,7 @@ class TurnContextTests(unittest.TestCase):
             return
         yield from chat(session, prompt, options)
 
-    def test_w6_pending_question_is_named_in_the_next_turn_context(self):
+    def test_pending_question_is_named_in_the_next_turn_context(self):
         self.fixture.script = self.ask_then_chat
         self.prepare('整理费用，先询问用途')
         self.assertEqual([row['state'] for row in self.c.interactions.list()], ['pending'])
@@ -1628,11 +1657,11 @@ class TurnContextTests(unittest.TestCase):
         self.assertIn('Your open questions to the user: "报告用途？"; "截止哪天？". This message does not answer them',
                       self.sessions[-1].calls[-1]['prompt'])
 
-    def test_w6_no_pending_question_leaves_context_unchanged(self):
+    def test_no_pending_question_leaves_context_unchanged(self):
         self.prepare('今天天气怎么样')
         self.assertNotIn('Your open questions', self.sessions[-1].calls[-1]['prompt'])
 
-    def test_w6_dismissed_question_is_not_named_again(self):
+    def test_dismissed_question_is_not_named_again(self):
         self.fixture.script = self.ask_then_chat
         self.prepare('整理费用，先询问用途')
         card = self.c.interactions.list()[0]
@@ -1640,7 +1669,7 @@ class TurnContextTests(unittest.TestCase):
         self.prepare('今天天气怎么样')
         self.assertNotIn('Your open questions', self.sessions[-1].calls[-1]['prompt'])
 
-    def test_w12_surface_names_where_the_line_came_from(self):
+    def test_surface_names_where_the_line_came_from(self):
         for surface, name in (('quick_input', 'desktop quick input'), ('bubble_reply', 'a reply to your bubble'),
                               ('thought_offer', 'accepting your suggestion'), ('chat', 'the chat page')):
             self.prepare('好', surface=surface)
@@ -1648,7 +1677,7 @@ class TurnContextTests(unittest.TestCase):
         self.prepare('好')
         self.assertNotIn('Sent from', self.sessions[-1].calls[-1]['prompt'])
 
-    def test_w12_quote_is_data_in_this_turn_only_and_passes_egress(self):
+    def test_quote_is_data_in_this_turn_only_and_passes_egress(self):
         self.prepare('这段什么意思', quote={'text': '周报发给 alice@example.com，电话 13812345678', 'app': '备忘录'})
         prompt = self.sessions[-1].calls[-1]['prompt']
         self.assertIn('\nQuoted selection (from 备忘录): "周报发给 [已遮蔽:邮箱]，电话 [已遮蔽:电话]"', prompt)
@@ -1658,7 +1687,7 @@ class TurnContextTests(unittest.TestCase):
         self.prepare('今天天气怎么样')
         self.assertNotIn('Quoted selection', self.sessions[-1].calls[-1]['prompt'])
 
-    def test_w14_reply_to_quotes_her_line_or_thought_through_egress(self):
+    def test_reply_to_quotes_her_line_or_thought_through_egress(self):
         from character.proactive_log import ProactiveLog
         self.server.proactive_log = ProactiveLog(self.db)
         self.server.proactive_log.shown('l1', 'line', 'comment', None, '要我把周报发给 alice@example.com 吗', None, None, 1.0)
@@ -1691,7 +1720,7 @@ class TurnContextTests(unittest.TestCase):
         start = prompt.index('{', prompt.index('Goals and background work'))
         return json.JSONDecoder().raw_decode(prompt, start)[0]
 
-    def test_b3_job_index_spans_conversations_and_includes_recent_failures(self):
+    def test_job_index_spans_conversations_and_includes_recent_failures(self):
         a = self.server.history.conversations.active
         failed = self.job('整理上周报表', a, 'failed', 2 * 86400)
         old = self.job('很久以前的任务', a, 'failed', 8 * 86400)
@@ -1705,7 +1734,7 @@ class TurnContextTests(unittest.TestCase):
         self.assertEqual(set(jobs[failed]), {'job_id', 'title', 'state', 'updated_at', 'same_conversation'})
         self.assertNotIn(old, jobs)
 
-    def test_b3_job_index_is_bounded_and_current_conversation_first(self):
+    def test_job_index_is_bounded_and_current_conversation_first(self):
         a = self.server.history.conversations.active
         long = '很长的标题' * 20
         for i in range(14):
@@ -1724,7 +1753,7 @@ class TurnContextTests(unittest.TestCase):
         updated = [job['updated_at'] for job in jobs[1:]]
         self.assertEqual(updated, sorted(updated, reverse=True))
 
-    def test_b3_dispatch_window_is_seven_days(self):
+    def test_dispatch_window_is_seven_days(self):
         with patch.object(self.server.tasks, 'agent_dispatches', wraps=self.server.tasks.agent_dispatches) as dispatches:
             self.prepare('派出去的任务呢')
         self.assertAlmostEqual(dispatches.call_args.kwargs['since'], time.time() - 7 * 86400, delta=60)
@@ -1734,11 +1763,11 @@ class TurnContextTests(unittest.TestCase):
         self.assertIn('Writing files, several tool steps or over 20 seconds', self.sessions[-1].calls[-1]['system_prompt'])
         self.assertIn('Chat, questions and answers from material need no task',self.sessions[-1].calls[-1]['system_prompt'])
 
-    def test_b3_continuing_an_earlier_task_uses_task_continue(self):
+    def test_continuing_an_earlier_task_uses_task_continue(self):
         self.prepare('接着昨天那个报销汇总继续')
         self.assertIn('Earlier work to continue: task_continue, not a new task_plan', self.sessions[-1].calls[-1]['system_prompt'])
 
-    def test_p0_1_history_turns_redact_pii_without_dropping_turns(self):
+    def test_history_turns_redact_pii_without_dropping_turns(self):
         self.server.mouth.history = [
             [{'role': 'user', 'content': '联系我 private@example.com'}, {'role': 'assistant', 'content': '记下了，联系 private@example.com'}],
             [{'role': 'user', 'content': '今天天气不错'}, {'role': 'assistant', 'content': '是啊。'}]]
@@ -2073,7 +2102,7 @@ class ScopedCancelTests(unittest.TestCase):
         self.assertEqual(self.c.jobs.store.get(job['job_id'])['state'], 'cancelled')
         self.assertEqual(self.c.store.get(job['run_id'])['state'], 'cancelled')
 
-    def test_k10_new_controller_answers_retained_foreground_card(self):
+    def test_new_controller_answers_retained_foreground_card(self):
         from character_agent.services.interactions import QuestionTurn
         topics = self.server.history.conversations
         topics.update(self.a, {'expected_version': topics.get(self.a)['revision']}, activate=True)
@@ -2099,7 +2128,7 @@ class ScopedCancelTests(unittest.TestCase):
         self.assertEqual(checkpoint['pending_tool']['result'], {'answers': {'q': ['answer']}})
         self.assertEqual(self.c.interactions.get(card['request_id'])['state'], 'resumed')
 
-    def test_k10_background_wait_releases_worker_and_answer_resumes_same_job(self):
+    def test_background_wait_releases_worker_and_answer_resumes_same_job(self):
         self.c.jobs.concurrency = 1
         now = [100.]
         self.c.jobs.store.clock = lambda: now[0]
@@ -2150,7 +2179,7 @@ class ScopedCancelTests(unittest.TestCase):
         options = self.sessions[resumed['run_id']].calls[0]
         self.assertEqual(options['ask_user_result']['result'], {'answers': {'q': ['use [已遮蔽:密钥]']}})
 
-    def test_k06_conversation_cancel_stops_the_foreground_and_leaves_its_jobs_running(self):
+    def test_conversation_cancel_stops_the_foreground_and_leaves_its_jobs_running(self):
         one = self.job(self.a); queued = self.job(self.a, running=False)
         runtime = self.foreground()
         code, body = self.request('/conversations/' + self.a + '/cancel', {'run_id': 'foreground', 'generation': 7})
@@ -2161,7 +2190,7 @@ class ScopedCancelTests(unittest.TestCase):
         self.assertIn(self.c.jobs.store.get(queued['job_id'])['state'], ('queued', 'running'))
         self.assertEqual(self.sessions[one['run_id']].interrupted, 0)
 
-    def test_k06_conversation_cancel_leaves_a_waiting_job_run_to_its_own_cancel(self):
+    def test_conversation_cancel_leaves_a_waiting_job_run_to_its_own_cancel(self):
         job = self.c.jobs.store.submit('question', {'user_request': 'original'}, conversation_id=self.a)
         self.c.jobs.store.claim()
         card = self.waiting_question(job=job)
@@ -2170,7 +2199,7 @@ class ScopedCancelTests(unittest.TestCase):
         self.assertEqual(self.c.store.get(job['run_id'])['state'], 'waiting_user')
         self.assertEqual([c['request_id'] for c in self.c.interactions.list()], [card['request_id']])
 
-    def test_k06_conversation_cancel_foreground_preserves_other_job_speech_and_turn(self):
+    def test_conversation_cancel_foreground_preserves_other_job_speech_and_turn(self):
         other = self.job(self.b); runtime = self.foreground()
         from unittest.mock import Mock
         self.server.speech = SimpleNamespace(cancel=Mock(return_value=False))
@@ -2185,7 +2214,7 @@ class ScopedCancelTests(unittest.TestCase):
         self.assertEqual(self.server.turn_generation, generation)
         self.server.speech = None
 
-    def test_k06_stale_conversation_identity_and_generation_stop_nothing(self):
+    def test_stale_conversation_identity_and_generation_stop_nothing(self):
         runtime = self.foreground()
         for run, generation in (('old', 7), ('foreground', 6)):
             code, body = self.request('/conversations/' + self.a + '/cancel', {'run_id': run, 'generation': generation})
@@ -2193,7 +2222,7 @@ class ScopedCancelTests(unittest.TestCase):
         self.assertTrue(runtime.busy()); self.assertEqual(self.sessions['foreground'].interrupted, 0)
         self.release.set()
 
-    def test_k06_late_run_cancel_does_not_interrupt_next_foreground(self):
+    def test_late_run_cancel_does_not_interrupt_next_foreground(self):
         runtime = self.foreground('old'); self.release.set()
         self.wait(lambda: not runtime.busy()); self.release.clear()
         self.foreground('next', 8)
@@ -2203,7 +2232,7 @@ class ScopedCancelTests(unittest.TestCase):
         self.release.set(); self.wait(lambda: not runtime.busy())
         self.assertEqual(self.c.store.get('next')['state'], 'completed')
 
-    def test_k06_run_cancel_matches_background_generation_and_leaves_foreground(self):
+    def test_run_cancel_matches_background_generation_and_leaves_foreground(self):
         job = self.job(self.b); runtime = self.foreground()
         path = '/agent/runs/' + job['run_id'] + '/cancel'
         code, body = self.request(path, {'generation': job['generation'] + 1})
@@ -2214,7 +2243,7 @@ class ScopedCancelTests(unittest.TestCase):
         self.assertEqual(self.c.jobs.store.get(job['job_id'])['state'], 'cancelled')
         self.release.set()
 
-    def test_k06_run_cancel_stops_only_matching_foreground(self):
+    def test_run_cancel_stops_only_matching_foreground(self):
         other = self.job(self.b); runtime = self.foreground()
         code, body = self.request('/agent/runs/foreground/cancel', {'generation': 7})
         self.assertEqual(code, 202, body)
@@ -2222,7 +2251,7 @@ class ScopedCancelTests(unittest.TestCase):
         self.assertEqual(self.c.store.get('foreground')['state'], 'cancelled')
         self.assertEqual(self.c.jobs.store.get(other['job_id'])['state'], 'running')
 
-    def test_k06_turn_cancel_keeps_working_foreground_and_background_jobs(self):
+    def test_turn_cancel_keeps_working_foreground_and_background_jobs(self):
         from api.handler import Handler
         one = self.job(self.a); two = self.job(self.b); queued = self.job(self.a, running=False)
         runtime = self.foreground()
@@ -2243,7 +2272,7 @@ class ScopedCancelTests(unittest.TestCase):
                 self.assertEqual(self.c.jobs.store.get(two['job_id'])['state'], 'running')
                 self.assertEqual(self.c.jobs.store.get(queued['job_id'])['state'], 'queued')
 
-    def test_k06_cancel_routes_auth_reset_and_payload_validation(self):
+    def test_cancel_routes_auth_reset_and_payload_validation(self):
         paths = [('/conversations/' + self.a + '/cancel', {'run_id': 'run', 'generation': 1}),
                  ('/agent/runs/run/cancel', {'generation': 1})]
         for path, valid in paths:
@@ -2255,7 +2284,7 @@ class ScopedCancelTests(unittest.TestCase):
                 self.assertEqual(self.request(path, body), (400, {'error': 'invalid_payload'}))
         self.assertEqual(self.request('/conversations/' + 'f'*32 + '/cancel', paths[0][1]), (404, {'error': 'unknown_conversation'}))
 
-    def test_k06_scoped_cancel_stops_only_owned_desktop_client(self):
+    def test_scoped_cancel_stops_only_owned_desktop_client(self):
         self.addCleanup(self.c.tools.desktop._held.clear)
         for path, ident in (('/agent/runs/native-run/cancel', 'native-run'),
                             ('/conversations/' + self.a + '/cancel', 'native-conversation')):
@@ -2276,7 +2305,7 @@ class ScopedCancelTests(unittest.TestCase):
             self.c.tools.desktop._held.clear()
             self.wait(lambda: not self.c.runtime.busy())
 
-    def test_w004_unrelated_memory_keeps_running_job_and_question_answerable(self):
+    def test_unrelated_memory_keeps_running_job_and_question_answerable(self):
         fact = self.server.memory.add('旧资料', 'asserted_by_user')
         def factory(definitions):
             def work(session, prompt, options):
@@ -2296,7 +2325,7 @@ class ScopedCancelTests(unittest.TestCase):
         self.assertEqual(answered['answer'], {'answers': {'q': ['核查']}})
         self.wait(lambda: self.c.jobs.store.get(job['job_id'])['state'] == 'needs_review')
 
-    def test_w004_correct_memory_and_start_task_in_one_turn(self):
+    def test_correct_memory_and_start_task_in_one_turn(self):
         fact = self.server.memory.add('报告使用旧格式', 'asserted_by_user')
         started = threading.Event()
         def factory(definitions):
@@ -2359,7 +2388,7 @@ class ScopedCancelTests(unittest.TestCase):
         said = next(i for i in self.c.store.items('correction-turn') if i['item_id'] == 'said')
         self.assertEqual(said['summary'], '记下了')
 
-    def test_w004_used_memory_interrupts_only_dependent_job_and_cards(self):
+    def test_used_memory_interrupts_only_dependent_job_and_cards(self):
         fact = self.server.memory.add('旧资料', 'asserted_by_user')
         def factory(definitions):
             def work(session, prompt, options):
@@ -2386,7 +2415,7 @@ class ScopedCancelTests(unittest.TestCase):
         self.assertEqual(self.c.jobs.store.get(other['job_id'])['state'], 'waiting_user')
         self.assertEqual([r['run_id'] for r in self.c.interactions.list()], [other['run_id']])
 
-    def test_w004_cancellation_reason_before_runner_callback(self):
+    def test_cancellation_reason_before_runner_callback(self):
         fact=self.server.memory.add('旧资料','asserted_by_user')
         paused=threading.Event();resume=threading.Event();self.addCleanup(resume.set)
         def factory(definitions):
@@ -2413,7 +2442,7 @@ class ScopedCancelTests(unittest.TestCase):
         self.assertEqual(run['result']['error'],'memory_changed')
         self.assertEqual(self.c.jobs.store.get(job['job_id'])['result']['reason'],'memory_changed')
 
-    def test_w004_context_change_stops_only_run_using_that_kind(self):
+    def test_context_change_stops_only_run_using_that_kind(self):
         other = self.job(self.b)
         runtime = self.foreground()
         self.server._line_context[runtime._active['cancel']] = ('foreground', {'page'})
@@ -2425,7 +2454,7 @@ class ScopedCancelTests(unittest.TestCase):
         self.assertEqual(self.c.store.get('foreground')['result']['error'], 'context_changed')
         self.assertEqual(self.c.jobs.store.get(other['job_id'])['state'], 'running')
 
-    def test_w004_resumed_job_keeps_previous_attempt_dependencies(self):
+    def test_resumed_job_keeps_previous_attempt_dependencies(self):
         fact = self.server.memory.add('旧资料', 'asserted_by_user')
         knowledge = self.c.knowledge()
         knowledge.call('knowledge_read', {'source': 'memory', 'id': fact})
@@ -2445,7 +2474,7 @@ class ScopedCancelTests(unittest.TestCase):
             with self.subTest(run_id=job['run_id']):
                 self.assertEqual(self.c.jobs.store.get(job['job_id'])['state'], 'interrupted')
 
-    def test_w004_pending_question_retains_dependencies_after_run_returns(self):
+    def test_pending_question_retains_dependencies_after_run_returns(self):
         fact = self.server.memory.add('旧资料', 'asserted_by_user')
         self.c.interactions.wait_seconds = 0
         def factory(definitions):
@@ -2463,7 +2492,7 @@ class ScopedCancelTests(unittest.TestCase):
         self.server._memories_changed([fact])
         self.assertIsNone(self.c.interactions.get(card['request_id']))
 
-    def test_w004_consent_revocation_still_stops_everything_and_deletes_cards(self):
+    def test_consent_revocation_still_stops_everything_and_deletes_cards(self):
         one = self.job(self.a); two = self.job(self.b)
         queued = self.job(self.a, running=False)
         runtime = self.foreground()
@@ -2477,7 +2506,7 @@ class ScopedCancelTests(unittest.TestCase):
             self.assertEqual(self.c.jobs.store.get(job['job_id'])['state'], 'cancelled')
         self.assertEqual(self.c.interactions.list(), [])
 
-    def test_w004_scope_revocation_deletes_cards_created_during_cancellation(self):
+    def test_scope_revocation_deletes_cards_created_during_cancellation(self):
         ask_now = threading.Event()
         self.addCleanup(ask_now.set)
         def factory(definitions):

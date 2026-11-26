@@ -671,7 +671,9 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(self.tasks.get(replies[0].task_id)['state'], 'cancelled')
 
     def test_steer_reaches_the_active_runs_session_with_its_run_id(self):
-        self.assertEqual(self.runtime.steer('x'), (False, 'no_active_run'))
+        settled = []
+        self.runtime.steer('x', lambda *answer: settled.append(answer))
+        self.assertEqual(settled, [(False, 'no_active_run')])
         entered, release = threading.Event(), threading.Event()
         def script(session, prompt, options):
             entered.set(); release.wait(3)
@@ -679,11 +681,69 @@ class RuntimeTests(unittest.TestCase):
         self.script = script
         thread = threading.Thread(target=self.run_agent, daemon=True); thread.start()
         self.assertTrue(entered.wait(2))
-        self.assertEqual(self.runtime.steer('x'), (True, None))
+        self.runtime.steer('x', lambda *answer: settled.append(answer))
         release.set(); thread.join(2)
         self.assertEqual(self.sessions[0].steers, [('x', 'run-1')])
-        self.assertEqual(self.runtime.steer('y'), (False, 'no_active_run'))
+        self.runtime.steer('y', lambda *answer: settled.append(answer))
         self.assertEqual(self.sessions[0].steers, [('x', 'run-1')])
+        self.assertEqual(settled, [(False, 'no_active_run'), (True, None), (False, 'no_active_run')])
+
+    def test_an_accepted_steer_the_run_ended_without_reading_is_reported_dropped(self):
+        entered, release = threading.Event(), threading.Event()
+        def script(session, prompt, options):
+            entered.set(); release.wait(3)
+            yield {'type': 'result', 'success': True, 'final_text': 'Hello', 'steers_dropped': ['late words']}
+        self.script = script
+        thread = threading.Thread(target=self.run_agent, daemon=True); thread.start()
+        self.assertTrue(entered.wait(2))
+        settled = []
+        self.runtime.steer('late words', lambda *answer: settled.append(answer))
+        release.set(); thread.join(2)
+        self.assertEqual(settled, [(True, None), (False, 'steer_dropped')])
+
+    def test_invalidating_an_ended_run_stops_the_active_run_that_shares_its_session(self):
+        self.assertIsNone(self.run_agent().error)
+        entered, release = threading.Event(), threading.Event()
+        def script(session, prompt, options):
+            session.interrupt_hook = release.set; entered.set(); release.wait(3)
+            yield {'type': 'result', 'success': True, 'final_text': 'Hello'}
+        self.sessions[0].script = script; replies = []
+        thread = threading.Thread(target=lambda: replies.append(self.run_agent('run-2')), daemon=True); thread.start()
+        self.assertTrue(entered.wait(2))
+        self.assertEqual(len(self.sessions), 1)
+        self.runtime.invalidate('memory_changed', run_id='run-1', interrupted=True)
+        release.set(); thread.join(2)
+        self.assertEqual(replies[0].error, 'memory_changed')
+
+    def test_the_first_run_takes_over_the_warm_session_with_its_tools(self):
+        warm = self.runtime.warm_session(harness_tools=True)
+        self.assertIs(self.runtime.warm_session(harness_tools=True), warm)
+        self.assertIsNone(self.run_agent().error)
+        self.assertEqual(self.sessions, [warm])
+        self.assertEqual(self.definitions, [[]])
+        self.assertIn('task_plan', {d['name'] for d in warm.tool_definitions})
+
+    def test_a_run_with_other_harness_tools_or_after_an_invalidation_builds_its_own_session(self):
+        warm = self.runtime.warm_session(harness_tools=True)
+        self.run_agent(harness_tools=False)
+        self.assertEqual(len(self.sessions), 2); self.assertGreater(warm.closed, 0)
+        self.runtime.forget()
+        warm = self.runtime.warm_session(harness_tools=True)
+        self.runtime.invalidate('credentials_changed')
+        self.assertGreater(warm.closed, 0)
+        self.run_agent('run-2')
+        self.assertEqual(len(self.sessions), 4)
+
+    def test_a_known_context_window_rebuilds_the_session_at_three_quarters_of_it(self):
+        for n, (tokens, reused) in enumerate(((23999, True), (24000, False))):
+            with self.subTest(tokens=tokens):
+                self.script = lambda session, prompt, options: iter([{'type': 'ready', 'context_window': 32000},
+                    {'type': 'result', 'success': True, 'final_text': 'Hello', 'context_tokens': tokens}])
+                self.run_agent(f'run-{n}-a')
+                before = len(self.sessions)
+                self.run_agent(f'run-{n}-b')
+                self.assertEqual(len(self.sessions) - before, 0 if reused else 1)
+                self.runtime._session_key = None
 
     def test_waiting_input_can_be_cancelled_without_stealing_active_run(self):
         entered, release = threading.Event(), threading.Event()

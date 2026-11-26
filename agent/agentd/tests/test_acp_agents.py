@@ -86,7 +86,8 @@ class AcpAgentsTest(unittest.TestCase):
         _, env, meta, mode = acp_agents.launch(claude, True)
         self.assertEqual((meta, mode), (None, None))
         self.assertTrue(set(env) <= {"CLAUDE_CODE_EXECUTABLE"})
-        self.assertEqual(acp_agents.launch(claude, False)[2:], ({"claudeCode": {"options": {"settingSources": []}}}, "default"))
+        # No built-in tool: Claude Code runs its read-only ones without asking, so a refused permission cannot stop them.
+        self.assertEqual(acp_agents.launch(claude, False)[2:], ({"claudeCode": {"options": {"settingSources": [], "tools": []}}}, "default"))
 
     def test_semantic_launch_refuses_an_agent_without_a_lock(self):
         for agent in ({"id": "goose", "command": ["/bin/goose", "acp"]}, {"id": "kimi", "command": ["/bin/kimi", "acp"]}):

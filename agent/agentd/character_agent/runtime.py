@@ -42,6 +42,8 @@ class AgentReply:
     cost_usd: float | None = None
     model_usage: dict = field(default_factory=dict)
     final_item_id: str | None = None
+    # Prompt tokens of the run's last model call; None when the harness did not report them.
+    context_tokens: int | None = None
 
 
 TASK_TOOL = {"name": "task_plan", "description":
@@ -63,7 +65,8 @@ PREVIOUS_ARTIFACT_TOOL = {"name": "artifact_read_previous", "description":
     "input_schema": {"type": "object", "properties": {"path": {"type": "string"}},
                      "required": ["path"], "additionalProperties": False}}
 
-# Prompt tokens of a turn's last model call before rebuilding the SDK session.
+# Prompt tokens of a turn's last model call before rebuilding the SDK session; a model whose harness reports its
+# context window rebuilds at three quarters of it at most, leaving room for the next prompt and the reply.
 SESSION_CONTEXT_TOKENS = 96000
 
 
@@ -101,6 +104,8 @@ class PersonalAgentRuntime:
         self._previous_knowledge = None
         self._previous_dependencies = []  # what every run on the current session read
         self._session_runs = set()  # the runs whose words the current session holds
+        # The harness_tools warm_session built the current session for, until a run takes it over; else None.
+        self._warm = None
         self._closed = False
         self.conversation_id = self.store.conversation_id
 
@@ -130,21 +135,83 @@ class PersonalAgentRuntime:
                 session.interrupt()
         return active["run_id"] if active else None
 
-    def steer(self, text):
-        """Hands text to the active run's model after its current tool call (C8 steer); returns (accepted, code)."""
+    def steer(self, text, settled):
+        """Hands text to the active run's model after its current tool call (C8 steer). settled(accepted, code) gets the
+        answer, and once more (False, "steer_dropped") when the run ends before its model read the accepted text."""
         with self._lock:
             active = self._active
             session = self._session if active is not None else None
             if active is None or active["cancel"].is_set() or session is None:
-                return False, "no_active_run"
-        return session.steer(text, run_id=active["run_id"])
+                active = None
+            else:
+                steer = {"text": text, "settled": settled, "state": "pending", "lock": threading.Lock()}
+                active["steers"].append(steer)
+        if active is None:
+            settled(False, "no_active_run")
+            return
+        accepted, code = session.steer(text, run_id=active["run_id"])
+        # Held while settled runs, so a drop the run reports meanwhile is told after this answer.
+        with steer["lock"]:
+            with self._lock:
+                if accepted and steer["state"] == "dropped":
+                    accepted, code = False, "steer_dropped"
+                steer["state"] = "accepted" if accepted else "refused"
+            settled(accepted, code)
+
+    def _steers_dropped(self, active, texts):
+        """texts: the accepted steers the run's model never read, from its harness result (steers_dropped)."""
+        told = []
+        with self._lock:
+            for text in texts:
+                steer = next((s for s in active["steers"] if s["text"] == text and s["state"] in ("pending", "accepted")),
+                             None)
+                if steer is None:
+                    continue
+                if steer["state"] == "accepted":
+                    told.append(steer)
+                steer["state"] = "dropped"
+        for steer in told:
+            with steer["lock"]:
+                steer["settled"](False, "steer_dropped")
+
+    def warm_session(self, harness_tools=True):
+        """The harness session the next run takes over, made now so the caller can start it ahead of that run; None
+        while a run holds the runtime. harness_tools: what that run passes to run(); a run passing otherwise builds its own."""
+        if not self._serial.acquire(blocking=False):
+            return None
+        try:
+            with self._lock:
+                if self._closed:
+                    raise ValueError("runtime_changed")
+                if self._session is not None:
+                    return self._session
+            session = self.session_factory([])
+            with self._lock:
+                if self._closed:
+                    session.close()
+                    raise ValueError("runtime_changed")
+                self._session, self._session_key, self._warm = session, None, harness_tools
+            return session
+        finally:
+            self._serial.release()
 
     def invalidate(self, reason="context_changed", *, run_id=None, interrupted=False):
         with self._lock:
             cancelled = self.cancel(reason, run_id=run_id, interrupted=interrupted)
-            if run_id is not None and cancelled is None and run_id not in self._session_runs: return
+            if run_id is not None and cancelled is None:
+                if run_id not in self._session_runs: return
+                # The ended run's words are in the session the active run is reading from.
+                active = self._active
+                if active is not None and active["run_id"] in self._session_runs:
+                    self.cancel(reason, run_id=active["run_id"], interrupted=interrupted)
             self._session_key = None
             self._last_projection = None
+            # A warm session holds no run's words, but its credentials and settings may be the ones this ends.
+            warm = self._session if self._warm is not None else None
+            if warm is not None:
+                self._session, self._warm = None, None
+        if warm is not None:
+            warm.close()
 
     def forget(self):
         self.invalidate("history_cleared")
@@ -187,7 +254,8 @@ class PersonalAgentRuntime:
                 return AgentReply(model=self.model, error="cancelled")
         acquired_at = time.monotonic()
         active = {"run_id": run_id, "cancel": cancel, "reason": None, "generation": generation,
-                  "conversation_id": conversation_id if conversation_id is not None else self.conversation_id}
+                  "conversation_id": conversation_id if conversation_id is not None else self.conversation_id,
+                  "steers": []}
         knowledge = None
         task_id, result, sdk_result = None, None, None
         outcome = "answered"
@@ -202,6 +270,7 @@ class PersonalAgentRuntime:
         original_goal = text
         actual_model = self.model
         effort = None
+        context_window = None  # tokens, from the harness's ready event; None: not reported
         segments = {"memory_open_ms": 0}
         memory_state, memory_output = "failed", ""
         item_seq = 0
@@ -340,10 +409,14 @@ class PersonalAgentRuntime:
                 (self._last_projection is None or self._last_projection == projection)
             segments["session_reused"] = session_reused
             if not session_reused:
-                if self._session:
-                    self._session.close()
-                self._session = self.session_factory(definitions)
-                self._session_key = session_key
+                if self._session is not None and self._warm == harness_tools:
+                    # A warm session has not sent its harness any tools yet.
+                    self._session.tool_definitions = list(definitions)
+                else:
+                    if self._session:
+                        self._session.close()
+                    self._session = self.session_factory(definitions)
+                self._session_key, self._warm = session_key, None
                 self._previous_dependencies, self._session_runs = [], set()
             self._session_runs.add(run_id)
 
@@ -580,6 +653,8 @@ class PersonalAgentRuntime:
                 elif kind == "ready":
                     actual_model = event.get('model') or actual_model
                     effort = event.get('effort') if isinstance(event.get('effort'), str) else effort
+                    window = event.get('context_window')
+                    context_window = window if isinstance(window, int) and window > 0 else context_window
                     self._emit(run_id, "capabilities_checked", tool_inventory_verified=event.get("tool_inventory_verified") is True,
                                tool_count=len(event.get("tool_names", [])), revision=_hash(event.get("tool_names", [])),
                                adapter_ready_ms=round((time.monotonic()-requested_at)*1000),
@@ -599,6 +674,7 @@ class PersonalAgentRuntime:
                     self._emit(run_id, kind, tool=event.get("name", "unknown"), tool_call_id=event.get("tool_call_id"))
                 elif kind == "result":
                     sdk_result = event
+                    self._steers_dropped(active, event.get("steers_dropped") or [])
                 elif kind == "error":
                     sdk_result = event
                     raise ValueError(event.get("code", "adapter_error"))
@@ -673,7 +749,8 @@ class PersonalAgentRuntime:
             self._previous_dependencies += [d for d in dependencies if d not in self._previous_dependencies]
             # Delivery updates the projection; caller supplies it using delivered().
             self._last_projection = None
-            if (sdk_result.get("context_tokens") or 0) >= SESSION_CONTEXT_TOKENS:
+            limit = SESSION_CONTEXT_TOKENS if context_window is None else min(SESSION_CONTEXT_TOKENS, context_window * 3 // 4)
+            if (sdk_result.get("context_tokens") or 0) >= limit:
                 self._session_key = None
             # Only rebuild the SDK session if the reply broke role identity ("ai_self_reference").
             if voice := out_of_voice(final_text):
@@ -698,7 +775,7 @@ class PersonalAgentRuntime:
             reply = AgentReply(final_text, sdk_result.get("model") or actual_model,
                                sdk_result.get("usage") or {}, task_id=task_id, result=result, facts=facts,
                                cost_usd=sdk_result.get("cost_usd"), model_usage=sdk_result.get("model_usage") or {},
-                               final_item_id=final_item_id)
+                               final_item_id=final_item_id, context_tokens=sdk_result.get("context_tokens"))
             return reply
         except Exception as error:
             code = getattr(error, "code", None) or (str(error) if isinstance(error, (ValueError, WorkspaceError)) else type(error).__name__)

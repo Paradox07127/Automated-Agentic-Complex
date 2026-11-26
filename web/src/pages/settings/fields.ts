@@ -8,8 +8,8 @@ export type Vals = Record<string, SettingValue>;
 export type Opt = { value: string; label: string; disabled?: boolean };
 export type Target = 'runtime' | 'models';
 
-/** settings.py ROUTES in table order, less `quick`: it runs on Pi only and has no row. */
-export type TableRoute = Exclude<WireRoutePurpose, 'quick'>;
+/** settings.py ROUTES in table order. */
+export type TableRoute = WireRoutePurpose;
 export const ROUTES: readonly TableRoute[] = ['chat', 'background', 'judge', 'understand', 'memory', 'computer'];
 
 /** Draft ids of a route row: its kernel ('' follows the main kernel, `acp:<id>` a local ACP agent), model and effort. */

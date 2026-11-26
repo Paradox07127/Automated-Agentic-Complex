@@ -240,7 +240,7 @@ Companion 的 `interaction_preset` 对应 agentd 的 `--interaction-preset quiet
 - `integration.py` 把当前角色卡、设定、记忆、历史、时段、提醒、行为观察、文件范围和桌面权限接入运行时。
 - `runtime.py` 管理角色执行的生命周期、任务与检查点；`harness/codex_runner.py`、`pi_runner.mjs`、`acp_runner.py`、`claude_runner.py` 用各自的 SDK 或协议跑模型循环，经 `harness/transport.py` 和 agentd 交换帧。设了环境变量 `AGENTD_FRAME_LOG` 时，`harness/transport.py` 把 agentd 和 runner 之间收发的每一帧追加到这个 JSONL 文件（`api_key`、`token` 等键的值换成 `[redacted]`，超过 256 KiB 的字符串截断；文件超过 64 MiB 时改名为 `.1` 再记新文件），写失败只丢这一条记录；只有开发面板设它，安装版不设。
 - `services/knowledge.py` 按来源与权限检索个人档案和历史知识。依赖带版本和 hash，记忆删除、撤权或输入变化会让旧上下文失效。
-- `services/workspace.py` 只访问用户在设置里选的输入目录和输出目录；读 UTF-8 Markdown、TXT、CSV、JSON 和 docx、xlsx、pptx（由 `services/extract.py` 抽成文本），产物只写 Markdown、TXT、CSV、JSON，拒绝目录逃逸、符号链接和覆盖原文件。产物归属某次 run，记录来源与校验结果。
+- `services/workspace.py` 只访问用户在设置里选的输入目录和输出目录；读 UTF-8 文本（Markdown、TXT、CSV、JSON、YAML 等数据与配置，日志，以及 .py、.sh、.ps1 等源代码和脚本，完整后缀见 `TEXT_SUFFIXES`）、docx、xlsx、pptx（由 `services/extract.py` 抽成文本）和图片，产物只写 `TEXT_SUFFIXES` 里的 UTF-8 文本格式，拒绝目录逃逸、符号链接和覆盖原文件。产物归属某次 run，记录来源与校验结果。
 - `services/store.py` 保存独立的 Run、Event、Effect、Checkpoint。角色、产品历史、长期记忆和任务 ID 不属于任何厂商 transcript；厂商原生会话不跨内核迁移。
 - 角色的最终回答复用现有文字、意图标记、语音、播放结算和历史管线；前台执行先检查结果，再交付回答。
 
@@ -300,7 +300,7 @@ Companion 的 `interaction_preset` 对应 agentd 的 `--interaction-preset quiet
 
 ### 限制
 
-- 文件交付只支持 Markdown、TXT、CSV、JSON。
+- 文件交付只支持 `services/workspace.py` 的 `TEXT_SUFFIXES` 里的 UTF-8 文本格式（文档、数据、配置、日志、源代码和脚本）；不写 Office 文件和图片。
 - 内部图片理解经本轮授权的 `observation_image` 交给所选内核；日志只留读取事件和 hash。
 - 产品桌面工具是自有的文字与 AX 桥，不是 Claude 或 Codex 的 Computer Use；`desktop_task` 见[工具网关](tool-gateway.md)。
 - Codex 不支持美元硬预算，用工具调用次数和时间上限代替。

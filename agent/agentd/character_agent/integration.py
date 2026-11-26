@@ -105,9 +105,11 @@ _INFER_CONVERSATION = object()
 
 
 def finished_usage(answer):
-    """model.finished's optional attrs: the cache reads, reasoning tokens and cost the harness reported for the run."""
+    """model.finished's optional attrs: the cache reads, reasoning tokens, last prompt size and cost the harness reported for the run."""
     attrs = {key: answer.usage[name] for key, name in (("cached_tokens", "cache_read_input_tokens"),
              ("reasoning_tokens", "reasoning_output_tokens")) if isinstance(answer.usage.get(name), int)}
+    if isinstance(answer.context_tokens, int):
+        attrs["context_tokens"] = answer.context_tokens
     return attrs if answer.cost_usd is None else {**attrs, "cost_usd": answer.cost_usd}
 
 
@@ -197,6 +199,8 @@ class CharacterAgentController:
         self._background_runtimes = {}
         self._side_runtimes = {}  # line_id of a side line or one she starts herself -> (cancel event, its one-off runtime)
         self._main_line, self._main_heard = None, []  # the latest line on self.runtime, and the turns its delivery left
+        # That line's history at its prepare, and the replies that may add its own turn (StreamedReply, PreparedReply).
+        self._main_seen = ([], [])
         self._turn = threading.local()  # native_tools: False while this thread runs a side or unremembered role turn
         self._foreground_request = ''  # the start of the latest foreground input, for a side line's brief
         self.jobs = JobCoordinator(JobStore(server.memory), self._execute_job, self._cancel_job,
@@ -598,9 +602,7 @@ class CharacterAgentController:
         routes = {}
         for purpose in ROUTES:
             entry = config["routes"].get(purpose)
-            if purpose == "quick":
-                continue
-            elif entry is None:
+            if entry is None:
                 failure = (self._readiness(config, available, pending, wait, self.settings.error, locked=True)[0]
                            if purpose in LOCKED_ROUTES and config["backend"] == "acp" else error)
                 routes[purpose] = {"backend": config["backend"], "acp_agent": config["acp_agent"] if config["backend"] == "acp" else None,
@@ -609,7 +611,6 @@ class CharacterAgentController:
                 failure = self._readiness(RuntimeSettings.route(config, purpose), available, pending, wait,
                                           locked=purpose in LOCKED_ROUTES)[0]
                 routes[purpose] = {**entry, "follows_main": False, "ready": failure is None, "error": failure}
-        routes["quick"] = dict(routes["chat"])
         value = {**config, "routes": routes, "ready": error is None, "error": error, "auto_selected": auto_selected, "available_backends": available,
                 "installed_runtimes": self.installed_runtimes() if discover else [],
                 "selected_runtime": selected, "busy": self.busy(),
@@ -845,7 +846,10 @@ class CharacterAgentController:
         if self.runtime:
             self.runtime.delivered(history)
         if line_id == self._main_line:
-            self._main_heard = list(history)
+            # What the line saw and its own turn; a side line's turn added meanwhile stays unheard.
+            seen, replies = self._main_seen
+            own = [reply.turn for reply in replies if reply.turn is not None]
+            self._main_heard = [turn for turn in history if any(turn is t for t in [*seen, *own])]
 
     def configure(self, data):
         if not isinstance(data, dict):
@@ -1233,38 +1237,31 @@ class CharacterAgentController:
         return HARNESSES[config["backend"]].session(self, config, common, definitions)
 
     def prewarm(self):
+        """Start the chat runtime's harness session ahead of the next typed turn, which takes it over."""
         with self._lock:
             if self._closing or self.server.closing:
                 raise ValueError("shutting_down")
             runtime = self._ensure_runtime("chat")
-            config = RuntimeSettings.route(self.settings.snapshot(), "chat")
-            if runtime._session is not None:
-                session = runtime._session
-            else:
-                session = self._warm_session = getattr(self, "_warm_session", None)
-                if session is None or getattr(self, "_warm_config", None) != config:
-                    if session is not None:
-                        session.close()
-                    session = self._warm_session = self._session_factory(
-                        [], config, "warm-" + self.server.character, native_tools=False, private_workspace=True)
-                    self._warm_config = config
+            backend = self._runtime_config["backend"]
+        if not harness(backend).warm_start:
+            return
+        # The tools a remembered typed turn on the main session runs with (_prepare's native).
+        native = self.jobs is not None
+        self._turn.native_tools = native
+        try:
+            session = runtime.warm_session(harness_tools=native)
+        finally:
+            del self._turn.native_tools
+        if session is None:
+            return
         try:
             session.prewarm()
         finally:
             with self._lock:
-                retired = (self._closing or self.server.closing
-                           or (session is getattr(self, "_warm_session", None) and self._warm_config != config))
-                if session is getattr(self, "_warm_session", None) and retired:
-                    session.close()
-                    self._warm_session = None
+                # A settings, credential or history change meanwhile closed this session or the runtime it belongs to.
+                retired = self._closing or self.server.closing or self.runtime is not runtime or runtime._session is not session
         if retired:
             raise ValueError("runtime_changed")
-
-    def _retire_warm(self):
-        session = getattr(self, "_warm_session", None)
-        if session is not None:
-            session.close()
-            self._warm_session = None
 
     def _ensure_runtime(self, purpose="chat", current=None):
         if purpose == "chat":
@@ -1591,11 +1588,9 @@ class CharacterAgentController:
                     if any(d.get('source') in DERIVED for d in json.loads(row[1]))]
             self.store.redact_items(observed)
             if self.deliveries: self.deliveries.revoke(observed)
-        if reason in ("credentials_changed", "runtime_changed", "history_cleared", "shutdown"):
+        if reason == "shutdown":
             with self._lock:
-                if reason == "shutdown":
-                    self._closing = True
-                self._retire_warm()
+                self._closing = True
         if reason != "turn_cancelled": self.semantic.cancel()
         if reason in ('context_changed', 'scope_revoked', 'memory_changed', 'history_cleared', 'shutdown'):
             with self.store.lock:
@@ -1729,10 +1724,11 @@ class CharacterAgentController:
             return self._prepare(line_id, text, cancel, generation, source, trace, **options)
         foreground = self.runtime
         if side and source in ('text', 'voice') and trace and trace.get('remember', True) and foreground is not None:
-            def steer():
-                accepted, code = foreground.steer(STEER_NOTE + text)
-                self.server._step(trace, "steer.settled", new_span_id(), attrs={"accepted": accepted, "code": code})
-            threading.Thread(target=steer, name='foreground-steer', daemon=True).start()
+            # The user's words as an ordinary turn sends them: keys stay hidden from the harness.
+            steered = STEER_NOTE + (self.server.egress or self.server.mouth.egress).user_text(text)
+            settled = lambda accepted, code: self.server._step(trace, "steer.settled", new_span_id(),  # noqa: E731
+                                                               attrs={"accepted": accepted, "code": code})
+            threading.Thread(target=foreground.steer, args=(steered, settled), name='foreground-steer', daemon=True).start()
         self._auto_select()
         snapshot = self.settings.snapshot()
         config = RuntimeSettings.route(snapshot, 'chat')
@@ -1874,6 +1870,7 @@ class CharacterAgentController:
             if main:
                 self._main_line = line_id
                 unheard = {i for i, turn in enumerate(mouth.history) if not any(turn is t for t in self._main_heard)}
+                self._main_seen = (list(mouth.history), [reply for reply in (getattr(cancel, 'answer', None),) if reply])
             card, motion = bound(server.characters.load_card(server.character), effective(server))
             embodied = server.characters.package(server.character).render_enabled
             lore = mouth.pick_lore(text) if hasattr(mouth, "pick_lore") else []
@@ -1977,5 +1974,8 @@ class CharacterAgentController:
                                 status="failed" if answer.error else "completed",
                                 provider=provider, channel=channel,
                                 cost_usd=answer.cost_usd, cost_source="sdk_estimate" if answer.cost_usd is not None else None)
-        return PreparedReply(mouth, answer.text, answer.model, answer.usage, answer.facts, answer.error,
-                             final_item_id=answer.final_item_id, remember=trace.get("remember", True))
+        reply = PreparedReply(mouth, answer.text, answer.model, answer.usage, answer.facts, answer.error,
+                              final_item_id=answer.final_item_id, remember=trace.get("remember", True))
+        if main and self._main_line == line_id:
+            self._main_seen[1].append(reply)
+        return reply

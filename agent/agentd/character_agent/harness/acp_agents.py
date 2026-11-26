@@ -85,7 +85,8 @@ _claude = shutil.which("claude")
 PROFILE_ENV = {"claude-acp": {"CLAUDE_CODE_EXECUTABLE": _claude} if _claude else {}}
 # What keeps a background semantic task from the agent's own tools and the user's own configuration.
 LOCKS = {
-    "claude-acp": {"session_meta": {"claudeCode": {"options": {"settingSources": []}}}, "mode": "default"},
+    # tools []: none of Claude Code's own tools; default mode runs its read-only ones without a permission request.
+    "claude-acp": {"session_meta": {"claudeCode": {"options": {"settingSources": [], "tools": []}}}, "mode": "default"},
     # OpenCode names MCP tools `<server>_<tool>`; acp_runner names Endfield's server `agentic_complex`.
     "opencode": {"env": {"OPENCODE_CONFIG_CONTENT": json.dumps({"permission": {"*": "deny", "agentic_complex_*": "allow"}})}},
 }

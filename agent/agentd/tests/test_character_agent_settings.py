@@ -121,7 +121,7 @@ class SettingsTests(unittest.TestCase):
                                                'computer': {**route, 'backend': 'codex', 'model': None, 'effort': None}}})
         self.assertEqual(RuntimeSettings(self.root).snapshot(), saved)
         self.assertEqual(json.loads(self.settings.path.read_text(encoding='utf-8'))['routes']['chat'], route)
-        for routes, code in (([], 'invalid_routes'), ({'vision': route}, 'invalid_routes'), ({'chat': None}, 'invalid_routes'),
+        for routes, code in (([], 'invalid_routes'), ({'vision': route}, 'invalid_routes'), ({'quick': route}, 'invalid_routes'), ({'chat': None}, 'invalid_routes'),
                              ({'chat': {'backend': 'pi'}}, 'invalid_routes'), ({'chat': {**route, 'extra': 1}}, 'invalid_routes'),
                              ({'chat': {**route, 'backend': 'claude_agent_sdk'}}, 'invalid_route_backend'),
                              ({'chat': {**route, 'backend': 'acp'}}, 'invalid_acp_agent'),
@@ -139,7 +139,6 @@ class SettingsTests(unittest.TestCase):
         for purpose in ROUTES:
             with self.subTest(follows=purpose):
                 self.assertEqual(RuntimeSettings.route(main, purpose), {**main, '_turn_effort': None})
-        self.assertEqual(RuntimeSettings.route(main, 'quick'), {**main, '_turn_effort': None})
         codex = RuntimeSettings.validate({'backend': 'codex', 'runtime_source': 'local', 'model': 'gpt-5'})
         self.assertEqual(RuntimeSettings.route(codex, 'chat')['_turn_effort'], 'low')
         self.assertIsNone(RuntimeSettings.route(codex, 'background')['_turn_effort'])
@@ -177,7 +176,7 @@ class SettingsTests(unittest.TestCase):
             'understand': ['observation_brief', 'observation_interpret', 'observation_summary', 'observation_vision',
                            'user_vision'],
             'memory': ['memory_extract', 'worklog_deep', 'worklog_fast']})
-        self.assertEqual(ROUTES, ('chat', 'quick', 'background', 'judge', 'understand', 'memory', 'computer'))
+        self.assertEqual(ROUTES, ('chat', 'background', 'judge', 'understand', 'memory', 'computer'))
 
     def test_corrupt_config_is_diagnosed_without_overwriting_it(self):
         self.settings.path.write_text('{corrupt', encoding='utf-8')

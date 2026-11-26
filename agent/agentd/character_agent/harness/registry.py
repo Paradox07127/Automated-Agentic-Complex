@@ -15,6 +15,8 @@ class Harness:
     login_suffix: Optional[str]
     web_access: bool
     cost_limit_supported: bool
+    # Whether its session has prewarm(), which starts the runtime before the first query; the others start on that query.
+    warm_start: bool
     # (integration, config, common, definitions) -> session
     session: Callable
 
@@ -122,15 +124,16 @@ def _acp_session(integration, config, common, definitions):
 
 HARNESSES = {
     "codex": Harness(title="Codex", default_model="default", provider="openai", discovery_name="codex",
-        login_suffix=" login", web_access=False, cost_limit_supported=False, session=_codex_session),
+        login_suffix=" login", web_access=False, cost_limit_supported=False, warm_start=False, session=_codex_session),
     "pi": Harness(title="Pi", default_model="", provider=None, discovery_name=None, login_suffix=None,
-        web_access=False, cost_limit_supported=True, session=_pi_session),
+        web_access=False, cost_limit_supported=True, warm_start=True, session=_pi_session),
     # The agent holds its own login and model connection; tools reach it over stdio MCP.
     "acp": Harness(title="ACP", default_model="", provider="acp", discovery_name=None, login_suffix=None,
-        web_access=False, cost_limit_supported=False, session=_acp_session),
+        web_access=False, cost_limit_supported=False, warm_start=False, session=_acp_session),
     # The local CLI over stream-json; an empty model is the CLI's own.
     "claude": Harness(title="Claude Code", default_model="", provider="anthropic", discovery_name="claude",
-        login_suffix=" auth login", web_access=False, cost_limit_supported=False, session=_claude_session),
+        login_suffix=" auth login", web_access=False, cost_limit_supported=False, warm_start=False,
+        session=_claude_session),
 }
 
 # DiscoveryService backend name -> settings backend.

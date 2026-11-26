@@ -240,7 +240,7 @@ These are per-module throttles, not one token or cost cap.
 - `integration.py` connects the current card, lore, memory, history, episodes, reminders, behavior observations, file scopes, and desktop permissions to the runtime.
 - `runtime.py` manages the lifecycle of character runs, tasks, and checkpoints; `harness/codex_runner.py`, `pi_runner.mjs`, `acp_runner.py`, and `claude_runner.py` run the model loop through their SDK or protocol and exchange frames with agentd through `harness/transport.py`. With `AGENTD_FRAME_LOG` set, `harness/transport.py` appends every frame agentd and a runner exchange to that JSONL file (values of keys such as `api_key` and `token` become `[redacted]`; strings over 256 KiB are cut; past 64 MiB the file becomes `.1` and a new one starts); a failed write loses that record only. Only the dev console sets it; the installed app does not.
 - `services/knowledge.py` searches the personal profile and history by source and permission. Dependencies carry versions and hashes, so deleting a memory, revoking a permission, or changing an input invalidates old context.
-- `services/workspace.py` reaches only the input and output directories the user chose in settings; it reads UTF-8 Markdown, TXT, CSV, JSON, and docx, xlsx, pptx (extracted to text by `services/extract.py`), writes artifacts only as Markdown, TXT, CSV, JSON, and refuses directory escape, symbolic links, and overwriting source files. Each artifact belongs to a run and records its sources and check results.
+- `services/workspace.py` reaches only the input and output directories the user chose in settings; it reads UTF-8 text (Markdown, TXT, CSV, JSON, YAML and other data and config files, logs, and source code and scripts such as .py, .sh, .ps1; `TEXT_SUFFIXES` lists every suffix), docx, xlsx, pptx (extracted to text by `services/extract.py`), and images, writes artifacts only in the UTF-8 text formats of `TEXT_SUFFIXES`, and refuses directory escape, symbolic links, and overwriting source files. Each artifact belongs to a run and records its sources and check results.
 - `services/store.py` stores its own Run, Event, Effect, and Checkpoint records. The character, product history, long-term memory, and task IDs belong to no vendor transcript; vendor-native sessions do not move between kernels.
 - Her final answer reuses the existing text, intent marker, speech, playback settlement, and history pipeline; a foreground run checks its results before it delivers the answer.
 
@@ -300,7 +300,7 @@ A new adapter also states its model and provider range, entry version, credentia
 
 ### Limits
 
-- File deliveries support Markdown, TXT, CSV, and JSON only.
+- File deliveries support only the UTF-8 text formats in `TEXT_SUFFIXES` of `services/workspace.py` (documents, data, config, logs, source code, and scripts); no Office files or images.
 - Internal image understanding hands images to the selected kernel through `observation_image`, granted per turn; logs keep only the read event and a hash.
 - The product desktop tools are Agentic Complex's own text and AX bridge, not Claude's or Codex's Computer Use; `desktop_task` is described in the [tool gateway](tool-gateway.en.md).
 - Codex supports no hard dollar budget; tool-call counts and time limits are used instead.
