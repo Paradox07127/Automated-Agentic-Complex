@@ -6,6 +6,7 @@ about allocated APFS blocks or GPU residency. Package manifests remain unchanged
 """
 import ctypes
 import errno
+import functools
 import hashlib
 import os
 from pathlib import Path
@@ -21,17 +22,21 @@ def digest(path):
     return h.hexdigest()
 
 
+@functools.cache
+def _clonefile():
+    clone = ctypes.CDLL(None, use_errno=True).clonefile
+    clone.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
+    clone.restype = ctypes.c_int
+    return clone
+
+
 def clone_or_copy(source, destination):
     """Destination must be new. No linking back into a mutable source tree."""
     source, destination = Path(source), Path(destination)
     if destination.exists() or destination.is_symlink(): raise ValueError('resource_destination_exists')
     if not source.is_file() or source.is_symlink(): raise ValueError('resource_source_not_regular')
     if sys.platform == 'darwin':
-        libc = ctypes.CDLL(None, use_errno=True)
-        clone = libc.clonefile
-        clone.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
-        clone.restype = ctypes.c_int
-        if clone(os.fsencode(source), os.fsencode(destination), 0) == 0:
+        if _clonefile()(os.fsencode(source), os.fsencode(destination), 0) == 0:
             # Build views can rewrite descriptors even when an archived input is
             # read-only. Changing the clone's mode never changes its source.
             destination.chmod(stat.S_IMODE(destination.stat().st_mode) | stat.S_IWUSR)

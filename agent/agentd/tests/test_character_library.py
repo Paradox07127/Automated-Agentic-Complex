@@ -552,6 +552,22 @@ class CharacterLibraryTests(unittest.TestCase):
         self.assertEqual(printed[-1]["ids"], ["fixture"])
 
     @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
+    def test_folder_import_hashes_each_payload_file_once(self):
+        src = self.root / "source"; fixture(src)
+        payload = len(Package(src).inventory)
+        import character_library
+        # The inventory pass of Package.__init__; component documents are hashed again by resolve whenever they are read.
+        hashed = []
+        real = character_library.digest
+        def spy(path):
+            if sys._getframe(1).f_code.co_name == "__init__" and Path(path).name != "character.json": hashed.append(path)
+            return real(path)
+        with mock.patch.object(character_library, "digest", new=spy):
+            Library(self.root / "library").import_path(src, validate_with=self.host())
+        self.assertEqual(len(hashed), payload)
+        self.assertEqual([x["id"] for x in Library(self.root / "library").entries()], ["fixture"])
+
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_folder_import_skips_file_manager_metadata(self):
         src = self.root / "source"; fixture(src)
         for name in (".DS_Store", "runtime/Thumbs.db", "runtime/desktop.ini"):

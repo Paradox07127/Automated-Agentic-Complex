@@ -17,7 +17,7 @@ import zipfile
 import fsutil
 from infra.platform import lock_file, plain_path, sync_directory
 import pool_codec
-from resource_store import ResourceRepository
+from resource_store import ResourceRepository, clone_or_copy
 
 ID = re.compile(r"^[a-z0-9_]+$")
 VERSION = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
@@ -511,7 +511,7 @@ class Library:
                 for walked, names, _ in os.walk(source, followlinks=False):
                     for name in names: need(not os.path.isjunction(os.path.join(walked, name)), "runtime_symlink")
                 # Finder and Explorer drop these into any folder the user browses; they are not package files.
-                shutil.copytree(source, stage, dirs_exist_ok=True, symlinks=True,
+                shutil.copytree(source, stage, dirs_exist_ok=True, symlinks=True, copy_function=clone_or_copy,
                                 ignore=shutil.ignore_patterns(".DS_Store", "Thumbs.db", "desktop.ini"))
                 for walked, names, files in os.walk(stage, followlinks=False):
                     for name in names + files: need(not (Path(walked) / name).is_symlink(), "runtime_symlink")
@@ -524,10 +524,11 @@ class Library:
             if host is not None:
                 progress("validate", 0.35)
                 validate_pack(host, package)
-            return self.install(stage, progress)
+            return self.install(stage, progress, verified=package)
 
-    def install(self, source, progress=None):
-        package = Package(source)
+    def install(self, source, progress=None, verified=None):
+        # verified: source's Package, deep-checked in a private stage nothing else writes; its copies are not hashed again.
+        package = verified or Package(source)
         self.root.mkdir(parents=True, exist_ok=True)
         with (self.root / ".lock").open("a", encoding="utf-8") as lock:
             lock_file(lock)
@@ -544,7 +545,7 @@ class Library:
                 for ref in existing.inventory.values():
                     self.resources.register(contained(existing.root, ref['file']), ref)
             if progress: progress("write", 0.6)
-            packages = self.materialize(old, package)
+            packages = self.materialize(old, package, deep=verified is None)
             if progress: progress("publish", 0.95)
             return self.publish(packages)
 
@@ -565,7 +566,7 @@ class Library:
             need(tuple(map(int, package.version.split("."))) > tuple(map(int, current.version.split("."))), "upgrade_requires_higher_version")
             return self.publish(self.materialize(old, package))
 
-    def materialize(self, old, package):
+    def materialize(self, old, package, deep=True):
         """Copy package to packages/<id>/<sha> under the held lock; returns the catalog's packages with it in place of its ID."""
         aliases = set()
         for entry in [x for x in old if x.id != package.id] + [package]:
@@ -581,7 +582,7 @@ class Library:
                     self.resources.materialize(contained(package.root, ref["file"]), target, ref, source_verified=True)
                 self.resources.materialize(package.root / "character.json", stage / "character.json",
                     dict(sha256=package.sha256,byte_count=(package.root/'character.json').stat().st_size), source_verified=True)
-                installed = Package(stage)
+                installed = Package(stage, deep=deep)
                 destination.parent.mkdir(parents=True, exist_ok=True); stage.rename(destination)
                 installed.root = destination
                 self.resources.relocate(stage, destination)
