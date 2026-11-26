@@ -23,7 +23,7 @@ export * from './IconBtn';
 export * from './Kbd';
 export * from './Menu';
 export * from './Missing';
-export * from './Modal';
+export * from './overlay';
 export * from './MoreLines';
 export * from './OptionRow';
 export * from './PageIssues';

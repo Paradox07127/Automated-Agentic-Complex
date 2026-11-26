@@ -1,19 +1,28 @@
 // Bridge contract between the web UI and the shell.
 // Single source of truth for bridge types; the web layer degrades by capability bits, never by platform name (`platform` only words text).
+import type { FileAdopt } from './adopt';
 import type { AppInfo } from './appInfo';
+import type { AvatarOps } from './avatar';
 import type { CameraOps } from './camera';
+import type { CharacterOps } from './character';
 import type { ComputerUseOps } from './computerUse';
-import type { AvatarAction, AvatarDetails, AvatarSwitchReply, CharacterLayer, ImportedMotionsResult, MotionImportResult, MotionPlaylist,
-  MotionRemoveResult, OutfitImportResult, OutfitRemoveResult, MotionRenameResult, PlaylistPlayResult, PlaylistState } from './avatarDetails';
 import type { DesktopOps, DesktopWindowOps, GlassRect, Region } from './desktop';
+import type { LogsOps } from './logs';
+import type { MmdOps } from './mmd';
 import type { OnboardingOps } from './onboarding';
 import type { PermissionKind, PermissionState, SystemSettingsPane } from './permissions';
+import type { PhotoOps } from './photo';
+import type { ResizeOps } from './resize';
+import type { ServicesOps } from './services';
+import type { SettingsOps } from './settings';
 import type { DecideOptions, StackPayload } from './stackCards';
 import type { RuntimeSnapshot } from './runtimeSnapshot';
 
 export type { AppInfo };
+export type * from './avatar';
 export type * from './avatarDetails';
 export type * from './camera';
+export type * from './character';
 export type * from './computerUse';
 export type * from './desktop';
 export type * from './motionOverrides';
@@ -21,6 +30,7 @@ export type * from './onboarding';
 export type * from './permissions';
 export type * from './runtimeSnapshot';
 export type * from './services';
+export type * from './settings';
 export type * from './stackCards';
 
 export type Surface = 'main' | 'stack' | 'onboarding';
@@ -43,7 +53,15 @@ export interface Capabilities {
   filesOrFolderPicker: boolean;
   nativeConfirm: boolean;
   avatar: boolean;
-  clickThrough: boolean; /** The avatar lists C3 `action_loop`: `avatar.playAction` takes `{ loop: true }`, `avatar.stopAction` ends it. */ actionLoop: boolean; /** The platform helper's `hello.ops` has the feature's ops (app/electron/src/common/bridge.ts `HELPER_BIT_OPS`), or no list is known. */ helperPushToTalk: boolean; helperWindowText: boolean; helperTypedText: boolean; helperActionTimeline: boolean; helperSelectedText: boolean;
+  clickThrough: boolean;
+  /** The avatar lists C3 `action_loop`: `avatar.playAction` takes `{ loop: true }`, `avatar.stopAction` ends it. */
+  actionLoop: boolean;
+  /** The platform helper's `hello.ops` has the feature's ops (app/electron/src/common/bridge.ts `HELPER_BIT_OPS`), or no list is known. */
+  helperPushToTalk: boolean;
+  helperWindowText: boolean;
+  helperTypedText: boolean;
+  helperActionTimeline: boolean;
+  helperSelectedText: boolean;
 }
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -109,44 +127,6 @@ export interface LookReply {
   requestId: string;
 }
 
-export type SettingId = string;
-export type SettingValue = string | number | boolean | null | string[];
-
-export interface SettingSchema {
-  id: SettingId;
-  group: string;
-  kind: 'toggle' | 'select' | 'text' | 'number' | 'hotkey' | 'path' | 'slider';
-  label: string;
-  destructive?: boolean;
-  options?: Array<{ value: string; label: string }>;
-  /** Slider rows: range and step of the stored value; `percent` reads it ×100. */
-  min?: number; max?: number; step?: number; format?: 'percent' | 'degrees' | 'days';
-}
-
-export interface SettingsSnapshot {
-  saved: Record<SettingId, SettingValue>;
-  statuses: Record<SettingId, string>;
-}
-
-export interface SettingsSaveResult {
-  restart: 'none' | 'avatar' | 'backend';
-  notApplied: SettingId[];
-  error?: string;
-}
-
-/** `settings.onChange`: saved values changed, by any page, window or menu. */
-export interface SettingsChange {
-  ids: SettingId[];
-}
-
-export type HotkeyCheck = { ok: true } | { ok: false; conflictWith: string };
-
-/** What turning a destructive setting off would delete now, by agentd category; `total` sums `counts`. */
-export interface DeletionPreview {
-  total: number;
-  counts: Record<string, number>;
-}
-
 /** What the user decided on a desktop stack card, with the concurrency fields the agentd request needs. */
 export type StackDecision =
   | { kind: 'approval'; verdict: 'allow' | 'allow_session' | 'deny'; generation: number; mode?: string }
@@ -168,57 +148,6 @@ export interface Rect {
   width: number;
   height: number;
 }
-
-export interface AvatarState {
-  running: boolean;
-  visible: boolean;
-  scale: number;
-  clickThroughAll: boolean;
-  speaking: boolean;
-  characterId: string | null;
-  appearanceId: string | null;
-}
-
-export interface AvatarStats {
-  /** When the host measured it (epoch ms); absent means now. */
-  at?: number;
-  fps: number;
-  frameMs: number;
-  cpuPercent: number;
-  frameMsP95?: number;
-  gpuMs?: number;
-}
-
-export type ActionSpeed = 0.5 | 1 | 2;
-
-/** Where the desktop play `playAction` started last stands: `tS` of `durationS` seconds into the clip playing now. */ export interface ActionProgress { id: string; tS: number; durationS: number; paused: boolean }
-
-/** A rect of the page's viewport in CSS px, and the action to play there (`loop`: over and over); absent plays the current character's idle; `stage` (with `action`) plays its camera and music, silent at 0 s until `control` resumes it. */
-export type PreviewPlacement = { x: number; y: number; w: number; h: number; action?: string; loop?: boolean; request?: number; stage?: boolean };
-
-export interface CharacterAppearance {
-  id: string; name: string; desc: string;
-  kind?: 'original' | 'imported'; warnings?: string[]; // warnings: imported only, its import report's warning codes
-}
-
-export interface CharacterEntry {
-  id: string;
-  name: string;
-  /** Latin name for the nameplate. */
-  en: string;
-  appearances: CharacterAppearance[];
-  active: boolean;
-  /** The package has a voice profile; without one she only shows text and never speaks (agentd `voice_enabled`). */
-  voice: boolean;
-  /** `agentic-complex-ui://app/characters/<id>/head.png`; absent when the package has no head. */
-  head?: string;
-  /** `agentic-complex-ui://app/characters/<id>/portrait.png` (≤1024 px); absent when the package has no portrait. */ portrait?: string;
-  /** `agentic-complex-ui://app/characters/<id>/background.png`, the character page's watermark; absent when the package has none. */ background?: string;
-  /** The current character only, and only when her appearance has outfit layers. */ layers?: CharacterLayer[];
-}
-
-/** Switch result; a rejection names the CharacterSwitch stage it stopped at and why. */
-export type CharacterSwitchResult = { ok: true } | { ok: false; stage: 'prepare' | 'avatar' | 'commit'; reason: string };
 
 export interface PushToTalkState {
   phase: 'idle' | 'listening' | 'transcribing' | 'sent' | 'error';
@@ -250,7 +179,8 @@ export interface PointerState {
 }
 
 export interface AgenticComplexBridge {
-  readonly surface: Surface; readonly platform: 'mac' | 'windows';
+  readonly surface: Surface;
+  readonly platform: 'mac' | 'windows';
   readonly capabilities: Readonly<Capabilities>;
   app: {
     info(): Promise<AppInfo>;
@@ -277,26 +207,10 @@ export interface AgenticComplexBridge {
     state(): Promise<Record<SupervisorTarget, ProcessState>>;
     restart(target: SupervisorTarget | 'all'): Promise<void>;
   };
-  settings: {
-    /** Only ids the UI may edit. */
-    schema(): Promise<SettingSchema[]>;
-    read(): Promise<SettingsSnapshot>;
-    save(changes: Record<SettingId, SettingValue>): Promise<SettingsSaveResult>;
-    /**
-     * Records that the user confirmed a data-deleting change. The web layer has already shown its own danger confirmation,
-     * so the native side only logs the consent and must not ask again; `false`: the shell refused, the change is not written.
-     */
-    confirmDestructive(id: SettingId): Promise<boolean>;
-    /** Counts for the danger dialog of a destructive setting; deletes nothing. */
-    previewDestructive(id: SettingId): Promise<DeletionPreview>;
-    validateHotkey(id: SettingId, combo: string): Promise<HotkeyCheck>;
-    recordHotkey(id: SettingId): Promise<string | null>;
-    wipeLocalData(): Promise<void>;
-    /** Pushes the ids whose saved value the native side changed outside the settings pages; read them again. */
-    onChange(cb: (c: SettingsChange) => void): Unsubscribe;
-  };
+  settings: SettingsOps;
   permissions: {
-    /** Only the kinds the platform has a grant for. */ status(): Promise<Partial<Record<PermissionKind, PermissionState>>>;
+    /** Only the kinds the platform has a grant for. */
+    status(): Promise<Partial<Record<PermissionKind, PermissionState>>>;
     /** Triggers the system prompt for a permission that was never asked. */
     request(kind: PermissionKind): Promise<PermissionState>;
     /** Opens the system settings pane; requires `capabilities.systemSettings`. */
@@ -304,49 +218,11 @@ export interface AgenticComplexBridge {
   };
   /** Available only on the onboarding surface. */
   onboarding: OnboardingOps;
-  avatar: import('./motionOverrides').MotionAvatarOps & {
-    state(): Promise<AvatarState>;
-    details(): Promise<AvatarDetails>;
-    setVisible(visible: boolean): Promise<void>; setScale(scale: number): Promise<void>;
-    /** While on, she walks clear of the main window in fullscreen. Main surface only. */ keepClearOfMain(on: boolean): Promise<void>;
-    resetPosition(): Promise<void>; toggleClickThroughAll(): Promise<void>; stopSpeech(): Promise<void>;
-    actions(): Promise<AvatarAction[]>;
-    /** `loop` (needs `capabilities.actionLoop`) plays it until `stopAction`, which ends the play this started last, at once when none plays; main surface only. */ playAction(id: string, speed: ActionSpeed, o?: { loop?: boolean }): Promise<void>; stopAction(): Promise<void>;
-    /** Pauses, resumes or seeks to `atS` that play; `not_implemented` when her renderer does not list `action_transport`, `not_playing` when none plays; main surface only. */ controlAction(op: 'pause' | 'resume' | 'seek', atS?: number): Promise<void>;
-    /** That play as it stands, then each report; null once it ends. Nothing while her renderer reports none. */ onActionProgress(cb: (p: ActionProgress | null) => void): Unsubscribe;
-    /** `character` is the one the page shows; another current character rejects with `character_changed`, as do the calls below that take one. */
-    setActionSwitches(character: string, switches: Record<string, boolean>): Promise<AvatarSwitchReply>;
-    setAppearance(id: string): Promise<void>;
-    /** Hides `hide` and shows `show`; her other layers, every appearance's, stay as they are; main surface only. */ setLayers(character: string, change: { hide: string[]; show: string[] }): Promise<void>;
-    /** Plays the current character's MMD list from item `start` (default 0); not on onboarding. */ playPlaylist(o?: { start?: number }): Promise<PlaylistPlayResult>;
-    stopPlaylist(): Promise<{ ok: true }>; playlistState(): Promise<PlaylistState>;
-    /** The character page's live preview, drawn by the shell over the page; main surface only. */
-    preview: {
-      /** Places or moves it and plays `action`; true once the character is drawn there, false where the shell has no live preview. */
-      show(at: PreviewPlacement): Promise<boolean>; hide(): Promise<void>; /** The inspection camera; absent `tilt`, `pan`, `frame` are 0, [0, 0], [0, 0, 1, 1]. The shell keeps it across loads. */ view(v: import('./motionOverrides').PreviewView): Promise<void>;
-      /** `{ fraction }` 0–1 while a load builds her anew; null once none does (drawn, failed, replaced). A clip change reports none. */ onProgress(cb: (p: { fraction: number } | null) => void): Unsubscribe;
-      /** Pauses, resumes or seeks (seconds) the stage preview; nothing without one. */ control(c: import('./motionOverrides').PreviewControl): Promise<void>;
-      /** The stage preview's playhead while it is on screen; null once there is none (another show, hidden, failed). */ onPosition(cb: (p: import('./motionOverrides').PreviewPosition | null) => void): Unsubscribe;
-    };
-    onState(cb: (s: AvatarState) => void): Unsubscribe;
-    onStats(cb: (s: AvatarStats) => void): Unsubscribe;
-  };
-  character: import('./mmd').ImportStateOps & {
-    list(): Promise<CharacterEntry[]>;
-    switchTo(id: string): Promise<CharacterSwitchResult>;
-    importPackage(): Promise<{ ok: boolean; reason?: string }>;
-    importMotion(): Promise<MotionImportResult>;
-    importOutfit(): Promise<OutfitImportResult>; removeOutfit(character: string, appearanceId: string): Promise<OutfitRemoveResult>;
-    /** `character` is the one the page shows; another current character answers `{ok: false, reason: 'character_changed'}`, as renameMotion and removeMotion do. */
-    listImportedMotions(character: string): Promise<ImportedMotionsResult>;
-    /** `id` is 1–64 bytes; `title` is trimmed and must then be 1–64 characters, else the call rejects with `bad_args`. */
-    renameMotion(character: string, id: string, title: string): Promise<MotionRenameResult>;
-    removeMotion(character: string, id: string): Promise<MotionRemoveResult>;
-    /** `character_changed` when another character is current. */
-    getPlaylist(character: string): Promise<MotionPlaylist>; setPlaylist(character: string, p: MotionPlaylist): Promise<{ ok: true }>;
-  };
-  mmd: import('./mmd').MmdOps; voice: { onPushToTalk(cb: (s: PushToTalkState) => void): Unsubscribe };
-  files: import('./adopt').FileAdopt & {
+  avatar: AvatarOps;
+  character: CharacterOps;
+  mmd: MmdOps;
+  voice: { onPushToTalk(cb: (s: PushToTalkState) => void): Unsubscribe };
+  files: FileAdopt & {
     pickFile(o: { purpose: 'runtime_executable' | 'scope_file' }): Promise<PickedHandle | null>;
     pickFolder(o: { purpose: 'scope_root' | 'scope_output' | 'session_cwd' }): Promise<PickedHandle | null>;
     /** `with_text=1` on a trace turn asks natively first; false when declined or the save panel was cancelled. */
@@ -367,9 +243,13 @@ export interface AgenticComplexBridge {
   clipboard: {
     writeText(t: string): Promise<void>;
   };
-  computerUse: ComputerUseOps; logs: import('./logs').LogsOps; services: import('./services').ServicesOps;
+  computerUse: ComputerUseOps;
+  logs: LogsOps;
+  services: ServicesOps;
   /** The 调整镜头, 调整大小 and 拍照 overlay pages' own. */
-  camera: CameraOps; resize: import('./resize').ResizeOps; photo: import('./photo').PhotoOps;
+  camera: CameraOps;
+  resize: ResizeOps;
+  photo: PhotoOps;
   window: DesktopWindowOps & {
     contentRect(): Promise<{ width: number; height: number }>;
     /** `glass`: the page's card rects for native glass; a report without it removes the glass. */

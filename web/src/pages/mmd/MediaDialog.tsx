@@ -3,7 +3,7 @@ import { useState } from 'react';
 import type { MmdEntry } from '../../bridge';
 import { Btn, Dialog } from '../../ui';
 import { GameSeg } from '../../ui/game';
-import modal from '../../ui/Modal.module.css';
+import dialog from '../../ui/Dialog.module.css';
 import styles from './ImportDialog.module.css';
 
 export interface MediaDialogProps {
@@ -45,7 +45,7 @@ export function MediaDialog({ entry, onSave, onCancel }: MediaDialogProps) {
         />
         <label className={styles.offset}>
           音乐偏移
-          <input className={modal.input} inputMode="decimal" aria-label="音乐偏移" value={offset} placeholder="0" disabled={bgm === 'none'} aria-invalid={bad}
+          <input className={dialog.input} inputMode="decimal" aria-label="音乐偏移" value={offset} placeholder="0" disabled={bgm === 'none'} aria-invalid={bad}
             onChange={(e) => setOffset(e.currentTarget.value)} />
           秒
         </label>

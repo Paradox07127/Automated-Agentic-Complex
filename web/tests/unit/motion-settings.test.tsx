@@ -7,7 +7,7 @@ import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge } from '../../src/bridge/protocol';
 import { MOTION_GRAPH } from '../../src/mock/motionGraph';
 import { demoNative } from '../../src/mock/settings';
-import type { Toast } from '../../src/pages/character/feedback';
+import type { Toast } from '../../src/features/character/feedback';
 import type { MotionGraph } from '../../src/pages/character/motions/graph';
 import { laneText } from '../../src/pages/character/motions/LoopMap';
 import { MotionSettings } from '../../src/pages/character/motions/MotionSettings';

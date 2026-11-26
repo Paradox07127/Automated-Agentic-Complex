@@ -2,7 +2,7 @@
 // 松手即停。镜头跨分区保留，换人和离开角色页回正。
 import { useEffect, useRef, useState } from 'react';
 import { getBridge, type PreviewView } from '../../bridge';
-import { PREVIEW_LAYER } from './usePreview';
+import { PREVIEW_LAYER } from '../../features/character/usePreview';
 
 /** Degrees per device pixel of drag, on her yaw and on her pitch. */
 const TURN_PER_PX = 0.5;

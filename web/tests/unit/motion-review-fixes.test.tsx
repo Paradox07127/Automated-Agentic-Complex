@@ -8,7 +8,7 @@ import type { AgenticComplexBridge } from '../../src/bridge/protocol';
 import { MOTIONS } from '../../src/mock/character';
 import { MOTION_GRAPH } from '../../src/mock/motionGraph';
 import { Commit, type CommitProps } from '../../src/pages/character/Commit';
-import type { Toast } from '../../src/pages/character/feedback';
+import type { Toast } from '../../src/features/character/feedback';
 import { ChainEditBar } from '../../src/pages/character/motions/ChainEditBar';
 import { fixBlend } from '../../src/pages/character/motions/ChainStrip';
 import type { MotionGraph } from '../../src/pages/character/motions/graph';

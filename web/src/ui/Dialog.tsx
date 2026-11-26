@@ -2,7 +2,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, ty
 import { createPortal } from 'react-dom';
 import { Btn } from './Btn';
 import { IconBtn } from './IconBtn';
-import { MODAL_ROOT_ID, useExitFade } from './Modal';
+import { MODAL_ROOT_ID, useExitFade } from './overlay';
 import styles from './Dialog.module.css';
 
 /** 居中对话框：模糊遮罩上一条通栏白带，内容宽 560，居中标题、正文、固定底栏；焦点陷阱，Esc 关闭，关闭后焦点回到触发处。 */
@@ -39,7 +39,7 @@ if (typeof document !== 'undefined') {
 const openStack: object[] = [];
 
 /**
- * Shared by Dialog, Sheet and Modal: focuses `initial`'s pick, else the first control outside `[data-part="head"]` and InfoTips, on
+ * Shared by Dialog, Sheet and the pages' own overlays: focuses `initial`'s pick, else the first control outside `[data-part="head"]` and InfoTips, on
  * mount, closes on Esc (only the topmost overlay, unless a child already handled it), returns focus on unmount. The returned handler
  * keeps Tab inside `panel`.
  */

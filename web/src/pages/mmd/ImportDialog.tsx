@@ -4,7 +4,7 @@ import type { MmdImportPlan, MmdScan } from '../../bridge';
 import { Btn, Dialog, Fold, IconBtn, Select } from '../../ui';
 import { MicroLabel } from '../../ui/game';
 import { MMD_IGNORED_REASON } from '../character/labels';
-import modal from '../../ui/Modal.module.css';
+import dialog from '../../ui/Dialog.module.css';
 import styles from './ImportDialog.module.css';
 
 /** motion_tool's longest motion. */
@@ -89,9 +89,9 @@ export function ImportDialog({ token, scan, onImport, onCancel, onPickAudio }: I
       }
     >
       <div className={styles.form} data-mmd-import="">
-        <label className={`${modal.field} ${styles.song}`}>
+        <label className={`${dialog.field} ${styles.song}`}>
           舞蹈名称
-          <input className={modal.input} value={song} autoComplete="off" spellCheck={false} onChange={(e) => setSong(e.currentTarget.value)} />
+          <input className={dialog.input} value={song} autoComplete="off" spellCheck={false} onChange={(e) => setSong(e.currentTarget.value)} />
         </label>
         <fieldset className={styles.group}>
           <legend className={styles.head}>
@@ -131,7 +131,7 @@ export function ImportDialog({ token, scan, onImport, onCancel, onPickAudio }: I
           <label className={styles.offset}>
             音乐偏移
             <input
-              className={modal.input}
+              className={dialog.input}
               inputMode="decimal"
               aria-label="音乐偏移"
               value={offset}

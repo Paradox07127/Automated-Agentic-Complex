@@ -63,7 +63,7 @@ export type DeliveryState = 'produced' | 'presented' | 'viewed' | 'accepted' | '
 
 export type VerificationSource = 'auto' | 'unverified';
 
-/** Trace turn result (DotStrip dots, turn waterfall header). */
+/** Trace turn result (diag timeline, turn waterfall header). */
 export type TurnResult = 'ok' | 'failed' | 'interrupted' | 'skipped' | 'running' | 'unknown';
 
 /** One stage inside a trace turn or a waterfall row. */

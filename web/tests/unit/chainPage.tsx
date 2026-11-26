@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { vi } from 'vitest';
 import { MOTION_GRAPH } from '../../src/mock/motionGraph';
-import type { Toast } from '../../src/pages/character/feedback';
+import type { Toast } from '../../src/features/character/feedback';
 import { MotionSettings } from '../../src/pages/character/motions/MotionSettings';
 
 export const IDLE = 'A_clip_birch_idle_loop';

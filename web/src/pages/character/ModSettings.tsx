@@ -4,9 +4,9 @@ import { getBridge, type ModSettingAdjusted, type ModSettingValues } from '../..
 import { ErrBar, Icon, SRow, Switch } from '../../ui';
 import { Diamond, Stepper, TitleBar, WhiteCapsule } from '../../ui/game';
 import { useCompact } from './compact';
-import type { Toast } from './feedback';
+import type { Toast } from '../../features/character/feedback';
 import type { ModSettingRow } from './modSettingsTable';
-import { previewLookChanged } from './usePreview';
+import { previewLookChanged } from '../../features/character/usePreview';
 import head from './ModCard.module.css';
 import rowStyles from './SettingRows.module.css';
 import styles from './ModSettings.module.css';

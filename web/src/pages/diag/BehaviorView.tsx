@@ -8,7 +8,7 @@ import { BottomBarSlot, PageHeaderSlot } from '../../shell/headerSlot';
 import { Btn, ErrBar, Spinner } from '../../ui';
 import { StatusLamp } from '../../ui/game';
 import { failure, readBeats, readHistory, readState, resetState } from '../character/api';
-import { pageNow, useFeedback } from '../character/feedback';
+import { pageNow, useFeedback } from '../../features/character/feedback';
 import { DOWN } from '../character/Page';
 import { Behavior, type Range } from './Behavior';
 import styles from './Behavior.module.css';

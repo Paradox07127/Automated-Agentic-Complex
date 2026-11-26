@@ -5,10 +5,10 @@ import { ErrBar, Icon } from '../../ui';
 import { DarkRow, TitleBar, WhiteCapsule, YellowKey } from '../../ui/game';
 import { useCompact } from './compact';
 import { motionFormatLabel } from './labels';
-import { MotionEditDialog, type MotionEdit } from './MotionEditDialog';
-import { importStageLabel, useImportState } from './useImportState';
+import { MotionEditDialog, type MotionEdit } from '../../features/character/MotionEditDialog';
+import { importStageLabel, useImportState } from '../../features/character/useImportState';
 import type { MotionImport } from './useMotionImport';
-import type { MotionLibrary } from './useMotionLibrary';
+import type { MotionLibrary } from '../../features/character/useMotionLibrary';
 import styles from './ImportPane.module.css';
 
 export interface ImportPaneProps {

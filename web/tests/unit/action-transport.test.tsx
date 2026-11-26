@@ -10,7 +10,7 @@ import type { AgenticComplexBridge, MmdEntry } from '../../src/bridge/protocol';
 import { CHARACTER_LOOKS } from '../../src/mock/fixtures';
 import { MOTIONS, STATE_WITH_CAUSES } from '../../src/mock/character';
 import { Operator } from '../../src/pages/character/Operator';
-import { Transport } from '../../src/pages/character/Transport';
+import { Transport } from '../../src/features/character/Transport';
 import { MmdPage } from '../../src/pages/mmd/Page';
 
 vi.mock('../../src/shell/toast', async (original) => ({ ...(await original<typeof import('../../src/shell/toast')>()), toast: vi.fn() }));

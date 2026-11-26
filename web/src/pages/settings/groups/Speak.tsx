@@ -9,7 +9,7 @@ import { useControls } from '../controls';
 import { useSettings } from '../ctx';
 import type { DiagView } from '../diag';
 import { REPLY_LANGUAGE } from '../fields';
-import { Btn, Pill, RadioDot, Switch } from '../../../ui';
+import { Btn, Pill, RadioDot, RadioDotGroup, Switch } from '../../../ui';
 import { GameSeg, PowerState, StatusLamp } from '../../../ui/game';
 import { Dis } from '../kit';
 import { optionsOf } from '../native';
@@ -172,28 +172,37 @@ export function SpeakGroup() {
 
       <SetSection title="通知送达">
         <Slab id="n_done" label="各类通知">
-          <div className={styles.mx} role="table" aria-label="各类通知">
-            <span role="row" className={styles.mxHead}>
-              <span role="columnheader" />
+          {/* One radio group per kind; each dot's name carries its column's level, so the head is not read out. */}
+          <div className={styles.mx} role="group" aria-label="各类通知">
+            <span className={styles.mxHead} aria-hidden="true">
+              <span />
               {notifyLevels.map((o) => (
-                <span key={o.value} role="columnheader">
-                  {o.label}
-                </span>
+                <span key={o.value}>{o.label}</span>
               ))}
             </span>
-            {NOTIFY.filter(([id]) => shown(id)).map(([id, label, note]) => (
-              <span key={id} role="row" id={id === 'n_done' ? undefined : `set-${id}`} className={styles.mxRow} data-row={id}>
-                <span role="rowheader" className={styles.mxK}>
-                  {label}
-                  <small>{note}</small>
-                </span>
-                {notifyLevels.map((o) => (
-                  <span key={o.value} role="cell" className={styles.mxCell}>
-                    <RadioDot label={`${label}：${o.label}`} checked={model.value(id) === o.value} disabled={groupRo} onSelect={() => model.set(id, o.value)} />
+            {NOTIFY.filter(([id]) => shown(id)).map(([id, label, note]) => {
+              const value = model.value(id);
+              const known = notifyLevels.some((o) => o.value === value);
+              return (
+                <RadioDotGroup key={id} label={label} id={id === 'n_done' ? undefined : `set-${id}`} className={styles.mxRow} data-row={id}>
+                  <span className={styles.mxK}>
+                    {label}
+                    <small>{note}</small>
                   </span>
-                ))}
-              </span>
-            ))}
+                  {notifyLevels.map((o, i) => (
+                    <span key={o.value} className={styles.mxCell}>
+                      <RadioDot
+                        label={`${label}：${o.label}`}
+                        checked={value === o.value}
+                        tabStop={known ? value === o.value : i === 0}
+                        disabled={groupRo}
+                        onSelect={() => model.set(id, o.value)}
+                      />
+                    </span>
+                  ))}
+                </RadioDotGroup>
+              );
+            })}
           </div>
         </Slab>
         <SetRow

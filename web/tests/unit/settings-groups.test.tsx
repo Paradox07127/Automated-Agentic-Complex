@@ -140,7 +140,7 @@ describe('settings › 声音 › 通知方式', () => {
         <SpeakGroup />
       </Harness>,
     );
-    const row = screen.getByRole('row', { name: /^提醒/ });
+    const row = screen.getByRole('radiogroup', { name: '提醒' });
     const companion = screen.getByRole('radiogroup', { name: '主动交互' }).closest('[data-row="speakWhen"]');
     expect(companion?.textContent).toContain('任务结果与已设提醒仍正常送达');
     expect(within(row).getAllByRole('radio').map((r) => r.getAttribute('aria-label'))).toEqual(['提醒：卡片并提示音', '提醒：仅显示卡片', '提醒：不提示']);

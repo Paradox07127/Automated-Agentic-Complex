@@ -500,6 +500,14 @@ describe('the bubble’s thought and mute', () => {
     screen.getByRole('dialog', { name: '快速输入' });
   });
 
+  it('draws 回复 as a bare pill with no icon', async () => {
+    const b = mountBubble();
+    await b.presence(presenceOf());
+    const reply = screen.getByRole('button', { name: '回复' });
+    expect(reply.querySelector('svg')).toBeNull();
+    expect(reply.textContent).toBe('回复');
+  });
+
   it('回复 on a thought sends it as the thought it answers', async () => {
     const b = mountBubble();
     const say = vi.spyOn(b.bridge.desktop, 'say');

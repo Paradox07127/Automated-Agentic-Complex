@@ -4,9 +4,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AvatarAction } from '../../src/bridge/protocol';
 import { MOTIONS } from '../../src/mock/character';
 import { HeadStrip } from '../../src/pages/character/HeadStrip';
-import { MotionEditDialog } from '../../src/pages/character/MotionEditDialog';
+import { MotionEditDialog } from '../../src/features/character/MotionEditDialog';
 import { Operator, type OperatorProps } from '../../src/pages/character/Operator';
-import type { MotionLibrary } from '../../src/pages/character/useMotionLibrary';
+import type { MotionLibrary } from '../../src/features/character/useMotionLibrary';
 import { useSwitch } from '../../src/pages/character/useSwitch';
 
 const noop = () => {};

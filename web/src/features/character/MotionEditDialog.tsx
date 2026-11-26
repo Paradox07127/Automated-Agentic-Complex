@@ -1,7 +1,7 @@
 // 改名 and 删除 of an imported motion, on the 导入 pane and the MMD page.
 import { Btn, Dialog } from '../../ui';
 import type { MotionLibrary } from './useMotionLibrary';
-import modal from '../../ui/Modal.module.css';
+import dialog from '../../ui/Dialog.module.css';
 
 /** motion_tool's title rule: 1–64 characters once trimmed. */
 const titleOk = (t: string) => {
@@ -37,10 +37,10 @@ export function MotionEditDialog({ edit, removeNote, onEdit, library }: { edit: 
           </>
         }
       >
-        <label className={modal.field}>
+        <label className={dialog.field}>
           动作名称
           <input
-            className={modal.input}
+            className={dialog.input}
             value={edit.title}
             autoComplete="off"
             spellCheck={false}

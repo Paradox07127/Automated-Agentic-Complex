@@ -10,7 +10,7 @@ import type { PreviewPlacement } from '../../src/bridge';
 import { createFakeBridge } from '../../src/bridge/fake';
 import { ModSettings } from '../../src/pages/character/ModSettings';
 import type { ModSettingRow } from '../../src/pages/character/modSettingsTable';
-import { previewLookChanged, useLivePreview } from '../../src/pages/character/usePreview';
+import { previewLookChanged, useLivePreview } from '../../src/features/character/usePreview';
 import { MODAL_ROOT_ID } from '../../src/ui';
 
 function Probe({ action, blocked = false, character = 'birch', request }: { action?: string; blocked?: boolean; character?: string; request?: number }) {

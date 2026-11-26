@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge } from '../../src/bridge/protocol';
 import { MOTION_GRAPH } from '../../src/mock/motionGraph';
-import type { Toast } from '../../src/pages/character/feedback';
+import type { Toast } from '../../src/features/character/feedback';
 import { keyBoneGap, poseGap } from '../../src/pages/character/motions/chainEdit';
 import { reasonText } from '../../src/pages/character/motions/chainReasons';
 import { indexGraph } from '../../src/pages/character/motions/chainPath';

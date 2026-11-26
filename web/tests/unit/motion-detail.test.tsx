@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge } from '../../src/bridge/protocol';
-import type { Toast } from '../../src/pages/character/feedback';
+import type { Toast } from '../../src/features/character/feedback';
 import { click, detail, IDLE, mount, openChain, PAT, PONDER, PONDER_END, PONDER_LOOP, row, save, THINK, TO_RELAX, toEvent } from './chainPage';
 
 let bridge: AgenticComplexBridge;

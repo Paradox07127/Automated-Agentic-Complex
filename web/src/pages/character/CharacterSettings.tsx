@@ -3,7 +3,7 @@ import { getBridge, type SettingValue } from '../../bridge';
 import { ErrBar, Skel, type IconName } from '../../ui';
 import { GameTabs, MicroLabel, PowerState, WhiteCapsule, type GameTab } from '../../ui/game';
 import type { Native } from '../settings/native';
-import type { Toast } from './feedback';
+import type { Toast } from '../../features/character/feedback';
 import { Panel } from './Panel';
 import { CHAR_TABS, LIGHT_PAD, type CharTab } from './sections';
 import { isChanged, presentTabs, SettingRows, tabRows } from './SettingRows';

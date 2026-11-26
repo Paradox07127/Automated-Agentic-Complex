@@ -1,8 +1,8 @@
-import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
-import type { ActionProgress, MmdDetail, MmdEntry, PreviewControl, PreviewPosition } from '../../bridge';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
+import { getBridge, type ActionProgress, type MmdDetail, type MmdEntry, type PreviewControl, type PreviewPosition } from '../../bridge';
 import { Icon } from '../../ui';
 import { GameSeg, MicroLabel, WhiteCapsule } from '../../ui/game';
-import type { TransportOp } from '../character/Transport';
+import type { TransportOp } from '../../features/character/Transport';
 import styles from './Timeline.module.css';
 
 /** ← / → on the timeline. */
@@ -29,8 +29,8 @@ interface TimelineProps {
   /** The desktop's report while it plays this dance. */
   desk: ActionProgress | null;
   onControl: (op: TransportOp, at?: number) => void;
-  /** The stage preview's playhead while it shows this dance. */
-  preview: PreviewPosition | null;
+  /** The stage preview shows this dance: the timeline follows its playhead. */
+  previewing: boolean;
   onPreview: (c: PreviewControl) => void;
   baked: boolean;
   canLoop: boolean;
@@ -46,7 +46,18 @@ interface TimelineProps {
 /** 时间线：播放键、时钟、来源（页内预览 / 桌面）、桌面播放、一次 / 循环；身体、口型、镜头切点、音源四条轨和播放头。桌面在播这支舞时跟着桌面走，否则跟着页内预览走；拖动或 ← → 跳转。 */
 export function Timeline(p: TimelineProps) {
   const desk = p.desk;
-  const stage = desk ? null : p.preview;
+  // The stage preview's last position and the dance it came for; a position of the dance before is never shown.
+  const [pos, setPos] = useState<{ id: string; at: PreviewPosition } | null>(null);
+  const id = p.entry.id;
+  useEffect(() => {
+    if (!p.previewing) return;
+    const off = getBridge().avatar.preview.onPosition((at) => setPos(at && { id, at }));
+    return () => {
+      off();
+      setPos(null);
+    };
+  }, [p.previewing, id]);
+  const stage = !desk && p.previewing && pos?.id === id ? pos.at : null;
   const total = desk?.durationS ?? stage?.duration ?? p.entry.durationS;
   // The play the controls act on: the desktop's, else the stage preview's.
   const now = desk ? { t: desk.tS, paused: desk.paused } : stage ? { t: stage.t, paused: !stage.playing } : null;
@@ -91,6 +102,8 @@ export function Timeline(p: TimelineProps) {
   const step = rulerStep(total);
   const marks = Array.from({ length: Math.max(0, Math.ceil(total / step) - 1) }, (_, i) => (i + 1) * step);
   const lanes = p.detail?.lanes;
+  // The lanes' slices span the entry's duration; the ruler and the playhead span `total`, which the player may report longer or shorter.
+  const share = total > 0 ? p.entry.durationS / total : 1;
   const cuts = p.detail?.camera?.cuts;
   const paused = now?.paused === true;
   return (
@@ -131,13 +144,13 @@ export function Timeline(p: TimelineProps) {
           <i className={styles.body} />
         </Lane>
         <Lane row={3} label="口型" micro="FACE" name="口型">
-          {lanes?.mouth && <Bars values={lanes.mouth} kind="mouth" />}
+          {lanes?.mouth && <Bars values={lanes.mouth} kind="mouth" share={share} />}
         </Lane>
         <Lane row={4} label="镜头" micro="CAM" name="镜头切点">
           {cuts && total > 0 && <Cuts cuts={cuts} total={total} />}
         </Lane>
         <Lane row={5} label="音频" micro="BGM" name="音频">
-          {lanes?.loudness && <Bars values={lanes.loudness} kind="wave" />}
+          {lanes?.loudness && <Bars values={lanes.loudness} kind="wave" share={share} />}
         </Lane>
         <div
           ref={track}
@@ -184,8 +197,8 @@ function Lane({ row, label, micro, name, children }: { row: number; label: strin
   );
 }
 
-/** One bar per slice: the mouth from the lane's floor, the music's loudness both ways from its middle. */
-function Bars({ values, kind }: { values: number[]; kind: 'mouth' | 'wave' }) {
+/** One bar per slice: the mouth from the lane's floor, the music's loudness both ways from its middle. `share`: the lane's width the slices fill. */
+function Bars({ values, kind, share }: { values: number[]; kind: 'mouth' | 'wave'; share: number }) {
   const d = useMemo(
     () =>
       values
@@ -197,7 +210,7 @@ function Bars({ values, kind }: { values: number[]; kind: 'mouth' | 'wave' }) {
     [values, kind],
   );
   return (
-    <svg className={styles.svg} viewBox={`0 0 ${values.length} 100`} preserveAspectRatio="none" data-bins={values.length} aria-hidden="true">
+    <svg className={styles.svg} style={{ width: `${share * 100}%` }} viewBox={`0 0 ${values.length} 100`} preserveAspectRatio="none" data-bins={values.length} aria-hidden="true">
       <path className={styles[kind]} d={d} />
     </svg>
   );

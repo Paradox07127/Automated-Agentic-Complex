@@ -10,7 +10,7 @@ import type { AgenticComplexBridge } from '../../src/bridge/protocol';
 import { MOTIONS, STATE_WITH_CAUSES } from '../../src/mock/character';
 import { useModTable } from '../../src/pages/character/LookPane';
 import { Operator } from '../../src/pages/character/Operator';
-import type { Toast } from '../../src/pages/character/feedback';
+import type { Toast } from '../../src/features/character/feedback';
 import { OUTFIT_IMPORT_REASON, OUTFIT_IMPORT_UNKNOWN, outfitImportReason, outfitImportWarning } from '../../src/pages/character/labels';
 
 const noop = () => {};

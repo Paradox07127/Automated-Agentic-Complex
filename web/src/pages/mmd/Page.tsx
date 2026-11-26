@@ -1,18 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getBridge, type CharacterEntry, type MmdEntry, type PreviewControl, type PreviewPosition } from '../../bridge';
+import { getBridge, type CharacterEntry, type MmdEntry, type PreviewControl } from '../../bridge';
 import { PageHeaderSlot } from '../../shell/headerSlot';
 import { toast } from '../../shell/toast';
 import { ErrBar, Menu } from '../../ui';
 import { LoadBar, MicroLabel, TitleBar, TrainingRoom, WhiteCapsule } from '../../ui/game';
-import { usePageParams } from '../character/feedback';
+import { usePageParams } from '../../features/character/feedback';
 import { PLAY_REFUSED, playRefusedSeverity } from '../character/labels';
-import { MotionEditDialog, type MotionEdit } from '../character/MotionEditDialog';
-import { useActionTransport } from '../character/Transport';
-import { currentOf, RUNTIME_DOWN, useHostCharacter, useMmdSync } from '../character/useHostCharacter';
-import { importStageLabel, useImportState } from '../character/useImportState';
-import { useMotionLibrary } from '../character/useMotionLibrary';
-import { useLivePreview } from '../character/usePreview';
+import { MotionEditDialog, type MotionEdit } from '../../features/character/MotionEditDialog';
+import { useActionTransport } from '../../features/character/Transport';
+import { currentOf, RUNTIME_DOWN, useHostCharacter, useMmdSync } from '../../features/character/useHostCharacter';
+import { importStageLabel, useImportState } from '../../features/character/useImportState';
+import { useMotionLibrary } from '../../features/character/useMotionLibrary';
+import { useLivePreview } from '../../features/character/usePreview';
 import { ImportDialog } from './ImportDialog';
 import { Inspector } from './Inspector';
 import { AddKey, filtered, InList, Library, notBaked, stateOf, type MmdFilter } from './Library';
@@ -98,14 +98,17 @@ export function MmdPage() {
   const setlist = useSetlist(current, ids, toast);
   const transport = useActionTransport(toast);
   const desk = picked != null && transport.progress?.id === picked.id ? transport.progress : null;
-  // The stage preview's playhead; the stage plays the picked dance only while it is baked and not on the desktop.
-  const [stagePos, setStagePos] = useState<PreviewPosition | null>(null);
-  useEffect(() => (canAvatar ? getBridge().avatar.preview.onPosition(setStagePos) : undefined), [canAvatar]);
   const controlStage = (c: PreviewControl) => void getBridge().avatar.preview.control(c).catch(() => {});
   const onDesk = desk != null || (looping?.character === current && looping.id === picked?.id);
-  // Read again once some character has it baked: before that it is `not_baked`.
+  // Read again once some character has it baked: before that it is `not_baked`. The face mapping is the current character's.
   const anyBaked = picked?.characters.some((c) => c.state === 'baked') ?? false;
-  const detailQ = useQuery({ queryKey: ['mmd', 'detail', picked?.id ?? '', anyBaked], queryFn: () => getBridge().mmd.detail(picked!.id), enabled: canAvatar && picked != null });
+  const detailQ = useQuery({
+    queryKey: ['mmd', 'detail', picked?.id ?? '', current, anyBaked],
+    queryFn: () => getBridge().mmd.detail(picked!.id),
+    enabled: canAvatar && picked != null,
+    // Each read runs motion_tool over the whole music file; refresh() reads it again after a change.
+    staleTime: Infinity,
+  });
   const detail = detailQ.data?.ok && detailQ.data.detail.id === picked?.id ? detailQ.data.detail : null;
 
   const pick = (e: MmdEntry) => {
@@ -184,7 +187,7 @@ export function MmdPage() {
                   detail={detail}
                   desk={desk}
                   onControl={transport.control}
-                  preview={baked && !desk ? stagePos : null}
+                  previewing={canAvatar && baked && !desk}
                   onPreview={controlStage}
                   baked={baked}
                   canLoop={canLoop}

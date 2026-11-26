@@ -1,7 +1,7 @@
 // 链详情「编辑结构」: the structure proposal being built, the answer to its last check or apply, and applying it.
 import { useState } from 'react';
 import { getBridge, type ChainCheck, type ChainEdit, type ChainProblem, type ChainProposal } from '../../../bridge';
-import type { Toast } from '../feedback';
+import type { Toast } from '../../../features/character/feedback';
 import { addEdit } from './chainEdit';
 import { chainFailure, reasonText } from './chainReasons';
 

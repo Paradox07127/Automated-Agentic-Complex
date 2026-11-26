@@ -9,8 +9,8 @@ import { MOTIONS, STATE_WITH_CAUSES } from '../../src/mock/character';
 import { Operator, type OperatorProps } from '../../src/pages/character/Operator';
 
 const lookChanged = vi.hoisted(() => vi.fn());
-vi.mock('../../src/pages/character/usePreview', async (actual) => ({
-  ...(await actual<typeof import('../../src/pages/character/usePreview')>()),
+vi.mock('../../src/features/character/usePreview', async (actual) => ({
+  ...(await actual<typeof import('../../src/features/character/usePreview')>()),
   previewLookChanged: lookChanged,
 }));
 

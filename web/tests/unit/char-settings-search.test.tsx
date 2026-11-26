@@ -39,7 +39,7 @@ afterEach(() => {
 describe('settings search · 角色 rows', () => {
   it('opens 描边 on the 画面 tab at its row', async () => {
     await search('描边');
-    fireEvent.click(await screen.findByRole('button', { name: /角色轮廓描边/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /角色描边/ }));
     expect(window.location.hash.startsWith('#/character?')).toBe(true);
     expect(hashQuery().get('tab')).toBe('render');
     expect(hashQuery().get('row')).toBe('rnd.outline');

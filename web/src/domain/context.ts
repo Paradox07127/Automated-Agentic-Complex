@@ -147,7 +147,7 @@ export interface Turn {
   marks: Array<{ at_ms: number; label: string }>;
 }
 
-/** Thin DotStrip dot: started_at, duration, result, source. */
+/** One turn on the diag timeline: started_at, duration, result, source. */
 export interface TurnDot {
   /** trace_id. */
   id: string;

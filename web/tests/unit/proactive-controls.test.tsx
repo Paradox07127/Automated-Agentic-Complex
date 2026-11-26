@@ -124,3 +124,29 @@ describe('settings › 声音 › muted kinds', () => {
     expect(again.container.querySelector('[data-row="mutes"]')).toBeNull();
   });
 });
+
+describe('settings › 声音 › 通知送达', () => {
+  beforeEach(async () => {
+    window.agenticComplex = createFakeBridge({ surface: 'main', still: true });
+    native = await demoNative(null);
+    vi.spyOn(window.agenticComplex!.agentd, 'request').mockResolvedValue({ status: 200, body: { muted: [] } });
+  });
+
+  it('makes each kind one radio group: one Tab stop on its level, → picks the next level', async () => {
+    render(
+      <Harness>
+        <SpeakGroup />
+      </Harness>,
+    );
+    const done = await screen.findByRole('radiogroup', { name: '完成' });
+    const dots = () => within(done).getAllByRole('radio');
+    expect(dots().filter((d) => d.tabIndex === 0)).toHaveLength(1);
+    const at = dots().findIndex((d) => d.getAttribute('aria-checked') === 'true');
+    expect(dots()[at]!.tabIndex).toBe(0);
+    await act(async () => void fireEvent.keyDown(dots()[at]!, { key: 'ArrowRight' }));
+    const next = (at + 1) % dots().length;
+    expect(dots()[next]!.getAttribute('aria-checked')).toBe('true');
+    expect(document.activeElement).toBe(dots()[next]);
+    expect(dots().filter((d) => d.tabIndex === 0)).toEqual([dots()[next]]);
+  });
+});

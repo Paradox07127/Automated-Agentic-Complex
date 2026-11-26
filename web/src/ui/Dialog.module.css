@@ -1,20 +1,232 @@
-/* The confirm popup shared with Modal, plus a title row with a close button and a body that scrolls while the footer stays put. */
+/* Dialog: blurred #000@0.5 scrim, a full-width white band with a tri-colour strip, a title row with a close button, a body that
+   scrolls while the footer row stays put; .field and .input serve dialogs with a text field. */
 .scrim {
-  composes: scrim from './Modal.module.css';
+  /* Background blur; the radius is inferred. */
+  --popup-blur: 6px;
+  /* Shadow under the band: black, about 0.62 at the edge, fading out over 74 px. */
+  --popup-shadow: rgb(0 0 0 / 0.62);
+  /* Halo: faint white above and below the band. */
+  --popup-halo: rgb(255 255 255 / 0.34);
+  position: absolute;
+  inset: 0;
+  z-index: var(--ef-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  isolation: isolate;
+  overflow: hidden;
+  padding: var(--ef-sp-48) var(--ef-space-page);
+  container-type: inline-size;
+  background: var(--ef-scrim-popup);
+  -webkit-backdrop-filter: blur(var(--popup-blur));
+  backdrop-filter: blur(var(--popup-blur));
+  animation: fade 167ms var(--ef-ease-g-fade) both;
+}
+
+.scrim[data-closing] {
+  pointer-events: none;
+  animation: fade-out var(--ef-dur-g-panel-out) var(--ef-ease-g-fade) forwards;
 }
 
 .panel {
-  composes: panel from './Modal.module.css';
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 7.5px;
+  width: min(560px, 100%);
+  max-height: 100%;
+  min-height: 195px;
+  padding: 37.5px 0;
   --ui-table-bg: var(--ef-popup-band);
+  background-color: var(--ef-popup-band);
+  color: var(--ef-popup-text);
   font: var(--ef-t-text);
 }
 
+/* Full scrim width (the scrim's padding included), 35.5 px above and below the content, 2.75 px low; it opens from the right. */
 .band {
-  composes: band from './Modal.module.css';
+  position: absolute;
+  z-index: -1;
+  inset: -32.75px calc(50% - 50cqw - var(--ef-space-page)) -38.25px;
+  background: var(--ef-popup-band);
+  transform-origin: right;
+  pointer-events: none;
+  animation: band-open 200ms var(--ef-ease-g-exit) both;
 }
 
+/* Left ornament with art, over the halo layer (which reaches 28 px above and 24 px below the band): logo 196x170
+   centred 75.5 / 85 px in, tick strip 182x6.5 at 131.6 px from the band's bottom left; both keep their baked greys. */
+:global(html[data-art]) .band::before {
+  background:
+    url('/art/common/popup-ticks.png') left 130.6px bottom 24.3px / 184px 8px no-repeat,
+    url('/art/common/popup-logo.png') left -23.5px top 27px / 198px 172px no-repeat,
+    linear-gradient(transparent, var(--popup-halo) 28px, var(--popup-halo) calc(100% - 24px), transparent);
+}
+
+/* Micro-text strip 106x8 at #FFFFFF@0.149 (the tint keeps its baked grey), beside the tri-colour line. */
+:global(html[data-art]) .tri::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: calc(100% + 6px);
+  width: 108px;
+  height: 10px;
+  background: url('/art/common/popup-microtext.png') center / 108px 10px no-repeat;
+  opacity: 0.149;
+}
+
+.band::before {
+  content: '';
+  position: absolute;
+  inset: -28px 0 -24px;
+  background: linear-gradient(transparent, var(--popup-halo) 28px, var(--popup-halo) calc(100% - 24px), transparent);
+}
+
+.band::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  z-index: -1;
+  height: 74px;
+  background: linear-gradient(var(--popup-shadow), transparent);
+  animation: fade 83ms var(--ef-ease-g-fade) 167ms both;
+}
+
+/* Tri-colour strip 213.5 px from the left edge at the top of the band, with a down arrow under the yellow part. */
 .tri {
-  composes: tri from './Modal.module.css';
+  position: absolute;
+  top: 0;
+  left: 213.5px;
+  width: 184.5px;
+  height: 1.5px;
+  background: linear-gradient(90deg, var(--ef-tri-yellow) 0 94px, var(--ef-tri-cyan) 94px 141px, var(--ef-tri-magenta) 141px);
+  animation: nudge-fade 217ms var(--ef-ease-g-enter) 200ms both;
+}
+
+.tri::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 0;
+  width: 9px;
+  height: 8px;
+  background: var(--ef-tri-yellow);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+.panel:focus {
+  outline: none;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ef-sp-8);
+  width: 280px;
+  max-width: 100%;
+  color: var(--ef-text-2);
+  font: var(--ef-t-meta);
+  text-align: left;
+}
+
+.input {
+  height: var(--ef-h-md);
+  padding: 0 var(--ef-sp-12);
+  border: 1px solid var(--ef-line-strong);
+  border-radius: 0;
+  background: var(--ef-base);
+  color: var(--ef-text-1);
+  font: var(--ef-t-row);
+}
+
+.input:focus-visible {
+  outline: var(--ef-lw-focus) solid var(--ef-focus);
+  outline-offset: 1px;
+}
+
+.foot {
+  display: flex;
+  flex: none;
+  justify-content: center;
+  gap: 13.5px;
+  padding: 5px var(--ef-sp-24) 0;
+  animation: nudge 217ms var(--ef-ease-g-enter) 200ms both;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes band-open {
+  from {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+}
+
+@keyframes nudge {
+  from {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes nudge-fade {
+  from {
+    opacity: 0;
+    transform: translateX(5px);
+  }
+}
+
+/* The catalog shows the popup in place instead of over the whole page. */
+:global([data-demo]) .scrim {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  min-height: 380px;
+}
+
+:global([data-demo]) :is(.scrim, .band, .tri, .foot),
+:global([data-demo]) .band::after,
+:global(.still) :is(.scrim, .band, .tri, .foot),
+:global(.still) .band::after {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scrim,
+  .band,
+  .band::after,
+  .tri,
+  .foot {
+    animation: none;
+  }
+}
+
+:global([data-reduce-motion]) :is(.scrim, .band, .tri, .foot),
+:global([data-reduce-motion]) .band::after {
+  animation: none;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .scrim {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+:global([data-reduce-transparency]) .scrim {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .head {
@@ -57,10 +269,6 @@
 
 .body > :last-child {
   margin-bottom: 0;
-}
-
-.foot {
-  composes: foot from './Modal.module.css';
 }
 
 .demoField {

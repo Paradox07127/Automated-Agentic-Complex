@@ -38,7 +38,7 @@ describe('window glass', () => {
   });
 
   it('leaves dialogs, menus and sheets on their own opaque grounds', () => {
-    for (const sheet of ['ui/Modal.module.css', 'ui/Dialog.module.css', 'ui/Menu.module.css', 'ui/Sheet.module.css']) {
+    for (const sheet of ['ui/Dialog.module.css', 'ui/Menu.module.css', 'ui/Sheet.module.css']) {
       expect(read(sheet), sheet).not.toMatch(/data-window-glass/);
     }
   });

@@ -7,7 +7,7 @@ import { motionGroups } from '../../../bridge/motionGroups';
 import { ErrBar, Skel } from '../../../ui';
 import { GameSeg, MicroLabel } from '../../../ui/game';
 import { failure } from '../api';
-import type { Toast } from '../feedback';
+import type { Toast } from '../../../features/character/feedback';
 import { Candidates } from './Candidates';
 import { ChainDetail, REQUIRED_TEXT } from './ChainDetail';
 import { candidates, holdOf, proposedSegs, withJoints } from './chainEdit';

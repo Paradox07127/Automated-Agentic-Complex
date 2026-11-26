@@ -5,7 +5,7 @@ import { Btn, IconBtn } from '../../ui';
 import { Diamond, LoadBar, PowerState, WhiteCapsule } from '../../ui/game';
 import { NameBlock, OfflineRow, SwitchRow, type VoiceBinding } from './NameBlock';
 import { useInspect } from './useInspect';
-import { useLivePreview } from './usePreview';
+import { useLivePreview } from '../../features/character/usePreview';
 import { ViewCube } from './ViewCube';
 import type { SwitchState } from './useSwitch';
 import styles from './Stage.module.css';

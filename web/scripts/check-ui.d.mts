@@ -1,12 +1,10 @@
-export type Kind = 'btn' | 'retired' | 'btnVariant' | 'fontPx' | 'color';
+export type Kind = 'btn' | 'fontPx' | 'color';
 export type Counts = Partial<Record<Kind, number>>;
 export type Row = [string, Kind, number, number];
 export declare const KINDS: Kind[];
-export declare const RETIRED: Set<string>;
-export declare const VARIANTS: Set<string>;
 export declare function skipped(rel: string): boolean;
 export declare function stripComments(src: string, css: boolean): string;
 export declare function hits(rel: string, src: string): Record<Kind, number[]>;
 export declare function count(rel: string, src: string): Counts;
-export declare function compare(current: Record<string, Counts>, baseline: Record<string, Counts>): { over: Row[]; loose: Row[] };
+export declare function compare(current: Record<string, Counts>, baseline: Record<string, Counts>): { over: Row[]; loose: Row[]; ok: boolean };
 export declare function scan(root: string): Record<string, Counts>;

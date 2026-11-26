@@ -1,6 +1,6 @@
 // MMD page: the MMD library every character shares (mmd.list/detail/import/syncState/onSync) beside its own live preview stage,
 // the timeline of the selected dance under the stage, her setlist under that, the inspector under the library.
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -655,5 +655,67 @@ describe('MMD page · 播放方式', () => {
     await click(await within(timeline()).findByRole('button', { name: '停止桌面播放' }));
     expect(stop).toHaveBeenCalled();
     expect(await within(timeline()).findByRole('button', { name: '桌面播放' })).toBeTruthy();
+  });
+});
+
+describe('MMD page · detail and playhead', () => {
+  it('reads the selected dance’s detail again for the character a switch brings', async () => {
+    let push: (s: Awaited<ReturnType<AgenticComplexBridge['app']['runtime']>>) => void = () => {};
+    vi.spyOn(bridge.app, 'onRuntime').mockImplementation((cb) => {
+      push = cb;
+      return () => {};
+    });
+    vi.spyOn(bridge.mmd, 'list').mockResolvedValue(THREE);
+    const read = vi.spyOn(bridge.mmd, 'detail').mockResolvedValue({ ok: false, reason: 'not_baked' });
+    const rt = await bridge.app.runtime();
+    await mount();
+    await waitFor(() => expect(read).toHaveBeenCalledWith('mmd_a'));
+    const reads = read.mock.calls.length;
+    await bridge.character.switchTo('voice_a');
+    await act(async () => push({ ...rt, character: { ...rt.character, current: 'voice_a', shown: 'voice_a', agentd: 'voice_a' } }));
+    await waitFor(() => expect(read.mock.calls.length).toBeGreaterThan(reads));
+  });
+
+  it('does not read the detail again when the window regains focus', async () => {
+    vi.spyOn(bridge.mmd, 'list').mockResolvedValue(THREE);
+    const read = vi.spyOn(bridge.mmd, 'detail').mockResolvedValue({ ok: false, reason: 'not_baked' });
+    await mount();
+    await waitFor(() => expect(read).toHaveBeenCalledWith('mmd_a'));
+    await act(async () => {});
+    const reads = read.mock.calls.length;
+    try {
+      await act(async () => {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+      });
+      await act(async () => {});
+      expect(read.mock.calls.length).toBe(reads);
+    } finally {
+      focusManager.setFocused(undefined);
+    }
+  });
+
+  it('drops the stage position of the dance before when another is picked', async () => {
+    const push = previewAt();
+    const other = { ...entry('mmd_d', '舞蹈丁', 'baked'), durationS: 30 };
+    vi.spyOn(bridge.mmd, 'list').mockResolvedValue({ ok: true, entries: [entry('mmd_a', '舞蹈甲', 'baked'), other] });
+    await mount();
+    await waitFor(() => expect(item('mmd_d')).not.toBeNull());
+    await push({ t: 4.2, duration: 12.4, playing: true });
+    expect(within(timeline()).getByLabelText('时钟').textContent).toBe('0:04.2/ 0:12.4');
+    await pick('mmd_d');
+    expect(within(timeline()).getByLabelText('时钟').textContent).toBe('0:00.0/ 0:30.0');
+  });
+
+  it('draws the mouth and music lanes on the same time axis as the ruler and the playhead', async () => {
+    const push = desktop();
+    await importOne();
+    await mount();
+    await waitFor(() => expect(timeline().querySelector('[data-lane="face"] svg')).not.toBeNull());
+    const r = await bridge.mmd.list();
+    const long = r.ok ? r.entries.find((e) => e.id === 'mmd_dance_1')!.durationS * 2 : 0;
+    await push({ id: 'mmd_dance_1', tS: 1, durationS: long, paused: false });
+    expect(timeline().querySelector<SVGElement>('[data-lane="face"] svg')!.style.width).toBe('50%');
+    expect(timeline().querySelector<SVGElement>('[data-lane="bgm"] svg')!.style.width).toBe('50%');
   });
 });

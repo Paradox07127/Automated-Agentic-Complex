@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { getBridge, type MotionPlaylist, type PlaylistState } from '../../bridge';
-import type { Toast } from '../character/feedback';
+import type { Toast } from '../../features/character/feedback';
 import { hostReason } from '../character/labels';
 
 const EMPTY: MotionPlaylist = { items: [], loop: 'off', speed: 1 };

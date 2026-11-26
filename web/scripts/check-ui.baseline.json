@@ -1,11 +1,23 @@
 {
+  "src/features/approval/ApprovalCard.module.css": {
+    "fontPx": 1
+  },
   "src/features/approval/QuestionBox.tsx": {
+    "btn": 1
+  },
+  "src/features/character/Transport.module.css": {
+    "fontPx": 2
+  },
+  "src/features/character/Transport.tsx": {
     "btn": 1
   },
   "src/features/delivery/VersionChain.tsx": {
     "btn": 1
   },
   "src/features/health/HealthChain.tsx": {
+    "btn": 1
+  },
+  "src/features/plan/RunStepTrack.tsx": {
     "btn": 1
   },
   "src/features/task/FileImpact.tsx": {
@@ -15,66 +27,68 @@
     "btn": 1
   },
   "src/features/task/TaskDrawer.module.css": {
-    "fontPx": 1,
+    "fontPx": 2,
     "color": 5
   },
   "src/pages/character/BrandBlock.module.css": {
-    "fontPx": 2,
+    "fontPx": 3,
     "color": 13
   },
   "src/pages/character/CharacterSettings.module.css": {
-    "fontPx": 2,
+    "fontPx": 4,
     "color": 9
   },
   "src/pages/character/Commit.module.css": {
-    "fontPx": 2,
+    "fontPx": 5,
     "color": 3
   },
   "src/pages/character/HeadStrip.module.css": {
+    "fontPx": 1,
     "color": 4
   },
   "src/pages/character/HeadStrip.tsx": {
     "btn": 1
   },
   "src/pages/character/ImportPane.library.css": {
-    "fontPx": 4,
+    "fontPx": 7,
     "color": 2
   },
   "src/pages/character/ImportPane.motion.css": {
-    "fontPx": 9,
+    "fontPx": 12,
     "color": 3
   },
   "src/pages/character/LookImport.module.css": {
-    "fontPx": 8,
+    "fontPx": 12,
     "color": 25
   },
   "src/pages/character/LookPane.module.css": {
-    "fontPx": 1,
+    "fontPx": 7,
     "color": 21
   },
   "src/pages/character/LookPane.tsx": {
     "btn": 2
   },
   "src/pages/character/ModCard.module.css": {
-    "fontPx": 5,
+    "fontPx": 11,
     "color": 20
   },
   "src/pages/character/ModSettings.module.css": {
-    "fontPx": 1,
+    "fontPx": 4,
     "color": 4
   },
   "src/pages/character/ModSettings.tsx": {
     "btn": 2
   },
   "src/pages/character/MotionTable.module.css": {
-    "fontPx": 9,
+    "fontPx": 12,
     "color": 1
   },
   "src/pages/character/MotionTable.tools.css": {
+    "fontPx": 2,
     "color": 1
   },
   "src/pages/character/NameBlock.module.css": {
-    "fontPx": 7,
+    "fontPx": 12,
     "color": 20
   },
   "src/pages/character/OperatorPart1.css": {
@@ -84,69 +98,72 @@
     "color": 1
   },
   "src/pages/character/Rail.module.css": {
+    "fontPx": 1,
     "color": 5
   },
   "src/pages/character/Roster.module.css": {
+    "fontPx": 3,
     "color": 1
   },
   "src/pages/character/Roster.tsx": {
     "btn": 2
   },
   "src/pages/character/RosterPop.module.css": {
+    "fontPx": 2,
     "color": 1
   },
   "src/pages/character/Rows.module.css": {
+    "fontPx": 2,
     "color": 13
   },
   "src/pages/character/SettingRows.module.css": {
+    "fontPx": 2,
     "color": 2
   },
   "src/pages/character/SettingRows.tsx": {
     "btn": 1
   },
-  "src/pages/character/StateRows.module.css": {
-    "fontPx": 1,
-    "color": 11
-  },
-  "src/pages/character/Transport.module.css": {
+  "src/pages/character/Stage.module.css": {
     "fontPx": 1
   },
-  "src/pages/character/Transport.tsx": {
-    "btn": 1
+  "src/pages/character/StateRows.module.css": {
+    "fontPx": 4,
+    "color": 11
   },
   "src/pages/character/ViewCube.module.css": {
+    "fontPx": 1,
     "color": 3
   },
   "src/pages/character/ViewCube.tsx": {
     "btn": 1
   },
   "src/pages/character/motions/Chain.module.css": {
-    "fontPx": 4,
+    "fontPx": 9,
     "color": 14
   },
   "src/pages/character/motions/ChainStrip.tsx": {
     "btn": 1
   },
   "src/pages/character/motions/Detail.module.css": {
-    "fontPx": 5,
+    "fontPx": 8,
     "color": 18
   },
   "src/pages/character/motions/Edit.module.css": {
-    "fontPx": 7,
+    "fontPx": 10,
     "color": 3
   },
   "src/pages/character/motions/EventGrid.tsx": {
     "btn": 1
   },
   "src/pages/character/motions/Events.module.css": {
-    "fontPx": 1,
+    "fontPx": 5,
     "color": 7
   },
   "src/pages/character/motions/Groups.module.css": {
-    "fontPx": 2
+    "fontPx": 6
   },
   "src/pages/character/motions/Loop.module.css": {
-    "fontPx": 7,
+    "fontPx": 20,
     "color": 6
   },
   "src/pages/character/motions/LoopMap.tsx": {
@@ -154,25 +171,28 @@
     "color": 1
   },
   "src/pages/character/motions/Pool.module.css": {
-    "fontPx": 3,
+    "fontPx": 8,
     "color": 6
   },
   "src/pages/character/motions/Strip.module.css": {
-    "fontPx": 4,
+    "fontPx": 15,
     "color": 2
   },
   "src/pages/chat/Chat.module.css": {
-    "fontPx": 1
+    "fontPx": 2
   },
   "src/pages/chat/Composer.module.css": {
     "fontPx": 9
   },
   "src/pages/chat/ConvDialogs.module.css": {
-    "fontPx": 2
+    "fontPx": 3
   },
   "src/pages/chat/ConvList.module.css": {
-    "fontPx": 3,
+    "fontPx": 5,
     "color": 2
+  },
+  "src/pages/chat/DlgHead.module.css": {
+    "fontPx": 1
   },
   "src/pages/chat/DlgHead.tsx": {
     "color": 2
@@ -181,17 +201,17 @@
     "btn": 1
   },
   "src/pages/chat/MessagesPart1.css": {
-    "fontPx": 4,
+    "fontPx": 10,
     "color": 2
   },
   "src/pages/chat/MessagesPart2.css": {
-    "fontPx": 1
+    "fontPx": 11
   },
   "src/pages/chat/QuestionCard.module.css": {
-    "fontPx": 1
+    "fontPx": 3
   },
   "src/pages/chat/RunItems.module.css": {
-    "fontPx": 1
+    "fontPx": 2
   },
   "src/pages/chat/TaskCard.module.css": {
     "fontPx": 4
@@ -200,37 +220,46 @@
     "btn": 1
   },
   "src/pages/chat/TurnInspector.module.css": {
-    "fontPx": 4
+    "fontPx": 10
   },
   "src/pages/chat/TurnInspector.tsx": {
     "btn": 3
   },
   "src/pages/chat/TurnInspectorMore.module.css": {
-    "fontPx": 2
+    "fontPx": 4
   },
   "src/pages/chat/TurnWaterfall.module.css": {
+    "fontPx": 2
+  },
+  "src/pages/diag/Chart.module.css": {
     "fontPx": 1
   },
   "src/pages/diag/DgFlow.module.css": {
-    "fontPx": 3
+    "fontPx": 7
   },
   "src/pages/diag/DgFlow.tsx": {
     "btn": 1
   },
   "src/pages/diag/Diag.module.css": {
-    "fontPx": 1
+    "fontPx": 3
   },
   "src/pages/diag/ErrorPanel.tsx": {
     "btn": 1
   },
   "src/pages/diag/Flow.module.css": {
-    "fontPx": 1
+    "fontPx": 6
   },
   "src/pages/diag/HourBars.tsx": {
     "btn": 1
   },
+  "src/pages/home/Cards.module.css": {
+    "fontPx": 1
+  },
   "src/pages/home/Cards.tsx": {
     "btn": 1
+  },
+  "src/pages/home/Disc.module.css": {
+    "fontPx": 1
   },
   "src/pages/home/Disc.tsx": {
     "btn": 6
@@ -244,61 +273,74 @@
   "src/pages/home/Terrain.module.css": {
     "color": 2
   },
+  "src/pages/memory/Cells.module.css": {
+    "fontPx": 1
+  },
+  "src/pages/memory/Cols.module.css": {
+    "fontPx": 1
+  },
   "src/pages/memory/Detail.module.css": {
-    "fontPx": 3
+    "fontPx": 9
   },
   "src/pages/memory/Index.module.css": {
-    "fontPx": 3
+    "fontPx": 5
   },
   "src/pages/memory/Index.tsx": {
     "btn": 1
   },
   "src/pages/memory/Page.module.css": {
-    "fontPx": 1
+    "fontPx": 3
   },
   "src/pages/memory/Papers.module.css": {
-    "fontPx": 5
+    "fontPx": 6
   },
   "src/pages/memory/Side.module.css": {
-    "fontPx": 5
+    "fontPx": 6
   },
   "src/pages/memory/Votes.module.css": {
-    "fontPx": 5
+    "fontPx": 6
   },
   "src/pages/memory/parts.module.css": {
-    "fontPx": 2
+    "fontPx": 4
   },
   "src/pages/memory/parts.tsx": {
     "btn": 1
   },
+  "src/pages/mmd/ImportDialog.module.css": {
+    "fontPx": 2
+  },
+  "src/pages/mmd/Inspector.module.css": {
+    "fontPx": 3
+  },
   "src/pages/mmd/Library.module.css": {
-    "fontPx": 4
+    "fontPx": 10
   },
   "src/pages/mmd/Library.tsx": {
     "btn": 1
   },
   "src/pages/mmd/Page.module.css": {
+    "fontPx": 1,
     "color": 11
   },
   "src/pages/mmd/Page.tsx": {
     "btn": 1
   },
   "src/pages/mmd/Setlist.module.css": {
-    "fontPx": 6,
+    "fontPx": 11,
     "color": 1
   },
   "src/pages/mmd/Status.module.css": {
-    "fontPx": 1
+    "fontPx": 3
   },
   "src/pages/mmd/Timeline.module.css": {
-    "fontPx": 2,
+    "fontPx": 6,
     "color": 3
   },
   "src/pages/mmd/Timeline.tsx": {
     "btn": 1
   },
   "src/pages/observe/Briefs.module.css": {
-    "fontPx": 3
+    "fontPx": 5
   },
   "src/pages/observe/BriefsSec.tsx": {
     "btn": 1
@@ -310,19 +352,25 @@
     "fontPx": 1
   },
   "src/pages/observe/Timeline.module.css": {
-    "fontPx": 6
+    "fontPx": 11
   },
-  "src/pages/onboarding/GuideCard.module.css": {
-    "fontPx": 3
-  },
-  "src/pages/onboarding/Page.module.css": {
+  "src/pages/onboarding/Bits.module.css": {
     "fontPx": 1
   },
+  "src/pages/onboarding/GuideCard.module.css": {
+    "fontPx": 6
+  },
+  "src/pages/onboarding/Page.module.css": {
+    "fontPx": 2
+  },
   "src/pages/onboarding/Steps.module.css": {
-    "fontPx": 8
+    "fontPx": 12
   },
   "src/pages/onboarding/Steps.tsx": {
     "btn": 2,
+    "color": 7
+  },
+  "src/pages/onboarding/contour.ts": {
     "color": 1
   },
   "src/pages/overview/DayTimeline.module.css": {
@@ -335,66 +383,69 @@
     "btn": 1
   },
   "src/pages/overview/HerTab.module.css": {
-    "fontPx": 2
+    "fontPx": 3
   },
   "src/pages/overview/MissionFx.module.css": {
     "color": 2
   },
   "src/pages/overview/OverviewTab.module.css": {
-    "fontPx": 5
+    "fontPx": 8
   },
   "src/pages/overview/OverviewTab.tsx": {
     "btn": 1
   },
   "src/pages/overview/PagePart1.css": {
-    "fontPx": 4
+    "fontPx": 8
   },
   "src/pages/overview/RunningSection.module.css": {
-    "fontPx": 2
+    "fontPx": 3
   },
   "src/pages/overview/RunningSection.tsx": {
     "btn": 1
   },
   "src/pages/pipeline/Detail.module.css": {
-    "fontPx": 1
+    "fontPx": 3
   },
   "src/pages/pipeline/Pipeline.module.css": {
+    "fontPx": 1
+  },
+  "src/pages/pipeline/Views.module.css": {
     "fontPx": 1
   },
   "src/pages/settings/Band.tsx": {
     "btn": 1
   },
   "src/pages/settings/SearchResults.module.css": {
-    "fontPx": 3,
+    "fontPx": 5,
     "color": 2
   },
   "src/pages/settings/SearchResults.tsx": {
     "btn": 1
   },
   "src/pages/settings/SetNav.module.css": {
-    "fontPx": 1
-  },
-  "src/pages/settings/SettingsOverlays.module.css": {
-    "fontPx": 4
-  },
-  "src/pages/settings/band.module.css": {
-    "fontPx": 3
-  },
-  "src/pages/settings/groups.module.css": {
-    "fontPx": 11
-  },
-  "src/pages/settings/groups/Services.module.css": {
     "fontPx": 2
   },
-  "src/pages/settings/kit.module.css": {
+  "src/pages/settings/SettingsOverlays.module.css": {
+    "fontPx": 5
+  },
+  "src/pages/settings/band.module.css": {
     "fontPx": 4
   },
+  "src/pages/settings/groups.module.css": {
+    "fontPx": 16
+  },
+  "src/pages/settings/groups/Services.module.css": {
+    "fontPx": 3
+  },
+  "src/pages/settings/kit.module.css": {
+    "fontPx": 5
+  },
   "src/pages/settings/rows.module.css": {
-    "fontPx": 2,
+    "fontPx": 4,
     "color": 6
   },
   "src/pages/tasks/Artifacts.module.css": {
-    "fontPx": 4
+    "fontPx": 6
   },
   "src/pages/tasks/Artifacts.tsx": {
     "btn": 1
@@ -403,7 +454,7 @@
     "fontPx": 1
   },
   "src/pages/tasks/Detail.module.css": {
-    "fontPx": 11
+    "fontPx": 13
   },
   "src/pages/tasks/Editor.module.css": {
     "fontPx": 5
@@ -412,7 +463,7 @@
     "fontPx": 2
   },
   "src/pages/tasks/List.module.css": {
-    "fontPx": 3,
+    "fontPx": 5,
     "color": 2
   },
   "src/pages/tasks/List.tsx": {
@@ -423,37 +474,44 @@
     "color": 2
   },
   "src/pages/tasks/Paper.module.css": {
-    "fontPx": 6
+    "fontPx": 8
   },
   "src/pages/tasks/Steps.module.css": {
-    "fontPx": 2
+    "fontPx": 3
   },
   "src/pages/trace/Bars.module.css": {
-    "fontPx": 2
+    "fontPx": 3
   },
   "src/pages/trace/Card.module.css": {
-    "fontPx": 2
+    "fontPx": 3
   },
   "src/pages/trace/Detail.module.css": {
-    "fontPx": 4
+    "fontPx": 11
   },
   "src/pages/trace/LaneView.tsx": {
     "btn": 1
   },
   "src/pages/trace/Lanes.module.css": {
-    "fontPx": 7
+    "fontPx": 9
+  },
+  "src/pages/trace/List.module.css": {
+    "fontPx": 3
+  },
+  "src/pages/trace/Logs.module.css": {
+    "fontPx": 6
   },
   "src/pages/trace/Rail.module.css": {
+    "fontPx": 2,
     "color": 2
   },
   "src/pages/trace/Raw.module.css": {
     "fontPx": 1
   },
   "src/pages/trace/Steps.module.css": {
-    "fontPx": 7
+    "fontPx": 10
   },
   "src/pages/trace/Trace.module.css": {
-    "fontPx": 1
+    "fontPx": 3
   },
   "src/pages/trace/TurnList.tsx": {
     "btn": 1
@@ -467,11 +525,17 @@
   "src/shell/CommandBar.tsx": {
     "btn": 3
   },
+  "src/surfaces/desktop/ChipRoot.module.css": {
+    "fontPx": 1
+  },
+  "src/surfaces/desktop/HudRoot.module.css": {
+    "fontPx": 3
+  },
   "src/surfaces/desktop/HudRoot.tsx": {
-    "btn": 2
+    "btn": 3
   },
   "src/surfaces/desktop/PhotoRoot.module.css": {
-    "fontPx": 1
+    "fontPx": 7
   },
   "src/surfaces/desktop/PhotoRoot.tsx": {
     "btn": 1
@@ -486,28 +550,32 @@
     "btn": 6
   },
   "src/surfaces/desktop/bubble/Bubble.module.css": {
+    "fontPx": 1,
     "color": 2
   },
   "src/surfaces/desktop/bubble/ConfirmCard.module.css": {
-    "fontPx": 2
+    "fontPx": 7
   },
   "src/surfaces/desktop/bubble/ConfirmCard.tsx": {
     "btn": 1
   },
   "src/surfaces/desktop/bubble/HeadBubble.module.css": {
-    "fontPx": 1
+    "fontPx": 4
   },
   "src/surfaces/desktop/bubble/Speech.tsx": {
     "btn": 1
   },
   "src/surfaces/desktop/cmd/console/ConsoleSlot.module.css": {
-    "fontPx": 2
+    "fontPx": 4
+  },
+  "src/surfaces/desktop/comm/Subtitle.module.css": {
+    "fontPx": 3
   },
   "src/surfaces/desktop/comm/Subtitle.tsx": {
     "btn": 1
   },
   "src/surfaces/desktop/hud/HudLine.module.css": {
-    "fontPx": 1
+    "fontPx": 4
   },
   "src/surfaces/desktop/hud/HudLine.tsx": {
     "btn": 2

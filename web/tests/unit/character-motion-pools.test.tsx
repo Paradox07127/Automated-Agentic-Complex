@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 import { createFakeBridge } from '../../src/bridge/fake';
 import { MOTION_GROUPS } from '../../src/bridge/fake/motionGroups';
 import type { AgenticComplexBridge } from '../../src/bridge/protocol';
-import type { Toast } from '../../src/pages/character/feedback';
+import type { Toast } from '../../src/features/character/feedback';
 import { click, FIDGET, mount, pool, rows, save, toEvent, weight } from './chainPage';
 
 const P = 'A_clip_birch_';

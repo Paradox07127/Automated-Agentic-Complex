@@ -32,7 +32,7 @@ export function Acts({ text, replyLabel = '回复', onReply, onMute, onClose, vo
   return (
     <div className={styles.acts} data-bubble-acts="">
       <button type="button" className={styles.act} data-region="" onClick={onReply}>
-        <Icon name="send" size={14} /> {replyLabel}
+        {replyLabel}
       </button>
       {text && <button type="button" className={styles.act} data-region="" title="更多操作" aria-label="更多操作" aria-expanded={expanded} aria-controls={moreId} onClick={() => setExpanded((value) => !value)}>
         <Icon name="more" size={16} />

@@ -1,7 +1,7 @@
 import { useLayoutEffect, type RefObject } from 'react';
 import type { AvatarAction } from '../../bridge';
 import { useCompactScene } from './compact';
-import type { Toast } from './feedback';
+import type { Toast } from '../../features/character/feedback';
 import type { Pane } from './Operator';
 import type { Side } from './Side';
 

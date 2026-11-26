@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getBridge, type ActionProgress, type ActionSpeed, type AvatarAction } from '../../bridge';
-import type { Toast } from './feedback';
+import type { Toast } from '../../features/character/feedback';
 import { ADJUSTED, NO_REASON, PLAY_REFUSED, playRefusedSeverity, SECTIONS } from './labels';
 import type { MotionGroup } from './MotionTable';
 import type { StageStatus } from './Stage';

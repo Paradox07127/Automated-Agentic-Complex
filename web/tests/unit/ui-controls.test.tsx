@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Btn, IconBtn, RadioDot, Row, SecHead, Slider, SRow, Switch, Tabs } from '../../src/ui';
+import { Btn, IconBtn, RadioDot, RadioDotGroup, Row, SecHead, Slider, SRow, Switch, Tabs } from '../../src/ui';
 import { MOUSE_ONLY_HINT } from '../../src/ui/Btn';
 import { Select } from '../../src/ui/Select';
 
@@ -89,6 +90,52 @@ describe('RadioDot', () => {
     const sm = screen.getByRole('radio', { name: 'Codex' });
     expect(sm.getAttribute('data-size')).toBe('sm');
     expect(sm.tabIndex).toBe(-1);
+  });
+});
+
+describe('RadioDotGroup', () => {
+  const LEVELS = ['出声', '只出卡', '不提示'];
+  function Levels({ start = 1, disabled = false }: { start?: number | null; disabled?: boolean }) {
+    const [at, setAt] = useState<number | null>(start);
+    return (
+      <RadioDotGroup label="完成">
+        {LEVELS.map((l, i) => (
+          <RadioDot key={l} label={`完成：${l}`} checked={at === i} tabStop={at === null ? i === 0 : at === i} disabled={disabled} onSelect={() => setAt(i)} />
+        ))}
+      </RadioDotGroup>
+    );
+  }
+  const dots = () => screen.getAllByRole('radio');
+
+  it('is one named group with one Tab stop, the checked dot', () => {
+    render(<Levels />);
+    expect(screen.getByRole('radiogroup', { name: '完成' })).toBeTruthy();
+    expect(dots().map((d) => d.tabIndex)).toEqual([-1, 0, -1]);
+    cleanup();
+    render(<Levels start={null} />);
+    expect(dots().map((d) => d.tabIndex)).toEqual([0, -1, -1]);
+  });
+
+  it('moves the selection and the focus with the arrow keys, wrapping at the ends', () => {
+    render(<Levels />);
+    act(() => dots()[1]!.focus());
+    fireEvent.keyDown(dots()[1]!, { key: 'ArrowRight' });
+    expect(dots().map((d) => d.getAttribute('aria-checked'))).toEqual(['false', 'false', 'true']);
+    expect(document.activeElement).toBe(dots()[2]);
+    expect(dots().map((d) => d.tabIndex)).toEqual([-1, -1, 0]);
+    fireEvent.keyDown(dots()[2]!, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(dots()[0]);
+    expect(dots()[0]!.getAttribute('aria-checked')).toBe('true');
+    fireEvent.keyDown(dots()[0]!, { key: 'ArrowLeft' });
+    expect(document.activeElement).toBe(dots()[2]);
+    fireEvent.keyDown(dots()[2]!, { key: 'ArrowUp' });
+    expect(dots()[1]!.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('changes nothing with the arrows while disabled', () => {
+    render(<Levels disabled />);
+    fireEvent.keyDown(dots()[1]!, { key: 'ArrowRight' });
+    expect(dots().map((d) => d.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false']);
   });
 });
 

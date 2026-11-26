@@ -79,7 +79,7 @@ describe('SettingRows', () => {
     const n = await demoNative(null);
     const setMany = vi.fn(async () => true);
     draw(n, 'render', { setMany });
-    expect(shown('主光水平微调')).toBe(false);
+    expect(shown('主光源水平角度')).toBe(false);
     const pad = screen.getByRole('radiogroup', { name: '主光方向' });
     const cells = within(pad).getAllByRole('radio');
     expect(cells.map((c) => c.getAttribute('aria-label'))).toEqual([
