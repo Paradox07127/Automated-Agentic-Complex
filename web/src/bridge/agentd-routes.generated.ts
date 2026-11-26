@@ -1181,15 +1181,6 @@ export interface CharacterRuntimeResponse {
       ready: boolean;
       error: unknown;
     };
-    quick: {
-      backend: string;
-      acp_agent: unknown;
-      model: unknown;
-      effort: unknown;
-      follows_main: boolean;
-      ready: boolean;
-      error: string | null;
-    };
     background: {
       backend: string;
       acp_agent: unknown;
