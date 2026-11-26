@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { getBridge, type DesktopAnchor, type DockReason, type SayReplyTo } from '../../bridge';
+import { getBridge, type DesktopAnchor, type DesktopState, type DockReason, type SayReplyTo } from '../../bridge';
 import { formatClock } from '../../domain';
 import { useSystemTheme } from '../../shell/useSystemTheme';
 import { navRoute, type NavTarget } from '../../shell/nav';
@@ -42,6 +42,7 @@ const SUBTITLE: DockReason[] = ['hidden', 'fullscreen', 'offscreen', 'stale'];
 const NOTICE_MS = 4000;
 /** How long the last card stays, then fades (`.leaving`), once there is nothing left to say. */
 const LEAVE_MS = 500;
+const NO_PLAYBACK: NonNullable<DesktopState['playback']> = {};
 
 /** The text of native's last `notice` command, for `NOTICE_MS`; `expandStack` unfolds a folded approval. */
 function useCommands(): { notice: { n: number; text: string } | null; unfold: number } {
@@ -104,7 +105,9 @@ export function BubbleRoot() {
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const { ref: hoverRef, hovered, handlers } = useHover<HTMLDivElement>();
   const hint = cards.voice ?? (cards.loading?.phase === 'failed' ? cards.loading : null);
-  const { bar, side, dispatch } = useSpeech(demoLine, still, hovered);
+  // agentd's `speak` already leaves out a character without a voice profile and 静音.
+  const voiceOn = state?.tts !== 'off' && state?.tts !== 'unreachable';
+  const { bar, side, dispatch, preparing, heldForVoice } = useSpeech(demoLine, still, hovered, state?.playback ?? NO_PLAYBACK, voiceOn);
   const all = cards.all;
   // A decision that did not go out (a declined native confirm, busy, offline) shows on the approval card for NOTICE_MS.
   const [decideNote, setDecideNote] = useState<{ text: string } | null>(null);
@@ -225,7 +228,12 @@ export function BubbleRoot() {
     stop = stopOf(bar);
     line = true;
   } else if (bar) {
-    main = <Speech bar={bar} name="" onOpen={() => openChat(bar.id)} />;
+    main = (
+      <>
+        <Speech bar={bar} name="" onOpen={() => openChat(bar.id)} />
+        {preparing && <p className={bubble.note} role="status">语音准备中</p>}
+      </>
+    );
     stop = stopOf(bar);
     line = true;
     text = bar.text;
@@ -268,9 +276,11 @@ export function BubbleRoot() {
     );
   }
 
-  const { collapsed: gone, timer } = useCollapse(docked || confirm ? null : away, still, hovered || input.open != null);
+  const { collapsed, timer } = useCollapse(docked || confirm ? null : away, still, hovered || input.open != null);
   // What went away stays away: a thought by its id, her line out of the reducer, a stack card in native's history.
   const awayKey = away?.key ?? null;
+  // Her voiced line goes at its words' time or once her voice is done, whichever is later.
+  const gone = collapsed && !(heldForVoice && awayKey === `line:${bar?.id}`);
   useEffect(() => {
     if (!gone || awayKey == null) return;
     if (awayKey.startsWith('line:')) dispatch({ type: 'close', id: awayKey.slice('line:'.length) });

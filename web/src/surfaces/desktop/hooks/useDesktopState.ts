@@ -9,19 +9,23 @@ function pip(p: RuntimeProcess): ProcessState {
   return { state, pid: p.pid, backoff: p.backoff };
 }
 
+/** `tts`: the voice state from `app.runtime`; absent without one. */
+export type ShownDesktopState = DesktopState & { tts?: RuntimeSnapshot['tts']['state'] };
+
 /** The snapshot carries ids only; the name is the one desktop.onState lists for that id, else the id, as native does. */
-function withRuntime(s: DesktopState, r: RuntimeSnapshot): DesktopState {
+function withRuntime(s: DesktopState, r: RuntimeSnapshot): ShownDesktopState {
   const id = r.character.current;
   return {
     ...s,
     // null: no switch has reported a character yet, so desktop.onState's stays.
     character: id == null ? s.character : { id, name: [s.character, ...s.characters].find((c) => c?.id === id)?.name ?? id },
     pips: { ...s.pips, agentd: pip(r.processes.agentd), avatar: pip(r.processes.avatar) },
+    tts: r.tts.state,
   };
 }
 
-/** The desktop state native pushes (`desktop.onState`), with the character and the agentd/avatar pips from `app.runtime`. */
-export function useDesktopState(): DesktopState | null {
+/** The desktop state native pushes (`desktop.onState`), with the character, the agentd/avatar pips and the voice state from `app.runtime`. */
+export function useDesktopState(): ShownDesktopState | null {
   const [state, setState] = useState<DesktopState | null>(null);
   const [runtime, setRuntime] = useState<RuntimeSnapshot | null>(null);
   useEffect(() => getBridge().desktop.onState(setState), []);

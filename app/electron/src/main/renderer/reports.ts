@@ -25,9 +25,18 @@ export interface ReportPorts {
   stroke(token: string): void;
   /** AgentdClient.putBehaviorCapabilities' pause before it tries a 409 again; tests skip it. */
   wait?(ms: number): Promise<void>;
+  /** An utterance's `playback()` changed. */
+  playbackChanged?(): void;
 }
 
 type Capabilities = Record<string, string | null>;
+
+/** Where her voice is in an utterance (agentd's utterance_id, which the `/feed` line carries too): `playing` from a clause's
+ *  started, `ended` at its ended, `stopped` at interrupted or failed. */
+export type UtterancePlayback = 'playing' | 'ended' | 'stopped';
+const PLAYBACK: Readonly<Record<string, UtterancePlayback>> = { started: 'playing', ended: 'ended', interrupted: 'stopped', failed: 'stopped' };
+/** The latest utterances `playback()` keeps. */
+const UTTERANCES = 16;
 
 /** HostLink's `onSpeechCancelled`, `onPlayback`, `onMotionStroke`, `touchSettings` and `onMotionSettings`; `linkEvent`
  *  for `HostLink.on`; `visibility` after each hide or show; `agentdReady` each time agentd starts running (visibility,
@@ -114,6 +123,22 @@ export function rendererReports(o: ReportPorts) {
       if (answer !== 200) o.companionLog(`avatar visibility put visible=${visible} status=${answer}`);
     });
   };
+  // The link's own connection_lost receipt has no utterance_id: an open speech's comes from its started.
+  const utterances = new Map<string, UtterancePlayback>();
+  const speechUtterance = new Map<string, string>();
+  const notePlayback = (body: Record<string, unknown>) => {
+    const speech = String(body.speech_id ?? ''), next = PLAYBACK[String(body.state)];
+    const utterance = typeof body.utterance_id === 'string' ? body.utterance_id : speechUtterance.get(speech);
+    if (utterance === undefined || next === undefined) return;
+    if (next === 'playing') speechUtterance.set(speech, utterance);
+    else speechUtterance.delete(speech);
+    if (utterances.get(utterance) === next) return;
+    utterances.delete(utterance);
+    utterances.set(utterance, next);
+    if (utterances.size > UTTERANCES) utterances.delete(utterances.keys().next().value!);
+    o.playbackChanged?.();
+  };
+
   const putSwitches = async (raw: Record<string, unknown>) => {
     const behavior = await status('PUT', '/behavior/switches', behaviorSwitches(raw, o.dockOpen?.() ?? false));
     if (behavior !== 200) o.log(`behavior switches put status=${behavior}`);
@@ -126,6 +151,7 @@ export function rendererReports(o: ReportPorts) {
           .then((answer) => o.log(`speech_cancel id=${speechId} reason=${reason} status=${answer}`));
       },
       onPlayback: (body: Record<string, unknown>) => {
+        notePlayback(body);
         void status('POST', '/speech/playback', body).then((answer) => {
           if (answer !== 200) o.log(`playback forward speech_id=${String(body.speech_id ?? '')} status=${answer}`);
         });
@@ -137,6 +163,8 @@ export function rendererReports(o: ReportPorts) {
         deliverMotion();
       },
     } satisfies Partial<LinkOptions>,
+    /** The latest utterances' playback by utterance_id, for `desktop.onState`. */
+    playback: (): Record<string, UtterancePlayback> => Object.fromEntries(utterances),
     linkEvent: (e: LinkEvent) => {
       if (e.kind !== 'message' || e.message.type !== 'actions') return;
       if (e.message.error === undefined && typeof e.message.character === 'string') {

@@ -74,6 +74,31 @@ test('each playback goes to POST /speech/playback as given; only a status other 
   assert.deepEqual(log, ['playback forward speech_id=s1 status=0']);
 });
 
+test('each utterance\'s playback for the bubble: started plays, ended ends, interrupted or failed stops; a receipt without utterance_id goes by its speech', () => {
+  let changed = 0;
+  const reports = rendererReports({ agentd: { request: async () => ({ status: 200 }) }, agentdRunning: () => true, settings: () => ({}),
+    log: () => {}, companionLog: () => {}, stroke: () => {}, playbackChanged: () => { changed += 1; } });
+  const clause = (speech: string, state: string, extra: Record<string, unknown> = {}) =>
+    reports.options.onPlayback({ speech_id: speech, clause_id: `u1.c${speech}`, state, sample: 0, rate: 48000, ...extra });
+  assert.deepEqual(reports.playback(), {});
+  clause('0', 'started', { utterance_id: 'u1' });
+  assert.deepEqual(reports.playback(), { u1: 'playing' });
+  clause('0', 'buffering', { utterance_id: 'u1' });
+  assert.equal(changed, 1);
+  clause('0', 'ended', { utterance_id: 'u1' });
+  assert.deepEqual(reports.playback(), { u1: 'ended' });
+  clause('1', 'started', { utterance_id: 'u1' });
+  assert.deepEqual(reports.playback(), { u1: 'playing' });
+  // The link's connection_lost receipt has no utterance_id.
+  clause('1', 'interrupted', { reason: 'connection_lost' });
+  assert.deepEqual(reports.playback(), { u1: 'stopped' });
+  clause('2', 'started', { utterance_id: 'u2' });
+  clause('2', 'failed', { utterance_id: 'u2', reason: 'device' });
+  clause('9', 'started');
+  assert.deepEqual(reports.playback(), { u1: 'stopped', u2: 'stopped' });
+  assert.equal(changed, 6);
+});
+
 test('a list\'s behavior capabilities go to PUT /behavior/capabilities once per agentd run, again when they change', async () => {
   const { reports, calls } = setup();
   const capabilities = () => calls.filter((c) => c[1] === '/behavior/capabilities');

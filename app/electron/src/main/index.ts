@@ -262,6 +262,7 @@ const reports = config && agentdClient !== null ? rendererReports({
   log: (line) => appendLog(config!.supportDir, 'hostlink', `HOSTLINK ${line}`),
   companionLog: (line) => appendLog(config!.supportDir, 'companion', line),
   stroke: (token) => desktop?.stroke(token),
+  playbackChanged: () => desktop?.pushState(),
 }) : null;
 /** What is dropped on her or handed over from the clipboard, on its way to the cards. */
 const drops = config && new DropHandover({
@@ -1077,7 +1078,7 @@ function desktopState(): Record<string, unknown> {
       voice: pushToTalk?.voice ?? 'off', helper: helper ? processState(helperState, helper.pid) : null },
     computerUseActive: control ? computerUseState(control.state).active : false,
     plugins: enabledPlugins(supervisor?.plugins ?? DEFAULT_PLUGINS),
-    playing: play.id, poses: camera ? desktopPoses(camera.poses) : null,
+    playing: play.id, poses: camera ? desktopPoses(camera.poses) : null, playback: reports?.playback() ?? {},
     capture: !!hostLink && hostLink.capabilities.includes('capture') && hostLink.companionCapabilities.includes('capture'),
   };
 }

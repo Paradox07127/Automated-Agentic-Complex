@@ -25,6 +25,8 @@ const ev = (id: string, delta: string, extra: Partial<LineEvent> = {}): LineEven
   error: null,
   lane: 'character',
   reason: null,
+  speak: false,
+  utterance: null,
   ...extra,
 });
 
@@ -228,6 +230,15 @@ describe('comm reducer: 在想 from turn_accepted to the first word', () => {
   });
 });
 
+describe('a voiced line', () => {
+  it('keeps the line\'s speak and the utterance_id a later event of it brings', () => {
+    let s = run(INITIAL, ev('a', '你好，', { speak: true }));
+    expect(s.bars[0]).toMatchObject({ speak: true, utterance: null });
+    s = run(s, ev('a', '我在。', { speak: true, utterance: 'u1' }), ev('a', '', { final: true, speak: true, utterance: 'u1' }));
+    expect(s.bars[0]).toMatchObject({ phase: 'linger', speak: true, utterance: 'u1' });
+  });
+});
+
 describe('parseLine', () => {
   it('reads server.py _line fields', () => {
     const data = {
@@ -237,8 +248,10 @@ describe('parseLine', () => {
     };
     expect(parseLine(JSON.stringify(data))).toEqual({
       id: 'ab12', delta: '嗨', final: true, cancelled: false, error: null, lane: 'agent',
-      reason: { code: 'long_dwell', activity: 'coding', dwell_min: 12 },
+      reason: { code: 'long_dwell', activity: 'coding', dwell_min: 12 }, speak: true, utterance: null,
     });
+    expect(parseLine(JSON.stringify({ ...data, utterance_id: 'u1' }))?.utterance).toBe('u1');
+    expect(parseLine(JSON.stringify({ line_id: 'x', text_delta: '嗨' }))?.speak).toBe(false);
     expect(parseLine(JSON.stringify({ line_id: 's', text_delta: '旁', run_id: null, lane: 'side' }))?.lane).toBe('side');
     expect(parseLine('{"text_delta":"x"}')).toBeNull();
     expect(parseLine('not json')).toBeNull();

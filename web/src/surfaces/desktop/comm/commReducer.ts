@@ -27,6 +27,10 @@ export interface LineEvent {
    * `character` otherwise. */
   lane: 'agent' | 'side' | 'character';
   reason: LineReason | null;
+  /** agentd voices the line (turns.py `speak`: a voice, the character's voice profile, not muted). */
+  speak: boolean;
+  /** The utterance her voice plays it in, from the event after the first clause was voiced. */
+  utterance: string | null;
 }
 
 /** thinking: agentd accepted the user's turn and no word of the answer has come yet. */
@@ -48,6 +52,9 @@ export interface Bar {
   total: number;
   /** Count of main lines this panel has shown, for the eyebrow. */
   seq: number;
+  /** The line's `speak` and the first `utterance_id` it carried; absent on a thinking bar. */
+  speak?: boolean;
+  utterance?: string | null;
 }
 
 export interface CommState {
@@ -117,6 +124,8 @@ export function parseLine(data: string): LineEvent | null {
     error: typeof d.error === 'string' && d.error ? d.error : null,
     lane: d.lane === 'agent' ? 'agent' : d.lane === 'side' ? 'side' : 'character',
     reason: r && typeof r.code === 'string' ? (r as unknown as LineReason) : null,
+    speak: d.speak === true,
+    utterance: typeof d.utterance_id === 'string' && d.utterance_id ? d.utterance_id : null,
   };
 }
 
@@ -162,13 +171,14 @@ function onLine(s: CommState, e: LineEvent): CommState {
   if (old) {
     const waiting = old.phase === 'thinking' || old.error === NO_REPLY;
     if (waiting ? !e.delta && !e.final : old.phase !== 'streaming') return { ...s, run };
-    const next = settle({ ...old, phase: 'streaming', error: null, text: old.text + e.delta }, e);
+    const next = settle({ ...old, phase: 'streaming', error: null, text: old.text + e.delta, speak: e.speak, utterance: old.utterance ?? e.utterance }, e);
     return { ...s, run, bars: next ? s.bars.map((b, i) => (i === at ? next : b)) : s.bars.filter((_, i) => i !== at) };
   }
   if (!e.delta && !(e.final && e.error)) return { ...s, run };
   const kind = e.lane === 'side' || (e.lane === 'character' && s.run !== null) ? 'side' : 'main';
   const seq = kind === 'main' ? s.seq + 1 : s.seq;
-  const fresh = settle({ id: e.id, kind, text: e.delta, phase: 'streaming', reason: e.reason, error: null, pinned: false, held: false, left: 0, total: 0, seq }, e);
+  const fresh = settle({ id: e.id, kind, text: e.delta, phase: 'streaming', reason: e.reason, error: null, pinned: false, held: false, left: 0, total: 0, seq,
+    speak: e.speak, utterance: e.utterance }, e);
   if (!fresh) return { ...s, run };
   return { ...s, bars: add(s.bars, fresh), run, seq };
 }

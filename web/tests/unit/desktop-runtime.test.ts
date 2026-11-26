@@ -72,7 +72,7 @@ function install(runtime: () => Promise<RuntimeSnapshot>) {
 }
 
 describe('useDesktopState over app.runtime', () => {
-  it('takes the character and the agentd/avatar pips from the runtime snapshot', async () => {
+  it('takes the character, the agentd/avatar pips and the voice state from the runtime snapshot', async () => {
     install(async () => snapshot('cedar', proc('backoff', { backoff: 3 }), proc('failed', { reason: 'crash', pid: 77 })));
     const { result } = renderHook(() => useDesktopState());
     await waitFor(() => expect(result.current?.character?.id).toBe('cedar'));
@@ -84,13 +84,14 @@ describe('useDesktopState over app.runtime', () => {
         avatar: { state: 'failed(crash)', pid: 77, backoff: null },
         voice: 'denied',
       },
+      tts: 'off',
     });
   });
 
   it('follows each snapshot onRuntime pushes', async () => {
     const { push } = install(async () => snapshot('voice_a', proc('running', { pid: 1 }), proc('running', { pid: 2 })));
     const { result } = renderHook(() => useDesktopState());
-    await waitFor(() => expect(result.current).toEqual(STATE));
+    await waitFor(() => expect(result.current).toEqual({ ...STATE, tts: 'off' }));
     push(snapshot('cedar', proc('port_in_use'), proc('external')));
     expect(result.current?.character).toEqual({ id: 'cedar', name: '示例丙' });
     expect(result.current?.pips.agentd.state).toBe('portInUse');

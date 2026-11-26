@@ -105,6 +105,9 @@ export interface DesktopState {
   poses?: DesktopPoses | null;
   /** Both her renderer and this app list C3 `capture` (拍照's shutter). */
   capture?: boolean;
+  /** Her voice in the latest utterances, by the utterance_id the `/feed` line carries: `playing` from a clause's started,
+   *  `ended` at its ended, `stopped` at interrupted or failed. */
+  playback?: Record<string, 'playing' | 'ended' | 'stopped'>;
 }
 
 /** A slot's `id` is its pose row's, null when she has none; `reason` says why it cannot be chosen, null when it can. */
