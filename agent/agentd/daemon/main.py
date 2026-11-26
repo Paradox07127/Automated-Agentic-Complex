@@ -355,7 +355,7 @@ def main(secret_store=None):
             return []
         return catalog.phrases(catalog.load(root))
     factory = lambda cid: Mouth(character=cid, persona_path=repository.card_path(cid), lore_path=repository.lore_path(cid),
-                                egress=egress, motion_phrases=motion_phrases(cid))  # noqa: E731
+                                motion_phrases=motion_phrases(cid))  # noqa: E731
     # No character: no mouth, and the routes in api.handler.CHARACTER_ROUTES answer 409 no_character.
     chat = light or plugins.on("harness_bridge")
     mouth = factory(args.character) if chat and args.character is not None else None
