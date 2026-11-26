@@ -341,6 +341,8 @@ def main(secret_store=None):
     if models is not None:
         moved["llm"] = (service_endpoint(args, "llm"), lambda: models.clear_key("compatible"))
     clear_moved_credentials(state_dir, moved)
+    from brain.outbound import resolve_windows
+    resolve_windows(state_dir)
     from brain.egress import EgressPolicy
     # One policy for every model call, so the diagnostics see one set of mask counts.
     egress = EgressPolicy(redact=args.redact)

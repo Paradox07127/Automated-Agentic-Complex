@@ -270,6 +270,8 @@ class Timeline:
         with self.lock:
             deleted = self._drop_summaries("rowid = ?", (segment,))
             self.db.commit()
+            if deleted:
+                self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         return deleted > 0
 
     def _drop_summaries(self, where, args):

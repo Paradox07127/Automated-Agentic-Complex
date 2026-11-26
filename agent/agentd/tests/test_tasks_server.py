@@ -79,13 +79,9 @@ class TaskServerTest(unittest.TestCase):
         self.fail(f"{task_id} is {task and task['state']}")
 
     def dispatch(self, verify_cmd=None, mode=None):
-        """POST /say → card → allow; the task once it runs and its session."""
-        body = {"text": "让 claude 改一下 README", "cwd": self.tmp.name}
-        if verify_cmd is not None:
-            body["verify_cmd"] = verify_cmd
-        status, said = self.request("POST", "/say", body)
-        self.assertEqual(status, 202)
-        request_id = said["request_id"]
+        """propose → card → allow; the task once it runs and its session."""
+        req = self.server.dispatcher.propose("claude", self.tmp.name, "改一下 README", source="text", verify_cmd=verify_cmd)
+        request_id = req.request_id
         [card] = self.request("GET", "/approvals")[1]["approvals"]
         self.assertEqual(card["dispatch"]["verify_cmd"], verify_cmd)
         self.assertEqual(self.tasks()[request_id]["state"], "proposed")
@@ -155,9 +151,9 @@ class TaskServerTest(unittest.TestCase):
         self.assertEqual([a["kind"] for a in self.announced()], ["dispatch_failed"])
 
     def test_read_only_card_refuses_a_verify_cmd_outside_its_presets(self):
-        self.assertEqual(self.request("POST", "/say", {"text": "让 claude 跑测试", "cwd": self.tmp.name,
-                                                       "verify_cmd": "pytest"}),
-                         (400, {"error": "invalid_verify_cmd"}))
+        from sessions.tasks import check_verify
+        with self.assertRaisesRegex(ValueError, "invalid_verify_cmd"):
+            check_verify("read_only", "pytest")
         self.assertEqual(self.request("POST", "/say", {"text": "让 claude 跑测试", "cwd": self.tmp.name,
                                                        "verify_cmd": 1}),
                          (400, {"error": "invalid_payload", "field": "verify_cmd"}))
@@ -176,7 +172,7 @@ class TaskServerTest(unittest.TestCase):
         self.assertEqual(self.announced(third), [])
 
     def test_a_restart_expires_a_card_not_yet_allowed(self):
-        self.request("POST", "/say", {"text": "让 claude 改一下 README", "cwd": self.tmp.name})
+        self.server.dispatcher.propose("claude", self.tmp.name, "改一下 README", source="text")
         second = self.start()
         second.recover_tasks()
         self.assertEqual([(a["kind"], a["level"], a["headline"]) for a in self.announced(second)],

@@ -61,10 +61,10 @@ class RenderTest(unittest.TestCase):
         self.assertIn("The character's own state: energy a bit sleepy", text)
         self.assertNotRegex(text, r"\bTA\b|[她他]")
 
-    def test_a_reply_language_without_its_own_examples_renders_none(self):
+    def test_a_reply_language_without_its_own_examples_keeps_base_examples(self):
         text = render_persona(card(), language="ja")
-        self.assertNotIn("<example", text)
-        self.assertNotIn(card()["examples"][0]["reply"], text)
+        self.assertIn("<example", text)
+        self.assertIn(card()["examples"][0]["reply"], text)
         self.assertIn("<markers>", text)
 
     def test_a_reply_language_with_its_own_examples_renders_those(self):

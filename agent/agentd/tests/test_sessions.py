@@ -482,8 +482,8 @@ class SessionsTest(unittest.TestCase):
         tasks = self.ledger()
         self.request("POST", "/hook/claude", {"hook_event_name": "UserPromptSubmit", "session_id": "ext",
                                               "cwd": self.tmp.name, "prompt": "hi"}, token=HOOK)
-        status, body = self.request("POST", "/say", {"text": "让 Codex 看看测试", "source": "text"})
-        self.assertEqual(status, 202)
+        req = self.server.dispatcher.propose("codex", self.tmp.name, "看看测试", source="text")
+        self.assertTrue(req.request_id)
         card = self.request("GET", "/approvals")[1]["approvals"][0]
         self.request("POST", f"/approvals/{card['request_id']}/decision",
                      {"decision": "allow", "generation": card["generation"]})

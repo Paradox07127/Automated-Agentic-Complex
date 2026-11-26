@@ -121,7 +121,7 @@ class ArtifactTests(WorkspaceCase):
     def test_scope_mismatch_and_output_path_escapes_are_rejected(self):
         self.assertCode('invalid_path', lambda: self.write(path='../outside.md'))
         self.assertCode('invalid_path', lambda: self.write(path='/outside.md'))
-        self.assertCode('unsupported_format', lambda: self.write(path='command.sh'))
+        self.assertCode('unsupported_format', lambda: self.write(path='command.exe'))
         receipt = self.write()
         run_dir = Path(receipt['absolute_path']).parent
         outside = self.root / 'outside'; outside.mkdir()

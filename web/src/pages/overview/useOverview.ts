@@ -52,7 +52,6 @@ function useLive(seq: string | null, reload: (reset?: boolean) => void, lostAtSt
   const [lost, setLost] = useState(lostAtStart);
   const again = useRef(reload);
   again.current = reload;
-  const ready = seq != null;
 
   useEffect(() => {
     if (seq == null) return;

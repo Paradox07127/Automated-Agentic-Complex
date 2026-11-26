@@ -65,6 +65,9 @@ def route(h, method, path):
             body = None
         was = motion.settings.backend
         status, reply = motion.settings.update(body)
+        if status == 200 and motion.settings.backend != was and h.server.mouth is not None:
+            # the motion marker rule is in or out of the prompt from the next turn
+            h.server.mouth.refresh_system(effective(h.server))
         if status == 200:
             motion.prewarm(effective(h.server)["motion"]["driver"])
         h.json(status, reply)
