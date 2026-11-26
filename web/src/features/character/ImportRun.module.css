@@ -1,6 +1,6 @@
 .run {
   padding: 12px 16px 14px;
-  background: rgb(46 46 46 / 90%);
+  background: color-mix(in srgb, var(--ef-surface-2) 90%, transparent);
   color: var(--ef-hud-ink);
   backdrop-filter: blur(8px);
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
@@ -15,25 +15,25 @@
 
 .top b {
   overflow: hidden;
-  font-size: 15px;
+  font-size: var(--ef-fs-title-2);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .k {
-  font-size: 12px;
+  font-size: var(--ef-fs-caption);
   color: color-mix(in srgb, var(--ef-hud-ink) 55%, transparent);
   white-space: nowrap;
 }
 
 .pct {
   margin-left: auto;
-  font: 700 30px / 1 var(--ef-font-num);
+  font: 700 var(--ef-fs-display) / 1 var(--ef-font-num);
   color: var(--ef-accent);
 }
 
 .pct small {
-  font-size: 14px;
+  font-size: var(--ef-fs-text);
 }
 
 .bar {
@@ -57,7 +57,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 70%), transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ef-hud-ink) 70%, transparent), transparent);
   animation: sweep 1.2s linear infinite;
 }
 
