@@ -4,6 +4,7 @@ import type { ImportedMotionEntry, ImportState } from '../../bridge';
 import { ErrBar, Icon } from '../../ui';
 import { DarkRow, TitleBar, WhiteCapsule, YellowKey } from '../../ui/game';
 import { useCompact } from './compact';
+import { ImportRun } from '../../features/character/ImportRun';
 import { motionFormatLabel } from '../../features/character/labels';
 import { MotionEditDialog, type MotionEdit } from '../../features/character/MotionEditDialog';
 import { importStageLabel, useImportState } from '../../features/character/useImportState';
@@ -57,7 +58,7 @@ function MotionImportPane(p: ImportPaneProps & { importing: ImportState }) {
   const editOff = p.offline ? '角色未运行' : p.lock ? '切换中 │ 输入暂停' : p.library?.busy ? '上一个改动还没完成' : null;
   // VMD dances live in the shared MMD library.
   const motions: ImportedMotionEntry[] = Object.values(p.library?.byId ?? {}).filter((m) => m.format !== 'vmd');
-  const running = importing.running && importing.kind !== 'outfit';
+  const running = importing.running && (importing.kind === 'motion' || importing.kind === 'mmd');
   const busy = motionImport?.running === true || importing.running;
   const stages = vmd ? VMD : TAKE;
   const now = importing.stage == null ? -1 : stages.indexOf(importing.stage);
@@ -70,6 +71,7 @@ function MotionImportPane(p: ImportPaneProps & { importing: ImportState }) {
       {p.onImportPackage && (
         <section className={styles.mgrp} aria-label="角色">
           <TitleBar title="角色" micro="Character package" actions={<WhiteCapsule label="导入角色" icon="upload" disabled={importing.running} onClick={p.onImportPackage} />} />
+          {importing.running && importing.kind === 'package' && <ImportRun state={importing} />}
         </section>
       )}
       {motionImport && (

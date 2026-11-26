@@ -541,6 +541,17 @@ class CharacterLibraryTests(unittest.TestCase):
         self.assertEqual(library.entries(), [])
 
     @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
+    def test_folder_import_reports_each_stage_once_in_order_and_the_install_command_prints_them(self):
+        src = self.root / "source"; fixture(src)
+        stages = []
+        Library(self.root / "library").import_path(src, validate_with=self.host(), progress=lambda stage, fraction: stages.append((stage, fraction)))
+        self.assertEqual([stage for stage, _ in stages], ["read", "validate", "write", "publish"])
+        self.assertEqual([fraction for _, fraction in stages], sorted(fraction for _, fraction in stages))
+        printed = [json.loads(line) for line in self.install_command(src, Library(self.root / "library2"), self.host()).stdout.splitlines()]
+        self.assertEqual([line["stage"] for line in printed if line.get("event") == "progress"], ["read", "validate", "write", "publish"])
+        self.assertEqual(printed[-1]["ids"], ["fixture"])
+
+    @unittest.skipIf(sys.platform == "win32", "the test runs a script through its shebang, which Windows cannot execute")
     def test_folder_import_skips_file_manager_metadata(self):
         src = self.root / "source"; fixture(src)
         for name in (".DS_Store", "runtime/Thumbs.db", "runtime/desktop.ini"):

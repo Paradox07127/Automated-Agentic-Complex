@@ -81,9 +81,9 @@ export const SURFACE_OPS: Readonly<Record<Surface, readonly string[]>> = {
   onboarding: [
     'app.openQuickInput', 'agentd.request', 'settings.read', 'settings.save', 'settings.validateHotkey',
     'settings.recordHotkey', 'permissions.status', 'permissions.request', 'permissions.openSettings', 'character.list',
-    'character.switchTo', 'character.importPackage', 'open.runInTerminal', 'clipboard.writeText', 'desktop.onState',
-    'onboarding.state', 'onboarding.advance', 'onboarding.back', 'onboarding.goto', 'onboarding.skip',
-    'onboarding.complete', 'events.unsubscribe',
+    'character.switchTo', 'character.importPackage', 'character.importState', 'character.onImport',
+    'open.runInTerminal', 'clipboard.writeText', 'desktop.onState', 'onboarding.state', 'onboarding.advance',
+    'onboarding.back', 'onboarding.goto', 'onboarding.skip', 'onboarding.complete', 'events.unsubscribe',
   ],
 };
 

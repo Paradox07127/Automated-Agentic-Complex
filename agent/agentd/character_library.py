@@ -490,18 +490,21 @@ class Library:
 
     def entries(self): return [package.view() for package in self.packages()]
 
-    def import_path(self, source, validate_with=None):
+    def import_path(self, source, validate_with=None, progress=None):
         # validate_with: the host executable that must load the staged native bundle; None skips that check.
+        # progress(stage, fraction): called as each stage begins; fraction is its share of the whole import, by measured time.
+        progress = progress or (lambda stage, fraction: None)
         host = None if validate_with is None else Path(validate_with).resolve()
         need(host is None or (host.is_file() and os.access(host, os.X_OK)), "load_failed: host executable is missing or not executable: " + str(host))
         source = Path(source)
         directory = source.is_dir()
-        if directory and host is None: return self.install(source)
+        if directory and host is None: return self.install(source, progress)
         need(directory or (source.is_file() and source.suffix == ".endfield-character"), "unsupported_package_file")
         # Extract under a private staging directory; no entry may supply executable code,
         # links, absolute paths, duplicate names or unbounded decompressed output.
         with tempfile.TemporaryDirectory(prefix="endfield-character-") as temporary:
             stage = Path(temporary)
+            progress("read", 0.0)
             if directory:
                 need(not source.is_symlink() and not os.path.isjunction(source), "runtime_symlink")
                 # A Windows junction is no symlink to is_symlink, and copytree would copy what it points at.
@@ -518,10 +521,12 @@ class Library:
             expected = set(package.inventory) | {"character.json"}
             actual = {p.relative_to(stage).as_posix() for p in stage.rglob("*") if p.is_file()}
             need(actual == expected, "archive_unindexed_payload")
-            if host is not None: validate_pack(host, package)
-            return self.install(stage)
+            if host is not None:
+                progress("validate", 0.35)
+                validate_pack(host, package)
+            return self.install(stage, progress)
 
-    def install(self, source):
+    def install(self, source, progress=None):
         package = Package(source)
         self.root.mkdir(parents=True, exist_ok=True)
         with (self.root / ".lock").open("a", encoding="utf-8") as lock:
@@ -538,7 +543,10 @@ class Library:
             for existing in old:
                 for ref in existing.inventory.values():
                     self.resources.register(contained(existing.root, ref['file']), ref)
-            return self.publish(self.materialize(old, package))
+            if progress: progress("write", 0.6)
+            packages = self.materialize(old, package)
+            if progress: progress("publish", 0.95)
+            return self.publish(packages)
 
     def upgrade(self, source, base_sha256):
         """Publish a higher version of an installed character built from its current package, under the same catalog path.

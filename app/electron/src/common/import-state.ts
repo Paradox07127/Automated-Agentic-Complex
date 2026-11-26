@@ -1,4 +1,4 @@
-// The motion, MMD and outfit imports' progress: the tools' progress lines, and the state
+// The motion, MMD, outfit and character package imports' progress: the tools' progress lines, and the state
 // `character.importState` answers and `character.onImport` sends.
 
 const STAGES = new Set(['read', 'sample', 'retarget', 'compose', 'write', 'validate', 'publish']);
@@ -42,7 +42,7 @@ export function moves(p: ImportProgress, stage: string | null, fraction: number)
   return p.stage !== stage || Math.abs(p.fraction - fraction) >= 0.01;
 }
 
-export type ImportKind = 'motion' | 'mmd' | 'outfit';
+export type ImportKind = 'motion' | 'mmd' | 'outfit' | 'package';
 
 /** `character.importState`: the import running now. `stage` is a progress line's, `reload` once the tool has exited and the
  *  renderer restarts, or null before the tool's first stage and while idle. */

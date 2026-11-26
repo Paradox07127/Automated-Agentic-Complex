@@ -95,7 +95,7 @@ export type ImportStage = 'read' | 'sample' | 'retarget' | 'compose' | 'write' |
 /** The motion, MMD or outfit import running now; `stage` is null before the tool's first stage and while idle. */
 export interface ImportState {
   running: boolean;
-  kind: 'motion' | 'mmd' | 'outfit' | null;
+  kind: 'motion' | 'mmd' | 'outfit' | 'package' | null;
   /** The chosen file's name without its extension. */
   title: string | null;
   stage: ImportStage | null;

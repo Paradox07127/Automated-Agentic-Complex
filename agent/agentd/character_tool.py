@@ -56,7 +56,9 @@ def main():
     try:
         if args.command == "install":
             need(args.validate_with is not None, "load_failed: host executable is not configured")
-            library = Library(args.library); doc = library.import_path(args.source, validate_with=args.validate_with)
+            library = Library(args.library)
+            doc = library.import_path(args.source, validate_with=args.validate_with,
+                                      progress=lambda stage, fraction: print(json.dumps(dict(event="progress", stage=stage, fraction=fraction)), flush=True))
             result = dict(revision=doc["revision"], ids=[x["id"] for x in doc["characters"]])
         elif args.command == "compose":
             doc = compose(args.package, args.default, args.output)

@@ -336,6 +336,8 @@
       "character.list",
       "character.switchTo",
       "character.importPackage",
+      "character.importState",
+      "character.onImport",
       "open.runInTerminal",
       "clipboard.writeText",
       "desktop.onState",

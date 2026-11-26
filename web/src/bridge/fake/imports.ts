@@ -33,6 +33,7 @@ const TOOL_STAGES: Record<NonNullable<ImportState['kind']>, ImportStage[]> = {
   motion: ['read', 'sample', 'retarget', 'write', 'validate', 'publish'],
   mmd: ['read', 'sample', 'retarget', 'write', 'validate', 'publish'],
   outfit: ['read', 'compose', 'write', 'validate', 'publish'],
+  package: ['read', 'validate', 'write', 'publish'],
 };
 
 export function fakeImports(character: () => string) {

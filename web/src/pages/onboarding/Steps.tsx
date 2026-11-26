@@ -2,6 +2,8 @@ import { useState, type ReactNode } from 'react';
 import { getBridge, type OnboardingStep } from '../../bridge';
 import { hotkeyText } from '../../bridge/platformText';
 import type { VisualStateKey } from '../../domain/states';
+import { ImportRun } from '../../features/character/ImportRun';
+import { useImportState } from '../../features/character/useImportState';
 import { Btn, CharacterArt, ErrBar, Field, Select } from '../../ui';
 import { GameFrame, MicroLabel, StatusLamp } from '../../ui/game';
 import { failure, saveModels } from '../settings/api';
@@ -74,13 +76,15 @@ const DESK: Record<Desk, [VisualStateKey, string]> = {
 export function StepChar({ o }: { o: Onboarding }) {
   const list = o.characters ?? [];
   const c = o.current;
+  const importing = useImportState();
+  const importingPackage = importing.running && importing.kind === 'package';
   return (
     <Frame n={1}>
       <SetSection title="名册">
         {list.length === 0 ? (
           <div className={styles.empty}>
             <span className={styles.why}>还没有角色。导入一个角色包，角色就会出现在桌面上。</span>
-            <Btn onClick={o.importPackage}>导入角色包</Btn>
+            <Btn disabled={importing.running} onClick={o.importPackage}>导入角色包</Btn>
           </div>
         ) : (
           <div className={styles.roster} role="radiogroup" aria-label="角色名册">
@@ -100,7 +104,7 @@ export function StepChar({ o }: { o: Onboarding }) {
                 <span className={styles.nm}>{r.name}</span>
               </button>
             ))}
-            <button type="button" className={styles.rc} data-add="" onClick={o.importPackage}>
+            <button type="button" className={styles.rc} data-add="" disabled={importing.running} onClick={o.importPackage}>
               <span className={styles.art}>
                 <span className={styles.plus} aria-hidden="true">
                   +
@@ -112,6 +116,7 @@ export function StepChar({ o }: { o: Onboarding }) {
           </div>
         )}
       </SetSection>
+      {importingPackage && <ImportRun state={importing} />}
       {c && (
         <SetRow
           id="onDesk"

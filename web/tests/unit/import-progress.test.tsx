@@ -83,6 +83,23 @@ describe('导入 pane', () => {
     expect(motion.disabled).toBe(false);
   });
 
+  it('shows a character package import under 角色 with its stage and percent and no motion stage chain, and holds 导入角色', async () => {
+    const sink = pushes();
+    await mount('&pane=motion');
+    await act(async () => void fireEvent.click(screen.getByRole('tab', { name: '导入' })));
+    const capsule = (await screen.findByRole('button', { name: '导入角色' })) as HTMLButtonElement;
+    await act(async () => sink.push({ running: true, kind: 'package', title: 'jsspsi', stage: 'validate', fraction: 0.35 }));
+    const run = screen.getByRole('status', { name: '导入进度' });
+    expect(run.textContent).toContain('jsspsi');
+    expect(run.textContent).toContain('导入角色 │ 校验');
+    expect(run.textContent).toContain('35%');
+    expect(run.querySelectorAll('li')).toHaveLength(0);
+    expect(capsule.disabled).toBe(true);
+    await act(async () => sink.push(IDLE));
+    expect(screen.queryByRole('status', { name: '导入进度' })).toBeNull();
+    expect(capsule.disabled).toBe(false);
+  });
+
   it('puts an outfit import on the progress card of the 外观 导入 tab', async () => {
     const sink = pushes();
     await mount('&pane=look');

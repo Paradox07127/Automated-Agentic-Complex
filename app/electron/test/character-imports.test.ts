@@ -9,7 +9,7 @@ import routes from '../../../protocol/ui-bridge/routes.json' with { type: 'json'
 import { handle } from '../src/common/bridge.ts';
 import type { Actions, AvatarHello } from '../src/common/c3.ts';
 import { silentSource } from '../src/common/feed.ts';
-import type { ImportProgress } from '../src/common/import-state.ts';
+import { type ImportProgress, parseProgress } from '../src/common/import-state.ts';
 import { MmdSync } from '../src/common/mmd-sync.ts';
 import { PageSession } from '../src/common/page.ts';
 import { PushSource } from '../src/common/push.ts';
@@ -100,7 +100,7 @@ function fixture(o: { catalog?: boolean; link?: boolean; host?: () => string; mm
       } },
     confirm: async () => true,
     shell: { openExternal: async () => {}, openPath: async () => '', showItemInFolder: () => {} }, clipboard: { writeText: () => {} },
-    dialog: { pickFile: async () => null, pickFolder: async () => null, pickPackage: async () => null, saveFile: async () => true },
+    dialog: { pickFile: async () => null, pickFolder: async () => null, pickPackage: async () => (typeof f.picks[0] === 'string' ? f.picks.shift() as string : null), saveFile: async () => true },
     app: { version: '0', os: 'test' }, loginItem: { enabled: () => null, set: () => {} }, settingsChanges: silentSource,
     log: (line) => calls.push(`log ${line}`),
   };
@@ -743,6 +743,30 @@ test('a fake tool\'s progress lines reach character.onImport in order through ru
     assert.deepEqual(await f.call('character.importMotion'), { ok: true, action: ACTION });
     assert.deepEqual(f.pushed, [state('motion', 'a', null, 0), state('motion', 'a', 'read', 0), state('motion', 'a', 'retarget', 0.5),
       state('motion', 'a', 'publish', 1), state('motion', 'a', 'reload', 1), IDLE]);
+  } finally {
+    f.done();
+  }
+});
+
+test('character.importPackage: the folder\'s name, the tool\'s stages, reload, then idle; a failed tool ends idle without reload', async () => {
+  const f = fixture();
+  try {
+    const lines = ['read', 'validate', 'write', 'publish'].map((stage, i) => JSON.stringify({ event: 'progress', stage, fraction: i / 4 }));
+    f.tool = async (_script, _args, progress) => {
+      for (const line of lines) progress?.(parseProgress(line)!);
+      return { last: JSON.stringify({ revision: 'r', ids: ['si'] }), status: 0, stderr: '' };
+    };
+    await f.call('character.onImport', 1);
+    f.picks = [join(f.dir, 'jsspsi-1.2.105')];
+    assert.deepEqual(await f.call('character.importPackage'), { ok: true });
+    assert.deepEqual(f.pushed, [state('package', 'jsspsi-1.2.105', null, 0), state('package', 'jsspsi-1.2.105', 'read', 0),
+      state('package', 'jsspsi-1.2.105', 'validate', 0.25), state('package', 'jsspsi-1.2.105', 'write', 0.5), state('package', 'jsspsi-1.2.105', 'publish', 0.75),
+      state('package', 'jsspsi-1.2.105', 'reload', 1), IDLE]);
+    f.pushed.length = 0;
+    f.tool = async () => ({ last: '', status: 2, stderr: 'archive_unindexed_payload' });
+    f.picks = [join(f.dir, 'si.endfield-character')];
+    assert.deepEqual(await f.call('character.importPackage'), { ok: false, reason: '角色包导入失败：archive_unindexed_payload' });
+    assert.deepEqual(f.pushed, [state('package', 'si', null, 0), IDLE]);
   } finally {
     f.done();
   }

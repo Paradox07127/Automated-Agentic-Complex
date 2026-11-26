@@ -81,6 +81,40 @@ describe('首次设置 · 01 角色', () => {
   });
 });
 
+describe('首次设置 · 导入进度', () => {
+  type Running = Awaited<ReturnType<AgenticComplexBridge['character']['importState']>>;
+  const running = (stage: Running['stage'], fraction: number): Running => ({ running: true, kind: 'package', title: 'jsspsi', stage, fraction });
+
+  it('shows the running package import under the roster, follows its pushes and holds 导入 until it ends', async () => {
+    const fake = createFakeBridge({ surface: 'onboarding', still: true });
+    let push: (s: Running) => void = () => {};
+    window.agenticComplex = {
+      ...fake,
+      character: { ...fake.character, importState: async () => running('validate', 0.35), onImport: (cb) => { push = cb; return () => {}; } },
+    };
+    mount();
+    const roster = await screen.findByRole('radiogroup', { name: '角色名册' });
+    const progress = await screen.findByRole('status', { name: '导入进度' });
+    expect(progress.textContent).toContain('jsspsi');
+    expect(progress.textContent).toContain('校验');
+    expect(progress.textContent).toContain('35');
+    expect(within(roster).getByRole('button', { name: /导入/ })).toHaveProperty('disabled', true);
+    push(running('write', 0.6));
+    await waitFor(() => expect(screen.getByRole('status', { name: '导入进度' }).textContent).toContain('写入角色包'));
+    push({ running: false, kind: null, title: null, stage: null, fraction: 0 });
+    await waitFor(() => expect(screen.queryByRole('status', { name: '导入进度' })).toBeNull());
+    expect(within(roster).getByRole('button', { name: /导入/ })).toHaveProperty('disabled', false);
+  });
+
+  it('shows nothing for a motion import', async () => {
+    const fake = createFakeBridge({ surface: 'onboarding', still: true });
+    window.agenticComplex = { ...fake, character: { ...fake.character, importState: async () => ({ ...running('read', 0.2), kind: 'motion' }) } };
+    mount();
+    await screen.findByRole('radiogroup', { name: '角色名册' });
+    expect(screen.queryByRole('status', { name: '导入进度' })).toBeNull();
+  });
+});
+
 describe('首次设置 · 角色库为空', () => {
   function installEmpty() {
     const fake = createFakeBridge({ surface: 'onboarding', still: true });

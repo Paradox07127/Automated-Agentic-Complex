@@ -350,20 +350,24 @@ export function characterOps(ctx: OpsContext, picker: ImportPicker = electronPic
       if (missing !== null) return { ok: false, reason: `角色包导入失败：${missing}` };
       const source = await ctx.dialog.pickPackage();
       if (source === null) return { ok: false, reason: 'cancelled' };
-      let reply;
       try {
-        reply = await ctx.library!.runTool('character_tool.py',
-          ['install', source, '--library', dirname(catalog), '--validate-with', ctx.library!.validationHost()]);
+        await imports(ctx).tracker.run('package', source.endsWith('.endfield-character') ? basename(source, '.endfield-character') : basename(source),
+          async (progress) => {
+            const reply = await ctx.library!.runTool('character_tool.py',
+              ['install', source, '--library', dirname(catalog), '--validate-with', ctx.library!.validationHost()], progress);
+            if (reply.status !== 0) throw new Error(reply.stderr);
+          },
+          async () => {
+            ctx.library!.rosterChanged();
+            // A renderer stopped for want of a character starts on the new roster.
+            if (await currentCharacter(ctx) === null && ctx.supervisor) {
+              ctx.log('first character imported: restarting children');
+              ctx.supervisor.restart();
+              ctx.supervisor.restartAvatar?.();
+            }
+          });
       } catch (e) {
         return { ok: false, reason: `角色包导入失败：${e instanceof Error ? e.message : String(e)}` };
-      }
-      if (reply.status !== 0) return { ok: false, reason: `角色包导入失败：${reply.stderr}` };
-      ctx.library!.rosterChanged();
-      // A renderer stopped for want of a character starts on the new roster.
-      if (await currentCharacter(ctx) === null && ctx.supervisor) {
-        ctx.log('first character imported: restarting children');
-        ctx.supervisor.restart();
-        ctx.supervisor.restartAvatar?.();
       }
       return { ok: true };
     },
