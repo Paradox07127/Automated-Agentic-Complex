@@ -1234,15 +1234,8 @@ function startDesktop(): void {
         menus.refreshIcon();
         desktop?.pushState();
       },
-      switchCharacter: (id) => switcher?.select(id),
-      placeOnScreen: (id) => { placer?.placeOnScreen(Number(id)); },
       resetPosition: () => placer?.resetPosition(),
-      resize: () => { resizeOverlay?.begin(); },
       photo: () => { photoOverlay?.begin(); },
-      restartAll: () => {
-        void supervisor?.restart();
-        void renderer?.restart();
-      },
       quit: () => app.quit(),
       stopPlay: () => play.stop((m) => hostLink?.send(m) ?? false, hostLink?.capabilities ?? []),
       ...(camera && { pose: (id: string | null) => wheelPose(camera.poses, id) }),

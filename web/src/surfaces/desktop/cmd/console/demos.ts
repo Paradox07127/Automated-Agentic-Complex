@@ -1,6 +1,6 @@
 // Menu bar preview states in stack.html#/console?demo=<name>; the fake bridge reads the same names (`empty`: nothing
 // waiting, `console-unread`: unread announcements).
-import { stackQuery } from '../../../stack/demos';
+import { stackQuery } from '../../../stack/stackQuery';
 
 interface ConsoleDemo {
   /** Simulate the service being down while the browser bridge stays connected. */

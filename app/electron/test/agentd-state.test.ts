@@ -12,7 +12,7 @@ import { processState } from '../src/main/ops/supervisor.ts';
 import { lsofPids, netstatListeners, portOwnersCommand, pythonFlags } from '../src/main/platform/index.ts';
 
 const config = (o: Record<string, unknown> = {}) => parseConfig(JSON.stringify({
-  agentd_dir: '/a/agentd', python: '/a/python', agentd_port: 48810, gpu_hold_files: [], characters: [{ id: 'aster', name: '示例甲', avatar_app: '/A.app' }], support_dir: '/s',
+  agentd_dir: '/a/agentd', python: '/a/python', agentd_port: 48810, characters: [{ id: 'aster', name: '示例甲', avatar_app: '/A.app' }], support_dir: '/s',
   agentd_state_dir: '/st', ...o,
 }), { supportDir: '/support', agentdStateDir: '/state', catalog: () => null });
 

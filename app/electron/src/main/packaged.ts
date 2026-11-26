@@ -181,7 +181,7 @@ export function preparePackaged(options: { resources: string; supportBase: strin
     config = existing as Record<string, unknown>;
   } else {
     config = {
-      agentd_port: manifest.port, gpu_hold_files: [], characters: [],
+      agentd_port: manifest.port, characters: [],
       // Not control+space: macOS switches the input source on it.
       voice_hotkey: 'right_option', hotkey_quick_input: 'control+option+space', hotkey_look: 'control+option+l',
       hotkey_toggle_avatar: 'control+option+h', hotkey_click_through: 'control+option+p', hotkey_radial_menu: '',

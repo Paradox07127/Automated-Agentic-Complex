@@ -160,7 +160,7 @@ Dev console: run the same command in a session with a desktop (`py -3 -I tools\d
 - Components are stopped with `taskkill /T /F /PID`, which ends the whole process tree, so the shell has no time to stop the renderer, agentd and the helper in order. Child processes are in their own process groups and the console's Ctrl-C reaches only the console, which stops the shell and vite in order.
 - The installed-app data check looks at `%APPDATA%\Agentic Complex` and `%LOCALAPPDATA%\Agentic Complex`.
 
-To run the shell by hand, config.json must have `agentd_dir`, `python`, `agentd_port`, `gpu_hold_files` and `avatar_executable`; without `support_dir` and `agentd_state_dir` the defaults apply. See [Electron shell · Windows differences](architecture/shell.en.md#windows-differences) for the shell's other differences from macOS.
+To run the shell by hand, config.json must have `agentd_dir`, `python`, `agentd_port` and `avatar_executable`; without `support_dir` and `agentd_state_dir` the defaults apply. See [Electron shell · Windows differences](architecture/shell.en.md#windows-differences) for the shell's other differences from macOS.
 
 ## Verification gates
 

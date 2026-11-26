@@ -176,7 +176,6 @@ export interface Config {
   missingComponents: Record<string, string>;
   characterLibraryMissing: string[];
   agentdPort: number;
-  gpuHoldFiles: string[];
   supportDir: string;
   interactionPreset: string;
   /** `plugins`, each id it leaves out at the registry's default. */
@@ -316,7 +315,6 @@ export function parseConfig(text: string, ctx: ConfigContext): Config {
   // A character_catalog that loaded is a library, also one the user set after the launch that wrote character_library_missing.
   const characterLibraryMissing = characterCatalog === null ? optional(o, 'character_library_missing', strings) ?? [] : [];
   const agentdPort = required(o, 'agentd_port', int);
-  const gpuHoldFiles = required(o, 'gpu_hold_files', strings);
   const supportDir = optional(o, 'support_dir', str) ?? ctx.supportDir;
   const live = agentdLive(o);
   const interactionPreset = live.interaction_preset;
@@ -337,7 +335,7 @@ export function parseConfig(text: string, ctx: ConfigContext): Config {
   const devResources = optional(o, 'dev_resources', str) ?? null;
   return {
     characters, characterCatalog, character, avatarApp, avatarExecutable, agentdDir, python, agentdLauncher, harnessSites,
-    missingComponents, characterLibraryMissing, agentdPort, gpuHoldFiles, supportDir, interactionPreset, plugins: pluginsOn,
+    missingComponents, characterLibraryMissing, agentdPort, supportDir, interactionPreset, plugins: pluginsOn,
     sharePageText, shareWindowText, shareTypedText, shareActions, shareAgentSessions, shareScreenshots, redactSensitive, proactiveSpeech,
     proxyUrl, mute, agentdStateDir, services: servicesOn, devResources,
   };

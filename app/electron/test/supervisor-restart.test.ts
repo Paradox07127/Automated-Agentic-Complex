@@ -46,7 +46,7 @@ test('restarting agentd passes config.json as saved since launch; an unreadable 
   const script = join(dir, 'agentd.cjs'), launches = join(dir, 'launches'), configPath = join(dir, 'config.json');
   writeFileSync(script, fakeAgentd(launches));
   const base = { characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }], agentd_dir: dir, python: process.execPath, agentd_port: await freePort(),
-    gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state') };
+    support_dir: support, agentd_state_dir: join(dir, 'state') };
   writeFileSync(configPath, JSON.stringify(base));
   const supervisor = new AgentdSupervisor({ config: loadConfig(configPath), launcherScript: script, character: '',
     reload: () => loadConfig(configPath) });
@@ -76,7 +76,7 @@ test('each agentd launch passes the character the option gives at that launch', 
   const script = join(dir, 'agentd.cjs'), launches = join(dir, 'launches'), configPath = join(dir, 'config.json');
   writeFileSync(script, fakeAgentd(launches));
   writeFileSync(configPath, JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }], agentd_dir: dir, python: process.execPath,
-    agentd_port: await freePort(), gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state') }));
+    agentd_port: await freePort(), support_dir: support, agentd_state_dir: join(dir, 'state') }));
   let character = 'aster';
   const supervisor = new AgentdSupervisor({ config: loadConfig(configPath), launcherScript: script, character: () => character });
   try {
@@ -98,7 +98,7 @@ test('a stop while a restart is stopping agentd wins: agentd stays stopped', asy
   const script = join(dir, 'agentd.cjs'), launches = join(dir, 'launches'), configPath = join(dir, 'config.json');
   writeFileSync(script, fakeAgentd(launches));
   writeFileSync(configPath, JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }], agentd_dir: dir, python: process.execPath,
-    agentd_port: await freePort(), gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state') }));
+    agentd_port: await freePort(), support_dir: support, agentd_state_dir: join(dir, 'state') }));
   const supervisor = new AgentdSupervisor({ config: loadConfig(configPath), launcherScript: script, character: '' });
   try {
     supervisor.start();
@@ -118,7 +118,7 @@ test('after stop, the shell\'s quit, neither a restart nor a start launches agen
   const script = join(dir, 'agentd.cjs'), launches = join(dir, 'launches'), configPath = join(dir, 'config.json');
   writeFileSync(script, fakeAgentd(launches));
   writeFileSync(configPath, JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }], agentd_dir: dir, python: process.execPath,
-    agentd_port: await freePort(), gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state') }));
+    agentd_port: await freePort(), support_dir: support, agentd_state_dir: join(dir, 'state') }));
   const supervisor = new AgentdSupervisor({ config: loadConfig(configPath), launcherScript: script, character: '' });
   try {
     supervisor.start();
@@ -141,7 +141,7 @@ test('starting agentd with coding sessions and external access on writes <suppor
   const script = join(dir, 'agentd.cjs'), launches = join(dir, 'launches'), configPath = join(dir, 'config.json');
   writeFileSync(script, fakeAgentd(launches));
   writeFileSync(configPath, JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }], agentd_dir: join(dir, "it's"),
-    python: process.execPath, agentd_port: await freePort(), gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state'),
+    python: process.execPath, agentd_port: await freePort(), support_dir: support, agentd_state_dir: join(dir, 'state'),
     plugins: { coding_sessions: true, external_access: true } }));
   const supervisor = new AgentdSupervisor({ config: loadConfig(configPath), launcherScript: script, character: '' });
   const windows = process.platform === 'win32', hook = join(support, 'bin', windows ? 'agentic-complex-hook.cmd' : 'agentic-complex-hook');
@@ -165,7 +165,7 @@ test('starting agentd with coding sessions off and external access on writes no 
   const script = join(dir, 'agentd.cjs'), launches = join(dir, 'launches'), configPath = join(dir, 'config.json');
   writeFileSync(script, fakeAgentd(launches));
   writeFileSync(configPath, JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }], agentd_dir: dir,
-    python: process.execPath, agentd_port: await freePort(), gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state'),
+    python: process.execPath, agentd_port: await freePort(), support_dir: support, agentd_state_dir: join(dir, 'state'),
     plugins: { external_access: true } }));
   const supervisor = new AgentdSupervisor({ config: loadConfig(configPath), launcherScript: script, character: '' });
   const windows = process.platform === 'win32';
@@ -186,7 +186,7 @@ test('starting agentd with coding sessions and external access off writes neithe
   const script = join(dir, 'agentd.cjs'), launches = join(dir, 'launches'), configPath = join(dir, 'config.json');
   writeFileSync(script, fakeAgentd(launches));
   writeFileSync(configPath, JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }], agentd_dir: dir,
-    python: process.execPath, agentd_port: await freePort(), gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state') }));
+    python: process.execPath, agentd_port: await freePort(), support_dir: support, agentd_state_dir: join(dir, 'state') }));
   const supervisor = new AgentdSupervisor({ config: loadConfig(configPath), launcherScript: script, character: '' });
   try {
     supervisor.start();
@@ -208,7 +208,7 @@ test('a log whose mode cannot be set fails the agentd launch without keeping its
     execFileSync('chflags', ['uappnd', log]);
     const configPath = join(dir, 'config.json');
     writeFileSync(configPath, JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }], agentd_dir: dir, python: process.execPath,
-      agentd_port: await freePort(), gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state') }));
+      agentd_port: await freePort(), support_dir: support, agentd_state_dir: join(dir, 'state') }));
     const supervisor = new AgentdSupervisor({ config: loadConfig(configPath), launcherScript: join(dir, 'none.cjs'), character: '' });
     try {
       const before = readdirSync('/dev/fd').length;
@@ -230,7 +230,7 @@ test('restarting the renderer passes config.json as saved since launch; an unrea
   writeFileSync(script, `import { appendFileSync } from 'node:fs';\n`
     + `appendFileSync(${JSON.stringify(launches)}, process.argv.slice(2).join(' ') + '\\n');\nsetInterval(() => {}, 1000);\n`);
   const base = { characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }], avatar_executable: process.execPath, agentd_dir: dir, python: '/usr/bin/false',
-    agentd_port: 1, support_dir: support, agentd_state_dir: join(dir, 'state'), gpu_hold_files: [] };
+    agentd_port: 1, support_dir: support, agentd_state_dir: join(dir, 'state') };
   writeFileSync(configPath, JSON.stringify(base));
   const renderer = new RendererSupervisor({ config: loadConfig(configPath), settings: () => ({}), state: () => ({}),
     character: () => 'aster', link: null, captureDir: join(dir, 'captures'), prefix: [script], reload: () => loadConfig(configPath) });
@@ -263,7 +263,7 @@ function fakeRenderer(prefix: string) {
     + `appendFileSync(${JSON.stringify(launches)}, process.argv.slice(2).join(' ') + '\\n');\nsetInterval(() => {}, 1000);\n`);
   writeFileSync(configPath, JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }],
     avatar_executable: process.execPath, agentd_dir: dir, python: '/usr/bin/false', agentd_port: 1, support_dir: support,
-    agentd_state_dir: join(dir, 'state'), gpu_hold_files: [] }));
+    agentd_state_dir: join(dir, 'state') }));
   const renderer = new RendererSupervisor({ config: loadConfig(configPath), settings: () => ({}), state: () => ({}),
     character: () => 'aster', link: null, captureDir: join(dir, 'captures'), prefix: [script] });
   return { dir, support, launches, renderer };

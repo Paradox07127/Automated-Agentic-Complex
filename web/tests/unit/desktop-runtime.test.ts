@@ -91,10 +91,10 @@ describe('useDesktopState over app.runtime', () => {
     const { push } = install(async () => snapshot('voice_a', proc('running', { pid: 1 }), proc('running', { pid: 2 })));
     const { result } = renderHook(() => useDesktopState());
     await waitFor(() => expect(result.current).toEqual(STATE));
-    push(snapshot('cedar', proc('port_in_use'), proc('gpu_hold')));
+    push(snapshot('cedar', proc('port_in_use'), proc('external')));
     expect(result.current?.character).toEqual({ id: 'cedar', name: '示例丙' });
     expect(result.current?.pips.agentd.state).toBe('portInUse');
-    expect(result.current?.pips.avatar.state).toBe('gpuHold');
+    expect(result.current?.pips.avatar.state).toBe('external');
     // No character in the snapshot yet: desktop.onState's stays.
     push(snapshot(null, proc('starting'), proc('running', { pid: 9 })));
     expect(result.current?.character).toEqual(STATE.character);

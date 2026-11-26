@@ -4,7 +4,7 @@ import { formatClock } from '../../domain';
 import { navRoute } from '../../shell/nav';
 import { useSystemTheme } from '../../shell/useSystemTheme';
 import { OptionStack, type OptionStackItem } from '../../ui/game/OptionStack';
-import { stackQuery } from '../stack/demos';
+import { stackQuery } from '../stack/stackQuery';
 import { useContentSize } from './hooks/useContentSize';
 import { useDesktopState } from './hooks/useDesktopState';
 import { useMountedLog } from './hooks/useMountedLog';

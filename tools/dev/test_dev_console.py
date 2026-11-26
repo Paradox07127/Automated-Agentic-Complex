@@ -55,7 +55,7 @@ class ShellConfigTest(Paths):
         self.assertEqual(config['avatar_executable'], '/w/r/private/renderer/host/.build/debug/metal-avatar-host')
         self.assertEqual(config['avatar_app'], '/w/r/private/renderer/host/.build/debug')
         self.assertEqual(config['python'], str(dc.MAIN / 'agent/.venv/bin/python'))
-        self.assertEqual((config['agentd_port'], config['gpu_hold_files']), (48790, []))
+        self.assertEqual(config['agentd_port'], 48790)
         self.assertEqual(config['support_dir'], str(dc.SUPPORT_DIR))
         self.assertEqual(config['agentd_state_dir'], str(dc.STATE_DIR))
         self.assertEqual(config['character_catalog'], dc.CATALOG)

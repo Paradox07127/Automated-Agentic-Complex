@@ -474,7 +474,7 @@ test('the launch carries the remembered mod settings as --agentic-complex-mod-se
   try {
     const configPath = join(dir, 'config.json');
     writeFileSync(configPath, JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'A.app') }], avatar_executable: '/bin/true', agentd_dir: dir, python: '/usr/bin/false',
-      agentd_port: 1, support_dir: join(dir, 's'), agentd_state_dir: join(dir, 'st'), gpu_hold_files: [] }));
+      agentd_port: 1, support_dir: join(dir, 's'), agentd_state_dir: join(dir, 'st') }));
     const config = loadConfig(configPath);
     const launch = (settings: Record<string, unknown>) => rendererArguments({ config, character: 'birch', parentPid: 1, startupPath: '/x',
       socketPath: null, captureDir: '/p', settings, state: { hidden_layers: { birch: ['hat'] } } });

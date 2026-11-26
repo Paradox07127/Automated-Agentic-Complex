@@ -19,20 +19,14 @@ function setup(quietFails = false, ritual: string | null = null) {
       calls.push(['setQuiet', until]);
       if (quietFails) throw new BridgeFailure('failed', 'HTTP 503');
     },
-    switchCharacter: (id) => calls.push(['switchCharacter', id]),
-    placeOnScreen: (id) => calls.push(['placeOnScreen', id]),
     resetPosition: () => calls.push(['resetPosition']),
-    restartAll: () => calls.push(['restartAll']),
     quit: () => calls.push(['quit']),
     quickInput: (scope) => calls.push(['quickInput', scope]),
-    cmdMode: (mode) => calls.push(['cmdMode', mode]),
     resetBoxes: () => calls.push(['resetBoxes']),
     clickThroughAll: () => calls.push(['clickThroughAll']),
     gift: async () => { calls.push(['gift']); },
     freeRoam: async () => { calls.push(['freeRoam']); },
-    openSessions: () => calls.push(['openSessions']),
     openStack: () => calls.push(['openStack']),
-    resize: () => calls.push(['resize']),
     photo: () => calls.push(['photo']),
     talk: (phase) => calls.push(['talk', phase]),
     stopPlay: () => calls.push(['stopPlay']),
@@ -58,22 +52,21 @@ async function failure(p: unknown): Promise<{ code: string; detail: string }> {
 
 test('the names are DesktopAction\'s', () => {
   assert.deepEqual([...DESKTOP_ACTIONS], ['look', 'hide', 'show', 'clickThroughAll', 'quiet', 'quietEnd', 'gift', 'freeRoam',
-    'switchCharacter', 'placeOnScreen', 'resetPosition', 'resize', 'photo', 'restartAll', 'quit', 'resetBoxes', 'openSessions', 'openStack',
-    'claimRitual', 'quickInput', 'cmdMode', 'talk', 'stopPlay', 'pose']);
+    'resetPosition', 'photo', 'quit', 'resetBoxes', 'openStack', 'claimRitual', 'quickInput', 'talk', 'stopPlay', 'pose']);
 });
 
 test('wired actions reach their function and answer null', async () => {
   const { calls, run } = setup();
-  for (const [name, arg] of [['look'], ['hide'], ['show'], ['quiet'], ['quietEnd'], ['switchCharacter', 'aster'], ['placeOnScreen', '4'],
-    ['resetPosition'], ['restartAll'], ['quit'], ['quickInput'], ['quickInput', '{"scopeId":"s1","files":2}'], ['cmdMode', 'ring'],
-    ['cmdMode', 'input'], ['resetBoxes'], ['clickThroughAll'], ['gift'], ['freeRoam'], ['openSessions'], ['openStack'],
-    ['claimRitual'], ['resize'], ['photo'], ['talk', 'start'], ['talk', 'stop'], ['stopPlay'], ['pose', 'pose_sit'], ['pose']] as [string, string?][]) {
+  for (const [name, arg] of [['look'], ['hide'], ['show'], ['quiet'], ['quietEnd'],
+    ['resetPosition'], ['quit'], ['quickInput'], ['quickInput', '{"scopeId":"s1","files":2}'],
+    ['resetBoxes'], ['clickThroughAll'], ['gift'], ['freeRoam'], ['openStack'],
+    ['claimRitual'], ['photo'], ['talk', 'start'], ['talk', 'stop'], ['stopPlay'], ['pose', 'pose_sit'], ['pose']] as [string, string?][]) {
     assert.equal(await run(arg === undefined ? [name] : [name, arg], null), null, name);
   }
   assert.deepEqual(calls, [['look'], ['setHidden', true], ['setHidden', false], ['setQuiet', 1_800_000_000 + 1800], ['setQuiet', null],
-    ['switchCharacter', 'aster'], ['placeOnScreen', '4'], ['resetPosition'], ['restartAll'], ['quit'], ['quickInput', null],
-    ['quickInput', { scopeId: 's1', files: 2 }], ['cmdMode', 'ring'], ['quickInput', null], ['resetBoxes'],
-    ['clickThroughAll'], ['gift'], ['freeRoam'], ['openSessions'], ['openStack'], ['claimRitual'], ['resize'], ['photo'], ['talk', 'start'],
+    ['resetPosition'], ['quit'], ['quickInput', null],
+    ['quickInput', { scopeId: 's1', files: 2 }], ['resetBoxes'],
+    ['clickThroughAll'], ['gift'], ['freeRoam'], ['openStack'], ['claimRitual'], ['photo'], ['talk', 'start'],
     ['talk', 'stop'], ['stopPlay'], ['pose', 'pose_sit'], ['pose', null]]);
 });
 
@@ -86,15 +79,11 @@ test('claimRitual fails with why agentd took no tap, and a failed gift fails the
   assert.deepEqual(calls, [['claimRitual']]);
 });
 
-test('quickInput takes only a {scopeId, files} scope, cmdMode only ring or input, and talk only start or stop', async () => {
+test('quickInput takes only a {scopeId, files} scope and talk only start or stop', async () => {
   const { calls, run } = setup();
   for (const arg of ['s1', '{"scopeId":"","files":2}', '{"scopeId":"s1"}', '{"scopeId":"s1","files":1.5}', '[]']) {
     assert.deepEqual(await failure(run(['quickInput', arg], null)), { code: 'failed', detail: 'quickInput 的参数应是 {scopeId, files}' }, arg);
   }
-  for (const mode of ['console', 'tune']) {
-    assert.deepEqual(await failure(run(['cmdMode', mode], null)), { code: 'invalid_args', detail: '未知的桌面操作面板' }, mode);
-  }
-  assert.deepEqual(await failure(run(['cmdMode'], null)), { code: 'failed', detail: 'cmdMode 缺少参数' });
   assert.deepEqual(await failure(run(['talk', 'hold'], null)), { code: 'invalid_args', detail: 'talk 的参数应是 start 或 stop' });
   assert.deepEqual(await failure(run(['talk'], null)), { code: 'failed', detail: 'talk 缺少参数' });
   assert.deepEqual(calls, []);
@@ -102,10 +91,10 @@ test('quickInput takes only a {scopeId, files} scope, cmdMode only ring or input
 
 test('an action whose port the shell does not give is not_implemented', async () => {
   const { calls, ports } = setup();
-  const { clickThroughAll: _a, gift: _b, freeRoam: _c, openSessions: _d, openStack: _e, claimRitual: _f, resize: _g, talk: _h, stopPlay: _i,
+  const { clickThroughAll: _a, gift: _b, freeRoam: _c, openStack: _e, claimRitual: _f, talk: _h, stopPlay: _i,
     pose: _j, photo: _k, ...bare } = ports;
   const run = desktopAction(bare);
-  for (const name of ['clickThroughAll', 'gift', 'freeRoam', 'openSessions', 'openStack', 'claimRitual', 'resize', 'photo', 'stopPlay', 'pose']) {
+  for (const name of ['clickThroughAll', 'gift', 'freeRoam', 'openStack', 'claimRitual', 'photo', 'stopPlay', 'pose']) {
     assert.deepEqual(await failure(run([name], null)), { code: 'not_implemented', detail: `desktop.action ${name}` });
   }
   assert.deepEqual(await failure(run(['talk', 'start'], null)), { code: 'not_implemented', detail: 'desktop.action talk' });
@@ -114,19 +103,12 @@ test('an action whose port the shell does not give is not_implemented', async ()
 
 test('a name outside the list, or an id that is not a 1–256 byte string, is invalid_args', async () => {
   const { run } = setup();
-  for (const args of [[], ['fly'], [3], ['hide', ''], ['hide', 5], ['switchCharacter', 'x'.repeat(257)], ['switchCharacter', '佩'.repeat(86)]]) {
+  for (const args of [[], ['fly'], [3], ['hide', ''], ['hide', 5], ['pose', 'x'.repeat(257)], ['pose', '佩'.repeat(86)]]) {
     assert.deepEqual(await failure(run(args, null)), { code: 'invalid_args', detail: 'a DesktopActionName and an optional id' },
       JSON.stringify(args));
   }
-  assert.equal(await run(['switchCharacter', '佩'.repeat(85)], null), null);
+  assert.equal(await run(['pose', '佩'.repeat(85)], null), null);
   assert.equal(await run(['hide', null], null), null);
-});
-
-test('switchCharacter and placeOnScreen without an id fail with 缺少参数', async () => {
-  const { calls, run } = setup();
-  assert.deepEqual(await failure(run(['switchCharacter'], null)), { code: 'failed', detail: 'switchCharacter 缺少参数' });
-  assert.deepEqual(await failure(run(['placeOnScreen'], null)), { code: 'failed', detail: 'placeOnScreen 缺少参数' });
-  assert.deepEqual(calls, []);
 });
 
 test('a failed quiet request fails the action', async () => {

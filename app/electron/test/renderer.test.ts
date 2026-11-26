@@ -47,7 +47,7 @@ function setup(body: string, extra: Record<string, unknown> = {}) {
   writeFileSync(script, fakeRenderer(launches, body));
   const configPath = join(dir, 'config.json');
   writeFileSync(configPath, JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }], avatar_executable: process.execPath, agentd_dir: dir,
-    python: '/usr/bin/false', agentd_port: 1, support_dir: support, agentd_state_dir: join(dir, 'state'), gpu_hold_files: [], ...extra }));
+    python: '/usr/bin/false', agentd_port: 1, support_dir: support, agentd_state_dir: join(dir, 'state'), ...extra }));
   const config = loadConfig(configPath);
   const states: string[] = [];
   const count = () => (existsSync(launches) ? readFileSync(launches, 'utf8').split('\n').filter(Boolean).length : 0);

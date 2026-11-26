@@ -34,7 +34,7 @@ test('agentd starts without a character, answers /health, and is restarted after
     cpSync(join(REPO, 'protocol/character-library/fixtures/empty-library'), join(support, 'library'), { recursive: true });
     const configPath = join(support, 'config.json');
     writeFileSync(configPath, JSON.stringify({
-      agentd_dir: join(REPO, 'agent/agentd'), python, agentd_port: PORT, gpu_hold_files: [], support_dir: support,
+      agentd_dir: join(REPO, 'agent/agentd'), python, agentd_port: PORT, support_dir: support,
       agentd_state_dir: join(support, 'agentd'), character_catalog: join(support, 'library/current.json'),
     }));
     const config = loadConfig(configPath);

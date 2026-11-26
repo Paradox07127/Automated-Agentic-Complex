@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { getBridge } from '../../bridge';
 import { useSystemTheme } from '../../shell/useSystemTheme';
-import { stackQuery } from '../stack/demos';
+import { stackQuery } from '../stack/stackQuery';
 import { ConsoleSlot } from './cmd/console/ConsoleSlot';
 import { useAnchor } from './hooks/useAnchor';
 import { useCommand } from './hooks/useCommand';

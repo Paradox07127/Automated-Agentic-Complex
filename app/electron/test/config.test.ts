@@ -14,7 +14,7 @@ import { hostSocketPath } from '../src/main/renderer/link.ts';
 import { rendererArguments } from '../src/main/renderer/supervisor.ts';
 
 const EMPTY_LIBRARY = fileURLToPath(new URL('../../../protocol/character-library/fixtures/empty-library/current.json', import.meta.url));
-const BASE = { agentd_dir: '/a/agentd', python: '/a/python', agentd_port: 48810, gpu_hold_files: [] };
+const BASE = { agentd_dir: '/a/agentd', python: '/a/python', agentd_port: 48810 };
 const ASTER = { ...BASE, characters: [{ id: 'aster', name: '示例甲', avatar_app: '/A.app' }] };
 
 function ctx(catalog: Catalog | null = null): ConfigContext {
@@ -61,7 +61,6 @@ test('required keys are reported as 缺少字段', () => {
 test('values of the wrong type are 字段 <path> 类型错误, with coding paths', () => {
   fails({ ...ASTER, agentd_port: '48810' }, '字段 agentd_port 类型错误');
   fails({ ...ASTER, agentd_port: null }, '字段 agentd_port 类型错误');
-  fails({ ...ASTER, gpu_hold_files: ['/x', 1] }, '字段 gpu_hold_files.Index 1 类型错误');
   fails({ ...ASTER, characters: [{ id: 3, name: 'A', avatar_app: '/A.app' }] }, '字段 characters.Index 0.id 类型错误');
   fails({ ...ASTER, harness_sites: { 'harness.pi': 1 } }, '字段 harness_sites.harness.pi 类型错误');
   fails({ ...ASTER, share_page_text: 'yes' }, '字段 share_page_text 类型错误');

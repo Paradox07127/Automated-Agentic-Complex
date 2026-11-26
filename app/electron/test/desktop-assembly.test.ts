@@ -1,6 +1,6 @@
 // The desktop panels' assembly (src/main/desktop/assembly.ts) with a stand-in `electron` module, fake windows and a fake
 // agentd: the 快速输入 hot key is not registered with `--no-attention` (as hotkeys/shell.ts); `pushState` sends
-// `desktop.onState` at once, with the hover buttons' `dock`; `desktop.action`'s openSessions, openStack and talk; the bubble's
+// `desktop.onState` at once, with the hover buttons' `dock`; `desktop.action`'s openStack and talk; the bubble's
 // notice; the bubble's presentation for an approval; the hover buttons opening after a rest on her; a mouse down
 // outside closes the wheel and the console; her lines' `noteLine` and the `typing` the frame rate reads.
 import assert from 'node:assert/strict';
@@ -94,7 +94,7 @@ function setup(extra: string[], o: { present?: boolean; request?: Request; marks
     avatarHidden: () => false, frontFullscreen: () => false, figure: () => 'si/default',
     hover: () => ({ present: o.hovered === true, hovered: o.hovered === true, hints: true }),
     state: () => ({ n: ++state }),
-    actions: { look() {}, setHidden() {}, setQuiet: async () => {}, switchCharacter() {}, placeOnScreen() {}, resetPosition() {}, restartAll() {},
+    actions: { look() {}, setHidden() {}, setQuiet: async () => {}, resetPosition() {},
       quit() {}, ...(o.talk && { talk: o.talk }) },
     ...(o.present === false ? {} : { present: (token: string, side: string, phase: string) => {
       presented.push(token);
@@ -159,8 +159,6 @@ test('pushState sends desktop.onState now; notice and openStack reach desktop.on
   assert.equal(await h.call('/bubble', 'desktop.action', ['openStack']), null);
   assert.deepEqual(commands, [{ kind: 'notice', text: '角色在忙，等这一轮做完' }, { kind: 'notice', text: '现在没有要处理的' },
     { kind: 'expandStack' }]);
-  assert.equal(await h.call('/bubble', 'desktop.action', ['openSessions']), null);
-  assert.ok(h.calls.includes('openMain /overview?focus=running'));
   h.done();
 });
 

@@ -126,7 +126,7 @@ test('a portable app writes a fresh config from its components with the defaults
   const saved = readJSON(configPath);
   const seeded = join(app.support, 'character-libraries', `seed-${sha256(library('1')['current.json']!).slice(0, 16)}`);
   assert.deepEqual(saved, {
-    agentd_port: 48810, gpu_hold_files: [], characters: [],
+    agentd_port: 48810, characters: [],
     voice_hotkey: 'right_option', hotkey_quick_input: 'control+option+space', hotkey_look: 'control+option+l',
     hotkey_toggle_avatar: 'control+option+h', hotkey_click_through: 'control+option+p', hotkey_radial_menu: '',
     hotkey_selection: 'control+option+s', viewport: 'fullscreen',

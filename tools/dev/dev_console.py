@@ -182,7 +182,7 @@ def shell_config(existing, agentd, renderer, platform=sys.platform):
     else:
         host = renderer / RENDERER / 'host/.build' / RENDERER_BUILD
         executable = host / 'metal-avatar-host'
-    config = {**DEFAULTS, 'gpu_hold_files': [], **(existing or {}),
+    config = {**DEFAULTS, **(existing or {}),
               'agentd_dir': str(agentd / 'agent/agentd'), 'python': agentd_python(platform),
               'agentd_port': AGENTD_PORT, 'support_dir': str(SUPPORT_DIR), 'agentd_state_dir': str(STATE_DIR),
               'character_catalog': CATALOG, 'avatar_app': str(host),

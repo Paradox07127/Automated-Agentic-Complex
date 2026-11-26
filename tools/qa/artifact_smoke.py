@@ -128,7 +128,7 @@ def build_config(app, support, port=PORT):
         harness_sites={id: str(payloads[id]) for id in ('harness.pi',) if id in payloads},
         character_catalog=str(catalog), agentd_port=port,
         support_dir=str(support), agentd_state_dir=str(support / 'agentd'),
-        gpu_hold_files=[], characters=[], voice_hotkey='', hotkey_quick_input='', hotkey_look='',
+        characters=[], voice_hotkey='', hotkey_quick_input='', hotkey_look='',
         hotkey_toggle_avatar='', hotkey_click_through='', hotkey_radial_menu='', hotkey_selection='', viewport='fullscreen',
         plugins=dict(screen_awareness=False, computer_use=False), sense_input_counts=False,
         share_page_text=False, share_window_text=False, share_typed_text=False, share_screenshots=False,

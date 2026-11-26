@@ -23,7 +23,6 @@ import { type Notify, type Request, StackDecisions, StackSource, type StackSourc
 import type { TurnMarks } from '../../common/turn-marks.ts';
 import { configPathFromArgs, supportDirOf } from '../config.ts';
 import { subscriptionId } from '../ops/events.ts';
-import { sessionsRoute } from '../ops/open.ts';
 import type { WebGuardPorts } from '../web-guard.ts';
 import { OffsetFile } from './offsets.ts';
 import { DesktopPanel, type Region } from './panel.ts';
@@ -70,7 +69,7 @@ export interface DesktopOptions {
   /** `desktop.onState`'s value now; the assembly adds its `dock`. */
   state(): Record<string, unknown>;
   /** The command layer's two, 复位浮窗, the sessions page and 去处理 are the assembly's own. */
-  actions: Omit<DesktopActionPorts, 'quickInput' | 'cmdMode' | 'resetBoxes' | 'openSessions' | 'openStack'>;
+  actions: Omit<DesktopActionPorts, 'quickInput' | 'resetBoxes' | 'openStack'>;
   /** HostLink.sendPresent; false when it did not go out. Absent, no panel waits for her. */
   present?(token: string, side: string, phase: 'open' | 'close'): boolean;
   playSound(): void;
@@ -508,15 +507,10 @@ export class DesktopAssembly {
     const action = desktopAction<PageSession>({
       ...this.o.actions,
       quickInput: (scope) => this.openQuickInput(scope ? { kind: 'scope', ...scope } : undefined),
-      cmdMode: (mode) => {
-        this.closeConsole();
-        this.open(mode);
-      },
       resetBoxes: () => {
         this.follow.resetOffsets();
         this.kick();
       },
-      openSessions: () => this.o.openMain(sessionsRoute()),
       openStack: () => (this.stackCards === 0 ? this.notice('现在没有要处理的') : this.bringToFront()),
       ...(talk && { talk: (phase: 'start' | 'stop') => {
         this.talking = phase === 'start';

@@ -160,7 +160,7 @@ python -I app\helpers\windows\tests\replay.py
 - 停组件用 `taskkill /T /F /PID`，整棵进程树一起结束，外壳来不及按顺序停渲染器、agentd 和 helper。子进程在各自的进程组里，控制台的 Ctrl-C 只到面板，由面板按顺序停外壳和 vite。
 - 「已装 app 的数据目录」检查看 `%APPDATA%\Agentic Complex` 和 `%LOCALAPPDATA%\Agentic Complex`。
 
-手动运行外壳时，config.json 必须有 `agentd_dir`、`python`、`agentd_port`、`gpu_hold_files` 和 `avatar_executable`；不写 `support_dir`、`agentd_state_dir` 时取默认目录。Windows 外壳和 macOS 的其他差异见 [Electron 外壳 · Windows 差异](architecture/shell.md#windows-差异)。
+手动运行外壳时，config.json 必须有 `agentd_dir`、`python`、`agentd_port` 和 `avatar_executable`；不写 `support_dir`、`agentd_state_dir` 时取默认目录。Windows 外壳和 macOS 的其他差异见 [Electron 外壳 · Windows 差异](architecture/shell.md#windows-差异)。
 
 ## 门禁
 

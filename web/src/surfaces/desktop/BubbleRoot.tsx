@@ -6,7 +6,7 @@ import { navRoute, type NavTarget } from '../../shell/nav';
 import { Btn } from '../../ui/Btn';
 import { AvatarLoadingStackCard } from '../stack/cards/AvatarLoadingStackCard';
 import { VoiceHintStackCard } from '../stack/cards/VoiceHintStackCard';
-import { stackQuery } from '../stack/demos';
+import { stackQuery } from '../stack/stackQuery';
 import { useHover } from '../stack/useHover';
 import { useSeenReceipt } from '../stack/useSeenReceipt';
 import { useStackActions } from '../stack/useStackActions';

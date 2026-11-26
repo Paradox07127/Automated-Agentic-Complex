@@ -21,7 +21,7 @@ export const SERVICE_ROWS: readonly [ServiceId, string, string][] = [
 
 /** One supervised child. */
 export interface Child {
-  kind: 'running' | 'starting' | 'stopped' | 'backoff' | 'portInUse' | 'gpuHold' | 'external' | 'failed' | 'unknown';
+  kind: 'running' | 'starting' | 'stopped' | 'backoff' | 'portInUse' | 'external' | 'failed' | 'unknown';
   /** Backoff seconds, for `backoff`. */
   backoff_s?: number;
   /** Failure text, for `failed`. */
@@ -34,7 +34,7 @@ export function parseChild(state: string | undefined): Child {
   if (backoff) return { kind: 'backoff', backoff_s: Number(backoff[1]) };
   const failed = /^failed\((.*)\)$/.exec(state);
   if (failed) return { kind: 'failed', reason: failed[1] ?? '' };
-  return ['running', 'starting', 'stopped', 'portInUse', 'gpuHold', 'external'].includes(state) ? { kind: state as Child['kind'] } : { kind: 'unknown' };
+  return ['running', 'starting', 'stopped', 'portInUse', 'external'].includes(state) ? { kind: state as Child['kind'] } : { kind: 'unknown' };
 }
 
 const CHILD_TEXT: Record<Child['kind'], [VisualStateKey, string]> = {
@@ -43,7 +43,6 @@ const CHILD_TEXT: Record<Child['kind'], [VisualStateKey, string]> = {
   stopped: ['stopped', '已停止'],
   backoff: ['warning', '重启中'],
   portInUse: ['failed', '端口被占用'],
-  gpuHold: ['warning', 'GPU 暂停中'],
   external: ['running', '外部进程'],
   failed: ['failed', '启动失败'],
   unknown: ['idle', '未知'],

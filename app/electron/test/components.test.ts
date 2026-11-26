@@ -219,7 +219,7 @@ test('the host runs without an interface only when a failed component provides i
 test('prepare writes missing_components and empty paths into config.json, and the supervisor does not start agentd', (t) => {
   const app = portableApp(temp(t), ['agentd']);
   const configPath = join(app.support, 'config.json');
-  write(configPath, JSON.stringify({ agentd_port: 48999, gpu_hold_files: [], support_dir: app.support, mute: true,
+  write(configPath, JSON.stringify({ agentd_port: 48999, support_dir: app.support, mute: true,
     agentd_dir: '/old', python: '/old/python', characters: [{ id: 'aster', name: '示例甲', avatar_app: '/Old.app' }] }));
   const composition = prepareComponents({ resources: app.resources, support: app.support, layout: 'portable', platform: 'mac' });
   assert.deepEqual(composition.missing, { agentd: 'componentMissing' });
@@ -308,7 +308,7 @@ test('the lock and manifests are the running platform\'s: windows-x64 on Windows
 });
 
 const baseConfig = (extra: Record<string, unknown>) => parseConfig(JSON.stringify({
-  agentd_dir: '/a', python: '/p', agentd_port: 48999, gpu_hold_files: [], support_dir: '/s', characters: [{ id: 'aster', name: '示例甲', avatar_app: '/A.app' }], ...extra,
+  agentd_dir: '/a', python: '/p', agentd_port: 48999, support_dir: '/s', characters: [{ id: 'aster', name: '示例甲', avatar_app: '/A.app' }], ...extra,
 }), { supportDir: '/s', agentdStateDir: '/st', catalog: () => null });
 
 test('the renderer: a missing component or library fails it, exit 78, 69 and 71 fail it without a restart', () => {

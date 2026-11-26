@@ -32,7 +32,6 @@ const PROCESS: Record<RuntimeChildState, [Lamp, string]> = {
   external: ['ok', '外部运行'],
   starting: ['idle', '启动中'],
   backoff: ['paused', '等待重启'],
-  gpu_hold: ['paused', '等待显卡'],
   port_in_use: ['failed', '端口占用'],
   failed: ['failed', '异常'],
   stopped: ['idle', '未运行'],

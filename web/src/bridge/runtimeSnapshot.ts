@@ -4,7 +4,7 @@ import type { ServiceId, ServiceMode } from './services';
 export type RuntimeProcessName = 'agentd' | 'avatar';
 
 export type RuntimeChildState =
-  | 'stopped' | 'starting' | 'running' | 'backoff' | 'port_in_use' | 'gpu_hold' | 'external' | 'failed';
+  | 'stopped' | 'starting' | 'running' | 'backoff' | 'port_in_use' | 'external' | 'failed';
 
 export interface RuntimeProcess {
   state: RuntimeChildState;

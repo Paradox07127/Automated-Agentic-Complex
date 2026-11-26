@@ -1,6 +1,6 @@
 // What the 状态签 and 任务轨 read from agentd's `/desktop/presence` (desktop_presence.py `snapshot`): epoch seconds, ≤3 rows per list.
 import { sessionName } from '../../../domain';
-import { stackQuery } from '../../stack/demos';
+import { stackQuery } from '../../stack/stackQuery';
 import { presenceSessions } from '../../stack/sessions';
 import type { Bar } from '../comm/commReducer';
 import type { Ritual } from './useRitual';

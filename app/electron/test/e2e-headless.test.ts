@@ -130,7 +130,7 @@ class Stack {
     writeFileSync(this.configPath, JSON.stringify({
       avatar_app: join(this.dir, 'Avatar.app'), characters: [{ id: 'aster', name: '示例甲', avatar_app: join(this.dir, 'Avatar.app') }],
       avatar_executable: this.mockHost, agentd_dir: join(REPO, 'agent/agentd'),
-      python: this.python, agentd_port: this.port, gpu_hold_files: [], support_dir: this.support, agentd_state_dir: this.stateDir,
+      python: this.python, agentd_port: this.port, support_dir: this.support, agentd_state_dir: this.stateDir,
       services: { tts: { mode: 'url', url: `http://127.0.0.1:${readFileSync(portFile, 'utf8').trim()}` } },
       share_page_text: false, share_window_text: false, share_screenshots: false, voice_hotkey: '', hotkey_quick_input: '',
       onboarding_done: true, viewport: 'window', plugins: { screen_awareness: false },
@@ -622,7 +622,7 @@ if (process.platform === 'win32') test('Windows: the real efw.exe (offscreen) st
     const configPath = join(dir, 'config.json');
     writeFileSync(configPath, JSON.stringify({
       characters: [{ id: character, name: character, avatar_app: dirname(EFW), avatar_args: ['--package', EFW_PACKAGE, '--offscreen'] }],
-      avatar_executable: EFW, agentd_dir: dir, python: process.execPath, agentd_port: 1, gpu_hold_files: [], support_dir: support,
+      avatar_executable: EFW, agentd_dir: dir, python: process.execPath, agentd_port: 1, support_dir: support,
       agentd_state_dir: join(dir, 'state') }));
     const config = loadConfig(configPath);
     const log = (line: string) => writeFileSync(join(dir, 'hostlink.log'), `${line}\n`, { flag: 'a' });
@@ -671,7 +671,7 @@ if (process.platform === 'win32') test('Windows: from character_catalog alone th
     mkdirSync(support);
     const configPath = join(dir, 'config.json');
     writeFileSync(configPath, JSON.stringify({ character_catalog: EFW_LIBRARY, avatar_app: dirname(EFW), avatar_executable: EFW, agentd_dir: dir,
-      python: process.execPath, agentd_port: 1, gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state') }));
+      python: process.execPath, agentd_port: 1, support_dir: support, agentd_state_dir: join(dir, 'state') }));
     const config = loadConfig(configPath);
     const character = config.character;
     // The character library's layout: packages/<id>/<sha>/character.json, its character directory runtime/characters/<id>.

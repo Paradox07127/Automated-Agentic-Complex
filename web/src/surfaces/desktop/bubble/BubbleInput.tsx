@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { DesktopState } from '../../../bridge';
-import { stackQuery } from '../../stack/demos';
+import { stackQuery } from '../../stack/stackQuery';
 import { inputPreset } from '../cmd/input/demo';
 import { QuickInput } from '../cmd/input/QuickInput';
 import type { Attachment } from '../cmd/input/selection';

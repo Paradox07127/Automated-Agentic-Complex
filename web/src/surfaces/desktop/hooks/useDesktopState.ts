@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { getBridge, type DesktopState, type ProcessState, type RuntimeProcess, type RuntimeSnapshot } from '../../../bridge';
 
 /** The `state` words desktop.onState sends, to ProcessState names. */
-const NATIVE_STATE: Record<string, string> = { port_in_use: 'portInUse', gpu_hold: 'gpuHold' };
+const NATIVE_STATE: Record<string, string> = { port_in_use: 'portInUse' };
 
 function pip(p: RuntimeProcess): ProcessState {
   const state = p.state === 'backoff' ? `backoff(${p.backoff})` : p.state === 'failed' ? `failed(${p.reason})` : (NATIVE_STATE[p.state] ?? p.state);

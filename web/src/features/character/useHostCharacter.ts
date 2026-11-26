@@ -12,7 +12,7 @@ export interface HostCharacter {
 }
 
 /** The runtime's avatar process states in which she is not running. */
-export const RUNTIME_DOWN: ReadonlySet<string> = new Set(['stopped', 'backoff', 'port_in_use', 'gpu_hold', 'failed']);
+export const RUNTIME_DOWN: ReadonlySet<string> = new Set(['stopped', 'backoff', 'port_in_use', 'failed']);
 
 const UNKNOWN: HostCharacter = { current: null, switching: false, avatar: null };
 /** What a switch changes: the roster's active one and her appearances, her actions, state and imported motions. */

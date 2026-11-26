@@ -3,7 +3,7 @@ import { getBridge } from '../../bridge';
 import type { VisualStateKey } from '../../domain/states';
 import { useSystemTheme } from '../../shell/useSystemTheme';
 import { StatusMark } from '../../ui/game/StatusMark';
-import { stackQuery } from '../stack/demos';
+import { stackQuery } from '../stack/stackQuery';
 import { isStackApproval } from '../stack/model';
 import { useHover } from '../stack/useHover';
 import { doingOf } from './bubble/doing';

@@ -64,20 +64,14 @@ export type DesktopActionName =
   | 'quietEnd'
   | 'gift'
   | 'freeRoam'
-  | 'switchCharacter'
-  | 'placeOnScreen'
   | 'resetPosition'
-  | 'resize'
   /** Her wheel's 拍照: the photo bar under her. */
   | 'photo'
-  | 'restartAll'
   | 'quit'
   | 'resetBoxes'
-  | 'openSessions'
   | 'openStack'
   | 'claimRitual'
   | 'quickInput'
-  | 'cmdMode'
   /** 说话 on her hover buttons: `start` as a press of the push-to-talk key, `stop` as its release. */
   | 'talk'
   /** 停止 on her wheel: ends the user's play on her, whichever page or panel started it. */
@@ -173,8 +167,7 @@ export interface DesktopOps {
   /** 快速输入: the main process sends it to agentd's `POST /say` for the page. */
   say(r: SayRequest): Promise<SayResult>;
   /**
-   * `arg` is the character id of `switchCharacter`, the screen id of `placeOnScreen`, the mode (`ring` | `input`) for
-   * `cmdMode`, or `start` | `stop` for `talk`. `quickInput` opens
+   * `arg` is `start` | `stop` for `talk`. `quickInput` opens
    * 快速输入 in the bubble; its optional `arg`, `{"scopeId", "files"}` as JSON, opens it with that drop scope.
    */
   action(name: DesktopActionName, arg?: string): Promise<void>;

@@ -394,7 +394,7 @@ test("testViewportAndPlacementPassedToUnity: fullscreen passes the launch displa
     assert.equal(s.p.launchPlacement('birch'), '2000.0,0.0,0.750');
 
     writeFileSync(join(dir, 'config.json'), JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'A.app') }], agentd_dir: dir, python: '/py', agentd_port: 1,
-      support_dir: s.dir, agentd_state_dir: join(dir, 'state'), gpu_hold_files: [] }));
+      support_dir: s.dir, agentd_state_dir: join(dir, 'state') }));
     const config = loadConfig(join(dir, 'config.json'));
     for (const viewport of ['fullscreen', 'window']) {
       const args = rendererArguments({ config, character: 'aster', parentPid: 1, startupPath: '/s', socketPath: '/r', captureDir: '/p',

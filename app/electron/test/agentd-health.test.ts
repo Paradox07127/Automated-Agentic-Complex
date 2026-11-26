@@ -50,7 +50,7 @@ test('onHealth: each new stage or degraded list while starting, then the degrade
   writeFileSync(script, FAKE);
   const configPath = join(dir, 'config.json');
   writeFileSync(configPath, JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }], agentd_dir: dir, python: process.execPath,
-    agentd_port: await freePort(), gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state') }));
+    agentd_port: await freePort(), support_dir: support, agentd_state_dir: join(dir, 'state') }));
   const seen: string[] = [];
   const supervisor = new AgentdSupervisor({ config: loadConfig(configPath), launcherScript: script, character: '',
     onStatus: (s) => seen.push(stateText(s)), onHealth: (stage, degraded) => seen.push(`health ${stage} [${degraded.join(',')}]`) });
@@ -75,7 +75,7 @@ test('a ready agentd whose c6_contract is not the host\'s C6 fails without a res
   mkdirSync(support);
   const configPath = join(dir, 'config.json'), port = await freePort();
   writeFileSync(configPath, JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }], agentd_dir: dir, python: process.execPath,
-    agentd_port: port, gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state') }));
+    agentd_port: port, support_dir: support, agentd_state_dir: join(dir, 'state') }));
   const run = async (contract: string) => {
     const script = join(dir, `agentd-${contract}.cjs`);
     writeFileSync(script, fakeReady({ status: 'ok', degraded: [], c6_contract: contract }));
@@ -107,7 +107,7 @@ test('a restart after config.json names a usable character_catalog starts agentd
   const configPath = join(dir, 'config.json');
   // As preparePackaged writes it on a first launch without every seed component.
   const first = { characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }], agentd_dir: dir, python: process.execPath,
-    agentd_port: await freePort(), gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state'),
+    agentd_port: await freePort(), support_dir: support, agentd_state_dir: join(dir, 'state'),
     character_library_missing: ['characters.aster'] };
   writeFileSync(configPath, JSON.stringify(first));
   const supervisor = new AgentdSupervisor({ config: loadConfig(configPath), reload: () => loadConfig(configPath), launcherScript: script,

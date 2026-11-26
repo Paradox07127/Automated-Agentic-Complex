@@ -4,9 +4,8 @@
 import { BridgeFailure, type Handler } from './bridge.ts';
 import type { ActionPlayed, ActionRow, C3Message } from './c3.ts';
 
-export const DESKTOP_ACTIONS = ['look', 'hide', 'show', 'clickThroughAll', 'quiet', 'quietEnd', 'gift', 'freeRoam', 'switchCharacter',
-  'placeOnScreen', 'resetPosition', 'resize', 'photo', 'restartAll', 'quit', 'resetBoxes', 'openSessions', 'openStack', 'claimRitual',
-  'quickInput', 'cmdMode', 'talk', 'stopPlay', 'pose'] as const;
+export const DESKTOP_ACTIONS = ['look', 'hide', 'show', 'clickThroughAll', 'quiet', 'quietEnd', 'gift', 'freeRoam', 'resetPosition', 'photo', 'quit',
+  'resetBoxes', 'openStack', 'claimRitual', 'quickInput', 'talk', 'stopPlay', 'pose'] as const;
 export type DesktopActionName = (typeof DESKTOP_ACTIONS)[number];
 
 /** The optional ports below answer not_implemented while the shell gives none. */
@@ -16,16 +15,10 @@ export interface DesktopActionPorts {
   setHidden(hidden: boolean): void;
   /** `PUT /observation/quiet`: `until` in epoch seconds, null to end it. */
   setQuiet(until: number | null): Promise<void>;
-  switchCharacter(id: string): void;
-  /** `id` is a `desktop.onState` screen's. */
-  placeOnScreen(id: string): void;
   resetPosition(): void;
-  restartAll(): void;
   quit(): void;
   /** Opens 快速输入 in the bubble, with the drop card's scope when it names one. */
   quickInput(scope: { scopeId: string; files: number } | null): void;
-  /** The page asks for the command layer in `mode`. */
-  cmdMode(mode: 'ring'): void;
   /** 复位浮窗: every panel drops its user offset and pin. */
   resetBoxes(): void;
   clickThroughAll?(): void;
@@ -33,14 +26,10 @@ export interface DesktopActionPorts {
   gift?(): Promise<void>;
   /** Saves 自由活动 flipped; throws when it was not saved. */
   freeRoam?(): Promise<void>;
-  /** The main window's sessions route. */
-  openSessions?(): void;
   /** 去处理: the stack to the front. */
   openStack?(): void;
   /** The ritual tag's tap: null when agentd took it, else why not. */
   claimRitual?(): Promise<string | null>;
-  /** Opens 调整大小's frame on her; nothing without her frame. */
-  resize?(): void;
   /** Opens 拍照's bar under her; nothing without her figure. */
   photo?(): void;
   /** 说话: `start` as a press of the push-to-talk key, `stop` as its release, on the same recording. */
@@ -126,9 +115,7 @@ export function desktopAction<P>(ports: DesktopActionPorts): Handler<P> {
       case 'clickThroughAll': given(ports.clickThroughAll)(); break;
       case 'gift': await given(ports.gift)(); break;
       case 'freeRoam': await given(ports.freeRoam)(); break;
-      case 'openSessions': given(ports.openSessions)(); break;
       case 'openStack': given(ports.openStack)(); break;
-      case 'resize': given(ports.resize)(); break;
       case 'photo': given(ports.photo)(); break;
       case 'claimRitual': {
         const failure = await given(ports.claimRitual)();
@@ -137,21 +124,10 @@ export function desktopAction<P>(ports: DesktopActionPorts): Handler<P> {
       }
       case 'quiet': await ports.setQuiet(Math.floor((ports.now?.() ?? Date.now()) / 1000) + QUIET_SECONDS); break;
       case 'quietEnd': await ports.setQuiet(null); break;
-      case 'switchCharacter': ports.switchCharacter(required()); break;
-      case 'placeOnScreen': ports.placeOnScreen(required()); break;
       case 'resetPosition': ports.resetPosition(); break;
-      case 'restartAll': ports.restartAll(); break;
       case 'quit': ports.quit(); break;
       case 'resetBoxes': ports.resetBoxes(); break;
       case 'quickInput': ports.quickInput(id === null ? null : scope(id)); break;
-      case 'cmdMode': {
-        const mode = required();
-        if (mode !== 'ring' && mode !== 'input') throw new BridgeFailure('invalid_args', '未知的桌面操作面板');
-        // A page from before 快速输入 moved to the bubble still sends `input`.
-        if (mode === 'input') ports.quickInput(null);
-        else ports.cmdMode(mode);
-        break;
-      }
       case 'talk': {
         const phase = required();
         if (phase !== 'start' && phase !== 'stop') throw new BridgeFailure('invalid_args', 'talk 的参数应是 start 或 stop');

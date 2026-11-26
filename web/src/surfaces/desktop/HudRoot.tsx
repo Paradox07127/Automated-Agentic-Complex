@@ -4,7 +4,7 @@ import { approvalView, InSession } from '../../features/approval';
 import { useSystemTheme } from '../../shell/useSystemTheme';
 import { Toast } from '../../ui';
 import { PowerState } from '../../ui/game';
-import { stackQuery } from '../stack/demos';
+import { stackQuery } from '../stack/stackQuery';
 import { ELSEWHERE_RECEIPT_MS, isStackApproval } from '../stack/model';
 import { StackCardView } from '../stack/StackCardView';
 import { initialStack, stackReducer } from '../stack/stackReducer';

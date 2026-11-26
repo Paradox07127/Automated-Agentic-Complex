@@ -29,7 +29,7 @@ type Roster = CharacterEntry[];
 
 const NO_ROSTER: Roster = [];
 /** Supervisor child states in which the avatar is not running. */
-export const DOWN = /^(stopped|backoff|portInUse|gpuHold|failed)/;
+export const DOWN = /^(stopped|backoff|portInUse|failed)/;
 const codeOf = (e: unknown) => (e as { code?: string } | null)?.code;
 /** The `ok` demo opens with two unsaved switches, as the prototype does. */
 const OK_SEED = { stretch: false, watch: true };

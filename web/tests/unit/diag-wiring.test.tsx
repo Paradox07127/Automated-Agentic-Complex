@@ -279,6 +279,5 @@ describe('diag model', () => {
   it('reads supervisor ChildState descriptions', () => {
     expect(parseChild('backoff(16)')).toEqual({ kind: 'backoff', backoff_s: 16 });
     expect(parseChild('failed(exit 3)')).toEqual({ kind: 'failed', reason: 'exit 3' });
-    expect(parseChild('gpuHold')).toEqual({ kind: 'gpuHold' });
   });
 });

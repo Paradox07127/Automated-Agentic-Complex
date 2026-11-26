@@ -66,7 +66,7 @@ function setup(o: { tts?: Record_; mode?: string } = {}) {
   const configPath = join(dir, 'config.json');
   const write = (tts: Record_, services: Record_ = {}) => {
     writeFileSync(configPath, JSON.stringify({ characters: [{ id: 'aster', name: '示例甲', avatar_app: join(dir, 'Avatar.app') }], agentd_dir: dir, python: process.execPath, agentd_port: 48810,
-      gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state'),
+      support_dir: support, agentd_state_dir: join(dir, 'state'),
       services: { tts: { mode: 'ssh', url: 'http://127.0.0.1:9880', ssh_host: 'gpu-box', ...tts }, ...services } }));
     return loadConfig(configPath);
   };

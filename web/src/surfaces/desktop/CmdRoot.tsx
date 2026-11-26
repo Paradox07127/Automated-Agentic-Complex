@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ComponentType } from 'react';
 import { getBridge, type CmdMode } from '../../bridge';
 import { useSystemTheme } from '../../shell/useSystemTheme';
-import { stackQuery } from '../stack/demos';
+import { stackQuery } from '../stack/stackQuery';
 import { RingSlot } from './cmd/ring/RingSlot';
 import { useAnchor } from './hooks/useAnchor';
 import { useCommand } from './hooks/useCommand';

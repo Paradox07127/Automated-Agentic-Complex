@@ -710,7 +710,7 @@ test('a save of 看向鼠标 or 拖动惯性 sets that action switch: sent to th
   const dir = mkdtempSync(join(tmpdir(), 'switches-'));
   try {
     const character = (id: string) => ({ id, name: id, avatar_app: join(dir, 'Avatar.app') });
-    writeFileSync(join(dir, 'config.json'), JSON.stringify({ agentd_dir: dir, python: process.execPath, agentd_port: 48810, gpu_hold_files: [],
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({ agentd_dir: dir, python: process.execPath, agentd_port: 48810,
       support_dir: dir, agentd_state_dir: join(dir, 'state'), characters: [character('si'), character('cedar'), character('ember'), character('lifeng')],
       action_switches: { si: { look_cursor: true, wave: true }, cedar: { wave: false }, lifeng: { drag_sway: true } } }));
     const sent: [string, Record<string, boolean>][] = [];
