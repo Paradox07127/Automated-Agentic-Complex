@@ -49,7 +49,7 @@ from character_agent.services.worklog_digest import project
 from character.thoughts import Thoughts
 from personal.rituals import Rituals
 from sessions.own import SessionManager
-from infra.platform import make_private_tree
+from infra.platform import make_private_tree, watch_parent as watch_parent_process
 from infra.store import checkpoint, open_store
 from sessions.tasks import TaskLedger
 from infra.tokens import ensure_state_dir, read_token, write_secret
@@ -209,14 +209,6 @@ def clear_moved_credentials(state_dir, services):
             print(f"agentd: {service} endpoint changed; credential cleared", file=sys.stderr)
         recorded[service] = endpoint
     atomic_write_json(path, recorded)
-
-
-def watch_parent(server, parent, interval=1.0):
-    """Shut down once agentd is re-parented: the process that started it has exited."""
-    while not server._stopped.wait(interval):
-        if os.getppid() != parent:
-            server.shutdown_cleanly()
-            return
 
 
 def flush_errors(server):
@@ -583,7 +575,7 @@ def main(secret_store=None):
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
     if args.exit_with_parent:
-        threading.Thread(target=watch_parent, args=(server, parent), daemon=True).start()
+        watch_parent_process(parent, lambda: threading.Thread(target=server.shutdown_cleanly).start(), hard=False)
     server.startup_stage = "publishing"
     # Written once every route answers: tools wait for these files before their first request.
     runtime = paths.ui_runtime(state_dir)

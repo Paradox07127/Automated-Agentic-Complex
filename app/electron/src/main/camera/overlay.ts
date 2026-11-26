@@ -206,7 +206,7 @@ export class CameraOverlayWindow implements CameraOverlay {
     this.mode?.cancel();
   }
 
-  /** Leaves camera mode without committing or reverting. */
+  /** Leaves camera mode without committing or reverting and destroys the transient overlay window. */
   private end(): void {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
@@ -214,10 +214,11 @@ export class CameraOverlayWindow implements CameraOverlay {
     this.unpress = null;
     this.mode = null;
     const win = this.win;
+    this.win = null;
     if (!win || win.isDestroyed()) return;
     win.setFocusable(false);
     if (!this.ignoring) win.setIgnoreMouseEvents(true, { forward: true });
     this.ignoring = true;
-    win.hide();
+    win.destroy();
   }
 }

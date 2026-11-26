@@ -36,6 +36,7 @@ interface UsagePorts {
   supervisor?: Pick<NonNullable<OpsContext['supervisor']>, 'state' | 'pid' | 'avatar' | 'avatarPid'> | null;
   services?: Pick<NonNullable<OpsContext['services']>, 'view'> | null;
   cpuSeconds?: OpsContext['cpuSeconds'];
+  residentMB?: OpsContext['residentMB'];
   platform?: OpsContext['platform'];
 }
 
@@ -49,11 +50,13 @@ function supervised(ctx: UsagePorts): [ProcessChild, SlotState, number | undefin
     ['avatar', ctx.supervisor?.avatar() ?? { kind: 'stopped' }, ctx.supervisor?.avatarPid?.()], ...services];
 }
 
-/** CPU (percent of one core since the sampler's last read) and memory of `pid`; memory only on macOS. */
+/** CPU (percent of one core since the sampler's last read) and memory of `pid`; helper first, else macOS `ps`. */
 function usageOf(ctx: UsagePorts, sampler: CpuSampler, pid: number | undefined): { cpuPercent: number | null; memoryMB: number | null } {
   const share = sampler.sample(pid, pid === undefined || !ctx.cpuSeconds ? null : ctx.cpuSeconds(pid), performance.now() / 1000);
-  return { cpuPercent: share === null ? null : share * 100,
-    memoryMB: pid === undefined || (ctx.platform ?? 'mac') !== 'mac' ? null : psResidentMB(pid) };
+  const memoryMB = pid === undefined ? null
+    : ctx.residentMB !== undefined ? (ctx.residentMB ? ctx.residentMB(pid) : null)
+    : (ctx.platform ?? 'mac') !== 'mac' ? null : psResidentMB(pid);
+  return { cpuPercent: share === null ? null : share * 100, memoryMB };
 }
 
 /** protocol.ts `ProcessReading`; `at` in ms since the epoch. */

@@ -599,9 +599,13 @@ class TurnsMixin:
                 _, consent_epoch = self.sync_privacy()
                 self._line_consent[cancel] = consent_epoch
                 if scripted is None:
-                    context = self.context(text, None, refused, used)
-                    material = self._line_material.pop(cancel, None)
-                    context += f"{material}。" if material else ""
+                    if getattr(mouth, "needs_context", True):
+                        context = self.context(text, None, refused, used)
+                        material = self._line_material.pop(cancel, None)
+                        context += f"{material}。" if material else ""
+                    else:
+                        self._line_material.pop(cancel, None)
+                        context = ""
                     if hasattr(mouth, "dispatch_allowed"):
                         mouth.dispatch_allowed = lambda: not self._stale(cancel, generation)
                         mouth.history_text = _kept(source, text)

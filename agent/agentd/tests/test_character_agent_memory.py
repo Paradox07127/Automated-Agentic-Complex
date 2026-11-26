@@ -197,10 +197,12 @@ class RoleMemoryTests(unittest.TestCase):
         self.assertEqual(self.add(t)['error']['code'], 'memory_write_not_allowed')
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM facts').fetchone()[0], 0)
 
-    def test_paraphrase_cannot_silently_become_a_fact(self):
+    def test_paraphrase_with_grounded_quote_is_accepted_and_blank_text_rejected(self):
         t = self.turn('请记住：报告先给结论，再给依据')
-        result = t.call('memory_propose', {'operation': 'add', 'text': '用户喜欢所有内容简短', 'evidence_quote': '报告先给结论，再给依据'})
-        self.assertEqual(result['error']['code'], 'memory_requires_verbatim_evidence')
+        result = t.call('memory_propose', {'operation': 'add', 'text': '用户偏好先给结论再给依据', 'evidence_quote': '报告先给结论，再给依据'})
+        self.assertEqual(result['outcome'], 'stored')
+        blank = t.call('memory_propose', {'operation': 'add', 'text': '   ', 'evidence_quote': '报告先给结论，再给依据'})
+        self.assertEqual(blank['error']['code'], 'memory_requires_verbatim_evidence')
 
     def test_repeat_call_is_idempotent_and_call_id_conflicts_rejected(self):
         t = self.turn('请记住：报告先给结论，再给依据；我喜欢详细报告')
@@ -312,9 +314,11 @@ class RoleMemoryTests(unittest.TestCase):
         self.assertIsNone(self.journal.get('one'))
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM memory_agent_events').fetchone()[0], 0)
 
-    def test_profile_authority_cannot_be_minted_by_model(self):
-        t = self.turn('请记住：报告先给结论，再给依据')
-        self.assertEqual(self.add(t, kind='name')['error']['code'], 'profile_requires_settings_confirmation')
+    def test_profile_requires_explicit_user_instruction(self):
+        explicit = self.turn('请记住：报告先给结论，再给依据')
+        self.assertEqual(self.add(explicit, kind='name')['outcome'], 'stored')
+        inferred = self.turn('今天天气不错：报告先给结论，再给依据', run='two')
+        self.assertEqual(self.add(inferred, kind='name')['error']['code'], 'profile_requires_settings_confirmation')
 
     def test_login_is_not_a_claim_of_tools_or_task_success(self):
         for backend in ('pi', 'codex'):

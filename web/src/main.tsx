@@ -7,7 +7,7 @@ import './design/base.css';
 import { getBridge, loadFakeBridge } from './bridge';
 import { refetchFailedWhenAgentdUp } from './data/agentdUp';
 import { trackKeyboardFocus } from './design/keyboardFocus';
-import { resetOnAccessChange } from './pages/overview/useToday';
+import { resetOnAccessChange } from './data/accessReset';
 import { pageRoutes } from './shell/registry';
 import { RootErrorBoundary } from './shell/ErrorPage';
 import { createAppRouter } from './shell/router';

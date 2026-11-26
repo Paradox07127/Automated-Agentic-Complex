@@ -132,8 +132,8 @@ export function useOverview(demo: string | null, state: DemoState | null, today 
     enabled: once.enabled && (runOn.sessions || runOn.runs),
   });
   const role = useQuery<RoleRead, Error>({ queryKey: ['overview', demo, 'role'], queryFn: said(() => readRole(demo)), ...core });
-  const day = useQuery<WireDaySegments, Error>({ queryKey: ['overview', demo, 'day'], queryFn: said(() => readDay(demo, clock())), ...once, refetchInterval: REFRESH_MS });
-  const bq = useQuery<OverviewBrief, Error>({ queryKey: ['overview', demo, 'brief'], queryFn: said(() => loadBrief(clock())), ...once, refetchInterval: REFRESH_MS });
+  const day = useQuery<WireDaySegments, Error>({ queryKey: ['overview', demo, 'day'], queryFn: said(() => readDay(demo, clock())), ...once, refetchInterval: () => (document.hidden ? false : REFRESH_MS) });
+  const bq = useQuery<OverviewBrief, Error>({ queryKey: ['overview', demo, 'brief'], queryFn: said(() => loadBrief(clock())), ...once, refetchInterval: () => (document.hidden ? false : REFRESH_MS) });
   const mood = useQuery<MoodPoint[], Error>({ queryKey: ['overview', demo, 'mood'], queryFn: said(() => readMood(clock())), ...once });
   const kernel = useRuntimePublic({ demo: runtimeDemo(demo), select: runtimeOf });
   const { refetch } = q;

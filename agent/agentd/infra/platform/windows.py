@@ -382,7 +382,7 @@ def store_app_folders(prefix):
         return []
 
 
-def watch_parent(pid, stop):
+def watch_parent(pid, stop, *, hard=True):
     process = _kernel32.OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
     # An exited parent's pid can be reused: a process created after this one is not the parent.
     if not process or _kernel32.WaitForSingleObject(process, 0) == WAIT_OBJECT_0 or \

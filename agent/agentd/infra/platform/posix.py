@@ -146,15 +146,16 @@ def store_app_folders(prefix):
     return []
 
 
-def watch_parent(pid, stop):
+def watch_parent(pid, stop, *, hard=True):
     kq = select.kqueue()
     event = select.kevent(pid, filter=select.KQ_FILTER_PROC,
                           flags=select.KQ_EV_ADD | select.KQ_EV_ONESHOT, fflags=select.KQ_NOTE_EXIT)
+    end = (lambda: os._exit(0)) if hard else stop
     try:
         kq.control([event], 0, 0)
     except ProcessLookupError:
-        os._exit(0)
+        kq.close(); end(); return
     # The parent may have exited between the caller's getppid check and registration.
     if os.getppid() != pid:
-        os._exit(0)
-    threading.Thread(target=lambda: (kq.control(None, 1, None), os._exit(0)), daemon=True).start()
+        kq.close(); end(); return
+    threading.Thread(target=lambda: (kq.control(None, 1, None), kq.close(), end()), daemon=True).start()

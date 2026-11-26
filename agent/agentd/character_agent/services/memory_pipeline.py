@@ -287,7 +287,7 @@ class MemoryPipeline:
         if value.get('no_new_knowledge') is True:
             if projects or proposed: raise ValueError('conflicting_memory_noop')
             return {'projects':[], 'accepted':[], 'rejected':[], 'noop':True}
-        if not projects or not isinstance(value.get('title'),str) or not isinstance(value.get('summary'),str) or not value['title'].strip() or not value['summary'].strip():
+        if (not projects and not proposed) or not isinstance(value.get('title'),str) or not isinstance(value.get('summary'),str) or not value['title'].strip() or not value['summary'].strip():
             raise ValueError('insufficient_memory_information')
         for p in projects:
             if not isinstance(p,dict) or not isinstance(p.get('subject'),str) or not p['subject'].strip() or \

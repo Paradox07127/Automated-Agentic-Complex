@@ -193,7 +193,7 @@ export class ResizeOverlayWindow {
     this.mode?.cancel();
   }
 
-  /** Leaves resize mode without committing or reverting. */
+  /** Leaves resize mode without committing or reverting and destroys the transient overlay window. */
   private end(): void {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
@@ -201,10 +201,11 @@ export class ResizeOverlayWindow {
     this.unpress = null;
     this.mode = null;
     const win = this.win;
+    this.win = null;
     if (!win || win.isDestroyed()) return;
     win.setFocusable(false);
     if (!this.ignoring) win.setIgnoreMouseEvents(true, { forward: true });
     this.ignoring = true;
-    win.hide();
+    win.destroy();
   }
 }

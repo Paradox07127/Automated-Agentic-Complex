@@ -216,7 +216,7 @@ export function useSessionLines(sessionId: string | null, retry: number) {
     enabled: sessionId != null,
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,
-    refetchInterval: 3000,
+    refetchInterval: () => (typeof document !== 'undefined' && document.hidden ? false : 3000),
   });
 }
 

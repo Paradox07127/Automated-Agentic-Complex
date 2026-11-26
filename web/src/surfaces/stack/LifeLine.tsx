@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, type CSSProperties } from 'react';
 import { isStill } from '../../features/approval/useCountdown';
 import styles from './LifeLine.module.css';
 
@@ -14,30 +14,37 @@ export interface LifeLineProps {
   onEnd?: () => void;
 }
 
-const STEP = 200;
-
 export function LifeLine({ totalS, leftS, paused, onEnd }: LifeLineProps) {
-  const [leftMs, setLeftMs] = useState(leftS * 1000);
-  const ended = leftMs <= 0;
+  const initialMs = Math.max(0, leftS * 1000);
+  const leftMsRef = useRef(initialMs);
   const endRef = useRef(onEnd);
   useEffect(() => {
     endRef.current = onEnd;
   });
 
   useEffect(() => {
-    if (paused || ended || isStill()) return;
-    const t = setInterval(() => setLeftMs((l) => Math.max(0, l - STEP)), STEP);
-    return () => clearInterval(t);
-  }, [paused, ended]);
+    if (leftMsRef.current <= 0) {
+      endRef.current?.();
+      return;
+    }
+    if (paused || isStill()) return;
+    const startedAt = performance.now();
+    const timer = setTimeout(() => {
+      leftMsRef.current = 0;
+      endRef.current?.();
+    }, leftMsRef.current);
+    return () => {
+      clearTimeout(timer);
+      leftMsRef.current = Math.max(0, leftMsRef.current - (performance.now() - startedAt));
+    };
+  }, [paused]);
 
-  useEffect(() => {
-    if (ended) endRef.current?.();
-  }, [ended]);
-
-  const pct = totalS > 0 ? Math.min(100, (leftMs / (totalS * 1000)) * 100) : 0;
+  const still = isStill();
+  const ratio = totalS > 0 ? Math.min(1, Math.max(0, leftS / totalS)) : 0;
+  const barStyle = { '--life-from': String(ratio), '--life-ms': `${initialMs}ms` } as CSSProperties;
   return (
-    <div className={styles.line} data-paused={paused || undefined} aria-hidden="true">
-      <i style={{ width: `${pct}%` }} />
+    <div className={styles.line} data-paused={paused || still || undefined} aria-hidden="true">
+      <i style={barStyle} />
     </div>
   );
 }

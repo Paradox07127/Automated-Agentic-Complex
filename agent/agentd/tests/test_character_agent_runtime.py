@@ -411,7 +411,7 @@ class RuntimeTests(unittest.TestCase):
                 self.script = self.report_script()
                 reply = self.run_agent(run_id + '-review', language=language)
                 self.assertEqual(self.tasks.get(reply.task_id)['state'], 'needs_review')
-                self.assertIn('\n\n' + review, reply.text)
+                self.assertNotIn('\n\n' + review, reply.text)
 
     def test_host_final_check_does_not_claim_model_self_check(self):
         self.script = self.report_script(verify=False)
@@ -780,9 +780,16 @@ class RuntimeTests(unittest.TestCase):
                                          {'role': 'assistant', 'content': 'Sure.\none; two; three'}]])
                 self.assertEqual(history[0][1]['content'], 'Sure.\n- one\n- two\n- three')
 
-    def test_out_of_voice_final_reply_rebuilds_session_next_turn(self):
+    def test_markdown_reply_keeps_session(self):
         self.script = lambda session, prompt, options: iter([
             {'type': 'result', 'success': True, 'final_text': '# Plan\nGo now.'}])
+        self.run_agent(); self.run_agent('run-2')
+        self.assertEqual(len(self.sessions), 1)
+        self.assertEqual([e['session_reused'] for e in self.events if e['phase'] == 'running'], [False, True])
+
+    def test_ai_self_reference_rebuilds_session_next_turn(self):
+        self.script = lambda session, prompt, options: iter([
+            {'type': 'result', 'success': True, 'final_text': '作为一个AI，我不能这么做。'}])
         self.run_agent(); self.run_agent('run-2')
         self.assertEqual(len(self.sessions), 2)
         self.assertEqual([e['session_reused'] for e in self.events if e['phase'] == 'running'], [False, False])

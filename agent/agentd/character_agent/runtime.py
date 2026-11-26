@@ -711,8 +711,6 @@ class PersonalAgentRuntime:
                 if not result["ok"]:
                     state = "failed"
                     final_text = notes["failed"] + ("\n\n" + final_text if final_text else "")
-                elif state == "needs_review":
-                    final_text += "\n\n" + (notes["files"] if result.get("artifacts") else notes["effects"])
                 with self._lock:
                     if not current():
                         raise ValueError("cancelled")
@@ -735,9 +733,10 @@ class PersonalAgentRuntime:
             self._last_projection = None
             if (sdk_result.get("context_tokens") or 0) >= SESSION_CONTEXT_TOKENS:
                 self._session_key = None
-            # The kernel keeps this reply verbatim; a new session replays its rewritten form instead.
+            # Only rebuild the SDK session if the reply broke role identity ("ai_self_reference").
             if voice := out_of_voice(final_text):
-                self._session_key = None
+                if "ai_self_reference" in voice:
+                    self._session_key = None
                 logging.getLogger(__name__).info("reply_out_of_voice %s", ",".join(voice))
             with self._lock:
                 if not current(): raise ValueError(active["reason"] or "cancelled")

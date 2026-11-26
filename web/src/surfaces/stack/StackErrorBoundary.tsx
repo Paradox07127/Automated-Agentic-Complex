@@ -1,6 +1,6 @@
 import { Component, useEffect, useRef, type ErrorInfo, type ReactNode } from 'react';
 import { getBridge } from '../../bridge';
-import { ErrBar } from '../../ui';
+import { ErrBar } from '../../ui/ErrBar';
 import styles from './StackErrorBoundary.module.css';
 
 /** The crashed stack folds to one line; its rect is the only click region so 重试 can be pressed. */

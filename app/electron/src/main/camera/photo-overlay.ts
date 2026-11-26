@@ -205,7 +205,7 @@ export class PhotoOverlayWindow {
     this.close();
   }
 
-  /** Ends the photo state, once, and hides the window. */
+  /** Ends the photo state, once, and destroys the transient overlay window. */
   private close(): void {
     const state = this.state;
     if (this.timer) clearInterval(this.timer);
@@ -217,10 +217,11 @@ export class PhotoOverlayWindow {
     this.state = null;
     if (state?.photo) this.o.link.sendPhoto?.(false, OPEN_APERTURE, null);
     const win = this.win;
+    this.win = null;
     if (!win || win.isDestroyed()) return;
     win.setFocusable(false);
     if (!this.ignoring) win.setIgnoreMouseEvents(true, { forward: true });
     this.ignoring = true;
-    win.hide();
+    win.destroy();
   }
 }

@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { getBridge, type DesktopState } from '../../../../bridge';
 import { keyText } from '../../../../bridge/platformText';
 import { navRoute, type NavTarget } from '../../../../shell/nav';
-import { ErrBar, Icon } from '../../../../ui';
+import { ErrBar } from '../../../../ui/ErrBar';
+import { Icon } from '../../../../ui/Icon';
 import { CharCard, CloseKey, DarkRow, MicroLabel, NewsBanner, PowerMark, PowerState, StatusLamp, StatusRow, TopIcon, WhiteCapsule, YellowKey } from '../../../../ui/game';
 import { consoleDemo } from './demos';
 import { doingOf, statusCells, useRecent, useRuntime, waitingOf } from './model';
@@ -32,7 +32,13 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
   const [demo] = useState(consoleDemo);
   const runtime = useRuntime();
   const recent = useRecent();
-  const roster = useQuery({ queryKey: ['character', 'list'], queryFn: () => bridge.character.list(), enabled: bridge.capabilities.avatar, retry: false });
+  const [roster, setRoster] = useState<Awaited<ReturnType<typeof bridge.character.list>>>();
+  useEffect(() => {
+    if (!bridge.capabilities.avatar) return;
+    let alive = true;
+    void bridge.character.list().then((list) => { if (alive) setRoster(list); }).catch(() => {});
+    return () => { alive = false; };
+  }, [bridge]);
   const process = state?.pips.agentd.state;
   const backoff = state?.pips.agentd.backoff ?? null;
   const starting = process === 'starting' || process?.startsWith('backoff');
@@ -43,7 +49,7 @@ export function ConsoleSlot({ state, presence, close, maxHeight }: ConsoleSlotPr
   const waiting = offline ? null : waitingOf(presence);
   const unread = recent.filter((r) => r.unread);
   const character = state?.character ?? null;
-  const head = roster.data?.find((c) => c.active)?.head ?? null;
+  const head = roster?.find((c) => c.active)?.head ?? null;
 
   const go = (target: NavTarget) => {
     bridge.window.openMain(navRoute(target));

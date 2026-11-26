@@ -63,6 +63,8 @@ export interface OpsContext {
   avatar?: AvatarHost | null;
   /** A process's user + system CPU seconds, null when unreadable; null or absent leaves `cpuPercent` 0. */
   cpuSeconds?: ((pid: number) => number | null) | null;
+  /** A process's resident memory in MB, null when unreadable; absent falls back to macOS `ps`. */
+  residentMB?: ((pid: number) => number | null) | null;
   /** The shell's ProcessHistory, one for every surface; null or absent leaves supervisor.state's `history` empty. */
   processHistory?: { of(child: ProcessChild): ProcessReading[] } | null;
   /** Her appearance, layers, action switches and mod settings; null or absent without a renderer link. */

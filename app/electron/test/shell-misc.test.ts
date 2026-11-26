@@ -8,7 +8,7 @@ import type { StreamEvent } from '../src/common/page.ts';
 import type { ServiceView } from '../src/common/runtime.ts';
 import { AvatarVisibility, HIDE_EXPIRY_MS } from '../src/common/visibility-reason.ts';
 import type { HelperReply } from '../src/main/helper/client.ts';
-import { cpuSecondsReader, psCpuSeconds } from '../src/main/ops/avatar.ts';
+import { cpuSecondsReader, processUsageReader, psCpuSeconds } from '../src/main/ops/avatar.ts';
 import type { OpsContext } from '../src/main/ops/context.ts';
 import { ProcessHistory, psResidentMB, supervisorOps } from '../src/main/ops/supervisor.ts';
 
@@ -68,6 +68,14 @@ test('supervisor.state on Windows: CPU from the helper\'s process.usage, each re
   assert.ok(share > 10 && share <= 50, `cpu ${share}`);
   assert.equal(cpuSecondsReader('windows', null), null, 'no helper, no CPU');
   assert.equal(cpuSecondsReader('mac', null), psCpuSeconds);
+  const macUsage = processUsageReader({
+    request: async () => ({ ok: true, result: { usage: [{ pid: process.pid, cpu_time_ns: 4e9, resident_bytes: 64 * 1024 * 1024 }] } }),
+  });
+  assert.equal(macUsage.cpuSeconds(process.pid), null);
+  await new Promise((r) => setImmediate(r));
+  assert.equal(macUsage.cpuSeconds(process.pid), 4);
+  assert.equal(macUsage.residentMB(process.pid), 64);
+  assert.ok(cpuSecondsReader('mac', { request: async () => ({ ok: true, result: { usage: [] } }) }) !== psCpuSeconds);
 });
 
 test('the helper CPU reader forgets a pid the helper no longer lists or fails for', async () => {

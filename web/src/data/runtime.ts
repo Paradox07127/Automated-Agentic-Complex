@@ -26,7 +26,8 @@ export function useRuntimePublic<T = WireRuntimePublic>({ demo, select }: { demo
     select,
     staleTime: 30_000,
     // A sign-in in the app ends in the browser; the page learns of it here.
-    refetchInterval: (q) => (PENDING.has(q.state.data?.error ?? '') || q.state.data?.product_login?.pending ? 1_000 : 15_000),
+    refetchInterval: (q) => (typeof document !== 'undefined' && document.hidden ? false
+      : PENDING.has(q.state.data?.error ?? '') || q.state.data?.product_login?.pending ? 1_000 : 15_000),
     retry: false,
   });
 }

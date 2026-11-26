@@ -13,7 +13,7 @@ export function useParam(name: string): string | null {
   });
 }
 
-/** Server clock: starts at the snapshot's `now` and ticks each second unless `still`. */
+/** Server clock: starts at the snapshot's `now` and ticks each second while visible unless `still`. */
 export function useNow(base: number | undefined, still: boolean): number {
   const [now, setNow] = useState(base ?? 0);
   useEffect(() => {
@@ -21,8 +21,21 @@ export function useNow(base: number | undefined, still: boolean): number {
     setNow(base);
     if (still) return;
     const t0 = Date.now();
-    const id = setInterval(() => setNow(base + Date.now() - t0), 1000);
-    return () => clearInterval(id);
+    let id: ReturnType<typeof setInterval> | null = null;
+    const sync = () => {
+      if (document.hidden) {
+        if (id !== null) { clearInterval(id); id = null; }
+        return;
+      }
+      setNow(base + Date.now() - t0);
+      id ??= setInterval(() => setNow(base + Date.now() - t0), 1000);
+    };
+    sync();
+    document.addEventListener('visibilitychange', sync);
+    return () => {
+      if (id !== null) clearInterval(id);
+      document.removeEventListener('visibilitychange', sync);
+    };
   }, [base, still]);
   return now;
 }

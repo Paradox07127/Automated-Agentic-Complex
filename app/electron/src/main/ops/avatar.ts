@@ -151,24 +151,41 @@ export function psCpuSeconds(pid: number): number | null {
 }
 
 /**
- * OpsContext's `cpuSeconds` port: `ps` on macOS; on Windows, which has no `ps`, the helper's `process.usage` `cpu_time_ns`.
- * A helper read returns the answer to the read before it and asks again, so it is null until the helper first answers for
- * the pid, and null after an answer without it; null without a helper.
+ * One async `process.usage` reader over `ac-helper` for both CPU seconds and resident MB.
+ * Each read returns the last answered value for `pid` and refreshes in the background, avoiding synchronous `ps` spawns.
+ */
+export function processUsageReader(
+  helper: { request(op: string, params: Record<string, unknown>): Promise<HelperReply> },
+): { cpuSeconds(pid: number): number | null; residentMB(pid: number): number | null } {
+  const last = new Map<number, { cpuSeconds: number | null; residentMB: number | null }>();
+  const refresh = (pid: number) => {
+    void helper.request('process.usage', { pids: [pid] }).then((r) => {
+      const usage = r.ok && Array.isArray(r.result.usage) ? r.result.usage as Record<string, unknown>[] : [];
+      const row = usage.find((u) => u.pid === pid);
+      if (!row || (typeof row.cpu_time_ns !== 'number' && typeof row.resident_bytes !== 'number')) {
+        last.delete(pid);
+        return;
+      }
+      last.set(pid, {
+        cpuSeconds: typeof row.cpu_time_ns === 'number' ? row.cpu_time_ns / 1e9 : null,
+        residentMB: typeof row.resident_bytes === 'number' ? row.resident_bytes / (1024 * 1024) : null,
+      });
+    });
+  };
+  return {
+    cpuSeconds: (pid) => { refresh(pid); return last.get(pid)?.cpuSeconds ?? null; },
+    residentMB: (pid) => last.get(pid)?.residentMB ?? null,
+  };
+}
+
+/**
+ * OpsContext's `cpuSeconds` port: uses `ac-helper` (`process.usage`) when available on either platform,
+ * falling back to synchronous `ps` only on macOS when no helper exists; null on Windows without a helper.
  */
 export function cpuSecondsReader(platform: ShellPlatform,
   helper: { request(op: string, params: Record<string, unknown>): Promise<HelperReply> } | null): ((pid: number) => number | null) | null {
-  if (platform === 'mac') return psCpuSeconds;
-  if (!helper) return null;
-  const last = new Map<number, number>();
-  return (pid) => {
-    void helper.request('process.usage', { pids: [pid] }).then((r) => {
-      const usage = r.ok && Array.isArray(r.result.usage) ? r.result.usage as Record<string, unknown>[] : [];
-      const ns = usage.find((u) => u.pid === pid)?.cpu_time_ns;
-      if (typeof ns === 'number') last.set(pid, ns / 1e9);
-      else last.delete(pid);
-    });
-    return last.get(pid) ?? null;
-  };
+  if (!helper) return platform === 'mac' ? psCpuSeconds : null;
+  return processUsageReader(helper).cpuSeconds;
 }
 
 /** Reads once a second while a page listens; `changesOnly` pushes only a value that differs from the last. */

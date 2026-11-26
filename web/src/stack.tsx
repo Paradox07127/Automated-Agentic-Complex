@@ -1,6 +1,5 @@
 import { lazy, StrictMode, Suspense, type ComponentType } from 'react';
 import { createRoot } from 'react-dom/client';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './design/tokens.css';
 import './design/base.css';
 import { loadFakeBridge } from './bridge';
@@ -9,7 +8,6 @@ import { StackErrorBoundary } from './surfaces/stack/StackErrorBoundary';
 import { applyInitialTheme } from './shell/useSystemTheme';
 
 await loadFakeBridge();
-const queryClient = new QueryClient();
 applyInitialTheme();
 trackKeyboardFocus();
 const root = document.getElementById('root');
@@ -38,13 +36,11 @@ const Root = lazy(ROOTS[path ?? ''] ?? hud);
 
 createRoot(root).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <StackErrorBoundary>
-        {/* Nothing until the chunk arrives; native counts the page alive once its Root subscribes to the anchor. */}
-        <Suspense fallback={null}>
-          <Root />
-        </Suspense>
-      </StackErrorBoundary>
-    </QueryClientProvider>
+    <StackErrorBoundary>
+      {/* Nothing until the chunk arrives; native counts the page alive once its Root subscribes to the anchor. */}
+      <Suspense fallback={null}>
+        <Root />
+      </Suspense>
+    </StackErrorBoundary>
   </StrictMode>,
 );

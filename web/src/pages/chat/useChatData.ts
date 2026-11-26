@@ -170,7 +170,8 @@ export function useChatTasks(conv: string | null, enabled: boolean) {
     retry: false,
     staleTime: 5_000,
     refetchOnMount: 'always',
-    refetchInterval: (query) => query.state.data?.frontRunning || Object.keys(query.state.data?.base.activeRuns ?? {}).length > 0 ? 3_000 : false,
+    refetchInterval: (query) => (typeof document !== 'undefined' && document.hidden ? false
+      : query.state.data?.frontRunning || Object.keys(query.state.data?.base.activeRuns ?? {}).length > 0 ? 3_000 : false),
   });
   return { query, refetch: () => void (agent && query.refetch()) };
 }
@@ -186,7 +187,7 @@ export function useRunItems<T = WireRunItem[]>(runId: string | null, select?: (i
     enabled: runId != null,
     retry: false,
     staleTime: 5_000,
-    refetchInterval: running ? 3_000 : false,
+    refetchInterval: () => (typeof document !== 'undefined' && document.hidden ? false : running ? 3_000 : false),
     ...(select ? { select } : {}),
   });
 }
@@ -224,7 +225,8 @@ export function useRuntime(loggedOutDemo: boolean, enabled: boolean) {
     // An unready kernel is reread on focus or remount: the user may have logged in elsewhere.
     staleTime: (q) => (q.state.data?.info.ready === false ? 0 : Number.POSITIVE_INFINITY),
     // A kernel still starting when the page opened turns ready without a focus change.
-    refetchInterval: (q) => (q.state.data?.info.ready === false ? UNREADY_REREAD_MS : false),
+    refetchInterval: (q) => (typeof document !== 'undefined' && document.hidden ? false
+      : q.state.data?.info.ready === false ? UNREADY_REREAD_MS : false),
   });
   /** 重新检测: the rescanning read, kept in this page's entry too. */
   const recheck = async (): Promise<ChatRuntime> => {

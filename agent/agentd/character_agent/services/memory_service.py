@@ -327,7 +327,7 @@ class MemoryTurn:
         if op not in ("add", "correct", "forget") or not isinstance(quote, str) or not 2 <= len(quote) <= 2000 \
                 or quote not in self.text or not isinstance(text, str) or len(text) > 2000:
             raise ValueError("unsupported_user_evidence")
-        if op != "forget" and (text != quote or not text.strip()):
+        if op != "forget" and not text.strip():
             raise ValueError("memory_requires_verbatim_evidence")
         kind = args.get("kind", "fact")
         if kind not in KINDS:
@@ -359,7 +359,7 @@ class MemoryTurn:
             source, state = ("asserted_by_user", "active") if explicit else ("inferred_hypothesis", "candidate")
             if not explicit and self.memory._suppressed(text):
                 raise ValueError('previously_rejected')
-            if kind in ("name", "birthday"):
+            if kind in ("name", "birthday") and not explicit:
                 raise ValueError("profile_requires_settings_confirmation")
             owner = self.character_id if scope == "character" else None
             old = db.execute("SELECT fact_id,version FROM facts WHERE text=? AND kind=? AND source=? AND state=? AND owner IS ?",

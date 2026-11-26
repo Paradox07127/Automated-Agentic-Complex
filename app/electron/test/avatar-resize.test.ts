@@ -213,12 +213,12 @@ test('begin covers her screen\'s visible frame without taking the front app; the
   o.call('resize.act', 'done');
   assert.deepEqual(o.placed.at(-1), 'commit 1 700,200 120x200');
   assert.equal(o.overlay.open, false);
-  assert.equal(o.calls.at(-1), 'hide');
+  assert.equal(o.calls.at(-1), 'destroy');
   assert.equal(o.listeners.size, 0);
   assert.throws(() => o.call('resize.endDrag'), /failed/);
-  // The next 调整大小 reuses the window.
+  // The next 调整大小 creates a fresh window since end() destroyed the transient overlay.
   assert.equal(o.overlay.begin(), true);
-  assert.equal(o.made(), 1);
+  assert.equal(o.made(), 2);
   o.overlay.stop();
   assert.equal(o.overlay.open, false);
 });
@@ -293,7 +293,7 @@ for (const event of ['render-process-gone', 'unresponsive']) {
       o.overlay.tick();
       assert.equal(o.calls.filter((c) => c.startsWith('ignore')).at(-1), 'ignore true', 'the window takes the pointer');
       assert.equal(o.overlay.open, false);
-      assert.deepEqual(o.calls.slice(-3), ['focusable false', 'ignore true', 'hide']);
+      assert.deepEqual(o.calls.slice(-3), ['focusable false', 'ignore true', 'destroy']);
       assert.equal(o.placed.at(-1), 'preview 1 700,300 120x200');
     } finally {
       o.overlay.stop();

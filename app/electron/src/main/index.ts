@@ -6,7 +6,7 @@ import {
   type NativeImage, type Rectangle,
 } from 'electron';
 import { randomUUID } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, release } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import routes from '../../../../protocol/ui-bridge/routes.json' with { type: 'json' };
@@ -82,7 +82,7 @@ import { SystemNotifier } from './notify/system.ts';
 import { greetOnDesktop, onboardingWindow, type OnboardingDestination, playToEnd } from './onboarding/window.ts';
 import { adoptPasted, adoptPaths, clearPasted, filePage, SCOPE_FILE_TYPES } from './ops/adopt.ts';
 import { bundleBuild } from './ops/app.ts';
-import { cpuSecondsReader } from './ops/avatar.ts';
+import { cpuSecondsReader, processUsageReader } from './ops/avatar.ts';
 import { characterArt, shellMmdSync } from './ops/character.ts';
 import { reloadAvatar } from './ops/holding.ts';
 import { watch } from './ops/events.ts';
@@ -205,10 +205,17 @@ let rendererState: ChildState = (config && rendererPreflight(config)) ?? { kind:
 const launched = config ? launchCharacter(config, lastCharacter(config.supportDir)) : '';
 
 /** A JSON object file as read; null when it is missing or not an object. */
+const savedCache = new Map<string, { mtimeMs: number; size: number; value: Record<string, unknown> | null }>();
+
 function readSaved(path: string): Record<string, unknown> | null {
   try {
+    const st = statSync(path);
+    const hit = savedCache.get(path);
+    if (hit && hit.mtimeMs === st.mtimeMs && hit.size === st.size) return hit.value;
     const v: unknown = JSON.parse(readFileSync(path, 'utf8'));
-    return typeof v === 'object' && v !== null && !Array.isArray(v) ? v as Record<string, unknown> : null;
+    const value = typeof v === 'object' && v !== null && !Array.isArray(v) ? v as Record<string, unknown> : null;
+    savedCache.set(path, { mtimeMs: st.mtimeMs, size: st.size, value });
+    return value;
   } catch {
     return null;
   }
@@ -221,9 +228,10 @@ function readObject(path: string): Record<string, unknown> {
 
 const transport = c3Transport();
 const runtimePath = config ? join(config.agentdStateDir, 'ui-runtime.json') : null;
+const agentdClient = runtimePath === null ? null : new AgentdClient(runtimePath);
 /** The link's trace, behavior receipts and motion requests on their way to agentd. */
-const forwarding = runtimePath === null ? null : (() => {
-  const client = new AgentdClient(runtimePath);
+const forwarding = agentdClient === null ? null : (() => {
+  const client = agentdClient;
   return agentdForwarding({
     epoch: Date.now(),
     post: async (path, body) => {
@@ -247,8 +255,8 @@ const turnMarks = forwarding && new TurnMarks(forwarding.mark);
 let cursorSpace: PlacementSpace | null = null;
 const surfaceOptions = surfaceLinkOptions(process.argv, (e) => watchers?.track(e));
 /** What the link reports to agentd beside trace and receipts (renderer/reports.ts). */
-const reports = config && runtimePath !== null ? rendererReports({
-  agentd: new AgentdClient(runtimePath), agentdRunning: () => agentdState.kind === 'running', settings: () => readObject(configPath),
+const reports = config && agentdClient !== null ? rendererReports({
+  agentd: agentdClient, agentdRunning: () => agentdState.kind === 'running', settings: () => readObject(configPath),
   dockOpen: () => desktop?.dockShown ?? false,
   log: (line) => appendLog(config!.supportDir, 'hostlink', `HOSTLINK ${line}`),
   companionLog: (line) => appendLog(config!.supportDir, 'companion', line),
@@ -447,7 +455,7 @@ const preview = (() => {
 const restartAfterPackageChange = () => { void renderer?.restart(); preview?.packagesChanged(); };
 /** The character switch over the renderer link and agentd. */
 const switcher = config && hostLink && (() => {
-  const client = runtimePath === null ? null : new AgentdClient(runtimePath);
+  const client = agentdClient;
   const sw = new CharacterSwitch(linkSwitchPorts({
     link: hostLink, supportDir: config.supportDir, agentd: client && ((method, path, json) => client.request(method, path, json)),
     agentdRunning: () => agentdState.kind === 'running', restartAvatar: () => { void renderer?.restart(); },
@@ -504,10 +512,10 @@ store?.subscribe((e) => {
 });
 /** agentd sends voice_state only on a change: the voice it starts with is read once per run. */
 async function seedTts(run: ChildState): Promise<void> {
-  if (runtimePath === null) return;
+  if (agentdClient === null) return;
   const seen = voiceStates;
   try {
-    const reply = await new AgentdClient(runtimePath).request('GET', '/diag/state');
+    const reply = await agentdClient.request('GET', '/diag/state');
     const tts = reply.status === 200 ? diagTts(JSON.parse(reply.body.toString('utf8'))) : null;
     if (tts && agentdState === run && voiceStates === seen) runtime.send({ kind: 'tts', view: tts });
   } catch (e) {
@@ -539,11 +547,13 @@ const helper = config && new HelperSupervisor({
     control?.event(e.event, e.data);
   },
 });
-/** The status monitor's CPU readings, one reader across every surface. */
-const cpuSeconds = cpuSecondsReader(shellPlatform(), helper);
+/** The status monitor's CPU and memory readings, shared across surfaces via `ac-helper` when running. */
+const processUsage = helper ? processUsageReader(helper) : null;
+const cpuSeconds = processUsage ? processUsage.cpuSeconds : cpuSecondsReader(shellPlatform(), null);
+const residentMB = processUsage?.residentMB ?? null;
 /** supervisor.state's `history`: one sampler from launch, read by every surface. */
 const processHistory = new ProcessHistory({
-  platform: shellPlatform(), cpuSeconds, services: services && { view: (id) => services.get(id)!.view },
+  platform: shellPlatform(), cpuSeconds, residentMB, services: services && { view: (id) => services.get(id)!.view },
   supervisor: supervisor && { state: () => supervisor.state, pid: () => supervisor.pid, avatar: () => rendererState, avatarPid: () => renderer?.pid },
 });
 processHistory.start();
@@ -554,8 +564,8 @@ const pushToTalkEvents = new PushSource('state', { replay: false });
 /** `voice.onTrial`'s values for the guide's voice step. */
 const voiceTrials = new PushSource('trial', { replay: false });
 /** 按住说话 over the helper. */
-const pushToTalk = config && helper && runtimePath !== null && !noPushToTalk ? (() => {
-  const client = new AgentdClient(runtimePath);
+const pushToTalk = config && helper && agentdClient !== null && !noPushToTalk ? (() => {
+  const client = agentdClient;
   const hotkey = readObject(configPath).voice_hotkey;
   return new PushToTalk(typeof hotkey === 'string' ? hotkey : 'right_option', {
     helper,
@@ -584,8 +594,8 @@ const pushToTalk = config && helper && runtimePath !== null && !noPushToTalk ? (
   });
 })() : null;
 /** AttentionSampler over the helper; none with `--no-attention`. */
-const attention = config && helper && runtimePath !== null ? shellAttention({
-  argv: process.argv, helper, agentd: new AgentdClient(runtimePath), agentdStateDir: config.agentdStateDir,
+const attention = config && helper && agentdClient !== null ? shellAttention({
+  argv: process.argv, helper, agentd: agentdClient, agentdStateDir: config.agentdStateDir,
   settings: () => readObject(configPath), plan,
   ownPids: () => (helper.pid === undefined ? [process.pid] : [process.pid, helper.pid]),
   userSpeaking: () => pushToTalk?.held ?? null,
@@ -629,8 +639,8 @@ const watchers = config && hostLink && helper ? shellWatchers({
 }) : null;
 /** The activity and timeline recorders (src/main/attention/watchers.ts), each running while agentd runs with its subsystem in
  *  the plan; none with `--no-attention`. */
-const recorders = config && helper && runtimePath !== null ? shellRecorders({
-  argv: process.argv, helper, agentd: new AgentdClient(runtimePath), agentdStateDir: config.agentdStateDir,
+const recorders = config && helper && agentdClient !== null ? shellRecorders({
+  argv: process.argv, helper, agentd: agentdClient, agentdStateDir: config.agentdStateDir,
   saved: () => readSaved(configPath), ownPids: () => (helper.pid === undefined ? [process.pid] : [process.pid, helper.pid]), plan,
   log: (line) => appendLog(config!.supportDir, 'companion', line),
 }) : null;
@@ -651,8 +661,8 @@ const ambient = config && hostLink && helper ? shellAmbient({
 }) : null;
 /** ContextCapturer over the helper (src/main/context/shell.ts), running while agentd runs with `context` in the plan; none
  *  with `--no-attention`. */
-const context = config && helper && runtimePath !== null ? shellContext({
-  argv: process.argv, helper, agentd: new AgentdClient(runtimePath), agentdStateDir: config.agentdStateDir,
+const context = config && helper && agentdClient !== null ? shellContext({
+  argv: process.argv, helper, agentd: agentdClient, agentdStateDir: config.agentdStateDir,
   settings: () => readObject(configPath), attention: () => attention,
   ownPids: () => (helper.pid === undefined ? [process.pid] : [process.pid, helper.pid]),
   log: (line) => appendLog(config!.supportDir, 'companion', line),
@@ -683,8 +693,8 @@ function c3Rect(r: Rect | null): HelperRect | null {
   return { x: c.x, y: c.y, width: c.w, height: c.h };
 }
 /** agentd's pause, meeting and quiet, for `desktop.onState`. */
-const observation = runtimePath === null ? null : (() => {
-  const client = new AgentdClient(runtimePath);
+const observation = agentdClient === null ? null : (() => {
+  const client = agentdClient;
   return new ObservationControl({
     request: async (method, path, json) => {
       const reply = await client.request(method, path, json);
@@ -734,8 +744,8 @@ const webGuard: WebGuardPorts = {
   recordError: (e) => recordError(config?.supportDir ?? supportDir, e),
 };
 /** Clicks on her and the desktop actions that act on her (interaction/shell.ts). */
-const interaction = config && runtimePath !== null ? (() => {
-  const client = new AgentdClient(runtimePath);
+const interaction = config && agentdClient !== null ? (() => {
+  const client = agentdClient;
   return interactionShell({
     request: async (method, path, json) => {
       const reply = await client.request(method, path, json);
@@ -865,7 +875,7 @@ function opsContext(surface: Surface): OpsContext {
   return {
     surface, routes, platform: shellPlatform(), glassSupported: glassOnSystem,
     config: { path: configPath, supportDir: config?.supportDir ?? null, devResources: config?.devResources ?? null },
-    agentd: runtimePath === null ? null : new AgentdClient(runtimePath), store,
+    agentd: agentdClient, store,
     diag: diagStream && new SharedSource((emit) => diagStream.start((e) => emit({ event: e.event, id: e.id ?? null, data: e.data })),
       () => diagStream.stop()),
     supervisor: supervisor && {
@@ -888,7 +898,7 @@ function opsContext(surface: Surface): OpsContext {
         desktop?.pushState();
       },
     }),
-    cpuSeconds, processHistory,
+    cpuSeconds, residentMB, processHistory,
     looks, switcher, mmdSync,
     placement: placer,
     preview,
@@ -957,14 +967,14 @@ function opsContext(surface: Surface): OpsContext {
     openOnboarding: () => guide.begin(),
     endOnboarding: (destination) => guide.end(destination),
     openQuickInput: config && (() => { desktop?.openQuickInput(); }),
-    greet: config && hostLink && runtimePath !== null ? guideGreeting(hostLink, new AgentdClient(runtimePath), config.supportDir) : null,
+    greet: config && hostLink && agentdClient !== null ? guideGreeting(hostLink, agentdClient, config.supportDir) : null,
     openMain: openMainAt,
     unregisteredHotkeys: () => unregisteredHotkeys(hotkeys, desktop?.quickInputFailed ?? null, pushToTalk?.failedHotkey ?? null),
     // Only the main window records.
     recordHotkey: surface !== 'stack' ? (rightOption) => hotkeyRecorder.record(rightOption) : null,
     runtime: { snapshot: () => runtimeJson(runtime.snapshot), events: runtimeEvents },
     // The main window asks agentd itself, the panels through the capturer.
-    look: surface === 'main' ? (runtimePath === null ? null : agentdLook(new AgentdClient(runtimePath), log))
+    look: surface === 'main' ? (agentdClient === null ? null : agentdLook(agentdClient, log))
       : context && (() => context.look()),
     computerUse: control,
     log,
@@ -1135,8 +1145,8 @@ const simulateHover = process.argv.includes('--simulate-avatar-hover');
 const hoverHints = { on: true, at: -Infinity };
 
 function startDesktop(): void {
-  if (!config || !serve || runtimePath === null) return;
-  const client = new AgentdClient(runtimePath);
+  if (!config || !serve || agentdClient === null) return;
+  const client = agentdClient;
   const toDip = c3Dip(screen), space = c3Space(screen);
   desktop = new DesktopAssembly({
     makeWindow: (kind) => {
@@ -1471,8 +1481,8 @@ void app.whenReady().then(async () => {
   store?.subscribe(feedCommands({ ctx: opsContext('main'), notice: (text) => desktop?.notice(text),
     log: (line) => appendLog(config?.supportDir ?? supportDir, 'companion', line) }));
   // Her own outfit changes, carried out as the menu's and answered with a receipt.
-  if (looks && hostLink && runtimePath !== null) {
-    const client = new AgentdClient(runtimePath);
+  if (looks && hostLink && agentdClient !== null) {
+    const client = agentdClient;
     store?.subscribe(looksCommands({ looks, link: hostLink, post: (path, body) => client.request('POST', path, body),
       log: (line) => appendLog(config?.supportDir ?? supportDir, 'companion', line) }));
   }

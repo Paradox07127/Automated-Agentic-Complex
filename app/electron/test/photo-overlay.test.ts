@@ -139,12 +139,12 @@ test('begin covers her screen\'s visible frame without taking the front app, ope
   assert.equal(o.call('photo.close'), null);
   assert.equal(o.overlay.open, false);
   assert.deepEqual(link.photos, [[true, 32, null], [false, 32, null]]);
-  assert.equal(o.calls.at(-1), 'hide');
+  assert.equal(o.calls.at(-1), 'destroy');
   assert.equal(o.listeners.size, 0);
   assert.equal(link.listeners.size, 0);
-  // The next 拍照 reuses the window.
+  // The next 拍照 creates a fresh window since close() destroyed the transient overlay.
   assert.equal(o.overlay.begin(), true);
-  assert.equal(o.made(), 1);
+  assert.equal(o.made(), 2);
   o.overlay.stop();
   assert.equal(o.overlay.open, false);
   assert.deepEqual(link.photos.at(-1), [false, 32, null]);
@@ -237,7 +237,7 @@ test('Esc, a press outside the bar, a page that is gone or hung and a lost rende
   assert.equal(o.overlay.open, true);
   o.emit('before-input-event', { preventDefault: () => { prevented += 1; } }, { type: 'keyDown', key: 'Escape' });
   assert.deepEqual([o.overlay.open, prevented, ends()], [false, 1, 1]);
-  assert.deepEqual(o.calls.slice(-2), ['focusable false', 'hide']);
+  assert.deepEqual(o.calls.slice(-2), ['focusable false', 'destroy']);
 
   o.overlay.begin();
   o.call('window.setInteractiveRegions', [bar]);

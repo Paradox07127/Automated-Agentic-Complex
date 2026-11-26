@@ -1,4 +1,3 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
@@ -20,11 +19,7 @@ it('does not show focus presets or start a timer from the menu bar', () => {
   const bridge = createFakeBridge({ surface: 'stack', still: true });
   window.agenticComplex = bridge;
   const request = vi.spyOn(bridge.agentd, 'request');
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <ConsoleSlot state={null} presence={{ focus: { until: Date.now() / 1000 + 600 } }} close={vi.fn()} />
-    </QueryClientProvider>,
-  );
+  render(<ConsoleSlot state={null} presence={{ focus: { until: Date.now() / 1000 + 600 } }} close={vi.fn()} />);
   expect(screen.queryByText(/陪我专注|25 分钟|50 分钟/)).toBeNull();
   expect(request).not.toHaveBeenCalledWith('POST', '/focus', expect.anything());
 });

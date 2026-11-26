@@ -177,11 +177,11 @@ test('begin covers her screen\'s visible frame without taking the front app, pus
   o.call('camera.act', 'commit');
   assert.deepEqual(o.camera.slice(1), [`live ${10 + 10 * K},${-5 * K},2`, 'commit 14,-2,2']);
   assert.equal(o.overlay.open, false);
-  assert.equal(o.calls.at(-1), 'hide');
+  assert.equal(o.calls.at(-1), 'destroy');
   assert.equal(o.listeners.size, 0);
-  // The next 调整镜头 reuses the window.
+  // The next 调整镜头 creates a fresh window since end() destroyed the transient overlay.
   o.overlay.begin({ x: 100, y: 100, w: 200, h: 400 }, { yaw: 0, pitch: 0, zoom: 1 }, null);
-  assert.equal(o.made(), 1);
+  assert.equal(o.made(), 2);
   assert.deepEqual(o.pushed.at(-1), { area: { x: 76, y: 351, width: 248, height: 448 }, value: { yaw: 0, pitch: 0, zoom: 1 }, editing: true,
     closeup: false });
   o.overlay.stop();
@@ -245,7 +245,7 @@ for (const event of ['render-process-gone', 'unresponsive']) {
       o.overlay.tick();
       assert.equal(o.calls.filter((c) => c.startsWith('ignore')).at(-1), 'ignore true', 'the window takes the pointer');
       assert.equal(o.overlay.open, false);
-      assert.deepEqual(o.calls.slice(-3), ['focusable false', 'ignore true', 'hide']);
+      assert.deepEqual(o.calls.slice(-3), ['focusable false', 'ignore true', 'destroy']);
       assert.equal(o.camera.at(-1), 'cancelled');
     } finally {
       o.overlay.stop();

@@ -39,12 +39,16 @@ function partsOf(url: string): string[] | null {
 }
 
 /** The file under `realRoot` (`art/` under `realArt`) the parts name, or null when the answer is 404. */
-function fileFor(realRoot: string, realArt: string | null, parts: string[]): string | null {
+interface StaticEntry { path: string; mtimeMs: number; size: number }
+
+function fileFor(realRoot: string, realArt: string | null, parts: string[]): StaticEntry | null {
   if (parts[0] === 'characters') return null;
   const [base, rest] = parts[0] === 'art' && realArt !== null ? [realArt, parts.slice(1)] : [realRoot, parts];
   try {
     const file = realpathSync(join(base, ...rest));
-    return file.startsWith(base + sep) && statSync(file).isFile() ? file : null;
+    if (!file.startsWith(base + sep)) return null;
+    const st = statSync(file);
+    return st.isFile() ? { path: file, mtimeMs: st.mtimeMs, size: st.size } : null;
   } catch {
     return null;
   }
@@ -90,18 +94,29 @@ export function uiServer(root: string, art: string | null = null, characters: Ch
 
   const missing = (): UiResponse =>
     ({ status: 404, headers: { 'Content-Security-Policy': CSP, 'Content-Type': 'text/plain; charset=utf-8' }, body: Buffer.alloc(0) });
+  const staticCache = new Map<string, { mtimeMs: number; size: number; body: Buffer }>();
   return (url): UiResponse => {
     const parts = partsOf(url);
     const found = parts && characterArt(parts);
-    const file = !found && parts ? fileFor(realRoot, realArt, parts) : null;
-    const mime = found ? 'image/png' : file && MIME_TYPES[extname(file).slice(1).toLowerCase()];
-    if (!mime || (!found && !file)) return missing();
+    const entry = !found && parts ? fileFor(realRoot, realArt, parts) : null;
+    const mime = found ? 'image/png' : entry && MIME_TYPES[extname(entry.path).slice(1).toLowerCase()];
+    if (!mime || (!found && !entry)) return missing();
     let body: Buffer;
-    try {
-      body = found ?? readFileSync(file!);
-    } catch {
-      // Gone or unreadable since it was found.
-      return missing();
+    if (found) {
+      body = found;
+    } else {
+      const cached = staticCache.get(entry!.path);
+      if (cached && cached.mtimeMs === entry!.mtimeMs && cached.size === entry!.size) {
+        body = cached.body;
+      } else {
+        try {
+          body = readFileSync(entry!.path);
+        } catch {
+          // Gone or unreadable since it was found.
+          return missing();
+        }
+        staticCache.set(entry!.path, { mtimeMs: entry!.mtimeMs, size: entry!.size, body });
+      }
     }
     return { status: 200, headers: { 'Content-Security-Policy': CSP, 'Content-Type': mime, 'Content-Length': String(body.length) }, body };
   };

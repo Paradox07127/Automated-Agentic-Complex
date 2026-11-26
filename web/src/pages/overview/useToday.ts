@@ -1,8 +1,7 @@
 // 今天 reads on top of useOverview: the work memory (L1 / L2 / L3) first, today's own reads when a route fails or
 // returns nothing.
-import { useQuery, type QueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { get } from '../../bridge/agentd';
-import type { SettingsChange, Unsubscribe } from '../../bridge/protocol';
 import type { MemoryDaysResponse, MemorySessionsResponse } from '../../bridge/agentd-routes.generated';
 import type { DemoState } from '../../shell/demo';
 import { usePlugins } from '../../shell/plugins';
@@ -13,21 +12,12 @@ import { joined } from './regions';
 import { dayLineFromL3, summaryText, timelineFromDay, timelineFromL1, type DayLine, type TimelineEntry, type WireDaySummary, type WireSessionSummary } from './today';
 import type { useOverview } from './useOverview';
 
+export { resetOnAccessChange } from '../../data/accessReset';
+
 type Overview = ReturnType<typeof useOverview>;
 
 // agentd filters these reads by the current consent, so they are read again on each mount.
 const once = { retry: false } as const;
-
-/** The privacy rows, and the menu's pause and exclude: what agentd lets the pages read follows them. */
-const ACCESS_SETTINGS = new Set(['wintext', 'grain', 'web', 'typing', 'actions', 'agent_sessions', 'shot', 'keys', 'mask', 'pause', 'exclude']);
-
-/** Once a consent or privacy setting changes, drops every cached read agentd filters by it; open pages read again. */
-export function resetOnAccessChange(client: QueryClient, onChange: (cb: (c: SettingsChange) => void) => Unsubscribe): Unsubscribe {
-  return onChange(({ ids }) => {
-    if (!ids.some((id) => ACCESS_SETTINGS.has(id))) return;
-    for (const queryKey of [['today'], ['overview'], ['memory'], ['observe'], ['brief'], ['pipeline']]) void client.resetQueries({ queryKey });
-  });
-}
 
 /** Noon of `day`: the reads that take a clock pick their day from it. */
 function noonOf(day: string): number {

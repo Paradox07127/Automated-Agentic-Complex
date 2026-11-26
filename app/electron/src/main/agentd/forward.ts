@@ -16,7 +16,7 @@ export class TraceForwarder {
   private readonly epoch: number;
   private readonly send: (events: Event[]) => Promise<number>;
   private readonly clock: () => number;
-  private readonly timer: ReturnType<typeof setInterval>;
+  private timer: ReturnType<typeof setTimeout> | null = null;
   private buffer: Event[] = [];
   /** When the oldest event waiting for the next batch entered the buffer. */
   private firstAt: number | null = null;
@@ -33,12 +33,11 @@ export class TraceForwarder {
     this.epoch = epoch;
     this.send = send;
     this.clock = clock;
-    this.timer = setInterval(() => this.tick(), TRACE_FORWARD.tick * 1000);
-    this.timer.unref();
   }
 
   stop(): void {
-    clearInterval(this.timer);
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
   }
 
   add(events: Event[]): void {
@@ -47,6 +46,7 @@ export class TraceForwarder {
     this.buffer.push(...events);
     this.trim();
     if (this.buffer.length >= TRACE_FORWARD.batchSize) this.flush();
+    else if (this.firstAt !== null) this.schedule(this.firstAt + TRACE_FORWARD.flushAfter - this.clock());
   }
 
   /** Queues its own (`companion`) event `kind` of turn `turnId` that happened at `at`. */
@@ -67,8 +67,18 @@ export class TraceForwarder {
     this.dropped += over;
   }
 
+  private schedule(delayS: number): void {
+    if (this.timer !== null) return;
+    this.timer = setTimeout(() => {
+      this.timer = null;
+      this.tick();
+    }, Math.max(0, Math.ceil(delayS * 1000)));
+    this.timer.unref();
+  }
+
   private flush(): void {
     if (this.sending || this.buffer.length === 0 || this.clock() < this.retryAt) return;
+    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
     const taken = this.buffer.splice(0, this.dropped > 0 ? TRACE_FORWARD.batchSize - 1 : TRACE_FORWARD.batchSize);
     const report = this.dropped > 0 ? { count: this.dropped, since: this.droppedSince ?? new Date(this.clock() * 1000).toISOString() } : null;
     this.dropped = 0;
@@ -91,9 +101,11 @@ export class TraceForwarder {
       this.trim();
       this.firstAt ??= this.clock();
       this.retryAt = this.clock() + TRACE_FORWARD.flushAfter;
+      this.schedule(TRACE_FORWARD.flushAfter);
       return;
     }
     if (this.buffer.length >= TRACE_FORWARD.batchSize) this.flush();
+    else if (this.buffer.length > 0 && this.firstAt !== null) this.schedule(this.firstAt + TRACE_FORWARD.flushAfter - this.clock());
   }
 
   /** Its own C6 §4.1 `trace.dropped` event. */
