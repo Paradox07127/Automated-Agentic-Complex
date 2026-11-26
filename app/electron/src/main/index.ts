@@ -782,13 +782,18 @@ const interaction = config && agentdClient !== null ? (() => {
 
 const log = (line: string) => appendLog(supportDir, 'web-main', line);
 
-/** A sandboxed page without the bridge that says the web UI has not been built. */
+/** A sandboxed page without the bridge: why the packaged launch failed, else that the web UI has not been built. */
 function webMissingPage(): string {
+  const escape = (text: string) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;');
+  const body = bootstrapError !== null
+    ? `<h2>启动准备失败</h2>
+<p>${escape(bootstrapError instanceof Error ? bootstrapError.message : String(bootstrapError))}</p>`
+    : `<h2>界面资源缺失</h2>
+<p>未找到 <code>${escape(WEB_DIST)}</code>。请先运行 <code>npm --prefix web run build</code>，再重新打开主窗口。</p>
+<p>托盘菜单与后台服务仍在运行。</p>`;
   const html = `<!doctype html><meta charset="utf-8"><title>Agentic Complex</title>
 <body style="font: 15px system-ui; margin: 48px; color: #222">
-<h2>界面资源缺失</h2>
-<p>未找到 <code>${WEB_DIST.replaceAll('&', '&amp;').replaceAll('<', '&lt;')}</code>。请先运行 <code>npm --prefix web run build</code>，再重新打开主窗口。</p>
-<p>托盘菜单与后台服务仍在运行。</p></body>`;
+${body}</body>`;
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
 

@@ -58,6 +58,9 @@ LOCALES = ('en-US', 'ja', 'zh-CN', 'zh-TW')
 BROWSER_HOST_FILES = ('native_host.py', 'extension-origin')
 # contents() lists every file at least this large.
 LARGE_FILE = 100 * 1024 * 1024
+# The longest package path that fits MAX_PATH (259 characters and the NUL) under the longest installed root,
+# C:\Users\<20-character user name>\AppData\Local\AgenticComplex\current\ (67 characters).
+MAX_RELATIVE_PATH = 259 - len('C:\\Users\\' + 'u' * 20 + '\\AppData\\Local\\' + PACK_ID + '\\current\\')
 
 
 def stage_host(host, electron_runtime, electron_dir, helper, product_name, app_version):
@@ -259,6 +262,10 @@ def stage(*, library, python, harness_runtime, web_dist, electron_runtime, elect
     finally:
         shutil.rmtree(component_stage)
     check_runtime_python(resources / 'components/runtime.python/payload/python.exe')
+    too_long = [p for p in (path.relative_to(package).as_posix() for path in package.rglob('*') if path.is_file())
+                if len(p) > MAX_RELATIVE_PATH]
+    if too_long:
+        raise ValueError(f'package_path_too_long: {len(too_long)} over {MAX_RELATIVE_PATH}, longest {max(too_long, key=len)}')
     # The .ico brand() embeds, for Setup.exe and Update.exe.
     icon = output / 'AppIcon.ico' if ui_art else None
     if icon: icon.write_bytes(windows_exe.ico(windows_exe.icon((Path(ui_art) / ICON_SOURCE).read_bytes())))

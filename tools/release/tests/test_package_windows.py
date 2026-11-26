@@ -229,6 +229,15 @@ class PackageWindowsTests(unittest.TestCase):
         for path in self.renderer.glob('*.spv'): path.unlink()
         with self.assertRaisesRegex(ValueError, 'renderer_shaders_missing'): self.stage()
 
+    def test_a_file_past_max_path_under_the_longest_installed_root_is_refused(self):
+        prefix = 'resources/components/web-ui/payload/ui/'
+        at_limit = 'a' * (192 - len(prefix))
+        (self.web / at_limit).write_text('web')
+        self.stage()
+        shutil.rmtree(self.output)
+        (self.web / at_limit).unlink(); (self.web / (at_limit + 'b')).write_text('web')
+        with self.assertRaisesRegex(ValueError, f'^package_path_too_long: 1 over 192, longest {prefix}a+b$'): self.stage()
+
     def test_window_envelopes_without_a_row_at_a_rendering_characters_package_version_are_refused(self):
         for rows in (dict(fixture=dict(package_version='0.9.0')), {}):
             self.envelopes.write_text(json.dumps(dict(characters=rows)))
