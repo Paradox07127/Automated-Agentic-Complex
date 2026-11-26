@@ -1,6 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
-import type { ReactNode } from 'react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { StreamEvent } from '../../src/bridge';
 import { AgentdCallError } from '../../src/bridge/agentd';
@@ -19,7 +17,7 @@ import { loadError } from '../../src/pages/chat/useChatData';
 import { reminderTime } from '../../src/pages/overview/briefModel';
 import { createTasksActions, failMessage, type ActionDeps } from '../../src/pages/tasks/actions';
 import { deriveView, emptyLocal } from '../../src/pages/tasks/model';
-import { useSessionLines, watchTasksFeed } from '../../src/pages/tasks/useTasksData';
+import { watchTasksFeed } from '../../src/pages/tasks/useTasksData';
 import { mountTaskDetail } from './taskDetailMount';
 
 afterEach(() => {
@@ -329,21 +327,5 @@ describe('tasks page hears feed events', () => {
     expect(onChange).not.toHaveBeenCalled();
     onEvent!({ event: 'announce', id: null, data: JSON.stringify({ kind: 'dispatch_review', level: 'P2' }) });
     expect(onChange).toHaveBeenLastCalledWith('base');
-  });
-});
-
-describe('running coding session transcript is polled', () => {
-  it('reads the lines again while the session runs', async () => {
-    vi.useFakeTimers();
-    const { calls } = install();
-    const client = new QueryClient();
-    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-    renderHook(() => useSessionLines('own:c07a1b2c3d4e', 0), { wrapper });
-    const reads = () => calls.filter((c) => c.path.startsWith('/sessions/own:c07a1b2c3d4e/lines')).length;
-    await act(() => vi.advanceTimersByTimeAsync(100));
-    expect(reads()).toBe(1);
-    await act(() => vi.advanceTimersByTimeAsync(5000));
-    expect(reads()).toBeGreaterThan(1);
-    client.clear();
   });
 });

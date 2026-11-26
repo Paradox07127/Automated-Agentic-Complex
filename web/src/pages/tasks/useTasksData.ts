@@ -201,10 +201,23 @@ export async function loadSessionLines(sessionId: string, after = 0): Promise<Se
   return { lines: r.lines.map((l) => l.text), next: r.next };
 }
 
-/** Read every few seconds while the session runs (the caller passes null otherwise), each time only the lines after the last; agentd has no session-line event on /feed. */
+/** Read on open while the session runs (the caller passes null otherwise), then again on each `/feed` session line event past the read cursor, each time only the lines after the last. */
 export function useSessionLines(sessionId: string | null, retry: number) {
   const qc = useQueryClient();
   const key = ['session-lines', sessionId, retry];
+  useEffect(() => {
+    if (sessionId == null) return;
+    const lineKey = ['session-lines', sessionId, retry];
+    return getBridge().feed.subscribe(
+      (e) => {
+        if (e.event !== 'session') return;
+        const o = parseRecord(e.data);
+        if (o?.kind !== 'line' || o.session_id !== sessionId || typeof o.seq !== 'number') return;
+        if (o.seq > (qc.getQueryData<SessionLines>(lineKey)?.next ?? 0)) void qc.invalidateQueries({ queryKey: lineKey, exact: true });
+      },
+      () => {},
+    );
+  }, [qc, sessionId, retry]);
   return useQuery({
     queryKey: key,
     queryFn: async (): Promise<SessionLines> => {
@@ -216,7 +229,6 @@ export function useSessionLines(sessionId: string | null, retry: number) {
     enabled: sessionId != null,
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,
-    refetchInterval: () => (typeof document !== 'undefined' && document.hidden ? false : 3000),
   });
 }
 
@@ -257,6 +269,8 @@ export function watchTasksFeed(onPlan: (runId: string, plan: Plan) => void, onCh
       if (e.event === 'plan') {
         const p = parsePlanEvent(e.data);
         if (p) onPlan(p.run_id, p);
+      } else if (e.event === 'session' && parseRecord(e.data)?.kind === 'line') {
+        // A transcript line changes no row; useSessionLines reads it.
       } else if (BASE_EVENTS.has(e.event)) onChange('base');
       // A coding task leaves 验证中 after its verify command, once its session has stopped changing; agentd announces the end here.
       else if (e.event === 'announce') {

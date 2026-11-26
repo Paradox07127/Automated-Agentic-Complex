@@ -1,17 +1,16 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgentdResponse } from '../../src/bridge/protocol';
 import { hotkeyLabels } from '../../src/domain/hotkeys';
 import { NOW, WIRE_DELIVERIES, WIRE_TASK_ROWS } from '../../src/mock/fixtures';
-import { DLV_T1_V1, DLV_T1_V2, S_C07A } from '../../src/mock/fixtures/ids';
+import { DLV_T1_V1, DLV_T1_V2 } from '../../src/mock/fixtures/ids';
 import { Composer, type ComposerProps } from '../../src/pages/chat/Composer';
 import { lookOffReason, useChatTasks } from '../../src/pages/chat/useChatData';
 import { Processes } from '../../src/pages/diag/Processes';
 import { processesOf } from '../../src/pages/diag/status';
-import { useSessionLines } from '../../src/pages/tasks/useTasksData';
 import { paletteItems } from '../../src/shell/CmdPalette.data';
 import { pageRoutes } from '../../src/shell/registry';
 import { DEFAULT_PLUGINS } from '../../src/shell/plugins';
@@ -105,24 +104,6 @@ describe('chat reads every page of the conversation’s tasks', () => {
     expect(reads).toHaveLength(2);
     expect(reads.every((p) => p.includes('conversation_id=conv-1'))).toBe(true);
     expect(reads[1]).toContain('cursor=p2');
-    client.clear();
-  });
-});
-
-describe('a running coding session’s lines are read incrementally', () => {
-  it('asks for the lines after the last seq and appends them', async () => {
-    vi.useFakeTimers();
-    const { calls } = install();
-    const client = new QueryClient();
-    const { result } = renderHook(() => useSessionLines(S_C07A, 0), { wrapper: wrapperOf(client) });
-    await act(() => vi.advanceTimersByTimeAsync(100));
-    const first = result.current.data ?? [];
-    expect(first.length).toBeGreaterThan(0);
-    await act(() => vi.advanceTimersByTimeAsync(3100));
-    const reads = calls.filter((p) => p.startsWith(`/sessions/${S_C07A}/lines`));
-    expect(reads.length).toBeGreaterThan(1);
-    expect(reads.at(-1)).toContain(`after=${first.length}`);
-    expect(result.current.data).toEqual(first);
     client.clear();
   });
 });
