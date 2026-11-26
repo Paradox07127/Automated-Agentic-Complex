@@ -313,7 +313,8 @@ export function parseConfig(text: string, ctx: ConfigContext): Config {
   const agentdLauncher = optional(o, 'agentd_launcher', str) ?? null;
   const harnessSites = optional(o, 'harness_sites', stringMap) ?? {};
   const missingComponents = optional(o, 'missing_components', stringMap) ?? {};
-  const characterLibraryMissing = optional(o, 'character_library_missing', strings) ?? [];
+  // A character_catalog that loaded is a library, also one the user set after the launch that wrote character_library_missing.
+  const characterLibraryMissing = characterCatalog === null ? optional(o, 'character_library_missing', strings) ?? [] : [];
   const agentdPort = required(o, 'agentd_port', int);
   const gpuHoldFiles = required(o, 'gpu_hold_files', strings);
   const supportDir = optional(o, 'support_dir', str) ?? ctx.supportDir;

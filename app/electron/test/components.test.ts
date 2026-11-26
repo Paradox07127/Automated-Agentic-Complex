@@ -193,6 +193,29 @@ test('each failing component gets its reason; one that requires it is requiremen
     (e) => e instanceof ComponentFailure && e.component === 'host' && e.reason === 'componentMissing');
 });
 
+test('the host runs without an interface only when a failed component provides it', (t) => {
+  const hostUnmet = (e: unknown) => e instanceof ComponentFailure && e.component === 'host' && e.reason === 'requirementUnmet';
+  // agentd's manifest provides no C6, and an unrelated character fails.
+  const unrelated = portableApp(join(temp(t), 'a'));
+  write(join(unrelated.bundle, 'agentd/component.json'), manifest('agentd', { sha: SHA('a'), entrypoints: { launcher: 'agentd_launcher.py' },
+    requires: { 'runtime.python': '3.13.9' } }));
+  const lock = JSON.parse(readFileSync(unrelated.lock, 'utf8'));
+  lock.components.push({ id: 'characters.aster', version: '1.0.0', tree_sha256: SHA('b'), placement: 'bundle' });
+  write(unrelated.lock, JSON.stringify(lock));
+  write(join(unrelated.bundle, 'characters.aster/component.json'), manifest('characters.aster', { sha: SHA('b'), entrypoints: { definition: 'character.json' } }));
+  mkdirSync(join(unrelated.bundle, 'characters.aster/payload'));
+  assert.throws(() => resolveComponents(unrelated.lock, unrelated.bundle, join(unrelated.support, 'components'), 'macos-arm64'), hostUnmet);
+
+  // The C6 provider whose entrypoint is gone, or whose manifest cannot be read, still lets the host run.
+  const provider = portableApp(join(temp(t), 'b'));
+  rmSync(join(provider.bundle, 'agentd/payload/agentd_launcher.py'));
+  let r = resolveComponents(provider.lock, provider.bundle, join(provider.support, 'components'), 'macos-arm64');
+  assert.deepEqual(missingOf(r.failures), { agentd: 'entrypointMissing' });
+  const unread = portableApp(join(temp(t), 'c'), ['agentd']);
+  r = resolveComponents(unread.lock, unread.bundle, join(unread.support, 'components'), 'macos-arm64');
+  assert.deepEqual(missingOf(r.failures), { agentd: 'componentMissing' });
+});
+
 test('prepare writes missing_components and empty paths into config.json, and the supervisor does not start agentd', (t) => {
   const app = portableApp(temp(t), ['agentd']);
   const configPath = join(app.support, 'config.json');
@@ -200,6 +223,8 @@ test('prepare writes missing_components and empty paths into config.json, and th
     agentd_dir: '/old', python: '/old/python', characters: [{ id: 'aster', name: '示例甲', avatar_app: '/Old.app' }] }));
   const composition = prepareComponents({ resources: app.resources, support: app.support, layout: 'portable', platform: 'mac' });
   assert.deepEqual(composition.missing, { agentd: 'componentMissing' });
+  // The supervisor checks a ready agentd's c6_contract against it.
+  assert.deepEqual(composition.hostRequires, { C6: '1' });
   writeComposition(configPath, composition);
   const written = JSON.parse(readFileSync(configPath, 'utf8'));
   assert.deepEqual(written.missing_components, { agentd: 'componentMissing' });

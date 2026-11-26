@@ -395,6 +395,7 @@ function restartServices(what: string, only?: ServiceId): void {
 }
 const supervisor = config && new AgentdSupervisor({
   config, reload: () => loadConfig(configPath), launcherScript: config.agentdLauncher ?? LAUNCHER, pythonFlags: PYTHON_FLAGS,
+  ...(packaged?.composition.hostRequires.C6 !== undefined && { c6Contract: packaged.composition.hostRequires.C6 }),
   // Read at each start: a switch or the first import changes it.
   character: (c) => launchCharacter(c, lastCharacter(c.supportDir)),
   privacyConfigPath: configPath, onStatus: (state) => {

@@ -11,11 +11,14 @@ export class ComponentFailure extends Error {
   /** null when the lock as a whole is unreadable or malformed. */
   readonly component: string | null;
   readonly reason: Reason;
+  /** The interfaces the component's manifest provides; undefined when no manifest of it was read. */
+  readonly provides: Record<string, string> | undefined;
 
-  constructor(component: string | null, reason: Reason) {
+  constructor(component: string | null, reason: Reason, provides?: Record<string, string>) {
     super(`${component ?? 'composition.lock.json'} ${reason}`);
     this.component = component;
     this.reason = reason;
+    this.provides = provides;
   }
 }
 
@@ -157,8 +160,8 @@ export function parseIndex(text: string): IndexEntry[] {
 
 /**
  * Over the manifests that loaded, drops each one whose component or interface requirements the rest do not meet, as
- * `requirementUnmet`, until none drops. The host runs without a provider that did not load (it is already in `failures`);
- * throws when the host itself is unmet.
+ * `requirementUnmet`, until none drops. The host runs without an interface when a failed component provides it, or
+ * might (no manifest of it was read); throws when the host itself is unmet.
  */
 export function dropUnmet(lock: Lock, loaded: Manifest[], failures: ComponentFailure[]): { kept: Manifest[]; failures: ComponentFailure[] } {
   let kept = loaded;
@@ -170,13 +173,13 @@ export function dropUnmet(lock: Lock, loaded: Manifest[], failures: ComponentFai
     const met = (m: Manifest, name: string, version: string) => {
       if (isInterface(name) ? provided.has(`${name}\0${version}`) : versions.get(name) === version) return true;
       if (m.id !== lock.host.id) return false;
-      if (isInterface(name)) return failed.length > 0 && !interfaces.has(name);
+      if (isInterface(name)) return !interfaces.has(name) && failed.some((f) => f.provides === undefined || Object.hasOwn(f.provides, name));
       return lock.components.some((c) => c.id === name && c.version === version) && failed.some((f) => f.component === name);
     };
     const unmet = new Set(kept.filter((m) => !Object.entries(m.requires).every(([k, v]) => met(m, k, v))).map((m) => m.id));
     if (unmet.size === 0) return { kept, failures: failed };
     if (unmet.has(lock.host.id)) throw new ComponentFailure(lock.host.id, 'requirementUnmet');
-    for (const m of kept) if (unmet.has(m.id)) failed.push(new ComponentFailure(m.id, 'requirementUnmet'));
+    for (const m of kept) if (unmet.has(m.id)) failed.push(new ComponentFailure(m.id, 'requirementUnmet', m.provides));
     kept = kept.filter((m) => !unmet.has(m.id));
   }
 }

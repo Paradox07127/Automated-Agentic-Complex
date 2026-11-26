@@ -85,7 +85,7 @@ export function crashState(decision: BackoffDecision): ChildState {
 }
 
 export type Health =
-  | { kind: 'ready'; degraded: string[] }
+  | { kind: 'ready'; degraded: string[]; c6Contract?: string }
   | { kind: 'starting'; stage: string; degraded: string[] }
   | { kind: 'unreachable' };
 
@@ -94,9 +94,15 @@ export function parseHealth(body: unknown): Health {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) return { kind: 'unreachable' };
   const b = body as Record<string, unknown>;
   const degraded = Array.isArray(b.degraded) && b.degraded.every((x) => typeof x === 'string') ? b.degraded as string[] : [];
-  if (b.status === 'ok') return { kind: 'ready', degraded };
+  if (b.status === 'ok') return typeof b.c6_contract === 'string' ? { kind: 'ready', degraded, c6Contract: b.c6_contract } : { kind: 'ready', degraded };
   if (b.status === 'starting') return { kind: 'starting', stage: typeof b.stage === 'string' ? b.stage : '', degraded };
   return { kind: 'unreachable' };
+}
+
+/** A ready agentd's `c6_contract` against the host manifest's `requires.C6` (`1` there is `v1` in /health); null when they agree. */
+export function contractFailure(got: string | undefined, required: string): ChildState | null {
+  const want = `v${required}`;
+  return got === want ? null : { kind: 'failed', reason: `agentd 契约版本不符：${got ?? '无'} ≠ ${want}` };
 }
 
 export type HealthStep =

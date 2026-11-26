@@ -43,7 +43,7 @@ export function treeHash(root: string, externalID?: string): Tree {
   return { sha256: createHash('sha256').update(records.join('\n')).digest('hex'), files: records.length, bytes };
 }
 
-export interface Component { id: string; version: string; payload: string; entrypoints: Record<string, string> }
+export interface Component { id: string; version: string; payload: string; entrypoints: Record<string, string>; requires: Record<string, string> }
 
 /** The real path, or null when it does not resolve. */
 function real(path: string): string | null {
@@ -88,28 +88,27 @@ function resolveLock(lock: Lock, bundle: string, support: string, platform: Comp
     const dir = entry.placement === 'bundle' ? join(bundle, entry.id) : join(support, entry.id, `${entry.version}-${entry.sha256.slice(0, 8)}`);
     const payload = fixed ? contents : join(dir, 'payload');
     const manifest = verified ? verified.get(entry.id) : manifestAt(join(dir, 'component.json'), entry.id, platform);
-    if (!manifest || !(fixed || (existsSync(payload) && statSync(payload).isDirectory()))) {
-      throw new ComponentFailure(entry.id, 'componentMissing');
-    }
+    const fail = (reason: Reason) => new ComponentFailure(entry.id, reason, manifest?.provides);
+    if (!manifest || !(fixed || (existsSync(payload) && statSync(payload).isDirectory()))) throw fail('componentMissing');
     if (manifest.id !== entry.id || manifest.version !== entry.version || manifest.sha256 !== entry.sha256
-      || manifest.platform !== lock.platform) throw new ComponentFailure(entry.id, 'manifestMismatch');
+      || manifest.platform !== lock.platform) throw fail('manifestMismatch');
     const root = real(payload);
-    if (root === null) throw new ComponentFailure(entry.id, 'componentMissing');
+    if (root === null) throw fail('componentMissing');
     for (const target of Object.values(manifest.placed)) {
-      if (!inside(join(contents, target), root)) throw new ComponentFailure(entry.id, 'componentMissing');
+      if (!inside(join(contents, target), root)) throw fail('componentMissing');
     }
     const entrypoints: Record<string, string> = {};
     for (const [name, path] of Object.entries(manifest.entrypoints)) {
       let file = join(payload, path);
       if (fixed) {
         const place = Object.entries(manifest.placed).find(([source]) => path === source || path.startsWith(source + '/'));
-        if (place === undefined) throw new ComponentFailure(entry.id, 'entrypointMissing');
+        if (place === undefined) throw fail('entrypointMissing');
         file = join(contents, place[1] + path.slice(place[0].length));
       }
-      if (!inside(file, root)) throw new ComponentFailure(entry.id, 'entrypointMissing');
+      if (!inside(file, root)) throw fail('entrypointMissing');
       entrypoints[name] = file;
     }
-    return { manifest, component: { id: entry.id, version: entry.version, payload, entrypoints } };
+    return { manifest, component: { id: entry.id, version: entry.version, payload, entrypoints, requires: manifest.requires } };
   };
   const loaded: { manifest: Manifest; component: Component }[] = [], failures: ComponentFailure[] = [];
   for (const entry of [lock.host, ...lock.components]) {
@@ -232,6 +231,8 @@ export interface Composition {
   missing: Record<string, Reason>;
   /** The payloads of the `characters.` components, in lock order: what the seed library is composed of. */
   characters: string[];
+  /** The host manifest's `requires`. */
+  hostRequires: Record<string, string>;
 }
 
 /**
@@ -288,6 +289,8 @@ export function prepareComponents(options: { resources: string; support: string;
     // agentd exits 2 on any other --harness-site ID (C9).
     harnessSites: Object.fromEntries(resolved.components.filter((c) => c.id === 'harness.pi').map((c) => [c.id, c.payload])),
     missing, characters: resolved.components.filter((c) => c.id.startsWith('characters.')).map((c) => c.payload),
+    // The host always resolves: prepare throws otherwise.
+    hostRequires: resolved.components.find((c) => c.id === 'host')!.requires,
   };
 }
 

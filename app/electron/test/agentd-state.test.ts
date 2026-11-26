@@ -50,7 +50,9 @@ test('a run of 60 s restarts the delays at 1 s, and crashes older than 300 s no 
 });
 
 test('/health replies: ok is ready, starting carries the stage, anything else is unreachable', () => {
-  assert.deepEqual(parseHealth({ status: 'ok', degraded: ['observations'], c6_contract: 'v1' }), { kind: 'ready', degraded: ['observations'] });
+  assert.deepEqual(parseHealth({ status: 'ok', degraded: ['observations'], c6_contract: 'v1' }),
+    { kind: 'ready', degraded: ['observations'], c6Contract: 'v1' });
+  assert.deepEqual(parseHealth({ status: 'ok' }), { kind: 'ready', degraded: [] });
   assert.deepEqual(parseHealth({ status: 'starting', stage: 'storage', degraded: [] }), { kind: 'starting', stage: 'storage', degraded: [] });
   for (const body of [null, [], 'ok', { status: 'down' }]) assert.deepEqual(parseHealth(body), { kind: 'unreachable' });
 });

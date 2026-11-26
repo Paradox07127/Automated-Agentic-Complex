@@ -503,3 +503,61 @@ test('fps tier: each `line` of the feed is a noteLine; `typing` is the desktop\'
   h.done();
   assert.equal(feedListener, null);
 });
+
+test('the presence poll timer runs only while there is no feed or /desktop/presence fails; the panels get the same presence', async () => {
+  const realSet = globalThis.setInterval, realClear = globalThis.clearInterval;
+  /** The live 10 s intervals, each with its callback. */
+  const polls = new Map<unknown, () => void>();
+  globalThis.setInterval = ((fn: () => void, ms?: number) => {
+    const t = realSet(fn, ms);
+    if (ms === 10_000) polls.set(t, fn);
+    return t;
+  }) as typeof setInterval;
+  globalThis.clearInterval = ((t: ReturnType<typeof setInterval>) => {
+    polls.delete(t);
+    realClear(t);
+  }) as typeof clearInterval;
+  const settle = () => new Promise((r) => setImmediate(r));
+  try {
+    let status = 200, n = 0;
+    const request: Request = async () => ({ status, body: JSON.stringify({ n: ++n }) });
+    let feedListener: ((e: StreamEvent) => void) | null = null;
+    const feed: EventSource = { subscribe: (_after, onEvent) => {
+      feedListener = onEvent;
+      return () => { feedListener = null; };
+    } };
+    const h = setup(['--no-attention'], { feed, request });
+    h.desktop.start();
+    await settle();
+    const got = h.watch('/bubble', 'desktop.onPresence');
+    assert.deepEqual([polls.size, got], [0, [{ n: 1 }]]);
+    feedListener!({ event: 'presence', id: null, data: '{}' });
+    await settle();
+    assert.deepEqual([polls.size, got], [0, [{ n: 1 }, { n: 2 }]]);
+    status = 503;
+    feedListener!({ event: 'presence', id: null, data: '{}' });
+    await settle();
+    assert.equal(polls.size, 1);
+    [...polls.values()][0]!();
+    await settle();
+    assert.equal(polls.size, 1);
+    status = 200;
+    [...polls.values()][0]!();
+    await settle();
+    assert.deepEqual([polls.size, got], [0, [{ n: 1 }, { n: 2 }, { n: 5 }]]);
+    h.done();
+
+    const bare = setup(['--no-attention'], { request });
+    bare.desktop.start();
+    await settle();
+    assert.equal(polls.size, 1);
+    [...polls.values()][0]!();
+    await settle();
+    assert.deepEqual([polls.size, bare.watch('/bubble', 'desktop.onPresence')], [1, [{ n: 7 }]]);
+    bare.done();
+    assert.equal(polls.size, 0);
+  } finally {
+    globalThis.setInterval = realSet;
+    globalThis.clearInterval = realClear;
+  }
+});

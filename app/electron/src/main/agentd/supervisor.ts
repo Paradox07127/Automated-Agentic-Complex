@@ -6,8 +6,8 @@ import { createServer } from 'node:net';
 import { constants } from 'node:os';
 import { join } from 'node:path';
 import {
-  agentdArguments, agentdEnv, Backoff, type ChildState, crashState, HealthWatch, launchFailure, preflightFailure, sameState, stateText,
-  TIMING,
+  agentdArguments, agentdEnv, Backoff, type ChildState, contractFailure, crashState, HealthWatch, launchFailure, preflightFailure, sameState,
+  stateText, TIMING,
 } from '../../common/agentd.ts';
 import { type Config, launchAgentdDir } from '../../common/config.ts';
 import { type Plugins, shellPlan } from '../../common/plugins.ts';
@@ -49,6 +49,9 @@ export interface SupervisorOptions {
   /** config.json read again for each restart; throws when it does not load.
    *  Absent restarts with `config`. */
   reload?: () => Config;
+  /** The host manifest's `requires.C6`: a ready agentd reporting another `c6_contract` is stopped and failed. Absent without a
+   *  host manifest. */
+  c6Contract?: string;
   onStatus?: (state: ChildState) => void;
   /** /health's stage and degraded subsystems while starting, each time either changes;
    *  then, just after `running`, a null stage with the ready reply's degraded list. */
@@ -123,9 +126,10 @@ export class AgentdSupervisor {
     return this.halt('companion_exit');
   }
 
-  private halt(reason: string): Promise<void> {
+  /** `end` is the state once agentd is stopped. */
+  private halt(reason: string, end: ChildState = { kind: 'stopped' }): Promise<void> {
     this.requests += 1;
-    this.stopping ??= this.stopNow(reason).finally(() => { this.stopping = undefined; });
+    this.stopping ??= this.stopNow(reason, end).finally(() => { this.stopping = undefined; });
     return this.stopping;
   }
 
@@ -181,6 +185,12 @@ export class AgentdSupervisor {
       if (launchGen !== this.generation) return;
       const step = watch.observe(reply, seconds());
       if (step.action === 'ready') {
+        const required = this.options.c6Contract;
+        const mismatch = reply.kind === 'ready' && required !== undefined ? contractFailure(reply.c6Contract, required) : null;
+        if (mismatch !== null) {
+          void this.halt('contract_mismatch', mismatch);
+          return;
+        }
         this.setState({ kind: 'running' });
         // After `running`: a state change clears the stage and degraded already reported for this run.
         if (reply.kind === 'ready') this.options.onHealth?.(null, reply.degraded);
@@ -285,7 +295,7 @@ export class AgentdSupervisor {
     });
   }
 
-  private async stopNow(reason: string): Promise<void> {
+  private async stopNow(reason: string, end: ChildState): Promise<void> {
     const child = this.child;
     const live = child !== null && running(child);
     // Cancels probes and retries before waiting for the process.
@@ -309,6 +319,6 @@ export class AgentdSupervisor {
       quit.logged = true;
     }
     this.child = null;
-    this.setState({ kind: 'stopped' });
+    this.setState(end);
   }
 }

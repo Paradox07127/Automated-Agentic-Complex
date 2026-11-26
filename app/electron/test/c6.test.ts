@@ -14,7 +14,7 @@ const fixture = (name: string): unknown =>
   JSON.parse(readFileSync(new URL(`../../../protocol/C6-agentd-api/fixtures/${name}`, import.meta.url), 'utf8'));
 
 test('the C6 fixtures decode: health, state with a character, idle state without one', () => {
-  assert.deepEqual(parseHealth(fixture('health.json')), { kind: 'ready', degraded: ['observations'] });
+  assert.deepEqual(parseHealth(fixture('health.json')), { kind: 'ready', degraded: ['observations'], c6Contract: 'v1' });
   assert.deepEqual(decodeState(fixture('state.json')), { character: 'voice_a', switchingTo: 'si' });
   assert.deepEqual(decodeState(fixture('state-idle.json')), { character: null, switchingTo: null });
   assert.deepEqual(decodeState({ character: null, switching: null }), { character: null, switchingTo: null });

@@ -117,6 +117,8 @@ export class DesktopAssembly {
   private readonly follow: DesktopFollow;
   private timer: ReturnType<typeof setInterval> | null = null;
   private presenceTimer: ReturnType<typeof setInterval> | null = null;
+  /** Between start and stop. */
+  private started = false;
   private hoverTimer: ReturnType<typeof setInterval> | null = null;
   private dock: DockState = DOCK_IDLE;
   /** 说话 records from the hover buttons: they stay. */
@@ -234,11 +236,9 @@ export class DesktopAssembly {
     }
     this.recentChanged();
     if (this.hotkeyOn) this.hotkey.register(quickInputHotkey());
+    this.started = true;
     void this.pollPresence();
-    this.presenceTimer ??= setInterval(() => {
-      if (this.o.systemPaused?.()) return;
-      if (!this.o.feed || this.failingSince !== null) void this.pollPresence();
-    }, PRESENCE_MS);
+    this.presencePolling();
     this.hoverTimer ??= setInterval(() => this.hoverTick(), TICK_MS);
     if (this.unlisten.length > 0) return;
     const { noteLine, mouseDowns } = this.o;
@@ -300,6 +300,7 @@ export class DesktopAssembly {
   }
 
   stop(): void {
+    this.started = false;
     if (this.timer) clearInterval(this.timer);
     if (this.presenceTimer) clearInterval(this.presenceTimer);
     if (this.hoverTimer) clearInterval(this.hoverTimer);
@@ -446,6 +447,20 @@ export class DesktopAssembly {
       const now = Date.now();
       this.failingSince ??= now;
       if (now - this.failingSince >= PRESENCE_OFFLINE_MS) this.presence.send({ offline: true });
+    }
+    this.presencePolling();
+  }
+
+  /** The presence poll timer runs, between start and stop, only while there is no feed or the feed is failing. */
+  private presencePolling(): void {
+    const want = this.started && (!this.o.feed || this.failingSince !== null);
+    if (want && !this.presenceTimer) {
+      this.presenceTimer = setInterval(() => {
+        if (!this.o.systemPaused?.()) void this.pollPresence();
+      }, PRESENCE_MS);
+    } else if (!want && this.presenceTimer) {
+      clearInterval(this.presenceTimer);
+      this.presenceTimer = null;
     }
   }
 
