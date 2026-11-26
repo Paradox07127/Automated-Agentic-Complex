@@ -27,6 +27,7 @@ import { agentdOps } from '../src/main/ops/agentd.ts';
 import { avatarOps } from '../src/main/ops/avatar.ts';
 import type { OpsContext } from '../src/main/ops/context.ts';
 import { characterOps } from '../src/main/ops/character.ts';
+import { runAgentdTool } from '../src/main/ops/tools.ts';
 import { CharacterSwitch } from '../src/common/switch.ts';
 import { AvatarLooks, linkSwitchPorts, rememberedLooks } from '../src/main/renderer/looks.ts';
 import { supervisorOps } from '../src/main/ops/supervisor.ts';
@@ -435,6 +436,34 @@ e2e('with an empty library agentd comes up without a character; after an import 
   assert.ok(await until(START_TIMEOUT, async () => (character = await stack.character()) === 'aide'),
     `agentd says ${character}: ${stack.states}`);
   assert.equal(stack.hostLaunches, 0);
+}, { library: 'protocol/character-library/fixtures/empty-library',
+  windows: 'the import validates with mock_host.py through a #!/bin/sh wrapper, which Windows cannot start' });
+
+e2e('character.importPackage runs character_tool with its stages on character.onImport, then agentd restarts as the new character', 180, async (stack) => {
+  stack.start();
+  assert.ok(await stack.waitRunning(), `agentd not running: ${stack.states}`);
+  assert.equal(await stack.character(), null);
+  const packages = join(REPO, 'characters/sample-library/packages/aide');
+  const source = join(packages, readdirSync(packages)[0]!);
+  const pushed: { kind: string | null; title: string | null; stage: string | null; running: boolean }[] = [];
+  const ctx = { surface: 'main', routes, config: { path: stack.configPath, supportDir: stack.support, devResources: null }, agentd: null,
+    avatar: null, switcher: null, supervisor: stack.supervisor, log: () => {}, dialog: { pickPackage: async () => source },
+    library: { catalog: join(stack.dir, 'library/current.json'), launched: '', characterName: '', hookCommand: '',
+      validationHost: () => stack.mockHost, rosterChanged: () => {},
+      runTool: (script: string, args: string[], progress?: Parameters<typeof runAgentdTool>[5]) =>
+        runAgentdTool(stack.python, ['-I'], join(REPO, 'agent/agentd'), script, args, progress) } } as unknown as OpsContext;
+  const page = new PageSession((_id, stream, kind, payload) => {
+    if (stream === 'character.onImport' && kind === 'event') pushed.push(JSON.parse(payload!.data));
+  });
+  const ops = new Map(Object.entries(characterOps(ctx)));
+  const call = (op: string, ...args: unknown[]) => handle('main', { mainFrame: true, origin: ORIGIN }, { op, args }, ops, page);
+  await call('character.onImport', 1);
+  assert.deepEqual(await call('character.importPackage'), { ok: true, value: { ok: true } });
+  assert.deepEqual(pushed.map((s) => s.stage), [null, 'read', 'validate', 'write', 'publish', 'reload', null]);
+  assert.ok(pushed.slice(0, -1).every((s) => s.running && s.kind === 'package' && s.title === basename(source)));
+  let character: string | null | undefined;
+  assert.ok(await until(START_TIMEOUT, async () => (character = await stack.character()) === 'aide'),
+    `agentd says ${character}: ${stack.states}`);
 }, { library: 'protocol/character-library/fixtures/empty-library',
   windows: 'the import validates with mock_host.py through a #!/bin/sh wrapper, which Windows cannot start' });
 
