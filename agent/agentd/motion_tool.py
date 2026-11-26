@@ -23,7 +23,7 @@ import sys
 AGENTD = Path(__file__).resolve().parent
 sys.path.insert(0, str(AGENTD))  # -I leaves the script's folder off the path
 from character_library import Library, Package, PackageError, digest, read_json, validate_pack, write_json
-from infra.platform import lock_file
+from infra.platform import DECODES_MUSIC, lock_file
 from motion.zip_import import AUDIO, Failure, classify, extract, fail, placed, walk
 
 # The host refuses a character with more action rows or motion media tracks than this.
@@ -154,7 +154,7 @@ def music(path):
     """path, the music a user named, or None for None; bad_source unless it is a regular file, no link, of an audio suffix and
     within prepare_music's size limit, and on Windows, where prepare_music has no decoder program."""
     if path is None: return None
-    if sys.platform == "win32": fail("bad_source", "bgm_unsupported_on_windows: " + str(path))
+    if not DECODES_MUSIC: fail("bad_source", "bgm_unsupported_on_windows: " + str(path))
     if path.is_symlink() or not path.is_file(): fail("bad_source", "the music is no regular file: " + str(path))
     if path.suffix.lower() not in AUDIO: fail("bad_source", "the music is no audio file: " + str(path))
     limit = importlib.import_module(importer() + ".import_vmd").MAX_MUSIC_BYTES

@@ -937,14 +937,14 @@ class MotionToolTests(unittest.TestCase):
         """Each song refused by run(song) as bad_source, with the library untouched; also a wav over the size limit and any wav on
         Windows."""
         from unittest import mock
-        import motion_tool  # imported before sys.platform changes
+        import motion_tool
         from agentic_complex_build import import_vmd
         before = self.files()
         failed = lambda: json.loads(run(song)[2].strip().splitlines()[-1])["reason"]
         for song in songs: self.assertEqual(failed(), "bad_source", song)
         song = self.wav("song.wav")
         with mock.patch.object(import_vmd, "MAX_MUSIC_BYTES", song.stat().st_size - 1): self.assertEqual(failed(), "bad_source")
-        with mock.patch.object(sys, "platform", "win32"): self.assertEqual(failed(), "bad_source")
+        with mock.patch.object(motion_tool, "DECODES_MUSIC", False): self.assertEqual(failed(), "bad_source")
         self.assertEqual({p: b for p, b in self.files().items() if p.parts[0] != ".vmd-stage"},
                          {p: b for p, b in before.items() if p.parts[0] != ".vmd-stage"})
 

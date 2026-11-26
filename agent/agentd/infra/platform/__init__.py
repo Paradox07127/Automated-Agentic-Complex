@@ -35,6 +35,7 @@ store_app_folders(prefix)          the install folders of the current user's Mic
                                    with prefix, from the registry; [] on POSIX.
 THIS_MACHINE, USER_MACHINE         how prompts name the machine she runs on: 这台 Mac / the user's Mac on macOS,
                                    这台电脑 / the user's computer on Windows.
+DECODES_MUSIC                      the motion importer can decode imported music: macOS afconvert; Windows ships none.
 long_path(path)                    the str to open path's files by: on Windows windows_long_path(path), which opens
                                    past MAX_PATH without the system's long-path switch; elsewhere path unchanged.
 plain_path(path)                   the str of path without that prefix, for what leaves agentd (another process's
@@ -49,6 +50,7 @@ import shlex
 import sys
 
 THIS_MACHINE, USER_MACHINE = ("这台电脑", "the user's computer") if sys.platform == "win32" else ("这台 Mac", "the user's Mac")
+DECODES_MUSIC = sys.platform != "win32"
 
 
 def windows_long_path(path):
