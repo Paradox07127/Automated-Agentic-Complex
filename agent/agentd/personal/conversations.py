@@ -18,10 +18,6 @@ class Conversations:
         self.character_id = character_id
         self.run_store = None
         with self.lock, self.db:
-            self.db.execute("CREATE TABLE IF NOT EXISTS conversations (id TEXT PRIMARY KEY, title TEXT NOT NULL, pinned INTEGER NOT NULL DEFAULT 0, archived INTEGER NOT NULL DEFAULT 0, revision INTEGER NOT NULL DEFAULT 1, created_at REAL NOT NULL, character_id TEXT NOT NULL)")
-            self.db.execute("CREATE TABLE IF NOT EXISTS conversation_turns (event_id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL)")
-            self.db.execute("CREATE INDEX IF NOT EXISTS conversation_turns_conversation ON conversation_turns(conversation_id)")
-            self.db.execute("CREATE TABLE IF NOT EXISTS conversation_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
             if 'character_id' not in {r[1] for r in self.db.execute('PRAGMA table_info(conversations)')}:
                 self.db.execute("ALTER TABLE conversations ADD COLUMN character_id TEXT")
                 self.db.execute("UPDATE conversations SET character_id=COALESCE(("

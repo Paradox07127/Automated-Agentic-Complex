@@ -119,13 +119,14 @@ class HistorySearchTest(unittest.TestCase):
         self.assertEqual(self.history.search("部署", skip_recent=0), [])
         self.assertEqual(self.db.execute("SELECT COUNT(*) FROM history_fts").fetchone()[0], 0)
 
-    def test_only_typed_and_spoken_turns_are_found(self):
+    def test_all_channel_turns_are_found(self):
         typed = self.add("帮我部署一下服务", "好")
         spoken = self.add("部署好了吗", "好了", source="voice")
-        self.add("要不要部署", "嗯", source="proactive")
-        self.add("部署完成", "嗯", source="announce")
-        self.assertCountEqual(self.turn_ids("部署", skip_recent=0), [typed, spoken])
-        self.assertEqual({hit["source"] for hit in self.history.search("部署", skip_recent=0)}, {"text", "voice"})
+        proactive = self.add("要不要部署", "嗯", source="proactive")
+        announce = self.add("部署完成", "嗯", source="announce")
+        self.assertCountEqual(self.turn_ids("部署", k=10, skip_recent=0), [typed, spoken, proactive, announce])
+        self.assertEqual({hit["source"] for hit in self.history.search("部署", k=10, skip_recent=0)},
+                         {"text", "voice", "proactive", "announce"})
 
     def test_other_characters_turns_are_left_out(self):
         own = self.add("帮我部署一下服务", "好")
@@ -133,14 +134,14 @@ class HistorySearchTest(unittest.TestCase):
         self.assertEqual(self.turn_ids("部署", skip_recent=0, character_id="aster"), [own])
         self.assertCountEqual(self.turn_ids("部署", skip_recent=0), [own, other])
 
-    def test_skip_recent_counts_only_this_characters_typed_and_spoken_turns(self):
+    def test_skip_recent_counts_only_this_characters_turns(self):
         deploy = self.add("帮我部署一下服务", "好")
         self.add("闲聊", "好")
         for i in range(3):
             self.add(f"闲聊{i}", "好", character_id="birch")
             self.add(f"主动{i}", "好", source="proactive")
-        self.assertEqual(self.turn_ids("部署", skip_recent=1, character_id="aster"), [deploy])
-        self.assertEqual(self.turn_ids("部署", skip_recent=2, character_id="aster"), [])
+        self.assertEqual(self.turn_ids("部署", skip_recent=4, character_id="aster"), [deploy])
+        self.assertEqual(self.turn_ids("部署", skip_recent=5, character_id="aster"), [])
 
     def test_rows_from_before_the_index_are_backfilled(self):
         self.db.close()

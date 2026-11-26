@@ -25,7 +25,6 @@ _spec.loader.exec_module(c8)
 TOOLS = [{"name": "fixture_read", "description": "Read a fixture",
           "input_schema": {"type": "object", "properties": {"path": {"type": "string"}}}}]
 SYSTEM_PROMPT = "-Synthetic personal assistant."
-REMINDER = "Stay in character when you speak to the user between tool calls."
 
 
 def fake_cli(directory, script="normal", **env):
@@ -270,43 +269,6 @@ class ClaudeRunnerTest(unittest.TestCase):
                 self.assertEqual(runner.close(), 0)
                 self.assertIsNone(c8.check(runner.lines))
 
-    @unittest.skipIf(sys.platform == "win32", "the fake Claude CLI is a /bin/sh script")
-    def test_a_tool_reminder_answers_every_post_tool_use_hook(self):
-        for native in (False, True):
-            with self.subTest(native_tools=native):
-                workspace = tempfile.TemporaryDirectory()
-                self.addCleanup(workspace.cleanup)
-                runner = RunnerProcess(self, "hook", tool_reminder=REMINDER, native_tools=native,
-                                       workspace_dir=workspace.name)
-                runner.next("ready")
-                [init] = [r["message"]["request"] for r in cli_log(runner.log, "stdin")
-                          if r["message"]["type"] == "control_request"]
-                self.assertEqual(init["subtype"], "initialize")
-                [matcher] = init["hooks"]["PostToolUse"]
-                self.assertEqual(set(init["hooks"]), {"PostToolUse"})
-                self.assertIsNone(matcher["matcher"])
-                self.assertEqual(len(matcher["hookCallbackIds"]), 1)
-                runner.query("run-1")
-                result, _ = runner.next("result")
-                self.assertEqual(result["final_text"], REMINDER)
-                [reply] = [r["reply"] for r in cli_log(runner.log, "hook_reply")]
-                self.assertEqual(reply, {"subtype": "success", "request_id": "cli_1", "response": {"hookSpecificOutput": {
-                    "hookEventName": "PostToolUse", "additionalContext": REMINDER}}})
-                self.assertEqual(runner.close(), 0)
-                self.assertIsNone(c8.check(runner.lines))
-
-    @unittest.skipIf(sys.platform == "win32", "the fake Claude CLI is a /bin/sh script")
-    def test_without_a_tool_reminder_no_hook_is_registered_or_answered(self):
-        runner = RunnerProcess(self, "hook")
-        runner.next("ready")
-        [init] = [r["message"]["request"] for r in cli_log(runner.log, "stdin") if r["message"]["type"] == "control_request"]
-        self.assertEqual(init, {"subtype": "initialize"})
-        runner.query("run-1")
-        result, _ = runner.next("result")
-        self.assertEqual(result["final_text"], "refused")
-        self.assertEqual(cli_log(runner.log, "hook_reply")[0]["reply"]["subtype"], "error")
-        self.assertEqual(runner.close(), 0)
-
     def user_messages(self, runner):
         return [r["message"] for r in cli_log(runner.log, "stdin") if r["message"]["type"] == "user"]
 
@@ -347,20 +309,6 @@ class ClaudeRunnerTest(unittest.TestCase):
         self.assertEqual(runner.close(), 0)
         self.assertEqual(len(self.user_messages(runner)), 1)
         self.assertIsNone(c8.check(runner.lines))
-
-    def test_the_tool_reminder_is_validated_and_wired(self):
-        sys.path.insert(0, str(AGENTD))
-        from character_agent.harness.claude_transport import ClaudeConfig
-        root = Path(tempfile.gettempdir()) / "fixture"
-        fields = {"state_dir": str(root / "state"), "model": "", "cli_path": str(root / "claude"),
-                  "workspace_dir": str(root / "w"), "native_tools": False}
-        for value in ("", "x" * 1001, 5, b"remind"):
-            with self.subTest(value=value):
-                with self.assertRaisesRegex(ValueError, "^invalid_tool_reminder$"):
-                    ClaudeConfig(**fields, tool_reminder=value).validate()
-        self.assertEqual(ClaudeConfig(**fields, tool_reminder="x" * 1000).wire()["tool_reminder"], "x" * 1000)
-        self.assertIsNone(ClaudeConfig(**fields).wire()["tool_reminder"])
-
 
 class PermissionPreviewTest(unittest.IsolatedAsyncioTestCase):
     async def test_a_large_tool_input_reaches_the_card_cut_with_its_path_whole(self):

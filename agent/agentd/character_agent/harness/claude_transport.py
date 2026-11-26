@@ -24,8 +24,6 @@ class ClaudeConfig:
     native_home: str | None = None
     runtime_source: str = "local"
     effort: str | None = None
-    # Added to the model's context after every tool call; None: no hook is registered.
-    tool_reminder: str | None = None
     backend: str = field(default="claude", init=False)
     # The directory the harness's own tools work in; native_tools False: the harness offers none of them.
     workspace_dir: str = field(kw_only=True)
@@ -40,9 +38,6 @@ class ClaudeConfig:
             raise ValueError("invalid_runtime_source")
         if not isinstance(self.model, str) or len(self.model) > 256:
             raise ValueError("invalid_model")
-        if self.tool_reminder is not None and (not isinstance(self.tool_reminder, str) or not self.tool_reminder or
-                                               len(self.tool_reminder) > 1000):
-            raise ValueError("invalid_tool_reminder")
         if not isinstance(self.workspace_dir, str) or not Path(self.workspace_dir).is_absolute():
             raise ValueError("workspace_dir_must_be_absolute")
         if type(self.native_tools) is not bool:
@@ -64,7 +59,7 @@ class ClaudeConfig:
         self.validate(require_key=False)
         return {"state_dir": str(Path(self.state_dir).resolve()), "model": self.model, "cli_path": self.cli_path,
                 "tool_timeout": self.tool_timeout, "effort": self.effort, "workspace_dir": self.workspace_dir,
-                "native_tools": self.native_tools, "tool_reminder": self.tool_reminder}
+                "native_tools": self.native_tools}
 
     def public(self):
         return {"backend": self.backend, "runtime_source": self.runtime_source, "auth_mode": self.auth_mode,

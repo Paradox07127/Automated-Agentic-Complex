@@ -1,7 +1,6 @@
 """A turn: /say and /look, claiming and running a line, and its history row."""
 import contextvars
 import datetime
-import re
 import secrets
 import sqlite3
 import sys
@@ -17,10 +16,8 @@ from brain.markers import MarkerStream
 from character.binding import effective
 from brain.parser import parse_command
 from daemon.constants import LINE_ENTRIES
-from personal.commitments import parse_reminder, parse_wait
 from personal.memory import mentions
 from voice.speech import PLAYING
-from sessions.tasks import check_verify
 from traces.trace_format import OBSERVATION_STATES
 from traces.trace_store import TURN_TRACE, new_span_id
 from api.views import _marked, _ms_since
@@ -34,29 +31,9 @@ TEXT_HOLD_MS, TEXT_HOLD_MAX_MS = 60, 3000
 OBSERVED = {"ready": "ok", "declined": "ok", "unavailable": "ok", "cancelled": "cancelled", "expired": "expired"}
 
 
-TOOL_REQUEST = re.compile(
-    r"[a-z][a-z0-9+.-]*://\S|www\.\S|(?:~/|(?<![a-z0-9])/|[a-z]:\\)[^\s/]|[\w-]+\.[a-z][a-z0-9]*"
-    r"|(?:打开|运行|执行|安装|修改|改一下|修一下|写个|创建|删除|搜索|查一下|整理|发给|下载)(?![了过])\s*\w"
-    r"|(?:^\s*|请\s*|帮我\s*|能不能\s*|可以\s*|\b(?:please|can you|could you)\s+)(?:"
-    r"(?:看看|看一下)(?:这个|一下)?(?:窗口|屏幕)|(?:接着|继续)刚才"
-    r"|(?:open|run|execute|install|edit|create|delete|search|download)\s+\w"
-    r"|look at (?:this|the) (?:screen|window)\b|continue (?:the|that) task\b|remember (?:my|that)\b"
-    r"|(?:set|add|cancel|remove|change|update|move|snooze|postpone|reschedule)\b.*\breminders?\b"
-    r"|remind\s+me\b|记住|记一下|别忘了|别让我忘了"
-    r"|(?:(?:今天|明天|明早|今晚|后天|[一二三四五六七八九十两半\d]+(?:分钟|小时|天|点|:\d+)(?:后)?)[^，。！？]*?)?(?:提醒我|叫我)"
-    r"|(?:设置|添加|取消|撤销|更改|推迟|延后|提前).*提醒|(?:把.*)?提醒.*(?:取消|删除|撤销|改|推迟|延后|提前))"
-    r"|リマインドして", re.I)
-
-
 def _kept(source, text):
     """What history and the mouth's turns keep of a turn's text: the user's own words whole, else events.recorded."""
     return text if source in ("text", "voice") else recorded(text)
-
-
-def foreground_route(text, *, command=None, scope_id=None, look=False, reply_to=None):
-    if command or scope_id or look or reply_to or TOOL_REQUEST.search(text):
-        return "chat"
-    return "quick"
 
 
 class TurnsMixin:
@@ -96,163 +73,103 @@ class TurnsMixin:
         if self.state is not None:
             self.state.on_event("user_spoke")  # that she was spoken to, never what was said
         command = None if resume_run_id or reply_to and reply_to["kind"] == "turn" else parse_command(text, names=self.characters.names())
-        if not plugins.on("screen_reading") and (look or look_window or quote or command and command["action"] == "look"):
+        if not plugins.on("screen_reading") and (look or look_window or quote):
             return 409, {"error": "plugin_off", "plugin": "screen_reading"}
-        if not plugins.on("personal_agent") and (scope_id or expected_outputs or resume_run_id or
-                                                  command and command["action"] == "dispatch"):
+        if not plugins.on("personal_agent") and (scope_id or expected_outputs or resume_run_id):
             return 409, {"error": "plugin_off", "plugin": "personal_agent"}
-        deterministic = command is not None
-        stop_task = command is not None and command['action'] == 'stop_task'
-        if stop_task and self.character_agent.jobs \
-                and self.character_agent.jobs.store.list(states=('queued', 'running'), limit=None):
-            command = None  # Resolve an explicit background target through the role's job tools.
-        runtime = []  # the role's public() status, asked at most once a turn
-
-        def runtime_status():
-            if not runtime:
-                runtime.append(self.character_agent.public())
-            return runtime[0]
-        dispatch_target = None
-        if command and command['action'] == 'dispatch' and remember and cwd is None and verify_cmd is None \
-                and self._focus_cwd()[0] is None and runtime_status()['routes']['background']['ready']:
-            dispatch_target, command = command['target'], None
-        reminder_unparsed = False
-        if command and command["action"] == "remind" and self.commitments is not None \
-                and runtime_status()['routes']['chat']['ready'] and parse_wait(command["text"]) is None \
-                and parse_reminder(command["text"], self.commitments.clock()) is None:
-            reminder_unparsed, command = True, None  # The role asks for the time the parser could not read.
-        if command is None or command["action"] == "look":
+        if command is None:
             if self.mouth is None:
                 return (409, {"error": "no_character"}) if self.no_character else (503, {"error": "no_llm"})
             scope_warning = None
             explicit_scope = scope_id is not None or resume_run_id is not None
             scope_id = (scope_id or self.character_agent.settings.snapshot().get("scope_id")) if remember and plugins.on("personal_agent") else None
-            preferred = foreground_route(text, command=deterministic, scope_id=explicit_scope,
-                                         look=look or look_window, reply_to=reply_to)
-            quick = self.character_agent.quick_status() if preferred == "quick" and expected_outputs is None else None
-            chat = None
-            while True:
-                if not quick or not quick["ready"] or self.character_agent.busy():
-                    chat = ready_chat or runtime_status()["routes"]["chat"]
-                with self._switch_lock:
-                    if self.closing:
-                        return 503, {"error": "shutting_down"}
-                    if self.switch is not None:
-                        return 409, {"error": "switching"}
-                    if conversation_id and conversation_id != self.history.conversations.active:
-                        return 409, {"error": "conversation_not_active"}
-                    side = resume_run_id is None and expected_outputs is None and not stop_task and self.character_agent.busy()
-                    if side and chat is None:
-                        quick = None
-                        continue
-                    route = "quick" if quick and quick["ready"] and not side else "chat"
-                    status = quick if route == "quick" else chat
-                    if not status["ready"]:
-                        return 503, {"error": status["error"], "runtime": status["backend"]}
-                    if scope_id:
-                        try:
-                            self.character_agent.workspace.validate_scope(scope_id)
-                        except ValueError as error:
-                            if explicit_scope:
-                                return 409, {"error": getattr(error, "code", "scope_changed")}
-                            scope_warning = getattr(error, "code", "scope_changed")
-                            if scope_warning in ("scope_expired", "scope_revoked", "unknown_scope"):
-                                self.character_agent.drop_default_scope(scope_id)
-                            scope_id = None
-                    with self._turn_lock:  # a cancel of the old generation cannot cut the new line
-                        if side:
-                            generation, cancel = self.turn_generation, threading.Event()
-                            self._end_sides("superseded")
-                            self._side_lines.add(cancel)
-                        else:
-                            generation = self._cut("supersede")[1]
-                            cancel = self._line_cancel = threading.Event()
-                    line_id, body, wait, refused = secrets.token_hex(6), {}, None, None
-                    if scope_warning:
-                        body["scope_warning"] = scope_warning
-                    trace = self._open_trace(line_id, generation, source, text, remember=remember,
-                                             voice_timing=voice_timing)
-                    trace['route'] = route
-                    if dispatch_target:
-                        trace['dispatch_target'] = dispatch_target
-                    if reminder_unparsed:
-                        trace['reminder_unparsed'] = True
-                    if resume_run_id:
-                        trace['resume_run_id'] = resume_run_id
-                    if surface:
-                        trace['surface'] = surface
-                    if quote:
-                        trace['quote'] = quote
-                    if reply_to:
-                        trace['reply_to'] = reply_to
-                    if command is not None or look or look_window:
-                        # 「看一下」: ask for an image first and answer once its description is in (at once if refused).
-                        body["command"] = "look"
-                        if self.capture is not None:
-                            code, looked = self.look(window=look_window)
-                            if code == 202:
-                                wait = looked["request_id"]
-                                asked = self.capture.observation(wait)
-                                self._step(trace, "observation.requested", trace["observation"],
-                                           attrs={"request_id": wait, "mode": asked["mode"], "purpose": "current",
-                                                  "window_id": asked["window_id"]})
-                            else:
-                                refused = looked.get("reason") or looked["error"]
-                                # Capture gives a refused look no request_id; this one names it in the trace only.
-                                self._step(trace, "observation.settled", trace["observation"],
-                                           status=OBSERVED.get(looked["status"], "failed"), duration_ms=0,
-                                           attrs={"request_id": secrets.token_hex(6), "state": looked["status"]})
-                    self._look = wait
-                    options = {"remember": remember, "voice_timing": voice_timing, "scope_id": scope_id,
-                               "expected_outputs": expected_outputs, "resume_run_id": resume_run_id, "side": side}
-                    body.update(run_id=line_id, runtime=status["backend"])
-                    if not remember:
-                        body["runtime_reason"] = "temporary_read_only"
+            chat = ready_chat or self.character_agent.public()["routes"]["chat"]
+            with self._switch_lock:
+                if self.closing:
+                    return 503, {"error": "shutting_down"}
+                if self.switch is not None:
+                    return 409, {"error": "switching"}
+                if conversation_id and conversation_id != self.history.conversations.active:
+                    return 409, {"error": "conversation_not_active"}
+                side = resume_run_id is None and expected_outputs is None and self.character_agent.busy()
+                status = chat
+                if not status["ready"]:
+                    return 503, {"error": status["error"], "runtime": status["backend"]}
+                if scope_id:
                     try:
-                        trace["conversation_id"] = self.history.conversations.active if self.history is not None else None
-                    except sqlite3.Error:
-                        trace["conversation_id"] = None  # a store error must not refuse the input
-                    trace["quick_admitted"] = route == "quick"
-                    running = self.character_agent.begin_quick(trace, scope_id) if trace["quick_admitted"] else None
-                    self._live_lines.add(cancel)
-                    self.feed.publish("turn_accepted", {"line_id": line_id, "conversation_id": trace["conversation_id"],
-                                                        "source": source, "trace_id": trace["trace_id"], "side": side})
-                    if running:
-                        running()
-                    self.spatial.wake()  # its next poll sends the think of a speaking line now
-                    threading.Thread(target=self._run_character_line,
-                                     args=(line_id, text, cancel, generation, wait, refused, source, trace),
-                                     kwargs=options, daemon=True).start()
-                    return 202, {"line_id": line_id, "generation": generation, "trace_id": trace["trace_id"], **body}
+                        self.character_agent.workspace.validate_scope(scope_id)
+                    except ValueError as error:
+                        if explicit_scope:
+                            return 409, {"error": getattr(error, "code", "scope_changed")}
+                        scope_warning = getattr(error, "code", "scope_changed")
+                        if scope_warning in ("scope_expired", "scope_revoked", "unknown_scope"):
+                            self.character_agent.drop_default_scope(scope_id)
+                        scope_id = None
+                with self._turn_lock:  # a cancel of the old generation cannot cut the new line
+                    if side:
+                        generation, cancel = self.turn_generation, threading.Event()
+                        self._end_sides("superseded")
+                        self._side_lines.add(cancel)
+                    else:
+                        generation = self._cut("supersede")[1]
+                        cancel = self._line_cancel = threading.Event()
+                line_id, body, wait, refused = secrets.token_hex(6), {}, None, None
+                if scope_warning:
+                    body["scope_warning"] = scope_warning
+                trace = self._open_trace(line_id, generation, source, text, remember=remember,
+                                         voice_timing=voice_timing)
+                trace['route'] = 'chat'
+                if resume_run_id:
+                    trace['resume_run_id'] = resume_run_id
+                if surface:
+                    trace['surface'] = surface
+                if quote:
+                    trace['quote'] = quote
+                if reply_to:
+                    trace['reply_to'] = reply_to
+                if look or look_window:
+                    body["command"] = "look"
+                    if self.capture is not None:
+                        code, looked = self.look(window=look_window)
+                        if code == 202:
+                            wait = looked["request_id"]
+                            asked = self.capture.observation(wait)
+                            self._step(trace, "observation.requested", trace["observation"],
+                                       attrs={"request_id": wait, "mode": asked["mode"], "purpose": "current",
+                                              "window_id": asked["window_id"]})
+                        else:
+                            refused = looked.get("reason") or looked["error"]
+                            # Capture gives a refused look no request_id; this one names it in the trace only.
+                            self._step(trace, "observation.settled", trace["observation"],
+                                       status=OBSERVED.get(looked["status"], "failed"), duration_ms=0,
+                                       attrs={"request_id": secrets.token_hex(6), "state": looked["status"]})
+                self._look = wait
+                options = {"remember": remember, "voice_timing": voice_timing, "scope_id": scope_id,
+                           "expected_outputs": expected_outputs, "resume_run_id": resume_run_id, "side": side}
+                body.update(run_id=line_id, runtime=status["backend"])
+                if not remember:
+                    body["runtime_reason"] = "temporary_read_only"
+                try:
+                    trace["conversation_id"] = self.history.conversations.active if self.history is not None else None
+                except sqlite3.Error:
+                    trace["conversation_id"] = None  # a store error must not refuse the input
+                self._live_lines.add(cancel)
+                self.feed.publish("turn_accepted", {"line_id": line_id, "conversation_id": trace["conversation_id"],
+                                                    "source": source, "trace_id": trace["trace_id"], "side": side})
+                self.spatial.wake()  # its next poll sends the think of a speaking line now
+                threading.Thread(target=self._run_character_line,
+                                 args=(line_id, text, cancel, generation, wait, refused, source, trace),
+                                 kwargs=options, daemon=True).start()
+                return 202, {"line_id": line_id, "generation": generation, "trace_id": trace["trace_id"], **body}
         with self._switch_lock:
             if self.switch is not None:
                 return 409, {"error": "switching"}
             if conversation_id and conversation_id != self.history.conversations.active:
                 return 409, {"error": "conversation_not_active"}
-            return self._run_command(command, remember, cwd, verify_cmd, source, text)
+            return self._run_command(command)
 
-    def _run_command(self, command, remember, cwd, verify_cmd, source, text):
+    def _run_command(self, command):
         action = command["action"]
-        if action == "dispatch":
-            if not remember:  # its prompt would stay in own_sessions and the CLI's own session
-                return 409, {"error": "no_memory_dispatch"}
-            try:
-                verify_cmd = check_verify("read_only", verify_cmd)  # the card opens in read_only
-            except ValueError as error:
-                return 400, {"error": str(error)}
-            if cwd is not None:
-                cwd_from = {"source": "explicit"}
-            else:
-                cwd, display_session, state = self._focus_cwd()
-                if cwd is None:
-                    return 409, {"error": "no_cwd"}
-                cwd_from = {"source": "focus", "display_session": display_session, "state": state}
-            request = self.dispatcher.propose(command["target"], cwd, command["prompt"], source,
-                                              text if source == "voice" else None, cwd_from=cwd_from,
-                                              verify_cmd=verify_cmd)
-            return 202, {"command": "dispatch", "request_id": request.request_id}
-        if action == "remind":
-            return self._remind(command["text"])
         if action == "stop":
             self._cut(self._keeping("stop"))
         elif action in ("mute", "unmute"):
@@ -268,18 +185,6 @@ class TurnsMixin:
             if not ok:
                 return 409, {"error": reason}
             return 200, {"command": "deny", "request_id": pending[0]["request_id"]}
-        elif action == "stop_task":
-            if self.character_agent.busy():
-                self._cut("stop")
-                return 200, {"command": action, "runtime": "character"}
-            # As with 「拒绝」: only when the session it means is unambiguous.
-            busy = [s for s in list(self.sessions.sessions.values()) if s.busy] if self.sessions is not None else []
-            if len(busy) != 1:
-                return 409, {"error": "no_task" if not busy else "ambiguous_task"}
-            self.sessions.interrupt(busy[0].session_id)
-            self.sessions.move_task(busy[0].origin, "cancelled", result={"reason": "stop_task"})
-        else:
-            self.feed.publish("command", command)
         return 200, {"command": action}
 
     def look(self, window=None):
@@ -419,8 +324,6 @@ class TurnsMixin:
             state = trace.get("line_state") or ("cancelled" if cancel.is_set() else "failed")
             if state == "completed" and trace.get("waiting_user"):
                 state = "waiting_user"
-            if trace.get("quick_admitted"):
-                self.character_agent.settle_quick(line_id, state, trace.get("line_error"))
             self._turn_settled(trace, state, started, trace.get("line_error"), trace.get("outcome"),
                                trace.get("line_message"))
             trace["done"] = True
@@ -700,7 +603,7 @@ class TurnsMixin:
                 self._record(trace, source, text, kept or words, state, started_at, kept or "".join(raw))
                 self._step(trace, "line.parsed", new_span_id(), texts={"text": words},
                            attrs={"line_id": line_id, "intents": intents, "target": None,
-                                  "first_sentence_only": "".join(said).strip() != words})
+                                  "first_sentence_only": False})
                 if state == "completed":
                     show(words)  # text or a marker only the tail held back
                     reply_language = self.reply_language_code()

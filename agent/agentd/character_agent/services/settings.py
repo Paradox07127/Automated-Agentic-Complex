@@ -96,7 +96,7 @@ class RuntimeSettings:
         for purpose, entry in routes.items():
             if not isinstance(entry, dict) or set(entry) != {"backend", "acp_agent", "model", "effort"}:
                 raise ValueError("invalid_routes")
-            if entry["backend"] not in ("codex", "pi", "acp", "claude") or purpose == "quick" and entry["backend"] != "pi":
+            if entry["backend"] not in ("codex", "pi", "acp", "claude"):
                 raise ValueError("invalid_route_backend")
             if (entry["acp_agent"] is not None or entry["backend"] == "acp") and (
                     not isinstance(entry["acp_agent"], str) or entry["acp_agent"] not in _acp_registry_ids()):
@@ -138,6 +138,8 @@ class RuntimeSettings:
     def route(config, purpose, *, pi_provider=None):
         """The kernel config `purpose` (one of ROUTES) runs on: the main config with its routes entry applied.
         `_turn_effort` is the session's reasoning effort; None leaves the harness's own."""
+        if purpose == "quick":
+            purpose = "chat"
         entry = config["routes"].get(purpose)
         value, effort = dict(config), None
         if entry is not None:
@@ -153,16 +155,6 @@ class RuntimeSettings:
                 value["acp_agent"] = entry["acp_agent"]
             if entry["model"] is not None:
                 value["model"] = entry["model"]
-        if purpose == "quick":
-            chat = RuntimeSettings.route(config, "chat")
-            inherit = chat["backend"] == "pi" and (not chat["provider"] or chat["provider"] == pi_provider)
-            effort = "off"
-            value.update(backend="pi", provider="", acp_agent=None, auth_source="existing_login",
-                         model=(entry and entry["model"]) or (chat["model"] if inherit else ""))
-            if config["backend"] != "pi":
-                value.update(runtime_source="bundled", executable=None)
-            elif config["auth_source"] == "local_no_auth":
-                value["auth_source"] = "local_no_auth"
         value["_turn_effort"] = None if effort == "inherit" else effort or (
             "low" if purpose == "chat" and value["backend"] == "codex" else None)
         return value

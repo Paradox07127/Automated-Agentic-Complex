@@ -1,5 +1,4 @@
 """POST /character and the switch, GET /character/state/history, PUT /avatar/visibility, /character/state/switch and /behavior/motion_prefs, POST /behavior/receipts, /behavior/motion_state, /behavior/user_play, /interaction/record and /character/greeting."""
-from brain.outbound import OutboundBlocked
 import c1
 from character.desk_log import COUNTED
 
@@ -55,8 +54,6 @@ class CharacterMixin:
             changed = self.server.set_character(cid)
         except ValueError:
             return self._json(400, {"error": "unknown_character"})
-        except OutboundBlocked:
-            return self._json(409, {"error": "outbound_blocked"})
         if changed is None:
             return self._json(409, {"error": "switching"})
         return self._json(200, {"id": cid, "changed": changed})

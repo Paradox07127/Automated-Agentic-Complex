@@ -526,7 +526,6 @@ class SessionManager:
         for mode, path in self.settings_paths.items():
             write_secret(path, json.dumps({"permissions": {"ask": CLAUDE_ASK[mode]}, "hooks": hooks}, indent=2))
         if store is not None:
-            store.execute("CREATE TABLE IF NOT EXISTS session_management (session_id TEXT PRIMARY KEY, pinned INTEGER NOT NULL, archived INTEGER NOT NULL, revision INTEGER NOT NULL)")
             for row in store.execute(f"SELECT {', '.join(COLUMNS)} FROM own_sessions").fetchall():
                 session = OwnSession.restore(*row)
                 metadata = store.execute("SELECT pinned,archived,revision FROM session_management WHERE session_id=?", (session.session_id,)).fetchone()

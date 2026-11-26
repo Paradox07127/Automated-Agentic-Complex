@@ -58,9 +58,9 @@ class TraceServerCase(test_server.FeedServerCase):
         self.server.attention = AttentionStore(Path(self.data.name) / "attention.sqlite",
                                                Blacklist(deny_blacklist(Path(self.data.name) / "blacklist.json")))
 
-    def line(self, text):
+    def line(self, text, **extra):
         conn, response = self.open_feed()
-        status, body = self.request("POST", "/say", {"text": text, "source": "text"})
+        status, body = self.request("POST", "/say", {"text": text, "source": "text", **extra})
         self.assertEqual(status, 202)
         self.lines_until_final(response)
         conn.close()
@@ -253,7 +253,7 @@ class LookTraceTest(TraceServerCase):
         self.server.capture = CaptureManager(self.server.feed, Blacklist(deny_blacklist(Path(self.data.name) / "blacklist.json")),
                                              lambda: test_capture.CODE, None, vision=test_capture.FakeVision())
         conn, response = self.open_feed()
-        status, said = self.request("POST", "/say", {"text": "看一下", "source": "text"})
+        status, said = self.request("POST", "/say", {"text": "看一下", "source": "text", "look": True})
         self.assertEqual((status, said["command"]), (202, "look"))
         [request] = [i["data"] for i in self.server.feed.since(0) if i["event"] == "request"]
         image = base64.b64encode(test_capture.png()).decode()
@@ -275,7 +275,7 @@ class LookTraceTest(TraceServerCase):
     def test_refused_look_settles_at_once(self):
         self.server.capture = CaptureManager(self.server.feed, Blacklist(deny_blacklist(Path(self.data.name) / "blacklist.json")),
                                              lambda: test_capture.CODE, None)
-        self.line("看一下")
+        self.line("看一下", look=True)
         events = self.events(self.only_turn()["trace_id"])
         self.assertEqual(self.of(events, "observation.requested"), [])
         [settled] = self.of(events, "observation.settled")

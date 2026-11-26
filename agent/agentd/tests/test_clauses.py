@@ -7,21 +7,21 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from voice.clauses import ClauseSplitter, _sounded  # noqa: E402
 
 
-def whole(text, language="zh", limit=50):
-    splitter = ClauseSplitter(language, limit)
+def whole(text, language="zh"):
+    splitter = ClauseSplitter(language)
     return splitter.feed(text) + splitter.close()
 
 
-def char_by_char(text, language="zh", limit=50):
-    splitter = ClauseSplitter(language, limit)
+def char_by_char(text, language="zh"):
+    splitter = ClauseSplitter(language)
     out = []
     for char in text:
         out += splitter.feed(char)
     return out + splitter.close()
 
 
-def in_pieces(text, language="zh", limit=50, size=7):
-    splitter = ClauseSplitter(language, limit)
+def in_pieces(text, language="zh", size=7):
+    splitter = ClauseSplitter(language)
     out = []
     for start in range(0, len(text), size):
         out += splitter.feed(text[start:start + size])
@@ -63,51 +63,18 @@ class ClauseSplitterTest(unittest.TestCase):
         self.assertEqual(char_by_char("Pi is 3.14 today. Version 1.2. Then more.", "en"),
                          ["Pi is 3.14 today. ", "Version 1.2. Then more."])
 
-    def test_nothing_more_once_the_limit_would_be_passed(self):
+    def test_full_reply_streams_without_a_word_count_cutoff(self):
         clause = "甲" * 19 + "，"
-        splitter = ClauseSplitter("zh")
-        self.assertEqual(splitter.feed(clause * 3 + "乙"), [clause, clause])
-        self.assertEqual(splitter.feed("短。"), [])
-        self.assertEqual(splitter.close(), [])
-
-    def test_long_first_clause_is_cut_at_its_last_punctuation(self):
-        self.assertEqual(whole("甲" * 30 + "，" + "乙" * 30 + "。后面。"), ["甲" * 30 + "，"])
-        self.assertEqual(whole("甲" * 30 + "，" + "乙" * 30), ["甲" * 30 + "，"])
-
-    def test_long_first_clause_without_a_cut_of_enough_sounded_characters_is_cut_at_the_limit(self):
-        self.assertEqual(whole("丙" * 60), ["丙" * 50])
-        self.assertEqual(whole("丙" * 70 + "。"), ["丙" * 50])
-        self.assertEqual(ClauseSplitter("zh").feed("丙" * 51), ["丙" * 50])
-        # 好的， is too short alone, so the first clause runs past the limit with only that to cut back to.
-        self.assertEqual(whole("好的，" + "乙" * 58), ["好的，" + "乙" * 48])
-        self.assertEqual(whole("好的，" + "乙" * 60 + "。"), ["好的，" + "乙" * 48])
-
-    def test_limit_cut_does_not_end_inside_a_word(self):
-        self.assertEqual(whole("丙" * 49 + "dependencies" + "丙" * 10), ["丙" * 49 + "dependencies"])
-        self.assertEqual(whole("丙" * 50 + "dependencies" + "丙" * 10), ["丙" * 50])
-
-    def test_long_first_sentence_without_punctuation_is_cut_at_the_limit(self):
-        text = ("我刚才把整个项目的目录结构和配置文件都仔细检查了一遍发现问题出在构建脚本里"
-                "引用了一个已经被删除的旧模块所以需要先把那一行改掉再重新运行测试。")
-        said = "".join(in_pieces(text))
-        self.assertTrue(said)
-        self.assertTrue(text.startswith(said))
-        self.assertLessEqual(_sounded(said), 50)
+        self.assertEqual(whole(clause * 3 + "乙。"), [clause, clause, clause, "乙。"])
+        long_text = ("我先看了一下报错信息，问题出在配置文件里。端口号被写成了字符串，所以服务启动失败了。"
+                     "我已经把它改回数字，然后重新跑了一遍测试，现在全部通过了。")
+        self.assertEqual("".join(in_pieces(long_text)), long_text)
 
     def test_an_english_word_counts_as_one(self):
         text = ("我看了一下README和package.json里的dependencies字段，发现lodash和express的版本号写错了，"
                 "需要改成package-lock.json里锁定的版本再重新安装。")
         self.assertGreater(len(text), 90)
         self.assertEqual("".join(in_pieces(text)), text)
-
-    def test_long_reply_stops_at_a_punctuation_within_the_limit(self):
-        text = ("我先看了一下报错信息，问题出在配置文件里。端口号被写成了字符串，所以服务启动失败了。"
-                "我已经把它改回数字，然后重新跑了一遍测试，现在全部通过了。")
-        said = "".join(in_pieces(text))
-        self.assertGreater(_sounded(text), 50)
-        self.assertTrue(text.startswith(said))
-        self.assertLessEqual(_sounded(said), 50)
-        self.assertIn(said[-1], "，。")
 
     def test_close_gives_out_the_rest(self):
         splitter = ClauseSplitter("zh")

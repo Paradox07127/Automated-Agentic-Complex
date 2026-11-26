@@ -8,7 +8,7 @@ import {
   computerUseState, ControlConsent, ControlError, ControlInterruption, type ControlPermission, type ControlRequest,
   type ControlResponse, type ControlTarget, DEFAULT_ACTION, decodeApps, decodeRequest, displayState, DRIVER, errorResponse, grantState,
   helperFailure, initialPanelState, MESSAGES, observedElements, okResponse, PERMISSION_TITLES, PERMISSIONS, PID_MAX, requestedInteger,
-  sameTarget, targetJSON, titleRefusal, validSession, WAIT_SECONDS, WINDOW_ID_MAX,
+  sameFrame, sameTarget, targetJSON, titleRefusal, validSession, WAIT_SECONDS, WINDOW_ID_MAX,
 } from '../../common/computer-control.ts';
 import type { HelperAnswer } from '../../common/push-to-talk.ts';
 import { PushSource } from '../../common/push.ts';
@@ -417,9 +417,10 @@ export class ControlHost {
     return { target: { bundleId: app.appId, pid: app.pid, windowId: w.windowId, launchedAt: app.launchedAt, frame: w.bounds } };
   }
 
-  private async current(target: ControlTarget): Promise<void> {
+  private async current(target: ControlTarget): Promise<ControlTarget> {
     const fresh = await this.resolve({ pid: target.pid, window_id: target.windowId });
     if (!sameTarget(fresh.target, target)) throw new ControlError('target_changed', '目标进程、窗口或几何已改变，请重新观察并授权');
+    return fresh.target;
   }
 
   private require(permission: ControlPermission, session: string, target: ControlTarget): void {
@@ -478,18 +479,21 @@ export class ControlHost {
     const id = params.snapshot_id;
     const snap = typeof id === 'string' ? this.snapshots.get(id) : undefined;
     if (typeof id !== 'string' || snap === undefined) throw new ControlError('stale_snapshot', '窗口状态已过期，请先重新执行页面观察');
-    await this.current(snap.target);
+    const freshTarget = await this.current(snap.target);
     this.require(permission, session, snap.target);
     this.consent.validate(id, session, snap.target, permission, this.now());
-    return { id, ...snap };
+    return { id, ...snap, freshTarget };
   }
 
   private async act(session: string, params: Record<string, unknown>): Promise<Record<string, unknown>> {
-    const { id, target, elements } = await this.valid(session, params, 'control');
+    const { id, target, elements, freshTarget } = await this.valid(session, params, 'control');
     if (this.now() - this.lastActionAt < ACTION_GAP_SECONDS) throw new ControlError('action_cooldown', '操作间隔过短，请先检查执行结果');
     const action = params.action;
     if (typeof action !== 'string') throw new ControlError('invalid_action', '缺少操作类型');
     if (!this.actions.includes(action)) throw new ControlError('unsupported', `仅支持 ${this.actions.join(' / ')}`);
+    if ((action === 'click' || action === 'scroll') && !sameFrame(freshTarget, target)) {
+      throw new ControlError('target_changed', '目标进程、窗口或几何位置已改变，请重新观察并授权');
+    }
     this.publish('executing', `正在执行 ${action}（输入操作可随时接管中止）`);
     const text = action === 'set_value' || action === 'type';
     if (text) this.require('text', session, target);

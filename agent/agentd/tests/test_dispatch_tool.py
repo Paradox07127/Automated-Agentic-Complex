@@ -286,19 +286,12 @@ class DispatchToolTests(unittest.TestCase):
         self.assertEqual(self.sessions[-1].responses[-1][2]['error']['code'], 'tool_not_allowed_in_mode')
         self.assertEqual(self.server.broker.pending(), [])
 
-    def test_regex_no_cwd_hands_original_sentence_and_target_to_ready_character(self):
+    def test_explicit_codex_request_goes_directly_to_character_llm(self):
         body, _ = self.line('让 codex 修 Endfield 的断线问题')
         self.assertIn('run_id', body)
         call = self.sessions[-1].calls[-1]
         self.assertIn('让 codex 修 Endfield 的断线问题', call['prompt'])
-        self.assertIn('The user explicitly wants this sent to codex', call['prompt'])
         self.assertEqual(self.server.broker.pending(), [])
-        with patch.object(self.controller, 'public', return_value={'ready': False, 'routes': {'background': {'ready': False}}}):
-            self.assertEqual(self.server.say('让 codex 修断线'), (409, {'error': 'no_cwd'}))
-        self.assertEqual(self.server.say('让 codex 修断线', verify_cmd='git status --short'),
-                         (409, {'error': 'no_cwd'}))
-        status, body = self.server.say('让 codex 修断线', cwd=str(self.project))
-        self.assertEqual((status, body['command']), (202, 'dispatch'))
 
     def test_agent_task_context_is_recent_bounded_and_prompt_explains_confirmation(self):
         value = self.dispatch(cwd=str(self.project), title='修断线')

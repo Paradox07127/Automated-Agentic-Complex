@@ -5,7 +5,34 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from infra.store import IdleConnection
+from infra.store import open_private_db
+
+RUN_STORE_SCHEMA = """
+    CREATE TABLE IF NOT EXISTS character_runs (
+      run_id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, character_id TEXT NOT NULL,
+      generation INTEGER NOT NULL, state TEXT NOT NULL, scope_id TEXT, task_id TEXT,
+      sdk_session_id TEXT, dependencies TEXT NOT NULL DEFAULT '[]', result TEXT,
+      started_at REAL NOT NULL, ended_at REAL, delivery_eligible INTEGER NOT NULL DEFAULT 0,
+      delivery_revoked INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS character_run_events (
+      run_id TEXT NOT NULL, seq INTEGER NOT NULL, kind TEXT NOT NULL, metadata TEXT NOT NULL,
+      at REAL NOT NULL, PRIMARY KEY(run_id,seq));
+    CREATE TABLE IF NOT EXISTS character_run_items (
+      run_id TEXT NOT NULL, item_id TEXT NOT NULL, seq INTEGER NOT NULL, kind TEXT NOT NULL,
+      phase TEXT, status TEXT NOT NULL, name TEXT, summary TEXT, text TEXT NOT NULL,
+      parent_item_id TEXT, created_at REAL NOT NULL, updated_at REAL NOT NULL, steps TEXT,
+      PRIMARY KEY(run_id,item_id));
+    CREATE TABLE IF NOT EXISTS character_effects (
+      effect_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, tool TEXT NOT NULL,
+      input_hash TEXT NOT NULL, state TEXT NOT NULL, receipt TEXT, at REAL NOT NULL);
+    CREATE TABLE IF NOT EXISTS character_metadata(key TEXT PRIMARY KEY,value TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS character_checkpoints (
+      run_id TEXT PRIMARY KEY, task_id TEXT, data TEXT NOT NULL, at REAL NOT NULL);
+    CREATE TABLE IF NOT EXISTS character_interactions (
+      request_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, kind TEXT NOT NULL, state TEXT NOT NULL,
+      revision INTEGER NOT NULL, data TEXT, answer TEXT, created_at REAL NOT NULL, expires_at REAL NOT NULL,
+      conversation_id TEXT, generation INTEGER NOT NULL DEFAULT 0);
+"""
 
 TERMINAL = frozenset(("completed", "failed", "cancelled", "interrupted"))
 EVENT_METADATA = frozenset(("backend", "model", "tool", "tool_call_id", "task_id", "ok", "error", "outcome",
@@ -20,37 +47,8 @@ class RunStore:
     def __init__(self, path, retention=lambda: None):
         """retention() -> seconds a run item is kept after its last update, None to keep every item."""
         self.retention = retention
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        path.touch(mode=0o600, exist_ok=True)
-        self.db = sqlite3.connect(path, check_same_thread=False, factory=IdleConnection)
-        self.db.row_factory = sqlite3.Row
-        self.db.execute("PRAGMA journal_mode=WAL")
-        self.db.execute("PRAGMA journal_size_limit=4194304")
-        self.db.execute("PRAGMA secure_delete=ON")
+        self.db = open_private_db(path, RUN_STORE_SCHEMA, row_factory=sqlite3.Row)
         self.lock = threading.RLock()
-        self.db.executescript("""
-            CREATE TABLE IF NOT EXISTS character_runs (
-              run_id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, character_id TEXT NOT NULL,
-              generation INTEGER NOT NULL, state TEXT NOT NULL, scope_id TEXT, task_id TEXT,
-              sdk_session_id TEXT, dependencies TEXT NOT NULL DEFAULT '[]', result TEXT,
-              started_at REAL NOT NULL, ended_at REAL, delivery_eligible INTEGER NOT NULL DEFAULT 0,
-              delivery_revoked INTEGER NOT NULL DEFAULT 0);
-            CREATE TABLE IF NOT EXISTS character_run_events (
-              run_id TEXT NOT NULL, seq INTEGER NOT NULL, kind TEXT NOT NULL, metadata TEXT NOT NULL,
-              at REAL NOT NULL, PRIMARY KEY(run_id,seq));
-            CREATE TABLE IF NOT EXISTS character_run_items (
-              run_id TEXT NOT NULL, item_id TEXT NOT NULL, seq INTEGER NOT NULL, kind TEXT NOT NULL,
-              phase TEXT, status TEXT NOT NULL, name TEXT, summary TEXT, text TEXT NOT NULL,
-              parent_item_id TEXT, created_at REAL NOT NULL, updated_at REAL NOT NULL, steps TEXT,
-              PRIMARY KEY(run_id,item_id));
-            CREATE TABLE IF NOT EXISTS character_effects (
-              effect_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, tool TEXT NOT NULL,
-              input_hash TEXT NOT NULL, state TEXT NOT NULL, receipt TEXT, at REAL NOT NULL);
-            CREATE TABLE IF NOT EXISTS character_metadata(key TEXT PRIMARY KEY,value TEXT NOT NULL);
-            CREATE TABLE IF NOT EXISTS character_checkpoints (
-              run_id TEXT PRIMARY KEY, task_id TEXT, data TEXT NOT NULL, at REAL NOT NULL);
-        """)
         self.db.execute("INSERT OR IGNORE INTO character_metadata VALUES('conversation_id',?)", (str(uuid.uuid4()),))
         self.db.execute("UPDATE character_runs SET state='interrupted',ended_at=? "
                         "WHERE state IN ('queued','running','awaiting_approval')", (time.time(),))

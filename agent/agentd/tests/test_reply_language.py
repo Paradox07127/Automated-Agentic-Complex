@@ -107,10 +107,10 @@ class LocalizedCardTests(unittest.TestCase):
         self.assertEqual((card["examples"][0]["user"], card["tone_rules"]), ("Hi", ["Short lines"]))
         self.assertNotIn("canon", card)
 
-    def test_examples_in_another_language_are_dropped(self):
+    def test_examples_fall_back_to_base_card_when_omitted(self):
         from brain.persona import localized
         card = localized(self.CARD, "ja")
-        self.assertEqual((card["examples"], card["tone_rules"]), ([], ["短句"]))
+        self.assertEqual((card["examples"], card["tone_rules"]), (self.CARD["examples"], ["短句"]))
 
 
 if __name__ == "__main__":

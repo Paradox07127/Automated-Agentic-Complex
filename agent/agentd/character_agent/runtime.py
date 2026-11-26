@@ -13,7 +13,6 @@ from brain.voice_check import for_replay, out_of_voice
 from character_agent.services.store import RunStore
 from character_agent.services.workspace import WorkspaceError
 from tool_gateway.gateway import ToolGateway
-from tool_gateway.registry import BRIDGED
 
 # The note added to a reply whose check failed or still needs review, by reply language code; None takes the Chinese ones.
 CHECK_NOTES = {'zh-Hans': {'failed': '（产物检查没通过，这项任务不算完成，检查结果在任务卡里。）',
@@ -76,41 +75,6 @@ def _turn_prompt(text, before_input, context):
     return prompt
 
 
-def _quick_events(session, prompt, **options):
-    """Hold item and text events until the opening text decides which kernel owns the line."""
-    prefix, pending, handoff = "", [], False
-    events = session.stream(prompt, replace_history=True, **options)
-    try:
-        for event in events:
-            if event["type"] == "ready":
-                yield event
-                continue
-            if handoff:
-                if event["type"] == "result":
-                    yield {**event, "type": "handoff"}
-                continue
-            pending.append(event)
-            if event["type"] == "text_delta":
-                prefix += event["text"]
-            elif event["type"] == "result":
-                prefix = event.get("final_text") or prefix
-            else:
-                continue
-            opening = prefix.lstrip()
-            if opening.startswith("[handoff]"):
-                if event["type"] == "result":
-                    yield {**event, "type": "handoff"}
-                    return
-                handoff = True
-                session.interrupt()
-            elif event["type"] == "result" or not "[handoff]".startswith(opening):
-                yield from pending
-                yield from events
-                return
-    finally:
-        events.close()
-
-
 class PersonalAgentRuntime:
     """One foreground conversation; personal data and task truth stay outside the harness.
 
@@ -156,7 +120,6 @@ class PersonalAgentRuntime:
                 run = self.store.get(run_id)
                 if run is not None and run['state'] not in ('running', 'waiting_user'): return None
             if active is not None:
-                session = active.get("quick_session") or session
                 active["reason"] = reason
                 active["interrupted"] = interrupted
                 active["cancel"].set()
@@ -171,7 +134,7 @@ class PersonalAgentRuntime:
         """Hands text to the active run's model after its current tool call (C8 steer); returns (accepted, code)."""
         with self._lock:
             active = self._active
-            session = (active.get("quick_session") or self._session) if active is not None else None
+            session = self._session if active is not None else None
             if active is None or active["cancel"].is_set() or session is None:
                 return False, "no_active_run"
         return session.steer(text, run_id=active["run_id"])
@@ -208,7 +171,7 @@ class PersonalAgentRuntime:
 
     def run(self, *, run_id, text, system_prompt, history, character_id, generation,
             scope_id=None, context="", unheard=None, before_input="", cancelled=None, is_current=lambda: True, expected_outputs=None, resume_run_id=None, allow_actions=True, knowledge_service=None, memory_session=None, orchestration_session=None, question_session=None, conversation_id=None, remember=True, mode=None,
-            setup_ms=None, on_first_token=None, on_tool=None, language=None, quick_session=None, admitted=False, harness_tools=True):
+            setup_ms=None, on_first_token=None, on_tool=None, language=None, harness_tools=True):
         """before_input: lines the prompt carries after the context, right before the user's text.
         unheard: context lines on the turns this session has not seen; only a reused session gets them, a new one replays history.
         harness_tools: whether the session factory turns the harness's own tools on for this turn.
@@ -229,8 +192,7 @@ class PersonalAgentRuntime:
         task_id, result, sdk_result = None, None, None
         outcome = "answered"
         output, dependencies = [], []
-        quick_events = None
-        begun = admitted
+        begun = False
         native_verified = False
         previous = None
         planned_outputs = None
@@ -299,7 +261,7 @@ class PersonalAgentRuntime:
         try:
             if not allow_actions and (expected_outputs is not None or resume_run_id is not None):
                 raise ValueError("read_only_run")
-            if not admitted and self.store.get(run_id) is not None:
+            if self.store.get(run_id) is not None:
                 return AgentReply(model=self.model, error="duplicate_run")
             at = time.monotonic()
             knowledge = knowledge_service or self.knowledge_factory()
@@ -332,11 +294,10 @@ class PersonalAgentRuntime:
                     return AgentReply(model=self.model, error="cancelled")
                 active['knowledge'] = knowledge
                 self._active = active
-                if not admitted:
-                    self.store.begin(run_id, active['conversation_id'], character_id, generation, scope_id,
-                        delivery_eligible=remember and allow_actions)
-                    begun = True
-            if scope_id and quick_session is None:
+                self.store.begin(run_id, active['conversation_id'], character_id, generation, scope_id,
+                    delivery_eligible=remember and allow_actions)
+                begun = True
+            if scope_id:
                 self.workspace.validate_scope(scope_id)
             with self._lock:
                 if not current():
@@ -362,32 +323,29 @@ class PersonalAgentRuntime:
             # embodied_only lets the role turn its body without file, desktop, memory or background-work mutations.
             mode = mode or ("actions" if allow_actions else "read_only")
             at = time.monotonic()
-            if quick_session is not None:
-                definitions = []
-            else:
-                task_tools = ([*self.workspace.tool_definitions(sources=self.backend not in BRIDGED),
-                               TASK_TOOL, PREVIOUS_ARTIFACT_TOOL] if self.workspace is not None else [])
-                offer = self.tools.registry.offer(mode, [*knowledge.tool_definitions(), *self.native_tools,
-                    *task_tools,
-                    *(memory_session.tool_definitions() if memory_session is not None else []),
-                    *(orchestration_session.tool_definitions() if orchestration_session is not None else []),
-                    *(question_session.tool_definitions() if question_session is not None else [])])
-                segments["tools_offer_ms"] = round((time.monotonic()-at)*1000)
-                definitions = offer.definitions
-                projection = _hash(history)
-                session_key = _hash([character_id, system_prompt, self.backend, self.model, self.effort, scope_id, resume_run_id, definitions,
-                                     harness_tools])
-                previous_valid = self._previous_knowledge is None or self._previous_knowledge.valid(self._previous_dependencies)
-                session_reused = self._session is not None and self._session_key == session_key and previous_valid and \
-                    (self._last_projection is None or self._last_projection == projection)
-                segments["session_reused"] = session_reused
-                if not session_reused:
-                    if self._session:
-                        self._session.close()
-                    self._session = self.session_factory(definitions)
-                    self._session_key = session_key
-                    self._previous_dependencies, self._session_runs = [], set()
-                self._session_runs.add(run_id)
+            task_tools = ([*self.workspace.tool_definitions(sources=self.backend not in ("claude", "codex", "acp", "pi")),
+                           TASK_TOOL, PREVIOUS_ARTIFACT_TOOL] if self.workspace is not None else [])
+            offer = self.tools.registry.offer(mode, [*knowledge.tool_definitions(), *self.native_tools,
+                *task_tools,
+                *(memory_session.tool_definitions() if memory_session is not None else []),
+                *(orchestration_session.tool_definitions() if orchestration_session is not None else []),
+                *(question_session.tool_definitions() if question_session is not None else [])])
+            segments["tools_offer_ms"] = round((time.monotonic()-at)*1000)
+            definitions = offer.definitions
+            projection = _hash(history)
+            session_key = _hash([character_id, system_prompt, self.backend, self.model, self.effort, scope_id, resume_run_id, definitions,
+                                 harness_tools])
+            previous_valid = self._previous_knowledge is None or self._previous_knowledge.valid(self._previous_dependencies)
+            session_reused = self._session is not None and self._session_key == session_key and previous_valid and \
+                (self._last_projection is None or self._last_projection == projection)
+            segments["session_reused"] = session_reused
+            if not session_reused:
+                if self._session:
+                    self._session.close()
+                self._session = self.session_factory(definitions)
+                self._session_key = session_key
+                self._previous_dependencies, self._session_runs = [], set()
+            self._session_runs.add(run_id)
 
             def begin_task(title=None):
                 nonlocal task_id
@@ -530,12 +488,11 @@ class PersonalAgentRuntime:
                     "previous_artifacts": previous.get("artifacts", []),
                     "planned_outputs": planned_outputs,
                     "remaining_request": text}, ensure_ascii=False)
-            if not admitted:
-                self._emit(run_id, "running", backend=self.backend, model=self.model,
-                           queue_ms=round((acquired_at-enqueued_at)*1000),
-                           context_setup_ms=round((time.monotonic()-acquired_at)*1000),
-                           work_kind='background' if mode == 'background' else 'foreground', **segments, **(setup_ms or {}))
-            if unheard and quick_session is None and session_reused:
+            self._emit(run_id, "running", backend=self.backend, model=self.model,
+                       queue_ms=round((acquired_at-enqueued_at)*1000),
+                       context_setup_ms=round((time.monotonic()-acquired_at)*1000),
+                       work_kind='background' if mode == 'background' else 'foreground', **segments, **(setup_ms or {}))
+            if unheard and session_reused:
                 context += unheard
             prompt = _turn_prompt(text, before_input, context)
             # Strip only AI self-reference leaks on replay; preserve Markdown formatting in assistant turns.
@@ -546,27 +503,14 @@ class PersonalAgentRuntime:
                 memory_session.assembled(prompt=prompt, system_prompt=system_prompt, history=replayed, tools=definitions,
                                          continuation=resume_options)
             requested_at = time.monotonic()
-            if quick_session is not None:
-                with self._lock:
-                    if not current():
-                        raise ValueError("cancelled")
-                    active["quick_session"] = quick_session
-                if scope_id:
-                    self.workspace.validate_scope(scope_id)
-                events = quick_events = _quick_events(quick_session, prompt, system_prompt=system_prompt, history=replayed,
-                    cancelled=lambda: not current(), run_id=run_id)
-            else:
-                events = self._session.stream(prompt, system_prompt=system_prompt, history=replayed, cancelled=lambda: not current(),
-                                              run_id=run_id, tool_handler=call, **resume_options)
+            events = self._session.stream(prompt, system_prompt=system_prompt, history=replayed, cancelled=lambda: not current(),
+                                          run_id=run_id, tool_handler=call, **resume_options)
             knowledge.record_prompt_uses(run_id)
             own_tools, native_open = {d['name'] for d in definitions}, set()
             for event in events:
                 if suspended: raise ValueError("interaction_pending")
                 if not current():
                     break
-                if event["type"] == "handoff":
-                    return AgentReply(model=event.get("model") or self.model, usage=event.get("usage") or {},
-                                      cost_usd=event.get("cost_usd"), result={"handoff": True})
                 if event.get('item_id'):
                     item_seq += 1
                     summary = event.get('summary')
@@ -634,8 +578,6 @@ class PersonalAgentRuntime:
                 if kind == "plan":
                     publish_plan(event['title'], event['steps'], event['source'])
                 elif kind == "ready":
-                    if quick_session is not None and scope_id:
-                        self.workspace.validate_scope(scope_id)
                     actual_model = event.get('model') or actual_model
                     effort = event.get('effort') if isinstance(event.get('effort'), str) else effort
                     self._emit(run_id, "capabilities_checked", tool_inventory_verified=event.get("tool_inventory_verified") is True,
@@ -802,8 +744,6 @@ class PersonalAgentRuntime:
             return reply
         finally:
             try:
-                if quick_events is not None:
-                    quick_events.close()
                 with self._lock:
                     for item in items.values():
                         if item['status'] != 'completed':

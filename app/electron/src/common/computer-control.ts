@@ -14,8 +14,12 @@ export interface ControlTarget { bundleId: string; pid: number; windowId: number
 
 export function sameTarget(a: ControlTarget | null | undefined, b: ControlTarget | null | undefined): boolean {
   if (!a || !b) return a === b;
-  return a.bundleId === b.bundleId && a.pid === b.pid && a.windowId === b.windowId && a.launchedAt === b.launchedAt
-    && a.frame.x === b.frame.x && a.frame.y === b.frame.y && a.frame.width === b.frame.width && a.frame.height === b.frame.height;
+  return a.bundleId === b.bundleId && a.pid === b.pid && a.windowId === b.windowId && a.launchedAt === b.launchedAt;
+}
+
+export function sameFrame(a: ControlTarget | null | undefined, b: ControlTarget | null | undefined): boolean {
+  if (!a || !b) return a === b;
+  return a.frame.x === b.frame.x && a.frame.y === b.frame.y && a.frame.width === b.frame.width && a.frame.height === b.frame.height;
 }
 
 export class ControlError extends Error {

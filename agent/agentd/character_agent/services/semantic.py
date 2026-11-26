@@ -14,7 +14,6 @@ import uuid
 from brain import language
 from brain.persona import addressed, localized, render_persona
 from character.binding import bound, effective
-from brain.outbound import OutboundBlocked
 from character_agent.services.personal import persona_personal_instructions
 from character_agent.services.settings import RuntimeSettings
 from infra.platform import USER_MACHINE
@@ -294,8 +293,8 @@ class SemanticService:
                     value = knowledge.call(name,args)
                     knowledge.record_prompt_uses(ident)
                     return value
-                except Exception as failure:
-                    code='source_export_blocked' if isinstance(failure,OutboundBlocked) else 'knowledge_tool_failed'
+                except Exception:
+                    code='knowledge_tool_failed'
                     tool_errors.append(code)
                     return {'error':{'code':code}}
             call.call_with_context = lambda name, args, context: call(name, args, **context)

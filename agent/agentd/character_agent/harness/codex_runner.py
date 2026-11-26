@@ -688,8 +688,6 @@ class CodexRunner(Runner):
                     content.append({"type": "inputText", "text": item.get("text", "")})
                 elif item.get("type") == "image":
                     content.append({"type": "inputImage", "imageUrl": "data:" + item["mimeType"] + ";base64," + item["data"]})
-            if self.config.get("tool_reminder"):
-                content.append({"type": "inputText", "text": "\n\n" + self.config["tool_reminder"]})
             return {"success": not result.get("isError", False), "contentItems": content}
         if self.config.get("native_tools") and method in (
                 "item/commandExecution/requestApproval", "item/fileChange/requestApproval", "item/permissions/requestApproval"):

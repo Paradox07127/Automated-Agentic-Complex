@@ -54,17 +54,7 @@ class ParseCommandTest(unittest.TestCase):
     def test_commands(self):
         cases = {"停下": {"action": "stop"}, "别说了。": {"action": "stop"},
                  "拒绝": {"action": "deny"}, "示例甲，不批准": {"action": "deny"},
-                 "静音": {"action": "mute"}, "取消静音！": {"action": "unmute"},
-                 "打开 Safari": {"action": "open", "target": "Safari"},
-                 "请跳到 codex 会话": {"action": "jump", "target": "codex 会话"},
-                 "切到终端吧": {"action": "jump", "target": "终端"},
-                 "打开备忘录": {"action": "open", "target": "备忘录"},
-                 "打开 Visual Studio Code": {"action": "open", "target": "Visual Studio Code"},
-                 "示例甲，打开微信吧": {"action": "open", "target": "微信"},
-                 "看一下": {"action": "look"}, "示例甲，你看看这个": {"action": "look"},
-                 "帮我看一眼。": {"action": "look"},
-                 "停止任务": {"action": "stop_task"}, "示例甲，取消任务。": {"action": "stop_task"},
-                 "别做了吧": {"action": "stop_task"}}
+                 "静音": {"action": "mute"}, "取消静音！": {"action": "unmute"}}
         for text, expected in cases.items():
             self.assertEqual(parse_command(text), expected, text)
 
@@ -74,21 +64,7 @@ class ParseCommandTest(unittest.TestCase):
                  "Deny": {"action": "deny"}, "reject it": {"action": "deny"}, "拒否": {"action": "deny"},
                  "却下して": {"action": "deny"},
                  "Mute, please": {"action": "mute"}, "unmute": {"action": "unmute"}, "ミュートして": {"action": "mute"},
-                 "ミュート解除": {"action": "unmute"},
-                 "Stop the task.": {"action": "stop_task"}, "cancel the task": {"action": "stop_task"},
-                 "タスクを止めて": {"action": "stop_task"}, "作業をやめて": {"action": "stop_task"},
-                 "Take a look": {"action": "look"}, "please look at this": {"action": "look"},
-                 "ちょっと見て": {"action": "look"}, "これを見てください": {"action": "look"},
-                 "Open Safari": {"action": "open", "target": "Safari"},
-                 "open Visual Studio Code.": {"action": "open", "target": "Visual Studio Code"},
-                 "Switch to the terminal": {"action": "jump", "target": "terminal"},
-                 "go to codex session": {"action": "jump", "target": "codex session"},
-                 "Safariを開いて": {"action": "open", "target": "Safari"},
-                 "ターミナルに切り替えて": {"action": "jump", "target": "ターミナル"},
-                 "ask Codex to run the tests": {"action": "dispatch", "target": "codex", "prompt": "run the tests"},
-                 "Have claude summarize the README.": {"action": "dispatch", "target": "claude",
-                                                       "prompt": "summarize the README."},
-                 "codexにテストを直させて": {"action": "dispatch", "target": "codex", "prompt": "テストを直させて"}}
+                 "ミュート解除": {"action": "unmute"}}
         for text, expected in cases.items():
             self.assertEqual(parse_command(text), expected, text)
 
@@ -99,32 +75,12 @@ class ParseCommandTest(unittest.TestCase):
                      "このファイルを開いて", "claudeに聞いたら分かった", "見てないよ"):
             self.assertIsNone(parse_command(text), text)
 
-    def test_ordinary_sentences_go_to_the_llm(self):
+    def test_non_control_sentences_go_to_the_llm(self):
         for text in ("我不想停下来", "批准一下吧", "打开", "今天天气怎么样", "你能拒绝我吗", "",
-                     "看一下这个报错是什么意思", "打开 warehouse.txt 看看，C区和D区一共多少箱？",
-                     "打开备忘录，帮我记一下明天开会", "打开 Safari 能看到什么？", "打开这个文件告诉我第三行写了什么",
-                     "切到终端然后帮我跑一下测试", "跳到第三章讲了什么", "打开 warehouse.txt"):
+                     "打开 Safari", "切到终端吧", "看一下", "停止任务", "Stop the task.", "Take a look",
+                     "Open Safari", "Switch to the terminal", "ask Codex to run the tests",
+                     "提醒我十分钟后喝水", "让 claude 修一下", "你上次提醒我的事", "pleased to meet you"):
             self.assertIsNone(parse_command(text), text)
-
-    def test_remind_only_when_the_line_opens_with_it(self):
-        cases = {"提醒我十分钟后喝水": "提醒我十分钟后喝水", "示例甲，提醒我明天8点开会": "提醒我明天8点开会"}
-        for text, core in cases.items():
-            self.assertEqual(parse_command(text), {"action": "remind", "text": core}, text)
-        self.assertIsNone(parse_command("你上次提醒我的事"))
-
-    def test_dispatch_keeps_every_line_of_its_prompt(self):
-        cases = {"让 claude 修一下": ("claude", "修一下"), "让codex，查一下测试": ("codex", "查一下测试"),
-                 "让 claude 修一下\n第二行": ("claude", "修一下\n第二行")}
-        for text, (target, prompt) in cases.items():
-            self.assertEqual(parse_command(text), {"action": "dispatch", "target": target, "prompt": prompt}, text)
-
-    def test_reminder_and_dispatch_text_keeps_its_last_word_and_punctuation(self):
-        self.assertEqual(parse_command("提醒我明天8点去酒吧"), {"action": "remind", "text": "提醒我明天8点去酒吧"})
-        cases = {"让 claude 检查网吧": ("claude", "检查网吧"), "ask codex to print Hello!": ("codex", "print Hello!"),
-                 "ask claude to fix displease": ("claude", "fix displease")}
-        for text, (target, prompt) in cases.items():
-            self.assertEqual(parse_command(text), {"action": "dispatch", "target": target, "prompt": prompt}, text)
-        self.assertIsNone(parse_command("pleased to meet you"))
 
     def test_a_longer_name_is_not_shadowed_by_its_prefix(self):
         self.assertEqual(parse_command("艾米，停下", names=("艾", "艾米")), {"action": "stop"})

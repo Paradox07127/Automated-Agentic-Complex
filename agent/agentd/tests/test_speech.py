@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from voice import speech as speech_module  # noqa: E402
-from voice.speech import SpeechRelay, spoken_part  # noqa: E402
+from voice.speech import SpeechRelay  # noqa: E402
 from infra.service_ensure import ServiceEnsurer  # noqa: E402
 from voice.voice_provider import make_provider  # noqa: E402
 from support import serve_in_thread  # noqa: E402
@@ -768,20 +768,6 @@ class UtteranceTest(unittest.TestCase):
         time.sleep(0.2)
         self.assertEqual(len(tts.bodies), 1)
         self.assertEqual(relay.cancel_speech(ids[0]), "ended")
-
-
-class SpokenPartTest(unittest.TestCase):
-    def test_short_text_is_spoken_whole(self):
-        text = "你来了。会话我替你看着，有事叫我。"
-        self.assertEqual(spoken_part(text), text)
-
-    def test_long_text_speaks_only_the_first_sentence(self):
-        self.assertEqual(spoken_part("一共三件事……" + "细节" * 30 + "。"), "一共三件事……")
-        self.assertEqual(spoken_part("先说结论：可以！" + "理由" * 30), "先说结论：可以！")
-
-    def test_long_first_sentence_is_cut_at_a_comma_or_the_limit(self):
-        self.assertEqual(spoken_part("甲" * 30 + "，" + "乙" * 30 + "。"), "甲" * 30 + "，")
-        self.assertEqual(spoken_part("丙" * 70), "丙" * 50)
 
 
 class _PortTTS(FakeTTS):

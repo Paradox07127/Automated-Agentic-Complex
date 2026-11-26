@@ -19,7 +19,7 @@ class SpeechMixin:
         agent = self.server.character_agent
         if self.server.closing or agent is None:
             return self._json(503, {"error": "shutting_down" if self.server.closing else "no_llm"})
-        status = agent.quick_status()
+        status = agent.public()["routes"]["chat"]
         if not status["ready"]:
             return self._json(503, {"error": status["error"]})
         try:

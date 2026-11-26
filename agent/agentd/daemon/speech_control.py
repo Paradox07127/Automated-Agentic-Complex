@@ -253,7 +253,6 @@ class SpeechControlMixin:
     def _abort_model(self):
         if self.character_agent is not None:
             self.character_agent.cancel("turn_cancelled")
-        """Close the mouth's open model stream at once."""
         abort = getattr(self.mouth, "cancel_active", None)
         if abort is not None:
             abort()

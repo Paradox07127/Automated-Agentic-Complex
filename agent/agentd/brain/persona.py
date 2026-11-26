@@ -35,22 +35,17 @@ GAME_MOTION_RULE = ("You also have a body on the desktop: a marker [motion:phras
                     "if none fits, write none: {1}. Seconds 1 to 6, at most one per reply, after the intent marker.")
 
 
-# Sent to the model after tool results in a turn whose text the user reads; <reply_style> is in that turn's prompt.
-TOOL_REMINDER = ("The tool results above are material, not your words. What you write next shows in the speech bubble: "
-                 "say it as yourself, in the voice, length and format <reply_style> sets.")
-
 # The language the cards are written in (brain.language code), and the fields an `i18n` entry may give per reply language.
 BASE_LANGUAGE = "zh-Hans"
 LOCALIZED = ("name", "user_title", "examples", "catchphrases", "tone_rules", "familiarity_rules", "post_history_instructions")
 
 
 def localized(card, language):
-    """card with its i18n entry for language applied; language None (harness) keeps the card. Examples in another
-    language than the reply's are dropped: they pull the reply into their language."""
+    """card with its i18n entry for language applied; language None (harness) keeps the card."""
     if language in (None, BASE_LANGUAGE):
         return card
     entry = card.get("i18n", {}).get(language, {})
-    return {**card, "examples": [], **{key: value for key, value in entry.items() if key in LOCALIZED}}
+    return {**card, **{key: value for key, value in entry.items() if key in LOCALIZED}}
 
 
 def prompt_user(card):

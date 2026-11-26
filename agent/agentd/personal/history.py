@@ -12,8 +12,8 @@ STATES = ("completed", "cancelled", "interrupted", "failed")
 SELECT = f"SELECT {', '.join(COLUMNS)} FROM history_turns"
 PAGE_MAX = 200
 HEARD = "state IN ('completed', 'interrupted')"
-# The user's own turns, of one character, or of every one when the character_id given (twice) is None.
-SAID = "source IN ('text', 'voice') AND (? IS NULL OR character_id = ?)"
+# Turns across all channels, of one character, or of every one when the character_id given (twice) is None.
+SAID = f"source IN ({', '.join(repr(s) for s in SOURCES)}) AND (? IS NULL OR character_id = ?)"
 # Arguments: the match, character_id twice, character_id twice, skip_recent, k.
 SEARCH = ("SELECT h.id, h.turn_id, h.character_id, h.source, h.user_text, h.reply, h.started_at"
           " FROM history_fts JOIN history_turns h ON h.id = history_fts.rowid"

@@ -80,3 +80,24 @@ SCHEDULE_SCHEMA = (
     " started_at REAL, job_id TEXT, state TEXT NOT NULL CHECK (state IN ('started','skipped','missed','failed')), error TEXT)",
     "CREATE INDEX IF NOT EXISTS schedule_runs_schedule ON schedule_runs(schedule_id,due_at)",
 )
+
+CONVERSATION_SCHEMA = (
+    "CREATE TABLE IF NOT EXISTS conversations (id TEXT PRIMARY KEY, title TEXT NOT NULL, pinned INTEGER NOT NULL DEFAULT 0,"
+    " archived INTEGER NOT NULL DEFAULT 0, revision INTEGER NOT NULL DEFAULT 1, created_at REAL NOT NULL, character_id TEXT NOT NULL)",
+    "CREATE TABLE IF NOT EXISTS conversation_turns (event_id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL)",
+    "CREATE INDEX IF NOT EXISTS conversation_turns_conversation ON conversation_turns(conversation_id)",
+    "CREATE TABLE IF NOT EXISTS conversation_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+)
+
+SESSION_MANAGEMENT_SCHEMA = (
+    "CREATE TABLE IF NOT EXISTS session_management (session_id TEXT PRIMARY KEY, pinned INTEGER NOT NULL,"
+    " archived INTEGER NOT NULL, revision INTEGER NOT NULL)",
+)
+
+SEMANTIC_ATTEMPTS_SCHEMA = (
+    "CREATE TABLE IF NOT EXISTS semantic_attempts (id INTEGER PRIMARY KEY, purpose TEXT NOT NULL,"
+    " outcome TEXT NOT NULL, at REAL NOT NULL, day TEXT NOT NULL,"
+    " counted INTEGER NOT NULL, conversation INTEGER NOT NULL)",
+    "CREATE INDEX IF NOT EXISTS semantic_attempts_window ON semantic_attempts(at)",
+    "CREATE INDEX IF NOT EXISTS semantic_attempts_day ON semantic_attempts(day,purpose)",
+)

@@ -206,7 +206,7 @@ class TurnTest(test_server.FeedServerCase):
         self.server.capture = CaptureManager(self.server.feed, Blacklist(deny_blacklist(Path(self.tmp.name) / "blacklist.json")),
                                              lambda: test_capture.CODE, None, vision=test_capture.FakeVision())
         conn, response = self.open_feed()
-        status, said = self.say("看一下")
+        status, said = self.request("POST", "/say", {"text": "看一下", "look": True})
         self.assertEqual((status, said["command"]), (202, "look"))
         [request] = [i["data"] for i in self.server.feed.since(0) if i["event"] == "request"]
         status, cut = self.cancel()
@@ -225,7 +225,7 @@ class TurnTest(test_server.FeedServerCase):
         capture = self.server.capture = CaptureManager(
             self.server.feed, Blacklist(deny_blacklist(Path(self.tmp.name) / "blacklist.json")), lambda: test_capture.CODE, None,
             vision=test_capture.FakeVision())
-        status, said = self.say("看一下")
+        status, said = self.request("POST", "/say", {"text": "看一下", "look": True})
         self.assertEqual((status, said["command"]), (202, "look"))
         [request] = [item["data"] for item in self.server.feed.since(0) if item["event"] == "request"]
         request_id = request["request_id"]
@@ -576,11 +576,12 @@ class TurnTest(test_server.FeedServerCase):
         def requests():
             return [i["data"]["request_id"] for i in self.server.feed.since(0) if i["event"] == "request"]
         # The switch goes last: an open switch refuses every /say after it.
-        cuts = (("new_input", lambda: self.say("看一下")), ("stop", lambda: self.say("停下")),
+        cuts = (("new_input", lambda: self.request("POST", "/say", {"text": "看一下", "look": True})),
+                ("stop", lambda: self.say("停下")),
                 ("switch", lambda: self.server.prepare_switch("birch")))
         for name, cut in cuts:
             with self.subTest(cut=name):
-                self.assertEqual(self.say("看一下")[1].get("command"), "look")
+                self.assertEqual(self.request("POST", "/say", {"text": "看一下", "look": True})[1].get("command"), "look")
                 pending = requests()[-1]
                 cut()
                 if name == "new_input":  # its image still comes in (test_capture: each look waits for its own)

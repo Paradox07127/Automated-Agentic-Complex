@@ -31,20 +31,7 @@ OVER = ("ended", "interrupted", "failed", "unknown")
 # The renderer sends receipts only on a change, so a silent one may still play its rest: wait that plus this slack
 # (a buffering stall, the Companion hop) before taking the renderer as lost.
 RECEIPT_STALE = 10.0
-SPOKEN_LIMIT = 50  # characters; a longer line is shown whole but only its start is voiced (user, round 20)
 CUT_POLL = 0.25  # seconds; the longest a cut waits to end a wait on the ensure or on the utterance before
-_FIRST = re.compile(r"^.*?(?:[。！？!?]+|…+)")
-
-
-def spoken_part(text, limit=SPOKEN_LIMIT):
-    """The part of a line that goes to TTS: all of it up to limit, else the first sentence, cut at a comma if long."""
-    if len(text) <= limit:
-        return text
-    first = _FIRST.match(text)
-    if first and len(first.group()) <= limit:
-        return first.group()
-    comma = text.rfind("，", 0, limit)
-    return text[:comma + 1] if comma > 0 else text[:limit]
 
 
 def _line(raw, last_seq):

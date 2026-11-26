@@ -1287,16 +1287,7 @@ class KernelLines:
 
     def public(self, discover=False, *, wait=True):
         ready = {"ready": True, "error": None, "backend": "pi"}
-        return {**ready, "routes": {"chat": ready, "background": ready}}
-
-    def quick_status(self):
-        return self.public()["routes"]["chat"]
-
-    def begin_quick(self, trace, scope_id):
-        pass
-
-    def settle_quick(self, ident, state, error):
-        pass
+        return {**ready, "routes": {"chat": ready, "quick": ready, "background": ready}}
 
     def busy(self):
         return False
@@ -1444,14 +1435,16 @@ class SayTest(FeedServerCase):
         self.assertEqual(self.server.speech.calls,
                          [("cancel", "superseded", False), ("speak", line_id, "你来了，管理员。")])
 
-    def test_long_line_speaks_only_its_first_sentence(self):
-        self.server.mouth = FakeMouth(["[intent:explain]先说结论：能合。", "理由" * 30 + "。"])
+    def test_long_line_speaks_full_reply(self):
+        second = "理由" * 30 + "。"
+        self.server.mouth = FakeMouth(["[intent:explain]先说结论：能合。", second])
         line_id = self.say("详细解释一下")[1]["line_id"]
         for _ in range(100):
-            if any(c[0] == "speak" for c in self.server.speech.calls):
+            if len([c for c in self.server.speech.calls if c[0] == "speak"]) >= 2:
                 break
             time.sleep(0.01)
-        self.assertEqual(self.server.speech.calls[-1], ("speak", line_id, "先说结论：能合。"))
+        self.assertEqual(self.server.speech.calls[-2:],
+                         [("speak", line_id, "先说结论：能合。"), ("speak", line_id, second)])
 
     def test_each_line_she_voices_or_shows_is_one_line_for_her(self):
         state = self.server.state = self.her_state(12)
@@ -1653,25 +1646,6 @@ class SayTest(FeedServerCase):
         self.assertIn("sleepy", context)
         self.assertNotRegex(context, r"管理员[^.;]*(sleepy|tired|mood|happy|sad|low|good|angry|annoyed)")
 
-    def test_the_summary_goes_through_the_outbound_guard(self):
-        from brain.egress import EgressPolicy
-        from brain.outbound import OutboundGuard
-        import hashlib
-        self.server.state = self.her_state(1, walks=2)
-        summary = self.server.state.summary(self.server.user_title())
-        windows, log = Path(self.tmp.name) / "windows.json", Path(self.tmp.name) / "guard.jsonl"
-        for hashes, shown in (([hashlib.sha256("不匹配的合成语料".encode()).hexdigest()[:16]], True),
-                              ([hashlib.sha256("youyour".encode()).hexdigest()[:16]], False)):
-            with self.subTest(blocked=not shown):
-                windows.write_text(json.dumps({"n": 7, "hashes": hashes}), encoding="utf-8")
-                log.write_text("", encoding="utf-8")
-                self.server.egress = EgressPolicy(guard=OutboundGuard(windows, log))
-                context = self.server.context()
-                (self.assertIn if shown else self.assertNotIn)(summary, context)
-                self.assertIn("Sessions: ", context)  # a blocked summary leaves the rest of the context
-                self.assertEqual([json.loads(row)["part"] for row in log.read_text(encoding="utf-8").splitlines()],
-                                 [] if shown else ["state"])
-
     def test_stop_cancels_the_running_line(self):
         self.server.mouth = FakeMouth(["[intent:explain]一"] + ["二"] * 50, delay=0.05)
         conn, response = self.open_feed()
@@ -1706,15 +1680,12 @@ class SayTest(FeedServerCase):
         conn.close()
         self.assertEqual({e["speak"] for e in events}, {False})
 
-    def test_open_and_jump_go_to_the_companion(self):
-        conn, response = self.open_feed()
-        self.assertEqual(self.say("打开 Safari")[0], 200)
-        event = self.next_event(response)
-        conn.close()
-        self.assertEqual(event["event"], "command")
-        data = json.loads(event["data"])
-        self.assertEqual((data["action"], data["target"]), ("open", "Safari"))
-        self.assertEqual(self.server.mouth.calls, [])
+    def test_open_and_jump_go_to_the_character_llm_instead_of_regex(self):
+        for phrase in ("打开 Safari", "切到 Safari"):
+            status, body = self.say(phrase)
+            self.assertEqual(status, 202)
+            self.assertIn("run_id", body)
+            self.assertNotIn("command", body)
 
     def test_voice_deny_rejects_the_single_pending_card(self):
         self.server.broker.window = 5.0
@@ -1734,99 +1705,24 @@ class SayTest(FeedServerCase):
         self.assertEqual((status, body["command"]), (200, "deny"))
         self.assertEqual(result["body"]["hookSpecificOutput"]["decision"]["behavior"], "deny")
 
-    def test_dispatch_opens_a_card_in_the_focused_session_cwd(self):
-        agent = self.server.character_agent
-        chat = agent.public()["routes"]["chat"]  # without a background route the role cannot take the dispatch
-        agent.public = lambda discover=False, *, wait=True: {**chat, "routes": {"chat": chat, "background": {**chat, "ready": False}}}
-        self.assertEqual(self.say("让 Codex 查一下测试怎么跑"), (409, {"error": "no_cwd"}))
+    def test_dispatch_phrases_go_to_the_character_llm_instead_of_regex(self):
         self.request("POST", "/hook/claude", {"hook_event_name": "UserPromptSubmit", "session_id": "A",
                                               "cwd": "/repo", "prompt": "hi"}, token=HOOK)
         status, body = self.say("让 Codex 查一下测试怎么跑")
-        self.assertEqual((status, body["command"]), (202, "dispatch"))
-        [card] = self.request("GET", "/approvals")[1]["approvals"]
-        self.assertEqual((card["request_id"], card["kind"]), (body["request_id"], "dispatch"))
-        self.assertEqual(card["dispatch"], {"target": "codex", "cwd": "/repo", "prompt": "查一下测试怎么跑",
-                                            "source": "text", "utterance": None,
-                                            "modes": ["read_only", "workspace_write"], "mode": "read_only",
-                                            "verify_cmd": None,
-                                            "cwd_from": {"source": "focus", "display_session": "claude:A",
-                                                         "state": "thinking"}})
-        deny = {"decision": "deny", "generation": card["generation"]}
-        self.assertEqual(self.request("POST", f"/approvals/{card['request_id']}/decision", deny)[0], 200)
-
-    def test_voice_dispatch_card_shows_what_was_heard(self):
-        self.request("POST", "/hook/claude", {"hook_event_name": "UserPromptSubmit", "session_id": "A",
-                                              "cwd": "/repo", "prompt": "hi"}, token=HOOK)
-        heard = "示例甲，让 Codex 查一下测试怎么跑。"
-        status, body = self.request("POST", "/say", {"text": heard, "source": "voice"})
-        self.assertEqual((status, body["command"]), (202, "dispatch"))
-        [card] = self.request("GET", "/approvals")[1]["approvals"]
-        self.assertEqual(card["dispatch"], {"target": "codex", "cwd": "/repo", "prompt": "查一下测试怎么跑。",
-                                            "source": "voice", "utterance": heard,
-                                            "modes": ["read_only", "workspace_write"], "mode": "read_only",
-                                            "verify_cmd": None,
-                                            "cwd_from": {"source": "focus", "display_session": "claude:A",
-                                                         "state": "thinking"}})
-
-    def hook(self, name, session, cwd, **extra):
-        return self.request("POST", "/hook/claude", {"hook_event_name": name, "session_id": session, "cwd": cwd,
-                                                     **extra}, token=HOOK)
-
-    def keyed(self, body, key):
-        conn = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=5)
-        conn.request("POST", "/say", body=json.dumps(body).encode(),
-                     headers={"Authorization": f"Bearer {UI}", "Content-Type": "application/json",
-                              "Idempotency-Key": key})
-        response = conn.getresponse()
-        data = json.loads(response.read() or b"null")
-        conn.close()
-        return response.status, data
-
-    def test_dispatch_card_says_which_focus_its_cwd_came_from(self):
-        self.hook("UserPromptSubmit", "B", "/repoB", prompt="hi")
-        self.hook("StopFailure", "B", "/repoB", error="api")
-        self.hook("UserPromptSubmit", "A", "/repoA", prompt="hi")
-        self.assertEqual(self.say("让codex修A项目的测试")[0], 202)
-        [card] = self.server.broker.pending()
-        self.assertEqual((card["dispatch"]["cwd"], card["dispatch"]["cwd_from"]),
-                         ("/repoB", {"source": "focus", "display_session": "claude:B", "state": "error"}))
-
-    def test_dispatch_uses_an_explicit_cwd(self):
-        self.hook("UserPromptSubmit", "A", "/repoA", prompt="hi")
-        status, body = self.request("POST", "/say", {"text": "让codex修A项目的测试", "cwd": self.tmp.name})
-        self.assertEqual((status, body["command"]), (202, "dispatch"))
-        [card] = self.server.broker.pending()
-        self.assertEqual((card["dispatch"]["cwd"], card["dispatch"]["cwd_from"]),
-                         (self.tmp.name, {"source": "explicit"}))
+        self.assertEqual(status, 202)
+        self.assertIn("run_id", body)
+        self.assertNotIn("command", body)
+        self.assertEqual(self.request("GET", "/approvals")[1]["approvals"], [])
 
     @unittest.skipIf(sys.platform == "win32", "the test writes POSIX absolute paths or POSIX path spellings")
     def test_dispatch_rejects_a_cwd_that_is_no_absolute_directory(self):
-        self.hook("UserPromptSubmit", "A", "/repoA", prompt="hi")
+        self.request("POST", "/hook/claude", {"hook_event_name": "UserPromptSubmit", "session_id": "A",
+                                              "cwd": "/repoA", "prompt": "hi"}, token=HOOK)
         relative = os.path.relpath(self.tmp.name)
         for cwd in ("/no/such/dir", relative, 5, ""):
             with self.subTest(cwd=cwd):
                 self.assertEqual(self.request("POST", "/say", {"text": "让codex修A项目的测试", "cwd": cwd}),
                                  (400, {"error": "invalid_payload", "field": "cwd"}))
-        self.assertEqual(self.server.broker.pending(), [])
-
-    def test_same_idempotency_key_opens_one_dispatch_card(self):
-        self.hook("UserPromptSubmit", "A", "/repoA", prompt="hi")
-        body = {"text": "让codex修A项目的测试", "source": "text"}
-        first = self.keyed(body, "k-say")
-        self.assertEqual(first[0], 202)
-        self.assertEqual(self.keyed(body, "k-say"), first)
-        [card] = self.server.broker.pending()
-        self.assertEqual(card["request_id"], first[1]["request_id"])
-        self.assertEqual(self.keyed({**body, "text": "让codex修B项目的测试"}, "k-say"),
-                         (409, {"error": "idempotency_conflict"}))
-        self.assertEqual(len(self.server.broker.pending()), 1)
-        self.assertEqual(self.say("让codex修A项目的测试")[0], 202)  # without a key every request runs
-        self.assertEqual(len(self.server.broker.pending()), 2)
-
-    def test_no_memory_turn_opens_no_dispatch_card(self):
-        self.hook("UserPromptSubmit", "A", "/repoA", prompt="hi")
-        self.assertEqual(self.request("POST", "/say", {"text": "让codex修A项目的测试", "no_memory": True}),
-                         (409, {"error": "no_memory_dispatch"}))
         self.assertEqual(self.server.broker.pending(), [])
 
     def test_session_whose_cli_cannot_start_answers_502(self):
@@ -2142,11 +2038,10 @@ class TaskCommandTest(FeedServerCase):
         self.addCleanup(manager.close, 0)
         self.server.tasks = self.server.dispatcher.tasks = manager.tasks = TaskLedger(self.db)
         self.server.sessions = self.server.dispatcher.sessions = manager
+        self.server.mouth = FakeMouth(["好的。"])
 
     def propose(self, prompt):
-        status, body = self.request("POST", "/say", {"text": f"让 claude {prompt}", "cwd": self.tmp.name})
-        self.assertEqual(status, 202)
-        return body["request_id"]
+        return self.server.dispatcher.propose("claude", self.tmp.name, prompt).request_id
 
     def task(self, task_id, state):
         for _ in range(200):
@@ -2163,20 +2058,12 @@ class TaskCommandTest(FeedServerCase):
         self.server.broker.decide(request_id, card["generation"], "allow")
         return self.task(request_id, "running")
 
-    def test_stop_task_interrupts_the_one_busy_session_and_cancels_its_task(self):
-        self.assertEqual(self.request("POST", "/say", {"text": "停止任务"}), (409, {"error": "no_task"}))
+    def test_stop_task_phrases_go_to_the_character_llm(self):
         task = self.dispatched()
-        session = self.server.sessions.sessions[task["session_id"]]
-        self.assertEqual(self.request("POST", "/say", {"text": "别做了"}), (200, {"command": "stop_task"}))
-        self.assertEqual((session.backend.interrupted, session.cancel_requested), (1, True))
-        self.assertEqual(self.server.tasks.get(task["task_id"])["state"], "cancelled")
-
-    def test_stop_task_with_two_busy_sessions_is_ambiguous(self):
-        first, second = self.dispatched("a"), self.dispatched("b")
-        self.assertEqual(self.request("POST", "/say", {"text": "取消任务"}), (409, {"error": "ambiguous_task"}))
-        self.assertEqual([self.server.tasks.get(t["task_id"])["state"] for t in (first, second)],
-                         ["running", "running"])
-        self.assertEqual([s.backend.interrupted for s in self.server.sessions.sessions.values()], [0, 0])
+        status, body = self.request("POST", "/say", {"text": "别做了"})
+        self.assertEqual(status, 202)
+        self.assertIn("run_id", body)
+        self.assertEqual(self.server.tasks.get(task["task_id"])["state"], "running")
 
     @unittest.skipIf(sys.platform == "win32", "cause on Windows not yet found")
     def test_context_names_the_latest_tasks(self):
@@ -2494,9 +2381,6 @@ class RitualTapTest(FeedServerCase):
         return self.request("POST", "/interaction/tap", {"at": "2026-10-22T08:00:00+08:00", **extra}, token)
 
     def test_a_tap_says_the_morning_once(self):
-        egress = []
-        self.server.egress = SimpleNamespace(authored=lambda part, text: egress.append((part, text)) or text,
-                                             redactions={})
         status, body = self.tap()
         self.assertEqual((status, body["kind"]), (202, "morning"))
         self.assertTrue(self.wait_for(lambda: not self.server._live_lines and self.rows))
@@ -2508,7 +2392,6 @@ class RitualTapTest(FeedServerCase):
         self.assertEqual({line["speak"] for line in lines}, {True})
         self.assertIn(("speak", body["line_id"], "早上好，管理员。"), self.server.speech.calls)
         from personal.rituals import TEMPLATES
-        self.assertEqual(egress, [("ritual", "\n".join(TEMPLATES["morning"]))])
         [(text, _)] = self.server.mouth.calls
         self.assertTrue(text.startswith('<event kind="morning">\nThis is the first time 管理员 has touched you today'))
         self.assertTrue(text.endswith(f"\n</event>\n{TEMPLATES['morning'][1]}"))
@@ -2614,9 +2497,6 @@ class RitualTapTest(FeedServerCase):
 
     def test_nothing_pending_says_a_tap_line(self):
         from personal.rituals import TAP
-        egress = []
-        self.server.egress = SimpleNamespace(authored=lambda part, text: egress.append((part, text)) or text,
-                                             redactions={})
         self.now = time.mktime(datetime.datetime.now().replace(hour=4, minute=0, second=0, microsecond=0).timetuple())
         status, body = self.tap()
         self.assertEqual((status, body["kind"]), (202, "tap"))
@@ -2624,7 +2504,6 @@ class RitualTapTest(FeedServerCase):
         lines = [i["data"] for i in self.server.feed.since(0) if i["event"] == "line"]
         self.assertEqual({json.dumps(line["reason"]) for line in lines}, {json.dumps({"code": "tap"})})
         self.assertIn(("speak", body["line_id"], "早上好，管理员。"), self.server.speech.calls)
-        self.assertEqual(egress, [("tap", "\n".join(TAP))])
         self.assertEqual([text for text, _ in self.server.mouth.calls],
                          [f'<event kind="tap" count="1">\n{self.server.user_title()} reached out and lightly touched '
                           f'you.\n</event>\n{TAP[1]}'])
@@ -2638,16 +2517,12 @@ class RitualTapTest(FeedServerCase):
 
     def test_a_tap_says_how_many_clicks(self):
         from personal.rituals import TAPS
-        egress = []
-        self.server.egress = SimpleNamespace(authored=lambda part, text: egress.append((part, text)) or text,
-                                             redactions={})
         self.now = time.mktime(datetime.datetime.now().replace(hour=4, minute=0, second=0, microsecond=0).timetuple())
         for count in (0, 21, "3", 2.0, True, None):
             with self.subTest(count=count):
                 self.assertEqual(self.tap(count=count), (400, {"error": "invalid_payload", "field": "count"}))
         self.assertEqual(self.tap(count=3)[1]["kind"], "tap")
         self.assertTrue(self.wait_for(lambda: not self.server._live_lines and self.rows))
-        self.assertEqual(egress, [("tap", "\n".join(TAPS))])
         self.assertEqual([text for text, _ in self.server.mouth.calls],
                          [f'<event kind="tap" count="3">\n{self.server.user_title()} touched you 3 times in a row.\n'
                           f'</event>\n{TAPS[1]}'])
@@ -2697,16 +2572,6 @@ class RitualTapTest(FeedServerCase):
         self.assertTrue(self.wait_for(lambda: not self.server._live_lines and self.rows))
         [(text, _)] = self.server.mouth.calls
         self.assertIn("drink some water", text)
-
-    def test_a_blocked_tap_instruction_says_nothing(self):
-        from brain.outbound import OutboundBlocked
-
-        def authored(part, text):
-            raise OutboundBlocked(part, 1)
-        self.server.egress = SimpleNamespace(authored=authored, redactions={})
-        self.now = time.mktime(datetime.datetime.now().replace(hour=4, minute=0, second=0, microsecond=0).timetuple())
-        self.assertEqual(self.tap(), (200, {"kind": None}))
-        self.assertEqual(self.server.mouth.calls, [])
 
     def test_the_tts_warms_while_the_model_writes(self):
         """A character-agent line ensures the TTS before its model turn, not after it returns."""
@@ -3128,19 +2993,6 @@ class CharacterTest(FeedServerCase):
         self.assertIs(self.server.attention, attention)
         self.assertTrue(self.server.muted)
 
-    def test_blocked_card_keeps_the_old_character(self):
-        from brain.outbound import OutboundBlocked
-
-        def blocked(cid):
-            raise OutboundBlocked("system", 2)
-        self.server.mouth_factory = blocked
-        old = self.server.mouth
-        self.assertEqual(self.request("POST", "/character", {"id": "birch"}), (409, {"error": "outbound_blocked"}))
-        self.assertIs(self.server.mouth, old)
-        self.assertEqual(self.request("GET", "/state")[1]["character"], "aster")
-        self.assertEqual(self.server.speech.calls, [])
-
-
 class CharacterSwitchTest(FeedServerCase):
     """Prepare cuts the turn and holds new input, commit swaps persona and voice, abort or the lease leave O."""
     say, request, lines_until_final = SayTest.say, SayTest.request, SayTest.lines_until_final
@@ -3237,7 +3089,7 @@ class CharacterSwitchTest(FeedServerCase):
         self.assertEqual((self.server.speech.character, self.server.speech.language), ("si", "zh"))
         self.assertIsNot(self.server.mouth, old)
         self.assertEqual(self.server.mouth.history, [])
-        self.assertEqual(self.say("打开 Safari"), (200, {"command": "open"}))
+        self.assertEqual(self.say("静音"), (200, {"command": "mute"}))
         conn, response = self.open_feed()
         self.say("你好")
         events = self.lines_until_final(response)
@@ -3260,7 +3112,7 @@ class CharacterSwitchTest(FeedServerCase):
                          ("aster", 0, None))
         self.assertIs(self.server.mouth, old)
         self.assertEqual((self.server.speech.character, self.server.speech.language), ("voice_a", "zh"))
-        self.assertEqual(self.say("打开 Safari"), (200, {"command": "open"}))
+        self.assertEqual(self.say("静音"), (200, {"command": "mute"}))
         self.assertEqual(self.commit(switch_id), (404, {"error": "unknown_switch"}))
         self.assertEqual(self.abort(switch_id), (404, {"error": "unknown_switch"}))
         self.assertEqual(self.prepare()[0], 200)  # the next switch can open
@@ -3278,14 +3130,6 @@ class CharacterSwitchTest(FeedServerCase):
         self.assertEqual(self.prepare({"id": "aster"}), (409, {"error": "same_character"}))
         unchanged()
         from brain.outbound import OutboundBlocked
-        factory = self.server.mouth_factory
-
-        def blocked(cid):
-            raise OutboundBlocked("system", 2)
-        self.server.mouth_factory = blocked
-        self.assertEqual(self.prepare(), (409, {"error": "outbound_blocked"}))
-        unchanged()
-        self.server.mouth_factory = factory
         status, body = self.prepare()
         self.assertEqual(status, 200)
         self.assertEqual(self.prepare(), (409, {"error": "switching"}))
@@ -3302,7 +3146,7 @@ class CharacterSwitchTest(FeedServerCase):
         self.assertEqual(self.state()["switching"]["switch_id"], switch_id)
         self.now[0] += 0.2
         self.assertTrue(self.wait_for(lambda: self.state()["switching"] is None))
-        self.assertEqual(self.say("打开 Safari"), (200, {"command": "open"}))
+        self.assertEqual(self.say("静音"), (200, {"command": "mute"}))
         self.assertEqual(self.commit(switch_id), (404, {"error": "unknown_switch"}))
         self.assertEqual((self.state()["character"], self.state()["character_generation"]), ("aster", 0))
 
@@ -3370,7 +3214,7 @@ class CharacterSwitchTest(FeedServerCase):
         self.assertIs(self.server.mouth, old)
         self.assertEqual(self.server.speech.character, "voice_a")
         self.assertEqual(self.abort(switch_id), (200, {}))
-        self.assertEqual(self.say("打开 Safari"), (200, {"command": "open"}))
+        self.assertEqual(self.say("静音"), (200, {"command": "mute"}))
 
     def hold_the_mouth(self):
         """A line whose model sends nothing until the returned Event is set; it holds _mouth_lock till then."""
@@ -3444,7 +3288,7 @@ class CharacterSwitchTest(FeedServerCase):
         state.use("aster")
         self.server.state = state
         spoke = lambda: [c["cause"] for c in state.snapshot()["causes"]]  # noqa: E731
-        self.assertEqual(self.say("打开 Safari"), (200, {"command": "open"}))
+        self.assertEqual(self.say("静音"), (200, {"command": "mute"}))
         self.assertEqual(spoke(), ["user_spoke"])
         self.assertEqual(self.abort(self.prepare()[1]["switch_id"]), (200, {}))
         self.assertEqual(state.snapshot()["character_id"], "aster")  # an abort stays

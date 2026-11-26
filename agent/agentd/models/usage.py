@@ -73,13 +73,6 @@ class UsageMeter:
     def __init__(self, db, lock=None, clock=time.time):
         self.db, self.clock = db, clock
         self.lock = threading.Lock() if lock is None else lock
-        with self.lock:
-            self.db.execute("CREATE TABLE IF NOT EXISTS semantic_attempts (id INTEGER PRIMARY KEY, purpose TEXT NOT NULL,"
-                            " outcome TEXT NOT NULL, at REAL NOT NULL, day TEXT NOT NULL,"
-                            " counted INTEGER NOT NULL, conversation INTEGER NOT NULL)")
-            self.db.execute("CREATE INDEX IF NOT EXISTS semantic_attempts_window ON semantic_attempts(at)")
-            self.db.execute("CREATE INDEX IF NOT EXISTS semantic_attempts_day ON semantic_attempts(day,purpose)")
-            self.db.commit()
 
     def record(self, model, call, usage, status="completed", local=False, *, provider=None, channel=None, attempt_id=None,
                cost_usd=None, cost_source=None):

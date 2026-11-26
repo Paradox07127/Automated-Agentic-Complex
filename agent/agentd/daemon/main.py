@@ -332,7 +332,6 @@ def main(secret_store=None):
     store_lock = store_db._idle_lock
     memory = Memory(store_db, lock=store_lock)
     from models.model_backends import ModelSettings
-    from brain.outbound import OutboundGuard, resolve_windows
     from brain.provider import Mouth
     models = ModelSettings(state_dir, secret_store, llm_url=args.llm_url,
                            llm_ensurer=ensurer("llm", args.llm_ensure_host, args.llm_ensure_script)) if needs_runtime else None
@@ -342,10 +341,9 @@ def main(secret_store=None):
     if models is not None:
         moved["llm"] = (service_endpoint(args, "llm"), lambda: models.clear_key("compatible"))
     clear_moved_credentials(state_dir, moved)
-    guard = OutboundGuard(resolve_windows(state_dir), paths.outbound_guard_log(state_dir))
     from brain.egress import EgressPolicy
     # One policy for every model call, so the diagnostics see one set of mask counts.
-    egress = EgressPolicy(guard=guard, redact=args.redact)
+    egress = EgressPolicy(redact=args.redact)
     from models.usage import UsageMeter
     usage = UsageMeter(store_db, lock=store_lock)
     def motion_phrases(cid):
@@ -416,8 +414,6 @@ def main(secret_store=None):
                               ensurer=ensurer("motion", args.motion_ensure_host, args.motion_ensure_script))
     server.bindings = Bindings(state_dir, repository, lambda: server.motion.settings.backend)
     server.character_voice_enabled = args.character is not None and server.bindings.voice(args.character) is not None
-    if server.mouth is not None:
-        server.mouth.refresh_system(effective(server))  # the bindings are built after the mouth
     if plugins.on("motion_generation"):
         server.motion.prewarm(server.motion.settings.backend if args.character is None else effective(server)["motion"]["driver"])
     if args.character is not None:  # without a character server.state stays None and records nothing

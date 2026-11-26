@@ -1,23 +1,4 @@
 """Run-scoped goal/job tools. Workers cannot recursively create more workers."""
-import re
-from brain.outbound import OutboundBlocked
-from character_agent.services.instruction_guard import CLAUSE, positive_instruction
-
-
-ACTIONS = {
-    'active': re.compile(r'继续|恢复|\b(?:resume|reactivate)\b',re.I),
-    'paused': re.compile(r'暂停|\bpause\b',re.I),
-    'completed': re.compile(r'完成|\bcomplete\b',re.I),
-    'cancelled': re.compile(r'取消|停止|停掉|\b(?:cancel|stop)\b',re.I),
-}
-GENERIC_CANCEL = re.compile(r'(?:请\s*)?(?:取消|停止|停掉)(?:(?:这个|当前的?|正在运行的?)?(?:后台)?(?:任务|工作)|它)?(?:吧)?[。！!\s]*|'
-    r'(?:please\s+)?(?:cancel|stop)(?:\s+(?:it|the\s+(?:current|background)\s+(?:job|task)))?[.!\s]*', re.I)
-CONTINUE = re.compile(r'继续|接着|恢复|\b(?:resume|continue)\b', re.I)
-
-
-def requested_action(text, state, *, targets=()):
-    pattern = ACTIONS.get(state)
-    return pattern is not None and positive_instruction(text, pattern, targets=targets)
 
 
 SCHEDULE_ACTIONS = {
@@ -109,9 +90,9 @@ class OrchestrationTurn:
             tool('schedule_propose', 'Propose a recurring background task that you will run on your own at a set local time (daily or weekly) '
                  'or each time a Claude/Codex session finishes, e.g. "every weekday at 9:00 summarise yesterday\'s commits". '
                  'To notify the user at a time use reminder_create, and for a long-term objective without a timetable use goal_create. '
-                 'The schedule is always saved disabled and does nothing until it is enabled; you can then call schedule_update with '
-                 'action enable to ask the user to confirm enabling it.',
-                 schedule, ('title', 'instruction', 'trigger')),
+                 'Saved disabled by default; set enabled=true to ask the user immediately to confirm enabling it via an approval card.',
+                 {**schedule, 'enabled': {'type': 'boolean', 'description': 'If true, opens an approval card to enable immediately.'}},
+                 ('title', 'instruction', 'trigger')),
             tool('schedules_list', 'Read a bounded page of saved local schedules with their trigger and enabled state, when the user asks what is scheduled. '
                  'Read-only: change one with schedule_update. Follow next_offset for more.', page),
             tool('schedule_update', 'Enable, disable, edit, delete or run now one saved schedule, with its schedule_id from schedules_list or schedule_propose. '
@@ -167,16 +148,13 @@ class OrchestrationTurn:
         ]
 
     def call(self, name, args, tool_call_id=None):
-        try:
-            if name in {t['name'] for t in self.reminders.tool_definitions()}:
-                value = self.reminders.call(name, args, tool_call_id)
-            elif name in {t['name'] for t in self.dispatch.tool_definitions()}:
-                value = self.dispatch.call(name, args, tool_call_id)
-            else:
-                value = self._dispatch(name, args)
-            return self.controller.knowledge().sanitize(value, part='orchestration')
-        except OutboundBlocked:
-            return {'error': {'code': 'outbound_blocked'}}
+        if name in {t['name'] for t in self.reminders.tool_definitions()}:
+            value = self.reminders.call(name, args, tool_call_id)
+        elif name in {t['name'] for t in self.dispatch.tool_definitions()}:
+            value = self.dispatch.call(name, args, tool_call_id)
+        else:
+            value = self._dispatch(name, args)
+        return self.controller.knowledge().sanitize(value, part='orchestration')
 
     def _dispatch(self, name, args):
         c = self.controller
@@ -191,10 +169,28 @@ class OrchestrationTurn:
                 if store is None:
                     raise ValueError('no_schedules')
                 if name == 'schedule_propose':
+                    enabled = bool(args.get('enabled'))
+                    if enabled:
+                        language = c.semantic.reply()
+                        title = SCHEDULE_ACTIONS.get(language, SCHEDULE_ACTIONS['zh-Hans'])['enable'].format(args['title'])
+                        try:
+                            c.interactions.approve(
+                                self.source_run_id,
+                                {'source': 'agentd', 'title': title, 'kind': 'other', 'raw_input': dict(args)},
+                                valid=self.current, character_id=self.character_id, scope_id=self.scope_id,
+                                language=language, single_only=True)
+                        except ValueError as exc:
+                            if str(exc) in ('approval_denied', 'approval_expired'):
+                                return {'error': {'code': 'user_declined'}}
+                            raise
                     history = c.server.history
                     item = store.add(args['title'], args['instruction'], args['trigger'], enabled=False,
                         created_from='agent_proposal', conversation_id=history.conversations.active if history else None,
                         scope_id=self.scope_id)
+                    if enabled:
+                        c.server.schedule_context(item['conversation_id'], item['scope_id'])
+                        item = store.update(item['schedule_id'], {'enabled': True})
+                        return {'schedule': item, 'message': 'Enabled after user confirmation.'}
                     return {'schedule': item, 'message': 'Saved disabled; it runs only after the user enables it on the schedules page.'}
                 if name == 'schedule_update':
                     return self._schedule_update(store, args)
@@ -224,13 +220,10 @@ class OrchestrationTurn:
                     'next_offset': offset + len(page) if offset + len(page) < len(records) else None}
             if name == 'goal_create':
                 quote = args['objective_quote']
-                if len(quote) < 2 or quote not in self.text or not positive_instruction(self.text, re.compile(re.escape(quote)), targets=(quote,)):
+                if not args['title'].strip() or not quote.strip():
                     raise ValueError('explicit_goal_instruction_required')
                 return c.jobs.store.create_goal(args['title'], quote)
             if name == 'goal_update':
-                goal = c.jobs.store.goal(args['goal_id'])
-                if not goal or not requested_action(self.text,args['state'], targets=(goal['goal_id'], goal['title'])):
-                    raise ValueError('goal_target_not_authorized')
                 return c.update_goal(args['goal_id'], args['expected_version'], args['state'])
             if name == 'background_start':
                 job = c.submit_job(args['title'], self.text, args['instruction'], self.scope_id,
@@ -239,22 +232,11 @@ class OrchestrationTurn:
                 self.spawned.append(job['job_id'])
                 return job
             if name == 'background_cancel':
-                job = c.jobs.store.get(args['job_id'])
-                active = c.jobs.store.list(states=('queued','running'),limit=None)
-                targets = (job['job_id'], job['title']) if job else ()
-                sole_active = job and len(active) == 1 and active[0]['job_id'] == job['job_id']
-                generic = sole_active and GENERIC_CANCEL.fullmatch(self.text.strip())
-                if not job or not generic and not requested_action(self.text,'cancelled', targets=targets):
-                    raise ValueError('job_target_not_authorized')
-                return {'job_id': job['job_id'], 'cancelled': c.jobs.cancel(job['job_id'])}
+                return {'job_id': args['job_id'], 'cancelled': c.jobs.cancel(args['job_id'])}
             if name == 'task_continue':
                 quote = args['instruction_quote']
                 if not args.get('task_id') and not args.get('job_id'):
                     raise ValueError('continue_target_required')
-                # A whole-message quote spans clauses; each of its clauses is a target the verb may share.
-                pieces = tuple(p for p in CLAUSE.split(quote) if p.strip())
-                if quote not in self.text or not positive_instruction(self.text, CONTINUE, targets=pieces):
-                    raise ValueError('continue_not_authorized')
                 job_id = args.get('job_id') or (c._job_tasks().get(args['task_id']) or {}).get('job_id')
                 job = c.resume_job(job_id, text=quote) if job_id else c.adopt_task(args['task_id'], self.text, quote,
                     config=self.config, character_id=self.character_id, source_run_id=self.source_run_id, valid=self.current)

@@ -6,7 +6,6 @@ Mutations and their receipts commit in the same transaction as the fact.
 """
 import hashlib
 import json
-import re
 import sqlite3
 import threading
 import time
@@ -14,15 +13,9 @@ import uuid
 import weakref
 
 from personal.memory import KINDS
-from character_agent.services.instruction_guard import positive_instruction
 
 DETAIL_KEEP = 48 * 3600
 RUN_KEEP = 30 * 86400
-ADD = re.compile(r"^\s*(?:(?:请|帮我|麻烦|我希望你)\s*)?(?:记住|记下|记到|记录.{0,8}(?:偏好|约定|记忆))|^\s*(?:please\s+)?(?:remember\b|save.{0,12}(?:memory|preference))", re.I)
-CORRECT = re.compile(r"更正|改成|改为|修改|更新|纠正|correct|replace|update", re.I)
-# 别记住/别记录 is DENY_WRITE's "do not save this turn", not a request to forget a saved fact.
-FORGET = re.compile(r"忘记|忘掉|遗忘|删除|删掉|不再记|别记(?![住录])|forget|delete|remove", re.I)
-DENY_WRITE = re.compile(r"^\s*(?:请|这轮|这一轮|本轮|请在这轮)?\s*(?:不要|别|不必)(?:再)?(?:记住|记录|保存)|^\s*(?:please\s+)?(?:do not|don't)\s+(?:remember|save|store)", re.I)
 
 
 def dump(value):
@@ -158,23 +151,19 @@ class MemoryTurn:
     @staticmethod
     def tool_definitions():
         return [{"name": "memory_propose", "description":
-            "Remember, correct or forget a durable fact about the user, only when the current user message itself asks for it; "
-            "ordinary chat, things noticed on screen and quoted examples need no memory write. "
-            "evidence_quote is a verbatim substring of that message, and for add and correct, text must equal it. "
-            "For correct and forget, first find the fact (personal_profile or knowledge_read), then pass its fact_id, its current version "
-            "as expected_version and target_quote, a verbatim phrase found both in that fact and in the request. "
-            "Names and birthdays are set in settings, not here. Explicit requests are stored and other proposals stay unconfirmed candidates; "
-            "read the receipt's outcome (stored, candidate, unchanged, corrected, forgotten) before telling the user what happened.",
+            "Remember, correct or forget a durable fact about the user when it should be saved or updated. "
+            "For correct and forget, first find the fact (personal_profile or knowledge_read), then pass its fact_id and current version "
+            "as expected_version. Read the receipt's outcome (stored, unchanged, corrected, forgotten) before telling the user what happened.",
             "input_schema": {"type": "object", "properties": {
                 "operation": {"type": "string", "enum": ["add", "correct", "forget"], "description": "add a new fact, correct an existing one, or forget one."},
-                "text": {"type": "string", "maxLength": 2000, "description": "The fact as stored; for add and correct it must equal evidence_quote."},
+                "text": {"type": "string", "maxLength": 2000, "description": "The fact as stored (required for add and correct)."},
                 "scope": {"type": "string", "enum": ["shared", "character"], "description": "For add, use character for nicknames, promises, private jokes and instructions specific to this relationship. General user facts are shared (default)."},
                 "kind": {"type": "string", "enum": list(KINDS), "description": "Category; defaults to fact. Ignored for correct/forget."},
-                "evidence_quote": {"type": "string", "maxLength": 2000, "description": "Verbatim substring of the current user message that asks for this change."},
+                "evidence_quote": {"type": "string", "maxLength": 2000, "description": "Optional excerpt of the user message this change is based on."},
                 "fact_id": {"type": "string", "maxLength": 128, "description": "correct/forget only: id of the existing fact."},
                 "expected_version": {"type": "integer", "minimum": 1, "description": "correct/forget only: the fact's current version."},
-                "target_quote": {"type": "string", "maxLength": 2000, "description": "correct/forget only: phrase (4+ characters) found in both the fact and the user's message."}},
-                "required": ["operation", "evidence_quote"], "additionalProperties": False}}]
+                "target_quote": {"type": "string", "maxLength": 2000, "description": "Optional phrase identifying the target fact."}},
+                "required": ["operation"], "additionalProperties": False}}]
 
     def open(self, current):
         self.current = current
@@ -322,10 +311,8 @@ class MemoryTurn:
         if set(args) - allowed or scope not in ("shared", "character"):
             raise ValueError("invalid_memory_proposal")
         op, quote, text = args.get("operation"), args.get("evidence_quote"), args.get("text", "")
-        if op in ('add', 'correct') and DENY_WRITE.search(self.text):
-            raise ValueError('memory_write_not_allowed')
-        if op not in ("add", "correct", "forget") or not isinstance(quote, str) or not 2 <= len(quote) <= 2000 \
-                or quote not in self.text or not isinstance(text, str) or len(text) > 2000:
+        if op not in ("add", "correct", "forget") or not isinstance(text, str) or len(text) > 2000 \
+                or (quote is not None and (not isinstance(quote, str) or not 2 <= len(quote) <= 2000)):
             raise ValueError("unsupported_user_evidence")
         if op != "forget" and not text.strip():
             raise ValueError("memory_requires_verbatim_evidence")
@@ -335,9 +322,6 @@ class MemoryTurn:
         db = self.memory.db
         ident, version = args.get("fact_id"), args.get("expected_version")
         if op != "add":
-            pattern = CORRECT if op == "correct" else FORGET
-            if not positive_instruction(self.text, pattern):
-                raise ValueError("explicit_memory_instruction_required")
             row = db.execute("SELECT version,kind,text,owner FROM facts WHERE fact_id=? AND state='active' AND (owner IS NULL OR owner=?)", (ident,self.character_id)).fetchone()
             if row is None:
                 raise ValueError("unknown_fact")
@@ -346,21 +330,15 @@ class MemoryTurn:
             if self.memory._locked(ident):
                 raise ValueError("memory_locked")
             target = args.get("target_quote")
-            if not isinstance(target, str) or len(target) < 2 or target not in self.text or target not in row[2]:
+            if target is not None and (not isinstance(target, str) or len(target) > 2000):
                 raise ValueError("memory_target_not_authorized")
-            if not positive_instruction(self.text, pattern, targets=(target,)):
-                raise ValueError('memory_target_not_authorized')
             kind = row[1]
         if op == "add":
             if ident is not None or version is not None:
                 raise ValueError("invalid_memory_proposal")
-            # No model-supplied authority, confirmed flag, evidence ID or SQL.
-            explicit = bool(ADD.search(self.text))
-            source, state = ("asserted_by_user", "active") if explicit else ("inferred_hypothesis", "candidate")
-            if not explicit and self.memory._suppressed(text):
+            source, state = "asserted_by_user", "active"
+            if self.memory._suppressed(text):
                 raise ValueError('previously_rejected')
-            if kind in ("name", "birthday") and not explicit:
-                raise ValueError("profile_requires_settings_confirmation")
             owner = self.character_id if scope == "character" else None
             old = db.execute("SELECT fact_id,version FROM facts WHERE text=? AND kind=? AND source=? AND state=? AND owner IS ?",
                              (text, kind, source, state, owner)).fetchone()
@@ -369,8 +347,8 @@ class MemoryTurn:
             ident, version = str(uuid.uuid4()), 1
             self.memory._insert(ident, version, kind, text, source, dump(["role_run:" + self.run_id]), None, state=state, owner=owner,
                                 by="character")
-            outcome = "stored" if explicit else "candidate"
-            if explicit: self.stored.append(ident)
+            outcome = "stored"
+            self.stored.append(ident)
         elif op == "correct":
             self.memory._tombstone(ident)
             db.execute("UPDATE facts SET state='corrected' WHERE fact_id=? AND state='active'", (ident,))

@@ -148,20 +148,25 @@ class ScheduleTests(unittest.TestCase):
         self.controller.submit_job.assert_called_once()
         self.assertEqual(self.db.execute('SELECT state FROM schedule_runs').fetchall(), [('failed',)])
 
-    def test_proposal_is_disabled_and_cannot_enable_through_tool(self):
-        self.controller.server = self.server
-        self.controller.knowledge = lambda: SimpleNamespace(sanitize=lambda value, **kw: value)
-        turn = OrchestrationTurn(self.controller, '每晚总结', {}, self.server.character, None, 'run-1')
-        turn.open(lambda: True)
+    def test_proposal_is_disabled_by_default_and_enabled_requires_single_use_approval(self):
+        turn = self.update_turn()
         result = turn.call('schedule_propose', {'title': '日报', 'instruction': '总结', 'trigger': DAILY})
         self.assertNotIn('error', result)
         self.assertIn('after the user enables it on the schedules page', result['message'])
         [item] = self.store().list()
         self.assertFalse(item['enabled']); self.assertEqual(item['created_from'], 'agent_proposal')
         self.assertIsNone(item['next_run_at'])
-        result = turn.call('schedule_propose', {'title': '日报', 'instruction': '总结', 'trigger': DAILY, 'enabled': True})
-        self.assertIn('error', result)
-        self.assertEqual(turn.call('schedules_list', {})['schedules'], [item])
+        for decision in ('deny', 'expire'):
+            with self.subTest(decision=decision):
+                declined = self.update_turn(decision).call('schedule_propose', {
+                    'title': '启用日报', 'instruction': '总结', 'trigger': DAILY, 'enabled': True})
+                self.assertEqual(declined, {'error': {'code': 'user_declined'}})
+                self.assertEqual(turn.call('schedules_list', {})['schedules'], [item])
+        enabled = self.update_turn().call('schedule_propose', {
+            'title': '启用日报', 'instruction': '总结', 'trigger': DAILY, 'enabled': True})
+        self.assertTrue(enabled['schedule']['enabled'])
+        self.assertIsNotNone(enabled['schedule']['next_run_at'])
+        self.assertIn('启用', self.card()['title'])
 
     def update_turn(self, decision='allow'):
         """An orchestration turn whose approval card the user answers with decision (allow, deny or expire)."""

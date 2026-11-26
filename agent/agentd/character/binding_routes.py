@@ -1,6 +1,4 @@
 """GET/PUT /characters/<id>/binding; live voice changes and a prompt refresh for the current character."""
-from brain.outbound import OutboundBlocked
-from brain.provider import chat_system
 from route_registry import CHARACTER_BINDING_PATH
 
 
@@ -29,17 +27,7 @@ def route(h, method, path):
             except ValueError:
                 h.json(404, {"error": "unknown_character"})
                 return True
-            egress = getattr(h.server, "egress", None)
-            if egress is None:
-                egress = getattr(h.server.mouth, "egress", None)
-
-            def check(binding):
-                chat_system(bindings.repository.load_card(cid), binding, egress)
-
-            try:
-                status, reply = bindings.update(cid, body, check=check if egress is not None else None)
-            except OutboundBlocked:
-                status, reply = 409, {"error": "outbound_blocked"}
+            status, reply = bindings.update(cid, body)
             if status == 200 and cid == h.server.character:
                 voice = reply["voice"]
                 voice = None if voice is None else (voice["voice_id"], voice["language"])

@@ -10,7 +10,13 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, stat, writeFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 
-export const SCOPE_FILE_TYPES = ['md', 'txt', 'csv', 'json', 'docx', 'xlsx', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp'];
+export const SCOPE_FILE_TYPES = [
+  'md', 'txt', 'csv', 'tsv', 'json', 'jsonl', 'yaml', 'yml', 'toml', 'ini', 'cfg', 'conf',
+  'xml', 'html', 'htm', 'css', 'scss', 'py', 'js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx',
+  'swift', 'm', 'mm', 'c', 'h', 'cc', 'cpp', 'hpp', 'cs', 'rs', 'go', 'java', 'kt',
+  'rb', 'php', 'lua', 'ps1', 'sql', 'r', 'sh', 'zsh', 'bash', 'tex', 'rst', 'log',
+  'diff', 'patch', 'docx', 'xlsx', 'pptx', 'png', 'jpg', 'jpeg', 'gif', 'webp',
+];
 let pasteGeneration = 0;
 
 export function clearPasted(supportDir: string): void {

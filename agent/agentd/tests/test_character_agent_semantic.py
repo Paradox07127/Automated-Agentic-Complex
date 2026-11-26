@@ -331,7 +331,7 @@ class SemanticTests(unittest.TestCase):
         sibling = result['memories'][1]['fact_id']
         self.server.memory.confirm(sibling)  # Every old version must be erased as well.
         independent = self.server.memory.add('独立确认的格式约定', 'confirmed_by_user')
-        self.source('记住：周末不安排会议。', ident='separate-turn')
+        self.source('周末不安排会议', ident='separate-turn')
         self.reply = self.findings('周末不安排会议')
         separate = self.pipeline.run_once()
         return result, sibling, independent, separate

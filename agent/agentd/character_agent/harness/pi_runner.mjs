@@ -151,13 +151,6 @@ function modelRequest(event) {
   }
   // Pi writes its prompt sections in prompt(); a question's resume starts with agent.continue(), which writes none.
   if (!messages.some(item => item.role === "system" && item.sections)) messages = withPrompt(messages, session.systemPrompt);
-  const at = messages.findLastIndex(item => item.role === "toolResult"), tool = messages[at];
-  // Pi's Anthropic conversion would send a user message after a tool result as a second user turn, so the
-  // reminder joins a copy of the tool result. User messages after a tool result of this run are steers.
-  if (config.tool_reminder && active && !active.quick && tool && tool.timestamp >= active.started &&
-      messages.slice(at + 1).every(item => item.role === "user")) {
-    messages = messages.with(at, { ...tool, content: [...tool.content, { type: "text", text: config.tool_reminder }] });
-  }
   return messages === event.messages ? undefined : { messages };
 }
 // Pi's own tools this machine can run, found the way Pi finds them; with the shells and what is left out.

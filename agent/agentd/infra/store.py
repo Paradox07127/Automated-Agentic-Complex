@@ -8,8 +8,9 @@ import time
 import traceback
 
 from fsutil import atomic_write_text
-from infra.store_schemas import (CONTINUOUS_OBSERVATION_SCHEMA, DELIVERY_SCHEMA, OBSERVATION_BRIEF_SCHEMA,
-                           WORKLOG_SCHEMA, SCHEDULE_SCHEMA)
+from infra.store_schemas import (CONTINUOUS_OBSERVATION_SCHEMA, CONVERSATION_SCHEMA, DELIVERY_SCHEMA,
+                                 OBSERVATION_BRIEF_SCHEMA, SCHEDULE_SCHEMA, SEMANTIC_ATTEMPTS_SCHEMA,
+                                 SESSION_MANAGEMENT_SCHEMA, WORKLOG_SCHEMA)
 
 MEMORY_AGENT_SCHEMA = (
     "CREATE TABLE IF NOT EXISTS agent_memory_processed (source_id TEXT PRIMARY KEY, version TEXT NOT NULL)",
@@ -132,7 +133,8 @@ SCHEMA = (
     " episode_id INTEGER NOT NULL, at REAL NOT NULL, old_title TEXT NOT NULL, old_description TEXT NOT NULL,"
     " new_title TEXT NOT NULL, new_description TEXT NOT NULL)",
     "CREATE INDEX IF NOT EXISTS summary_corrections_episode ON summary_corrections (episode_id)",
-) + MEMORY_AGENT_SCHEMA + DELIVERY_SCHEMA + OBSERVATION_BRIEF_SCHEMA + CONTINUOUS_OBSERVATION_SCHEMA + WORKLOG_SCHEMA + SCHEDULE_SCHEMA
+) + (MEMORY_AGENT_SCHEMA + DELIVERY_SCHEMA + OBSERVATION_BRIEF_SCHEMA + CONTINUOUS_OBSERVATION_SCHEMA
+     + WORKLOG_SCHEMA + SCHEDULE_SCHEMA + CONVERSATION_SCHEMA + SESSION_MANAGEMENT_SCHEMA + SEMANTIC_ATTEMPTS_SCHEMA)
 
 
 class _Checkpoints:
@@ -318,6 +320,23 @@ def compact(path):
         db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     finally:
         db.close()
+
+
+def open_private_db(path, schema, *, row_factory=None):
+    """Open an isolated 0600 WAL SQLite file (idle checkpoints, optional row factory) and apply its DDL."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path.touch(mode=0o600, exist_ok=True)
+    db = sqlite3.connect(path, check_same_thread=False, factory=IdleConnection)
+    if row_factory is not None:
+        db.row_factory = row_factory
+    db.execute("PRAGMA journal_mode=WAL")
+    db.execute("PRAGMA synchronous=NORMAL")
+    db.execute("PRAGMA journal_size_limit=4194304")
+    db.execute("PRAGMA secure_delete=ON")
+    db.executescript(schema)
+    db.commit()
+    return db
 
 
 def checkpoint(owner):

@@ -611,19 +611,14 @@ class IntegrationTests(IntegrationFixture):
                 status, _ = self.request('POST', '/agent/jobs', {'title': '资料核对', 'text': '核对资料', **body})
                 self.assertEqual((status, submit.call_args.args[3]), (202, scope))
 
-    def test_goal_tool_binds_direction_and_respects_explicit_negation(self):
+    def test_goal_tool_updates_state_with_version_check(self):
         from character_agent.services.orchestration import OrchestrationTurn
         goal=self.controller.jobs.store.create_goal('事项维护','整理证据')
-        def turn(text):
-            value=OrchestrationTurn(self.controller,text,self.controller.settings.snapshot(),'aster',None,'tool-test')
-            value.open(lambda:True);return value
-        args={'goal_id':goal['goal_id'],'expected_version':1,'state':'cancelled'}
-        for text in ('请暂停事项维护目标','请不要取消事项维护目标'):
-            reply=turn(text).call('goal_update',args)
-            self.assertEqual(reply['error']['code'],'goal_target_not_authorized')
-            self.assertEqual(self.controller.jobs.store.goal(goal['goal_id'])['state'],'active')
-        args['state']='paused'
-        self.assertEqual(turn('请暂停事项维护目标').call('goal_update',args)['state'],'paused')
+        turn=OrchestrationTurn(self.controller,'处理目标',self.controller.settings.snapshot(),'aster',None,'tool-test')
+        turn.open(lambda:True)
+        self.assertEqual(turn.call('goal_update',{'goal_id':goal['goal_id'],'expected_version':2,'state':'paused'})['error']['code'],'goal_version_changed')
+        self.assertEqual(turn.call('goal_update',{'goal_id':goal['goal_id'],'expected_version':1,'state':'paused'})['state'],'paused')
+        self.assertEqual(turn.call('goal_update',{'goal_id':goal['goal_id'],'expected_version':2,'state':'cancelled'})['state'],'cancelled')
 
     def test_background_assignment_is_material_not_a_system_instruction(self):
         seen=[]
@@ -1393,10 +1388,13 @@ class IntegrationTests(IntegrationFixture):
 
     def test_p0_4_stop_task_ends_foreground_and_side(self):
         task = self.busy_foreground()
-        side = self.request('POST', '/say', {'text': '问一句 SIDE'})[1]
-        self.until(lambda: side['line_id'] in self.started)
-        self.assertEqual(self.request('POST', '/say', {'text': '停止任务'})[0], 200)
-        self.until(lambda: self.state(task['run_id']) == 'cancelled' and self.state(side['line_id']) == 'cancelled')
+        side = self.request('POST', '/say', {'text': '停止任务'})
+        self.assertEqual(side[0], 202)
+        self.until(lambda: (self.controller.store.get(side[1]['line_id']) or {}).get('state') == 'completed')
+        self.assertEqual(self.state(task['run_id']), 'running')
+        run = self.controller.store.get(task['run_id'])
+        self.assertEqual(self.request('POST', f"/agent/runs/{task['run_id']}/cancel", {'generation': run['generation']})[0], 202)
+        self.until(lambda: self.state(task['run_id']) == 'cancelled')
 
     def test_p0_4_second_side_replaces_only_the_first(self):
         task = self.busy_foreground()
@@ -1727,16 +1725,6 @@ class TurnContextTests(unittest.TestCase):
             self.prepare('派出去的任务呢')
         self.assertAlmostEqual(dispatches.call_args.kwargs['since'], time.time() - 7 * 86400, delta=60)
 
-    def test_d_reminder_without_clear_time_asks_for_date_and_time(self):
-        self.prepare('提醒我开会', reminder_unparsed=True)
-        self.assertIn('gave no clear time', self.sessions[-1].calls[-1]['prompt'])
-        self.prepare('提醒我开会')
-        self.assertNotIn('gave no clear time', self.sessions[-1].calls[-1]['prompt'])
-
-    def test_c3_unclear_reminder_time_goes_into_time_quote_after_the_answer(self):
-        self.prepare('提醒我月底前续费', reminder_unparsed=True)
-        self.assertIn("Put the time words of their answer into reminder_create's time_quote", self.sessions[-1].calls[-1]['prompt'])
-
     def test_d_reading_files_to_answer_is_not_a_task(self):
         self.prepare('这份文件说了什么')
         self.assertIn('Writing files, several tool steps or over 20 seconds', self.sessions[-1].calls[-1]['system_prompt'])
@@ -1746,23 +1734,17 @@ class TurnContextTests(unittest.TestCase):
         self.prepare('接着昨天那个报销汇总继续')
         self.assertIn('Earlier work to continue: task_continue, not a new task_plan', self.sessions[-1].calls[-1]['system_prompt'])
 
-    def test_p0_1_canon_quote_in_history_drops_that_turn_and_later_turns_still_run(self):
-        from brain.outbound import OutboundBlocked
-        class Guard:
-            def check(self, part, text):
-                if '原作台词' in text:
-                    raise OutboundBlocked(part, 1)
-        self.server.egress.guard = Guard()
+    def test_p0_1_history_turns_redact_pii_without_dropping_turns(self):
         self.server.mouth.history = [
-            [{'role': 'user', 'content': '你记得这句原作台词吗'}, {'role': 'assistant', 'content': '记得。'}],
+            [{'role': 'user', 'content': '联系我 private@example.com'}, {'role': 'assistant', 'content': '记下了，联系 private@example.com'}],
             [{'role': 'user', 'content': '今天天气不错'}, {'role': 'assistant', 'content': '是啊。'}]]
         stored = json.loads(json.dumps(self.server.mouth.history))
-        for text in ('第一轮', '第二轮'):
-            self.prepare(text)
-            sent = self.sessions[-1].calls[-1]['history']
-            self.assertNotIn('原作台词', json.dumps(sent, ensure_ascii=False))
-            self.assertIn('今天天气不错', json.dumps(sent, ensure_ascii=False))
-            self.assertTrue(all(len(turn) == 2 for turn in sent))
+        self.prepare('第一轮')
+        sent = self.sessions[-1].calls[-1]['history']
+        self.assertIn('private@example.com', sent[0][0]['content'])
+        self.assertNotIn('private@example.com', sent[0][1]['content'])
+        self.assertIn('今天天气不错', json.dumps(sent, ensure_ascii=False))
+        self.assertEqual(len(sent), 2)
         self.assertEqual(self.server.mouth.history, stored)
 
     def use_reply_language(self, setting):

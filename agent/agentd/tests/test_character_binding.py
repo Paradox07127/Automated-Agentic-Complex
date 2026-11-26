@@ -223,60 +223,6 @@ class BoundPromptTest(BindingCase):
         self.assertEqual(english["catchphrases"], [{"phrase": "Hm", "when": "always"}])
         self.assertEqual(card["i18n"]["en"]["tone_rules"], ["package en"])
 
-    def test_blocked_current_persona_put_leaves_binding_and_prompt_unchanged(self):
-        path = "/characters/aster/binding"
-        self.assertEqual(self.request("PUT", path, {
-            "revision": 0, "motion": {"driver": "generated"},
-            "persona": {"overrides": {"identity": self.IDENTITY}}})[0], 200)
-        before = self.request("GET", path)
-        saved, system = self.server.bindings.path.read_bytes(), self.text()
-        blocked = "测试禁止外发的角色身份。"
-        guard = self.server.mouth.egress.guard = mock.Mock()
-        guard.check.side_effect = lambda part, text: (_ for _ in ()).throw(OutboundBlocked(part, 1)) \
-            if blocked in text else None
-        self.assertIsNone(self.server.egress)
-        self.assertEqual(self.request("PUT", path, {
-            "revision": 1, "persona": {"overrides": {"identity": blocked}}}),
-            (409, {"error": "outbound_blocked"}))
-        self.assertEqual(self.request("GET", path), before)
-        self.assertEqual(self.server.bindings.path.read_bytes(), saved)
-        self.assertEqual(self.text(), system)
-        card = {**self.server.characters.load_card("aster"), "identity": blocked}
-        guard.check.assert_called_once_with("system", persona.render_persona(card, True))
-
-    def test_blocked_other_persona_put_leaves_binding_and_prompt_unchanged(self):
-        path = "/characters/cedar/binding"
-        before, system = self.request("GET", path), self.text()
-        blocked = "测试禁止外发的角色身份。"
-        guard = mock.Mock()
-        guard.check.side_effect = lambda part, text: (_ for _ in ()).throw(OutboundBlocked(part, 1)) \
-            if blocked in text else None
-        self.server.egress = EgressPolicy(guard=guard)
-        self.assertEqual(self.request("PUT", path, {
-            "revision": 0, "motion": {"driver": "generated"},
-            "persona": {"overrides": {"identity": blocked}}}),
-            (409, {"error": "outbound_blocked"}))
-        self.assertEqual(self.request("GET", path), before)
-        self.assertFalse(self.server.bindings.path.exists())
-        self.assertEqual(self.text(), system)
-        card = {**self.server.characters.load_card("cedar"), "identity": blocked}
-        guard.check.assert_called_once_with("system", persona.render_persona(card, True))
-
-    def test_blocked_post_history_put_leaves_binding_and_chat_unchanged(self):
-        guard = mock.Mock()
-        self.server.mouth = Mouth(character="aster", lore_path=False, guard=guard)
-        path = "/characters/aster/binding"
-        before, instructions = self.request("GET", path), self.instructions()
-        blocked = "测试禁止外发的口吻提醒。"
-        guard.check.side_effect = lambda part, text: (_ for _ in ()).throw(OutboundBlocked(part, 1)) \
-            if blocked in text else None
-        self.assertEqual(self.request("PUT", path, {
-            "revision": 0, "persona": {"overrides": {"post_history_instructions": blocked}}}),
-            (409, {"error": "outbound_blocked"}))
-        self.assertEqual(self.request("GET", path), before)
-        self.assertFalse(self.server.bindings.path.exists())
-        self.assertEqual(self.instructions(), instructions)
-
     def test_post_history_override_reaches_the_mouth(self):
         guard = mock.Mock()
         self.server.mouth = Mouth(character="aster", lore_path=False, guard=guard)

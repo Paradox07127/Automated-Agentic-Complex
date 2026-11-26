@@ -124,10 +124,11 @@ class WorkspaceTests(WorkspaceCase):
         self.assertEqual(self.call('workspace_read', {'source_id': 'r0:tool.py'})['text'], 'print("[hidden]")\n')
         self.assertEqual(self.call('workspace_read', {'source_id': 'r0:run.log'})['text'], '12:00 started\n')
 
-    def test_artifact_paths_keep_the_four_text_formats(self):
-        for name in ('x.py', 'x.log', 'x.yaml'):
-            self.assertCode('unsupported_format', lambda: self.call('artifact_write', {'path': name, 'content': 'x', 'source_refs': []}))
-        self.assertEqual(self.call('artifact_write', {'path': 'x.md', 'content': 'x', 'source_refs': []})['version'], 1)
+    def test_artifact_paths_allow_text_and_code_formats(self):
+        for name in ('x.md', 'x.py', 'x.log', 'x.yaml'):
+            self.assertEqual(self.call('artifact_write', {'path': name, 'content': 'x', 'source_refs': []})['version'], 1)
+        for bad in ('x.env', 'x.exe'):
+            self.assertCode('unsupported_format', lambda: self.call('artifact_write', {'path': bad, 'content': 'x', 'source_refs': []}))
 
     def test_office_artifact_paths_stay_unsupported(self):
         self.assertCode('unsupported_format', lambda: self.call('artifact_write', {'path': 'x.docx', 'content': 'x', 'source_refs': []}))

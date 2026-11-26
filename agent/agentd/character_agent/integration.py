@@ -17,9 +17,8 @@ import uuid
 
 from brain.egress import redact
 from brain.markers import MarkerStream
-from brain.outbound import OutboundBlocked
 from brain.language import SYSTEM_RULE
-from brain.persona import TOOL_REMINDER, localized, render_brief_persona, render_persona
+from brain.persona import localized, render_brief_persona, render_persona
 from character.binding import bound, effective
 from character_agent.services.knowledge import DERIVED, KnowledgeService
 from character_agent.services.interactions import InteractionService, QuestionTurn
@@ -44,7 +43,6 @@ from sessions.danger import COMMAND_TOOLS, FILE_TOOLS
 from tool_gateway.gateway import SessionKey, ToolGateway
 from tool_gateway.ledger import ledger_path
 from tool_gateway.policy import POLICY
-from tool_gateway.registry import BRIDGED
 from traces.trace_store import TURN_TRACE, new_span_id, new_trace_id
 
 SIDE_INSTRUCTIONS = (
@@ -153,8 +151,6 @@ class CharacterAgentController:
         self.workspace = (WorkspaceService(self.state_dir / "character-agent" / "files", egress=server.egress)
                           if plugins.on("personal_agent") else None)
         self.runtime = None
-        self._quick_sessions = {}
-        self._quick_runtime = self._quick_runtime_config = None
         self._closing = False
         self.store = RunStore(ledger_path(self.state_dir), retention=self.retention)
         self.tools = ToolGateway(self.store, computer_control=lambda: server.computer_control,
@@ -385,7 +381,7 @@ class CharacterAgentController:
                    'output is, or where it is stuck. Then the complete deliverable, free of the everyday line length; end briefly with what was '
                    'checked and what could not be checked or finished. The character\'s voice takes at most the first sentence.\n'
                    '</background_job>')
-        if p['scope_id'] and config['backend'] in BRIDGED:
+        if p['scope_id']:
             scope = self.workspace.get_scope(p['scope_id'])
             system += ('\nAuthorized material, to read with your own file tools: '
                        + s.egress.observed(', '.join([f['path'] for f in scope.get('files', [])] + [r['path'] + '/' for r in scope['roots']])) + '.')
@@ -565,23 +561,11 @@ class CharacterAgentController:
         node, runtime = resolve_pi_runtime(self.harness_sites.get("harness.pi"))
         return Path(node).is_file() and (Path(runtime) / "node_modules/@earendil-works/pi-coding-agent/package.json").is_file()
 
-    def _quick_config(self, snapshot):
-        account = self.server.models.snapshot() if self.server.models else {}
-        provider = account.get("provider")
-        if provider == "pi_catalog":
-            provider = account["backends"][provider]["pi_provider"]
-        return RuntimeSettings.route(snapshot, "quick", pi_provider=provider)
-
     def _pi_backend(self):
         """Pi's available_backends row, read without runtime discovery."""
         enabled = plugins.on("light_ai")
         available = enabled and (self.session_factory_override is not None or self._pi_available())
         return {"id": "pi", "available": available, "reason": "runtime_missing" if enabled else "plugin_off"}
-
-    def quick_status(self):
-        config = self._quick_config(self.settings.snapshot())
-        error = self._readiness(config, [self._pi_backend()], False, False, self.settings.error)[0]
-        return {"backend": "pi", "ready": error is None, "error": error}
 
     def available_backends(self, *, wait=True):
         rows = self.installed_runtimes(wait=wait)
@@ -615,11 +599,7 @@ class CharacterAgentController:
         for purpose in ROUTES:
             entry = config["routes"].get(purpose)
             if purpose == "quick":
-                quick = self._quick_config(config)
-                failure = self._readiness(quick, available, pending, wait, self.settings.error)[0]
-                routes[purpose] = {"backend": "pi", "acp_agent": None, "model": quick["model"] or None,
-                                   "effort": entry["effort"] if entry else None, "follows_main": False,
-                                   "ready": failure is None, "error": failure}
+                continue
             elif entry is None:
                 failure = (self._readiness(config, available, pending, wait, self.settings.error, locked=True)[0]
                            if purpose in LOCKED_ROUTES and config["backend"] == "acp" else error)
@@ -629,6 +609,7 @@ class CharacterAgentController:
                 failure = self._readiness(RuntimeSettings.route(config, purpose), available, pending, wait,
                                           locked=purpose in LOCKED_ROUTES)[0]
                 routes[purpose] = {**entry, "follows_main": False, "ready": failure is None, "error": failure}
+        routes["quick"] = dict(routes["chat"])
         value = {**config, "routes": routes, "ready": error is None, "error": error, "auto_selected": auto_selected, "available_backends": available,
                 "installed_runtimes": self.installed_runtimes() if discover else [],
                 "selected_runtime": selected, "busy": self.busy(),
@@ -831,8 +812,7 @@ class CharacterAgentController:
         return RETENTION[self.settings.snapshot()["history_retention"]]
 
     def _foreground_runtime(self):
-        quick = self._quick_runtime
-        return quick if quick and quick.busy() else self.runtime
+        return self.runtime
 
     def busy(self):
         return bool(self.runtime and self.runtime.busy())
@@ -895,7 +875,6 @@ class CharacterAgentController:
             if self.runtime:
                 self.runtime.close()
                 self.runtime = None
-            self._retire_quick()
             self.settings.save(config)
             self._runtime_config = None
         return self._configured()
@@ -1233,7 +1212,6 @@ class CharacterAgentController:
     def _session_factory(self, definitions, config, actor_id=None, native_tools=True, max_turns=None, private_workspace=False,
                          spoken=False):
         """native_tools False: the harness's own tools stay off (semantic work, read-only role turns).
-        spoken: the user reads the run's text as her lines, so tool results are followed by TOOL_REMINDER.
         max_turns: a semantic purpose's turn ceiling; None keeps the harness default."""
         if not plugins.on("light_ai" if config["backend"] == "pi" else "harness_bridge"):
             raise ValueError("plugin_off")
@@ -1252,46 +1230,41 @@ class CharacterAgentController:
         # Only Pi's config has a turn ceiling; the semantic service counts tool calls for every harness.
         if max_turns is not None and config["backend"] == "pi":
             common["max_turns"] = max_turns
-        if spoken and config["backend"] in ("pi", "claude", "codex"):
-            common["tool_reminder"] = TOOL_REMINDER
         return HARNESSES[config["backend"]].session(self, config, common, definitions)
-
-    def quick_session(self):
-        with self._lock:
-            if self._closing or self.server.closing:
-                raise ValueError("shutting_down")
-            character = self.server.character
-            config = self._quick_config(self.settings.snapshot())
-            saved = self._quick_sessions.get(character)
-            if saved is None or saved[0] != config:
-                if saved:
-                    saved[1].close()
-                session = self._session_factory([], config, "quick-" + character, native_tools=False, private_workspace=True)
-                self._quick_sessions[character] = (config, session)
-            return self._quick_sessions[character][1]
 
     def prewarm(self):
         with self._lock:
-            character = self.server.character
-            session = self.quick_session()
+            if self._closing or self.server.closing:
+                raise ValueError("shutting_down")
+            runtime = self._ensure_runtime("chat")
+            config = RuntimeSettings.route(self.settings.snapshot(), "chat")
+            if runtime._session is not None:
+                session = runtime._session
+            else:
+                session = self._warm_session = getattr(self, "_warm_session", None)
+                if session is None or getattr(self, "_warm_config", None) != config:
+                    if session is not None:
+                        session.close()
+                    session = self._warm_session = self._session_factory(
+                        [], config, "warm-" + self.server.character, native_tools=False, private_workspace=True)
+                    self._warm_config = config
         try:
             session.prewarm()
         finally:
             with self._lock:
-                cached = self._quick_sessions.get(character)
-                retired = cached is None or cached[1] is not session
-                if retired:
+                retired = (self._closing or self.server.closing
+                           or (session is getattr(self, "_warm_session", None) and self._warm_config != config))
+                if session is getattr(self, "_warm_session", None) and retired:
                     session.close()
+                    self._warm_session = None
         if retired:
             raise ValueError("runtime_changed")
 
-    def _retire_quick(self):
-        if self._quick_runtime:
-            self._quick_runtime.close()
-            self._quick_runtime = None
-        for _, session in self._quick_sessions.values():
+    def _retire_warm(self):
+        session = getattr(self, "_warm_session", None)
+        if session is not None:
             session.close()
-        self._quick_sessions.clear()
+            self._warm_session = None
 
     def _ensure_runtime(self, purpose="chat", current=None):
         if purpose == "chat":
@@ -1300,24 +1273,20 @@ class CharacterAgentController:
             if current and not current():
                 return None
             snapshot = self.settings.snapshot()
-            quick = purpose == "quick"
-            config = self._quick_config(snapshot) if quick else RuntimeSettings.route(snapshot, purpose)
-            runtime, previous = (self._quick_runtime, self._quick_runtime_config) if quick else (self.runtime, self._runtime_config)
-            native = [] if quick else self.tools.registry.native_definitions(
+            config = RuntimeSettings.route(snapshot, purpose)
+            runtime, previous = self.runtime, self._runtime_config
+            native = self.tools.registry.native_definitions(
                 desktop=bool(self.server.computer_control), desktop_task=self._computer_use_ready(snapshot))
             if runtime is None or config != previous or native != runtime.native_tools:
                 if runtime:
                     runtime.close()
-                runtime = PersonalAgentRuntime(self.state_dir / "character-agent", self._session_factory_bound(config, spoken=not quick),
+                runtime = PersonalAgentRuntime(self.state_dir / "character-agent", self._session_factory_bound(config, spoken=True),
                     self.knowledge, self.workspace, tasks=self.server.tasks, backend=config["backend"],
                     model=self._model(config), event_sink=self._event, run_store=self.store, tools=self.tools,
                     native_tools=native, native_handler=self._native, effort=config['_turn_effort'])
                 if self.server.history is not None:
                     runtime.conversation_id = self.server.history.conversations.active
-                if quick:
-                    self._quick_runtime, self._quick_runtime_config = runtime, config
-                else:
-                    self.runtime, self._runtime_config = runtime, config
+                self.runtime, self._runtime_config = runtime, config
             return runtime
 
     def _session_factory_bound(self, config, actor_id=None, spoken=False):
@@ -1447,8 +1416,6 @@ class CharacterAgentController:
             if runtime:
                 cancelled = runtime.cancel('client_cancel', run_id=run_id, generation=generation, conversation_id=conversation_id)
             run = self.store.get(run_id)
-            if cancelled is None and run and run['state'] == 'running':
-                cancelled = self._cancel_preparing_quick(run_id, generation)
             if run and run['state'] == 'waiting_user' and \
                     not any(job['run_id'] == run_id for job in (self.jobs.store.list(limit=None) if self.jobs else ())):
                 self._cancel_waiting_run(run)
@@ -1458,12 +1425,6 @@ class CharacterAgentController:
         if speech_run and speech_run['conversation_id'] == conversation_id:
             self.server.cancel_run_speech(speech_run['run_id'])
         return 202, {'run_id': run_id, 'cancellation_requested': True}
-
-    def _cancel_preparing_quick(self, run_id, generation):
-        trace = self.server._turn_trace
-        if trace and trace.get("quick_admitted") and trace["turn_id"] == run_id and self.server.turn_generation == generation:
-            self.server._line_cancel.set()
-            return run_id
 
     def _cancel_waiting_run(self, run):
         with self.store.lock:
@@ -1536,8 +1497,6 @@ class CharacterAgentController:
             if not job or run is not None:
                 cancelled = runtime.cancel('client_cancel', run_id=run_id, generation=generation) if runtime else None
                 if run and run['state'] == 'waiting_user' and self._cancel_waiting_run(run): cancelled = run_id
-                if cancelled is None and not job:
-                    cancelled = self._cancel_preparing_quick(run_id, generation)
                 if cancelled is None: return 409, {'error': 'run_finished'}
         if job and not self.jobs.cancel(job['job_id'], run_id=run_id, generation=generation) and cancelled is None:
             return 409, {'error': 'run_finished'}
@@ -1600,7 +1559,7 @@ class CharacterAgentController:
                     self.server.cancel_turn('context_cleared', generation=generation)
             with self._lock:
                 foreground = self.runtime
-                runtimes = [r for r in (foreground, self._quick_runtime) if r]
+                runtimes = [foreground] if foreground else []
                 runtimes.extend(runtime for _, runtime in self._background_runtimes.values())
                 sides = [runtime for _, runtime in self._side_runtimes.values()]
                 runtimes.extend(sides)
@@ -1609,7 +1568,7 @@ class CharacterAgentController:
                     active = runtime._active
                     if active and fact_ids is not None and any(stale(d) for d in active['knowledge'].dependencies()):
                         affected.add(active['run_id'])
-                    if runtime in (foreground, self._quick_runtime) or runtime in sides:
+                    if runtime is foreground or runtime in sides:
                         # An ended run's words stay in the session it ran on; invalidate ends that session too.
                         for run_id in affected:
                             runtime.invalidate(reason, run_id=run_id, interrupted=True)
@@ -1636,7 +1595,7 @@ class CharacterAgentController:
             with self._lock:
                 if reason == "shutdown":
                     self._closing = True
-                self._retire_quick()
+                self._retire_warm()
         if reason != "turn_cancelled": self.semantic.cancel()
         if reason in ('context_changed', 'scope_revoked', 'memory_changed', 'history_cleared', 'shutdown'):
             with self.store.lock:
@@ -1648,7 +1607,7 @@ class CharacterAgentController:
         if self.memory_journal and reason in ('context_changed', 'scope_revoked', 'memory_changed'):
             self.memory_journal.redact(reason)
         with self._lock:
-            foreground = [r for r in (self.runtime, self._quick_runtime) if r]
+            foreground = [self.runtime] if self.runtime else []
             sides = [side for _, side in self._side_runtimes.values()]
         # Before invalidate, so the ending run's own run_end release cannot take the lease first.
         self.tools.close_all(reason)
@@ -1759,26 +1718,6 @@ class CharacterAgentController:
         from character_agent.harness.transport import join_reapers
         join_reapers()
 
-    def begin_quick(self, trace, scope_id):
-        ident = trace["turn_id"]
-        self.store.begin(ident, trace["conversation_id"] or self.store.conversation_id, trace["character_id"],
-                         trace["generation"], scope_id, delivery_eligible=trace["remember"])
-        metadata = {"backend": "pi", "work_kind": "foreground"}
-        seq = self.store.event(ident, "running", metadata)
-        return lambda: self._event({"run_id": ident, "seq": seq, "phase": "running", "at": time.time(), **metadata})
-
-    def settle_quick(self, ident, state, error):
-        # Preparation and the gap between kernels can end before runtime.run takes ownership.
-        with self.store.lock:
-            run = self.store.get(ident)
-            if run is None or run["state"] != "running":
-                return
-            state = "cancelled" if state in ("interrupted", "cancelled") else "failed"
-            reason = error or state
-            self.store.finish(ident, state, result={"error": reason})
-            seq = self.store.event(ident, state, {"error": reason})
-        self._event({"run_id": ident, "seq": seq, "phase": state, "error": reason, "at": time.time()})
-
     def prepare(self, line_id, text, cancel, generation, source, trace, *, side=False, **options):
         """Run the harness outside server's mouth lock; return a presentation-only provider.
         side: answer this input in a new read-only session while the foreground run keeps working.
@@ -1829,11 +1768,6 @@ class CharacterAgentController:
             if asked:
                 context += '\nYour open questions to the user: ' + '; '.join('"' + q + '"' for q in asked) + \
                     '. This message does not answer them and their cards stay open: reply to this message, and ask again only if it relates.'
-        if trace.get('dispatch_target'):
-            context += '\nThe user explicitly wants this sent to ' + trace['dispatch_target'] + ': use dispatch_session with that backend; until the card is allowed, say only that you are waiting for their confirmation.'
-        if trace.get('reminder_unparsed'):
-            context += ('\nThe user wants a reminder but gave no clear time: ask for the date and time with ask_user instead of guessing one. '
-                        'Put the time words of their answer into reminder_create\'s time_quote, and after saving say the local date and time from the receipt.')
         if trace.get('surface'):
             context += '\nSent from: ' + SURFACE_NAMES[trace['surface']]
         if source == 'voice':
@@ -1922,9 +1856,8 @@ class CharacterAgentController:
         consent_epoch = server._line_consent.get(cancel, consent_epoch)
         current = lambda: not cancel.is_set() and server.turn_generation == generation and not server.resetting \
             and server.consent.snapshot()[1] == consent_epoch
-        quick = trace.get("route") == "quick"
-        main = runtime is None and not quick
-        runtime = runtime or self._ensure_runtime("quick" if quick else "chat", current=current)
+        main = runtime is None
+        runtime = runtime or self._ensure_runtime("chat", current=current)
         if runtime is None:
             return PreparedReply(server.mouth, "", "", error="cancelled")
         waited = time.monotonic()
@@ -1936,11 +1869,7 @@ class CharacterAgentController:
                 return PreparedReply(mouth, "", runtime.model, error="cancelled")
             if source in ("text", "voice"):
                 self.reply_language.observe(setting, text)
-            if quick and trace.get("remember", True) and server.history:
-                names = {cid: server.characters.load_card(cid)["name"] for cid in server.characters.ids()}
-                history = server.history.window(server.character, 8, names)
-            else:
-                history = copy.deepcopy(mouth.history[-8:] if quick else mouth.history)
+            history = copy.deepcopy(mouth.history)
             unheard = set()  # indexes in history of the turns since the last delivery of a line on self.runtime
             if main:
                 self._main_line = line_id
@@ -1967,115 +1896,86 @@ class CharacterAgentController:
             ("\n" + self.reply_language.tag(setting) if setting != "harness" else "")
         replayed, missed = [], []
         for index, turn in enumerate(history):
-            try:
-                for message in turn:
-                    # Her lines may retell the screen; the user's own words keep their contacts.
-                    message["content"] = egress.user_text(egress.authored("history", message["content"])) \
-                        if message.get("role") == "user" else egress.replayed("history", message["content"])
-            except OutboundBlocked:  # the whole turn stays out so user/assistant pairs remain intact
-                continue
+            for message in turn:
+                # Her lines may retell the screen; the user's own words keep their contacts.
+                message["content"] = egress.user_text(egress.authored("history", message["content"])) \
+                    if message.get("role") == "user" else egress.replayed("history", message["content"])
             replayed.append(turn)
             if index in unheard:
                 missed.append({'user': turn[0]['content'], 'you': turn[1]['content']})
-        if len(replayed) < len(history):
-            logging.getLogger(__name__).warning('role_history_turns_dropped %d', len(history) - len(replayed))
         history = replayed
         unheard = '\nTurns this session has not seen, since its last reply here (oldest first; the user may answer them): ' + \
             json.dumps(missed, ensure_ascii=False) if missed else None
         context, knowledge = self._assemble_turn_context(
             server, trace, text, wait, refused, turn_started, cancel, line_id,
             source, side, resume_run_id, lore, egress)
-        base_system, base_context = system, context
-        while True:
-            main_session = not side and not quick
-            route_config = self._quick_runtime_config if quick else RuntimeSettings.route(self.settings.snapshot(), "chat")
-            system, context = base_system, base_context
-            if quick:
-                system += "\nIf this message needs the computer, files or tools, reply with [handoff] as the very first text and stop."
-            if scope_id:
-                scope = self.workspace.get_scope(scope_id)
-                if runtime.backend in BRIDGED:
-                    names = [f['path'] for f in scope.get('files', [])] + [r['path'] + '/' for r in scope['roots']]
-                    context += '\nSelected material (read it with your own file tools, without asking which): '
-                else:
-                    names = [Path(f['path']).name for f in scope.get('files', [])] + [Path(r['path']).name + '/' for r in scope['roots']]
-                    context += '\nSelected material (readable; start from it with workspace_list and workspace_read, images with workspace_image, without asking which): '
-                context += egress.observed(', '.join(names[:10])) + (f' ({len(names)} in all)' if len(names) > 10 else '')
-            memory_session = self.memory_journal.turn(line_id, egress.user_text(text), runtime.backend, runtime.model,
-                server.character, {"system_prompt": system, "history": history, "context": context},
-                allowed=source in ("text", "voice") and trace.get("remember", True)) if self.memory_journal and main_session else None
-            pending = (self.store.load_checkpoint(run_id=resume_run_id) or {}).get('pending_tool') if resume_run_id else None
-            answers = tuple(value for values in pending['result']['answers'].values() for value in values) \
-                if pending and pending['name'] == 'ask_user' and pending.get('result') else ()
-            session = self.quick_session() if quick else None
-            span, started = new_span_id(), time.monotonic()
-            server._step(trace, "model.started", span, attrs={"model": runtime.model or DEFAULT_MODEL, "call": "character_agent"})
-            # Only the user's own remembered turn gets the harness's own file and shell tools; no other turn reuses its session.
-            native = self.jobs is not None and main_session and source in ("text", "voice") and trace.get("remember", True)
-            self._turn.native_tools = native
-            try:
-                # The native grant outlives the run by minutes and blocks the next run's session with desktop_busy.
-                with self.tools.session(SessionKey("character", line_id,
-                        server.history.conversations.active if server.history else None)):
-                    answer = runtime.run(run_id=line_id, text=egress.user_text(text), system_prompt=system, history=history,
-                        character_id=server.character, generation=generation, scope_id=scope_id, context=context, unheard=unheard, before_input=before_input, language=self.semantic.reply(),
-                        cancelled=cancel, is_current=current, expected_outputs=expected_outputs, resume_run_id=resume_run_id,
-                        allow_actions=main_session and source in ("text", "voice") and trace.get("remember", True),
-                        mode='embodied_only' if not side and trace.get('remember', True) and source in ('gift', 'ritual', 'tap') else None,
-                        remember=trace.get("remember", True),
-                        knowledge_service=knowledge, memory_session=memory_session,
-                        quick_session=session, admitted=trace.get("quick_admitted", False), harness_tools=native,
-                        orchestration_session=OrchestrationTurn(self, egress.user_text(text), self.settings.snapshot(), server.character,
-                            scope_id, line_id, utterance=text, answers=answers) if main_session and self.jobs and trace.get('remember', True) else None,
-                        question_session=QuestionTurn(self.interactions, self.settings.snapshot()['interactive_tools'], line_id,
-                                                      server.character, egress.user_text(text), scope_id)
-                            if main_session and self.jobs and trace.get("remember", True) else None,
-                        conversation_id=trace.get("conversation_id") or (server.history.conversations.active if server.history else None),
-                        on_first_token=lambda: server._step(trace, "model.first_token", span),
-                        on_tool=lambda *event: server._trace_tool(trace, *event),
-                        setup_ms={"context_build_ms": round((time.monotonic() - building) * 1000),
-                                  "lock_wait_ms": lock_wait_ms, "look_wait_ms": look_wait_ms})
-            finally:
-                del self._turn.native_tools
-            result = answer.result or {}
-            trace["waiting_user"] = result.get("state") == "waiting_user"
-            trace["outcome"] = "background_pending" if result.get("background_jobs") else "failed" if result.get("ok") is False else None
-            if self.jobs and not quick: self._settle_background_parent(line_id)
-            if self.deliveries and not quick:
-                self.deliveries.produce(line_id, remember=trace.get('remember', True), summary=answer.text)
-            for fact_id, deleted in memory_session.changed if memory_session else []:
-                checkpoint(server.memory)
-                server.feed.publish("memory", {"action": "deleted" if deleted else "corrected", "fact_id": fact_id})
-                server._memory_changed(fact_id, deleted=deleted)
-            for fact_id in memory_session.stored if memory_session else []:
-                server.feed.publish('memory', {'action': 'added', 'fact_id': fact_id})
-            h = harness(runtime.backend)
-            provider = h.provider if h and h.provider else route_config.get('provider') or 'unknown'
-            if quick and self.session_factory_override is None:
-                provider = session.config.provider
-            channel = runtime.backend + "_" + route_config["auth_source"]
-            trace["model_route"] = {"provider": provider, "account_label": channel, "model": answer.model}
-            server._step(trace, "model.finished", span, status="failed" if answer.error else "ok",
-                duration_ms=int((time.monotonic() - started) * 1000), attrs={"model": answer.model or DEFAULT_MODEL,
-                "provider": provider, "account_label": channel,
-                "input_tokens": answer.usage.get("input_tokens", 0) or 0, "output_tokens": answer.usage.get("output_tokens", 0) or 0,
-                "stop_reason": answer.error or "end_turn", **finished_usage(answer)})
-            if server.usage and (answer.usage or answer.cost_usd is not None):
-                from types import SimpleNamespace
-                server.usage.record(answer.model, "character_agent", SimpleNamespace(**answer.usage),
-                                    status="failed" if answer.error else "completed",
-                                    provider=provider, channel=channel,
-                                    cost_usd=answer.cost_usd, cost_source="sdk_estimate" if answer.cost_usd is not None else None)
-            if not result.get("handoff"):
-                return PreparedReply(mouth, answer.text, answer.model, answer.usage, answer.facts, answer.error,
-                                     final_item_id=answer.final_item_id, remember=trace.get("remember", True))
-            trace["route"] = "chat"
-            if not current():
-                return PreparedReply(mouth, "", runtime.model, error="cancelled")
-            status = self.public()["routes"]["chat"]
-            if not status["ready"]:
-                return PreparedReply(mouth, "", "", error=status["error"])
-            runtime = self._ensure_runtime("chat", current=current)
-            if runtime is None:
-                return PreparedReply(mouth, "", "", error="cancelled")
-            quick, self._main_line = False, line_id
+        main_session = not side
+        route_config = RuntimeSettings.route(self.settings.snapshot(), "chat")
+        if scope_id:
+            scope = self.workspace.get_scope(scope_id)
+            names = [f['path'] for f in scope.get('files', [])] + [r['path'] + '/' for r in scope['roots']]
+            context += '\nSelected material (read it with your own file tools, without asking which): '
+            context += egress.observed(', '.join(names[:10])) + (f' ({len(names)} in all)' if len(names) > 10 else '')
+        memory_session = self.memory_journal.turn(line_id, egress.user_text(text), runtime.backend, runtime.model,
+            server.character, {"system_prompt": system, "history": history, "context": context},
+            allowed=source in ("text", "voice") and trace.get("remember", True)) if self.memory_journal and main_session else None
+        pending = (self.store.load_checkpoint(run_id=resume_run_id) or {}).get('pending_tool') if resume_run_id else None
+        answers = tuple(value for values in pending['result']['answers'].values() for value in values) \
+            if pending and pending['name'] == 'ask_user' and pending.get('result') else ()
+        span, started = new_span_id(), time.monotonic()
+        server._step(trace, "model.started", span, attrs={"model": runtime.model or DEFAULT_MODEL, "call": "character_agent"})
+        # Only the user's own remembered turn gets the harness's own file and shell tools; no other turn reuses its session.
+        native = self.jobs is not None and main_session and source in ("text", "voice") and trace.get("remember", True)
+        self._turn.native_tools = native
+        try:
+            # The native grant outlives the run by minutes and blocks the next run's session with desktop_busy.
+            with self.tools.session(SessionKey("character", line_id,
+                    server.history.conversations.active if server.history else None)):
+                answer = runtime.run(run_id=line_id, text=egress.user_text(text), system_prompt=system, history=history,
+                    character_id=server.character, generation=generation, scope_id=scope_id, context=context, unheard=unheard, before_input=before_input, language=self.semantic.reply(),
+                    cancelled=cancel, is_current=current, expected_outputs=expected_outputs, resume_run_id=resume_run_id,
+                    allow_actions=main_session and source in ("text", "voice") and trace.get("remember", True),
+                    mode='embodied_only' if not side and trace.get('remember', True) and source in ('gift', 'ritual', 'tap') else None,
+                    remember=trace.get("remember", True),
+                    knowledge_service=knowledge, memory_session=memory_session, harness_tools=native,
+                    orchestration_session=OrchestrationTurn(self, egress.user_text(text), self.settings.snapshot(), server.character,
+                        scope_id, line_id, utterance=text, answers=answers) if main_session and self.jobs and trace.get('remember', True) else None,
+                    question_session=QuestionTurn(self.interactions, self.settings.snapshot()['interactive_tools'], line_id,
+                                                  server.character, egress.user_text(text), scope_id)
+                        if main_session and self.jobs and trace.get("remember", True) else None,
+                    conversation_id=trace.get("conversation_id") or (server.history.conversations.active if server.history else None),
+                    on_first_token=lambda: server._step(trace, "model.first_token", span),
+                    on_tool=lambda *event: server._trace_tool(trace, *event),
+                    setup_ms={"context_build_ms": round((time.monotonic() - building) * 1000),
+                              "lock_wait_ms": lock_wait_ms, "look_wait_ms": look_wait_ms})
+        finally:
+            del self._turn.native_tools
+        result = answer.result or {}
+        trace["waiting_user"] = result.get("state") == "waiting_user"
+        trace["outcome"] = "background_pending" if result.get("background_jobs") else "failed" if result.get("ok") is False else None
+        if self.jobs: self._settle_background_parent(line_id)
+        if self.deliveries:
+            self.deliveries.produce(line_id, remember=trace.get('remember', True), summary=answer.text)
+        for fact_id, deleted in memory_session.changed if memory_session else []:
+            checkpoint(server.memory)
+            server.feed.publish("memory", {"action": "deleted" if deleted else "corrected", "fact_id": fact_id})
+            server._memory_changed(fact_id, deleted=deleted)
+        for fact_id in memory_session.stored if memory_session else []:
+            server.feed.publish('memory', {'action': 'added', 'fact_id': fact_id})
+        h = harness(runtime.backend)
+        provider = h.provider if h and h.provider else route_config.get('provider') or 'unknown'
+        channel = runtime.backend + "_" + route_config["auth_source"]
+        trace["model_route"] = {"provider": provider, "account_label": channel, "model": answer.model}
+        server._step(trace, "model.finished", span, status="failed" if answer.error else "ok",
+            duration_ms=int((time.monotonic() - started) * 1000), attrs={"model": answer.model or DEFAULT_MODEL,
+            "provider": provider, "account_label": channel,
+            "input_tokens": answer.usage.get("input_tokens", 0) or 0, "output_tokens": answer.usage.get("output_tokens", 0) or 0,
+            "stop_reason": answer.error or "end_turn", **finished_usage(answer)})
+        if server.usage and (answer.usage or answer.cost_usd is not None):
+            from types import SimpleNamespace
+            server.usage.record(answer.model, "character_agent", SimpleNamespace(**answer.usage),
+                                status="failed" if answer.error else "completed",
+                                provider=provider, channel=channel,
+                                cost_usd=answer.cost_usd, cost_source="sdk_estimate" if answer.cost_usd is not None else None)
+        return PreparedReply(mouth, answer.text, answer.model, answer.usage, answer.facts, answer.error,
+                             final_item_id=answer.final_item_id, remember=trace.get("remember", True))

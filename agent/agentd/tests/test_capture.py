@@ -1219,7 +1219,7 @@ class CaptureServerTest(unittest.TestCase):
     def test_voice_look_waits_for_the_view_then_answers(self):
         self.start(share=True)
         self.focus_code()
-        status, body = self.post("/say", {"text": "你看看这个", "source": "voice"})
+        status, body = self.post("/say", {"text": "你看看这个", "source": "voice", "look": True})
         self.assertEqual((status, body.get("command")), (202, "look"))
         self.wait_for(lambda: any(i["event"] == "request" for i in self.server.feed.since(0)))
         [request] = [i["data"] for i in self.server.feed.since(0) if i["event"] == "request"]
@@ -1235,7 +1235,7 @@ class CaptureServerTest(unittest.TestCase):
     def test_voice_look_stopped_before_the_view_calls_no_model(self):
         self.start(share=True)
         self.focus_code()
-        self.assertEqual(self.post("/say", {"text": "看一下", "source": "voice"})[0], 202)
+        self.assertEqual(self.post("/say", {"text": "看一下", "source": "voice", "look": True})[0], 202)
         self.wait_for(lambda: any(i["event"] == "request" for i in self.server.feed.since(0)))
         self.assertEqual(self.post("/say", {"text": "停下", "source": "voice"}), (200, {"command": "stop"}))
         self.wait_for(lambda: any(i["event"] == "line" and i["data"]["final"] for i in self.server.feed.since(0)))
@@ -1261,7 +1261,7 @@ class CaptureServerTest(unittest.TestCase):
         self.focus_code()
         self.look_once()
         self.server.capture.budget.times.extend([time.time()] * 200)  # the daily cap is reached
-        self.assertEqual(self.post("/say", {"text": "看一下", "source": "voice"})[0], 202)
+        self.assertEqual(self.post("/say", {"text": "看一下", "source": "voice", "look": True})[0], 202)
         self.wait_for(self.stream_bodies)
         [index] = self.stream_bodies()
         sent = json.dumps(self.fake.bodies[index][2], ensure_ascii=False)
@@ -1271,9 +1271,9 @@ class CaptureServerTest(unittest.TestCase):
     def test_each_look_waits_for_its_own_request(self):
         self.start(share=True)
         self.focus_code()
-        self.assertEqual(self.post("/say", {"text": "看一下", "source": "voice"})[0], 202)
+        self.assertEqual(self.post("/say", {"text": "看一下", "source": "voice", "look": True})[0], 202)
         self.wait_for(lambda: len(self.requests()) == 1)
-        self.assertEqual(self.post("/say", {"text": "看一下", "source": "voice"})[0], 202)
+        self.assertEqual(self.post("/say", {"text": "看一下", "source": "voice", "look": True})[0], 202)
         self.wait_for(lambda: len(self.requests()) == 2)
         first, second = self.requests()
         image = base64.b64encode(png()).decode()
@@ -1317,7 +1317,7 @@ class CaptureServerTest(unittest.TestCase):
         self.start(share=True)
         self.focus_code()
         self.look_once()
-        self.assertEqual(self.post("/say", {"text": "看一下", "source": "voice"})[0], 202)
+        self.assertEqual(self.post("/say", {"text": "看一下", "source": "voice", "look": True})[0], 202)
         self.wait_for(lambda: len(self.requests()) == 2)
         request_id = self.requests()[-1]["request_id"]
         reported = time.monotonic()
@@ -1342,10 +1342,10 @@ class CaptureServerTest(unittest.TestCase):
         safari = {"window_id": 1, "app": "Safari", "bundle_id": "com.apple.Safari", "title": "新闻"}
         now = time.time()
         self.focus_on(safari, now - 8)
-        self.assertEqual(self.post("/say", {"text": "看一下", "source": "voice"})[0], 202)
+        self.assertEqual(self.post("/say", {"text": "看一下", "source": "voice", "look": True})[0], 202)
         self.wait_for(lambda: len(self.requests()) == 1)
         self.focus_on(CODE, now + 1)
-        self.assertEqual(self.post("/say", {"text": "看一下", "source": "voice"})[0], 202)
+        self.assertEqual(self.post("/say", {"text": "看一下", "source": "voice", "look": True})[0], 202)
         self.wait_for(lambda: len(self.requests()) == 2)
         a, b = self.requests()
         self.assertEqual((a["window_id"], b["window_id"]), (1, 2))
@@ -1407,7 +1407,7 @@ class CaptureServerTest(unittest.TestCase):
     def test_voice_look_without_vision_answers_at_once(self):
         self.start(share=False)
         self.focus_code()
-        status, body = self.post("/say", {"text": "看一下", "source": "voice"})
+        status, body = self.post("/say", {"text": "看一下", "source": "voice", "look": True})
         self.assertEqual((status, body.get("command")), (202, "look"))
         self.wait_for(self.stream_bodies)
         self.assertEqual([i for i in self.server.feed.since(0) if i["event"] == "request"], [])

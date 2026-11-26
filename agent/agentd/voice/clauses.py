@@ -1,8 +1,6 @@
 """Cuts a streamed model reply into clauses, one TTS request each."""
 import re
 
-from voice.speech import SPOKEN_LIMIT
-
 PUNCT = "。！？!?…" + "，、；：,;:" + "」』”’）)"  # sentence ends, clause pauses, closers; a clause keeps its punctuation
 # A shorter clause joins the next: zh (under about 0.8 s of audio leaves a gap); ja (a 1-4 kana clause alone
 # leaves at most 0.07 s); en (about 0.8 s of letters). Counted in characters other than punctuation and
@@ -13,8 +11,6 @@ MIN_CLAUSE = {"zh": 5, "ja": 4, "en": 12}
 # is one once a character other than punctuation or space follows it. A , or : between digits (1,024, 3:30) is none.
 _BOUNDARY = re.compile(rf"[。！？!?][」』”’）)]*|(?<![0-9]\.[0-9])\.[」』”’）)]*\s+"
                        rf"|(?:[…，、；：;]|(?<![0-9])[,:]|[,:](?![0-9]))[…，、；：,;:」』”’）)\s]*(?=[^{PUNCT}\s])")
-# One unit of the spoken limit: an ASCII word or number, or any other character but punctuation and space.
-_WORD = re.compile(rf"[A-Za-z0-9]+|[^{PUNCT}\s]")
 # Markdown that is shown but not spoken: a bare address runs to a space or a Chinese punctuation mark.
 _URL = re.compile(r"https?://[^\s。！？，、；：「」『』“”‘’（）【】《》…]*")
 _LINK = re.compile(r"\[([^\[\]\n]*)\]\([^()\n]*\)")
@@ -26,10 +22,6 @@ _PLAIN = re.compile(r"[^`*_\[h\n]+")
 
 def _sounded(text):
     return sum(c not in PUNCT and not c.isspace() for c in text)
-
-
-def _words(text):
-    return len(_WORD.findall(text))
 
 
 def _blank(char):
@@ -46,9 +38,8 @@ class Clause(str):
 
 
 class ClauseSplitter:
-    def __init__(self, language, limit=SPOKEN_LIMIT):
+    def __init__(self, language):
         self.shortest = MIN_CLAUSE[language]
-        self.limit = limit
         self._raw = ""  # fed, not yet known to be spoken or not
         self._fed = 0  # offset of _raw in the fed text
         self._before = ""  # the fed character just before _raw
@@ -57,24 +48,18 @@ class ClauseSplitter:
         self._code = False  # inside `inline code`
         self._text = ""  # spoken, not given out yet
         self._ends = []  # for each character of _text, the offset in the fed text just past it
-        self._said = 0  # words given out so far
-        self._done = False  # the limit is reached: the rest is shown, not spoken
 
     def feed(self, text):
         """Clauses this piece of the reply completes."""
-        if self._done:
-            return []
         self._raw += text
         self._clean(final=False)
         return self._cut()
 
     def close(self):
         """What is left once the reply is over, however short."""
-        if self._done:
-            return []
         self._clean(final=True)
         out = self._cut()
-        if self._done or not self._text.strip():
+        if not self._text.strip():
             return out
         return out + self._take(len(self._text))
 
@@ -163,13 +148,10 @@ class ClauseSplitter:
 
     def _cut(self):
         out = []
-        while not self._done:
+        while True:
             end = next((m.end() for m in _BOUNDARY.finditer(self._text)
                         if _sounded(self._text[:m.end()]) >= self.shortest), None)
             if end is None:
-                # The next clause starts with all of the text held, so it can only be longer.
-                if self._said + _words(self._text) > self.limit:
-                    out += self._over()
                 break
             out += self._take(end)
         return out
@@ -181,18 +163,5 @@ class ClauseSplitter:
 
     def _take(self, end):
         clause = self._clause(end)
-        if self._said + _words(clause) > self.limit:
-            return self._over()
-        self._text, self._ends, self._said = self._text[end:], self._ends[end:], self._said + _words(clause)
+        self._text, self._ends = self._text[end:], self._ends[end:]
         return [clause]
-
-    def _over(self):
-        self._done = True
-        if self._said:
-            return []
-        # Ends where the word past the limit starts, so it never ends inside a word.
-        head = self._text[:list(_WORD.finditer(self._text))[self.limit].start()]
-        cut = max(head.rfind(p) for p in PUNCT)
-        if cut < 0 or _sounded(head[:cut + 1]) < self.shortest:
-            return [self._clause(len(head))]
-        return [self._clause(cut + 1)]

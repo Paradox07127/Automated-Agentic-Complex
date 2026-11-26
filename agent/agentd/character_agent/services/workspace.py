@@ -19,17 +19,34 @@ import sqlite3
 import threading
 import time
 from infra.platform import open_private_file
-from infra.store import IdleConnection
+from infra.store import open_private_db
 from character_agent.services.extract import EXTRACTORS, extract
 
-TEXT_SUFFIXES = {'.md', '.txt', '.csv', '.json'}
-# Readable as text but never written as artifacts; TEXT_SUFFIXES alone gates artifact paths.
-READ_ONLY_TEXT_SUFFIXES = {
-    '.py', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.swift', '.m', '.mm', '.c', '.h', '.cc', '.cpp', '.hpp',
-    '.cs', '.rs', '.go', '.java', '.kt', '.rb', '.php', '.lua', '.sh', '.zsh', '.bash', '.ps1', '.sql',
-    '.yaml', '.yml', '.toml', '.ini', '.cfg', '.conf', '.xml', '.html', '.css', '.scss', '.log', '.tex', '.rst'}
+TEXT_SUFFIXES = {
+    '.md', '.txt', '.csv', '.tsv', '.json', '.jsonl',
+    '.yaml', '.yml', '.toml', '.ini', '.cfg', '.conf',
+    '.xml', '.html', '.htm', '.css', '.scss',
+    '.py', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx',
+    '.swift', '.m', '.mm', '.c', '.h', '.cc', '.cpp', '.hpp',
+    '.cs', '.rs', '.go', '.java', '.kt', '.rb', '.php', '.lua',
+    '.sh', '.zsh', '.bash', '.ps1', '.sql', '.r', '.tex', '.rst', '.log',
+    '.diff', '.patch',
+}
 IMAGE_TYPES = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp'}
-READ_SUFFIXES = TEXT_SUFFIXES | READ_ONLY_TEXT_SUFFIXES | set(EXTRACTORS) | set(IMAGE_TYPES)
+READ_SUFFIXES = TEXT_SUFFIXES | set(EXTRACTORS) | set(IMAGE_TYPES)
+WORKSPACE_SCHEMA = '''
+    CREATE TABLE IF NOT EXISTS scopes(id TEXT PRIMARY KEY, data TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS sources(scope_id TEXT, id TEXT, root INTEGER, path TEXT, sha256 TEXT,
+      size INTEGER, version INTEGER, PRIMARY KEY(scope_id,id));
+    CREATE TABLE IF NOT EXISTS run_sources(run_id TEXT, scope_id TEXT, source_id TEXT, sha256 TEXT,
+      PRIMARY KEY(run_id,scope_id,source_id));
+    CREATE TABLE IF NOT EXISTS expectations(run_id TEXT PRIMARY KEY, data TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS cancelled_runs(run_id TEXT PRIMARY KEY);
+    CREATE TABLE IF NOT EXISTS artifacts(id TEXT PRIMARY KEY, run_id TEXT, scope_id TEXT, path TEXT,
+      sha256 TEXT, version INTEGER, sources TEXT, checks TEXT, validation TEXT, self_checked INTEGER DEFAULT 0, input_manifest TEXT NOT NULL DEFAULT '{}',
+      UNIQUE(run_id,path));
+    CREATE TABLE IF NOT EXISTS effects(id TEXT PRIMARY KEY, run_id TEXT, digest TEXT, state TEXT, receipt TEXT);
+'''
 MAX_BYTES = 1024 * 1024
 MAX_BINARY = 20 * 1024 * 1024
 MAX_IMAGE = 5 * 1024 * 1024
@@ -279,27 +296,7 @@ class WorkspaceService:
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.egress, self.clock = egress, clock
         self.lock = threading.RLock()
-        path = self.directory / 'character-workspace.sqlite'
-        fd = os.open(path, os.O_CREAT | os.O_RDWR, 0o600); os.close(fd)
-        self.db = sqlite3.connect(path, check_same_thread=False, factory=IdleConnection)
-        self.db.row_factory = sqlite3.Row
-        self.db.execute('PRAGMA journal_mode=WAL')
-        self.db.execute('PRAGMA journal_size_limit=4194304')
-        self.db.execute('PRAGMA secure_delete=ON')
-        self.db.executescript('''
-        CREATE TABLE IF NOT EXISTS scopes(id TEXT PRIMARY KEY, data TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0);
-        CREATE TABLE IF NOT EXISTS sources(scope_id TEXT, id TEXT, root INTEGER, path TEXT, sha256 TEXT,
-          size INTEGER, version INTEGER, PRIMARY KEY(scope_id,id));
-        CREATE TABLE IF NOT EXISTS run_sources(run_id TEXT, scope_id TEXT, source_id TEXT, sha256 TEXT,
-          PRIMARY KEY(run_id,scope_id,source_id));
-        CREATE TABLE IF NOT EXISTS expectations(run_id TEXT PRIMARY KEY, data TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS cancelled_runs(run_id TEXT PRIMARY KEY);
-        CREATE TABLE IF NOT EXISTS artifacts(id TEXT PRIMARY KEY, run_id TEXT, scope_id TEXT, path TEXT,
-          sha256 TEXT, version INTEGER, sources TEXT, checks TEXT, validation TEXT, self_checked INTEGER DEFAULT 0, input_manifest TEXT NOT NULL DEFAULT '{}',
-          UNIQUE(run_id,path));
-        CREATE TABLE IF NOT EXISTS effects(id TEXT PRIMARY KEY, run_id TEXT, digest TEXT, state TEXT, receipt TEXT);
-        ''')
-        self.db.commit()
+        self.db = open_private_db(self.directory / 'character-workspace.sqlite', WORKSPACE_SCHEMA, row_factory=sqlite3.Row)
 
     def forget(self):
         """Remove private indexes and revoke scopes; user deliverable files remain user-owned."""
@@ -832,7 +829,7 @@ class WorkspaceService:
                 'Use it to find which selected files mention something, then workspace_read that source for full context. '
                 'It covers only the selected files; for memory and past conversations use knowledge_search.',
              'input_schema': _schema({'query': {**text, 'description': 'One short distinctive term or phrase (up to 200 characters), matched literally.'}, 'limit': {'type': 'integer', 'minimum': 1, 'maximum': 50, 'description': 'Maximum number of matching sources.'}}, ['query'])},
-            {'name': 'artifact_write', 'description': 'Write a UTF-8 MD/TXT/CSV/JSON deliverable in this run\'s output directory; it never overwrites the user\'s originals. '
+            {'name': 'artifact_write', 'description': 'Write a UTF-8 text, data, or source-code deliverable in this run\'s output directory; it never overwrites the user\'s originals. '
                 'List the source_ids this run actually read in source_refs, if any (no inline IDs unless the user asks for them), and keep fixed CSV columns intact. '
                 'Replacing an artifact needs its current version as expected_version (from artifact_read); a stale version is refused. '
                 'Returns the path and version; run artifact_verify before calling it done.',

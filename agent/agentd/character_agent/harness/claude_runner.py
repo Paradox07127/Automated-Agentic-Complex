@@ -36,7 +36,6 @@ CLI_EXITED = "claude_cli_exited"
 CLI_ENV = {"CLAUDE_CODE_SKIP_PROMPT_HISTORY": "1"}
 ISOLATED_ENV = {"CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1", "ENABLE_TOOL_SEARCH": "false"}
 PERMISSION_TOOL = "endfield_permission"
-REMINDER_HOOK = "endfield_tool_reminder"
 # --permission-prompt-tool is called with {tool_name, input, tool_use_id} and answers one text block of
 # {"behavior": "allow"} or {"behavior": "deny", "message": ...}.
 PERMISSION_SCHEMA = {"type": "object", "properties": {"tool_name": {"type": "string"}, "input": {"type": "object"},
@@ -202,7 +201,6 @@ class ClaudeRunner(Runner):
         self.bridge = None
         self.native = False
         self.permissions = {}
-        self.tool_reminder = None
 
     def capabilities(self):
         return {"cancel": "native", "tool_injection": "mcp_stdio", "builtin_tools": "unverified",
@@ -253,11 +251,6 @@ class ClaudeRunner(Runner):
         self.client = ClaudeCli(argv, env, str(cwd), self.cli_message, self.cli_exited, self.hook)
         await self.client.start()
         request = {"subtype": "initialize"}
-        reminder = config.get("tool_reminder")
-        if isinstance(reminder, str) and reminder:
-            self.tool_reminder = reminder
-            # A null matcher matches every tool, built-in and MCP alike.
-            request["hooks"] = {"PostToolUse": [{"matcher": None, "hookCallbackIds": [REMINDER_HOOK]}]}
         info = await self.client.control(request, timeout=120)
         if self.failure:
             raise RunnerFailure(self.failure)
@@ -270,9 +263,7 @@ class ClaudeRunner(Runner):
         self.ready_sent = True
 
     def hook(self, request):
-        if not self.tool_reminder or request.get("callback_id") != REMINDER_HOOK:
-            return None
-        return {"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": self.tool_reminder}}
+        return None
 
     async def mcp_call(self, name, args):
         if self.native and name == PERMISSION_TOOL and isinstance(args, dict):

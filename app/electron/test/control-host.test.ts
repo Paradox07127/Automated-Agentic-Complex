@@ -505,14 +505,16 @@ test('an app blacklisted after the grant is not acted on', { skip: UNIX_SOCKET }
   } finally { h.cleanup(); }
 });
 
-test('a moved window is target_changed and not acted on', { skip: UNIX_SOCKET }, async () => {
+test('a moved window is target_changed only for coordinate actions, not element actions', { skip: UNIX_SOCKET }, async () => {
   const h = await setup();
   try {
     await h.granted(['observation', 'control']);
     const id = (await h.ask('desktop_observe', TARGET)).result!.snapshot_id as string;
     h.helper['windows.list'] = ok({ windows: [{ ...WINDOWS[0], bounds: { ...WINDOWS[0].bounds, x: 5 } }] });
-    assert.equal((await h.ask('desktop_act', { snapshot_id: id, action: 'press', element_id: 'e1' })).error?.code, 'target_changed');
+    assert.equal((await h.ask('desktop_act', { snapshot_id: id, action: 'click', x: 10, y: 10 })).error?.code, 'target_changed');
     assert.deepEqual(h.sent('control.act'), []);
+    assert.equal((await h.ask('desktop_act', { snapshot_id: id, action: 'press', element_id: 'e1' })).result?.effect, 'unverifiable');
+    assert.equal(h.sent('control.act').length, 1);
   } finally { h.cleanup(); }
 });
 

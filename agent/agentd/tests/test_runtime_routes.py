@@ -135,14 +135,15 @@ class RuntimeRouteTests(unittest.TestCase):
         code, reply = self.request('GET')
         self.assertEqual(code, 200)
         expected = {purpose: {**route('codex'), 'follows_main': True, 'ready': True, 'error': None} for purpose in ROUTES}
-        expected['quick'] = {**route('pi'), 'follows_main': False, 'ready': False, 'error': 'runtime_missing'}
         self.assertEqual(reply['routes'], expected)
         chat, judge = route('codex', 'fast-model'), route('claude', 'sonnet', 'low')
         reply = self.put({'routes': {'chat': chat, 'judge': judge}})
         self.assertEqual(RuntimeSettings(self.root).snapshot()['routes'], {'chat': chat, 'judge': judge})
+        chat_wire = {**chat, 'follows_main': False, 'ready': True, 'error': None}
         self.assertEqual(reply['routes'], {
             **expected,
-            'chat': {**chat, 'follows_main': False, 'ready': True, 'error': None},
+            'chat': chat_wire,
+            'quick': chat_wire,
             'judge': {**judge, 'follows_main': False, 'ready': False, 'error': 'runtime_missing'}})
         self.assertEqual(set(reply) - {'routes'}, set(self.request('GET')[1]) - {'routes'})
         self.rows.append(self.found('claude', False))

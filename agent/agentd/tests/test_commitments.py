@@ -63,7 +63,7 @@ class ParseReminderTest(unittest.TestCase):
         self.assertEqual(parse_wait("等 Claude 做完提醒我看测试结果"),
                          ({"kind": "session_done", "agent": "claude"}, "看测试结果"))
         self.assertEqual(parse_wait("codex 跑完提醒我提交"), ({"kind": "session_done", "agent": "codex"}, "提交"))
-        self.assertEqual(parse_command("等 claude 做完提醒我看结果"), {"action": "remind", "text": "等 claude 做完提醒我看结果"})
+        self.assertIsNone(parse_command("等 claude 做完提醒我看结果"))
         self.assertIsNone(parse_wait("提醒我十分钟后喝水"))
         self.assertIsNone(parse_wait("等 claude 做完提醒我"))
 

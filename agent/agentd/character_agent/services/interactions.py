@@ -38,10 +38,6 @@ class InteractionService:
         self.live={};self.stopped=threading.Event()
         self.session_grants={}  # process-local: (conversation/turn owner, server, tool) -> catalog, configuration and approval
         with self.lock:
-            self.db.execute('CREATE TABLE IF NOT EXISTS character_interactions('
-                'request_id TEXT PRIMARY KEY,run_id TEXT NOT NULL,kind TEXT NOT NULL,state TEXT NOT NULL,'
-                'revision INTEGER NOT NULL,data TEXT,answer TEXT,created_at REAL NOT NULL,expires_at REAL NOT NULL,'
-                'conversation_id TEXT,generation INTEGER NOT NULL DEFAULT 0)')
             self.db.execute("UPDATE character_interactions SET state='expired',data=NULL WHERE kind='approval' AND state='pending'")
             self.db.execute("UPDATE character_interactions SET state='answered',revision=revision+1,generation=generation+1 WHERE state='resuming'")
             self.db.commit()

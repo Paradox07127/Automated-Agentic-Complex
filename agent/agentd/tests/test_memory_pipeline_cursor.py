@@ -56,24 +56,6 @@ class MemoryCursorTests(unittest.TestCase):
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM facts').fetchone()[0],0)
         self.assertTrue(self.db.execute('SELECT version FROM agent_memory_processed').fetchone()[0].startswith('quarantined:'))
 
-    def test_guarded_history_line_is_settled_alone_and_the_rest_is_extracted(self):
-        line='甲乙丙丁戊己庚';path=self.root/'windows.json'
-        path.write_text(json.dumps({'n':7,'hashes':[hashlib.sha256(line.encode()).hexdigest()[:16]]}),encoding='utf-8')
-        self.server.egress=semantic_fixture.EgressPolicy(guard=OutboundGuard(path))
-        self.source(text='她说'+line,ident='canon');self.source(ident='plain')
-        prompts=[]
-        def factory(definitions):
-            def script(session,prompt,options):
-                prompts.append(prompt)
-                yield {'type':'result','success':True,'final_text':json.dumps(self.reply),'model':'fixture-model'}
-            return FakeSession(script)
-        self.c.session_factory_override=factory
-        self.assertEqual(self.pipeline.run_once()['state'],'no_new_knowledge')
-        [prompt]=prompts;self.assertIn('history:plain',prompt);self.assertNotIn('history:canon',prompt);self.assertNotIn(line,prompt)
-        self.assertTrue(self.db.execute("SELECT version FROM agent_memory_processed WHERE source_id='history:canon'").fetchone()[0].startswith('quarantined:'))
-        self.assertFalse(self.pipeline.sources());self.assertIsNone(self.pipeline.run_once())
-        self.assertEqual(int(self.server.memory.setting('agent_memory_history_cursor')),2)
-
     def test_hypotheses_are_not_memory_sources_or_readable_extraction_tools(self):
         from test_character_agent_runtime import FakeSession
         self.server.share_page_text=True

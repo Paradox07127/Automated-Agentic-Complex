@@ -5,8 +5,6 @@ from dataclasses import dataclass
 from tool_gateway.computer_use import DESKTOP_TASK_TOOL, TOOLS as DESKTOP_TOOLS
 
 MODES = ("actions", "embodied_only", "read_only", "background")
-# Backends that run with their own file tools and shell in the Workspace: no workspace readers.
-BRIDGED = frozenset(("claude", "codex", "acp", "pi"))
 
 
 @dataclass(frozen=True)

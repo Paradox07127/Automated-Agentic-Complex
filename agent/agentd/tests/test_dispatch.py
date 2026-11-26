@@ -46,13 +46,9 @@ class DispatchTest(unittest.TestCase):
     def dispatcher(self):
         return Dispatcher(self.broker, self.sessions)
 
-    def test_parser_proposes_dispatch_only_for_named_agents(self):
-        self.assertEqual(parse_command("让 Codex 查一下这个仓库的测试怎么跑"),
-                         {"action": "dispatch", "target": "codex", "prompt": "查一下这个仓库的测试怎么跑"})
-        self.assertEqual(parse_command("示例甲，让claude总结一下 README。"),
-                         {"action": "dispatch", "target": "claude", "prompt": "总结一下 README。"})
-        self.assertIsNone(parse_command("让我想想"))
-        self.assertIsNone(parse_command("让 Codex"))
+    def test_parser_hands_dispatch_phrases_to_the_llm(self):
+        for text in ("让 Codex 查一下这个仓库的测试怎么跑", "示例甲，让claude总结一下 README。", "让我想想", "让 Codex"):
+            self.assertIsNone(parse_command(text))
 
     def test_card_shows_target_cwd_and_full_prompt(self):
         self.dispatcher().propose("codex", "/repo", "查一下测试怎么跑")

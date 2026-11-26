@@ -12,8 +12,7 @@ import threading
 import time
 
 from brain.egress import EgressPolicy
-from brain.outbound import OutboundBlocked
-from personal.history import terms
+from personal.history import SOURCES as HISTORY_SOURCES, terms
 from personal.memory import TRUSTED
 from character_agent.services.personal import activity_assessment
 
@@ -193,7 +192,7 @@ class KnowledgeService:
                             evidence=row["evidence"], stale=row.get("stale", False), details=details)
 
     def _history(self, row):
-        if row["source"] not in ("text", "voice") or row["state"] not in ("completed", "interrupted"):
+        if row["source"] not in HISTORY_SOURCES or row["state"] not in ("completed", "interrupted"):
             return None
         return self._record("history", row["turn_id"],
                             text=f"User: {row['user_text']}\nCharacter ({row['character_id']}): {row['reply']}",
@@ -412,8 +411,8 @@ class KnowledgeService:
                 if row is None or any(dep.get(k) != value for k, value in self._dependency(row).items()):
                     return False
                 if dep.get("export_hash") != _digest(self._stable_record(self.sanitize(row))):
-                    return False  # guard/redaction policy can change after the read
-            except (ValueError, TypeError, KeyError, OutboundBlocked):
+                    return False  # redaction policy can change after the read
+            except (ValueError, TypeError, KeyError):
                 return False
         return True
 
@@ -466,11 +465,7 @@ class KnowledgeService:
         for row in rows[offset:]:
             if len(items) >= limit or budget < 256:
                 break
-            try:
-                clean = self.sanitize(row)
-            except OutboundBlocked:
-                next_offset += 1
-                continue
+            clean = self.sanitize(row)
             full_clean = clean
             clean, clipped = self._fit(clean, budget)
             if clean is None:

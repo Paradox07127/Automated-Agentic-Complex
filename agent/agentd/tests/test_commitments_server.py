@@ -39,6 +39,7 @@ class CommitmentServerTest(unittest.TestCase):
         """A server with its commitments on a db of its own; the long tick leaves _commitments_due to the test."""
         server = AgentdServer(("127.0.0.1", 0), HOOK, UI, tick_interval=tick_interval)
         server.character_agent = test_server.KernelLines(server)
+        server.mouth = test_server.FakeMouth([])
         server.clock = lambda: self.now
         server.speech = test_server.FakeRelay()
         db = open_store(Path(self.tmp.name) / "agentd.sqlite")
@@ -60,105 +61,17 @@ class CommitmentServerTest(unittest.TestCase):
         """The commitment items of the feed, without their feed seq."""
         return [{k: v for k, v in data.items() if k != "seq"} for data in self.feed("commitment")]
 
-    def test_a_reminder_is_kept_and_confirmed(self):
-        status, body = self.request("POST", "/say", {"text": "提醒我十分钟后喝水"})
-        self.assertEqual((status, body["command"]), (200, "remind"))
-        [item] = self.server.commitments.list()
-        self.assertEqual((item["state"], item["text"], item["due_at"]), ("armed", "喝水", self.now + 600))
-        self.assertEqual(body["commitment"], item)
-        self.assertEqual(self.changes(), [{"action": "added", "commitment": item}])
-        [confirmed] = self.feed("announce")
-        self.assertEqual((confirmed["kind"], confirmed["level"], confirmed["headline"], confirmed["origin"],
-                          confirmed["speak"], confirmed["state"]),
-                         ("reminder_set", "P0", "已记录：将在 10:10 提醒「喝水」。", item["id"], True, "terminal"))
-
-    def test_a_reminder_for_another_day_names_it(self):
-        self.assertEqual(self.request("POST", "/say", {"text": "示例甲，提醒我明天8点开会"})[0], 200)
-        self.assertEqual([a["headline"] for a in self.feed("announce")], ["已记录：将在 明天 08:00 提醒「开会」。"])
-
-    def test_a_reminder_later_this_week_names_its_date_and_weekday(self):
-        self.now = time.mktime((2026, 11, 9, 15, 0, 0, 0, 0, -1))
-        self.assertEqual(self.request("POST", "/say", {"text": "提醒我周五下午三点给王工回邮件"})[0], 200)
-        self.assertEqual([a["headline"] for a in self.feed("announce")], ["已记录：将在 11-13 周五 15:00 提醒「给王工回邮件」。"])
-
-    def test_a_reminder_without_a_time_is_not_kept(self):
-        self.role(False)  # without a ready role the time stays unread
-        self.assertEqual(self.request("POST", "/say", {"text": "提醒我喝水"}), (409, {"error": "no_reminder_time"}))
-        self.assertEqual((self.server.commitments.list(), self.feed("announce")), ([], []))
-
-    def role(self, ready):
-        """A stand-in character agent; returns the traces of the role lines it was given."""
-        traces = []
-        self.server.mouth = test_server.FakeMouth([])
-        status = {"ready": ready, "backend": "fake", "error": "not_ready"}
-        self.server.character_agent = SimpleNamespace(
-            public=lambda discover=False, *, wait=True: {**status, "routes": {"chat": status, "background": status}},
-            settings=SimpleNamespace(snapshot=lambda: {"reply_language": "zh-Hans"}), reply_language=ReplyLanguage(),
-            busy=lambda: False, jobs=None,
-            cancel=lambda *args, **kwargs: None, cancel_sides=lambda *args, **kwargs: None, close=lambda: None)
-        self.server._run_character_line = lambda *args, **kwargs: traces.append(args[-1])
-        self.addCleanup(setattr, self.server, "character_agent", None)
-        return traces
-
-    def test_headlines_follow_the_reply_language(self):
-        self.role(ready=True)
-        for code, expected in (("en", ["OK, I'll remind you tomorrow at 08:00: 开会.", "Reminder: 喝水"]),
-                               ("zh-Hans", ["已记录：将在 明天 08:00 提醒「开会」。", "日程提醒：喝水"])):
-            with self.subTest(code=code):
-                self.server.character_agent.settings = SimpleNamespace(snapshot=lambda: {"reply_language": code})
-                seen = len(self.feed("announce"))
-                self.assertEqual(self.request("POST", "/say", {"text": "示例甲，提醒我明天8点开会"})[0], 200)
-                self.server.commitments.add("喝水", self.now)
-                self.server._commitments_due()
-                self.assertEqual([a["headline"] for a in self.feed("announce")[seen:]], expected)
-
-    def test_wait_headlines_follow_the_reply_language(self):
-        self.role(ready=True)
-        for code, expected in (("en", ["OK, when claude finishes, I'll remind you: 看测试结果.",
-                                       "Missed reminder: 看测试结果 (gave up after waiting 24 hours until claude finishes)"]),
-                               ("ja", ["わかりました。claude の完了になったら看测试结果をお知らせします。",
-                                       "リマインダーを逃しました：看测试结果（24 時間待ってもclaude の完了になりませんでした）"]),
-                               ("zh-Hans", ["已记录：将在 claude 做完 时提醒「看测试结果」。", "未触发的提醒：看测试结果（等待 claude 做完 超过 24 小时）"])):
-            with self.subTest(code=code):
-                self.server.character_agent.settings = SimpleNamespace(snapshot=lambda: {"reply_language": code})
-                seen = len(self.feed("announce"))
-                self.assertEqual(self.request("POST", "/say", {"text": "等 claude 做完提醒我看测试结果"})[0], 200)
-                self.now += 86400
-                self.server._commitments_due()
-                self.assertEqual([a["headline"] for a in self.feed("announce")[seen:]], expected)
-
-    def test_a_reminder_without_a_time_goes_to_a_ready_role(self):
-        traces = self.role(ready=True)
-        status, body = self.request("POST", "/say", {"text": "提醒我月底前续费"})
-        self.assertEqual(status, 202, body)
-        self.assertTrue(self.wait_for(lambda: traces))
-        self.assertTrue(traces[0]["reminder_unparsed"])
+    def test_reminder_sentences_go_to_the_character_llm(self):
+        for text in ("提醒我十分钟后喝水", "示例甲，提醒我明天8点开会", "提醒我喝水", "提醒我月底前续费"):
+            with self.subTest(text=text):
+                status, body = self.request("POST", "/say", {"text": text})
+                self.assertEqual(status, 202, body)
+                self.assertIn("run_id", body)
+                self.assertTrue(self.wait_for(lambda: not self.server._live_lines))
         self.assertEqual(self.server.commitments.list(), [])
 
-    def test_a_turn_asks_the_role_for_its_runtime_once(self):
-        traces = self.role(ready=True)
-        public = self.server.character_agent.public
-        calls = []
-        self.server.character_agent.public = lambda *args, **kwargs: calls.append(kwargs) or public(*args, **kwargs)
-        status, body = self.request("POST", "/say", {"text": "提醒我月底前续费"})
-        self.assertEqual(status, 202, body)
-        self.assertTrue(self.wait_for(lambda: traces))
-        self.assertEqual(len(calls), 1)
-
-    def test_a_reminder_with_a_time_stays_a_command_for_a_ready_role(self):
-        traces = self.role(ready=True)
-        status, body = self.request("POST", "/say", {"text": "提醒我明天上午十点开会"})
-        self.assertEqual((status, body["command"]), (200, "remind"))
-        self.assertEqual(traces, [])
-
-    def test_a_reminder_without_a_time_is_refused_when_the_role_is_not_ready(self):
-        self.role(ready=False)
-        self.assertEqual(self.request("POST", "/say", {"text": "提醒我月底前续费"}), (409, {"error": "no_reminder_time"}))
-
-    def test_without_commitments_a_reminder_is_refused(self):
+    def test_without_commitments_a_due_tick_is_a_noop(self):
         self.server.commitments = None
-        self.assertEqual(self.request("POST", "/say", {"text": "提醒我十分钟后喝水"}),
-                         (503, {"error": "no_commitments"}))
         self.server._commitments_due()
 
     def test_a_due_reminder_is_said_and_fulfilled(self):
@@ -427,20 +340,16 @@ class CommitmentServerTest(unittest.TestCase):
 
     def test_waiting_for_claude_is_said_when_a_claude_session_is_done(self):
         enable_plugins(self, "coding_sessions")  # the session ends through /hook
-        status, body = self.request("POST", "/say", {"text": "等 claude 做完提醒我看测试结果"})
-        self.assertEqual((status, body["command"]), (200, "remind"))
-        [item] = self.server.commitments.list()
-        self.assertEqual((item["state"], item["text"], item["due_at"], item["trigger"]),
-                         ("armed", "看测试结果", None, {"kind": "session_done", "agent": "claude"}))
-        self.assertEqual([a["headline"] for a in self.feed("announce")], ["已记录：将在 claude 做完 时提醒「看测试结果」。"])
+        item = self.server.commitments.add("看测试结果", None, trigger={"kind": "session_done", "agent": "claude"})
+        self.server.feed.publish("commitment", {"action": "added", "commitment": item})
         self.request("POST", "/hook/codex", {"hook_event_name": "Stop", "session_id": "B"}, token=test_server.HOOK)
         self.request("POST", "/hook/claude", {"hook_event_name": "PreToolUse", "session_id": "A", "tool_name": "Read"},
                      token=test_server.HOOK)
         self.server._commitments_due()
-        self.assertEqual(len(self.feed("announce")), 1)
+        self.assertEqual(self.feed("announce"), [])
         self.request("POST", "/hook/claude", {"hook_event_name": "Stop", "session_id": "A"}, token=test_server.HOOK)
         self.server._commitments_due()
-        self.assertEqual([(a["kind"], a["headline"]) for a in self.feed("announce")][1:],
+        self.assertEqual([(a["kind"], a["headline"]) for a in self.feed("announce")],
                          [("reminder_due", "日程提醒：看测试结果")])
         self.assertEqual(self.server.commitments.list()[0]["state"], "fulfilled")
 
@@ -464,12 +373,11 @@ class CommitmentServerTest(unittest.TestCase):
         self.assertEqual(self.changes(), [{"action": "missed", "commitment": self.server.commitments.list()[0]}])
 
     def test_daily_reminder_rearms_next_day(self):
-        self.assertEqual(self.request("POST", "/say", {"text": "提醒我每天8点吃药"})[0], 200)
-        [item] = self.server.commitments.list()
+        item = self.server.commitments.add("吃药", local(24, 8), repeat="daily")
         self.assertEqual((item["due_at"], item["repeat"]), (local(24, 8), "daily"))
         self.now = local(24, 8)
         self.server._commitments_due()
-        self.assertEqual([a["kind"] for a in self.feed("announce")], ["reminder_set", "reminder_due"])
+        self.assertEqual([a["kind"] for a in self.feed("announce")], ["reminder_due"])
         [again] = self.server.commitments.list()
         self.assertEqual((again["id"], again["state"], again["due_at"], again["revision"]),
                          (item["id"], "armed", local(25, 8), item["revision"] + 2))
@@ -541,8 +449,8 @@ class CommitmentServerTest(unittest.TestCase):
         self.assertEqual(len(self.feed("announce")), 1)
 
     def test_reminders_are_listed_by_due_time_and_state(self):
-        self.assertEqual(self.request("POST", "/say", {"text": "提醒我半小时后站起来"})[0], 200)
-        self.assertEqual(self.request("POST", "/say", {"text": "提醒我十分钟后喝水"})[0], 200)
+        self.server.commitments.add("站起来", self.now + 1800)
+        self.server.commitments.add("喝水", self.now + 600)
         status, body = self.request("GET", "/commitments")
         self.assertEqual(status, 200)
         self.assertEqual([(c["text"], c["due_at"], c["state"]) for c in body["commitments"]],
@@ -587,6 +495,7 @@ class CommitmentServerTest(unittest.TestCase):
 class SignalOfferServerTest(unittest.TestCase):
     """Exercise say and storage directly, without a listening HTTP transport."""
     feed = CommitmentServerTest.feed
+    wait_for = CommitmentServerTest.wait_for
 
     def setUp(self):
         from unittest.mock import patch
@@ -596,6 +505,7 @@ class SignalOfferServerTest(unittest.TestCase):
         with patch.object(AgentdServer, 'server_bind'), patch.object(AgentdServer, 'server_activate'):
             self.server = AgentdServer(('127.0.0.1', 0), HOOK, UI, tick_interval=3600)
         self.server.character_agent = test_server.KernelLines(self.server)
+        self.server.mouth = test_server.FakeMouth([])
         self.addCleanup(self.server.server_close)
         self.server.clock = lambda: self.now
         self.server.speech = test_server.FakeRelay()
@@ -628,9 +538,8 @@ class SignalOfferServerTest(unittest.TestCase):
         self.assertEqual(self.server.commitments.list(), [])
         self.assertEqual(self.feed('announce'), [])
         status, body = self.server.say(thought['reply'], reply_to={'kind': 'thought', 'id': thought['id']})
-        self.assertEqual((status, body['command']), (200, 'remind'))
-        [item] = self.server.commitments.list()
-        self.assertEqual((item['due_at'], item['text'], item['repeat']), parse_reminder(thought['reply'], self.now))
+        self.assertEqual(status, 202)
+        self.wait_for(lambda: not self.server._live_lines)
         [log] = worklog.db.execute('SELECT outcome FROM proactive_log WHERE id = ?', (thought['id'],)).fetchall()
         self.assertEqual(log[0], 'accepted')
 

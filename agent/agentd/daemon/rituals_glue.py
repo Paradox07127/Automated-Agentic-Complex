@@ -3,7 +3,6 @@ import datetime
 import secrets
 
 from brain.events import cue
-from brain.outbound import OutboundBlocked
 from brain.persona import BASE_LANGUAGE
 from daemon.constants import FEEDBACK
 from personal.rituals import GREETING, TAP, TAPS, TEMPLATES, pick_line
@@ -74,11 +73,6 @@ class RitualsGlueMixin:
                 picked = self.rituals.pick()
             if picked is None:
                 facts, aim = TAP if count == 1 else TAPS
-                if scripted is None and self.egress is not None:
-                    try:
-                        self.egress.authored("tap", f"{facts}\n{aim}")
-                    except OutboundBlocked:
-                        return 200, {"kind": None}
                 line_id = secrets.token_hex(6)
                 place = TAP_REGION_TEXT[region] if region is not None else "you"
                 facts = facts.format(count=count, place=place, user_title=self.user_title())
@@ -87,11 +81,6 @@ class RitualsGlueMixin:
                 return 202, {"line_id": line_id, "kind": "tap"}
             kind, data = picked
             facts, aim = TEMPLATES[kind]
-            if scripted is None and self.egress is not None:
-                try:
-                    self.egress.authored("ritual", f"{facts}\n{aim}")
-                except OutboundBlocked:  # not said; the guard logged the hit
-                    return 200, {"kind": None}
             line_id = secrets.token_hex(6)
             self.rituals.begin(kind, line_id)  # before the line: it may settle before start_line returns
             self.start_line(line_id, cue(kind, facts.format(**data, user_title=self.user_title()), aim),
@@ -112,11 +101,6 @@ class RitualsGlueMixin:
             if self.resetting or self.busy() or self._live_lines:
                 return 409, {"error": "busy"}
             facts, aim = GREETING
-            if scripted is None and self.egress is not None:
-                try:
-                    self.egress.authored("ritual", f"{facts}\n{aim}")
-                except OutboundBlocked:
-                    return 200, {"line_id": None}
             line_id = secrets.token_hex(6)
             self.start_line(line_id, cue("first_meeting", facts.format(user_title=self.user_title()), aim),
                             reason={"code": "ritual", "kind": "greeting"}, source="ritual", scripted=scripted)

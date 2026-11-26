@@ -772,13 +772,10 @@ class RuntimeTests(unittest.TestCase):
     def test_markdown_history_reply_is_preserved_while_ai_self_reference_is_rewritten(self):
         history = [[{'role': 'user', 'content': 'plan?'},
                     {'role': 'assistant', 'content': 'Sure.\n- one\n- two\n- three'}]]
-        quick = FakeSession(chat)
-        for options in ({}, {'quick_session': quick}):
-            with self.subTest(quick='quick_session' in options):
-                self.run_agent('run-' + str(len(options)), history=history, **options)
-                sent = (quick if options else self.sessions[-1]).calls[-1]['history']
-                self.assertEqual(sent, [[{'role': 'user', 'content': 'plan?'},
-                                         {'role': 'assistant', 'content': 'Sure.\n- one\n- two\n- three'}]])
+        self.run_agent('run-0', history=history)
+        sent = self.sessions[-1].calls[-1]['history']
+        self.assertEqual(sent, [[{'role': 'user', 'content': 'plan?'},
+                                 {'role': 'assistant', 'content': 'Sure.\n- one\n- two\n- three'}]])
         ai_history = [[{'role': 'user', 'content': 'who?'},
                        {'role': 'assistant', 'content': '作为一个AI。先这样吧。'}]]
         self.run_agent('run-ai', history=ai_history)

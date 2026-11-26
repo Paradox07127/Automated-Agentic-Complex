@@ -5,7 +5,7 @@ import { EMPTY_BLACKLIST, parseBlacklist } from '../src/common/attention.ts';
 import {
   actParams, appRefusal, canRequest, chooseApp, computerUseState, CONSENT, ControlConsent, ControlError, ControlInterruption,
   type ControlTarget, decodeApps, decodeRequest, errorResponse, helperFailure, initialPanelState, observedElements, okResponse,
-  requestedInteger, type RunningApp, sameTarget, scrollDelta, targetJSON, titleRefusal, validSession,
+  requestedInteger, type RunningApp, sameFrame, sameTarget, scrollDelta, targetJSON, titleRefusal, validSession,
 } from '../src/common/computer-control.ts';
 
 // Deny mode with no rules: every window but our own is read.
@@ -24,12 +24,14 @@ const code = (fn: () => unknown): string => {
   return 'none';
 };
 
-test('sameTarget compares process generation and geometry, not just the window id', () => {
+test('sameTarget compares window identity; sameFrame compares geometry', () => {
   assert.ok(sameTarget(T, { ...T, frame: { ...T.frame } }));
+  assert.ok(sameTarget(T, { ...T, frame: { ...T.frame, x: 1 } }));
   assert.ok(!sameTarget(T, { ...T, launchedAt: 1001 }));
-  assert.ok(!sameTarget(T, { ...T, frame: { ...T.frame, x: 1 } }));
   assert.ok(sameTarget(null, null));
   assert.ok(!sameTarget(T, null));
+  assert.ok(sameFrame(T, { ...T, frame: { ...T.frame } }));
+  assert.ok(!sameFrame(T, { ...T, frame: { ...T.frame, x: 1 } }));
 });
 
 test('no grant: every check fails and nothing is granted', () => {

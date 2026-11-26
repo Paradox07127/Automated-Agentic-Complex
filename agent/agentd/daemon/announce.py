@@ -7,7 +7,7 @@ from brain.language import SUPPORTED
 from character import dispatch_report
 from daemon.turns import TEXT_HOLD_MAX_MS, TEXT_HOLD_MS
 from observation.summary import Summarizer
-from personal.commitments import awaited, parse_reminder, parse_wait
+from personal.commitments import awaited
 from sessions.ledger import TERMINAL
 from traces.trace_store import new_trace_id
 
@@ -518,36 +518,6 @@ class AnnounceMixin:
             self.announce({"ts": time.time(), "level": level, "kind": kind, "headline": headline,
                            "project": task["cwd"], "session_id": task["session_id"], "detail": None,
                            "origin": task_id})
-
-    def _remind(self, text):
-        """「提醒我…」: keep the reminder and confirm it aloud."""
-        if self.commitments is None:
-            return 503, {"error": "no_commitments"}
-        now = self.commitments.clock()
-        wait = parse_wait(text)
-        if wait is not None:
-            trigger, what = wait
-            item = self.commitments.add(what, None, created_line=None, trigger=trigger)
-            self.feed.publish("commitment", {"action": "added", "commitment": item})
-            self._announce_commitment("reminder_set", "P0",
-                                      self._headlines()["reminder_wait"].format(
-                                          awaited=awaited(trigger, self.reply_language_code()), what=what),
-                                      item["id"])
-            return 200, {"command": "remind", "commitment": item}
-        reminder = parse_reminder(text, now)
-        if reminder is None:
-            return 409, {"error": "no_reminder_time"}
-        due_at, what, repeat = reminder
-        item = self.commitments.add(what, due_at, created_line=None, repeat=repeat)
-        self.feed.publish("commitment", {"action": "added", "commitment": item})
-        due = time.localtime(due_at)
-        days = (datetime.date(*due[:3]) - datetime.date(*time.localtime(now)[:3])).days
-        words = self._headlines()
-        day = {"daily": words["daily"], "weekdays": words["weekdays"]}.get(repeat) or {0: "", 1: words["tomorrow"]}.get(
-            days, words["date"].format(month=due.tm_mon, day=due.tm_mday, weekday=words["weekday_names"][due.tm_wday]))
-        self._announce_commitment("reminder_set", "P0", words["reminder_set"].format(
-            day=day, time=time.strftime('%H:%M', time.localtime(due_at)), what=what), item["id"])
-        return 200, {"command": "remind", "commitment": item}
 
     def _commitments_due(self):
         """One tick: every reminder now due in one announcement, so no P0 cuts another; during quiet a silent card."""

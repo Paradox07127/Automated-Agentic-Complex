@@ -11,10 +11,8 @@ import threading
 import time
 import uuid
 
-from brain.outbound import OutboundBlocked
 from personal.episodes import _body
 from personal.memory import TRUSTED, normalized_text
-from character_agent.services.memory_service import ADD, DENY_WRITE
 
 INSTRUCTIONS = '''Extract from sources the memories that will be useful later. The reader is the character days or weeks from now: it relies on projects to carry on the user's work and on memories to remember who the user is, what they like and what they agreed on with the character. Empty lines like "you are using some app" or "opened some page" are of no use to it.
 projects keep the project's goal, constraints, decisions and their reasons, actual results, commits, test results, temporary paths, open issues and next steps; these are not copied into memories again. Write each project so whoever takes it over can continue directly, such as "the export endpoint now pages because a single request timed out; the paged version passes its tests, the front end is not wired yet", not "worked on the export". Leave fields without evidence empty.
@@ -93,8 +91,7 @@ def text_values(value):
 
 def asserted_user_quote(source, text, quote):
     message = source.get('user', '')
-    return source.get('kind') == 'conversation' and text == quote and quote in message and (
-        message.strip() == quote.strip() or bool(ADD.search(message)))
+    return source.get('kind') == 'conversation' and text == quote and quote in message and message.strip() == quote.strip()
 
 
 class MemoryPipeline:
@@ -137,14 +134,12 @@ class MemoryPipeline:
                 for raw in rows:
                     row = dict(zip(COLUMNS, raw)); after = row['id']
                     if row['started_at'] < cutoff or row['source'] not in ('text','voice') or row['state'] not in ('completed','interrupted','cancelled') or not row['user_text']: continue
-                    if DENY_WRITE.search(row['user_text']) or re.match(r'^\s*(?:请)?(?:忘记|删除.{0,12}记忆|更正.{0,12}记忆|forget\b)',row['user_text'],re.I): continue
                     item = {'source_id':'history:'+str(row['turn_id'] or row['id']), 'user':row['user_text'],
                         'character_id':row['character_id'], 'assistant':row['reply'] if row['state'] != 'cancelled' else '',
                         'at':row['started_at'], 'verified':False, 'kind':'conversation', 'requires':[], '_history_id':row['id']}
                     with s.memory.lock:
                         processed = s.memory.db.execute('SELECT version FROM agent_memory_processed WHERE source_id=?', (item['source_id'],)).fetchone()
-                    try: version = digest({k:v for k,v in knowledge.sanitize(item, part='memory_source').items() if k not in ('at','_history_id')})
-                    except OutboundBlocked: version = digest({k:v for k,v in item.items() if k not in ('at','_history_id')})  # settled below
+                    version = digest({k:v for k,v in knowledge.sanitize(item, part='memory_source').items() if k not in ('at','_history_id')})
                     if processed and processed[0] in ('forgotten', version, 'quarantined:'+version): continue
                     result.append(item)
                     if len(result) >= 12: break
@@ -167,18 +162,11 @@ class MemoryPipeline:
                     'character_id':event['character_id'],'verified':False,'kind':'authorized_observation',
                     'requires':sorted({p for dep in event['dependencies'] for p in dep['requires']})})
         # Task hypotheses remain ephemeral context, never long-term extraction inputs.
-        clean, blocked = [], {}
-        for item in result:
-            try: clean.append(knowledge.sanitize(item, part='memory_source'))
-            # The guard blocks deterministically: settle that source alone so the batch and the history cursor move on.
-            except OutboundBlocked: blocked[item['source_id']] = 'quarantined:'+digest({k:v for k,v in item.items() if k not in ('at','_history_id')})
-        result = clean
-        if not result and not blocked: return []
+        result = [knowledge.sanitize(item, part='memory_source') for item in result]
+        if not result: return []
         with s.memory.lock:
-            ids = [item['source_id'] for item in result]+list(blocked)
+            ids = [item['source_id'] for item in result]
             processed = dict(s.memory.db.execute('SELECT source_id,version FROM agent_memory_processed WHERE source_id IN (' + ','.join('?' for _ in ids) + ')',ids))
-            settle = [(k,v) for k,v in blocked.items() if processed.get(k) not in (v,'forgotten')]
-            if settle: s.memory.db.executemany('INSERT OR REPLACE INTO agent_memory_processed VALUES(?,?)', settle); s.memory.db.commit()
         selected, size = [], 0
         for item in result:
             versioned={k:v for k,v in item.items() if k not in ('at','_history_id')}

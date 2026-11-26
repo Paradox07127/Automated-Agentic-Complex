@@ -5,7 +5,6 @@ import uuid
 from brain import persona
 from character.behavior import system_prompt
 from character.binding import effective
-from brain.outbound import OutboundBlocked
 from motion.chooser import MotionChooser, SEEDS
 from api.views import _iso
 
@@ -51,7 +50,7 @@ class CharacterSwitchMixin:
 
     def set_character(self, cid):
         """Swap the card, voice and active conversation.
-        Raises ValueError for an unknown id and OutboundBlocked before anything is cancelled.
+        Raises ValueError for an unknown id before anything is cancelled.
         None while a character switch is open: nothing changes."""
         card = self.characters.load_card(cid)
         with self._switch_lock:
@@ -135,10 +134,7 @@ class CharacterSwitchMixin:
                 return 409, {"error": "switching"}
             if cid == self.character:
                 return 409, {"error": "same_character"}
-            try:
-                mouth = self._new_mouth(cid)
-            except OutboundBlocked:
-                return 409, {"error": "outbound_blocked"}
+            mouth = self._new_mouth(cid)
             switch_id = f"k2-{uuid.uuid4().hex[:12]}"
             self.switch = {"switch_id": switch_id, "to": cid, "expires_at": self.clock() + SWITCH_LEASE,
                            "card": card, "mouth": mouth}
