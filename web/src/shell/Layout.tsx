@@ -1,6 +1,7 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useRouterState } from '@tanstack/react-router';
 import { MODAL_ROOT_ID } from '../ui';
+import { CmdPalette } from './CmdPalette';
 import { CommandBar } from './CommandBar';
 import { COMPUTER_USE_DEMO, ComputerUseBanner } from './ComputerUseBanner';
 import { useDemo } from './demo';
@@ -16,9 +17,6 @@ import styles from './Layout.module.css';
 
 /** Window event a page dispatches to open the ⌘K palette. */
 export const OPEN_PALETTE = 'endfield:open-palette';
-
-const loadPalette = () => import('./CmdPalette');
-const CmdPalette = lazy(() => loadPalette().then((m) => ({ default: m.CmdPalette })));
 
 export function Layout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -73,16 +71,6 @@ export function Layout() {
 
   useEffect(() => setPalette(demo === 'palette'), [demo]);
 
-  // Fetch the palette's chunk once the first paint is done, so ⌘K does not wait on it.
-  useEffect(() => {
-    if (typeof requestIdleCallback === 'function') {
-      const id = requestIdleCallback(() => void loadPalette());
-      return () => cancelIdleCallback(id);
-    }
-    const t = setTimeout(() => void loadPalette(), 200);
-    return () => clearTimeout(t);
-  }, []);
-
   useEffect(() => {
     if (guide) return;
     const onKey = (e: KeyboardEvent) => {
@@ -136,7 +124,7 @@ export function Layout() {
             </div>
             <div ref={setBottom} className={styles.bottomBar} data-shell="bottom-bar" data-slot="bottom" data-theme="dark" />
           </main>
-          {palette && <Suspense fallback={null}><CmdPalette routes={routes} onClose={() => setPalette(false)} /></Suspense>}
+          {palette && <CmdPalette routes={routes} onClose={() => setPalette(false)} />}
         </div>
       </div>
       <div id={MODAL_ROOT_ID} className={styles.modalRoot} />
