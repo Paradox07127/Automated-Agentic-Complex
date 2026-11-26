@@ -41,8 +41,9 @@ const counted = (name: string, n: number, unit: string) => short(name) + (n > 1 
 
 function sayFailure(r: Extract<SayResult, { ok: false }>): string {
   if (r.reason === 'agentd') return '后台服务没有运行';
-  if (r.reason === 'kernel') return r.detail ? `角色内核未就绪 │ ${r.detail}` : '角色内核未就绪';
-  return r.detail ?? '后台不接受这条';
+  const said = r.detail ?? (r.code ? failureText({ status: r.status ?? 0, code: r.code }).text : null);
+  if (r.reason === 'kernel') return said ? `角色内核未就绪 │ ${said}` : '角色内核未就绪';
+  return said ?? '后台不接受这条';
 }
 
 const callFailure = (e: unknown) =>

@@ -29,7 +29,7 @@ describe('HealthChain voice node', () => {
     const onVoiceReset = vi.fn();
     render(<HealthChain health={withVoice('unreachable', 30)} now={NOW} onNode={onNode} onVoiceReset={onVoiceReset} />);
     expect(voiceNode()?.getAttribute('data-st')).toBe('broken');
-    expect(document.body.textContent).toContain('✕ 语音远端不通 │ 30 秒后可重试');
+    expect(document.body.textContent).toContain('✕ 语音无法连接 │ 30 秒后可重试');
     fireEvent.click(screen.getByRole('button', { name: '重新连接' }));
     expect(onVoiceReset).toHaveBeenCalledTimes(1);
     expect(onNode).not.toHaveBeenCalled();
@@ -38,11 +38,11 @@ describe('HealthChain voice node', () => {
   it('ready is done; off is neutral and not a problem (the release has no voice)', () => {
     render(<HealthChain health={withVoice('ready')} now={NOW} />);
     expect(voiceNode()?.getAttribute('data-st')).toBe('done');
-    expect(voiceNode()?.getAttribute('aria-label')).toBe('语音：在线，在线');
+    expect(voiceNode()?.getAttribute('aria-label')).toBe('语音：在线，就绪');
     cleanup();
     render(<HealthChain health={withVoice('off')} now={NOW} />);
     expect(voiceNode()?.getAttribute('data-st')).toBe('idle');
     expect(screen.queryByRole('button', { name: '重新连接' })).toBeNull();
-    expect(voiceNode()?.getAttribute('aria-label')).toContain('已关闭');
+    expect(voiceNode()?.getAttribute('aria-label')).toContain('未配置');
   });
 });

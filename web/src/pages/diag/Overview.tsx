@@ -2,14 +2,14 @@ import type { ReactNode } from 'react';
 import type { AppInfo } from '../../bridge/protocol';
 import { formatClock, formatDuration, type Health, type VisualStateKey, type WireDiagState, type WireRuntimePublic } from '../../domain';
 import { secToMs } from '../../domain/units';
-import { voiceSource, voiceText } from '../../domain/voiceState';
+import { ttsText, voiceSource, voiceText } from '../../domain/voiceState';
 import { Btn, ErrBar, SecHead, Skel } from '../../ui';
 import { Barcode, DeviceRow, ReadTick, type DeviceRowProps } from '../../ui/game';
 import type { NavTarget } from '../overview/nav';
 import { ErrorPanel } from './ErrorPanel';
 import { gateHolds, SPEAK_WHEN } from './GatePanel';
 import { cpuParts, memParts } from './procText';
-import { CAP_REASON, LIMITS, lampOf, levelOf, SERVICE_ROWS, ttsText, type DiagIssue, type DiagProcess } from './status';
+import { CAP_REASON, LIMITS, lampOf, levelOf, SERVICE_ROWS, type DiagIssue, type DiagProcess } from './status';
 import styles from './Diag.module.css';
 
 export type DiagTab = 'overview' | 'proc' | 'render' | 'flow' | 'state';

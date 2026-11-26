@@ -123,12 +123,12 @@ describe('settings › 服务 cards', () => {
   it('light a voice service on 地址 by whether it answers, and an off one as 没开', () => {
     diag = { connections: { ...WIRE_DIAG_CONNECTIONS, tts: WIRE_TTS.ready } } as WireDiagSlice;
     draw({ ...ALL_OFF, tts: { ...OFF, mode: 'url', url: 'http://10.0.0.5:9880' } }, NONE);
-    expect(lamp('语音服务')).toBe('在线');
+    expect(lamp('语音服务')).toBe('就绪');
     expect(lamp('动作服务')).toBe('未启用');
     cleanup();
     diag = { connections: { ...WIRE_DIAG_CONNECTIONS, tts: WIRE_TTS.unreachable } } as WireDiagSlice;
     draw({ ...ALL_OFF, tts: { ...OFF, mode: 'url', url: 'http://10.0.0.5:9880' } }, NONE);
-    expect(lamp('语音服务')).toBe('远端不通');
+    expect(lamp('语音服务')).toBe('无法连接：连接断开');
   });
 
   it('give start, stop, restart and logs a name and a tooltip, only where the shell runs the service', () => {

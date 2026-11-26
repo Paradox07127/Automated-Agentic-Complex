@@ -136,6 +136,9 @@ function fakeDetails(suspended: boolean): AvatarDetails {
   };
 }
 
+/** `demo=voice-503`: the TTS answers 503; `demo=voice-keychain`: its token could not be read, so agentd runs text only. */
+const TTS_DEMO: Readonly<Record<string, RuntimeSnapshot['tts']>> = { 'voice-503': { provider: 'remote-ws', state: 'unreachable', reason: 'probe:http_503', retry_after_s: null }, 'voice-keychain': { provider: 'none', state: 'off', reason: 'secret_store_unavailable', retry_after_s: null } };
+
 function runtimeSnapshot(
   processes: Record<SupervisorTarget, ProcessState>,
   avatar: AvatarState,
@@ -152,7 +155,7 @@ function runtimeSnapshot(
     processes: { agentd: process(processes.agentd), avatar: process(processes.avatar) },
     character: { current: character, shown: character, agentd: character, pending: null, switching: false, failure: null },
     visibility: { hidden: !avatar.visible, reason: null, fullscreen_hidden: false, click_through_all: avatar.clickThroughAll },
-    tts: { provider: 'none', state: 'off', reason: 'not_configured', retry_after_s: null },
+    tts: TTS_DEMO[hashQuery().get('demo') ?? ''] ?? { provider: 'none', state: 'off', reason: 'not_configured', retry_after_s: null },
     services,
     degraded: [],
   };

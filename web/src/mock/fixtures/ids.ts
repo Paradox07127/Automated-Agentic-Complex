@@ -36,6 +36,7 @@ export const A3 = 'a3a7e9d1f2c4b6e8';
 export const Q1 = 'b1c2d3e4f5a60718293a4b5c6d7e8f90';
 export const Q_APPROVAL = 'b2d3e4f5a60718293a4b5c6d7e8f9012';
 export const Q_APPROVAL_DANGER = 'b3e4f5a60718293a4b5c6d7e8f901234';
+export const Q_APPROVAL_AGENTD = 'b4f5a60718293a4b5c6d7e8f90123456';
 
 /** Deliveries (`delivery-<32hex>`). */
 export const DLV_T1_V1 = 'delivery-d1e1a0b9c8d7e6f5a4b3c2d1e0f9a8b1';

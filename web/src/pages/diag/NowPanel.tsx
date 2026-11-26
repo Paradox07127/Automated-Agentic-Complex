@@ -5,7 +5,7 @@ import { Btn, KV } from '../../ui';
 import type { WireDiagState } from '../../domain/wire';
 import { stateWord } from '../../features/character/labels';
 import { BEHAVIOR, JUDGE_BACKEND } from './model';
-import { ttsText } from './status';
+import { ttsText } from '../../domain/voiceState';
 import styles from './State.module.css';
 
 /** server.py `_diag_voice` voice values. */

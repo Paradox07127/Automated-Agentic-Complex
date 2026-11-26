@@ -170,6 +170,16 @@ test('StackSourceTests.testQuestionsArePendingRequestsAndRoleApprovalsKeepTheirP
   assert.equal(h.source.pendingCount, 2);
 });
 
+test('an approval agentd asks for itself is titled with the action, not the generic question', async () => {
+  const h = new Harness();
+  const own = interaction('q1', { kind: 'approval', questions: roleQuestion });
+  (own.data as Json).preview = { source: 'agentd', title: '取消提醒「喝水」', kind: 'other', raw_input: { reminder_id: 'c1' } };
+  h.transport.set('GET', '/agent/interactions', { requests: [own, interaction('q2', { kind: 'approval', questions: roleQuestion })] });
+  await h.source.refresh();
+  assert.equal(h.item('q1')!.title, '取消提醒「喝水」');
+  assert.equal(h.item('q2')!.title, '是否允许这一次操作？');
+});
+
 test('StackSourceTests.testRoleApprovalCarriesTheDangerVerdict', async () => {
   const h = new Harness();
   h.transport.set('GET', '/agent/interactions', { requests: [interaction('q1', { kind: 'approval', danger: [true, 'rm_recursive'] }),

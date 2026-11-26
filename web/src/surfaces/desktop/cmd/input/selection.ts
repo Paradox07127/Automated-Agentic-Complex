@@ -58,7 +58,7 @@ function withDrop(typed: string, a: ScopeAttachment): { chars: string[]; kept: n
           : [],
   );
   // /say takes at most 2000 characters (agentd api/speech.py MAX_SAY); the dropped part gives way to the typed text.
-  return { chars: [...(lines.length ? `${typed}\n\n用户拖入：\n${lines.join('\n')}` : typed)], kept: Math.max(2000, [...typed].length) };
+  return { chars: [...(lines.length ? `${typed}\n\n用户拖入：\n${lines.join('\n')}` : typed)], kept: 2000 };
 }
 
 /** Attaches a selection as the quote of the typed `r`, or a drop's read scope and any dropped links, text or unreadable file paths. */

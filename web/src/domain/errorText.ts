@@ -12,12 +12,22 @@ const CODE_TEXT: Readonly<Record<string, string>> = {
   tool_failed: '工具执行失败，请检查操作后重试',
   usage_cap: '已达到用量上限，请稍后再试或调整用量设置',
   // Kernel readiness (integration.py public()) and an unclassified harness failure
-  native_login_required: '当前执行内核尚未登录',
+  native_login_required: '当前执行内核尚未登录，请在终端运行 codex login 或 claude auth login，完成后在「设置 › 内核」重新检测',
   bundled_cli_missing: '内置执行内核文件不完整，请重新安装应用',
   bundled_runtime_missing: '应用未内置该执行内核，请在「设置 › 内核」切换运行来源',
   runtime_protocol_unavailable: '执行内核入口不可用，请更新工具后在「设置 › 内核」重新检测',
   api_error: '执行内核调用失败，请在「设置 › 内核」重新检测',
   pi_connection_missing: '尚未配置模型连接，请前往「设置 › 内核」填写 API Key',
+  product_login_required: '执行内核尚未在应用内登录，请前往「设置 › 内核」登录后重试',
+  acp_auth_required: 'ACP 智能体尚未登录，请登录后在「设置 › 内核」重新检测',
+  missing_provider_api_key: '尚未填写模型服务的 API Key，请前往「设置 › 内核」填写',
+  local_node_missing: '未找到本地 Node.js，请安装后在「设置 › 内核」重新检测',
+  pi_provider_model_required: '尚未选择模型，请前往「设置 › 内核」选择服务提供方和模型',
+  character_context_unavailable: '角色资料尚未就绪，请稍后重试',
+  acp_agent_missing: '尚未选择 ACP 智能体，请前往「设置 › 内核」选择',
+  local_runtime_missing: '未找到可用的 Claude Code、Codex 或 ACP 智能体，安装并登录后请在「设置 › 内核」重新检测',
+  runtime_version_not_verified: '执行内核版本未通过兼容检查，请更新后在「设置 › 内核」重新检测',
+  no_llm: '执行内核尚未就绪',
   no_character: '当前角色库为空，请前往「角色」页导入角色',
   output_truncated: '回复长度超出模型输出上限已被截断，请分段生成或更换输出上限更高的模型',
   // Goals, jobs, task ledger and conversations
@@ -66,6 +76,16 @@ const CODE_TEXT: Readonly<Record<string, string>> = {
   not_implemented: '当前平台暂不支持此操作',
   // 409 from /say, /feedback and the tap while a character switch runs: nothing changed, unlike a conflict.
   switching: '正在切换角色，请稍后再试',
+  // /say's commands and dispatch (daemon/turns.py)
+  no_cwd: '未指定工作目录，无法派发任务',
+  no_memory_dispatch: '当前处于无痕对话模式，无法派发任务：对话内容会保留在外部内核记录中',
+  no_reminder_time: '未识别到提醒时间或内容',
+  no_commitments: '当前暂不支持创建提醒',
+  invalid_text: '内容为空或超出长度上限，请修改后重试',
+  no_pending_approval: '当前没有待批准的请求，无需拒绝',
+  ambiguous_approval: '存在多项待批准请求，无法判断要拒绝哪一项',
+  no_task: '当前没有运行中的任务，无需停止',
+  ambiguous_task: '存在多个运行中的任务，请前往「每日简报」或「任务」页面停止',
   op_not_allowed: '当前平台暂不支持此操作',
 };
 

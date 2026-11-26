@@ -164,7 +164,7 @@ describe('快速输入', () => {
   });
 
   it('opens as 未接入 without a model, and the button opens the model account row', async () => {
-    const m = mount({ runtime: { ready: false, error: 'native_login_required' } });
+    const m = mount({ runtime: { ready: true, error: null, routes: { chat: { ready: false, error: 'native_login_required' } } } });
     const status = await screen.findByRole('status', { name: '未配置可用模型' });
     fireEvent.click(within(status).getByRole('button', { name: /前往设置/ }));
     expect(m.openMain).toHaveBeenCalledTimes(1);

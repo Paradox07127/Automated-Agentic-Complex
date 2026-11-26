@@ -12,6 +12,7 @@ import {
   SESSIONS,
   WIRE_INTERACTION_APPROVAL,
   WIRE_INTERACTION_APPROVAL_DANGER,
+  WIRE_INTERACTION_APPROVAL_AGENTD,
 } from './fixtures';
 import type { BridgeError, DesktopStackCard, StackPayload } from '../bridge/protocol';
 import { fromInteraction, type StackCard, type StackHistoryEntry } from '../domain';
@@ -58,6 +59,7 @@ const look: StackCard = { id: 'n-look', kind: 'notice', variant: 'look', at: at(
 
 const roleApproval: StackCard = { id: WIRE_INTERACTION_APPROVAL.request_id, kind: 'question', at: at(14, 31), item: fromInteraction(WIRE_INTERACTION_APPROVAL, NOW) };
 const roleDanger: StackCard = { id: WIRE_INTERACTION_APPROVAL_DANGER.request_id, kind: 'question', at: at(14, 32), item: fromInteraction(WIRE_INTERACTION_APPROVAL_DANGER, NOW) };
+const roleAgentd: StackCard = { id: WIRE_INTERACTION_APPROVAL_AGENTD.request_id, kind: 'question', at: at(14, 33), item: fromInteraction(WIRE_INTERACTION_APPROVAL_AGENTD, NOW) };
 const t2 = pick(TASKS, T2);
 const codingReview: StackCard = {
   id: `review-${T2}`,
@@ -125,8 +127,8 @@ const downloading: DesktopStackCard = {
   total_mb: 150,
 };
 
-/** Native-card scenarios and the dangerous role approval; STACK_PRESETS has none for them, so `demo=` names them directly. */
-const NATIVE_SCENARIOS = new Set(['desktop', 'desktop-progress', 'desktop-recovering', 'role-approval-danger']);
+/** Native-card scenarios, the dangerous role approval and agentd's own;STACK_PRESETS has none for them, so `demo=` names them directly. */
+const NATIVE_SCENARIOS = new Set(['desktop', 'desktop-progress', 'desktop-recovering', 'role-approval-danger', 'role-approval-agentd']);
 
 /** What native pushes on the card channel while agentd is not running. */
 const OFFLINE: BridgeError = { code: 'offline', detail: '后台已断开' };
@@ -151,6 +153,8 @@ export function stackScenario(name: string): StackPayload {
       return { ...base, cards: [roleApproval, ...pending.filter((c) => c.kind === 'question').slice(0, 1)] };
     case 'role-approval-danger':
       return { ...base, cards: [roleDanger] };
+    case 'role-approval-agentd':
+      return { ...base, cards: [roleAgentd] };
     case 'notices':
       return { ...base, cards: [resume, done, brief] };
     case 'coding-review':

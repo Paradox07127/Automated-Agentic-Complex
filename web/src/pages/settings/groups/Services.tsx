@@ -98,7 +98,7 @@ function Service({ id, use, record, runtime, disabled, onStart, onStop, onRestar
   else if (managed) {
     const [tone, text]: [VisualStateKey, string] = kind ? (STATE[kind] ?? ['idle', kind]) : ['idle', '未读取'];
     lamp = <StatusLamp size="sm" state={tone} label={text} />;
-  } else if (id === 'tts') lamp = diag.voice ? <StatusLamp size="sm" state={VOICE_TONE[diag.voice.state]} label={voiceText(diag.voice.state, null)} /> : <StatusLamp size="sm" state="idle" label="未读取" />;
+  } else if (id === 'tts') lamp = diag.voice ? <StatusLamp size="sm" state={VOICE_TONE[diag.voice.state]} label={voiceText(diag.voice.state, null, diag.voice.reason)} /> : <StatusLamp size="sm" state="idle" label="未读取" />;
   const note = managed ? [rt?.state?.reason, rt?.detail].filter(Boolean).join(' │ ') : '';
 
   const field = (key: 'url' | 'ssh_host' | 'start_script' | 'cwd' | 'command', title: string, placeholder?: string, hint?: string) => (

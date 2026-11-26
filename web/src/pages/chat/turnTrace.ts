@@ -86,7 +86,7 @@ export const OUTCOME_LABEL: Readonly<Record<string, string>> = { succeeded: '执
 const JUDGE_LABEL: Readonly<Record<string, string>> = { speak: '发言', wait: '等待', silent: '沉默', want_comment: '倾向发言', useful: '内容有用', need_image: '需要截图', next_check: '下次检查' };
 
 export const resultOf = (r: string, turnState?: string | null): TurnRes => turnState === 'waiting_user' ? '待处理' : RES[r] ?? '状态未知';
-export const sourceOf = (s: string): TurnSource => (s === 'background' ? 'background' : s === 'proactive' || s === 'announce' || s === 'ritual' || s === 'tap' ? 'proactive' : s === 'desktop' || s === 'quick' ? 'desktop' : 'user');
+export const sourceOf = (s: string): TurnSource => (s === 'background' ? 'background' : s === 'proactive' || s === 'announce' || s === 'ritual' || s === 'tap' ? 'proactive' : 'user');
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);

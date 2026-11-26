@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, test } from 'vitest';
 import { composeHealth } from '../../src/domain/adapt';
-import { voiceSource, voiceState, voiceText } from '../../src/domain/voiceState';
+import { voiceShort, voiceSource, voiceState, voiceText } from '../../src/domain/voiceState';
 import type { WireDiagConnections, WireVoice } from '../../src/domain/wire';
 import { WIRE_TTS } from '../../src/mock/fixtures';
 import { diagView } from '../../src/pages/settings/diag';
@@ -27,11 +27,11 @@ describe('voiceState', () => {
   });
 
   it('reads the POST /voice/reset reply', () => {
-    expect(voiceState(wire('cold'))).toEqual({ state: 'cold', retryAfterS: null });
+    expect(voiceState(wire('cold'))).toEqual({ state: 'cold', retryAfterS: null, reason: null });
   });
 
   it('passes retry_after_s through as retryAfterS', () => {
-    expect(voiceState(tts('unreachable', 42.5))).toEqual({ state: 'unreachable', retryAfterS: 42.5 });
+    expect(voiceState(tts('unreachable', 42.5))).toEqual({ state: 'unreachable', retryAfterS: 42.5, reason: null });
     expect(composeHealth('connected', null, null, { connections: connections(tts('unreachable', 7)) }).voice.retryAfterS).toBe(7);
     expect(diagView({ connections: connections(tts('unreachable', 7)) }).voice?.retryAfterS).toBe(7);
   });
@@ -64,18 +64,29 @@ describe('voiceText', () => {
   it.each([
     ['unknown', '未检测'],
     ['probing', '检测中'],
-    ['ready', '在线'],
+    ['ready', '就绪'],
     ['cold', '冷启动（第一句会慢）'],
-    ['unreachable', '远端不通'],
-    ['off', '已关闭'],
+    ['unreachable', '无法连接'],
+    ['off', '未配置'],
   ] as const)('%s -> %s', (state, text) => {
     expect(voiceText(state, null)).toBe(text);
   });
 
   it('adds the seconds until a retry to an unreachable voice, rounded up', () => {
-    expect(voiceText('unreachable', 41.2)).toBe('远端不通 │ 42 秒后可重试');
-    expect(voiceText('unreachable', 0)).toBe('远端不通');
+    expect(voiceText('unreachable', 41.2)).toBe('无法连接 │ 42 秒后可重试');
+    expect(voiceText('unreachable', 0)).toBe('无法连接');
     expect(voiceText('cold', 12)).toBe('冷启动（第一句会慢）');
+  });
+
+  it('an off voice that was configured says it failed to start and why; an unreachable one says what the TTS answered', () => {
+    expect(voiceText('off', null, 'not_configured')).toBe('未配置');
+    expect(voiceText('off', null, 'start_failed')).toBe('启动失败：语音模块启动出错');
+    expect(voiceText('off', null, 'secret_store_unavailable')).toBe('启动失败：系统凭据存储无法访问');
+    expect(voiceText('unreachable', null, 'http_401')).toBe('无法连接：令牌无效');
+    expect(voiceText('unreachable', 9, 'probe:http_503')).toBe('无法连接：服务暂不可用或模型未就绪 │ 9 秒后可重试');
+    expect(voiceText('unreachable', null, 'connection_lost')).toBe('无法连接：连接断开');
+    expect(voiceState(wire('off')).reason).toBeNull();
+    expect(voiceState({ ...wire('off'), reason: 'start_failed' }).reason).toBe('start_failed');
   });
 });
 
@@ -86,4 +97,11 @@ describe('voiceSource', () => {
   ] as const)('%s -> %s', (provider, label) => {
     expect(voiceSource(provider)).toBe(label);
   });
+});
+
+test('voiceShort: a status cell says the state in a word or two; a configured voice that is off failed to start', () => {
+  expect(voiceShort('unreachable', 'http_503')).toBe('无法连接');
+  expect(voiceShort('cold', null)).toBe('待唤醒');
+  expect(voiceShort('off', 'not_configured')).toBe('未配置');
+  expect(voiceShort('off', 'start_failed')).toBe('启动失败');
 });

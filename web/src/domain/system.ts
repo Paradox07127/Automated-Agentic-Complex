@@ -52,7 +52,7 @@ export interface Health {
   /** ChildState: running, or backing off for N seconds. */
   avatar: { child: 'running' | 'stopped' | { backoff: number }; fps: number | null };
   /** unknown: not checked yet. retryAfterS: seconds until agentd tries an unreachable TTS again, null when it may now. */
-  voice: { state: 'unknown' | 'probing' | 'ready' | 'cold' | 'unreachable' | 'off'; retryAfterS: number | null };
+  voice: { state: 'unknown' | 'probing' | 'ready' | 'cold' | 'unreachable' | 'off'; retryAfterS: number | null; reason?: string | null };
 }
 
 /** One second of host render stats. gpu is milliseconds. */

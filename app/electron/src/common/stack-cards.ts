@@ -12,6 +12,8 @@ export interface Interaction {
   data?: {
     questions?: { id: string; question: string; options?: { label: string; description?: string | null }[] | null }[] | null;
     preview_text?: string | null; job_id?: string | null;
+    /** agentd's own single-use approvals carry `source: 'agentd'` and the action in words as `title`. */
+    preview?: { source?: string | null; title?: string | null } | null;
     /** The policy's verdict on an exact-call approval; absent on rows written before agentd sent it. */
     dangerous?: boolean | null; danger_rule?: string | null;
   } | null;
@@ -74,8 +76,9 @@ export function questionCard(q: Interaction, now: number): Json {
   const job = q.data?.job_id ?? null;
   const expires = q.expires_at ?? 0;
   const approval = q.kind === 'approval';
+  const own = q.data?.preview?.source === 'agentd' ? q.data.preview.title ?? null : null;
   const item: Json = {
-    id: q.request_id, kind: 'question', task_id: job !== null ? `job:${job}` : null, title: questionsOf(q)[0]?.question ?? '',
+    id: q.request_id, kind: 'question', task_id: job !== null ? `job:${job}` : null, title: own || (questionsOf(q)[0]?.question ?? ''),
     source: approval ? '角色 │ 请求批准' : '角色', since: ms(q.created_at ?? 0), resolved: q.state !== 'pending', revision: q.revision,
     interaction_kind: approval ? 'approval' : 'question', state: q.state, questions, run_id: q.run_id ?? '', job_id: job,
     generation: q.generation ?? 0, expires_at: expires === 0 ? null : ms(expires), conversation_id: q.conversation_id ?? null,

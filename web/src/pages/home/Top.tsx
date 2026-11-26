@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getBridge } from '../../bridge';
 import type { RuntimeChildState, RuntimeSnapshot } from '../../bridge/runtimeSnapshot';
+import { voiceShort } from '../../domain/voiceState';
 import { StatusLamp, StatusRow } from '../../ui/game';
 import type { Box } from './geometry';
 
@@ -37,14 +38,9 @@ const PROCESS: Record<RuntimeChildState, [Lamp, string]> = {
   stopped: ['idle', '未运行'],
 };
 
-const TTS: Record<RuntimeSnapshot['tts']['state'], [Lamp, string]> = {
-  ready: ['ok', '就绪'],
-  probing: ['idle', '检测中'],
-  unknown: ['idle', '检测中'],
-  cold: ['paused', '待唤醒'],
-  unreachable: ['failed', '无法连接'],
-  off: ['idle', '未配置'],
-};
+const TTS_LAMP: Record<RuntimeSnapshot['tts']['state'], Lamp> = { ready: 'ok', probing: 'idle', unknown: 'idle', cold: 'paused', unreachable: 'failed', off: 'idle' };
+
+const tts = (t: RuntimeSnapshot['tts']): [Lamp, string] => [TTS_LAMP[t.state], voiceShort(t.state, t.reason)];
 
 /** What the page's own reads of agentd say. */
 export type Conn = 'loading' | 'failed' | 'refused' | 'lost' | 'stale' | 'ok';
@@ -68,6 +64,6 @@ function backend(state: RuntimeChildState | undefined, conn: Conn): [Lamp, strin
 export function Status({ box, conn }: { box: Box; conn: Conn }) {
   const rt = useRuntime();
   const rows: Array<[string, [Lamp, string]]> = [['后台', backend(rt?.processes.agentd.state, conn)]];
-  if (rt) rows.push(['角色', PROCESS[rt.processes.avatar.state]], ['语音', TTS[rt.tts.state]]);
+  if (rt) rows.push(['角色', PROCESS[rt.processes.avatar.state]], ['语音', tts(rt.tts)]);
   return <StatusRow box={box} items={rows.map(([name, [tone, state]]) => ({ name, failed: tone === 'failed', state: <StatusLamp size="sm" state={tone} label={state} /> }))} />;
 }

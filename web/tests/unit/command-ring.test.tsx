@@ -6,6 +6,7 @@ import type { DesktopCommand, DesktopState, AgenticComplexBridge } from '../../s
 import { BubbleRoot } from '../../src/surfaces/desktop/BubbleRoot';
 import { CmdRoot } from '../../src/surfaces/desktop/CmdRoot';
 import type { AvatarAction } from '../../src/bridge';
+import type { WireRuntimePublic } from '../../src/domain';
 import { actionItems, giftOff, pendingCount, poseItems, wheelItems, type CmdItem } from '../../src/surfaces/desktop/cmd/actions';
 import { ECHO_MS } from '../../src/surfaces/desktop/cmd/input/QuickInput';
 import { CommandRing } from '../../src/surfaces/desktop/cmd/ring/CommandRing';
@@ -612,6 +613,48 @@ describe('快速输入 under the bubble', () => {
     await flush(async () => fireEvent.click(await screen.findByRole('button', { name: /重试发送/ })));
     expect(say).toHaveBeenCalledTimes(2);
     expect(say).toHaveBeenLastCalledWith({ text: '你好', attachWindow: false, noMemory: false, surface: 'quick_input' });
+  });
+
+  it('a refusal reads as the sentence for agentd\'s code, never the code', async () => {
+    const bridge = stackBridge();
+    const say = vi.spyOn(bridge.desktop, 'say').mockResolvedValue({ ok: false, reason: 'kernel', status: 503, code: 'product_login_required' });
+    const box = await openInput();
+    await flush(async () => fireEvent.keyDown(box, { key: 'Enter' }));
+    const kernel = (await screen.findByRole('alert')).textContent ?? '';
+    expect(kernel).toContain('执行内核尚未在应用内登录，请前往「设置 › 内核」登录后重试');
+    expect(kernel).not.toContain('product_login_required');
+    say.mockResolvedValue({ ok: false, reason: 'rejected', status: 409, code: 'ambiguous_task' });
+    await flush(async () => fireEvent.keyDown(box, { key: 'Enter' }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('发送失败：存在多个运行中的任务，请前往「每日简报」或「任务」页面停止'));
+  });
+
+  it('past 2000 characters 发送 is off and says where a long text goes; ⏎ sends nothing', async () => {
+    const bridge = stackBridge();
+    const say = vi.spyOn(bridge.desktop, 'say');
+    const box = await openInput();
+    fireEvent.change(box, { target: { value: '长'.repeat(2001) } });
+    expect(screen.getByRole('alert').textContent).toContain('最多 2000 字，长文请在对话页发送');
+    const sendBtn = screen.getByRole('button', { name: /发送消息/ }) as HTMLButtonElement;
+    expect(sendBtn.disabled || sendBtn.getAttribute('aria-disabled') === 'true').toBe(true);
+    fireEvent.click(sendBtn);
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(say).not.toHaveBeenCalled();
+    fireEvent.change(box, { target: { value: `  ${'长'.repeat(2000)}  ` } });
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('opens as 未配置可用模型 when the chat kernel is not ready, though the main one is', async () => {
+    const bridge = stackBridge();
+    const read = bridge.agentd.request.bind(bridge.agentd);
+    vi.spyOn(bridge.agentd, 'request').mockImplementation((async (method: 'GET', path: string, body?: unknown) => {
+      const r = await read(method, path, body);
+      if (!path.startsWith('/character/runtime')) return r;
+      const w = r.body as WireRuntimePublic;
+      return { ...r, body: { ...w, ready: true, error: null, routes: { ...w.routes, chat: { ...w.routes.chat, follows_main: false, ready: false, error: 'acp_agent_missing' } } } };
+    }) as typeof bridge.agentd.request);
+    await openInput();
+    expect(await screen.findByText('未配置可用模型')).toBeTruthy();
+    expect(screen.getByText('尚未选择 ACP 智能体，请前往「设置 › 内核」选择')).toBeTruthy();
   });
 
   it('a draft kept by esc survives the input folding, and a sent line clears it', async () => {

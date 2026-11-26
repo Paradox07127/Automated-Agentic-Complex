@@ -1,6 +1,7 @@
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { type SayRequest, type SayResult } from '../../../../bridge';
 import { keyText } from '../../../../bridge/platformText';
+import { failureText } from '../../../../domain/errorText';
 import { Btn, ErrBar, FilterChips, IconBtn, Kbd, TextArea, type FilterChip } from '../../../../ui';
 import { PowerMark, PowerState, type PowerStateProps } from '../../../../ui/game';
 import styles from './QuickInputBox.module.css';
@@ -50,6 +51,15 @@ export interface QuickInputBoxProps {
 /** A keydown this soon after `compositionend` is the one that committed the candidate (WebKit fires it after the end). */
 const COMMIT_SLOP_MS = 50;
 
+/** agentd's `/say` limit (say_text), counted without the surrounding whitespace. */
+const MAX_TEXT = 2000;
+const TOO_LONG = `最多 ${MAX_TEXT} 字，长文请在对话页发送`;
+
+/** A refusal's sentence: the page's own, else the one for agentd's code and status. plugin_off stays out of codeText,
+ *  whose callers tell it apart by the code failureText keeps for an unmapped one. */
+const refusalText = (f: SayFailure): string =>
+  f.detail ?? (f.code === 'plugin_off' ? '所需功能已关闭，请在设置中开启后重试' : failureText({ status: f.status ?? 0, code: f.code }).text);
+
 export function QuickInputBox(p: QuickInputBoxProps) {
   const ta = useRef<HTMLTextAreaElement>(null);
   const composing = useRef(false);
@@ -57,8 +67,9 @@ export function QuickInputBox(p: QuickInputBoxProps) {
   const rows = Math.min(4, Math.max(1, p.text.split('\n').length));
   const body = p.prefix && p.text.startsWith(p.prefix) ? p.text.slice(p.prefix.length) : p.text;
   const said = body.trim() !== '' ? p.text.trim() : p.blank;
+  const tooLong = [...p.text.trim()].length > MAX_TEXT;
   const send = () => {
-    if (said && !p.sending) p.onSend({ text: said, attachWindow: p.attach, noMemory: p.noMemory });
+    if (said && !tooLong && !p.sending) p.onSend({ text: said, attachWindow: p.attach, noMemory: p.noMemory });
   };
 
   useEffect(() => {
@@ -134,6 +145,11 @@ export function QuickInputBox(p: QuickInputBoxProps) {
       ) : (
         field
       )}
+      {tooLong && !err && (
+        <div className={styles.err} data-theme="dark">
+          <ErrBar tone="warning" message={TOO_LONG} detail={`当前 ${[...p.text.trim()].length} 字`} />
+        </div>
+      )}
       {err && (
         <div className={styles.err} data-theme="dark">
           {err.reason === 'agentd' && (
@@ -141,10 +157,10 @@ export function QuickInputBox(p: QuickInputBoxProps) {
               actions={<Btn variant="ghost" size="sm" onClick={p.onRestartBackend}>重启后台服务</Btn>} />
           )}
           {err.reason === 'kernel' && (
-            <ErrBar tone="warning" message="执行内核未就绪" detail={err.detail ?? '已保留输入内容'}
+            <ErrBar tone="warning" message="执行内核未就绪" detail={err.detail ?? (err.code ? refusalText(err) : '已保留输入内容')}
               actions={<Btn variant="ghost" size="sm" icon="refresh" onClick={p.onRecheck}>重试发送</Btn>} />
           )}
-          {err.reason === 'rejected' && <ErrBar message={`发送失败：${err.detail ?? '后台服务未接收该消息'}`} detail="已保留输入内容" />}
+          {err.reason === 'rejected' && <ErrBar message={`发送失败：${err.detail || err.status != null ? refusalText(err) : '后台服务未接收该消息'}`} detail="已保留输入内容" />}
         </div>
       )}
       <div className={styles.opts}>
@@ -167,7 +183,7 @@ export function QuickInputBox(p: QuickInputBoxProps) {
             按住<Kbd>{p.talkKey}</Kbd>语音输入
           </span>
         )}
-        <Btn variant="primary" icon="send" kbd="⏎" disabled={!said} disabledReason="请输入消息后再发送" loading={p.sending} onClick={send}>
+        <Btn variant="primary" icon="send" kbd="⏎" disabled={!said || tooLong} disabledReason={tooLong ? TOO_LONG : '请输入消息后再发送'} loading={p.sending} onClick={send}>
           发送消息
         </Btn>
       </div>

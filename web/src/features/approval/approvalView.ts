@@ -119,6 +119,20 @@ function harnessPreview(text: string | undefined): { agent: string; title: strin
   }
 }
 
+/** services/interactions.py approved(): agentd asking once before its own tool; null for any other preview. */
+function agentdPreview(text: string | undefined): { title: string | null; call: string | null } | null {
+  if (!text) return null;
+  try {
+    const p = JSON.parse(text) as { source?: unknown; title?: unknown; raw_input?: unknown };
+    if (p.source !== 'agentd') return null;
+    const args = p.raw_input != null && typeof p.raw_input === 'object' ? Object.entries(p.raw_input) : [];
+    const lines = args.map(([k, v]) => `${k}：${typeof v === 'string' ? v : JSON.stringify(v)}`);
+    return { title: typeof p.title === 'string' && p.title ? p.title : null, call: lines.join('\n') || null };
+  } catch {
+    return null;
+  }
+}
+
 export function approvalView(card: ApprovalStackItem): ApprovalView {
   if (card.kind === 'approval') {
     const { item } = card;
@@ -165,19 +179,20 @@ export function approvalView(card: ApprovalStackItem): ApprovalView {
   });
   const cancel: CardAction = { type: 'cancel-question', id: card.id, expected_version: item.revision };
   const harness = harnessPreview(item.preview_text);
+  const own = harness ? null : agentdPreview(item.preview_text);
   return {
     id: item.id,
     source: 'exact_call',
     tool: '',
     origin: harness ? `${harness.agent} │ 请求批准` : item.source,
     // The first question, as native and fromInteraction set it.
-    title: harness?.title || item.title || '这一次操作需要审批',
+    title: harness?.title || own?.title || item.title || '这一次操作需要审批',
     cmd: null,
     truncated: false,
     origLen: null,
     diff: null,
     cwd: null,
-    previewText: harness ? harness.call : (item.preview_text ?? null),
+    previewText: harness ? harness.call : own ? own.call : (item.preview_text ?? null),
     // No verdict: not dangerous.
     dangerous: item.dangerous ?? false,
     dangerRule: item.danger_rule ?? null,

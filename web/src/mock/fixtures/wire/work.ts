@@ -332,6 +332,25 @@ export const WIRE_INTERACTION_APPROVAL_DANGER: WireInteraction = interaction({
   },
 });
 
+/** A single-use approval agentd itself asks before one of its own tools (services/interactions.py approved()). */
+export const WIRE_INTERACTION_APPROVAL_AGENTD: WireInteraction = interaction({
+  request_id: id.Q_APPROVAL_AGENTD,
+  run_id: 'run-9c1e',
+  kind: 'approval',
+  conversation_id: null,
+  created_at: atS(14, 33),
+  expires_at: atS(14, 36),
+  data: {
+    questions: [{ id: 'decision', question: '是否允许这一次操作？', options: [{ label: '允许' }, { label: '拒绝' }] }],
+    preview: { source: 'agentd', title: '取消提醒「喝水」', kind: 'other', raw_input: { reminder_id: 'rem-3f2a', expected_revision: 2, when: { at: '15:00', repeat: 'daily' } } },
+    preview_text: '{\n  "source": "agentd",\n  "title": "取消提醒「喝水」",\n  "kind": "other",\n  "raw_input": {\n    "reminder_id": "rem-3f2a",\n    "expected_revision": 2,\n    "when": {\n      "at": "15:00",\n      "repeat": "daily"\n    }\n  }\n}',
+    character_id: id.CHARACTER,
+    scope_id: null,
+    user_text: '',
+    job_id: null,
+  },
+});
+
 // ---- sessions ----
 
 /** `GET /sessions`: external rows (registry) then own rows (own.py to_dict). */

@@ -321,7 +321,7 @@ describe('character, diagnostics, kernel', () => {
       agentd: { up: true, started_at: at(13, 20) },
       runtime: { ready: true, name: 'Codex', error: null },
       avatar: { child: 'running', fps: 60 },
-      voice: { state: 'unreachable', retryAfterS: null },
+      voice: { state: 'unreachable', retryAfterS: null, reason: 'connection_lost' },
     });
     const off = composeHealth('offline', null, null, { connections: { ...WIRE_DIAG_CONNECTIONS, tts: { configured: false, result: null, at: null, token_set: false, provider: 'none', state: 'off', reason: 'not_configured', retry_after_s: null } } });
     expect(off.voice.state).toBe('off');

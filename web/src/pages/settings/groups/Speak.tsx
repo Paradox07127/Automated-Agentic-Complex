@@ -63,7 +63,7 @@ export function SpeakGroup() {
   const retryLeft = useCountdown(voice?.retryAfterS ?? null);
   const reconnect = () => {
     const from = diag.voice;
-    setReset({ from, voice: { state: 'probing', retryAfterS: null }, source: diag.voiceSource });
+    setReset({ from, voice: { state: 'probing', retryAfterS: null, reason: null }, source: diag.voiceSource });
     void resetVoice().then(
       (r) => setReset({ from, voice: voiceState(r.tts), source: r.tts }),
       (e) => {
@@ -82,7 +82,7 @@ export function SpeakGroup() {
 
   const voiceDesc = (
     <>
-      {voice && <StatusLamp size="sm" state={VOICE_TONE[voice.state]} label={voiceText(voice.state, retryLeft)} />} <span>{down ? '当前仅使用文字回复' : `${sourceLabel ? `${sourceLabel} │ ` : ''}需自行部署外部语音服务，本应用仅连接使用`}</span>
+      {voice && <StatusLamp size="sm" state={VOICE_TONE[voice.state]} label={voiceText(voice.state, retryLeft, voice.reason)} />} <span>{down ? '当前仅使用文字回复' : `${sourceLabel ? `${sourceLabel} │ ` : ''}需自行部署外部语音服务，本应用仅连接使用`}</span>
     </>
   );
 

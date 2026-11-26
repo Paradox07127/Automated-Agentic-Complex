@@ -507,7 +507,7 @@ describe('隐私 and 数据 through agentd', () => {
     render(<Harness d={d}><SeeGroup /><SpeakGroup /></Harness>);
     expect(document.querySelector('[data-row="mask"]')?.textContent).toContain('密钥 2 │ 邮箱 5 │ 电话 0');
     expect(document.querySelector('[data-row="gate"]')).toBeNull();
-    expect(document.querySelector('[data-row="tts"]')?.textContent).toContain('远端不通');
+    expect(document.querySelector('[data-row="tts"]')?.textContent).toContain('无法连接：连接断开');
   });
 
   it('shows the voice as 未检测 before any speech has ended', () => {
@@ -560,12 +560,12 @@ describe('语音状态', () => {
 
   it('labels the external source', () => {
     render(<Harness d={withTts({ ...WIRE_TTS.unreachable, provider: 'remote-ws' })}><SpeakGroup /></Harness>);
-    expect(row()?.textContent).toContain('远端不通');
+    expect(row()?.textContent).toContain('无法连接：连接断开');
   });
 
   it('counts the retry seconds down on an unreachable voice', () => {
     render(<Harness d={withTts({ ...WIRE_TTS.unreachable, retry_after_s: 12 })}><SpeakGroup /></Harness>);
-    expect(row()?.textContent).toContain('远端不通 │ 12 秒后可重试');
+    expect(row()?.textContent).toContain('无法连接：连接断开 │ 12 秒后可重试');
   });
 
   it('reconnects an unreachable voice through POST /voice/reset and shows the state it answers', async () => {
@@ -576,7 +576,7 @@ describe('语音状态', () => {
     expect(request).toHaveBeenCalledWith('POST', '/voice/reset', {});
     expect(row()?.textContent).toContain('检测中');
     await act(async () => answer({ status: 200, body: { tts: { provider: 'remote-ws', state: 'ready', reason: null, retry_after_s: null } } }));
-    expect(row()?.textContent).toContain('在线');
+    expect(row()?.textContent).toContain('就绪');
     expect(within(row() as HTMLElement).queryByRole('button', { name: '重新连接' })).toBeNull();
   });
 

@@ -17,14 +17,15 @@ export const ECHO_MS = 2000;
 /** The unsent text, kept in the page while native closes and reopens the panel; only a sent line clears it. */
 let draft = '';
 
-/** Why no model can answer (`GET /character/runtime` not ready), read once at open; null while one can or nothing was read. */
+/** Why no model can answer (`GET /character/runtime`'s chat route, the one `/say` uses, not ready), read once at open; null
+ *  while one can or nothing was read. */
 function useNoModel(): string | null {
   const [why, setWhy] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
     const demo = fakeDemo();
     get<WireRuntimePublic>(`/character/runtime${demo ? `?demo=${demo}` : ''}`).then(
-      (r) => {
+      ({ routes: { chat: r } }) => {
         if (live && !r.ready && r.error && !r.error.endsWith('_pending')) setWhy(codeText(r.error) ?? '登录 Claude Code 或 Codex，或在设置里给 pi 填一个 API key');
       },
       () => {},

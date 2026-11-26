@@ -1,6 +1,6 @@
 // `desktop.say`: 快速输入's send as agentd's
-// `POST /say`. A refusal the role runtime causes is `kernel` with its fix; another refusal is `rejected` with what the bar
-// shows; no answer is `agentd`.
+// `POST /say`. A refusal because the chat kernel is not ready is `kernel`, another refusal is `rejected`, each with
+// agentd's status and error code for the page to put in words; no answer is `agentd`.
 import { BridgeFailure } from './bridge.ts';
 import { markNow, type TurnMarks } from './turn-marks.ts';
 
@@ -9,9 +9,9 @@ export interface SayRequest {
   quote?: { text: string; app: string | null }; replyTo?: { kind: string; id: string }; lookWindow?: { windowId: number; pid: number };
 }
 
-export type SayResult = { ok: true } | { ok: false; reason: 'agentd' | 'kernel' | 'rejected'; detail?: string };
+export type SayResult = { ok: true } | { ok: false; reason: 'agentd' } | { ok: false; reason: 'kernel' | 'rejected'; status: number; code?: string };
 
-const SURFACES = new Set(['quick_input', 'bubble_reply', 'thought_offer', 'chat']);
+const SURFACES = new Set(['quick_input', 'bubble_reply', 'thought_offer']);
 const ARGS = '{text, attachWindow, noMemory, scopeId?, surface?, quote?, replyTo?, lookWindow?}';
 
 /** agentd's `/say` takes 1–2000 characters once its surrounding whitespace is off (`say_text`). */
@@ -50,35 +50,6 @@ export function parseSay(arg: unknown): SayRequest {
   }
   return out;
 }
-
-/** ErrorText.recovery: the step that fixes a refusal the role runtime causes; null for the others. */
-export function recovery(code: string, backend: string | null): string | null {
-  if (code === 'native_login_required' && backend === 'codex') return '请在终端运行 codex login，完成后前往「设置 › 内核」点击「重新检测」再试';
-  if (code === 'native_login_required' && backend === 'claude') return '请在终端运行 claude auth login，完成后前往「设置 › 内核」点击「重新检测」再试';
-  if (code === 'local_runtime_missing' || code === 'bundled_runtime_missing') {
-    return '未找到可用的 Codex CLI 或 ACP 智能体。安装并登录后请前往「设置 › 内核」点击「重新检测」';
-  }
-  if (code === 'runtime_protocol_unavailable' || code === 'runtime_version_not_verified') {
-    return '执行内核缺少所需协议能力，请更新 CLI 后前往「设置 › 内核」点击「重新检测」';
-  }
-  return null;
-}
-
-const REJECTED: Record<string, string> = {
-  no_cwd: '未指定工作目录，无法派发任务',
-  no_memory_dispatch: '当前处于无痕对话模式，无法派发任务：对话内容会保留在外部内核记录中',
-  no_reminder_time: '未识别到提醒时间或内容',
-  no_commitments: '当前暂不支持创建提醒',
-  switching: '正在切换角色，消息未接收',
-  no_llm: '执行内核尚未就绪',
-  invalid_text: '输入内容过长，最多支持 2000 字',
-  no_pending_approval: '当前没有待批准的请求，无需拒绝',
-  ambiguous_approval: '存在多项待批准请求，无法判断要拒绝哪一项',
-  no_task: '当前没有运行中的任务，无需停止',
-  ambiguous_task: '存在多个运行中的任务，请前往「每日简报」或「任务」页面停止',
-  shutting_down: '后台服务正在退出，消息未接收',
-  resetting: '正在清除所有本地数据，消息未接收',
-};
 
 /** AgentdClient.say's body. */
 export function sayBody(r: SayRequest): Record<string, unknown> {
@@ -129,8 +100,7 @@ export async function say(r: SayRequest, request: HeaderRequest, log: (line: str
   if ((status === 202 && typeof body?.line_id === 'string') || ((status === 200 || status === 202) && typeof body?.command === 'string')) {
     return { ok: true };
   }
-  const error = typeof body?.error === 'string' ? body.error : '';
-  const fix = recovery(error, typeof body?.runtime === 'string' ? body.runtime : null);
-  if (fix !== null) return { ok: false, reason: 'kernel', detail: fix };
-  return { ok: false, reason: 'rejected', detail: REJECTED[error] ?? `后台服务未接收该消息（${status} ${error}）` };
+  // turns.py names the chat kernel (`runtime`) only when that kernel is not ready.
+  const reason = typeof body?.runtime === 'string' ? 'kernel' : 'rejected';
+  return typeof body?.error === 'string' ? { ok: false, reason, status, code: body.error } : { ok: false, reason, status };
 }

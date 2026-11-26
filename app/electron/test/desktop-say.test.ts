@@ -35,7 +35,7 @@ test('the body is AgentdClient.say\'s: a window to read replaces look, the rest 
 test('arguments the bridge refuses are invalid_args', () => {
   const base = { text: 'x', attachWindow: false, noMemory: false };
   for (const bad of [null, { ...base, text: '  ' }, { ...base, text: 'x'.repeat(2001) }, { ...base, noMemory: 1 },
-    { ...base, scopeId: '' }, { ...base, surface: 'menu' }, { ...base, quote: { text: '' } }, { ...base, replyTo: { kind: 'card', id: 'a' } },
+    { ...base, scopeId: '' }, { ...base, surface: 'menu' }, { ...base, surface: 'chat' }, { ...base, quote: { text: '' } }, { ...base, replyTo: { kind: 'card', id: 'a' } },
     { ...base, lookWindow: { windowId: 0, pid: 1 } }, { ...base, lookWindow: { windowId: 1, pid: 1.5 } }]) {
     assert.throws(() => parseSay(bad), (e) => e instanceof BridgeFailure && e.code === 'invalid_args', JSON.stringify(bad));
   }
@@ -44,15 +44,18 @@ test('arguments the bridge refuses are invalid_args', () => {
     'the limit counts the text without its surrounding whitespace, as agentd does');
 });
 
-test('a runtime refusal is kernel with its fix, another is rejected with the bar\'s line, no answer is agentd', async () => {
+test('a refusal naming the chat kernel is kernel, another is rejected, each with agentd\'s status and code; no answer is agentd', async () => {
   const r = parseSay({ text: 'x', attachWindow: false, noMemory: false });
   const lines: string[] = [];
   assert.deepEqual(await say(r, answering(503, { error: 'native_login_required', runtime: 'codex' }), (l) => lines.push(l)),
-    { ok: false, reason: 'kernel', detail: '请在终端运行 codex login，完成后前往「设置 › 内核」点击「重新检测」再试' });
+    { ok: false, reason: 'kernel', status: 503, code: 'native_login_required' });
+  assert.deepEqual(await say(r, answering(503, { error: 'product_login_required', runtime: 'claude' }), () => {}),
+    { ok: false, reason: 'kernel', status: 503, code: 'product_login_required' });
   assert.deepEqual(await say(r, answering(409, { error: 'switching' }), () => {}),
-    { ok: false, reason: 'rejected', detail: '正在切换角色，消息未接收' });
+    { ok: false, reason: 'rejected', status: 409, code: 'switching' });
   assert.deepEqual(await say(r, answering(418, { error: 'teapot' }), () => {}),
-    { ok: false, reason: 'rejected', detail: '后台服务未接收该消息（418 teapot）' });
+    { ok: false, reason: 'rejected', status: 418, code: 'teapot' });
+  assert.deepEqual(await say(r, async () => ({ status: 502, body: 'Bad Gateway' }), () => {}), { ok: false, reason: 'rejected', status: 502 });
   assert.deepEqual(await say(r, async () => { throw new Error('ECONNREFUSED'); }, () => {}), { ok: false, reason: 'agentd' });
   assert.deepEqual(await say(r, answering(200, { command: 'stop' }), () => {}), { ok: true });
   assert.deepEqual(lines, ['QUICKINPUT web say chars=1 attach=false no_memory=false status=503']);

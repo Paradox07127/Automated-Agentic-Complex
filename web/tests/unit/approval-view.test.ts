@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fromInteraction, type StackCard } from '../../src/domain';
 import { approvalView, isApprovalCard, outcomeOfReceipt } from '../../src/features/approval';
-import { NOW, WIRE_INTERACTION_APPROVAL, WIRE_INTERACTION_APPROVAL_DANGER, WIRE_INTERACTIONS } from '../../src/mock/fixtures';
+import { NOW, WIRE_INTERACTION_APPROVAL, WIRE_INTERACTION_APPROVAL_AGENTD, WIRE_INTERACTION_APPROVAL_DANGER, WIRE_INTERACTIONS } from '../../src/mock/fixtures';
 import { A1, A2 } from '../../src/mock/fixtures/ids';
 import { stackScenario } from '../../src/mock/stack';
 
@@ -133,6 +133,15 @@ describe('approvalView', () => {
     const write = { ...preview, title: 'Write', kind: 'edit', raw_input: { file_path: '/repo/a.ts', content: 'export const a = 1;' } };
     const ww = { ...w, data: { ...w.data, preview: write, preview_text: JSON.stringify(write, null, 2) } };
     expect(roleView(role(ww)).previewText).toContain('export const a = 1;');
+  });
+
+  it("agentd's own single-use approval reads its title and one 键：值 line per argument, not the raw preview", () => {
+    const v = roleView(role(WIRE_INTERACTION_APPROVAL_AGENTD));
+    expect(v).toMatchObject({ origin: '角色 │ 请求批准', title: '取消提醒「喝水」' });
+    expect(v.previewText).toBe('reminder_id：rem-3f2a\nexpected_revision：2\nwhen：{"at":"15:00","repeat":"daily"}');
+    const bare = { source: 'agentd', title: '删除记忆', kind: 'other', raw_input: {} };
+    const w = { ...WIRE_INTERACTION_APPROVAL_AGENTD, data: { ...WIRE_INTERACTION_APPROVAL_AGENTD.data!, preview: bare, preview_text: JSON.stringify(bare, null, 2) } };
+    expect(roleView(role(w))).toMatchObject({ title: '删除记忆', previewText: null });
   });
 
   it('action builds the CardAction each source already sends', () => {

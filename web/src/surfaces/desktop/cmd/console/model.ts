@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getBridge, type ProcessState, type RecentAnnouncement } from '../../../../bridge';
 import type { RuntimeChildState, RuntimeSnapshot } from '../../../../bridge/runtimeSnapshot';
+import { voiceText } from '../../../../domain/voiceState';
 import { pendingCount } from '../actions';
 
 type Obj = Record<string, unknown>;
@@ -76,14 +77,7 @@ const PROCESS: Record<RuntimeChildState, [Tone, string]> = {
   stopped: ['idle', '未运行'],
 };
 
-const TTS: Record<RuntimeSnapshot['tts']['state'], [Tone, string]> = {
-  ready: ['ok', '就绪'],
-  probing: ['idle', '检测中'],
-  unknown: ['idle', '检测中'],
-  cold: ['paused', '待唤醒'],
-  unreachable: ['failed', '无法连接'],
-  off: ['idle', '未配置'],
-};
+const TTS_TONE: Record<RuntimeSnapshot['tts']['state'], Tone> = { ready: 'ok', probing: 'idle', unknown: 'idle', cold: 'paused', unreachable: 'failed', off: 'idle' };
 
 /** The helper's states that are trouble; the others leave it off the row. */
 const HELPER: Readonly<Record<string, [Tone, string]>> = { failed: ['failed', '失败'], port_in_use: ['failed', '端口占用'] };
@@ -103,7 +97,7 @@ export function statusCells(rt: RuntimeSnapshot | null, helper: ProcessState | n
   return [
     cell('后台', agentdDown ? PROCESS.failed : PROCESS[rt.processes.agentd.state]),
     cell('角色', PROCESS[rt.processes.avatar.state]),
-    cell('语音', TTS[rt.tts.state]),
+    cell('语音', [TTS_TONE[rt.tts.state], voiceText(rt.tts.state, rt.tts.retry_after_s, rt.tts.reason)]),
     ...(helperState ? [cell('助手', helperState)] : []),
   ];
 }

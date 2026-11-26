@@ -65,18 +65,6 @@ export interface DiagProcess {
   restartable: boolean;
 }
 
-/** tts last result codes (server.py `_tts_last`), shown when the voice is not ready. */
-const TTS_RESULT: Readonly<Record<string, string>> = {
-  connection_lost: '连接断开',
-  unreachable: '无法连接',
-  tts_unavailable: '服务不可用',
-  timeout: '响应超时',
-  bad_stream: '音频流损坏',
-  empty_stream: '未返回音频',
-};
-/** speech.py also reports `http_<status>` when the TTS answers with an error. */
-export const ttsText = (code: string): string => TTS_RESULT[code] ?? (/^http_\d+$/.test(code) ? `服务返回错误 ${code.slice(5)}` : '其他原因');
-
 /** 后台服务, 角色 and the `ssh` and `local` services from supervisor.state; agentd also from the bridge connection. */
 export function processesOf(sup: Supervised | null, connection: AgentdConnection | null): DiagProcess[] {
   const row = (key: ProcKey, name: string, sub: string): DiagProcess => {

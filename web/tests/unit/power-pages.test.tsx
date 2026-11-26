@@ -47,7 +47,7 @@ describe('设置 · 未接入', () => {
   it('puts the voice row under 未接入 while the voice service is unreachable, and leads to 服务 › 语音服务', async () => {
     install();
     await settings('&group=speak');
-    await waitFor(() => expect(row('tts')?.textContent).toContain('远端不通'));
+    await waitFor(() => expect(row('tts')?.textContent).toContain('无法连接：连接断开'));
     const block = power(row('tts'));
     expect(block?.dataset.state).toBe('unlinked');
     expect(block?.dataset.mode).toBe('block');

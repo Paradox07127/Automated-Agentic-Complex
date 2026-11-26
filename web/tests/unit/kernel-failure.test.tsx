@@ -29,8 +29,8 @@ const run = (result: unknown): WireRun => ({
 
 describe('kernel failure text', () => {
   it('a job refused for a missing login says so at once', () => {
-    expect(failureText({ status: 503, code: 'native_login_required' }).text).toBe('当前执行内核尚未登录');
-    expect(failMessage(new AgentdCallError(503, 'native_login_required', undefined, { error: 'native_login_required', runtime: 'codex' }, 'native_login_required'))).toBe('当前执行内核尚未登录');
+    expect(failureText({ status: 503, code: 'native_login_required' }).text).toBe('当前执行内核尚未登录，请在终端运行 codex login 或 claude auth login，完成后在「设置 › 内核」重新检测');
+    expect(failMessage(new AgentdCallError(503, 'native_login_required', undefined, { error: 'native_login_required', runtime: 'codex' }, 'native_login_required'))).toBe('当前执行内核尚未登录，请在终端运行 codex login 或 claude auth login，完成后在「设置 › 内核」重新检测');
   });
 
   it('an unclassified api_error points at the kernel settings; a classified one keeps its reason', () => {

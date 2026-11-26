@@ -126,7 +126,7 @@ export interface DesktopDock {
 }
 
 /** The entry a `/say` was typed in (agentd api/speech.py `SURFACES`). */
-export type SaySurface = 'quick_input' | 'bubble_reply' | 'thought_offer' | 'chat';
+export type SaySurface = 'quick_input' | 'bubble_reply' | 'thought_offer';
 
 export interface SayRequest {
   text: string;
@@ -149,7 +149,8 @@ export interface SayReplyTo {
   id: string;
 }
 
-export type SayResult = { ok: true } | { ok: false; reason: 'agentd' | 'kernel' | 'rejected'; detail?: string };
+/** A refusal carries agentd's status and error code; `detail` is a sentence the page already has (a bridge refusal). */
+export type SayResult = { ok: true } | { ok: false; reason: 'agentd' | 'kernel' | 'rejected'; status?: number; code?: string; detail?: string };
 
 /** The desktop panels' `window` ops besides the stack's; they reject `unavailable` where the shell has no desktop host. */
 export interface DesktopWindowOps {
@@ -169,7 +170,7 @@ export interface DesktopOps {
   /** agentd's `/desktop/presence` JSON, forwarded as it came. */
   onPresence(cb: (raw: unknown) => void): Unsubscribe;
   onCommand(cb: (c: DesktopCommand) => void): Unsubscribe;
-  /** 快速输入: sent natively, not through the `/say` route. */
+  /** 快速输入: the main process sends it to agentd's `POST /say` for the page. */
   say(r: SayRequest): Promise<SayResult>;
   /**
    * `arg` is the character id of `switchCharacter`, the screen id of `placeOnScreen`, the mode (`ring` | `input`) for
