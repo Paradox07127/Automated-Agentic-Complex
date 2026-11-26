@@ -128,7 +128,7 @@ class C6FixtureTest(unittest.TestCase):
         server.tasks = TaskLedger(self.db, lock=lock)
         server.memory = Memory(self.db, lock=lock)
         server.egress = EgressPolicy()
-        server.mouth = Mouth(egress=server.egress)
+        server.mouth = Mouth()
         server.state = CharacterState(self.db, lambda cid: None)
         server.state.use(server.character)
         server.state.on_event("dispatch_done")

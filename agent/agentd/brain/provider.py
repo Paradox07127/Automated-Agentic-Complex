@@ -5,7 +5,6 @@ from pathlib import Path
 from brain import characters
 from brain.persona import HAIKU_RULE, SECTIONS, render_persona
 from character.binding import bound
-from brain.egress import EgressPolicy
 from brain.lorebook import Lorebook
 
 
@@ -20,15 +19,13 @@ def chat_system(card, binding, motion_phrases=None):
 class Mouth:
     """No tools: the mouth can only talk. History keeps the last max_turns finished turns."""
 
-    def __init__(self, character=None, persona_path=None, lore_path=None, max_turns=8, egress=None,
-                 motion_phrases=None):
+    def __init__(self, character=None, persona_path=None, lore_path=None, max_turns=8, motion_phrases=None):
         """motion_phrases: the character's game gestures render_persona lists for [motion:] (motion.catalog.phrases).
         persona_path / lore_path None: the character's own; lore_path False: no lorebook.
         character None: the development default."""
         if character is None:
             character = characters.default()
         self.card = json.loads(Path(persona_path or characters.card_path(character)).read_text(encoding="utf-8"))
-        self.egress = EgressPolicy() if egress is None else egress
         self.motion_phrases = motion_phrases
         self.refresh_system()
         if lore_path is None:
@@ -38,8 +35,8 @@ class Mouth:
         self.history = []  # finished turns: [user, assistant]; live context never enters it
 
     def refresh_system(self, binding=None):
-        """Checks the card's system text against egress again. binding: the character's effective binding
-        (character.binding.effective), whose persona overrides and motion driver apply; None: the card alone."""
+        """Renders the card's system text so a card or binding that cannot render fails here, not in a turn.
+        binding: the character's effective binding (character.binding.effective); None: the card alone."""
         chat_system(self.card, binding, self.motion_phrases)
 
     def pick_lore(self, text):

@@ -52,7 +52,7 @@ class AgentItemStreamTests(unittest.TestCase):
         lock = threading.RLock()
         s.history, s.memory, s.tasks = History(self.db, lock=lock), Memory(self.db, lock=lock), TaskLedger(self.db, lock=lock)
         s.egress = EgressPolicy()
-        s.mouth = Mouth(egress=s.egress)
+        s.mouth = Mouth()
         s.speech = test_server.FakeRelay()
         self.frames = []
         self.controller = s.character_agent = CharacterAgentController(s, root, session_factory=self.factory)

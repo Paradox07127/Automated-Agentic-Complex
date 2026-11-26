@@ -272,7 +272,7 @@ class AcpSemanticTest(AcpHarnessCase):
         server.memory, server.history = Memory(self.db, lock=lock), History(self.db, lock=lock)
         server.tasks, server.episodes = TaskLedger(self.db, lock=lock), Episodes(self.db, lock=lock)
         server.egress = EgressPolicy()
-        server.mouth = Mouth(egress=server.egress)
+        server.mouth = Mouth()
         self.c = server.character_agent = CharacterAgentController(server, self.root / "state")
         self.addCleanup(lambda: (self.c.close(), self.c.store.close()))
         self.c.python = sys.executable

@@ -3,7 +3,6 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
-from unittest.mock import Mock, call
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -38,13 +37,10 @@ class MouthTest(unittest.TestCase):
         card["familiarity_rules"] = "像随口想起来。"
         text = render_persona(card)
         self.assertIn("</relationship>\n\n<familiarity_rules>\n像随口想起来。\n</familiarity_rules>\n\n<knowledge>", text)
-        egress = Mock()
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "card.json"
             path.write_text(json.dumps(card, ensure_ascii=False), encoding="utf-8")
-            Mouth(persona_path=path, egress=egress, lore_path=False)
-        self.assertEqual(egress.authored.call_args_list, [call("system", text),
-                                                          call("instructions", card["post_history_instructions"])])
+            Mouth(persona_path=path, lore_path=False)
 
 
 if __name__ == "__main__":

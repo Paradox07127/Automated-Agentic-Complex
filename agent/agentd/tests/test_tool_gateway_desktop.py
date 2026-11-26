@@ -237,7 +237,7 @@ class CharacterDesktopTests(test_server.FeedServerCase):
         domain_lock = threading.RLock()
         s.history, s.memory, s.tasks = History(self.db, lock=domain_lock, character_id=s.character), Memory(self.db, lock=domain_lock), TaskLedger(self.db, lock=domain_lock)
         s.egress = EgressPolicy()
-        s.mouth = Mouth(egress=s.egress)
+        s.mouth = Mouth()
         self.script = chat; self.sessions = []
         self.controller = s.character_agent = CharacterAgentController(s, self.root, session_factory=self.factory)
         self.controller.discovery = SimpleNamespace(scan=lambda refresh=False: {'runtimes': [], 'scanned_at': 0})

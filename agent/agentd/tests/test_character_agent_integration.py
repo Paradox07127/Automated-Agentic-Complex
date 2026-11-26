@@ -35,7 +35,7 @@ class IntegrationFixture(test_server.FeedServerCase):
         domain_lock = threading.RLock()
         s.history, s.memory, s.tasks = History(self.db, lock=domain_lock, character_id=s.character), Memory(self.db, lock=domain_lock), TaskLedger(self.db, lock=domain_lock)
         s.egress = EgressPolicy()
-        s.mouth = Mouth(egress=s.egress)
+        s.mouth = Mouth()
         self.script = chat; self.sessions = []; self.definitions = []
         self.controller = s.character_agent = CharacterAgentController(s, self.root, session_factory=self.factory)
         self.controller.discovery = SimpleNamespace(scan=lambda refresh=False: {'runtimes': [], 'scanned_at': 0})
@@ -2371,8 +2371,8 @@ class ScopedCancelTests(unittest.TestCase):
 
     def test_a_turn_that_corrects_a_fact_keeps_its_own_items_and_the_observations(self):
         fact = self.server.memory.add('报告使用旧格式', 'asserted_by_user')
-        approve = patch.object(self.c.interactions, 'approve', return_value={'request_id': 'card', 'input_sha256': 'x'})
-        self.addCleanup(approve.stop); approve.start()
+        patcher = patch.object(self.c.interactions, 'approve', return_value={'request_id': 'card', 'input_sha256': 'x'})
+        self.addCleanup(patcher.stop); approve = patcher.start()
         def factory(definitions):
             def work(session, prompt, options):
                 yield from session.use(options, 'knowledge_read', {'source': 'memory', 'id': fact})
@@ -2771,7 +2771,7 @@ class RuntimeAutoSelectTests(test_server.FeedServerCase):
         domain_lock = threading.RLock()
         s.history, s.memory, s.tasks = History(self.db, lock=domain_lock, character_id=s.character), Memory(self.db, lock=domain_lock), TaskLedger(self.db, lock=domain_lock)
         s.egress = EgressPolicy()
-        s.mouth = Mouth(egress=s.egress)
+        s.mouth = Mouth()
         self.rows = []
         self.controller = s.character_agent = CharacterAgentController(s, self.root)
         self.controller.discovery = SimpleNamespace(scan=lambda refresh=False: {'runtimes': self.rows, 'scanned_at': 0})

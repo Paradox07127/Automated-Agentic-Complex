@@ -34,7 +34,7 @@ class SemanticTests(unittest.TestCase):
             s = self.server = AgentdServer(('127.0.0.1',48810),'hook','ui')
         s.character = 'aster'  # these fixtures start as aster and switch to birch
         s.memory, s.history, s.tasks, s.episodes = Memory(self.db,lock=lock), History(self.db,lock=lock,character_id=s.character), TaskLedger(self.db,lock=lock), Episodes(self.db,lock=lock)
-        s.egress = EgressPolicy(); s.mouth = Mouth(egress=s.egress)
+        s.egress = EgressPolicy(); s.mouth = Mouth()
         self.sessions=[]; self.definitions=[]; self.reply={'no_new_knowledge':True,'projects':[],'memories':[]}
         self.during = lambda:None
         self.c = s.character_agent = CharacterAgentController(s,self.root,session_factory=self.factory)

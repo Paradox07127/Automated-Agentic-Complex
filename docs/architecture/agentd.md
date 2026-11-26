@@ -95,7 +95,7 @@ agentd 是角色一侧的后台服务，Python 3.12 实现，只监听 127.0.0.1
 
 ## 遮蔽
 
-- agentd 运行时不检查原作台词。`brain/outbound.py` 的 `OutboundGuard` 只在构建角色包时用（`private/charbuild/tests/test_persona_sources.py` 读 `private/characters/canon-windows.json`）。
+- agentd 运行时不检查原作台词。`brain/outbound.py` 的 `OutboundGuard` 只在构建角色包时用。
 - 发给模型前遮蔽（`--redact` 默认开，`--no-redact` 关）：用户自己的话只遮 API key 和令牌；屏幕内容、观察结果和重发的她的台词还遮邮箱和电话。遮蔽次数按类累计，供诊断页读。
 
 ## 角色与对话请求

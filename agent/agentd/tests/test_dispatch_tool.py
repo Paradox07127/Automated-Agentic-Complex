@@ -39,7 +39,7 @@ class DispatchToolTests(unittest.TestCase):
         self.addCleanup(self.server.server_close)
         self.server.history, self.server.memory, self.server.tasks = History(self.db), Memory(self.db), TaskLedger(self.db)
         self.server.egress = EgressPolicy()
-        self.server.mouth = Mouth(egress=self.server.egress)
+        self.server.mouth = Mouth()
         self.script = chat; self.sessions = []; self.definitions = []
         self.controller = self.server.character_agent = CharacterAgentController(self.server, self.root, session_factory=self.factory)
         self.addCleanup(self.controller.workspace.close)

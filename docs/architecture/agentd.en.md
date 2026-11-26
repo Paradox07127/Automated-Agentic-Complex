@@ -95,7 +95,7 @@ The amounts estimate what agentd can verify; they are not provider bills. Extern
 
 ## Redaction
 
-- agentd does not check text against original game lines at run time. `OutboundGuard` in `brain/outbound.py` is used only when a character package is built (`private/charbuild/tests/test_persona_sources.py` reads `private/characters/canon-windows.json`).
+- agentd does not check text against original game lines at run time. `OutboundGuard` in `brain/outbound.py` is used only when a character package is built.
 - Before text goes to a model it is masked (`--redact`, on by default; `--no-redact` turns it off): the user's own words lose only API keys and tokens; screen content, observations and her lines sent again also lose email addresses and phone numbers. Mask counts per kind are kept for the diagnostics page.
 
 ## Characters and conversation requests

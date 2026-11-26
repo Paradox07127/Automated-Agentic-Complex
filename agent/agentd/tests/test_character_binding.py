@@ -15,7 +15,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from infra.secrets import MemorySecrets
 from brain import persona
-from brain.egress import EgressPolicy
 from brain.provider import Mouth
 from api.handler import Handler
 from daemon.agentd_server import AgentdServer
@@ -141,7 +140,7 @@ class PackageDefaultsTest(BindingCase):
 
 class DefaultPromptTest(BindingCase):
     def test_no_file_prompts_match_the_package_cards(self):
-        from character.binding import Bindings
+        from character.binding import Bindings, effective
         self.server.bindings = Bindings(self.state_dir, self.server.characters, lambda: self.settings.backend)
         for backend in ("game", "generated"):
             self.settings.update({"backend": backend})
@@ -223,14 +222,12 @@ class BoundPromptTest(BindingCase):
         self.assertEqual(card["i18n"]["en"]["tone_rules"], ["package en"])
 
     def test_post_history_override_reaches_the_mouth(self):
-        egress = mock.Mock(wraps=EgressPolicy())
-        self.server.mouth = Mouth(character="aster", lore_path=False, egress=egress)
+        self.server.mouth = Mouth(character="aster", lore_path=False)
         instructions = "回答控制在两句以内。"
         path = "/characters/aster/binding"
         self.assertEqual(self.request("PUT", path, {
             "revision": 0, "persona": {"overrides": {"post_history_instructions": instructions}}})[0], 200)
         self.assertEqual(self.instructions(), instructions)
-        egress.authored.assert_any_call("instructions", instructions)
         self.assertEqual(self.request("PUT", path, {"revision": 1, "persona": None})[0], 200)
         self.assertEqual(self.instructions(), self.server.mouth.card["post_history_instructions"])
 
@@ -254,7 +251,7 @@ class BoundPromptTest(BindingCase):
 class BindingDefaultsTest(PackageDefaultsTest):
     def setUp(self):
         super().setUp()
-        from character.binding import Bindings
+        from character.binding import Bindings, effective
         self.voices = self.server.bindings = Bindings(self.state_dir, self.server.characters,
                                                      lambda: self.settings.backend)
 
@@ -262,7 +259,7 @@ class BindingDefaultsTest(PackageDefaultsTest):
 class BindingsTest(BindingCase):
     def setUp(self):
         super().setUp()
-        from character.binding import Bindings
+        from character.binding import Bindings, effective
         self.bindings = Bindings(self.state_dir, self.server.characters, lambda: self.settings.backend)
         self.path = self.state_dir / "character-bindings.json"
 
@@ -280,7 +277,7 @@ class BindingsTest(BindingCase):
 
     @unittest.skipIf(sys.platform == "win32", "POSIX mode bits, uid or FIFO; on Windows the state directory's DACL protects these files")
     def test_update_persists_only_overrides_and_preserves_absent_keys(self):
-        from character.binding import Bindings
+        from character.binding import Bindings, effective
         voice = {"voice_id": "custom", "language": "ja"}
         motion = {"driver": "generated"}
         overrides = {"identity": "a custom identity", "post_history_instructions": "stay brief"}
@@ -445,7 +442,7 @@ class BindingsTest(BindingCase):
 class BindingRoutesTest(BindingCase):
     def setUp(self):
         super().setUp()
-        from character.binding import Bindings
+        from character.binding import Bindings, effective
         self.server.bindings = Bindings(self.state_dir, self.server.characters, lambda: self.settings.backend)
         self.server.speech = helpers.FakeRelay()
         self.server.speech.character, self.server.speech.language = "voice_a", "zh"
@@ -527,7 +524,7 @@ class BindingRoutesTest(BindingCase):
         self.assertEqual((self.server.speech.character, self.server.speech.language), ("voice_a", "zh"))
 
     def test_switch_and_provider_use_persisted_user_voice(self):
-        from character.binding import Bindings
+        from character.binding import Bindings, effective
         self.server.bindings.update("birch", {"revision": 0, "voice": {"voice_id": "custom", "language": "ja"}})
         self.server.bindings = Bindings(self.state_dir, self.server.characters, lambda: self.settings.backend)
         relay = make_provider(voice_args("birch"), self.server.bindings, 7, None).relay()

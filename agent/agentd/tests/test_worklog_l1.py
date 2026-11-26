@@ -98,8 +98,8 @@ class WorkLogL1Test(unittest.TestCase):
                          models=None, attention=None)
         self.sanitized = []
 
-        def sanitize(value, part="knowledge", observed=None):
-            self.sanitized.append((part, observed))
+        def sanitize(value, part="knowledge"):
+            self.sanitized.append(part)
             return value
         self.language = "zh-Hans"
         controller = NS(semantic=NS(run=lambda purpose, *args, **kwargs: getattr(getattr(self.service, "client" if purpose == "worklog_fast" else "deep", None), "run", unavailable)(purpose, *args, **kwargs), reply=lambda: self.language), server=self.server, observations=self.obs, knowledge=lambda: NS(sanitize=sanitize))
@@ -134,7 +134,7 @@ class WorkLogL1Test(unittest.TestCase):
         self.assertEqual(rows[0]["sources"][:2] + rows[0]["sources"][3:], [prompt, test, stop])
         self.assertEqual(rows[0]["requires"], ["agent_sessions", "typed_text"])
         self.assertEqual(rows[0]["model"], "claude-haiku-5-5")
-        self.assertIn(("worklog_source", True), self.sanitized)
+        self.assertIn("worklog_source", self.sanitized)
         call = self.service.client.calls[0]
         self.assertEqual(call["purpose"], "worklog_fast")
         self.assertIn('JSON Schema: {"type": "object"', call["system"])
