@@ -1,4 +1,4 @@
-import type { SWITCH_STAGES } from './tables';
+import type { SWITCH_STAGES } from '../../features/character/tables';
 
 /** Filled by src/bridge/fake/demos/character.ts; empty in the app. */
 export const demo: {

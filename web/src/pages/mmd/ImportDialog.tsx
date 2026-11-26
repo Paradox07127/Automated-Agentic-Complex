@@ -3,7 +3,7 @@ import { useId, useState } from 'react';
 import type { MmdImportPlan, MmdScan } from '../../bridge';
 import { Btn, Dialog, Fold, IconBtn, Select } from '../../ui';
 import { MicroLabel } from '../../ui/game';
-import { MMD_IGNORED_REASON } from '../character/labels';
+import { MMD_IGNORED_REASON } from '../../features/character/labels';
 import dialog from '../../ui/Dialog.module.css';
 import styles from './ImportDialog.module.css';
 

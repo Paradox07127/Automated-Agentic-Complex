@@ -57,8 +57,8 @@ export interface PreviewSelection {
 /** The page's transport over a stage load. */
 export type StageControl = { op: 'pause' } | { op: 'resume' } | { op: 'seek'; at: number };
 
-/** A stage load's `position`: `t` seconds of `duration` into its clip. */
-export interface StagePosition { t: number; duration: number; playing: boolean }
+/** A stage load's `position`: `t` seconds of `duration` into its clip; `action` the dance it plays. */
+export interface StagePosition { t: number; duration: number; playing: boolean; action: string }
 
 /** Preview `view`: `turn` degrees on her camera yaw, `tilt` degrees on its pitch (±80), `zoom` the share 0.1–2 of the fitted
  *  frame shown, `pan` the shown centre's offset from the fit's in fitted-frame sizes (y down), `frame` where the fit sits in the
@@ -396,13 +396,14 @@ export class PreviewSession<S> {
         return;
       case 'position': {
         const { t, duration, playing } = message;
-        if (this.selection?.stage !== true || message.load_id !== this.loadID || typeof t !== 'number' || typeof duration !== 'number'
-          || typeof playing !== 'boolean') return;
+        const action = this.selection?.action;
+        if (this.selection?.stage !== true || action === undefined || message.load_id !== this.loadID || typeof t !== 'number'
+          || typeof duration !== 'number' || typeof playing !== 'boolean') return;
         this.stageAt = t;
         // The `pause` a hide sends brings one more.
         if (!this.options.presenter.active) return;
         this.positioned = true;
-        this.options.position?.({ t, duration, playing });
+        this.options.position?.({ t, duration, playing, action });
         return;
       }
       case 'stats': {

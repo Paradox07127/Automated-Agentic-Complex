@@ -2,7 +2,7 @@ import { useContext, useRef, useState } from 'react';
 import { QueryClientContext } from '@tanstack/react-query';
 import { getBridge, type CharacterEntry } from '../../bridge';
 import type { Toast } from '../../features/character/feedback';
-import { hostReason } from './labels';
+import { hostReason } from '../../features/character/labels';
 import { previewLookChanged } from '../../features/character/usePreview';
 
 type Layers = CharacterEntry['layers'];

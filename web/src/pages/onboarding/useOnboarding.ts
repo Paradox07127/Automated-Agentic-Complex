@@ -3,7 +3,7 @@ import { getBridge, type BridgeError, type CharacterEntry, type DesktopState, ty
 import { failureText } from '../../domain/errorText';
 import { useDemo } from '../../shell/demo';
 import { toast } from '../../shell/toast';
-import { hostReason } from '../character/labels';
+import { hostReason } from '../../features/character/labels';
 import { demoOps, demoRoster } from './demo';
 
 export type OpName = 'advance' | 'back' | 'goto' | 'skip' | 'complete';

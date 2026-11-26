@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { MotionImportResult } from '../../bridge';
-import { motionFormatLabel, motionImportReason } from './labels';
+import { motionFormatLabel, motionImportReason } from '../../features/character/labels';
 
 export interface MotionImport {
   running: boolean;

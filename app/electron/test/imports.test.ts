@@ -149,12 +149,12 @@ test('motion_tool import of a scanned body takes its face, camera, music and off
 
 test('motion_tool mmd-media takes the new music and offset, or --no-bgm', () => {
   assert.deepEqual(mmdMediaArgs('/lib', 'si', 'mmd_1', '/m/song.mp3', 1.5, '/host'),
-    ['mmd-media', '--library', '/lib', '--character', 'si', '--action', 'mmd_1', '--bgm', '/m/song.mp3', '--bgm-start=1.5',
+    ['mmd-media', '--library', '/lib', '--character', 'si', '--action=mmd_1', '--bgm', '/m/song.mp3', '--bgm-start=1.5',
       '--validate-with', '/host']);
   assert.deepEqual(mmdMediaArgs('/lib', 'si', 'mmd_1', '/m/song.mp3', null, '/host'),
-    ['mmd-media', '--library', '/lib', '--character', 'si', '--action', 'mmd_1', '--bgm', '/m/song.mp3', '--validate-with', '/host']);
+    ['mmd-media', '--library', '/lib', '--character', 'si', '--action=mmd_1', '--bgm', '/m/song.mp3', '--validate-with', '/host']);
   assert.deepEqual(mmdMediaArgs('/lib', 'si', 'mmd_1', null, 1.5, '/host'),
-    ['mmd-media', '--library', '/lib', '--character', 'si', '--action', 'mmd_1', '--no-bgm', '--validate-with', '/host']);
+    ['mmd-media', '--library', '/lib', '--character', 'si', '--action=mmd_1', '--no-bgm', '--validate-with', '/host']);
 });
 
 test('motion_tool mmd-media\'s result line is the action, its id unchanged, with its new music', () => {

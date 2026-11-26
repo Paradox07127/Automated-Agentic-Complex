@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { motionImportReason, NO_REASON } from '../../src/pages/character/labels';
+import { motionImportReason, NO_REASON } from '../../src/features/character/labels';
 
 describe('motionImportReason zip and edit codes', () => {
   it('words bad_zip', () => {

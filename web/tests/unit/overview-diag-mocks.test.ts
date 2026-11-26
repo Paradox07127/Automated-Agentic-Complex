@@ -53,13 +53,13 @@ describe('diag mocks', () => {
     expect(calls.reduce((n, c) => n + c.input_tokens + c.output_tokens, 0)).toBe(m.input_tokens + m.output_tokens);
   });
 
-  it('hourly failure bars count exactly the failed dots', async () => {
+  it('hourly failure bars count exactly the failed turns', async () => {
     for (const days of [1, 7]) {
       const start = NOW - days * 86_400_000;
       const r = await get<{ turns: WireTraceTurn[] }>(`/trace/turns?since=${encodeURIComponent(isoWithOffset(start))}&limit=200`);
       const t = turnsView(r.turns, start, NOW);
-      expect(t.failures_per_hour.reduce((a, b) => a + b, 0)).toBe(t.dots.filter((x) => x.result === 'failed').length);
-      expect(t.dots.length).toBeLessThanOrEqual(200);
+      expect(t.failures_per_hour.reduce((a, b) => a + b, 0)).toBe(t.turns.filter((x) => x.result === 'failed').length);
+      expect(t.turns.length).toBeLessThanOrEqual(200);
     }
   });
 

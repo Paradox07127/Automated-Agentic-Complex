@@ -414,7 +414,7 @@ test('a stage load carries stage and action and stands at 0 s paused; control re
   assert.deepEqual(transport.sent.slice(1), [{ ...STAGE_LOAD, load_id: 1 }, { op: 'pause' }, { op: 'seek', at: 0 }]);
   transport.emit({ event: 'position', load_id: 0, t: 5, duration: 9, playing: true });
   transport.emit({ event: 'position', load_id: 1, t: 0, duration: 12.5, playing: false });
-  assert.deepEqual(positions, [{ t: 0, duration: 12.5, playing: false }], 'an older load_id is dropped');
+  assert.deepEqual(positions, [{ t: 0, duration: 12.5, playing: false, action: 'mmd_a' }], 'an older load_id is dropped');
   s.control({ op: 'resume' });
   s.control({ op: 'seek', at: 3.5 });
   s.control({ op: 'pause' });
@@ -424,7 +424,7 @@ test('a stage load carries stage and action and stands at 0 s paused; control re
   presenter.active = false;
   s.syncPlayback();
   transport.emit({ event: 'position', load_id: 1, t: 3.5, duration: 12.5, playing: false });
-  assert.deepEqual(positions.slice(1), [{ t: 3.5, duration: 12.5, playing: false }, null]);
+  assert.deepEqual(positions.slice(1), [{ t: 3.5, duration: 12.5, playing: false, action: 'mmd_a' }, null]);
   const sent = transport.sent.length;
   presenter.active = true;
   s.syncPlayback();
@@ -437,7 +437,7 @@ test('a non-stage load, an error or the service going away ends the stage: null 
   s.load(selection({ clip: 'A_dance', stage: true, action: 'mmd_a' })).catch(() => {});
   transport.emit({ event: 'position', load_id: 1, t: 1, duration: 12.5, playing: true });
   s.load(selection({ clip: 'wave' })).catch(() => {});
-  assert.deepEqual(positions, [{ t: 1, duration: 12.5, playing: true }, null]);
+  assert.deepEqual(positions, [{ t: 1, duration: 12.5, playing: true, action: 'mmd_a' }, null]);
   assert.deepEqual(transport.sent.at(-1), { op: 'load', bundle: '/lib/si/runtime/bundle.json', sha256: 'a'.repeat(64), character: 'si', rate: 1,
     load_id: 2, clip: 'wave' });
   s.control({ op: 'pause' });
@@ -448,11 +448,11 @@ test('a non-stage load, an error or the service going away ends the stage: null 
   s.load(selection({ clip: 'A_dance', stage: true, action: 'mmd_a' })).catch(() => {});
   transport.emit({ event: 'position', load_id: 3, t: 0, duration: 12.5, playing: false });
   transport.emit({ event: 'error', load_id: 3, reason: 'clip does not match the track' });
-  assert.deepEqual(positions.slice(2), [{ t: 0, duration: 12.5, playing: false }, null]);
+  assert.deepEqual(positions.slice(2), [{ t: 0, duration: 12.5, playing: false, action: 'mmd_a' }, null]);
   s.load(selection({ clip: 'A_dance', stage: true, action: 'mmd_a' })).catch(() => {});
   transport.emit({ event: 'position', load_id: 4, t: 0, duration: 12.5, playing: false });
   transport.emit({ event: 'disconnected' });
-  assert.deepEqual(positions.slice(4), [{ t: 0, duration: 12.5, playing: false }, null]);
+  assert.deepEqual(positions.slice(4), [{ t: 0, duration: 12.5, playing: false, action: 'mmd_a' }, null]);
 });
 
 test('a stage rebuild after its first frame plays the dance again, paused at 0 s, not her idle', async () => {
@@ -858,9 +858,9 @@ test('avatar.preview.show takes stage with an action; avatar.preview.control che
   });
   const ops = new Map(Object.entries(previewOps({ preview: host } as unknown as OpsContext)));
   assert.deepEqual(await handle('main', sender, { op: 'avatar.preview.onPosition', args: [1] }, ops, page), { ok: true, value: null });
-  position.send({ t: 1.5, duration: 12.5, playing: true });
+  position.send({ t: 1.5, duration: 12.5, playing: true, action: 'mmd_a' });
   position.send(null);
-  assert.deepEqual(pushed, [{ t: 1.5, duration: 12.5, playing: true }, null]);
+  assert.deepEqual(pushed, [{ t: 1.5, duration: 12.5, playing: true, action: 'mmd_a' }, null]);
 });
 
 test('her hidden layers go to the service as hidden_layers, and showing them all again is another load', async () => {

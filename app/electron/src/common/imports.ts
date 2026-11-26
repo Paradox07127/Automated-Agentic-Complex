@@ -190,7 +190,7 @@ export function mmdImportArgs(library: string, character: string, item: MmdImpor
 /** motion_tool mmd-media: the entry `action` with new music (`--no-bgm` for none) and its offset. */
 export function mmdMediaArgs(library: string, character: string, action: string, bgm: string | null, bgmStartS: number | null,
   host: string): string[] {
-  return ['mmd-media', '--library', library, '--character', character, '--action', action,
+  return ['mmd-media', '--library', library, '--character', character, `--action=${action}`,
     ...(bgm === null ? ['--no-bgm'] : ['--bgm', bgm, ...(bgmStartS === null ? [] : [`--bgm-start=${bgmStartS}`])]), '--validate-with', host];
 }
 

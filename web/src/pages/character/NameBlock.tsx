@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { readVoiceBinding } from '../../bridge/agentd';
 import { Barcode, Diamond, WhiteCapsule } from '../../ui/game';
-import { SWITCH_STAGE_LABELS, SWITCH_STAGES } from './tables';
+import { SWITCH_STAGE_LABELS, SWITCH_STAGES } from '../../features/character/tables';
 import type { SwitchState } from './useSwitch';
 import styles from './NameBlock.module.css';
 import rows from './StateRows.module.css';

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getBridge, type ActionProgress, type ActionSpeed, type AvatarAction } from '../../bridge';
 import type { Toast } from '../../features/character/feedback';
-import { ADJUSTED, NO_REASON, PLAY_REFUSED, playRefusedSeverity, SECTIONS } from './labels';
+import { ADJUSTED, NO_REASON, PLAY_REFUSED, playRefusedSeverity, SECTIONS } from '../../features/character/labels';
 import type { MotionGroup } from './MotionTable';
 import type { StageStatus } from './Stage';
 

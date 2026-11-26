@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState, type KeyboardEvent, type MouseEvent, typ
 import { useWidth } from '../../charts/useWidth';
 import { formatClock, type StateCause, type StatePoint } from '../../domain';
 import type { Beat, BeatSource } from '../character/api';
-import { BEAT_SOURCE, BEHAVIOR, CAUSE_SHORT, CAUSES } from '../character/labels';
+import { BEAT_SOURCE, BEHAVIOR, CAUSE_SHORT, CAUSES } from '../../features/character/labels';
 import styles from './Chart.module.css';
 
 export interface StateDecisionChartProps {

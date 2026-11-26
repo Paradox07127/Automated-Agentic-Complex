@@ -9,7 +9,7 @@ import { MOTIONS } from '../../src/mock/character';
 import { CharacterSettings } from '../../src/pages/character/CharacterSettings';
 import { LookPane } from '../../src/pages/character/LookPane';
 import { ModSettings } from '../../src/pages/character/ModSettings';
-import { outfitImportWarning } from '../../src/pages/character/labels';
+import { outfitImportWarning } from '../../src/features/character/labels';
 import type { ModSettingRow } from '../../src/pages/character/modSettingsTable';
 import { MotionTable, type MotionTableProps } from '../../src/pages/character/MotionTable';
 import { useVoiceBinding } from '../../src/pages/character/NameBlock';

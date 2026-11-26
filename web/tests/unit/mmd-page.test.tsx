@@ -215,14 +215,16 @@ describe('MMD inspector and timeline', () => {
     await mount();
     await waitFor(() => expect(item('mmd_a')).not.toBeNull());
     expect(within(timeline()).getByRole('button', { name: '暂停' })).toHaveProperty('disabled', true);
-    await push({ t: 4.2, duration: 12.4, playing: false });
+    await push({ t: 7, duration: 30, playing: false, action: 'mmd_b' });
+    expect(within(timeline()).getByLabelText('时钟').textContent).not.toContain('0:07.0');
+    await push({ t: 4.2, duration: 12.4, playing: false, action: 'mmd_a' });
     expect(timeline().textContent).toContain('PREVIEW');
     expect(within(timeline()).getByLabelText('时钟').textContent).toBe('0:04.2/ 0:12.4');
     const slider = within(timeline()).getByRole('slider', { name: '播放进度' });
     expect(slider.getAttribute('aria-valuenow')).toBe('4.2');
     await click(within(timeline()).getByRole('button', { name: '继续' }));
     expect(control).toHaveBeenLastCalledWith({ op: 'resume' });
-    await push({ t: 4.2, duration: 12.4, playing: true });
+    await push({ t: 4.2, duration: 12.4, playing: true, action: 'mmd_a' });
     await click(within(timeline()).getByRole('button', { name: '暂停' }));
     expect(control).toHaveBeenLastCalledWith({ op: 'pause' });
     await press(slider, 'ArrowRight');
@@ -701,9 +703,12 @@ describe('MMD page · detail and playhead', () => {
     vi.spyOn(bridge.mmd, 'list').mockResolvedValue({ ok: true, entries: [entry('mmd_a', '舞蹈甲', 'baked'), other] });
     await mount();
     await waitFor(() => expect(item('mmd_d')).not.toBeNull());
-    await push({ t: 4.2, duration: 12.4, playing: true });
+    await push({ t: 4.2, duration: 12.4, playing: true, action: 'mmd_a' });
     expect(within(timeline()).getByLabelText('时钟').textContent).toBe('0:04.2/ 0:12.4');
     await pick('mmd_d');
+    expect(within(timeline()).getByLabelText('时钟').textContent).toBe('0:00.0/ 0:30.0');
+    // The old load still reports until the new one starts; it is not the new dance's position.
+    await push({ t: 4.4, duration: 12.4, playing: true, action: 'mmd_a' });
     expect(within(timeline()).getByLabelText('时钟').textContent).toBe('0:00.0/ 0:30.0');
   });
 

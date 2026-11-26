@@ -185,7 +185,7 @@ test('motion ops check ids and titles, run motion_tool on the current character 
   assert.deepEqual(await call('character.removeMotion', 'si', ''), { ok: false, error: { code: 'bad_args', detail: 'character.removeMotion' } });
   fake.tool = (args) => ({ last: JSON.stringify({ id: 'm', title: args.find((a) => a.startsWith('--title='))?.slice(8) }), status: 0, stderr: '' });
   assert.deepEqual(await call('character.renameMotion', 'si', 'm', '  慢舞 '), { ok: true, value: { ok: true, id: 'm', title: '慢舞' } });
-  assert.deepEqual(fake.tools.at(-1), ['motion_tool.py', 'rename', '--library', join(dir, 'library'), '--character', 'si', '--action', 'm',
+  assert.deepEqual(fake.tools.at(-1), ['motion_tool.py', 'rename', '--library', join(dir, 'library'), '--character', 'si', '--action=m',
     '--title=慢舞', '--validate-with', '/host']);
   // A title starting with "-" stays the value of --title for argparse.
   assert.deepEqual(await call('character.renameMotion', 'si', 'm', '-intro'), { ok: true, value: { ok: true, id: 'm', title: '-intro' } });

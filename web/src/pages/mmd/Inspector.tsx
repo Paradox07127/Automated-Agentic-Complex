@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { CharacterEntry, MmdDetail, MmdEntry } from '../../bridge';
 import { Btn } from '../../ui';
 import { MicroLabel } from '../../ui/game';
-import { motionImportReason } from '../character/labels';
+import { motionImportReason } from '../../features/character/labels';
 import { stateOf } from './Library';
 import styles from './Inspector.module.css';
 

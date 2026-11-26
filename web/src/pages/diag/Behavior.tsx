@@ -6,7 +6,7 @@ import { navigate } from '../../shell/nav';
 import { Btn, SecHead, Skel } from '../../ui';
 import { GameFrame, GameSeg, ReadoutPlate, StatusLamp, type ReadoutCell } from '../../ui/game';
 import type { Beat } from '../character/api';
-import { doing, stateWord } from '../character/labels';
+import { doing, stateWord } from '../../features/character/labels';
 import { attrName, causeName, signed, StateDecisionChart } from './StateDecisionChart';
 import styles from './Behavior.module.css';
 

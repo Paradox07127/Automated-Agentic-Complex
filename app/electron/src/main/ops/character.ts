@@ -412,7 +412,7 @@ export function characterOps(ctx: OpsContext, picker: ImportPicker = electronPic
       if (expected === null || action === null || name === null) throw new BridgeFailure('bad_args', 'character.renameMotion');
       return onCurrent(expected, true, async (library, character) => {
         ctx.mmdSync?.sync.checkIdle();
-        const line = await tool(['rename', '--library', library, '--character', character, '--action', action, `--title=${name}`,
+        const line = await tool(['rename', '--library', library, '--character', character, `--action=${action}`, `--title=${name}`,
           '--validate-with', host()]);
         if (typeof line.title !== 'string') throw new MotionFailureError({ reason: 'internal', detail: `motion_tool printed no result: ${JSON.stringify(line)}` });
         if (ctx.avatar) await reloadAvatar(ctx, ctx.avatar);
@@ -424,7 +424,7 @@ export function characterOps(ctx: OpsContext, picker: ImportPicker = electronPic
       if (expected === null || action === null) throw new BridgeFailure('bad_args', 'character.removeMotion');
       return onCurrent(expected, true, async (library, character) => {
         ctx.mmdSync?.sync.checkIdle();
-        await tool(['remove', '--library', library, '--character', character, '--action', action, '--validate-with', host()]);
+        await tool(['remove', '--library', library, '--character', character, `--action=${action}`, '--validate-with', host()]);
         // So the stored switch table does not keep ids past C3's 128-entry cap.
         const config = readObject(ctx.config.path);
         const all = config.action_switches;
@@ -555,7 +555,7 @@ export function mmdOps(ctx: OpsContext, picker: ImportPicker = electronPicker, s
         const character = await currentCharacter(ctx);
         if (character === null) throw new MotionFailureError({ reason: 'internal', detail: NO_LINK });
         const { last, status, stderr } = await ctx.library!.runTool('motion_tool.py',
-          ['mmd-detail', '--library', library, '--character', character, '--action', id]);
+          ['mmd-detail', '--library', library, '--character', character, `--action=${id}`]);
         if (status !== 0) throw new MotionFailureError(toolFailure(stderr));
         return motionReply({ detail: mmdDetail(resultLine(last)) }, true);
       } catch (e) {

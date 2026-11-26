@@ -3,7 +3,7 @@ import { isoToMsOrNull } from '../../domain/units';
 import { navigate } from '../../shell/nav';
 import { Btn, KV } from '../../ui';
 import type { WireDiagState } from '../../domain/wire';
-import { stateWord } from '../character/labels';
+import { stateWord } from '../../features/character/labels';
 import { BEHAVIOR, JUDGE_BACKEND } from './model';
 import { ttsText } from './status';
 import styles from './State.module.css';

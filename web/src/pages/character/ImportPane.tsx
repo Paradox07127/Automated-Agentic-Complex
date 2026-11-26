@@ -4,7 +4,7 @@ import type { ImportedMotionEntry, ImportState } from '../../bridge';
 import { ErrBar, Icon } from '../../ui';
 import { DarkRow, TitleBar, WhiteCapsule, YellowKey } from '../../ui/game';
 import { useCompact } from './compact';
-import { motionFormatLabel } from './labels';
+import { motionFormatLabel } from '../../features/character/labels';
 import { MotionEditDialog, type MotionEdit } from '../../features/character/MotionEditDialog';
 import { importStageLabel, useImportState } from '../../features/character/useImportState';
 import type { MotionImport } from './useMotionImport';

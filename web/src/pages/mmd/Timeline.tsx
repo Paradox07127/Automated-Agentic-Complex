@@ -46,18 +46,18 @@ interface TimelineProps {
 /** 时间线：播放键、时钟、来源（页内预览 / 桌面）、桌面播放、一次 / 循环；身体、口型、镜头切点、音源四条轨和播放头。桌面在播这支舞时跟着桌面走，否则跟着页内预览走；拖动或 ← → 跳转。 */
 export function Timeline(p: TimelineProps) {
   const desk = p.desk;
-  // The stage preview's last position and the dance it came for; a position of the dance before is never shown.
-  const [pos, setPos] = useState<{ id: string; at: PreviewPosition } | null>(null);
+  // The stage preview's last position; one of another dance (the load before, still reporting) is never shown.
+  const [pos, setPos] = useState<PreviewPosition | null>(null);
   const id = p.entry.id;
   useEffect(() => {
     if (!p.previewing) return;
-    const off = getBridge().avatar.preview.onPosition((at) => setPos(at && { id, at }));
+    const off = getBridge().avatar.preview.onPosition(setPos);
     return () => {
       off();
       setPos(null);
     };
   }, [p.previewing, id]);
-  const stage = !desk && p.previewing && pos?.id === id ? pos.at : null;
+  const stage = !desk && p.previewing && pos?.action === id ? pos : null;
   const total = desk?.durationS ?? stage?.duration ?? p.entry.durationS;
   // The play the controls act on: the desktop's, else the stage preview's.
   const now = desk ? { t: desk.tS, paused: desk.paused } : stage ? { t: stage.t, paused: !stage.playing } : null;

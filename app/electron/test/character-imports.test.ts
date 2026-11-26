@@ -493,9 +493,9 @@ test('mmd.setMedia picks the music while holding the switch, runs mmd-media with
     assert.deepEqual(f.calls, ['pick held=true', 'tool held=true', 'restartAvatar held=true']);
     assert.deepEqual(await f.call('mmd.setMedia', 'mmd_1', { bgm: 'none', bgmStartS: null }), changed);
     assert.deepEqual(f.tools, [
-      ['motion_tool.py', 'mmd-media', '--library', LIBRARY(f), '--character', 'si', '--action', 'mmd_1', '--bgm', song, '--bgm-start=-0.633',
+      ['motion_tool.py', 'mmd-media', '--library', LIBRARY(f), '--character', 'si', '--action=mmd_1', '--bgm', song, '--bgm-start=-0.633',
         '--validate-with', 'host-bin'],
-      ['motion_tool.py', 'mmd-media', '--library', LIBRARY(f), '--character', 'si', '--action', 'mmd_1', '--no-bgm', '--validate-with', 'host-bin']]);
+      ['motion_tool.py', 'mmd-media', '--library', LIBRARY(f), '--character', 'si', '--action=mmd_1', '--no-bgm', '--validate-with', 'host-bin']]);
     assert.equal(f.asked.length, 1);
     assert.deepEqual(await f.call('mmd.setMedia', 'mmd_1', { bgm: 'pick', bgmStartS: 0 }), { ok: false, reason: 'cancelled' });
     f.tool = () => ({ last: '', status: 1, stderr: '{"reason": "unknown_action", "detail": "mmd_1"}' });
@@ -520,7 +520,7 @@ test('mmd.detail runs mmd-detail on the current character without holding the sw
     assert.deepEqual(await f.call('mmd.detail', 'mmd_1'), { ok: true, detail: { id: 'mmd_1', source: '愛包.vmd',
       face: { mapped: ['あ'], unmapped: ['てへぺろ'], blinkFromDance: true }, camera: { cuts: [3.867, 6.1], fovDeg: [10, 45] },
       bgm: { name: 'inst.wav', offsetS: null }, lanes: { bins: 600, mouth: [0, 0.5], loudness: null } } });
-    assert.deepEqual(f.tools, [['motion_tool.py', 'mmd-detail', '--library', LIBRARY(f), '--character', 'si', '--action', 'mmd_1']]);
+    assert.deepEqual(f.tools, [['motion_tool.py', 'mmd-detail', '--library', LIBRARY(f), '--character', 'si', '--action=mmd_1']]);
     assert.deepEqual(f.calls, ['tool held=false']);
     f.tool = () => ({ last: JSON.stringify({ ok: true, detail: { id: 'mmd_1', source: null } }), status: 0, stderr: '' });
     assert.equal(((await f.call('mmd.detail', 'mmd_1')) as { reason: string }).reason, 'internal');

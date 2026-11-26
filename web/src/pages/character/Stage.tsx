@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { NodeChain, type ChainNode } from '../../charts';
-import { SWITCH_STAGE_LABELS, SWITCH_STAGES } from './tables';
+import { SWITCH_STAGE_LABELS, SWITCH_STAGES } from '../../features/character/tables';
 import { Btn, IconBtn } from '../../ui';
 import { Diamond, LoadBar, PowerState, WhiteCapsule } from '../../ui/game';
 import { NameBlock, OfflineRow, SwitchRow, type VoiceBinding } from './NameBlock';

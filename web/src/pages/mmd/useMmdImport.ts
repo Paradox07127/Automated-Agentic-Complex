@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { getBridge, type ImportedMotion, type MmdImportPlan, type MmdScan } from '../../bridge';
 import type { MotionImport } from '../character/useMotionImport';
-import { motionImportReason } from '../character/labels';
+import { motionImportReason } from '../../features/character/labels';
 
 export interface MmdImport {
   /** Scanning, importing or changing a dance's music. */

@@ -1039,6 +1039,8 @@ function guideGreeting(link: HostLink, client: AgentdClient, dir: string): (dest
   }, destination).catch((e: unknown) => note(`ONBOARDING greeting failed: ${e instanceof Error ? e.message : String(e)}`));
 }
 
+/** The guide's ops, made at its first open with a config and kept for every later open, as overlayOps keeps an overlay's. */
+let guideRegistry: ReadonlyMap<string, Handler<PageSession>> | null = null;
 /** The first-run guide's window (onboarding/window.ts). */
 const guide = onboardingWindow({
   configPath,
@@ -1054,10 +1056,10 @@ const guide = onboardingWindow({
   served: () => serve !== null,
   workArea: () => screen.getPrimaryDisplay().workAreaSize,
   // 在桌面上 on the last step reads the desktop panels' state.
-  ops: () => (config ? new Map([...surfaceOps('onboarding'), ['desktop.onState', (args, page) => {
+  ops: () => (config ? (guideRegistry ??= new Map([...surfaceOps('onboarding'), ['desktop.onState', (args, page) => {
     if (!desktop) throw new BridgeFailure('unavailable', '桌面悬浮层尚未就绪');
     return watch('desktop.onState', desktop.stateSource)(args, page);
-  }]]) : null),
+  }]])) : null),
   register: (contents, page, guideOps) => pages.set(contents.id, { surface: 'onboarding', page, ops: guideOps }),
   unregister: (id) => pages.delete(id),
   openMain: openMainAt,

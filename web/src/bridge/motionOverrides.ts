@@ -67,7 +67,8 @@ export interface PreviewView {
 export type PreviewControl = { op: 'pause' } | { op: 'resume' } | { op: 'seek'; at: number };
 
 /** A stage preview's playhead: `t` seconds of `duration` into her clip. */
-export interface PreviewPosition { t: number; duration: number; playing: boolean }
+/** `action`: the dance the stage load plays. */
+export interface PreviewPosition { t: number; duration: number; playing: boolean; action: string }
 
 /** The motion settings' `avatar` ops; main surface only. */
 export interface MotionAvatarOps {

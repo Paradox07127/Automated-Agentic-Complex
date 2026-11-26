@@ -1,5 +1,5 @@
 // Diag view model: /trace/turns rows → the timeline, and the labels the panels share.
-import type { Turn, TurnDot, WireTraceTurn } from '../../domain';
+import type { Turn, WireTraceTurn } from '../../domain';
 import { fromTraceTurn } from '../../domain/adapt';
 
 /** `/trace/turns` limit cap (trace_store.py PAGE_MAX). */
@@ -9,7 +9,6 @@ const HOUR = 3_600_000;
 export interface DiagTurns {
   start: number;
   end: number;
-  dots: TurnDot[];
   /** One count per hour bin from `start`. */
   failures_per_hour: number[];
   /** The read hit the row limit, so older turns are missing. */
@@ -18,19 +17,16 @@ export interface DiagTurns {
   turns: Turn[];
 }
 
-/** `/trace/turns` rows read since `start` at `end`; dots, hourly failures and truncation are derived here. */
+/** `/trace/turns` rows read since `start` at `end`; hourly failures and truncation are derived here. */
 export function turnsView(rows: readonly WireTraceTurn[], start: number, end: number, limit = TURN_LIMIT): DiagTurns {
   const turns = rows.map(fromTraceTurn);
-  const dots = turns
-    .map((t): TurnDot => ({ id: t.id, turn_id: t.turn_id, started_at: t.started_at, duration_ms: t.duration_ms, result: t.result, source: t.source }))
-    .sort((a, b) => a.started_at - b.started_at);
   const bins = Array.from({ length: Math.max(1, Math.ceil((end - start) / HOUR)) }, () => 0);
-  for (const d of dots) {
+  for (const d of turns) {
     if (d.result !== 'failed') continue;
     const i = Math.min(bins.length - 1, Math.max(0, Math.floor((d.started_at - start) / HOUR)));
     bins[i] = (bins[i] ?? 0) + 1;
   }
-  return { start, end, dots, failures_per_hour: bins, truncated: rows.length >= limit, turns };
+  return { start, end, failures_per_hour: bins, truncated: rows.length >= limit, turns };
 }
 
 /** input.received sources (trace_format.py). */

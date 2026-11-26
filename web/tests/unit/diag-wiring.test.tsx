@@ -235,12 +235,11 @@ describe('diag turns', () => {
 });
 
 describe('diag model', () => {
-  it('derives dots, hourly failures and truncation from /trace/turns rows', () => {
+  it('derives hourly failures and truncation from /trace/turns rows', () => {
     const row = (id: string, at: number, result: string) => ({ trace_id: id, turn_id: `t-${id}`, source: 'text', head: null, len: null, producers: ['agentd'], started_at: isoWithOffset(at), result, duration_ms: 100 });
     const start = NOW - 3 * 3_600_000;
     const v = turnsView([row('a', NOW - 60_000, 'failed'), row('b', start + 1000, 'completed'), row('c', start + 2000, 'failed')], start, NOW, 3);
     expect(v.failures_per_hour).toEqual([1, 0, 1]);
-    expect(v.dots.map((d) => d.id)).toEqual(['b', 'c', 'a']);
     expect(v.turns.map((t) => [t.id, t.result])).toEqual([['a', 'failed'], ['b', 'ok'], ['c', 'failed']]);
     expect(v.truncated).toBe(true);
   });

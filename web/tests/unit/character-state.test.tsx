@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { CAUSE_LIMIT, STATE_WITH_CAUSES } from '../../src/mock/character';
 import { CHARACTER_STATE, STATE_LOG, VALENCE_SPAN } from '../../src/mock/fixtures';
-import { CAUSE_LABELS } from '../../src/pages/character/tables';
+import { CAUSE_LABELS } from '../../src/features/character/tables';
 import { BracketMeter } from '../../src/charts';
 
 describe('character state mock', () => {

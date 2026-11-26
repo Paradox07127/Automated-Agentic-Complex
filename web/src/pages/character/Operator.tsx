@@ -9,7 +9,7 @@ import { Commit } from './Commit';
 import type { Toast } from '../../features/character/feedback';
 import { HeadStrip } from './HeadStrip';
 import { ImportPane } from './ImportPane';
-import { doing } from './labels';
+import { doing } from '../../features/character/labels';
 import { LookPane, useModTable, type LookTab } from './LookPane';
 import { MotionTable } from './MotionTable';
 import { useVoiceBinding } from './NameBlock';

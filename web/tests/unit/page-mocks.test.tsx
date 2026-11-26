@@ -13,7 +13,7 @@ import { mockRoutes, type MockRoute } from '../../src/mock';
 import { MOTIONS } from '../../src/mock/character';
 import { WIRE_INTERACTIONS, WIRE_TASK_ROWS } from '../../src/mock/fixtures';
 import { T1 } from '../../src/mock/fixtures/ids';
-import { NO_REASON } from '../../src/pages/character/labels';
+import { NO_REASON } from '../../src/features/character/labels';
 import { MotionTable } from '../../src/pages/character/MotionTable';
 import { groupMotions, useMotions } from '../../src/pages/character/useMotions';
 import { useOverview } from '../../src/pages/overview/useOverview';

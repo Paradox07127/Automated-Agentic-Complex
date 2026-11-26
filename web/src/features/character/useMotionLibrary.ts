@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getBridge, type ImportedMotionEntry, type MotionEditFailure, type MotionRemoveResult, type MotionRenameResult } from '../../bridge';
 import { toast } from '../../shell/toast';
-import { motionImportReason } from '../../pages/character/labels';
+import { motionImportReason } from './labels';
 
 export interface MotionLibrary {
   /** The character it lists and edits. */

@@ -11,7 +11,7 @@ import { MOTIONS, STATE_WITH_CAUSES } from '../../src/mock/character';
 import { useModTable } from '../../src/pages/character/LookPane';
 import { Operator } from '../../src/pages/character/Operator';
 import type { Toast } from '../../src/features/character/feedback';
-import { OUTFIT_IMPORT_REASON, OUTFIT_IMPORT_UNKNOWN, outfitImportReason, outfitImportWarning } from '../../src/pages/character/labels';
+import { OUTFIT_IMPORT_REASON, OUTFIT_IMPORT_UNKNOWN, outfitImportReason, outfitImportWarning } from '../../src/features/character/labels';
 
 const noop = () => {};
 
@@ -399,6 +399,7 @@ describe('角色页 · 删除导入的外观', () => {
 describe('导入外观 · 要留意的地方', () => {
   it('names the file or section after the code, and keeps a code it does not know as it came', () => {
     expect(outfitImportWarning('texture_unbound:Textures/a.dds')).toBe('贴图「Textures/a.dds」未找到对应部件，未应用');
+    expect(outfitImportWarning('texture_guessed:Textures/b.dds->ps-t3')).toBe('贴图「Textures/b.dds」未标注槽位，已按格式放入「ps-t3」，请确认显示效果');
     expect(outfitImportWarning('bones_appended:S_actor_body:3')).toBe('模组为「S_actor_body」追加了骨骼');
     expect(outfitImportWarning('shapekey_ignored')).toBe('模组的形态键未应用');
     expect(outfitImportWarning('brand_new:x')).toBe('brand_new:x');

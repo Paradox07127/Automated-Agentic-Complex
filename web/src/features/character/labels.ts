@@ -216,6 +216,10 @@ export const outfitImportReason = (reason: string, detail: string | undefined): 
 /** The import report's warnings by code (import_outfit, efmi_mod, efmi_geometry): `n` is the file, section or shader after the code. */
 const OUTFIT_IMPORT_WARNING: Record<string, (n: string) => string> = {
   texture_unbound: (n) => `贴图「${n}」未找到对应部件，未应用`,
+  texture_guessed: (n) => {
+    const [file, slot] = n.split('->');
+    return `贴图「${file}」未标注槽位，已按格式放入「${slot}」，请确认显示效果`;
+  },
   texture_unsupported: (n) => `贴图「${n}」格式暂不支持，未应用`,
   external_namespace: (n) => `贴图「${n}」依赖其他模组部件，无法匹配，未应用`,
   needs_mips: (n) => `贴图「${n}」缺少多级渐远纹理（Mipmaps），远景显示可能较模糊`,

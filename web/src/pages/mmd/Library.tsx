@@ -4,7 +4,7 @@ import { gameClips } from '../../design/gameClips.generated';
 import { Empty, IconBtn, SearchField, Skel, Tabs } from '../../ui';
 import { useGameClip } from '../../ui/fx/useGameClip';
 import { Barcode, MicroLabel, StatusLamp, WhiteCapsule } from '../../ui/game';
-import { motionImportReason } from '../character/labels';
+import { motionImportReason } from '../../features/character/labels';
 import styles from './Library.module.css';
 
 export type MmdState = MmdEntry['characters'][number];

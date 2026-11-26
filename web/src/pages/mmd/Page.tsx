@@ -6,7 +6,7 @@ import { toast } from '../../shell/toast';
 import { ErrBar, Menu } from '../../ui';
 import { LoadBar, MicroLabel, TitleBar, TrainingRoom, WhiteCapsule } from '../../ui/game';
 import { usePageParams } from '../../features/character/feedback';
-import { PLAY_REFUSED, playRefusedSeverity } from '../character/labels';
+import { PLAY_REFUSED, playRefusedSeverity } from '../../features/character/labels';
 import { MotionEditDialog, type MotionEdit } from '../../features/character/MotionEditDialog';
 import { useActionTransport } from '../../features/character/Transport';
 import { currentOf, RUNTIME_DOWN, useHostCharacter, useMmdSync } from '../../features/character/useHostCharacter';

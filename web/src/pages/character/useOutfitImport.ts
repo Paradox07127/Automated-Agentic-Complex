@@ -2,7 +2,7 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import { QueryClientContext } from '@tanstack/react-query';
 import { getBridge, type BridgeError } from '../../bridge';
 import type { Toast } from '../../features/character/feedback';
-import { outfitImportReason, outfitImportWarning } from './labels';
+import { outfitImportReason, outfitImportWarning } from '../../features/character/labels';
 
 export interface OutfitImport {
   state: 'idle' | 'busy' | 'done' | 'error';

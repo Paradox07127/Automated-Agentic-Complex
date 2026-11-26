@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
 import { getBridge, type BridgeError } from '../../bridge';
 import type { CharacterProfile } from '../../domain';
-import { SWITCH_STAGES } from './tables';
-import { hostReason, NO_REASON } from './labels';
+import { SWITCH_STAGES } from '../../features/character/tables';
+import { hostReason, NO_REASON } from '../../features/character/labels';
 
 export type SwitchState =
   | { phase: 'idle' }

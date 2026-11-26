@@ -5,7 +5,7 @@ import { Btn, Dialog, Fold, Icon, Select, SRow, Switch } from '../../ui';
 import { DarkRow, MicroLabel, TitleBar, WhiteCapsule, YellowKey } from '../../ui/game';
 import { useCompact } from './compact';
 import type { Toast } from '../../features/character/feedback';
-import { outfitImportWarning } from './labels';
+import { outfitImportWarning } from '../../features/character/labels';
 import { readModSettings, type ModSettingRow } from './modSettingsTable';
 import { ModSettings } from './ModSettings';
 import { importStageLabel } from '../../features/character/useImportState';

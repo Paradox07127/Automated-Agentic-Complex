@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BEHAVIOR as CHARACTER_BEHAVIOR } from '../../src/pages/character/labels';
+import { BEHAVIOR as CHARACTER_BEHAVIOR } from '../../src/features/character/labels';
 import { BEHAVIOR as DIAG_BEHAVIOR } from '../../src/pages/diag/model';
 
 /** agentd's character/behavior.py ACTIVITIES, in order. */

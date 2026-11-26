@@ -4,7 +4,7 @@ import { Btn, FilterChips, Icon, IconBtn, Switch } from '../../ui';
 import { DarkRow, Diamond, MicroLabel, TitleBar, type DarkRowMark } from '../../ui/game';
 import { SaveNote } from './Commit';
 import { useCompact } from './compact';
-import { motionFormatLabel, SECTIONS } from './labels';
+import { motionFormatLabel, SECTIONS } from '../../features/character/labels';
 import styles from './MotionTable.module.css';
 
 export interface MotionRow {
