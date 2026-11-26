@@ -60,7 +60,7 @@ Character persona, tone, and performance come from the character package, while 
 
 The **Character** (`角色`) page switches character packages and browses the available motions and appearances across its top tabs:
 
-- **动作 (Motion)**: browse, preview (live 3D on macOS when the character is connected and the preview is available; not yet on Windows), and toggle motions included in the package.
+- **动作 (Motion)**: Browse, preview and toggle motions included in the package. Live 3D preview is available when the connected renderer supports it.
 - **编排 (Chain)**: inspect and compose motion chains.
 - **外观 (Appearance)**: switch outfits and the part/color toggles that EFMI mods provide.
 - **设定 (Setup)**: adjust character-specific behavior, rendering parameters, and stage/scene settings.

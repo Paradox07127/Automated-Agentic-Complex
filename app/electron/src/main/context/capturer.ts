@@ -2,9 +2,8 @@
 // runs, the front window's AX text goes to `POST /context/text` on its own triggers, and the feed's `request`s are answered
 // with a window's text, OCR text or screenshot (`/context/text`, `/context/image`). Logs metadata only, never window text,
 // titles or URLs.
-import { type AttentionSample, type BlacklistRules, decodeAttention, type Rect } from '../../common/attention.ts';
+import { type AttentionSample, type BlacklistRules, decodeAttention } from '../../common/attention.ts';
 import { type CaptureWindow, captureBlockReason } from '../../common/capture-rules.ts';
-import type { ShellPlatform } from '../../common/config.ts';
 import type { HelperAnswer } from '../../common/push-to-talk.ts';
 import {
   type AgentdReply, allowsAutomaticText, allowsOCR, allowsRequest, axObservation, type CaptureFailure,
@@ -14,7 +13,6 @@ import {
   resultText, scalarCount, SELECTION_LIMIT, selectionBlockReason, type SelectionDecision, textResult, windowNow, windowReadPlan,
 } from '../../common/screen-context.ts';
 import type { UserAnswer } from '../attention/sampler.ts';
-import { shellPlatform } from '../platform/index.ts';
 
 export interface ContextPorts {
   helper: { request(op: string, params?: Record<string, unknown>): Promise<HelperAnswer> };
@@ -65,11 +63,8 @@ export class ContextCapturer {
   /** An unfinished `ax.window_text` walk, continued by the next automatic or front-window read of the same app and level. */
   private walk: { pid: number; level: string; cursor: string } | null = null;
 
-  private readonly platform: ShellPlatform;
-
-  constructor(ports: ContextPorts, platform: ShellPlatform) {
+  constructor(ports: ContextPorts) {
     this.ports = ports;
-    this.platform = platform;
     this.consent = new ContextConsent(ports.policy());
   }
 
@@ -567,6 +562,6 @@ export class ContextCapturer {
 }
 
 /** The capturer, idle until `start()`. */
-export function startContext(ports: ContextPorts, platform: ShellPlatform = shellPlatform()): ContextCapturer {
-  return new ContextCapturer(ports, platform);
+export function startContext(ports: ContextPorts): ContextCapturer {
+  return new ContextCapturer(ports);
 }

@@ -1,5 +1,5 @@
 // SNS chat motion: game clips of snsfriendpanel (sns_friend_in, the contact cell's in and selected frame, dialog change, the empty dialog).
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useRef, useState, type ReactNode, type RefObject } from 'react';
 import { gameClips, type GameClip } from '../../design/gameClips.generated';
 import { useGameClip } from '../../ui';
 import chat from './Chat.module.css';

@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, type Dispatch } from 'react';
 import { getBridge, type StackDecision } from '../../bridge';
 import { revealText } from '../../bridge/platformText';
-import { AgentdCallError, call, seg } from '../../bridge/agentd';
+import { AgentdCallError, call } from '../../bridge/agentd';
 import { completeReminder, snoozeReminder } from '../../data/reminders';
 import { navRoute } from '../../shell/nav';
 import { formatClock, meeting, quiet, type Severity } from '../../domain';

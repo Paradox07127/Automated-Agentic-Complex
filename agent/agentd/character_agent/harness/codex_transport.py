@@ -7,9 +7,6 @@ from urllib.parse import urlsplit
 
 from .transport import ManagedClaudeSession
 
-CODEX_RUNTIME_VERSION = "0.163.0"
-
-
 @dataclass(frozen=True)
 class CodexConfig:
     state_dir: str | Path

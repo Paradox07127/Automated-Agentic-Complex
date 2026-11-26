@@ -633,41 +633,6 @@ def validate_pack(host, package):
     need(result.returncode == 0, result.stderr.strip() or "load_failed: host validation exited " + str(result.returncode))
 
 
-def materialize_library(catalog_path, destination):
-    """Copy only the selected, validated generation, reusing exact content via CoW.
-
-    No old generations, research files or mutable lock files enter the app seed.
-    All v1 manifest bytes and relative paths remain compatible with every reader.
-    """
-    catalog_path, destination = Path(catalog_path).resolve(), Path(destination)
-    need(not destination.exists(), 'resource_destination_exists')
-    library = Library(catalog_path.parent, catalog_path.name)
-    snapshot = library.snapshot()
-    before = digest(catalog_path)
-    resources = ResourceRepository()
-    destination.mkdir(parents=True)
-    try:
-        for entry in snapshot['characters']:
-            definition = contained(library.root, entry['definition']['file'])
-            need(digest(definition) == entry['definition']['sha256'], 'definition_sha_mismatch')
-            package = Package(definition.parent)
-            prefix = package.root.relative_to(library.root)
-            for ref in package.inventory.values():
-                resources.materialize(contained(package.root,ref['file']),destination/prefix/ref['file'],ref,source_verified=True)
-            resources.materialize(definition,destination/entry['definition']['file'],entry['definition'],source_verified=True)
-        native = snapshot['native_bundle']
-        resources.materialize(contained(library.root,native['file']),destination/native['file'],native)
-        resources.materialize(catalog_path,destination/'current.json',dict(sha256=before,byte_count=catalog_path.stat().st_size))
-        need(digest(catalog_path)==before,'catalog_changed_during_materialization')
-        result = Library(destination)
-        for package in result.packages(): Package(package.root)
-        return dict(schema='endfield-resource-materialization/v1',catalog_sha256=before,
-                    unique_contents=len(resources.content),**resources.stats)
-    except BaseException:
-        shutil.rmtree(destination)
-        raise
-
-
 def export_package(source, output):
     package = Package(source); output = Path(output)
     need(output.suffix == ".endfield-character", "unsupported_package_file")

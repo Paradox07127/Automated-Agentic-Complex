@@ -240,4 +240,4 @@ python3 -I tools/release/dev_deploy.py all      # Deploy both
 
 To disable development deployment, remove `dev_resources` from `config.json` and restart the app once. The app resumes using its bundled web UI and `agentd`.
 
-Changes to the Electron shell, the helper, Metal renderer, preview service, `Info.plist`, or `agentd`'s Python dependencies require a new `.app` build. Development deployment switches code only and continues using the app's bundled Python environment.
+Changes to the Electron shell, the helper, Metal renderer, `Info.plist`, or `agentd`'s Python dependencies require a new `.app` build. Development deployment switches code only and continues using the app's bundled Python environment.

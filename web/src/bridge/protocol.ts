@@ -46,12 +46,8 @@ export interface Capabilities {
   clickThrough: boolean; /** The avatar lists C3 `action_loop`: `avatar.playAction` takes `{ loop: true }`, `avatar.stopAction` ends it. */ actionLoop: boolean; /** The platform helper's `hello.ops` has the feature's ops (app/electron/src/common/bridge.ts `HELPER_BIT_OPS`), or no list is known. */ helperPushToTalk: boolean; helperWindowText: boolean; helperTypedText: boolean; helperActionTimeline: boolean; helperSelectedText: boolean;
 }
 
-export type CapabilityName = keyof Capabilities;
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 export interface BridgeError { code: string; detail?: string }
-
-/** agentd's non-2xx JSON; extra keys (`current_version`, `runtime`, `run_id` …) stay here, not in `BridgeError`. */
-export interface AgentdErrorBody { error: string; detail?: string; [k: string]: unknown }
 
 /**
  * Three outcomes reach a page:
@@ -324,7 +320,6 @@ export interface AgenticComplexBridge {
     /** Hides `hide` and shows `show`; her other layers, every appearance's, stay as they are; main surface only. */ setLayers(character: string, change: { hide: string[]; show: string[] }): Promise<void>;
     /** Plays the current character's MMD list from item `start` (default 0); not on onboarding. */ playPlaylist(o?: { start?: number }): Promise<PlaylistPlayResult>;
     stopPlaylist(): Promise<{ ok: true }>; playlistState(): Promise<PlaylistState>;
-    presentation: { get(): Promise<unknown>; set(value: unknown): Promise<void> };
     /** The character page's live preview, drawn by the shell over the page; main surface only. */
     preview: {
       /** Places or moves it and plays `action`; true once the character is drawn there, false where the shell has no live preview. */

@@ -56,7 +56,7 @@ async function openWintextConfirm(page: Page) {
   return { sw, dialog };
 }
 
-test('settings: Tab and Shift+Tab stay inside the danger confirm', async ({ page, browserName }) => {
+test('settings: Tab and Shift+Tab stay inside the danger confirm', async ({ page }) => {
   // Product bug: WebKit skips buttons on Tab, so focus leaves the two-button dialog for <body>.
   const errors = collectErrors(page);
   const { dialog } = await openWintextConfirm(page);
@@ -76,7 +76,7 @@ test('settings: Esc closes the danger confirm and keeps the switch on', async ({
   expect(errors).toEqual([]);
 });
 
-test('settings: Esc returns focus to the switch that opened the confirm', async ({ page, browserName }) => {
+test('settings: Esc returns focus to the switch that opened the confirm', async ({ page }) => {
   // Product bug: a WebKit click does not focus the button, so Modal restores focus to <body>.
   const errors = collectErrors(page);
   const { sw, dialog } = await openWintextConfirm(page);

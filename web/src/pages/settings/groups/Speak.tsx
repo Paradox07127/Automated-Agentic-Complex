@@ -17,7 +17,6 @@ import { labelOf, useRowShown } from '../registry';
 import { SetRow } from '../SetRow';
 import { SetSection } from '../SetSection';
 import { Slab } from '../Slab';
-import { MUTED_KIND } from './GateBlocked';
 import { QuietHoursRow, useProactiveSettings } from './SpeakCompanion';
 import { SILENT_LEVEL, SpeakWhenRow } from './SpeakWhen';
 import styles from '../groups.module.css';
@@ -29,6 +28,19 @@ const NOTIFY: Array<[id: string, label: string, note: string]> = [
   ['n_brief', '简短播报', '进度摘要播报'],
   ['n_remind', '提醒', '已设定的提醒事项'],
 ];
+
+/** The proactive kinds agentd may mute (proactive.py `MUTABLE`). */
+const MUTED_KIND: Record<string, string> = {
+  comment: '长时间注视同一窗口时发起提醒',
+  back: '返回电脑时汇报期间摘要',
+  break: '休息提醒',
+  water: '饮水提醒',
+  stuck: '检测到操作受阻时主动询问',
+  thought: '关联思考提示',
+  session: '会话异常时通知',
+  task: '任务中止时通知',
+  repeat: '检测到重复操作时建议创建定时任务',
+};
 
 export const VOICE_TONE: Record<VoiceState, VisualStateKey> = { ready: 'ok', unknown: 'idle', probing: 'waiting', cold: 'waiting', unreachable: 'broken', off: 'stopped' };
 

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PreviewPlacement } from '../../src/bridge';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge } from '../../src/bridge/protocol';
-import { CHARACTER_LOOKS, NOW } from '../../src/mock/fixtures';
+import { CHARACTER_LOOKS } from '../../src/mock/fixtures';
 import { MOTIONS, STATE_WITH_CAUSES } from '../../src/mock/character';
 import { Operator } from '../../src/pages/character/Operator';
 

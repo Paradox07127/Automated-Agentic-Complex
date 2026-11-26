@@ -74,7 +74,6 @@ export function NodeChain({ nodes, label, segments, size = 'main', category, rec
       <ol className={styles.chain} {...named}>
         {nodes.map((n, i) => {
           const st = states[i] ?? n.state;
-          const v = stateVisual(st);
           const wait = n.waiting || st === 'waiting';
           const sub = subOf(n, st);
           const seg = i > 0 ? segments?.[i - 1] : undefined;

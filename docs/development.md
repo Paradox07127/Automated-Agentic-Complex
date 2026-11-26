@@ -240,4 +240,4 @@ python3 -I tools/release/dev_deploy.py all      # 两样都做
 
 关闭：从 `config.json` 删掉 `dev_resources`，重启 App 一次，就回到 App 自带的网页和 agentd。
 
-这些改动仍要重新打包：Electron 外壳、helper、Metal 渲染、预览服务、`Info.plist`，以及 agentd 新增的 Python 依赖（开发部署只换代码，不换 App 自带的 Python 环境）。
+这些改动仍要重新打包：Electron 外壳、helper、Metal 渲染、`Info.plist`，以及 agentd 新增的 Python 依赖（开发部署只换代码，不换 App 自带的 Python 环境）。

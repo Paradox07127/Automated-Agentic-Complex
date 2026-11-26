@@ -542,7 +542,7 @@ describe('wheel actions', () => {
 });
 
 describe('快速输入 under the bubble', () => {
-  async function openInput(bridge: AgenticComplexBridge) {
+  async function openInput() {
     mount('#/bubble?mode=input&still=1');
     const box = await screen.findByRole('textbox');
     fireEvent.change(box, { target: { value: '你好' } });
@@ -553,7 +553,7 @@ describe('快速输入 under the bubble', () => {
     const bridge = stackBridge();
     const request = vi.spyOn(bridge.agentd, 'request');
     const say = vi.spyOn(bridge.desktop, 'say');
-    const box = await openInput(bridge);
+    const box = await openInput();
     await flush(async () => fireEvent.keyDown(box, { key: 'Enter' }));
     expect(say).toHaveBeenCalledWith({ text: '你好', attachWindow: false, noMemory: false, surface: 'quick_input' });
     expect((await screen.findByRole('status')).textContent).toBe('你：你好');
@@ -565,7 +565,7 @@ describe('快速输入 under the bubble', () => {
   it('⏎ while an input method composes does not send', async () => {
     const bridge = stackBridge();
     const say = vi.spyOn(bridge.desktop, 'say');
-    const box = await openInput(bridge);
+    const box = await openInput();
     fireEvent.compositionStart(box);
     fireEvent.keyDown(box, { key: 'Enter' });
     fireEvent.keyDown(box, { key: 'Enter', isComposing: true });
@@ -581,7 +581,7 @@ describe('快速输入 under the bubble', () => {
   it('the echo stays 2 s, then the input folds and native gets the key back', async () => {
     const bridge = stackBridge();
     const releaseKey = vi.spyOn(bridge.window, 'releaseKey');
-    const box = await openInput(bridge);
+    const box = await openInput();
     await flush(async () => fireEvent.keyDown(box, { key: 'Enter' }));
     await screen.findByText('你好');
     const shown = Date.now();
@@ -595,7 +595,7 @@ describe('快速输入 under the bubble', () => {
     const bridge = stackBridge();
     vi.spyOn(bridge.desktop, 'say').mockResolvedValue({ ok: false, reason: 'agentd' });
     const restart = vi.spyOn(bridge.supervisor, 'restart').mockResolvedValue();
-    const box = await openInput(bridge);
+    const box = await openInput();
     await flush(async () => fireEvent.keyDown(box, { key: 'Enter' }));
     expect((await screen.findByRole('alert')).textContent).toContain('已保留输入内容');
     expect(box.value).toBe('你好');
@@ -607,7 +607,7 @@ describe('快速输入 under the bubble', () => {
   it('a kernel failure offers 重新检测, which sends the kept text again', async () => {
     const bridge = stackBridge();
     const say = vi.spyOn(bridge.desktop, 'say').mockResolvedValue({ ok: false, reason: 'kernel' });
-    const box = await openInput(bridge);
+    const box = await openInput();
     await flush(async () => fireEvent.keyDown(box, { key: 'Enter' }));
     await flush(async () => fireEvent.click(await screen.findByRole('button', { name: /重试发送/ })));
     expect(say).toHaveBeenCalledTimes(2);

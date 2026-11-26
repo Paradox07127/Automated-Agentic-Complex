@@ -79,12 +79,6 @@ def interp_bytes(x=(20, 20, 107, 107), y=None, z=None, r=None):
 LINEAR = interp_bytes()
 
 
-def interp_points(interp):
-    """(4, 4) array: rows X, Y, Z, R; columns x1, y1, x2, y2 (bytes [c, c+4, c+8, c+12])."""
-    b = np.frombuffer(bytes(interp[:16]), np.uint8).astype(float)
-    return b.reshape(4, 4).T
-
-
 def bezier(t, cp):
     """MMD bezier easing: solve x(s) = t on the curve (0,0),(x1,y1),(x2,y2),(1,1), return y(s).
     cp is (..., 4); its leading axes broadcast against t."""

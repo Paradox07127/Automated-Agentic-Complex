@@ -273,7 +273,7 @@ export function ModSettings({ character, appearance, settings, ro, toast }: ModS
               actions={<WhiteCapsule label="恢复默认" icon="refresh" disabled={off || changed === 0} disabledReason={changed ? '' : '已是默认'} onClick={() => reset(g.title, g.rows, `group:${g.category}`)} />}
             />
             {failBar(`group:${g.category}`)}
-            {g.rows.map((s, i) => {
+            {g.rows.map((s) => {
               const note = mark?.notes[s.id];
               const was = before[s.id];
               const busy = run?.ids.includes(s.id);

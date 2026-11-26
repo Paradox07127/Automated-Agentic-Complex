@@ -1,6 +1,7 @@
 """Original-rig math and compact GLB export for the local and remote experiment."""
 from pathlib import Path
-import copy,hashlib,json
+import hashlib
+import json
 import numpy as np
 from . import rotation
 
@@ -46,10 +47,6 @@ def swing(a,b):
     return np.eye(3)+k+k@k/max(1+c,1e-12)
 def basis(right,up):
     x=unit(right);y=unit(up-x*np.dot(up,x));return np.stack([x,y,np.cross(x,y)],axis=1)
-def blend_rot(a,b,w):
-    if w<=0:return a
-    if w>=1:return b
-    return rotation.slerp(a,b,w)
 def ease(x):
     x=np.clip(x,0,1);return x*x*x*(10+x*(-15+6*x))
 
@@ -85,13 +82,6 @@ class Rig:
         self.set_world_rotation(q,t,a,newA);self.set_world_rotation(q,t,b,newB)
         if endR is not None:self.set_world_rotation(q,t,c,endR)
         return max(0,rawdist-l1-l2)
-    def follow_twists(self,q,t):
-        w=self.fk(q,t);r=self.rotations(w)
-        targets={j:r[b]@self.restR[b].T@self.restR[j] for j,b in self.twists.items()}
-        for j in self.order:
-            p=self.parent[j];pw=np.eye(4) if p<0 else w[p]
-            if j in targets:q[j]=rotation.from_matrix(np.linalg.inv(pw[:3,:3])@targets[j])
-            m=np.eye(4);m[:3,:3]=rotation.as_matrix(q[j])*self.s[j][None,:];m[:3,3]=t[j];w[j]=pw@m
     def finger(self,side,n):
         """Finger n's (0 thumb .. 4 little) joint nodes from the hand out and its tip node, None for each the rig lacks;
         without a named tip, the last joint's first child."""

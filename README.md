@@ -16,7 +16,7 @@
 **Agentic Complex**（仓库目录名 `Endfield`）是一个桌面角色与个人智能体实验应用，也是面向桌面角色包的开发框架：它在桌面上渲染兼容格式的角色包，并为每个角色内置一个可切换内核的个人智能体，可进行文字/语音对话、任务执行、记忆管理，并在用户授权后感知桌面活动。
 
 - **主平台**：Apple Silicon Mac（macOS 15 及以上），使用 Electron 应用宿主 + 原生 Metal 渲染器 + Swift 平台 Helper。
-- **Windows x64（开发中 / 实验性）**：Vulkan 渲染器（`efw.exe`）、Windows Helper（`ac-helper.exe`）与便携版打包正在积极开发中，尚未达到功能完整（例如按住说话与角色页实时预览暂未实现）。
+- **Windows x64（开发中 / 实验性）**：Vulkan 渲染器（`efw.exe`）、Windows Helper（`ac-helper.exe`）与便携版打包正在积极开发中，尚未达到功能完整。
 - **资产与同人声明**：本仓库不包含任何游戏本体素材与发行用角色库；公开构建配置仅提供纯文字示例角色「助手」（`aide`）。详见文末[非官方同人声明](#非官方同人声明)。
 
 ## 核心功能
@@ -66,7 +66,7 @@
 - **`web/`（React + TypeScript 网页 UI）**：控制面板（`main.html`）与桌面浮窗栈（`stack.html`）；
 - **`app/helpers/mac` & `app/helpers/windows`（平台 Helper）**：`ac-helper` 原生进程（C12 协议），提供系统权限、窗口/AX 读数、截图、OCR 与按住说话按键；
 - **`agent/agentd`（Python 守护进程）**：负责角色主会话、可替换 Harness（Pi / Codex / Claude Code / ACP）、记忆、观察理解、工具网关与 C1/C2/C6/C9 接口；
-- **渲染器组件**：macOS Metal 宿主（`metal-avatar-host` + XPC 预览服务）与开发中的 Windows Vulkan 渲染器（`efw.exe`）。源码不在公开仓库，只随发行版的 `Agentic Complex.app` 提供；从公开仓库构建时角色只显示文字；
+- **渲染器组件**：macOS Metal 宿主（`metal-avatar-host`）与开发中的 Windows Vulkan 渲染器（`efw.exe`）。源码不在公开仓库，只随发行版的 `Agentic Complex.app` 提供；从公开仓库构建时角色只显示文字；
 - **`characters/`、`voice/`、`motion/`、`protocol/`、`tools/`**：角色包与动作构建工具、外部 TTS 服务、外部动作生成服务、跨进程协议契约与开发/测试/打包工具。
 
 ## 快捷键
@@ -141,7 +141,6 @@ python3 -I tools/dev/dev_console.py --release-renderer
 - agentd 端口固定是 `48790`，开发面板没有改端口的参数。公开检出里开发面板默认读示例角色库 `characters/sample-library/`（纯文字角色「助手」`aide`）；`--catalog <current.json>` 换成别的角色库。
 - 接模型：开发版第一次启动会打开「首次设置」向导，可以先关闭。然后二选一：在「设置 › 内核」填写 API Key 或登录；或者先在终端运行 `codex login`，再在「设置 › 内核」改选 Codex。未配置模型服务时，对话会返回 `pi_connection_missing`。
 - 默认附带 `--no-push-to-talk --no-attention` 参数以避免开发时干扰全局快捷键与采样，可在控制台 UI 或命令行后追加其他应用宿主参数。
-- 注意：直接从 `node_modules` 启动 Electron 时没有 XPC 预览服务，控制面板「角色」页的 3D 预览会退回静态立绘。
 
 ### 3. Dev 版本部署到已安装的 `Agentic Complex.app`（`dev_deploy.py`，macOS）
 
@@ -162,7 +161,7 @@ python3 -I tools/dev/dev_console.py --release-renderer
    ```
 
 3. **热重载机制**：`dev_deploy.py` 会将产物写入 `.local/dev-runtime/<UTC时间>-<提交>[-dirty]/` 并原子切换 `current` 软链；运行中的 Electron 应用宿主监听 `dev_resources` 的父目录变化后，会读取 `dev-receipt.json`：`web` 重载网页面板，`agentd` 重启 `agentd`，`all` 两者都做。可在主窗口「诊断」页检查当前运行来源是否显示为「开发目录 │ 提交号」。
-4. **局限与关闭**：Electron 主进程/preload、`ac-helper`、Metal 渲染器、XPC 预览服务、`Info.plist` 或新增 Python 依赖的改动仍需重新打包 `.app`；从 `config.json` 删除 `dev_resources` 并重启 App 即可恢复使用包内自带资源。更多细节见[开发与发行 · 开发部署](docs/development.md#开发部署)。
+4. **局限与关闭**：Electron 主进程/preload、`ac-helper`、Metal 渲染器、`Info.plist` 或新增 Python 依赖的改动仍需重新打包 `.app`；从 `config.json` 删除 `dev_resources` 并重启 App 即可恢复使用包内自带资源。更多细节见[开发与发行 · 开发部署](docs/development.md#开发部署)。
 
 ### 4. 仅调试网页前端（Fake Bridge）
 

@@ -17,7 +17,7 @@ export const readFail = (e: unknown): string => {
 
 export function useCharSettings(enabled = true) {
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: KEY, queryFn: () => loadNative(getBridge(), null), enabled });
+  const q = useQuery({ queryKey: KEY, queryFn: () => loadNative(getBridge()), enabled });
   // A menu changed config.json (e.g. 自由活动 flips beh.stay): read it again.
   useEffect(() => getBridge().settings.onChange(() => void qc.invalidateQueries({ queryKey: KEY })), [qc]);
   /** After a save: the written values become the read. */

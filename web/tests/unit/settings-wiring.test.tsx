@@ -23,7 +23,6 @@ import { SpeakGroup } from '../../src/pages/settings/groups/Speak';
 import { TtsSecretRows } from '../../src/pages/settings/groups/SpeakService';
 import { useSettingsModel, type ModelInit } from '../../src/pages/settings/model';
 import type { Native } from '../../src/pages/settings/native';
-import { searchSettings } from '../../src/pages/settings/registry';
 import type { WireBlacklist, WireDiagSlice, WireModelSettings, WireScope } from '../../src/pages/settings/wire';
 import { setPlugins } from '../../src/shell/plugins';
 import { pluginsOn, pluginsReset } from './plugins';
@@ -119,11 +118,6 @@ afterEach(() => {
 
 const click = (el: Element) => act(async () => void fireEvent.click(el));
 const sent = (method: string, path: string) => request.mock.calls.find((c) => c[0] === method && c[1] === path)?.[2];
-const pick = async (select: string, option: string) => {
-  await click(screen.getByRole('button', { name: select }));
-  await click(screen.getByRole('option', { name: option }));
-};
-
 describe('native rows (settings.schema / read / save)', () => {
   it('shows the schema options and saves the option value, not the label', async () => {
     const save = vi.spyOn(window.agenticComplex!.settings, 'save');

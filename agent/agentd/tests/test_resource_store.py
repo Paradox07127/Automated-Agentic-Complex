@@ -7,8 +7,6 @@ from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from resource_store import ResourceRepository, clone_or_copy, link_or_copy
-from character_library import Library, materialize_library, write_json
-from test_character_library import fixture
 
 
 def ref(data):return dict(sha256=hashlib.sha256(data).hexdigest(),byte_count=len(data))
@@ -74,17 +72,5 @@ class ResourceStoreTests(unittest.TestCase):
             clone_or_copy(source,root/'view');(root/'view').write_bytes(b'rebased')
             self.assertEqual(source.read_bytes(),b'json')
             self.assertEqual(source.stat().st_mode & 0o777,0o444)
-
-    def test_selected_snapshot_excludes_history_and_retains_exact_manifests(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root=Path(tmp);source=root/'role';fixture(source,'one')
-            library=Library(root/'library');library.install(source)
-            write_json(library.root/'unrelated-history.json',{'not':'a seed input'})
-            result=materialize_library(library.root/'current.json',root/'output')
-            self.assertEqual((root/'output/current.json').read_bytes(),(library.root/'current.json').read_bytes())
-            self.assertFalse((root/'output/unrelated-history.json').exists())
-            self.assertEqual(Library(root/'output').packages()[0].sha256,library.packages()[0].sha256)
-            self.assertGreater(result['cloned']+result['copied'],0)
-
 
 if __name__=='__main__':unittest.main()

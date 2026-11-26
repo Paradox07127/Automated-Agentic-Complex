@@ -7,8 +7,6 @@ import type { Pt } from '../../ui/game/Slab';
 export const STAGE = { w: 960, h: 540 } as const;
 /** Centre of every ring and of the map disc. */
 export const C = { x: 480, y: 270 } as const;
-/** The map disc: RADIUS 400 game px. */
-export const DISC_R = 200;
 
 export interface Box {
   left: number;

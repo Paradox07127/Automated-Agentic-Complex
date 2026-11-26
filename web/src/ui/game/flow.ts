@@ -23,7 +23,7 @@ function curve(spine: readonly Pt[], per: number): Pt[] {
  */
 export function flow(spine: readonly Pt[], n: number, gap: number, swell: number, seed: number): string[] {
   const pts = curve(spine, 12);
-  const normals = pts.map((q, i) => {
+  const normals = pts.map((_, i) => {
     const [a, b] = [pts[Math.max(0, i - 1)]!, pts[Math.min(pts.length - 1, i + 1)]!];
     const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
     return [-(b[1] - a[1]) / len, (b[0] - a[0]) / len] as const;

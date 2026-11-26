@@ -1,8 +1,7 @@
 // Task board: one card per role task or coding session of today, from the task view and `/day/segments`.
 import { useQuery } from '@tanstack/react-query';
 import { get } from '../../bridge/agentd';
-import type { GanttRow } from '../../charts';
-import { formatDuration, secToMs, secToMsOrNull, type RunState, type Task } from '../../domain';
+import { formatDuration, secToMs, secToMsOrNull, type Task } from '../../domain';
 import { pendingOf, type TasksView } from './model';
 
 /** day_summary.py ledger session row (epoch seconds). */
@@ -84,9 +83,6 @@ export type CardTool = 'claude' | 'codex' | 'role';
 export type CardStatus = 'wait' | 'err' | 'tool' | 'think' | 'idle' | 'done';
 
 export const TOOL_LABEL: Record<CardTool, string> = { claude: 'Claude Code', codex: 'Codex', role: '角色任务' };
-
-/** RunRing state per card status. */
-export const RING: Record<CardStatus, RunState> = { wait: 'awaiting_approval', err: 'error', tool: 'running_tool', think: 'thinking', idle: 'idle', done: 'succeeded' };
 
 export interface BoardCard {
   id: string;
@@ -199,42 +195,3 @@ const ORDER: Record<CardStatus, number> = { wait: 0, err: 1, tool: 2, think: 3, 
 
 /** Waiting and failed first, then running, idle and finished; newest first within each. */
 export const sortCards = (cards: readonly BoardCard[]) => [...cards].sort((a, b) => ORDER[a.status] - ORDER[b.status] || b.first - a.first);
-
-/** Gantt states; greys for work, colour only for waiting and failure. */
-export const GANTT_STATES = {
-  live: { color: 'var(--ef-ink-s1)', label: '进行中' },
-  tool: { color: 'var(--ef-ink-s1)', label: '工具执行中' },
-  think: { color: 'var(--ef-ink-s2)', label: '思考' },
-  wait: { color: 'var(--ef-attention)', label: '待批准' },
-  review: { color: 'var(--ef-attention)', label: '待复核' },
-  idle: { color: 'var(--ef-ink-s3)', label: '空闲' },
-  done: { color: 'var(--ef-ink-s3)', label: '完成' },
-  err: { color: 'var(--ef-danger)', label: '出错' },
-} as const;
-
-/** State history of a card; only the fake bridge's `full` demo has one. */
-export interface CardHistory {
-  segs: Array<[number, CardStatus]>;
-  marks: GanttRow['marks'];
-  tools?: Array<[string, number, number]>;
-}
-
-const rowLabel = (c: BoardCard) => (c.tool === 'role' ? `角色 │ ${c.title}` : `${(c.dir ?? '').split('/').pop() || '会话'} │ ${TOOL_LABEL[c.tool]}`);
-
-/** One Gantt row per card: its history when known, else one bar from start to end in its current state. */
-export function ganttRow(c: BoardCard, history: CardHistory | undefined, main: boolean): GanttRow {
-  const review = (s: CardStatus) => (s === 'wait' && c.tool === 'role' ? 'review' : s);
-  // Without the history only the start, the end and the current wait or idle are known.
-  const known = c.last != null ? [{ t0: c.first, t1: c.last, state: c.status }] : c.since != null && c.since > c.first ? [{ t0: c.first, t1: c.since, state: 'live' }, { t0: c.since, t1: null, state: review(c.status) }] : [{ t0: c.first, t1: null, state: c.status === 'wait' ? review(c.status) : 'live' }];
-  const segs = history ? history.segs.map(([t0, s], i) => ({ t0, t1: history.segs[i + 1]?.[0] ?? c.last, state: review(s), label: c.title })) : known.map((x) => ({ ...x, label: c.title }));
-  // Gate failures and blocks show only in the detail sheet; the main chart marks the waits.
-  const marks = history ? history.marks : c.gate && !c.gate.passed ? [{ t: c.gate.at, kind: 'gate-fail' as const, label: '门禁失败' }] : [];
-  const waits = history ? history.segs.filter(([, s]) => s === 'wait').map(([t]) => t) : c.status === 'wait' && c.since != null ? [c.since] : [];
-  const label = c.tool === 'role' ? '待复核' : '待批准';
-  return { id: c.id, label: rowLabel(c), segs, marks: main ? waits.map((t) => ({ t, kind: 'diamond' as const, label })) : marks };
-}
-
-/** Only the states the rows use, so the legend lists nothing absent. */
-export function statesOf(rows: readonly GanttRow[]) {
-  return Object.fromEntries(Object.entries(GANTT_STATES).filter(([k]) => rows.some((r) => r.segs.some((s) => s.state === k))));
-}

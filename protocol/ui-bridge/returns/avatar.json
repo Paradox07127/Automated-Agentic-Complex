@@ -100,11 +100,6 @@
     }
   },
   {
-    "op": "avatar.presentation.get",
-    "surface": "stack",
-    "value": null
-  },
-  {
     "op": "avatar.preview.show",
     "surface": "main",
     "args": [

@@ -4,8 +4,6 @@ from .io import Pmd, PmdBone, PmdIK
 FINGER_LAYOUT = {  # base offset (along forearm f, along index-side a, along palmar n) and joint spacings
     '人指': ((0.95, 0.32, 0.0), (0.42, 0.30)), '中指': ((1.0, 0.08, 0.0), (0.46, 0.32)),
     '薬指': ((0.95, -0.15, 0.0), (0.42, 0.30)), '小指': ((0.85, -0.36, 0.0), (0.32, 0.24))}
-CURL_DEG = {'１': 70, '２': 95, '３': 65}
-THUMB_CURL_DEG = {'１': 35, '２': 50}
 
 
 def unit(v):
@@ -15,10 +13,6 @@ def unit(v):
 
 def mirror_pos(p):
     return np.asarray(p, float) * [-1, 1, 1]
-
-
-def mirror_quat(q):
-    return np.asarray(q, float) * [1, -1, -1, 1]
 
 
 def rh_bones():

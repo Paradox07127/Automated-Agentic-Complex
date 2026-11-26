@@ -278,7 +278,7 @@
     "btn": 1
   },
   "src/pages/mmd/Page.module.css": {
-    "color": 12
+    "color": 11
   },
   "src/pages/mmd/Page.tsx": {
     "btn": 1
@@ -350,7 +350,7 @@
     "fontPx": 4
   },
   "src/pages/overview/RunningSection.module.css": {
-    "fontPx": 3
+    "fontPx": 2
   },
   "src/pages/overview/RunningSection.tsx": {
     "btn": 1

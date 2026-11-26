@@ -65,7 +65,6 @@ export class DesktopPanel implements FollowPanel {
   onResetOffset: () => void = () => {};
   private readonly o: PanelOptions;
   private win: BrowserWindow | null = null;
-  private page: PageSession | null = null;
   private preferredSize: { w: number; h: number } | null = null;
   private regions: Region[] = [];
   private glass: Rect[] = [];
@@ -128,7 +127,7 @@ export class DesktopPanel implements FollowPanel {
     if (this.win) return;
     const win = this.win = this.o.makeWindow();
     const contents = win.webContents, id = contents.id;
-    const page = this.page = new PageSession((sub, stream, kind, payload) => {
+    const page = new PageSession((sub, stream, kind, payload) => {
       if (!contents.isDestroyed()) contents.send('bridge:push', sub, stream, kind, payload);
     });
     this.o.register(contents, page);

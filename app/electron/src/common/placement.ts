@@ -109,12 +109,6 @@ export function windowTarget(positions: Positions, character: string, frame: Rec
   return defaultOrigin(frame, screens);
 }
 
-/** state.json `window_scale[character]`: the window viewport's last placement scale. */
-export function windowScale(state: Record<string, unknown>, character: string): number | null {
-  const v = isObject(state.window_scale) ? state.window_scale[character] : undefined;
-  return typeof v === 'number' ? v : null;
-}
-
 /** The character's last fullscreen display while it is connected, else `main`. */
 export function launchDisplay(state: Record<string, unknown>, character: string, connected: number[], main: number): number {
   const last = isObject(state.last_display) ? state.last_display[character] : undefined;

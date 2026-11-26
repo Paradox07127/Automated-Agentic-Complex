@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 
 // Diag process rows are read-only, trace turn rows are pressable; the first-run step cells and step card; nothing scrolls sideways at 900.
 

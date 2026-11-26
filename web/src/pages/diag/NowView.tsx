@@ -22,7 +22,7 @@ import { Overview, RestartAgentd, rowsOf, type DiagTab, type OverviewProps } fro
 import { Processes } from './Processes';
 import { renderWhy } from './renderWhy';
 import { overBudget, Resources } from './Resources';
-import { healthOf, issuesOf, processesOf, type ProcKey } from './status';
+import { healthOf, issuesOf, processesOf } from './status';
 import { UsageCard } from './UsageCard';
 import { clock, STATE_KEY, type DiagSnap, useAgentdRuntime, useDecisions, useDiagState, useDiagStream, useFailEvents, useRenderStats, useSideReads, useTurns } from './useDiag';
 import { CONFIRM, serviceSettings, useDiagActions, viewLogs, type RestartTarget } from './useDiagActions';

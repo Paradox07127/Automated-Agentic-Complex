@@ -34,7 +34,6 @@ const TABS = [
   { id: 'sched', label: '定时', icon: 'clock' as const },
   { id: 'done', label: '历史记录', icon: 'ok' as const },
 ];
-const ORDER: TasksTab[] = ['run', 'sched', 'done'];
 /** 已完成 shows this many more per 再往前. */
 const PAGE = 20;
 const TYPING = 'input, textarea, select, [contenteditable="true"]';

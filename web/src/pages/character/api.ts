@@ -16,7 +16,6 @@ import {
   type WireStatePoint,
   type WireTaskRow,
 } from '../../domain';
-import { demo } from './demoSlot';
 
 export type StateRange = '24h' | '7d';
 

@@ -13,7 +13,7 @@
 | `app/` | `electron/`（Electron 外壳：窗口、托盘、子进程监督、agentd 客户端、C3 连接、网页桥，见 [shell.md](shell.md)）、`helpers/mac`（Swift 写的平台 helper `ac-helper`，协议 C12）、`helpers/windows`（Windows 版 helper `ac-helper.exe`）；`Resources/`（`agentd_launcher.py` 进 agentd 组件，`parent_watch.py` 进 host 组件）；`packaging/`（发行配置 `release.json`）；发行入口 `build_app.sh`；门禁 `Tests/gate.sh` |
 | `web/` | React + TypeScript 网页 UI，在 Electron 外壳的窗口里跑，构建进 web-ui 组件，见 [web-ui.md](web-ui.md) |
 | `agent/` | `agentd/`（Python 角色 agent）、`browser/`（浏览器扩展与 native host）、`computer-control/`（computer use 的 MCP 桥说明与验收），见 [agentd](agentd.md) |
-| 渲染器（不在公开仓库） | macOS Metal 宿主 `metal-avatar-host`、XPC 预览服务和 Windows Vulkan 渲染器 `efw.exe`。源码是私有组件，只随发行版提供；外壳一端的预览客户端是 `app/electron/native/mac/preview.m`，和它的接口见 C1、C2、C3 |
+| 渲染器（不在公开仓库） | macOS Metal 宿主 `metal-avatar-host` 和 Windows Vulkan 渲染器 `efw.exe`。渲染器源码为私有组件，只随发行版提供。桌面渲染器向 Electron 的原生插件提供实时预览，macOS 使用 Mach 端口，Windows 使用命名管道。渲染器接口见 C1、C2、C3 |
 | `characters/` | 角色包工具：导入（`agentic_complex_build/`，入口 `build.py`）、原生包打包（`packaging/`）、纯文字样例角色 `sample-character/` 和样例库 `sample-library/`；角色包由外部工具生成，格式见 `protocol/character-library/CONTRACT.md`，见[角色包工具与动作生成](characters.md) |
 | `motion/` | 动作生成服务：按文字描述生成动作的 HTTP 服务，见[角色包工具与动作生成](characters.md#动作生成服务) |
 | `voice/` | TTS 服务代码（`tts-service/`，部署在 TTS 主机上），见[语音合成服务](voice.md)和[部署语音服务](../guides/tts-deploy.md) |

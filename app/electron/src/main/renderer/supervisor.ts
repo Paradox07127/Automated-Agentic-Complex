@@ -7,7 +7,7 @@ import { closeSync, existsSync, fchmodSync, fstatSync, mkdirSync, openSync, read
 import { constants } from 'node:os';
 import { join, resolve } from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
-import { Backoff, type ChildState, crashState, launchFailure, sameState, stateText } from '../../common/agentd.ts';
+import { Backoff, type ChildState, launchFailure, sameState, stateText } from '../../common/agentd.ts';
 import { rendererExit, rendererPreflight } from '../../common/components.ts';
 import type { Config, ShellPlatform } from '../../common/config.ts';
 import { modArgument, storedModSettings } from '../../common/looks.ts';

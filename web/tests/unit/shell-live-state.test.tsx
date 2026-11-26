@@ -5,7 +5,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AvatarState, ComputerUseState, AgenticComplexBridge } from '../../src/bridge/protocol';
-import { CHARACTER_LOOKS, NOW } from '../../src/mock/fixtures';
+import { CHARACTER_LOOKS } from '../../src/mock/fixtures';
 import { STATE_WITH_CAUSES } from '../../src/mock/character';
 import { Operator } from '../../src/pages/character/Operator';
 import { CmdPalette } from '../../src/shell/CmdPalette';

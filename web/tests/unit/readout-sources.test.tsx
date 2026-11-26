@@ -7,7 +7,6 @@ import { BarList, ChartState } from '../../src/charts';
 import type { Message } from '../../src/domain';
 import { FACTS, MESSAGES, NOW, pick, QUESTIONS, TOOL_ITEMS, TURNS } from '../../src/mock/fixtures';
 import { stackScenario } from '../../src/mock/stack';
-import { MessageList } from '../../src/pages/chat/MessageList';
 import { QuestionCard } from '../../src/pages/chat/QuestionCard';
 import { C1, Q1, T1 } from '../../src/mock/fixtures/ids';
 
@@ -19,12 +18,6 @@ afterEach(() => {
 
 const srcDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../src');
 const src = (p: string) => readFileSync(resolve(srcDir, p), 'utf8');
-function rule(css: string, selector: string): string {
-  const esc = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const m = new RegExp(`(^|\\n)${esc}\\s*\\{([^}]*)\\}`).exec(css);
-  if (!m?.[2]) throw new Error(`no rule ${selector}`);
-  return m[2];
-}
 
 const c1 = MESSAGES[C1] ?? [];
 

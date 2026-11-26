@@ -4,7 +4,6 @@ import { createMemoryHistory, createRootRoute, createRouter, RouterProvider, typ
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
-import type { AgentdResponse } from '../../src/bridge/protocol';
 import { WIRE_STATE_WITH_CAUSES } from '../../src/mock/character';
 import { CharacterPage } from '../../src/pages/character/Page';
 import { DiagPage } from '../../src/pages/diag/Page';

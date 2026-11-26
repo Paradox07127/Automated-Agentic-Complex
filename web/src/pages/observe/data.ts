@@ -224,11 +224,6 @@ export const FIELD_OF: Record<ExKind, BlacklistField> = {
   site: 'domains',
   title: 'title_patterns',
 };
-export const EX_KIND_LABEL: Record<ExKind, string> = {
-  app: '应用',
-  site: '网站',
-  title: '窗口标题含',
-};
 
 export function rulesOf(b: WireBlacklist | undefined): ExRule[] {
   if (!b) return [];

@@ -573,9 +573,6 @@ class AcpRunner(Runner):
                    "message": "ACP agent exited"})
         self._accept({"type": "close"})
 
-    async def prepare_query(self, message):
-        pass
-
     async def run(self, message):
         run = self.active
         run.update(text=[], text_items=[], bridge_calls=set(), tool_names={})

@@ -266,7 +266,7 @@ test('a load the transport cannot send fails at once with why', async () => {
 });
 
 /** Draws the current load's first frame. */
-async function draw(s: PreviewSession<string>, transport: FakeTransport, presenter: FakePresenter, loaded: Promise<void>) {
+async function draw(transport: FakeTransport, presenter: FakePresenter, loaded: Promise<void>) {
   transport.emit({ event: 'frame', load_id: transport.sent.filter((m) => m.load_id !== undefined).at(-1)!.load_id }, 'surface', 1);
   presenter.finish();
   await loaded;
@@ -278,13 +278,13 @@ test('a load answers for its own frame only: the load it replaced is rejected, n
   const b = s.load(selection({ request: 2 }));
   // The same selection again waits for its frame with it.
   const again = s.load(selection({ request: 2 }));
-  await draw(s, transport, presenter, b);
+  await draw(transport, presenter, b);
   await again;
   assert.equal(await a, '预览换成了新的请求');
   // A sequence a load replaces does not resolve on the load's frame.
   const chain = s.sequence(['think_start'], []).then(() => 'drawn', (e: Error) => e.message);
   const c = s.load(selection({ request: 3 }));
-  await draw(s, transport, presenter, c);
+  await draw(transport, presenter, c);
   assert.equal(await chain, '预览换成了新的请求');
   s.disconnect();
 });
@@ -297,7 +297,7 @@ test('a rebuild for new render arguments or output does not replay a drawn one-s
     s.load(selection({ clip: 'wave', request: 1 })).catch(() => {});
     const first = s.load(selection({ clip: 'wave', request: 1, output: [720, 864] }));
     assert.deepEqual(transport.sent.at(-1), load({ load_id: 2, clip: 'wave', output: [720, 864] }));
-    await draw(s, transport, presenter, first);
+    await draw(transport, presenter, first);
     s.load(selection({ clip: 'wave', request: 1, output: [960, 1152] })).catch(() => {});
     assert.deepEqual(transport.sent.at(-1), load({ load_id: 3, output: [960, 1152] }));
     s.load(selection({ clip: 'wave', request: 1, output: [960, 1152], renderArgs: ['--agentic-complex-outline', 'subtle'] })).catch(() => {});
@@ -309,11 +309,11 @@ test('a rebuild for new render arguments or output does not replay a drawn one-s
   }
   {
     const { s, transport, presenter } = session();
-    await draw(s, transport, presenter, s.load(selection({ clip: 'wave', loop: true, request: 1 })));
+    await draw(transport, presenter, s.load(selection({ clip: 'wave', loop: true, request: 1 })));
     const rebuilt = s.load(selection({ clip: 'wave', loop: true, request: 1, output: [720, 864] }));
     assert.deepEqual(transport.sent.at(-1), load({ load_id: 2, clip: 'wave', loop: true, output: [720, 864] }));
-    await draw(s, transport, presenter, rebuilt);
-    await draw(s, transport, presenter, s.sequence(['think_start', 'idle_loop'], [0.25]));
+    await draw(transport, presenter, rebuilt);
+    await draw(transport, presenter, s.sequence(['think_start', 'idle_loop'], [0.25]));
     s.load(selection({ clip: 'wave', loop: true, request: 1, output: [960, 1152] })).catch(() => {});
     assert.deepEqual(transport.sent.at(-1), load({ load_id: 4, output: [960, 1152] }));
     s.disconnect();
@@ -322,7 +322,7 @@ test('a rebuild for new render arguments or output does not replay a drawn one-s
 
 test('a sequence the transport cannot send fails at once with why', async () => {
   const { s, transport, presenter } = session(2000);
-  await draw(s, transport, presenter, s.load(selection()));
+  await draw(transport, presenter, s.load(selection()));
   transport.send = (json: string) => { transport.sent.push(JSON.parse(json) as Message); return false; };
   const started = performance.now();
   await assert.rejects(s.sequence(['think_start'], []), new PreviewFailure('预览请求发不出去（太大或连接已断）'));
@@ -332,8 +332,8 @@ test('a sequence the transport cannot send fails at once with why', async () => 
 
 test('after a sequence over a loop, every later rebuild of the same playback stays her idle', async () => {
   const { s, transport, presenter } = session();
-  await draw(s, transport, presenter, s.load(selection({ clip: 'wave', loop: true, request: 1 })));
-  await draw(s, transport, presenter, s.sequence(['think_start', 'idle_loop'], [0.25]));
+  await draw(transport, presenter, s.load(selection({ clip: 'wave', loop: true, request: 1 })));
+  await draw(transport, presenter, s.sequence(['think_start', 'idle_loop'], [0.25]));
   s.load(selection({ clip: 'wave', loop: true, request: 1, output: [720, 864] })).catch(() => {});
   assert.equal(transport.sent.at(-1)?.clip, undefined);
   s.load(selection({ clip: 'wave', loop: true, request: 1, output: [960, 1152] })).catch(() => {});
@@ -353,12 +353,12 @@ test('a load that builds anew reports its progress, loaded as 0.95 and null once
   assert.equal(presenter.clears, 1, 'once per load');
   transport.emit({ event: 'loaded', load_id: 1, character: 'si', clip: null });
   assert.deepEqual(progress, [0.05, 0.6, 0.85, 0.95]);
-  await draw(s, transport, presenter, loaded);
+  await draw(transport, presenter, loaded);
   assert.deepEqual(progress, [0.05, 0.6, 0.85, 0.95, null], 'the first frame ends it');
   // Only the clip changes: no progress, no clear; the old frame stays until the new clip's.
   const clip = s.load(selection({ clip: 'wave' }));
   transport.emit({ event: 'loaded', load_id: 2, character: 'si', clip: 'wave' });
-  await draw(s, transport, presenter, clip);
+  await draw(transport, presenter, clip);
   assert.equal(progress.length, 5);
   assert.equal(presenter.clears, 1);
   // A full load that a newer one replaces, or that fails, ends its progress undrawn.

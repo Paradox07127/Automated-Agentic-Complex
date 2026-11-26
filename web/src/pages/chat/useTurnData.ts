@@ -2,12 +2,12 @@
 // version), one turn's events, and the facts whose recent uses name the turn. Demos `full` and `sparse` read the
 // prototype data on the fake bridge instead.
 import { useQuery } from '@tanstack/react-query';
-import { get, seg } from '../../bridge/agentd';
-import { isoToMs, isoWithOffset } from '../../domain';
+import { get } from '../../bridge/agentd';
+import { isoWithOffset } from '../../domain';
 import type { WireTraceTurn } from '../../domain/wire';
 import { demo as slot } from './demoSlot';
 import type { ChatDemoSource, DemoFact } from './demoTypes';
-import { buildTurnTrace, type TiMem, type TraceEvent, type TurnTrace } from './turnTrace';
+import type { TiMem } from './turnTrace';
 import { clock } from './useChatData';
 
 const HOUR_MS = 3_600_000;
@@ -33,18 +33,6 @@ export function useTraceRows(enabled: boolean, src: ChatDemoSource | null) {
     retry: false,
     staleTime: 30_000,
   });
-}
-
-/** Turns per hour over the 24 h ending at `now`, oldest first, by conversation; rows without one are skipped. */
-export function hourlyOf(rows: Iterable<WireTraceTurn>, now: number): Record<string, number[]> {
-  const out: Record<string, number[]> = {};
-  for (const r of rows) {
-    const h = Math.floor((now - isoToMs(r.started_at)) / HOUR_MS);
-    if (!r.conversation_id || h < 0 || h >= 24) continue;
-    const row = (out[r.conversation_id] ??= Array.from({ length: 24 }, () => 0));
-    row[23 - h] = (row[23 - h] ?? 0) + 1;
-  }
-  return out;
 }
 
 /** A saved link can name a turn outside the recent list. Ask the store for that exact row. */
@@ -83,18 +71,4 @@ export function learnedOf(src: ChatDemoSource | null, turnId: string): TiMem[] {
     const f = src.facts.find((x) => x.fact_id === id);
     return f ? [{ id: f.fact_id, text: f.text }] : [];
   });
-}
-
-/** One turn for the inspector: its row, events and facts. */
-export function useTurnTrace(row: WireTraceTurn | null, no: number, mems: TiMem[], src: ChatDemoSource | null) {
-  const q = useQuery({
-    queryKey: ['chat-turn-events', row?.trace_id ?? null, src ? 'demo' : 'live'],
-    queryFn: async (): Promise<{ events: TraceEvent[]; skew_ms?: Record<string, number> }> => src ? { events: src.events[row?.trace_id ?? ''] ?? [] } : get(`/trace/turns/${seg(row?.trace_id ?? '')}`),
-    enabled: row != null,
-    retry: false,
-    staleTime: 3_000,
-    refetchInterval: row?.result === 'open' ? 3_000 : false,
-  });
-  const trace: TurnTrace | null = row && q.data ? buildTurnTrace({ no, row, events: q.data.events, skew: q.data.skew_ms ?? {}, mems, learned: learnedOf(src, row.turn_id) }) : null;
-  return { query: q, trace };
 }

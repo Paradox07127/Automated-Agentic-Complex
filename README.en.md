@@ -16,7 +16,7 @@
 **Agentic Complex** (repository directory `Endfield`) is an experimental desktop character app and character-package development framework. It renders compatible character packages on the desktop and embeds a personal agent with switchable execution kernels for text/voice conversation, task execution, memory management, and optional desktop awareness.
 
 - **Primary platform**: Apple Silicon Mac (macOS 15 or later), built with an Electron host, a native Swift Metal renderer, and a Swift platform helper.
-- **Windows x64 (WIP / Experimental)**: A Vulkan renderer (`efw.exe`), Windows helper (`ac-helper.exe`), and Velopack installer/portable packaging (`vpk pack`) are under active development and not yet feature-complete (for example, push-to-talk and live 3D character-page previews are not implemented yet).
+- **Windows x64 (WIP / Experimental)**: A Vulkan renderer (`efw.exe`), Windows helper (`ac-helper.exe`), and Velopack installer/portable packaging (`vpk pack`) are under active development and not yet feature-complete.
 - **Assets & fan notice**: This repository ships no game assets or release character library; the public profile ships no characters and provides only a text-only example character, `aide`, under `characters/sample-library/` for testing and learning. See the [unofficial fan project notice](#unofficial-fan-project-notice) below.
 
 ## Features
@@ -66,7 +66,7 @@ The app coordinates multiple processes across well-defined contracts (see [Repos
 - **`web/`**: React + TypeScript UI for the main control panel (`main.html`) and floating desktop stack (`stack.html`);
 - **`app/helpers/mac` & `app/helpers/windows`**: Native platform helper `ac-helper` (protocol C12) for permissions, window/AX readings, screen capture, OCR, and push-to-talk;
 - **`agent/agentd`**: Python 3.12 daemon managing character sessions, replaceable harnesses (Pi / Codex / Claude Code / ACP), memory, observation, tool gateway, and C1/C2/C6/C9 endpoints;
-- **Renderer component**: the macOS Metal host (`metal-avatar-host` + XPC preview service) and the WIP Windows Vulkan renderer (`efw.exe`). Its source is not in the public repository; it ships only inside the released `Agentic Complex.app`, and a build from the public repository shows characters as text only;
+- **Renderer component**: the macOS Metal host (`metal-avatar-host`) and the WIP Windows Vulkan renderer (`efw.exe`). Its source is not in the public repository; it ships only inside the released `Agentic Complex.app`, and a build from the public repository shows characters as text only;
 - **`characters/`, `voice/`, `motion/`, `protocol/`, `tools/`**: Character/motion build pipelines, external TTS & motion generation services, inter-process contracts, and dev/QA/release tooling.
 
 ## Shortcuts
@@ -141,7 +141,6 @@ Open **`http://127.0.0.1:48780/`** in your browser to switch component worktrees
 - The agentd port is fixed at `48790`; the dev console has no option to change it. In a public checkout the dev console reads the sample library `characters/sample-library/` (the text-only character `aide`) by default; `--catalog <current.json>` picks another library.
 - Connect a model: the first start of the dev build opens the 首次设置 (first-run setup) assistant; you can close it. Then do one of these: enter an API key or sign in under Settings › 内核 (Kernel); or run `codex login` in a terminal first and then choose Codex under Settings › 内核 (Kernel). Without a model, a chat replies `pi_connection_missing`.
 - Passes `--no-push-to-talk --no-attention` by default, so global shortcuts for push-to-talk and observation samplers stay off; additional host arguments can be appended or edited in the console UI.
-- Note: Running Electron from `node_modules` lacks the packaged preview XPC service, so the 3D preview on the Character page falls back to static portraits.
 
 ### 3. Dev deployment onto an installed `Agentic Complex.app` (`dev_deploy.py`, macOS)
 
@@ -162,7 +161,7 @@ To test changes to `web/` or `agent/agentd/` directly inside an already-installe
    ```
 
 3. **Live reload**: `dev_deploy.py` writes `.local/dev-runtime/<UTC>-<commit>[-dirty]/` with `dev-receipt.json` and atomically switches the `current` symlink. The running Electron host watches the parent directory (`dev-reload.ts`) and reads `dev-receipt.json`: `web` reloads the web panels, `agentd` restarts `agentd`, and `all` does both. Verify the active source under **诊断 (Diagnostics)**: it shows 开发目录 │ <commit>.
-4. **Limitations & disable**: Changes to the Electron host, `ac-helper`, Metal renderer, preview XPC, `Info.plist`, or new Python dependencies still require rebuilding `.app`. Remove `dev_resources` from `config.json` and restart once to revert to bundled resources. See [Development and releases](docs/development.en.md#development-deployment).
+4. **Limitations & disable**: Changes to the Electron host, `ac-helper`, Metal renderer, `Info.plist`, or new Python dependencies still require rebuilding `.app`. Remove `dev_resources` from `config.json` and restart once to revert to bundled resources. See [Development and releases](docs/development.en.md#development-deployment).
 
 ### 4. Standalone Web UI development (Fake Bridge)
 

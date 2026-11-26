@@ -16,7 +16,7 @@ import {
 
 const opsFile = resolve(dirname(fileURLToPath(import.meta.url)), '../../../protocol/ui-bridge/ops.json');
 
-/** Dotted names of every function member, e.g. `avatar.presentation.get`. */
+/** Dotted names of every function member, e.g. `avatar.preview.show`. */
 function opNames(node: object, prefix = ''): string[] {
   return Object.entries(node).flatMap(([key, value]) => {
     const name = prefix + key;

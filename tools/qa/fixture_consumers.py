@@ -37,7 +37,6 @@ CONSUMERS = {
 # Pairs not consumed today; remove one as soon as its host consumes the directory.
 KNOWN_GAPS = {
     ('protocol/C2-speech-stream/examples', 'agentd'): 'its tests check the C2 lines agentd writes with validate.py, not against the examples',
-    ('protocol/C3-host-ipc/examples', 'efw'): 'tools/c3_host_check.py checks the lines efw sends with validate.py, not against the examples',
     ('protocol/C12-platform-helper/examples', 'electron'): 'the helper tests drive a fake helper in Node with their own lines',
     ('protocol/C12-platform-helper/examples', 'helper-mac'):
         'Tests/replay.py replays them through the C12 path it imports from app/helpers/windows/tests/replay.py',

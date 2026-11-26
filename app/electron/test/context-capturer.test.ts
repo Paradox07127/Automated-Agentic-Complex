@@ -4,7 +4,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { type AttentionSample, type AttentionWindow, type BlacklistRules, parseBlacklist } from '../src/common/attention.ts';
-import type { ShellPlatform } from '../src/common/config.ts';
 import type { HelperAnswer } from '../src/common/push-to-talk.ts';
 import { type AgentdReply, type ContextPolicy, DEFAULT_CONTEXT_POLICY } from '../src/common/screen-context.ts';
 import { NO_ANSWER, type UserAnswer } from '../src/main/attention/sampler.ts';
@@ -53,7 +52,7 @@ const ALL_ON: ContextPolicy = { allowText: true, allowImages: true, level: 'wind
 const WINDOW_TEXT: ContextPolicy = { ...TEXT_ON, level: 'window' };
 
 function setup(o: { helper?: Record<string, Answer>; policy?: ContextPolicy; blacklist?: BlacklistRules;
-  post?: (path: string, body: Record<string, unknown>) => AgentdReply; platform?: ShellPlatform } = {}) {
+  post?: (path: string, body: Record<string, unknown>) => AgentdReply } = {}) {
   let clock = 1_763_539_200_000;
   let tickFn: (() => void) | null = null;
   const timers: { at: number; fn: () => void; live: boolean }[] = [];
@@ -109,7 +108,7 @@ function setup(o: { helper?: Record<string, Answer>; policy?: ContextPolicy; bla
     },
     log: (line) => logs.push(line),
   };
-  const c = startContext(ports, o.platform ?? 'mac');
+  const c = startContext(ports);
   return {
     c, requests, posts, logs, helper, state,
     ops: () => requests.map(([op]) => op),

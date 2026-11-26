@@ -260,38 +260,6 @@ class MmdSkeleton:
         out.update(lt=lt, keyed=keyed, missing=missing)
         return out
 
-    def translation_scale_from_leg_y(self, leg_y):
-        """Position-key scale for a VMD made on a model whose 足 rest Y is leg_y (MMD ボーンフレーム位置角度補正 ratio)."""
-        return float(np.mean([self.pmd.bones[self.idx[s + '足']].pos[1] for s in '左右'])) / leg_y
-
-    def estimate_translation_scale(self, vmd, n_frames=None, percentile=99):
-        """Position-key scale k <= 1 at which the motion's hip-to-足ＩＫ distance reaches the straight leg at its
-        `percentile`-th frame: a VMD made on a taller model asks for longer reaches. 1 when the legs already reach, and
-        when even the smallest k does not: then the over-reach comes from rotations (straight-legged standing), not scale."""
-        lq, lt, _, _ = self.locals_from_vmd(vmd, n_frames)
-        lq = self.apply_influence(lq)
-        b = self.idx
-
-        def over(k):
-            _, wp = self.fk(lq, lt * k)
-            out = -np.inf
-            for s in '左右':
-                hip, knee, ankle = (self.rest[b[s + n]] for n in ['足', 'ひざ', '足首'])
-                reach = np.linalg.norm(knee - hip) + np.linalg.norm(ankle - knee)
-                d = np.linalg.norm(wp[:, b[s + '足ＩＫ']] - wp[:, b[s + '足']], axis=1)
-                out = max(out, np.percentile(d, percentile) - reach)
-            return out
-        if over(1.0) <= 0:
-            return 1.0
-        lo, hi = 0.2, 1.0  # bisection; assumes the reach grows with k between these bounds
-        if over(lo) > 0:
-            return 1.0
-        for _ in range(40):
-            mid = (lo + hi) / 2
-            lo, hi = (mid, hi) if over(mid) <= 0 else (lo, mid)
-        return lo
-
-
 def add_semi_standard_bones(pmd):
     """Copy of a PMD with the semi-standard body bones it lacks appended (全ての親, グルーブ, 上半身2, 足IK親, 親指０), so
     VMDs made for semi-standard models keep those keys. Each new bone is inserted between an existing bone and its

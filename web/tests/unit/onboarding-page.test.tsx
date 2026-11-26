@@ -1,7 +1,7 @@
 // First-run guide (pages/onboarding): 角色 → 对话 → 声音 → 完成 over the bridge's onboarding ops, each row saving the settings page's value.
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge, OnboardingOps, OnboardingState } from '../../src/bridge/protocol';
 import { demoOps } from '../../src/pages/onboarding/demo';

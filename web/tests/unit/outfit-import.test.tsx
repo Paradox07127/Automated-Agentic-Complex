@@ -7,7 +7,6 @@ import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-quer
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AgenticComplexBridge } from '../../src/bridge/protocol';
-import { NOW } from '../../src/mock/fixtures';
 import { MOTIONS, STATE_WITH_CAUSES } from '../../src/mock/character';
 import { useModTable } from '../../src/pages/character/LookPane';
 import { Operator } from '../../src/pages/character/Operator';

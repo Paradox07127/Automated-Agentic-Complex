@@ -1,7 +1,7 @@
 // 诊断和调参照全站规格：页签图标、DeviceRow 直接带落点属性、阈值刻度、参考线、ⓘ、DEV 标、窄宽度的紧凑读数板。
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider, type RouteComponent } from '@tanstack/react-router';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import { RENDER_STATS } from '../../src/mock/fixtures';

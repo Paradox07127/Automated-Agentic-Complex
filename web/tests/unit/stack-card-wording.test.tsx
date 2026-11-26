@@ -23,12 +23,6 @@ afterEach(() => {
 const srcDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../src');
 const src = (p: string) => readFileSync(resolve(srcDir, p), 'utf8');
 
-function rule(css: string, selector: string): string {
-  const m = new RegExp(`\\${selector}\\s*\\{([^}]*)\\}`).exec(css);
-  if (!m?.[1]) throw new Error(`no rule ${selector}`);
-  return m[1];
-}
-
 /** The chain and the artifacts are folded; open the section first (a fold remembers its state by card id). */
 function unfold(label: string) {
   const fold = screen.getByRole('button', { name: new RegExp(`^${label}`) });

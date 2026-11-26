@@ -22,9 +22,6 @@ import { cascadeChanged, factCascadeRoutes } from './factCascade';
 // Memory page endpoints in agentd's shapes (server.py, memory.py, history.py, ca/task_understanding*.py). Writes change
 // this module's copy, so a demo shows what it just did; a reload starts from the fixtures again.
 
-/** Demo pause: observation paused for another 18 minutes. */
-export const DEMO_PAUSED_UNTIL = NOW + 18 * MINUTE;
-
 const NOW_S = NOW / 1000;
 const TODAY = '2026-10-29';
 const KINDS = ['fact', 'preference', 'experience', 'agreement', 'name', 'birthday'];

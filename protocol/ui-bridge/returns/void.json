@@ -124,14 +124,6 @@
     "kind": "undefined"
   },
   {
-    "op": "avatar.presentation.set",
-    "surface": "stack",
-    "args": [
-      null
-    ],
-    "kind": "undefined"
-  },
-  {
     "op": "avatar.preview.hide",
     "surface": "main",
     "args": [],

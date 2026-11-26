@@ -353,21 +353,6 @@ def source_palms(sk, ev, scale=1.0):
     return out
 
 
-def native_palms(rig, worlds):
-    """VoiceA palm centre from Rig.palm's hand-local offset; palmar normal built like source_palms from
-    Hand, Finger2 (middle base), Finger1 (index), Finger4 (little). worlds: (F,N,4,4)."""
-    out = {}
-    for side in 'LR':
-        h, mid, ix, lt = (rig.humanoid[bone(side, n)] for n in ['Hand', 'MiddleProximal', 'IndexProximal', 'LittleProximal'])
-        off, _ = rig.palm(side)
-        W = worlds
-        fwd = W[:, mid, :3, 3] - W[:, h, :3, 3]
-        across = W[:, ix, :3, 3] - W[:, lt, :3, 3]
-        n = np.cross(fwd, across) if side == 'L' else np.cross(across, fwd)
-        out[side] = (W[:, h, :3, 3] + np.einsum('fab,b->fa', W[:, h, :3, :3], off), unit(n))
-    return out
-
-
 def coverage(conv, vmd):
     """Every keyed VMD bone -> mapped / ignored with a reason; morph keys are dropped (faces out of scope)."""
     from .io import name_key

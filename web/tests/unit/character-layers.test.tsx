@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { CharacterEntry, AgenticComplexBridge } from '../../src/bridge/protocol';
-import { CHARACTER_LAYERS, CHARACTER_LOOKS, NOW } from '../../src/mock/fixtures';
+import { CHARACTER_LAYERS, CHARACTER_LOOKS } from '../../src/mock/fixtures';
 import { MOTIONS, STATE_WITH_CAUSES } from '../../src/mock/character';
 import { Operator, type OperatorProps } from '../../src/pages/character/Operator';
 

@@ -1,7 +1,7 @@
 // The screen context capturer as index.ts starts it: its ports over agentd's client, the blacklist file and config.json.
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
-import type { AttentionSample, Rect } from '../../common/attention.ts';
+import type { AttentionSample } from '../../common/attention.ts';
 import {
   type AgentdReply, contextPolicy, type LookResult, lookResult, resultText, type SelectionDecision,
 } from '../../common/screen-context.ts';

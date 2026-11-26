@@ -1,7 +1,7 @@
 // 角色页 and MMD: the rail's MMD item opens the MMD page; the 动作 tab and the 导入 pane leave its dances out.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { AvatarAction, AgenticComplexBridge } from '../../src/bridge/protocol';

@@ -3,7 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { del, post, put, seg } from '../../bridge/agentd';
 import { paused } from '../../domain/bodies';
-import { formatClock, type Episode } from '../../domain';
+import type { Episode } from '../../domain';
 import { toast } from '../../shell/toast';
 import { Btn, Dialog, ErrBar } from '../../ui';
 import { errorText, FIELD_OF, KEY, ruleLabel, type ExKind, type ExRule, type TaskGuess, type WireDiagSeen } from './data';
@@ -201,25 +201,4 @@ export function useActions(setPausedDemo: (v: number | null | undefined) => void
       ),
     clearItems: (types) => void run('清除', () => Promise.all(types.map((t) => del(`/context/items/${seg(t)}`))), '已清除本轮的上下文', [KEY.diag]),
   };
-}
-
-/** The pause menu's two choices: an hour, and until 08:00 tomorrow (agentd caps a pause at 1440 minutes). */
-export function pauseChoices(now: number): Array<{ label: string; hint: string; minutes: number; until: string }> {
-  const d = new Date(now);
-  const morning = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 8, 0).getTime();
-  const hour = now + 3_600_000;
-  return [
-    {
-      label: '暂停 1 小时',
-      hint: `${formatClock(hour)} 恢复`,
-      minutes: 60,
-      until: `${formatClock(hour)} 恢复`,
-    },
-    {
-      label: '暂停至明天',
-      hint: '明天 08:00 恢复',
-      minutes: Math.min(1440, Math.ceil((morning - now) / 60_000)),
-      until: '明天 08:00 恢复',
-    },
-  ];
 }

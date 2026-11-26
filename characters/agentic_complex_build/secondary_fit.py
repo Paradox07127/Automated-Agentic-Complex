@@ -168,12 +168,6 @@ def _oracle(actor, clip):
         yield s['time'], np.frombuffer(data, '<f4', s['node_count']*10, s['offset']).reshape(-1, 10).astype(float)
 
 
-def load_poses(package_dir):
-    """Every oracle sample of every clip: [(clip name, time, Unity local TRS (N, 10))]."""
-    actor = actor_dir(package_dir)
-    return [(name, t, pose) for name, clip in _clips(actor) for t, pose in _oracle(actor, clip)]
-
-
 def _segment(t0, v0, out, t1, v1, inn, time):
     """ActorCurveMath.segment for unweighted keys."""
     dt = t1-t0

@@ -52,9 +52,9 @@ describe('settings/native.ts loadNative', () => {
   it('takes the schema the bridge serves, without a demo stand-in', async () => {
     const real = createFakeBridge({ surface: 'main', still: true });
     const empty: AgenticComplexBridge = { ...real, settings: { ...real.settings, schema: async () => [] } };
-    const native = await loadNative(empty, null);
+    const native = await loadNative(empty);
     expect(native.rows).toEqual({});
-    const served = await loadNative(real, null);
+    const served = await loadNative(real);
     expect(Object.keys(served.rows)).toHaveLength(DEMO_SCHEMA.length);
     expect(served.saved.web).toBe(true);
   });

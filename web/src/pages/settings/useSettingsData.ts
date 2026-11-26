@@ -21,7 +21,7 @@ export function useSettingsData(demo: string | null) {
   const qc = useQueryClient();
   const fake = !window.agenticComplex;
 
-  const native = useQuery({ queryKey: ['settings', 'native', demo], queryFn: () => loadNative(bridge, demo), ...once });
+  const native = useQuery({ queryKey: ['settings', 'native', demo], queryFn: () => loadNative(bridge), ...once });
   const schema = useQuery({
     queryKey: ['settings', 'schema'],
     queryFn: async () => Object.fromEntries(((await bridge.settings.schema()) as SchemaRow[]).map((r) => [r.id, r])),

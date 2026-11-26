@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { getBridge, type CharacterEntry } from '../../bridge';
 import { formatClock } from '../../domain';
 import { useDemo } from '../../shell/demo';
@@ -50,7 +50,6 @@ export function CharacterPage() {
   const tab = params.get('tab');
   const row = params.get('row');
   const pane = params.get('pane');
-  const qc = useQueryClient();
   const bridge = getBridge();
   const canAvatar = bridge.capabilities.avatar;
   const host = useHostCharacter(canAvatar);

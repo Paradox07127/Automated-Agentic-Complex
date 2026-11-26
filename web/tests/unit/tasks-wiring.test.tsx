@@ -219,7 +219,7 @@ describe('tasks: delivery decisions', () => {
   });
 
   it('a 409 shows the decision failure and reloads', async () => {
-    install((method, path) => (path.endsWith('/accept') ? { status: 409, body: { error: 'delivery_version_changed' }, error: { code: 'delivery_version_changed' } } : null));
+    install((_method, path) => (path.endsWith('/accept') ? { status: 409, body: { error: 'delivery_version_changed' }, error: { code: 'delivery_version_changed' } } : null));
     const d = deps();
     await createTasksActions(d).onTask(pick(TASKS, T1))({ kind: 'accept', deliveryId: DLV_T1_V2 });
     expect(d.setDecideFail).toHaveBeenLastCalledWith('delivery_version_changed');
@@ -228,7 +228,7 @@ describe('tasks: delivery decisions', () => {
 
   it('receipts send {expected_revision, generation} and return the reply delivery', async () => {
     const wire = WIRE_DELIVERIES.find((x) => x.delivery_id === DLV_T1_V2)!;
-    const { calls } = install((method, path) => (path.endsWith('/viewed') ? { status: 200, body: { delivery: { ...wire, revision: wire.revision + 1, viewed_at: atS(14, 32) } } } : null));
+    const { calls } = install((_method, path) => (path.endsWith('/viewed') ? { status: 200, body: { delivery: { ...wire, revision: wire.revision + 1, viewed_at: atS(14, 32) } } } : null));
     const d = { ...delivery(DLV_T1_V2), viewed_at: null };
     const next = await sendReceipt(d, 'viewed');
     expect(writes(calls)).toEqual([{ method: 'POST', path: `/agent/deliveries/${DLV_T1_V2}/viewed`, body: { expected_revision: d.revision, generation: d.generation } }]);
@@ -451,7 +451,7 @@ describe('tasks: failure reasons and native entries', () => {
   });
 
   it('a message while the session runs a turn (409 busy) says to wait, not 已在别处更新, and does not reload', async () => {
-    install((method, path) => (path.endsWith('/messages') ? { status: 409, body: { error: 'busy' }, error: { code: 'busy' } } : null));
+    install((_method, path) => (path.endsWith('/messages') ? { status: 409, body: { error: 'busy' }, error: { code: 'busy' } } : null));
     const d = deps();
     await createTasksActions(d).onTask(pick(TASKS, T2))({ kind: 'send_session', text: '先跑测试' });
     expect(d.push).toHaveBeenCalledWith('会话正在执行当前轮次，请等待结束后发送', { severity: 'danger' });
@@ -467,7 +467,7 @@ describe('tasks: failure reasons and native entries', () => {
   });
 
   it('a decision failure outside DECIDE_FAIL reloads once', async () => {
-    install((method, path) => (path.endsWith('/accept') ? { status: 409, body: { error: 'version_conflict' }, error: { code: 'version_conflict' } } : null));
+    install((_method, path) => (path.endsWith('/accept') ? { status: 409, body: { error: 'version_conflict' }, error: { code: 'version_conflict' } } : null));
     const d = deps();
     await createTasksActions(d).onTask(pick(TASKS, T1))({ kind: 'accept', deliveryId: DLV_T1_V2 });
     expect(d.reload).toHaveBeenCalledTimes(1);
@@ -505,7 +505,7 @@ describe('tasks: failure reasons and native entries', () => {
 
   it('a failed /sessions/{id}/lines read says 会话输出没读到 with a retry, not 还没有输出', async () => {
     let fail = true;
-    const { calls } = install((method, path) => (path.endsWith('/lines') && fail ? { status: 500, body: { error: 'internal' }, error: { code: 'internal' } } : null));
+    const { calls } = install((_method, path) => (path.endsWith('/lines') && fail ? { status: 500, body: { error: 'internal' }, error: { code: 'internal' } } : null));
     mountDetail(T2);
     await waitFor(() => expect(document.body.textContent).toContain('未能读取会话输出'));
     expect(document.body.textContent).not.toContain('还没有输出');

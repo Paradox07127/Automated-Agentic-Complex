@@ -18,7 +18,7 @@ export interface Native {
 }
 
 /** Schema and saved values; rejects when config.json cannot be read. */
-export async function loadNative(bridge: AgenticComplexBridge, demo: string | null): Promise<Native> {
+export async function loadNative(bridge: AgenticComplexBridge): Promise<Native> {
   const schema = (await bridge.settings.schema()) as SchemaRow[];
   const snap = await bridge.settings.read();
   return { rows: Object.fromEntries(schema.map((r) => [r.id, r])), saved: snap.saved, statuses: snap.statuses };

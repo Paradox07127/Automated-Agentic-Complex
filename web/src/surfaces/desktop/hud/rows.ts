@@ -42,11 +42,6 @@ export function isHudCard(c: StackCard): boolean {
   return c.kind === 'approval' || c.kind === 'question' || c.kind === 'review' || c.kind === 'delivery' || c.kind === 'error' || (c.kind === 'notice' && c.variant === 'computer');
 }
 
-/** Info cards, which go to the ring's 结果 icon instead. */
-export function isResultCard(c: StackCard): boolean {
-  return c.kind === 'delivery' || c.kind === 'review' || (c.kind === 'notice' && (c.variant === 'done' || c.variant === 'brief' || c.variant === 'look' || c.variant === 'resume'));
-}
-
 /** `doing`, `started_at` (epoch ms) and `own_app`, and the session's `state`, per session id; agentd may not send them yet. */
 function sessionExtras(raw: unknown): Map<string, { doing: string | null; startedAt: number | null; ownApp: boolean; state: string | null }> {
   const p = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;

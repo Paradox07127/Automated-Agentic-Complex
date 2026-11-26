@@ -48,7 +48,6 @@ const keysAre = (b: unknown, ...keys: string[]) => {
 const hex32 = (n: number) => n.toString(16).padStart(32, '0');
 
 /** Delivery decision failure codes (deliveries.py:276-283). */
-export const DECIDE_FAIL_CODES = ['task_not_reviewable', 'delivery_superseded', 'delivery_already_decided', 'delivery_scope_revoked'] as const;
 
 /** What `result` a finished task run stores (store.py finish: `{error, failure}` or verify_run's checks). */
 const RESULTS: Record<string, unknown> = {

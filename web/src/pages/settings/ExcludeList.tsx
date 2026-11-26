@@ -4,7 +4,6 @@ import { GameSeg } from '../../ui/game';
 import { AllowList } from './AllowList';
 import { addBlacklist, failure, removeBlacklist, restoreBlacklist, setBlacklistMode } from './api';
 import { useSettings } from './ctx';
-import { labelOf } from './registry';
 import { Slab } from './Slab';
 import type { BlacklistField, WireBlacklist } from './wire';
 import styles from './groups.module.css';

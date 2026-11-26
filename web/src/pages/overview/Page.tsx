@@ -266,7 +266,7 @@ export function OverviewPage() {
             <Menu label="免打扰" align="right" items={dnd} />
           </>
         }
-        bottom={<ActionBand go={go} />}
+        bottom={<ActionBand />}
       />
       <div className={styles.ov}>
         <PageIssues offline={offline} at={snap.now}>

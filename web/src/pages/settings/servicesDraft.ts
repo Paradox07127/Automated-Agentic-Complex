@@ -62,7 +62,6 @@ export function recordOf(d: ServiceDraft): ServiceRecord {
   return { mode: d.mode, url: d.url.trim(), ssh_host: d.ssh_host.trim(), start_script: d.start_script.trim(), command: splitCommand(d.command), cwd: d.cwd.trim() };
 }
 
-export const sameRecord = (a: ServiceRecord, b: ServiceRecord) => JSON.stringify(recordOf(draftOf(a))) === JSON.stringify(recordOf(draftOf(b)));
 
 const LOOPBACK: ReadonlySet<string> = new Set(['127.0.0.1', 'localhost', '[::1]']);
 

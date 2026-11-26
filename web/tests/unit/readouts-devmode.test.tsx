@@ -151,7 +151,7 @@ describe(' 开发者模式 off', () => {
   });
 
   it('keeps 调参 out of the command bar and opens the character page without a 行为与画面 tab', async () => {
-    const nav = await commandBar();
+    await commandBar();
     expect(screen.queryByRole('menuitem', { name: /调参/ })).toBeNull();
     cleanup();
     await character('');
@@ -186,12 +186,12 @@ describe(' 开发者模式 on', () => {
   beforeEach(() => setDevMode(true));
 
   it('lists 诊断 in the command bar page menu', async () => {
-    const nav = await commandBar();
+    await commandBar();
     expect(screen.getByRole('menuitem', { name: /诊断/ })).toBeTruthy();
   });
 
   it('lists 诊断 in the command bar page menu and no 调参; the character page still has no 行为与画面 tab', async () => {
-    const nav = await commandBar();
+    await commandBar();
     expect(screen.getByRole('menuitem', { name: /诊断/ })).toBeTruthy();
     expect(screen.queryByRole('menuitem', { name: /调参/ })).toBeNull();
     cleanup();

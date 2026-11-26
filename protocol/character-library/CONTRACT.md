@@ -15,7 +15,7 @@
 
 | 文件 | schema | 谁写 | 谁读 |
 |---|---|---|---|
-| `current.json`（同内容另存 `catalog-<revision>.json`） | `endfield-character-library/v1` | `character_library.py:556`（`Library.publish`）；`materialize_library` 复制到 app 种子（`:599`） | `character_library.py:440`（`Library.snapshot`）；`CharacterCatalog.swift:195` |
+| `current.json`（同内容另存 `catalog-<revision>.json`） | `endfield-character-library/v1` | `character_library.py` 的 `Library.publish` | `character_library.py:440`（`Library.snapshot`）；`CharacterCatalog.swift:195` |
 | `packages/<id>/<sha>/character.json`，`<sha>` 是它自身的 SHA-256 | `endfield-character-definition`，`schema_version` 1 | 本机构建工具 `assemble.py:72`（不在公开仓库）生成；`character_library.py:494`（`Library.install`）安装 | `character_library.py:228`（`Package`）；`CharacterCatalog.swift:67` |
 | `packages/<id>/<sha>/runtime/bundle.json`（单角色原生包） | `metal-native-character-bundle/v1` | `characters/packaging/native_bundle.py:272`（`build`），由 `assemble.py:47` 调用 | `character_library.py:304`；`CharacterCatalog.swift:106`（核 SHA）、`:116`（解码，只在有武器显隐时） |
 | `packages/<id>/<sha>/runtime/characters/<id>/neutral/scene.json`、`neutral/build-record.json`、`metal/product.json`（中立包，三份同有同无；`bundle.json` 角色条目的可选引用 `neutral_scene`、`neutral_build_record`、`metal_product` 指向它们，形状和 `graph` 一样是 `{file, sha256, byte_count}`，路径相对 `bundle.json` 所在目录，也列在 `files[]`；旧包没有） | `endfield-neutral-scene/v1`、`endfield-neutral-build-record/v1`、`endfield-metal-product/v1`；不变量见下面「中立包」一段 | `characters/packaging/native_bundle.py` 的 `build`（`neutral_documents` 拆 `graph/frame-graph.json`）；改帧图的工具用 `write_neutral` 重写帧图和这三份：外观导入 `import_outfit.py`、外观删除和导出 `agent/agentd/outfit_tool.py` 的 `finish` | `native_bundle.py` 的 `verify`（核不变量）；`character_library.py` 的 `Package`（只核三份同有同无、在 `files[]` 里、SHA-256）；Mac 运行时不读 |

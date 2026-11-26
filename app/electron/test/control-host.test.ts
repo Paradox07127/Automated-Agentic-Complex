@@ -44,7 +44,6 @@ const WINDOWS = [
   { window_id: 10, pid: OWN, bounds: { x: 0, y: 0, width: 300, height: 300 }, layer: 0, title: 'Endfield' },
 ];
 const TARGET = { pid: 702, window_id: 640 };
-const CONTROL_OPS = ['control.observe', 'control.act', 'control.read'];
 
 const settle = async () => { for (let i = 0; i < 40; i += 1) await new Promise((r) => setImmediate(r)); };
 

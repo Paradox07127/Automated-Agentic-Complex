@@ -4,7 +4,7 @@ import { createMemoryHistory, createRootRoute, createRouter, RouterProvider, typ
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
-import type { AvatarStats, AgenticComplexBridge, SettingsSaveResult } from '../../src/bridge/protocol';
+import type { AgenticComplexBridge, SettingsSaveResult } from '../../src/bridge/protocol';
 import { DEMO_SCHEMA } from '../../src/mock/settings';
 import { CharacterPage } from '../../src/pages/character/Page';
 import { setNavRouter } from '../../src/shell/nav';
@@ -98,7 +98,6 @@ describe('motions', () => {
 describe('render settings (rnd.*)', () => {
   it('shows only schema rows with schema options and saves each change by option value through settings.save', async () => {
     const save = vi.spyOn(bridge.settings, 'save').mockResolvedValue({ restart: 'avatar', notApplied: [] });
-    const present = vi.spyOn(bridge.avatar.presentation, 'set');
     await tune();
     const shadow = await screen.findByRole('radiogroup', { name: '自阴影精度' });
     expect(within(shadow).getAllByRole('radio').map((r) => r.textContent)).toEqual(['高（1024）', '中（512）', '低（256）']);
@@ -108,7 +107,6 @@ describe('render settings (rnd.*)', () => {
     expect(save).toHaveBeenLastCalledWith({ 'rnd.aa': false });
     await click(within(shadow).getByRole('radio', { name: '低（256）' }));
     expect(save).toHaveBeenLastCalledWith({ 'rnd.shadow': '256' });
-    expect(present).not.toHaveBeenCalled();
     expect(toasts()).toEqual(['已保存 │ 正在重载角色进程', '已保存 │ 正在重载角色进程']);
   });
 

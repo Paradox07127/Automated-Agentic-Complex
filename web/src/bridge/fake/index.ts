@@ -3,7 +3,6 @@ import type {
   AvatarDetails,
   AvatarState,
   AvatarStats,
-  BridgeError,
   Capabilities,
   ComputerUseState,
   AgenticComplexBridge,
@@ -15,7 +14,6 @@ import type {
   RuntimeSnapshot,
   SettingId,
   SettingValue,
-  StackPayload,
   StreamEvent,
   SupervisorTarget,
   Surface,
@@ -184,7 +182,6 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
     characterId: 'voice_a', appearanceId: 'default',
   };
   // Kept beside `avatar`: `avatar.state()` returns AvatarState, which has no such field.
-  let keepClearOfMain = false;
   const computerUse: ComputerUseState = { granted: ['observation'], active: false };
   const processes: Record<SupervisorTarget, ProcessState> = {
     agentd: { state: 'running', pid: 4242, backoff: null, cpuPercent: 3.4, memoryMB: 168, history: fakeHistory(3.4, 168) },
@@ -278,7 +275,7 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
       details: async () => fakeDetails(hashQuery().get('demo') === 'suspended'),
       setVisible: async (v) => void (avatar.visible = v),
       setScale: async (s) => void (avatar.scale = s),
-      keepClearOfMain: async (on) => void (keepClearOfMain = on),
+      keepClearOfMain: async () => {},
       resetPosition: done,
       toggleClickThroughAll: async () => void (avatar.clickThroughAll = !avatar.clickThroughAll),
       stopSpeech: async () => void (avatar.speaking = false),
@@ -301,7 +298,6 @@ export function createFakeBridge(opts: FakeBridgeOptions): AgenticComplexBridge 
         return { ok: true };
       },
       playlistState: async () => ({ playing: playing !== null, index: playing, id: playing === null ? null : playlist.items[playing] ?? null }),
-      presentation: { get: async () => null, set: done },
       // A browser has no live preview: the stage keeps its art.
       preview: { show: async () => false, hide: done, sequence: fakePreviewSequence, onProgress: () => none, view: fakePreviewView(),
         control: done, onPosition: () => none },

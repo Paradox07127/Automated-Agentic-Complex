@@ -21,10 +21,3 @@ export function doingOf(raw: unknown): Doing {
   if (view && ACTIVE.has(view.state)) return { text: doing ?? view.intention ?? stateLabel(view.state), since: view.since };
   return { text: doing ?? str(role?.activity) ?? stateLabel(view?.state ?? 'idle'), since: null };
 }
-
-/** Whole minutes from `since` to `at` (both epoch seconds); null under one minute. */
-export function minutesSince(since: number | null, at: number): number | null {
-  if (since == null) return null;
-  const m = Math.floor((at - since) / 60);
-  return m >= 1 ? m : null;
-}
