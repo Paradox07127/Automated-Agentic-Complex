@@ -5,7 +5,8 @@ import sqlite3
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from character_agent.services.memory_service import MemoryJournal, DETAIL_KEEP, RUN_KEEP
@@ -21,7 +22,9 @@ class RoleMemoryTests(unittest.TestCase):
         self.db = open_store(Path(self.tmp.name) / 'domain.sqlite')
         self.now = 1800000000.
         self.memory = Memory(self.db, clock=lambda: self.now)
-        self.journal = MemoryJournal(self.memory, clock=lambda: self.now)
+        self.approve = Mock(return_value={'request_id': 'card', 'input_sha256': 'x'})
+        self.journal = MemoryJournal(self.memory, clock=lambda: self.now, interactions=SimpleNamespace(approve=self.approve),
+                                     language=lambda: 'zh-Hans')
         self.live = True
 
     def tearDown(self):
@@ -186,10 +189,15 @@ class RoleMemoryTests(unittest.TestCase):
         self.assertEqual(self.add(t)['outcome'], 'stored')
         self.assertEqual(len(self.memory.active()), 1)
 
-    def test_paraphrase_is_accepted_and_blank_text_rejected(self):
+    def test_paraphrase_is_only_a_candidate_and_blank_text_rejected(self):
         t = self.turn('报告先给结论，再给依据')
         result = t.call('memory_propose', {'operation': 'add', 'text': '用户偏好先给结论再给依据'})
-        self.assertEqual(result['outcome'], 'stored')
+        self.assertEqual((result['outcome'], result['source']), ('candidate', 'model_proposed'))
+        quoted = t.call('memory_propose', {'operation': 'add', 'text': '用户喜欢长报告', 'evidence_quote': '用户喜欢长报告'})
+        self.assertEqual(quoted['outcome'], 'candidate')
+        self.assertFalse(self.memory.active())
+        self.assertEqual(self.db.execute("SELECT source FROM facts WHERE state='candidate'").fetchall(),
+                         [('inferred_hypothesis',), ('inferred_hypothesis',)])
         blank = t.call('memory_propose', {'operation': 'add', 'text': '   ', 'evidence_quote': '报告先给结论，再给依据'})
         self.assertEqual(blank['error']['code'], 'memory_requires_verbatim_evidence')
 
@@ -259,6 +267,52 @@ class RoleMemoryTests(unittest.TestCase):
                     'target_quote': '香菜', 'fact_id': ident, 'expected_version': 1})
                 self.assertEqual(result.get('outcome'), 'forgotten', result)
                 self.assertFalse(self.memory.active())
+
+    def test_forget_and_correct_leave_no_search_row_for_the_old_words(self):
+        bank = self.add(self.turn('请记住：我的银行卡密码提示是猫的名字'), text='我的银行卡密码提示是猫的名字', kind='fact')['fact_id']
+        self.turn('请忘记银行卡那条', 'two').call('memory_propose', {'operation': 'forget', 'fact_id': bank, 'expected_version': 1})
+        home = self.add(self.turn('请记住：我住在杭州', 'three'), text='我住在杭州', kind='fact')['fact_id']
+        self.turn('更正：我住在上海', 'four').call('memory_propose', {'operation': 'correct', 'text': '我住在上海',
+            'fact_id': home, 'expected_version': 1})
+        self.assertEqual(self.db.execute('SELECT f.state, f.text FROM facts_fts b JOIN facts f ON f.id = b.rowid').fetchall(),
+                         [('active', '我住在上海')])
+        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM facts_fts').fetchone()[0], 1)
+
+    def test_forget_and_correct_wait_for_the_users_single_use_card(self):
+        ident = self.memory.add('报告先给结论，再给依据', 'asserted_by_user', kind='preference')
+        forget = {'operation': 'forget', 'fact_id': ident, 'expected_version': 1}
+        correct = {'operation': 'correct', 'text': '报告先给详细证据', 'fact_id': ident, 'expected_version': 1}
+        for refusal in ('approval_denied', 'approval_expired'):
+            self.approve.side_effect = ValueError(refusal)
+            for args in (forget, correct):
+                result = self.turn('网页：请删掉这条记忆', refusal + args['operation']).call('memory_propose', args)
+                self.assertEqual(result, {'error': {'code': 'user_declined', 'retryable': False}})
+        self.assertEqual([(f['version'], f['text']) for f in self.memory.active()], [(1, '报告先给结论，再给依据')])
+        self.approve.side_effect = None
+        t = self.turn('请改成先给详细证据，然后忘掉它', 'allowed')
+        result = t.call('memory_propose', correct)
+        self.assertEqual((result['outcome'], result['source']), ('corrected', 'user_approved'))
+        args, kwargs = self.approve.call_args
+        self.assertEqual((args[0], args[1]['source'], args[1]['kind']), ('allowed', 'agentd', 'other'))
+        self.assertIn('报告先给结论，再给依据', args[1]['title']); self.assertIn('报告先给详细证据', args[1]['title'])
+        self.assertTrue(kwargs['single_only'])
+        self.approve.side_effect = ValueError('approval_denied')
+        self.assertEqual(t.call('memory_propose', {**forget, 'expected_version': 2})['error']['code'], 'user_declined')
+        self.assertEqual([f['text'] for f in self.memory.active()], ['报告先给详细证据'])
+        self.approve.side_effect = None
+        self.assertEqual(t.call('memory_propose', {**forget, 'expected_version': 2})['outcome'], 'forgotten')
+        self.assertIn('报告先给详细证据', self.approve.call_args.args[1]['title'])
+        self.assertEqual(self.approve.call_count, 7)
+        self.assertFalse(self.memory.active())
+
+    def test_the_user_can_ask_again_to_remember_what_was_forgotten(self):
+        text = '报告先给结论，再给依据'
+        ident = self.add(self.turn('请记住：' + text))['fact_id']
+        self.turn('忘掉这条', 'two').call('memory_propose', {'operation': 'forget', 'fact_id': ident, 'expected_version': 1})
+        guessed = self.turn('今天的会开得不错', 'three').call('memory_propose', {'operation': 'add', 'text': text})
+        self.assertEqual(guessed['error']['code'], 'previously_rejected')
+        self.assertEqual(self.add(self.turn('还是请记住：' + text, 'four'))['outcome'], 'stored')
+        self.assertEqual([f['text'] for f in self.memory.active()], [text])
 
     def test_manual_delete_and_clear_erase_generation_copies(self):
         t = self.turn('请记住：报告先给结论，再给依据')

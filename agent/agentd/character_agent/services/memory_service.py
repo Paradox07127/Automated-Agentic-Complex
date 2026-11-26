@@ -1,7 +1,8 @@
 """Role-owned memory tools and an inspectable generation journal, outside SDK state.
 
-The tools accept verbatim evidence from the actual current user message. Automatic
-paraphrases remain proposals, never silently become confirmed user facts.
+An added fact is the user's own only when its text is a verbatim excerpt of the current
+user message; any other is a candidate, never silently a confirmed user fact. Correcting
+or forgetting a fact waits for the user's single-use approval card.
 Mutations and their receipts commit in the same transaction as the fact.
 """
 import hashlib
@@ -12,10 +13,15 @@ import time
 import uuid
 import weakref
 
+from character_agent.services.interactions import approved
 from personal.memory import KINDS
 
 DETAIL_KEEP = 48 * 3600
 RUN_KEEP = 30 * 86400
+# The single-use approval card's titles for her correcting or forgetting a fact, by reply language code.
+CHANGE_CARD = {'zh-Hans': {'correct': '更正记忆：{} → {}', 'forget': '忘记记忆：{}'},
+               'en': {'correct': 'Correct memory: {} → {}', 'forget': 'Forget memory: {}'},
+               'ja': {'correct': '記憶を訂正する：{} → {}', 'forget': '記憶を忘れる：{}'}}
 
 
 def dump(value):
@@ -27,8 +33,11 @@ def error(code):
 
 
 class MemoryJournal:
-    def __init__(self, memory, clock=time.time):
+    def __init__(self, memory, clock=time.time, *, interactions=None, language=lambda: None):
+        """interactions: the approval cards correct and forget wait for; None asks no one.
+        language: the reply language code for those cards."""
         self.memory, self.clock = memory, clock
+        self.interactions, self.language = interactions, language
         with self.memory.lock:
             # No SDK session survives an agentd process restart. Close its audit
             # span too, and let _purge apply the normal interrupted-content rule.
@@ -152,14 +161,17 @@ class MemoryTurn:
     def tool_definitions():
         return [{"name": "memory_propose", "description":
             "Remember, correct or forget a durable fact about the user when it should be saved or updated. "
+            "An add is stored as the user's own only when text and evidence_quote are the same verbatim excerpt of the current user message; "
+            "otherwise it is kept as a candidate for the user to review. "
             "For correct and forget, first find the fact (personal_profile or knowledge_read), then pass its fact_id and current version "
-            "as expected_version. Read the receipt's outcome (stored, unchanged, corrected, forgotten) before telling the user what happened.",
+            "as expected_version; the user sees a confirmation card and nothing changes until they allow it (error user_declined otherwise). "
+            "Read the receipt's outcome (stored, candidate, unchanged, corrected, forgotten) before telling the user what happened.",
             "input_schema": {"type": "object", "properties": {
                 "operation": {"type": "string", "enum": ["add", "correct", "forget"], "description": "add a new fact, correct an existing one, or forget one."},
                 "text": {"type": "string", "maxLength": 2000, "description": "The fact as stored (required for add and correct)."},
                 "scope": {"type": "string", "enum": ["shared", "character"], "description": "For add, use character for nicknames, promises, private jokes and instructions specific to this relationship. General user facts are shared (default)."},
                 "kind": {"type": "string", "enum": list(KINDS), "description": "Category; defaults to fact. Ignored for correct/forget."},
-                "evidence_quote": {"type": "string", "maxLength": 2000, "description": "Optional excerpt of the user message this change is based on."},
+                "evidence_quote": {"type": "string", "maxLength": 2000, "description": "Optional verbatim excerpt of the current user message this change is based on."},
                 "fact_id": {"type": "string", "maxLength": 128, "description": "correct/forget only: id of the existing fact."},
                 "expected_version": {"type": "integer", "minimum": 1, "description": "correct/forget only: the fact's current version."},
                 "target_quote": {"type": "string", "maxLength": 2000, "description": "Optional phrase identifying the target fact."}},
@@ -267,17 +279,26 @@ class MemoryTurn:
             if call_id and call_id in self.receipts:
                 old_hash, receipt = self.receipts[call_id]
                 return receipt if old_hash == digest else error("memory_call_conflict")
+            card = self._card(args)
+        if card is not None:
+            language = self.journal.language()
+            if not approved(self.journal.interactions, self.run_id, CHANGE_CARD.get(language, CHANGE_CARD['zh-Hans'])[args['operation']]
+                            .format(*card), dict(args), valid=self.current, character_id=self.character_id, language=language):
+                return error('user_declined')
+        with self.memory.lock:
+            if not self._valid():
+                return error("memory_write_not_allowed")
             revision, epoch, changed_count, stored_count = self.memory.revision, self.memory.content_epoch, len(self.changed), len(self.stored)
             db = self.memory.db
             changed = False
             try:
                 with db:
-                    # Other agentd stores write through separate WAL connections.
-                    # Reserve the writer before reading any facts in this transaction.
+                    # One transaction holds the fact and its receipt. IMMEDIATE takes the write lock before
+                    # the reads, against any other connection to the file (the agentd stores share this one).
                     db.execute("BEGIN IMMEDIATE")
                     db.execute("SAVEPOINT role_memory_change")
                     try:
-                        result = self._change(args)
+                        result = self._change(args, approved=card is not None)
                         if not self._valid():
                             raise ValueError("memory_write_not_allowed")
                     except (ValueError, KeyError) as exc:
@@ -305,7 +326,20 @@ class MemoryTurn:
                 self.receipts[call_id] = digest, result
             return result
 
-    def _change(self, args):
+    def _card(self, args):
+        """Under lock: what the approval card for a correct or forget shows (the fact's text, then the new text), or None
+        when none is due: another operation, no approval service, or a call the store refuses anyway."""
+        op = args.get('operation')
+        if op not in ('correct', 'forget') or self.journal.interactions is None:
+            return None
+        row = self.memory.db.execute("SELECT version,text FROM facts WHERE fact_id=? AND state='active' AND (owner IS NULL OR owner=?)",
+                                     (args.get('fact_id'), self.character_id)).fetchone()
+        if row is None or args.get('expected_version') != row[0] or self.memory._locked(args['fact_id']):
+            return None
+        return (row[1], args.get('text', '')) if op == 'correct' else (row[1],)
+
+    def _change(self, args, approved=False):
+        """approved: the user allowed this correct or forget on its card."""
         allowed = {"operation", "text", "kind", "scope", "evidence_quote", "fact_id", "expected_version", "target_quote"}
         scope = args.get("scope", "shared")
         if set(args) - allowed or scope not in ("shared", "character"):
@@ -329,6 +363,9 @@ class MemoryTurn:
                 raise ValueError("memory_version_changed")
             if self.memory._locked(ident):
                 raise ValueError("memory_locked")
+            # No card was shown: the fact only now matches expected_version.
+            if self.journal.interactions is not None and not approved:
+                raise ValueError("memory_version_changed")
             target = args.get("target_quote")
             if target is not None and (not isinstance(target, str) or len(target) > 2000):
                 raise ValueError("memory_target_not_authorized")
@@ -336,8 +373,10 @@ class MemoryTurn:
         if op == "add":
             if ident is not None or version is not None:
                 raise ValueError("invalid_memory_proposal")
-            source, state = "asserted_by_user", "active"
-            if self.memory._suppressed(text):
+            explicit = quote is not None and text == quote and quote in self.text
+            source, state = ("asserted_by_user", "active") if explicit else ("inferred_hypothesis", "candidate")
+            # Her own guess must not bring back words the user had erased; the user asking again may.
+            if not explicit and self.memory._suppressed(text):
                 raise ValueError('previously_rejected')
             owner = self.character_id if scope == "character" else None
             old = db.execute("SELECT fact_id,version FROM facts WHERE text=? AND kind=? AND source=? AND state=? AND owner IS ?",
@@ -347,7 +386,7 @@ class MemoryTurn:
             ident, version = str(uuid.uuid4()), 1
             self.memory._insert(ident, version, kind, text, source, dump(["role_run:" + self.run_id]), None, state=state, owner=owner,
                                 by="character")
-            outcome = "stored"
+            outcome, authority = ("stored", "current_user_message") if explicit else ("candidate", "model_proposed")
             self.stored.append(ident)
         elif op == "correct":
             self.memory._tombstone(ident)
@@ -369,7 +408,9 @@ class MemoryTurn:
             self.changed.append((ident, True))
             outcome = "forgotten"
         self.memory.revision += 1
-        return {"outcome": outcome, "fact_id": ident, "version": version, "source": "current_user_message"}
+        if op != "add":
+            authority = "user_approved" if approved else "model_proposed"
+        return {"outcome": outcome, "fact_id": ident, "version": version, "source": authority}
 
     def context(self, dependencies, mode="retrieved"):
         with self.memory.lock:

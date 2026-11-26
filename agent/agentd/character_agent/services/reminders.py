@@ -3,8 +3,12 @@ from datetime import datetime
 import hashlib
 import math
 
+from character_agent.services.interactions import approved
 from character_agent.services.workspace import _validate_arguments
 from personal.commitments import SNOOZE_DELIVERED
+
+# The single-use approval card's title for cancelling a reminder, by reply language code.
+CANCEL_CARD = {'zh-Hans': '取消提醒：{}', 'en': 'Cancel reminder: {}', 'ja': 'リマインダーを取り消す：{}'}
 
 
 def tool(name, description, properties, required=()):
@@ -13,8 +17,9 @@ def tool(name, description, properties, required=()):
 
 
 class ReminderTurn:
-    def __init__(self, controller, text, source_run_id, *, answers=()):
+    def __init__(self, controller, text, source_run_id, *, answers=(), character_id=None, scope_id=None):
         self.controller, self.text, self.run_id = controller, text, source_run_id
+        self.character_id, self.scope_id = character_id, scope_id
         # The user's own answers to ask_user in this run; they may supply only a reminder's time.
         self.answers = answers
         self.current = lambda: False
@@ -25,7 +30,7 @@ class ReminderTurn:
     @staticmethod
     def tool_definitions():
         quote = {'type': 'string', 'minLength': 2, 'maxLength': 2000,
-                 'description': 'The complete current user instruction, copied verbatim.'}
+                 'description': 'Optional: the user\'s words this write is based on.'}
         due = {'type': 'string', 'minLength': 20, 'maxLength': 64,
                'description': 'Future ISO 8601 date and time with an explicit UTC offset, e.g. 2026-11-18T09:00:00+08:00. Ask the user if their date/time is ambiguous.'}
         trigger = {'type': 'object', 'additionalProperties': False, 'required': ['kind'],
@@ -51,7 +56,9 @@ class ReminderTurn:
                   'time_quote': {**quote, 'description': 'Optional time excerpt from the user\'s answer.'}},
                  ('text',)),
             tool('reminder_update', 'Cancel, reschedule, complete or snooze a saved reminder, with its id and current revision from reminders_list. '
-                 'For reschedule and snooze give the new due_at. This changes only the reminder, not the underlying task.',
+                 'For reschedule and snooze give the new due_at: snooze moves only this occurrence of a repeating reminder, '
+                 'reschedule moves its series too. Cancel shows the user a confirmation card and changes nothing until they allow it; '
+                 'it returns error user_declined when they refused or did not answer. This changes only the reminder, not the underlying task.',
                  {'reminder_id': {'type': 'string', 'minLength': 1, 'maxLength': 128},
                   'expected_revision': {'type': 'integer', 'minimum': 1, 'description': 'The reminder\'s current revision from reminders_list.'},
                   'action': {'type': 'string', 'enum': ['cancel', 'reschedule', 'complete', 'snooze']},
@@ -101,6 +108,21 @@ class ReminderTurn:
             store = getattr(getattr(self.controller, 'server', None), 'commitments', None)
             if store is None:
                 raise ValueError('reminders_unavailable')
+            authority = 'model_proposed'
+            if name == 'reminder_update' and args['action'] == 'cancel' and 'due_at' not in args:
+                with store.lock:
+                    if not self.current():
+                        raise ValueError('run_cancelled')
+                    item = store._get(args['reminder_id'])
+                # A stale or unknown reminder asks no one; the store refuses it.
+                if item is not None and item['revision'] == args['expected_revision']:
+                    language = self.controller.semantic.reply()
+                    if not approved(self.controller.interactions, self.run_id,
+                                    CANCEL_CARD.get(language, CANCEL_CARD['zh-Hans']).format(item['text']), dict(args),
+                                    valid=self.current, character_id=self.character_id, scope_id=self.scope_id,
+                                    language=language):
+                        raise ValueError('user_declined')
+                    authority = 'user_approved'
             with store.lock:
                 if not self.current():
                     raise ValueError('run_cancelled')
@@ -127,7 +149,8 @@ class ReminderTurn:
                     action = 'added'
                 else:
                     ident = args['reminder_id']
-                    key = hashlib.sha256(repr([self.run_id, name, quote, ident, args['action']]).encode()).hexdigest()
+                    key = hashlib.sha256(repr([self.run_id, name, quote, ident, args['action'], args['expected_revision'],
+                                               args.get('due_at')]).encode()).hexdigest()
                     if args['action'] in ('cancel', 'complete') and 'due_at' in args:
                         raise ValueError('unexpected_reminder_time')
                     if args['action'] == 'cancel':
@@ -138,7 +161,8 @@ class ReminderTurn:
                         action = 'completed'
                     else:
                         due = self._time(args.get('due_at'), store.clock())
-                        item = store.snooze(ident, due, expected_revision=args['expected_revision'], request_key=key)
+                        move = store.postpone if args['action'] == 'snooze' else store.snooze
+                        item = move(ident, due, expected_revision=args['expected_revision'], request_key=key)
                         action = 'snoozed'
                 receipt_revision = item['revision']
                 latest = store._get(item['id'])
@@ -147,6 +171,6 @@ class ReminderTurn:
                 if latest['revision'] == receipt_revision:
                     self.controller.server.feed.publish('commitment', {'action': action, 'commitment': latest})
             return {'reminder': self._public(latest), 'write_receipt_revision': receipt_revision,
-                    'authority': 'current_user_instruction', 'saved': True}
+                    'authority': authority, 'saved': True}
         except (ValueError, OverflowError, OSError) as exc:
             return {'error': {'code': str(exc)}}

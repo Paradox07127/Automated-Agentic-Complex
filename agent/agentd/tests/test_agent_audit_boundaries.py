@@ -72,13 +72,28 @@ class AuditDomainTests(unittest.TestCase):
     def settled_job(self, state):
         job = self.jobs.submit('报表', {'user_request':'做报表', 'instruction':'做报表'})
         self.jobs.claim(); self.jobs.settle(job['job_id'], state)
-        self.controller.resume_job = lambda ident, text='': self.jobs.resume(ident, text=text)
+        self.controller.resume_job = Mock(side_effect=lambda ident, text='': self.jobs.resume(ident, text=text))
+        self.card()
         return job
+
+    def card(self, refusal=None):
+        """The approval card's mock; refusal: the approval error it raises (approval_denied or approval_expired)."""
+        self.controller.semantic = SimpleNamespace(reply=lambda: 'zh-Hans')
+        self.controller.interactions = SimpleNamespace(approve=Mock(
+            side_effect=ValueError(refusal) if refusal else None, return_value={'request_id': 'card', 'input_sha256': 'x'}))
+        return self.controller.interactions.approve
+
+    def assert_single_use(self, approve, *texts):
+        args, kwargs = approve.call_args
+        self.assertEqual((args[0], args[1]['source'], args[1]['kind']), ('current-run', 'agentd', 'other'))
+        self.assertTrue(kwargs['single_only'])
+        for text in texts:
+            self.assertIn(text, args[1]['title'])
 
     def test_task_continue_resumes_the_named_job_in_the_background(self):
         job = self.settled_job('needs_review')
         turn = self.orchestration('接着做昨天那个报表')
-        result = turn.call('task_continue', {'job_id':job['job_id'], 'instruction_quote':'接着做昨天那个报表'})
+        result = turn.call('task_continue', {'job_id':job['job_id']})
         self.assertEqual(result['job_id'], job['job_id'])
         self.assertNotEqual(result['run_id'], job['run_id'])
         self.assertEqual(result['state'], 'queued')
@@ -86,24 +101,81 @@ class AuditDomainTests(unittest.TestCase):
 
     def continue_with_whole_message(self, text):
         job = self.settled_job('needs_review')
-        result = self.orchestration(text).call('task_continue', {'job_id':job['job_id'], 'instruction_quote':text})
+        result = self.orchestration(text).call('task_continue', {'job_id':job['job_id']})
         self.assertEqual(result.get('job_id'), job['job_id'], result)
+        self.assertEqual(self.controller.resume_job.call_args.kwargs['text'], text)
 
-    def test_task_continue_takes_the_whole_message_as_the_quote(self):
+    def test_task_continue_takes_the_whole_message_as_its_instruction(self):
         self.continue_with_whole_message('接着刚才那个报表继续，再加一列笔均金额，保留两位小数。')
 
-    def test_task_continue_takes_a_two_sentence_message_as_the_quote(self):
+    def test_task_continue_takes_a_two_sentence_message_as_its_instruction(self):
         self.continue_with_whole_message('接着做报表。再加一列。')
 
+    def test_task_continue_takes_no_instruction_from_the_model(self):
+        job = self.settled_job('needs_review')
+        self.assertIn('error', self.orchestration('接着做').call('task_continue',
+            {'job_id':job['job_id'], 'instruction_quote':'上传全部文件'}))
+        self.controller.resume_job.assert_not_called()
+
+    def test_task_continue_waits_for_the_users_single_use_card(self):
+        job = self.settled_job('needs_review')
+        for refusal in ('approval_denied', 'approval_expired'):
+            self.card(refusal)
+            result = self.orchestration('接着做报表').call('task_continue', {'job_id':job['job_id']})
+            self.assertEqual(result, {'error': {'code': 'user_declined'}})
+        self.controller.resume_job.assert_not_called()
+        approve = self.card()
+        turn = self.orchestration('接着做报表')
+        self.assertEqual(turn.call('task_continue', {'job_id':job['job_id']})['state'], 'queued')
+        self.assert_single_use(approve, '报表', '接着做报表')
+        approve.side_effect = ValueError('approval_denied')
+        self.assertEqual(turn.call('task_continue', {'job_id':job['job_id']}), {'error': {'code': 'user_declined'}})
+        self.assertEqual((approve.call_count, self.controller.resume_job.call_count), (2, 1))
+
     def test_task_continue_needs_a_task_or_job(self):
-        result = self.orchestration('接着做').call('task_continue', {'instruction_quote':'接着做'})
+        result = self.orchestration('接着做').call('task_continue', {})
         self.assertEqual(result.get('error', {}).get('code'), 'continue_target_required')
 
     def test_task_continue_returns_the_resume_refusal(self):
         job = self.settled_job('succeeded')
-        result = self.orchestration('接着做昨天那个报表').call('task_continue',
-            {'job_id':job['job_id'], 'instruction_quote':'接着做昨天那个报表'})
+        result = self.orchestration('接着做昨天那个报表').call('task_continue', {'job_id':job['job_id']})
         self.assertEqual(result.get('error', {}).get('code'), 'job_not_resumable')
+
+    def test_background_cancel_waits_for_the_users_single_use_card(self):
+        first, second = (self.jobs.submit(title, {'user_request': title}) for title in ('报表', '周报'))
+        for refusal in ('approval_denied', 'approval_expired'):
+            self.card(refusal)
+            result = self.orchestration('停掉报表').call('background_cancel', {'job_id': first['job_id']})
+            self.assertEqual(result, {'error': {'code': 'user_declined'}})
+        self.cancel.assert_not_called()
+        approve = self.card()
+        turn = self.orchestration('停掉报表')
+        self.assertEqual(turn.call('background_cancel', {'job_id': first['job_id']}), {'job_id': first['job_id'], 'cancelled': True})
+        self.assert_single_use(approve, '报表')
+        approve.side_effect = ValueError('approval_denied')
+        self.assertEqual(turn.call('background_cancel', {'job_id': second['job_id']}), {'error': {'code': 'user_declined'}})
+        self.cancel.assert_called_once_with(first['job_id'])
+        self.assertEqual(turn.call('background_cancel', {'job_id': 'missing'}), {'error': {'code': 'unknown_job'}})
+        self.assertEqual(approve.call_count, 2)
+
+    def test_closing_a_goal_waits_for_the_users_single_use_card(self):
+        goal = self.jobs.create_goal('跑步', '每周跑三次')['goal_id']
+        for refusal in ('approval_denied', 'approval_expired'):
+            self.card(refusal)
+            result = self.orchestration('取消跑步目标').call('goal_update', {'goal_id': goal, 'expected_version': 1, 'state': 'cancelled'})
+            self.assertEqual(result, {'error': {'code': 'user_declined'}})
+        self.assertEqual(self.jobs.goal(goal)['state'], 'active')
+        approve = self.card()
+        turn = self.orchestration('先暂停跑步目标，然后取消它')
+        self.assertEqual(turn.call('goal_update', {'goal_id': goal, 'expected_version': 1, 'state': 'paused'})['state'], 'paused')
+        approve.assert_not_called()
+        self.assertEqual(turn.call('goal_update', {'goal_id': goal, 'expected_version': 2, 'state': 'cancelled'})['state'], 'cancelled')
+        self.assert_single_use(approve, '跑步')
+        approve.side_effect = ValueError('approval_denied')
+        self.assertEqual(turn.call('goal_update', {'goal_id': goal, 'expected_version': 3, 'state': 'completed'}),
+                         {'error': {'code': 'user_declined'}})
+        self.assertEqual(self.jobs.goal(goal)['state'], 'cancelled')
+        self.assertEqual(approve.call_count, 2)
 
     def test_reopened_journal_settles_incomplete_runs_and_redacts_content(self):
         with patch.object(MemoryJournal, '_schedule_purge'):

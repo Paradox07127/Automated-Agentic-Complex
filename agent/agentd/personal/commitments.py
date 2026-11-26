@@ -372,16 +372,23 @@ class Commitments:
             self.db.commit()
         return item
 
-    def postpone(self, commitment_id, due_at):
+    def postpone(self, commitment_id, due_at, *, expected_revision=None, request_key=None):
         """Its delivered occurrence said again at due_at: as snooze, except that a repeating one goes on at its series'
         own time after that."""
-        with self.lock:
+        with self.lock, self.db:
+            if request_key is not None and not self.db.in_transaction:
+                self.db.execute("BEGIN IMMEDIATE")
             item = self._get(commitment_id)
             if item is None or item["repeat"] is None:
-                return self.snooze(commitment_id, due_at)
+                return self.snooze(commitment_id, due_at, expected_revision=expected_revision, request_key=request_key)
+            request = {"operation": "postpone", "id": commitment_id, "due_at": due_at, "revision": expected_revision}
+            old = self._receipt(request_key, request)
+            if old is not None:
+                return old
             series = self._series(commitment_id) or item["due_at"]
-            item = self._move(commitment_id, "armed", self.clock(), due_at=due_at)
+            item = self._move(commitment_id, "armed", self.clock(), due_at=due_at, expected_revision=expected_revision)
             self.db.execute("UPDATE commitments SET series_at = ? WHERE id = ?", (series, commitment_id))
+            self._receipt(request_key, request, item)
             self.db.commit()
         return item
 

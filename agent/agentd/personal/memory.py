@@ -135,7 +135,8 @@ class Memory:
         return refs
 
     def _tombstone(self, fact_id, within=None):
-        """Suppress existing sources as well as the deleted words (normalized_text).
+        """Suppress existing sources as well as the deleted words (normalized_text), and drop every affected fact's
+        search rows; the caller retires fact_id itself.
 
         Automatic extraction must not replay the source into a fresh diagnostic
         log after the user erased a memory. All writes stay in the caller's transaction.
@@ -165,6 +166,8 @@ class Memory:
         # fact, including confirmed versions, rather than leave claims without evidence.
         # The requested fact is handled by the caller (which may replace it with a correction).
         self.db.executemany('DELETE FROM fact_sightings WHERE fact_id=?', [(ident,) for ident in affected])
+        self.db.executemany("DELETE FROM facts_fts WHERE rowid IN (SELECT id FROM facts WHERE fact_id=?)",
+                            [(ident,) for ident in affected])
         self.db.executemany("UPDATE facts SET text=NULL,state='deleted' WHERE fact_id=?",
                             [(ident,) for ident in affected - {fact_id}])
         for table,key in (('episodes_fts','rowid'),('summary_corrections','episode_id'),('episodes','id')):
@@ -311,7 +314,6 @@ class Memory:
                 if row[0] != expected_version: raise VersionConflict(row[0])
             self._check_cascade(fact_id, cascade)
             self._tombstone(fact_id)
-            self.db.execute("DELETE FROM facts_fts WHERE rowid IN (SELECT id FROM facts WHERE fact_id = ?)", (fact_id,))
             changed = self.db.execute("UPDATE facts SET state = 'deleted', text = NULL WHERE fact_id = ?",
                                       (fact_id,)).rowcount
             if not changed:
@@ -332,8 +334,6 @@ class Memory:
                 for fact_id in fact_ids: affected.update(self._tombstone(fact_id))
                 fact_ids += sorted(affected - set(fact_ids))
                 self._redact_agent_journal()
-                self.db.executemany("DELETE FROM facts_fts WHERE rowid IN (SELECT id FROM facts WHERE fact_id = ?)",
-                                    [(fact_id,) for fact_id in fact_ids])
                 self.db.executemany("UPDATE facts SET state = 'deleted', text = NULL WHERE fact_id = ?",
                                     [(fact_id,) for fact_id in fact_ids])
                 self.db.commit()
@@ -387,8 +387,6 @@ class Memory:
                 for fact_id in fact_ids: affected.update(self._tombstone(fact_id))
                 fact_ids += sorted(affected - set(fact_ids))
                 self._redact_agent_journal()
-                self.db.executemany("DELETE FROM facts_fts WHERE rowid IN (SELECT id FROM facts WHERE fact_id = ?)",
-                                    [(fact_id,) for fact_id in fact_ids])
                 self.db.executemany("UPDATE facts SET state = 'deleted', text = NULL WHERE fact_id = ?",
                                     [(fact_id,) for fact_id in fact_ids])
                 self.db.commit()

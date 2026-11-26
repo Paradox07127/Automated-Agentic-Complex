@@ -499,11 +499,12 @@ class IntegrationTests(IntegrationFixture):
                 yield from session.use(options, 'task_plan', {'title': '报销汇总', 'outputs': []})
             elif '接着' in prompt:
                 for key in ('first', 'again'):
-                    seen[key] = yield from session.use(options, 'task_continue',
-                        {'task_id': seen['task_id'], 'instruction_quote': '接着刚才那个继续'})
+                    seen[key] = yield from session.use(options, 'task_continue', {'task_id': seen['task_id']})
             yield {'type': 'result', 'success': True, 'final_text': '好', 'usage': {}}
         self.script = work
         scope = self.scope_id()
+        approve = patch.object(self.controller.interactions, 'approve', return_value={'request_id': 'card', 'input_sha256': 'x'})
+        self.addCleanup(approve.stop); approve.start()
         try:
             body, _ = self.line('整理报销汇总', scope_id=scope)
             first_run = body['run_id']
@@ -616,6 +617,8 @@ class IntegrationTests(IntegrationFixture):
         goal=self.controller.jobs.store.create_goal('事项维护','整理证据')
         turn=OrchestrationTurn(self.controller,'处理目标',self.controller.settings.snapshot(),'aster',None,'tool-test')
         turn.open(lambda:True)
+        approve=patch.object(self.controller.interactions,'approve',return_value={'request_id':'card','input_sha256':'x'})
+        self.addCleanup(approve.stop); approve.start()
         self.assertEqual(turn.call('goal_update',{'goal_id':goal['goal_id'],'expected_version':2,'state':'paused'})['error']['code'],'goal_version_changed')
         self.assertEqual(turn.call('goal_update',{'goal_id':goal['goal_id'],'expected_version':1,'state':'paused'})['state'],'paused')
         self.assertEqual(turn.call('goal_update',{'goal_id':goal['goal_id'],'expected_version':2,'state':'cancelled'})['state'],'cancelled')
@@ -1566,9 +1569,10 @@ class TurnContextTests(unittest.TestCase):
         turn = OrchestrationTurn(self.c, 'continue', self.c.settings.snapshot(), self.server.character, None, 'current')
         turn.open(lambda: True)
         job, run = (uuid.UUID(hex='1234abcd12344abc8def' + letter + '13812345678') for letter in ('a', 'b'))
-        with patch('character_agent.services.jobs.uuid') as ids, patch.object(self.c.jobs, 'start'):
+        with patch('character_agent.services.jobs.uuid') as ids, patch.object(self.c.jobs, 'start'), \
+                patch.object(self.c.interactions, 'approve', return_value={'request_id': 'card', 'input_sha256': 'x'}):
             ids.uuid4.side_effect = (job, run, uuid.uuid4())
-            reply = turn.call('task_continue', {'task_id': 'task', 'instruction_quote': 'continue'})
+            reply = turn.call('task_continue', {'task_id': 'task'})
         reader = sqlite3.connect(self.fixture.root / 'domain.sqlite')
         self.addCleanup(reader.close)
         self.assertEqual(reader.execute('SELECT job_id,run_id FROM personal_jobs').fetchone(), (job.hex, 'bg-' + run.hex))

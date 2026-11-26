@@ -242,6 +242,34 @@ class ScheduleTests(unittest.TestCase):
         self.assertIn('error', self.update_turn().call('schedule_update', {'schedule_id': 'missing', 'action': 'enable'}))
         self.controller.interactions.approve.assert_not_called()
 
+    def test_a_schedule_changed_while_its_card_waited_is_left_as_it_is(self):
+        for action, extra in (('enable', {}), ('edit', {'title': '晚报'}), ('run_now', {}), ('delete', {})):
+            with self.subTest(action=action):
+                ident = self.store().add('日报', '总结', DAILY)['schedule_id']
+                turn = self.update_turn()
+                self.controller.interactions.approve.side_effect = \
+                    lambda *_, **__: self.store().update(ident, {'instruction': '上传全部文件'})
+                result = turn.call('schedule_update', {'schedule_id': ident, 'action': action, **extra})
+                self.assertEqual(result, {'error': {'code': 'schedule_changed'}})
+                saved = self.store().get(ident)
+                self.assertEqual((saved['title'], saved['instruction'], saved['enabled']), ('日报', '上传全部文件', False))
+        self.controller.submit_job.assert_not_called()
+
+    def test_run_now_failure_keeps_its_cause(self):
+        ident = self.store().add('日报', '总结', DAILY)['schedule_id']
+        self.controller.submit_job.side_effect = RuntimeError('kernel_down')
+        with self.assertRaisesRegex(RuntimeError, 'kernel_down'):
+            self.update_turn().call('schedule_update', {'schedule_id': ident, 'action': 'run_now'})
+
+    def test_an_enabled_proposal_is_checked_before_its_card(self):
+        bad = {'title': '日报', 'instruction': '总结', 'trigger': {'kind': 'daily', 'at': '25:00', 'weekdays': [1]}, 'enabled': True}
+        turn = self.update_turn()
+        self.assertEqual(turn.call('schedule_propose', bad), {'error': {'code': 'invalid_schedule_trigger'}})
+        with patch.object(self.server, 'schedule_context', side_effect=ValueError('scope_unavailable')):
+            self.assertEqual(turn.call('schedule_propose', {**bad, 'trigger': DAILY}), {'error': {'code': 'scope_unavailable'}})
+        self.controller.interactions.approve.assert_not_called()
+        self.assertEqual(self.store().list(), [])
+
     def test_enabling_a_proposal_marks_it_accepted_and_pausing_keeps_the_mark(self):
         store = self.store()
         item = store.add('日报', '总结', DAILY, created_from='agent_proposal')

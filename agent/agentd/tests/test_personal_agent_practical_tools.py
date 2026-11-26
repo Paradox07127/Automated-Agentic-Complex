@@ -11,7 +11,7 @@ from unittest.mock import Mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from character_agent.services.reminders import ReminderTurn
-from personal.commitments import Commitments
+from personal.commitments import Commitments, occurrence
 from infra.store import open_store
 
 
@@ -24,7 +24,9 @@ class ReminderToolsTests(unittest.TestCase):
         self.addCleanup(self.db.close)
         self.now = 1793448000.0
         self.store = Commitments(self.db, clock=lambda: self.now)
-        self.controller = SimpleNamespace(server=SimpleNamespace(commitments=self.store, feed=Mock()))
+        self.approve = Mock(return_value={'request_id': 'card', 'input_sha256': 'x'})
+        self.controller = SimpleNamespace(server=SimpleNamespace(commitments=self.store, feed=Mock()),
+            interactions=SimpleNamespace(approve=self.approve), semantic=SimpleNamespace(reply=lambda: 'zh-Hans'))
 
     def iso(self, delta=600):
         return datetime.fromtimestamp(self.now + delta, timezone.utc).isoformat()
@@ -274,6 +276,59 @@ class ReminderToolsTests(unittest.TestCase):
         item, = self.added('喝水')
         result = self.update('十分钟后再提醒我', item, 'snooze', due_at=self.iso(600))
         self.assertEqual(result.get('reminder', {}).get('due_at'), self.now + 600, result)
+
+    def test_cancel_waits_for_the_users_single_use_card(self):
+        first, second = self.added('喝水', '交周报')
+        for refusal in ('approval_denied', 'approval_expired'):
+            self.approve.side_effect = ValueError(refusal)
+            self.assertEqual(self.update('取消喝水提醒', first), {'error': {'code': 'user_declined'}})
+        self.assertEqual(self.store._get(first['id'])['state'], 'armed')
+        self.approve.side_effect = None
+        turn = self.turn('取消喝水和周报的提醒')
+        result = turn.call('reminder_update', {'reminder_id': first['id'], 'expected_revision': 1, 'action': 'cancel'})
+        self.assertEqual((result['reminder']['state'], result['authority']), ('cancelled', 'user_approved'))
+        args, kwargs = self.approve.call_args
+        self.assertEqual((args[0], args[1]['source'], args[1]['kind']), ('run-1', 'agentd', 'other'))
+        self.assertIn('喝水', args[1]['title'])
+        self.assertTrue(kwargs['single_only'])
+        self.approve.side_effect = ValueError('approval_denied')
+        result = turn.call('reminder_update', {'reminder_id': second['id'], 'expected_revision': 1, 'action': 'cancel'})
+        self.assertEqual(result, {'error': {'code': 'user_declined'}})
+        self.assertEqual(self.store._get(second['id'])['state'], 'armed')
+        self.assertEqual(self.approve.call_count, 4)
+
+    def test_writes_without_a_card_say_the_model_proposed_them(self):
+        result = self.turn('十分钟后提醒我喝水').call('reminder_create', self.create_args())
+        self.assertEqual(result['authority'], 'model_proposed')
+        result = self.update('十分钟后再提醒我', result['reminder'], 'snooze', due_at=self.iso(1200))
+        self.assertEqual(result['authority'], 'model_proposed')
+        self.approve.assert_not_called()
+
+    def test_snoozing_a_repeating_reminder_moves_only_this_occurrence(self):
+        item = self.store.add('喝水', self.now + 600, repeat='daily')
+        result = self.update('半小时后再提醒我', item, 'snooze', due_at=self.iso(1800))
+        self.assertEqual(result.get('reminder', {}).get('due_at'), self.now + 1800, result)
+        self.now += 1800
+        self.store.due()
+        self.assertEqual(self.store.fulfill(item['id'], None)['due_at'], occurrence(item['due_at'], 'daily', self.now))
+
+    def test_rescheduling_a_repeating_reminder_moves_the_series(self):
+        item = self.store.add('喝水', self.now + 600, repeat='daily')
+        result = self.update('以后都晚半小时提醒我', item, 'reschedule', due_at=self.iso(1800))
+        self.assertEqual(result.get('reminder', {}).get('due_at'), self.now + 1800, result)
+        self.now += 1800
+        self.store.due()
+        self.assertEqual(self.store.fulfill(item['id'], None)['due_at'], occurrence(self.now, 'daily', self.now))
+
+    def test_two_different_snoozes_in_one_run_both_apply(self):
+        item, = self.added('喝水')
+        turn = self.turn('先推迟十分钟，算了，推迟二十分钟')
+        first = turn.call('reminder_update', {'reminder_id': item['id'], 'expected_revision': 1, 'action': 'snooze',
+                                              'due_at': self.iso(600)})
+        self.assertEqual(first.get('reminder', {}).get('due_at'), self.now + 600, first)
+        second = turn.call('reminder_update', {'reminder_id': item['id'], 'expected_revision': 2, 'action': 'snooze',
+                                               'due_at': self.iso(1200)})
+        self.assertEqual(second.get('reminder', {}).get('due_at'), self.now + 1200, second)
 
     def test_terminal_reminder_does_not_claim_user_heard_or_completed_work(self):
         item = self.store.add('提交报告', self.now + 600)

@@ -260,6 +260,18 @@ class InteractionService:
         for event in events:event.set()
 
 
+def approved(interactions, run_id, title, raw_input, **context):
+    """A single-use approval card titled title; False when the user refused it or let it expire."""
+    try:
+        interactions.approve(run_id, {'source': 'agentd', 'title': title, 'kind': 'other', 'raw_input': raw_input},
+                             single_only=True, **context)
+    except ValueError as exc:
+        if str(exc) in ('approval_denied', 'approval_expired'):
+            return False
+        raise
+    return True
+
+
 class QuestionTurn:
     """ask_user for one run, answered through the interaction inbox."""
     def __init__(self, interactions, interactive, run_id, character_id, text, scope_id, job_id=None):

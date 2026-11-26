@@ -1,4 +1,5 @@
 """Run-scoped goal/job tools. Workers cannot recursively create more workers."""
+from character_agent.services.interactions import approved
 
 
 SCHEDULE_ACTIONS = {
@@ -24,6 +25,19 @@ SETTINGS_CARD = {
 }
 
 
+# Single-use approval card titles for changes to the user's own work, by reply language code.
+WORK_CARD = {
+    'zh-Hans': {'cancel_job': '取消后台任务：{}', 'continue': '继续任务：{}（{}）', 'completed': '完成目标：{}',
+                'cancelled': '取消目标：{}'},
+    'en': {'cancel_job': 'Cancel background job: {}', 'continue': 'Continue task: {} ({})', 'completed': 'Complete goal: {}',
+           'cancelled': 'Cancel goal: {}'},
+    'ja': {'cancel_job': 'バックグラウンドタスクを取り消す：{}', 'continue': 'タスクを続ける：{}（{}）', 'completed': '目標を完了する：{}',
+           'cancelled': '目標を取り消す：{}'},
+}
+# The schedule fields a card's action relies on; a change to any while it waits voids the approval.
+SCHEDULE_SHOWN = ('title', 'instruction', 'trigger', 'enabled', 'conversation_id', 'scope_id')
+
+
 def _when(trigger):
     if trigger['kind'] == 'session_done':
         return ' '.join(['session_done', trigger.get('target') or '*', trigger.get('project') or '*'])
@@ -43,7 +57,8 @@ class OrchestrationTurn:
         self.current = lambda: False
         self.spawned = []
         from character_agent.services.reminders import ReminderTurn
-        self.reminders = ReminderTurn(controller, text, source_run_id, answers=answers)
+        self.reminders = ReminderTurn(controller, text, source_run_id, answers=answers, character_id=character_id,
+                                      scope_id=scope_id)
         from character_agent.services.dispatch_tool import DispatchTurn
         self.dispatch = DispatchTurn(controller, text if utterance is None else utterance, source_run_id, character_id)
 
@@ -116,12 +131,14 @@ class OrchestrationTurn:
             tool('goal_create', 'Create a durable personal goal that you keep following over days or weeks, e.g. "create a goal to run three times a week". '
                  'Use it only when the current message explicitly asks for a goal or ongoing follow-up; a one-off task, '
                  'a timed reminder (reminder_create) or a recurring automatic job (schedule_propose) is not a goal. '
-                 'objective_quote must be verbatim current user text; paraphrases are refused. Returns the goal with its goal_id.',
+                 'objective_quote is saved as the goal\'s objective. Returns the goal with its goal_id.',
                  {'title': {'type': 'string', 'maxLength': 200, 'description': 'Short name for the goal.'},
-                  'objective_quote': {**text, 'description': 'The exact words of the current user message that state the goal.'}}, ('title', 'objective_quote')),
+                  'objective_quote': {**text, 'description': 'The user\'s words that state the goal.'}}, ('title', 'objective_quote')),
             tool('goal_update', 'Change a goal\'s status when the current user message asks for that change and names the goal by title or id: '
                  'active resumes it, paused pauses it, completed or cancelled closes it. expected_version is its current version from goals_list; '
-                 'a stale one is refused. Completion requires all associated work to have verified results.',
+                 'a stale one is refused. Completion requires all associated work to have verified results. '
+                 'Closing shows the user a confirmation card and changes nothing until they allow it; '
+                 'it returns error user_declined when they refused or did not answer.',
                  {'goal_id': ident, 'expected_version': {'type': 'integer', 'minimum': 1, 'description': 'The goal\'s current version from goals_list.'},
                   'state': {'type': 'string', 'enum': ['active', 'paused', 'completed', 'cancelled']}}, ('goal_id', 'expected_version', 'state')),
             tool('background_start', 'Run an authorized part of the current request in the background while you keep talking with the user: '
@@ -138,13 +155,14 @@ class OrchestrationTurn:
                   'description':'Only jobs in these states; omit for all.'}}),
             tool('background_cancel', 'Cancel only the background job the user names in the current message (by its title or id, '
                  'or a plain "stop it" when exactly one job is active); take job_id from background_start or background_status. '
-                 'New chat alone never cancels a job. Returns whether the job was cancelled.', {'job_id': ident}, ('job_id',)),
+                 'New chat alone never cancels a job. Shows the user a confirmation card and cancels nothing until they allow it. '
+                 'Returns whether the job was cancelled, or error user_declined when they refused or did not answer.', {'job_id': ident}, ('job_id',)),
             tool('task_continue', 'Continue earlier work only when the user explicitly asks to continue a previous task or background job. '
-                 'Find it first in the task index or background_status, then pass its task_id or job_id; instruction_quote must be verbatim current user text '
-                 'containing the request to continue. The continuation is queued in the background with the same task, file scope and checkpoint; '
+                 'Find it first in the task index or background_status, then pass its task_id or job_id; the current user message is its new instruction. '
+                 'Shows the user a confirmation card first and continues nothing until they allow it (error user_declined otherwise). '
+                 'The continuation is queued in the background with the same task, file scope and checkpoint; '
                  'queued is not completed. Use it instead of a new task_plan or background_start for the same work.',
-                 {'task_id': {**ident, 'description': 'The earlier task; give this or job_id.'}, 'job_id': {**ident, 'description': 'The earlier background job; give this or task_id.'},
-                  'instruction_quote': {**text, 'description': 'Exact words of the current user message asking to continue.'}}, ('instruction_quote',)),
+                 {'task_id': {**ident, 'description': 'The earlier task; give this or job_id.'}, 'job_id': {**ident, 'description': 'The earlier background job; give this or task_id.'}}),
         ]
 
     def call(self, name, args, tool_call_id=None):
@@ -169,26 +187,23 @@ class OrchestrationTurn:
                 if store is None:
                     raise ValueError('no_schedules')
                 if name == 'schedule_propose':
+                    from personal.schedules import validate_trigger
                     enabled = bool(args.get('enabled'))
+                    history = c.server.history
+                    conversation_id = history.conversations.active if history else None
                     if enabled:
+                        validate_trigger(args['trigger'])
+                        if not args['title'].strip() or not args['instruction'].strip():
+                            raise ValueError('invalid_schedule')
+                        c.server.schedule_context(conversation_id, self.scope_id)
                         language = c.semantic.reply()
                         title = SCHEDULE_ACTIONS.get(language, SCHEDULE_ACTIONS['zh-Hans'])['enable'].format(args['title'])
-                        try:
-                            c.interactions.approve(
-                                self.source_run_id,
-                                {'source': 'agentd', 'title': title, 'kind': 'other', 'raw_input': dict(args)},
-                                valid=self.current, character_id=self.character_id, scope_id=self.scope_id,
-                                language=language, single_only=True)
-                        except ValueError as exc:
-                            if str(exc) in ('approval_denied', 'approval_expired'):
-                                return {'error': {'code': 'user_declined'}}
-                            raise
-                    history = c.server.history
+                        if not self._approved(title, args, language):
+                            return {'error': {'code': 'user_declined'}}
+                        c.server.schedule_context(conversation_id, self.scope_id)
                     item = store.add(args['title'], args['instruction'], args['trigger'], enabled=False,
-                        created_from='agent_proposal', conversation_id=history.conversations.active if history else None,
-                        scope_id=self.scope_id)
+                        created_from='agent_proposal', conversation_id=conversation_id, scope_id=self.scope_id)
                     if enabled:
-                        c.server.schedule_context(item['conversation_id'], item['scope_id'])
                         item = store.update(item['schedule_id'], {'enabled': True})
                         return {'schedule': item, 'message': 'Enabled after user confirmation.'}
                     return {'schedule': item, 'message': 'Saved disabled; it runs only after the user enables it on the schedules page.'}
@@ -224,6 +239,14 @@ class OrchestrationTurn:
                     raise ValueError('explicit_goal_instruction_required')
                 return c.jobs.store.create_goal(args['title'], quote)
             if name == 'goal_update':
+                if args['state'] in ('completed', 'cancelled'):
+                    goal = c.jobs.store.goal(args['goal_id'])
+                    if goal is None:
+                        raise ValueError('unknown_goal')
+                    if goal['revision'] != args['expected_version']:
+                        raise ValueError('goal_version_changed')
+                    if not self._approved_work(args['state'], args, goal['title']):
+                        return {'error': {'code': 'user_declined'}}
                 return c.update_goal(args['goal_id'], args['expected_version'], args['state'])
             if name == 'background_start':
                 job = c.submit_job(args['title'], self.text, args['instruction'], self.scope_id,
@@ -232,18 +255,40 @@ class OrchestrationTurn:
                 self.spawned.append(job['job_id'])
                 return job
             if name == 'background_cancel':
+                job = c.jobs.store.get(args['job_id'])
+                if job is None:
+                    raise ValueError('unknown_job')
+                if not self._approved_work('cancel_job', args, job['title']):
+                    return {'error': {'code': 'user_declined'}}
                 return {'job_id': args['job_id'], 'cancelled': c.jobs.cancel(args['job_id'])}
             if name == 'task_continue':
-                quote = args['instruction_quote']
                 if not args.get('task_id') and not args.get('job_id'):
                     raise ValueError('continue_target_required')
                 job_id = args.get('job_id') or (c._job_tasks().get(args['task_id']) or {}).get('job_id')
-                job = c.resume_job(job_id, text=quote) if job_id else c.adopt_task(args['task_id'], self.text, quote,
+                if job_id:
+                    target = c.jobs.store.get(job_id)
+                    if target is None:
+                        raise ValueError('unknown_job')
+                else:
+                    target = c.server.tasks.get(args['task_id']) if c.server.tasks else None
+                    if target is None:
+                        raise ValueError('unknown_task')
+                if not self._approved_work('continue', args, target['title'], self.text):
+                    return {'error': {'code': 'user_declined'}}
+                job = c.resume_job(job_id, text=self.text) if job_id else c.adopt_task(args['task_id'], self.text, self.text,
                     config=self.config, character_id=self.character_id, source_run_id=self.source_run_id, valid=self.current)
                 self.spawned.append(job['job_id'])
                 return {k: job[k] for k in ('job_id', 'run_id', 'state')}
         except ValueError as exc:
             return {'error': {'code': str(exc)}}
+
+    def _approved(self, title, args, language):
+        return approved(self.controller.interactions, self.source_run_id, title, dict(args), valid=self.current,
+                        character_id=self.character_id, scope_id=self.scope_id, language=language)
+
+    def _approved_work(self, action, args, *names):
+        language = self.controller.semantic.reply()
+        return self._approved(WORK_CARD.get(language, WORK_CARD['zh-Hans'])[action].format(*names), args, language)
 
     def _schedule_update(self, store, args):
         """One schedule change behind a single-use approval card, through the store calls the /schedules routes make."""
@@ -263,32 +308,23 @@ class OrchestrationTurn:
             label += ' (' + '; '.join(f'{shown(k, item[k])} → {shown(k, v)}' for k, v in changes.items()) + ')'
         language = c.semantic.reply()
         title = SCHEDULE_ACTIONS.get(language, SCHEDULE_ACTIONS['zh-Hans'])[action].format(label)
-        try:
-            c.interactions.approve(self.source_run_id, {'source': 'agentd', 'title': title, 'kind': 'other', 'raw_input': dict(args)},
-                valid=self.current, character_id=self.character_id, scope_id=self.scope_id, language=language, single_only=True)
-        except ValueError as exc:
-            if str(exc) in ('approval_denied', 'approval_expired'):
-                return {'error': {'code': 'user_declined'}}
-            raise
-        if action == 'delete':
-            if not store.delete(ident):
-                raise ValueError('unknown_schedule')
-            return {'schedule': None, 'deleted': True}
-        if action == 'run_now':
-            try:
-                job = c.server._submit_schedule(store, store.run_now(ident), manual=True)
-            except ValueError:
-                raise
-            except Exception:
-                raise ValueError('schedule_unavailable')
-            return {'schedule': store.get(ident), 'job_id': job['job_id']}
+        if not self._approved(title, args, language):
+            return {'error': {'code': 'user_declined'}}
         if action == 'enable':
-            saved = store.get(ident)
-            if saved is None:
-                raise ValueError('unknown_schedule')
-            c.server.schedule_context(saved['conversation_id'], saved['scope_id'])
+            c.server.schedule_context(item['conversation_id'], item['scope_id'])
         if action in ('enable', 'disable'):
             changes = {'enabled': action == 'enable'}
+        saved = store.get(ident)
+        if saved is None:
+            raise ValueError('unknown_schedule')
+        if any(saved[key] != item[key] for key in SCHEDULE_SHOWN):
+            raise ValueError('schedule_changed')
+        if action == 'delete':
+            store.delete(ident)
+            return {'schedule': None, 'deleted': True}
+        if action == 'run_now':
+            job = c.server._submit_schedule(store, store.run_now(ident), manual=True)
+            return {'schedule': store.get(ident), 'job_id': job['job_id']}
         return {'schedule': store.update(ident, changes)}
 
     def _settings_read(self):
@@ -325,13 +361,8 @@ class OrchestrationTurn:
         before = lambda key: words['on' if current['paused_until'] else 'off'] if key == 'observation_pause_minutes' \
             else shown(key, current[key])  # noqa: E731
         title = words['title'].format('; '.join(f'{words[k]}: {before(k)} → {shown(k, v)}' for k, v in args.items()))
-        try:
-            c.interactions.approve(self.source_run_id, {'source': 'agentd', 'title': title, 'kind': 'other', 'raw_input': dict(args)},
-                valid=self.current, character_id=self.character_id, scope_id=self.scope_id, language=language, single_only=True)
-        except ValueError as exc:
-            if str(exc) in ('approval_denied', 'approval_expired'):
-                return {'error': {'code': 'user_declined'}}
-            raise
+        if not self._approved(title, args, language):
+            return {'error': {'code': 'user_declined'}}
         server = c.server
         gate = server.gate
         if 'companion_mode' in args:
