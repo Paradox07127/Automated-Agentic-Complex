@@ -66,6 +66,17 @@ class ResourceStoreTests(unittest.TestCase):
             self.assertNotEqual(source.stat().st_ino,(root/'copied').stat().st_ino)
             self.assertEqual((root/'copied').read_bytes(),b'data')
 
+    def test_install_on_windows_links_content_already_installed_and_copies_the_import_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);repo=ResourceRepository();data=b'shared';r=ref(data)
+            source=root/'import';source.write_bytes(data)
+            with patch('resource_store.sys.platform','win32'):
+                self.assertEqual(repo.materialize(source,root/'one',r),'copied')
+                self.assertEqual(repo.materialize(source,root/'two',r),'linked')
+            self.assertNotEqual(source.stat().st_ino,(root/'one').stat().st_ino)
+            self.assertEqual((root/'one').stat().st_ino,(root/'two').stat().st_ino)
+            self.assertEqual(repo.stats['linked'],1)
+
     def test_readonly_archived_input_produces_independently_writable_build_view(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);source=root/'original';source.write_bytes(b'json');source.chmod(0o444)

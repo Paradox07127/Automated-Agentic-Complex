@@ -1,4 +1,4 @@
-"""Content-identified CoW materialization; writable views never use hard links, immutable installs on Windows do.
+"""Content-identified CoW materialization; writable views never use hard links, an install on Windows links content it already holds.
 
 APFS clonefile shares data extents while preserving write isolation. Other file
 systems fall back to a normal copy. This is storage deduplication, not a claim
@@ -73,7 +73,7 @@ class ResourceRepository:
     def __init__(self):
         self.content = {}
         self.verified = {}
-        self.stats = dict(cloned=0, copied=0, content_reuses=0, logical_bytes=0, full_copy_bytes=0)
+        self.stats = dict(cloned=0, copied=0, linked=0, content_reuses=0, logical_bytes=0, full_copy_bytes=0)
 
     def register(self, path, ref):
         key = (ref['sha256'], ref['byte_count'])
@@ -100,7 +100,8 @@ class ResourceRepository:
             self.stats['content_reuses'] += 1
         else: selected = source
         destination.parent.mkdir(parents=True, exist_ok=True)
-        method = clone_or_copy(selected, destination)
+        # Only an installed canonical file is linked: a link to the import source would let later edits there change the package.
+        method = (link_or_copy if selected is canonical else clone_or_copy)(selected, destination)
         self.stats[method] += 1
         self.stats['logical_bytes'] += key[1]
         if method == 'copied': self.stats['full_copy_bytes'] += key[1]
