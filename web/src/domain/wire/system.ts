@@ -297,6 +297,7 @@ export interface WireDiagVoice {
   mouth: 'busy' | 'idle';
   voice: string | null;
   muted: boolean;
+  character_voice: boolean;
   avatar_visible: boolean;
   /** `at`: ISO time (server.py `_iso`). */
   speech_failed: { speech_id: string; reason: string | null; at: string } | null;

@@ -351,9 +351,9 @@ class MakeProviderTest(unittest.TestCase):
                          (9888, "7", "voice_a", "ja", "secret", None))
         self.assertIsNone(voice.ensurer)
 
-    def test_unknown_voice_falls_back_to_the_character_in_chinese(self):
+    def test_a_character_without_a_voice_binds_none(self):
         relay = make_provider(args(character="birch"), Repository({}), 7, None).relay()
-        self.assertEqual((relay.character, relay.language), ("birch", "zh"))
+        self.assertEqual((relay.character, relay.language), (None, None))
 
     def test_ensure_host_and_script_add_the_ensurer(self):
         voice = make_provider(args(host="tts-host", script="ensure.sh"), Repository({}), 7, None)

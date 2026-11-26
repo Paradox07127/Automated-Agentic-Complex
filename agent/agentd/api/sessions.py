@@ -133,7 +133,8 @@ class SessionsMixin:
         return self._json(200, {"commitment": item})
 
     def _commitment_seen(self, commitment_id, body):
-        """POST /commitments/<id>/seen: the reminder's card was on screen."""
+        """POST /commitments/<id>/seen: the reminder's card was on screen, which delivers a due one-off reminder; a
+        repeating one its tick already re-armed only records it."""
         if body != {}:
             return self._json(400, {"error": "invalid_payload"})
         commitments = self.server.commitments
@@ -146,6 +147,9 @@ class SessionsMixin:
                 return self._json(404, {"error": "unknown_commitment"})
             if before["seen_at"] is None:
                 self.server.feed.publish("commitment", {"action": "seen", "commitment": item})
+            if item["state"] == "triggered" and item["repeat"] is None:
+                item = commitments.fulfill(commitment_id, None)
+                self.server.feed.publish("commitment", {"action": "fulfilled", "commitment": item})
         return self._json(200, {"commitment": item})
 
     def _schedules_get(self):

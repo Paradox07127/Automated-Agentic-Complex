@@ -972,7 +972,7 @@ class RemoteFailureTest(unittest.TestCase):
         args = Namespace(tts_url=f"http://127.0.0.1:{tts.server_port}", tts_ensure_host=None, tts_ensure_script=None,
                          character="voice_a",
                          fallback_tts_url=f"http://127.0.0.1:{other.server_port}")
-        voice = make_provider(args, Namespace(voice=lambda character: None), 1, "tok-1")
+        voice = make_provider(args, Namespace(voice=lambda character: ("voice_a", "zh")), 1, "tok-1")
         relay, seen = voice.relay(), []
         relay.on_event = lambda kind, speech_id, attrs: (seen.append((kind, speech_id, attrs)),
                                                          voice.on_speech(kind, attrs))

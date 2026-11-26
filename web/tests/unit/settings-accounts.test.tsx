@@ -206,7 +206,7 @@ describe('kernel readiness reasons', () => {
 
 describe('mute row', () => {
   it('promises no menu toggle and shows that the backend is muted now', () => {
-    render(<Harness d={{ ...d, diag: { ...DIAG, mouth_voice: { mouth: 'idle', voice: null, muted: true, avatar_visible: true, speech_failed: null } } }}><SpeakGroup /></Harness>);
+    render(<Harness d={{ ...d, diag: { ...DIAG, mouth_voice: { mouth: 'idle', voice: null, muted: true, avatar_visible: true, character_voice: true, speech_failed: null } } }}><SpeakGroup /></Harness>);
     const row = document.querySelector('[data-row="mute"]')!;
     expect(row.textContent).not.toContain('菜单');
     expect(row.textContent).toContain('当前已静音');

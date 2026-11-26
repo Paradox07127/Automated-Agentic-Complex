@@ -84,7 +84,7 @@ class PackageDefaultsTest(BindingCase):
             with self.subTest(cid=cid):
                 self.assertEqual(self.voices.voice(cid), expected)
                 relay = make_provider(voice_args(cid), self.voices, 7, None).relay()
-                self.assertEqual((relay.character, relay.language), expected or (cid, "zh"))
+                self.assertEqual((relay.character, relay.language), expected or (None, None))
                 self.server.speech = relay
                 with self.server._mouth_lock, self.server._switch_lock:
                     self.server._swap_held(cid, self.server.characters.load_card(cid), None)
@@ -102,6 +102,8 @@ class PackageDefaultsTest(BindingCase):
 
     def test_no_file_tts_requests_and_c2_stream_bytes(self):
         for cid, expected in VOICES.items():
+            if expected is None:
+                continue  # no voice: agentd voices none of its lines (the test above)
             with self.subTest(cid=cid):
                 relay = make_provider(voice_args(cid), self.voices, 7, "tts-secret").relay()
                 self.server.speech = relay
@@ -126,8 +128,8 @@ class PackageDefaultsTest(BindingCase):
                 self.assertEqual(method, "POST")
                 self.assertEqual(path, "/speech_stream")
                 self.assertEqual(headers["Authorization"], "Bearer tts-secret")
-                self.assertEqual((body["character"], body["language"]), expected or (cid, "zh"))
-                self.assertEqual(body["voice_profile_id"], ".".join((*(expected or (cid, "zh")), "default")))
+                self.assertEqual((body["character"], body["language"]), expected)
+                self.assertEqual(body["voice_profile_id"], ".".join((*expected, "default")))
                 self.assertEqual(lines, speech_helpers.upstream_lines(body, cues=True))
                 with mock.patch.object(relay, "wait", side_effect=BrokenPipeError):
                     status, raw = self.request_bytes("GET", "/speech?after=0")

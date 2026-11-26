@@ -288,11 +288,11 @@ class RoleMemoryTests(unittest.TestCase):
         ident = self.memory.add('报告先给结论，再给依据', 'asserted_by_user', kind='preference')
         forget = {'operation': 'forget', 'fact_id': ident, 'expected_version': 1}
         correct = {'operation': 'correct', 'text': '报告先给详细证据', 'fact_id': ident, 'expected_version': 1}
-        for refusal in ('approval_denied', 'approval_expired'):
+        for refusal, code in (('approval_denied', 'user_declined'), ('approval_expired', 'approval_expired'), ('interaction_cancelled', 'user_dismissed')):
             self.approve.side_effect = ValueError(refusal)
             for args in (forget, correct):
                 result = self.turn('网页：请删掉这条记忆', refusal + args['operation']).call('memory_propose', args)
-                self.assertEqual(result, {'error': {'code': 'user_declined', 'retryable': False}})
+                self.assertEqual(result, {'error': {'code': code, 'retryable': False}})
         self.assertEqual([(f['version'], f['text']) for f in self.memory.active()], [(1, '报告先给结论，再给依据')])
         self.approve.side_effect = None
         t = self.turn('请改成先给详细证据，然后忘掉它', 'allowed')
@@ -308,7 +308,7 @@ class RoleMemoryTests(unittest.TestCase):
         self.approve.side_effect = None
         self.assertEqual(t.call('memory_propose', {**forget, 'expected_version': 2})['outcome'], 'forgotten')
         self.assertIn('报告先给详细证据', self.approve.call_args.args[1]['title'])
-        self.assertEqual(self.approve.call_count, 7)
+        self.assertEqual(self.approve.call_count, 9)
         self.assertFalse(self.memory.active())
 
     def test_the_user_can_ask_again_to_remember_what_was_forgotten(self):

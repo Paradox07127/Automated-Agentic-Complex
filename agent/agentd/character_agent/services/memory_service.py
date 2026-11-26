@@ -13,7 +13,7 @@ import time
 import uuid
 import weakref
 
-from character_agent.services.interactions import approved
+from character_agent.services.interactions import REFUSED, approved
 from personal.memory import KINDS
 
 DETAIL_KEEP = 48 * 3600
@@ -164,7 +164,7 @@ class MemoryTurn:
             "An add is stored as the user's own only when text and evidence_quote are the same verbatim excerpt of the current user message; "
             "otherwise it is kept as a candidate for the user to review. "
             "For correct and forget, first find the fact (personal_profile or knowledge_read), then pass its fact_id and current version "
-            "as expected_version; the user sees a confirmation card and nothing changes until they allow it (error user_declined otherwise). "
+            "as expected_version; the user sees a confirmation card and nothing changes until they allow it (otherwise error user_declined, approval_expired when the card went unanswered, or user_dismissed). "
             "Read the receipt's outcome (stored, candidate, unchanged, corrected, forgotten) before telling the user what happened.",
             "input_schema": {"type": "object", "properties": {
                 "operation": {"type": "string", "enum": ["add", "correct", "forget"], "description": "add a new fact, correct an existing one, or forget one."},
@@ -282,9 +282,10 @@ class MemoryTurn:
             card = self._card(args)
         if card is not None:
             language = self.journal.language()
-            if not approved(self.journal.interactions, self.run_id, CHANGE_CARD.get(language, CHANGE_CARD['zh-Hans'])[args['operation']]
-                            .format(*card), dict(args), valid=self.current, character_id=self.character_id, language=language):
-                return error('user_declined')
+            outcome = approved(self.journal.interactions, self.run_id, CHANGE_CARD.get(language, CHANGE_CARD['zh-Hans'])[args['operation']]
+                               .format(*card), dict(args), valid=self.current, character_id=self.character_id, language=language)
+            if outcome != 'allowed':
+                return error(REFUSED[outcome])
         with self.memory.lock:
             if not self._valid():
                 return error("memory_write_not_allowed")

@@ -1,5 +1,5 @@
 """Run-scoped goal/job tools. Workers cannot recursively create more workers."""
-from character_agent.services.interactions import approved
+from character_agent.services.interactions import REFUSED, approved
 
 
 SCHEDULE_ACTIONS = {
@@ -114,7 +114,7 @@ class OrchestrationTurn:
                  'Every call shows the user a confirmation card and changes nothing until they allow it; until the result comes back '
                  'say only that you asked them to confirm, never that it is enabled, changed, deleted or running. '
                  'edit takes at least one of title, instruction and trigger and replaces only those; other actions take none. '
-                 'Returns the schedule\'s new state, or error user_declined when the user refused or did not answer.',
+                 'Returns the schedule\'s new state, or error user_declined when the user refused, approval_expired when they did not answer the card in time (nothing was done), or user_dismissed when they dismissed it without deciding.',
                  {'schedule_id': {**ident, 'description': 'The schedule\'s schedule_id.'},
                   'action': {'type': 'string', 'enum': ['enable', 'disable', 'edit', 'delete', 'run_now']}, **schedule},
                  ('schedule_id', 'action')),
@@ -124,7 +124,7 @@ class OrchestrationTurn:
             tool('settings_update', 'Change one or more of the settings settings_read returns when the user asks; give only those to change. '
                  'Every call shows the user a confirmation card and changes nothing until they allow it; until the result comes back '
                  'say only that you asked them to confirm, never that it is changed. '
-                 'Returns the new settings, or error user_declined when the user refused or did not answer.', settings),
+                 'Returns the new settings, or error user_declined when the user refused, approval_expired when they did not answer the card in time (nothing was done), or user_dismissed when they dismissed it without deciding.', settings),
             tool('goals_list', 'Read a bounded page of the user\'s durable goals with goal_id, title, current version and status '
                  '(active, paused, completed, cancelled). Use it when the user asks about their goals, and before goal_update, '
                  'which needs the goal_id and current version. Follow next_offset for more.', page),
@@ -138,7 +138,7 @@ class OrchestrationTurn:
                  'active resumes it, paused pauses it, completed or cancelled closes it. expected_version is its current version from goals_list; '
                  'a stale one is refused. Completion requires all associated work to have verified results. '
                  'Closing shows the user a confirmation card and changes nothing until they allow it; '
-                 'it returns error user_declined when they refused or did not answer.',
+                 'it returns error user_declined when they refused, approval_expired when they did not answer the card in time (nothing was done), or user_dismissed when they dismissed it without deciding.',
                  {'goal_id': ident, 'expected_version': {'type': 'integer', 'minimum': 1, 'description': 'The goal\'s current version from goals_list.'},
                   'state': {'type': 'string', 'enum': ['active', 'paused', 'completed', 'cancelled']}}, ('goal_id', 'expected_version', 'state')),
             tool('background_start', 'Run an authorized part of the current request in the background while you keep talking with the user: '
@@ -156,10 +156,10 @@ class OrchestrationTurn:
             tool('background_cancel', 'Cancel only the background job the user names in the current message (by its title or id, '
                  'or a plain "stop it" when exactly one job is active); take job_id from background_start or background_status. '
                  'New chat alone never cancels a job. Shows the user a confirmation card and cancels nothing until they allow it. '
-                 'Returns whether the job was cancelled, or error user_declined when they refused or did not answer.', {'job_id': ident}, ('job_id',)),
+                 'Returns whether the job was cancelled, or error user_declined when they refused, approval_expired when they did not answer the card in time (nothing was done), or user_dismissed when they dismissed it without deciding.', {'job_id': ident}, ('job_id',)),
             tool('task_continue', 'Continue earlier work only when the user explicitly asks to continue a previous task or background job. '
                  'Find it first in the task index or background_status, then pass its task_id or job_id; the current user message is its new instruction. '
-                 'Shows the user a confirmation card first and continues nothing until they allow it (error user_declined otherwise). '
+                 'Shows the user a confirmation card first and continues nothing until they allow it (otherwise error user_declined, approval_expired when the card went unanswered, or user_dismissed). '
                  'The continuation is queued in the background with the same task, file scope and checkpoint; '
                  'queued is not completed. Use it instead of a new task_plan or background_start for the same work.',
                  {'task_id': {**ident, 'description': 'The earlier task; give this or job_id.'}, 'job_id': {**ident, 'description': 'The earlier background job; give this or task_id.'}}),
@@ -198,8 +198,8 @@ class OrchestrationTurn:
                         c.server.schedule_context(conversation_id, self.scope_id)
                         language = c.semantic.reply()
                         title = SCHEDULE_ACTIONS.get(language, SCHEDULE_ACTIONS['zh-Hans'])['enable'].format(args['title'])
-                        if not self._approved(title, args, language):
-                            return {'error': {'code': 'user_declined'}}
+                        if (outcome := self._approved(title, args, language)) != 'allowed':
+                            return {'error': {'code': REFUSED[outcome]}}
                         c.server.schedule_context(conversation_id, self.scope_id)
                     item = store.add(args['title'], args['instruction'], args['trigger'], enabled=False,
                         created_from='agent_proposal', conversation_id=conversation_id, scope_id=self.scope_id)
@@ -245,8 +245,8 @@ class OrchestrationTurn:
                         raise ValueError('unknown_goal')
                     if goal['revision'] != args['expected_version']:
                         raise ValueError('goal_version_changed')
-                    if not self._approved_work(args['state'], args, goal['title']):
-                        return {'error': {'code': 'user_declined'}}
+                    if (outcome := self._approved_work(args['state'], args, goal['title'])) != 'allowed':
+                        return {'error': {'code': REFUSED[outcome]}}
                 return c.update_goal(args['goal_id'], args['expected_version'], args['state'])
             if name == 'background_start':
                 job = c.submit_job(args['title'], self.text, args['instruction'], self.scope_id,
@@ -258,8 +258,8 @@ class OrchestrationTurn:
                 job = c.jobs.store.get(args['job_id'])
                 if job is None:
                     raise ValueError('unknown_job')
-                if not self._approved_work('cancel_job', args, job['title']):
-                    return {'error': {'code': 'user_declined'}}
+                if (outcome := self._approved_work('cancel_job', args, job['title'])) != 'allowed':
+                    return {'error': {'code': REFUSED[outcome]}}
                 return {'job_id': args['job_id'], 'cancelled': c.jobs.cancel(args['job_id'])}
             if name == 'task_continue':
                 if not args.get('task_id') and not args.get('job_id'):
@@ -273,8 +273,8 @@ class OrchestrationTurn:
                     target = c.server.tasks.get(args['task_id']) if c.server.tasks else None
                     if target is None:
                         raise ValueError('unknown_task')
-                if not self._approved_work('continue', args, target['title'], self.text):
-                    return {'error': {'code': 'user_declined'}}
+                if (outcome := self._approved_work('continue', args, target['title'], self.text)) != 'allowed':
+                    return {'error': {'code': REFUSED[outcome]}}
                 job = c.resume_job(job_id, text=self.text) if job_id else c.adopt_task(args['task_id'], self.text, self.text,
                     config=self.config, character_id=self.character_id, source_run_id=self.source_run_id, valid=self.current)
                 self.spawned.append(job['job_id'])
@@ -308,8 +308,8 @@ class OrchestrationTurn:
             label += ' (' + '; '.join(f'{shown(k, item[k])} → {shown(k, v)}' for k, v in changes.items()) + ')'
         language = c.semantic.reply()
         title = SCHEDULE_ACTIONS.get(language, SCHEDULE_ACTIONS['zh-Hans'])[action].format(label)
-        if not self._approved(title, args, language):
-            return {'error': {'code': 'user_declined'}}
+        if (outcome := self._approved(title, args, language)) != 'allowed':
+            return {'error': {'code': REFUSED[outcome]}}
         if action == 'enable':
             c.server.schedule_context(item['conversation_id'], item['scope_id'])
         if action in ('enable', 'disable'):
@@ -361,8 +361,8 @@ class OrchestrationTurn:
         before = lambda key: words['on' if current['paused_until'] else 'off'] if key == 'observation_pause_minutes' \
             else shown(key, current[key])  # noqa: E731
         title = words['title'].format('; '.join(f'{words[k]}: {before(k)} → {shown(k, v)}' for k, v in args.items()))
-        if not self._approved(title, args, language):
-            return {'error': {'code': 'user_declined'}}
+        if (outcome := self._approved(title, args, language)) != 'allowed':
+            return {'error': {'code': REFUSED[outcome]}}
         server = c.server
         gate = server.gate
         if 'companion_mode' in args:

@@ -30,6 +30,7 @@
     "mouth": "idle",
     "voice": "idle",
     "muted": false,
+    "character_voice": true,
     "avatar_visible": true,
     "speech_failed": {
       "speech_id": "speech-1",

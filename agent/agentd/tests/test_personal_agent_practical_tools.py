@@ -278,9 +278,9 @@ class ReminderToolsTests(unittest.TestCase):
 
     def test_cancel_waits_for_the_users_single_use_card(self):
         first, second = self.added('喝水', '交周报')
-        for refusal in ('approval_denied', 'approval_expired'):
+        for refusal, code in (('approval_denied', 'user_declined'), ('approval_expired', 'approval_expired'), ('interaction_cancelled', 'user_dismissed')):
             self.approve.side_effect = ValueError(refusal)
-            self.assertEqual(self.update('取消喝水提醒', first), {'error': {'code': 'user_declined'}})
+            self.assertEqual(self.update('取消喝水提醒', first), {'error': {'code': code}})
         self.assertEqual(self.store._get(first['id'])['state'], 'armed')
         self.approve.side_effect = None
         turn = self.turn('取消喝水和周报的提醒')
@@ -294,7 +294,7 @@ class ReminderToolsTests(unittest.TestCase):
         result = turn.call('reminder_update', {'reminder_id': second['id'], 'expected_revision': 1, 'action': 'cancel'})
         self.assertEqual(result, {'error': {'code': 'user_declined'}})
         self.assertEqual(self.store._get(second['id'])['state'], 'armed')
-        self.assertEqual(self.approve.call_count, 4)
+        self.assertEqual(self.approve.call_count, 5)
 
     def test_writes_without_a_card_say_the_model_proposed_them(self):
         result = self.turn('十分钟后提醒我喝水').call('reminder_create', self.create_args())

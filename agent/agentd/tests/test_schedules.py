@@ -156,11 +156,11 @@ class ScheduleTests(unittest.TestCase):
         [item] = self.store().list()
         self.assertFalse(item['enabled']); self.assertEqual(item['created_from'], 'agent_proposal')
         self.assertIsNone(item['next_run_at'])
-        for decision in ('deny', 'expire'):
+        for decision, code in (('deny', 'user_declined'), ('expire', 'approval_expired'), ('dismiss', 'user_dismissed')):
             with self.subTest(decision=decision):
                 declined = self.update_turn(decision).call('schedule_propose', {
                     'title': '启用日报', 'instruction': '总结', 'trigger': DAILY, 'enabled': True})
-                self.assertEqual(declined, {'error': {'code': 'user_declined'}})
+                self.assertEqual(declined, {'error': {'code': code}})
                 self.assertEqual(turn.call('schedules_list', {})['schedules'], [item])
         enabled = self.update_turn().call('schedule_propose', {
             'title': '启用日报', 'instruction': '总结', 'trigger': DAILY, 'enabled': True})
@@ -170,7 +170,7 @@ class ScheduleTests(unittest.TestCase):
 
     def update_turn(self, decision='allow'):
         """An orchestration turn whose approval card the user answers with decision (allow, deny or expire)."""
-        errors = {'deny': 'approval_denied', 'expire': 'approval_expired'}
+        errors = {'deny': 'approval_denied', 'expire': 'approval_expired', 'dismiss': 'interaction_cancelled'}
         self.controller.server = self.server
         self.controller.knowledge = lambda: SimpleNamespace(sanitize=lambda value, **kw: value)
         self.controller.semantic = SimpleNamespace(reply=lambda: 'zh-Hans')
@@ -191,10 +191,10 @@ class ScheduleTests(unittest.TestCase):
     def test_update_enables_only_after_the_card_is_allowed(self):
         item = self.store().add('日报', '总结', DAILY, created_from='agent_proposal')
         ident = item['schedule_id']
-        for decision in ('deny', 'expire'):
+        for decision, code in (('deny', 'user_declined'), ('expire', 'approval_expired'), ('dismiss', 'user_dismissed')):
             with self.subTest(decision=decision):
                 result = self.update_turn(decision).call('schedule_update', {'schedule_id': ident, 'action': 'enable'})
-                self.assertEqual(result, {'error': {'code': 'user_declined'}})
+                self.assertEqual(result, {'error': {'code': code}})
                 self.assertFalse(self.store().get(ident)['enabled'])
         result = self.update_turn().call('schedule_update', {'schedule_id': ident, 'action': 'enable'})
         preview = self.card()

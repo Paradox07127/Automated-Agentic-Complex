@@ -99,7 +99,8 @@ class DiagnosticsMixin:
             else:
                 voice = "playing_estimated"
         return {"mouth": "busy" if self._mouth_lock.locked() else "idle", "voice": voice, "muted": self.muted,
-                "avatar_visible": self.avatar["visible"], "speech_failed": self._speech_failed}
+                "character_voice": self.character_voice_enabled, "avatar_visible": self.avatar["visible"],
+                "speech_failed": self._speech_failed}
 
     def _diag_gate(self):
         gate, now = self.gate, datetime.datetime.now()

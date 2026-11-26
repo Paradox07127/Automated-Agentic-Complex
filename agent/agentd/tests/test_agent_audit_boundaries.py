@@ -77,7 +77,7 @@ class AuditDomainTests(unittest.TestCase):
         return job
 
     def card(self, refusal=None):
-        """The approval card's mock; refusal: the approval error it raises (approval_denied or approval_expired)."""
+        """The approval card's mock; refusal: the approval error it raises (approval_denied, approval_expired or interaction_cancelled)."""
         self.controller.semantic = SimpleNamespace(reply=lambda: 'zh-Hans')
         self.controller.interactions = SimpleNamespace(approve=Mock(
             side_effect=ValueError(refusal) if refusal else None, return_value={'request_id': 'card', 'input_sha256': 'x'}))
@@ -119,10 +119,10 @@ class AuditDomainTests(unittest.TestCase):
 
     def test_task_continue_waits_for_the_users_single_use_card(self):
         job = self.settled_job('needs_review')
-        for refusal in ('approval_denied', 'approval_expired'):
+        for refusal, code in (('approval_denied', 'user_declined'), ('approval_expired', 'approval_expired'), ('interaction_cancelled', 'user_dismissed')):
             self.card(refusal)
             result = self.orchestration('接着做报表').call('task_continue', {'job_id':job['job_id']})
-            self.assertEqual(result, {'error': {'code': 'user_declined'}})
+            self.assertEqual(result, {'error': {'code': code}})
         self.controller.resume_job.assert_not_called()
         approve = self.card()
         turn = self.orchestration('接着做报表')
@@ -143,10 +143,10 @@ class AuditDomainTests(unittest.TestCase):
 
     def test_background_cancel_waits_for_the_users_single_use_card(self):
         first, second = (self.jobs.submit(title, {'user_request': title}) for title in ('报表', '周报'))
-        for refusal in ('approval_denied', 'approval_expired'):
+        for refusal, code in (('approval_denied', 'user_declined'), ('approval_expired', 'approval_expired'), ('interaction_cancelled', 'user_dismissed')):
             self.card(refusal)
             result = self.orchestration('停掉报表').call('background_cancel', {'job_id': first['job_id']})
-            self.assertEqual(result, {'error': {'code': 'user_declined'}})
+            self.assertEqual(result, {'error': {'code': code}})
         self.cancel.assert_not_called()
         approve = self.card()
         turn = self.orchestration('停掉报表')
@@ -160,10 +160,10 @@ class AuditDomainTests(unittest.TestCase):
 
     def test_closing_a_goal_waits_for_the_users_single_use_card(self):
         goal = self.jobs.create_goal('跑步', '每周跑三次')['goal_id']
-        for refusal in ('approval_denied', 'approval_expired'):
+        for refusal, code in (('approval_denied', 'user_declined'), ('approval_expired', 'approval_expired'), ('interaction_cancelled', 'user_dismissed')):
             self.card(refusal)
             result = self.orchestration('取消跑步目标').call('goal_update', {'goal_id': goal, 'expected_version': 1, 'state': 'cancelled'})
-            self.assertEqual(result, {'error': {'code': 'user_declined'}})
+            self.assertEqual(result, {'error': {'code': code}})
         self.assertEqual(self.jobs.goal(goal)['state'], 'active')
         self.card('approval_denied')
         result = self.orchestration('暂停跑步目标').call('goal_update', {'goal_id': goal, 'expected_version': 1, 'state': 'paused'})

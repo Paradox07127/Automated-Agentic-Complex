@@ -103,6 +103,23 @@ class ScriptedLinesTest(unittest.TestCase):
                 self.server.rituals = None
                 db.close()
 
+    def test_a_ritual_the_card_has_no_line_for_leaves_the_tap_its_own_line(self):
+        self.card = {"lines": {"tap": [{"en": "Hello."}], "head_pat": [{"en": "That feels nice."}]}}
+        with tempfile.TemporaryDirectory() as tmp:
+            db = open_store(Path(tmp) / "agentd.sqlite")
+            try:
+                self.server.rituals = Rituals(db, clock=lambda: at(8))
+                for mouth in (self.server.mouth, None):
+                    with self.subTest(mouth=mouth):
+                        self.server.mouth = mouth
+                        self.assertEqual(self.tap(), "Hello.")
+                        self.assertEqual(self.tap(region="head"), "That feels nice.")
+                self.assertEqual(self.server.rituals.today(), [])
+                self.assertEqual(self.server.rituals.pick()[0], "morning")
+            finally:
+                self.server.rituals = None
+                db.close()
+
     def test_gift_answers_with_the_same_line_id_as_the_bubble(self):
         status, gift = self.request("POST", "/interaction/gift", {})
         self.assertEqual(status, 202)

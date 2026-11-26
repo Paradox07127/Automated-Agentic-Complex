@@ -115,10 +115,12 @@ class InteractionService:
             if self.stopped.is_set() or not valid():raise ValueError('interaction_cancelled')
             raise ValueError('interaction_pending' if kind=='question' else 'approval_expired')
         finally:
+            expired=0
             with self.lock:
                 self.live.pop(ident,None)
                 if kind=='approval':
-                    self.db.execute("UPDATE character_interactions SET state='expired',data=NULL,answer=NULL WHERE request_id=? AND state IN ('pending','answered')",(ident,));self.db.commit()
+                    expired=self.db.execute("UPDATE character_interactions SET state='expired',data=NULL,answer=NULL WHERE request_id=? AND state IN ('pending','answered')",(ident,)).rowcount;self.db.commit()
+            if expired:self.emit({'request_id':ident,'kind':'approval','state':'expired'})
 
     def catalog_changed(self,server,catalog):
         """Revoke all tools pinned to an older catalog as soon as a source is discovered."""
@@ -260,16 +262,23 @@ class InteractionService:
         for event in events:event.set()
 
 
+# The tool error code a caller answers the model with for each outcome of approved() but 'allowed'.
+REFUSED = {'denied': 'user_declined', 'expired': 'approval_expired', 'dismissed': 'user_dismissed'}
+
+
 def approved(interactions, run_id, title, raw_input, **context):
-    """A single-use approval card titled title; False when the user refused it or let it expire."""
+    """A single-use approval card titled title: 'allowed', 'denied', 'expired' when nobody answered it in time, or
+    'dismissed' when the user closed the request."""
     try:
         interactions.approve(run_id, {'source': 'agentd', 'title': title, 'kind': 'other', 'raw_input': raw_input},
                              single_only=True, **context)
     except ValueError as exc:
-        if str(exc) in ('approval_denied', 'approval_expired'):
-            return False
-        raise
-    return True
+        outcome = {'approval_denied': 'denied', 'approval_expired': 'expired',
+                   'interaction_cancelled': 'dismissed'}.get(str(exc))
+        if outcome is None:
+            raise
+        return outcome
+    return 'allowed'
 
 
 class QuestionTurn:

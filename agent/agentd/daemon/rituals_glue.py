@@ -57,9 +57,11 @@ class RitualsGlueMixin:
                 if picked:
                     event = "greeting_morning" if picked[0] == "morning" else picked[0]
                     scripted = self._scripted_line(event)
-                elif region in ("cheek_l", "cheek_r"):
+                    if scripted is None:
+                        picked = None  # the ritual waits for a model; this click gets a tap line
+                if not picked and region in ("cheek_l", "cheek_r"):
                     scripted = self._scripted_line("cheek_pinch") or self._scripted_line("tap")
-                else:
+                elif not picked:
                     event = "head_pat" if region in ("head", "head_top", "hair") else "tap"
                     scripted = self._scripted_line(event)
                 if scripted is None:

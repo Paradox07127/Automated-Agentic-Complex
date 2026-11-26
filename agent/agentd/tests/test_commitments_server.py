@@ -100,7 +100,7 @@ class CommitmentServerTest(unittest.TestCase):
         self.assertEqual([c["state"] for c in self.server.commitments.list()], ["fulfilled", "fulfilled"])
         self.assertEqual(len(self.feed("commitment")), 2)
 
-    def test_a_shown_only_due_reminder_stays_triggered(self):
+    def test_a_shown_only_due_reminder_is_fulfilled_once_its_card_is_seen(self):
         for mode in ("muted", "voice_off", "hidden", "no_speech", "closing"):
             with self.subTest(mode=mode):
                 self.server.muted = mode == "muted"
@@ -115,7 +115,15 @@ class CommitmentServerTest(unittest.TestCase):
                 self.assertEqual((due["kind"], due["headline"]), ("reminder_due", "日程提醒：喝水"))
                 [kept] = [c for c in self.server.commitments.list() if c["id"] == item["id"]]
                 self.assertEqual(kept["state"], "triggered")
-                self.assertEqual(self.changes(), [])
+                own = lambda: [c for c in self.changes() if c["commitment"]["id"] == item["id"]]  # noqa: E731
+                self.assertEqual(own(), [])
+                status, body = self.request("POST", f"/commitments/{item['id']}/seen", {})
+                done = body["commitment"]
+                self.assertEqual((status, done["state"], done["seen_at"]), (200, "fulfilled", self.now))
+                self.assertEqual([c["action"] for c in own()], ["seen", "fulfilled"])
+                self.assertEqual(own()[-1], {"action": "fulfilled", "commitment": done})
+                self.server.recover_commitments()
+                self.assertEqual([a for a in self.feed("announce") if a["kind"] == "reminder_missed"], [])
 
     def events_after(self, seq):
         return [i for i in self.server.registry.intents_since(seq) if "event" in i]
@@ -446,6 +454,9 @@ class CommitmentServerTest(unittest.TestCase):
                 self.server._commitments_due()
                 [again] = [c for c in self.server.commitments.list() if c["id"] == item["id"]]
                 self.assertEqual((again["state"], again["due_at"]), ("armed", local(25, 8)))
+                status, body = self.request("POST", f"/commitments/{item['id']}/seen", {})
+                self.assertEqual((status, body["commitment"]["state"], body["commitment"]["due_at"]),
+                                 (200, "armed", local(25, 8)))
                 self.now = local(25, 8)
                 self.server._commitments_due()
                 self.assertEqual(len([a for a in self.feed("announce") if a["origin"] == item["id"]]), 2)

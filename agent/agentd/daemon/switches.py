@@ -142,13 +142,14 @@ class SwitchesMixin:
                                     dnd_until=self.quiet_until)
 
     def set_paused_until(self, until):
-        """PUT /observation/paused: the end is saved too, so a restart keeps the pause (see load_pause)."""
+        """PUT /observation/paused: the end, and quiet's end, are saved too, so a restart keeps both (see load_pause)."""
         self._pauses = self._spans(self._pauses, until)
         self.paused_until = until
         # Quiet pauses observation through here too; only the user's own pause freezes user_now.
         self.user_now.pause(None if until is not None and until == self.quiet_until else until)
         if self.memory is not None:
             self.memory.set_setting("observation_paused_until", None if until is None else repr(until))
+            self.memory.set_setting("quiet_until", None if self.quiet_until is None else repr(self.quiet_until))
 
     def set_quiet_until(self, until):
         self._quiet_due()
@@ -184,19 +185,22 @@ class SwitchesMixin:
             self.refresh_quiet()
             self.spatial.stage_event(event["name"])
         elif event["name"] == "user.return":
-            self.returning.returned(event)
+            if "welcome" in self.returning.returned(event)["played"] and self.desk is not None:
+                self.desk.count("greet")  # counted in the daily brief as /character/greeting's line is
             if self.proactive is not None:
                 self.proactive.back(event["data"]["away_s"])
             if self.signals is not None:
                 self.signals.returned()
 
     def load_pause(self):
-        """At start: a saved pause that has not ended yet holds again."""
-        saved = self.memory.setting("observation_paused_until") if self.memory is not None else None
-        if saved is not None and self.clock() < float(saved):
-            self.paused_until = float(saved)
-            self._pauses.append([self.clock(), self.paused_until])
-            self.user_now.pause(self.paused_until)
+        """At start: a saved quiet, and a saved pause, that has not ended yet holds again."""
+        if self.memory is None:
+            return
+        saved, quiet = self.memory.setting("observation_paused_until"), self.memory.setting("quiet_until")
+        if quiet is not None and self.clock() < float(quiet):
+            self.set_quiet_until(float(quiet))
+        if saved is not None and self.clock() < float(saved) and float(saved) != self.paused_until:
+            self.set_paused_until(float(saved))
 
     def observation_state(self):
         """GET /state and /diag/state: {"paused_until", "quiet_until": ISO or None, "meeting": the manual switch,

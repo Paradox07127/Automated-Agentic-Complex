@@ -32,7 +32,7 @@ export const DIAG_STATE: WireDiagState = {
   hooks: stamp(WIRE_DIAG_HOOKS, isoAt(14, 29)),
   turn: stamp(WIRE_DIAG_TURN, WIRE_DIAG_TURN.updated_at ?? isoAt(14, 32, 4)),
   mouth_voice: stamp(
-    { mouth: 'busy' as const, voice: 'synthesizing', muted: false, avatar_visible: true, speech_failed: { speech_id: 'sp-tr7', reason: 'unreachable', at: isoAt(14, 31, 5) } },
+    { mouth: 'busy' as const, voice: 'synthesizing', muted: false, avatar_visible: true, character_voice: true, speech_failed: { speech_id: 'sp-tr7', reason: 'unreachable', at: isoAt(14, 31, 5) } },
     isoAt(14, 32, 5),
   ),
   gate: stamp(WIRE_DIAG_GATE, WIRE_DIAG_GATE.updated_at ?? isoAt(14, 31, 2)),

@@ -50,7 +50,7 @@ class SettingsToolTests(unittest.TestCase):
 
     def turn(self, decision='allow'):
         """An orchestration turn whose approval card the user answers with decision (allow, deny or expire)."""
-        errors = {'deny': 'approval_denied', 'expire': 'approval_expired'}
+        errors = {'deny': 'approval_denied', 'expire': 'approval_expired', 'dismiss': 'interaction_cancelled'}
         self.controller.interactions = SimpleNamespace(approve=Mock(
             side_effect=ValueError(errors[decision]) if decision in errors else None,
             return_value={'request_id': 'card-1', 'input_sha256': 'x'}))
@@ -84,9 +84,9 @@ class SettingsToolTests(unittest.TestCase):
         before = self.state()
         change = {'companion_mode': False, 'quiet_enabled': True, 'quiet_ranges': [[23, 7]], 'muted': ['comment'],
                   'observation_pause_minutes': 30, 'reply_language': 'en'}
-        for decision in ('deny', 'expire'):
+        for decision, code in (('deny', 'user_declined'), ('expire', 'approval_expired'), ('dismiss', 'user_dismissed')):
             with self.subTest(decision=decision):
-                self.assertEqual(self.turn(decision).call('settings_update', change), {'error': {'code': 'user_declined'}})
+                self.assertEqual(self.turn(decision).call('settings_update', change), {'error': {'code': code}})
                 self.assertEqual(self.state(), before)
         self.controller.configure.assert_not_called()
 

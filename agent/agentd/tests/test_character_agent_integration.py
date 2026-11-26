@@ -1702,6 +1702,20 @@ class TurnContextTests(unittest.TestCase):
         self.prepare('今天天气怎么样')
         self.assertNotIn('Replying to', self.sessions[-1].calls[-1]['prompt'])
 
+    def test_reply_to_her_answer_quotes_it_from_this_conversations_history(self):
+        from character.proactive_log import ProactiveLog
+        self.server.proactive_log = ProactiveLog(self.db)
+        self.server.history.record(turn_id='a1', source='text', character_id='aster', persona_revision='v1',
+                                   user_text='周报呢', reply='周报我发给 alice@example.com 了', state='completed',
+                                   started_at=1.0)
+        self.prepare('谢谢', reply_to={'kind': 'line', 'id': 'a1'})
+        prompt = self.sessions[-1].calls[-1]['prompt']
+        self.assertIn('\nReplying to your line: "周报我发给 [已遮蔽:邮箱] 了"', prompt)
+        self.assertNotIn('alice@example.com', prompt)
+        self.server.history.conversations.create()  # the new one is active
+        self.prepare('嗯', reply_to={'kind': 'line', 'id': 'a1'})
+        self.assertIn('\nReplying to an earlier line of yours whose text is gone', self.sessions[-1].calls[-1]['prompt'])
+
     def job(self, title, conversation, state, age):
         store = self.c.jobs.store
         with store.lock:

@@ -214,6 +214,8 @@ class SpeechMixin:
         relay = self.server.speech
         if relay is None:
             return self._json(503, {"error": "no_tts"})
+        if not self.server.character_voice_enabled:
+            return self._json(200, {"ok": False, "first_audio_ms": None, "total_ms": None, "reason": "no_voice"})
         host = f"[{relay.host}]" if ":" in relay.host else relay.host
         url = body.get("url", f"{relay.scheme}://{host}:{relay.port}{relay.base}")
         try:

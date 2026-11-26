@@ -177,7 +177,7 @@ def make_provider(args, bindings, epoch, token):
     """The provider agentd's arguments ask for: no --tts-url means NoVoice("not_configured")."""
     if not args.tts_url:
         return NoVoice("not_configured")
-    voice, language = bindings.voice(args.character) or (args.character, "zh")
+    voice, language = bindings.voice(args.character) or (None, None)  # without one agentd voices no line
     ensurer = None
     if args.tts_ensure_host and args.tts_ensure_script:
         ensurer = ServiceEnsurer("tts", args.tts_ensure_host, args.tts_ensure_script)

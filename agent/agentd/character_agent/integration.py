@@ -1777,6 +1777,15 @@ class CharacterAgentController:
                 {'speaker': quoted['speaker'], 'text': quoted['text']}, ensure_ascii=False)
         elif trace.get('reply_to'):
             replied = server.proactive_log and server.proactive_log.text(trace['reply_to']['kind'], trace['reply_to']['id'])
+            if not replied and trace['reply_to']['kind'] == 'line' and server.history:
+                # Her answers are not in proactive_log: the line_id is the turn_id of its row in this conversation.
+                conversation_id = server.history.conversations.active
+                with server.history.lock:
+                    row = server.history.db.execute(
+                        "SELECT h.reply FROM history_turns h JOIN conversation_turns t USING(event_id)"
+                        " WHERE t.conversation_id=? AND h.turn_id=? AND h.state IN ('completed','interrupted')"
+                        " ORDER BY h.id DESC LIMIT 1", (conversation_id, trace['reply_to']['id'])).fetchone()
+                replied = row and row[0]
             context += '\nReplying to your line: "' + replied + '"; carry on from it.' if replied else '\nReplying to an earlier line of yours whose text is gone: follow this message and don\'t invent what you said.'
         material = server._line_material.pop(cancel, None)
         if material:

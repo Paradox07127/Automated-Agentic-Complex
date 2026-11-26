@@ -4415,6 +4415,30 @@ class ObservationControlTest(FeedServerCase):
         self.assertEqual(self.request("PUT", "/observation/paused", {"minutes": 0}), (200, {"paused_until": None}))
         self.assertIsNone(restarted())
 
+    def test_quiet_outlives_a_restart_with_its_pause_until_it_ends(self):
+        from personal.memory import Memory
+        db = Path(self.tmp.name) / "agentd.sqlite"
+        self.server.memory = Memory(open_store(db))
+
+        def restarted():
+            server = AgentdServer(("127.0.0.1", 0), HOOK, UI)
+            self.addCleanup(server.server_close)
+            server.clock, server.memory = self.server.clock, Memory(open_store(db))
+            server.load_pause()
+            return server
+
+        status, body = self.request("PUT", "/observation/quiet", {"until": self.now + 3600})
+        self.assertEqual(status, 200)
+        again = restarted()
+        self.assertEqual(again.observation_state(), {"paused_until": body["quiet_until"], "quiet_until": body["quiet_until"],
+                                                     "meeting": True, "off": again.observation_state()["off"]})
+        self.assertTrue(again.registry.quiet)
+        self.now += 3600
+        self.assertEqual(restarted().observation_state()["quiet_until"], None)
+        self.now -= 3600
+        self.assertEqual(self.request("PUT", "/observation/quiet", {"until": None}), (200, {"quiet_until": None}))
+        self.assertIsNone(restarted().observation_state()["quiet_until"])
+
     @unittest.skipIf(sys.platform == "win32", "POSIX mode bits, uid or FIFO; on Windows the state directory's DACL protects these files")
     def test_blacklist_add_can_delete_what_it_now_hides(self):
         for app, at in (("Safari", 30), ("Code", 20), ("Notes", 10)):

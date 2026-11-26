@@ -19,7 +19,7 @@ from sessions.registry import Registry  # noqa: E402
 from daemon.agentd_server import AgentdServer  # noqa: E402
 from daemon.main import parse_args  # noqa: E402
 from observation.spatial import Spatial  # noqa: E402
-from character_agent.services.interactions import InteractionService
+from character_agent.services.interactions import InteractionService, approved
 from character_agent.services.store import RunStore
 
 
@@ -202,6 +202,34 @@ class OwnershipTest(unittest.TestCase):
         service.list()
         self.assertEqual(events, [])
 
+    def test_an_approval_that_lapses_while_waiting_emits_expired(self):
+        events, emit = self.unlocked_recorder()
+        service = InteractionService(self.store, emit=emit, wait_seconds=0)
+        with self.assertRaisesRegex(ValueError, 'approval_expired'):
+            service.ask('run', [{'id': 'decision', 'question': '允许？'}], valid=lambda: True, character_id='aster',
+                        kind='approval')
+        [(pending, _), *rest] = events
+        self.assertEqual(rest, [({'request_id': pending['request_id'], 'kind': 'approval', 'state': 'expired'}, True)])
+        self.assertEqual(service.get(pending['request_id'])['state'], 'expired')
+        service.list()
+        self.assertEqual(len(events), 2)
+
+    def test_approved_tells_a_refused_card_from_a_lapsed_or_dismissed_one(self):
+        def answered(outcome):
+            def emit(event):
+                if event['state'] != 'pending':
+                    return
+                row = service.get(event['request_id'])
+                if outcome == 'dismiss':
+                    service.dismiss(row['request_id'], row['revision'])
+                elif outcome != 'expire':
+                    service.respond(row['request_id'], row['revision'], {'decision': [outcome]})
+            service = InteractionService(self.store, emit=emit, wait_seconds=0 if outcome == 'expire' else 5)
+            self.addCleanup(service.close)
+            return approved(service, 'run', '取消提醒：喝水', {}, valid=lambda: True, character_id='aster')
+        self.assertEqual({outcome: answered(outcome) for outcome in ('允许', '拒绝', 'expire', 'dismiss')},
+                         {'允许': 'allowed', '拒绝': 'denied', 'expire': 'expired', 'dismiss': 'dismissed'})
+
     def test_approval_wait_returns_on_wake_without_sleep_loop(self):
         service = InteractionService(self.store, wait_seconds=30)
         wake = mock.Mock(); waits = []
@@ -224,6 +252,8 @@ class OwnershipTest(unittest.TestCase):
         waiting, cancelled, finished = threading.Event(), threading.Event(), threading.Event()
         errors = []
         def emit(event):
+            if event['state'] != 'pending':
+                return
             wake = service.live[event['request_id']][0]
             wait = wake.wait
             def observed_wait(timeout):

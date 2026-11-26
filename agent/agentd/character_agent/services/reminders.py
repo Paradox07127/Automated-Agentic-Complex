@@ -3,7 +3,7 @@ from datetime import datetime
 import hashlib
 import math
 
-from character_agent.services.interactions import approved
+from character_agent.services.interactions import REFUSED, approved
 from character_agent.services.workspace import _validate_arguments
 from personal.commitments import SNOOZE_DELIVERED
 
@@ -56,7 +56,7 @@ class ReminderTurn:
             tool('reminder_update', 'Cancel, reschedule, complete or snooze a saved reminder, with its id and current revision from reminders_list. '
                  'For reschedule and snooze give the new due_at: snooze moves only this occurrence of a repeating reminder, '
                  'reschedule moves its series too. Cancel shows the user a confirmation card and changes nothing until they allow it; '
-                 'it returns error user_declined when they refused or did not answer. This changes only the reminder, not the underlying task.',
+                 'it returns error user_declined when they refused, approval_expired when they did not answer the card in time (nothing was done), or user_dismissed when they dismissed it without deciding. This changes only the reminder, not the underlying task.',
                  {'reminder_id': {'type': 'string', 'minLength': 1, 'maxLength': 128},
                   'expected_revision': {'type': 'integer', 'minimum': 1, 'description': 'The reminder\'s current revision from reminders_list.'},
                   'action': {'type': 'string', 'enum': ['cancel', 'reschedule', 'complete', 'snooze']},
@@ -115,11 +115,12 @@ class ReminderTurn:
                 # A stale or unknown reminder asks no one; the store refuses it.
                 if item is not None and item['revision'] == args['expected_revision']:
                     language = self.controller.semantic.reply()
-                    if not approved(self.controller.interactions, self.run_id,
-                                    CANCEL_CARD.get(language, CANCEL_CARD['zh-Hans']).format(item['text']), dict(args),
-                                    valid=self.current, character_id=self.character_id, scope_id=self.scope_id,
-                                    language=language):
-                        raise ValueError('user_declined')
+                    outcome = approved(self.controller.interactions, self.run_id,
+                                       CANCEL_CARD.get(language, CANCEL_CARD['zh-Hans']).format(item['text']), dict(args),
+                                       valid=self.current, character_id=self.character_id, scope_id=self.scope_id,
+                                       language=language)
+                    if outcome != 'allowed':
+                        raise ValueError(REFUSED[outcome])
                     authority = 'user_approved'
             with store.lock:
                 if not self.current():

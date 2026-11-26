@@ -211,6 +211,16 @@ class VoiceSettingsTest(unittest.TestCase):
         self.assertEqual(relay.stream_state(), before)
         self.assertEqual(relay.since(0), [])
 
+    def test_a_character_without_a_voice_is_not_tested_and_says_so(self):
+        self.server.character_voice_enabled = False
+        with patch("api.speech.check", create=True) as check:
+            self.assertEqual(self.request("/voice/test", {}),
+                             (200, {"ok": False, "first_audio_ms": None, "total_ms": None, "reason": "no_voice"}))
+        check.assert_not_called()
+        self.assertFalse(self.server.diag_state()["mouth_voice"]["character_voice"])
+        self.server.character_voice_enabled = True
+        self.assertTrue(self.server.diag_state()["mouth_voice"]["character_voice"])
+
     def test_voice_test_overrides_are_not_saved(self):
         relay = self.server.speech
         reply = {"ok": False, "first_audio_ms": None, "total_ms": None, "reason": "http_401"}

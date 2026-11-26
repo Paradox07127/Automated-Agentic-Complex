@@ -9,6 +9,7 @@ import shutil
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 import support
 import test_spatial
@@ -399,6 +400,17 @@ class GreetSettingTest(ServerCase):
 
     def test_without_saved_settings_she_greets(self):
         self.assertEqual(self.back()["played"], ["welcome"])
+
+    def test_a_welcome_that_plays_counts_as_a_greeting(self):
+        self.server.desk = mock.Mock()
+        self.server.privacy_config = str(self.config)
+        self.config.write_text(json.dumps({"greet_on_resume": False}), encoding="utf-8")
+        self.back()
+        self.back(away_s=60)
+        self.server.desk.count.assert_not_called()
+        self.config.write_text("{}", encoding="utf-8")
+        self.back()
+        self.server.desk.count.assert_called_once_with("greet")
 
     def test_a_terminal_while_away_picks_the_report_row(self):
         now = time.time()
