@@ -179,10 +179,10 @@ def _relocates(kind, target):
 
 def _reactions(chooser, standing):
     """C1 snapshot `reactions`: each trigger the chooser's pack has a pool for -> its clips, weights and layer; a clip
-    that starts a pack chain plays it, a loop in it for its pack hold_seconds, and on a trigger with an end its first
+    that starts a pack chain plays it, a clip in it for its pack hold_seconds, and on a trigger with an end its first
     loop is held instead. A region trigger draws from the first of its region's pools the pack has; with the pack's
-    lift roles the pick-up is their chain and the drop plays nothing more. Hover's pool is standing, so it plays only
-    while she stands."""
+    lift roles the pick-up is their chain and the drop plays nothing more, or land_start's chain when the pack has it.
+    Hover's pool is standing, so it plays only while she stands."""
     pack, pools = chooser.pack, {}
     for trigger, event in REACTION_EVENTS.items():
         pools[trigger] = chooser.pool(event) if standing or trigger != "hover" else []
@@ -192,6 +192,8 @@ def _reactions(chooser, standing):
     if pack.lift is not None:
         pools["drag_lift"] = [(pack.lift[0], 1)] if chooser._open(pack.lift[0]) else []
         pools["drop"], ends["drag_lift"] = [], pack.lift[1]
+        if pack.land is not None and chooser._open(pack.land):
+            pools["drop"] = [(pack.land, 1)]
     table = {}
     for trigger, pool in pools.items():
         layer = "base" if trigger in BASE_REACTIONS else "overlay"

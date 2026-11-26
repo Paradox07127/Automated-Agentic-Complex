@@ -2770,6 +2770,7 @@ LOCAL_CLIPS = {  # name -> (length, loop, stance start, stance end, its intent-m
     "lift_loop": (1.0, True, "stand", "stand", {"exit": "lift_end"}),
     "lift_end": (0.5, False, "stand", "stand", {}),
     "land": (1.0, False, "stand", "stand", {}),
+    "slam": (2.0, False, "stand", "stand", {"hold_seconds": 0.8}),
     "angry_start": (1.0, False, "stand", "stand", {"next": "angry_loop"}),
     "angry_loop": (1.0, True, "stand", "stand", {"next": "angry_end", "hold_seconds": 4}),
     "angry_end": (1.0, False, "stand", "stand", {}),
@@ -2879,6 +2880,13 @@ class LocalMotionsTest(SpatialCase):
         self.assertEqual(table["drag_lift"], [{"clip": "pat_start", "weight": 1, "layer": "base",
                                                "chain": ["pat_loop", "land"], "hold": "pat_loop"}])
         self.assertNotIn("drop", table)
+
+    def test_with_land_start_the_drop_is_its_land_cut_at_its_hold_seconds(self):
+        roles = {"lift_start": "pat_start", "lift_end": "pat_end", "land_start": "slam"}
+        self.start(local_pack(Path(self.root) / "roles", roles))
+        self.assertEqual(self.spatial.reactions()["drop"], [{"clip": "slam", "weight": 1, "layer": "base", "hold_s": {"slam": 0.8}}])
+        snapshot = next(m for m in reversed(self.log) if m["event"] == "snapshot")
+        self.assertEqual(c1.check_message(snapshot), [])
 
     def test_she_enters_on_launch_and_after_a_switch_but_not_after_a_quick_restart(self):
         self.start()

@@ -240,6 +240,8 @@ class Pack:
         roles = bindings.get("roles") or {}
         # The pick-up's start and end clips; None: the drag.lift and drag.land pools.
         self.lift = (roles["lift_start"], roles["lift_end"]) if "lift_start" in roles and "lift_end" in roles else None
+        # The clip a lift lands with, cutting the lift's list; None: that list plays on.
+        self.land = roles.get("land_start")
         self.families = None
         if "pose-families.json" in animation:
             self.families = PoseFamilies(_read(c7 / "animation" / "pose-families.json"))
@@ -434,17 +436,17 @@ class Pack:
         return next((c for c in self.chain(start) if c in self.entries and self.entries[c].held), None)
 
     def reaction_chain(self, start, held, end=None):
-        """What a reaction from start plays: (every clip after start, the loop it holds or None, {loop: hold_seconds}
-        for each other loop of start and those clips that has one). Unheld, start's chain; held, its chain up to its
-        first loop, which it holds, then that loop's exit chain (end's chain when given, else the rest of start's
-        chain)."""
+        """What a reaction from start plays: (every clip after start, the loop it holds or None, {clip: hold_seconds}
+        for each other clip of start and those clips that has one: a loop loops that long, a one-shot is cut there).
+        Unheld, start's chain; held, its chain up to its first loop, which it holds, then that loop's exit chain (end's
+        chain when given, else the rest of start's chain)."""
         chain = self.chain(start)
         loop = next((c for c in chain if self.loop(c)), None) if held else None
         if loop is not None:
             e, at = self.entries.get(loop), chain.index(loop) + 1
             chain = chain[:at] + (self.chain(end) if end else self.chain(e.exit) if e and e.exit else chain[at:])
         timed = {c: self.entries[c].hold_seconds for c in chain
-                 if c != loop and self.loop(c) and c in self.entries and self.entries[c].hold_seconds is not None}
+                 if c != loop and c in self.entries and self.entries[c].hold_seconds is not None}
         return chain[1:], loop, timed
 
 
