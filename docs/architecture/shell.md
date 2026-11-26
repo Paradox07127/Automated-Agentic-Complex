@@ -69,8 +69,8 @@
 - macOS 上面板是 `type: 'panel'` 加 `setPreventsActivation`，显示在所有 Space 和全屏 app 之上（`platform/index.ts` 的 `overlayOptions`、`makeOverlay`）。
 - 面板平时点穿（`setIgnoreMouseEvents(true, {forward: true})`）。主进程每 1/30 s 查一次指针，指针在页面报的交互区里才接点击。页面经 `window.setInteractiveRegions`、`window.setContentSize` 报交互区和内容大小。
 - 位置跟着她走：身体框来自 C3 的 `hit_capsules` 和 `placement`，规则在 `common/desktop-follow.ts` 和 `common/desktop-layout.ts`，算出的锚点推给页面的 `window.onAnchor`。
-- 卡片来自 `common/stack-source.ts`：轮询读 `/approvals`、`/tasks`、`/agent/interactions`、`/agent/tasks` 和 `/commitments?state=triggered`，出审批、编码验收、问题、交付和提醒卡；`/feed` 的 `announce` 按 `notify_*` 设置变成卡片。外壳自己也发卡（按住说话的提示、拖给她的东西、通知）。
-- 键盘：面板平时不取焦点。`window.requestKey` 只在面板显示、1 s 内在交互区里按过鼠标时让面板成为 key；打开命令层时面板直接成为 key。成为 key 用面板窗口的 `focus()`，不激活本 app，前台 app 不变。`window.releaseKey` 交还键盘。
+- 卡片来自 `common/stack-source.ts`：启动和收到 feed 事件时读 `/approvals`、`/tasks`、`/agent/interactions`、`/agent/tasks` 和 `/commitments?state=triggered`，出审批、编码验收、问题、交付和提醒卡；有 feed 时，`/approvals` 和 `/tasks` 只在还有活动的审批或编码项、或后台离线时每 30 s 补读一次，没有 feed 时按固定间隔轮询（面板隐藏时放慢）；`/feed` 的 `announce` 按 `notify_*` 设置变成卡片。外壳自己也发卡（按住说话的提示、拖给她的东西、通知）。
+- 键盘：面板平时不取焦点；打开命令层时面板直接成为 key。成为 key 用面板窗口的 `focus()`，不激活本 app，前台 app 不变。`window.releaseKey` 交还键盘。
 - 拖动：页面报 `drag: true` 的交互区可以拖动面板。松手时离默认位置不到 12 pt 回到默认位置；离她的身体框超过 400 pt 就钉在那里；否则记下相对她的一侧和间距（最多 96 pt），之后跟着她走都保持这个偏移。偏移跨启动保留，按 `desktopPanelOffset.v3.<面板>` 存在支持目录的 `desktop-offsets.json`。
 
 ## 托盘与菜单

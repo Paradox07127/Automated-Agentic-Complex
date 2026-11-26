@@ -55,7 +55,7 @@ src/
   bridge/   protocol.ts (bridge interface and capability bits; every type is exported here) fake/ (fake bridge) index.ts (getBridge) agentd.ts (agentd requests)
   mock/     mock endpoints per page, one file <id>.ts each; types.ts holds the types
   shell/    layout, command bar, router, ⌘K palette, useDemo, page registry
-  pages/    <id>/route.ts + Page.tsx: home overview chat tasks schedules memory character observe pipeline trace tune diag settings onboarding
+  pages/    <id>/route.ts + Page.tsx: home overview chat tasks memory character mmd diag settings onboarding (the observe, pipeline and trace directories have no route.ts: they are modules used by Briefing, Memory and Diagnostics, not pages)
   surfaces/ stack/ (panel card stack) desktop/ (root components of the desktop panels: bubble, hud, ring, cmd, console, chip and others)
   data/     agentd queries shared across pages
   ui/       base components

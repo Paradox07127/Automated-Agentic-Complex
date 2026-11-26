@@ -29,7 +29,7 @@ SAMPLE_RATE = 48000  # C2 clock
 PLAYING = ("started", "buffering", "resumed", "degraded")  # renderer receipts that leave the speech playing
 OVER = ("ended", "interrupted", "failed", "unknown")
 # The renderer sends receipts only on a change, so a silent one may still play its rest: wait that plus this slack
-# (a buffering stall, the Companion hop) before taking the renderer as lost.
+# (a buffering stall, the shell hop) before taking the renderer as lost.
 RECEIPT_STALE = 10.0
 CUT_POLL = 0.25  # seconds; the longest a cut waits to end a wait on the ensure or on the utterance before
 

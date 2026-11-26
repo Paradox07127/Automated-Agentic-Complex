@@ -43,7 +43,7 @@ When no token exists, the script creates `<root>/state/tts-token` with `secrets.
 
 ## Connecting from Agentic Complex
 
-In Settings › 服务 (Services), set how TTS connects; then, in Settings › 说话与通知 (Speech and notifications), fill in 令牌 (Token) and click 测试连接 (Test connection). `GET /health` needs no token; synthesis requests carry `Authorization: Bearer <token>`. There are four connections: off, address, SSH, local. For the fields and validation, see the [shell](../architecture/shell.en.md#external-services).
+In Settings › 服务 (Services), set how TTS connects; then, in the voice service there, fill in 令牌 (Token) and click 测试连接 (Test connection). `GET /health` needs no token; synthesis requests carry `Authorization: Bearer <token>`. There are four connections: off, address, SSH, local. For the fields and validation, see the [shell](../architecture/shell.en.md#external-services).
 
 ### Same machine: local or address
 

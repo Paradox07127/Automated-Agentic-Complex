@@ -141,7 +141,7 @@ Own Claude and Codex sessions and the character's own runs use one set of deskto
 
 ### Enabling and granting
 
-1. Turn on 设置 › 隐私 › 允许会话请求电脑操作 (Settings › Privacy › Allow sessions to request computer use; config key `computer_use_enabled`, default `false`), save, restart the background services, and start a new session. While the switch is off, the executor reads it again before every request and action and refuses.
+1. Turn on 设置 › 能力 › 功能 › 电脑操作 (Settings › Capabilities › Features › Computer use; config key `computer_use_enabled`, default `false`), save, restart the background services, and start a new session. While the switch is off, the executor reads it again before every request and action and refuses.
 2. A session must name the target app's bundle ID or PID, and also a `window_id` when the app has several windows. `desktop_status(target)` lists only that app's window numbers and geometry, without titles.
 3. The first observation opens a grant panel above the character, which waits at most `native_wait`. The user checks the app, window number, and session, then separately allows inspecting controls, reading text, taking a screenshot, and acting; the system's Accessibility or Screen Recording permission does not replace this per-task grant. System permissions are requested only when the matching grant is clicked; screenshots also need Screen Recording.
 4. An observation returns a snapshot and element references; after an action, observe again and verify with an explicit expected value or title. `effect=unverifiable` only means the action was sent and does not count as done.

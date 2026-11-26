@@ -8,7 +8,7 @@ agentd 是角色一侧的后台服务，Python 3.12 实现，只监听 127.0.0.1
 
 - 依赖在 `agent/agentd/requirements.txt`（HTTP 客户端 `httpx`、OIDC 校验 `PyJWT`）。
 - agentd 自己不安装 hook，不改 `~/.claude`、`~/.codex`。只观察的 hook 由用户运行 `tools/install_hooks.py` 安装（见「hook 安装」）。
-- Companion 经 `app/Resources/agentd_launcher.py` 启动它；单独运行时在仓库根目录执行 `agent/.venv/bin/python3 agent/agentd/server.py --port 48820 --state-dir /tmp/agentd-state --no-exit-with-parent`（不能带 `-I`，端口别用 Companion 占着的 48800）。
+- 外壳经 `app/Resources/agentd_launcher.py` 启动它；单独运行时在仓库根目录执行 `agent/.venv/bin/python3 agent/agentd/server.py --port 48820 --state-dir /tmp/agentd-state --no-exit-with-parent`（不能带 `-I`，端口别用 外壳占着的 48800）。
 
 ## 代码结构
 
@@ -42,7 +42,7 @@ agentd 是角色一侧的后台服务，Python 3.12 实现，只监听 127.0.0.1
 - `c1.py`：C1 消息校验；`python3 -I agent/agentd/c1.py protocol/C1-agent-events/fixtures` 校验夹具。
 - `route_registry.py`：HTTP 路由登记；`protocol/tools/gen_routes.py` 导入它，生成 `protocol/ui-bridge/routes.json` 和网页的 `agentd-routes.generated.ts`。
 - `control_panel.py`：对话与自有会话的控制面板路由（`/conversations*`、`PUT/DELETE /sessions/<id>`）。
-- `character_tool.py`、`motion_tool.py`、`outfit_tool.py`、`distribution_seed.py`：Companion 按脚本路径运行的角色包、动作、外观和发行角色库工具。发行版 Python 带 `-I`，这些脚本自己把所在目录加进 `sys.path`。
+- `character_tool.py`、`motion_tool.py`、`outfit_tool.py`、`distribution_seed.py`：外壳按脚本路径运行的角色包、动作、外观和发行角色库工具。发行版 Python 带 `-I`，这些脚本自己把所在目录加进 `sys.path`。
 - `character_library.py`、`resource_store.py`：角色库的校验与发布、写时复制；`characters/` 的构建脚本按顶层模块导入它们。
 - `fsutil.py`：整文件原子替换。
 - `pool_codec.py`：角色池文件的压缩容器；`character_library.py`、`tools/release/` 和 `characters/` 的构建脚本导入它。
@@ -100,7 +100,7 @@ agentd 是角色一侧的后台服务，Python 3.12 实现，只监听 127.0.0.1
 
 ## 角色与对话请求
 
-- `--character <id>` 选启动时的角色，不给时用角色库的 `default_character`。运行中用 `/character/prepare`、`commit`、`abort` 三步换角色。agentd 不存角色，重启时由 Companion 传 `--character`。
+- `--character <id>` 选启动时的角色，不给时用角色库的 `default_character`。运行中用 `/character/prepare`、`commit`、`abort` 三步换角色。agentd 不存角色，重启时由 外壳 传 `--character`。
 - 角色卡和设定只有一个来源：`--character-catalog` 传入的角色库。没有这个参数时读 `AGENTD_DEV_CATALOG`，再没有就读公开样例库 `characters/sample-library/current.json`（只有纯文字角色 `aide`）。卡、设定和默认角色读时不改写。
 - 角色卡（`<id>/persona.json`，10 节）渲染成 system。每轮另加：用户说过或确认过的记忆、关键词命中的设定条目（`<id>/lore.json`：world、relations、events，带 sticky、cooldown 和 token 预算），以及现场情况。
 - 现场情况里的审批：每张待批卡写会话、工具、摘要和剩余时间；600 s 内结束的卡（最多 3 张）写结果。她自己的状态偏离平常时（很困、很投入、心情离基线较远）加一句摘要。
@@ -140,7 +140,7 @@ python3 agent/agentd/tools/install_hooks.py --target claude --uninstall   # 只�
 
 - 事件：Claude 取 `config-examples/claude-settings.agentd.json` 里的 12 个，Codex 取 `config-examples/codex-hooks.agentd.json` 里的 10 个。每个事件追加一组。
 - 命令：`<Python> <agentd>/codex_hook_forward.py --endpoint /hook/claude（或 /hook/codex）--observe --timeout 0.8 --url http://127.0.0.1:48800 --token-file <hook.token 的绝对路径>`。Python 默认 `/usr/bin/python3`；token 默认在 macOS 的 `~/Library/Application Support/AgenticComplex/agentd/`、Windows 的 `%LOCALAPPDATA%\Agentic Complex\agentd\`。`--target both|claude|codex` 选工具；`--claude-settings`、`--codex-home`、`--url`、`--token-file`、`--python`、`--forwarder` 可以换。
-- 给了 `--hook-script <路径>`（文件名必须是 macOS 的 `agentic-complex-hook`、Windows 的 `agentic-complex-hook.cmd`）时，命令只有这个脚本。Companion 给用户的安装命令都这样装，指向 `<支持目录>/bin/` 下的脚本，并在每次启动 agentd 前把脚本改写成调用当前 agentd 的转发器，所以 agentd 换了位置 hook 照样能用。
+- 给了 `--hook-script <路径>`（文件名必须是 macOS 的 `agentic-complex-hook`、Windows 的 `agentic-complex-hook.cmd`）时，命令只有这个脚本。外壳给用户的安装命令都这样装，指向 `<支持目录>/bin/` 下的脚本，并在每次启动 agentd 前把脚本改写成调用当前 agentd 的转发器，所以 agentd 换了位置 hook 照样能用。
 - 每组是 `{"hooks": [{"type": "command", "command": <一行命令>, "async": true, "onFailure": "continue", "timeout": 2}]}`；Codex 的组没有 `onFailure`。macOS 上两边都用 `sh -c` 按 `shlex` 转义；Windows 上 Claude 的组加 `"shell": "powershell"`，Codex 用 `%COMSPEC% /C`。
 - 只认自己的组：组里只有一个命令型 hook，命令行里有转发器（或 `agentic-complex-hook` 脚本）、`--observe` 和这次的 `--url`。用户自己的键、组和 hook 都不动、不换顺序；自己的旧组原地换新。`--uninstall` 只删自己的组。
 - 写法：经同目录临时文件改名替换，保留原权限；新建的文件为 0600。JSON 读不出或形状不对时退出 2，哪个文件都不改。`--dry-run` 只打印自己的组的 diff。
@@ -206,7 +206,7 @@ curl -N -H "Authorization: Bearer $UI" http://127.0.0.1:48800/events
 
 ## 交互档位
 
-Companion 的 `interaction_preset` 对应 agentd 的 `--interaction-preset quiet|balanced|active`（默认 `balanced`），控制后台分析、主动发言和自主动作的节奏。它不延迟用户的直接请求、停止和拖拽，不增加单次输出 token。`GET /diag/state` 的 `interaction` 返回实际参数。
+外壳的 `interaction_preset` 对应 agentd 的 `--interaction-preset quiet|balanced|active`（默认 `balanced`），控制后台分析、主动发言和自主动作的节奏。它不延迟用户的直接请求、停止和拖拽，不增加单次输出 token。`GET /diag/state` 的 `interaction` 返回实际参数。
 
 | 档位 | 行为判断最短间隔 / 无变化刷新 | 主动发言同类冷却 | 随机动作间隔倍率 |
 |---|---|---|---|
@@ -245,7 +245,7 @@ Companion 的 `interaction_preset` 对应 agentd 的 `--interaction-preset quiet
 
 ### 内核选择与发现
 
-- 在「设置 › 角色内核」选内核、登录来源、模型和资料范围。没保存过设置时用 Pi；只有 Pi 不可用时才自动改用已登录的本机 Codex。
+- 在「设置 › 内核」选内核、登录来源、模型和资料范围。没保存过设置时用 Pi；只有 Pi 不可用时才自动改用已登录的本机 Codex。
 - Pi 随应用内置，打包版从 `--harness-site harness.pi=DIR` 找 `node/bin/node` 和 `pi-runtime/`；Codex 和 Claude Code 只用本机安装。
 - ACP 内核驱动一个本机 ACP v1 agent（stdio）：可选的 agent 列在 `harness/acp_registry.json`，本机已装的按 `harness/acp_agents.py` 的 `LOCAL_COMMANDS` 找，没装的可以经 npx 或 uvx 运行；agent 自己管登录和模型连接，Agentic Complex 的工具经 stdio MCP 提供给它。
 - Codex 用 App Server stdio 适配器和产品 dynamic tools；本机登录由 Codex 自己管理，Agentic Complex 不复制 token。

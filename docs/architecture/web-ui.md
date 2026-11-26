@@ -55,7 +55,7 @@ src/
   bridge/   protocol.ts（桥接口和能力位，全部类型从这里导出） fake/（假桥） index.ts（getBridge） agentd.ts（agentd 请求）
   mock/     各页的 mock 端点，每页一个文件 <id>.ts；types.ts 是类型
   shell/    布局、命令栏、路由、⌘K 面板、useDemo、页面注册表
-  pages/    <id>/route.ts + Page.tsx：home overview chat tasks schedules memory character observe pipeline trace tune diag settings onboarding
+  pages/    <id>/route.ts + Page.tsx：home overview chat tasks memory character mmd diag settings onboarding（observe、pipeline、trace 三个目录没有 route.ts，是被「每日简报」「记忆」「诊断」引用的模块，不是页面）
   surfaces/ stack/（浮层卡片栈） desktop/（各桌面面板的根组件：bubble、hud、ring、cmd、console、chip 等）
   data/     跨页共享的 agentd 查询
   ui/       基础组件

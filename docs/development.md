@@ -45,7 +45,7 @@ python3 -I tools/dev/dev_console.py --release-renderer
 
 - 开发版的设置、数据和日志放在 `.local/cache/dev-console/`，不用正式安装版的 `48800` 端口和 `~/Library/Application Support/` 数据目录。内核的工作区和正式版一样，默认是 `~/AgenticComplex`（在「设置 › 角色内核 › 工作区」改）；Codex 等本机内核还会写它们自己的目录，例如 `~/.codex`。
 - agentd 端口固定是 `48790`，开发面板没有改端口的参数。公开检出里开发面板默认读示例角色库 `characters/sample-library/`（纯文字角色「助手」`aide`）；`--catalog <current.json>` 换成别的角色库。
-- 接模型：开发版第一次启动会打开「首次设置」向导，可以先关掉。然后二选一：在「设置 › pi 账号与凭据」填 API Key 或登录；或者先在终端运行 `codex login`，再在「设置 › 角色内核」改选 Codex。没接模型时，对话会回 `pi_connection_missing`。
+- 接模型：开发版第一次启动会打开「首次设置」向导，可以先关掉。然后二选一：在「设置 › 内核 › 账号」填 API Key 或登录；或者先在终端运行 `codex login`，再在「设置 › 内核」改选 Codex。没接模型时，对话会回 `pi_connection_missing`。
 
 面板给每个组件做这些事：
 

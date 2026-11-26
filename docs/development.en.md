@@ -45,7 +45,7 @@ Open `http://127.0.0.1:48780/` to pick worktrees per component (`web`, `shell`, 
 
 - The dev build keeps its settings, data and logs in `.local/cache/dev-console/` and does not use the installed app's port `48800` or `~/Library/Application Support/`. The kernels' workspace is `~/AgenticComplex` by default, as in the installed app (change it under Settings › 角色内核 › 工作区 (Workspace)); local kernels such as Codex also write their own directories, for example `~/.codex`.
 - The agentd port is fixed at `48790`; the dev console has no option to change it. In a public checkout the dev console reads the sample library `characters/sample-library/` (the text-only character `aide`) by default; `--catalog <current.json>` picks another library.
-- Connect a model: the first start of the dev build opens the 首次设置 (first-run setup) assistant; you can close it. Then do one of these: enter an API key or sign in under Settings › pi 账号与凭据 (pi account and credentials); or run `codex login` in a terminal first and then choose Codex under Settings › 角色内核 (Character kernel). Without a model, a chat replies `pi_connection_missing`.
+- Connect a model: the first start of the dev build opens the 首次设置 (first-run setup) assistant; you can close it. Then do one of these: enter an API key or sign in under Settings › 内核 › 账号 (Kernel › Account); or run `codex login` in a terminal first and then choose Codex under Settings › 内核 (Kernel). Without a model, a chat replies `pi_connection_missing`.
 
 The console does this for each component:
 

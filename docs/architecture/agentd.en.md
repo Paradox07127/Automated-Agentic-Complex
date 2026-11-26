@@ -8,7 +8,7 @@ agentd is the character-side background service. It is written in Python 3.12 an
 
 - Dependencies are in `agent/agentd/requirements.txt` (the `httpx` HTTP client and `PyJWT` for OIDC checks).
 - agentd installs no hooks itself and does not change `~/.claude` or `~/.codex`. The user installs observe-only hooks by running `tools/install_hooks.py` (see "Hook installation").
-- Companion starts it through `app/Resources/agentd_launcher.py`; to run it standalone, run `agent/.venv/bin/python3 agent/agentd/server.py --port 48820 --state-dir /tmp/agentd-state --no-exit-with-parent` from the repository root (without `-I`; avoid port 48800, which Companion's agentd uses).
+- The shell starts it through `app/Resources/agentd_launcher.py`; to run it standalone, run `agent/.venv/bin/python3 agent/agentd/server.py --port 48820 --state-dir /tmp/agentd-state --no-exit-with-parent` from the repository root (without `-I`; avoid port 48800, which the shell's agentd uses).
 
 ## Code layout
 
@@ -42,7 +42,7 @@ The root has 13 `.py` files; something outside the package finds each one by pat
 - `c1.py`: C1 message checks; `python3 -I agent/agentd/c1.py protocol/C1-agent-events/fixtures` checks the fixtures.
 - `route_registry.py`: the HTTP route registry; `protocol/tools/gen_routes.py` imports it to generate `protocol/ui-bridge/routes.json` and the web UI's `agentd-routes.generated.ts`.
 - `control_panel.py`: control-panel routes for conversations and own sessions (`/conversations*`, `PUT/DELETE /sessions/<id>`).
-- `character_tool.py`, `motion_tool.py`, `outfit_tool.py`, `distribution_seed.py`: the character package, motion, outfit and bundled-library tools that Companion runs by script path. The release Python runs with `-I`, so these scripts add their own directory to `sys.path`.
+- `character_tool.py`, `motion_tool.py`, `outfit_tool.py`, `distribution_seed.py`: the character package, motion, outfit and bundled-library tools that the shell runs by script path. The release Python runs with `-I`, so these scripts add their own directory to `sys.path`.
 - `character_library.py`, `resource_store.py`: character library checks and publishing, copy-on-write; the build scripts in `characters/` import them as top-level modules.
 - `fsutil.py`: atomic whole-file replacement.
 - `pool_codec.py`: the compressed container for character pool files; `character_library.py`, `tools/release/` and the build scripts in `characters/` import it.
@@ -100,7 +100,7 @@ The amounts estimate what agentd can verify; they are not provider bills. Extern
 
 ## Characters and conversation requests
 
-- `--character <id>` picks the character at startup; without it agentd uses the library's `default_character`. While running, the three-step switch `/character/prepare`, `commit`, `abort` changes the character. agentd does not store the character; Companion passes `--character` on restart.
+- `--character <id>` picks the character at startup; without it agentd uses the library's `default_character`. While running, the three-step switch `/character/prepare`, `commit`, `abort` changes the character. agentd does not store the character; the shell passes `--character` on restart.
 - Cards and lore have one source: the character library passed with `--character-catalog`. Without that argument agentd reads `AGENTD_DEV_CATALOG`, and failing that the public sample library `characters/sample-library/current.json` (only the text-only character `aide`). Cards, lore, and the default character are never rewritten when read.
 - The card (`<id>/persona.json`, 10 sections) renders into the system text. Each turn adds memories the user stated or confirmed, keyword-matched lore entries (`<id>/lore.json`: world, relations, events, with sticky, cooldown, and a token budget), and the live context.
 - Approvals in the live context: each pending card gives its session, tool, summary, and time left; cards that ended within 600 s (at most 3) give their result. When her own state is unusual (very sleepy, deeply absorbed, mood far from baseline), one sentence about it is added.
@@ -140,7 +140,7 @@ python3 agent/agentd/tools/install_hooks.py --target claude --uninstall   # unli
 
 - Events: Claude takes the 12 in `config-examples/claude-settings.agentd.json`, Codex the 10 in `config-examples/codex-hooks.agentd.json`. Each event gets one appended group.
 - Command: `<Python> <agentd>/codex_hook_forward.py --endpoint /hook/claude (or /hook/codex) --observe --timeout 0.8 --url http://127.0.0.1:48800 --token-file <absolute path of hook.token>`. Python defaults to `/usr/bin/python3`; the token defaults to `~/Library/Application Support/AgenticComplex/agentd/` on macOS and `%LOCALAPPDATA%\Agentic Complex\agentd\` on Windows. `--target both|claude|codex` picks the tools; `--claude-settings`, `--codex-home`, `--url`, `--token-file`, `--python`, and `--forwarder` override the defaults.
-- With `--hook-script <path>` (the file name must be `agentic-complex-hook` on macOS, `agentic-complex-hook.cmd` on Windows) the command is that script alone. The install command Companion gives the user does this, pointing at the script in `<support dir>/bin/`, and Companion rewrites that script before each agentd start to call the current agentd's forwarder, so hooks keep working when agentd moves.
+- With `--hook-script <path>` (the file name must be `agentic-complex-hook` on macOS, `agentic-complex-hook.cmd` on Windows) the command is that script alone. The install command the shell gives the user does this, pointing at the script in `<support dir>/bin/`, and the shell rewrites that script before each agentd start to call the current agentd's forwarder, so hooks keep working when agentd moves.
 - Each group is `{"hooks": [{"type": "command", "command": <one-line command>, "async": true, "onFailure": "continue", "timeout": 2}]}`; the Codex group has no `onFailure`. On macOS both tools run the command with `sh -c`, quoted with `shlex`; on Windows the Claude group adds `"shell": "powershell"` and Codex uses `%COMSPEC% /C`.
 - It recognizes only its own groups: a group with a single command hook whose command line contains the forwarder (or the `agentic-complex-hook` script), `--observe`, and this run's `--url`. The user's own keys, groups, and hooks are never touched or reordered; its own old groups are replaced in place. `--uninstall` removes only its own groups.
 - Writes go through a temporary file in the same directory and a rename, keeping the original mode; new files are 0600. If the JSON cannot be read or has the wrong shape, it exits with 2 and changes no file. `--dry-run` prints only the diff of its own groups.
@@ -206,7 +206,7 @@ Installation and use for users are in the [browser extension](../guides/browser-
 
 ## Interaction presets
 
-Companion's `interaction_preset` maps to agentd's `--interaction-preset quiet|balanced|active` (default `balanced`) and sets the pace of background analysis, proactive speech, and autonomous movement. It never delays the user's direct requests, stops, or drags, and adds no output tokens per call. `interaction` in `GET /diag/state` returns the actual parameters.
+The shell's `interaction_preset` maps to agentd's `--interaction-preset quiet|balanced|active` (default `balanced`) and sets the pace of background analysis, proactive speech, and autonomous movement. It never delays the user's direct requests, stops, or drags, and adds no output tokens per call. `interaction` in `GET /diag/state` returns the actual parameters.
 
 | Preset | Behavior judgement min interval / refresh without change | Proactive speech same-kind cooldown | Random movement interval factor |
 |---|---|---|---|
@@ -245,7 +245,7 @@ These are per-module throttles, not one token or cost cap.
 
 ### Kernel selection and discovery
 
-- In 设置 › 角色内核 (Settings › Character kernel) the user picks the kernel, sign-in source, model, and data scope. Without saved settings Pi is used; only when Pi is unavailable does it fall back to a signed-in local Codex.
+- In 设置 › 内核 (Settings › Kernel) the user picks the kernel, sign-in source, model, and data scope. Without saved settings Pi is used; only when Pi is unavailable does it fall back to a signed-in local Codex.
 - Pi ships with the app; the packaged app finds `node/bin/node` and `pi-runtime/` through `--harness-site harness.pi=DIR`. Codex and Claude Code use local installs only.
 - The ACP kernel drives a local ACP v1 agent over stdio: the selectable agents are listed in `harness/acp_registry.json`, installed ones are found through `LOCAL_COMMANDS` in `harness/acp_agents.py`, and missing ones can run through npx or uvx. The agent manages its own sign-in and model connection; Agentic Complex's tools reach it over stdio MCP.
 - Codex uses the App Server stdio adapter with product dynamic tools; Codex manages its own sign-in and Agentic Complex copies no token.

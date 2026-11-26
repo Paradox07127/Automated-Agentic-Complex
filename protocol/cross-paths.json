@@ -41,7 +41,7 @@
   "browser": ["agent/browser", "native_host.py"],
   "tts": ["voice/tts-service", "serve_tts.py"]
  },
- "ignore": {"hooks.json": "Codex's own hook file in its home directory: agentd installs our hooks into it and the host's first-launch migration rewrites their paths", "settings.json": "Claude Code's own user settings file: agentd installs our hooks into it and the host's first-launch migration rewrites their paths", "local.agenticcomplex.agentd.json": "Chrome's native messaging host manifest: agent/browser/install.sh writes it and the host's first-launch migration writes it in place of the old one", 
+ "ignore": {"hooks.json": "Codex's own hook file in its home directory: agentd installs our hooks into it", "settings.json": "Claude Code's own user settings file: agentd installs our hooks into it", "local.agenticcomplex.agentd.json": "Chrome's native messaging host manifest: agent/browser/install.sh writes it and the host's first-launch migration writes it in place of the old one", 
   "scene.json": "a scene pack's descriptor (app/electron/src/main/renderer/supervisor.ts) and a character's neutral scene (characters/packaging/native_bundle.py) are different files",
   "state.json": "host window state (app/electron/src/main/placement/store.ts) and a C6 fixture name (agent/agentd/route_registry.py) are different files",
   "manifest.json": "a fit manifest (characters/agentic_complex_build/secondary_fit.py) and a TTS model manifest (voice/tts-service/tts_runtime.py) are different files",

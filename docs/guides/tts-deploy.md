@@ -43,7 +43,7 @@ bash voice/tts-service/deploy/deploy.sh --root /srv/agentic-complex-tts --port 9
 
 ## 从 Agentic Complex 连接
 
-在「设置 › 服务」组里设置 TTS 的接法，再在「设置 › 说话与通知」填「令牌」，点「测试连接」。`GET /health` 不需要令牌；合成请求带 `Authorization: Bearer <token>`。接法有四种：关、地址、SSH、本机。字段和校验见[外壳](../architecture/shell.md#外置服务)。
+在「设置 › 服务」组里设置 TTS 的接法，再在「设置 › 服务」的语音服务里填「令牌」，点「测试连接」。`GET /health` 不需要令牌；合成请求带 `Authorization: Bearer <token>`。接法有四种：关、地址、SSH、本机。字段和校验见[外壳](../architecture/shell.md#外置服务)。
 
 ### 同一台机器：本机或地址
 
