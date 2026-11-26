@@ -796,8 +796,13 @@ def match_textures(mod, source, read_blob, drawn, hidden, by_component, mapping,
         # A draw's program reads one of two slots the tables name for one resource; the lower register is placed first.
         first = min((int(s[4:]) for m in meshes for s in slots.get((filename, m), ()) if s.startswith('ps-t')), default=0) if rank == 1 else 0
         placing.append((rank, first, i, row, places, blob, own, fits))
+    # Guesses that could take one texture of a mesh have nothing but their order to choose between them: none is placed.
+    guesses = [(row['file'], {(p[0], n) for p, c in zip(places, fits) for n in c})
+               for rank, _, _, row, places, _, _, fits in placing if rank and row['file'] in guessed]
+    contested = {f for f, keys in guesses for g, other in guesses if f != g and keys & other}
     for rank, _, i, row, places, blob, own, choice in sorted(placing, key=lambda p: p[:3]):
         filename = row['file']
+        if filename in contested:warnings.append('texture_unbound:'+filename); continue
         if rank == 0:chosen = [choice]
         else:
             fits = choice
@@ -827,6 +832,7 @@ def match_textures(mod, source, read_blob, drawn, hidden, by_component, mapping,
                 keys = free(p, name, blob)
                 if not keys:raise ValueError(f'texture_mismatch:{i}:{filename}: {name} of {p[0]} is taken')
                 assigned.setdefault(p, {}).update(dict.fromkeys(keys, blob))
+        if rank and filename in guessed:warnings.append(f'texture_guessed:{filename}->{chosen[0]}')
         # The template samplers may need the whole chain, which a block-compressed texture cannot be given here.
         if len(blob.mips) == 1 and any(own[p][n]['mip_count'] > 1 for p in places for n in chosen):warnings.append('needs_mips:'+filename)
         tag = re.search(r'bc7-srgb|bc7-linear|bc5-linear', Path(filename).name, re.IGNORECASE)

@@ -151,7 +151,7 @@ def load_eff(root):
         s = ini[n]
         if n.startswith('Part'):
             material = section(out.materials, s['material']) if s.get('material', '').strip() else None
-            if not (slot := s.get('material_slot', '0').strip()).isdigit():raise ValueError(f'unsupported_mod:eff_key:{n}.material_slot')
+            if not ((slot := s.get('material_slot', '0').strip()).isascii() and slot.isdigit()):raise ValueError(f'unsupported_mod:eff_key:{n}.material_slot')
             out.parts[n] = Part(n, key(s, 'mesh'), section(meshes, key(s, 'mesh')), material, truth(s.get('visible', 'true')), int(slot))
     for n in names:
         s = ini[n]
@@ -335,9 +335,8 @@ def submesh_indices(mesh, vertex_count):
         if s['firstByte']+s['indexCount']*width > len(buffer):raise Malformed('index_range')
         indices = array(code, buffer[s['firstByte']:s['firstByte']+s['indexCount']*width])
         if sys.byteorder == 'big':indices.byteswap()
-        indices = array('I', indices) if not s['baseVertex'] else array('I', (i+s['baseVertex'] for i in indices))
-        if indices and max(indices) >= vertex_count:raise Malformed('index_range')
-        out.append(indices)
+        if indices and not 0 <= min(indices)+s['baseVertex'] <= max(indices)+s['baseVertex'] < vertex_count:raise Malformed('index_range')
+        out.append(array('I', indices) if not s['baseVertex'] else array('I', (i+s['baseVertex'] for i in indices)))
     return out
 
 

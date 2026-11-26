@@ -179,6 +179,21 @@ class CanonicalReleaseTests(unittest.TestCase):
                 mock.patch.object(release,'build_web',side_effect=lambda root,ui:ui) as web:
             release.build(args,root=root)
         return web
+    def test_release_without_gate_receipt_is_refused_before_any_subprocess(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);self.release_repo(root)
+            with self.assertRaisesRegex(ValueError,'gate receipt.*gate.py --profile commit --checkout '+str(root)):self.build(root,self.args())
+    def test_gate_receipt_must_pass_whole_on_these_sources(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);self.release_repo(root);store=gate_receipt.store_dir(root)
+            for bad,reason in [(dict(source=dict(fingerprint='0'*64,changed_during_run=False)),'fingerprint'),(dict(result='FAIL'),'result'),
+                    (dict(partial=True),'partial'),(dict(profile='web'),'profile'),(dict(runner_sha256='0'*64),'runner')]:
+                path=root/'bad.json';path.write_text(json.dumps(self.receipt(root,**bad)))
+                with self.assertRaisesRegex(ValueError,'gate receipt.*'+reason):self.build(root,self.args(gate_receipt=path))
+                if reason not in ('profile','runner'):gate_receipt.write(self.receipt(root,**bad),store=store)
+            with self.assertRaisesRegex(ValueError,'gate receipt'):self.build(root,self.args())
+            gate_receipt.write(self.receipt(root,profile='release'),store=store)
+            with self.assertRaisesRegex(AssertionError,'before the gate receipt'):self.build(root,self.args())
     def test_full_failure_revokes_older_pass_for_these_sources(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);self.release_repo(root);store=gate_receipt.store_dir(root)
@@ -218,6 +233,18 @@ class CanonicalReleaseTests(unittest.TestCase):
             newer=gate_receipt.write(receipt,store=store)
             self.assertEqual(gate_receipt.find(store,'commit',fingerprint)[0],newer)
 
+    def test_gate_receipt_covers_private_suites_when_present(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);self.release_repo(root);(root/'private/suites.json').write_text('{"private":1}')
+            def sha(*names):
+                h=hashlib.sha256()
+                for name in names:h.update((root/name).read_bytes())
+                return h.hexdigest()
+            path=root/'receipt.json'
+            path.write_text(json.dumps(self.receipt(root)))
+            with self.assertRaisesRegex(ValueError,'gate receipt.*suites'):self.build(root,self.args(gate_receipt=path))
+            path.write_text(json.dumps(self.receipt(root,suites_sha256=sha('tools/qa/suites.json','private/suites.json'))))
+            with self.assertRaisesRegex(AssertionError,'before the gate receipt'):self.build(root,self.args(gate_receipt=path))
     def test_a_library_holding_a_local_absolute_path_is_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);self.release_repo(root);gate_receipt.write(self.receipt(root),store=gate_receipt.store_dir(root))

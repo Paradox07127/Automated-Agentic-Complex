@@ -1235,6 +1235,37 @@ this = ref ResourceZero
         placed, warnings = self.placeholder_import(draw, 'both')
         self.assertEqual(placed, {'base.dds': '_BaseMap', 'light.dds': '_MetallicGlossMap', 'glow.dds': '_EmissionMap', 'coat.dds': '_ClearCoatMask'})
         self.assertFalse([w for w in warnings if w.startswith('texture_unbound:')])
+        self.assertIn('texture_guessed:Textures/coat.dds->_ClearCoatMask', warnings)
+        self.assertIn('texture_guessed:Textures/glow.dds->_EmissionMap', warnings)
+
+    def guessed_import(self, registers, out):
+        """placeholder_import's package with ps-t17 base.dds, ps-t18 light.dds and a 4x4 linear placeholder Textures/<name>.dds at
+        each (name, register) of `registers`, which leaves _ClearCoatMask the one free linear texture."""
+        hints = {'fixture': {'M_cloth': {'ps-t17': '_BaseMap', 'ps-t18': '_MetallicGlossMap', 'ps-t20': '_BaseMap'}}}
+        package = package_fixture(self.root/(out+'-pkg'), cloth_extra=[('_EmissionMap', 'BC7_SRGB_BLOCK', True, 3)], outline=True,
+                                  tables={import_outfit.HINTS_FILE: dict(schema=import_outfit.HINTS_SCHEMA, characters=hints)})
+        draw = 'ps-t17 = ResourceBase\nps-t18 = ResourceLight\n'+''.join(f'ps-t{r} = Resource{n.title()}\n' for n, r in registers)+\
+               'drawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'
+        files = {'Textures/base.dds': dds(8, 8, 99), 'Textures/light.dds': dds(8, 8, 98)}
+        files.update({f'Textures/{n}.dds': dds(4, 4, 98, fill=8+k) for k, (n, _) in enumerate(registers)})
+        sections = ''.join(f'\n[Resource{n.title()}]\nfilename = Textures/{n}.dds\n' for n in ['base', 'light']+[n for n, _ in registers])
+        mod = cloth_mod(self.root/out, draw, files, sections)
+        report = import_outfit.import_outfit(package.root, mod, self.root/(out+'-out'))
+        return {t['file'][9:]: t['resource'] for t in report['textures']}, report['warnings']
+
+    def test_two_guesses_for_one_free_texture_are_both_left_unbound_whatever_their_names(self):
+        for registers in ([('acoat', 13), ('zmask', 14)], [('zmask', 13), ('acoat', 14)]):
+            with self.subTest(registers=registers):
+                placed, warnings = self.guessed_import(registers, registers[0][0])
+                self.assertEqual((placed['acoat.dds'], placed['zmask.dds']), (None, None))
+                self.assertIn('texture_unbound:Textures/acoat.dds', warnings)
+                self.assertIn('texture_unbound:Textures/zmask.dds', warnings)
+                self.assertFalse([w for w in warnings if w.startswith('texture_guessed:')])
+
+    def test_a_lone_guess_is_placed_with_a_warning(self):
+        placed, warnings = self.guessed_import([('zmask', 13)], 'lone')
+        self.assertEqual(placed['zmask.dds'], '_ClearCoatMask')
+        self.assertIn('texture_guessed:Textures/zmask.dds->_ClearCoatMask', warnings)
 
     def test_a_template_register_with_two_free_textures_of_its_format_is_left_unbound(self):
         draw = 'ps-t17 = ResourceBase\nps-t13 = ResourceCoat\ndrawindexedinstanced = 6,INSTANCE_COUNT,0,0,FIRST_INSTANCE'

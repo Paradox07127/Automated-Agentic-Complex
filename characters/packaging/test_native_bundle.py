@@ -1,10 +1,13 @@
 import json,pathlib,tempfile,unittest,shutil,hashlib,sys,subprocess
 import native_bundle as n
-import host_inputs
 import neutral_package,package_format
 import test_neutral_package
 import pool_codec
 
+# host_inputs, the renderer's reader of a bundle's host arguments, is private: a public checkout has none.
+RENDERER=pathlib.Path(__file__).resolve().parents[2]/'private/renderer'
+HOST_INPUTS=unittest.skipUnless((RENDERER/'host_inputs.py').is_file(),'host_inputs is in private/renderer')
+sys.path.insert(0,str(RENDERER))
 POOLED=b''.join(b'pooled texel %d ' % (i % 61) for i in range(4000))
 def other_container(data):
  # A container whose header names bytes other than data.
@@ -213,11 +216,15 @@ class BundleTests(unittest.TestCase):
   recipe=self.recipe();d=n.load(recipe);shared=self.blob('plain/program.metallib');plain=self.blob('plain/plain.metallib',b'plain post')
   lib=self.doc('plain/manifest.json',dict(schema='metal-program-library-v1',programs=[dict(library=shared),dict(library=plain)]))
   d['characters'][0]['library_ssaa1']=dict(lib,file=str(self.inputs/'plain/manifest.json'));recipe.write_bytes(n.json_bytes(d));return recipe
+ @HOST_INPUTS
  def testRecipeWithoutSsaa1BuildsWithoutIt(self):
+  import host_inputs
   out=n.build(self.recipe(),self.root/'bundle');e=n.load(out/'bundle.json')['characters'][0]
   self.assertEqual(list(e),['id','default_clip','default_appearance','c7','actor_archive','source','library','graph','lighting','neutral_scene','neutral_build_record','metal_product','coverage'])
   self.assertFalse((out/'characters/fixture/programs/manifest-ssaa1.json').exists());self.assertNotIn('--library-ssaa1',host_inputs.host_inputs(out,'fixture')['argv'])
+ @HOST_INPUTS
  def testSsaa1LibraryBuildsVerifiesAndDedupesArtifacts(self):
+  import host_inputs
   original=self.inputs/'plain/manifest.json';out=n.build(self.ssaa1Recipe(),self.root/'bundle');manifest=n.load(out/'bundle.json');e=manifest['characters'][0]
   self.assertEqual(list(e)[-2:],['coverage','library_ssaa1'])
   self.assertEqual(e['library_ssaa1'],dict(file='characters/fixture/programs/manifest-ssaa1.json',sha256=n.digest(original),byte_count=original.stat().st_size))

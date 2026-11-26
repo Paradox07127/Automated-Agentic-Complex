@@ -101,11 +101,11 @@ def vertex_data():
     return channels, data
 
 
-def mesh_object(index_format=0, indices=(7, 7, 0, 1, 2), first_byte=4, index_count=3):
+def mesh_object(index_format=0, indices=(7, 7, 0, 1, 2), first_byte=4, index_count=3, base_vertex=0):
     channels, data = vertex_data()
     code = 'HI'[index_format]
     out = sized(b'Cloth')
-    out += struct.pack('<i6I', 1, first_byte, index_count, 0, 0, 0, len(POSITIONS))
+    out += struct.pack('<i6I', 1, first_byte, index_count, 0, base_vertex, 0, len(POSITIONS))
     out += struct.pack('<i', 0)
     out += struct.pack('<i', len(BINDPOSES))+b''.join(struct.pack('<16f', *m) for m in BINDPOSES)
     out += struct.pack(f'<i{len(BONES)}I', len(BONES), *BONES)
@@ -119,13 +119,25 @@ def mesh_object(index_format=0, indices=(7, 7, 0, 1, 2), first_byte=4, index_cou
     return out
 
 
-def serialized_file(mesh=None):
-    """A version-22 SerializedFile with an AssetBundle object and one Mesh object, little-endian metadata, typetrees on."""
+def array_chain_tree(depth):
+    """(nodes, string buffer) of a struct holding arrays nested to level `depth`, each the item of the one above, around an int:
+    the most reads deep for a typetree whose level is a byte."""
+    rows = [struct.pack('<HBBIIiiiQ', 1, 0, 0, 0, 2, -1, 0, 0, 0)]
+    for level in range(1, depth):
+        rows.append(struct.pack('<HBBIIiiiQ', 1, level, 1, 0x80000000 | COMMON['Array'], 2, -1, level, 0, 0))
+        rows.append(struct.pack('<HBBIIiiiQ', 1, level+1, 0, 0x80000000 | COMMON['int'], 2, 4, level, 0, 0))
+    rows.append(struct.pack('<HBBIIiiiQ', 1, depth, 0, 0x80000000 | COMMON['int'], 2, 4, depth, 0, 0))
+    return b''.join(rows), b'S\0s\0'
+
+
+def serialized_file(mesh=None, mesh_tree=None):
+    """A version-22 SerializedFile with an AssetBundle object and one Mesh object, little-endian metadata, typetrees on;
+    `mesh_tree` is the Mesh's (nodes, string buffer) in place of MESH_TREE's."""
     mesh = mesh_object() if mesh is None else mesh
     bundle = sized(b'bundle')
     meta = b'2021.3.34f5\0'+struct.pack('<iBi', 19, 1, 2)
     for class_id, tree in ((142, BUNDLE_TREE), (43, MESH_TREE)):
-        nodes, strings = type_tree(tree)
+        nodes, strings = mesh_tree if class_id == 43 and mesh_tree else type_tree(tree)
         meta += struct.pack('<iBh', class_id, 0, -1)+bytes(16)+struct.pack('<ii', len(nodes)//32, len(strings))+nodes+strings
         meta += struct.pack('<i', 0)
     meta += struct.pack('<i', 2)
@@ -261,6 +273,29 @@ class EffModTest(unittest.TestCase):
     def test_read_mesh_u32_indices(self):
         (self.root/'meshes/body.effres').write_bytes(mesh_effres(serialized_file(mesh_object(1, (2, 1, 0), 0))))
         self.assertEqual([list(s) for s in eff_mod.read_mesh(self.root/'meshes/body.effres').submeshes], [[2, 1, 0]])
+
+    def test_rejects_an_index_past_the_vertices_by_its_base_vertex(self):
+        for base in (3, 2**32-1):
+            with self.subTest(base=base):
+                (self.root/'meshes/body.effres').write_bytes(mesh_effres(serialized_file(mesh_object(base_vertex=base))))
+                with self.assertRaisesRegex(ValueError, r'^unsupported_mod:eff_mesh:body\.effres:index_range$'):
+                    eff_mod.read_mesh(self.root/'meshes/body.effres')
+        def signed(node):
+            type_, name, size, meta, is_array, children = node
+            return ('int' if name == 'baseVertex' else type_, name, size, meta, is_array, [signed(c) for c in children])
+        # A typetree may declare baseVertex signed: 2**32-3 is then -3.
+        (self.root/'meshes/body.effres').write_bytes(mesh_effres(serialized_file(mesh_object(base_vertex=2**32-3), type_tree(signed(MESH_TREE)))))
+        with self.assertRaisesRegex(ValueError, r'^unsupported_mod:eff_mesh:body\.effres:index_range$'):eff_mod.read_mesh(self.root/'meshes/body.effres')
+
+    def test_the_deepest_typetree_is_refused_by_its_reason(self):
+        data = struct.pack('<i', 1)*254+struct.pack('<i', 0)
+        (self.root/'meshes/body.effres').write_bytes(mesh_effres(serialized_file(data, array_chain_tree(255))))
+        with self.assertRaisesRegex(ValueError, r'^unsupported_mod:eff_mesh:body\.effres:field:'):
+            eff_mod.read_mesh(self.root/'meshes/body.effres')
+
+    def test_rejects_a_material_slot_of_non_ascii_digits(self):
+        mod_fixture(self.root, MOD_INI.replace('material_slot=1', 'material_slot=\u00b2'))
+        with self.assertRaisesRegex(ValueError, r'^unsupported_mod:eff_key:PartExtra\.material_slot$'):eff_mod.load_eff(self.root)
 
     def test_rejects_bad_magic(self):
         path = self.root/'meshes/body.effres'
