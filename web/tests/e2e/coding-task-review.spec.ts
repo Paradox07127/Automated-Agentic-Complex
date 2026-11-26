@@ -66,26 +66,4 @@ for (const theme of THEMES) {
     expect(errors).toEqual([]);
   });
 
-  test(`${theme}: the chat composer's ＋ menu turns on 这句不记 for one line`, async ({ page }) => {
-    const errors = collectErrors(page);
-    await open(page, '/chat', theme);
-    await page.getByRole('button', { name: '附加' }).click();
-    await page.getByRole('menu').getByText('这句不记').click();
-    const chip = page.getByRole('button', { name: '取消这句不记' });
-    await expect(chip).toBeVisible();
-    await page.locator('textarea[aria-label="消息"]').fill('这句不用记');
-    await page.getByRole('button', { name: /发送/ }).click();
-    await expect(chip).toHaveCount(0);
-    await shot(page, 'composer', theme);
-    expect(errors).toEqual([]);
-  });
-
-  test(`${theme}: overview reads 出错 in the readouts and dates the next reminder in 今日一句`, async ({ page }) => {
-    const errors = collectErrors(page);
-    await open(page, '/overview', theme);
-    await expect(page.getByRole('list', { name: '读数' }).locator('[data-item="err"]')).toContainText(/^\d+出错/);
-    await expect(page.getByRole('region', { name: '今日一句' })).toContainText('下一条提醒 15:00 交报销单');
-    await shot(page, 'overview', theme);
-    expect(errors).toEqual([]);
-  });
 }

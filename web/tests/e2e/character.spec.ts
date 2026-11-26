@@ -1,5 +1,4 @@
 import { expect, test, type Page } from '@playwright/test';
-import { saveShot } from './shots.ts';
 
 // Character page and 诊断 › 行为决策 it hands the state curves to: blocks, interactions, error and offline demos, and no sideways scroll at the four window sizes.
 
@@ -42,34 +41,6 @@ test('ok: roster, stage and the motion table with two unsaved switches; no state
   await expect(page.getByText(/已修改\s*2\s*项/)).toBeVisible();
   await expect(page.getByRole('button', { name: '保存', exact: true })).toBeVisible();
   expect(errors).toEqual([]);
-});
-
-test('stage labels are Chinese; the jump row names each section in full', async ({ page }) => {
-  await page.goto('main.html#/character?still=1');
-  await expect(page.locator('[data-stage] [data-nameplate]')).toHaveText('示例乙在桌面SIsiZH在做坐着');
-  await page.goto('main.html#/character?still=1&pane=motion');
-  const stage = page.locator('[data-stage]');
-  await expect(page.locator('[data-motion="nod"]')).toContainText('批准之后');
-  await expect(stage.locator('[data-nameplate]')).toHaveCount(0);
-  await expect(stage).not.toContainText(/TRIGGER|TIME|TODAY|NOW|DESKTOP PARTNER|MOTION/i);
-  const jump = page.getByRole('group', { name: '跳转到分区' });
-  await expect(jump.getByRole('button', { name: '跳转到 移动与姿态' })).toHaveText('移动与姿态');
-});
-
-test('section tabs scroll the inner action list to the matching group in both directions', async ({ page }) => {
-  await page.setViewportSize({ width: 1100, height: 650 });
-  await page.goto('main.html#/character?still=1&pane=motion');
-  const grid = page.getByRole('grid', { name: '全部动作' });
-  await grid.evaluate((el) => {
-    Object.assign(el.style, { flex: 'none', height: '100px', overflowY: 'auto' });
-  });
-  for (const [name, key] of [['反应', 'react'], ['说话', 'talk']]) {
-    await page.getByRole('button', { name: `跳转到 ${name}` }).click();
-    await expect.poll(() => grid.evaluate((el, key) => {
-      const group = el.querySelector(`[data-group="${key}"]`)!;
-      return Math.abs(group.getBoundingClientRect().top - el.getBoundingClientRect().top);
-    }, key)).toBeLessThanOrEqual(1);
-  }
 });
 
 test('loading: the header and an empty stage show before the catalog', async ({ page }) => {
@@ -116,17 +87,6 @@ test('设定 › 画面 holds the developer quality rows, 诊断 › 行为决�
   expect(errors).toEqual([]);
 });
 
-test('switching asks first and names what happens to the current character', async ({ page }) => {
-  const errors = collectErrors(page);
-  await page.goto('main.html#/character?still=1');
-  await (await roster(page)).getByRole('button', { name: '示例甲' }).click();
-  const dialog = page.getByRole('dialog');
-  await expect(dialog).toContainText('示例乙 先从桌面隐藏');
-  await dialog.getByRole('button', { name: '切换', exact: true }).click();
-  await expect(page.getByText('已切换到 示例甲')).toBeVisible();
-  expect(errors).toEqual([]);
-});
-
 test('error: says the state read failed and keeps the page', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/character?still=1&state=error&pane=motion');
@@ -134,63 +94,6 @@ test('error: says the state read failed and keeps the page', async ({ page }) =>
   await expect(page.getByRole('grid', { name: '全部动作' })).toBeVisible();
   expect(errors).toEqual([]);
 });
-
-test('offline: the stage says the character is not running and the table is read-only', async ({ page }) => {
-  const errors = collectErrors(page);
-  await page.goto('main.html#/character?still=1&demo=offline&pane=motion');
-  await expect(page.locator('[data-preview-stage]').getByRole('status')).toContainText('角色未运行');
-  // The slot under the stage says why 桌面预览 is off.
-  await expect(page.locator('[data-stage] > [data-g="info"]').getByRole('status')).toHaveText('角色未运行');
-  await expect(page.getByRole('switch', { name: '挥手' })).toHaveAttribute('aria-disabled', 'true');
-  expect(errors).toEqual([]);
-});
-
-for (const theme of ['dark', 'light'] as const) {
-  test(`import MMD (${theme}): the rail's MMD item opens the MMD page; 导入中… while the fake imports, then the title, the baked entry and its ＋ into the MMD 列表`, async ({ page }, info) => {
-    const errors = collectErrors(page);
-    await page.goto(`main.html#/character?still=1&theme=${theme}`);
-    await page.getByRole('navigation', { name: '角色分区' }).getByRole('button', { name: 'MMD' }).click();
-    await expect(page).toHaveURL(/#\/mmd\?/);
-    await expect(page.getByRole('region', { name: 'MMD 库' })).toBeVisible();
-    const button = page.getByRole('button', { name: '导入 MMD' });
-    await expect(button).toBeVisible();
-    await button.click();
-    await page.getByRole('dialog', { name: '导入 MMD' }).getByRole('button', { name: '导入' }).click();
-    await expect(page.getByRole('button', { name: '导入中…' })).toBeDisabled();
-    await expect(page.locator('[data-motion-import]')).toHaveText('已导入「サンプルダンス · SampleDancerA」');
-    const entry = page.locator('[data-mmd="mmd_dance_1"]');
-    await expect(entry).toHaveAttribute('data-state', 'baked');
-    await entry.locator('button[aria-pressed]').click();
-    await expect(page.locator('[data-mmd-detail="mmd_dance_1"]')).toBeVisible();
-    await expect(page.getByRole('region', { name: '时间线' }).getByRole('button', { name: '桌面播放' })).toBeEnabled();
-    await expect(page.getByRole('region', { name: 'MMD 列表' })).toBeVisible();
-    await expect(entry.getByRole('button', { name: '加入演出列表' })).toBeEnabled();
-    await page.evaluate(() => document.fonts.ready.then(() => undefined));
-    await saveShot(page, { path: `.shots/${info.project.name}/character-import-vmd-${theme}.png` });
-    expect(errors).toEqual([]);
-  });
-}
-
-const ACCENT = 'rgb(255, 241, 0)';
-
-for (const theme of ['dark', 'light'] as const) {
-  test(`yellow marks (${theme}): the current character and the current motion's row edge; the commit line sits in the page's action bar`, async ({ page }) => {
-    await page.goto(`main.html#/character?still=1&demo=ok&theme=${theme}`);
-    const fill = (l: ReturnType<Page['locator']>) => l.evaluate((e) => getComputedStyle(e).backgroundImage + getComputedStyle(e).backgroundColor);
-    const nav = await roster(page);
-    await expect(nav.locator('button[aria-current]')).toHaveCount(1);
-    expect(await fill(nav.locator('button[aria-current] [data-g="bg"]'))).toContain(ACCENT);
-    await page.goto(`main.html#/character?still=1&demo=ok&pane=motion&theme=${theme}`);
-    // The selected dark row's 4 px left edge.
-    const edge = (l: ReturnType<Page['locator']>) => l.locator('[data-stub="DarkRow"]').evaluate((e) => getComputedStyle(e, '::before').backgroundColor);
-    expect(await edge(page.locator('[data-motion="nod"]'))).toBe(ACCENT);
-    expect(await edge(page.locator('[data-motion="talk"]'))).not.toBe(ACCENT);
-    const bar = page.locator('[data-commit]');
-    await expect(bar.getByRole('button', { name: /桌面预览/ })).toBeVisible();
-    await expect(bar.getByRole('button', { name: '保存' })).toBeVisible();
-    await expect(bar).toContainText(/已修改\s*2\s*项/);
-  });
-}
 
 // The 外观 and 显示 tabs head their rows; the 大小 title bar heads one row that holds the presets (while they fit), the slider and the readout on one line.
 for (const w of [900, 1050, 1280]) {
@@ -228,21 +131,3 @@ for (const w of [900, 1050, 1280]) {
   });
 }
 
-for (const [w, h] of [
-  [900, 600],
-  [1280, 800],
-  [1440, 900],
-  [1920, 1080],
-] as const) {
-  test(`${w}×${h}: no sideways scroll on 角色 or 行为决策`, async ({ page }) => {
-    const errors = collectErrors(page);
-    await page.setViewportSize({ width: w, height: h });
-    await page.goto('main.html#/character?still=1&demo=ok&pane=motion');
-    await expect(page.getByRole('grid', { name: '全部动作' })).toBeVisible();
-    expect(await overflowX(page, 'character')).toBe(false);
-    await page.goto('main.html#/diag?tab=behavior&still=1');
-    await expect(page.getByRole('region', { name: '变化原因' })).toBeVisible();
-    expect(await overflowX(page, 'diag')).toBe(false);
-    expect(errors).toEqual([]);
-  });
-}

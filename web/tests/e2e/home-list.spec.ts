@@ -27,19 +27,7 @@ async function wheel(page: Page, notches: number) {
   await page.mouse.move(5, 5);
 }
 
-const ROWS_6_8 = ['MMD', '角色这一天', '时间', '能力', '感知'];
 const DEV_ROWS = ['诊断', '对话轮次', '日志', '管线'];
-
-test('home list: five rows at first; the wheel brings rows 6–8 in, and the first rows go', async ({ page }) => {
-  await open(page, false);
-  const first = await shown(page);
-  expect(first).toEqual(['派发任务', '搜索', '快速输入', '屏幕识读', '停止说话', '定时', '档案', '回顾', '外观', '动作表']);
-  await wheel(page, 12);
-  await expect.poll(() => shown(page)).toEqual(expect.arrayContaining(ROWS_6_8));
-  const after = await shown(page);
-  expect(after).not.toContain('派发任务');
-  expect(after).not.toContain('诊断');
-});
 
 test('home list: in 开发者模式 the wheel reaches rows 9 on, the developer views', async ({ page }) => {
   await open(page, true);

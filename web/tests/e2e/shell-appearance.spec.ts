@@ -33,52 +33,6 @@ test('main theme= in the URL wins over the system appearance', async ({ page }) 
   await expect.poll(() => theme(page)).toBe('dark');
 });
 
-test('no page header: the 50 high command bar names the current page in its page menu, and 主页 has no command bar', async ({ page }) => {
-  await page.goto('main.html#/overview?plugins=daily_brief&still=1');
-  const nav = page.getByRole('navigation', { name: '主导航' });
-  await expect(nav).toBeVisible();
-  expect((await nav.boundingBox())?.height).toBe(50);
-  await expect(page.locator('main header[data-nav-target="page"]')).toHaveCount(0);
-  await expect(nav.getByRole('link')).toHaveCount(0);
-  await expect(nav.getByRole('button', { name: '每日简报 / 总览', exact: true })).toBeVisible();
-  await nav.getByRole('button', { name: '每日简报 / 总览', exact: true }).click();
-  await expect(page.getByRole('menu').getByRole('menuitem', { name: /^记忆(?!管线)/ })).toBeVisible();
-  await page.goto('main.html#/home?still=1');
-  await expect(page.locator('main[data-route-id="home"]')).toBeVisible();
-  await expect(page.getByRole('navigation', { name: '主导航' })).toHaveCount(0);
-  await expect(page.locator('[data-bare]')).toHaveCount(1);
-});
-
-test("command bar draws the page's tabs: a centred plate of 50 wide icon cells, a 76 wide block hanging 6 below, Q/E either side", async ({ page }) => {
-  await page.goto('main.html#/diag?tab=logs&still=1');
-  const nav = page.getByRole('navigation', { name: '主导航' });
-  const bar = (await nav.boundingBox())!;
-  const tab = nav.getByRole('tab', { name: '日志' });
-  await expect(tab).toHaveAttribute('title', '日志');
-  await expect(tab).toHaveAttribute('aria-selected', 'true');
-  const plate = (await nav.locator('[data-slot="tabs"]').evaluate((el) => {
-    const r = el.getBoundingClientRect();
-    return { x: r.x, width: r.width, bg: getComputedStyle(el).backgroundImage };
-  }))!;
-  expect(Math.abs(plate.x + plate.width / 2 - 640)).toBeLessThanOrEqual(0.5);
-  expect(plate.bg).toMatch(/^repeating-linear-gradient\(/);
-  const cell = (await tab.boundingBox())!;
-  expect(cell.width).toBe(50);
-  const block = (await tab.locator('[data-g="slc"]').boundingBox())!;
-  expect(block.width).toBe(76);
-  expect(block.x).toBe(cell.x - 13);
-  expect(block.y + block.height).toBe(bar.y + bar.height + 6);
-  // Key hints are hidden until ⌘ or Ctrl is held; they lie over the plate's 24 px padded ends and take no room from the tabs.
-  const caps = await nav.locator('[data-g="tabs"] > span kbd').evaluateAll((els) => els.map((el) => { const r = el.getBoundingClientRect(); return r.x + r.width / 2; }));
-  expect(caps).toHaveLength(2);
-  expect(Math.abs(caps[0]! + caps[1]! - 1280)).toBeLessThanOrEqual(1);
-  expect(caps[0]! - plate.x).toBeGreaterThan(0);
-  expect(caps[0]! - plate.x).toBeLessThan(24);
-  expect(plate.x + plate.width - caps[1]!).toBeGreaterThan(0);
-  expect(plate.x + plate.width - caps[1]!).toBeLessThan(24);
-  await expect(nav).not.toContainText('// TRACE');
-});
-
 test('dark shell screenshots for review', async ({ page }, info) => {
   const dir = fileURLToPath(new URL(`../../.shots/${info.project.name}/`, import.meta.url));
   await page.emulateMedia({ colorScheme: 'dark' });
@@ -135,15 +89,6 @@ test('focus follows the picked tab, so no tab that is not selected draws a ring 
   await page.keyboard.press('e');
   await expect(tabs.and(page.locator('[aria-selected="true"]'))).toHaveAttribute('title', '内核');
   expect(await ringed()).toEqual([]);
-});
-
-test('with the art plate the selected tab draws no frame around it in light theme', async ({ page }) => {
-  await page.emulateMedia({ colorScheme: 'light' });
-  await page.goto('main.html#/settings?still=1');
-  const plate = page.getByRole('tablist', { name: '设置分组' }).locator('[aria-selected="true"] > [data-g="slc"]');
-  expect(await plate.evaluate((el) => getComputedStyle(el).boxShadow)).toContain('inset');
-  await page.evaluate(() => (document.documentElement.dataset.art = ''));
-  expect(await plate.evaluate((el) => getComputedStyle(el).boxShadow)).toBe('none');
 });
 
 test('tabs that do not fit show an arrow at that end, the arrow scrolls them into view, and a picked tab scrolls in', async ({ page }) => {

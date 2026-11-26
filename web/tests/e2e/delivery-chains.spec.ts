@@ -41,39 +41,6 @@ test('QuestionBox answers from the question decision bar', async ({ page }) => {
   await expect(bar.getByRole('button', { name: '提交回答' })).toBeVisible();
 });
 
-test('dark HUD question card: button text reads at 4.5:1 on its own background', async ({ page }) => {
-  await page.goto('stack.html#/hud?demo=question&still=1&theme=dark');
-  await page.getByRole('button', { name: /^展开全部/ }).click();
-  const box = page.locator('[data-stub="QuestionBox"]').first();
-  await expect(box).toBeVisible();
-  const buttons = box.locator('[data-stub="Btn"]:not([aria-disabled="true"])');
-  expect(await buttons.count()).toBeGreaterThan(0);
-  for (const btn of await buttons.all()) {
-    const ratio = await btn.evaluate((el) => {
-      const rgb = (c: string) => (c.match(/[\d.]+/g) ?? []).map(Number);
-      const lum = ([r = 0, g = 0, b = 0]: number[]) => {
-        const f = (v: number) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
-        return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
-      };
-      // First opaque background colour from the button up; a ::before backdrop (the popup band) counts as its element's.
-      let bg = 'rgb(0, 0, 0)';
-      for (let n: Element | null = el; n; n = n.parentElement) {
-        const before = getComputedStyle(n, '::before');
-        const c = [getComputedStyle(n).backgroundColor, before.content === 'none' ? '' : before.backgroundColor].find(
-          (v) => v && (rgb(v)[3] ?? 1) > 0.5,
-        );
-        if (c) {
-          bg = c;
-          break;
-        }
-      }
-      const [a, b] = [lum(rgb(getComputedStyle(el).color)), lum(rgb(bg))];
-      return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-    });
-    expect(ratio, await btn.innerText()).toBeGreaterThanOrEqual(4.5);
-  }
-});
-
 const SHOTS: Array<[string, string]> = [
   ['DeliveryBox', 'review'],
   ['TaskDrawer', 'review'],

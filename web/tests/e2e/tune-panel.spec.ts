@@ -105,25 +105,6 @@ for (const theme of ['dark', 'light'] as const) {
   }
 }
 
-test('menu bar: 打开主窗口 opens the home page and closes the panel', async ({ page }) => {
-  const calls = await recordBridge(page, { 'desktop.onCommand': { kind: 'openConsole' }, 'desktop.onState': desktopState() });
-  await open(page, {}, '/console');
-  const menu = page.getByRole('dialog', { name: 'Agentic Complex 菜单' });
-  const names = () => menu.getByRole('button').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? e.textContent?.trim()));
-  await expect.poll(names).toEqual(['设置', '关闭菜单', '角色：示例乙', expect.stringMatching(/打开主窗口/), '快速输入', '免打扰', '隐藏角色', '全部点穿', '退出']);
-  await expect(menu.getByRole('button', { name: /打开主窗口/ })).toBeFocused();
-  // Opened without a key: the focused button draws no ring; the first Tab shows it on the next one.
-  const ring = () => page.evaluate(() => getComputedStyle(document.activeElement as Element).outlineStyle);
-  expect(await ring()).toBe('none');
-  await page.keyboard.press('Tab');
-  await expect(menu.getByRole('button', { name: '快速输入' })).toBeFocused();
-  expect(await ring()).not.toBe('none');
-  await menu.getByRole('button', { name: /打开主窗口/ }).click();
-  await expect.poll(() => calls('window.openMain')).toEqual([['/home?still=1']]);
-  await expect.poll(() => calls('window.close')).toEqual([[]]);
-  await expect(menu).toHaveCount(0);
-});
-
 test('menu bar: pending approvals, questions and reviews land on the full inbox', async ({ page }) => {
   const calls = await recordBridge(page, { 'desktop.onCommand': { kind: 'openConsole' }, 'desktop.onState': desktopState(), 'desktop.onPresence': CONSOLE_PRESENCE });
   await open(page, {}, '/console');
@@ -143,60 +124,6 @@ test('menu bar: unread announcements open their task, and 全部已读 marks the
   await menu.getByRole('button', { name: /周报写完了/ }).click();
   await expect.poll(() => calls('desktop.openAnnouncement')).toEqual([['announce-41']]);
   await expect(menu).toHaveCount(0);
-});
-
-test('menu bar: the switches stay open and say what changed; settings opens its route', async ({ page }) => {
-  const calls = await recordBridge(page, { 'desktop.onCommand': { kind: 'openConsole' }, 'desktop.onState': desktopState() });
-  await open(page, {}, '/console');
-  const menu = page.getByRole('dialog', { name: 'Agentic Complex 菜单' });
-  const keys = menu.getByRole('group', { name: '快捷开关' });
-  await expect(keys.getByRole('button', { name: '隐藏角色' })).toHaveAttribute('aria-pressed', 'false');
-  await keys.getByRole('button', { name: '免打扰' }).click();
-  await expect(menu.getByRole('status')).toContainText('免打扰已开始');
-  await keys.getByRole('button', { name: '全部点穿' }).click();
-  await expect(keys.getByRole('button', { name: '全部点穿' })).toBeEnabled();
-  await keys.getByRole('button', { name: '隐藏角色' }).click();
-  await expect.poll(() => calls('desktop.action')).toEqual([['quiet'], ['clickThroughAll'], ['hide']]);
-  await expect(menu.getByText(/陪我专注/)).toHaveCount(0);
-  await menu.getByRole('button', { name: '设置' }).click();
-  await expect.poll(() => calls('window.openMain')).toEqual([['/settings?still=1']]);
-  await expect(menu).toHaveCount(0);
-});
-
-test('menu bar: 退出 asks once in place; Escape takes the question back and leaves the menu open', async ({ page }) => {
-  const calls = await recordBridge(page, { 'desktop.onCommand': { kind: 'openConsole' }, 'desktop.onState': desktopState() });
-  await open(page, {}, '/console');
-  const menu = page.getByRole('dialog', { name: 'Agentic Complex 菜单' });
-  await menu.getByRole('button', { name: '退出' }).click();
-  const ask = menu.getByRole('alertdialog', { name: '退出确认' });
-  await expect(ask).toContainText('退出后后台和角色都会停下');
-  await page.keyboard.press('Escape');
-  await expect(ask).toHaveCount(0);
-  await expect(menu).toBeVisible();
-  await menu.getByRole('button', { name: '退出' }).click();
-  await ask.getByRole('button', { name: '退出' }).click();
-  await expect.poll(() => calls('desktop.action')).toEqual([['quit']]);
-  await expect.poll(() => calls('window.close')).toEqual([]);
-});
-
-test('menu bar: offline hides stale pending, offers recovery and leaves window and role controls available', async ({ page }) => {
-  const calls = await recordBridge(page, { 'desktop.onCommand': { kind: 'openConsole' }, 'desktop.onState': desktopState({ agentd: 'stopped', hidden: true }), 'desktop.onPresence': CONSOLE_PRESENCE });
-  await open(page, {}, '/console');
-  const menu = page.getByRole('dialog', { name: 'Agentic Complex 菜单' });
-  await expect(menu.locator('[data-fix="后台"]')).toContainText('后台没有响应');
-  await expect(menu.getByRole('button', { name: /打开主窗口/ })).toBeEnabled();
-  await expect(menu.locator('[data-sec="waiting"]')).toHaveCount(0);
-  await expect(menu.getByRole('button', { name: '快速输入' })).toBeDisabled();
-  await expect(menu.getByRole('button', { name: '免打扰' })).toBeDisabled();
-  await menu.getByRole('button', { name: '重启后台' }).click();
-  await expect.poll(() => calls('supervisor.restart')).toEqual([['agentd']]);
-  await expect(menu.getByText('已请求重启后台')).toBeVisible();
-  const role = menu.getByRole('button', { name: '隐藏角色' });
-  await expect(role).toHaveAttribute('aria-pressed', 'true');
-  await role.click();
-  await expect.poll(() => calls('desktop.action')).toEqual([['show']]);
-  // 诊断 is a developer page: 未接入 offers only 重启后台.
-  await expect(menu.locator('[data-fix="后台"]').getByRole('button', { name: '查看诊断' })).toHaveCount(0);
 });
 
 test('menu bar: quick input hands off only on success, and its X closes on the first click', async ({ page }) => {

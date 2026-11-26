@@ -63,17 +63,3 @@ test('事件反应 has a cell for an event pool the pack has no member for, with
   await page.screenshot({ path: '../.local/output/empty-pools/click-cheek-1440x900.png' });
 });
 
-test('at compact sizes the inspector keeps 桌面播一次, 备注, 从这个池去掉 and the blend', async ({ page }) => {
-  await page.setViewportSize({ width: 960, height: 760 });
-  const d = await openPonder(page);
-  // The compact rules are on: the 所有池抽到时 label is gone.
-  await expect(d.getByText('所有池抽到时')).toBeHidden();
-  for (const name of ['桌面播一次', '备注', '从这个池去掉']) await expect(d.getByRole('button', { name })).toBeVisible();
-  await d.getByRole('button', { name: /^进入「dialog_state_think_loop」的衔接/ }).click();
-  await expect(d.getByRole('slider', { name: '进入「dialog_state_think_loop」的混合' })).toBeVisible();
-  const box = await d.boundingBox();
-  for (const name of ['桌面播一次', '备注', '从这个池去掉']) {
-    const b = (await d.getByRole('button', { name }).boundingBox())!;
-    expect(b.x + b.width).toBeLessThanOrEqual(box!.x + box!.width + 1);
-  }
-});

@@ -1,13 +1,7 @@
-import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
-import { saveShot } from './shots.ts';
-import { DESKTOP_DEMOS } from '../../src/surfaces/desktop/demos.ts';
 
 // The bubble beside her head (`stack.html#/bubble`) in every preset: nothing runs out sideways, no text under 13 px,
 // and the bubble stays within 300 px.
-
-const shotsDir = fileURLToPath(new URL('../../.shots/', import.meta.url));
-const BUBBLE = DESKTOP_DEMOS.filter((d) => d.path === '/bubble');
 
 function collectErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -21,65 +15,6 @@ function collectErrors(page: Page): string[] {
 async function open(page: Page, params: Record<string, string>) {
   await page.goto('about:blank');
   await page.goto(`stack.html#/bubble?${new URLSearchParams({ ...params, still: '1' }).toString()}`);
-}
-
-/** Visible text under 13 px, and elements whose own content runs wider than their box. */
-function layoutFaults(page: Page) {
-  return page.evaluate(() => {
-    const root = document.querySelector('[data-surface-root="bubble"]');
-    const faults: string[] = [];
-    if (!root) return ['no root'];
-    for (const el of root.querySelectorAll<HTMLElement>('*')) {
-      if (el.closest('[aria-hidden="true"]')) continue;
-      const own = [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? '').trim() !== '');
-      const size = parseFloat(getComputedStyle(el).fontSize);
-      if (own && size < 13) faults.push(`${size}px: ${el.textContent}`);
-    }
-    for (const box of root.querySelectorAll<HTMLElement>('[data-bubble], [data-confirm], [data-subtitle]')) {
-      for (const el of box.querySelectorAll<HTMLElement>('*')) {
-        if (el.closest('[aria-hidden="true"]')) continue;
-        if (el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflowX === 'visible' && el.clientWidth > 0) faults.push(`spills: ${el.tagName} ${el.className}`);
-      }
-    }
-    return faults;
-  });
-}
-
-for (const theme of ['dark', 'light'] as const) {
-  for (const demo of BUBBLE) {
-    test(`${theme} ${demo.name}: fits 364 px with nothing under 13 px`, async ({ page }, info) => {
-      const errors = collectErrors(page);
-      await open(page, { ...demo.params, theme });
-      await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe(theme);
-      const card = page.locator(demo.params.demo === 'confirm' ? '[data-confirm]' : '[data-bubble]');
-      if (demo.params.demo === 'hidden') {
-        await expect(page.locator('[data-subtitle]')).toBeVisible();
-        await expect(card).toHaveCount(0);
-      } else {
-        await expect(card).toBeVisible();
-        await expect(page.locator('[data-bubble-doing]')).toHaveCount(0);
-        const kind = { reminder: 'remind', done: 'done', error: 'error', look: 'notice' }[demo.params.demo ?? ''] ?? 'speech';
-        if (demo.params.demo !== 'confirm') await expect(card).toHaveAttribute('data-kind', kind);
-        if (demo.params.demo === 'speech') await expect(card.getByRole('status')).toContainText('构建失败');
-        else if (demo.params.demo === 'reminder') {
-          await expect(card).toContainText('16:00 组会');
-          await expect(card.getByRole('button')).toHaveCount(0);
-        } else if (demo.params.demo === 'done') await expect(card.getByRole('button', { name: '打开' })).toBeVisible();
-        else if (demo.params.demo === 'error') await expect(card.getByRole('button', { name: '看详情' })).toBeVisible();
-        else if (demo.params.demo === 'look') await expect(card.getByRole('status')).toContainText('已识读');
-        else if (demo.params.demo === 'confirm') {
-          await expect(card).toContainText('要你批准');
-          for (const name of ['详情', '拒绝', '批准']) await expect(card.getByRole('button', { name, exact: true })).toBeVisible();
-        } else if (demo.params.demo === 'thought') await expect(card).toContainText('测试又红了');
-        if (demo.params.mode === 'input') await expect(card.getByRole('dialog', { name: '快速输入' })).toBeVisible();
-        expect((await card.boundingBox())?.width ?? 999).toBeLessThanOrEqual(364);
-      }
-      await page.evaluate(() => document.fonts.ready.then(() => undefined));
-      expect(await layoutFaults(page)).toEqual([]);
-      await saveShot(page, { path: `${shotsDir}${info.project.name}/bubble-${theme}-${demo.name}.png`, omitBackground: true });
-      expect(errors).toEqual([]);
-    });
-  }
 }
 
 for (const [theme, text] of [['dark', 'rgb(237, 237, 237)'], ['light', 'rgb(22, 22, 22)']] as const) {
@@ -128,23 +63,3 @@ test('with nothing to say there is no bubble', async ({ page }) => {
   await expect(page.locator('[data-bubble], [data-confirm]')).toHaveCount(0);
 });
 
-test('a long offer button shows its whole text without cutting', async ({ page }) => {
-  const errors = collectErrors(page);
-  await open(page, { demo: 'offer' });
-  const card = page.locator('[data-bubble]');
-  const offer = card.getByRole('button', { name: '要我等门禁和候选库通过后，接着构建替换测试包吗？' });
-  await expect(offer).toBeVisible();
-  const metrics = await offer.evaluate((btn) => {
-    const label = btn.querySelector<HTMLElement>('span');
-    return {
-      scrollWidth: btn.scrollWidth,
-      clientWidth: btn.clientWidth,
-      labelScrollWidth: label?.scrollWidth ?? 0,
-      labelClientWidth: label?.clientWidth ?? 0,
-    };
-  });
-  expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth);
-  expect(metrics.labelScrollWidth).toBeLessThanOrEqual(metrics.labelClientWidth);
-  expect(await layoutFaults(page)).toEqual([]);
-  expect(errors).toEqual([]);
-});

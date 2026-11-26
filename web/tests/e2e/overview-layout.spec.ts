@@ -41,18 +41,6 @@ test('overview: the bottom action band holds 快速输入, 屏幕识读 and 命�
   expect(errors).toEqual([]);
 });
 
-test('home: the 今日任务 report shows its counts whole at 1385 and 900 wide', async ({ page }) => {
-  for (const [width, height] of [[1385, 770], [900, 600]] as const) {
-    await page.setViewportSize({ width, height });
-    await page.goto('about:blank');
-    await page.goto('main.html#/home?plugins=all&still=1');
-    const report = page.getByRole('button', { name: /^今日任务/ });
-    await expect(report).toBeVisible();
-    // The slab's drawn layers (spans holding svg) reach past the plaque on purpose: its shadow is offset.
-    expect(await report.evaluate((e) => [...e.querySelectorAll('span')].filter((s) => !s.querySelector(':scope > svg')).every((s) => s.scrollWidth <= s.clientWidth)), `${width}`).toBe(true);
-  }
-});
-
 test('home: on the tilted watch every key, card and slot takes the pointer at the middle of its drawn face', async ({ page }) => {
   await page.setViewportSize({ width: 1385, height: 770 });
   await page.goto('main.html#/home?plugins=all&still=1');

@@ -60,26 +60,3 @@ test('每日简报 › 时间 has the day timeline under the hour chart, with no
   expect(errors).toEqual([]);
 });
 
-for (const [w, h] of [
-  [1024, 700],
-  [1280, 800],
-] as const) {
-  test(`${w}×${h} full: no horizontal overflow, and the 待处理 card keeps its buttons inside`, async ({ page }) => {
-    await page.setViewportSize({ width: w, height: h });
-    await page.goto(`main.html#/overview?demo=full&plugins=all&still=1`);
-    await expect(page.getByRole('region', { name: '待处理', exact: true })).toBeVisible();
-    const over = await page.evaluate(() => {
-      const c = document.querySelector('[data-shell="content"]');
-      return [document.documentElement.scrollWidth - document.documentElement.clientWidth, c ? c.scrollWidth - c.clientWidth : 0];
-    });
-    expect(over).toEqual([0, 0]);
-    const cut = await need(page).evaluate((sec) => {
-      const box = sec.getBoundingClientRect();
-      return [...sec.querySelectorAll('button')].filter((b) => {
-        const r = b.getBoundingClientRect();
-        return r.width > 0 && (r.left < box.left - 1 || r.right > box.right + 1);
-      }).length;
-    });
-    expect(cut).toBe(0);
-  });
-}

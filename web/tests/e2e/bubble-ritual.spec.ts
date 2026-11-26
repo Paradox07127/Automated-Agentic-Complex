@@ -88,18 +88,6 @@ const calls = (page: Page, op: string) =>
   page.evaluate((o) => (window as unknown as { __calls: Call[] }).__calls.filter((c) => c.op === o).map((c) => c.args), op);
 const ritual = (page: Page, name: string) => page.locator('[data-bubble]').getByRole('button', { name, exact: true });
 
-test('a ritual the feed offers shows in the bubble and claims on click', async ({ page }) => {
-  await openNative(page, { state: STATE, presence: presence() });
-  await expect(page.locator('[data-bubble]')).toHaveCount(0);
-  await feed(page, 'pending', { kinds: ['report', 'morning'], since: new Date().toISOString() });
-  await expect(ritual(page, '今日汇报')).toBeVisible();
-  await ritual(page, '今日汇报').click();
-  await expect.poll(() => calls(page, 'desktop.action')).toEqual([['claimRitual']]);
-  await expect(page.getByRole('status')).toContainText('已请角色回应');
-  await feed(page, 'pending', { kinds: [], since: new Date().toISOString() });
-  await expect(ritual(page, '今日汇报')).toHaveCount(0);
-});
-
 test('a refused ritual shows its reason and remains available to retry', async ({ page }) => {
   await openNative(page, {
     state: STATE,

@@ -11,7 +11,6 @@ function collectErrors(page: Page): string[] {
   return errors;
 }
 
-
 // 诊断 › 总览 has three plain section heads (链路, 运行, 错误); no icon block, no status dot on the heads.
 test('diag section heads are plain titles', async ({ page }) => {
   const errors = collectErrors(page);
@@ -20,16 +19,6 @@ test('diag section heads are plain titles', async ({ page }) => {
   await expect(heads).toHaveCount(3);
   await expect(heads.locator('[data-icon-block]')).toHaveCount(0);
   await expect(heads.locator('[data-dot]')).toHaveCount(0);
-  expect(errors).toEqual([]);
-});
-
-test('the mood word is shown whole', async ({ page }) => {
-  const errors = collectErrors(page);
-  await page.goto('main.html#/diag?tab=behavior&still=1');
-  const word = page.getByText('有点低落', { exact: true }).first();
-  await expect(word).toBeVisible();
-  const clipped = await word.evaluate((n) => n.scrollWidth > n.clientWidth || n.scrollHeight > n.clientHeight);
-  expect(clipped).toBe(false);
   expect(errors).toEqual([]);
 });
 

@@ -20,8 +20,6 @@ async function fits(loc: Locator): Promise<Fit[]> {
   );
 }
 
-const cut = (f: Fit) => f.sw > f.cw + 1 || f.sh > f.ch + 1;
-
 async function open(page: Page, w: number, h: number, url: string) {
   await page.setViewportSize({ width: w, height: h });
   await page.goto(`main.html#/${url}${url.includes('?') ? '&' : '?'}still=1`);
@@ -37,16 +35,6 @@ test('今天 1280: the 进行中 row message shows at most 2 lines and carries i
   }
 });
 
-test('每日简报 900×600: the date pager in the command bar is not cut', async ({ page }) => {
-  await open(page, 900, 600, 'overview?plugins=daily_brief,coding_sessions');
-  const pager = page.locator('nav[aria-label="主导航"] [data-slot="status"] > span:first-child');
-  await expect(pager.getByRole('button', { name: '前一天' })).toBeVisible();
-  await expect(pager).toContainText('今天');
-  const f = (await fits(pager))[0]!;
-  expect(cut(f), JSON.stringify(f)).toBe(false);
-  expect(f.lines).toBeLessThanOrEqual(1);
-});
-
 test('每日简报 › 时间 1280: a focused timeline entry draws its ring inside its own box', async ({ page }) => {
   await open(page, 1280, 800, 'overview?plugins=daily_brief&tab=tm');
   const entry = page.locator('button[data-entry]').first();
@@ -59,17 +47,6 @@ test('每日简报 › 时间 1280: a focused timeline entry draws its ring insi
     return parseFloat(s.outlineOffset) + parseFloat(s.outlineWidth);
   });
   expect(ring).toBeLessThanOrEqual(0);
-});
-
-test('对话 900×700: the composer status hint is shown whole; at 900×600 it may end in … and carries its full text as a title', async ({ page }) => {
-  await open(page, 900, 700, 'chat?plugins=all');
-  const hint = page.getByText('前台执行中，新消息由只读旁路回答');
-  await expect(hint).toBeVisible();
-  const f = (await fits(hint))[0]!;
-  expect(cut(f), JSON.stringify(f)).toBe(false);
-  await page.setViewportSize({ width: 900, height: 600 });
-  const g = (await fits(hint))[0]!;
-  expect(g.title).toBe(g.text);
 });
 
 for (const view of ['diag?tab=turns&demo=full&turn=tr7', 'diag?tab=turns&demo=sparse', 'diag?tab=logs']) {

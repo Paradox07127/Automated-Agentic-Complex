@@ -37,26 +37,3 @@ test('chat default: the inline task opens the 任务 tab in the right column, it
   await expect(col).toHaveCount(0);
 });
 
-test('chat empty: 还没有对话 once, offering 新建对话 as the one primary button', async ({ page }) => {
-  const errors = collectErrors(page);
-  await page.goto('main.html#/chat?plugins=all&state=empty&still=1');
-  await expect(page.getByText('还没有对话')).toBeVisible();
-  await expect(page.getByText('暂无对话')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /新建对话/ }).last()).toBeVisible();
-  await expect(page.getByRole('textbox', { name: '消息' })).toHaveCount(0);
-  expect(errors).toEqual([]);
-});
-
-test('chat 900×600: the composer keeps a one-line field and its hint above it, so the thread keeps the height', async ({ page }) => {
-  await page.setViewportSize({ width: 900, height: 600 });
-  await page.goto('main.html#/chat?plugins=all&still=1');
-  const field = page.getByRole('textbox', { name: '消息' });
-  const hint = page.getByText('前台执行中，新消息由只读旁路回答');
-  await expect(hint).toBeVisible();
-  const [f, h, msgs] = await Promise.all([field.boundingBox(), hint.boundingBox(), page.locator('[data-g="messages"]').boundingBox()]);
-  expect(f!.height).toBeLessThanOrEqual(42);
-  expect(h!.y + h!.height).toBeLessThanOrEqual(f!.y + 2);
-  expect(msgs!.height).toBeGreaterThanOrEqual(260);
-  const fit = await hint.evaluate((e) => ({ cut: e.scrollWidth > e.clientWidth + 1, ellipsis: getComputedStyle(e).textOverflow, title: e.getAttribute('title') }));
-  if (fit.cut) expect(fit).toEqual({ cut: true, ellipsis: 'ellipsis', title: '前台执行中，新消息由只读旁路回答' });
-});

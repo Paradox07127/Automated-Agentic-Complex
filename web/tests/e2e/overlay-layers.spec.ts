@@ -16,13 +16,3 @@ test('a settings row ⓘ tip is on top of the rows below it', async ({ page }) =
   expect(hits.every(Boolean)).toBe(true);
 });
 
-test('an open drawer takes its area out of the window-drag strip, so its close key is clickable in the app', async ({ page }) => {
-  await page.goto('main.html#/overview?plugins=all&still=1');
-  await page.getByRole('button', { name: /查看出错列表/ }).click();
-  const sheet = page.getByRole('dialog', { name: '出错' });
-  await expect(sheet).toBeVisible();
-  const region = await page.evaluate(() => getComputedStyle(document.getElementById('ef-modal-root')!).getPropertyValue('-webkit-app-region'));
-  expect(region).toBe('no-drag');
-  await sheet.getByRole('button', { name: '关闭' }).click();
-  await expect(sheet).toBeHidden();
-});

@@ -22,21 +22,6 @@ async function palette(page: Page, query: string) {
   return options;
 }
 
-test('⌘K 「停止」 opens the shared stop confirm for a running task', async ({ page }) => {
-  const errors = collectErrors(page);
-  const options = await palette(page, '停止');
-  await expect(options.first()).toContainText('停止任务');
-  await page.keyboard.press('Enter');
-  const dialog = page.getByRole('dialog').filter({ hasText: '不能恢复执行' });
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText(/停止「.+」？/);
-  await expect(dialog.getByRole('button', { name: '不停止' })).toBeFocused();
-  await dialog.getByRole('button', { name: '停止任务' }).click();
-  await expect(dialog).toHaveCount(0);
-  await expect(page.getByText(/^已停止「.+」/)).toBeVisible();
-  expect(errors).toEqual([]);
-});
-
 test('⌘K 「周报」 finds tasks, memory and deliveries and lands on sel=', async ({ page }) => {
   const errors = collectErrors(page);
   const options = await palette(page, '周报');

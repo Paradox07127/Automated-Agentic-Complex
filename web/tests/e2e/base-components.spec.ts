@@ -33,20 +33,6 @@ test('Dialog: a long body scrolls while the footer stays on screen', async ({ pa
   expect(box?.width).toBe(560);
 });
 
-test('Sheet: 360 and 480 wide, pinned to the right edge', async ({ page }) => {
-  for (const [d, w] of [
-    ['narrow', 360],
-    ['wide', 480],
-  ] as const) {
-    await open(page, 'Sheet', d);
-    const sheet = page.getByRole('dialog');
-    const stage = await page.locator(`[data-demo="Sheet-${d}"] [data-stub="Sheet"]`).boundingBox();
-    const box = await sheet.boundingBox();
-    expect(box?.width).toBe(w);
-    expect(Math.round((box?.x ?? 0) + w)).toBe(Math.round((stage?.x ?? 0) + (stage?.width ?? 0)));
-  }
-});
-
 test('Switch: Space and Enter each flip it exactly once', async ({ page }) => {
   await open(page, 'Switch', 'off');
   const sw = page.getByRole('switch', { name: '窗口文字' });

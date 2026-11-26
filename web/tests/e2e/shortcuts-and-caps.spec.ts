@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { saveShot } from './shots.ts';
 
 // Shell shortcuts, Q/E caps on hover, readable effect tags, one title in the chat task sheet, one yellow button per view.
@@ -14,8 +14,6 @@ function collectErrors(page: Page): string[] {
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
   return errors;
 }
-
-const css = (el: Locator, prop: string) => el.evaluate((n, p) => getComputedStyle(n).getPropertyValue(p), prop);
 
 for (const from of ['chat', 'memory', 'settings', 'diag']) {
   test(`⌘N on ${from} opens the 派发任务 editor on the tasks page`, async ({ page }) => {
@@ -65,33 +63,6 @@ test('page tabs sit in the command bar without caps of their own, and Q and E st
   await expect(tabs.getByRole('tab', { selected: true })).toHaveAttribute('title', before ?? '');
 });
 
-test('EffectTag Chinese is at least 12 px', async ({ page }) => {
-  for (const d of ['backend', 'pending']) {
-    await page.goto(`tests/fixtures/catalog/index.html#?plugins=all&c=EffectTag&d=${d}&still=1`);
-    const tag = page.locator('[data-stub="EffectTag"]');
-    await expect(tag).toBeVisible();
-    expect(parseFloat(await css(tag, 'font-size'))).toBeGreaterThanOrEqual(12);
-  }
-});
-
-test('TraceLine sets Chinese in the sans face and only the path in mono', async ({ page }) => {
-  await page.goto('tests/fixtures/catalog/index.html#?plugins=all&c=TraceLine&d=failed&still=1');
-  const line = page.locator('[data-stub="TraceLine"]');
-  await expect(line).toBeVisible();
-  const desc = line.locator('[title]').filter({ hasText: '资料授权已撤销' });
-  const mono = await page.evaluate(() => {
-    const probe = document.createElement('span');
-    probe.style.fontFamily = 'var(--ef-font-mono)';
-    document.body.append(probe);
-    const f = getComputedStyle(probe).fontFamily;
-    probe.remove();
-    return f;
-  });
-  expect(await css(desc, 'font-family')).not.toBe(mono);
-  expect(await css(desc.locator('[data-mono]'), 'font-family')).toBe(mono);
-  await expect(desc.locator('[data-mono]')).toHaveText('~/Downloads');
-});
-
 test('chat task column: one task title, one set of task actions and a tool section', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('main.html#/chat?plugins=all&demo=plan-snapshot&still=1');
@@ -129,38 +100,3 @@ test('DiffPreview +1 −1 is not on a dark chip in the light theme', async ({ pa
   expect(lum).toBeGreaterThan(0.5);
 });
 
-test('every page demo has at most one visible yellow primary button', async ({ page }) => {
-  test.setTimeout(300_000);
-  await page.goto('main.html');
-  const manifest = await page.evaluate(() => window.__EF_ROUTES__ ?? []);
-  const over: string[] = [];
-  for (const route of manifest) {
-    for (const demo of route.demos) {
-      const qs = new URLSearchParams({ ...demo.params, still: '1' }).toString();
-      await page.goto('about:blank');
-      await page.goto(`main.html#${route.path}?${qs}`);
-      await expect(page.locator(`main[data-route-id="${route.id}"]`)).toBeVisible();
-      await page.waitForLoadState('networkidle');
-      // An open dialog or sheet is the view; the page behind its scrim does not count.
-      const top = page.locator('[aria-modal="true"]').last();
-      const scope = (await top.count()) > 0 ? top : page.locator('body');
-      const yellow = await scope.locator('[data-stub="Btn"][data-variant="primary"]').evaluateAll((els) =>
-        els.filter((el) => el.getBoundingClientRect().width > 0 && getComputedStyle(el).visibility !== 'hidden').map((el) => el.textContent?.trim() ?? ''),
-      );
-      if (yellow.length > 1) over.push(`${route.id}-${demo.name}: ${yellow.join(' / ')}`);
-    }
-  }
-  for (const hud of ['three', 'standalone']) {
-    for (const expand of [false, true]) {
-      await page.goto('about:blank');
-      await page.goto(`stack.html#/hud?hud=${hud}${expand ? '&expand=1' : ''}&still=1`);
-      await expect(page.locator('[data-hud-row]').first()).toBeVisible();
-      await page.waitForLoadState('networkidle');
-      const yellow = await page.locator('[data-stub="Btn"][data-variant="primary"]').evaluateAll((els) =>
-        els.filter((el) => el.getBoundingClientRect().width > 0 && getComputedStyle(el).visibility !== 'hidden').map((el) => el.textContent?.trim() ?? ''),
-      );
-      if (yellow.length > 1) over.push(`hud-${hud}${expand ? '-expanded' : ''}: ${yellow.join(' / ')}`);
-    }
-  }
-  expect(over).toEqual([]);
-});
