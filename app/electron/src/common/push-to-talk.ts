@@ -25,6 +25,14 @@ export const HINT = {
   nothingHeard: '未识别到有效语音内容',
   notSent: '消息未发送',
   micAllowed: '麦克风已授权，可重新按住语音输入',
+  recognitionFailed: '语音识别出错，消息未发送',
+  notStarted: '语音输入未能启动',
+};
+
+/** C12 `mic.start` errors in words; `permission_denied` shows the denied card instead. */
+const START_FAILED: Record<string, string> = {
+  mic_busy: '麦克风被其他应用占用', no_audio_device: '没有可用的麦克风', locale_unsupported: '当前语言不支持语音识别',
+  asr_unavailable: '语音识别不可用',
 };
 
 /** Right Option alone counts as push-to-talk once held this long. */
@@ -398,7 +406,7 @@ export class PushToTalk {
     this.phase = 'starting';
     this.bargeIn();
     const grants = await this.ports.helper.request('permissions.status');
-    if (!grants.ok) return this.failed(`permissions.status ${grants.error.code}`);
+    if (!grants.ok) return this.failed('permissions.status', grants.error.code);
     this.mic = grants.result.microphone;
     // Only notDetermined is a speech grant not asked for yet.
     if (this.mic === 'granted') return grants.result.speech === 'notDetermined' ? this.requestSpeechAccess() : this.record();
@@ -426,7 +434,7 @@ export class PushToTalk {
   private async requestAccess(): Promise<void> {
     this.phase = 'idle';
     const reply = await this.ports.helper.request('permissions.request', { kind: 'microphone' });
-    if (!reply.ok) return this.failed(`permissions.request ${reply.error.code}`);
+    if (!reply.ok) return this.failed('permissions.request', reply.error.code);
     this.mic = reply.result.state;
     if (this.mic === 'granted') this.retryHint();
     else this.micDenied();
@@ -439,7 +447,7 @@ export class PushToTalk {
   private async requestSpeechAccess(): Promise<void> {
     this.phase = 'idle';
     const reply = await this.ports.helper.request('permissions.request', { kind: 'microphone' });
-    if (!reply.ok) return this.failed(`permissions.request ${reply.error.code}`);
+    if (!reply.ok) return this.failed('permissions.request', reply.error.code);
     this.retryHint();
     this.dismissLater();
   }
@@ -472,7 +480,7 @@ export class PushToTalk {
     const reply = await this.ports.helper.request('mic.start', { session, locale: this.ports.locale(), level_events: true });
     if (!reply.ok) {
       this.session = null;
-      return this.failed(`mic.start ${reply.error.code}`);
+      return this.failed('mic.start', reply.error.code);
     }
     if (this.downloaded && this.releasedAt !== null) {
       // Let go during the download, so nothing was meant to be recorded.
@@ -534,7 +542,7 @@ export class PushToTalk {
       this.ports.log('VOICE discarded');
       // Typing with the key held was no try at speaking, so the hint goes at once.
       if (this.typedWhileHeld) return this.emit((h) => h.dismiss());
-      this.emit((h) => h.discarded(held < MIN_HOLD_MS ? HINT.tooShort : HINT.nothingHeard, releasedAt));
+      this.emit((h) => h.discarded(held < MIN_HOLD_MS ? HINT.tooShort : !reply.ok ? HINT.recognitionFailed : HINT.nothingHeard, releasedAt));
       return this.dismissLater();
     }
     const pressedAt = this.pressedAt;
@@ -555,11 +563,17 @@ export class PushToTalk {
     this.dismissLater();
   }
 
-  /** The hint goes. */
-  private failed(why: string): void {
-    this.ports.log(`VOICE failed ${why}`);
+  /** `op` failed before recording: `permission_denied` is the denied card, any other code a reason for `RESULT_LINGER_MS`. */
+  private failed(op: string, code: string): void {
+    this.ports.log(`VOICE failed ${op} ${code}`);
+    if (code === 'permission_denied') return this.micDenied();
     this.phase = 'idle';
-    this.emit((h) => h.dismiss());
+    this.cancelDismissal?.();
+    this.emit((h) => {
+      h.press(this.pressedAt);
+      h.discarded(START_FAILED[code] ?? HINT.notStarted, this.ports.now());
+    });
+    this.dismissLater();
   }
 
   private emit(change: (h: HintTracker) => void): void {

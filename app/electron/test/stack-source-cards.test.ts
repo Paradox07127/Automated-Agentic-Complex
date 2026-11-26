@@ -962,3 +962,33 @@ test('StackSourcePollTests.testAPauseAtStartWaitsForItsEnd', async () => {
     source.stop();
   }
 });
+
+test('a failure the shell reports is a brief notice under its id for 30 s; the same id again takes its place', () => {
+  const h = new Harness();
+  h.source.addFailure('switch-failed', '没能切换到 示例乙：角色渲染进程无响应');
+  assert.deepEqual(h.card('switch-failed'), { id: 'switch-failed', kind: 'notice', variant: 'brief', title: '没能切换到 示例乙：角色渲染进程无响应',
+    at: h.now });
+  h.source.addFailure('switch-failed', '没能切换到 示例甲：角色渲染进程尚未连接');
+  assert.deepEqual(h.cards.map((c) => c.title), ['没能切换到 示例甲：角色渲染进程尚未连接']);
+  h.now += 30_000;
+  h.source.sweep();
+  assert.deepEqual(h.cards, []);
+});
+
+test('feed speech_failed is one notice per reason in 10 minutes, its reason in words', () => {
+  const h = new Harness();
+  const titles = () => h.cards.filter((c) => c.id === 'speech-failed').map((c) => c.title);
+  h.source.speechFailed(JSON.stringify({ speech_id: 's1', reason: 'http_401' }));
+  assert.deepEqual(titles(), ['这句没能读出来：语音服务令牌无效']);
+  h.source.collapse('speech-failed');
+  h.now += 60_000;
+  h.source.speechFailed(JSON.stringify({ speech_id: 's2', reason: 'http_401' }));
+  assert.deepEqual(titles(), [], 'the same reason within 10 minutes');
+  h.source.speechFailed(JSON.stringify({ speech_id: 's3', reason: 'http_503' }));
+  assert.deepEqual(titles(), ['这句没能读出来：语音服务暂不可用']);
+  h.source.speechFailed(JSON.stringify({ speech_id: 's4', reason: 'connect_failed' }));
+  assert.deepEqual(titles(), ['这句没能读出来：语音服务连接失败']);
+  h.now += 10 * 60_000;
+  h.source.speechFailed(JSON.stringify({ speech_id: 's5', reason: 'http_401' }));
+  assert.deepEqual(titles(), ['这句没能读出来：语音服务令牌无效']);
+});

@@ -338,17 +338,29 @@ test('a press while recording or stopping is ignored', async () => {
   assert.equal(s.stops.length, 2);
 });
 
-test('a microphone another app holds, or one that does not start, drops the hint and sends nothing', async () => {
-  for (const code of ['mic_busy', 'permission_denied', 'locale_unsupported', 'asr_unavailable']) {
+test('a microphone that does not start says why for 1.5 s and sends nothing; permission_denied is the denied card', async () => {
+  for (const [code, shown] of [['mic_busy', '麦克风被其他应用占用'], ['no_audio_device', '没有可用的麦克风'],
+    ['locale_unsupported', '当前语言不支持语音识别'], ['asr_unavailable', '语音识别不可用'], ['internal', '语音输入未能启动']] as const) {
     const s = setup({ helper: { 'mic.start': err(code) } });
     await s.up();
     await s.event('ptt.down');
-    assert.deepEqual(s.last(), { phase: 'idle' }, code);
+    assert.deepEqual(s.last(), { phase: 'error', error: shown }, code);
     assert.ok(s.logs.includes(`VOICE failed mic.start ${code}`), s.logs.join('\n'));
     await s.advance(500);
     await s.event('ptt.up');
     assert.ok(!s.ops().includes('mic.stop') && !s.posts.some(([p]) => p === 'POST /say'), code);
+    await s.advance(1000);
+    assert.deepEqual(s.last(), { phase: 'idle' }, code);
   }
+  const denied = setup({ helper: { 'mic.start': err('permission_denied') } });
+  await denied.up();
+  await denied.event('ptt.down');
+  assert.deepEqual(denied.last(), { phase: 'error', error: 'mic_denied' });
+  assert.deepEqual(denied.hints.at(-1), { kind: 'micDenied' });
+  await denied.event('ptt.up');
+  await denied.advance(1500);
+  assert.deepEqual(denied.last(), { phase: 'idle' });
+  assert.ok(!denied.posts.some(([p]) => p === 'POST /say'));
 });
 
 test('a denied microphone shows mic_denied until the release, then 1.5 s more; voice is denied', async () => {
@@ -382,16 +394,18 @@ test('an undecided microphone is asked for; granted tells to hold again, refused
   }
 });
 
-test('without the helper a press barges in, logs and drops the hint', async () => {
+test('without the helper a press barges in, logs and says the voice input did not start', async () => {
   const s = setup({ helper: { 'permissions.status': err('helper_exited') } });
   await s.up();
   await s.event('ptt.down');
   assert.deepEqual(s.stops, [undefined, 7]);
   assert.ok(s.logs.includes('VOICE failed permissions.status helper_exited'));
+  assert.deepEqual(s.last(), { phase: 'error', error: '语音输入未能启动' });
+  await s.advance(1500);
   assert.deepEqual(s.last(), { phase: 'idle' });
 });
 
-test('a helper that exits while recording ends the hold as interrupted: nothing heard, nothing sent', async () => {
+test('a helper that exits while recording ends the hold as a recognition error: nothing sent', async () => {
   const s = setup({ helper: { 'mic.stop': err('helper_exited') } });
   await s.up();
   await s.event('ptt.down');
@@ -400,7 +414,7 @@ test('a helper that exits while recording ends the hold as interrupted: nothing 
   await s.settle();
   assert.ok(s.ops().includes('mic.stop'));
   assert.ok(!s.posts.some(([p]) => p === 'POST /say'));
-  assert.deepEqual(s.last(), { phase: 'error', error: HINT.nothingHeard });
+  assert.deepEqual(s.last(), { phase: 'error', error: '语音识别出错，消息未发送' });
 });
 
 test('held (the sampler\'s user_speaking) is true from ptt.down to ptt.up and false once the helper goes', async () => {

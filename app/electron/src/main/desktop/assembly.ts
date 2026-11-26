@@ -38,6 +38,8 @@ export interface DesktopOptions {
   /** The pointer in DIPs, and in the placement space. */
   cursorDip(): { x: number; y: number };
   mouse(): { x: number; y: number };
+  /** HostLink.clickThroughAll: the panels click through as she does. */
+  clickThroughAll(): boolean;
   register(contents: WebContents, page: PageSession, ops: ReadonlyMap<string, Handler<PageSession>>): void;
   unregister(id: number): void;
   /** The stack surface's ops every panel has (agentd, feed, avatar, …). */
@@ -151,7 +153,7 @@ export class DesktopAssembly {
       const p: DesktopPanel = new DesktopPanel({
         kind, route, url: options.url(route), aliveOn, makeWindow: () => options.makeWindow(kind), toDip: options.toDip,
         cursor: options.cursorDip, mouse: options.mouse, register: (contents, page) => options.register(contents, page, this.ops(p)),
-        unregister: options.unregister, guard: options.guard, log: options.log,
+        unregister: options.unregister, guard: options.guard, log: options.log, passAll: options.clickThroughAll,
       });
       p.onVisibility = () => {
         this.kick();

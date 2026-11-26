@@ -508,6 +508,7 @@ const store = runtimePath === null ? null : new AgentStore(runtimePath, undefine
 /** voice_state events seen; a /diag/state read that one overtook is dropped. */
 let voiceStates = 0;
 store?.subscribe((e) => {
+  if (e.event === 'speech_failed') return desktop?.source.speechFailed(e.data);
   const tts = e.event === 'voice_state' ? agentdTts(e.data) : null;
   if (!tts) return;
   voiceStates += 1;
@@ -1155,6 +1156,7 @@ const menus = shellMenus({
   },
   openMain: openMainAt, quit: () => app.quit(),
   log: (line) => appendLog(config?.supportDir ?? supportDir, 'companion', line),
+  notice: (id, title) => desktop?.source.addFailure(id, title),
   setIcon: (icon: IconBitmap) => tray?.setImage(trayIcon(icon)),
 });
 
@@ -1191,6 +1193,7 @@ function startDesktop(): void {
       const r = space.fromDip({ x: p.x, y: p.y, width: 0, height: 0 });
       return { x: r.x, y: r.y };
     },
+    clickThroughAll: () => hostLink?.clickThroughAll ?? false,
     register: (contents, page, panelOps) => pages.set(contents.id, { surface: 'stack', page, ops: panelOps }),
     unregister: (id) => pages.delete(id),
     baseOps: surfaceOps('stack'),

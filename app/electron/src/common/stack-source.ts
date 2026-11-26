@@ -114,6 +114,11 @@ const DONE_LIFE_MS = 20_000;
 const BRIEF_LIFE_MS = 30_000;
 const DELIVERY_LIFE_MS = 30_000;
 const VOICE_RESULT_LIFE_MS = 2_500;
+/** The same speech failure is shown once in this long. */
+const SPEECH_FAILED_EVERY_MS = 10 * 60_000;
+/** Feed `speech_failed` reasons in words; any other is a failed connection. */
+const SPEECH_FAILURES: Readonly<Record<string, string>> = { http_401: '语音服务令牌无效', http_503: '语音服务暂不可用' };
+const SPEECH_UNREACHABLE = '语音服务连接失败';
 /** Where a click on a reminder's system notification lands. */
 const REMINDERS_PATH = '/overview?focus=reminders';
 export const HIDDEN_POLL_MS = 5_000;
@@ -238,6 +243,8 @@ export class StackSource implements EventSource {
    *  event's read overlap, and one that started earlier and ends later would take back what the newer one found. */
   private reads = 0;
   private applied = new Map<Part, number>();
+  /** When each speech failure, in words, last showed. */
+  private speechFailures = new Map<string, number>();
 
   constructor(options: StackSourceOptions) {
     this.options = options;
@@ -803,6 +810,21 @@ export class StackSource implements EventSource {
     entry.until = lifeMs === null ? null : now + lifeMs;
     this.entries.set(id, entry);
     this.publish();
+  }
+
+  /** Something the user asked for failed: a brief notice under `id`, `BRIEF_LIFE_MS`. */
+  addFailure(id: string, title: string): void {
+    this.addNotice(id, 'brief', title, {}, BRIEF_LIFE_MS);
+  }
+
+  /** Feed `speech_failed` data: a line she did not voice, shown once per reason in `SPEECH_FAILED_EVERY_MS`. */
+  speechFailed(data: string): void {
+    const reason = parse<{ reason?: unknown } | null>(data)?.reason;
+    const why = (typeof reason === 'string' ? SPEECH_FAILURES[reason] : undefined) ?? SPEECH_UNREACHABLE;
+    const now = this.clock(), last = this.speechFailures.get(why);
+    if (last !== undefined && now - last < SPEECH_FAILED_EVERY_MS) return;
+    this.speechFailures.set(why, now);
+    this.addFailure('speech-failed', `这句没能读出来：${why}`);
   }
 
   /** Keeps the card's place, arrival time and fold. */

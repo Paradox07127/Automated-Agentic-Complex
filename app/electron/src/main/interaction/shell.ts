@@ -1,6 +1,7 @@
 // Clicks on her and the desktop actions that act on her, as index.ts wires them: a single click claims a ritual and, with
 // `avatar_click` `quick_input`, opens 快速输入; a double click opens the sessions page; the right button goes to the
 // character menu and is recorded for the daily brief; 送礼物, 自由活动 and 临时全部点穿 from the desktop.
+import { BridgeFailure } from '../../common/bridge.ts';
 import { type DesktopActionPorts, giftAction, localIso, opensQuickInput, RitualTap, RITUAL, ritualFailure } from '../../common/desktop-action.ts';
 import type { Actions } from '../../common/c3.ts';
 import type { Request } from '../../common/stack-source.ts';
@@ -65,11 +66,12 @@ export function interactionShell(o: InteractionOptions): Interaction {
 
   const leftClicked = (region: string | null) => {
     tap.click(clock.now());
-    clock.after(RITUAL.settle, () => {
+    clock.after(RITUAL.runEnd, () => {
       const settled = tap.settled(clock.now());
       if (!settled) return;
       if (settled.kind === 'ask') {
         void claimRitual(settled.count, settled.count === 1 ? region : null).then((failure) => {
+          tap.answered();
           if (failure !== null) o.desktop()?.notice(failure);
         });
       }
@@ -127,12 +129,14 @@ export function interactionShell(o: InteractionOptions): Interaction {
           if (status !== 202) o.log(`GIFT action_id=${gift.id} status=${status}`);
         });
       },
-      freeRoam: () => {
+      freeRoam: async () => {
         const stay = !['stay', 'bust'].includes(o.settings().stay_mode as string);
-        void o.saveSettings({ 'beh.stay': stay ? 'stay' : 'roam' }).then((r) => {
-          if (r.error !== undefined) return o.log(`free roam not saved: ${r.error}`);
-          o.desktop()?.pushState();
-        });
+        const r = await o.saveSettings({ 'beh.stay': stay ? 'stay' : 'roam' });
+        if (r.error !== undefined) {
+          o.log(`free roam not saved: ${r.error}`);
+          throw new BridgeFailure('failed', r.error);
+        }
+        o.desktop()?.pushState();
       },
       clickThroughAll: () => {
         const link = o.link;

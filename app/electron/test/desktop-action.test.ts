@@ -29,7 +29,7 @@ function setup(quietFails = false, ritual: string | null = null) {
     resetBoxes: () => calls.push(['resetBoxes']),
     clickThroughAll: () => calls.push(['clickThroughAll']),
     gift: async () => { calls.push(['gift']); },
-    freeRoam: () => calls.push(['freeRoam']),
+    freeRoam: async () => { calls.push(['freeRoam']); },
     openSessions: () => calls.push(['openSessions']),
     openStack: () => calls.push(['openStack']),
     resize: () => calls.push(['resize']),
@@ -134,33 +134,68 @@ test('a failed quiet request fails the action', async () => {
   assert.deepEqual(await failure(run(['quiet'], null)), { code: 'failed', detail: 'HTTP 503' });
 });
 
-test('RitualTap: a single click asks once it settles (0.40 s), counting the repeat clicks since the last request', () => {
+test('a free roam that was not saved fails the action, after the save ends', async () => {
+  const saved: string[] = [];
+  const run = desktopAction({ ...setup().ports, freeRoam: async () => {
+    await new Promise((r) => setImmediate(r));
+    saved.push('done');
+    throw new BridgeFailure('failed', '自由活动未保存：config.json 读不了，没有保存');
+  } });
+  assert.deepEqual(await failure(run(['freeRoam'], null)), { code: 'failed', detail: '自由活动未保存：config.json 读不了，没有保存' });
+  assert.deepEqual(saved, ['done']);
+});
+
+test('RitualTap: a single click asks 0.8 s after it, unless within 20 s of the last request', () => {
   const t = new RitualTap();
   t.click(100);
-  assert.equal(t.settled(100.39), null);
-  assert.deepEqual(t.settled(100.40), { kind: 'ask', count: 1 });
-  assert.equal(t.settled(101), null, 'once per click');
-  // Clicks within 4 s of the last are repeat clicking: they ask nothing, but count toward the next request.
-  t.click(102);
-  t.click(103);
-  assert.equal(t.settled(104), null);
-  // Within 20 s of the last request a settled click is quiet.
+  assert.equal(t.settled(100.79), null);
+  assert.deepEqual(t.settled(100.8), { kind: 'ask', count: 1 });
+  assert.equal(t.settled(102), null, 'once per click');
+  t.answered();
   t.click(110);
-  assert.deepEqual(t.settled(110.5), { kind: 'quiet' });
-  t.click(121);
-  assert.deepEqual(t.settled(121.5), { kind: 'ask', count: 4 });
-  for (let i = 0; i < 30; i += 1) t.click(200 + i);
-  t.click(240);
-  assert.deepEqual(t.settled(241), { kind: 'ask', count: 20 }, 'agentd takes up to 20');
+  assert.deepEqual(t.settled(110.8), { kind: 'quiet' });
+  // A quiet click is not carried into a later request.
+  t.click(130);
+  assert.deepEqual(t.settled(130.8), { kind: 'ask', count: 1 });
+});
+
+test('RitualTap: clicks each within 0.8 s of the last are one run, asked for as it ends, past the 20 s spacing', () => {
+  const t = new RitualTap();
+  t.click(100);
+  assert.deepEqual(t.settled(100.8), { kind: 'ask', count: 1 });
+  t.answered();
+  t.click(105);
+  t.click(105.5);
+  assert.equal(t.settled(106), null, 'the run goes on');
+  t.click(106);
+  assert.equal(t.settled(106.7), null);
+  assert.deepEqual(t.settled(106.8), { kind: 'ask', count: 3 }, 'within 20 s of the last request');
+  t.answered();
+  for (let i = 0; i < 30; i += 1) t.click(200 + i * 0.5);
+  assert.deepEqual(t.settled(215.3), { kind: 'ask', count: 20 }, 'agentd takes up to 20');
+});
+
+test('RitualTap: a run that ends while a request is out asks nothing', () => {
+  const t = new RitualTap();
+  t.click(100);
+  t.click(100.5);
+  assert.deepEqual(t.settled(101.3), { kind: 'ask', count: 2 });
+  t.click(103);
+  t.click(103.5);
+  assert.deepEqual(t.settled(104.3), { kind: 'quiet' });
+  t.answered();
+  t.click(106);
+  t.click(106.5);
+  assert.deepEqual(t.settled(107.3), { kind: 'ask', count: 2 });
 });
 
 test('RitualTap: a double click takes back its first half', () => {
   const t = new RitualTap();
   t.click(100);
   t.doubleClick();
-  assert.equal(t.settled(101), null);
+  assert.equal(t.settled(102), null);
   t.click(110);
-  assert.deepEqual(t.settled(111), { kind: 'ask', count: 1 });
+  assert.deepEqual(t.settled(110.8), { kind: 'ask', count: 1 });
 });
 
 test('avatar_click quick_input opens 快速输入; any other value or none is interact', () => {

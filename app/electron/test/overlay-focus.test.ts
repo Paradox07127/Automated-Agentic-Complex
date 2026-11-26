@@ -49,7 +49,7 @@ function fakeWindow(options: BrowserWindowConstructorOptions) {
 function panel(route: string, win: BrowserWindow) {
   return new DesktopPanel({ kind: route === '/cmd' ? 'cmd' : 'bubble', route, url: 'app://x', aliveOn: 'window.onAnchor',
     makeWindow: () => win, toDip: (f) => ({ x: f.x, y: 1000 - f.y - f.h, width: f.w, height: f.h }),
-    cursor: () => ({ x: 0, y: 0 }), mouse: () => ({ x: 0, y: 0 }), register() {}, unregister() {}, log() {} });
+    cursor: () => ({ x: 0, y: 0 }), mouse: () => ({ x: 0, y: 0 }), passAll: () => false, register() {}, unregister() {}, log() {} });
 }
 
 test('overlay: on Windows her bubble shows without taking focus; 快速输入 turns focusable to take the keyboard', () => {

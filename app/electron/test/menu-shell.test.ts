@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import type { ObservationState } from '../src/common/desktop-action.ts';
 import { RecentAnnouncements } from '../src/common/recent-announcements.ts';
 import type { MenuBarIconState } from '../src/common/menus.ts';
+import type { SwitchOutcome } from '../src/common/switch.ts';
 import { iconBitmap } from '../src/main/menus/icon.ts';
 import type { MenuItem } from '../src/main/menus/items.ts';
 import { shellMenus, type ShellMenusOptions } from '../src/main/menus/shell.ts';
@@ -40,7 +41,9 @@ function setup(over: Partial<ShellMenusOptions> = {}) {
       state.quietUntil = until;
     },
   };
-  const switcher = { busy: false, select: (id: string) => { calls.push(`select ${id}`); } };
+  /** What the next switch comes to. */
+  const outcome: { next: SwitchOutcome } = { next: { kind: 'switched' } };
+  const switcher = { busy: false, switchOutcome: async (id: string) => { calls.push(`switch ${id}`); return outcome.next; } };
   const pushToTalk = { held: false };
   const looks = { setAppearance: async (id: string) => { calls.push(`setAppearance ${id}`); } };
   const desktop = { resetOffsets: () => calls.push('resetOffsets') };
@@ -53,11 +56,12 @@ function setup(over: Partial<ShellMenusOptions> = {}) {
     restartChildren: () => calls.push('restartChildren'),
     openMain: (route) => calls.push(`openMain ${route}`), quit: () => calls.push('quit'),
     log: (line) => calls.push(`log ${line}`),
+    notice: (id, title) => calls.push(`notice ${id} ${title}`),
     setIcon: (icon) => icons.push(icon),
     ...over,
   };
   const menus = shellMenus(options);
-  return { menus, calls, icons, loads, link, state, switcher, pushToTalk };
+  return { menus, calls, icons, loads, link, state, switcher, pushToTalk, outcome };
 }
 
 const icon = (s: MenuBarIconState, badge = 0) => iconBitmap(s, badge);
@@ -79,11 +83,42 @@ test('menuState: 外观 lists her appearances with the current one checked; a pi
   assert.equal(find(trayMenu(h.menus.state(), h.menus.ports()), '外观').enabled, false);
 });
 
-test('a look switch that fails is logged', async () => {
+test('a look switch that fails is logged and says why on the stack', async () => {
   const h = setup({ looks: { setAppearance: async () => { throw new Error('角色没有连上，或者正在换外观'); } } });
   h.menus.ports().switchAppearance!('field');
   await settle();
-  assert.deepEqual(h.calls, ['log appearance id=field failed: 角色没有连上，或者正在换外观']);
+  assert.deepEqual(h.calls, ['log appearance id=field failed: 角色没有连上，或者正在换外观',
+    'notice appearance-failed 没能切换到外观 外勤：角色没有连上，或者正在换外观']);
+});
+
+test('a character pick that fails says why on the stack; one that switched or was superseded says nothing', async () => {
+  const h = setup();
+  const pick = async (next: SwitchOutcome) => {
+    h.calls.length = 0;
+    h.outcome.next = next;
+    h.menus.ports().switchCharacter!('birch');
+    await settle();
+    return h.calls;
+  };
+  assert.deepEqual(await pick({ kind: 'switched' }), ['switch birch']);
+  assert.deepEqual(await pick({ kind: 'superseded' }), ['switch birch']);
+  assert.deepEqual(await pick({ kind: 'failed', stage: 'prepare', reason: '正在导入动作，请在导入完成后再切换角色' }),
+    ['switch birch', 'notice switch-failed 没能切换到 示例乙：正在导入动作，请在导入完成后再切换角色']);
+  assert.deepEqual(await pick({ kind: 'failed', stage: 'avatar', reason: 'timeout' }),
+    ['switch birch', 'notice switch-failed 没能切换到 示例乙：角色渲染进程无响应']);
+  assert.deepEqual(await pick({ kind: 'failed', stage: 'avatar', reason: 'not_connected' }),
+    ['switch birch', 'notice switch-failed 没能切换到 示例乙：角色渲染进程尚未连接']);
+  assert.deepEqual(await pick({ kind: 'noAvatar' }), ['switch birch', 'notice switch-failed 没能切换到 示例乙：角色渲染进程尚未连接']);
+  assert.deepEqual(await pick({ kind: 'failed', stage: 'prepare', reason: 'unknown_character' }),
+    ['switch birch', 'notice switch-failed 没能切换到 示例乙']);
+  assert.deepEqual(await pick({ kind: 'failed', stage: 'commit', reason: '' }), ['switch birch', 'notice switch-failed 没能切换到 示例乙']);
+});
+
+test('自由活动 from the menu that was not saved is logged', async () => {
+  const h = setup({ interaction: { actions: { freeRoam: async () => { throw new Error('config.json 读不了，没有保存'); } } } as unknown as ShellMenusOptions['interaction'] });
+  h.menus.ports().toggleFreeRoam!();
+  await settle();
+  assert.deepEqual(h.calls, ['log free roam from the menu failed: config.json 读不了，没有保存']);
 });
 
 test('icon: the pending count from StackSource.onCount shows as the badge, redrawn only when it changes', () => {

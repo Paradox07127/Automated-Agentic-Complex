@@ -4,7 +4,7 @@ import { iconState, MENU_STATE_DEFAULTS, type MenuBarStatus, type MenuOption, ty
 import type { PushToTalk } from '../../common/push-to-talk.ts';
 import type { RecentAnnouncements } from '../../common/recent-announcements.ts';
 import { mainRoute } from '../../common/stack-cards.ts';
-import type { CharacterSwitch } from '../../common/switch.ts';
+import type { CharacterSwitch, SwitchOutcome } from '../../common/switch.ts';
 import type { DesktopAssembly } from '../desktop/assembly.ts';
 import type { Interaction } from '../interaction/shell.ts';
 import type { ObservationControl } from '../ops/observation.ts';
@@ -26,7 +26,7 @@ export interface ShellMenusOptions {
   link: Pick<HostLink, 'hidden' | 'clickThroughAll' | 'currentCharacter' | 'currentAppearance' | 'appearances' | 'appearanceSwitching'> | null;
   /** The same switch as `avatar.setAppearance`. */
   looks: Pick<AvatarLooks, 'setAppearance'> | null;
-  switcher: Pick<CharacterSwitch, 'busy' | 'select'> | null;
+  switcher: Pick<CharacterSwitch, 'busy' | 'switchOutcome'> | null;
   observation: Pick<ObservationControl, 'state' | 'quietUntil' | 'load' | 'setQuiet'> | null;
   pushToTalk: Pick<PushToTalk, 'held'> | null;
   interaction: Pick<Interaction, 'actions'> | null;
@@ -38,6 +38,8 @@ export interface ShellMenusOptions {
   quit(): void;
   /** companion.log. */
   log(line: string): void;
+  /** A notice card on the stack, under `id`. */
+  notice(id: string, title: string): void;
   /** Puts the icon in the menu bar or the notification area. */
   setIcon?(icon: IconBitmap): void;
   /** 最近播报; absent leaves it empty. */
@@ -56,6 +58,19 @@ export interface ShellMenus {
 }
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+/** Why a switch did not reach its character, in the words the shell uses for the same failure elsewhere; null when it
+ *  switched or a later pick took its place. */
+function switchFailure(outcome: SwitchOutcome): string | null {
+  if (outcome.kind === 'noAvatar') return '角色渲染进程尚未连接';
+  if (outcome.kind !== 'failed') return null;
+  if (outcome.reason === 'timeout') return '角色渲染进程无响应';
+  if (outcome.reason === 'not_connected') return '角色渲染进程尚未连接';
+  return chinese(outcome.reason);
+}
+
+/** A reason the user can read, else '' (an English code or detail is left to the log). */
+const chinese = (reason: string): string => (/[\u4e00-\u9fff]/.test(reason) ? reason : '');
 
 /** 最近播报's pick, from the menu or the console: read, and the sessions page with its session selected; one without a
  *  session leads nowhere. */
@@ -113,12 +128,26 @@ export function shellMenus(o: ShellMenusOptions): ShellMenus {
         await observation.setQuiet(until);
         refreshIcon();
       } : undefined,
-      toggleFreeRoam: interaction ? () => interaction.actions.freeRoam() : undefined,
+      toggleFreeRoam: interaction ? () => {
+        interaction.actions.freeRoam().catch((e: unknown) => o.log(`free roam from the menu failed: ${message(e)}`));
+      } : undefined,
       resetPosition: placer ? () => placer.resetPosition() : undefined,
       resetPanels: desktop ? () => desktop.resetOffsets() : undefined,
-      switchCharacter: switcher ? (id) => switcher.select(id) : undefined,
+      switchCharacter: switcher ? (id) => {
+        void switcher.switchOutcome(id).then((outcome) => {
+          const why = switchFailure(outcome);
+          if (why === null) return;
+          const name = o.characters()?.find((c) => c.id === id)?.name ?? id;
+          o.notice('switch-failed', why === '' ? `没能切换到 ${name}` : `没能切换到 ${name}：${why}`);
+        });
+      } : undefined,
       switchAppearance: looks ? (id) => {
-        looks.setAppearance(id).catch((e: unknown) => o.log(`appearance id=${id} failed: ${message(e)}`));
+        looks.setAppearance(id).catch((e: unknown) => {
+          o.log(`appearance id=${id} failed: ${message(e)}`);
+          const name = link?.appearances.find((a) => a.id === id)?.name ?? id;
+          const why = chinese(message(e));
+          o.notice('appearance-failed', why === '' ? `没能切换到外观 ${name}` : `没能切换到外观 ${name}：${why}`);
+        });
       } : undefined,
       restartChildren: o.restartChildren,
     };

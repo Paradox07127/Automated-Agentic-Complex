@@ -141,7 +141,7 @@ function fakeWindow() {
   const setBounds: { x: number; y: number; width: number; height: number }[] = [];
   const win = Object.assign(new EventEmitter(), {
     webContents: contents, setFocusable() {}, loadURL: async () => {}, getBounds: () => bounds, isDestroyed: () => false,
-    isFocused: () => false, showInactive() {}, hide() {}, setIgnoreMouseEvents() {}, setOpacity() {}, focus() {}, destroy() {},
+    isFocused: () => false, showInactive() {}, hide() {}, setIgnoreMouseEvents(_ignore: boolean) {}, setOpacity() {}, focus() {}, destroy() {},
     setBounds(b: typeof bounds) { bounds = b; setBounds.push(b); },
   });
   return { win, contents, setBounds };
@@ -153,8 +153,8 @@ test('the panel window: a mouse down in a drag region moves it with the pointer,
   // DIPs on a 1000 pt high screen: y flips.
   const toDip = (f: Rect) => ({ x: f.x, y: 1000 - f.y - f.h, width: f.w, height: f.h });
   const p = new DesktopPanel({ kind: 'bubble', route: '/bubble', url: 'app://x', aliveOn: 'window.onAnchor',
-    makeWindow: () => win as unknown as BrowserWindow, toDip, cursor: () => ({ x: 0, y: 0 }), mouse: () => mouse, register() {}, unregister() {},
-    log() {} });
+    makeWindow: () => win as unknown as BrowserWindow, toDip, cursor: () => ({ x: 0, y: 0 }), mouse: () => mouse, passAll: () => false, register() {},
+    unregister() {}, log() {} });
   const moved: Rect[] = [];
   let resets = 0;
   p.onUserMoved = (f) => moved.push(f);
@@ -186,4 +186,24 @@ test('the panel window: a mouse down in a drag region moves it with the pointer,
   assert.equal(event('mouseDown', 50, 20, 2), true);
   assert.equal(resets, 1);
   assert.equal(p.isDragging, false);
+});
+
+test('the panel window: while click-through-all is on the pointer over a region clicks through too', () => {
+  const { win } = fakeWindow();
+  const ignored: boolean[] = [];
+  win.setIgnoreMouseEvents = (ignore: boolean) => { ignored.push(ignore); };
+  let passAll = false;
+  const p = new DesktopPanel({ kind: 'bubble', route: '/bubble', url: 'app://x', aliveOn: 'window.onAnchor',
+    makeWindow: () => win as unknown as BrowserWindow, toDip: (f) => ({ x: f.x, y: f.y, width: f.w, height: f.h }),
+    cursor: () => ({ x: 150, y: 150 }), mouse: () => ({ x: 0, y: 0 }), passAll: () => passAll, register() {}, unregister() {}, log() {} });
+  p.start();
+  p.setInteractiveRegions([{ x: 10, y: 10, width: 200, height: 100, drag: false }], []);
+  p.move(r(100, 100, 300, 200), false);
+  assert.deepEqual(ignored, [false], 'the pointer is over the region');
+  passAll = true;
+  p.tick();
+  assert.deepEqual(ignored, [false, true]);
+  passAll = false;
+  p.tick();
+  assert.deepEqual(ignored, [false, true, false]);
 });

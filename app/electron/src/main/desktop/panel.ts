@@ -25,6 +25,8 @@ export interface PanelOptions {
   /** The pointer, in DIPs, and in the placement space. */
   cursor(): { x: number; y: number };
   mouse(): { x: number; y: number };
+  /** Click-through-all is on: every click passes through the panel, regions too. */
+  passAll(): boolean;
   /** Gives the window's page its bridge. */
   register(contents: WebContents, page: PageSession): void;
   unregister(id: number): void;
@@ -326,13 +328,13 @@ export class DesktopPanel implements FollowPanel {
   private poll(): void {
     const win = this.win;
     if (!win || win.isDestroyed()) return;
-    const b = win.getBounds(), m = this.o.cursor();
-    const keyNow = `${m.x},${m.y},${b.x},${b.y},${b.width},${b.height},${this.regions.length},${this.isKey ? 1 : 0},${this.pressedInRegion ? 1 : 0}`;
+    const b = win.getBounds(), m = this.o.cursor(), passAll = this.o.passAll();
+    const keyNow = `${m.x},${m.y},${b.x},${b.y},${b.width},${b.height},${this.regions.length},${this.isKey ? 1 : 0},${this.pressedInRegion ? 1 : 0},${passAll ? 1 : 0}`;
     if (keyNow === this.lastPollKey && this.thawFrom === null) return;
     this.lastPollKey = keyNow;
     const x = m.x - b.x, y = m.y - b.y;
     const inside = this.regions.some((r) => within(r, x, y));
-    const interactive = inside || this.pressedInRegion;
+    const interactive = !passAll && (inside || this.pressedInRegion);
     if (this.ignoring === interactive) {
       this.ignoring = !interactive;
       win.setIgnoreMouseEvents(!interactive, { forward: true });

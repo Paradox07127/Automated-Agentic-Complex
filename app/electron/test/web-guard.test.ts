@@ -161,7 +161,8 @@ test('a desktop panel guards its page when it is given the ports', () => {
     const win = Object.assign(new EventEmitter(), { webContents: contents, setFocusable() {}, loadURL: async () => {}, isDestroyed: () => false });
     const p = new DesktopPanel({ kind: 'bubble', route: '/bubble', url: `${ORIGIN}/stack.html#/bubble`, aliveOn: 'window.onAnchor',
       makeWindow: () => win as unknown as BrowserWindow, toDip: (f) => ({ x: f.x, y: f.y, width: f.w, height: f.h }),
-      cursor: () => ({ x: 0, y: 0 }), mouse: () => ({ x: 0, y: 0 }), register() {}, unregister() {}, log() {}, guard: h.ports });
+      cursor: () => ({ x: 0, y: 0 }), mouse: () => ({ x: 0, y: 0 }), passAll: () => false, register() {}, unregister() {}, log() {},
+      guard: h.ports });
     p.start();
     assert.equal(navigate(contents, 'https://example.com/'), true);
     assert.deepEqual(h.opened, ['https://example.com/']);

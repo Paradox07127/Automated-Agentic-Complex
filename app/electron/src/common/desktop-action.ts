@@ -31,7 +31,8 @@ export interface DesktopActionPorts {
   clickThroughAll?(): void;
   /** Plays her gift action; throws why it could not. */
   gift?(): Promise<void>;
-  freeRoam?(): void;
+  /** Saves 自由活动 flipped; throws when it was not saved. */
+  freeRoam?(): Promise<void>;
   /** The main window's sessions route. */
   openSessions?(): void;
   /** 去处理: the stack to the front. */
@@ -124,7 +125,7 @@ export function desktopAction<P>(ports: DesktopActionPorts): Handler<P> {
       case 'show': ports.setHidden(false); break;
       case 'clickThroughAll': given(ports.clickThroughAll)(); break;
       case 'gift': await given(ports.gift)(); break;
-      case 'freeRoam': given(ports.freeRoam)(); break;
+      case 'freeRoam': await given(ports.freeRoam)(); break;
       case 'openSessions': given(ports.openSessions)(); break;
       case 'openStack': given(ports.openStack)(); break;
       case 'resize': given(ports.resize)(); break;
@@ -164,47 +165,50 @@ export function desktopAction<P>(ports: DesktopActionPorts): Handler<P> {
   };
 }
 
-/** Seconds on a monotonic clock. `settle` is longer than the plugin's double-click window (0.35 s),
- *  so a double click's first half never asks; a click within `repeatWindow` of the last is repeat clicking, which the
- *  avatar host answers with `click.repeat`; agentd takes a `count` up to `maxCount`. */
-export const RITUAL = { settle: 0.40, repeatWindow: 4, minInterval: 20, maxCount: 20 } as const;
+/** Seconds on a monotonic clock. Clicks each within `runEnd` of the last are one run, asked for once `runEnd` passes with
+ *  no click; `runEnd` is longer than the plugin's double-click window (0.35 s), so a double click's first half never asks.
+ *  agentd takes a `count` up to `maxCount`. */
+export const RITUAL = { runEnd: 0.8, minInterval: 20, maxCount: 20 } as const;
 
-/** What a settled click does: `ask` claims a ritual or a line for `count` clicks; `quiet` is within `minInterval` of the last
- *  request. */
+/** What an ended run does: `ask` claims a ritual or a line for `count` clicks; `quiet` is a single click within
+ *  `minInterval` of the last request, or any run while a request is out. */
 export type Settled = { kind: 'ask'; count: number } | { kind: 'quiet' };
 
-/** Decides which single clicks on her ask agentd for a ritual (`POST /interaction/tap`). */
+/** Decides which runs of single clicks on her ask agentd for a ritual (`POST /interaction/tap`). */
 export class RitualTap {
   private lastClick: number | null = null;
-  private waiting: number | null = null;
   private lastRequest: number | null = null;
-  /** Single clicks since the last request, repeat and quiet ones included. */
+  /** Single clicks of the running run. */
   private clicks = 0;
+  /** A request is out until `answered`. */
+  private asking = false;
 
   /** A left single click (`click` left/1). */
   click(now: number): void {
-    const last = this.lastClick;
     this.lastClick = now;
     this.clicks += 1;
-    if (last !== null && now - last < RITUAL.repeatWindow) return;
-    this.waiting = now;
   }
 
   /** A left double click (`click` left/2): the click before it asks nothing and is not counted. */
   doubleClick(): void {
-    this.waiting = null;
     this.clicks = Math.max(this.clicks - 1, 0);
   }
 
-  /** Once per single click that settled by `now`; null before that and for a double or repeat click. */
+  /** Once per run that ended by `now`; null before that and for a run a double click took back. A run of two or more clicks
+   *  asks whatever the time since the last request. */
   settled(now: number): Settled | null {
-    if (this.waiting === null || now - this.waiting < RITUAL.settle) return null;
-    this.waiting = null;
-    if (this.lastRequest !== null && now - this.lastRequest < RITUAL.minInterval) return { kind: 'quiet' };
-    this.lastRequest = now;
+    if (this.clicks === 0 || this.lastClick === null || now < this.lastClick + RITUAL.runEnd) return null;
     const count = Math.min(this.clicks, RITUAL.maxCount);
     this.clicks = 0;
+    if (this.asking || (count === 1 && this.lastRequest !== null && now - this.lastRequest < RITUAL.minInterval)) return { kind: 'quiet' };
+    this.lastRequest = now;
+    this.asking = true;
     return { kind: 'ask', count };
+  }
+
+  /** The request of the last `ask` was answered or failed. */
+  answered(): void {
+    this.asking = false;
   }
 }
 

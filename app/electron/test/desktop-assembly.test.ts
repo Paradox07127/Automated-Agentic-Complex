@@ -75,7 +75,7 @@ function setup(extra: string[], o: { present?: boolean; request?: Request; marks
     url: (route) => `app://x/stack.html#${route}`,
     toDip: o.toDip ?? ((f) => ({ x: f.x, y: 1000 - f.y - f.h, width: f.w, height: f.h })),
     screens: o.screens ?? (() => [{ id: 1, frame: { x: 0, y: 0, w: 1512, h: 982 }, visibleFrame: { x: 0, y: 0, w: 1512, h: 957 } }]),
-    cursorDip: () => ({ x: 0, y: 0 }), mouse: o.mouse ?? (() => ({ x: 0, y: 0 })),
+    cursorDip: () => ({ x: 0, y: 0 }), mouse: o.mouse ?? (() => ({ x: 0, y: 0 })), clickThroughAll: () => false,
     ...(o.mouseDowns && { mouseDowns: o.mouseDowns }),
     ...(o.noteLine && { noteLine: o.noteLine }),
     ...(o.recent && { recent: o.recent }),
