@@ -220,8 +220,7 @@ class BuildComponentsTests(unittest.TestCase):
 
     def test_agentd_ships_only_the_files_git_tracks(self):
         root = self.root / 'checkout'; agentd = root / 'agent/agentd'
-        for name, text in {'a.py': 'tracked', 'tests/t.py': 'tests', 'credentials.json': 'secret',
-                           'brain/canon-windows.json': json.dumps(dict(n=7, hashes=['0123456789abcdef']))}.items():
+        for name, text in {'a.py': 'tracked', 'tests/t.py': 'tests', 'credentials.json': 'secret', 'brain/x.json': '{}'}.items():
             (agentd / name).parent.mkdir(parents=True, exist_ok=True); (agentd / name).write_text(text)
         subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
         subprocess.run(['git', 'add', '--', 'agent/agentd/a.py', 'agent/agentd/tests/t.py', 'agent/agentd/brain'], cwd=root, check=True)
@@ -229,7 +228,7 @@ class BuildComponentsTests(unittest.TestCase):
         with patch.object(build_components, 'ROOT', root):
             build_components.stage_agentd(service)
         self.assertEqual({path.relative_to(service).as_posix() for path in service.rglob('*') if path.is_file()},
-                         {'a.py', 'brain/canon-windows.json'})
+                         {'a.py', 'brain/x.json'})
 
     def test_a_macos_character_payload_is_sealed_without_its_vulkan_files(self):
         source = self.root / 'role'; character_fixture(source, neutral=True, vulkan=True)
@@ -321,13 +320,13 @@ class BuildComponentsTests(unittest.TestCase):
 
     def test_content_overrides_replace_and_add_files_inside_their_component(self):
         payload = self.stage / 'agentd/payload'; (payload / 'agentd/brain').mkdir(parents=True)
-        (payload / 'agentd/brain/canon-windows.json').write_text('stub')
-        guard = self.root / 'guard.json'; guard.write_text('local guard')
+        (payload / 'agentd/brain/table.json').write_text('stub')
+        table = self.root / 'table.json'; table.write_text('local table')
         hints = self.root / 'hints.json'; hints.write_text('local hints')
         applied = build_components.apply_content_overrides(dict(agentd=payload), {
-            'agentd/agentd/brain/canon-windows.json': guard, 'agentd/content/efmi-slot-hints.json': hints})
-        self.assertEqual(applied, [('agentd', 'agentd/brain/canon-windows.json'), ('agentd', 'content/efmi-slot-hints.json')])
-        self.assertEqual(self.files(payload), {'agentd/brain/canon-windows.json': b'local guard',
+            'agentd/agentd/brain/table.json': table, 'agentd/content/efmi-slot-hints.json': hints})
+        self.assertEqual(applied, [('agentd', 'agentd/brain/table.json'), ('agentd', 'content/efmi-slot-hints.json')])
+        self.assertEqual(self.files(payload), {'agentd/brain/table.json': b'local table',
                                                'content/efmi-slot-hints.json': b'local hints'})
 
     def test_a_content_override_outside_its_component_is_refused(self):
@@ -339,21 +338,13 @@ class BuildComponentsTests(unittest.TestCase):
                 build_components.apply_content_overrides(dict(agentd=payload), {relative: source})
         self.assertEqual([p for name in ('x.json', 'escaped.json') for p in self.root.rglob(name)], [])
 
-    def test_release_content_ships_the_guard_override_and_refuses_a_library_with_local_paths(self):
-        payload = self.stage / 'agentd/payload'; (payload / 'agentd/brain').mkdir(parents=True)
-        shutil.copy2(ROOT / 'agent/agentd/brain/canon-windows.json', payload / 'agentd/brain/canon-windows.json')
-        guard = self.root / 'guard.json'
-        guard.write_text(json.dumps(dict(n=7, hashes=['0123456789abcdef', 'fedcba9876543210', '00000000000000ff'])))
-        overrides = {build_components.GUARD_OVERRIDE: guard}
+    def test_release_content_applies_its_overrides_and_refuses_a_library_with_local_paths(self):
+        payload = self.stage / 'agentd/payload'; payload.mkdir(parents=True)
+        hints = self.root / 'hints.json'; hints.write_text('local hints')
+        overrides = {'agentd/content/efmi-slot-hints.json': hints}
         library = self.root / 'library'; shutil.copytree(LIBRARY, library)
         self.assertEqual(build_components.stage_release_content(dict(agentd=payload), overrides, library),
-                         [('agentd', 'agentd/brain/canon-windows.json')])
-        self.assertEqual((payload / 'agentd/brain/canon-windows.json').read_bytes(), guard.read_bytes())
-        # The staged guard is the override's bytes, not only a guard of the right shape.
-        shutil.copy2(ROOT / 'agent/agentd/brain/canon-windows.json', payload / 'agentd/brain/canon-windows.json')
-        with patch.object(build_components, 'apply_content_overrides', return_value=[]), \
-                self.assertRaisesRegex(ValueError, 'outbound_guard_not_the_override'):
-            build_components.stage_release_content(dict(agentd=payload), overrides, library)
+                         [('agentd', 'content/efmi-slot-hints.json')])
         (library / 'notes.txt').write_text('built in /Users/someone/library')
         with self.assertRaisesRegex(ValueError, 'release library holds 1 local absolute paths: notes.txt'):
             build_components.stage_release_content(dict(agentd=payload), overrides, library)

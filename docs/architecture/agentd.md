@@ -28,7 +28,7 @@ agentd 是角色一侧的后台服务，Python 3.12 实现，只监听 127.0.0.1
 | `motion/` | 动作目录、生成与导入（含 ZIP 导入）、动作设置和 `/motion*` 路由 |
 | `traces/` | T1 trace 格式校验（`trace_format`）和存储（`trace_store`） |
 | `tool_gateway/` | 工具网关，见[工具网关](tool-gateway.md) |
-| `brain/` | 「嘴」：按 id 读角色卡、设定和默认角色（`characters`）、角色卡排版（`persona`）、关键词设定（`lorebook`）、交给角色内核写台词（`provider`）、行内标记、确定性命令（`parser`）、出站守卫与出站检查（`outbound`、`egress`） |
+| `brain/` | 「嘴」：按 id 读角色卡、设定和默认角色（`characters`）、角色卡排版（`persona`）、关键词设定（`lorebook`）、交给角色内核写台词（`provider`）、行内标记、确定性命令（`parser`）、出站遮蔽（`egress`）、构建期的原作台词检查（`outbound`） |
 | `character_agent/` | 角色主会话与可替换内核，见「角色内核」 |
 | `tools/` | 单独运行的脚本：`install_hooks.py`、`tts_token.py`、自有会话的桌面控制 MCP 门面 `computer_use_mcp.py`、外部 agent 接入 CLI `agentic_complex.py` |
 | `tests/` | unittest 测试、假 CLI（`fakes/`）、夹具（`fixtures/`）和共用的 `support.py` |
@@ -93,18 +93,17 @@ agentd 是角色一侧的后台服务，Python 3.12 实现，只监听 127.0.0.1
 
 数额是 agentd 可核实部分的估计，不是供应商账单；外部 CLI 会话不计入。
 
-## 出站守卫与遮蔽
+## 遮蔽
 
-- 出站守卫：agentd 读 `<state-dir>/canon-windows.json`（有这个文件就用它，即使它不合法），没有时用随包的 `brain/canon-windows.json`。文件是原作台词每 7 个内容字（去掉标点和空白）的哈希，不含原文。文件读不出或格式不对时 agentd 不启动。
-- 我们写给模型的文本（角色卡、示例、设定、每轮提示）和重发的模型回复，发出前都过守卫：有任何一段 7 字和原句相同就不发请求（`OutboundBlocked`）。`outbound-guard.jsonl` 只记段名、字数和命中数。
-- 用户输入和屏幕内容不拦，只遮蔽 API key、令牌、邮箱、电话（`--redact` 默认开，`--no-redact` 关）。遮蔽次数按类累计，供诊断页读。
+- agentd 运行时不检查原作台词。`brain/outbound.py` 的 `OutboundGuard` 只在构建角色包时用（`private/charbuild/tests/test_persona_sources.py` 读 `private/characters/canon-windows.json`）。
+- 发给模型前遮蔽（`--redact` 默认开，`--no-redact` 关）：用户自己的话只遮 API key 和令牌；屏幕内容、观察结果和重发的她的台词还遮邮箱和电话。遮蔽次数按类累计，供诊断页读。
 
 ## 角色与对话请求
 
 - `--character <id>` 选启动时的角色，不给时用角色库的 `default_character`。运行中用 `/character/prepare`、`commit`、`abort` 三步换角色。agentd 不存角色，重启时由 Companion 传 `--character`。
 - 角色卡和设定只有一个来源：`--character-catalog` 传入的角色库。没有这个参数时读 `AGENTD_DEV_CATALOG`，再没有就读公开样例库 `characters/sample-library/current.json`（只有纯文字角色 `aide`）。卡、设定和默认角色读时不改写。
 - 角色卡（`<id>/persona.json`，10 节）渲染成 system。每轮另加：用户说过或确认过的记忆、关键词命中的设定条目（`<id>/lore.json`：world、relations、events，带 sticky、cooldown 和 token 预算），以及现场情况。
-- 现场情况里的审批：每张待批卡写会话、工具、摘要和剩余时间；600 s 内结束的卡（最多 3 张）写结果。她自己的状态偏离平常时（很困、很投入、心情离基线较远）加一句摘要，这句也过出站守卫，被拦时整句不加。
+- 现场情况里的审批：每张待批卡写会话、工具、摘要和剩余时间；600 s 内结束的卡（最多 3 张）写结果。她自己的状态偏离平常时（很困、很投入、心情离基线较远）加一句摘要。
 - 现场材料和低信任记忆标明是材料、不是指令。聊天历史只存用户原话；发给模型的是最近 8 轮。
 - 会话、注意力时间线和记忆不分角色。
 

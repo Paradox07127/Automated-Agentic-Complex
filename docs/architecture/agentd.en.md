@@ -28,7 +28,7 @@ A new module goes into the domain package it belongs to; the root holds only fil
 | `motion/` | Motion catalog, generation and import (including ZIP import), motion settings, the `/motion*` routes, and the clip chooser (`chooser.py`) |
 | `traces/` | T1 trace format checks (`trace_format`) and storage (`trace_store`) |
 | `tool_gateway/` | The tool gateway; see the [tool gateway](tool-gateway.en.md) |
-| `brain/` | The "mouth": character cards, lore and the default character by id (`characters`), card rendering (`persona`), keyword lore (`lorebook`), handing lines to the character kernel (`provider`), inline markers, deterministic commands (`parser`), the outbound guard and outbound checks (`outbound`, `egress`) |
+| `brain/` | The "mouth": character cards, lore and the default character by id (`characters`), card rendering (`persona`), keyword lore (`lorebook`), handing lines to the character kernel (`provider`), inline markers, deterministic commands (`parser`), outbound masking (`egress`), the build-time check against original lines (`outbound`) |
 | `character_agent/` | The main character conversation and swappable kernels; see "Character kernels" |
 | `tools/` | Standalone scripts: `install_hooks.py`, `tts_token.py`, the desktop-control MCP facade for own sessions `computer_use_mcp.py`, the outside-agent CLI `agentic_complex.py` |
 | `tests/` | unittest tests, fake CLIs (`fakes/`), fixtures (`fixtures/`), and the shared `support.py` |
@@ -93,18 +93,17 @@ Usage is recorded per day, model, and purpose in `model_usage` in `agentd.sqlite
 
 The amounts estimate what agentd can verify; they are not provider bills. External CLI sessions are not counted.
 
-## Outbound guard and redaction
+## Redaction
 
-- Outbound guard: agentd reads `<state-dir>/canon-windows.json` (if that file exists it is used, even when invalid), else the bundled `brain/canon-windows.json`. The file holds hashes of every 7 content characters (punctuation and whitespace removed) of the original game lines; it holds no original text. If the file cannot be read or has the wrong format, agentd does not start.
-- Text we write for the model (cards, examples, lore, per-turn notes) and model replies we send again pass the guard first: if any 7-character run matches an original line, the request is not sent (`OutboundBlocked`). `outbound-guard.jsonl` records only the part name, length, and hit count.
-- User input and screen content are not blocked; API keys, tokens, email addresses, and phone numbers in them are masked (`--redact`, on by default; `--no-redact` turns it off). Mask counts per kind are kept for the diagnostics page.
+- agentd does not check text against original game lines at run time. `OutboundGuard` in `brain/outbound.py` is used only when a character package is built (`private/charbuild/tests/test_persona_sources.py` reads `private/characters/canon-windows.json`).
+- Before text goes to a model it is masked (`--redact`, on by default; `--no-redact` turns it off): the user's own words lose only API keys and tokens; screen content, observations and her lines sent again also lose email addresses and phone numbers. Mask counts per kind are kept for the diagnostics page.
 
 ## Characters and conversation requests
 
 - `--character <id>` picks the character at startup; without it agentd uses the library's `default_character`. While running, the three-step switch `/character/prepare`, `commit`, `abort` changes the character. agentd does not store the character; Companion passes `--character` on restart.
 - Cards and lore have one source: the character library passed with `--character-catalog`. Without that argument agentd reads `AGENTD_DEV_CATALOG`, and failing that the public sample library `characters/sample-library/current.json` (only the text-only character `aide`). Cards, lore, and the default character are never rewritten when read.
 - The card (`<id>/persona.json`, 10 sections) renders into the system text. Each turn adds memories the user stated or confirmed, keyword-matched lore entries (`<id>/lore.json`: world, relations, events, with sticky, cooldown, and a token budget), and the live context.
-- Approvals in the live context: each pending card gives its session, tool, summary, and time left; cards that ended within 600 s (at most 3) give their result. When her own state is unusual (very sleepy, deeply absorbed, mood far from baseline), one sentence about it is added; that sentence also passes the outbound guard and is dropped whole when blocked.
+- Approvals in the live context: each pending card gives its session, tool, summary, and time left; cards that ended within 600 s (at most 3) give their result. When her own state is unusual (very sleepy, deeply absorbed, mood far from baseline), one sentence about it is added.
 - Live material and low-trust memories are marked as material, not instructions. Chat history stores only the user's own words; the model gets the last 8 turns.
 - Sessions, the attention timeline, and memory are shared across characters.
 

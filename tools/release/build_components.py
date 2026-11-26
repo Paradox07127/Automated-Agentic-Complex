@@ -17,9 +17,6 @@ import pool_codec
 from harness_runtime import LAYOUT, copy_python_site, python_pins, validate_runtime
 from release import CONTENT_PACKAGES, CONTENT_SOURCES, check_no_imported_appearance
 
-CANON_RELATIVE = Path('brain/canon-windows.json')
-# The content override key of the outbound guard in the agentd payload.
-GUARD_OVERRIDE = 'agentd/agentd/' + CANON_RELATIVE.as_posix()
 UFBX_LICENSE = ROOT / 'characters/agentic_complex_build/motion_import/native/UFBX-LICENSE'
 # native_bundle.py's own repo-root import path; the staged copy imports resource_store from agentd.
 NATIVE_BUNDLE_ROOT = "sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[2]/'agent/agentd'))\n"
@@ -29,19 +26,6 @@ PYTHON_SKIPPED = ('include', 'share', 'lib/pkgconfig', 'lib/libpython3.12.dylib'
                     'lib2to3', 'pydoc_data', 'config-3.12-darwin', 'lib-dynload/_tkinter.cpython-312-darwin.so')))
 # Tcl/Tk libraries in lib/ and the launchers in bin/ of the modules left out; their names carry versions.
 PYTHON_SKIPPED_PREFIXES = {'lib': ('tcl', 'tk', 'itcl', 'thread', 'libtcl'), 'bin': ('2to3', 'idle3', 'pip')}
-
-
-def validate_canon_windows(path):
-    """Require the hash-only outbound guard that clean installations depend on."""
-    try:
-        data = json.loads(path.read_text(encoding='utf-8'))
-    except (OSError, ValueError) as exc:
-        raise ValueError(f'Invalid bundled outbound guard: {path}') from exc
-    if (not isinstance(data, dict) or type(data.get('n')) is not int or data['n'] != 7
-            or not isinstance(data.get('hashes'), list) or not data['hashes']
-            or any(not isinstance(value, str) or re.fullmatch(r'[0-9a-f]{16}', value) is None
-                   for value in data['hashes'])):
-        raise ValueError(f'Invalid bundled outbound guard: {path}')
 
 
 def check_manifest_file(source, name, what):
@@ -77,7 +61,7 @@ def stage_ui(web_dist, ui_art, target):
 
 
 def stage_agentd(service):
-    """Copy the files git tracks in agent/agentd (no tests or caches) into service and check its outbound guard."""
+    """Copy the files git tracks in agent/agentd (no tests or caches) into service."""
     service.mkdir(parents=True)
     tracked = subprocess.check_output(['git', 'ls-files', '-z', '--', 'agent/agentd'], cwd=ROOT, text=True).split('\0')[:-1]
     for name in sorted(tracked):
@@ -86,7 +70,6 @@ def stage_agentd(service):
         if any(p in ('tests', '__pycache__') for p in relative.parts): continue
         if path.suffix not in ('.py', '.json', '.txt', '.md', '.mjs', '.lock'): continue
         target = service / relative; target.parent.mkdir(parents=True, exist_ok=True); shutil.copy2(path, target)
-    validate_canon_windows(service / CANON_RELATIVE)
     return service
 
 
@@ -124,13 +107,9 @@ def apply_content_overrides(payloads, overrides):
 
 
 def stage_release_content(payloads, overrides, library):
-    """apply_content_overrides, then check the staged outbound guard, which must be the override's bytes when overrides
-    names one, and refuse a library that holds a local absolute path or an imported appearance; return the applied pairs."""
+    """apply_content_overrides, then refuse a library that holds a local absolute path or an imported appearance; return
+    the applied pairs."""
     applied = apply_content_overrides(payloads, overrides)
-    guard = Path(payloads['agentd']) / 'agentd' / CANON_RELATIVE
-    validate_canon_windows(guard)
-    if GUARD_OVERRIDE in overrides and guard.read_bytes() != Path(overrides[GUARD_OVERRIDE]).read_bytes():
-        raise ValueError('outbound_guard_not_the_override: ' + str(overrides[GUARD_OVERRIDE]))
     local_paths.require_none(library)
     # An empty directory is a library without characters.
     catalog = Path(library) / 'current.json'

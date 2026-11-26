@@ -94,16 +94,6 @@ class SingleAppStageTests(unittest.TestCase):
                 pi = components / 'harness.pi/payload'
                 web_payload = components / 'web-ui/payload'
                 self.assertTrue((service / 'agentd/server.py').is_file())
-                guard_path = service / 'agentd/brain/canon-windows.json'
-                guard = json.loads(guard_path.read_text())
-                self.assertIs(type(guard['n']), int)
-                self.assertEqual(guard['n'], 7)
-                self.assertTrue(guard['hashes'])
-                for value in guard['hashes']:
-                    self.assertIsInstance(value, str)
-                    self.assertRegex(value, r'^[0-9a-f]{16}$')
-                self.assertEqual(guard_path.read_bytes(),
-                                 (package_app.ROOT / 'agent/agentd/brain/canon-windows.json').read_bytes())
                 self.assertTrue((service / 'agentd/character_agent/harness/pi_runner.mjs').is_file())
                 self.assertTrue((service / 'agentd_launcher.py').is_file())
                 self.assertTrue((pi / 'node/bin/node').is_file())
@@ -121,7 +111,6 @@ class SingleAppStageTests(unittest.TestCase):
                 source_manifest = source_document['files']
                 self.assertIn('agent/agentd/character_agent/harness/pi_runner.mjs', source_manifest)
                 self.assertIn('agent/agentd/requirements-character-agent.lock', source_manifest)
-                self.assertIn('agent/agentd/brain/canon-windows.json', source_manifest)
                 self.assertIn('app/packaging/requirements-content.lock', source_manifest)
                 for relative in CONTENT_SOURCES + ('characters/agentic_complex_build/mmd/rotation.py',):
                     self.assertIn(relative, source_manifest)
@@ -143,20 +132,6 @@ class SingleAppStageTests(unittest.TestCase):
                 host = json.loads((components / 'host/component.json').read_text())
                 self.assertNotIn('Resources/AppIcon.icns', host['placed'])
                 self.assertEqual([p.name for p in out.iterdir() if p.suffix != '.json'], ['Agentic Complex.app'])
-            copy2 = package_app.shutil.copy2
-            for damage in ('missing', 'invalid'):
-                with self.subTest(staged_guard=damage):
-                    args.output = root / ('damaged-' + damage)
-                    def damaged_copy(source, target, *a, **kw):
-                        if Path(source).name == 'canon-windows.json':
-                            if damage == 'invalid':
-                                Path(target).write_text('{}')
-                            return target
-                        return copy2(source, target, *a, **kw)
-                    with patch.object(package_app.shutil, 'copy2', side_effect=damaged_copy):
-                        with self.assertRaisesRegex(ValueError, 'Invalid bundled outbound guard'):
-                            stage(args)
-                    self.assertFalse((args.output / 'staging-manifest.json').exists())
 
     def test_ui_art_is_verified_and_shipped_inside_the_hashed_ui_tree(self):
         library = Path(__file__).resolve().parents[3] / 'protocol/character-library/fixtures/library'
@@ -337,28 +312,6 @@ class SingleAppStageTests(unittest.TestCase):
             with patch.dict(os.environ, {'AAC_FBX_TOOL': '/elsewhere/fbx-motion'}), patch.object(sys, 'path', list(sys.path)):
                 motion_tool.importer()
                 self.assertEqual(os.environ['AAC_FBX_TOOL'], '/elsewhere/fbx-motion')
-
-    def test_missing_or_invalid_guard_rejects_staging_before_creating_output(self):
-        valid_hash = '0123456789abcdef'
-        cases = [None, '{', '[]', json.dumps({'n': 7, 'hashes': []}),
-                 json.dumps({'n': 8, 'hashes': [valid_hash]}),
-                 json.dumps({'n': True, 'hashes': [valid_hash]}),
-                 json.dumps({'n': '7', 'hashes': [valid_hash]}),
-                 json.dumps({'n': 7, 'hashes': valid_hash}),
-                 json.dumps({'n': 7, 'hashes': [valid_hash, 123]}),
-                 json.dumps({'n': 7, 'hashes': [valid_hash.upper()]}),
-                 json.dumps({'n': 7, 'hashes': [valid_hash[:-1]]})]
-        with tempfile.TemporaryDirectory() as tmp, patch.object(package_app, 'ROOT', Path(tmp)):
-            path = Path(tmp) / 'agent/agentd/brain/canon-windows.json'
-            path.parent.mkdir(parents=True)
-            for index, content in enumerate(cases):
-                with self.subTest(case=index):
-                    if content is not None:
-                        path.write_text(content)
-                    out = Path(tmp) / f'output-{index}'
-                    with self.assertRaisesRegex(ValueError, 'Invalid bundled outbound guard'):
-                        stage(SimpleNamespace(output=out))
-                    self.assertFalse(out.exists())
 
 
 class PortableComponentStageTests(unittest.TestCase):
@@ -627,25 +580,19 @@ console.log(JSON.stringify(prepareComponents({resources, support, layout:'split'
 
     def test_content_overrides_land_in_their_components_before_signing_and_placement(self):
         local = self.root / 'local'; local.mkdir()
-        guard = local / 'canon-windows.json'; guard.write_text(json.dumps(dict(n=7, hashes=['0123456789abcdef'])))
         envelopes = local / 'window-envelopes.json'; envelopes.write_text('{"schema": "endfield-window-envelopes/v1"}')
         hints = local / 'efmi-slot-hints.json'; hints.write_text('{}')
-        self.args.content_override = ['agentd/agentd/brain/canon-windows.json=' + str(guard),
-            'agentd/content/efmi-slot-hints.json=' + str(hints), 'renderer/Resources/window-envelopes.json=' + str(envelopes)]
+        self.args.content_override = ['agentd/content/efmi-slot-hints.json=' + str(hints),
+                                      'renderer/Resources/window-envelopes.json=' + str(envelopes)]
         signed = []
         self.sign.side_effect = lambda payload: signed.append({p.name: p.read_bytes() for p in payload.rglob('*.json')})
         stage(self.args)
         service = self.components / 'agentd/payload'
-        self.assertEqual((service / 'agentd/brain/canon-windows.json').read_bytes(), guard.read_bytes())
         self.assertEqual((service / 'content/efmi-slot-hints.json').read_bytes(), b'{}')
-        self.assertTrue(any(files.get('canon-windows.json') == guard.read_bytes() for files in signed))
+        self.assertTrue(any(files.get('efmi-slot-hints.json') == b'{}' for files in signed))
         self.assertEqual((self.resources / 'window-envelopes.json').read_bytes(), envelopes.read_bytes())
         placed = list(json.loads((self.components / 'renderer/component.json').read_text())['placed'])
         self.assertEqual(placed[:2], ['MacOS/AgenticComplexMetalAvatar', 'Resources/window-envelopes.json'])
-        self.args.output = self.root / 'bad-guard'
-        guard.write_text('{}')
-        with self.assertRaisesRegex(ValueError, 'Invalid bundled outbound guard'):
-            stage(self.args)
         self.args.output = self.root / 'escaping'
         self.args.content_override = ['renderer/../host/payload/x.json=' + str(hints)]
         with self.assertRaisesRegex(ValueError, 'content_override_outside_component'):

@@ -2,7 +2,6 @@
 WINDOW content characters in a row with any original line. Lines stay on ws; this side only holds their hashes."""
 import hashlib
 import json
-import os
 import re
 from pathlib import Path
 import threading
@@ -33,14 +32,6 @@ def load_windows(path):
                 not isinstance(value, str) or re.fullmatch(r'[a-f0-9]{16}', value) is None for value in data['hashes']):
         raise ValueError('invalid_canon_windows')
     return data
-
-
-def resolve_windows(state_dir, bundled_path=None):
-    """An existing user index is authoritative, including when it is invalid."""
-    saved = Path(state_dir) / 'canon-windows.json'
-    selected = saved if os.path.lexists(saved) else Path(bundled_path) if bundled_path is not None else Path(__file__).with_name('canon-windows.json')
-    load_windows(selected)  # Fail closed before constructing any role/model context.
-    return selected
 
 
 class OutboundGuard:

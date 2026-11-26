@@ -75,7 +75,6 @@ def stage_agentd(runtime):
     overrides = json.loads(default_profile(ROOT).read_text()).get('content_overrides', {})
     build_components.apply_content_overrides(dict(agentd=runtime), {relative: ROOT / source for relative, source in overrides.items()
                                                                     if relative.startswith('agentd/agentd/')})
-    build_components.validate_canon_windows(runtime / 'agentd' / build_components.CANON_RELATIVE)
 
 
 def deploy(part, base=BASE, web_dist=None, ui_art=None, now=None):

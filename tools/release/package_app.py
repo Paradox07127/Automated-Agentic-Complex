@@ -101,7 +101,6 @@ def stage(args):
     out = args.output.resolve()
     layout = getattr(args, 'layout', 'portable')
     if out.exists(): raise ValueError('output already exists')
-    build_components.validate_canon_windows(ROOT / 'agent/agentd' / build_components.CANON_RELATIVE)
     if not getattr(args, 'harness_runtime', None): raise ValueError('prepared personal-agent runtime required')
     harness_manifest = validate_runtime(args.harness_runtime)
     harness_receipt = {key: value for key, value in harness_manifest.items() if key != 'files'}
