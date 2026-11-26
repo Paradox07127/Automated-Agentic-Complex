@@ -38,7 +38,7 @@ export interface GameWheelProps {
   bounds?: { width: number; height: number };
   /** 由按下打开、键还按着：松开时按按住的时长决定是执行还是留着 */
   held?: boolean;
-  /** 外壳转来的、打开这个轮盘的那次右键按住（C3 规则 56）：坐标同 clientX/Y，`up` 带按下到松开的毫秒数 */
+  /** 外壳转来的、打开这个轮盘的那次右键按住：坐标同 clientX/Y，`up` 带按下到松开的毫秒数 */
   press?: WheelPress;
   /** 读屏名称，默认「快捷轮盘」 */
   label?: string;
@@ -72,7 +72,7 @@ const arc = (r: number, a0: number, a1: number) => `M${pt(r, a0)}A${r} ${r} 0 0 
 
 type Sel = number | 'cancel' | null;
 
-/** The held right button the shell forwards (C3 rule 56), in client px. */
+/** The held right button the shell forwards, in client px. */
 export type WheelPress = { phase: 'move'; x: number; y: number } | { phase: 'up'; x: number; y: number; ms: number };
 
 /** A forwarded release: the slot under it runs; a short press that never left the centre keeps the wheel; anything else closes. */

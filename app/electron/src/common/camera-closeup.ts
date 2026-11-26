@@ -1,5 +1,5 @@
 // The conversation close-up: with `render_camera_auto_closeup` = `session` the shell asks for
-// C3 rule 49's `camera.closeup` while the session panel stays shown and ends it once the panel stays hidden. Times are
+// `camera.closeup` while the session panel stays shown and ends it once the panel stays hidden. Times are
 // seconds on one monotonic clock.
 
 export const CLOSEUP_TIMING = {

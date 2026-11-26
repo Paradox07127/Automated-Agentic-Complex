@@ -138,7 +138,7 @@ export function settingsOps(ctx: OpsContext): Ops {
     return failed;
   };
   /** The current character's table is stored and sent, the other configured characters' only stored
-   *  (the link sends a stored table when her list comes, rule 28); a character without one gets one only to turn it off. */
+   *  (the link sends a stored table when her list comes); a character without one gets one only to turn it off. */
   const setSwitch = (id: string, on: boolean) => {
     let characters: string[];
     try {

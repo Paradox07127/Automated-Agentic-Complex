@@ -1,7 +1,7 @@
 import Darwin
 import Foundation
 
-/// CONTRACT §7.8 `control.listen` and `control.respond`: a Unix socket in a directory of this
+/// `control.listen` and `control.respond`: a Unix socket in a directory of this
 /// user (0700), a 0600 token file next to it, connections of this user only, one request of at most 64 KiB per
 /// connection, its token compared in constant time, and at most 4 connections reading their request at once. Each
 /// request goes to the main process as `control.request` without its token; `control.respond` writes the answer and
@@ -155,7 +155,7 @@ enum ControlListen {
         return .success(["sent": true])
     }
 
-    /// Shutdown and stdin closing: the endpoint and the token file go (CONTRACT §6.1).
+    /// Shutdown and stdin closing: the endpoint and the token file go.
     static func stop() {
         lock.withLock {
             guard let listener else { return }

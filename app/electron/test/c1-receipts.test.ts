@@ -1,4 +1,4 @@
-// C1 §3 over this shell: every receipt
+// Behavior receipts over this shell: every receipt
 // of the C1 fixtures goes from a fake renderer through the link to agentd's `POST /behavior/receipts` unchanged, and a
 // closing `cancelled` / `connection_lost` one is made by the shell when the link drops.
 import assert from 'node:assert/strict';

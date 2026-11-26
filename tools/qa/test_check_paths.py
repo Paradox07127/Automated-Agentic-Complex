@@ -11,8 +11,6 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / 'tools/release'))
 import release
 
-README = '# 协议\n\n## 现行协议\n\n| ID | 接口 |\n|---|---|\n| C9 | agentd 进程 |\n\n## 已退役\n\n| C4 | 帧输出 |\n'
-
 
 class Components(unittest.TestCase):
     def setUp(self):
@@ -20,7 +18,7 @@ class Components(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.root)
         (self.root / 'tools/qa').mkdir(parents=True)
         shutil.copy(REPO / 'tools/qa/check_paths.py', self.root / 'tools/qa/check_paths.py')
-        self.write('protocol/README.md', README)
+        (self.root / 'protocol/C9-agentd-process').mkdir(parents=True)
         self.write('a/writer.py', "open(state / 'a-state.json', 'w')\n")
         self.write('b/reader.swift', 'let url = dir.appendingPathComponent("a-state.json")\n')
         self.spec = {'schema': 'endfield-cross-paths/v1', 'roots': {'a': ['a/'], 'b': ['b/']},
@@ -57,11 +55,14 @@ class Components(unittest.TestCase):
         self.assertEqual(code, 1, out)
         self.assertIn('b/reader.swift:1: a-state.json', out)
 
-    def test_row_not_in_current_table_fails(self):
-        self.spec['allow'][0]['row'] = 'C4'
-        code, out = self.run_check()
-        self.assertEqual(code, 1, out)
-        self.assertIn('row C4', out)
+    def test_row_not_a_protocol_fails(self):
+        self.write('protocol/tools/generator.py', '')
+        for row in ('C4', 'tools'):
+            with self.subTest(row=row):
+                self.spec['allow'][0]['row'] = row
+                code, out = self.run_check()
+                self.assertEqual(code, 1, out)
+                self.assertIn(f'row {row}', out)
 
     def test_allow_for_a_file_without_the_token_fails(self):
         self.spec['allow'][0]['files'].append('b/other.swift')

@@ -1,7 +1,6 @@
-"""C12 platform-helper examples, ops.json and the CONTRACT.md tables (protocol/C12-platform-helper)."""
+"""C12 platform-helper examples and ops.json (protocol/C12-platform-helper)."""
 from pathlib import Path
 import json
-import re
 import sys
 import unittest
 
@@ -26,7 +25,6 @@ EXPECTED = {
     "bad-unsupported-ok.ndjson": "line 3: browser.front_tab succeeded on windows",
     "bad-v.ndjson": "line 0: v must be 1",
 }
-PLATFORMS = {"两者": ["macos", "windows"], "仅 Mac": ["macos"], "仅 Windows": ["windows"]}
 
 
 def read(path):
@@ -74,19 +72,6 @@ class C12Test(unittest.TestCase):
         self.assertEqual(sorted(set(self.spec["ops"]) - succeeded), [])
         self.assertEqual(sorted(set(self.spec["events"]) - events), [])
         self.assertEqual(platforms, set(self.spec["platforms"]))
-
-    def test_contract_tables_match_ops_json(self):
-        text = (C12 / "CONTRACT.md").read_text(encoding="utf-8")
-        op_text = text.split("\n## 7. ", 1)[1].split("\n## 8. ", 1)[0]
-        event_text = text.split("\n## 8. ", 1)[1].split("\n## 9. ", 1)[0]
-        op_row = re.compile(r"^\| `([^`]+)` \| (两者|仅 Mac|仅 Windows) \|", re.M)
-        ops = {m.group(1): PLATFORMS[m.group(2)] for m in op_row.finditer(op_text)}
-        events = set(re.findall(r"^\| `([^`]+)` \|", event_text, re.M))
-        self.assertEqual(sorted(ops), sorted(self.spec["ops"]))
-        for name, op in self.spec["ops"].items():
-            with self.subTest(name):
-                self.assertEqual(ops[name], op["platforms"])
-        self.assertEqual(events, set(self.spec["events"]))
 
 
 if __name__ == "__main__":

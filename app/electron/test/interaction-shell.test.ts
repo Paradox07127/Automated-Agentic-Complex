@@ -157,7 +157,7 @@ test('a double click opens the sessions page and takes back its first half; the 
   h.done();
 });
 
-test('C3 rule 56: a right press on her opens the wheel held there and is one wheel record; its moves and release go to the wheel', async () => {
+test('A right press on her opens the wheel held there and is one wheel record; its moves and release go to the wheel', async () => {
   const h = harness({ status: 204 });
   h.shell.rightDrag({ phase: 'down', at: { x: 300, y: 400 } });
   h.shell.rightDrag({ phase: 'move', at: { x: 320, y: 430 } });

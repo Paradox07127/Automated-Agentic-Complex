@@ -38,7 +38,7 @@ struct TreeLine: Equatable {
     var place: String { "\(depth)\u{1F}\(head)" }
 }
 
-/// CONTRACT §7.4 `ax.window_tree`: one window's elements as indented lines in preorder, and against a kept version only
+/// `ax.window_tree`: one window's elements as indented lines in preorder, and against a kept version only
 /// the lines that changed. The text is not redacted (the main process does that).
 enum WindowTree {
     /// The whole read, the window lookup included.

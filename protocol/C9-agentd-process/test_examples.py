@@ -1,11 +1,11 @@
-"""C9 examples: the `--describe` line and the two discovery files have the keys and types CONTRACT.md lists."""
+"""C9 examples: the `--describe` line and the two discovery files have the listed keys and types."""
 import json
 import os
 import re
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-# key -> JSON type, as CONTRACT.md lists them
+# key -> JSON type
 DESCRIBE = {"component": str, "c1_contract": str, "c6_contract": str, "c8_protocol": int, "c9_contract": str}
 RUNTIME = {"ui-runtime.json": {"schema": int, "base_url": str, "ui_token": str},
            "events-runtime.json": {"schema": int, "base_url": str, "events_token": str}}

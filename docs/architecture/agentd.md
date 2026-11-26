@@ -2,13 +2,13 @@
 
 [English](agentd.en.md) · [文档索引](../README.md)
 
-agentd 是角色一侧的后台服务，Python 3.12 实现，只监听 127.0.0.1。它接收 Claude Code 和 Codex 的 hook，维护多会话登记和焦点，代理 Claude 的审批，向角色进程推行为与意图，并运行角色的对话、任务、记忆和观察。HTTP 端点的字段和错误码见 [C6 合同](../../protocol/C6-agentd-api/CONTRACT.md)（§3 总表、§4 细则），进程参数和发现文件见 [C9 合同](../../protocol/C9-agentd-process/CONTRACT.md)，工具授权见[工具网关](tool-gateway.md)。
+agentd 是角色一侧的后台服务，Python 3.12 实现，只监听 127.0.0.1。它接收 Claude Code 和 Codex 的 hook，维护多会话登记和焦点，代理 Claude 的审批，向角色进程推行为与意图，并运行角色的对话、任务、记忆和观察。HTTP 路由登记在 `route_registry.py`，工具授权见[工具网关](tool-gateway.md)。
 
 ## 概述
 
 - 依赖在 `agent/agentd/requirements.txt`（HTTP 客户端 `httpx`、OIDC 校验 `PyJWT`）。
 - agentd 自己不安装 hook，不改 `~/.claude`、`~/.codex`。只观察的 hook 由用户运行 `tools/install_hooks.py` 安装（见「hook 安装」）。
-- Companion 经 `app/Resources/agentd_launcher.py` 启动它；单独运行的命令见 [C9 合同](../../protocol/C9-agentd-process/CONTRACT.md)末节。
+- Companion 经 `app/Resources/agentd_launcher.py` 启动它；单独运行时在仓库根目录执行 `agent/.venv/bin/python3 agent/agentd/server.py --port 48820 --state-dir /tmp/agentd-state --no-exit-with-parent`（不能带 `-I`，端口别用 Companion 占着的 48800）。
 
 ## 代码结构
 
@@ -16,7 +16,7 @@ agentd 是角色一侧的后台服务，Python 3.12 实现，只监听 127.0.0.1
 
 | 包 | 内容 |
 |---|---|
-| `api/` | HTTP `Handler`（`api/handler.py`：`parse_request` 的关卡、`_dispatch` 把请求交给 `route_registry.py` 里这条路由的 owner）；按 URL 前缀分开的 mixin：`hooks`、`sessions`、`memory`、`episodes`、`observation`、`context`、`speech`、`diag`、`character`、`settings`；`views.py` 是 `api/` 和 `daemon/` 共用的视图与字段检查；`integration.py` 是外部 agent 接入的 `/integration/*` 路由（[INTEGRATION.md](../../protocol/C6-agentd-api/INTEGRATION.md)） |
+| `api/` | HTTP `Handler`（`api/handler.py`：`parse_request` 的关卡、`_dispatch` 把请求交给 `route_registry.py` 里这条路由的 owner）；按 URL 前缀分开的 mixin：`hooks`、`sessions`、`memory`、`episodes`、`observation`、`context`、`speech`、`diag`、`character`、`settings`；`views.py` 是 `api/` 和 `daemon/` 共用的视图与字段检查；`integration.py` 是外部 agent 接入的 `/integration/*` 路由 |
 | `daemon/` | `main.py`（参数、启动顺序、服务循环）；`agentd_server.py` 的 `AgentdServer` 和 `StateView`；按关注点分开的 mixin：`announce`、`turns`、`speech_control`、`context`、`switches`、`ingest`、`character_switch`、`rituals_glue`、`memory_sync`、`tracing`、`diagnostics`、`lifecycle`；共用常量 `constants.py` |
 | `infra/` | SQLite 存储与表结构（`store`、`store_schemas`、`data_lifecycle`）、0600 令牌文件（`tokens`）、状态路径（`paths`）、按需启动外置服务（`service_ensure`）、提示里的本地时间（`localtime`）、平台差异（`platform/`） |
 | `sessions/` | 事件归一化、会话登记、审批与危险判定（`approvals`、`danger`）、自有会话与派活（`own`、`lifecycle`、`dispatch`、`tasks`）、会话摘要、harness 账本与日报 |
@@ -40,7 +40,7 @@ agentd 是角色一侧的后台服务，Python 3.12 实现，只监听 127.0.0.1
 - `server.py`：入口；`app/Resources/agentd_launcher.py` 按路径启动它。
 - `codex_hook_forward.py`：hook 转发器；`config-examples/` 的 hook 配置和 `tools/install_hooks.py` 写进用户配置的命令按路径调它。
 - `c1.py`：C1 消息校验；`python3 -I agent/agentd/c1.py protocol/C1-agent-events/fixtures` 校验夹具。
-- `route_registry.py`：HTTP 路由登记；`protocol/tools/gen_routes.py` 导入它，生成 `protocol/ui-bridge/routes.json`、C6 路由表和网页的 `agentd-routes.generated.ts`。
+- `route_registry.py`：HTTP 路由登记；`protocol/tools/gen_routes.py` 导入它，生成 `protocol/ui-bridge/routes.json` 和网页的 `agentd-routes.generated.ts`。
 - `control_panel.py`：对话与自有会话的控制面板路由（`/conversations*`、`PUT/DELETE /sessions/<id>`）。
 - `character_tool.py`、`motion_tool.py`、`outfit_tool.py`、`distribution_seed.py`：Companion 按脚本路径运行的角色包、动作、外观和发行角色库工具。发行版 Python 带 `-I`，这些脚本自己把所在目录加进 `sys.path`。
 - `character_library.py`、`resource_store.py`：角色库的校验与发布、写时复制；`characters/` 的构建脚本按顶层模块导入它们。
@@ -50,13 +50,13 @@ agentd 是角色一侧的后台服务，Python 3.12 实现，只监听 127.0.0.1
 ### 开发约定
 
 - 导入一律写绝对路径（`from observation.blacklist import X`）；相对导入只在 `character_agent/harness/` 里有。搬模块时改调用方，不留兼容转发模块。
-- 新 HTTP 路由就是在 `route_registry.py` 的 `REGISTRY` 里加一条 `Route(...)`：由 `Handler` 自己答的写 `owner=SERVER` 和 `action`（`Handler` 的方法名），别的 owner 由那个模块的 `route()` 答；`spec` 指向写这条路由字段的合同。改完在仓库根目录运行 `python3 -I protocol/tools/gen_all.py --write`。
+- 新 HTTP 路由就是在 `route_registry.py` 的 `REGISTRY` 里加一条 `Route(...)`：由 `Handler` 自己答的写 `owner=SERVER` 和 `action`（`Handler` 的方法名），别的 owner 由那个模块的 `route()` 答。改完在仓库根目录运行 `python3 -I protocol/tools/gen_all.py --write`。
 - 令牌由 `parse_request` 按登记里这条路由的 `tokens` 检查：不在登记里的路径 404，令牌不对 401。
 - 角色名单、卡和设定都取角色库（`brain/characters.py` 的 `Repository`）。
 
 ## 状态目录与令牌
 
-`--state-dir` 下的令牌和发现文件（`hook.token`、`ui-runtime.json`、`events-runtime.json`）由 [C9 合同](../../protocol/C9-agentd-process/CONTRACT.md)定义。三种令牌分开：
+`--state-dir` 下有令牌和发现文件（`hook.token`、`ui-runtime.json`、`events-runtime.json`）。三种令牌分开：
 
 - hook token 给 hook 和浏览器 native host，拿不到提交审批决定的权限。
 - ui token 给外壳，可以调 UI 路由。
@@ -82,7 +82,6 @@ agentd 是角色一侧的后台服务，Python 3.12 实现，只监听 127.0.0.1
 - ChatGPT 订阅：在系统浏览器登录，回调校验 state、PKCE（S256）、ID token 和 nonce；只有授权里有 `chatgpt.tokens.use.direct` 才允许推理。刷新按连接串行，并加文件锁。订阅令牌只发往 `https://api.openai.com/v1`，不读取或复用 Codex 应用的登录文件。退出时尝试撤销远端刷新令牌。
 - OpenAI 与兼容 API：Base URL 只收 https，或本机（localhost、127.0.0.1、::1）的 http。输出上限默认 4096 token，可设 128–32768。DeepSeek 固定官方地址 `https://api.deepseek.com`，必须有 Key。
 - 自有 Claude、Codex 工作会话仍由各自 CLI 管理登录，模型设置不改变它们。
-- 端点规则见 C6 §2。
 
 ## 用量与计价
 
@@ -102,7 +101,7 @@ agentd 是角色一侧的后台服务，Python 3.12 实现，只监听 127.0.0.1
 
 ## 角色与对话请求
 
-- `--character <id>` 选启动时的角色，不给时用角色库的 `default_character`。运行中用 `/character/prepare`、`commit`、`abort` 三步换角色（C6 §4.2）。agentd 不存角色，重启时由 Companion 传 `--character`。
+- `--character <id>` 选启动时的角色，不给时用角色库的 `default_character`。运行中用 `/character/prepare`、`commit`、`abort` 三步换角色。agentd 不存角色，重启时由 Companion 传 `--character`。
 - 角色卡和设定只有一个来源：`--character-catalog` 传入的角色库。没有这个参数时读 `AGENTD_DEV_CATALOG`，再没有就读公开样例库 `characters/sample-library/current.json`（只有纯文字角色 `aide`）。卡、设定和默认角色读时不改写。
 - 角色卡（`<id>/persona.json`，10 节）渲染成 system。每轮另加：用户说过或确认过的记忆、关键词命中的设定条目（`<id>/lore.json`：world、relations、events，带 sticky、cooldown 和 token 预算），以及现场情况。
 - 现场情况里的审批：每张待批卡写会话、工具、摘要和剩余时间；600 s 内结束的卡（最多 3 张）写结果。她自己的状态偏离平常时（很困、很投入、心情离基线较远）加一句摘要，这句也过出站守卫，被拦时整句不加。
@@ -114,11 +113,11 @@ agentd 是角色一侧的后台服务，Python 3.12 实现，只监听 127.0.0.1
 - 启动时给 `--tts-url` 才有语音。TTS 在远端主机时，外壳按 config.json 的 `services.tts`（SSH）转发端口，并把转发后的地址（例如 `http://127.0.0.1:19888`）传给 `--tts-url`。有 `--tts-ensure-host` 和 `--tts-ensure-script` 时，TTS 没起来，agentd 先经 ssh 在这台主机上运行脚本的 `ensure`（协议见[外壳](shell.md#外置服务)）。
 - 请求带 `Authorization: Bearer <令牌>`。`--tts-token-file` 或 `$AAC_TTS_TOKEN_FILE` 指定凭据引用的基础路径，对应的 `.ref` 文件记录系统凭据标识（C10）。使用与 agentd 相同的签名 Python 运行 `agent/agentd/tools/tts_token.py push --ssh user@host --remote /srv/agentic-complex-tts/state/tts-token` 生成令牌并复制到 TTS 主机，随后重启 TTS 和 agentd。
 - TTS 地址收 `http` 和 `https`。HTTPS 默认 443 端口，初次连接和重连都校验证书和主机名；URL 里的用户信息和其他协议拒收。明文 HTTP 对任何主机都收，令牌和文本不加密。
-- 转发规则（`/speech` 中继、截断补 `cancelled`、失败时 `speech_failed`）见 C6 §4.7。
+- agentd 把 TTS 回的每行转发到 `GET /speech`；它截断的流或上游断开的流补一行 `cancelled`；TTS 在发出任何行之前失败时，在 `/feed` 发 `speech_failed`。
 
 ## 会话与焦点
 
-焦点优先级：error > awaiting_approval > awaiting_input > running_tool > thinking > compacting > subagent > done > stale > idle；同优先级保持当前焦点。hook 的响应、撤卡、去重和事件顺序见 C6 §4.6。
+焦点优先级：error > awaiting_approval > awaiting_input > running_tool > thinking > compacting > subagent > done > stale > idle；同优先级保持当前焦点。
 
 ## 自有会话
 
@@ -148,7 +147,7 @@ python3 agent/agentd/tools/install_hooks.py --target claude --uninstall   # 只�
 - 写法：经同目录临时文件改名替换，保留原权限；新建的文件为 0600。JSON 读不出或形状不对时退出 2，哪个文件都不改。`--dry-run` 只打印自己的组的 diff。
 - 只观察：hook 什么都不打印、从不给决定；agentd 没开或卡住时转发器约 1 s 内退出 0。
 - Codex 只运行用户信任过的 hook：装完打开一次 codex，在启动时的 “Hooks need review” 里信任，或在 TUI 里用 `/hooks`。命令变了要重新信任。安装器不改 `config.toml`，不写 hook 信任。
-- 设置页的「解绑」走 `POST /integrations/hooks/disconnect`（C6 §4.2）。外壳经 `app.info` 的 `hookInstallSteps` 把安装命令交给网页设置页，命令用宿主解析出的 Python 和 agentd 组件里的 `tools/install_hooks.py`。
+- 设置页的「解绑」走 `POST /integrations/hooks/disconnect`。外壳经 `app.info` 的 `hookInstallSteps` 把安装命令交给网页设置页，命令用宿主解析出的 Python 和 agentd 组件里的 `tools/install_hooks.py`。
 
 ### 手动接 hook 测试
 
@@ -183,7 +182,7 @@ curl -N -H "Authorization: Bearer $UI" http://127.0.0.1:48800/events
 - 浏览器扩展的心跳进 `browser` bucket（pulsetime 80 s），保存聚焦和可见状态。只有聚焦、可见的发声页面能补充活跃区间。
 - `share_page_text` 开启后，网页正文和选区存本机 context 表，给「嘴」时选区最多 500 字符、正文最多 1500 字符。失焦后不用当前页文字。滚动、媒体和标签数只留最新一份内存快照，15 秒过期，不进模型。
 
-黑名单文件 `blacklist.json` 的字段由 [C10 合同](../../protocol/C10-shared-files/CONTRACT.md)定义。
+黑名单文件 `blacklist.json` 由 `observation/blacklist.py` 的 `Blacklist` 读写，默认内容是其中的 `DEFAULTS`。
 
 ## 浏览器扩展消息
 
@@ -193,7 +192,7 @@ curl -N -H "Authorization: Bearer $UI" http://127.0.0.1:48800/events
 - 连上和每次收到 `{"type": "policy"}` 时，host 先调 `GET /context/browser/policy` 取 `{enabled, text_enabled}`，再回扩展一条 `{"type": "config", enabled, text_enabled, domains, title_patterns, mode, allow_domains}`（黑名单取自 `blacklist.json`）。取不到策略时 `enabled` 为 false。
 - 扩展发的消息：`heartbeat`、`page`、`selection`、`selection_cleared`、`metrics`。共同字段 `ts`（Unix 秒）、`url_host`、`title`，以及文档身份 `browser_session`、`tab_id`、`document_id`、`revision`。`heartbeat` 另带 `audible`、`visible`、`window_focused`；`page`、`selection` 带 `text`（最多 2000 字符）；`metrics` 带 `metrics`（滚动百分比、媒体状态、标签数）。
 - host 在 `enabled` 为 false 时什么都不转；`text_enabled` 为 false 时丢掉 `page`、`selection`。黑名单命中的心跳改成 `url_host: "<hidden>"`、`title: null`，其他类型整条丢掉。其余原样 `POST /context/browser`（hook token）。
-- agentd 再查一次：类型或字段不对 400 `invalid_browser`；网页文字开关关着时 `page`、`selection` 回 200 但不存。端点规则见 C6 §4.2。
+- agentd 再查一次：类型或字段不对 400 `invalid_browser`；网页文字开关关着时 `page`、`selection` 回 200 但不存。
 
 ## 窗口内容与上传预算
 
@@ -220,7 +219,7 @@ Companion 的 `interaction_preset` 对应 agentd 的 `--interaction-preset quiet
 
 ## 权限与生命周期
 
-- `observation.privacy.ConsentPolicy` 是采集缓存和出站共用的实时权限版本。`--privacy-config` 指定的配置可以收窄启动能力；文件缺失、损坏或替换中一律拒绝分享。关闭某项分享或收窄范围时，清掉旧缓存、待处理观察和相关生成，拒收迟到的结果；重新开启不恢复旧缓存。同步端点 `POST /context/privacy/sync` 见 C6 §4.2。
+- `observation.privacy.ConsentPolicy` 是采集缓存和出站共用的实时权限版本。`--privacy-config` 指定的配置可以收窄启动能力；文件缺失、损坏或替换中一律拒绝分享。关闭某项分享或收窄范围时，清掉旧缓存、待处理观察和相关生成，拒收迟到的结果；重新开启不恢复旧缓存。外壳经 `POST /context/privacy/sync` 同步权限。
 - 角色对话在真正打开模型流前再查一次代际；取消时先断开底层连接。已经发给模型的请求撤不回，但之后的分句、迟到的输出和取消后的历史追加都会被拦下。
 - `sessions.lifecycle.SessionRun` 覆盖 CLI 握手前的启动阶段。停止、退出和重置都会锁存取消；迟到建好的进程会被关掉。
 - `infra.data_lifecycle.DataLifecycle` 给共享 SQLite 的每张表声明重置策略；新表没归类时重置回 500 `reset_schema_unclassified`。保留 `memory_settings`、`capture_budget` 和 `model_usage`，清空数据不会重置用户的暂停开关或绕过预算。
@@ -239,7 +238,7 @@ Companion 的 `interaction_preset` 对应 agentd 的 `--interaction-preset quiet
 ### 数据与执行边界
 
 - `integration.py` 把当前角色卡、设定、记忆、历史、时段、提醒、行为观察、文件范围和桌面权限接入运行时。
-- `runtime.py` 管理角色执行的生命周期、任务与检查点；`harness/codex_runner.py`、`pi_runner.mjs`、`acp_runner.py`、`claude_runner.py` 用各自的 SDK 或协议跑模型循环（帧协议见 [C8 合同](../../protocol/C8-harness-runner/CONTRACT.md)）。设了环境变量 `AGENTD_FRAME_LOG` 时，`harness/transport.py` 把 agentd 和 runner 之间收发的每一帧追加到这个 JSONL 文件（`api_key`、`token` 等键的值换成 `[redacted]`，超过 256 KiB 的字符串截断；文件超过 64 MiB 时改名为 `.1` 再记新文件），写失败只丢这一条记录；只有开发面板设它，安装版不设。
+- `runtime.py` 管理角色执行的生命周期、任务与检查点；`harness/codex_runner.py`、`pi_runner.mjs`、`acp_runner.py`、`claude_runner.py` 用各自的 SDK 或协议跑模型循环，经 `harness/transport.py` 和 agentd 交换帧。设了环境变量 `AGENTD_FRAME_LOG` 时，`harness/transport.py` 把 agentd 和 runner 之间收发的每一帧追加到这个 JSONL 文件（`api_key`、`token` 等键的值换成 `[redacted]`，超过 256 KiB 的字符串截断；文件超过 64 MiB 时改名为 `.1` 再记新文件），写失败只丢这一条记录；只有开发面板设它，安装版不设。
 - `services/knowledge.py` 按来源与权限检索个人档案和历史知识。依赖带版本和 hash，记忆删除、撤权或输入变化会让旧上下文失效。
 - `services/workspace.py` 只访问用户在设置里选的输入目录和输出目录；读 UTF-8 Markdown、TXT、CSV、JSON 和 docx、xlsx、pptx（由 `services/extract.py` 抽成文本），产物只写 Markdown、TXT、CSV、JSON，拒绝目录逃逸、符号链接和覆盖原文件。产物归属某次 run，记录来源与校验结果。
 - `services/store.py` 保存独立的 Run、Event、Effect、Checkpoint。角色、产品历史、长期记忆和任务 ID 不属于任何厂商 transcript；厂商原生会话不跨内核迁移。

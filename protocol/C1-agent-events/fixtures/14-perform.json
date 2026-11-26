@@ -1,5 +1,5 @@
 {
- "description": "生成动作（v2.4）：perform 的 motion 指向 GET /motions/<id>/meta 和 keys，宿主取到并校验后当身体片段播完回 completed；第二条取文件或校验失败回 rejected / unsupported",
+ "description": "生成动作：perform 的 motion 指向 GET /motions/<id>/meta 和 keys，宿主取到并校验后当身体片段播完回 completed；第二条取文件或校验失败回 rejected / unsupported",
  "messages": [
   {
    "event": "behavior",

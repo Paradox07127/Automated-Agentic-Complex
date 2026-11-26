@@ -232,7 +232,7 @@ class IntroductionTest(ReturnCase):
         sent = {m["clip"]["id"]: m for m in self.sent[mark:] if m["type"] == "perform"}
         start, end = sent["intro_start"], sent["intro_end"]
         self.assertEqual(end["replaces"], start["behavior_id"])
-        # the renderer starts an after_exit perform once the one-shot it follows has played out (C1 §1.4)
+        # the renderer starts an after_exit perform once the one-shot it follows has played out
         began = self.at[start["behavior_id"]] + INTRO["intro_start"] if end.get("start") == "after_exit" \
             else self.at[end["behavior_id"]]
         self.assertGreaterEqual(began - self.at[start["behavior_id"]], INTRO["intro_start"] - CROSSFADE - 0.01)

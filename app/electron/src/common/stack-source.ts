@@ -941,7 +941,7 @@ export class StackSource implements EventSource {
     this.onPush(this.order.filter((id) => { const e = this.entries.get(id); return !!e && !isChatCard(e.card); }));
   }
 
-  /** An approval, question, review or delivery card still waiting for the user: C3 rule 39 shows it with her snap. */
+  /** A pending approval, question, review or delivery can trigger the presentation gesture. */
   presents(id: string): boolean {
     const e = this.entries.get(id);
     return !!e && e.live && !e.decided && (waits(e.record) || e.record.kind === 'delivery');

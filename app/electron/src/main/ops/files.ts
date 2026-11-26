@@ -1,4 +1,4 @@
-// `files.*`: native file pickers whose choice the page holds only as a handle (protocol/ui-bridge/CONTRACT.md step 7), and
+// `files.*`: native file pickers whose choice the page holds only as a handle, and
 // saving an agentd export where the user chooses.
 import { randomUUID } from 'node:crypto';
 import { basename } from 'node:path';

@@ -6,7 +6,7 @@ SCHEMA_V2='endfield-speech-timeline-v2'
 CLAUSE_FIELDS=('utterance_id','clause_id','clause_index','spoken_text_revision','voice_profile_id','interrupt_policy','turn_generation')
 
 def clause_fields(body):
-    """body: request fields. Returns the 7 C2 v2 clause fields when utterance_id is given, None when none of them is; ValueError otherwise."""
+    """body: request fields. Returns the seven clause fields when utterance_id is given, None when none of them is; ValueError otherwise."""
     given={k:body.get(k) for k in CLAUSE_FIELDS}
     if all(v is None for v in given.values()):return None
     for name in ('utterance_id','clause_id','voice_profile_id'):

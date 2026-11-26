@@ -1,7 +1,7 @@
 // The placement space of src/common/placement.ts (one global space, y up, the main display first) over Electron's
 // displays, and the map between it and C3's coordinates. Electron gives DIPs, y down from the primary display's top-left.
-// macOS: C3 uses AppKit points, y up from the main display's bottom-left (CONTRACT 「坐标」), which is the placement space.
-// Windows: C3 uses physical pixels, y down (the C3 Windows appendix); the placement space is those pixels with y negated.
+// macOS: C3 uses AppKit points, y up from the main display's bottom-left, which is the placement space.
+// Windows: C3 uses physical pixels, y down; the placement space is those pixels with y negated.
 // Both branches are pure over the `screen` passed in; platform/index.ts picks one by process.platform.
 import type { Display, Rectangle } from 'electron';
 import type { Point, Rect, ScreenInfo } from '../../common/placement.ts';

@@ -261,7 +261,7 @@ test('body: every field in snake case, null as null', () => {
 
 // ---- The helper's element
 
-test('decodeElement reads an ax_element with the watched app; the same roles and label give the same key (CONTRACT §7.12)', () => {
+test('decodeElement reads an ax_element with the watched app; the same roles and label give the same key', () => {
   const raw = { role: 'AXTextArea', native_role: 'AXTextArea', subrole: null, label: 'Body', value_length: 12, window_title: 'notes.txt',
     doc: '/Users/u/notes.txt', selected_text: 'hi' };
   const e = decodeElement(raw, 702, 'TextEdit', 'com.apple.TextEdit')!;

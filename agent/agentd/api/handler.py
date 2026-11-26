@@ -39,7 +39,7 @@ from daemon.error_record import SLUG
 NORMALIZERS = {"/hook/claude": normalize_claude, "/hook/codex": normalize_codex}
 MAX_BODY = 32 * 1024 * 1024
 DRAIN_TIMEOUT = 2  # seconds finish waits for the rest of a body no handler read
-C6_CONTRACT = "v1"  # protocol/C6-agentd-api/CONTRACT.md; /health and C9 --describe report it
+C6_CONTRACT = "v1"  # /health and C9 --describe report it
 IDEMPOTENCY_KEY_MAX = 128  # bytes of an Idempotency-Key header
 # Endpoints that store nothing while observation is paused.
 PAUSED_INPUTS = ("/context/attention", "/context/events", "/context/timeline", "/context/browser", "/context/text",
@@ -451,7 +451,7 @@ class Handler(BaseHTTPRequestHandler, HooksMixin, SessionsMixin, MemoryMixin, Ep
 
     def _events(self):
         registry = self.server.registry
-        # Fresh subscribers get the current intent only, not history, with the turn_generation (C2 rule 8).
+        # Fresh subscribers get the current intent only, not history, with the turn_generation.
         intents = lambda seq: [{"seq": i["seq"], "event": i.get("event", "intent"),
                                 "data": {k: v for k, v in i.items() if k != "event"}}
                                for i in registry.intents_since(seq)]

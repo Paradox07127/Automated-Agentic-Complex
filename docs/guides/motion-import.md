@@ -41,7 +41,7 @@ uv pip install --python .local/venvs/pipeline/bin/python3 \
   --title '导入走路' --output .local/cache/my-motion-generation --export
 ```
 
-旗标的定义见[外部动作导入合同](../../protocol/character-library/MOTION-IMPORT.md)。`--output` 必须是新目录，不能在输入库里面。
+`--output` 必须是新目录，不能在输入库里面。
 
 输出：
 
@@ -134,6 +134,6 @@ uv pip install --python .local/venvs/pipeline/bin/python3 \
 - 不导入灯光和 PMX 模型，不做完整的 MMD 物理。
 - 竖版取景沿用角色原来的构图，大幅横移或伸展可能超出画框。
 
-## 和合同的关系
+## 结构与校验
 
-导入请求旗标、导入结果 `endfield-motion-import/v1`、包内报告、库索引和告警/失败码定义在[外部动作导入合同](../../protocol/character-library/MOTION-IMPORT.md)，结构和校验在 `motion_import/take.py`。本页只讲离线命令怎么用；两者不一致时以合同为准。
+导入结果 `endfield-motion-import/v1` 的结构与校验在 `motion_import/take.py`。

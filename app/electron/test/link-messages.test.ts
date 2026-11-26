@@ -1,5 +1,5 @@
 // The C3 messages HostLink handles beyond the handshake, actions and looks: each
-// against the contract's examples, valid and invalid, over a fake renderer's connection.
+// against the renderer fixtures, valid and invalid, over a fake renderer's connection.
 import assert from 'node:assert/strict';
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -145,7 +145,7 @@ test('inbound: every valid example of the callback messages reaches its callback
       };
       assert.deepEqual(got[0], expected[m.type], file);
     }
-    // The two replies end the open request of their `req`, once its `ack` came (rules 50, 51).
+    // The two replies end the open request of their `req`, once its `ack` came.
     const replies = examples('avatar-to-companion', ['captured', 'motion_overrides']);
     assert.ok(replies.length >= 4, `${replies.length} replies`);
     for (const { file, m } of replies) {
@@ -292,7 +292,7 @@ test('requests with replies: ack results and their timeout, capture and set_moti
     assert.ok(await until(1, () => a.last('play_chain') !== undefined));
     a.send({ type: 'ack', req: a.last('set_render')!.req, ok: true });
     a.send({ type: 'ack', req: a.last('set_pose')!.req, ok: false, error: 'busy' });
-    // play_chain gets no ack: rule 18's 2 s.
+    // The play_chain ACK times out after 2 s.
     assert.ok(await until(1, () => results.length === 3));
     assert.deepEqual(results, [['render', { ok: true }], ['pose', { ok: false, reason: 'busy' }], ['chain', { ok: false, reason: 'timeout' }]]);
 
@@ -325,7 +325,7 @@ test('requests with replies: ack results and their timeout, capture and set_moti
     a.send({ type: 'ack', req: a.last('set_motion_overrides')!.req, ok: false, error: 'busy' });
     await assert.rejects(refused, { message: '正在切换角色或动作尚未加载完成，请稍后再试' });
 
-    // Rules 18, 50, 51: everything open fails when the link drops.
+    // Everything open fails when the link drops.
     const lost: unknown[] = [];
     link.sendSetRender({ facing: 'front' }, (r) => lost.push(r));
     const shot2 = link.capture(), saved2 = link.setMotionOverrides('aster', overrides);
@@ -369,7 +369,7 @@ test('outbound gates: both sides list the capability; attention_side waits 45 s 
 const FRAME = { type: 'window_frame', frame: { x: 1000, y: 1000, w: 300, h: 400 }, viewport: 'window' };
 const CAPSULES = { type: 'hit_capsules', space: 'global', capsules: [{ a: [1150, 1100], b: [1150, 1300], r: 40 }] };
 
-test('cursor: hit leaves out the above and pass-through rects of setHitExclusions (rules 34, 41); without them the line is as before', { skip: UNIX_LINK }, async () => {
+test('cursor: hit leaves out the above and pass-through rects of setHitExclusions; without them the line is as before', { skip: UNIX_LINK }, async () => {
   await withLink({ cursor: () => ({ x: 1150, y: 1200 }) }, async (link) => {
     const a = await attach(link, { pid: 99, capabilities: [] });
     a.send(FRAME);
@@ -386,7 +386,7 @@ test('cursor: hit leaves out the above and pass-through rects of setHitExclusion
     assert.ok(await until(1, () => hit() === false), 'pass-through, min edge');
     link.setHitExclusions({ above: [], passThrough: [{ x: 1140, y: 1190, w: 10, h: 10 }] });
     assert.ok(await until(1, () => hit() === true), 'pass-through, max edge');
-    // Rule 2: a drag holds it true.
+    // A drag holds it true.
     link.setHitExclusions({ above: [{ x: 1100, y: 1150, w: 100, h: 100 }], passThrough: [] });
     assert.ok(await until(1, () => hit() === false));
     a.send({ type: 'drag', phase: 'begin' });
@@ -401,7 +401,7 @@ test('cursor: hit leaves out the above and pass-through rects of setHitExclusion
   });
 });
 
-test('rules 56, 57: right_drag and moving reach their callbacks once both hellos list them; a held right press keeps the hit', { skip: UNIX_LINK }, async () => {
+test('Right_drag and moving reach their callbacks once both hellos list them; a held right press keeps the hit', { skip: UNIX_LINK }, async () => {
   const drags: unknown[] = [], moving: boolean[] = [];
   await withLink({ cursor: () => ({ x: 1150, y: 1200 }), onRightDrag: (e) => drags.push(e), onMoving: (on) => moving.push(on) }, async (link, log) => {
     const a = await attach(link, { pid: 99, capabilities: ['right_drag', 'moving'] });
@@ -409,7 +409,7 @@ test('rules 56, 57: right_drag and moving reach their callbacks once both hellos
     a.send(FRAME);
     a.send(CAPSULES);
     assert.ok(await until(1, () => a.last('cursor')?.hit === true));
-    // Rule 56 (c): a move or up with no down before it is dropped.
+    // A move or up with no down before it is dropped.
     a.send({ type: 'right_drag', phase: 'move', x: 1, y: 2 });
     const valid = examples('avatar-to-companion', ['right_drag', 'moving']);
     assert.ok(valid.length >= 6, `${valid.length} examples`);
@@ -426,14 +426,14 @@ test('rules 56, 57: right_drag and moving reach their callbacks once both hellos
     assert.ok(await until(1, () => moving.length === 3));
     assert.equal(link.moving, true);
     assert.equal(drags.length, 4, 'the invalid lines reach nothing');
-    // Rule 56 (b): the held press keeps the hit where the capsules are not.
+    // The held press keeps the hit where the capsules are not.
     link.setHitExclusions({ above: [{ x: 1100, y: 1150, w: 100, h: 100 }], passThrough: [] });
     assert.ok(await until(1, () => a.last('cursor')?.hit === false));
     a.send({ type: 'right_drag', phase: 'down', x: 1150, y: 1200 });
     assert.ok(await until(1, () => a.last('cursor')?.hit === true), 'held');
     a.send({ type: 'right_drag', phase: 'up', x: 1150, y: 1200 });
     assert.ok(await until(1, () => a.last('cursor')?.hit === false), 'released');
-    // Rule 57: the link's end is moving false.
+    // The link's end is moving false.
     a.socket.destroy();
     assert.ok(await until(2, () => moving.length === 4));
     assert.equal(moving.at(-1), false);
@@ -568,7 +568,7 @@ test('camera: sendCameraLive merges samples within 1/30 s and a set_render camer
     assert.ok(await until(1, () => renders().length === 2));
     await sleep(0.1);
     assert.equal(renders().length, 2);
-    // The contract's rule 49 (a) example; no `req`.
+    // A live camera sample carries no `req`.
     assert.ok(a.raw.includes('{"v":1,"type":"set_render","camera":{"yaw":-135,"pitch":8,"zoom":2.2,"live":true}}'), a.raw.join('\n'));
     assert.deepEqual(renders()[1], { v: 1, type: 'set_render', camera: { yaw: -135, pitch: 8, zoom: 2.6, live: true } });
     assert.ok(link.sendCameraLive(10, 0, 1));

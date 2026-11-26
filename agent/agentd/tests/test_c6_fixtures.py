@@ -1,4 +1,4 @@
-"""C6 §4.4: the GET body of each route_registry entry with a `response` fixture has the keys and JSON types an in-process agentd answers with."""
+"""The GET body of each route_registry entry with a `response` fixture has the keys and JSON types an in-process agentd answers with."""
 import datetime
 from fnmatch import fnmatch
 import io

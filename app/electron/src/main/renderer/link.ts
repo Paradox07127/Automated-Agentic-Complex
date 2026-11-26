@@ -1,6 +1,6 @@
 // The Companion's end of C3: on macOS it listens on <support>/run/avatar.sock and the renderer connects;
 // on Windows it connects to the named pipe the renderer creates, again every 0.5 s until it is there and after a drop.
-// One connection at a time, the hello handshake, rule 17's watchdog, inbound messages to listeners, and the requests the
+// One connection at a time, the hello handshake, the heartbeat watchdog, inbound messages to listeners, and the requests the
 // bridge ops make.
 import { createHash } from 'node:crypto';
 import { chmodSync, lstatSync, mkdirSync, unlinkSync } from 'node:fs';
@@ -56,7 +56,7 @@ export type LinkEvent =
   | { kind: 'modSettings'; receipt: ModReceipt }
   | { kind: 'actionProgress'; progress: ActionProgress | null };
 
-/** Rule 58: where the play playAction sent last stands, `t` of `duration` seconds into the clip playing now. */
+/** Where the play playAction sent last stands, `t` of `duration` seconds into the clip playing now. */
 export interface ActionProgress { playId: string; id: string; t: number; duration: number; paused: boolean }
 export type TransportOp = 'pause' | 'resume' | 'seek';
 
@@ -65,13 +65,13 @@ export type AppearanceEvent =
   | { kind: 'list'; character: string; current: string | null; options: AppearanceOption[]; atHello: boolean }
   | { kind: 'changed'; id: string }
   | { kind: 'failed'; id: string; reason: string };
-/** HostLink's LayersEvent (rule 46). */
+/** HostLink's LayersEvent. */
 export type LayersEvent =
   | { kind: 'list'; character: string; layers: LayerOption[]; hidden: string[]; atHello: boolean }
   | { kind: 'changed'; hidden: string[] }
   | { kind: 'failed'; hidden: string[]; reason: string };
 
-/** What the shell remembers of a character: sent with `set_character`, at hello and on each `actions` (rules 28, 46, 53). */
+/** What the shell remembers of a character: sent with `set_character`, at hello and on each `actions`. */
 export interface Remembered {
   hiddenLayers(character: string): string[] | null;
   modSettings(character: string): Record<string, ModValues>;
@@ -103,25 +103,22 @@ const MOD_FAILURES: Record<string, string> = { unsupported: '当前版本角色�
 const OVERRIDE_FAILURES = { unsupported: '当前版本角色不支持动作设置', tooLarge: '变更项过多，超出单次传输限制，未能生效',
   busy: '正在切换角色或动作尚未加载完成，请稍后再试', refused: '角色未接受该动作设置' };
 
-/** Seconds; `character` is rule 14's, `appearance` rules 16 and 46's, `capture` rule 50's, `attention` rule 39's,
- *  `cameraLive` rule 49's, `lineInteractive` how long her line keeps the `interactive` tier, `playBusy` how long a user
- *  play answered `busy` is asked again, every `playRetry`. */
+/** Timing in seconds. Retry a busy user play every `playRetry` for up to `playBusy`. */
 export const LINK_TIMING = { tick: 0.1, ack: 2, reply: 2, playStart: 35, relink: 20, reconnect: 0.5, floodLines: 2000, character: 11,
   appearance: 10, capture: 10, attention: 45, cameraLive: 1 / 30, lineInteractive: 8, playBusy: 10, playRetry: 0.25 } as const;
 
-/** Rule 10, as HostLink's onLeftClick, onDoubleClick and onRightClick: `at` in global points. */
+/** HostLink's onLeftClick, onDoubleClick and onRightClick: `at` in global points. */
 export type ClickEvent = { kind: 'left'; at: { x: number; y: number }; region: string | null } | { kind: 'double' }
   | { kind: 'right'; at: { x: number; y: number } };
-/** Rule 56: the right button held on her, `at` in global points. */
+/** The right button held on her, `at` in global points. */
 export interface RightDragEvent { phase: 'down' | 'move' | 'up'; at: { x: number; y: number } }
-/** Rules 32, 34: what the renderer asks of the surface source. */
+/** What the renderer asks of the surface source. */
 export type SurfaceTrackEvent = { kind: 'track'; trackId: string; windowId: number; generation: number | null }
   | { kind: 'untrack'; trackId: string } | { kind: 'attach'; trackId: string | null };
-/** Rule 38: the items as she sent them, `x` and `y` in global points. */
+/** The items as she sent them, `x` and `y` in global points. */
 export interface DropEvent { items: Record<string, string>[]; x: number; y: number; truncated: boolean }
 export interface PoseState { character: string; id: string | null; locked: boolean }
 export interface CameraGesture { phase: 'began' | 'changed' | 'ended'; dx: number; dy: number; zoom: number }
-/** Rule 45's four switches. */
 export interface TouchSettings { regions: boolean; pat: boolean; pinch: boolean; greet: boolean }
 /** The `ack` of a command, or `timeout` / `disconnected`. */
 export type CommandResult = { ok: true } | { ok: false; reason: string };
@@ -129,15 +126,14 @@ export type CommandResult = { ok: true } | { ok: false; reason: string };
 export interface SurfaceWindow { window_id: number; generation: number; display_id: number; frame: Box; order: number;
   edges: { side: string; segments: [number, number][] }[]; above?: Box[] }
 export type SurfaceUpdate = { track_id: string; state: 'tracking'; window: SurfaceWindow } | { track_id: string; state: 'gone'; reason: string };
-/** Rule 44's five colours, each linear sRGB `[r, g, b]`. */
+/** Each colour is linear sRGB `[r, g, b]`. */
 export type AmbientColors = Record<'mean' | 'top' | 'bottom' | 'left' | 'right', [number, number, number]>;
-/** Rule 51's whole set for a character. */
 export interface MotionOverrides { chains: Record<string, boolean>; pools: Record<string, { clip: string; weight: number }[]>;
   blend_in: Record<string, number> }
 /** The capabilities this shell lists only when its caller says it sends their messages. */
 export type OfferedCapability = 'pass_through' | 'render_live' | 'ambient' | 'camera_free' | 'camera_track' | 'capture'
   | 'motion_overrides' | 'play_chain' | 'photo' | 'camera_bust' | 'action_transport';
-/** Queued output past this closes the connection; `trace` and `behavior_receipt` with `motion_state` lines a second (rules 22, 25, 54). */
+/** Queued output past this closes the connection; `trace` and `behavior_receipt` with `motion_state` lines a second. */
 export const LINK_LIMITS = { outputBytes: 256 * 1024, traceRate: 20, receiptRate: 20, traceEvents: 50 } as const;
 
 export interface LinkOptions {
@@ -155,18 +151,18 @@ export interface LinkOptions {
   remembered?: Remembered;
   /** Scales the reply timeouts; tests shorten them with it. */
   timeScale?: number;
-  /** The pointer in C3 global points, read every CURSOR.sample s; with it the link sends `cursor` (rules 1, 2) and lists
-   *  `pointer` (rule 36). */
+  /** The pointer in C3 global points, read every CURSOR.sample s; with it the link sends `cursor` and lists
+   *  `pointer`. */
   cursor?(): { x: number; y: number };
   /** HostLink.buttonsDown: a mouse button is held, read at each `cursor` sample; false when absent. */
   buttonsDown?(): boolean;
-  /** Rule 22's `trace_epoch` for each hello; it must not go back across restarts. The wall clock in ms when absent. */
+  /** `trace_epoch` must be monotonic across restarts. Defaults to wall-clock milliseconds. */
   traceEpoch?(): number;
   /** Each lists its capability: the valid events of a `trace`, a valid `behavior_receipt` and a valid `motion_request`,
    *  without `v` and `type`, for agentd. */
   onTrace?(events: Record<string, unknown>[]): void;
   onBehaviorReceipt?(receipt: Record<string, unknown>): void;
-  /** Rule 54: each valid `motion_state` without `v` and `type`, when both hellos list `behavior_receipt`. */
+  /** Each valid `motion_state` without `v` and `type`, when both hellos list `behavior_receipt`. */
   onMotionState?(state: Record<string, unknown>): void;
   /** True before the user's `play_action`: agentd gives her body up; false once no user play is asked for or plays. */
   onUserPlay?(playing: boolean): void;
@@ -177,7 +173,7 @@ export interface LinkOptions {
   onPresentationState?(state: Record<string, unknown>): void;
   /** `reason` is agentd's `/speech/cancel` one. */
   onSpeechCancelled?(speechId: string, reason: string): void;
-  /** Rule 23: each `playback` without `v` and `type`; at a drop, `interrupted` `connection_lost` for each speech still open. */
+  /** Each `playback` without `v` and `type`; at a drop, `interrupted` `connection_lost` for each speech still open. */
   onPlayback?(body: Record<string, unknown>): void;
   onSurfaceTrack?(e: SurfaceTrackEvent): void;
   onDrop?(d: DropEvent): void;
@@ -185,14 +181,14 @@ export interface LinkOptions {
   onDragBegin?(): void;
   /** A drag of hers ended at `at`, in global points; `excludedPids` are her renderer's and this shell's. */
   onDragRelease?(at: { x: number; y: number }, excludedPids: readonly number[]): void;
-  /** Rule 55: each valid `reaction`'s trigger; lists `reactions`. */
+  /** Each valid `reaction`'s trigger; lists `reactions`. */
   onReaction?(trigger: ReactionTrigger): void;
   onMotionStroke?(token: string, clip: string): void;
   onPoseState?(s: PoseState): void;
   onCameraGesture?(g: CameraGesture): void;
-  /** Rule 56: lists `right_drag`; each valid one after its `down`. */
+  /** Lists `right_drag`; each valid one after its `down`. */
   onRightDrag?(e: RightDragEvent): void;
-  /** Rule 57: lists `moving`; each change, and false when the link that said true ends. */
+  /** Lists `moving`; each change, and false when the link that said true ends. */
   onMoving?(moving: boolean): void;
   /** Lists `touch`; read at each hello that lists it, and by touchSettingsChanged. */
   touchSettings?(): TouchSettings;
@@ -215,7 +211,7 @@ class Connection {
   readonly lineTimes: number[] = [];
   /** Bytes of the line being handled, without its newline. */
   lineBytes = 0;
-  /** Rule 18's `req`, numbered per connection. */
+  /** Request IDs are numbered per connection. */
   nextReq = 1;
   /** This renderer's last valid `placement` and `stats`. */
   placement: C3Message | null = null;
@@ -226,24 +222,24 @@ class Connection {
   capsulesGlobal = false;
   capsulesAt = -Infinity;
   dragging = false;
-  /** Rule 56: a `right_drag` `down` came and its `up` has not; rule 57: her last `moving`. */
+  /** The right button is held after `down` and before `up`. `moving` tracks the last renderer report. */
   rightHeld = false;
   moving = false;
   /** The tier she runs at when neither hidden nor paused, as last worked out. */
   tier: FpsTier = 'working';
-  /** Rules 34, 41: where `cursor.hit` stays false, in global points (setHitExclusions). */
+  /** Where `cursor.hit` stays false, in global points (setHitExclusions). */
   above: Box[] = [];
   passThrough: Box[] = [];
-  /** Rule 49: when the last `camera.live` sample went out, and the newest one waiting for its turn. */
+  /** When the last `camera.live` sample went out, and the newest one waiting for its turn. */
   cameraLiveAt = -Infinity;
   cameraLivePending: C3Message | null = null;
   traceEpoch = 0;
   /** Receive times of the last LINK_LIMITS.traceRate `trace` and receiptRate forwarded receipts and `motion_state`. */
   traceTimes: number[] = [];
   receiptTimes: number[] = [];
-  /** `turn_generation` of each behavior whose last receipt was not terminal (rule 25). */
+  /** `turn_generation` of each behavior whose last receipt was not terminal. */
   readonly openBehaviors = new Map<string, number>();
-  /** The last `playback` of each speech `started` and not yet ended (rule 23). */
+  /** The last `playback` of each speech `started` and not yet ended. */
   readonly openSpeech = new Map<string, { clause_id: unknown; sample: number; rate: number }>();
   lastCursor: { x: number; y: number; inside: boolean; hit: boolean } | null = null;
   lastCursorAt = -Infinity;
@@ -279,14 +275,14 @@ export class HostLink {
   private _listening = false;
   private _startError: string | null = null;
   private readonly acks = new Map<number, { type: string; timer: ReturnType<typeof setTimeout>; done?: (r: CommandResult) => void }>();
-  /** Rules 50, 51: open until the reply that follows their `ack`. */
+  /** Open until the reply that follows their `ack`. */
   private readonly captures = new Map<number, { acked: boolean; resolve(r: { file: string; width: number; height: number }): void;
     reject(e: Error): void }>();
   private readonly overrideRequests = new Map<number, { acked: boolean; resolve(r: MotionOverridesReceipt): void; reject(e: Error): void }>();
-  /** Rule 39: across connections, as HostLink's attentionAt and attentionGeneration. */
+  /** Across connections, as HostLink's attentionAt and attentionGeneration. */
   private attentionAt = -Infinity;
   private attentionGeneration = 0;
-  /** Kept across reconnects; rule 13. */
+  /** Kept across reconnects. */
   private _hidden = false;
   /** 临时全部点穿; kept across reconnects, off at launch. */
   private _clickThroughAll = false;
@@ -310,7 +306,7 @@ export class HostLink {
   /** The `play_id` playAction sent last, until a final `action_played` of it, and its action. */
   private playing: string | null = null;
   private playingAction: string | null = null;
-  /** Rule 58: her last `action_progress` of `playing`. */
+  /** Her last `action_progress` of `playing`. */
   private progress: ActionProgress | null = null;
   /** playAction calls that have not settled. */
   private asked = 0;
@@ -322,7 +318,7 @@ export class HostLink {
   private timedOutCharacter: string | null = null;
   private appearanceRequest: { id: string; timer: ReturnType<typeof setTimeout> } | null = null;
   private layersRequest: { hidden: string[]; timer: ReturnType<typeof setTimeout> } | null = null;
-  /** One entry per `set_action_switches` sent, oldest first; null for one sent on a list (rule 28). */
+  /** One entry per `set_action_switches` sent, oldest first; null for one sent on a list. */
   private switchQueue: ({ resolve(r: SwitchReply): void; reject(e: Error): void } | null)[] = [];
   private readonly modRequests = new Map<number, { acked: boolean; resolve(r: ModReceipt): void; reject(e: Error): void }>();
 
@@ -340,7 +336,7 @@ export class HostLink {
   get currentCharacter(): string | null { return this.character; }
   get currentAppearance(): string | null { return this.appearance; }
   get hidden(): boolean { return this._hidden; }
-  /** Rule 57: she walks, as her last `moving` on the current connection says. */
+  /** She walks, as her last `moving` on the current connection says. */
   get moving(): boolean { return this.conn?.moving ?? false; }
   /** HostLink.clickThroughAll: every `cursor` goes out with `hit` false while on, except during a drag. */
   get clickThroughAll(): boolean { return this._clickThroughAll; }
@@ -380,7 +376,7 @@ export class HostLink {
   /** A `set_appearance` or `set_layers` waits for its reply. */
   get appearanceSwitching(): boolean { return this.appearanceRequest !== null; }
   get layersSwitching(): boolean { return this.layersRequest !== null; }
-  /** A `set_character` waits for its reply (rule 14). */
+  /** A `set_character` waits for its reply. */
   get characterSwitching(): boolean { return this.characterRequest !== null; }
   /** `hit` of the last C3 `cursor` sent on the current connection; false before one. */
   get lastCursorHit(): boolean { return this.conn?.lastCursor?.hit === true; }
@@ -592,7 +588,7 @@ export class HostLink {
     return false;
   }
 
-  /** Rule 10: a single click or the right button needs her window's frame. */
+  /** A single click or the right button needs her window's frame. */
   private handleClick(m: C3Message, c: Connection): boolean {
     if (!this.options.onClick) return true;
     if (!this.accepted(m, clickProblem(m, this.both(c, 'touch')))) return false;
@@ -606,7 +602,7 @@ export class HostLink {
     return true;
   }
 
-  /** CONTRACT「Optional presentation capability」: a state of the character she shows. */
+  /** `presentation_state`: a state of the character she shows. */
   private handlePresentationState(m: C3Message, c: Connection): boolean {
     if (!this.options.onPresentationState) return true;
     const why = this.both(c, 'presentation') ? presentationStateProblem(m, this.character) : 'capability';
@@ -623,7 +619,7 @@ export class HostLink {
     return true;
   }
 
-  /** Rule 23: forwarded without `v` and `type`; the speeches it opens are kept for a drop. */
+  /** Forwarded without `v` and `type`; the speeches it opens are kept for a drop. */
   private handlePlayback(m: C3Message, c: Connection): boolean {
     if (!this.options.onPlayback) return true;
     if (!this.accepted(m, playbackProblem(m))) return false;
@@ -635,7 +631,7 @@ export class HostLink {
     return true;
   }
 
-  /** Rule 51 (g): ends the open `set_motion_overrides` of the same `req` once its `ack` came. */
+  /** Ends the open `set_motion_overrides` of the same `req` once its `ack` came. */
   private handleMotionOverrides(m: C3Message, c: Connection): boolean {
     const receipt = c.capabilities.includes('motion_overrides') ? readMotionOverrides(m) : 'capability';
     if (typeof receipt === 'string') return this.accepted(m, receipt);
@@ -652,7 +648,7 @@ export class HostLink {
     return true;
   }
 
-  /** Rules 32–34: for the surface source when this link has one and she lists `surfaces` (`layering` for `attach`). */
+  /** For the surface source when this link has one and she lists `surfaces` (`layering` for `attach`). */
   private handleSurfaceTrack(m: C3Message, c: Connection): boolean {
     if (!this.options.onSurfaceTrack) return true;
     const listed = this.both(c, 'surfaces') && (m.type !== 'attach' || this.both(c, 'layering'));
@@ -668,7 +664,7 @@ export class HostLink {
     return true;
   }
 
-  /** Rule 38: both sides list `drop`. */
+  /** Both sides list `drop`. */
   private handleDrop(m: C3Message, c: Connection): boolean {
     if (!this.options.onDrop) return true;
     if (!this.accepted(m, this.both(c, 'drop') ? dropProblem(m) : 'capability')) return false;
@@ -676,14 +672,13 @@ export class HostLink {
     return true;
   }
 
-  /** Rule 55: only this link lists `reactions`. */
+  /** Only this link lists `reactions`. */
   private handleReaction(m: C3Message): boolean {
     if (!this.accepted(m, this.companionCapabilities.includes('reactions') ? reactionProblem(m) : 'capability')) return false;
     this.options.onReaction!(m.trigger as ReactionTrigger);
     return true;
   }
 
-  /** Rule 39. */
   private handleMotionStroke(m: C3Message): boolean {
     if (!this.options.onMotionStroke) return true;
     if (!this.accepted(m, motionStrokeProblem(m))) return false;
@@ -691,7 +686,6 @@ export class HostLink {
     return true;
   }
 
-  /** Rule 47. */
   private handlePoseState(m: C3Message, c: Connection): boolean {
     if (!this.options.onPoseState) return true;
     if (!this.accepted(m, this.both(c, 'poses') ? poseStateProblem(m) : 'capability')) return false;
@@ -700,7 +694,7 @@ export class HostLink {
     return true;
   }
 
-  /** Rule 50 (b): ends the open `capture` of the same `req` once its `ack` came. */
+  /** Ends the open `capture` of the same `req` once its `ack` came. */
   private handleCaptured(m: C3Message, c: Connection): boolean {
     if (!this.accepted(m, c.capabilities.includes('capture') ? capturedProblem(m) : 'capability')) return false;
     const req = m.req as number, file = m.file as string, open = this.captures.get(req);
@@ -714,7 +708,7 @@ export class HostLink {
     return true;
   }
 
-  /** Rule 49 (h); `changed` comes per pointer event, so only `began` and `ended` are logged. */
+  /** `changed` comes per pointer event, so only `began` and `ended` are logged. */
   private handleCameraGesture(m: C3Message, c: Connection): boolean {
     if (!this.options.onCameraGesture) return true;
     if (!this.accepted(m, this.both(c, 'camera_gesture') ? cameraGestureProblem(m) : 'capability')) return false;
@@ -723,7 +717,7 @@ export class HostLink {
     return true;
   }
 
-  /** Rule 56: a move or up only after its down; the held press keeps the hit. */
+  /** A move or up only after its down; the held press keeps the hit. */
   private handleRightDrag(m: C3Message, c: Connection): boolean {
     if (!this.options.onRightDrag) return true;
     if (!this.accepted(m, this.both(c, 'right_drag') ? rightDragProblem(m) : 'capability')) return false;
@@ -769,7 +763,7 @@ export class HostLink {
     this.emit({ kind: 'hello', hello });
     this.emit({ kind: 'character', event: { kind: 'current', id: character } });
     this.reportLooks(hello, character, true);
-    // Rule 53 (g): one `set_mod_settings` per remembered appearance she lists.
+    // One `set_mod_settings` per remembered appearance she lists.
     if (!c.capabilities.includes('mod_settings')) return;
     const listed = this.appearanceOptions.map((a) => a.id);
     const stored = this.options.remembered?.modSettings(character) ?? {};
@@ -780,7 +774,7 @@ export class HostLink {
     }
   }
 
-  /** Rule 22: at most LINK_LIMITS.traceRate lines a second of 1–traceEvents events; the valid events go to onTrace. */
+  /** At most LINK_LIMITS.traceRate lines a second of 1–traceEvents events; the valid events go to onTrace. */
   private handleTrace(m: C3Message, c: Connection): boolean {
     const t = now();
     if (c.traceTimes.length >= LINK_LIMITS.traceRate && t - c.traceTimes[0]! < 1) {
@@ -805,7 +799,7 @@ export class HostLink {
     return true;
   }
 
-  /** Rule 25: a terminal receipt always goes on; others at most LINK_LIMITS.receiptRate a second. */
+  /** A terminal receipt always goes on; others at most LINK_LIMITS.receiptRate a second. */
   private handleReceipt(m: C3Message, c: Connection): boolean {
     const why = behaviorReceiptProblem(m);
     if (why !== null) {
@@ -826,7 +820,7 @@ export class HostLink {
     return true;
   }
 
-  /** Rule 54: counted in rule 25's receipts a second; past them it is dropped. */
+  /** Shares the receipt rate limit. Excess reports are dropped. */
   private handleMotionState(m: C3Message, c: Connection): boolean {
     if (!this.accepted(m, this.both(c, 'behavior_receipt') ? motionStateProblem(m) : 'capability')) return false;
     const t = now();
@@ -837,7 +831,7 @@ export class HostLink {
     return true;
   }
 
-  /** Rule 40: forwarded when this link listed `motion_requests`; no reply line. */
+  /** Forwarded when this link listed `motion_requests`; no reply line. */
   private handleMotionRequest(m: C3Message, c: Connection): boolean {
     const listed = this.options.onMotionRequest && c.capabilities.includes('motion_requests');
     const why = listed ? motionRequestProblem(m, c.lineBytes) : 'capability';
@@ -865,7 +859,7 @@ export class HostLink {
     this.emit({ kind: 'layers', event: { kind: 'list', character, layers: ok.layers, hidden: ok.hidden, atHello } });
   }
 
-  /** Rule 14: the reply to the open `set_character`, or a `character_changed` after its timeout; false when it is dropped. */
+  /** The reply to the open `set_character`, or a `character_changed` after its timeout; false when it is dropped. */
   private handleCharacterReply(m: C3Message): boolean {
     const id = typeof m.id === 'string' ? m.id : '', reason = typeof m.reason === 'string' ? m.reason : '';
     const request = this.characterRequest;
@@ -898,7 +892,7 @@ export class HostLink {
     return true;
   }
 
-  /** Rule 16: the reply to the open `set_appearance`; false when it is dropped. */
+  /** The reply to the open `set_appearance`; false when it is dropped. */
   private handleAppearanceReply(m: C3Message): boolean {
     const id = typeof m.id === 'string' ? m.id : '', reason = typeof m.reason === 'string' ? m.reason : '';
     const request = this.appearanceRequest;
@@ -918,7 +912,7 @@ export class HostLink {
     return true;
   }
 
-  /** Rule 46 (b): a valid reply is reported whether or not a `set_layers` is open, and ends the open one. */
+  /** A valid reply is reported whether or not a `set_layers` is open, and ends the open one. */
   private handleLayersReply(m: C3Message): boolean {
     const failed = m.type === 'layers_change_failed', hidden = m.hidden;
     if (!Array.isArray(hidden) || !hidden.every((h) => typeof h === 'string')
@@ -934,7 +928,7 @@ export class HostLink {
     return true;
   }
 
-  /** Rule 53 (b), (e): ends the open `set_mod_settings` of the same `req` once its `ack` came; `req` null is her own report. */
+  /** Ends the open `set_mod_settings` of the same `req` once its `ack` came; `req` null is her own report. */
   private handleModSettings(m: C3Message, c: Connection): void {
     if (!c.capabilities.includes('mod_settings')) return this.options.log('rejected type=mod_settings why=capability');
     const receipt = readModReceipt(m);
@@ -949,7 +943,7 @@ export class HostLink {
     open.resolve(receipt);
   }
 
-  /** Rule 28: one `action_switches` per `set_action_switches`, in order. */
+  /** One `action_switches` per `set_action_switches`, in order. */
   private handleSwitchReply(m: C3Message): void {
     const reply = readSwitchReply(m);
     if (typeof reply === 'string') return this.options.log(`rejected type=action_switches why=${reply}`);
@@ -969,19 +963,19 @@ export class HostLink {
     c.out = [];
     c.outBytes = 0;
     this.options.log(`avatar disconnected: ${reason}`);
-    // Rule 25: behaviors not yet terminal end as connection_lost.
+    // Behaviors not yet terminal end as connection_lost.
     const atMs = Date.now();
     for (const [id, generation] of [...c.openBehaviors].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
       this.options.onBehaviorReceipt?.({ behavior_id: id, phase: 'cancelled', reason: 'connection_lost', at_ms: atMs, turn_generation: generation });
     }
     c.openBehaviors.clear();
-    // Rule 23: speeches still playing end as connection_lost.
+    // Speeches still playing end as connection_lost.
     for (const [id, open] of [...c.openSpeech].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
       this.options.onPlayback?.({ speech_id: id, clause_id: open.clause_id, state: 'interrupted', reason: 'connection_lost', sample: open.sample,
         rate: open.rate });
     }
     c.openSpeech.clear();
-    // Rule 57: the link's end is moving false.
+    // The link's end is moving false.
     if (wasActive && c.moving) {
       c.moving = false;
       this.options.onMoving?.(false);
@@ -1076,7 +1070,7 @@ export class HostLink {
     }
   }
 
-  /** Rule 18: a missing ack after 2 s is logged and `done` gets `timeout`. `done` gets the `ack`, or `disconnected` when
+  /** A missing ack after 2 s is logged and `done` gets `timeout`. `done` gets the `ack`, or `disconnected` when
    *  the link drops. */
   private command(c: Connection, m: C3Message, done?: (r: CommandResult) => void): boolean {
     const req = c.nextReq++;
@@ -1178,12 +1172,12 @@ export class HostLink {
     return true;
   }
 
-  /** Rule 9: `rect` in window points, null without a target window; false without an avatar. */
+  /** `rect` in window points, null without a target window; false without an avatar. */
   sendPointAt(nudgeId: string, rect: Box | null): boolean {
     return this.send({ v: 1, type: 'point_at', nudge_id: nudgeId, kind: 'alert', rect });
   }
 
-  /** Rules 1, 2, 36: every CURSOR.sample s; `cursor` when it moved, near her or CURSOR.keepalive
+  /** Every CURSOR.sample s; `cursor` when it moved, near her or CURSOR.keepalive
    *  since the last, `pointer` at most every CURSOR.pointerInterval when it changed. */
   private sampleCursor(): void {
     const c = this.conn, f = c?.frame;
@@ -1210,7 +1204,7 @@ export class HostLink {
     c.lastPoint = g;
     if (!moved && !near && t - c.lastCursorAt < CURSOR.keepalive) return;
     this.cursorMovedPending = false;
-    // Rules 13, 14: hidden or switching, `hit` stays false; rule 2: a drag holds it true; rules 34, 41: not over a window
+    // Hiding or switching clears `hit`. Dragging holds it true. Otherwise exclude windows
     // above the attached one or a control she lets through, nor while click-through all is on.
     // While a button is held the hit only stays on, and a press held since a hit goes past the pass-through rects.
     const pinnedOff = this._hidden || this.characterRequest !== null;
@@ -1233,7 +1227,7 @@ export class HostLink {
     this.cursorMovedPending = true;
   }
 
-  /** Rules 34, 41: `above` of the attached track's latest `surface` and the current pass-through rects, in global points
+  /** `above` of the attached track's latest `surface` and the current pass-through rects, in global points
    *  as `cursor()` gives; `cursor.hit` is false over either from the next sample. For this connection; false without one. */
   setHitExclusions(rects: { above: Box[]; passThrough: Box[] }): boolean {
     const c = this.conn;
@@ -1249,19 +1243,19 @@ export class HostLink {
     return c?.hello != null && this.write(c, m);
   }
 
-  /** Rule 5; false when no avatar has completed the handshake, so the caller stops it by signal. */
+  /** False when no avatar has completed the handshake, so the caller stops it by signal. */
   sendQuit(reason: string): boolean {
     return this.send({ v: 1, type: 'quit', reason });
   }
 
-  /** Rule 24: `turnGeneration` goes on the line only when she lists `turn_generation`. */
+  /** `turnGeneration` goes on the line only when she lists `turn_generation`. */
   stopSpeech(turnGeneration?: number): boolean {
     const m: C3Message = { v: 1, type: 'stop_speech', reason: 'barge_in' };
     if (turnGeneration !== undefined && this.capabilities.includes('turn_generation')) m.turn_generation = turnGeneration;
     return this.send(m);
   }
 
-  /** Rule 13: kept for the next connection; hidden also sends the `paused` tier. False without an avatar. */
+  /** Kept for the next connection; hidden also sends the `paused` tier. False without an avatar. */
   setVisible(visible: boolean): boolean {
     this._hidden = !visible;
     const c = this.conn;
@@ -1271,13 +1265,13 @@ export class HostLink {
     return true;
   }
 
-  /** Rule 12: the window's bottom-left to (`x`, `y`) in C3's global coordinates; false without an avatar. */
+  /** The window's bottom-left to (`x`, `y`) in C3's global coordinates; false without an avatar. */
   sendMoveWindow(x: number, y: number): boolean {
     const c = this.conn;
     return c?.hello != null && this.command(c, { v: 1, type: 'move_window', x, y });
   }
 
-  /** Rule 19: the anchor (`x` and `y` together) and/or the scale; false without either, or an avatar that lists `placement`. */
+  /** The anchor (`x` and `y` together) and/or the scale; false without either, or an avatar that lists `placement`. */
   sendSetPlacement(p: { x?: number; y?: number; scale?: number }): boolean {
     const c = this.conn;
     if ((p.x === undefined) !== (p.y === undefined) || (p.x === undefined && p.scale === undefined)) return false;
@@ -1317,7 +1311,7 @@ export class HostLink {
       this.listWaiters.delete(w);
       w.resolve(m);
     }
-    // Rule 28: the user's stored table goes out once when her list differs from it.
+    // The user's stored table goes out once when her list differs from it.
     const stored = this.options.remembered?.switches(m.character);
     if (stored && !sameTable(stored, m.switches) && this.send({ v: 1, type: 'set_action_switches', character: m.character, switches: stored })) {
       this.switchQueue.push(null);
@@ -1340,7 +1334,7 @@ export class HostLink {
     return true;
   }
 
-  /** Rule 58: of the play playAction sent last, when both sides list `action_transport`. */
+  /** Of the play playAction sent last, when both sides list `action_transport`. */
   private handleProgress(m: C3Message, c: Connection): boolean {
     if (!this.accepted(m, this.both(c, 'action_transport') ? actionProgressProblem(m) : 'capability')) return false;
     if (this.playing !== null && m.play_id === this.playing) {
@@ -1356,10 +1350,10 @@ export class HostLink {
     this.emit({ kind: 'actionProgress', progress: p });
   }
 
-  /** Rule 58: her last progress of the play playAction sent last; null once it ended or before she reports one. */
+  /** Her last progress of the play playAction sent last; null once it ended or before she reports one. */
   get actionProgress(): ActionProgress | null { return this.progress; }
 
-  /** Rule 58: pauses, resumes or seeks to `at` seconds the play playAction sent last; resolves on her `ack` ok. */
+  /** Pauses, resumes or seeks to `at` seconds the play playAction sent last; resolves on her `ack` ok. */
   controlAction(op: TransportOp, at?: number): Promise<void> {
     const c = this.listing('action_transport');
     if (c === null) return Promise.reject(unsupported());
@@ -1377,7 +1371,7 @@ export class HostLink {
     });
   }
 
-  /** Rule 27: the character's list; asks the avatar only when none arrived since the link came up. */
+  /** The character's list; asks the avatar only when none arrived since the link came up. */
   async actions(character: string): Promise<Actions> {
     await this.linked();
     if (!this.capabilities.includes('actions')) throw unsupported();
@@ -1395,7 +1389,7 @@ export class HostLink {
     });
   }
 
-  /** Rule 29: resolves once the avatar reports `started`; `loop` goes on the line only when it lists `action_loop`. The
+  /** Resolves once the avatar reports `started`; `loop` goes on the line only when it lists `action_loop`. The
    *  user's play comes first: agentd gives her body up before it, and a `busy` answer, a sit or walk still ending, is
    *  asked again until LINK_TIMING.playBusy is over. */
   async playAction(character: string, id: string, speed: number, loop: boolean): Promise<void> {
@@ -1440,7 +1434,7 @@ export class HostLink {
     return setTimeout(fn, seconds * 1000 * (this.options.timeScale ?? 1));
   }
 
-  /** Rule 14: asks her to switch, with the character's remembered look; the reply or the 11 s timeout comes as a `character` event. */
+  /** Asks her to switch, with the character's remembered look; the reply or the 11 s timeout comes as a `character` event. */
   sendSetCharacter(id: string, appearance: string | null): boolean {
     const c = this.conn;
     if (c?.hello == null) return false;
@@ -1448,7 +1442,7 @@ export class HostLink {
     if (appearance !== null) m.appearance = appearance;
     const hidden = c.capabilities.includes('layers') ? this.options.remembered?.hiddenLayers(id) : null;
     if (hidden) m.hidden_layers = hidden;
-    // Rule 53 (f): every remembered appearance of the new character, left out when the line would not fit.
+    // Every remembered appearance of the new character, left out when the line would not fit.
     const mods = c.capabilities.includes('mod_settings') ? this.options.remembered?.modSettings(id) ?? {} : {};
     if (Object.keys(mods).length > 0) {
       m.mod_settings = mods;
@@ -1469,7 +1463,7 @@ export class HostLink {
     return this.write(c, m);
   }
 
-  /** Rule 16: the reply or the 10 s timeout comes as an `appearance` event. */
+  /** The reply or the 10 s timeout comes as an `appearance` event. */
   sendSetAppearance(id: string): boolean {
     const c = this.conn;
     if (c?.hello == null) return false;
@@ -1484,7 +1478,7 @@ export class HostLink {
     return this.write(c, { v: 1, type: 'set_appearance', id });
   }
 
-  /** Rule 46: the whole hidden set, when she lists `layers`; the reply or the 10 s timeout comes as a `layers` event. */
+  /** The whole hidden set, when she lists `layers`; the reply or the 10 s timeout comes as a `layers` event. */
   sendSetLayers(hidden: string[]): boolean {
     const c = this.conn;
     if (c?.hello == null || !c.capabilities.includes('layers')) return false;
@@ -1499,7 +1493,7 @@ export class HostLink {
     return this.write(c, { v: 1, type: 'set_layers', hidden });
   }
 
-  /** Rule 28: sends the character's whole table and returns her `action_switches`, at most 2 s later. */
+  /** Sends the character's whole table and returns her `action_switches`, at most 2 s later. */
   async saveSwitches(character: string, switches: Record<string, boolean>): Promise<SwitchReply> {
     if (!this.capabilities.includes('actions') || !this.send({ v: 1, type: 'set_action_switches', character, switches })) throw unsupported();
     return new Promise((resolve, reject) => {
@@ -1514,7 +1508,7 @@ export class HostLink {
     });
   }
 
-  /** Rule 53: one appearance's whole set; resolves with her `mod_settings` of the same `req`, which follows its `ack`. */
+  /** One appearance's whole set; resolves with her `mod_settings` of the same `req`, which follows its `ack`. */
   setModSettings(character: string, appearance: string, values: ModValues): Promise<ModReceipt> {
     const c = this.conn;
     if (c?.hello == null || !c.capabilities.includes('mod_settings')) {
@@ -1539,7 +1533,7 @@ export class HostLink {
     });
   }
 
-  /** Rule 29 `stop_action` for the play playAction sent last; does nothing when none is playing. */
+  /** `stop_action` for the play playAction sent last; does nothing when none is playing. */
   stopAction(): void {
     if (this.playing === null) return;
     if (!this.capabilities.includes('action_loop') || !this.send({ v: 1, type: 'stop_action', play_id: this.playing })) throw unsupported();
@@ -1551,7 +1545,7 @@ export class HostLink {
     return c?.hello != null && capabilities.every((x) => this.both(c, x)) ? c : null;
   }
 
-  /** Writes `m` when its fields hold (CONTRACT, outboundProblem); `done` as command's when `command` is set. */
+  /** Writes `m` when its fields hold (outboundProblem); `done` as command's when `command` is set. */
   private checked(c: Connection, m: C3Message, how: 'write' | 'command', done?: (r: CommandResult) => void): boolean {
     const why = outboundProblem({ ...m, ...(how === 'command' ? { req: c.nextReq } : {}) },
       (x) => this.both(c, x));
@@ -1562,31 +1556,31 @@ export class HostLink {
     return how === 'write' ? this.write(c, m) : this.command(c, m, done);
   }
 
-  /** Rule 31: the whole window list; only the newest queued one goes out. */
+  /** The whole window list; only the newest queued one goes out. */
   sendSurfaces(seq: number, windows: SurfaceWindow[]): boolean {
     const c = this.listing('surfaces');
     return c !== null && this.checked(c, { v: 1, type: 'surfaces', seq, windows }, 'write');
   }
 
-  /** Rules 32, 34: one tracked window; only the newest queued one of a `track_id` goes out. `above` needs `layering`. */
+  /** One tracked window; only the newest queued one of a `track_id` goes out. `above` needs `layering`. */
   sendSurface(s: SurfaceUpdate): boolean {
     const c = this.listing('surfaces');
     return c !== null && this.checked(c, { v: 1, type: 'surface', ...s }, 'write');
   }
 
-  /** Rule 35: the covering window, or null when she is no longer covered; in order. */
+  /** The covering window, or null when she is no longer covered; in order. */
   sendCovered(w: { window_id: number; generation: number; frame: Box } | null): boolean {
     const c = this.listing('opacity');
     return c !== null && this.checked(c, { v: 1, type: 'covered', ...(w ?? { window_id: null }) }, 'write');
   }
 
-  /** Rule 41: all current rects in global points, `[]` to clear; in order. */
+  /** All current rects in global points, `[]` to clear; in order. */
   sendPassThrough(rects: Box[]): boolean {
     const c = this.listing('pass_through');
     return c !== null && this.checked(c, { v: 1, type: 'pass_through', rects }, 'write');
   }
 
-  /** Rule 39: false while hidden or paused, within LINK_TIMING.attention of
+  /** False while hidden or paused, within LINK_TIMING.attention of
    *  the last one sent, or for a side other than `left` / `right`. */
   sendAttentionSide(source: string, kind: string, side: string): boolean {
     const c = this.conn, scale = this.options.timeScale ?? 1;
@@ -1598,13 +1592,13 @@ export class HostLink {
     return true;
   }
 
-  /** Rule 39: `open` before a panel shows beside her, `close` with the same token as it goes. */
+  /** `open` before a panel shows beside her, `close` with the same token as it goes. */
   sendPresent(token: string, side: string, phase: string): boolean {
     const c = this.conn;
     return c?.hello != null && this.checked(c, { v: 1, type: 'present', token, side, phase }, 'write');
   }
 
-  /** Rule 44: without `req`; the caller keeps it at 2 Hz or less. */
+  /** Without `req`; the caller keeps it at 2 Hz or less. */
   sendAmbientSample(source: string, colors: AmbientColors): boolean {
     const c = this.listing('ambient');
     return c !== null && this.checked(c, { v: 1, type: 'ambient_sample', source, colors }, 'write');
@@ -1617,13 +1611,13 @@ export class HostLink {
     return this.checked(c, { v: 1, type: 'touch_settings', regions, pat, pinch, greet }, 'write');
   }
 
-  /** Rule 45: `touchSettings()` changed; sent again when both sides list `touch`, as at each hello. */
+  /** `touchSettings()` changed; sent again when both sides list `touch`, as at each hello. */
   touchSettingsChanged(): boolean {
     const c = this.conn;
     return c?.hello != null && this.sendTouchSettings(c);
   }
 
-  /** Rules 43, 49: the groups in `payload`; camera fields of a capability she does
+  /** The groups in `payload`; camera fields of a capability she does
    *  not list are left out and a `yaw` below −90 is raised to it without `camera_free`; `dof`, `photo` are left
    *  out without theirs. `onResult` as command's. */
   sendSetRender(payload: Record<string, unknown>, onResult?: (r: CommandResult) => void): boolean {
@@ -1649,7 +1643,7 @@ export class HostLink {
     return this.checked(c, m, 'command', onResult);
   }
 
-  /** Rule 49: a sample of a gesture in progress, without `req`; samples within
+  /** A sample of a gesture in progress, without `req`; samples within
    *  LINK_TIMING.cameraLive of the last one sent merge into the newest, which goes out then. */
   sendCameraLive(yaw: number, pitch: number, zoom: number): boolean {
     const c = this.listing('render_live', 'camera_free');
@@ -1678,26 +1672,26 @@ export class HostLink {
     return true;
   }
 
-  /** Rule 49: asks for, or ends, the conversation close-up. */
+  /** Asks for, or ends, the conversation close-up. */
   sendCloseup(on: boolean): boolean {
     const c = this.listing('render_live', 'camera_free');
     return c !== null && this.checked(c, { v: 1, type: 'set_render', camera: { closeup: on } }, 'command');
   }
 
-  /** Rule 43: the photo panel's `photo` group; `focus` null is `auto`. */
+  /** The photo panel's `photo` group; `focus` null is `auto`. */
   sendPhoto(active: boolean, aperture: number, focus: number | null): boolean {
     const c = this.listing('render_live', 'photo');
     return c !== null && this.checked(c, { v: 1, type: 'set_render', photo: { active, aperture, focus: focus ?? 'auto' } }, 'command');
   }
 
-  /** Rule 47: `id` null goes back to automatic. `onResult` as command's. */
+  /** `id` null goes back to automatic. `onResult` as command's. */
   sendSetPose(id: string | null, lock: boolean, onResult?: (r: CommandResult) => void): boolean {
     const c = this.listing('poses');
     if (c === null || this.character === null) return false;
     return this.checked(c, { v: 1, type: 'set_pose', character: this.character, id, lock }, 'command', onResult);
   }
 
-  /** CONTRACT「Optional presentation capability」: `input` holds `weather`, `expression`, `face_effect`, `facial_animation`,
+  /** `set_presentation`: `input` holds `weather`, `expression`, `face_effect`, `facial_animation`,
    *  `valid_for_seconds`, sent only when they hold (presentationInputProblem); the answer comes as onPresentationState. */
   sendSetPresentation(req: number, character: string, input: Record<string, unknown>): boolean {
     const c = this.listing('presentation');
@@ -1710,7 +1704,7 @@ export class HostLink {
     return this.write(c, { ...input, v: 1, type: 'set_presentation', req, character });
   }
 
-  /** Rule 51: `character`'s whole set; resolves with her `motion_overrides` of the same `req`, which follows its `ack`,
+  /** `character`'s whole set; resolves with her `motion_overrides` of the same `req`, which follows its `ack`,
    *  within LINK_TIMING.ack. A line over MAX_LINE is not sent. */
   setMotionOverrides(character: string, overrides: MotionOverrides): Promise<MotionOverridesReceipt> {
     const c = this.listing('motion_overrides');
@@ -1744,7 +1738,7 @@ export class HostLink {
     });
   }
 
-  /** Rule 52: the chain from `start` once; `speed` goes on the line when given. `onResult` gets its `ack` as command's;
+  /** The chain from `start` once; `speed` goes on the line when given. `onResult` gets its `ack` as command's;
    *  `action_played` with `chain` follows an ok one. */
   playChain(playId: string, character: string, start: string, speed?: number, onResult?: (r: CommandResult) => void): boolean {
     const c = this.listing('play_chain');
@@ -1754,7 +1748,7 @@ export class HostLink {
     return this.checked(c, m, 'command', onResult);
   }
 
-  /** Rule 50: resolves with the file name and pixel size of her `captured`, which follows the `ack` of the same `req`,
+  /** Resolves with the file name and pixel size of her `captured`, which follows the `ack` of the same `req`,
    *  within LINK_TIMING.capture. Fails with code `unsupported`, `busy`, `failed` or `timeout`. */
   capture(background = 'transparent'): Promise<{ file: string; width: number; height: number }> {
     const c = this.listing('capture');

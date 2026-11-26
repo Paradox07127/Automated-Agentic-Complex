@@ -1,4 +1,4 @@
-// `avatar.modSettings.*` types (C3 v27 rule 53), re-exported through motionOverrides.ts.
+// `avatar.modSettings.*` types, re-exported through motionOverrides.ts.
 
 /** One appearance's switches: switch id → value, an integer 0–255. */
 export type ModSettingValues = Record<string, number>;

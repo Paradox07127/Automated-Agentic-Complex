@@ -10,7 +10,7 @@ from personal.rituals import GREETING, TAP, TAPS, TEMPLATES, pick_line
 from sessions import day_summary, threads
 from api.views import _iso
 
-# C3 rule 45(a)'s regions; left and right are hers.
+# The renderer's touch regions; left and right are hers.
 TAP_REGION_TEXT = {
     "head_top": "the top of your head",
     "head": "your head",

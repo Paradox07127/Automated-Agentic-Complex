@@ -45,7 +45,7 @@
 ### 角色、外观与动作
 
 - 在**「角色」**页（`⌘4`）切换角色包，外观模式提供**外观**、**显示**、**模组设置**与**导入**页签，动作模式提供**动作表**、**编排**（动作链）与**导入**页签；**「MMD」**页提供共享舞蹈库、音频与演出列表。
-- 每个角色为独立角色包（包含模型、动作、声线配置与人设），格式见[角色包规范](protocol/character-library/CONTRACT.md)。
+- 每个角色为独立角色包（包含模型、动作、声线配置与人设）。
 - 支持在「角色 › 导入」导入 EFMI 外观模组（切换部件与颜色开关），以及导入 VMD、BVH、glTF、GLB、VRMA、FBX 和带 VMD 的 ZIP（可附带音频，支持将 VMD 与 ZIP 直接拖到角色窗口导入）。格式与限制见[动作导入](docs/guides/motion-import.md)。
 
 ### 语音
@@ -206,7 +206,7 @@ AGENTD_DEV_CATALOG="$PWD/fixtures/characters/current.json" ../../.venv/bin/pytho
 
 以下两个服务独立于应用运行，由用户自行部署；应用只保存服务地址和令牌，不携带镜像或模型权重：
 
-- **语音合成服务**：基于 GPT-SoVITS 的 HTTP 服务，提供角色声线。在「设置 › 服务 › TTS 语音合成服务」填写服务地址或 SSH/本机配置；部署步骤见[语音服务部署](docs/guides/tts-deploy.md)；接入其他语音合成引擎的接口规范见[TTS 引擎接口](protocol/C2-speech-stream/ENGINE.md)。
+- **语音合成服务**：基于 GPT-SoVITS 的 HTTP 服务，提供角色声线。在「设置 › 服务 › TTS 语音合成服务」填写服务地址或 SSH/本机配置；部署步骤见[语音服务部署](docs/guides/tts-deploy.md)。
 - **动作生成服务**：`motion/` 中的 HTTP 服务，按文字描述生成动作（当前后端为 NVIDIA Kimodo）。在「设置 › 服务 › 动作生成服务」填写服务地址（目前尚无完整部署文档）。
 
 ## 交流群
@@ -227,5 +227,4 @@ AGENTD_DEV_CATALOG="$PWD/fixtures/characters/current.json" ../../.venv/bin/pytho
 - [开发与发行](docs/development.md)
 - [发行组件与安装](docs/components.md)
 - [本机开发面板（Dev Console）](docs/development.md#开发运行dev-console)
-- [协议索引](protocol/README.md)
 - [AGPL-3.0 许可证](LICENSE)

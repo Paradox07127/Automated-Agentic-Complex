@@ -28,7 +28,7 @@
   uv pip install --python .local/venvs/pipeline/bin/python3 -r characters/agentic_complex_build/requirements-mmd.txt
   ```
 
-- Keep local character package inputs in `.local/inputs/` or `.local/output/<task>/`, outside version control. External tools generate character packages in the format defined by [the character library contract](../protocol/character-library/CONTRACT.md).
+- Keep local character package inputs in `.local/inputs/` or `.local/output/<task>/`, outside version control. External tools generate character packages.
 - **Windows x64 (WIP)**: Requires Visual Studio 2022 (C++ x64 build tools), Node.js ≥ 24.22.1, and Python 3.12 to build `ac-helper.exe`, the Electron shell, and the portable directory package (`efw.exe` is a private component and not in the public repository). See the [Windows](#windows) section below.
 
 ## Local development (Dev Console)

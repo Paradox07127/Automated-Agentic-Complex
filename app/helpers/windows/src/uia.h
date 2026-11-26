@@ -1,5 +1,5 @@
-// UI Automation for the ax.* ops of CONTRACT §7.4: one dedicated MTA thread owns IUIAutomation and makes every UIA
-// call (§5.3); the role names of §7.13; the element reads the ax.* handlers share.
+// UI Automation for the ax.* ops: one dedicated MTA thread owns IUIAutomation and makes every UIA
+// call; the AX role names of UIA's ControlTypes; the element reads the ax.* handlers share.
 #pragma once
 
 #define NOMINMAX
@@ -59,7 +59,7 @@ bool call(DWORD limit_ms, DWORD pid, std::function<void(IUIAutomation*)> work);
 void post(std::function<void(IUIAutomation*)> work);
 bool available();
 
-// CONTRACT §5.3: an app that timed out answers ax_timeout for 2 s without being asked.
+// An app that timed out answers ax_timeout for 2 s without being asked.
 bool skipped(DWORD pid);
 void back_off(DWORD pid);
 
@@ -121,16 +121,16 @@ json::Value value_text(IUIAutomationElement* element, const Info& info, int max_
                        bool* cut = nullptr);
 // The caret at the selection's start when it lies within 40 px of the control, else null.
 json::Value caret(IUIAutomationElement* element, const Info& info, Reads& reads);
-// An ax_element (CONTRACT §7.4) of element in the top-level window: roles, label (a Text control's first 200 scalars),
+// An ax_element of element in the top-level window: roles, label (a Text control's first 200 scalars),
 // the value's length, the window's title and element_key; selected_text and value only when asked. A password control
 // gives its roles, window title and key only, and a null value when asked.
 json::Value element_json(IUIAutomationElement* element, HWND window, bool selected, bool value, Reads& reads);
 
-// attention.sample's focus_* fields (CONTRACT §7.3): the focused element's roles and those of the first Window up from
+// attention.sample's focus_* fields: the focused element's roles and those of the first Window up from
 // it; null where UIA does not answer. front: the foreground app.
 void set_focus_roles(json::Value& result, DWORD front);
 
-// input.actions (CONTRACT §7.3) is on; ops_attention.cpp's Raw Input asks before it reads an action.
+// input.actions is on; ops_attention.cpp's Raw Input asks before it reads an action.
 bool actions_on();
 // A user's release of the left button (click) or press of the right one (context_menu) at p; the control under it is
 // read on the UIA thread.
@@ -168,7 +168,7 @@ inline std::string first_scalars(const std::string& text, size_t n) {
 
 // ---- elements
 
-// CONTRACT §7.4: IsPassword, or a keyword of ops.json's secure_keywords in the class name, Name or HelpText, as
+// IsPassword, or a keyword of ops.json's secure_keywords in the class name, Name or HelpText, as
 // AXRules.isSecure reads role, subrole, title and description. A Text control's Name is its text (AXStaticText's
 // value), which the rule leaves out.
 inline bool secure(bool password, CONTROLTYPEID type, const std::wstring& class_name, const std::wstring& name,
@@ -231,7 +231,7 @@ inline Info info(IUIAutomationElement* element) {
     return i;
 }
 
-// CONTRACT §7.13: the native name and the AX role of each UIA ControlType; null for a type the table lacks.
+// The native name and the AX role of each UIA ControlType; null for a type the table lacks.
 inline const char* const* find_type(CONTROLTYPEID id) {
     static const char* const types[][2] = {
         {"Button", "AXButton"}, {"Calendar", "AXUnknown"}, {"CheckBox", "AXCheckBox"}, {"ComboBox", "AXComboBox"},
@@ -275,7 +275,7 @@ inline json::Value subrole(const Info& info) {
     return json::null();
 }
 
-// CONTRACT §7.4: by role and subrole as ScreenTargets.isEditable, or a ValuePattern that is not read-only.
+// By role and subrole as ScreenTargets.isEditable, or a ValuePattern that is not read-only.
 inline bool editable(const Info& info) {
     std::string r = role(info.type);
     return r == "AXTextField" || r == "AXTextArea" || r == "AXComboBox" || info.password || info.editable_value;

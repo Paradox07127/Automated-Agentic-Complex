@@ -11,7 +11,7 @@ export const TRACE_FORWARD = { batchSize: 200, flushAfter: 0.5, maxBuffered: 200
 
 type Event = Record<string, unknown>;
 
-/** C3 rule 22: batches T1 events, holding them while agentd is unreachable. */
+/** Batches T1 events, holding them while agentd is unreachable. */
 export class TraceForwarder {
   private readonly epoch: number;
   private readonly send: (events: Event[]) => Promise<number>;
@@ -108,7 +108,7 @@ export class TraceForwarder {
     else if (this.buffer.length > 0 && this.firstAt !== null) this.schedule(this.firstAt + TRACE_FORWARD.flushAfter - this.clock());
   }
 
-  /** Its own C6 §4.1 `trace.dropped` event. */
+  /** Its own T1 `trace.dropped` event. */
   private droppedEvent(count: number, since: string): Event {
     return this.event('trace.dropped', randomUUID(), null, null, { wall: this.clock(), monoMs: Math.floor(performance.now()) }, { count, since });
   }
@@ -176,7 +176,6 @@ export function agentdForwarding(o: ForwardPorts) {
         if (status !== 202) o.log(`motion request forward request_id=${String(body.request_id ?? '')} status=${status}`);
       });
     },
-    /** C3 rule 55. */
     onReaction: record,
     onDragBegin: () => record('drag'),
     stop: () => trace.stop(),

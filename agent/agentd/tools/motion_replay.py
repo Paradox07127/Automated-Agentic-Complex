@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Replays a stretch of agentd's motion lane (`protocol/C6-agentd-api/T1-TRACE.md`, 动作线): the inputs it recorded go
+"""Replays a stretch of agentd's motion lane: the inputs it recorded go
 again, in order and at their times, to a fresh Spatial and MotionChooser on a fake clock with a fake renderer, and the
 decisions they make (motion.chosen, behavior.dispatched, behavior.refused) are compared with the recorded ones.
 

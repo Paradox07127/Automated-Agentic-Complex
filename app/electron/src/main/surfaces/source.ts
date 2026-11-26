@@ -1,4 +1,4 @@
-// The surface source of C3 rules 31–35 and 41 over the platform helper: each link tick reads `windows.list` (and `screens.list` when the displays are
+// Desktop surfaces from the platform helper: each link tick reads `windows.list` (and `screens.list` when the displays are
 // not known) at the rules' pace, sends `surfaces` / `surface` / `covered` / `pass_through` through the link, and answers
 // `track_surface`, `untrack_surface` and `attach`. `workspace.watch` events ask for a fresh read.
 import { appKitY, type AttentionSample, type HelperY } from '../../common/attention.ts';
@@ -24,7 +24,7 @@ export interface SurfaceLink {
   sendSurface(s: SurfaceUpdate): boolean;
   sendCovered(w: { window_id: number; generation: number; frame: Box } | null): boolean;
   sendPassThrough(rects: Box[]): boolean;
-  /** Rules 34, 41: where `cursor.hit` stays false. */
+  /** Where `cursor.hit` stays false. */
   setHitExclusions(rects: { above: Box[]; passThrough: Box[] }): boolean;
   /** The next cursor sample goes out even if the pointer stood still. */
   cursorMoved(): void;
@@ -92,7 +92,7 @@ export class SurfaceSource {
   private frontPid: number | null = null;
   /** The watch gave the front app: the attention sample's front no longer sets `frontPid`. */
   private frontWatched = false;
-  /** `workspace.watch` answered; after a restart the supervisor asks for it again (C12 §6.4). */
+  /** `workspace.watch` answered; after a restart the supervisor asks for it again. */
   private workspaceWatched = false;
   private failed: string | null = null;
   private readonly stops: (() => void)[] = [];
@@ -106,7 +106,7 @@ export class SurfaceSource {
     for (const s of this.stops.splice(0)) s();
   }
 
-  /** Rule 35: the front app's window covers her. */
+  /** The front app's window covers her. */
   get isCovered(): boolean {
     return this.conn?.cover.covered ?? false;
   }
@@ -122,7 +122,7 @@ export class SurfaceSource {
     this.running = running;
     this.screens = null;
     if (!running) {
-      // No reads without the helper: the tracked windows stop and the renderer drops them (rule 32's 250 ms).
+      // No reads without the helper: the tracked windows stop and the renderer drops them after 250 ms.
       if (this.conn) this.conn.input = null;
       return;
     }
@@ -242,9 +242,9 @@ export class SurfaceSource {
     if (c.input !== null) {
       const snapshot = c.input;
       c.inputFresh = false;
-      // Rule 31: the avatar's own windows never count; its pid is the one from its hello.
+      // The avatar's own windows never count; its pid is the one from its hello.
       const full: SurfaceInput = { ...snapshot, excludedPids: new Set([...snapshot.excludedPids, c.avatarPid]) };
-      // Rule 35 judges each read once; tracking reuses the cached read every tick.
+      // judges each read once; tracking reuses the cached read every tick.
       if (fresh) {
         c.coverSurfaces.update(full);
         if (!coverPaused && body !== null) latest = full;
@@ -262,7 +262,7 @@ export class SurfaceSource {
       link.cursorMoved();
       this.ports.log(`SURFACES cover ${change}`);
     }
-    // Rule 35: `covered` on entering, again when another window takes over, and null on leaving.
+    // `covered` on entering, again when another window takes over, and null on leaving.
     if (link.capabilities.includes('opacity')) this.covered(c, change, latest);
     this.passThrough(c, now);
     link.setHitExclusions({ above: c.tracking?.attachedAbove ?? [], passThrough: c.passThrough.rects });

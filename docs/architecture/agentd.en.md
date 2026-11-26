@@ -2,13 +2,13 @@
 
 [简体中文](agentd.md) · [Documentation index](../README.en.md)
 
-agentd is the character-side background service. It is written in Python 3.12 and listens on 127.0.0.1 only. It receives Claude Code and Codex hooks, keeps the multi-session registry and the focus, brokers Claude's approvals, pushes behaviors and intents to the character process, and runs the character's conversations, tasks, memory, and observation. HTTP endpoint fields and error codes are in the [C6 contract](../../protocol/C6-agentd-api/CONTRACT.md) (§3 table, §4 details); process arguments and discovery files are in the [C9 contract](../../protocol/C9-agentd-process/CONTRACT.md); tool authorization is in the [tool gateway](tool-gateway.en.md).
+agentd is the character-side background service. It is written in Python 3.12 and listens on 127.0.0.1 only. It receives Claude Code and Codex hooks, keeps the multi-session registry and the focus, brokers Claude's approvals, pushes behaviors and intents to the character process, and runs the character's conversations, tasks, memory, and observation. HTTP routes are registered in `route_registry.py`; tool authorization is in the [tool gateway](tool-gateway.en.md).
 
 ## Overview
 
 - Dependencies are in `agent/agentd/requirements.txt` (the `httpx` HTTP client and `PyJWT` for OIDC checks).
 - agentd installs no hooks itself and does not change `~/.claude` or `~/.codex`. The user installs observe-only hooks by running `tools/install_hooks.py` (see "Hook installation").
-- Companion starts it through `app/Resources/agentd_launcher.py`; the standalone command is in the last section of the [C9 contract](../../protocol/C9-agentd-process/CONTRACT.md).
+- Companion starts it through `app/Resources/agentd_launcher.py`; to run it standalone, run `agent/.venv/bin/python3 agent/agentd/server.py --port 48820 --state-dir /tmp/agentd-state --no-exit-with-parent` from the repository root (without `-I`; avoid port 48800, which Companion's agentd uses).
 
 ## Code layout
 
@@ -16,7 +16,7 @@ A new module goes into the domain package it belongs to; the root holds only fil
 
 | Package | Contents |
 |---|---|
-| `api/` | The HTTP `Handler` (`api/handler.py`: the `parse_request` checks, and `_dispatch`, which hands a request to the owner of its route in `route_registry.py`); mixins split by URL prefix: `hooks`, `sessions`, `memory`, `episodes`, `observation`, `context`, `speech`, `diag`, `character`, `settings`; `views.py` holds the views and field checks shared by `api/` and `daemon/`; `integration.py` holds the `/integration/*` routes for outside agents ([INTEGRATION.md](../../protocol/C6-agentd-api/INTEGRATION.md)) |
+| `api/` | The HTTP `Handler` (`api/handler.py`: the `parse_request` checks, and `_dispatch`, which hands a request to the owner of its route in `route_registry.py`); mixins split by URL prefix: `hooks`, `sessions`, `memory`, `episodes`, `observation`, `context`, `speech`, `diag`, `character`, `settings`; `views.py` holds the views and field checks shared by `api/` and `daemon/`; `integration.py` holds the `/integration/*` routes for outside agents |
 | `daemon/` | `main.py` (arguments, startup order, serve loop); `AgentdServer` and `StateView` in `agentd_server.py`; mixins split by concern: `announce`, `turns`, `speech_control`, `context`, `switches`, `ingest`, `character_switch`, `rituals_glue`, `memory_sync`, `tracing`, `diagnostics`, `lifecycle`; shared constants in `constants.py` |
 | `infra/` | SQLite storage and schemas (`store`, `store_schemas`, `data_lifecycle`), private IPC token files (`tokens`), OS credential storage (`secrets`), state paths (`paths`), on-demand start of external services (`service_ensure`), local time in prompts (`localtime`), platform differences (`platform/`) |
 | `sessions/` | Event normalization, the session registry, approvals and danger rules (`approvals`, `danger`), own sessions and dispatch (`own`, `lifecycle`, `dispatch`, `tasks`), session digests, the harness ledger and day summaries |
@@ -40,7 +40,7 @@ The root has 13 `.py` files; something outside the package finds each one by pat
 - `server.py`: the entry point; `app/Resources/agentd_launcher.py` starts it by path.
 - `codex_hook_forward.py`: the hook forwarder; the hook configs in `config-examples/` and the commands `tools/install_hooks.py` writes into user configs call it by path.
 - `c1.py`: C1 message checks; `python3 -I agent/agentd/c1.py protocol/C1-agent-events/fixtures` checks the fixtures.
-- `route_registry.py`: the HTTP route registry; `protocol/tools/gen_routes.py` imports it to generate `protocol/ui-bridge/routes.json`, the C6 route table, and the web UI's `agentd-routes.generated.ts`.
+- `route_registry.py`: the HTTP route registry; `protocol/tools/gen_routes.py` imports it to generate `protocol/ui-bridge/routes.json` and the web UI's `agentd-routes.generated.ts`.
 - `control_panel.py`: control-panel routes for conversations and own sessions (`/conversations*`, `PUT/DELETE /sessions/<id>`).
 - `character_tool.py`, `motion_tool.py`, `outfit_tool.py`, `distribution_seed.py`: the character package, motion, outfit and bundled-library tools that Companion runs by script path. The release Python runs with `-I`, so these scripts add their own directory to `sys.path`.
 - `character_library.py`, `resource_store.py`: character library checks and publishing, copy-on-write; the build scripts in `characters/` import them as top-level modules.
@@ -50,13 +50,13 @@ The root has 13 `.py` files; something outside the package finds each one by pat
 ### Development conventions
 
 - Imports are absolute (`from observation.blacklist import X`); relative imports exist only in `character_agent/harness/`. When you move a module, update its callers; leave no forwarding module behind.
-- A new HTTP route is one `Route(...)` entry in `REGISTRY` in `route_registry.py`: a route `Handler` answers itself takes `owner=SERVER` and `action` (the `Handler` method name); any other owner answers through that module's `route()`; `spec` names the contract that specifies the route's fields. Afterwards run `python3 -I protocol/tools/gen_all.py --write` from the repository root.
+- A new HTTP route is one `Route(...)` entry in `REGISTRY` in `route_registry.py`: a route `Handler` answers itself takes `owner=SERVER` and `action` (the `Handler` method name); any other owner answers through that module's `route()`. Afterwards run `python3 -I protocol/tools/gen_all.py --write` from the repository root.
 - `parse_request` checks the token against the route's `tokens` in the registry: a path not in the registry gets 404, a wrong token 401.
 - The character list, cards, and lore all come from the character library (`Repository` in `brain/characters.py`).
 
 ## State directory and tokens
 
-The [C9 contract](../../protocol/C9-agentd-process/CONTRACT.md) defines the token and discovery files under `--state-dir` (`hook.token`, `ui-runtime.json`, `events-runtime.json`). The three tokens are separate:
+`--state-dir` holds the token and discovery files (`hook.token`, `ui-runtime.json`, `events-runtime.json`). The three tokens are separate:
 
 - The hook token is for hooks and the browser native host; it cannot submit approval decisions.
 - The ui token is for the shell and reaches the UI routes.
@@ -82,7 +82,6 @@ On SIGTERM, SIGINT, or exit of the process that started it (`--exit-with-parent`
 - ChatGPT subscription: sign-in happens in the system browser; the callback checks state, PKCE (S256), the ID token, and the nonce. Inference is allowed only when the grant includes `chatgpt.tokens.use.direct`. Refreshes are serialized per connection under a file lock. Subscription tokens go only to `https://api.openai.com/v1`; Codex app login files are never read or reused. Signing out tries to revoke the remote refresh token.
 - OpenAI and compatible APIs: the base URL must be https, or http on the local machine (localhost, 127.0.0.1, ::1). The output limit defaults to 4096 tokens and can be set to 128–32768. DeepSeek uses the fixed official address `https://api.deepseek.com` and needs a key.
 - Own Claude and Codex work sessions keep the sign-in their CLIs manage; model settings do not change them.
-- Endpoint rules are in C6 §2.
 
 ## Usage and pricing
 
@@ -102,7 +101,7 @@ The amounts estimate what agentd can verify; they are not provider bills. Extern
 
 ## Characters and conversation requests
 
-- `--character <id>` picks the character at startup; without it agentd uses the library's `default_character`. While running, the three-step switch `/character/prepare`, `commit`, `abort` changes the character (C6 §4.2). agentd does not store the character; Companion passes `--character` on restart.
+- `--character <id>` picks the character at startup; without it agentd uses the library's `default_character`. While running, the three-step switch `/character/prepare`, `commit`, `abort` changes the character. agentd does not store the character; Companion passes `--character` on restart.
 - Cards and lore have one source: the character library passed with `--character-catalog`. Without that argument agentd reads `AGENTD_DEV_CATALOG`, and failing that the public sample library `characters/sample-library/current.json` (only the text-only character `aide`). Cards, lore, and the default character are never rewritten when read.
 - The card (`<id>/persona.json`, 10 sections) renders into the system text. Each turn adds memories the user stated or confirmed, keyword-matched lore entries (`<id>/lore.json`: world, relations, events, with sticky, cooldown, and a token budget), and the live context.
 - Approvals in the live context: each pending card gives its session, tool, summary, and time left; cards that ended within 600 s (at most 3) give their result. When her own state is unusual (very sleepy, deeply absorbed, mood far from baseline), one sentence about it is added; that sentence also passes the outbound guard and is dropped whole when blocked.
@@ -114,11 +113,11 @@ The amounts estimate what agentd can verify; they are not provider bills. Extern
 - Voice is on only when agentd starts with `--tts-url`. For TTS on a remote host, the shell forwards the port according to `services.tts` (SSH) in config.json and passes the forwarded address (for example `http://127.0.0.1:19888`) as `--tts-url`. With `--tts-ensure-host` and `--tts-ensure-script`, agentd first runs the script's `ensure` on that host over ssh when TTS is not up (protocol in the [shell](shell.en.md#external-services)).
 - Requests carry `Authorization: Bearer <token>`. The `.ref` file beside the basename selected by `--tts-token-file` or `$AAC_TTS_TOKEN_FILE` identifies the OS-stored credential (C10). Run `agent/agentd/tools/tts_token.py push --ssh user@host --remote /srv/agentic-complex-tts/state/tts-token` with the same signed Python runtime as agentd to copy the token to the TTS host, then restart TTS and agentd.
 - TTS URLs may be `http` or `https`. HTTPS uses port 443 by default and verifies the certificate and host name on the first connection and on reconnects; user information in the URL and other schemes are rejected. Plain HTTP is accepted for any host and sends the token and text unencrypted.
-- The relay rules (the `/speech` relay, the `cancelled` line on truncation, `speech_failed` on failure) are in C6 §4.7.
+- agentd relays every line from TTS to `GET /speech`; a stream it truncates or that the upstream drops gets a `cancelled` line; when TTS fails before sending any line, agentd sends `speech_failed` on `/feed`.
 
 ## Sessions and focus
 
-Focus priority: error > awaiting_approval > awaiting_input > running_tool > thinking > compacting > subagent > done > stale > idle; on a tie the current focus stays. Hook responses, card withdrawal, de-duplication, and event order are in C6 §4.6.
+Focus priority: error > awaiting_approval > awaiting_input > running_tool > thinking > compacting > subagent > done > stale > idle; on a tie the current focus stays.
 
 ## Own sessions
 
@@ -148,7 +147,7 @@ python3 agent/agentd/tools/install_hooks.py --target claude --uninstall   # unli
 - Writes go through a temporary file in the same directory and a rename, keeping the original mode; new files are 0600. If the JSON cannot be read or has the wrong shape, it exits with 2 and changes no file. `--dry-run` prints only the diff of its own groups.
 - Observe only: the hooks print nothing and never decide; when agentd is down or stuck, the forwarder exits 0 within about 1 s.
 - Codex runs only hooks the user trusted: after installing, open codex once and trust them in the "Hooks need review" prompt at startup, or with `/hooks` in the TUI. A changed command must be trusted again. The installer does not change `config.toml` and writes no hook trust.
-- The settings page's 解绑 (Unlink) uses `POST /integrations/hooks/disconnect` (C6 §4.2). The shell hands the install command to the web settings page through `hookInstallSteps` in `app.info`; the command uses the Python the host resolved and `tools/install_hooks.py` in the agentd component.
+- The settings page's 解绑 (Unlink) uses `POST /integrations/hooks/disconnect`. The shell hands the install command to the web settings page through `hookInstallSteps` in `app.info`; the command uses the Python the host resolved and `tools/install_hooks.py` in the agentd component.
 
 ### Manual hook test
 
@@ -183,7 +182,7 @@ Stored in `<state-dir>/attention.sqlite` and kept for 7 days. The merge rules fo
 - Browser extension heartbeats go into the `browser` bucket (pulsetime 80 s) and keep the focused and visible state. Only focused, visible pages playing sound can add active time.
 - With `share_page_text` on, page text and selections are stored in the local context table; the mouth gets at most 500 characters of selection and 1500 of page text. After focus leaves, the current page's text is not used. Scroll, media, and tab counts are kept only as the latest in-memory snapshot, expire after 15 seconds, and never reach a model.
 
-The [C10 contract](../../protocol/C10-shared-files/CONTRACT.md) defines the fields of the blacklist file `blacklist.json`.
+The blacklist file `blacklist.json` is read and written by `Blacklist` in `observation/blacklist.py`; its default contents are `DEFAULTS` there.
 
 ## Browser extension messages
 
@@ -193,7 +192,7 @@ Installation and use for users are in the [browser extension](../guides/browser-
 - On connect, and on every `{"type": "policy"}`, the host calls `GET /context/browser/policy` for `{enabled, text_enabled}` and sends the extension `{"type": "config", enabled, text_enabled, domains, title_patterns, mode, allow_domains}` (blacklist values from `blacklist.json`). If the policy cannot be fetched, `enabled` is false.
 - Messages from the extension: `heartbeat`, `page`, `selection`, `selection_cleared`, `metrics`. Common fields are `ts` (Unix seconds), `url_host`, `title`, and the document identity `browser_session`, `tab_id`, `document_id`, `revision`. `heartbeat` adds `audible`, `visible`, `window_focused`; `page` and `selection` carry `text` (at most 2000 characters); `metrics` carries `metrics` (scroll percentages, media state, tab counts).
 - The host forwards nothing while `enabled` is false and drops `page` and `selection` while `text_enabled` is false. A blacklisted heartbeat becomes `url_host: "<hidden>"`, `title: null`; any other blacklisted message is dropped. Everything else goes as is to `POST /context/browser` (hook token).
-- agentd checks again: a wrong type or field gets 400 `invalid_browser`; with the page-text switch off, `page` and `selection` get 200 and are not stored. Endpoint rules are in C6 §4.2.
+- agentd checks again: a wrong type or field gets 400 `invalid_browser`; with the page-text switch off, `page` and `selection` get 200 and are not stored.
 
 ## Window content and upload budget
 
@@ -220,7 +219,7 @@ These are per-module throttles, not one token or cost cap.
 
 ## Consent and lifecycle
 
-- `observation.privacy.ConsentPolicy` is the live consent version shared by collection caches and outbound text. The config named by `--privacy-config` can narrow the startup capabilities; a missing, corrupt, or half-replaced file refuses all sharing. Turning a share off or narrowing its scope clears old caches, pending observations, and related generations, and refuses late results; turning it back on does not restore old caches. The sync endpoint `POST /context/privacy/sync` is in C6 §4.2.
+- `observation.privacy.ConsentPolicy` is the live consent version shared by collection caches and outbound text. The config named by `--privacy-config` can narrow the startup capabilities; a missing, corrupt, or half-replaced file refuses all sharing. Turning a share off or narrowing its scope clears old caches, pending observations, and related generations, and refuses late results; turning it back on does not restore old caches. The shell syncs consent through `POST /context/privacy/sync`.
 - A character reply checks the generation once more right before it opens the model stream; a cancel closes the underlying connection first. A request already sent to the model cannot be recalled, but later clauses, late output, and history appends after the cancel are blocked.
 - `sessions.lifecycle.SessionRun` covers the startup phase before the CLI handshake. Stop, shutdown, and reset all latch the cancel; a process built late is closed.
 - `infra.data_lifecycle.DataLifecycle` declares a reset policy for every table in the shared SQLite stores; a new unclassified table makes a reset return 500 `reset_schema_unclassified`. `memory_settings`, `capture_budget`, and `model_usage` are kept, so clearing data neither resets the user's pause switch nor bypasses budgets.
@@ -239,7 +238,7 @@ These are per-module throttles, not one token or cost cap.
 ### Data and execution boundaries
 
 - `integration.py` connects the current card, lore, memory, history, episodes, reminders, behavior observations, file scopes, and desktop permissions to the runtime.
-- `runtime.py` manages the lifecycle of character runs, tasks, and checkpoints; `harness/codex_runner.py`, `pi_runner.mjs`, `acp_runner.py`, and `claude_runner.py` run the model loop through their SDK or protocol (frame protocol in the [C8 contract](../../protocol/C8-harness-runner/CONTRACT.md)). With `AGENTD_FRAME_LOG` set, `harness/transport.py` appends every frame agentd and a runner exchange to that JSONL file (values of keys such as `api_key` and `token` become `[redacted]`; strings over 256 KiB are cut; past 64 MiB the file becomes `.1` and a new one starts); a failed write loses that record only. Only the dev console sets it; the installed app does not.
+- `runtime.py` manages the lifecycle of character runs, tasks, and checkpoints; `harness/codex_runner.py`, `pi_runner.mjs`, `acp_runner.py`, and `claude_runner.py` run the model loop through their SDK or protocol and exchange frames with agentd through `harness/transport.py`. With `AGENTD_FRAME_LOG` set, `harness/transport.py` appends every frame agentd and a runner exchange to that JSONL file (values of keys such as `api_key` and `token` become `[redacted]`; strings over 256 KiB are cut; past 64 MiB the file becomes `.1` and a new one starts); a failed write loses that record only. Only the dev console sets it; the installed app does not.
 - `services/knowledge.py` searches the personal profile and history by source and permission. Dependencies carry versions and hashes, so deleting a memory, revoking a permission, or changing an input invalidates old context.
 - `services/workspace.py` reaches only the input and output directories the user chose in settings; it reads UTF-8 Markdown, TXT, CSV, JSON, and docx, xlsx, pptx (extracted to text by `services/extract.py`), writes artifacts only as Markdown, TXT, CSV, JSON, and refuses directory escape, symbolic links, and overwriting source files. Each artifact belongs to a run and records its sources and check results.
 - `services/store.py` stores its own Run, Event, Effect, and Checkpoint records. The character, product history, long-term memory, and task IDs belong to no vendor transcript; vendor-native sessions do not move between kernels.

@@ -14,7 +14,7 @@ export interface CommandRingProps {
   level?: string | undefined;
   /** Where she was right-clicked, in the page; the hot key's wheel has none and sits in the middle. */
   at?: { x: number; y: number } | undefined;
-  /** The held right button that opened it, as the shell forwards it (C3 rule 56). */
+  /** The held right button that opened it, as the shell forwards it. */
   press?: WheelPress | undefined;
   onRun: (item: CmdItem) => void;
   /** Under the first level: its centre, Esc and Backspace go one level up. */

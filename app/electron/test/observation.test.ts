@@ -90,7 +90,7 @@ test('setQuiet fails on an error status or a reply that is not an object, and le
   }
 });
 
-test('the settings page pauses, sets meeting and quiet, edits the blacklist and clears attention through agentd.request; the stack only meeting and quiet (protocol/ui-bridge/CONTRACT.md)', () => {
+test('the settings page pauses, sets meeting and quiet, edits the blacklist and clears attention through agentd.request; the stack only meeting and quiet', () => {
   const table = new RouteTable(routes);
   const main = [['PUT', '/observation/paused', { minutes: 60 }], ['PUT', '/observation/meeting', { on: true }], ['PUT', '/observation/quiet', { until: null }],
     ['GET', '/blacklist', null], ['POST', '/blacklist', { field: 'app_names', value: '微信' }], ['DELETE', '/blacklist', { field: 'domains', value: 'bank.example' }],

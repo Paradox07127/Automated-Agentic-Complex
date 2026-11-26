@@ -2,7 +2,7 @@ import Carbon.HIToolbox
 import CoreGraphics
 import Foundation
 
-/// CONTRACT §7.7 `ptt.register` and `ptt.unregister`: a Carbon hot key
+/// `ptt.register` and `ptt.unregister`: a Carbon hot key
 /// with its press and release, or `right_option`'s key state read every 50 ms.
 enum PushToTalk {
     enum Combo: Equatable {
@@ -109,7 +109,7 @@ enum PushToTalk {
         return .success(["unregistered": had])
     }
 
-    /// No event of the old combo follows, not even the release of a held key (CONTRACT §8).
+    /// No event of the old combo follows, not even the release of a held key.
     private static func stop(keepingHandler: Bool) {
         state.stop()
         timer?.invalidate()

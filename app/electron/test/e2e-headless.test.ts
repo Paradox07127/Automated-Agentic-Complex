@@ -674,7 +674,7 @@ if (process.platform === 'win32') test('Windows: from character_catalog alone th
       python: process.execPath, agentd_port: 1, gpu_hold_files: [], support_dir: support, agentd_state_dir: join(dir, 'state') }));
     const config = loadConfig(configPath);
     const character = config.character;
-    // CONTRACT (character library): packages/<id>/<sha>/character.json, its character directory runtime/characters/<id>.
+    // The character library's layout: packages/<id>/<sha>/character.json, its character directory runtime/characters/<id>.
     const entry = (JSON.parse(readFileSync(EFW_LIBRARY, 'utf8')) as { characters: { id: string; definition: { file: string } }[] })
       .characters.find((c) => c.id === character)!;
     const expected = join(dirname(EFW_LIBRARY), dirname(entry.definition.file), 'runtime', 'characters', character);
@@ -863,7 +863,7 @@ if (process.platform === 'win32') test('Windows: agentd, the real efw.exe and th
     }
   });
 
-// Windows only, as above: efw answers set_character for the characters its --package-of names (C3 附录「Windows」), so the switch keeps
+// Windows only, as above: efw answers set_character for the characters its --package-of names, so the switch keeps
 // the process; with restartOnly (what a switch to or from a text-only character does) it restarts efw as the other character.
 if (process.platform === 'win32') for (const restartOnly of [false, true]) test(restartOnly
   ? 'Windows: with restartOnly the switch restarts the real efw.exe with the other library character\'s --package between agentd\'s prepare and commit, and back'
@@ -882,7 +882,7 @@ if (process.platform === 'win32') for (const restartOnly of [false, true]) test(
     writeFileSync(shellConfig, JSON.stringify({ ...JSON.parse(readFileSync(stack.configPath, 'utf8')) as Record<string, unknown>,
       character_catalog: SWITCH_LIBRARY, avatar_app: dirname(EFW) }));
     const config = loadConfig(shellConfig);
-    // CONTRACT (character library): packages/<id>/<sha>/character.json, its character directory runtime/characters/<id>.
+    // The character library's layout: packages/<id>/<sha>/character.json, its character directory runtime/characters/<id>.
     const entries = (JSON.parse(readFileSync(SWITCH_LIBRARY, 'utf8')) as { characters: { id: string; definition: { file: string } }[] }).characters;
     const [first, second] = entries.map((c) => c.id) as [string, string];
     const directory = (id: string) => join(dirname(SWITCH_LIBRARY), dirname(entries.find((c) => c.id === id)!.definition.file), 'runtime', 'characters', id);

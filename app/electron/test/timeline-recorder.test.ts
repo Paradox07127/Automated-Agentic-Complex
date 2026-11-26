@@ -25,7 +25,7 @@ function trees() {
   return (p: Record<string, unknown>) => (p.previous === undefined ? tree('full', `t${++n}`, FULL) : tree('diff', `t${++n}`));
 }
 
-/** CONTRACT §7.12 `ax_element` of TextEdit's Save button. */
+/** The helper's `ax_element` of TextEdit's Save button. */
 const button = { role: 'AXButton', native_role: 'AXButton', subrole: null, label: 'Save', value_length: null, window_title: 'notes.txt' };
 const SAVE = { role: 'AXButton', subrole: null, title: 'Save', description: null, identifier: null, value: null };
 

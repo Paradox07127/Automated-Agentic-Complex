@@ -51,7 +51,7 @@ PIPELINE_SUSPENDED = {"system_sleep", "screen_sleep", "session_inactive", "switc
 MAX_DROP_ITEMS = 16
 MAX_DROP_TEXT = 16384
 DROP_FIELDS = {"file": "path", "url": "url", "text": "text"}
-# Rule 38: a POSIX absolute path, or a Win32 one, which begins with a drive (X:\) or with \\ (UNC, \\?\).
+# A POSIX absolute path, or a Win32 one, which begins with a drive (X:\) or with \\ (UNC, \\?\).
 ABSOLUTE_PATH = re.compile(r"/|[A-Za-z]:\\|\\\\")
 ATTENTION_SOURCES = {"panel", "focus"}
 SIDES = ("left", "right")
@@ -80,9 +80,9 @@ POSE_SLOTS = {"stand", "akimbo", "sit", "floor", "lie"}
 CAMERA_TRACKS = ("off", "stage")
 CLOSEUP_STATES = ("off", "active", "deferred")
 CAMERA_FREE_FIELDS = ("zoom", "sway", "closeup", "live")
-CAMERA_FRAMINGS = ("full", "bust")  # rule 49 (i), camera_bust
+CAMERA_FRAMINGS = ("full", "bust")  # camera_bust
 CAMERA_GESTURE_PHASES = ("began", "changed", "ended")
-RIGHT_DRAG_PHASES = ("down", "move", "up")  # rule 56 (v28)
+RIGHT_DRAG_PHASES = ("down", "move", "up")
 CAPTURE_BACKGROUNDS = ("transparent",)
 DOF_MODES = ("off", "closeup")
 MAX_OVERRIDE_CHAINS = 512
@@ -128,7 +128,7 @@ def is_pos_int(x):
 
 
 def check_limits(m):
-    """Rule 21: string lengths anywhere in the message, id fields at most 64 bytes; rule 38 bounds drop items itself."""
+    """String lengths anywhere in the message, id fields at most 64 bytes; check_drop bounds drop items itself."""
     errors = []
 
     def walk(v, path):
@@ -384,7 +384,7 @@ def check_click(m, _):
 
 
 def check_touch_settings(m, _):
-    """Rule 45 (v27): all four switches present and boolean."""
+    """All four switches present and boolean."""
     return [f"touch_settings.{k} must be a boolean" for k in TOUCH_SETTINGS_FIELDS if not isinstance(m.get(k), bool)]
 
 
@@ -430,7 +430,7 @@ def check_stop_speech(m, _):
 
 
 def check_trace(m, _):
-    """Rule 22: 1-50 T1 events from the avatar; the full T1 check is agentd's traces/trace_format.py."""
+    """1-50 T1 events from the avatar; the full T1 check is agentd's traces/trace_format.py."""
     events = m.get("events")
     if not (isinstance(events, list) and 1 <= len(events) <= MAX_TRACE_EVENTS):
         return [f"trace.events must be a list of 1-{MAX_TRACE_EVENTS} events"]
@@ -445,7 +445,6 @@ def check_trace(m, _):
 
 
 def check_playback(m, _):
-    """Rule 23."""
     errors = [] if is_str(m.get("speech_id")) else ["playback.speech_id must be a non-empty string"]
     if not (m.get("clause_id") is None and "clause_id" in m or isinstance(m.get("clause_id"), str)):
         errors.append("playback.clause_id must be a string or null")
@@ -465,7 +464,6 @@ def check_playback(m, _):
 
 
 def check_behavior_receipt(m, _):
-    """Rule 25 (v11)."""
     errors = [] if is_str(m.get("behavior_id")) else ["behavior_receipt.behavior_id must be a non-empty string"]
     if m.get("phase") not in BEHAVIOR_PHASES:
         errors.append(f"behavior_receipt.phase must be one of {sorted(BEHAVIOR_PHASES)}")
@@ -480,7 +478,6 @@ def check_behavior_receipt(m, _):
 
 
 def check_motion_state(m, _):
-    """Rule 54."""
     errors = []
     if m.get("origin") not in MOTION_STATE_ORIGINS:
         errors.append(f"motion_state.origin must be one of {sorted(MOTION_STATE_ORIGINS)}")
@@ -499,7 +496,7 @@ def check_motion_state(m, _):
 
 
 def check_switch_table(m, prefix):
-    """Rules 28 and 30: id -> bool, at most 128 entries, ids at most 64 bytes."""
+    """`id` -> bool, at most 128 entries, ids at most 64 bytes."""
     t = m.get("switches")
     if not (isinstance(t, dict) and len(t) <= MAX_ACTIONS):
         return [f"{prefix}.switches must be an object of at most {MAX_ACTIONS} entries"]
@@ -509,7 +506,7 @@ def check_switch_table(m, prefix):
 
 
 def check_action_item(a, i):
-    """Rule 30 and the actions[] table."""
+    """One row of the actions[] table."""
     p = f"actions.actions[{i}]"
     if not isinstance(a, dict):
         return [f"{p} must be an object"]
@@ -538,7 +535,6 @@ def check_action_item(a, i):
 
 
 def check_actions(m, _):
-    """Rule 27 (v13)."""
     errors = [] if is_str(m.get("character")) else ["actions.character must be a non-empty string"]
     if "behavior_capabilities" in m:
         table = m["behavior_capabilities"]
@@ -565,7 +561,6 @@ def check_actions(m, _):
 
 
 def check_action_switches(m, _):
-    """Rule 28 (v13)."""
     errors = [] if is_str(m.get("character")) else ["action_switches.character must be a non-empty string"]
     errors += check_switch_table(m, "action_switches")
     adjusted = m.get("adjusted")
@@ -583,7 +578,6 @@ def check_action_switches(m, _):
 
 
 def check_action_played(m, _):
-    """Rule 29 (v13)."""
     errors = [] if is_str(m.get("play_id")) else ["action_played.play_id must be a non-empty string"]
     if not is_str(m.get("id")):
         errors.append("action_played.id must be a non-empty string")
@@ -619,12 +613,12 @@ def check_play_action(m, _):
 
 
 def is_motion_key(x):
-    """Rules 51 and 52: a chain key, pool key or clip name of the pack's motion-graph.json."""
+    """A chain key, pool key or clip name of the pack's motion-graph.json."""
     return isinstance(x, str) and 1 <= len(x.encode("utf-8")) <= MAX_MOTION_KEY
 
 
 def check_set_motion_overrides(m, _):
-    """Rule 51 (v27): the character's whole override set; any violation makes the whole message invalid."""
+    """The character's whole override set; any violation makes the whole message invalid."""
     errors = check_req(m, required=True)
     if not is_str(m.get("character")):
         errors.append("set_motion_overrides.character must be a non-empty string")
@@ -649,7 +643,7 @@ def check_set_motion_overrides(m, _):
 
 
 def check_motion_overrides(m, _):
-    """Rule 51 (v27): what Avatar applied, and every request entry it did not take."""
+    """What Avatar applied, and every request entry it did not take."""
     errors = check_req(m, required=True)
     if not is_str(m.get("character")):
         errors.append("motion_overrides.character must be a non-empty string")
@@ -661,14 +655,13 @@ def check_motion_overrides(m, _):
     if not (isinstance(adjusted, list) and len(adjusted) <= sum(OVERRIDE_LIMITS.values())
             and all(isinstance(x, dict) and x.get("kind") in OVERRIDE_REASONS and is_motion_key(x.get("key"))
                     and x.get("reason") in OVERRIDE_REASONS[x["kind"]] for x in adjusted)):
-        errors.append("motion_overrides.adjusted must be a list of {kind, key, reason} with a reason of that kind (rule 51)")
+        errors.append("motion_overrides.adjusted must be a list of {kind, key, reason} with a reason of that kind")
     if "truncated" in m and m["truncated"] is not True:
-        errors.append("motion_overrides.truncated is only present, as true, when adjusted was cut to fit one line (rule 51 (g))")
+        errors.append("motion_overrides.truncated is only present, as true, when adjusted was cut to fit one line")
     return errors
 
 
 def check_play_chain(m, _):
-    """Rule 52 (v27)."""
     errors = check_req(m, required=True)
     if not (is_str(m.get("play_id")) and len(m["play_id"].encode("utf-8")) <= MAX_ID):
         errors.append(f"play_chain.play_id must be a non-empty string of at most {MAX_ID} bytes")
@@ -686,13 +679,13 @@ def is_mod_appearance(x):
 
 
 def is_mod_values(v):
-    """Rule 53 (h): switch id -> integer value 0-255, at most 64 switches."""
+    """Switch id -> integer value 0-255, at most 64 switches."""
     return (isinstance(v, dict) and len(v) <= MAX_MOD_SETTINGS
             and all(MOD_ID_RE.fullmatch(k) and is_int(x) and 0 <= x <= MAX_MOD_VALUE for k, x in v.items()))
 
 
 def check_mod_settings_table(v, label):
-    """Rule 53: set_character.mod_settings and --agentic-complex-mod-settings, appearance id -> values."""
+    """`set_character.mod_settings` and --agentic-complex-mod-settings, appearance id -> values."""
     if not (isinstance(v, dict) and all(is_mod_appearance(a) and is_mod_values(x) for a, x in v.items())):
         return [f"{label} must map appearance ids of 1-{MAX_ID} bytes to values of at most {MAX_MOD_SETTINGS} "
                 f"switch ids matching {MOD_ID_RE.pattern} -> integers 0-{MAX_MOD_VALUE}"]
@@ -712,12 +705,11 @@ def check_mod_settings_fields(m, req_nullable):
 
 
 def check_set_mod_settings(m, _):
-    """Rule 53 (v27)."""
     return check_mod_settings_fields(m, req_nullable=False)
 
 
 def check_mod_settings(m, _):
-    """Rule 53 (v27): the values in effect; req null when Avatar reports on its own."""
+    """The values in effect; req null when Avatar reports on its own."""
     errors = check_mod_settings_fields(m, req_nullable=True)
     if "adjusted" in m and not (isinstance(m["adjusted"], list) and len(m["adjusted"]) <= MAX_MOD_SETTINGS
                                 and all(isinstance(x, dict) and set(x) == {"id", "reason"} and isinstance(x["id"], str)
@@ -728,7 +720,7 @@ def check_mod_settings(m, _):
 
 
 def check_mod_settings_arg(text):
-    """Rule 53: the JSON value of --agentic-complex-mod-settings."""
+    """The JSON value of --agentic-complex-mod-settings."""
     if len(text.encode("utf-8")) > MAX_LINE:
         return [f"--agentic-complex-mod-settings longer than {MAX_LINE} bytes"]
     try:
@@ -739,7 +731,7 @@ def check_mod_settings_arg(text):
 
 
 def check_stop_action(m, _):
-    """Rules 29 and 30 (v27): only the play_id of the play to stop."""
+    """Only the play_id of the play to stop."""
     errors = [f"stop_action.{k} is not a field of stop_action" for k in m if k not in ("v", "type", "play_id")]
     if not (is_str(m.get("play_id")) and len(m["play_id"].encode("utf-8")) <= MAX_ID):
         errors.append(f"stop_action.play_id must be a non-empty string of at most {MAX_ID} bytes")
@@ -751,7 +743,6 @@ def is_pose_id(x, min_bytes):
 
 
 def check_set_pose(m, _):
-    """Rule 47 (v27)."""
     errors = check_req(m, required=True)
     if not is_str(m.get("character")):
         errors.append("set_pose.character must be a non-empty string")
@@ -763,7 +754,6 @@ def check_set_pose(m, _):
 
 
 def check_pose_state(m, _):
-    """Rule 47 (v27)."""
     errors = [] if isinstance(m.get("character"), str) else ["pose_state.character must be a string"]
     if not ("id" in m and is_pose_id(m["id"], 0)):
         errors.append(f"pose_state.id must be null or a string of at most {MAX_ID} bytes")
@@ -773,7 +763,7 @@ def check_pose_state(m, _):
 
 
 def check_camera_gesture(m, _):
-    """Rule 49 (h) (v27): this event's pointer movement in screen points and zoom factor."""
+    """This event's pointer movement in screen points and zoom factor."""
     errors = [] if m.get("phase") in CAMERA_GESTURE_PHASES else [f"camera_gesture.phase must be one of {list(CAMERA_GESTURE_PHASES)}"]
     errors += [f"camera_gesture.{k} must be a number within the coordinate limit" for k in ("dx", "dy") if not is_coord(m.get(k))]
     if not (is_num(m.get("zoom")) and m["zoom"] > 0):
@@ -782,7 +772,7 @@ def check_camera_gesture(m, _):
 
 
 def check_surface_window(w, path):
-    """v14: one window item."""
+    """One window item."""
     if not isinstance(w, dict):
         return [f"{path} must be an object"]
     errors = [f"{path}.{k} must be a positive integer" for k in ("window_id", "generation", "display_id") if not is_pos_int(w.get(k))]
@@ -852,14 +842,12 @@ def check_untrack_surface(m, _):
 
 
 def check_attach(m, _):
-    """Rule 34 (v15)."""
     if "track_id" in m and (m["track_id"] is None or is_str(m["track_id"])):
         return []
     return ["attach.track_id must be a non-empty string or null"]
 
 
 def check_set_opacity(m, _):
-    """Rule 35 (v15)."""
     errors = [] if is_num(m.get("opacity")) and 0.2 <= m["opacity"] <= 1 else ["set_opacity.opacity must be within 0.2-1"]
     if not (is_int(m.get("duration_ms")) and 0 <= m["duration_ms"] <= 2000):
         errors.append("set_opacity.duration_ms must be an integer within 0-2000")
@@ -867,7 +855,7 @@ def check_set_opacity(m, _):
 
 
 def check_covered(m, _):
-    """Rule 35 (v15): window_id, generation, frame while covered; only window_id null when it ends."""
+    """`window_id`, generation, frame while covered; only window_id null when it ends."""
     if "window_id" not in m:
         return ["covered.window_id is required (positive integer or null)"]
     if m["window_id"] is None:
@@ -879,7 +867,7 @@ def check_covered(m, _):
 
 
 def check_pass_through(m, _):
-    """Rule 41 (v24): the controls under her in global points; [] clears."""
+    """The controls under her in global points; [] clears."""
     r = m.get("rects")
     if isinstance(r, list) and len(r) <= MAX_PASS_THROUGH and all(is_rect(x) for x in r):
         return []
@@ -887,7 +875,7 @@ def check_pass_through(m, _):
 
 
 def check_keep_clear(m, _):
-    """Rule 42 (v26): id, kind and 1-8 rects she walks clear of; only id null to drop the request."""
+    """`id`, kind and 1-8 rects she walks clear of; only id null to drop the request."""
     if "id" not in m:
         return ["keep_clear.id is required (non-empty string or null)"]
     if m["id"] is None:
@@ -902,7 +890,6 @@ def check_keep_clear(m, _):
 
 
 def check_pointer(m, _):
-    """Rule 36 (v16)."""
     errors = [] if is_num(m.get("speed")) and m["speed"] >= 0 else ["pointer.speed must be a number >= 0"]
     if not (is_int(m.get("hover_ms")) and m["hover_ms"] >= 0):
         errors.append("pointer.hover_ms must be an integer >= 0")
@@ -921,8 +908,8 @@ def is_bool(x):
     return isinstance(x, bool)
 
 
-# Rule 43 (v27): a group is a scalar check or an object of optional field checks; ranges follow the launch table.
-# Rule 49: yaw below -90 and the camera_free / camera_track fields are gated in check_capability; so are dof and photo
+# A group is a scalar check or an object of optional field checks; ranges follow the launch table.
+# Yaw below -90 and the camera_free / camera_track fields are gated in check_capability; so are dof and photo
 # (photo).
 SET_RENDER_GROUPS = {
     "camera": {"mode": one_of(CAMERA_MODES), "yaw": within(-180, 180), "pitch": within(-20, 20),
@@ -968,7 +955,7 @@ def check_render_groups(d, prefix, groups):
 
 
 def check_set_render(m, _):
-    """Rule 43 (v27): at least one group, every field inside a group optional."""
+    """At least one group, every field inside a group optional."""
     errors = [f"set_render.{k} is not a render group" for k in m if k not in ("v", "type", "req") and k not in SET_RENDER_GROUPS]
     if not any(k in m for k in SET_RENDER_GROUPS):
         errors.append(f"set_render needs at least one of {list(SET_RENDER_GROUPS)}")
@@ -976,7 +963,7 @@ def check_set_render(m, _):
 
 
 def check_ambient_sample(m, _):
-    """Rule 44 (v27): no req; five linear sRGB colours, each three numbers in 0-1."""
+    """No req; five linear sRGB colours, each three numbers in 0-1."""
     errors = [] if one_of(AMBIENT_SOURCES)(m.get("source")) else [f"ambient_sample.source must be one of {list(AMBIENT_SOURCES)}"]
     if "req" in m:
         errors.append("ambient_sample takes no req")
@@ -988,13 +975,13 @@ def check_ambient_sample(m, _):
 
 
 def check_capture(m, _):
-    """Rule 50 (v27): req is required; v27 defines only the transparent background."""
+    """Req is required; only the transparent background is defined."""
     errors = [] if m.get("background") in CAPTURE_BACKGROUNDS else [f"capture.background must be one of {list(CAPTURE_BACKGROUNDS)}"]
     return errors + check_req(m, required=True)
 
 
 def check_captured(m, _):
-    """Rule 50 (v27): the file name Avatar wrote into --agentic-complex-capture-dir, without the directory."""
+    """The file name Avatar wrote into --agentic-complex-capture-dir, without the directory."""
     errors = [] if is_str(m.get("file")) and "/" not in m["file"] else ["captured.file must be a non-empty file name without '/'"]
     errors += [f"captured.{k} must be a positive integer" for k in ("width", "height") if not is_pos_int(m.get(k))]
     return errors + check_req(m, required=True)
@@ -1036,7 +1023,6 @@ def check_pipeline(m, _):
 
 
 def check_drop(m, _):
-    """Rule 38 (v21)."""
     errors = [] if is_coord(m.get("x")) and is_coord(m.get("y")) else ["drop needs x and y within the coordinate limit"]
     if "truncated" in m and not isinstance(m["truncated"], bool):
         errors.append("drop.truncated must be a boolean")
@@ -1055,7 +1041,7 @@ def check_drop(m, _):
 
 
 def check_reaction(m, _):
-    """Rule 55 (v27). The Companion's hello lists `reactions`; an a2c session holds only the renderer's hello, so the
+    """The Companion's hello lists `reactions`; an a2c session holds only the renderer's hello, so the
     capability is not checked here."""
     if set(m) != {"v", "type", "trigger"}:
         return ["reaction has exactly v, type and trigger"]
@@ -1063,7 +1049,7 @@ def check_reaction(m, _):
 
 
 def check_right_drag(m, _):
-    """Rule 56 (v28): the right button held on her, the cursor in global points."""
+    """The right button held on her, the cursor in global points."""
     if set(m) != {"v", "type", "phase", "x", "y"}:
         return ["right_drag has exactly v, type, phase, x and y"]
     errors = [] if m["phase"] in RIGHT_DRAG_PHASES else [f"right_drag.phase must be one of {list(RIGHT_DRAG_PHASES)}"]
@@ -1071,7 +1057,7 @@ def check_right_drag(m, _):
 
 
 def check_moving(m, _):
-    """Rule 57 (v28): she starts or stops walking."""
+    """She starts or stops walking."""
     if set(m) != {"v", "type", "moving"}:
         return ["moving has exactly v, type and moving"]
     return [] if isinstance(m["moving"], bool) else ["moving.moving must be a boolean"]
@@ -1081,7 +1067,7 @@ TRANSPORT_OPS = ("pause", "resume", "seek")
 
 
 def check_control_action(m, _):
-    """Rule 58 (v28): pause, resume or seek the play of play_id; at_s only with seek."""
+    """Pause, resume or seek the play of play_id; at_s only with seek."""
     keys = {"v", "type", "req", "play_id", "op"} | ({"at_s"} if m.get("op") == "seek" else set())
     errors = [] if set(m) == keys else [f"control_action has exactly {', '.join(sorted(keys))}"]
     errors += check_req(m, required=True)
@@ -1095,7 +1081,7 @@ def check_control_action(m, _):
 
 
 def check_action_progress(m, _):
-    """Rule 58 (v28): where the user's play stands in the clip playing now."""
+    """Where the user's play stands in the clip playing now."""
     if set(m) != {"v", "type", "play_id", "t_s", "duration_s", "paused"}:
         return ["action_progress has exactly v, type, play_id, t_s, duration_s and paused"]
     errors = [] if is_str(m["play_id"]) and len(m["play_id"].encode("utf-8")) <= MAX_ID else [
@@ -1110,7 +1096,6 @@ def check_action_progress(m, _):
 
 
 def check_attention_side(m, _):
-    """Rule 39 (v22.1)."""
     errors = [] if m.get("source") in ATTENTION_SOURCES else [f"attention_side.source must be one of {sorted(ATTENTION_SOURCES)}"]
     if not is_str(m.get("kind")):
         errors.append("attention_side.kind must be a non-empty string")
@@ -1122,7 +1107,6 @@ def check_attention_side(m, _):
 
 
 def check_present(m, _):
-    """Rule 39 (v22.1)."""
     errors = [] if is_str(m.get("token")) else ["present.token must be a non-empty string"]
     if m.get("side") not in SIDES:
         errors.append("present.side must be 'left' or 'right'")
@@ -1132,12 +1116,10 @@ def check_present(m, _):
 
 
 def check_motion_stroke(m, _):
-    """Rule 39 (v22.1)."""
     return [f"motion.stroke.{k} must be a non-empty string" for k in ("token", "clip") if not is_str(m.get(k))]
 
 
 def check_motion_request(m, _):
-    """Rule 40 (v23)."""
     errors = [] if isinstance(m.get("request_id"), str) and MOTION_REQUEST_ID.fullmatch(m["request_id"]) else [
         "motion_request.request_id must be 'mr-' and 16 lowercase hex digits"]
     if not is_str(m.get("behavior_id")):
@@ -1176,7 +1158,7 @@ CAPABILITY_OF = {("a2c", "attach"): "layering", ("a2c", "drop"): "drop", ("c2a",
 
 
 def check_capability(m, direction, caps):
-    """v15-v27: a sender only uses opacity, layering, pointer, pipeline, drop, motion_request, pass_through, keep_clear, set_render, ambient_sample, touch_settings, click.region, play_action.loop, stop_action, actions[].media, set_layers, layers_changed(_failed), set_pose, pose_state, actions[].pose, the rule 49 set_render.camera fields, camera_gesture, set_render.dof, set_render.photo, capture, captured, set_motion_overrides, motion_overrides, play_chain, action_played.chain, set_mod_settings, mod_settings, set_character.mod_settings, right_drag, moving, control_action and action_progress after listing them in its own hello."""
+    """Gate optional messages and fields on the sender's hello capabilities."""
     if not isinstance(m, dict) or caps is None:
         return []
     t = m.get("type")
@@ -1422,7 +1404,7 @@ def check_lines(raw, direction, session):
 
 
 def reject_constant(name):
-    """Rule 21: NaN and Infinity are not JSON numbers."""
+    """NaN and Infinity are not JSON numbers."""
     raise ValueError(f"non-finite number {name}")
 
 

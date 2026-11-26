@@ -1,4 +1,4 @@
-// The pools the runtime draws chain starts from, read off the graph's clip uses. Only event pools and idle tiers can be overridden (C3 v27 rule 51).
+// The pools the runtime draws chain starts from, read off the graph's clip uses. Only event pools and idle tiers can be overridden.
 import type { MotionPoolEntry } from '../../../bridge';
 import type { MotionGroups } from '../../../bridge/motionGroups';
 import type { MotionGraph } from './graph';

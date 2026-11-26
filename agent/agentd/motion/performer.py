@@ -19,7 +19,7 @@ from motion.client import MotionClient, ServiceError
 from motion.store import MotionStore
 
 PERFORM_BUDGET = 4.0  # s from a reply's marker to the publish; the clause's authored gesture plays meanwhile
-REQUEST_BUDGET = 2.5  # s: the host plays the pack's clip once a requested motion is this late (C1 §1.5)
+REQUEST_BUDGET = 2.5  # s: the host plays the pack's clip once a requested motion is this late
 RETARGET_RESERVE = 0.3  # s kept for retarget and store after generate: a 3 m walk's retarget takes ~0.2 s
 MAX_TRAVEL_M = 0.25  # a perform whose hips end farther than this from where they began was a walk: not published
 MIN_TOE_CM = -3.0  # a perform whose source toes sink deeper than this below Kimodo's ground: not published

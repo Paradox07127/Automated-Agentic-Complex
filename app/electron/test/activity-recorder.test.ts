@@ -17,14 +17,14 @@ type Answer = HelperAnswer | ((params: Record<string, unknown>) => HelperAnswer 
 const TEXTEDIT = { pid: 702, name: 'TextEdit', app_id: 'com.apple.TextEdit' };
 const VSCODE = { pid: 900, name: 'Code', app_id: 'com.microsoft.VSCode' };
 const NOTIFICATIONS = ['focus', 'window', 'title', 'value', 'selection'];
-/** The params ActivityRecorder.attach watches with (CONTRACT §7.4 `ax.watch`). */
+/** The `ax.watch` params ActivityRecorder.attach watches with. */
 const watchOf = (pid: number, typed = false, manual = false) => ({ pid, notifications: NOTIFICATIONS, read_selected_text: typed,
   read_value: typed, ...(manual && { manual_accessibility: true }), watch_id: 'activity' });
 const UNWATCH = { pid: null, notifications: [], watch_id: 'activity' };
 const NOTES = { pid: 800, name: 'Notes', app_id: 'com.apple.Notes' };
 const frontOf = (front: Record<string, unknown> | null) => ok({ ts: 0, locked: false, front: front && { ...front, window: null } });
 
-/** CONTRACT §7.12 `ax_element` of TextEdit's text area. */
+/** The helper's `ax_element` of TextEdit's text area. */
 const element = (over: Record<string, unknown> = {}) => ({
   role: 'AXTextArea', native_role: 'AXTextArea', subrole: null, label: 'Body', value_length: 10, window_title: 'notes.txt',
   doc: '/Users/u/notes.txt', ...over,
@@ -294,7 +294,7 @@ test('stop ends the watch and the ticks; the queue waits for the next start', as
   assert.deepEqual(t.kinds(), ['app', 'focus']);
 });
 
-test('a restarted helper gets the watches from the supervisor; the recorder asks again only for what never answered (CONTRACT §6.4)', async () => {
+test('a restarted helper gets the watches from the supervisor; the recorder asks again only for what never answered', async () => {
   const t = setup();
   await t.start();
   t.recorder.helper(false);
@@ -314,7 +314,7 @@ test('a restarted helper gets the watches from the supervisor; the recorder asks
   assert.deepEqual(failed.requests.map(([op]) => op), ['workspace.watch', 'attention.sample', 'ax.watch', 'attention.sample', 'ax.watch']);
 });
 
-// ---- The fields CONTRACT §7.4 added for the recorder; Windows gives none of them (the tests above)
+// ---- The fields the macOS helper gives the recorder; Windows gives none of them (the tests above)
 
 /** ok-ax.ndjson's TextEdit element, with its `element_key`. */
 const keyed = (key: string, over: Record<string, unknown> = {}) => element({ element_key: key, ...over });
@@ -406,7 +406,7 @@ test('apps that build their AX tree only when asked are watched with manual_acce
   assert.deepEqual(t.watches(), [watchOf(900, false, true)]);
 });
 
-test('notifications of another watch_id are not the recorder\'s; without one they are (CONTRACT §7.4 watch_id)', async () => {
+test('notifications of another watch_id are not the recorder\'s; without one they are', async () => {
   const t = setup();
   await t.start();
   t.notify('focus', element({ label: 'Theirs' }), 702, { watch_id: 'context' });

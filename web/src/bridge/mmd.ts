@@ -1,4 +1,4 @@
-// `mmd.*` types: the MMD library every character shares (MOTION-IMPORT §8), re-exported by protocol.ts.
+// `mmd.*` types: the MMD library every character shares, re-exported by protocol.ts.
 import type { ImportedMotion, Unsubscribe } from './protocol';
 
 /** A dance in the MMD library every character shares, with its bake state on each character; `reason` is motion_tool's code of a failed bake.

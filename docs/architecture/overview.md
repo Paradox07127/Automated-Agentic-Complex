@@ -14,10 +14,10 @@
 | `web/` | React + TypeScript 网页 UI，在 Electron 外壳的窗口里跑，构建进 web-ui 组件，见 [web-ui.md](web-ui.md) |
 | `agent/` | `agentd/`（Python 角色 agent）、`browser/`（浏览器扩展与 native host）、`computer-control/`（computer use 的 MCP 桥说明与验收），见 [agentd](agentd.md) |
 | 渲染器（不在公开仓库） | macOS Metal 宿主 `metal-avatar-host` 和 Windows Vulkan 渲染器 `efw.exe`。渲染器源码为私有组件，只随发行版提供。桌面渲染器向 Electron 的原生插件提供实时预览，macOS 使用 Mach 端口，Windows 使用命名管道。渲染器接口见 C1、C2、C3 |
-| `characters/` | 角色包工具：导入（`agentic_complex_build/`，入口 `build.py`）、原生包打包（`packaging/`）、纯文字样例角色 `sample-character/` 和样例库 `sample-library/`；角色包由外部工具生成，格式见 `protocol/character-library/CONTRACT.md`，见[角色包工具与动作生成](characters.md) |
+| `characters/` | 角色包工具：导入（`agentic_complex_build/`，入口 `build.py`）、原生包打包（`packaging/`）、纯文字样例角色 `sample-character/` 和样例库 `sample-library/`；角色包由外部工具生成，见[角色包工具与动作生成](characters.md) |
 | `motion/` | 动作生成服务：按文字描述生成动作的 HTTP 服务，见[角色包工具与动作生成](characters.md#动作生成服务) |
 | `voice/` | TTS 服务代码（`tts-service/`，部署在 TTS 主机上），见[语音合成服务](voice.md)和[部署语音服务](../guides/tts-deploy.md) |
-| `protocol/` | 组件之间的接口：进程协议 C1、C2、C3、C6、C8、C9、C12，共享文件 C10，组件清单 C11，`ui-bridge`（应用宿主 ↔ 网页），以及角色库和场景包的文件格式；每项有正文、校验器和夹具，清单见 [协议索引](../../protocol/README.md) |
+| `protocol/` | 组件之间的接口：进程协议 C1、C2、C3、C6、C8、C9、C12，共享文件 C10，组件清单 C11，`ui-bridge`（应用宿主 ↔ 网页），以及角色库的文件格式；目录内含登记表、校验器与测试夹具 |
 | `tools/` | `dev/`（开发面板）、`qa/`（门禁、路径检查）、`release/`（发行、打包、开发部署、门禁回执）、`platform/`（GPU 锁、签名）、`acp/`（ACP 智能体安装），命令见 [development.md](../development.md) |
 | `docs/` | 本目录：现行架构、开发和设计文档 |
 | `private` | 本机内容，不在公开仓库 |
@@ -56,8 +56,6 @@ flowchart LR
 - 网页 UI 经 preload 装的 `window.agenticComplex` 调主进程的 op，直接请求 agentd 路由只能走 `agentd.request`，按 `protocol/ui-bridge/routes.json` 放行。
 - agentd 由 Electron 外壳经 `agentd_launcher.py` 启动；角色页预览也由桌面 `metal-avatar-host` 进程画。
 - TTS、动作服务和兼容 OpenAI 的模型 API 不在 app 里，config.json 的 `services.<id>`（`tts`、`motion`、`llm`）各描述一个，设置的「服务」组改写它。每个服务有四种接法：关闭、直连地址、SSH、本机命令。SSH 下 Electron 外壳用 `parent_watch.py` 拉起 `ssh -N -L 127.0.0.1:<端口>:127.0.0.1:<端口> <主机>`；本机命令下由它运行 `command`；应用退出时这些进程一起退出。`ssh_host` 加 `start_script` 时，agentd 在服务没起来时经 ssh 在这台主机上运行脚本。新装的发行版里 TTS 是关闭的，回复只显示文字。字段、校验和脚本协议见[外壳](shell.md#外置服务)。
-
-协议全文在 `protocol/`，索引见 [protocol/README.md](../../protocol/README.md)。
 
 agentd 的代码分三层：入口 `agent/agentd/server.py` → `daemon/`（`AgentdServer` 与启动顺序）和 `api/`（HTTP `Handler`，按 `route_registry.py` 的登记检查令牌并分派）→ 领域包（`sessions/`、`observation/`、`personal/`、`character/`、`voice/`、`models/`、`traces/`、`tool_gateway/`、`brain/`、`character_agent/`）→ `infra/`（SQLite 存储、令牌文件、状态路径）。各包和留在根目录的文件见 [agentd 代码结构](agentd.md#代码结构)。
 

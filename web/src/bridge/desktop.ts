@@ -51,7 +51,7 @@ export type DesktopCommand =
   | { kind: 'window'; windowId: number; pid: number; app: string | null; title: string | null }
   /** A short line the bubble shows for a few seconds, such as why a click on her asked nothing. */
   | { kind: 'notice'; text: string }
-  /** The held right button that opened the wheel (C3 rule 56), in the wheel page's CSS px; `ms` since it went down. */
+  /** The held right button that opened the wheel, in the wheel page's CSS px; `ms` since it went down. */
   | { kind: 'ringPointer'; phase: 'move'; x: number; y: number }
   | { kind: 'ringPointer'; phase: 'up'; x: number; y: number; ms: number };
 
@@ -82,7 +82,7 @@ export type DesktopActionName =
   | 'talk'
   /** 停止 on her wheel: ends the user's play on her, whichever page or panel started it. */
   | 'stopPlay'
-  /** Her wheel's 姿态: holds the pose row `arg` (C3 rule 47); none is 自动. */
+  /** Her wheel's 姿态: holds the pose row `arg`; none is 自动. */
   | 'pose';
 
 export interface DesktopState {
@@ -107,7 +107,7 @@ export interface DesktopState {
   plugins: PluginId[];
   /** The action id the user plays on her now, from any page or panel; null while none plays. */
   playing?: string | null;
-  /** Her pose slots in menu order and the held row's id (C3 rule 47); null while her renderer has none. */
+  /** Her pose slots in menu order and the held row's id; null while her renderer has none. */
   poses?: DesktopPoses | null;
   /** Both her renderer and this app list C3 `capture` (拍照's shutter). */
   capture?: boolean;

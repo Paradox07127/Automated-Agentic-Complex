@@ -258,7 +258,7 @@ test('through the link: hello lists touch and sends the switches, and each messa
     assert.ok(await until(1, () => forwarded().length === 3 && strokes.length === 1), JSON.stringify(calls));
     assert.deepEqual(forwarded().map((c) => `${c[0]} ${c[1]}`).sort(), ['POST /speech/cancel', 'POST /speech/playback', 'PUT /behavior/capabilities']);
     assert.deepEqual(calls.find((c) => c[1] === '/speech/cancel')![2], { reason: 'error', speech_id: 's1' });
-    // A dropped link ends the open speech as connection_lost (rule 23).
+    // A dropped link ends the open speech as connection_lost.
     a.socket.destroy();
     assert.ok(await until(1, () => forwarded().length === 4));
     assert.deepEqual(forwarded()[3]![2], { speech_id: 's1', clause_id: 'c0', state: 'interrupted', reason: 'connection_lost', sample: 0, rate: 48000 });
@@ -347,7 +347,7 @@ test('through the link: each set_action_switches and set_motion_overrides also r
     a.send({ type: 'hello', role: 'avatar', pid: 99, protocol: 1, character: 'aster',
       capabilities: ['actions', 'ack', 'render_live', 'motion_overrides', 'camera_bust'] });
     assert.ok(await until(2, () => link.hello !== null));
-    // Her list differs from the stored table: the link sends it (rule 28), and agentd gets it too.
+    // Her list differs from the stored table: the link sends it, and agentd gets it too.
     a.send({ ...ACTIONS });
     assert.ok(await until(1, () => a.types().includes('set_action_switches') && puts().length === 1), JSON.stringify(calls));
     assert.deepEqual(puts(), [prefs({ wave: false })]);

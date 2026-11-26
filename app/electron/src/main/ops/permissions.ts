@@ -1,6 +1,6 @@
 // `permissions.*`: the system grants the platform helper reads and asks for,
 // and the system settings page of each. macOS's notification grant is the app's, which Electron can neither read nor ask
-// for: the helper does both (C12 §7.9). Windows has no notification grant.
+// for: the helper does both. Windows has no notification grant.
 import { BridgeFailure } from '../../common/bridge.ts';
 import type { ShellPlatform } from '../../common/config.ts';
 import type { PluginId } from '../../common/plugins.ts';
@@ -62,7 +62,7 @@ export async function askForPluginGrants(ctx: Pick<OpsContext, 'helper' | 'platf
 }
 
 const SECURITY = 'x-apple.systempreferences:com.apple.preference.security?';
-/** Each grant's system settings page; Windows' from C12 §7.9. */
+/** Each grant's system settings page. */
 const PANES: Record<ShellPlatform, Record<string, string>> = {
   mac: {
     screenRecording: `${SECURITY}Privacy_ScreenCapture`, accessibility: `${SECURITY}Privacy_Accessibility`,
@@ -89,7 +89,7 @@ export async function openSettings(ctx: OpsContext, pane: string): Promise<void>
 
 export function permissionsOps(ctx: OpsContext): Ops {
   const mac = (ctx.platform ?? 'mac') === 'mac';
-  // Windows has a grant for the microphone only (C12 §7.9), so the page lists no other.
+  // Windows has a grant for the microphone only, so the page lists no other.
   const kinds = mac ? PERMISSION_KINDS : ['microphone'];
   return {
     'permissions.status': async () => {

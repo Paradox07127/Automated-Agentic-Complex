@@ -1,5 +1,5 @@
-// Win32 helpers that more than one ops file uses: text conversion, process names and app ids (CONTRACT §2.9,
-// §7.11), and the on-screen window list of §7.2.
+// Win32 helpers that more than one ops file uses: text conversion, process names and app ids,
+// and the on-screen window list.
 #pragma once
 
 #define NOMINMAX
@@ -111,7 +111,7 @@ inline std::wstring file_description(const std::wstring& path) {
     return last == std::wstring::npos ? std::wstring() : description.substr(0, last + 1);
 }
 
-// CONTRACT §2.9: the AUMID of a packaged app, else the lower-case executable name.
+// The AUMID of a packaged app, else the lower-case executable name.
 inline std::wstring app_id_of(HANDLE process, const std::wstring& exe) {
     std::wstring id = process ? package_app_id(process) : std::wstring();
     return id.empty() ? lower(exe) : id;
@@ -192,7 +192,7 @@ struct Window {
     double alpha;
 };
 
-// CONTRACT §7.2: visible, uncloaked top-level windows that are neither minimized nor the desktop, front to back.
+// Visible, uncloaked top-level windows that are neither minimized nor the desktop, front to back.
 inline std::vector<Window> screen_windows() {
     std::vector<Window> found;
     EnumWindows([](HWND hwnd, LPARAM into) -> BOOL {

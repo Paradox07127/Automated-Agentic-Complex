@@ -1,5 +1,5 @@
 {
- "description": "宿主请求的生成动作（v2.5）：第一条 motion 成功，带 motion 和 tracks_sha256，宿主取 meta、keys、tracks 校验后播；第二条失败，reason timeout，不带 motion，宿主用游戏片段",
+ "description": "宿主请求的生成动作：第一条 motion 成功，带 motion 和 tracks_sha256，宿主取 meta、keys、tracks 校验后播；第二条失败，reason timeout，不带 motion，宿主用游戏片段",
  "messages": [
   {
    "event": "motion",

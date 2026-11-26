@@ -1,10 +1,10 @@
-// Desktop surfaces and pass-through (C3 rules 31–35, 41): the platform helper's `screens.list`, `windows.list` and `ax.hit_chain` replies (C12 §7.2, §7.4) in,
+// Desktop surfaces and pass-through: the platform helper's `screens.list`, `windows.list` and `ax.hit_chain` replies in,
 // the `surfaces`, `surface`, `covered` and `pass_through` contents out. Rects are C3 global points (AppKit's, y up, unless a
 // `HelperY` says otherwise) unless a field says CG (the helper's: main display's top-left origin, y down).
 import { appKitY, type HelperY } from './attention.ts';
 import type { Box } from './c3.ts';
 
-/** A 「桌面表面」 window item; `above` only on the attached track (rule 34). */
+/** A 「桌面表面」 window item; `above` only on the attached track. */
 export interface SurfaceWindow { window_id: number; generation: number; display_id: number; frame: Box; order: number;
   edges: { side: string; segments: [number, number][] }[]; above?: Box[] }
 export type SurfaceUpdate = { track_id: string; state: 'tracking'; window: SurfaceWindow } | { track_id: string; state: 'gone'; reason: string };
@@ -25,7 +25,7 @@ export interface SurfaceInput {
   screens: SurfaceScreen[];
   /** Height of the primary display, for the CG → global flip. */
   mainHeight: number;
-  /** The front app's pid (rule 35); null when unknown. */
+  /** The front app's pid; null when unknown. */
   frontPid: number | null;
   /** The CG → global y (AppKit's when absent). */
   helperY?: HelperY;
@@ -92,7 +92,7 @@ export function readHitChain(result: Record<string, unknown>, mainHeight: number
   });
 }
 
-/** Sizes and counts; rule 33. */
+/** Window size limits in points. */
 export const SURFACE_LIMITS = { minSize: 80, minSegment: 40, maxWindows: 32, maxSegments: 8 } as const;
 
 export type Presence = { kind: 'listed'; window: SurfaceWindow } | { kind: 'notListed' } | { kind: 'closed' };
@@ -145,7 +145,7 @@ export function outsideVisible(frame: Box, visible: Box): Box[] {
     { x: maxX(visible), y: frame.y, w: maxX(frame) - maxX(visible), h: frame.h }].filter((r) => r.w > 0 && r.h > 0);
 }
 
-/** Rule 31: which windows are listed, their generations and uncovered edges. */
+/** Which windows are listed, their generations and uncovered edges. */
 export class DesktopSurfaces {
   private readonly generations = new Map<number, number>();
   private listed = new Set<number>();
@@ -188,7 +188,7 @@ export class DesktopSurfaces {
   }
 }
 
-/** Seconds and counts of rules 32–34. */
+/** Tracking intervals in seconds. `aboveMargin` is in points. */
 export const TRACKING = { snapshotInterval: 0.5, trackInterval: 1 / 30, keepalive: 0.1, maxTracks: 4, requestsPerSecond: 10,
   aboveMargin: 40, maxAbove: 8 } as const;
 
@@ -200,8 +200,7 @@ const sameWindow = (a: SurfaceWindow, b: SurfaceWindow) => JSON.stringify(a) ===
 
 interface Track { id: string; windowId: number; generation: number; last: SurfaceWindow; sentAt: number; above: Box[] | null }
 
-/** Rules 31–34 for one connection: when to poll, which `surfaces` and `surface` to
- *  send. A new connection gets a new one, so generations and `seq` start again. Times in seconds. */
+/** Window generations and `seq` reset on reconnect. Poll times are in seconds. */
 export class SurfaceTracking {
   private readonly surfaces = new DesktopSurfaces();
   private tracks: Track[] = [];
@@ -215,7 +214,7 @@ export class SurfaceTracking {
   private attachedId: string | null = null;
   private attachDue = false;
 
-  /** The attached `track_id` (rule 34), tracked or still pending. */
+  /** The attached `track_id`, tracked or still pending. */
   get attached(): string | null {
     return this.attachedId;
   }
@@ -243,7 +242,7 @@ export class SurfaceTracking {
     this.refresh = true;
   }
 
-  /** `track_surface`; answered on the next tick, or at once with `gone` `too_many` (rules 32, 33). */
+  /** `track_surface`; answered on the next tick, or at once with `gone` `too_many`. */
   track(id: string, windowId: number, generation: number | null, now: number): SurfaceMessage[] {
     this.requestTimes = this.requestTimes.filter((t) => now - t < 1);
     if (this.requestTimes.length >= TRACKING.requestsPerSecond || this.tracks.length + this.pending.length >= TRACKING.maxTracks) {
@@ -330,7 +329,7 @@ export class SurfaceTracking {
   }
 }
 
-/** Rule 34: the windows in front of `windowId` in the same read, layer 0, alpha > 0, not
+/** The windows in front of `windowId` in the same read, layer 0, alpha > 0, not
  *  excluded, within `aboveMargin` of `body`, front to back; past `maxAbove`, the pair whose bounding box adds the least
  *  area becomes that box, at the front one's place. */
 export function aboveRects(input: SurfaceInput, windowId: number, body: Box | null): Box[] {
@@ -354,10 +353,10 @@ export function aboveRects(input: SurfaceInput, windowId: number, body: Box | nu
   return rects;
 }
 
-/** Rule 35 and the key pause `covered` waits for; seconds. */
+/** and the key pause `covered` waits for; seconds. */
 export const COVER = { enterFraction: 0.15, leaveFraction: 0.05, dwell: 0.3, readInterval: 0.1, typingPause: 1.5 } as const;
 
-/** Rule 35: whether the front app's window covers her, from window list reads and her body frame. */
+/** Whether the front app's window covers her, from window list reads and her body frame. */
 export class CoverState {
   covered = false;
   fraction = 0;
@@ -409,7 +408,7 @@ const INTERACTIVE = new Set(['AXTextField', 'AXTextArea', 'AXComboBox', 'AXButto
   'AXDateTimeArea']);
 const BOUNDARIES = new Set(['AXWindow', 'AXApplication', 'AXWebArea']);
 
-/** Rule 41: `chain` is the hit element, then its ancestors. */
+/** `chain` is the hit element, then its ancestors. */
 export function firstInteractive(chain: UnderlayElement[]): UnderlayElement | null {
   for (const e of chain) {
     if (e.role !== null && BOUNDARIES.has(e.role)) return null;
@@ -418,10 +417,10 @@ export function firstInteractive(chain: UnderlayElement[]): UnderlayElement | nu
   return null;
 }
 
-/** Rule 41; seconds. */
+/** Seconds. */
 export const PASS_THROUGH = { probeInterval: 0.05, refreshAfter: 0.5, maxAge: 2, maxEntries: 8 } as const;
 
-/** Rule 41 (PassThroughCache): frames of the user's controls under her body, each with the time it was last probed. */
+/** Cached frames of the user's controls under her body, each with the time it was last probed. */
 export class PassThroughCache {
   private entries: { frame: Box; probedAt: number }[] = [];
   private lastProbeAt = -Infinity;
@@ -455,7 +454,7 @@ export class PassThroughCache {
   }
 }
 
-/** Rule 41: the cursor is near her capsules, in the capsules' space. */
+/** The cursor is near her capsules, in the capsules' space. */
 export function nearCapsules(p: Point, bounds: Box | null, margin: number, near: number): boolean {
   return bounds !== null && contains(grow(bounds, margin + near), p);
 }

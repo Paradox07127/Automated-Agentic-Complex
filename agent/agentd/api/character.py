@@ -9,7 +9,7 @@ def _id64(value):
 
 
 def _motion_state_ok(body):
-    """C3 rule 54's motion_state without v and type."""
+    """A C3 motion_state without v and type."""
     return isinstance(body, dict) and set(body) == c1.MOTION_STATE_KEYS | {"clip"} and body["origin"] in c1.ORIGINS \
         and (_id64(body["behavior_id"]) and body["origin"] != "user"
              or body["behavior_id"] is None and body["origin"] != "agent") \
@@ -19,7 +19,7 @@ def _motion_state_ok(body):
 
 
 def _key(value):
-    """C3 rule 51 (j): a chain key, pool key or clip name."""
+    """A chain key, pool key or clip name."""
     return isinstance(value, str) and 0 < len(value.encode()) <= 128
 
 
@@ -34,8 +34,8 @@ def _pool_ok(rows):
 
 
 def _motion_prefs_ok(body):
-    """{character_id, action_switches, motion_overrides}: C3 rule 28's switch table and rule 51's overrides within its
-    (j) limits."""
+    """{character_id, action_switches, motion_overrides}: the action switch table and the motion overrides, within
+    the renderer's size limits."""
     if not isinstance(body, dict) or set(body) != {"character_id", "action_switches", "motion_overrides"}:
         return False
     o = body["motion_overrides"]
@@ -114,7 +114,7 @@ class CharacterMixin:
         self._json(200, {"affects_behavior": self.server.state_affects})
 
     def _behavior_receipt(self, body):
-        """POST /behavior/receipts: the avatar host's execution receipt (C1 §3), forwarded by the Companion."""
+        """POST /behavior/receipts: the avatar host's execution receipt, forwarded by the Companion."""
         if not isinstance(body, dict) or c1.check_message({**body, "event": "receipt"}):
             return self._json(400, {"error": "invalid_receipt"})
         applied, why = self.server.spatial.receipt(body)
@@ -134,7 +134,7 @@ class CharacterMixin:
         self._json(200, {"applied": applied, "why": why})
 
     def _motion_state(self, body):
-        """POST /behavior/motion_state: the renderer's clip boundary (C3 rule 54), forwarded by the Companion."""
+        """POST /behavior/motion_state: the renderer's clip boundary, forwarded by the Companion."""
         if not _motion_state_ok(body):
             return self._json(400, {"error": "invalid_motion_state"})
         self.server.spatial.motion_state(body)

@@ -1,4 +1,4 @@
-// `avatar.motionOverrides.*`, `avatar.playChain` and `avatar.preview.sequence` types (C3 v27 rules 51, 52), re-exported by protocol.ts.
+// `avatar.motionOverrides.*`, `avatar.playChain` and `avatar.preview.sequence` types, re-exported by protocol.ts.
 import type { ModSettingsOps } from './modSettings';
 import type { MotionChainOps } from './motionChain';
 import type { ActionSpeed } from './protocol';
@@ -26,7 +26,7 @@ export interface MotionOverrides {
   notes?: Record<string, string>;
 }
 
-/** An entry the avatar did not take, and why (C3 v27 rule 51 (d)–(f)). */
+/** An entry the avatar did not take, and why. */
 export type MotionOverrideAdjusted =
   | { kind: 'chain'; key: string; reason: 'unknown_chain' | 'required' }
   | { kind: 'pool'; key: string; reason: 'unknown_pool' | 'unknown_clip' | 'excluded_family' | 'no_return' | 'stance_mismatch' }
@@ -80,7 +80,7 @@ export interface MotionAvatarOps {
   playChain(character: string, r: PlayChainRequest): Promise<void>;
   /** Structure proposals: check one, or apply it by rebuilding the character pack. */
   motionChain: MotionChainOps;
-  /** The current appearance's mod switches (C3 v27 rule 53). */
+  /** The current appearance's mod switches. */
   modSettings: ModSettingsOps;
   preview: {
     /**

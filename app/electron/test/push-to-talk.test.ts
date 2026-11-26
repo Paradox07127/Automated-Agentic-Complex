@@ -480,7 +480,7 @@ test('an undecided speech grant is asked for on a press with the microphone allo
   await s.event('ptt.down');
   assert.deepEqual(s.stops, [undefined, 7], 'still a barge-in');
   assert.deepEqual(s.requests.find(([op]) => op === 'permissions.request')![1], { kind: 'microphone' },
-    'the helper asks for speech with the microphone (CONTRACT §7.9)');
+    'the helper asks for speech with the microphone');
   assert.ok(!s.ops().includes('mic.start'));
   assert.deepEqual(s.last(), { phase: 'error', error: HINT.micAllowed });
   await s.event('ptt.up');

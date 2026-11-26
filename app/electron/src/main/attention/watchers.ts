@@ -1,4 +1,4 @@
-// The surface source and the give-way loop (the core's), C3 rule 39's turn toward the user's focus, and apart from them the
+// The surface source and the give-way loop (the core's), turning toward the user's focus, and apart from them the
 // activity and timeline recorders, as index.ts starts them. The user's mouse presses (mouse-downs.ts) feed keep_clear's
 // `control` and `near_clicks` and `near_clicks_10s`, and FocusVisibility hides her in the window viewport.
 // All of them read the user's windows or input, so `--no-attention` starts none of them.
@@ -25,7 +25,7 @@ import { NO_ANSWER, type UserAnswer } from './sampler.ts';
 /** The link's tick, which runs FocusVisibility and the `control` hover. */
 const TICK_MS = 1000 / 60;
 
-/** C3's y of the helper's coordinates on each platform (C12 CONTRACT 「坐标」, the C3 Windows appendix). */
+/** C3's y of the helper's coordinates on each platform. */
 export function helperYFor(platform: 'mac' | 'windows'): HelperY {
   return platform === 'mac' ? appKitY : helperY;
 }
@@ -65,7 +65,7 @@ export interface WatcherOptions {
   linkLog(line: string): void;
   /** shellPlan of the plug-ins agentd runs with, read at each use: without `focusTurn` she never turns to the focus. */
   plan(): ReadonlySet<Subsystem>;
-  /** ObservationControl.state (`pausedUntil` in epoch milliseconds); without it she never turns to the focus (rule 39). */
+  /** ObservationControl.state (`pausedUntil` in epoch milliseconds); without it she never turns to the focus. */
   observation?(): { readonly meeting: boolean; readonly pausedUntil: number | null } | null;
   /** The main display's height, for the front window's bounds; without it she never turns to the focus. */
   mainHeight?(): number | null;
@@ -121,7 +121,7 @@ export function shellWatchers(o: WatcherOptions): ShellWatchers | null {
   /** The rects of the latest `pass_through`, the `control` source's. */
   let passThrough: readonly Box[] = [];
   const kinematics = new NearClickCount();
-  // While FocusVisibility hides her, rule 35 still judges her, on her last body.
+  // While FocusVisibility hides her, coverage checks still use her last body bounds.
   const surfaceLink: SurfaceLink = {
     get hello() { return link.hello; },
     get capabilities() { return link.capabilities; },
@@ -150,7 +150,7 @@ export function shellWatchers(o: WatcherOptions): ShellWatchers | null {
     helper: o.helper, ownPids: o.ownPids, reflex: () => o.attention()?.reflex ?? null,
     keepClear: (next) => { rects = next; },
     covered: () => surfaces.isCovered,
-    // On Windows efw keeps her out of captures itself (C3 Windows appendix).
+    // On Windows efw keeps her out of captures itself.
     fullscreenBehavior: () => { const v = o.saved()?.fullscreen_behavior; return typeof v === 'string' ? v : 'hide'; },
     hideOnScreenCapture: () => o.platform === 'mac' && o.saved()?.hide_on_screen_capture !== false,
     // HostLink.sendSetVisible: any hide or show but FocusVisibility's own cancels its pending change.

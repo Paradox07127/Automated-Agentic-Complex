@@ -15,7 +15,7 @@ import { appendLog } from './log.ts';
 
 export interface Tree { sha256: string; files: number; bytes: number }
 
-/** C11 §4 tree hash of a payload, with the manifest's `files` and `bytes` for the same entries. */
+/** The tree hash of a payload, with the manifest's `files` and `bytes` for the same entries. */
 export function treeHash(root: string, externalID?: string): Tree {
   const entries: { path: string; link: boolean; exec: boolean; size: number }[] = [], pending = [''];
   while (pending.length > 0) {
@@ -141,7 +141,7 @@ export function writeAtomic(path: string, text: string, mode?: number): void {
 }
 
 /**
- * Installs a split app's external components (C11 §7) from `source` (the `components/` beside the app) into
+ * Installs a split app's external components from `source` (the `components/` beside the app) into
  * `<support>/components/` and writes the split lock there. Each new copy is checked in full before it is renamed into
  * place. Every launch checks installed copies against the index sealed in the app.
  */

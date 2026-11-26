@@ -18,7 +18,7 @@ export function feedCommand(e: { event: string; data: string }): FeedCommand | n
   return { seq: seq as number, action, target };
 }
 
-/** agentd's `/feed` `looks` event: her own change of appearance, layers or one appearance's mod switches (C6 §4.4). */
+/** agentd's `/feed` `looks` event: her own change of appearance, layers or one appearance's mod switches. */
 export interface FeedLooks {
   seq: number;
   requestId: string;

@@ -1,4 +1,4 @@
-// control.listen and control.respond of CONTRACT §7.8, with the control.request event (§8): a named pipe whose DACL
+// control.listen and control.respond, with the control.request event: a named pipe whose DACL
 // admits this user alone, local clients only, and a token file with the same DACL. Each connection carries one
 // request of at most 64 KiB from a process of this user with the token; at most 4 connections read their request at
 // once. The request goes to the main process without its token; control.respond writes the answer and closes it.

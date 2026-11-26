@@ -1,5 +1,4 @@
-// Node-API addon for the Windows shell: the named pipe of the character page's preview (C3 CONTRACT 「附录：角色页预览」
-// 「Windows 传输」), the handle calls that pull a ring's shared textures out of the efw, and the DXGI adapters. Lines, hello,
+// Node-API addon for the Windows shell: the named pipe of the character page's preview, the handle calls that pull a ring's shared textures out of the efw, and the DXGI adapters. Lines, hello,
 // ring and frame are src/main/preview/pipe.ts's. listen(name, onData), write(connection, line), openClient(connection),
 // duplicate(process, handle), close(handle), adapters().
 #define WIN32_LEAN_AND_MEAN

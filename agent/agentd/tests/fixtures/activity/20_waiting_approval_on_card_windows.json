@@ -1,5 +1,5 @@
 {
-  "note": "Windows: the approval card is in the app's own window, whose helper app_id is the lower-case exe name (C12 §2.9).",
+  "note": "Windows: the approval card is in the app's own window, whose helper app_id is the lower-case exe name.",
   "inputs": {
     "now": 1800000000.0,
     "focus": {

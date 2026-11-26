@@ -1,4 +1,4 @@
-// C3 rule 39's presents in the follower (src/common/desktop-follow.ts): a presented panel is held until her stroke or 3.5 s after its
+// Panel presentation in the follower (src/common/desktop-follow.ts): a presented panel is held until her stroke or 3.5 s after its
 // `open`, and its close is done at her stroke, 1.5 s after it, or when the panel went.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';

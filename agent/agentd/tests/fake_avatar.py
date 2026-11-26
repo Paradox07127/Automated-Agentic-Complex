@@ -1,5 +1,5 @@
 """A fake C3 renderer for character switch tests: hello with its character, then one reply per set_character as
-C3 rule 14 says (same id -> changed at once; a request during a switch fails with switching; a failed load keeps
+the real one gives (same id -> changed at once; a request during a switch fails with switching; a failed load keeps
 the old character)."""
 import json
 import socket

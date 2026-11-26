@@ -37,7 +37,7 @@ type Obj = Record<string, unknown>;
 const obj = (v: unknown): Obj | null => (typeof v === 'object' && v !== null && !Array.isArray(v) ? v as Obj : null);
 const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
 
-/** An `input.action`'s `target` (CONTRACT §7.12 `ax_element`), whose `label` is AXTitle, else AXDescription, else the placeholder. */
+/** An `input.action`'s `target`, whose `label` is AXTitle, else AXDescription, else the placeholder. */
 export function toTarget(raw: unknown): TimelineTarget | null {
   const o = obj(raw);
   if (!o) return null;

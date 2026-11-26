@@ -1,5 +1,5 @@
-// The ambient sampler over the platform helper (C12 §7.5 `capture.ambient`): each second while she runs, the colours behind
-// her (`render_ambient` "screen") or of the wallpaper go to the renderer as C3 `ambient_sample` (rule 44). Keeps no image;
+// The ambient sampler over the platform helper (`capture.ambient`): each second while she runs, the colours behind
+// her (`render_ambient` "screen") or of the wallpaper go to the renderer as C3 `ambient_sample`. Keeps no image;
 // only the five colours leave this module.
 import { AMBIENT, type AmbientColors, ambientChanged, ambientMode, ambientWire, reduceAmbient } from '../../common/ambient.ts';
 import { type CaptureWindow, captureBlockReason } from '../../common/capture-rules.ts';

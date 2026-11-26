@@ -135,7 +135,7 @@ test('screen: each second the screen under her visual rect without our windows, 
   assert.deepEqual(t.sent.at(-1), { source: 'screen', colors: colorsOf(140) });
 });
 
-test('Windows: the visual rect goes to the helper as it is (C12 「坐标」, the C3 Windows appendix)', async () => {
+test('Windows: the visual rect goes to the helper as it is', async () => {
   const t = setup({ platform: 'windows' });
   t.ambient!.start();
   await t.step(1000);

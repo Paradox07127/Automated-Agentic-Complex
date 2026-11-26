@@ -145,7 +145,7 @@ class CharacterSwitchEndToEndTest(unittest.TestCase):
 
     @unittest.skipIf(sys.platform == "win32", "the test plays the macOS app's C3 end on a unix socket; C3 on Windows belongs to the Electron shell")
     def test_hello_with_another_character_moves_agentd(self):
-        # The avatar fell back or kept a character agentd was not launched with (C3 rule 14 "以 hello 为准").
+        # The avatar fell back or kept a character agentd was not launched with; the hello's character wins.
         companion, avatar = self.link("birch")
         self.assertTrue(companion.wait(lambda c: c.agentd_replies))
         self.assertEqual(self.agentd_character(), avatar.character)

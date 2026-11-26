@@ -359,7 +359,7 @@ let resizeOverlay: ResizeOverlayWindow | null = null;
 let photoOverlay: PhotoOverlayWindow | null = null;
 const renderer = config && new RendererSupervisor({
   config, reload: () => loadConfig(configPath), settings: () => readObject(configPath), state: () => readObject(join(config!.supportDir, 'state.json')),
-  // The last character a switch remembered (rule 14), as at the app's launch.
+  // The last character a switch remembered, as at the app's launch.
   character: () => launchCharacter(config!, lastCharacter(config!.supportDir)),
   placement: (character) => placer?.launchPlacement(character) ?? null, link: hostLink,
   captureDir: CAPTURE_DIR, platform: shellPlatform(), previewRendezvous: () => addon?.rendezvous() ?? undefined,
@@ -372,7 +372,7 @@ const renderer = config && new RendererSupervisor({
   },
   onLoading: (loading) => showAvatarLoading(loading),
 });
-// Rule 17: the watchdog's kill goes to the process whose hello it watched.
+// The watchdog's kill goes to the process whose hello it watched.
 hostLink?.on((e) => { if (e.kind === 'watchdog' && e.pid === renderer?.pid) renderer.kill(e.reason); });
 /** The `services` the shell runs a process for (`ssh`, `local`); the others start nothing. */
 const services = config && new Map(SERVICE_IDS.map((id) => [id, new ServiceSupervisor({
@@ -633,7 +633,7 @@ const watchers = config && hostLink && helper ? shellWatchers({
   },
   log: (line) => appendLog(config!.supportDir, 'companion', line),
   linkLog: (line) => appendLog(config!.supportDir, 'hostlink', line),
-  // Rule 39's turn toward the focused window.
+  // Turn toward the focused window.
   observation: () => observation?.state ?? null,
   mainHeight: () => screen.getPrimaryDisplay().bounds.height,
 }) : null;
@@ -644,7 +644,7 @@ const recorders = config && helper && agentdClient !== null ? shellRecorders({
   saved: () => readSaved(configPath), ownPids: () => (helper.pid === undefined ? [process.pid] : [process.pid, helper.pid]), plan,
   log: (line) => appendLog(config!.supportDir, 'companion', line),
 }) : null;
-/** Rule 44's colours over the helper (src/main/ambient/shell.ts); none with `--no-attention`. */
+/** Ambient colours from the helper (src/main/ambient/shell.ts); none with `--no-attention`. */
 const ambient = config && hostLink && helper ? shellAmbient({
   argv: process.argv, platform: shellPlatform(), helper, link: hostLink, agentdStateDir: config.agentdStateDir,
   settings: () => readObject(configPath), attention: () => attention,

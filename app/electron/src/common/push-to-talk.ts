@@ -1,4 +1,4 @@
-// 按住说话 over the platform helper (C12 §7.7): the helper registers the hot key and
+// 按住说话 over the platform helper: the helper registers the hot key and
 // sends ptt.down and ptt.up, this barges in, reads the microphone grant, records with mic.start and mic.stop, keeps the
 // recording hint and hands the transcript to agentd's POST /say.
 import { type HeaderRequest, postSay } from './desktop-say.ts';
@@ -214,7 +214,7 @@ export class PushToTalk {
   /** The hot key's config.json name; null is push-to-talk off. */
   private name: string | null;
   private agentdRunning = false;
-  /** A helper runs and its `hello.ops` holds every op of NEEDED_OPS (CONTRACT §4.4). */
+  /** A helper runs and its `hello.ops` holds every op of NEEDED_OPS. */
   private helperCapable = false;
   /** Bumped when the helper goes, which drops its registration. */
   private helperEpoch = 0;
@@ -256,7 +256,7 @@ export class PushToTalk {
   /** The key is down, from `ptt.down` until it is let go or can no longer be. */
   get held(): boolean { return this._held; }
 
-  /** The helper said hello (true) or went (false); its registration goes with it (CONTRACT §6.4). */
+  /** The helper said hello (true) or went (false); its registration goes with it. */
   helper(running: boolean): void {
     const ops = this.ports.helper.hello?.ops;
     this.helperCapable = running && Array.isArray(ops) && NEEDED_OPS.every((op) => ops.includes(op));
@@ -400,14 +400,14 @@ export class PushToTalk {
     const grants = await this.ports.helper.request('permissions.status');
     if (!grants.ok) return this.failed(`permissions.status ${grants.error.code}`);
     this.mic = grants.result.microphone;
-    // CONTRACT §7.9: only notDetermined is a speech grant not asked for yet.
+    // Only notDetermined is a speech grant not asked for yet.
     if (this.mic === 'granted') return grants.result.speech === 'notDetermined' ? this.requestSpeechAccess() : this.record();
     if (this.mic === 'notDetermined') return this.requestAccess();
     this.micDenied();
   }
 
   private bargeIn(): void {
-    // C3 rule 7: after synthesis ends agentd has nothing left to cancel while the avatar still plays its buffer.
+    // After synthesis ends agentd has nothing left to cancel while the avatar still plays its buffer.
     this.ports.stopSpeech();
     void (async () => {
       let status = 0, generation: unknown;
@@ -417,7 +417,7 @@ export class PushToTalk {
         generation = object(reply.body)?.generation;
       } catch { /* status 0 */ }
       if (status !== 202) this.ports.log(`VOICE barge_in status=${status}`);
-      // C3 rule 24: the avatar also drops queued speech older than the new generation.
+      // The avatar also drops queued speech older than the new generation.
       if (status === 202 && Number.isInteger(generation)) this.ports.stopSpeech(generation as number);
     })();
   }
@@ -434,8 +434,8 @@ export class PushToTalk {
     this.dismissLater();
   }
 
-  /** The microphone request with the microphone allowed asks for speech only
-   *  (CONTRACT §7.9); either answer lets the next press record. */
+  /** The microphone request with the microphone allowed asks for speech only;
+   *  either answer lets the next press record. */
   private async requestSpeechAccess(): Promise<void> {
     this.phase = 'idle';
     const reply = await this.ports.helper.request('permissions.request', { kind: 'microphone' });

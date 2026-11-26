@@ -130,7 +130,7 @@ class TraceFormatTest(unittest.TestCase):
         self.assertTrue(any("bad attrs.planned_ms" in e for e in validate_event(event)))
 
     def test_playback_buffering_resumed_and_degraded(self):
-        # C3 v10 rule 23: the renderer's buffering, resumed and degraded receipts go into the trace as their own kinds.
+        # The renderer's buffering, resumed and degraded receipts go into the trace as their own kinds.
         base = copy.deepcopy(sample()[13])
         base.pop("duration_ms")
         for kind, extra in (("playback.buffering", {}), ("playback.resumed", {}),

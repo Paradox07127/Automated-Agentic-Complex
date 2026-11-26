@@ -1,5 +1,5 @@
 // In the window viewport she hides, rather than fades, while the front app's window covers her
-// (rule 35's `covered`) and shows again once it no longer does. Any manual show or hide cancels the pending change.
+// (`covered`) and shows again once it no longer does. Any manual show or hide cancels the pending change.
 
 /** Seconds. */
 export const FOCUS_VISIBILITY = { enterDelay: 1.2, leaveDelay: 0.8, minimumHidden: 3, manualGrace: 3 } as const;

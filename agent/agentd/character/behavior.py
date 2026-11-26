@@ -49,7 +49,7 @@ CATEGORIES = {"com.microsoft.VSCode": "coding", "com.apple.dt.Xcode": "coding", 
               "com.apple.iWork.Pages": "writing", "notion.id": "writing", "com.spotify.client": "media",
               "com.apple.Music": "media", "us.zoom.xos": "meeting", "com.microsoft.teams2": "meeting",
               "com.figma.Desktop": "canvas", "com.apple.ScreenSharing": "remote_desktop"}
-# The Windows helper's app_id (C12 §2.9), lower-cased: an exe name, or a packaged app's AUMID by its package name.
+# The Windows helper's app_id, lower-cased: an exe name, or a packaged app's AUMID by its package name.
 WINDOWS_CATEGORIES = {**dict.fromkeys(("code.exe", "cursor.exe", "devenv.exe", "idea64.exe", "pycharm64.exe", "webstorm64.exe",
                                        "rider64.exe", "clion64.exe", "goland64.exe", "sublime_text.exe"), "coding"),
                       **dict.fromkeys(("windowsterminal.exe", "microsoft.windowsterminal", "microsoft.windowsterminalpreview",

@@ -1,4 +1,4 @@
-// C3 rule 39 `attention_side` with source focus (src/common/focus-side.ts).
+// `attention_side` with source focus (src/common/focus-side.ts).
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { FOCUS_SIDE, FocusSide } from '../src/common/focus-side.ts';

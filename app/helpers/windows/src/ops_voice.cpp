@@ -1,5 +1,5 @@
-// The voice ops of CONTRACT §7.7 (speech.locales, mic.start, mic.stop, ptt.register, ptt.unregister) and their events
-// (§8). The hot key reads the keyboard Raw Input of ops_attention.cpp's watch window; the microphone is a WASAPI
+// The voice ops (speech.locales, mic.start, mic.stop, ptt.register, ptt.unregister) and their events.
+// The hot key reads the keyboard Raw Input of ops_attention.cpp's watch window; the microphone is a WASAPI
 // shared-mode capture that Windows converts to 16 kHz mono float; recognition is sherpa-onnx's offline SenseVoice
 // recognizer from the DLLs beside ac-helper.exe (third_party.ps1), with a model the first mic.start downloads.
 #define NOMINMAX
@@ -44,7 +44,7 @@ using namespace win32;
 constexpr int kSampleRate = 16000;
 constexpr uint64_t kMaxSessionSamples = 60ull * kSampleRate;  // neither the contract nor the shell caps a session
 constexpr uint64_t kStartBudgetMs = 110000;                    // under mic.start's timeout_ms of 120 s
-constexpr DWORD kLevelMs = 50;                                 // CONTRACT §7.7: at most 20 mic.level a second
+constexpr DWORD kLevelMs = 50;                                 // at most 20 mic.level a second
 constexpr DWORD kPartialMs = 600;
 constexpr DWORD kDownloadMs = 250;
 

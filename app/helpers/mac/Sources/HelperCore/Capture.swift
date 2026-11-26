@@ -42,7 +42,7 @@ enum ScreenGrant {
     static let denied = Outcome.failure(code: "permission_denied", message: "the helper lacks the Screen Recording grant")
 }
 
-/// CONTRACT §7.5 `capture.window` and `capture.ambient`.
+/// `capture.window` and `capture.ambient`.
 enum Capture {
     /// Under the ops' 5 s timeout_ms.
     static let limit: TimeInterval = 4

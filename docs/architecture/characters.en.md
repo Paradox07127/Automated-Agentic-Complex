@@ -2,7 +2,7 @@
 
 [简体中文](characters.md) · [Documentation index](../README.en.md)
 
-For the format of character libraries and packages, see the [character library contract](../../protocol/character-library/CONTRACT.md).
+`agent/agentd/character_library.py` validates the format of character libraries and packages.
 
 ## Build tools
 

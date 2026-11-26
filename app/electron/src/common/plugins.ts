@@ -22,7 +22,7 @@ export const enabledPlugins = (plugins: Plugins): PluginId[] => PLUGIN_IDS.filte
  * What this shell starts. The core's `surfaces` (sitting on and leaning on windows) and `giveWay` always start; the rest
  * are the registry's `shell.subsystems` of the plug-ins that are on:
  * `pushToTalk` 按住说话's key; `attention` each attention sample sent to agentd (the sampler itself runs for give-way);
- * `activity` and `timeline` the recorders; `context` the screen context capturer; `focusTurn` C3 rule 39's turn toward the
+ * `activity` and `timeline` the recorders; `context` the screen context capturer; `focusTurn` the turn toward the
  * focused window; `reading` the 屏幕识读 entry; `control` the computer control host; `hooks` the session
  * hook script in `<support>/bin`; `sessions` the 会话面板 menu item; `approvals` the 待处理 menu items.
  */

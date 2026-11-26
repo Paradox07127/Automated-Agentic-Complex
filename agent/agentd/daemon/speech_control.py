@@ -225,7 +225,7 @@ class SpeechControlMixin:
         return self.speech is not None and self.speech.cancel(reason, immediate)
 
     def _speech_cancelled(self, speech_id, reason):
-        """C1 `speech_cancelled` on /events (C2 v2-3 rule 8). speech_id: anything but a str is sent as null,
+        """C1 `speech_cancelled` on /events. speech_id: anything but a str is sent as null,
         and so is utterance_id when it is no clause."""
         speech_id = speech_id if isinstance(speech_id, str) else None
         self.registry.publish_event("speech_cancelled", {
@@ -235,7 +235,7 @@ class SpeechControlMixin:
             "reason": reason})
 
     def _clause_intent(self, line_id, intent, generation, trace_id, clause):
-        """C1 v2 §4 `clause_intent` on /events, and its gesture chosen now. clause: the relay's clause_ref, None for a
+        """`clause_intent` on /events, and its gesture chosen now. clause: the relay's clause_ref, None for a
         line shown only as text."""
         clause = clause or dict.fromkeys(("utterance_id", "clause_id", "spoken_text_revision"))
         self.registry.publish_event("clause_intent", {"line_id": line_id, **clause, "intent": intent,
@@ -243,7 +243,7 @@ class SpeechControlMixin:
         self.spatial.motion_clause((clause["utterance_id"], clause["clause_id"]), intent)
 
     def _text_line(self, line_id, generation, trace_id, hold_ms=None):
-        """C1 v2.3 `text_line` on /events: started while hold_ms is None, else ended, the host speaking hold_ms more."""
+        """C1 `text_line` on /events: started while hold_ms is None, else ended, the host speaking hold_ms more."""
         ended = {} if hold_ms is None else {"hold_ms": hold_ms}
         self.registry.publish_event("text_line", {"line_id": line_id, "turn_generation": generation,
                                                   "trace_id": trace_id, "state": "ended" if ended else "started",

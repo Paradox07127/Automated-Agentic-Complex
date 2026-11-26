@@ -1,4 +1,4 @@
-// The attention sampler over the platform helper (CONTRACT §7.3): each second while agentd runs, `attention.sample` (with
+// The attention sampler over the platform helper: each second while agentd runs, `attention.sample` (with
 // `browser.front_tab`, `screens.list` and `ax.video_rect` as the reading needs them) becomes one `POST /user/coarse` and,
 // with screen awareness on, one `POST /context/attention`; `presence.watch` edges pause the beats while the screen is locked
 // or the system or display sleeps.
@@ -91,7 +91,7 @@ export class AttentionSampler {
   private loggedFocus: string | null = null;
   private loggedFailure: string | null = null;
   private loggedCoarse: number | null = null;
-  /** `presence.watch` answered; after a restart the supervisor asks for it again (CONTRACT §6.4). */
+  /** `presence.watch` answered; after a restart the supervisor asks for it again. */
   private presenceWatched = false;
 
   constructor(ports: AttentionPorts) {
@@ -188,7 +188,7 @@ export class AttentionSampler {
     this.beats.setPaused(paused);
   }
 
-  /** The beats' poll while paused: CONTRACT §7.3 has no lock-only op, so only `locked` of a sample without titles,
+  /** The beats' poll while paused: the helper has no lock-only op, so only `locked` of a sample without titles,
    *  input or audio is read. */
   private async pollLock(): Promise<void> {
     if (this.polling) return;

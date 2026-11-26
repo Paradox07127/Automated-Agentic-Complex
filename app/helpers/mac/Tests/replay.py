@@ -464,7 +464,7 @@ def session_checks(exe, checks, trusted):
 
 
 def protocol_error_checks(exe, checks):
-    """C12 §2.3, §2.5 and §6.2: a request id not above every earlier one, a "v" that is not the integer 1 and a last
+    """A request id not above every earlier one, a "v" that is not the integer 1 and a last
     line without its newline end the session with exit code 2 and a line on stderr, and get no answer."""
     for label, data in [('a request id not above an earlier one', b'{"v":1,"id":1,"op":"screens.list","params":{}}\n'),
                         ('"v": 1.0', b'{"v":1.0,"id":2,"op":"screens.list","params":{}}\n'),

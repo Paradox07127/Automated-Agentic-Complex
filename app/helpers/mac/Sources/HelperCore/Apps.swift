@@ -1,7 +1,7 @@
 import AppKit
 import Darwin
 
-/// CONTRACT §7.11 `apps.running`, `apps.installed`, `apps.activate` and `process.usage`.
+/// `apps.running`, `apps.installed`, `apps.activate` and `process.usage`.
 enum Apps {
     /// Main thread: NSWorkspace updates its list there.
     static func running(_ params: [String: Any]) -> Outcome {

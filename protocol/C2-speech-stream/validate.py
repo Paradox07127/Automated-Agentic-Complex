@@ -13,7 +13,7 @@ REQUIRED = {
     "cancelled": ("reason", "last_sample_sent"),
 }
 SCHEMAS = ("endfield-speech-timeline-v1", "endfield-speech-timeline-v2")
-# v2 begin fields (CONTRACT-v2-draft.md §2); engine.voice_fingerprint stays optional.
+# speech.begin fields; engine.voice_fingerprint stays optional.
 V2_STRINGS = ("utterance_id", "clause_id", "voice_profile_id", "trace_id")
 V2_POLICIES = {"immediate", "clause_end"}
 VOWELS = {"a", "i", "u", "e", "o"}

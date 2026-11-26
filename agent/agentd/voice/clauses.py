@@ -1,4 +1,4 @@
-"""Cuts a streamed model reply into clauses, one TTS request each (C2 v2-1)."""
+"""Cuts a streamed model reply into clauses, one TTS request each."""
 import re
 
 from voice.speech import SPOKEN_LIMIT

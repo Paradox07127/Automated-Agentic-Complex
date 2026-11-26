@@ -2,7 +2,7 @@
 
 [English](characters.en.md) · [文档索引](../README.md)
 
-角色库和角色包的格式见[角色库规范](../../protocol/character-library/CONTRACT.md)。
+角色库和角色包的格式由 `agent/agentd/character_library.py` 校验。
 
 ## 构建工具
 

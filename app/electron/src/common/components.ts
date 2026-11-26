@@ -94,7 +94,7 @@ function isTimestamp(s: unknown): boolean {
     && t.getUTCMinutes() === mi && t.getUTCSeconds() === se;
 }
 
-/** C11 §5 rules 1 and 2 for `composition.lock.json` on `platform`; throws `lockInvalid`, naming the entry when one is at fault. */
+/** `composition.lock.json` for `platform`; throws `lockInvalid`, naming the entry when one is at fault. */
 export function parseLock(text: string, platform: ComponentPlatform): Lock {
   const doc = json(text);
   if (!isObject(doc) || doc.schema !== 'endfield-composition/v1' || (doc.edition !== 'portable' && doc.edition !== 'split')
@@ -117,7 +117,7 @@ export function parseLock(text: string, platform: ComponentPlatform): Lock {
   return { edition, platform, host: { ...host, placement: 'bundle' }, components };
 }
 
-/** A `component.json` that passes C11 §2 for `platform`; null otherwise. */
+/** A `component.json` whose fields are all well-formed for `platform`; null otherwise. */
 export function parseManifest(text: string, platform: ComponentPlatform): Manifest | null {
   const doc = json(text);
   const id = identity(doc);
@@ -137,7 +137,7 @@ export function parseManifest(text: string, platform: ComponentPlatform): Manife
   return { ...id, platform, files: doc.files, bytes: doc.bytes, entrypoints, provides, requires, placed };
 }
 
-/** C11 §7 `components/index.json`; throws `indexInvalid`, naming the entry when one is at fault. */
+/** The split app's import index `components/index.json`; throws `indexInvalid`, naming the entry when one is at fault. */
 export function parseIndex(text: string): IndexEntry[] {
   const doc = json(text);
   if (!isObject(doc) || doc.schema !== 'endfield-components-index/v1' || !Array.isArray(doc.components)) {
@@ -156,7 +156,7 @@ export function parseIndex(text: string): IndexEntry[] {
 }
 
 /**
- * C11 §5 rules 4, 5 and 7 over the manifests that loaded: drops each one whose requirements the rest do not meet, as
+ * Over the manifests that loaded, drops each one whose component or interface requirements the rest do not meet, as
  * `requirementUnmet`, until none drops. The host runs without a provider that did not load (it is already in `failures`);
  * throws when the host itself is unmet.
  */

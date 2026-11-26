@@ -10,7 +10,7 @@ import type { LinkEvent, SurfaceUpdate } from '../src/main/renderer/link.ts';
 import { type SurfaceLink, startSurfaces } from '../src/main/surfaces/source.ts';
 
 const ok = (result: Record<string, unknown>): HelperAnswer => ({ ok: true, result });
-/** C12 §7.12 `screen`: 1440×900 with a 25 pt menu bar. */
+/** A `screen`: 1440×900 with a 25 pt menu bar. */
 const SCREENS = ok({ screens: [{ display_id: 1, frame: { x: 0, y: 0, width: 1440, height: 900 }, visible: { x: 0, y: 25, width: 1440, height: 875 }, scale: 2, primary: true }] });
 type W = { id: number; pid?: number; x: number; y: number; w: number; h: number; alpha?: number };
 const windows = (list: W[]) => ok({ windows: list.map((w) => ({ window_id: w.id, pid: w.pid ?? 702, bounds: { x: w.x, y: w.y, width: w.w, height: w.h }, layer: 0, alpha: w.alpha ?? 1 })) });
@@ -112,7 +112,7 @@ test('without the helper nothing is read; a failed read sends nothing and is log
   assert.deepEqual(failing.logs, ['SURFACES windows.list failed code=internal']);
 });
 
-test('rule 31: the snapshot is polled every 0.5 s without tracks or a body and sent only when it changed', async () => {
+test('The snapshot is polled every 0.5 s without tracks or a body and sent only when it changed', async () => {
   const s = setup();
   s.source.helper(true);
   s.hello();
@@ -130,7 +130,7 @@ test('rule 31: the snapshot is polled every 0.5 s without tracks or a body and s
   assert.deepEqual(s.sent.map((m) => m.type === 'surfaces' && m.seq), [1]);
 });
 
-test('rule 31: workspace.changed reads again at once; a screens change reads the displays too', async () => {
+test('Workspace.changed reads again at once; a screens change reads the displays too', async () => {
   const s = setup();
   s.source.helper(true);
   s.hello();
@@ -144,7 +144,7 @@ test('rule 31: workspace.changed reads again at once; a screens change reads the
   assert.deepEqual(s.ops(), ['windows.list', 'screens.list', 'windows.list']);
 });
 
-test('rules 32, 33: a track is answered on the next read and polled at 30 Hz; the fifth is gone too_many; untrack stops it', async () => {
+test('A track is answered on the next read and polled at 30 Hz; the fifth is gone too_many; untrack stops it', async () => {
   const s = setup();
   s.source.helper(true);
   s.hello();
@@ -166,7 +166,7 @@ test('rules 32, 33: a track is answered on the next read and polled at 30 Hz; th
   assert.ok(!s.sent.some((m) => m.type === 'surface'), 'no keepalive after untrack');
 });
 
-test('rule 32: a request that arrives during a read waits for the next read', async () => {
+test('A request that arrives during a read waits for the next read', async () => {
   const s = setup();
   s.source.helper(true);
   s.hello();
@@ -183,7 +183,7 @@ test('rule 32: a request that arrives during a read waits for the next read', as
   assert.deepEqual(s.sent.filter((m) => m.type === 'surface').map((m) => m.type === 'surface' && m.s.state), ['tracking']);
 });
 
-test('rule 34: attach puts above on the attached track; the avatar\'s own windows never count', async () => {
+test('Attach puts above on the attached track; the avatar\'s own windows never count', async () => {
   const s = setup();
   s.source.helper(true);
   s.setWindows([{ id: 9, pid: 4100, x: 300, y: 100, w: 200, h: 200 }, { id: 6, x: 100, y: 100, w: 300, h: 200 }, { id: 7, x: 0, y: 250, w: 1000, h: 400 }]);
@@ -201,7 +201,7 @@ test('rule 34: attach puts above on the attached track; the avatar\'s own window
   assert.deepEqual(surface?.type === 'surface' && surface.s.state === 'tracking' && surface.s.window.above, [{ x: 100, y: 600, w: 300, h: 200 }]);
 });
 
-test('rules 34, 41: each tick hands the attached track\'s above and the pass-through rects to the link\'s hit exclusions', async () => {
+test('Each tick hands the attached track\'s above and the pass-through rects to the link\'s hit exclusions', async () => {
   const s = setup();
   s.source.helper(true);
   s.setWindows([{ id: 6, x: 100, y: 100, w: 300, h: 200 }, { id: 7, x: 0, y: 250, w: 1000, h: 400 }]);
@@ -232,7 +232,7 @@ test('rules 34, 41: each tick hands the attached track\'s above and the pass-thr
   assert.deepEqual(p.exclusions.at(-1), { above: [], passThrough: [] }, 'expired after 2 s');
 });
 
-test('rule 35: entering or leaving a cover lets the next cursor sample through', async () => {
+test('Entering or leaving a cover lets the next cursor sample through', async () => {
   const s = setup();
   s.source.helper(true);
   s.setWindows([{ id: 6, pid: 702, x: 0, y: 0, w: 600, h: 600 }]);
@@ -248,7 +248,7 @@ test('rule 35: entering or leaving a cover lets the next cursor sample through',
   assert.equal(s.cursorMoves, 2);
 });
 
-test('rule 35: covered after 300 ms under the front app\'s window, after the keys rest; null on leaving', async () => {
+test('Covered after 300 ms under the front app\'s window, after the keys rest; null on leaving', async () => {
   const s = setup();
   s.source.helper(true);
   s.setWindows([{ id: 6, pid: 702, x: 0, y: 0, w: 600, h: 600 }]);
@@ -264,7 +264,7 @@ test('rule 35: covered after 300 ms under the front app\'s window, after the key
   assert.deepEqual(s.sent.filter((m) => m.type === 'covered'), [{ type: 'covered', w: null }]);
 });
 
-test('rule 35: no covered while the user types, nor when she does not list opacity', async () => {
+test('No covered while the user types, nor when she does not list opacity', async () => {
   for (const o of [{ keyIdle: 0.5 }, { capabilities: ['surfaces'] }]) {
     const s = setup(o);
     s.source.helper(true);
@@ -287,7 +287,7 @@ async function coveredBy(s: ReturnType<typeof setup>, list: W[], front: () => vo
   for (let i = 0; i < 25; i += 1) await s.step(20);
 }
 
-test('rule 35: a pause ends the cover at once with `covered` null', async () => {
+test('A pause ends the cover at once with `covered` null', async () => {
   const s = setup();
   await coveredBy(s, [{ id: 6, pid: 702, x: 0, y: 0, w: 600, h: 600 }]);
   assert.equal(s.source.isCovered, true);
@@ -298,7 +298,7 @@ test('rule 35: a pause ends the cover at once with `covered` null', async () => 
   assert.ok(s.logs.includes('SURFACES cover left'));
 });
 
-test('rule 35: staying in place withdraws `covered` and sends none while it lasts', async () => {
+test('Staying in place withdraws `covered` and sends none while it lasts', async () => {
   const s = setup();
   await coveredBy(s, [{ id: 6, pid: 702, x: 0, y: 0, w: 600, h: 600 }]);
   s.setStay(true);
@@ -309,7 +309,7 @@ test('rule 35: staying in place withdraws `covered` and sends none while it last
   assert.deepEqual(s.covered(), [6, null, 6]);
 });
 
-test('rule 35: another front window over her sends `covered` again; a window the surfaces do not list sends none', async () => {
+test('Another front window over her sends `covered` again; a window the surfaces do not list sends none', async () => {
   const s = setup();
   await coveredBy(s, [{ id: 6, pid: 702, x: 0, y: 0, w: 600, h: 600 }]);
   s.setWindows([{ id: 7, pid: 702, x: 0, y: 0, w: 600, h: 600 }, { id: 6, pid: 702, x: 0, y: 0, w: 600, h: 600 }]);
@@ -321,7 +321,7 @@ test('rule 35: another front window over her sends `covered` again; a window the
   assert.deepEqual(hidden.covered(), []);
 });
 
-test("rule 35: the avatar's own window in front is never a cover", async () => {
+test("The avatar's own window in front is never a cover", async () => {
   const s = setup();
   await coveredBy(s, [{ id: 6, pid: 4100, x: 0, y: 0, w: 600, h: 600 }],
     () => s.source.event('workspace.changed', { reason: 'front_app', front_pid: 4100 }));
@@ -329,7 +329,7 @@ test("rule 35: the avatar's own window in front is never a cover", async () => {
   assert.ok(!s.logs.includes('SURFACES cover entered'));
 });
 
-test('rule 35: without front_pid (Windows), before the first workspace.changed the front app comes from the attention sample', async () => {
+test('Without front_pid (Windows), before the first workspace.changed the front app comes from the attention sample', async () => {
   const s = setup();
   await coveredBy(s, [{ id: 6, pid: 702, x: 0, y: 0, w: 600, h: 600 }], () => s.source.sampled({ front: { pid: 702 } } as AttentionSample));
   assert.deepEqual(s.covered(), [6]);
@@ -342,7 +342,7 @@ test('rule 35: without front_pid (Windows), before the first workspace.changed t
   assert.deepEqual(w.covered(), []);
 });
 
-test('rule 35: workspace.watch\'s front_pid is the front app at start; samples no longer stand in for it', async () => {
+test('Workspace.watch\'s front_pid is the front app at start; samples no longer stand in for it', async () => {
   const s = setup({ watch: ok({ watching: true, front_pid: 702 }) });
   await coveredBy(s, [{ id: 6, pid: 702, x: 0, y: 0, w: 600, h: 600 }], () => s.source.sampled({ front: { pid: 800 } } as AttentionSample));
   assert.deepEqual(s.covered(), [6]);
@@ -368,7 +368,7 @@ test('workspace.watch is asked for once; a restarted helper gets it from the sup
   assert.deepEqual(failed.ops().filter((op) => op === 'workspace.watch').length, 2);
 });
 
-test('rule 35: a new connection starts uncovered and sends `covered` again', async () => {
+test('A new connection starts uncovered and sends `covered` again', async () => {
   const s = setup();
   await coveredBy(s, [{ id: 6, pid: 702, x: 0, y: 0, w: 600, h: 600 }]);
   s.emit({ kind: 'lost', reason: 'EOF' });
@@ -378,7 +378,7 @@ test('rule 35: a new connection starts uncovered and sends `covered` again', asy
   assert.deepEqual(s.covered(), [6, 6]);
 });
 
-test('rule 41: near her the control under the cursor is probed in CG points and sent as pass_through, then [] after 2 s', async () => {
+test('Near her the control under the cursor is probed in CG points and sent as pass_through, then [] after 2 s', async () => {
   const s = setup();
   s.source.helper(true);
   s.hello();

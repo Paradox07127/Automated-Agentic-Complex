@@ -1,4 +1,4 @@
-// Rule 44's colours (src/common/ambient.ts) and the render_ambient setting.
+// Ambient colours (src/common/ambient.ts) and the render_ambient setting.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { type AmbientColors, ambientChanged, ambientLinear, ambientMode, ambientWire, reduceAmbient } from '../src/common/ambient.ts';
@@ -44,7 +44,7 @@ test('an image under three pixels a side takes one row or column for each side',
   assert.deepEqual(c.mean, grey(0.25));
 });
 
-test('on the wire each component has at most 3 decimals (C3 rule 44)', () => {
+test('on the wire each component has at most 3 decimals', () => {
   const c: AmbientColors = { mean: [0.33333, 0.0005, 1], top: [0.4444, 0, 0.9996], bottom: grey(0.1), left: grey(0.2), right: grey(0.3) };
   assert.deepEqual(ambientWire(c), { mean: [0.333, 0.001, 1], top: [0.444, 0, 1], bottom: grey(0.1), left: grey(0.2), right: grey(0.3) });
 });

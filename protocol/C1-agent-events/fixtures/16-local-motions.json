@@ -1,5 +1,5 @@
 {
- "description": "C1 v2.8：snapshot 的反应表带 chain、hold、hold_s、stroke_s 和新的触发名（click_repeat 的第二条是没有结束的触发上的整条链，循环 angry_loop 播 4 s 再往下走）；坐着时 agentd 选的待机档片段带 within，和坐一起跑、不取代它；循环的那条到点由 agentd 以 expired 淡出结束，打盹片段跟着坐结束",
+ "description": "snapshot 的反应表带 chain、hold、hold_s、stroke_s 和新的触发名（click_repeat 的第二条是没有结束的触发上的整条链，循环 angry_loop 播 4 s 再往下走）；坐着时 agentd 选的待机档片段带 within，和坐一起跑、不取代它；循环的那条到点由 agentd 以 expired 淡出结束，打盹片段跟着坐结束",
  "messages": [
   {
    "event": "snapshot",

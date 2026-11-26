@@ -4,7 +4,7 @@
 
 ## Overview
 
-`voice/tts-service/` is an HTTP speech synthesis service based on GPT-SoVITS. It runs on a TTS host with an NVIDIA GPU. agentd calls its `POST /speech_stream` according to the [C2 speech stream](../../protocol/C2-speech-stream/CONTRACT.md) contract. To plug in another engine, see the [TTS engine interface](../../protocol/C2-speech-stream/ENGINE.md). For deployment and connection, see [Deploying the voice service](../guides/tts-deploy.en.md).
+`voice/tts-service/` is an HTTP speech synthesis service based on GPT-SoVITS. It runs on a TTS host with an NVIDIA GPU. agentd sends text to `POST /speech_stream`. For deployment and connection, see [Deploying the voice service](../guides/tts-deploy.en.md).
 
 ## Files
 

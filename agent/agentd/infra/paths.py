@@ -8,7 +8,7 @@ from pathlib import Path
 STATE_DIR_DEFAULT = "agentd-state"  # server.py --state-dir, relative to the working directory
 APP_STATE_DIR = "~/Library/Application Support/AgenticComplex/agentd"  # tools/install_hooks.py --token-file
 COMPANION_BUNDLE = "local.agenticcomplex.companion"
-COMPANION_WINDOWS_APP_ID = "agentic complex.exe"  # the Windows helper's app_id of the packaged exe (C12 §2.9)
+COMPANION_WINDOWS_APP_ID = "agentic complex.exe"  # the Windows helper's app_id of the packaged exe
 AGENTD_PORT = 48800
 COMPANION_SUPPORT_DIR = Path.home() / "Library/Application Support" / COMPANION_BUNDLE  # Mac TTS reads it too
 

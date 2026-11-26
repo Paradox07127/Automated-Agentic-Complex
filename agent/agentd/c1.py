@@ -1,4 +1,4 @@
-"""C1 v2 message checks (`protocol/C1-agent-events/CONTRACT.md`): behavior, behavior_cancel, clause_intent, text_line,
+"""C1 message checks: behavior, behavior_cancel, clause_intent, text_line,
 motion, session_reaction and the execution receipt, and the player fixtures (`check_player_fixture`).
 `python3 -I c1.py <fixture dir>` checks every shared fixture file there."""
 import json
@@ -16,7 +16,7 @@ CHANNELS = ("voice", "mouth", "eyes", "head", "left_hand", "right_hand", "full_b
 EXITS = ("focus_change", "session_state", "speech_start", "speech_end", "user_typing", "target_gone", "user_drag")
 TRIGGERS = ("tick", "session", "user", "speech", "receipt", "agent", "decision")
 CANCEL_REASONS = ("replaced", "switch_off", "fullscreen", "turn_cancelled", "expired", "exit", "character_switch")
-# exit condition agentd judges (behavior_cancel / exit) -> the renderer's receipt after it (C1 §1 exit table)
+# exit condition agentd judges (behavior_cancel / exit) -> the renderer's receipt after it
 EXIT_RECEIPTS = {"speech_start": "cancelled", "speech_end": "completed", "session_state": "completed",
                  "focus_change": "completed", "user_typing": "cancelled"}
 PHASES = ("prepared", "rejected", "running", "completed", "blocked", "cancelled", "expired")
@@ -132,7 +132,7 @@ def _target(message):
 
 
 def _motion(motion):
-    """Problems with a perform's motion object (C1 §1.4)."""
+    """Problems with a perform's motion object."""
     if not isinstance(motion, dict):
         return ["perform needs a motion object"]
     problems = []
@@ -149,7 +149,7 @@ def _motion(motion):
 
 
 def _action(action):
-    """Problems with a perform's game action object (C1 §1.4, v2.6)."""
+    """Problems with a perform's game action object."""
     if not isinstance(action, dict):
         return ["action is an object"]
     problems = []
@@ -163,7 +163,7 @@ def _action(action):
 
 
 def _clip(clip):
-    """Problems with a perform's clip object: one clip of the character's motion metadata (C1 §1.4, v2.7)."""
+    """Problems with a perform's clip object: one clip of the character's motion metadata."""
     if not isinstance(clip, dict) or not _short_str(clip.get("id"), CLIP_ID_MAX):
         return [f"clip is {{id}}, a string of 1-{CLIP_ID_MAX} bytes"]
     return []
@@ -191,7 +191,7 @@ def _play(m):
 
 
 def _motion_event(m):
-    """Problems with an `event: motion`, the answer to a host's motion request (C1 §1.5)."""
+    """Problems with an `event: motion`, the answer to a host's motion request."""
     problems = []
     if not isinstance(m.get("request_id"), str) or not REQUEST_ID.fullmatch(m["request_id"]):
         problems.append("request_id is mr- and 16 lowercase hex characters")
@@ -413,7 +413,7 @@ CHECKS = {"snapshot": _snapshot, "behavior": _behavior, "behavior_cancel": _canc
 
 
 def check_message(message):
-    """Problems with one message, [] when it follows C1 v2."""
+    """Problems with one message, [] when it is a valid C1 message."""
     check = CHECKS.get(message.get("event")) if isinstance(message, dict) else None
     if check is None:
         return [f"unknown event {message.get('event') if isinstance(message, dict) else message!r}"]
@@ -427,7 +427,7 @@ def check_message(message):
 
 
 def _receipt_fits(receipt, behavior, renewal, last_phase):
-    """Problems with a receipt against the behavior it answers (C1 §1, §1.2, §1.3, §3)."""
+    """Problems with a receipt against the behavior it answers."""
     if behavior is None:
         return []
     problems, phase, at, end = [], receipt.get("phase"), receipt.get("at_ms"), behavior.get("expires_at_ms")
@@ -463,7 +463,7 @@ def check_file(data):
         return ["a fixture is {description, messages: [...]}"]
     problems, seen, last = [], set(), None
     running = {}  # behavior_id -> (type, target) of behaviors no receipt or cancel has ended
-    phases = {}  # behavior_id -> its last receipt phase (C3 v11 rule 25)
+    phases = {}  # behavior_id -> its last receipt phase
     clauses = set()  # (utterance_id, clause_id, spoken_text_revision) that already have a clause_intent
     sent = {}  # behavior_id -> its behavior message
     renewals = set()  # behavior_ids that renew a running behavior of the same type and target

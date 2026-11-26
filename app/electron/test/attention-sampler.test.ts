@@ -17,7 +17,7 @@ const ok = (result: Record<string, unknown>): HelperAnswer => ({ ok: true, resul
 const err = (code: string): HelperAnswer => ({ ok: false, error: { code } });
 type Answer = HelperAnswer | ((params: Record<string, unknown>) => HelperAnswer | Promise<HelperAnswer>);
 
-/** CONTRACT §7.3 `attention.sample`: TextEdit in front on a 1440×900 display. */
+/** `attention.sample`: TextEdit in front on a 1440×900 display. */
 function sampleResult(over: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     ts: 1763539200, idle_s: 1, locked: false, secure_input: false,
@@ -190,7 +190,7 @@ test('without the helper nothing is posted, the failure is logged once, and the 
   assert.equal(t.posts.length, 1);
 });
 
-test('presence.watch is turned on once; a restarted helper gets it from the supervisor, a failed one is asked again (CONTRACT §6.4)', async () => {
+test('presence.watch is turned on once; a restarted helper gets it from the supervisor, a failed one is asked again', async () => {
   const t = setup();
   t.sampler.helper(true);
   await settle();

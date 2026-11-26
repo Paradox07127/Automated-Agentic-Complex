@@ -1,4 +1,4 @@
-// The user's mouse presses anywhere: the helper's `input.watch` sends an `input.activity` of kind `mouse_down` for each press (C12 CONTRACT §7.3), which carries no position, so the pointer is read
+// The user's mouse presses anywhere: the helper's `input.watch` sends an `input.activity` of kind `mouse_down` for each press, which carries no position, so the pointer is read
 // when it arrives. It reads presses of every button. A `mouse_up` for each release makes `buttonsDown`
 // (HostLink.buttonsDown); a helper that has sent none (Windows for now) leaves it false.
 import type { HelperAnswer } from '../../common/push-to-talk.ts';
@@ -15,7 +15,7 @@ export interface MouseDownPorts {
 export class MouseDowns {
   private readonly ports: MouseDownPorts;
   private readonly listeners = new Set<(at: { x: number; y: number }, ts: number) => void>();
-  /** `input.watch` answered; after a restart the supervisor asks for it again (C12 §6.4). */
+  /** `input.watch` answered; after a restart the supervisor asks for it again. */
   private watched = false;
   private failed: string | null = null;
   private held = false;

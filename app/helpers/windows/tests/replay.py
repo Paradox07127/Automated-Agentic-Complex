@@ -22,7 +22,7 @@ Usage: python -I app/helpers/windows/tests/replay.py [--exe PATH]   (after build
   control.request; one with the token gets its request out without the token, and control.respond's answer back;
   answering it again is conn_gone; the token file goes when the helper exits. In ok-control.ndjson no client connects,
   so its control.respond answers conn_gone.
-- cancel on each side of a request's commit point (CONTRACT §5.2): a control.listen held in its token file's delete by
+- cancel on each side of a request's commit point: a control.listen held in its token file's delete by
   the replay's oplock, cancelled, leaves no token file and no endpoint, so the next one is not already_running; a
   mic.start cancelled while a fresh helper loads the recognizer leaves no session, so the next one records. With a
   desktop: a control.act press cancelled while the test window's thread sleeps never presses; a set_value cancelled
@@ -117,7 +117,7 @@ OCRS = {'ocr.languages', 'ocr.recognize'}
 EVENTS = {'workspace.changed', 'presence.edge', 'input.activity', 'input.action', 'ax.notification', 'control.request',
           'ptt.down', 'ptt.up', 'mic.level', 'speech.partial', 'speech.download'}
 WATCHES = {'workspace.watch', 'presence.watch', 'input.watch', 'input.actions'}
-# attention.sample fields the Windows helper always answers null (CONTRACT §7.3).
+# attention.sample fields the Windows helper always answers null.
 NULL_ON_WINDOWS = ('video_pids', 'capture_indicator')
 FOCUS_FIELDS = ('focus_role', 'focus_native_role', 'focus_window_role', 'focus_window_native_role',
                 'focus_window_subrole')
@@ -643,7 +643,7 @@ def requests_of(path):
 
 
 def not_sent(request):
-    """A microphone request: it opens the microphone, which may show the system's first-use prompt (CONTRACT §7.9)."""
+    """A microphone request: it opens the microphone, which may show the system's first-use prompt."""
     return request['op'] == 'permissions.request' and request['params'].get('kind') == 'microphone'
 
 
@@ -1542,7 +1542,7 @@ def desktop_ax(exe, checks, window, target):
 def cancel_watch(helper, checks, ids, window, me):
     """With the test window's thread asleep: a replacement ax.watch of watch_id replay, cancelled while its focus read
     waits, takes down its own subscription and leaves the old one sending; ax.focused, which commits as it starts, is
-    not stopped by a cancel and answers for itself (CONTRACT §5.2)."""
+    not stopped by a cancel and answers for itself."""
     def cancelled(op, params):
         request, stop = next(ids), next(ids)
         helper.send_request({'v': 1, 'id': request, 'op': op, 'params': params})
@@ -1728,7 +1728,7 @@ def cancelled_act(helper, ids, params, delay):
 
 
 def cancel_act(helper, checks, ids, window, observe, element):
-    """A cancel on each side of control.act's commit point (CONTRACT §5.2). Before it: the test window's thread
+    """A cancel on each side of control.act's commit point. Before it: the test window's thread
     sleeps, so the press's reads wait, and the cancel comes first; the act answers cancelled and the press never
     reaches the window, not even once the thread wakes. After it: the edit's change of text sleeps inside the
     SetValue that went out; cancel answers false and the act answers its real effect, with the new text in the edit."""

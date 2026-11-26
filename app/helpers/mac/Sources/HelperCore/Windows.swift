@@ -1,7 +1,7 @@
 import AppKit
 import CoreGraphics
 
-/// CONTRACT §7.2 `screens.list`, in CG global points (§2.8).
+/// `screens.list`, in CG global points.
 enum Screens {
     /// Main thread: NSScreen belongs to it.
     static func list(_ params: [String: Any]) -> Outcome {
@@ -19,7 +19,7 @@ enum Screens {
     }
 }
 
-/// CONTRACT §7.2 `windows.list` and `windows.at_point` over CGWindowList, front to back.
+/// `windows.list` and `windows.at_point` over CGWindowList, front to back.
 enum Windows {
     struct Window {
         let id: Int

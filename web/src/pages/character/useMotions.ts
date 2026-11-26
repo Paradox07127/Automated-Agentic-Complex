@@ -53,7 +53,7 @@ export interface Play {
   speed: number;
   /** Plays until `stop`: no progress, no end of its own. */
   loop: boolean;
-  /** The shell has reported it (C3 rule 58): its end is the report's, not the clock's. */
+  /** The shell has reported it: its end is the report's, not the clock's. */
   reported?: boolean;
 }
 

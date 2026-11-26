@@ -59,10 +59,11 @@ def code_lines(path, text):
 
 def components():
     """Rule A: a token owned by another component needs an allow entry. Rule B: a file name hard-coded in two
-    components must be owned or ignored. Allow rows must be README table IDs, and each allowed file must still hit."""
+    components must be owned or ignored. Allow rows must be protocol IDs, and each allowed file must still hit."""
     spec = json.loads((ROOT / CROSS).read_text())
-    table = (ROOT / 'protocol/README.md').read_text().split('## 现行协议', 1)[1].split('\n## ', 1)[0]
-    rows = set(re.findall(r'^\| ([^|\s]+) \|', table, re.M)) - {'ID'}
+    rows = {'T1', 'ids', 'ui-bridge', 'character-library'}
+    rows.update(match[1] for d in (ROOT / 'protocol').iterdir()
+                if d.is_dir() and (match := re.fullmatch(r'(C\d+)-.+', d.name)))
     owner = {t: c for c, ts in spec['owned'].items() for t in ts}
     tokens = sorted(owner, key=len, reverse=True)
     # A token with a file extension must start a string or follow '/', which drops prose and attribute names.
@@ -87,7 +88,7 @@ def components():
                 if (f, t) in allowed:
                     used.add((f, t))
                 else:
-                    fails.append(f'{f}:{i}: {t} belongs to {owner[t]}; allow it in {CROSS} under its README row')
+                    fails.append(f'{f}:{i}: {t} belongs to {owner[t]}; allow it in {CROSS} under its protocol ID')
             for m in name_re.finditer(line):
                 if m.group(1) not in owner and m.group(1) not in spec['ignore']:
                     names[m.group(1)].append((f'{f}:{i}', cs))
@@ -97,7 +98,7 @@ def components():
                       for loc, _ in hits]
     for e in spec['allow']:
         if e['row'] not in rows:
-            fails.append(f'{CROSS}: row {e["row"]} of {e["token"]} is not an ID in the protocol/README.md table')
+            fails.append(f'{CROSS}: row {e["row"]} of {e["token"]} is not a protocol ID')
         fails += [f'{CROSS}: {f} no longer has {e["token"]}' for f in e['files'] if (f, e['token']) not in used]
     print(f'cross-component paths: {len(cand)} candidate files, {len(used)} allowed (file, token) pairs, {len(fails)} failures')
     for x in fails:

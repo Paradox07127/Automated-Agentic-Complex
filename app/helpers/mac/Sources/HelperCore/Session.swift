@@ -1,7 +1,7 @@
 import Darwin
 import Foundation
 
-/// An op's answer: its result, or an error code of CONTRACT §3 or of the op's `errors`, with a message that never holds
+/// An op's answer: its result, or a common error code or one of the op's `errors`, with a message that never holds
 /// what the op read.
 enum Outcome {
     case success([String: Any])
@@ -11,8 +11,8 @@ enum Outcome {
     static let cancelled = Outcome.failure(code: "cancelled", message: "the request was cancelled")
 }
 
-/// The session layer of ac-helper: NDJSON on stdin and stdout (CONTRACT §2), errors (§3), hello (§4), cancel (§5) and
-/// exit (§6). Requests other than hello, cancel and shutdown run off the reading thread; one lock guards stdout and the
+/// The session layer of ac-helper: NDJSON on stdin and stdout, errors, hello, cancel and
+/// exit. Requests other than hello, cancel and shutdown run off the reading thread; one lock guards stdout and the
 /// requests in flight, so every request gets exactly one answer and nothing follows the shutdown answer.
 public final class Session: @unchecked Sendable {
     static let maxLineBytes = 16_777_216  // ops.json max_line_bytes, the newline included
@@ -23,8 +23,8 @@ public final class Session: @unchecked Sendable {
     private var running: [Int: String] = [:]  // id -> op of each request whose handler has not answered yet
     private var committed: Set<Int> = []      // the running requests past their commit, for which a cancel is too late
     private var ready = false                  // hello answered
-    private var seq = 0                        // the last event's seq (CONTRACT §2.6)
-    private var lastId = 0                     // the reading thread's last request id (CONTRACT §2.5)
+    private var seq = 0                        // the last event's seq
+    private var lastId = 0                     // the reading thread's last request id
     private let work = DispatchQueue(label: "ac-helper.ops", attributes: .concurrent)
     private let output: Int32
     private let handlers: (String) -> Handler?
@@ -70,7 +70,7 @@ public final class Session: @unchecked Sendable {
             scanned = 0
         }
         if !pending.allSatisfy({ $0 == 0x20 || $0 == 0x09 || $0 == 0x0D }) { protocolError("the last line has no newline") }
-        // stdin closed: a shutdown without an answer (CONTRACT §6.1).
+        // stdin closed: a shutdown without an answer.
         lock.lock()
         ControlListen.stop()
         exit(0)
@@ -125,7 +125,7 @@ public final class Session: @unchecked Sendable {
         }
     }
 
-    /// Exit code 2 after one line on stderr (CONTRACT §6.2).
+    /// Exit code 2 after one line on stderr.
     private func protocolError(_ why: String) -> Never {
         lock.lock()
         FileHandle.standardError.write(Data("ac-helper: protocol error: \(why)\n".utf8))
@@ -214,7 +214,7 @@ public final class Session: @unchecked Sendable {
         answer(id, .success(["cancelled": cancelled]))
     }
 
-    /// Callers hold the lock. Every request in flight gets its one answer before the shutdown answer (CONTRACT §6.1).
+    /// Callers hold the lock. Every request in flight gets its one answer before the shutdown answer.
     private func shutdown(_ id: Int) -> Never {
         for target in running.keys.sorted() { answer(target, .failure(code: "cancelled", message: "the helper is shutting down")) }
         running.removeAll()

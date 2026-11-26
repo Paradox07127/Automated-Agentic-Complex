@@ -1,6 +1,6 @@
 import Foundation
 
-/// CONTRACT §8: where the watches' events go. The session connects itself; an event is written only after hello, and
+/// Where the watches' events go. The session connects itself; an event is written only after hello, and
 /// only while `live` holds, checked under the session's lock so that nothing follows the answer that turned it off.
 enum Events {
     private static let lock = NSLock()

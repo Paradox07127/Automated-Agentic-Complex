@@ -8,7 +8,7 @@ import { AvatarCamera, type CameraOverlay, type CameraPorts } from './gesture.ts
 import type { CameraTarget } from './overlay.ts';
 import { type AvatarPoses, linkPoses, poseMenuActions } from './pose.ts';
 
-/** This shell sends `zoom`, `live` and `closeup` (rule 49). */
+/** This shell sends `zoom`, `live` and `closeup`. */
 export const CAMERA_OFFERS: readonly OfferedCapability[] = ['camera_free'];
 
 export interface ShellCameraOptions {

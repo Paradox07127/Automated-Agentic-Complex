@@ -1,7 +1,7 @@
 import AppKit
 import ApplicationServices
 
-/// The AX limits of CONTRACT §5.3: every message has its own timeout (50 ms for probes, 250 ms for reading text), and
+/// The AX limits: every message has its own timeout (50 ms for probes, 250 ms for reading text), and
 /// an app that timed out answers `ax_timeout` for 2 s without being asked.
 enum AX {
     static let probe: Float = 0.05
@@ -150,7 +150,7 @@ enum AXRules {
     /// Her window level: IME windows at or above it are above her already.
     static let ownLayer = 25
 
-    /// CONTRACT §7.4: these nodes are never read.
+    /// These nodes are never read.
     static func isSecure(role: String?, subrole: String?, title: String?, description: String?) -> Bool {
         let identity = [role ?? "", subrole ?? "", title ?? "", description ?? ""].joined(separator: " ").lowercased()
         return C12Ops.secureKeywords.contains(where: identity.contains)

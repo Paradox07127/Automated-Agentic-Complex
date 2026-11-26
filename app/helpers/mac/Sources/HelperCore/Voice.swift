@@ -31,7 +31,7 @@ struct Transcript {
     }
 }
 
-/// CONTRACT §7.7 `speech.locales`, `mic.start` and `mic.stop`: an AVAudioEngine
+/// `speech.locales`, `mic.start` and `mic.stop`: an AVAudioEngine
 /// input tap feeding SpeechTranscriber through a SpeechAnalyzer, with each buffer's RMS for `mic.level`.
 @available(macOS 26, *)
 enum Mic {
@@ -41,7 +41,7 @@ enum Mic {
     static let synthetic = environment["AC_HELPER_MIC_SYNTHETIC"] != nil
     /// The replay's switch: mic.start sends one speech.download before its answer, as a download would.
     private static let downloadProbe = environment["AC_HELPER_DOWNLOAD_PROBE"] != nil
-    /// CONTRACT §7.7: at most 20 mic.level a second.
+    /// At most 20 mic.level a second.
     static let levelInterval: TimeInterval = 0.05
     /// The download's progress is read every 250 ms.
     static let downloadInterval: Duration = .milliseconds(250)
@@ -102,7 +102,7 @@ enum Mic {
 
     private static func live(_ recording: Recording) -> Bool { lock.withLock { current === recording && recording.answered } }
 
-    /// speech.download goes only while mic.start has not answered (CONTRACT §8 `during`), also not as cancelled.
+    /// speech.download goes only while mic.start has not answered, also not as cancelled.
     private static func downloading(_ recording: Recording, _ cancelled: () -> Bool) -> Bool {
         !cancelled() && lock.withLock { current === recording && !recording.answered }
     }

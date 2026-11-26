@@ -1,4 +1,4 @@
-// src/common/give-way.ts: the user's screen targets to keep clear and the fullscreen hide. Rule 35 is test/surfaces.test.ts's.
+// src/common/give-way.ts: the user's screen targets to keep clear and the fullscreen hide.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { AttentionSample } from '../src/common/attention.ts';
@@ -15,7 +15,7 @@ test('helper rects flip into the placement space against the main display height
   assert.deepEqual(fromHelper(r(100, 50, 200, 30), MAIN), { x: 100, y: 820, w: 200, h: 30 });
 });
 
-test('ax.focused decodes pid, frame, caret and editable; anything malformed reads as no focus (CONTRACT §7.12 focus)', () => {
+test('ax.focused decodes pid, frame, caret and editable; anything malformed reads as no focus', () => {
   const v = { pid: 7, role: 'AXTextField', native_role: 'AXTextField', subrole: null, frame: r(1, 2, 3, 4), caret: null, editable: true };
   assert.deepEqual(decodeFocus(v), { pid: 7, frame: r(1, 2, 3, 4), caret: null, editable: true });
   assert.deepEqual(decodeFocus({ ...v, caret: r(5, 6, 2, 14) })?.caret, r(5, 6, 2, 14));

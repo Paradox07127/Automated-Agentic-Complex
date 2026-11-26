@@ -7,7 +7,7 @@ Agentic Complex has seven component types, with a separate `characters.<id>` com
 - **Portable.** One `Agentic Complex.app` bundles every component.
 - **Split.** `Agentic Complex.app` bundles host, renderer, and web-ui. The other components ship in `components/` beside the app and are imported on first launch.
 
-The same component has the same contents in both layouts. C11 manifests and composition locks also support `windows-x64` for the work-in-progress Windows portable directory build (`tools/release/package_windows.py`; see [Windows portable directory](#windows-portable-directory)). [C11](../protocol/C11-components/CONTRACT.md) defines manifests, composition locks, and the import index. The [protocol index](../protocol/README.md) lists interfaces between components.
+The same component has the same contents in both layouts. C11 manifests and composition locks also support `windows-x64` for the work-in-progress Windows portable directory build (`tools/release/package_windows.py`; see [Windows portable directory](#windows-portable-directory)).
 
 ## 1. Components
 
@@ -128,7 +128,7 @@ The commands below can run without other release components installed. `<python>
 | `characters.<id>` | `<python> <agentd>/agentd/character_tool.py validate <character-package-dir>`, or `AgenticComplexMetalAvatar --validate-pack <bundle.json>` | — | `agentd-unit` (`test_character_library.py`, `test_character_compose.py`) |
 | Browser extension (separate from the release) | `node --test agent/browser/extension/test_*.mjs` | The native host runs and reports that agentd is unavailable. | `browser-unit` |
 
-Component reads and writes go through the interfaces in the protocol index. The `cross-paths` gate (`python3 -I tools/qa/check_paths.py --components`) checks shipping sources for direct paths into other components. `protocol/cross-paths.json` lists permitted exceptions and known cases to fix.
+Components exchange data through their defined interfaces. The `cross-paths` gate (`python3 -I tools/qa/check_paths.py --components`) checks shipping sources for direct paths into other components. `protocol/cross-paths.json` lists permitted exceptions and known cases to fix.
 
 ## 7. Packaging internals
 

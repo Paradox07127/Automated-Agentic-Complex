@@ -1,4 +1,4 @@
-// The OCR ops of CONTRACT §7.6 with Windows.Media.Ocr. A window_id is captured by ops_capture.cpp's frame grab, an
+// The OCR ops with Windows.Media.Ocr. A window_id is captured by ops_capture.cpp's frame grab, an
 // image is decoded by WIC; either reaches OcrEngine as an opaque Bgra8 SoftwareBitmap.
 #define NOMINMAX
 #include <windows.h>

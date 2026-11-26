@@ -1,5 +1,5 @@
 // `avatar.motionChain.*`: motion_tool `chain` (C9) on a structure proposal, and
-// `avatar.playChain`'s argument and failures (C3 v27 rule 52).
+// `avatar.playChain`'s argument and failures.
 import { BridgeFailure } from './bridge.ts';
 
 const encoder = new TextEncoder();
@@ -75,7 +75,7 @@ export function chainReply(line: string, check: boolean): Record<string, unknown
   return reply as Record<string, unknown>;
 }
 
-/** `avatar.playChain`'s argument (rule 52 (d)): a chain key of 1–128 bytes and speed 0.5, 1 or 2, 1 when absent. */
+/** `avatar.playChain`'s argument: a chain key of 1–128 bytes and speed 0.5, 1 or 2, 1 when absent. */
 export function playChainArg(value: unknown): { start: string; speed: number } {
   const speed = isObject(value) ? (value.speed === undefined ? 1 : value.speed) : null;
   if (!isObject(value) || !key(value.start) || typeof speed !== 'number' || ![0.5, 1, 2].includes(speed)) {

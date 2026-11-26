@@ -571,7 +571,7 @@ export function planSave(saved: Record<string, SettingValue>, login: boolean | n
     || (platform === 'windows' && changed.includes('hide_on_screen_capture'));
   if (restartAvatar) effects.push({ kind: 'restartAvatar' });
   const live = LIVE_RENDER_KEYS.filter((k) => changed.includes(k));
-  // 半身固定 frames her from the waist up (C3 v27 rule 49 (i)).
+  // 半身固定 frames her from the waist up.
   if ((old.stay_mode === 'bust') !== (next.stay_mode === 'bust')) live.push('stay_mode');
   if (live.length > 0 && !restartAvatar) effects.push({ kind: 'renderLive', keys: live });
   const agentdLive = AGENTD_LIVE_KEYS.filter((k) => changed.includes(k));

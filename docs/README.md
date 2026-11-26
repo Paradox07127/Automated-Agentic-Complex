@@ -19,12 +19,9 @@
 - [开发与发行](development.md)列出环境要求、开发面板、构建与测试命令、Windows 构建和发行步骤。
 - [agentd](architecture/agentd.md)说明 Python 包结构、开发约定、角色主会话与可替换内核。
 - [网页 UI](architecture/web-ui.md)说明前端结构、界面规则、mock 与校验。
-- [角色包规范](../protocol/character-library/CONTRACT.md)定义角色库及角色包格式。
 - [角色包工具与动作生成](architecture/characters.md)说明构建工具、样例角色库、原生包打包和动作生成服务。
-- [协议索引](../protocol/README.md)列出组件之间的接口。
 
 ## 运行时接入
 
 - [语音合成服务](architecture/voice.md)说明 GPT-SoVITS 服务的文件、令牌、口型 cue 和取消。
-- [TTS 引擎接口](../protocol/C2-speech-stream/ENGINE.md)定义接入其他语音合成引擎所需的 HTTP 接口。
 - [内核运行时打包](components.md#内核运行时)说明随应用打包的 Pi 运行时；Codex、Claude Code 和 ACP 智能体使用本机安装的版本。

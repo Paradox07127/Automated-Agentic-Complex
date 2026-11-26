@@ -1,4 +1,4 @@
-// Computer control over the platform helper (CONTRACT §7.8): agentd's desktop tools come in
+// Computer control over the platform helper: agentd's desktop tools come in
 // as `control.request` events from the endpoint `control.listen` made, the grants and refusals are checked here
 // (src/common/computer-control.ts), and only then does the helper observe, act or read. One request runs at a time; a Stop, a cancel or the user's own input interrupts at once and is cleaned up after it.
 import type { BlacklistRules } from '../../common/attention.ts';
@@ -96,7 +96,7 @@ export class ControlHost {
     return this.listen();
   }
 
-  /** The helper said hello (true) or went (false). A new helper has no endpoint and no snapshots (CONTRACT §6.4–§6.5). */
+  /** The helper said hello (true) or went (false). A new helper has no endpoint and no snapshots. */
   helper(running: boolean): void {
     if (this.stopped) return;
     if (running) {

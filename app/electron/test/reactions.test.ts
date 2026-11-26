@@ -1,4 +1,4 @@
-// C3 rule 55 over this shell: a fake renderer's `reaction` lines and drag begins reach agentd's `POST /interaction/record`
+// A fake renderer's `reaction` lines and drag begins reach agentd's `POST /interaction/record`
 // as one record each; a `reaction` this link did not list, or one that breaks the rule, is dropped and logged.
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';

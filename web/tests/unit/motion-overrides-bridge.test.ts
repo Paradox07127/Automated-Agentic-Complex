@@ -1,4 +1,4 @@
-// The fake bridge's motion settings (C3 v27 rules 51, 52) and agentd's motion-graph route (C6).
+// The fake bridge's motion settings and agentd's motion-graph route (C6).
 import { describe, expect, it } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import type { MotionOverrides } from '../../src/bridge/protocol';

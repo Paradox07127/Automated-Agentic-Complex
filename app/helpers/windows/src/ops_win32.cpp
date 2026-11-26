@@ -1,5 +1,5 @@
-// The C12 ops this helper implements with plain Win32 and COM: CONTRACT §7.2 (screens, windows), §7.9 (permissions),
-// §7.10 (clipboard.read, text only) and §7.11 (apps.running, apps.installed, apps.activate, process.usage).
+// The C12 ops this helper implements with plain Win32 and COM: screens, windows, permissions, clipboard.read
+// (text only), apps.running, apps.installed, apps.activate and process.usage.
 #define NOMINMAX
 #include <windows.h>
 #include <appmodel.h>
@@ -193,7 +193,7 @@ std::string format_name(UINT format) {
     return length > 0 ? utf8(name, static_cast<size_t>(length)) : "#" + std::to_string(format);
 }
 
-// CONTRACT §7.10: monitors must not read a clipboard marked private.
+// Monitors must not read a clipboard marked private.
 bool clipboard_concealed() {
     UINT exclude = RegisterClipboardFormatW(L"ExcludeClipboardContentFromMonitorProcessing");
     if (exclude && IsClipboardFormatAvailable(exclude)) return true;
@@ -319,7 +319,7 @@ std::wstring shortcut_target(IShellLinkW* link, IPersistFile* file, const std::w
     return target;
 }
 
-// CONTRACT §7.11: the shortcuts of the current user's and all users' Start menu. The name is that of the exe a
+// The shortcuts of the current user's and all users' Start menu. The name is that of the exe a
 // shortcut starts; a shortcut that starts no exe is named by its own file name.
 Outcome apps_installed(const json::Value&) {
     HRESULT com = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -459,7 +459,7 @@ bool microphone_denied() {
            registry_denies(HKEY_CURRENT_USER, desktop_apps);
 }
 
-// CONTRACT §7.9: Windows has no switch for the other four.
+// Windows has no switch for the other four.
 Outcome permissions_status(const json::Value&) {
     json::Value result = json::object();
     result.set("accessibility", json::str("notApplicable"));
@@ -493,7 +493,7 @@ void open_microphone_once() {
     if (SUCCEEDED(com)) CoUninitialize();
 }
 
-// CONTRACT §7.9: the other four answer notApplicable at once. Opening the microphone lets a system with a per-app
+// The other four answer notApplicable at once. Opening the microphone lets a system with a per-app
 // switch show its first-use prompt; the state is read after that.
 Outcome permissions_request(const json::Value& params) {
     std::string state = "notApplicable";

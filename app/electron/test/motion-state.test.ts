@@ -1,5 +1,5 @@
-// C3 rule 54 over this shell: a fake renderer's `motion_state` lines reach agentd's `POST /behavior/motion_state`
-// unchanged, in one order with the receipts, within rule 25's per-second limit they share.
+// A fake renderer's `motion_state` lines reach agentd's `POST /behavior/motion_state`
+// unchanged, in one order with the receipts, within the per-second limit they share.
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';

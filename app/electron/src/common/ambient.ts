@@ -1,4 +1,4 @@
-// C3 rule 44's five colours from the platform helper's `capture.ambient` image (C12 §7.5), and the `render_ambient` setting
+// The five ambient colours (mean, top, bottom, left, right) from the platform helper's `capture.ambient` image, and the `render_ambient` setting
 // the ambient sampler reads.
 
 /** Linear sRGB, each component 0–1. */

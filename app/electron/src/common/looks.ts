@@ -1,5 +1,4 @@
-// Her look over C3 v27 and what the user chose of it: the appearance and layer lists of a `hello` or `character_changed`,
-// mod settings (rule 53) and the action switch reply (rule 28), and config.json's `mod_settings` and `action_switches`.
+// Appearance, layers, mod settings and action switches from the renderer and saved config.
 import { type C3Message, MAX_LINE } from './c3.ts';
 
 export interface AppearanceOption { id: string; name: string; kind?: string; desc?: string }
@@ -7,7 +6,7 @@ export interface LayerOption { id: string; name: string; appearances?: string[] 
 /** One appearance's mod switches: switch id → 0–255. */
 export type ModValues = Record<string, number>;
 export interface Adjusted { id: string; reason: string }
-/** C3 `mod_settings`; `req` null for her own report (rule 53 (e)). */
+/** C3 `mod_settings`; `req` null for her own report. */
 export interface ModReceipt { req: number | null; character: string; appearance: string; values: ModValues; adjusted: Adjusted[] }
 /** C3 `action_switches`. */
 export interface SwitchReply { character: string; switches: Record<string, boolean>; adjusted: Adjusted[]; error?: string }
@@ -47,7 +46,7 @@ export function readAppearances(m: C3Message): { current: string | null; options
   return { current: null, options: [], problem: `appearance=${String(current ?? '')} appearances=${JSON.stringify(m.appearances ?? '')}` };
 }
 
-/** parseLayers: null when the message has neither field; `problem` when they break rule 46 (h). */
+/** Returns null when neither layer field is present, or `problem` for malformed fields. */
 export function readLayers(m: C3Message): { layers: LayerOption[]; hidden: string[] } | { problem: string } | null {
   if (m.layers === undefined && m.hidden_layers === undefined) return null;
   const items = m.layers, hidden = m.hidden_layers;
@@ -76,7 +75,7 @@ export function readLayers(m: C3Message): { layers: LayerOption[]; hidden: strin
   return { layers, hidden };
 }
 
-/** `{switch id: 0–255}`, at most 64; null when any part breaks rule 53 (h). */
+/** `{switch id: 0–255}`, at most 64 entries. Returns null for an invalid table. */
 export function modValues(v: unknown): ModValues | null {
   if (!isObject(v) || Object.keys(v).length > MAX_MODS) return null;
   for (const [k, x] of Object.entries(v)) {
@@ -147,7 +146,7 @@ export function readSwitchReply(m: C3Message): SwitchReply | string {
   return reply;
 }
 
-/** The character's appearances in config.json; one that breaks rule 53 (h) is left out. */
+/** Skip appearances with invalid switch tables in config.json. */
 export function storedModSettings(config: Record<string, unknown>, character: string): Record<string, ModValues> {
   const all = isObject(config.mod_settings) ? config.mod_settings[character] : undefined;
   const out: Record<string, ModValues> = {};

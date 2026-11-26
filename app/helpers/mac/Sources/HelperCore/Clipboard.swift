@@ -1,6 +1,6 @@
 import AppKit
 
-/// CONTRACT §7.10 `clipboard.read`: items in the order file, then URL, then text, the concealed rule, and every item's
+/// `clipboard.read`: items in the order file, then URL, then text, the concealed rule, and every item's
 /// types, with no drop limits of its own.
 enum Clipboard {
     /// nspasteboard.org markers of a password or a one-off item.

@@ -85,7 +85,7 @@ macOS 上主窗口的角色页的预览由桌面渲染器进程（`MacOS/Agentic
 
 ## 平台 helper
 
-`ac-helper` 是外壳和系统之间的一层：macOS 版是 Swift 写的 `app/helpers/mac`，Windows 版是 C++ 写的 `app/helpers/windows`（`ac-helper.exe`）。主进程启动它，经 stdin 和 stdout 用 [C12](../../protocol/C12-platform-helper/CONTRACT.md) 的 NDJSON 协议对话；stderr 是它的日志。helper 只调系统 API、回原始读数，策略都在主进程。
+`ac-helper` 是外壳和系统之间的一层：macOS 版是 Swift 写的 `app/helpers/mac`，Windows 版是 C++ 写的 `app/helpers/windows`（`ac-helper.exe`）。主进程启动它，经 stdin 和 stdout 用 C12 的 NDJSON 协议对话；stderr 是它的日志。helper 只调系统 API、回原始读数，策略都在主进程。
 
 - macOS：AppKit 的 op 和各种 watch 在主线程上跑，helper 一直跑着主线程的 run loop；其余 op 在并发队列上跑。
 - Windows：除 `hello`、`cancel`、`shutdown` 外，每个请求在自己的线程上跑。一把锁管 stdout 和在途请求的集合，所以每个请求恰好有一个回答：来自处理函数、`cancel`（`cancelled`）或 `shutdown`（先对所有在途请求回 `cancelled`，再回自己）。
@@ -223,4 +223,4 @@ Windows（`app/helpers/windows`）：
 2. 加进 `find_handler` 的表。从此 `hello` 列出它；在此之前它回 `unsupported`。
 3. 加进 `tests/replay.py` 的 `IMPLEMENTED`，样例允许时在 `check_answer` 里检查结果。
 4. `ops.json` 改了时把改动抄进 `src/ops.cpp` 的 `op_specs()`；两边的必填参数不一致时回放失败。
-5. 碰 UI Automation 的 op 在一个 MTA 线程上跑并自己设超时（C12 §5.3）；打开监听或设备的 op 在回 `shutdown` 之前停掉（C12 §6.1）。
+5. 碰 UI Automation 的 op 在一个 MTA 线程上跑并自己设超时；打开监听或设备的 op 在回 `shutdown` 之前停掉。

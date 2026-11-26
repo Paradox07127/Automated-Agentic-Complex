@@ -333,7 +333,7 @@ class MessageTest(unittest.TestCase):
 
 
 class PerformActionTest(unittest.TestCase):
-    """C1 v2.6: a perform plays a generated motion or one of the character's game actions, never both."""
+    """A perform plays a generated motion or one of the character's game actions, never both."""
     ACTION = {"event": "behavior", "seq": 4, "behavior_id": "b-ga-0123456789abcdef", "type": "perform", "target": None,
               "trigger": {"source": "agent", "event": None}, "display_session": None, "turn_id": None,
               "turn_generation": 2, "priority": 1, "expires_at_ms": 1760900010000, "intensity": 1.0,
@@ -370,7 +370,7 @@ class PerformActionTest(unittest.TestCase):
 
 
 class PlayerPrimitivesTest(unittest.TestCase):
-    """C1 v2.7: agentd picks every clip; the renderer plays it on a layer, starts it at a boundary and reports back."""
+    """agentd picks every clip; the renderer plays it on a layer, starts it at a boundary and reports back."""
     LOOP = {**{k: v for k, v in PerformActionTest.ACTION.items() if k != "action"}, "behavior_id": "b-e7-1",
             "clip": {"id": "idle_stand_a"}, "layer": "base", "start": "now", "blend_s": 0.4, "loop": True, "ttl_s": 30}
     WAVE = {**{k: v for k, v in LOOP.items() if k != "loop"}, "seq": 5, "behavior_id": "b-e7-2",
@@ -532,7 +532,7 @@ class PlayerPrimitivesTest(unittest.TestCase):
 
 
 class LocalMotionsTest(unittest.TestCase):
-    """C1 v2.8: reaction entries with a chain, a held loop and stroke times, the new triggers, and clips within a sit."""
+    """Reaction entries with a chain, a held loop and stroke times, the new triggers, and clips within a sit."""
     PAT = {"clip": "pat_start", "weight": 1, "layer": "overlay", "chain": ["pat_loop", "pat_end"], "hold": "pat_loop"}
     SIT = {**HOLD, "type": "sit", "target": None, "channels": ["full_body", "contact"], "exit": ["user_drag"],
            "behavior_id": "b-e8-1", "seq": 2}

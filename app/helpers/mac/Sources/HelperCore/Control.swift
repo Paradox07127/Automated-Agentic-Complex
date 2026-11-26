@@ -17,7 +17,7 @@ struct ControlTarget: Equatable {
 
 /// The observations `control.act` and `control.read` name (the grants stay in the
 /// main process): each lives 15 s, at most 16 are kept, and any action ends all of them. Ids carry a prefix drawn per
-/// process, so an id from an earlier helper is stale here (CONTRACT §6.5).
+/// process, so an id from an earlier helper is stale here.
 final class ControlSnapshots: @unchecked Sendable {
     static let lifetime: TimeInterval = 15
     static let most = 16
@@ -56,7 +56,7 @@ final class ControlSnapshots: @unchecked Sendable {
     func invalidate() { lock.withLock { kept.removeAll() } }
 }
 
-/// `max_text_scalars` of CONTRACT §7.8 across one observation, with caps per field.
+/// The `max_text_scalars` budget across one observation, with caps per field.
 struct ControlTextBudget {
     private(set) var left: Int
     private(set) var clipped = false
@@ -122,7 +122,7 @@ enum ControlInput {
     }
 }
 
-/// CONTRACT §7.8 `control.observe`, `control.act` and `control.read`: observe, act and verify
+/// `control.observe`, `control.act` and `control.read`: observe, act and verify
 /// without the grants, the blacklist and the redaction, which the main process does.
 enum Control {
     static let snapshots = ControlSnapshots()
@@ -361,7 +361,7 @@ enum Control {
         return action()
     }
 
-    /// An action goes out: every snapshot ends (CONTRACT §7.8) and the next action waits `actionGap`.
+    /// An action goes out: every snapshot ends and the next action waits `actionGap`.
     private static func begin() {
         snapshots.invalidate()
         lastAction = ProcessInfo.processInfo.systemUptime

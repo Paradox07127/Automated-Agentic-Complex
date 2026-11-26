@@ -16,17 +16,17 @@ export function timeoutMs(op: string): number {
   return OPS[op]?.timeout_ms ?? OPS.hello!.timeout_ms;
 }
 
-/** CONTRACT §3: the main process's own errors, which never come from the helper. */
+/** The main process's own errors, which never come from the helper. */
 export function localError(code: 'helper_exited' | 'helper_timeout' | 'protocol_error', message: string): HelperReply {
   return { ok: false, error: { code, message } };
 }
 
-/** The same op this many times in a row without an answer in time: the helper is stuck (CONTRACT §5.1). */
+/** The same op this many times in a row without an answer in time: the helper is stuck. */
 export const STUCK_TIMEOUTS = 3;
 
 export interface ConnectionOptions {
   write: (line: string) => void;
-  /** An illegal message or a stuck helper (CONTRACT §6.3); the connection is dead after it. */
+  /** An illegal message or a stuck helper; the connection is dead after it. */
   onBroken: (reason: string) => void;
   onEvent?: (event: HelperEvent) => void;
   /** Multiplies every timeout; tests shorten them. */
@@ -39,7 +39,7 @@ const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 export class HelperConnection {
   private readonly options: ConnectionOptions;
   private lastId = 0;
-  /** The last event's seq; the helper counts from 1 (CONTRACT §2.6). */
+  /** The last event's seq; the helper counts from 1. */
   private lastSeq = 0;
   private readonly pending = new Map<number, { op: string; resolve: (r: HelperReply) => void; timer: ReturnType<typeof setTimeout> }>();
   /** Requests that timed out or were given up; their late answers are dropped. */
@@ -67,7 +67,7 @@ export class HelperConnection {
     if (this.broken) return Promise.resolve(localError('helper_exited', 'the helper is not running'));
     const id = ++this.lastId;
     const line = `${JSON.stringify({ v: 1, id, op, params })}\n`;
-    // The helper ends itself on a longer line (CONTRACT §2.2), so the request goes no further than here.
+    // The helper ends itself on a longer line, so the request goes no further than here.
     if (Buffer.byteLength(line) > MAX_LINE_BYTES) {
       return Promise.resolve<HelperReply>({ ok: false, error: { code: 'bad_request', message: 'the request is longer than max_line_bytes' } });
     }

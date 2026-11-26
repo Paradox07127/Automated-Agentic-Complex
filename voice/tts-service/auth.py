@@ -1,4 +1,4 @@
-"""Bearer token (C2 v2 §4): an owner-only token file and an ASGI guard; it takes loopback hosts only unless remote_hosts."""
+"""Bearer token: an owner-only token file and an ASGI guard; it takes loopback hosts only unless remote_hosts."""
 import hmac,json,os,re
 def load_token(path):
     try:fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW)

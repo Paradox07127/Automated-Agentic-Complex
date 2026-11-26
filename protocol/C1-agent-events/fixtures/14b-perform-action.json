@@ -1,5 +1,5 @@
 {
- "description": "游戏原片动作（v2.6）：[motion:] 的文字配到当前角色的游戏动作时，perform 带 action（不带 motion），宿主按 id 播该动作的片段，播完回 completed；第二条角色没有这个动作，回 rejected / unsupported",
+ "description": "游戏原片动作：[motion:] 的文字配到当前角色的游戏动作时，perform 带 action（不带 motion），宿主按 id 播该动作的片段，播完回 completed；第二条角色没有这个动作，回 rejected / unsupported",
  "messages": [
   {
    "event": "behavior",

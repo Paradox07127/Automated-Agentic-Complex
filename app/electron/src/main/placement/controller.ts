@@ -132,12 +132,12 @@ export class AvatarPlacer {
 
   private applyResize(scale: number, preview: Rect): void {
     if (this.viewport === 'fullscreen') {
-      // Rule 19: the fullscreen anchor is the bottom centre.
+      // The fullscreen anchor is the bottom centre.
       const c3 = this.o.space.pointToC3({ x: preview.x + preview.w / 2, y: preview.y });
       this.o.link.sendSetPlacement({ x: c3.x, y: c3.y, scale });
       return;
     }
-    // Rule 19 (v13.1): the window viewport takes scale alone and keeps the window's bottom centre, so the window first moves
+    // The window viewport takes scale alone and keeps the window's bottom centre, so the window first moves
     // its bottom centre onto the preview's.
     const frame = this.frame;
     if (frame) this.moveWindow({ x: preview.x + preview.w / 2 - frame.w / 2, y: preview.y }, frame);
@@ -168,7 +168,7 @@ export class AvatarPlacer {
     return true;
   }
 
-  /** `avatar.keepClearOfMain`: while on, the main window is a `dialog` she walks clear of (rule 42). */
+  /** `avatar.keepClearOfMain`: while on, the main window is a `dialog` she walks clear of. */
   keepClearOfMain(on: boolean): void {
     this.keepClearOfMainOn = on;
   }
@@ -195,7 +195,7 @@ export class AvatarPlacer {
     return this.o.link.sendMoveWindow(c3.x, c3.y);
   }
 
-  /** The remembered or default position for the character and the display it is on; rule 12: not fullscreen. */
+  /** The remembered or default position and display for the window viewport. */
   private placeWindow(): void {
     const frame = this.frame, character = this.o.link.currentCharacter;
     if (!frame || character === null) return;
@@ -247,7 +247,7 @@ export class AvatarPlacer {
         if (m.phase === 'begin') this.dragging = true;
         if (m.phase !== 'end') break;
         this.dragging = false;
-        // The last `window_frame` of a drag arrives before its `end`; rule 3: a fullscreen drag leaves the window in place.
+        // The last `window_frame` of a drag arrives before its `end`. A fullscreen drag leaves the window in place.
         if (this.frame && this.viewport !== 'fullscreen') this.recordPosition(this.frame);
         break;
       case 'placement': {
@@ -316,7 +316,7 @@ export class AvatarPlacer {
       dragging: this.dragging };
   }
 
-  /** Rule 42's keep clear, with the screen targets and the main window as its sources. */
+  /** Use screen targets and the main window as keep-clear areas. */
   tick(): void {
     const link = this.o.link;
     if (!link.capabilities.includes('keep_clear')) return;

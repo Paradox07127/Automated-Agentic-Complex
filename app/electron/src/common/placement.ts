@@ -1,4 +1,4 @@
-// C3 rules 12, 19 and 20 on the Companion side: where the avatar window or anchor goes, what is remembered per character and display, and
+// On the Companion side: where the avatar window or anchor goes, what is remembered per character and display, and
 // the shapes of window-positions.json, placements.json and the placement keys of state.json. Every point and rect is in
 // one global space with y up and `screens[0]` the main display (src/main/platform/screens.ts maps each platform onto it).
 
@@ -64,7 +64,7 @@ export function defaultOrigin(size: { w: number; h: number }, screens: ScreenInf
   return clamp({ x: vf.x + vf.w - MARGIN - size.w, y: vf.y + MARGIN }, size, vf);
 }
 
-/** The fullscreen viewport's default anchor on a screen: 200 in from its right, on its visible bottom (rule 19). */
+/** The fullscreen viewport's default anchor on a screen: 200 in from its right, on its visible bottom. */
 export function defaultAnchor(visibleFrame: Rect): Point {
   return { x: visibleFrame.x + visibleFrame.w - 200, y: visibleFrame.y };
 }

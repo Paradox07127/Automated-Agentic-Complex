@@ -1,4 +1,4 @@
-"""Spatial behaviors (C1 v2 §1–3): which sustained activity the character may do now, as `event: behavior`,
+"""Spatial behaviors: which sustained activity the character may do now, as `event: behavior`,
 from session, user and speech events and a random tick, under the behavior switches; the avatar host's receipts end them."""
 from collections import OrderedDict, deque
 import json
@@ -135,7 +135,7 @@ def sit_variant(activity, rng, matched=None):
 
 
 def _key(spec):
-    """Behaviors with the same key are one: a repeat is not sent again (C1 §1.3)."""
+    """Behaviors with the same key are one: a repeat is not sent again."""
     return (spec["type"], json.dumps(spec["target"], sort_keys=True), spec["trigger"]["source"],
             spec["trigger"]["event"], spec["display_session"], spec["turn_id"], spec.get('facing_yaw'),
             spec.get("layer"), json.dumps(spec.get("clip")))
@@ -152,7 +152,7 @@ def _autonomous(spec):
 
 
 def _holds_body(spec):
-    """A behavior or proposal that makes the renderer refuse the user's play busy (C3 rule 54): a walk, sit, hold or climb,
+    """A behavior or proposal that makes the renderer refuse the user's play busy: a walk, sit, hold or climb,
     or a perform of a motion or action."""
     return spec["type"] not in IN_PLACE and bool(set(spec["channels"]) & set(BODY)) and "clip" not in spec
 
@@ -419,7 +419,7 @@ class Spatial:
             self._exit(s)
 
     def running(self):
-        """Every behavior that runs, oldest first (C1 §0 snapshot `behaviors`); [] when none does."""
+        """Every behavior that runs, oldest first (the C1 snapshot's `behaviors`); [] when none does."""
         with self._lock:
             return [dict(record["behavior"]) for record in self.active.values()]
 
@@ -548,7 +548,7 @@ class Spatial:
                 return False, "unknown_behavior"
             if record["phase"] in c1.ENDED:
                 return False, "after_terminal"
-            if body["turn_generation"] != record["behavior"]["turn_generation"]:  # C1 §3: its own generation
+            if body["turn_generation"] != record["behavior"]["turn_generation"]:  # receipts carry the behavior's generation
                 return False, "stale"
             now, phase = self.clock(), body["phase"]
             record["phase"] = phase
@@ -713,7 +713,7 @@ class Spatial:
 
     def use_motion(self, chooser):
         """The current character's MotionChooser, None for none. A new one starts on its own clock, and its reaction
-        table goes out in a snapshot (C1 v2.7)."""
+        table goes out in a snapshot."""
         with self._lock:
             replaced = chooser is not None or self.chooser is not None
             self.chooser, self._motion_at, self._chosen, self._base_id = chooser, None, [], None
@@ -935,7 +935,7 @@ class Spatial:
         return [] if self._return is not None else [self.active[i] for i in self._returned]
 
     def motion_state(self, body):
-        """A C3 motion_state (rule 54): at a cycle end or the end of a clip the chooser chose, the chooser's playhead
+        """A C3 motion_state: at a cycle end or the end of a clip the chooser chose, the chooser's playhead
         goes where the renderer's is. The user's own play holds the chooser's base clips from its start to its end."""
         with self._lock:
             record = self.records.get(body["behavior_id"])
@@ -1115,7 +1115,7 @@ class Spatial:
         if ret is not None:
             spec["priority"] = RETURN_PRIORITY
         left = self._return_left(base) if not overlay and why.startswith("exit of ") else 0.0
-        if left > 0:  # the renderer plays the return's clip out first (C1 §1.4), and the chooser's clock waits with it
+        if left > 0:  # the renderer plays the return's clip out first, and the chooser's clock waits with it
             spec.update(start="after_exit", lifetime=spec["lifetime"] + left)
         if self._user_play and not overlay:
             admitted, refused = False, "user_play"
@@ -1403,7 +1403,7 @@ class Spatial:
         return None
 
     def _exit(self, s):
-        """C1 §1: a running behavior whose exit condition agentd judges holds now gets behavior_cancel / exit,
+        """A running behavior whose exit condition agentd judges holds now gets behavior_cancel / exit,
         naming the first of its conditions that holds."""
         speech = _speech(s)
         for record in list(self.active.values()):
@@ -1447,7 +1447,7 @@ class Spatial:
                 self._send(spec, s, now, renews=record)  # same channels: it replaces the old one
 
     def _forbidden(self, kind, target, typing):
-        """C1 §1.3: a type the switches or the user's typing rule out."""
+        """A type the switches or the user's typing rule out."""
         switches, on_window = self.switches, target is not None and target["kind"] == "window"
         return kind in c1.MOVING and (switches["stay_in_place"] or typing) \
             or not switches["sit_window_top"] and (kind == "climb_window_top" or kind == "sit" and on_window) \
@@ -1587,7 +1587,7 @@ class Spatial:
         return kinds[-1]
 
     def _focus_walk(self, s, now):
-        """C1 v2.1: a focus that moved to another window and stayed FOCUS_SETTLE draws one walk toward it, at the
+        """A focus that moved to another window and stayed FOCUS_SETTLE draws one walk toward it, at the
         first poll where it may be sent."""
         window_id = s["window_id"]
         if self._focus is None or self._focus["window_id"] != window_id:

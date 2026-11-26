@@ -1,4 +1,4 @@
-// The activity recorder over the platform helper (CONTRACT §7.2 `workspace.watch`, §7.4 `ax.watch`): the front app's
+// The activity recorder over the platform helper (`workspace.watch`, `ax.watch`): the front app's
 // focus, value, selection and window changes become `POST /context/events` batches while agentd runs and
 // `plugins.screen_awareness` is on.
 import {
@@ -27,7 +27,7 @@ export interface ActivityPorts {
   timeline?(e: ActivityEvent): void;
 }
 
-/** The AX notifications under their CONTRACT §7.4 names. */
+/** The AX notifications under the helper's names. */
 const NOTIFICATIONS = ['focus', 'window', 'title', 'value', 'selection'];
 /** The recorder's own `ax.watch`, beside the screen context's. */
 const WATCH_ID = 'activity';
@@ -57,7 +57,7 @@ export class ActivityRecorder {
   private target: Front | null = null;
   /** The pid the helper watches and whether it sends the selected text and the value. */
   private watched: { pid: number; selected: boolean } | null = null;
-  /** `workspace.watch` answered; after a restart the supervisor asks for it and the `ax.watch` again (CONTRACT §6.4). */
+  /** `workspace.watch` answered; after a restart the supervisor asks for it and the `ax.watch` again. */
   private workspaceWatched = false;
   private focusedInfo: ActivityElement | null = null;
   /** Bumped by each attach and stop, so an older attach's answers are dropped. */

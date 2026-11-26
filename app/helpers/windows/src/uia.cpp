@@ -1,5 +1,5 @@
 // The UIA thread and the reads the ax.* handlers share; ax.focused, ax.selected_text, and ax.watch with its event
-// handlers and ax.notification (CONTRACT §7.4, §8); input.actions' reads and attention.sample's focus roles (§7.3).
+// handlers and ax.notification; input.actions' reads and attention.sample's focus roles.
 #include "uia.h"
 
 #include <algorithm>
@@ -21,11 +21,11 @@ namespace {
 
 constexpr HRESULT kUiaTimeout = static_cast<HRESULT>(0x80131505L);   // UIA_E_TIMEOUT
 constexpr HRESULT kElementGone = static_cast<HRESULT>(0x80040201L);  // UIA_E_ELEMENTNOTAVAILABLE
-// ConnectionTimeout and TransactionTimeout, under CONTRACT §5.3's 2000 ms.
+// ConnectionTimeout and TransactionTimeout, kept under 2000 ms.
 constexpr DWORD kUiaTimeoutMs = 1000;
 constexpr ULONGLONG kBackOffMs = 2000;
 constexpr LONG kCaretMargin = 40;
-constexpr size_t kLabelScalars = 200;  // a static text's label (CONTRACT §7.3)
+constexpr size_t kLabelScalars = 200;  // a static text's label
 
 struct Done {
     std::mutex lock;
@@ -411,7 +411,7 @@ void send_action(const char* kind, DWORD pid, json::Value target, const std::str
 
 bool actions_on() { return g_actions_live; }
 
-// CONTRACT §7.3: the element at p of whichever window is there, as the system-wide element answers on macOS; no event
+// The element at p of whichever window is there, as the system-wide element answers on macOS; no event
 // when UIA finds none. An app on the back-off list is not asked: its click goes without a target.
 void click_action(POINT p, bool context_menu) {
     unsigned era = g_actions_era;
@@ -655,7 +655,7 @@ thread_local std::shared_ptr<Watch> t_starting;
 
 // ---- ax.focused, ax.selected_text
 
-// CONTRACT §7.4: never the value; no app_pid on Windows.
+// Never the value; no app_pid on Windows.
 Outcome focused_read(IUIAutomation* automation, DWORD pid) {
     Reads reads;
     reads.pid = pid;
@@ -712,7 +712,7 @@ Outcome ax_selected_text(const json::Value& params) {
     });
 }
 
-// CONTRACT §7.4 for Windows: manual_accessibility has no meaning here; asked for, it answers false.
+// manual_accessibility has no meaning on Windows; asked for, it answers false.
 Outcome ax_watch(const json::Value& params) {
     const json::Value* given = params.get("watch_id");
     std::string id = given ? given->s : std::string();
@@ -761,7 +761,7 @@ Outcome ax_watch(const json::Value& params) {
     return out;
 }
 
-// CONTRACT §7.3 for Windows: the actions come from the watch window's Raw Input, which needs no permission.
+// The actions come from the watch window's Raw Input, which needs no permission.
 Outcome input_actions(const json::Value& params) {
     bool enabled = win32::flag(params, "enabled");
     if (enabled && !keyboard_watched()) return failure("internal", "Raw Input could not be registered");

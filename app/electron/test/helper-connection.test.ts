@@ -1,10 +1,10 @@
-// HelperConnection's own checks of C12 §2 (src/main/helper/client.ts), with no helper process: the line limit for requests
+// HelperConnection's own checks of the helper wire (src/main/helper/client.ts), with no helper process: the line limit for requests
 // and the event seq.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { HelperConnection, type HelperEvent, MAX_LINE_BYTES } from '../src/main/helper/client.ts';
 
-test('a request longer than max_line_bytes is refused here and never written (CONTRACT §2.2)', async () => {
+test('a request longer than max_line_bytes is refused here and never written', async () => {
   const written: string[] = [];
   const connection = new HelperConnection({ write: (line) => written.push(line), onBroken: () => {} });
   const reply = await connection.request('screens.list', { blob: 'x'.repeat(MAX_LINE_BYTES) });
@@ -12,7 +12,7 @@ test('a request longer than max_line_bytes is refused here and never written (CO
   assert.deepEqual([written.length, connection.inFlight], [0, 0]);
 });
 
-test('an event whose seq does not increase from 1 breaks the connection (CONTRACT §2.6)', () => {
+test('an event whose seq does not increase from 1 breaks the connection', () => {
   for (const seqs of [[0], [-1], [1, 1], [2, 1]]) {
     const events: number[] = [], broken: string[] = [];
     const connection = new HelperConnection({ write: () => {}, onBroken: (r) => broken.push(r),

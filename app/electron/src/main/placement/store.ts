@@ -38,20 +38,16 @@ function savePerCharacter(supportDir: string, key: string, character: string, va
   writeJson(join(supportDir, 'state.json'), state);
 }
 
-/** Rule 19, v13.1. */
 export const saveWindowScale = (supportDir: string, character: string, scale: number) =>
   savePerCharacter(supportDir, 'window_scale', character, scale);
-/** Rule 20, v14.1. */
 export const saveLastDisplay = (supportDir: string, character: string, display: number) =>
   savePerCharacter(supportDir, 'last_display', character, display);
-/** Rule 16. */
 export const saveLastAppearance = (supportDir: string, character: string, appearance: string) =>
   savePerCharacter(supportDir, 'last_appearance', character, appearance);
-/** Rule 46. */
 export const saveHiddenLayers = (supportDir: string, character: string, hidden: string[]) =>
   savePerCharacter(supportDir, 'hidden_layers', character, hidden);
 
-/** Rule 22: max(last + 1, now in Unix ms), saved so it never goes back across restarts. */
+/** Max(last + 1, now in Unix ms), saved so it never goes back across restarts. */
 export function nextTraceEpoch(supportDir: string, nowMs = Date.now()): number {
   const state = readState(supportDir);
   const epoch = Math.max((Number.isInteger(state.trace_epoch) ? state.trace_epoch as number : 0) + 1, Math.floor(nowMs));
@@ -59,7 +55,6 @@ export function nextTraceEpoch(supportDir: string, nowMs = Date.now()): number {
   return epoch;
 }
 
-/** Rule 14. */
 export function saveLastCharacter(supportDir: string, character: string): void {
   writeJson(join(supportDir, 'state.json'), { ...readState(supportDir), last_character: character });
 }

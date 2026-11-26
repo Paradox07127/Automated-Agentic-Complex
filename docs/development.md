@@ -28,7 +28,7 @@
   uv pip install --python .local/venvs/pipeline/bin/python3 -r characters/agentic_complex_build/requirements-mmd.txt
   ```
 
-- 生成角色包用的本地输入放在 `.local/inputs/` 或 `.local/output/<任务>/`，不要把素材放进仓库。角色包由外部工具生成，格式见[角色库规范](../protocol/character-library/CONTRACT.md)。
+- 生成角色包用的本地输入放在 `.local/inputs/` 或 `.local/output/<任务>/`，不要把素材放进仓库。角色包由外部工具生成。
 - **Windows x64（开发中）**：需要 Visual Studio 2022（C++ x64 构建工具）、Node.js ≥ 24.22.1 与 Python 3.12，用于构建 `ac-helper.exe`、Electron 外壳与便携目录（`efw.exe` 是私有组件，不在公开仓库）。具体见下面的 [Windows](#windows) 一节。
 
 ## 开发运行（Dev Console）

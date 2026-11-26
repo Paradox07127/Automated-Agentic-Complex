@@ -1,5 +1,4 @@
-// Her camera as the user moves it: ⌘ drag, ⌘ wheel or pinch on her (C3 rule 49 (h)
-// `camera_gesture`) and 调整镜头's camera mode go out as live values and are saved to config.json at the end.
+// Her camera as the user moves it: ⌘ drag, ⌘ wheel or pinch on her (`camera_gesture`) and 调整镜头's camera mode go out as live values and are saved to config.json at the end.
 import type { Box, C3Message } from '../../common/c3.ts';
 import { CAMERA_KEYS, type CameraValue, cameraSettings, committed, gestured, savedCamera } from '../../common/camera-model.ts';
 import type { CameraGesture, CommandResult } from '../renderer/link.ts';

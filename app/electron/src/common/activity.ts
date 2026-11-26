@@ -1,5 +1,5 @@
 // The activity recorder's rules:
-// the platform helper's `ax.notification` events (CONTRACT §7.4, §8) in, the body of agentd's `POST /context/events` out.
+// the platform helper's `ax.notification` events in, the body of agentd's `POST /context/events` out.
 // The privacy rules are attention.ts's (`hides`, `redactText`, `mayBePrivate`); this file only applies them per event.
 import { type AttentionWindow, type BlacklistRules, mayBePrivate, redactText } from './attention.ts';
 import { type CaptureWindow, captureBlockReason, isSecureNode } from './capture-rules.ts';
@@ -62,7 +62,7 @@ const obj = (v: unknown): Obj | null => (typeof v === 'object' && v !== null && 
 const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
 const int = (v: unknown): number | null => (typeof v === 'number' && Number.isInteger(v) ? v : null);
 
-/** An `ax.notification`'s `element` (CONTRACT §7.12 `ax_element`) as the focused element of the watched app; null when the
+/** An `ax.notification`'s `element` as the focused element of the watched app; null when the
  *  helper could not read one. The key is `element_key`, else the element's pid, roles and label. */
 export function decodeElement(raw: unknown, pid: number, app: string | null, bundleId: string | null): ActivityElement | null {
   const o = obj(raw);

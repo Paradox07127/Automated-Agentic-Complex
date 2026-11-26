@@ -9,7 +9,7 @@
 #include "json.h"
 #include "ops_table.generated.h"
 
-// What one op answers: a result object, or an error (CONTRACT §3).
+// What one op answers: a result object, or an error.
 struct Outcome {
     bool ok = true;
     json::Value result;
@@ -35,7 +35,7 @@ struct Request {
 
 // The request of the handler running on this thread; work the handler hands to another thread takes it along.
 std::shared_ptr<Request> this_request();
-// The commit point of an op that main.cpp's commits_itself names, right before its side effect (CONTRACT §5.2). True:
+// The commit point of an op that main.cpp's commits_itself names, right before its side effect. True:
 // no cancel stops the request from now on, and it answers what its handler returns. False: it has been answered
 // already (cancelled, shut down, or given up by its handler); the effect must not happen and what the handler opened
 // is taken down. Every other op commits as it starts.
@@ -81,7 +81,7 @@ std::string grab_window_frame(void* hwnd, unsigned& width, unsigned& height, std
 Outcome ocr_languages(const json::Value& params);
 Outcome ocr_recognize(const json::Value& params);
 
-// ops_control.cpp. control_stop closes the endpoint and deletes the token file (CONTRACT §6.1); main calls it before
+// ops_control.cpp. control_stop closes the endpoint and deletes the token file; main calls it before
 // exiting.
 Outcome control_listen(const json::Value& params);
 Outcome control_respond(const json::Value& params);

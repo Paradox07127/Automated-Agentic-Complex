@@ -1,5 +1,5 @@
 // Giving way over the platform helper: the screen targets every 0.5 s (`ax.focused`, `ax.dialog_buttons`, `ax.overlays`)
-// and the fullscreen hiding after each attention sample. `screens.list` gives the main display height for the helper's rects; rule 35 is the surface source's.
+// and the fullscreen hiding after each attention sample. `screens.list` gives the main display height for the helper's rects.
 import { type AttentionSample, decodeRect, type HelperY, type ReflexState } from '../../common/attention.ts';
 import { decodeFocus, decodeRects, FEED, feedRects, type Focus, FullscreenHider, othersFocus } from '../../common/give-way.ts';
 import type { KeepClearRect } from '../../common/keepclear.ts';
@@ -13,7 +13,7 @@ export interface GiveWayPorts {
   reflex(): ReflexState | null;
   /** The screen targets, in C3 global points, each time a read changes them. */
   keepClear(rects: KeepClearRect[]): void;
-  /** Rule 35 as the surface source judges it. */
+  /** Whether the surface source reports a covering window. */
   covered(): boolean;
   /** config.json `fullscreen_behavior` and `hide_on_screen_capture`. */
   fullscreenBehavior(): string;
@@ -37,14 +37,14 @@ export class GiveWay {
   private feeding = false;
   private readonly hider = new FullscreenHider();
   private readonly failed = new Map<string, string>();
-  /** `workspace.watch` answered; after a restart the supervisor asks for it again (C12 §6.4). */
+  /** `workspace.watch` answered; after a restart the supervisor asks for it again. */
   private workspaceWatched = false;
 
   constructor(ports: GiveWayPorts) {
     this.ports = ports;
   }
 
-  /** Rule 35: the front app's window covers her. */
+  /** The front app's window covers her. */
   get covered(): boolean {
     return this.ports.covered();
   }

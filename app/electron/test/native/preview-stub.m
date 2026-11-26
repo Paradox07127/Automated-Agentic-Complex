@@ -1,5 +1,5 @@
 // A stand-in renderer for the window test, launched by preview-harness.ts with `--agentic-complex-preview-rendezvous <name>`: speaks
-// the Mach wire of C3 CONTRACT 「附录：角色页预览」 and draws nothing. Every frame carries the same 256x256 BGRA IOSurface of a known
+// the character page preview's Mach wire and draws nothing. Every frame carries the same 256x256 BGRA IOSurface of a known
 // gradient: pixel (x, y) is R = 255 - x, G = y, B = x, A = 255. Exits on `disconnected`, or after 60 s without a message.
 #import <Foundation/Foundation.h>
 #import <IOSurface/IOSurface.h>

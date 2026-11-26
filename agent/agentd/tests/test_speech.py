@@ -42,7 +42,7 @@ def upstream_lines(body, segments=2, end="complete", cues=False):
               "format": "pcm_s16le", "channels": 1, "lang": "zh",
               "engine": {"gpt_sovits_commit": "1b47ca07", "variant": "v5dev"},
               "expires_at_ms": body["expires_at_ms"]}]
-    if "utterance_id" in body:  # C2 v2: the request's clause fields come back in the begin
+    if "utterance_id" in body:  # a clause request: its clause fields come back in the begin
         lines[0].update({k: body[k] for k in V2_FIELDS}, schema="endfield-speech-timeline-v2")
     start = 0
     for index in range(segments):
@@ -526,7 +526,7 @@ TRACE = "7d0c2f1e-5a3b-4c6d-8e9f-0a1b2c3d4e5f"
 
 
 class UtteranceTest(unittest.TestCase):
-    """One line spoken clause by clause, one C2 v2 stream per clause."""
+    """One line spoken clause by clause, one C2 stream per clause."""
     relay = SpeechRelayTest.relay
     failures = SpeechRelayTest.failures
     collect = SpeechRelayTest.collect
@@ -690,7 +690,7 @@ class UtteranceTest(unittest.TestCase):
         self.assertFalse(relay.busy())
 
     def test_clause_end_supersede_keeps_the_streaming_clause_across_a_generation_bump(self):
-        # C2 rule 10: the clause streaming now goes on to its end although turn_generation moved.
+        # The clause streaming now goes on to its end although turn_generation moved.
         tts, relay = self.relay(segments=10, delay=0.02)
         relay.generation = 1
         old = relay.begin_utterance("line-1", generation=1, interrupt_policy="clause_end")

@@ -1,4 +1,4 @@
-// The fake bridge's mod settings (avatar.modSettings, C3 v27 rule 53) and agentd's mod-settings route (C6).
+// The fake bridge's mod settings (`avatar.modSettings`) and agentd's mod-settings route (C6).
 import { describe, expect, it } from 'vitest';
 import { createFakeBridge } from '../../src/bridge/fake';
 import { MOD_SETTINGS } from '../../src/mock/fixtures';

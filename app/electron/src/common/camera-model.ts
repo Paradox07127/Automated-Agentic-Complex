@@ -17,7 +17,7 @@ const toHalf = (x: number) => round(x * 2) / 2;
 
 export const clampCamera = (v: CameraValue): CameraValue => ({ yaw: clamp(v.yaw, YAW), pitch: clamp(v.pitch, PITCH), zoom: clamp(v.zoom, ZOOM) });
 
-/** `v` after one C3 `camera_gesture` event (rule 49 (h)): `dx`, `dy` in screen points, right and down positive; `zoom`
+/** `v` after one C3 `camera_gesture` event: `dx`, `dy` in screen points, right and down positive; `zoom`
  *  multiplies the zoom. Clamped. */
 export function gestured(v: CameraValue, dx: number, dy: number, zoom: number): CameraValue {
   return clampCamera({ yaw: v.yaw + dx * DEGREES_PER_POINT, pitch: v.pitch - dy * DEGREES_PER_POINT, zoom: v.zoom * zoom });
@@ -150,7 +150,7 @@ const zoomOf = (s: Record<string, unknown>) => {
 export const savedCamera = (s: Record<string, unknown>): CameraValue =>
   ({ yaw: degrees(s.render_camera_yaw, YAW), pitch: degrees(s.render_camera_pitch, PITCH), zoom: zoomOf(s) });
 
-/** The `set_render` groups (C3 rules 43, 49) with the values the renderer's launch arguments take from the same settings;
+/** The `set_render` groups with the values the renderer's launch arguments take from the same settings;
  *  HostLink.sendSetRender drops what the avatar does not list. */
 export function liveRenderPayload(s: Record<string, unknown>): Record<string, unknown> {
   const option = (key: string, allowed: string[], fallback: string) => (allowed.includes(s[key] as string) ? s[key] as string : fallback);

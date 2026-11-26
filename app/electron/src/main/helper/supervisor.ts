@@ -1,5 +1,5 @@
-// Starts the platform helper (ac-helper on macOS, ac-helper.exe on Windows), says hello and watches it as C12 §4–§6
-// describe: restarts after a crash with the 1, 2, 4 … 30 s backoff and asks the new helper for the watches in effect, gives
+// Starts the platform helper (ac-helper on macOS, ac-helper.exe on Windows), says hello and watches it:
+// restarts after a crash with the 1, 2, 4 … 30 s backoff and asks the new helper for the watches in effect, gives
 // up on a protocol mismatch (exit 3), and on quit sends shutdown, then ends the process.
 import { type ChildProcess, spawn } from 'node:child_process';
 import { closeSync, fchmodSync, openSync } from 'node:fs';
@@ -9,7 +9,7 @@ import { Backoff, type ChildState, launchFailure, sameState, stateText } from '.
 import { appendLog, prepareLogs, recordError } from '../log.ts';
 import { HelperConnection, type HelperEvent, type HelperReply, localError, PROTOCOL } from './client.ts';
 
-/** Seconds (CONTRACT §6). */
+/** Seconds. */
 export const HELPER_TIMING = {
   /** After the shutdown request, before the helper is ended. */
   shutdownGrace: 1,
@@ -21,7 +21,7 @@ const running = (child: ChildProcess) => child.exitCode === null && child.signal
 
 const ON_OFF_WATCHES = new Set(['workspace.watch', 'presence.watch', 'input.watch', 'input.actions']);
 
-/** The watch a request starts or stops, one per op and `ax.watch` `watch_id` (CONTRACT §6.4); null for other ops. */
+/** The watch a request starts or stops, one per op and `ax.watch` `watch_id`; null for other ops. */
 export function watchOf(op: string, params: Record<string, unknown>): { key: string; on: boolean } | null {
   if (ON_OFF_WATCHES.has(op)) return { key: op, on: params.enabled === true };
   if (op === 'ax.watch') return { key: `ax.watch#${typeof params.watch_id === 'string' ? params.watch_id : ''}`, on: params.pid != null };
@@ -114,7 +114,7 @@ export class HelperSupervisor {
     return reply;
   }
 
-  /** shutdown, 1 s for the helper to exit, then SIGTERM and SIGKILL; resolves once it is stopped (CONTRACT §6.6). */
+  /** shutdown, 1 s for the helper to exit, then SIGTERM and SIGKILL; resolves once it is stopped. */
   stop(): Promise<void> {
     this.stopping ??= this.stopNow().finally(() => { this.stopping = undefined; });
     return this.stopping;
@@ -203,7 +203,7 @@ export class HelperSupervisor {
     this.setState({ kind: 'running' });
   }
 
-  /** CONTRACT §6.4: a new helper has no watches; each one in effect is asked for again before anyone else asks. */
+  /** A new helper has no watches; each one in effect is asked for again before anyone else asks. */
   private replayWatches(connection: HelperConnection): void {
     for (const [key, { op, params }] of this.watches) {
       const seq = this.watchSeq.get(key);
@@ -232,7 +232,7 @@ export class HelperSupervisor {
     this.after(seconds, () => { if (next === this.generation) this.launch(); });
   }
 
-  /** SIGTERM, then SIGKILL after killGrace (CONTRACT §6.3). */
+  /** SIGTERM, then SIGKILL after killGrace. */
   private terminate(child: ChildProcess): void {
     if (!running(child)) return;
     child.kill('SIGTERM');

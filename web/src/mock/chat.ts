@@ -5,7 +5,7 @@ import { C1_TURNS, MEETUP, MEETUP_CONV, MEETUP_TURNS, OTHER_CONVS, OTHER_TURNS, 
 import type { MockResponse, MockRoute } from './types';
 import { C1, C2, C3, C4, C5, C6, C7, C8, CHARACTER } from './fixtures/ids';
 
-// Chat page endpoints in agentd's shapes (control_panel.py, conversations.py, contract.md of chat v2). `?fail=1` selects
+// Chat page endpoints in agentd's shapes (control_panel.py, conversations.py). `?fail=1` selects
 // the error demos and `?demo=sparse` the one-conversation list; the page adds them only on the fake bridge.
 
 const DAY_S = DAY / 1000;

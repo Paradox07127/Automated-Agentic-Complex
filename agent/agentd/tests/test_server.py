@@ -2733,7 +2733,7 @@ class RitualTapTest(FeedServerCase):
 
 
 class ClauseIntentTest(FeedServerCase):
-    """C1 v2 §4: each [intent:x] goes to /events as clause_intent on the clause it stood in, one per clause."""
+    """Each [intent:x] goes to /events as clause_intent on the clause it stood in, one per clause."""
     say, request, lines_until_final = SayTest.say, SayTest.request, SayTest.lines_until_final
 
     def setUp(self):

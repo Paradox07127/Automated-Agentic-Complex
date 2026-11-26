@@ -4,7 +4,7 @@
 
 ## 概述
 
-`voice/tts-service/` 是基于 GPT-SoVITS 的 HTTP 语音合成服务，跑在带 NVIDIA GPU 的 TTS 主机上。agentd 按 [C2 语音流](../../protocol/C2-speech-stream/CONTRACT.md)调用它的 `POST /speech_stream`；接入别的引擎见 [TTS 引擎接口](../../protocol/C2-speech-stream/ENGINE.md)。部署和连接见[部署语音服务](../guides/tts-deploy.md)。
+`voice/tts-service/` 是基于 GPT-SoVITS 的 HTTP 语音合成服务，跑在带 NVIDIA GPU 的 TTS 主机上。agentd 通过 `POST /speech_stream` 发送待合成文本。部署和连接见[部署语音服务](../guides/tts-deploy.md)。
 
 ## 文件
 

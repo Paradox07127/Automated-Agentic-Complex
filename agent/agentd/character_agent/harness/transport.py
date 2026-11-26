@@ -24,7 +24,7 @@ from .profile_cleanup import lock_runner_actor, release_runner_actor, remove_run
 PROTOCOL_VERSION = 1
 # Native image replies must fit the 32 MiB authorized capture payload plus IPC framing.
 MAX_FRAME = 40 * 1024 * 1024
-# C8 §10: every ready frame carries all of these keys, each with one of the listed values.
+# Every ready frame carries all of these keys, each with one of the listed values.
 CAPABILITIES = {
     "cancel": ("native", "process_kill"),
     "tool_injection": ("in_process", "dynamic_tools", "mcp_stdio", "mcp_http"),

@@ -1,4 +1,4 @@
-// C3 v27 rule 51: one character's whole motion override set as config.json `motion_overrides` keeps it
+// One character's whole motion override set as config.json `motion_overrides` keeps it
 // (`{character: {chains, pools, blend_in, notes?}}`) and `avatar.motionOverrides.*` carry it.
 import { MOTION_OVERRIDES } from './c3.ts';
 
@@ -24,7 +24,7 @@ const key = (v: unknown): v is string => typeof v === 'string' && v !== '' && en
 /** Grapheme clusters. */
 const characters = (s: string): number => [...graphemes.segment(s)].length;
 
-/** MotionOverrides.parse: a `{chains, pools, blend_in, notes?}` object within rule 51 (j) and the notes' limits; null when any
+/** MotionOverrides.parse: a `{chains, pools, blend_in, notes?}` object. Returns null when any
  *  part breaks them. Other keys are ignored. */
 export function parseOverrides(value: unknown): StoredOverrides | null {
   if (!isObject(value)) return null;
@@ -63,7 +63,7 @@ export function parseOverrides(value: unknown): StoredOverrides | null {
   return result;
 }
 
-/** `avatar.motionOverrides.set`'s argument (rule 51 (j)): exactly `{chains, pools, blend_in}`
+/** `avatar.motionOverrides.set`'s argument: exactly `{chains, pools, blend_in}`
  *  and optional `notes`; null otherwise. */
 export function overridesArg(value: unknown): StoredOverrides | null {
   if (!isObject(value)) return null;
@@ -87,8 +87,7 @@ export const overridesEmpty = (o: StoredOverrides): boolean =>
   [o.chains, o.pools, o.blend_in].every((t) => Object.keys(t).length === 0);
 
 
-/** The character's stored set from config.json's object; null when there is none or it breaks
- *  rule 51 (j). */
+/** Returns null when the character has no valid stored override set. */
 export function loadOverrides(config: Record<string, unknown>, character: string): StoredOverrides | null {
   const all = config.motion_overrides;
   return isObject(all) ? parseOverrides(all[character]) : null;

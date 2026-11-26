@@ -71,7 +71,7 @@ test('nothing is read before the helper says hello; then the screens, the worksp
   assert.deepEqual(t.ops().slice(0, 2).sort(), ['screens.list', 'workspace.watch']);
   assert.deepEqual(t.requests.find(([op]) => op === 'workspace.watch')![1], { enabled: true });
   assert.equal(t.timers.has(500), true);
-  assert.equal(t.ops().includes('windows.list'), false, 'rule 35 is the surface source\'s');
+  assert.equal(t.ops().includes('windows.list'), false, 'the surface source checks for covering windows');
 });
 
 test('whether she is covered is the surface source\'s', () => {

@@ -17,7 +17,7 @@ private final class Observers {
     }
 }
 
-/// CONTRACT §7.2 `workspace.watch`: the front app, the Space and the displays.
+/// `workspace.watch`: the front app, the Space and the displays.
 enum Workspace {
     static let state = WatchState()
     private static let observers = Observers()
@@ -73,7 +73,7 @@ enum Workspace {
     }
 }
 
-/// CONTRACT §7.3 `presence.watch`: the lock, sleep and display notifications, sent as they come.
+/// `presence.watch`: the lock, sleep and display notifications, sent as they come.
 enum Presence {
     static let state = WatchState()
     private static let observers = Observers()
@@ -109,7 +109,7 @@ enum Presence {
 }
 
 /// At most one key or scroll input.activity per 100 ms; every mouse press and release goes, so that the main process
-/// knows whether a button is down (CONTRACT §7.3).
+/// knows whether a button is down.
 struct ActivityThrottle {
     static let interval: TimeInterval = 0.1
     private var last: [String: TimeInterval] = [:]
@@ -122,7 +122,7 @@ struct ActivityThrottle {
     }
 }
 
-/// CONTRACT §7.3 `input.watch`: a listen-only event tap for the input kinds computer control watches and the mouse
+/// `input.watch`: a listen-only event tap for the input kinds computer control watches and the mouse
 /// releases. It reads the event type and the generated-event marker only, never a key code or a position.
 enum InputWatch {
     /// The marker `control.act` sets on the events it generates.
@@ -185,7 +185,7 @@ enum InputWatch {
     }
 }
 
-/// Repeated clicks on one control within 150 ms are one input.action (CONTRACT §7.3).
+/// Repeated clicks on one control within 150 ms are one input.action.
 struct ClickThrottle {
     static let interval: TimeInterval = 0.15
     private var last: (key: String, at: TimeInterval)?
@@ -197,7 +197,7 @@ struct ClickThrottle {
     }
 }
 
-/// CONTRACT §7.3 `input.actions`: a listen-only event tap of its own for clicks, context-menu presses, shortcuts and
+/// `input.actions`: a listen-only event tap of its own for clicks, context-menu presses, shortcuts and
 /// Return, each sent with the control it went to. It reads a click's position and a key press's modifiers and key code;
 /// the character only of a shortcut, never of plain typing.
 enum ActionWatch {
@@ -353,7 +353,7 @@ enum ActionWatch {
     }
 }
 
-/// CONTRACT §7.4 `ax.watch`: one AXObserver on one app per watch id. Each notification sends the focused element, with the
+/// `ax.watch`: one AXObserver on one app per watch id. Each notification sends the focused element, with the
 /// value's length, and its text only when asked.
 enum AXWatch {
     /// One watch id's observer and what its notifications read.

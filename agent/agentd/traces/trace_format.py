@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""T1 trace event format v1 (`protocol/C6-agentd-api/T1-TRACE.md`): validate one event or an NDJSON file.
+"""T1 trace event format v1: validate one event or an NDJSON file.
 
 Usage: traces/trace_format.py <file.ndjson>   exit 0 when every line and the stream as a whole are valid."""
 import json

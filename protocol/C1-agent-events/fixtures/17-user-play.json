@@ -1,5 +1,5 @@
 {
- "description": "C1 v2.8：用户自己的播放（C3 play_action）开始时渲染器以 cancelled / user_play 结束 agentd 基础层的片段，叠加层照播；播放结束（C3 motion_state origin user 的 ended）后 agentd 从她的休息循环重新发",
+ "description": "用户自己的播放（C3 play_action）开始时渲染器以 cancelled / user_play 结束 agentd 基础层的片段，叠加层照播；播放结束（C3 motion_state origin user 的 ended）后 agentd 从她的休息循环重新发",
  "messages": [
   {
    "event": "behavior",

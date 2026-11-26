@@ -1,5 +1,5 @@
 // ac-helper.exe: the Windows platform helper of protocol/C12-platform-helper. This file is the session layer:
-// NDJSON on stdin and stdout (CONTRACT §2), errors (§3), hello (§4), cancel (§5) and exit (§6).
+// NDJSON on stdin and stdout, errors, hello, cancel and exit.
 #define NOMINMAX
 #include <windows.h>
 
@@ -71,7 +71,7 @@ void answer(int64_t id, const Outcome& out) {
     if (!write_message(message)) answer(id, failure("internal", "the answer is longer than max_line_bytes"));
 }
 
-// Exit code 2 after one line on stderr (CONTRACT §6.2).
+// Exit code 2 after one line on stderr.
 [[noreturn]] void protocol_error(const char* why) {
     std::lock_guard<std::mutex> hold(g_lock);
     std::fprintf(stderr, "ac-helper: protocol error: %s\n", why);
@@ -129,7 +129,7 @@ void hello(int64_t id, const json::Value& params) {
     answer(id, success(std::move(result)));
 }
 
-// CONTRACT §5.2: the ops without side effects, which a cancel stops until they answer, and those whose handler
+// The ops without side effects, which a cancel stops until they answer, and those whose handler
 // commit()s right before its side effect. Every other op commits as it starts.
 bool commits_itself(const std::string& op) {
     static const char* const names[] = {"ax.window_text",  "ax.window_tree", "capture.window", "capture.ambient",
@@ -155,7 +155,7 @@ void cancel(int64_t id, int64_t target) {
     answer(id, success(std::move(result)));
 }
 
-// Callers hold g_lock. Every request in flight gets its one answer before the shutdown answer (CONTRACT §6.1).
+// Callers hold g_lock. Every request in flight gets its one answer before the shutdown answer.
 [[noreturn]] void shutdown(int64_t id) {
     for (const auto& running : g_running) {
         running.second->open = false;
@@ -257,7 +257,7 @@ void send_event(const char* name, json::Value data, const std::atomic<bool>& liv
 
 int wmain(int argc, wchar_t** argv) {
     if (argc == 3 && std::wcscmp(argv[1], L"--transcribe") == 0) return transcribe_file(argv[2]);
-    // Window and screen coordinates in physical pixels (CONTRACT §2.8).
+    // Window and screen coordinates in physical pixels.
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     start_watches();
     g_stdout = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -282,7 +282,7 @@ int wmain(int argc, wchar_t** argv) {
         handle_line(line);
     }
     if (pending.find_first_not_of(" \t\r") != std::string::npos) protocol_error("the last line has no newline");
-    // stdin closed: a shutdown without an answer (CONTRACT §6.1).
+    // stdin closed: a shutdown without an answer.
     std::lock_guard<std::mutex> hold(g_lock);
     control_stop();
     ExitProcess(0);

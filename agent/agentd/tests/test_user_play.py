@@ -1,5 +1,5 @@
 """The user's own play from the character page comes first: her body behaviors give way to it, nothing takes her body
-while it plays, and what held before comes back once it is over (POST /behavior/user_play, C3 rule 54)."""
+while it plays, and what held before comes back once it is over (POST /behavior/user_play)."""
 import unittest
 import unittest.mock
 

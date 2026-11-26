@@ -1,7 +1,7 @@
 // The desktop panels' assembly (src/main/desktop/assembly.ts) with a stand-in `electron` module, fake windows and a fake
 // agentd: the 快速输入 hot key is not registered with `--no-attention` (as hotkeys/shell.ts); `pushState` sends
 // `desktop.onState` at once, with the hover buttons' `dock`; `desktop.action`'s openSessions, openStack and talk; the bubble's
-// notice; C3 rule 39's present of the bubble for an approval; the hover buttons opening after a rest on her; a mouse down
+// notice; the bubble's presentation for an approval; the hover buttons opening after a rest on her; a mouse down
 // outside closes the wheel and the console; her lines' `noteLine` and the `typing` the frame rate reads.
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
@@ -264,7 +264,7 @@ const confirmCard = (h: { call: (route: string, op: string, args: unknown[]) => 
   h.call('/bubble', 'window.setInteractiveRegions', [[{ x: 16, y: 22, width: 348, height: 162 }]]);
 };
 
-test('rule 39: a hidden bubble that gets an approval presents first and shows at her stroke', async () => {
+test('A hidden bubble that gets an approval presents first and shows at her stroke', async () => {
   const h = setup(['--no-attention']);
   h.desktop.start();
   h.desktop.agentd(true);
@@ -287,7 +287,7 @@ test('rule 39: a hidden bubble that gets an approval presents first and shows at
   bare.done();
 });
 
-test('rule 39: a bubble left with no approval closes her snap at the push', async () => {
+test('A bubble left with no approval closes her snap at the push', async () => {
   const h = setup(['--no-attention']);
   h.desktop.start();
   h.desktop.agentd(true);
@@ -332,7 +332,7 @@ test('dockChanged hears each opening and closing of the hover buttons, which doc
   h.done();
 });
 
-test('C3 rule 57: the hover buttons do not open while she walks, and do once she stops', async () => {
+test('The hover buttons do not open while she walks, and do once she stops', async () => {
   const h = setup(['--no-attention'], { hovered: true });
   h.desktop.setMoving(true);
   h.desktop.start();
@@ -345,7 +345,7 @@ test('C3 rule 57: the hover buttons do not open while she walks, and do once she
   h.done();
 });
 
-test('C3 rule 56: the wheel a held right press opened gets its moves and release in its page\'s CSS px; one a click opened gets none', () => {
+test('The wheel a held right press opened gets its moves and release in its page\'s CSS px; one a click opened gets none', () => {
   const h = setup(['--no-attention']);
   h.desktop.start();
   const commands = h.watch('/cmd', 'desktop.onCommand') as Record<string, unknown>[];

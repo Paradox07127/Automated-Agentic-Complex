@@ -1,4 +1,4 @@
-// The capture ops of CONTRACT §7.5. capture.window takes one frame of the window through Windows.Graphics.Capture;
+// The capture ops. capture.window takes one frame of the window through Windows.Graphics.Capture;
 // capture.ambient takes one frame of the display with another process's windows left out (the display session's
 // window exclusion list), or decodes the wallpaper file. WIC scales and encodes; no pixel leaves the process except
 // in the answer.
@@ -277,7 +277,7 @@ std::string grab_item(wgc::IGraphicsCaptureItem* item, ABI::Windows::Graphics::S
     session_closing.object = session;
     ComPtr<wgc::IGraphicsCaptureSession2> cursor;
     if (SUCCEEDED(session.As(&cursor))) cursor->put_IsCursorCaptureEnabled(false);
-    // Where the OS lacks IsBorderRequired or refuses it, the yellow border stays (CONTRACT §7.5).
+    // Where the OS lacks IsBorderRequired or refuses it, the yellow border stays.
     ComPtr<wgc::IGraphicsCaptureSession3> border;
     if (SUCCEEDED(session.As(&border))) border->put_IsBorderRequired(false);
     UINT64 iteration = 0;

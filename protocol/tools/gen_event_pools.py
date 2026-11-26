@@ -24,7 +24,7 @@ def render(keys):
     out = [f"/* {NOTICE} */", "#ifndef PC_EVENT_POOLS_GENERATED_H", "#define PC_EVENT_POOLS_GENERATED_H", "",
            f"#define PC_EVENT_POOL_COUNT {len(keys)}", "",
            '/* event-pools.json "keys" in its order: the event pools agentd draws from, which a motion override may fill',
-           " * where the pack has none (C3 rule 51 (a)). */",
+           " * where the pack has none. */",
            "static const char* const pc_event_pools[PC_EVENT_POOL_COUNT] = {"]
     out += [f'    "{key}",' for key in keys]
     out += ["};", "", "#endif /* PC_EVENT_POOLS_GENERATED_H */", ""]

@@ -61,7 +61,7 @@ export interface AvatarHost {
   sendPhoto?(active: boolean, aperture: number, focus: number | null): boolean;
   /** HostLink.capture: her `captured` file name and size; without it `photo.capture` is `not_implemented`. */
   capture?(background: string): Promise<{ file: string; width: number; height: number }>;
-  /** HostLink.controlAction and actionProgress (C3 rule 58); without them `avatar.controlAction` is `not_implemented`. */
+  /** HostLink.controlAction and actionProgress; without them `avatar.controlAction` is `not_implemented`. */
   controlAction?(op: TransportOp, at?: number): Promise<void>;
   readonly actionProgress?: ActionProgress | null;
 }
@@ -235,7 +235,7 @@ const CHANGED = '当前角色已切换，本次修改未生效';
 const listing = (host: AvatarHost, capability: string, ...hers: string[]): boolean =>
   host.companionCapabilities.includes(capability) && [capability, ...hers].every((c) => listed(host).includes(c));
 
-/** Rule 51 (b): a list without an error sends that character's stored set when it is not empty.
+/** A list without an error sends that character's stored set when it is not empty.
  *  Not retried. */
 export function resendOverrides(link: Pick<AvatarHost, 'setMotionOverrides'>, configPath: string, e: LinkEvent,
   log: (line: string) => void): void {
@@ -611,7 +611,6 @@ export function avatarOps(ctx: OpsContext): Ops {
     },
     'avatar.modSettings.set': ([o]) => {
       const store = looks('avatar.modSettings.set');
-      // C3 v27 rule 53 (h).
       const r = (typeof o === 'object' && o !== null && !Array.isArray(o) ? o : {}) as Record<string, unknown>;
       const appearance = modAppearance(r.appearance), values = modValues(r.values);
       if (typeof r.character !== 'string' || r.character === '' || appearance === null || values === null) {
@@ -654,7 +653,6 @@ export function avatarOps(ctx: OpsContext): Ops {
     },
     'avatar.playChain': async ([of, value]) => {
       const expected = characterArg(of);
-      // C3 v27 rule 52 (d).
       const { start, speed } = playChainArg(value);
       const link = host();
       if (!link.playChain || !link.on) throw new BridgeFailure('not_implemented', 'avatar.playChain');

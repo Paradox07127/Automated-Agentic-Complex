@@ -182,7 +182,7 @@ test('the first window_frame after a hello sends the window to its remembered or
     assert.deepEqual(s.link.take(), [{ v: 1, type: 'move_window', x: 1056, y: 94 }]);
     s.windowFrame(frame(1056, 94), 'window');
     assert.deepEqual(s.link.take(), []);
-    // A drag on the side screen is remembered there (rule 3: the last window_frame comes before the end).
+    // A drag on the side screen is remembered there (the last window_frame comes before the end).
     s.link.message({ type: 'drag', phase: 'begin', x: 0, y: 0 });
     s.windowFrame(frame(1600, 300), 'window', 2);
     s.link.message({ type: 'drag', phase: 'end', x: 0, y: 0 });
@@ -194,7 +194,7 @@ test('the first window_frame after a hello sends the window to its remembered or
     assert.deepEqual(s.link.take(), [{ v: 1, type: 'move_window', x: 1600, y: 300 }], 'a switch places the window again');
     s.link.hello();
     s.windowFrame({ x: 0, y: 0, w: 1440, h: 875 }, 'fullscreen');
-    assert.deepEqual(s.link.take(), [], 'rule 12: a fullscreen avatar ignores move_window');
+    assert.deepEqual(s.link.take(), [], 'a fullscreen avatar ignores move_window');
   } finally {
     s.done();
   }
@@ -299,7 +299,7 @@ test('放回默认位置 and 放到这块屏: set_placement to the default ancho
     s.p.resetPosition();
     assert.deepEqual(s.link.take(), [{ v: 1, type: 'set_placement', x: 3160, y: 0 }], "the anchor's screen");
     assert.equal(s.p.placeOnScreen(1), true);
-    assert.deepEqual(s.link.take(), [{ v: 1, type: 'set_placement', x: 1240, y: 70 }], 'rule 20: a point on another screen switches it');
+    assert.deepEqual(s.link.take(), [{ v: 1, type: 'set_placement', x: 1240, y: 70 }], 'a point on another screen switches it');
     assert.equal(s.p.placeOnScreen(99), false);
     assert.deepEqual(s.logs, ['place on screen: no screen 99']);
 
@@ -404,7 +404,7 @@ test("testViewportAndPlacementPassedToUnity: fullscreen passes the launch displa
         assert.deepEqual(args.slice(at, at + 6), ['--agentic-complex-viewport', 'fullscreen', '--agentic-complex-placement', '1200.5,70.0,1.250',
           '--agentic-complex-scale', '1.500']);
       } else {
-        assert.ok(!args.includes('--agentic-complex-placement'), 'rule 19: the window viewport passes no placement');
+        assert.ok(!args.includes('--agentic-complex-placement'), 'the window viewport passes no placement');
         assert.deepEqual(args.slice(at, at + 4), ['--agentic-complex-viewport', 'window', '--agentic-complex-scale', '1.500']);
       }
     }

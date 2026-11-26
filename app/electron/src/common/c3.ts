@@ -1,7 +1,7 @@
-// C3 (protocol/C3-host-ipc/CONTRACT.md) as the Companion speaks it: the NDJSON framing, the messages this shell reads
-// and sends, the Companion's hello and the heartbeat watchdog of rule 17. Sockets and processes are src/main's.
+// C3 as the Companion speaks it: the NDJSON framing, the messages this shell reads
+// and sends, the Companion's hello and the heartbeat watchdog. Sockets and processes are src/main's.
 
-/** One line, its `\n` included (CONTRACT 「传输」). */
+/** The longest line in bytes, its `\n` included; a longer one closes the connection. */
 export const MAX_LINE = 65536;
 export const PROTOCOL = 1;
 
@@ -40,8 +40,8 @@ export interface Actions extends C3Message { type: 'actions'; character: string;
 export interface ActionPlayed extends C3Message { type: 'action_played'; play_id: string; id: string; phase: string; reason: string | null }
 
 /**
- * What this shell always lists in its `hello`: it reads global hit capsules, watches heartbeats (rule 17), reads and drives
- * actions (rules 27–29) and asks her to walk clear of its main window (rule 42). A capability is added
+ * What this shell always lists in its `hello`: it reads global hit capsules, watches heartbeats, reads and drives
+ * actions and asks her to walk clear of its main window. A capability is added
  * here with the code that honours it.
  */
 export const COMPANION_CAPABILITIES = ['capsules_global', 'watchdog', 'actions', 'keep_clear', 'action_loop', 'layers', 'mod_settings'];
@@ -118,7 +118,7 @@ export function avatarHello(m: C3Message): AvatarHello | null {
   return m as AvatarHello;
 }
 
-/** `traceEpoch` goes on the line when `capabilities` lists `trace` (rule 22). */
+/** `traceEpoch` goes on the line when `capabilities` lists `trace`. */
 export function companionHello(pid: number, build: Record<string, string>, capabilities: string[] = COMPANION_CAPABILITIES,
   traceEpoch?: number): C3Message {
   const hello: C3Message = { v: 1, type: 'hello', role: 'companion', pid, protocol: PROTOCOL, capabilities, build };
@@ -134,13 +134,13 @@ export function fpsTierFor(o: { idleLowFps: boolean; active: boolean }): FpsTier
   return !o.idleLowFps || o.active ? 'interactive' : 'working';
 }
 
-/** Rule 13 and the fps table: `paused` 0 while hidden or paused, else `interactive` 60 or `working` 30. */
+/** and the fps table: `paused` 0 while hidden or paused, else `interactive` 60 or `working` 30. */
 export function fpsTier(o: { paused: boolean; tier: FpsTier; userFps: number; batteryLow: boolean }): C3Message {
   const tier = o.paused ? { tier: 'paused', fps: 0 } : { tier: o.tier, fps: o.tier === 'interactive' ? 60 : 30 };
   return { v: 1, type: 'fps_tier', ...tier, user_fps: o.userFps, battery_low: o.batteryLow };
 }
 
-/** config.json's rule 45 switches; a missing key keeps its default (pinch off, the rest on), and any
+/** Touch switches in config.json; a missing key keeps its default (pinch off, the rest on), and any
  *  value but a boolean is false. */
 export function touchSettings(saved: Record<string, unknown>): { regions: boolean; pat: boolean; pinch: boolean; greet: boolean } {
   const bool = (v: unknown, missing: boolean) => (v === undefined ? missing : v === true);
@@ -148,12 +148,12 @@ export function touchSettings(saved: Record<string, unknown>): { regions: boolea
     greet: bool(saved.greet_on_resume, true) };
 }
 
-/** Seconds; rule 17's watchdog. */
+/** Heartbeat watchdog thresholds in seconds. */
 export const WATCHDOG = { firstHeartbeat: 10, receiving: 0.8, clickThrough: 10, stale: 0.3, renderStall: 4 } as const;
 
 export type WatchdogVerdict = { kill: 'first_heartbeat_timeout' | 'heartbeat_timeout' | 'render_stall' } | { log: 'stale' | 'resumed' } | null;
 
-/** Rule 17 for one handshaken connection; times in seconds on one clock. */
+/** Heartbeat watchdog for one connection. Use seconds from a single clock. */
 export class Watchdog {
   private readonly helloAt: number;
   private last: { at: number; clickThrough: boolean } | null = null;
@@ -213,7 +213,7 @@ export function readCapsules(list: unknown): Capsule[] {
   });
 }
 
-/** Rule 1: the point lies within `r` of a capsule's segment. */
+/** The point lies within `r` of a capsule's segment. */
 export function capsuleHit(p: { x: number; y: number }, capsules: Capsule[]): boolean {
   return capsules.some((c) => {
     const dx = c.bx - c.ax, dy = c.by - c.ay, len2 = dx * dx + dy * dy;
@@ -234,7 +234,7 @@ export function capsulesBox(capsules: Capsule[]): Box | null {
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 
-/** Seconds and points of rules 1 and 36. */
+/** Cursor timing in seconds and distance in screen points. */
 export const CURSOR = { sample: 1 / 60, keepalive: 0.1, fresh: 0.5, near: 120, margin: 10, pointerInterval: 0.1, pointerSpeedStep: 50 } as const;
 
 const within = (p: { x: number; y: number }, box: Box | null, distance: number) =>
@@ -290,7 +290,7 @@ export class CursorKinematics {
 const id64 = (v: unknown) => typeof v === 'string' && v !== '' && encoder.encode(v).length <= 64;
 const count = (v: unknown) => Number.isInteger(v) && (v as number) >= 0;
 
-/** C6 §4.1's required fields of an avatar T1 event in a `trace` (rule 22); null when it keeps them. */
+/** The required fields of an avatar T1 event in a `trace`; null when it keeps them. */
 export function traceEventProblem(e: Record<string, unknown>, epoch: number): string | null {
   if (e.v !== 1) return 'v';
   if (e.producer !== 'avatar') return 'producer';
@@ -305,7 +305,7 @@ export function traceEventProblem(e: Record<string, unknown>, epoch: number): st
 export const BEHAVIOR_PHASES = ['prepared', 'rejected', 'running', 'completed', 'blocked', 'cancelled', 'expired'];
 export const TERMINAL_BEHAVIOR_PHASES = ['rejected', 'completed', 'blocked', 'cancelled', 'expired'];
 
-/** Rule 25's `behavior_receipt` fields; null when they hold. */
+/** Returns null for a valid behavior receipt. */
 export function behaviorReceiptProblem(m: Record<string, unknown>): string | null {
   if (!id64(m.behavior_id)) return 'behavior_id';
   if (typeof m.phase !== 'string' || !BEHAVIOR_PHASES.includes(m.phase)) return 'phase';
@@ -318,7 +318,7 @@ export function behaviorReceiptProblem(m: Record<string, unknown>): string | nul
 
 const MOTION_STATE_PHASES = ['started', 'cycle_end', 'ended', 'expired', 'rejected'];
 
-/** Rule 54's `motion_state` fields; null when they hold. */
+/** Returns null for a valid motion state. */
 export function motionStateProblem(m: Record<string, unknown>): string | null {
   if (m.origin !== 'agent' && m.origin !== 'local' && m.origin !== 'user') return 'origin';
   if (!(id64(m.behavior_id) && m.origin !== 'user' || m.behavior_id === null && m.origin !== 'agent')) return 'behavior_id';
@@ -332,7 +332,7 @@ export function motionStateProblem(m: Record<string, unknown>): string | null {
 
 const MOTION_KINDS = ['turn', 'walk', 'window_loop', 'sit_enter', 'sit_loop', 'sit_exit', 'lean'];
 
-/** Rule 40's `motion_request` fields, `bytes` its line's length without the newline; null when they hold. */
+/** Measure `bytes` without the trailing newline. */
 export function motionRequestProblem(m: Record<string, unknown>, bytes: number): string | null {
   if (bytes > 4096) return 'size';
   if (typeof m.request_id !== 'string' || !/^mr-[0-9a-f]{16}$/.test(m.request_id)) return 'request_id';
@@ -350,7 +350,7 @@ export function motionRequestProblem(m: Record<string, unknown>, bytes: number):
   return fits ? null : 'geometry';
 }
 
-/** Rule 21: the largest coordinate either side accepts. */
+/** The largest coordinate either side accepts. */
 export const MAX_COORDINATE = 100000;
 type Fields = Record<string, unknown>;
 const object = (v: unknown): v is Fields => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -361,10 +361,10 @@ const coordinate = (v: unknown) => inRange(v, -MAX_COORDINATE, MAX_COORDINATE);
 const rect = (v: unknown) => object(v) && [v.x, v.y, v.w, v.h].every(coordinate) && (v.w as number) > 0 && (v.h as number) > 0;
 const only = (m: Fields, keys: string[]) => Object.keys(m).every((k) => keys.includes(k));
 
-/** Rule 45 (a)'s regions are `[a-z_]`, 1–32 bytes. */
+/** Region names are `[a-z_]`, 1–32 bytes. */
 const CLICK_REGION = /^[a-z_]{1,32}$/;
 
-/** Rule 10's `click`; `regions` is that both sides list `touch` (rule 45 (g)). Null when it holds. */
+/** Allow a click region only if both peers advertise `touch`. */
 export function clickProblem(m: Fields, regions: boolean): string | null {
   if (m.button !== 'left' && m.button !== 'right') return 'button';
   if (m.count !== 1 && !(m.count === 2 && m.button === 'left')) return 'count';
@@ -393,7 +393,6 @@ export function speechCancelledProblem(m: Fields): string | null {
 
 const PLAYBACK_STATES = ['started', 'buffering', 'resumed', 'ended', 'interrupted', 'failed', 'degraded'];
 
-/** Rule 23's `playback` fields. */
 export function playbackProblem(m: Fields): string | null {
   if (!id64(m.speech_id)) return 'speech_id';
   if (typeof m.clause_id !== 'string' && m.clause_id !== null) return 'clause_id';
@@ -406,7 +405,6 @@ export function playbackProblem(m: Fields): string | null {
   return null;
 }
 
-/** Rule 51 (j)'s limits. */
 export const MOTION_OVERRIDES = { chains: 512, pools: 64, poolEntries: 64, blendIn: 512, keyBytes: 128, weight: 100000, blendSeconds: 2 } as const;
 const OVERRIDE_REASONS: Record<string, string[]> = {
   chain: ['unknown_chain', 'required'],
@@ -424,7 +422,7 @@ export interface MotionOverridesReceipt {
   truncated: boolean;
 }
 
-/** Rule 51 (g)'s `motion_overrides` (MotionOverridesReceipt.parse); a string names the field that fails. */
+/** Returns the name of the invalid field in a motion override receipt. */
 export function readMotionOverrides(m: Fields): MotionOverridesReceipt | string {
   if (!atLeast(m.req, 1)) return 'req';
   if (typeof m.character !== 'string' || m.character === '') return 'character';
@@ -441,7 +439,7 @@ export function readMotionOverrides(m: Fields): MotionOverridesReceipt | string 
     blend_in: a.blend_in as number }, adjusted: raw.map((x) => ({ kind: x.kind, key: x.key, reason: x.reason })), truncated: m.truncated === true };
 }
 
-/** Rules 32, 33: `track_surface` and `untrack_surface`. */
+/** `track_surface` and `untrack_surface`. */
 export function surfaceTrackProblem(m: Fields): string | null {
   if (!id64(m.track_id)) return 'track_id';
   if (m.type === 'untrack_surface') return null;
@@ -449,15 +447,15 @@ export function surfaceTrackProblem(m: Fields): string | null {
   return m.generation === undefined || atLeast(m.generation, 1) ? null : 'generation';
 }
 
-/** Rule 34: `attach` names a `track_id` or is null. */
+/** `attach` names a `track_id` or is null. */
 export const attachProblem = (m: Fields): string | null => (m.track_id === null || id64(m.track_id) ? null : 'track_id');
 
 export const DROP_LIMITS = { items: 16, textBytes: 16384 } as const;
 
-/** Rule 38's `path`: POSIX absolute, or Win32 absolute, which begins with a drive (`X:\`) or with `\\` (UNC, `\\?\`). */
+/** Dropped file `path`: POSIX absolute, or Win32 absolute, which begins with a drive (`X:\`) or with `\\` (UNC, `\\?\`). */
 const absolutePath = (p: string) => p.startsWith('/') || /^[A-Za-z]:\\/.test(p) || p.startsWith('\\\\');
 
-/** Rule 38's `drop`: 1–16 items of one field each. */
+/** Drop payload: 1–16 items of one field each. */
 export function dropProblem(m: Fields): string | null {
   if (!coordinate(m.x) || !coordinate(m.y)) return 'coordinate';
   const items = m.items;
@@ -473,47 +471,42 @@ export function dropProblem(m: Fields): string | null {
 export const REACTION_TRIGGERS = ['pat', 'pinch', 'greet'] as const;
 export type ReactionTrigger = typeof REACTION_TRIGGERS[number];
 
-/** Rule 55's `reaction`: `v`, `type` and `trigger` only. */
+/** Reaction payload: `v`, `type` and `trigger` only. */
 export function reactionProblem(m: Fields): string | null {
   if (!only(m, ['v', 'type', 'trigger'])) return 'keys';
   return (REACTION_TRIGGERS as readonly unknown[]).includes(m.trigger) ? null : 'trigger';
 }
 
-/** Rule 39's `motion.stroke`. */
 export const motionStrokeProblem = (m: Fields): string | null => (!id64(m.token) ? 'token' : text(m.clip, 256) ? null : 'clip');
 
-/** Rule 47's `pose_state`. */
 export function poseStateProblem(m: Fields): string | null {
   if (typeof m.character !== 'string') return 'character';
   if (m.id !== null && !id64(m.id)) return 'id';
   return typeof m.locked === 'boolean' ? null : 'locked';
 }
 
-/** Rule 50's `captured`. */
 export function capturedProblem(m: Fields): string | null {
   if (!atLeast(m.req, 1)) return 'req';
   if (typeof m.file !== 'string' || m.file === '' || m.file.includes('/')) return 'file';
   return atLeast(m.width, 1) && atLeast(m.height, 1) ? null : 'size';
 }
 
-/** Rule 49 (h)'s `camera_gesture`. */
 export function cameraGestureProblem(m: Fields): string | null {
   if (!['began', 'changed', 'ended'].includes(m.phase as string)) return 'phase';
   if (!coordinate(m.dx) || !coordinate(m.dy)) return 'delta';
   return finite(m.zoom) && m.zoom > 0 ? null : 'zoom';
 }
 
-/** Rule 56's `right_drag`: `phase` and the cursor in global points, nothing else. */
+/** Right-drag coordinates are in global points. */
 export function rightDragProblem(m: Fields): string | null {
   if (!only(m, ['v', 'type', 'phase', 'x', 'y'])) return 'keys';
   if (!['down', 'move', 'up'].includes(m.phase as string)) return 'phase';
   return coordinate(m.x) && coordinate(m.y) ? null : 'coordinate';
 }
 
-/** Rule 57's `moving`. */
 export const movingProblem = (m: Fields): string | null => (!only(m, ['v', 'type', 'moving']) ? 'keys' : typeof m.moving === 'boolean' ? null : 'moving');
 
-/** Rule 58's `action_progress`: `t_s` within the clip's `duration_s`. */
+/** Playback time `t_s` must fall within the clip's duration. */
 export function actionProgressProblem(m: Fields): string | null {
   if (!only(m, ['v', 'type', 'play_id', 't_s', 'duration_s', 'paused'])) return 'keys';
   if (!id64(m.play_id)) return 'play_id';
@@ -522,7 +515,7 @@ export function actionProgressProblem(m: Fields): string | null {
   return typeof m.paused === 'boolean' ? null : 'paused';
 }
 
-/** CONTRACT「Optional presentation capability」's `presentation_state`. */
+/** `presentation_state`'s fields; null when they hold. */
 export function presentationStateProblem(m: Fields, character: string | null): string | null {
   if (!count(m.req)) return 'req';
   if (typeof m.character !== 'string' || m.character === '' || m.character !== character) return 'character';
@@ -548,8 +541,7 @@ export function presentationStateProblem(m: Fields, character: string | null): s
   return null;
 }
 
-/** CONTRACT「Optional presentation capability」's `set_presentation` inputs;
- *  `weight`, `rate` and `valid_for_seconds` may be left out (the contract's `?`). Null when they hold. */
+/** `set_presentation`'s inputs; `weight`, `rate` and `valid_for_seconds` may be left out. Null when they hold. */
 export function presentationInputProblem(m: Fields): string | null {
   const groups = ['weather', 'expression', 'face_effect', 'facial_animation'];
   if (!only(m, [...groups, 'valid_for_seconds'])) return 'field';
@@ -572,7 +564,7 @@ export function presentationInputProblem(m: Fields): string | null {
   return m.valid_for_seconds === undefined || inRange(m.valid_for_seconds, 1, 3600) ? null : 'valid_for_seconds';
 }
 
-/** A 「桌面表面」 window item; `layering` allows `above` (rule 34). */
+/** A 「桌面表面」 window item; `layering` allows `above`. */
 function surfaceWindowProblem(w: unknown, layering: boolean): string | null {
   if (!object(w) || !atLeast(w.window_id, 1) || !atLeast(w.generation, 1) || !atLeast(w.display_id, 1)) return 'window';
   if (!rect(w.frame) || !count(w.order)) return 'window';
@@ -593,7 +585,7 @@ function surfaceWindowProblem(w: unknown, layering: boolean): string | null {
   return Array.isArray(w.above) && w.above.length <= 8 && w.above.every(rect) ? null : 'above';
 }
 
-/** Rules 43, 49 (b), (i): a `set_render` against what both sides list. */
+/** A `set_render` against what both sides list. */
 function setRenderProblem(m: Fields, both: (c: string) => boolean): string | null {
   const groups = ['camera', 'light', 'outline', 'facing', 'grounding', 'ambient', 'dof', 'photo'];
   const present = Object.keys(m).filter((k) => !['v', 'type', 'req'].includes(k));
@@ -623,7 +615,6 @@ function setRenderProblem(m: Fields, both: (c: string) => boolean): string | nul
   return null;
 }
 
-/** Rule 51 (j)'s `set_motion_overrides` tables. */
 function motionOverridesProblem(m: Fields): string | null {
   const { chains, pools, blend_in: blend } = m;
   if (!object(chains) || !object(pools) || !object(blend)) return 'missing';
@@ -643,7 +634,7 @@ function motionOverridesProblem(m: Fields): string | null {
   return null;
 }
 
-/** Why an outgoing message breaks CONTRACT's fields for its type, or null; `both` tells a capability both sides list. */
+/** Why an outgoing message breaks the fields of its type, or null; `both` tells a capability both sides list. */
 export function outboundProblem(m: C3Message, both: (c: string) => boolean): string | null {
   const side = (x: unknown) => x === 'left' || x === 'right';
   switch (m.type) {

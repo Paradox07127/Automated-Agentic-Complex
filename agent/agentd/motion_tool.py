@@ -44,7 +44,7 @@ MMD_BINS = 600
 
 
 class Progress:
-    """Prints MOTION-IMPORT §9 progress lines, with counts (mmd-sync's total and done) on each; the printed fraction never
+    """Prints JSON progress lines, with counts (mmd-sync's total and done) on each; the printed fraction never
     decreases, and a step under 0.005 within one stage with unchanged counts is not printed."""
     def __init__(self, **counts): self.counts, self.printed = counts, None
 

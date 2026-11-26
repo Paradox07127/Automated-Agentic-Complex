@@ -46,7 +46,7 @@ export interface DesktopActionPorts {
   talk?(phase: 'start' | 'stop'): void;
   /** 停止: ends the user's play on her (DesktopPlay.stop); throws why it could not. */
   stopPlay?(): void;
-  /** Holds her in the pose row `id` (C3 rule 47), null for 自动; throws why she did not take it. */
+  /** Holds her in the pose row `id`, null for 自动; throws why she did not take it. */
   pose?(id: string | null): Promise<void>;
   /** Epoch milliseconds; tests drive it. */
   now?(): number;
@@ -244,7 +244,7 @@ export function giftAction(actions: ActionRow[]): ActionRow | null {
   return null;
 }
 
-/** The user's play on her, whichever page or panel sent it (C3 rule 29): from its `started` until a final `action_played` of
+/** The user's play on her, whichever page or panel sent it: from its `started` until a final `action_played` of
  *  the same `play_id`, or until the link is lost. */
 export class DesktopPlay {
   private play: { playId: string; id: string } | null = null;
@@ -272,7 +272,7 @@ export class DesktopPlay {
     return was;
   }
 
-  /** Rule 29 `stop_action` for the play through `send`; nothing while none plays. Throws when her renderer, by its listed
+  /** `stop_action` for the play through `send`; nothing while none plays. Throws when her renderer, by its listed
    *  `capabilities`, cannot stop it or the link did not take it. */
   stop(send: (m: C3Message) => boolean, capabilities: readonly string[]): void {
     if (this.play === null) return;

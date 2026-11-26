@@ -7,7 +7,7 @@ Agentic Complex 由 7 种组件组成（`characters.<id>` 每个角色一个）�
 - portable 版：一个 `Agentic Complex.app`，装着全部组件。
 - 拆分版：`Agentic Complex.app` 只装 host、renderer、web-ui。其余组件放在 app 旁边的 `components/` 目录里，首次启动时导入。
 
-两种版本里同一组件的内容相同。C11 清单与组合锁同样支持 `windows-x64`（用于开发中的 Windows 便携目录构建 `tools/release/package_windows.py`，见 [Windows 便携版](#windows-便携版)）。组件清单、组合锁和导入索引的格式见 [C11](../protocol/C11-components/CONTRACT.md)。组件之间的接口见 [协议索引](../protocol/README.md)。
+两种版本里同一组件的内容相同。C11 清单与组合锁同样支持 `windows-x64`（用于开发中的 Windows 便携目录构建 `tools/release/package_windows.py`，见 [Windows 便携版](#windows-便携版)）。
 
 ## 1. 组件
 
@@ -130,7 +130,7 @@ python3 -I tools/release/compare_layouts.py --portable "$portable_dir" --split "
 | `characters.<id>` | `<python> <agentd>/agentd/character_tool.py validate <角色包目录>`；`AgenticComplexMetalAvatar --validate-pack <bundle.json>` | — | `agentd-unit`（`test_character_library.py`、`test_character_compose.py`） |
 | 浏览器扩展（不是发行组件） | `node --test agent/browser/extension/test_*.mjs` | native host 在 agentd 不在时照常运行，报 agentd 不在 | `browser-unit` |
 
-跨组件的读写只能走协议索引里的接口。门禁的 `cross-paths` 套件（`python3 -I tools/qa/check_paths.py --components`）检查发行源码有没有直接引用别的组件的路径；允许的例外和待还的债列在 `protocol/cross-paths.json`。
+组件通过各自定义的接口交换数据。门禁的 `cross-paths` 套件（`python3 -I tools/qa/check_paths.py --components`）检查发行源码有没有直接引用别的组件的路径；允许的例外和待还的债列在 `protocol/cross-paths.json`。
 
 ## 7. 打包内部
 

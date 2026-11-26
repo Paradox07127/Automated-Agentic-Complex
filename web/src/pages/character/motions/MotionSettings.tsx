@@ -1,5 +1,5 @@
 // 动作 → 编排: the current character's idle tiers and event pools from agentd's motion graph, overridden through
-// avatar.motionOverrides (C3 v27 rule 51); a chain's structure goes back to the pack through avatar.motionChain.
+// avatar.motionOverrides; a chain's structure goes back to the pack through avatar.motionChain.
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBridge, type MotionOverrideAdjusted } from '../../../bridge';

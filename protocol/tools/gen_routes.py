@@ -12,19 +12,8 @@ sys.path.insert(0, str(ROOT / "agent" / "agentd"))
 from route_registry import REGISTRY  # noqa: E402
 
 ROUTES_JSON = ROOT / "protocol" / "ui-bridge" / "routes.json"
-C6_CONTRACT = ROOT / "protocol" / "C6-agentd-api" / "CONTRACT.md"
 TS_ROUTES = ROOT / "web" / "src" / "bridge" / "agentd-routes.generated.ts"
 FIXTURES = ROOT / "protocol" / "C6-agentd-api" / "fixtures"
-C6_BEGIN = "<!-- gen:routes begin -->"
-C6_END = "<!-- gen:routes end -->"
-TOKENS = {(): "无", ("ui_token",): "ui", ("hook_token",): "hook", ("ui_token", "events_token"): "ui 或 events",
-          ("integration_token",): "integration"}
-C6_HEAD = """由 `protocol/tools/gen_routes.py` 从 `agent/agentd/route_registry.py` 生成，不要手改；改登记后在仓库根目录跑 `python3 -I protocol/tools/gen_routes.py --write`。
-
-每个请求依次过这些关（`api/handler.py` 的 `Handler.parse_request`、`_answers_500`）：Host 不是本机或端口不符 400 `invalid_host` → 带 `Origin` 或 `Sec-Fetch-Site` 不是 `none` 403 `cross_site` → `OPTIONS` 405 `method_not_allowed` → POST/PUT/PATCH 带请求体且 `Content-Type` 不是 JSON 415 `unsupported_media_type` → 方法加路径不在本表 404 `not_found` → 令牌不在「令牌」列 401 `unauthorized` → 启动未完成 503 `starting`（`GET /health` 除外）→ 所属插件已关闭 409 `plugin_off` → 处理模块 → 回状态行前未捕获的异常 500 `internal_error`。
-
-「路径」里 `:name` 是一段路径参数；「面板」是可以发这条请求的网页面板，「—」为没有；「规格」是写这条端点字段和错误码的文档，「—」为还没有；「回包夹具」是 `fixtures/` 下的示例回包。
-"""
 
 
 def render_routes_json():
@@ -40,19 +29,6 @@ def render_routes_json():
             entry["plugin"] = r.plugin
         lines.append("  " + json.dumps(entry, ensure_ascii=False))
     return "[\n" + ",\n".join(lines) + "\n]\n"
-
-
-def render_c6():
-    """CONTRACT.md with the text between C6_BEGIN and C6_END regenerated."""
-    rows = ["| 方法 | 路径 | 令牌 | 网页类 | 面板 | 处理模块 | 规格 | 回包夹具 |", "|---|---|---|---|---|---|---|---|"]
-    for r in REGISTRY:
-        paths = "、".join(f"`{p}`" for p in (r.templates or (r.path,)))
-        cells = (r.method, paths, TOKENS[r.tokens], f"`{r.ui_class}`", "、".join(r.surfaces) or "—", f"`{r.owner}`",
-                 f"`{r.spec}`" if r.spec else "—", f"`{r.response}`" if r.response else "—")
-        rows.append("| " + " | ".join(cells) + " |")
-    head, rest = C6_CONTRACT.read_text(encoding="utf-8").split(C6_BEGIN, 1)
-    tail = rest.split(C6_END, 1)[1]
-    return head + C6_BEGIN + "\n" + C6_HEAD + "\n" + "\n".join(rows) + "\n" + C6_END + tail
 
 
 def _ts_str(text):
@@ -166,7 +142,7 @@ def render_ts_routes():
     return "\n".join(out + union[:-1] + [union[-1] + ";"] + _ts_responses() + [""])
 
 
-OUTPUTS = ((ROUTES_JSON, render_routes_json), (C6_CONTRACT, render_c6), (TS_ROUTES, render_ts_routes))
+OUTPUTS = ((ROUTES_JSON, render_routes_json), (TS_ROUTES, render_ts_routes))
 
 
 def main(argv=None):

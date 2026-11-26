@@ -1,4 +1,4 @@
-// The screen context and selection capture over the platform helper (CONTRACT §7.2, §7.4–7.6, §7.10): while agentd
+// The screen context and selection capture over the platform helper: while agentd
 // runs, the front window's AX text goes to `POST /context/text` on its own triggers, and the feed's `request`s are answered
 // with a window's text, OCR text or screenshot (`/context/text`, `/context/image`). Logs metadata only, never window text,
 // titles or URLs.
@@ -40,7 +40,7 @@ export interface ContextPorts {
 const TICK_MS = 1000;
 /** How long a read waits for the attention beat that says which window is in front after it. */
 const SAMPLE_WAIT_MS = 2500;
-/** ContextCapturer.observe's notifications, under their CONTRACT §7.4 names. */
+/** ContextCapturer.observe's notifications, under the helper's names. */
 const NOTIFICATIONS = ['value', 'title', 'focus'];
 const WATCH_ID = 'context';
 
@@ -102,7 +102,7 @@ export class ContextCapturer {
     void this.observe(null);
   }
 
-  /** The helper said hello (true) or went (false); a new helper has no watches and no walks (CONTRACT §6.4, §6.5). */
+  /** The helper said hello (true) or went (false); a new helper has no watches and no walks. */
   helper(_running: boolean): void {
     this.observedPid = null;
     this.walk = null;

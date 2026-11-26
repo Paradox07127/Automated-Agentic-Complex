@@ -118,7 +118,7 @@ class HandleRequired extends Error {
 
 /** `body` with each picked handle in a path field, and each dropped file's handle in `POST /agent/scopes` `files`, swapped
  *  for its path, and the picked handles used; throws `HandleRequired` for a field holding anything else than an unused
- *  handle of its purpose (protocol/ui-bridge/CONTRACT.md step 7). */
+ *  handle of its purpose. */
 export function swapHandles(method: string, route: string, json: Record<string, unknown> | undefined,
   picked: ReadonlyMap<string, { purpose: string; path: string }>, dropped: ReadonlyMap<string, string> = new Map()):
   { body: Record<string, unknown> | undefined; used: Set<string> } {

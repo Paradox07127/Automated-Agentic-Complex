@@ -23,7 +23,7 @@ async function until(seconds: number, ok: () => boolean): Promise<boolean> {
 
 /**
  * A helper that speaks C12 enough for the supervisor: screens.list answers, windows.list never does, apps.installed
- * exits 1, cancel and shutdown as the contract says. FAKE_MODE: mismatch (exit 3 on hello), garbage (a non-JSON line
+ * exits 1, handles cancellation and shutdown. FAKE_MODE: mismatch (exit 3 on hello), garbage (a non-JSON line
  * after hello), stubborn (ignores shutdown and SIGTERM).
  */
 const FAKE = String.raw`
@@ -189,7 +189,7 @@ test('a crash fails the requests in flight with helper_exited and restarts after
   }
 });
 
-test('after a restart the watches in effect are asked for again, one per watch_id, before the helper counts as running (CONTRACT §6.4)', async () => {
+test('after a restart the watches in effect are asked for again, one per watch_id, before the helper counts as running', async () => {
   const s = setup();
   try {
     s.helper.start();

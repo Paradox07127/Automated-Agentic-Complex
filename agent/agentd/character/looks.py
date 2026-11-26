@@ -9,7 +9,7 @@ from character import mod_settings_routes
 from character_library import PackageError
 
 RECEIPT_PATH = "/avatar/looks/receipts"
-WAIT_S = 10.0  # C3 rule 16's set_appearance timeout
+WAIT_S = 10.0  # s agentd waits for a set_appearance reply
 KEPT = 32  # requests a late receipt can still answer
 APPEARANCE_FIELDS = ("id", "name", "kind", "desc")
 LAYER_FIELDS = ("id", "name", "appearances")

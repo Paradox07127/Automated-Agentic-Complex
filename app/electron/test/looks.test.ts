@@ -232,7 +232,7 @@ test("a switch the renderer refuses aborts agentd's prepared switch and keeps th
   }
 });
 
-test('the Windows renderer answers no set_character: after rule 14\'s 11 s it fails as timeout and agentd\'s switch is aborted; a late character_changed is switched back', { skip: UNIX_LINK }, async () => {
+test('the Windows renderer answers no set_character: after 11 s it fails as timeout and agentd\'s switch is aborted; a late character_changed is switched back', { skip: UNIX_LINK }, async () => {
   const s = await stack({ state: { last_character: 'aster' } });
   try {
     const a = await s.avatar('windows');
@@ -244,13 +244,13 @@ test('the Windows renderer answers no set_character: after rule 14\'s 11 s it fa
     assert.equal(s.link.currentCharacter, 'aster');
     assert.equal(readState(s.support).last_character, 'aster');
     assert.ok(s.lines.includes('set_character id=birch timed out'), s.lines.join('\n'));
-    // Rule 16: no appearance list from efw, so there is nothing to switch to; layers need both hellos to list `layers`.
+    // No appearance list from efw, so there is nothing to switch to; layers need both hellos to list `layers`.
     assert.deepEqual(await s.call('avatar.setAppearance', 'default'), { ok: false, error: { code: 'failed', detail: '角色不含该外观' } });
     assert.deepEqual(await s.call('avatar.setLayers', 'aster', { hide: [], show: [] }), { ok: false, error: { code: 'failed', detail: '当前角色没有可隐藏的图层' } });
     assert.deepEqual(await s.call('avatar.modSettings.set', { character: 'aster', appearance: 'default', values: {} }),
       { ok: false, error: { code: 'failed', detail: '当前版本角色不支持外观模组设置' } });
 
-    // Rule 14: a character_changed of the timed-out request is logged, and the switch puts her back on the current character.
+    // A character_changed of the timed-out request is logged, and the switch puts her back on the current character.
     a.send({ type: 'character_changed', id: 'birch', ms: 9000 });
     assert.ok(await until(2, () => a.sent('set_character').length === 2), s.lines.join('\n'));
     assert.deepEqual(a.sent('set_character').map((m) => m.id), ['birch', 'aster']);
@@ -287,7 +287,7 @@ test('avatar.setAppearance and avatar.setLayers wait for the reply and remember 
       { ok: false, error: { code: 'character_changed', detail: '当前角色已切换，本次修改未生效' } }, 'meant for a character no longer current');
     assert.equal(a.sent('set_layers').length, sent);
 
-    // Rule 16: no reply within 10 s (here 0.1 s) is a failure, and the remembered appearance stays.
+    // No reply within 10 s (here 0.1 s) is a failure, and the remembered appearance stays.
     a.ignore.add('set_appearance');
     assert.deepEqual(await s.call('avatar.setAppearance', 'default'), { ok: false, error: { code: 'failed', detail: '外观切换失败：timeout' } });
     assert.deepEqual((readState(s.support).last_appearance as Record<string, string>).aster, 'summer');
@@ -325,7 +325,7 @@ test('avatar.setActionSwitches stores the whole table in config.json and returns
     const reply = await s.call('avatar.setActionSwitches', 'aster', { idle: false });
     assert.deepEqual(reply, { ok: true, value: { switches: { wave: true, idle: false }, adjusted: [] } });
     assert.deepEqual(a.sent('set_action_switches').map((m) => m.switches), [{ wave: false, idle: true }, { wave: true, idle: false }],
-      'the stored table on her list (rule 28), then the saved one');
+      'the stored table on her list, then the saved one');
     assert.deepEqual(storedSwitches(s.config(), 'aster'), { wave: true, idle: false });
     assert.equal(s.config().mute, false, 'the other keys stay');
     assert.deepEqual(await s.call('avatar.setActionSwitches', 'aster', { dance: true }), { ok: false, error: { code: 'invalid_args', detail: 'unknown action' } });
@@ -356,7 +356,7 @@ test('avatar.modSettings.set sends one appearance\'s set and stores what she dre
   }
 });
 
-test('rule 26: one switch at a time; choices made while one runs keep only the last; prepare refused stops before the renderer', async () => {
+test('One switch at a time; choices made while one runs keep only the last; prepare refused stops before the renderer', async () => {
   const sent: string[] = [], calls: string[] = [];
   let refuse = false;
   const ports: SwitchPorts = {

@@ -1,4 +1,4 @@
-// C3 rule 58 (`action_transport`): the user's desktop play reports where it stands, and the page pauses, resumes and
+// (`action_transport`): the user's desktop play reports where it stands, and the page pauses, resumes and
 // seeks it: the message checks, the link's send and receive, and `avatar.controlAction` / `avatar.onActionProgress`.
 import assert from 'node:assert/strict';
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';

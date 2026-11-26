@@ -111,7 +111,7 @@ describe('GameWheel pointer', () => {
   });
 });
 
-describe('GameWheel forwarded press (C3 rule 56)', () => {
+describe('GameWheel forwarded press', () => {
   type Press = NonNullable<Parameters<typeof GameWheel>[0]['press']>;
   /** The wheel, re-rendered with each press the shell forwards. */
   function pressed() {

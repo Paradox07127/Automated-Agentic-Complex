@@ -1,5 +1,5 @@
-// Node-API addon for the macOS shell: the Electron end of the preview's Mach rendezvous with the desktop renderer this process spawns
-// (C3 CONTRACT 「附录：角色页预览」), and `_setPreventsActivation:` for windows that must not activate the app. This process checks in
+// macOS Node-API addon for the character preview’s Mach connection and non-activating windows.
+// This process checks in
 // `<bundle id>.preview.<pid>`; the renderer gets the name as `--agentic-complex-preview-rendezvous`, looks it up and says `hello`
 // with its own receive port. rendezvous(), start(name, onMessage), send(json), stop(), mainBundle(),
 // setPreventsActivation(nativeWindowHandle).

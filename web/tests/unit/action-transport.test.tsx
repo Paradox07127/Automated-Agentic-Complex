@@ -1,4 +1,4 @@
-// The player of a desktop play (C3 rule 58): elapsed / total, a bar that follows her reports, pause and resume, a click or
+// The player of a desktop play: elapsed / total, a bar that follows her reports, pause and resume, a click or
 // a drag on the bar to seek, ←/→ 5 s and Space; on the MMD page's timeline and in the character page's bottom bar.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';

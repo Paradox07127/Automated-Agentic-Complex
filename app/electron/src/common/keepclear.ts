@@ -1,4 +1,4 @@
-// C3 v26 rule 42 on the Companion side: when to ask the renderer to walk her
+// on the Companion side: when to ask the renderer to walk her
 // clear of the user's targets over her body. Rects are in the placement space of src/common/placement.ts.
 import { intersection, type Rect } from './placement.ts';
 

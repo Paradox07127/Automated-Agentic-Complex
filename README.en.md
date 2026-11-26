@@ -45,7 +45,7 @@
 ### Characters, appearance and motion
 
 - Switch character packages on the **角色 (Character, `⌘4`)** page, with look-mode tabs for **外观 (Look)**, **显示 (Display)**, **模组设置 (Mod settings)**, and **导入 (Import)**, plus motion-mode tabs for **动作表 (Motion list)**, **编排 (Motion chain)**, and **导入 (Import)**. Use the top-level **MMD** page for the shared dance library, audio tracks, and setlists.
-- Each character is a self-contained package containing models, motions, voice settings, and persona; see the [character package contract](protocol/character-library/CONTRACT.md).
+- Each character is a self-contained package containing models, motions, voice settings, and persona.
 - On 角色 › 导入 (Import), import EFMI mod outfits with part/color toggles, as well as VMD, BVH, glTF, GLB, VRMA, FBX, and VMD ZIP dances with audio (dropping VMD or ZIP files directly onto the character window imports them). See [motion import](docs/guides/motion-import.en.md).
 
 ### Voice
@@ -206,7 +206,7 @@ AGENTD_DEV_CATALOG="$PWD/fixtures/characters/current.json" ../../.venv/bin/pytho
 
 These services run separately and are deployed by the user; the app stores only their URLs and tokens and contains no model weights or images:
 
-- **Speech synthesis service**: HTTP service based on GPT-SoVITS providing character voices. Configure in Settings › 服务 › TTS 语音合成服务; see [deploying the voice service](docs/guides/tts-deploy.en.md) and the [TTS engine interface](protocol/C2-speech-stream/ENGINE.md).
+- **Speech synthesis service**: HTTP service based on GPT-SoVITS providing character voices. Configure in Settings › 服务 › TTS 语音合成服务; see [deploying the voice service](docs/guides/tts-deploy.en.md).
 - **Motion generation service**: HTTP service in `motion/` generating motion clips from text prompts (currently backed by NVIDIA Kimodo). Configure under Settings › 服务 › 动作生成服务 (no full deployment guide yet).
 
 ## Community
@@ -227,5 +227,4 @@ This is an unofficial, experimental fan project created for development and lear
 - [Development and releases](docs/development.en.md)
 - [Release components and installation](docs/components.en.md)
 - [Local Dev Console](docs/development.en.md#local-development-dev-console)
-- [Protocol index](protocol/README.md)
 - [AGPL-3.0 License](LICENSE)

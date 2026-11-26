@@ -19,12 +19,9 @@
 - [Development and releases](development.en.md) lists prerequisites, the dev console, build and test commands, Windows builds, and release steps.
 - [agentd](architecture/agentd.en.md) describes the Python packages, conventions, the main character conversation, and swappable kernels.
 - [Web UI](architecture/web-ui.en.md) covers the frontend layout, design rules, mocks, and verification.
-- [Character package contract](../protocol/character-library/CONTRACT.md) specifies the character library and package format.
 - [Character package tools and motion generation](architecture/characters.en.md) covers the build tools, the sample character library, native bundle packing, and the motion generation service.
-- [Protocol index](../protocol/README.md) lists the interfaces between components.
 
 ## Runtime integration
 
 - [Speech synthesis service](architecture/voice.en.md) covers the GPT-SoVITS service files, token, mouth cues, and cancellation.
-- [TTS engine API](../protocol/C2-speech-stream/ENGINE.md) specifies the HTTP interface for alternative speech engines.
 - [Harness packaging](components.en.md#harness-runtime) covers the bundled Pi runtime; Codex, Claude Code and ACP agents use the versions installed on the Mac.

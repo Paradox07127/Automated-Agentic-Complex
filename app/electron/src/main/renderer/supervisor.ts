@@ -50,8 +50,8 @@ const settingReaders = (s: Record<string, unknown>) => ({
   option: (key: string, allowed: string[], fallback: string) => (allowed.includes(s[key] as string) ? s[key] as string : fallback),
 });
 
-/** The settings that decide how she is drawn, which the character page's preview takes as its `load.render_args` too
- *  (CONTRACT 「附录：角色页预览」); each value out of its range falls back to its default. */
+/** The settings that decide how she is drawn, which the character page's preview takes as its `load.render_args` too;
+ *  each value out of its range falls back to its default. */
 export function lookArguments(s: Record<string, unknown>): string[] {
   const { flag, option } = settingReaders(s);
   return [
@@ -146,7 +146,7 @@ export function sceneArguments(s: Record<string, unknown>, viewport: string, sup
     ...(s.scene_parallax === false ? ['--agentic-complex-scene-parallax', '0'] : [])];
 }
 
-/** The command line of CONTRACT 「启动」. */
+/** The renderer's launch arguments. */
 export function rendererArguments(o: LaunchInput): string[] {
   const { config, settings, state, character } = o;
   const per = (key: string) => (state[key] as Record<string, unknown> | undefined)?.[character];
@@ -163,14 +163,14 @@ export function rendererArguments(o: LaunchInput): string[] {
   if (mods !== null) args.push('--agentic-complex-mod-settings', mods);
   const viewport = settings.viewport === 'window' ? 'window' : 'fullscreen';
   args.push('--agentic-complex-viewport', viewport);
-  // Rule 19: the window viewport places by window position; rule 20: fullscreen starts on the character's last screen.
+  // The window viewport places by window position. Fullscreen starts on the character's last screen.
   if (viewport === 'fullscreen' && o.placement) args.push('--agentic-complex-placement', o.placement);
   const scale = per('window_scale');
   if (typeof scale === 'number') args.push('--agentic-complex-scale', scale.toFixed(3));
   if (settings.battery_low_fps === false) args.push('--agentic-complex-battery-low-fps', '0');
   args.push(...renderArguments(settings, o.captureDir));
   args.push(...sceneArguments(settings, viewport, config.supportDir));
-  // CONTRACT 附录「Windows」: efw excludes itself from capture only when passed 1; macOS hides her while the screen is recorded.
+  // efw excludes itself from capture only when passed 1; macOS hides her while the screen is recorded.
   if (o.platform === 'windows') args.push('--agentic-complex-hide-on-screen-capture', settings.hide_on_screen_capture === true ? '1' : '0');
   args.push(...(config.characters.find((c) => c.id === character)?.avatarArgs ?? []));
   if (o.socketPath !== null) args.push('--agentic-complex-host-socket', o.socketPath);
@@ -330,7 +330,7 @@ export class RendererSupervisor {
     return this.stopping;
   }
 
-  /** Rule 17: SIGKILLs the renderer; its exit then goes through the backoff like any crash. */
+  /** SIGKILLs the renderer; its exit then goes through the backoff like any crash. */
   kill(reason: string): void {
     if (!this.child || !running(this.child)) return;
     this.log(`KILL avatar reason=${reason}`);
@@ -510,7 +510,7 @@ export class RendererSupervisor {
     this.timers.clear();
     this.clearStartupStatus();
     if (child !== null && live) {
-      // Rule 5: after quit it gets the whole timeout; SIGTERM would cut its quit path.
+      // After quit it gets the whole timeout; SIGTERM would cut its quit path.
       if (this.options.link?.sendQuit(reason) !== true) child.kill('SIGTERM');
       const deadline = performance.now() + RENDERER_TIMING.stop * 1000;
       while (running(child) && performance.now() < deadline) {

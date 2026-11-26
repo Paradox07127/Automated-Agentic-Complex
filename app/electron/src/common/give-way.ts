@@ -1,5 +1,5 @@
-// Giving way to the user over the platform helper's readings (C12 CONTRACT §7.4): the screen targets (C3 rule 42) and
-// hiding her in fullscreen. The front window covering her (rule 35) is src/common/surfaces.ts's. Helper rects come in its
+// Giving way to the user over the platform helper's readings: the screen targets she walks clear of and
+// hiding her in fullscreen. The front window covering her is src/common/surfaces.ts's. Helper rects come in its
 // coordinates (the main display's top left, y down) and leave in C3 global points through a `HelperY`.
 // The helper already applies ScreenTargets.isEditable, caretRect, dialogButtons, bannerRects and imeRects (AX.swift AXRules).
 import { appKitY, type AttentionSample, decodeRect, type HelperY, type Rect as HelperRect, type ReflexState } from './attention.ts';
@@ -18,7 +18,7 @@ export function fromHelper(r: HelperRect, mainHeight: number, y: HelperY = appKi
 const obj = (v: unknown): Record<string, unknown> | null => (typeof v === 'object' && v !== null && !Array.isArray(v) ? v as Record<string, unknown> : null);
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
-/** CONTRACT §7.12 `focus`, as far as the feed reads it. */
+/** The helper's `focus`, as far as the feed reads it. */
 export interface Focus { pid: number; frame: HelperRect; caret: HelperRect | null; editable: boolean }
 
 /** `ax.focused`'s `focus`; null when it is null or malformed. */

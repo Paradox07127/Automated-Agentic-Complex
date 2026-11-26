@@ -11,7 +11,7 @@ import { PlaylistPlayer } from '../src/common/playlist.ts';
 
 const SET = { chains: { c: true }, pools: { p: [{ clip: 'a', weight: 1 }, { clip: 'b', weight: 100000 }] }, blend_in: { a: 0, b: 2 } };
 
-test('overrides: a set within rule 51 (j) parses whole; notes are kept, counted in characters and never sent', () => {
+test('overrides: a valid set parses whole; notes are kept, counted in characters and never sent', () => {
   assert.deepEqual(parseOverrides(SET), { ...SET, notes: {} });
   const noted = parseOverrides({ ...SET, notes: { c: '字'.repeat(500), d: '👨‍👩‍👧'.repeat(500) } })!;
   assert.equal(noted.notes.c, '字'.repeat(500));

@@ -43,8 +43,8 @@ struct TextBudget {
     }
 }
 
-/// CONTRACT §7.4 `ax.window_text`: a time-sliced breadth-first walk of one window and
-/// its text, with the contract's node and scalar budgets per answer. A cursor continues the walk of
+/// `ax.window_text`: a time-sliced breadth-first walk of one window and
+/// its text, with node and scalar budgets per answer. A cursor continues the walk of
 /// the same snapshot; the text is not redacted (the main process does that).
 enum WindowText {
     private static let textRoles: Set<String> = ["AXStaticText", "AXTextArea", "AXTextField", "AXHeading"]

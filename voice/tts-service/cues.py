@@ -59,7 +59,7 @@ def load_vowel_map(path):
     with open(path,encoding='utf-8') as f:return json.load(f)['phones']
 
 def cue_items(spans,vowel_map,lo,hi):
-    """Spans of mapped phones clipped to [lo, hi); unmapped phones and empty spans are dropped (C2 rules 1 and 6)."""
+    """Spans of mapped phones clipped to [lo, hi); unmapped phones and empty spans are dropped."""
     items=[]
     for s in spans:
         entry=vowel_map.get(s['phone']);start,end=max(s['start'],lo),min(s['end'],hi)

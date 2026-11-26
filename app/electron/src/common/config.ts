@@ -280,7 +280,7 @@ export function parseConfig(text: string, ctx: ConfigContext): Config {
     if (loaded === null) {
       throw new ConfigError(`角色目录不存在：${characterCatalog}`, { key: 'character_catalog', path: characterCatalog });
     }
-    // C3 附录「Windows」: efw takes the character directory, and draws only a character whose bundle entry has `vulkan_frame`;
+    // On Windows, efw takes the character directory, and draws only a character whose bundle entry has `vulkan_frame`;
     // `--package-of` names every such character's directory, for set_character.
     const catalogPath = characterCatalog;
     const packageOf = loaded.characters.flatMap((c) => (c.renderEnabled && c.vulkanPackage ? ['--package-of', `${c.id}=${c.vulkanPackage}`] : []));

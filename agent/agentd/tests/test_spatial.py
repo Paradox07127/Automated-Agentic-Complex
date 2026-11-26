@@ -1,4 +1,4 @@
-"""Spatial behavior on the agentd side: behavior events, behavior switches and execution receipts (C1 v2 §1–3)."""
+"""Spatial behavior on the agentd side: behavior events, behavior switches and execution receipts."""
 import hashlib
 import http.client
 import json
@@ -28,7 +28,7 @@ from test_server import EVENTS, HOOK, UI  # noqa: E402
 from test_motion_chooser import families_pack, prefs_pack  # noqa: E402
 
 T0 = 1760900000.0
-COMPLETED_BY = ("speech_end", "session_state", "focus_change")  # C1 §1: these exits complete; the rest cancel
+COMPLETED_BY = ("speech_end", "session_state", "focus_change")  # these exits complete; the rest cancel
 SWITCHES = {"stay_in_place": False, "sit_window_top": True, "hold_window_edge": True, "fullscreen_give_way": True}
 
 
@@ -91,7 +91,7 @@ class SpatialCase(unittest.TestCase):
                 self.sent.append(message)
                 old = self.unity.get(message["replaces"])
                 if old is not None and old["priority"] > message["priority"] \
-                        or (message.get("clip") or {}).get("id") in self.busy:  # C1 §2 priority, or a held body
+                        or (message.get("clip") or {}).get("id") in self.busy:  # outranked, or a held body
                     self.receipt(message["behavior_id"], "rejected", "busy")
                     continue
                 on = message["target"] and f"{message['type']}@{message['target']['kind']}"
@@ -102,10 +102,10 @@ class SpatialCase(unittest.TestCase):
                 if old is not None:
                     self.receipt(message["replaces"], "cancelled")
                 self.unity[message["behavior_id"]] = message
-                if not renewal:  # a renewal has no entry motion (C1 §1.3)
+                if not renewal:  # a renewal has no entry motion
                     self.receipt(message["behavior_id"], "prepared")
                 if (message["target"] or {}).get("kind") == "session" and message["target"]["window_id"] is None:
-                    self.receipt(message["behavior_id"], "blocked", "target_gone")  # nowhere to look (C1 §1.2)
+                    self.receipt(message["behavior_id"], "blocked", "target_gone")  # nowhere to look
                 else:
                     self.receipt(message["behavior_id"], "running")
             elif message["event"] == "behavior_cancel" and message["behavior_id"] in self.unity:
@@ -293,7 +293,7 @@ class ScenarioTest(SpatialCase):
         self.step()
         self.step(user_speaking=True)
         self.step()  # still speaking: not sent again
-        # listen takes eyes and head only, so it does not replace the idle's full body (C1 §1, fixture 06);
+        # listen takes eyes and head only, so it does not replace the idle's full body (C1 fixture 06);
         # the idle ends on its own exit, speech_start
         self.assertEqual(self.shape(), [("idle", None, ("tick", None), None),
                                         ("listen", {"kind": "user"}, ("user", "speech_start"), None)])
@@ -359,7 +359,7 @@ class ScenarioTest(SpatialCase):
         self.step(session="codex:C", state="done", related=[], window_id=None)
         attend = self.sent[0]
         self.assertEqual(attend["target"], {"kind": "session", "display_session": "codex:C", "window_id": None})
-        retarget = self.sent[1]  # C1 §3: blocked, so agentd switches type at once
+        retarget = self.sent[1]  # blocked, so agentd switches type at once
         self.assertEqual((retarget["trigger"], retarget["replaces"]),
                          ({"source": "receipt", "event": "blocked:target_gone"}, None))
         self.assertNotEqual(retarget["type"], "attend_session")
@@ -848,7 +848,7 @@ class UnsupportedTest(SpatialCase):
 
 
 class FocusWalkTest(SpatialCase):
-    """C1 v2.1: a focus that moves to another window and stays FOCUS_SETTLE draws one walk toward it."""
+    """A focus that moves to another window and stays FOCUS_SETTLE draws one walk toward it."""
 
     def setUp(self):
         super().setUp()
@@ -1469,7 +1469,7 @@ class ReceiptTest(SpatialCase):
         self.step(spatial.TICK[1])
         later = self.ids()[-1]
         self.assertEqual(self.spatial.records[later]["behavior"]["turn_generation"], 3)
-        self.generation = 4  # a new turn: the behavior lives on and its receipts carry its own generation (C1 §3)
+        self.generation = 4  # a new turn: the behavior lives on and its receipts carry its own generation
         self.assertEqual(self.spatial.receipt({"behavior_id": later, "phase": "running", "reason": None,
                                                "at_ms": 3, "turn_generation": 2}), (False, "stale"))
         self.assertNotEqual(self.spatial.running(), [])

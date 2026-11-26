@@ -534,7 +534,7 @@ class MotionChooser:
         self.set_action_switches({})
         self._restart()
 
-    # The user's settings, as C3 rules 28, 51 and 49 (i) have the renderer apply them.
+    # The user's settings, applied the way the renderer applies them.
 
     def set_action_switches(self, requested):
         """The whole table, a row it lacks at its default: a required row stays on, a missing one off, and the last row

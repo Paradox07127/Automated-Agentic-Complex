@@ -2,7 +2,7 @@
 // while a panel shows or the command layer is open. The panels follow one box of hers, which she leaves only past the dead
 // zone; none moves while one is frozen or key, and none changes its opacity. Opening and closing the wheel, the
 // console and 快速输入 in the bubble are here
-// too, and so are the panels the user dragged: their offsets from her, their pins and their resets, and C3 rule 39's
+// too, and so are the panels the user dragged: their offsets from her, their pins and their resets, and the renderer's
 // presents: a presented panel shows once she has made her gesture for it.
 import { type AnchorInput, type AnchorSnapshot, AnchorTracker, shift } from './desktop-anchor.ts';
 import type { SelectionCommand } from './desktop-hotkey.ts';
@@ -46,13 +46,13 @@ export function memoryOffsets(): OffsetStore {
 }
 
 /** protocol.ts `DesktopCommand`, as far as the shell sends it. `at` is the wheel's centre in its page, CSS px from the top-left;
- *  `ringPointer` is the held right button that opened the wheel (C3 rule 56) in the same px, `ms` since it went down. */
+ *  `ringPointer` is the held right button that opened the wheel in the same px, `ms` since it went down. */
 export type DesktopCommand = { kind: 'open'; mode: CmdMode; prefill?: string; at?: Point } | { kind: 'close' } | { kind: 'openConsole' }
   | { kind: 'scope'; scopeId: string; files: number } | SelectionCommand | { kind: 'expandStack' } | { kind: 'notice'; text: string }
   | { kind: 'ringPointer'; phase: 'move'; x: number; y: number } | { kind: 'ringPointer'; phase: 'up'; x: number; y: number; ms: number }
   | WindowCommand;
 
-/** C3 rule 39: a presented panel waits this long for her stroke before it shows anyway, and on close this long before it goes
+/** A presented panel waits this long for her stroke before it shows anyway, and on close this long before it goes
  *  anyway. */
 export const PRESENT_OPEN_WAIT = 3.5;
 export const PRESENT_CLOSE_WAIT = 1.5;
@@ -173,7 +173,7 @@ export class DesktopFollow {
   /** Her box while she is on screen, live while she walks. */
   private live: Rect | null = null;
   private presents: Partial<Record<PanelKind, Present>> = {};
-  /** C3 rule 39 `present` (token, left or right, true for `open`); false when it did not reach her, which then is not waited for. */
+  /** `present` (token, left or right, true for `open`); false when it did not reach her, which then is not waited for. */
   onPresent: (token: string, side: 'left' | 'right', open: boolean) => boolean = () => false;
   /** A present's close is done, at its stroke or `PRESENT_CLOSE_WAIT` after it: the owner hides the panel now. */
   onPresentClosed: (kind: PanelKind) => void = () => {};

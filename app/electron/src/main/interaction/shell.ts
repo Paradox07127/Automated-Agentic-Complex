@@ -23,9 +23,9 @@ export interface InteractionOptions {
   /** The desktop panels; null without them. */
   desktop(): { readonly quickInputOpen: boolean; openQuickInput(): void; notice(text: string): void; pushState(): void } | null;
   openSessions(): void;
-  /** The right button on her, at `at` in global points; `held`, it is still down (C3 rule 56). */
+  /** The right button on her, at `at` in global points; `held`, it is still down. */
   onContextMenu(at: { x: number; y: number }, held: boolean): void;
-  /** C3 rule 56: the held right button moved or came up at `at`, global points. */
+  /** The held right button moved or came up at `at`, global points. */
   onRingPointer(phase: 'move' | 'up', at: { x: number; y: number }): void;
   /** refreshStatusIcon after click-through-all changed. */
   clickThroughChanged(): void;
@@ -81,7 +81,7 @@ export function interactionShell(o: InteractionOptions): Interaction {
   const changed = () => new Error('当前角色已变更，请重新选择操作');
 
   const rightClicked = (at: { x: number; y: number }, held: boolean) => {
-    // C3 rule 55: each right click on her is one `wheel`.
+    // Each right click on her is one `wheel`.
     void o.request('POST', '/interaction/record', { kind: 'wheel' }).then((r) => r.status, () => 0).then((status) => {
       if (status !== 204) o.log(`RECORD kind=wheel status=${status}`);
     });

@@ -157,7 +157,7 @@ test('avatar.motionOverrides.set stores the whole set with its notes, sends it w
   }
 });
 
-test('avatar.motionOverrides.set refuses an argument outside rule 51 (j) and stores nothing', async () => {
+test('avatar.motionOverrides.set refuses an oversized override set and stores nothing', async () => {
   const f = fixture();
   try {
     const bad = [undefined, { chains: {}, pools: {} }, { ...OVERRIDES, extra: 1 },

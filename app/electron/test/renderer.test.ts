@@ -345,7 +345,7 @@ test('a text-only character or none leaves the renderer stopped', async () => {
   }
 });
 
-test('host link: hello handshake, fps_tier, avatar ops over C3, rule 17 kill, the next connection and a too-long line', { skip: UNIX_LINK }, async () => {
+test('host link: hello handshake, fps_tier, avatar ops over C3, watchdog timeout, the next connection and a too-long line', { skip: UNIX_LINK }, async () => {
   const dir = mkdtempSync(join(tmpdir(), 'l-'));
   const lines: string[] = [], events: LinkEvent[] = [];
   const link = new HostLink({ path: join(dir, 'run/avatar.sock'), transport: 'unix', pid: 4242, build: { version: 't' },
@@ -529,7 +529,7 @@ test('host link: cursor, pointer and point_at, the paused tier, and trace, recei
     assert.ok(await until(1, () => cursors().some((m) => m.hit === true)), JSON.stringify(cursors()));
     assert.deepEqual(cursors().find((m) => m.hit === true), { v: 1, type: 'cursor', x: 150, y: 200, inside: true, hit: true });
     assert.ok(await until(1, () => avatar.got.some((m) => m.type === 'pointer' && m.hover_ms as number > 0)));
-    // Rule 14: switching pins `hit` false; still, `cursor` goes out at least every 100 ms.
+    // Switching pins `hit` false; still, `cursor` goes out at least every 100 ms.
     link.sendSetCharacter('cedar', null);
     const before = cursors().length;
     await sleep(0.35);
@@ -560,7 +560,7 @@ test('host link: cursor, pointer and point_at, the paused tier, and trace, recei
     assert.deepEqual(receipts, [{ behavior_id: 'b-1', phase: 'running', reason: null, at_ms: 1, turn_generation: 3 }]);
     assert.ok(lines.includes('rejected trace event index=1 seq=1 why=producer_epoch') && lines.includes('rejected type=behavior_receipt why=reason'),
       lines.join('\n'));
-    // Rule 25: the open behavior ends as connection_lost with the link.
+    // The open behavior ends as connection_lost with the link.
     avatar.socket.destroy();
     assert.ok(await until(2, () => receipts.length === 2));
     assert.deepEqual({ ...receipts[1], at_ms: 0 }, { behavior_id: 'b-1', phase: 'cancelled', reason: 'connection_lost', at_ms: 0, turn_generation: 3 });
@@ -589,7 +589,7 @@ test('host link: characterSwitching while a set_character waits for its reply; l
     assert.equal(cursors().at(-1)!.hit, true);
     link.sendSetCharacter('cedar', null);
     assert.equal(link.characterSwitching, true);
-    // Rule 14: switching sends `hit` false.
+    // Switching sends `hit` false.
     assert.ok(await until(1, () => !link.lastCursorHit));
     assert.equal(cursors().at(-1)!.hit, false);
     avatar.send({ type: 'character_changed', id: 'cedar', ms: 100 });
@@ -694,7 +694,7 @@ test('pipe link: dials until the renderer\'s pipe is there, handshakes, keeps th
     assert.equal(renderer.got.length, 2);
     assert.ok(await until(1, () => renderer.got[1]!.some((m) => m.type === 'hello')));
 
-    // Rule 17: a renderer that takes the mouse and then goes silent is reported to the supervisor.
+    // A renderer that takes the mouse and then goes silent is reported to the supervisor.
     renderer.heartbeats(false);
     renderer.send({ type: 'heartbeat', seq: 2, click_through: false, render: 'idle', frames: 0 });
     assert.ok(await until(3, () => events.some((e) => e.kind === 'watchdog')), lines.join('\n'));
@@ -776,7 +776,7 @@ test('HostLinkTests+PlacementAndHit: set_placement and move_window carry a req; 
     assert.ok(await until(1, () => bare.types().includes('move_window')));
     assert.deepEqual(bare.got.filter((m) => ['set_placement', 'move_window'].includes(m.type)).map((m) => m.type), ['set_placement', 'move_window']);
 
-    // Rule 19's limits: a rejected placement is logged and not kept.
+    // A rejected placement is logged and not kept.
     for (const bad of [{ scale: 3 }, { display_id: 0 }, { reason: 'teleport' }, { x: 1e9 }]) {
       bare.send({ type: 'placement', x: 1200, y: 70, scale: 1, display_id: 1, reason: 'drag', ...bad });
     }

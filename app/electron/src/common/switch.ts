@@ -1,4 +1,4 @@
-// The character switch (C3 rules 14 and 26): agentd's prepare, one `set_character`,
+// The character switch: agentd's prepare, one `set_character`,
 // agentd's commit; one transaction at a time, only the user's last choice kept, and agentd brought back onto the current
 // character once it is up. `switchOutcome` is `character.switchTo`'s answer.
 import type { CharacterView } from './runtime.ts';
@@ -29,7 +29,7 @@ export interface SwitchPorts {
   setCharacter(id: string): boolean;
   /** Restarts the renderer as the remembered last character. */
   restartAvatar(id: string): void;
-  /** Remembers the last character (rule 14), which the next renderer and agentd launch with. */
+  /** Remembers the last character, which the next renderer and agentd launch with. */
   persist(id: string): void;
   /** False for a text-only character: no renderer runs for it. */
   renderable(id: string): boolean;
@@ -111,7 +111,7 @@ export class CharacterSwitch {
   agentdRetryMax = 30;
   /** While true `select` drops the choice: a motion import is rewriting the current character's package. */
   held = false;
-  /** The renderer takes no `set_character` (efw, C3 附录「Windows」): every switch restarts it as the new character. */
+  /** The renderer takes no `set_character` (efw): every switch restarts it as the new character. */
   restartOnly = false;
   /** Told `view` at every set of current, failure, busy, shown, pending and agentd. */
   onChange: (view: CharacterView) => void = () => {};
@@ -131,7 +131,7 @@ export class CharacterSwitch {
   get current(): string | null { return this._current; }
   get failure(): SwitchFailure | null { return this._failure; }
   get busy(): boolean { return this._busy; }
-  /** The user's last choice made while busy (rule 26). */
+  /** The user's last choice made while busy. */
   get pending(): string | null { return this.values.pending; }
   private set pending(id: string | null) { this.change({ pending: id }); }
   /** The last character agentd confirmed; null while unknown (not reported yet, or the last POST failed). */
@@ -199,7 +199,7 @@ export class CharacterSwitch {
   avatar(event: CharacterEvent): void {
     switch (event.kind) {
       case 'current':
-        // Rule 14: the avatar's hello is the current character.
+        // The avatar's hello is the current character.
         this.shown = event.id;
         if (!this._busy) this._current = event.id;
         this.heard(event.id);
@@ -384,7 +384,7 @@ export class CharacterSwitch {
     this.shown = o;
   }
 
-  /** Sends `set_character` and waits for the link's answer (reply, rule 14's timeout or a lost connection). */
+  /** Sends `set_character` and waits for the link's answer (reply, timeout or a lost connection). */
   private async show(id: string): Promise<Reply> {
     if (!this.ports.setCharacter(id)) return { kind: 'failed', id, reason: 'not_connected' };
     const reply = await new Promise<Reply>((resolve) => { this.waiter = { id, resolve }; });

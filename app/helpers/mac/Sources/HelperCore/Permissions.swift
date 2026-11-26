@@ -5,7 +5,7 @@ import IOKit.hid
 import Speech
 import UserNotifications
 
-/// CONTRACT §7.9 `permissions.status`, read without showing a system prompt, and
+/// `permissions.status`, read without showing a system prompt, and
 /// `permissions.request`, which does. The grants belong to the helper's responsible process, the app that started it.
 enum Permissions {
     /// Off the main thread: AEDeterminePermissionToAutomateTarget can wait on the target app.

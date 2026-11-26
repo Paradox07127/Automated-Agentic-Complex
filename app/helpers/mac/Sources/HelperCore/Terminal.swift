@@ -1,6 +1,6 @@
 import AppKit
 
-/// CONTRACT §7.11 `terminal.focus`: one AppleScript per terminal app.
+/// `terminal.focus`: one AppleScript per terminal app.
 enum Terminal {
     /// The system calls, replaceable in tests: whether an app with the bundle id runs, and an AppleScript's string
     /// output or its error dictionary.

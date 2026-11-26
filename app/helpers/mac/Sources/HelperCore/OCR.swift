@@ -3,7 +3,7 @@ import Foundation
 import ImageIO
 import Vision
 
-/// CONTRACT §7.6 `ocr.languages` and `ocr.recognize`: Vision's accurate level with
+/// `ocr.languages` and `ocr.recognize`: Vision's accurate level with
 /// language correction.
 enum OCR {
     static let defaultLanguages = ["zh-Hans", "en-US"]
@@ -27,7 +27,7 @@ enum OCR {
     /// One recognized line: its text, its Vision box (normalized, origin bottom left) and its confidence.
     typealias Found = (text: String, box: CGRect, confidence: Double?)
 
-    /// `ocr_line`s from top to bottom, then left to right, with top-left boxes (CONTRACT §2.8).
+    /// `ocr_line`s from top to bottom, then left to right, with top-left boxes.
     static func lines(_ found: [Found]) -> [[String: Any]] {
         found.sorted { $0.box.maxY != $1.box.maxY ? $0.box.maxY > $1.box.maxY : $0.box.minX < $1.box.minX }.map { line in
             let b = line.box

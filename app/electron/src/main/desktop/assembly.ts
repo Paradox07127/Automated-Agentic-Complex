@@ -69,7 +69,7 @@ export interface DesktopOptions {
   state(): Record<string, unknown>;
   /** The command layer's two, 复位浮窗, the sessions page and 去处理 are the assembly's own. */
   actions: Omit<DesktopActionPorts, 'quickInput' | 'cmdMode' | 'resetBoxes' | 'openSessions' | 'openStack'>;
-  /** HostLink.sendPresent (C3 rule 39); false when it did not go out. Absent, no panel waits for her. */
+  /** HostLink.sendPresent; false when it did not go out. Absent, no panel waits for her. */
   present?(token: string, side: string, phase: 'open' | 'close'): boolean;
   playSound(): void;
   confirm(text: string): Promise<boolean>;
@@ -121,9 +121,9 @@ export class DesktopAssembly {
   private dockSent = '';
   /** `dockShown` as `dockChanged` last heard it. */
   private dockHeard = false;
-  /** C3 rule 57: she walks. */
+  /** She walks. */
   private moving = false;
-  /** C3 rule 56: the held right press that opened the wheel, since when (ms); null when a click or the hot key opened it. */
+  /** The held right press that opened the wheel, since when (ms); null when a click or the hot key opened it. */
   private ringPress: number | null = null;
   private failingSince: number | null = null;
   private readonly hotkey: QuickInputHotkey;
@@ -249,7 +249,7 @@ export class DesktopAssembly {
     this.command.send({ kind: 'notice', text });
   }
 
-  /** Her `motion.stroke` (C3 rule 39). */
+  /** Her `motion.stroke`. */
   stroke(token: string): void {
     this.follow.stroke(token);
     this.kick();
@@ -300,14 +300,14 @@ export class DesktopAssembly {
   }
 
   /** The right button on her at `at` (placement space): the wheel opens with its centre there; `held`, the button is still
-   *  down and ringPointer follows it (C3 rule 56). */
+   *  down and ringPointer follows it. */
   openWheel(at: Point, held = false): void {
     this.closeConsole();
     this.openAt('ring', at, true);
     this.ringPress = held ? performance.now() : null;
   }
 
-  /** C3 rule 56: the held right button at `at` (placement space), for the wheel it opened; the wheel picks or stays on `up`. */
+  /** The held right button at `at` (placement space), for the wheel it opened; the wheel picks or stays on `up`. */
   ringPointer(phase: 'move' | 'up', at: Point): void {
     const since = this.ringPress;
     if (since === null) return;
@@ -317,7 +317,7 @@ export class DesktopAssembly {
     this.command.send(phase === 'up' ? { kind: 'ringPointer', phase, ...p, ms: Math.round(performance.now() - since) } : { kind: 'ringPointer', phase, ...p });
   }
 
-  /** C3 rule 57: she started or stopped walking; the hover buttons wait while she walks. */
+  /** She started or stopped walking; the hover buttons wait while she walks. */
   setMoving(on: boolean): void {
     this.moving = on;
     this.hoverTick();
@@ -377,7 +377,7 @@ export class DesktopAssembly {
     this.kick();
   }
 
-  /** C3 rule 39: a hidden bubble that gets an approval shows its card with her snap; once none waits the snap ends. */
+  /** A hidden bubble that gets an approval shows its card with her snap; once none waits the snap ends. */
   private pushed(ids: string[]): void {
     this.stackCards = ids.length;
     const presenting = ids.some((id) => this.source.presents(id));

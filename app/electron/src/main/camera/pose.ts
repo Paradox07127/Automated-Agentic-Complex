@@ -1,4 +1,4 @@
-// The character card's side of C3 rule 47: the pose slots from `actions[].pose`, one `set_pose` per
+// The character card reads pose slots from `actions[].pose`, one `set_pose` per
 // `set`, and the user's lock per character in config.json `pose_lock`, sent again when the character's list arrives; the
 // menu's pose items.
 import type { ActionRow } from '../../common/c3.ts';
@@ -25,7 +25,7 @@ export interface PosePorts {
   schedule?(seconds: number, fire: () => void): () => void;
 }
 
-/** C3 rule 47 `actions[].pose`, in menu order. */
+/** `actions[].pose`, in menu order. */
 export const POSE_SLOTS = ['stand', 'akimbo', 'sit', 'floor', 'lie'] as const;
 export const POSE_TITLES: Readonly<Record<string, string>> = { stand: '站', akimbo: '叉腰', sit: '坐', floor: '坐地', lie: '躺' };
 const NO_ROW = '该角色未配置此姿态的原作动作';
@@ -60,7 +60,7 @@ export class AvatarPoses {
     this.ports = ports;
   }
 
-  /** Rule 47 (a), (f): one slot per name from the list's pose rows; a stored lock on an available row is sent again. */
+  /** One slot per name from the list's pose rows; a stored lock on an available row is sent again. */
   listed(character: string, actions: ActionRow[]): PoseSlot[] {
     if (character !== this.character) {
       this.current = null;

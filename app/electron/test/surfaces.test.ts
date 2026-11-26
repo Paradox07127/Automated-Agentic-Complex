@@ -1,5 +1,5 @@
-// C3 rules 31–35 and 41 (src/common/surfaces.ts), on
-// fixed platform helper replies written to C12 §7.12's field table.
+// The desktop surface rules (src/common/surfaces.ts), on
+// fixed platform helper replies.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { helperY } from '../src/common/attention.ts';
@@ -51,7 +51,7 @@ test('Windows: a helperY that keeps the y leaves screens, windows, the cover and
     { x: 480, y: 290, w: 200, h: 18 });
 });
 
-test('rule 31: only layer 0, visible, ≥ 80 pt, on-screen windows of other processes are listed, front to back, in global points', () => {
+test('Only layer 0, visible, ≥ 80 pt, on-screen windows of other processes are listed, front to back, in global points', () => {
   const d = new DesktopSurfaces();
   d.update(input([
     { id: 1, x: 10, y: 10, w: 300, h: 300, layer: 25 },
@@ -68,7 +68,7 @@ test('rule 31: only layer 0, visible, ≥ 80 pt, on-screen windows of other proc
   assert.deepEqual(d.presence(99), { kind: 'closed' });
 });
 
-test('rule 31: segments leave out windows in front, the menu bar and parts under 40 pt; at most 8, by size, ascending', () => {
+test('Segments leave out windows in front, the menu bar and parts under 40 pt; at most 8, by size, ascending', () => {
   const d = new DesktopSurfaces();
   d.update(input([{ id: 6, x: 100, y: 100, w: 300, h: 200 }, { id: 7, x: 0, y: 250, w: 1000, h: 400 }]));
   assert.deepEqual(d.all[0]!.edges, [{ side: 'top', segments: [[100, 400]] }, { side: 'left', segments: [[600, 800]] }, { side: 'right', segments: [[600, 800]] }]);
@@ -82,7 +82,7 @@ test('rule 31: segments leave out windows in front, the menu bar and parts under
   assert.deepEqual(d.all.at(-1)!.edges[0], { side: 'top', segments: [[0, 50], [130, 180], [260, 310], [390, 440], [520, 570], [650, 700], [780, 830], [1300, 1440]] });
 });
 
-test('rule 31: a window id that leaves the list and comes back gets the next generation', () => {
+test('A window id that leaves the list and comes back gets the next generation', () => {
   const d = new DesktopSurfaces();
   d.update(input([{ id: 6, x: 100, y: 100, w: 300, h: 200 }]));
   d.update(input([]));
@@ -93,7 +93,7 @@ test('rule 31: a window id that leaves the list and comes back gets the next gen
   assert.equal(d.all[0]!.generation, 3);
 });
 
-test('rules 31, 33: a snapshot goes out at the first tick, then only when it changed, checked every 0.5 s, with at most 32 windows', () => {
+test('A snapshot goes out at the first tick, then only when it changed, checked every 0.5 s, with at most 32 windows', () => {
   const t = new SurfaceTracking();
   let current = input([{ id: 6, x: 100, y: 100, w: 300, h: 200 }]);
   assert.deepEqual(surfaces(t.tick(0, null, () => current)).map((m) => [m.seq, m.windows.length]), [[0, 1]]);
@@ -106,7 +106,7 @@ test('rules 31, 33: a snapshot goes out at the first tick, then only when it cha
   assert.equal(surfaces(t.tick(1.1, null, () => current))[0]!.windows.length, 32);
 });
 
-test('rule 32: a track is answered on the next poll with tracking, or gone generation / not_listed / closed, kept alive every 0.1 s', () => {
+test('A track is answered on the next poll with tracking, or gone generation / not_listed / closed, kept alive every 0.1 s', () => {
   const t = new SurfaceTracking();
   const current = input([{ id: 6, x: 100, y: 100, w: 300, h: 200 }, { id: 7, x: 0, y: 250, w: 1000, h: 400, alpha: 0 }]);
   t.tick(0, null, () => current);
@@ -124,7 +124,7 @@ test('rule 32: a track is answered on the next poll with tracking, or gone gener
   assert.deepEqual(t.tick(0.4, null, () => input([])), []);
 });
 
-test('rule 33: a fifth track or an eleventh request within a second is answered gone too_many at once', () => {
+test('A fifth track or an eleventh request within a second is answered gone too_many at once', () => {
   const t = new SurfaceTracking();
   for (const id of ['a', 'b', 'c', 'd']) assert.deepEqual(t.track(id, 6, null, 0), []);
   assert.deepEqual(t.track('e', 6, null, 0), [{ kind: 'surface', update: { track_id: 'e', state: 'gone', reason: 'too_many' } }]);
@@ -137,7 +137,7 @@ test('rule 33: a fifth track or an eleventh request within a second is answered 
   assert.deepEqual(r.track('later', 6, null, 1.01), [], 'the first request is over a second old');
 });
 
-test('rule 34: the attached track carries above — windows in front of W near her body — and the others never do', () => {
+test('The attached track carries above — windows in front of W near her body — and the others never do', () => {
   const t = new SurfaceTracking();
   // W is 7; 6 is in front and near her; 5 is in front but far; 4 is behind W.
   const current = input([{ id: 5, x: 1200, y: 600, w: 200, h: 200 }, { id: 6, x: 100, y: 100, w: 300, h: 200 },
@@ -161,7 +161,7 @@ test('rule 34: the attached track carries above — windows in front of W near h
   assert.equal(t.attached, null, 'untrack ends the attach');
 });
 
-test('rule 34: past 8 windows above, the pair whose bounding box adds the least area merges', () => {
+test('Past 8 windows above, the pair whose bounding box adds the least area merges', () => {
   const list: W[] = Array.from({ length: 9 }, (_, i) => ({ id: 10 + i, x: 100 + 100 * i, y: 500, w: 90, h: 90 }));
   const current = input([...list, { id: 7, x: 0, y: 300, w: 1440, h: 500 }]);
   const above = aboveRects(current, 7, { x: 0, y: 0, w: 1440, h: 900 });
@@ -170,7 +170,7 @@ test('rule 34: past 8 windows above, the pair whose bounding box adds the least 
   assert.deepEqual(aboveRects(current, 7, null), []);
 });
 
-test('rule 35: covered after 300 ms at ≥ 15 % of her body under the front window, uncovered after 300 ms under 5 %', () => {
+test('Covered after 300 ms at ≥ 15 % of her body under the front window, uncovered after 300 ms under 5 %', () => {
   const c = new CoverState();
   const body = { x: 100, y: 100, w: 100, h: 100 };
   const front = (x: number) => input([{ id: 6, pid: 702, x, y: 700, w: 100, h: 100 }], { frontPid: 702 });
@@ -189,7 +189,7 @@ test('rule 35: covered after 300 ms at ≥ 15 % of her body under the front wind
   assert.deepEqual([COVER.enterFraction, COVER.leaveFraction, COVER.dwell, COVER.readInterval, COVER.typingPause], [0.15, 0.05, 0.3, 0.1, 1.5]);
 });
 
-test("rule 35: the covering window is the front app's first layer 0 window; none for an unknown front", () => {
+test("The covering window is the front app's first layer 0 window; none for an unknown front", () => {
   const list: W[] = [{ id: 1, pid: 702, x: 0, y: 0, w: 10, h: 10, layer: 3 }, { id: 2, pid: 702, x: 0, y: 0, w: 20, h: 20 },
     { id: 3, pid: 702, x: 0, y: 0, w: 30, h: 30 }];
   assert.deepEqual(coveringWindow(input(list, { frontPid: 702 })), { x: 0, y: 880, w: 20, h: 20 });
@@ -197,7 +197,7 @@ test("rule 35: the covering window is the front app's first layer 0 window; none
   assert.equal(coveringWindow(input([{ id: 1, pid: 800, x: 0, y: 0, w: 10, h: 10 }], { frontPid: 702 })), null);
 });
 
-test('rule 35: a read that stops calling for the change restarts the dwell; a pause forgets it', () => {
+test('A read that stops calling for the change restarts the dwell; a pause forgets it', () => {
   const body = { x: 100, y: 100, w: 100, h: 100 };
   // CG y 786..800 is global y 100..114: 14 of her 100 points are under 15 %.
   const low = input([{ id: 6, pid: 702, x: 100, y: 786, w: 100, h: 14 }], { frontPid: 702 });
@@ -217,7 +217,7 @@ test('rule 35: a read that stops calling for the change restarts the dwell; a pa
   assert.equal(p.covered, false);
 });
 
-test('rule 41: the first interactive control up the chain, stopping at a window, an application or a web area', () => {
+test('The first interactive control up the chain, stopping at a window, an application or a web area', () => {
   const frame = { x: 0, y: 0, w: 50, h: 20 };
   assert.equal(firstInteractive([{ role: 'AXStaticText', subrole: null, frame }, { role: 'AXButton', subrole: null, frame }])?.role, 'AXButton');
   assert.equal(firstInteractive([{ role: 'AXStaticText', subrole: null, frame }, { role: 'AXWebArea', subrole: null, frame },
@@ -225,7 +225,7 @@ test('rule 41: the first interactive control up the chain, stopping at a window,
   assert.equal(firstInteractive([{ role: 'AXButton', subrole: null, frame: { x: 0, y: 0, w: 0, h: 20 } }]), null);
 });
 
-test('rule 41: a probed control is kept 2 s and probed again after 0.5 s under the cursor; at most 8, oldest dropped', () => {
+test('A probed control is kept 2 s and probed again after 0.5 s under the cursor; at most 8, oldest dropped', () => {
   const cache = new PassThroughCache();
   const p = { x: 10, y: 10 };
   assert.equal(cache.needsProbe(p, 0), true);

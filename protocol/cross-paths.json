@@ -72,7 +72,6 @@
   {"row": "C10", "token": "native_host.py", "files": ["app/electron/src/main/index.ts"]},
   {"row": "C10", "token": "tts-token", "files": ["voice/tts-service/deploy/Dockerfile", "voice/tts-service/deploy/compose.yaml", "voice/tts-service/deploy/deploy.sh"]},
   {"row": "C10", "token": "config.json", "files": ["web/src/pages/settings/Page.tsx"], "note": "display text"},
-  {"row": "ui-bridge", "token": "ui-bridge", "files": ["agent/agentd/route_registry.py"]},
   {"row": "character-library", "token": "current.json", "files": ["agent/agentd/brain/characters.py", "agent/agentd/tools/persona_eval.py", "agent/agentd/character_library.py", "agent/agentd/daemon/main.py",
    "characters/agentic_complex_build/import_generated.py",
    "characters/agentic_complex_build/import_vmd.py"]},

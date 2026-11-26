@@ -6,7 +6,7 @@ import CoreMediaIO
 import IOKit
 import IOKit.pwr_mgt
 
-/// CONTRACT §7.3 `attention.sample`: the raw readings; whatever cannot be
+/// `attention.sample`: the raw readings; whatever cannot be
 /// read is null. The device reads need no camera or microphone grant, so none can prompt.
 enum Attention {
     private static let videoTypes: Set<String> = ["PreventUserIdleDisplaySleep", "NoDisplaySleepAssertion"]
@@ -303,7 +303,7 @@ enum Devices {
     }
 }
 
-/// CONTRACT §7.3 `input.modifiers`.
+/// `input.modifiers`.
 enum Modifiers {
     static func read(_ params: [String: Any]) -> Outcome { .success(json(CGEventSource.flagsState(.combinedSessionState))) }
 
@@ -313,7 +313,7 @@ enum Modifiers {
     }
 }
 
-/// CONTRACT §7.3 `browser.front_tab`: an AppleScript, sent only when Automation is
+/// `browser.front_tab`: an AppleScript, sent only when Automation is
 /// already granted, so it never prompts.
 enum Browser {
     static let safari = "com.apple.Safari"

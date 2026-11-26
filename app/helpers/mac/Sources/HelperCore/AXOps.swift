@@ -1,7 +1,7 @@
 import AppKit
 import ApplicationServices
 
-/// CONTRACT §7.4's probes, in CG global points. None reads a value but `ax.selected_text`, and none reads a
+/// The AX probes, in CG global points. None reads a value but `ax.selected_text`, and none reads a
 /// password node.
 enum AXOps {
     private static let notificationCenter = "com.apple.notificationcenterui"

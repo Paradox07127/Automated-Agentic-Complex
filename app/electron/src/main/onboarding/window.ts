@@ -17,7 +17,7 @@ export type OnboardingDestination = 'home' | 'talk';
 /** The main window's route each end opens; `talk` opens none: the desktop's 快速输入 opens beside her instead. */
 export const DESTINATIONS: Record<OnboardingDestination, string | null> = { home: '/home', talk: null };
 
-/** The pools the renderer's own greeting plays (C3 rule 45 (e)), in order. */
+/** The pools the renderer's own greeting plays, in order. */
 const GREETING_POOLS = ['user.greet', 'character.enter'];
 
 export interface GreetPorts {
@@ -27,7 +27,7 @@ export interface GreetPorts {
   get(path: string): Promise<{ status: number; body: string }>;
   /** An agentd POST with the ui token; `body` is the reply's text. */
   post(path: string, json: unknown): Promise<{ status: number; body: string }>;
-  /** C3 rule 52's `play_chain` from `start`, resolved once it is over (`playToEnd`); false when it was not sent. */
+  /** `play_chain` from `start`, resolved once it is over (`playToEnd`); false when it was not sent. */
   playChain(character: string, start: string): Promise<boolean>;
   log(line: string): void;
 }

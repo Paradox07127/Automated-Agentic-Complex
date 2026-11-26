@@ -5,7 +5,6 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-CONTRACT = (HERE / 'CONTRACT.md').read_text(encoding='utf-8')
 TABLE = json.loads((HERE / 'capabilities.json').read_text(encoding='utf-8'))
 PRIVATE = ROOT / 'private'
 EFW = PRIVATE / 'renderer' / 'windows' / 'src'
@@ -15,16 +14,6 @@ NO_PRIVATE = 'the renderer sources are not in this checkout; they are not compar
 
 def strings(text, quote='"'):
     return re.findall(quote + r'([a-z_]+)"', text)
-
-
-def contract_renderer_capabilities():
-    """The 「能力」 table's rows a renderer lists, and `presentation`, which has its own section."""
-    section = CONTRACT.split('\n## 能力（v9）\n', 1)[1].split('\n## ', 1)[0]
-    rows = re.findall(r'^\| `([a-z_]+)` \| (渲染器|Companion|两边) \|', section, re.M)
-    names = {name for name, side in rows if side != 'Companion'}
-    if '\n### Optional presentation capability\n' in CONTRACT:
-        names.add('presentation')
-    return names
 
 
 def efw_host():
@@ -63,24 +52,8 @@ class CapabilityTableTests(unittest.TestCase):
     def test_rows_are_well_formed(self):
         for name, row in [*TABLE['capabilities'].items(), *TABLE['services'].items()]:
             self.assertTrue({row['mac'], row['windows']} <= {'yes', 'no', 'by_design'}, name)
-            self.assertEqual('ref' in row, row['mac'] != 'yes' or row['windows'] != 'yes', name)
         for name, row in TABLE['render_settings'].items():
             self.assertTrue({row['mac'], row['windows']} <= {'applied', 'fixed', 'ignored'}, name)
-            self.assertEqual('ref' in row, row['mac'] != 'applied' or row['windows'] != 'applied', name)
-
-    def test_refs_point_at_contract_lines(self):
-        lines = CONTRACT.count('\n') + (not CONTRACT.endswith('\n'))
-        for name, row in [*TABLE['capabilities'].items(), *TABLE['render_settings'].items(), *TABLE['services'].items()]:
-            if 'ref' in row:
-                m = re.fullmatch(r'CONTRACT\.md:(\d+)', row['ref'])
-                self.assertTrue(m and 1 <= int(m.group(1)) <= lines, f'{name}: {row["ref"]}')
-
-    def test_every_capability_is_in_the_contract(self):
-        for name in TABLE['capabilities']:
-            self.assertIn(f'`{name}`', CONTRACT, name)
-
-    def test_every_renderer_capability_of_the_contract_is_in_the_table(self):
-        self.assertEqual(sorted(contract_renderer_capabilities() - set(TABLE['capabilities'])), [])
 
     def test_a_capability_the_source_adds_is_caught(self):
         self.assertEqual(mismatch(listed('windows'), listed('windows') | {'camera_track'})['only in the source'], ['camera_track'])

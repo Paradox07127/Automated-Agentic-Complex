@@ -468,7 +468,7 @@ test('blacklisted apps and window titles, browsers and this shell are never obse
 });
 
 test('a window whose title is not readable is not observed while the blacklist has title rules', { skip: UNIX_SOCKET }, async () => {
-  // windows.list's CG titles are null without Screen Recording (C12 §7.2); the AX observation would still read the window.
+  // windows.list's CG titles are null without Screen Recording; the AX observation would still read the window.
   const untitled = (p: Record<string, unknown>) => ok({ windows: WINDOWS.filter((w) => w.pid === p.pid).map((w) => ({ ...w, title: null })) });
   const h = await setup({ helper: { 'windows.list': untitled } });
   try {

@@ -3,9 +3,9 @@
 Not checked by agentd (validate.py checks these): excluding boolean v; known
 frame types; ready fields other than capabilities; text_delta/item/plan/result/
 interrupted/error payload schemas; optional tool_request metadata types; and
-agentd-to-runner payload schemas (§6). Tool identifiers/name/args go through
-the dispatcher (§8). The reader queues pre-ready data; startup discards it (§7).
-Increasing seq is not enforced as an error: agentd drops replays (§3).
+agentd-to-runner payload schemas. Tool identifiers/name/args go through
+the dispatcher. The reader queues pre-ready data; startup discards it.
+Increasing seq is not enforced as an error: agentd drops replays.
 """
 import contextvars
 import io

@@ -1,6 +1,6 @@
 """C2 speech relay:agentd is the only ws TTS client and forwards each stream to the avatar host.
 
-Only session_epoch, turn_id and speech_id are rewritten, and in a C2 v2 begin turn_generation and trace_id.
+Only session_epoch, turn_id and speech_id are rewritten, and in a clause's begin turn_generation and trace_id.
 A stream that agentd cuts short (cancel, superseded, upstream drop) is closed with one synthesized
 `cancelled` line, so the avatar host always sees an end."""
 from collections import OrderedDict, deque
@@ -76,7 +76,7 @@ class _Speech:
         self.playback_ended_at = None  # clock time of the `ended` receipt (playback_ended)
         self.sock = None
         self.done = threading.Event()
-        self.v2 = None  # a clause's C2 v2 request fields; None for a whole line from speak()
+        self.v2 = None  # a clause's request fields; None for a whole line from speak()
         self.after = None  # the clause before it, which the renderer plays first
         self.state = None  # ready | failed | cancelled once over; cancelled also when a clause_end cut drops it
         self.keep = False  # a clause_end cut lets this stream run to its end whatever the generation
@@ -107,7 +107,7 @@ class SpeechRelay:
     def __init__(self, tts_url, epoch, character, language, buffer=512, clock=time.monotonic, token=None,
                  ensurer=None):
         """character, language: the TTS voice of the character on screen (its card's tts block).
-        token: the TTS service's bearer token (C2 v2 §4); None sends no Authorization header.
+        token: the TTS service's bearer token; None sends no Authorization header.
         ensurer: a ServiceEnsurer that starts the TTS when it is unreachable; None reports unreachable at once."""
         parts = endpoint(tts_url)
         self.scheme = parts.scheme
@@ -233,7 +233,7 @@ class SpeechRelay:
         return speech.v2["clause_id"] if speech is not None and speech.v2 is not None else None
 
     def clause_ref(self, speech_id):
-        """{utterance_id, clause_id, spoken_text_revision} of a clause (C1 v2 §4), None when it is no clause."""
+        """{utterance_id, clause_id, spoken_text_revision} of a clause, None when it is no clause."""
         speech = self._speeches.get(speech_id)
         if speech is None or speech.v2 is None:
             return None

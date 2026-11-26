@@ -157,7 +157,7 @@ export interface LaunchContext {
 export const ttsTokenFile = (supportDir: string) => `${supportDir}/tts-token`;
 
 /**
- * `control.listen`'s endpoint and token file (CONTRACT §7.8), the same for the helper and agentd: a Unix socket in
+ * `control.listen`'s endpoint and token file, the same for the helper and agentd: a Unix socket in
  * `<supportDir>/run/` on macOS; on Windows a named pipe, unique per support dir by an FNV-1a hash of it, and the token
  * in `<supportDir>\run\`.
  */

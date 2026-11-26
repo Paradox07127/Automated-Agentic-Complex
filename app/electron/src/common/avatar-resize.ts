@@ -133,7 +133,7 @@ export interface ResizeStart {
  *  screen. `placement` is her last reported one, `windowFrame` the last `window_frame`'s. */
 export function resizeStart(fullscreen: boolean, placement: { x: number; y: number; scale: number } | null, windowFrame: Rect | null,
   screens: ScreenInfo[]): ResizeStart | null {
-  // C3 rule 19: the fullscreen anchor is the bottom centre; scale 1 is 540×780 pt.
+  // The fullscreen anchor is the bottom centre; scale 1 is 540×780 pt.
   const frame = fullscreen && placement
     ? { x: placement.x - 270 * placement.scale, y: placement.y, w: 540 * placement.scale, h: 780 * placement.scale }
     : windowFrame;

@@ -1,4 +1,4 @@
-// C3 rule 39 `attention_side` with source `focus`: a focused window far from her
+// `attention_side` with source `focus`: a focused window far from her
 // that keeps the focus, and the user starting to type (agentd's `/user/coarse` answer), turn her toward the window's side.
 import type { Rect } from './attention.ts';
 

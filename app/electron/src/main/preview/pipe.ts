@@ -1,4 +1,4 @@
-// The preview's transport on Windows (C3 CONTRACT 「附录：角色页预览」「Windows 传输」): NDJSON over the named pipe the addon
+// The preview's transport on Windows: NDJSON over the named pipe the addon
 // (native/win/preview.cpp) creates, each `ring`'s NT handles pulled out of the efw, and the hello's adapter checked against the
 // GPU process's before `connected`. To the session it is what the macOS addon is: hello kept from it, sends before a usable
 // hello kept and flushed after `connected`, the efw's end or a new hello delivered as one `disconnected`.

@@ -1,4 +1,4 @@
-// The pure parts of the fields CONTRACT §7.3, §7.4 and §8 added for the Electron shell: the focused window's AX title,
+// The pure parts of the fields added for the Electron shell: the focused window's AX title,
 // the focused app's pid, the element and source keys, the value's text, the read at subscription time, the window of
 // window and title notifications, the watch ids and the front app at workspace.watch.
 @testable import HelperCore

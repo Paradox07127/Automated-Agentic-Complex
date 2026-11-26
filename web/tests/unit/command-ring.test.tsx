@@ -442,7 +442,7 @@ describe('wheel actions', () => {
     expect(root?.childElementCount).toBe(0);
   });
 
-  it('C3 rule 56: the shell\'s ringPointer lights the slot under the held right button, and its release runs that slot', async () => {
+  it('The shell\'s ringPointer lights the slot under the held right button, and its release runs that slot', async () => {
     const bridge = stackBridge();
     const openMain = vi.spyOn(bridge.window, 'openMain');
     const listeners = new Set<(c: DesktopCommand) => void>();
@@ -461,7 +461,7 @@ describe('wheel actions', () => {
     await waitFor(() => expect(openMain).toHaveBeenCalledWith(expect.stringMatching(/^\/chat/)));
   });
 
-  it('C3 rule 56: the held right button resting on 动作 opens its level, and its release on a dance plays it', async () => {
+  it('The held right button resting on 动作 opens its level, and its release on a dance plays it', async () => {
     const bridge = stackBridge();
     vi.spyOn(bridge.avatar, 'actions').mockResolvedValue(DANCES);
     vi.spyOn(bridge.character, 'getPlaylist').mockResolvedValue({ items: ['mmd_jile'], loop: 'off', speed: 1 });

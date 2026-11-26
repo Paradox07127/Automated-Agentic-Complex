@@ -1,5 +1,5 @@
-// Files the user drops on or pastes into a page, held by the page only as `scope_file` handles like a picked file
-// (protocol/ui-bridge/CONTRACT.md step 7). Only the preload calls these, over their own IPC channels: a dropped file's
+// Files the user drops on or pastes into a page, held by the page only as `scope_file` handles like a picked file.
+// Only the preload calls these, over their own IPC channels: a dropped file's
 // path comes from `webUtils.getPathForFile`, which gives none for a File the page made itself.
 import type { Surface } from '../../common/bridge.ts';
 import type { PageSession } from '../../common/page.ts';

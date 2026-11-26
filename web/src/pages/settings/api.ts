@@ -125,7 +125,7 @@ export const clearAttention = () => del<{ deleted: number; trace_deleted: number
 export const disconnectHooks = (target: 'claude' | 'codex') => post<{ target: string; removed: number }>('/integrations/hooks/disconnect', { target });
 
 export const readScopes = () => get<{ scopes: WireScope[] }>('/agent/scopes');
-/** The bridge swaps each picked handle for its path; a path string is refused (protocol/ui-bridge/CONTRACT.md step 7). */
+/** The bridge swaps each picked handle for its path; a path string is refused. */
 export const createScope = (root: PickedHandle, output: PickedHandle) => post<WireScope>('/agent/scopes', { roots: [root], output_root: output });
 export const revokeScope = (id: string) => post<{ revoked: boolean }>(`/agent/scopes/${seg(id)}/revoke`, {});
 

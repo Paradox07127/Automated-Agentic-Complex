@@ -28,16 +28,16 @@ function sample(over: Partial<AttentionSample> = {}): AttentionSample {
   };
 }
 
-/** CONTRACT §7.12 `window`s as `windows.list` with `include_titles` gives them. */
+/** `window`s as `windows.list` with `include_titles` gives them. */
 const TEXTEDIT = { window_id: 640, pid: 702, bounds: { x: 0, y: 25, width: 800, height: 600 }, layer: 0, alpha: 1, title: 'notes.txt',
   app_name: 'TextEdit', app_id: 'com.apple.TextEdit' };
 const NOTES = { window_id: 77, pid: 800, bounds: { x: 40, y: 60, width: 900, height: 700 }, layer: 0, alpha: 1, title: 'Groceries',
   app_name: 'Notes', app_id: 'com.apple.Notes' };
 const list = (...windows: Record<string, unknown>[]) => ok({ windows });
-/** CONTRACT §7.12 `front` as `attention.sample` gives it. */
+/** `front` as `attention.sample` gives it. */
 const TEXTEDIT_FRONT = { pid: 702, name: 'TextEdit', app_id: 'com.apple.TextEdit', window: TEXTEDIT };
 
-/** CONTRACT §7.4 `ax.window_text`. */
+/** An `ax.window_text` reply. */
 const axText = (text: string, over: Record<string, unknown> = {}) => ok({
   snapshot_id: 'snap', matched: true, text,
   nodes: [{ id: 0, parent: -1, role: 'AXStaticText', native_role: 'AXStaticText', value: text, bounds: { x: 1, y: 2, width: 300, height: 20 } }],

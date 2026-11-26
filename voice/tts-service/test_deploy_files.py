@@ -95,8 +95,7 @@ class DeployFilesTest(unittest.TestCase):
             ssh.write_text('#!/bin/sh\nexit 0\n')
             ssh.chmod(0o755)
             env={'PATH':tmp,'AAC_TTS_TOKEN_FILE':str(pathlib.Path(tmp)/'tts-token')}
-            for name in ('docs/architecture/agentd.md','docs/architecture/agentd.en.md',
-                         'protocol/C2-speech-stream/TTS-TOKEN.md','protocol/C6-agentd-api/CONTRACT.md'):
+            for name in ('docs/architecture/agentd.md','docs/architecture/agentd.en.md'):
                 commands=re.findall(r'`[^`\n]*tts_token\.py ((?:push|rotate)[^`\n]*)`',(root/name).read_text())
                 self.assertTrue(commands,name)
                 for command in commands:

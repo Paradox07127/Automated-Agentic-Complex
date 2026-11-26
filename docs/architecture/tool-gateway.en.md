@@ -156,7 +156,7 @@ Own Claude and Codex sessions and the character's own runs use one set of deskto
 - Each observation exports at most 80 controls, queues 128 nodes, and returns 4000 characters of titles and values; the AX read takes about 1 second and a single AX IPC call 50 ms. Screenshots cover only the granted window, as PNG of at most 2.5 MB; sensitive image content is not masked automatically.
 - Password and secure controls, system secure input, and app and title blacklists all block. Text always masks common credentials, email addresses, and phone numbers, but not every kind of sensitive content can be recognized. AX text is low-trust data.
 - Snapshots expire after 15 seconds, and an action uses up all old references; failures and timeouts are never replayed. Actions are at least 250 ms apart. The host is the final authority; a model cannot grant itself permission.
-- The helper's `control.listen` sets up the local endpoint and token ([C12 contract](../../protocol/C12-platform-helper/CONTRACT.md)); on macOS they live in `<support dir>/run/`. The token never enters tool arguments, models, or logs. This does not isolate against malicious programs in the same OS account.
+- The helper's `control.listen` sets up the local endpoint and token; on macOS they live in `<support dir>/run/`. The token never enters tool arguments, models, or logs. This does not isolate against malicious programs in the same OS account.
 - These grants constrain only the desktop bridge. The CLI's own shell and other MCP abilities stay under its own sandbox and approval settings.
 
 ### Wiring

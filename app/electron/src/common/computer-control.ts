@@ -1,5 +1,5 @@
 // Computer control's rules: the grants, their budget and lifetimes, the interruption tickets, the socket
-// request and answer shapes, and what each request asks of the platform helper (CONTRACT §7.8). Times are Unix seconds.
+// request and answer shapes, and what each request asks of the platform helper. Times are Unix seconds.
 import { type BlacklistRules, hides, isBrowser, type Rect, redactText } from './attention.ts';
 import type { ShellPlatform } from './config.ts';
 import type { Point, Rect as PlaceRect, ScreenInfo } from './placement.ts';
@@ -395,7 +395,7 @@ export function actParams(snapshotId: string, params: Record<string, unknown>, f
   }
 }
 
-/** The helper's error codes (CONTRACT §7.8) as agentd's; anything else is its catch-all `native_error`. */
+/** The helper's error codes as agentd's; anything else is its catch-all `native_error`. */
 const HELPER_CODES: Record<string, [string, string]> = {
   permission_denied: ['ax_permission_required', '辅助功能权限未授予'],
   window_gone: ['target_changed', '目标进程、窗口或几何位置已改变，请重新观察并授权'],
@@ -440,7 +440,7 @@ export function observedElements(raw: unknown, text: boolean): Record<string, un
   }));
 }
 
-/** One running app as `apps.running` gives it (CONTRACT §7.12 `app`). */
+/** One running app as `apps.running` gives it. */
 export interface RunningApp { pid: number; name: string | null; appId: string; launchedAt: number }
 
 export function decodeApps(result: Record<string, unknown>): RunningApp[] {

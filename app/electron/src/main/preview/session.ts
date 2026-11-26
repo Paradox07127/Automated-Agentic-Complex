@@ -1,4 +1,4 @@
-// The character page's live preview from the desktop renderer over its rendezvous, Mach on macOS and a named pipe on Windows (C3 CONTRACT 「附录：角色页预览」):
+// The character page's live preview from the desktop renderer over its rendezvous, Mach on macOS and a named pipe on Windows:
 // one connection while the window lives and the preview was on screen within `releaseAfter`, `pause` while it is not on screen and
 // `resume` after, `ack` once the GPU is through with a frame, frames of an older `load_id` dropped (and acked).
 

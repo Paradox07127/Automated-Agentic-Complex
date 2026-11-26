@@ -1,6 +1,6 @@
-// The ax.* ops of CONTRACT §7.4 that read other windows with UI Automation: ax.dialog_buttons, ax.overlays,
-// ax.hit_chain, ax.window_text and ax.window_tree; and browser.front_tab of §7.3. Every UIA call runs on uia.cpp's
-// thread; none reads the value of a password control. Coordinates are physical pixels of the virtual screen (§2.8).
+// The ax.* ops that read other windows with UI Automation: ax.dialog_buttons, ax.overlays,
+// ax.hit_chain, ax.window_text and ax.window_tree; and browser.front_tab. Every UIA call runs on uia.cpp's
+// thread; none reads the value of a password control. Coordinates are physical pixels of the virtual screen.
 #include "uia.h"
 
 #include <algorithm>
@@ -39,7 +39,7 @@ RECT rect_param(const json::Value& r) {
 
 // ---- ax.dialog_buttons, ax.overlays
 
-// CONTRACT §7.4: the default (AutomationId 1) and cancel (2) buttons of the app's front window when it is modal or a
+// The default (AutomationId 1) and cancel (2) buttons of the app's front window when it is modal or a
 // Win32 dialog, else of a modal window inside it.
 Outcome dialog_read(IUIAutomation* automation, DWORD pid) {
     Reads reads;
@@ -77,7 +77,7 @@ Outcome dialog_read(IUIAutomation* automation, DWORD pid) {
 }
 
 // Banners: the shell experience host's core windows on screen, where toasts show (what else it shows there opens at
-// the user's click). IME: CONTRACT §7.4's candidate and prediction windows among the top-level elements and inside
+// the user's click). IME: the candidate and prediction windows among the top-level elements and inside
 // the text input host's windows.
 Outcome overlays_read(IUIAutomation* automation) {
     Reads reads;
@@ -160,7 +160,7 @@ ComPtr<IUIAutomationElement> descend(IUIAutomation* automation, HWND hwnd, POINT
     return element;
 }
 
-// CONTRACT §7.4: the element at p and up to 3 ancestors, asked of the app whose window is under p.
+// The element at p and up to 3 ancestors, asked of the app whose window is under p.
 Outcome hit_read(IUIAutomation* automation, HWND hwnd, DWORD pid, POINT p) {
     Reads reads;
     reads.pid = pid;
@@ -482,7 +482,7 @@ Outcome text_answer(std::string snapshot, bool matched, std::string text, json::
     return success(std::move(result));
 }
 
-// CONTRACT §7.4: a bounded projection of one window, page by page; the text is not redacted (the main process does).
+// A bounded projection of one window, page by page; the text is not redacted (the main process does).
 Outcome text_read(IUIAutomation* automation, const TextParams& p) {
     Reads reads;
     reads.pid = p.pid;
@@ -1007,7 +1007,7 @@ struct TreeParams {
     size_t max_lines = kTreeLines, max_scalars = kTreeScalars;
 };
 
-// CONTRACT §7.4: one window's controls as text lines, read with one subtree cache request (and one more for the text
+// One window's controls as text lines, read with one subtree cache request (and one more for the text
 // controls' values); the text is not redacted (the main process does).
 Outcome tree_read(IUIAutomation* automation, const TreeParams& p) {
     ULONGLONG started = GetTickCount64();
@@ -1231,7 +1231,7 @@ Outcome ax_window_tree(const json::Value& params) {
     return uia::on_uia(uia::kTreeMs, p.pid, [p](IUIAutomation* automation) { return tree_read(automation, p); });
 }
 
-// CONTRACT §7.3 for Windows: Chrome and Edge through UI Automation, which needs no permission; what cannot be read in
+// Chrome and Edge through UI Automation, which needs no permission; what cannot be read in
 // time is null.
 Outcome browser_front_tab(const json::Value& params) {
     const std::string& app = params.get("app_id")->s;

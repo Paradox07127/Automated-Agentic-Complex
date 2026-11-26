@@ -1,5 +1,5 @@
 // The attention heartbeat's pure rules (src/common/attention.ts): one test per rule, on fixed `attention.sample`
-// replies written after CONTRACT §7.3's field table. Nothing here reads the system.
+// replies. Nothing here reads the system.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
@@ -65,7 +65,7 @@ test('composeSample: without focused_window_title (Windows) the front title is t
   assert.equal(sample(textEdit()).front?.title, 'notes.txt');
 });
 
-/** TextEdit in front with the AX title of its focused window (CONTRACT §7.3 `front.focused_window_title`). */
+/** TextEdit in front with the AX title of its focused window (`front.focused_window_title`). */
 const withAxTitle = (axTitle: string | null, windowTitle = 'notes.txt', id = 'com.apple.TextEdit') => textEdit({
   front: { ...(textEdit().front as Record<string, unknown>), app_id: id, focused_window_title: axTitle,
     window: { window_id: 640, pid: 702, bounds: { x: 200, y: 120, width: 900, height: 600 }, title: windowTitle } },
@@ -277,7 +277,7 @@ test('payload: a browser of unknown incognito state sends only app and bundle_id
   assert.deepEqual(payload(s).front, { app: 'Safari', bundle_id: 'com.apple.Safari' });
 });
 
-test('Windows: a browser by its executable name is a browser of unknown incognito state, so it sends no title (C12 §2.9 app_id)', () => {
+test('Windows: a browser by its executable name is a browser of unknown incognito state, so it sends no title', () => {
   for (const id of ['chrome.exe', 'msedge.exe', 'brave.exe', 'firefox.exe', 'arc.exe']) {
     assert.equal(isBrowser(id), true, id);
     assert.equal(browserAsks(id), id === 'chrome.exe' || id === 'msedge.exe', id);
@@ -535,7 +535,7 @@ test('InputActivity: a front app change is a switch; no front app in between is 
 
 // ---- Presence edges, sleep, beats
 
-test('helperEdge: lock and unlock pass; sleep, wake and the display edges go through the sleep state (CONTRACT §7.3)', () => {
+test('helperEdge: lock and unlock pass; sleep, wake and the display edges go through the sleep state', () => {
   assert.deepEqual(helperEdge('lock'), { lock: true });
   assert.deepEqual(helperEdge('unlock'), { lock: false });
   assert.deepEqual(helperEdge('sleep'), { system: true });

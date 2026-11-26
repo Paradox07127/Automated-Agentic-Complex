@@ -41,7 +41,7 @@ uv pip install --python .local/venvs/pipeline/bin/python3 \
   --title '导入走路' --output .local/cache/my-motion-generation --export
 ```
 
-The flags are defined in the [external motion import contract](../../protocol/character-library/MOTION-IMPORT.md). `--output` must be a new directory and may not be inside the input library.
+`--output` must be a new directory and may not be inside the input library.
 
 Output:
 
@@ -134,6 +134,6 @@ The character package installer refuses to replace an existing package with the 
 - Lights and PMX models are not imported, and there is no full MMD physics.
 - Portrait framing keeps the character's original composition; large sideways moves or stretches can leave the frame.
 
-## Relation to the contract
+## Structures and validation
 
-The import request flags, the import result `endfield-motion-import/v1`, the in-package report, the library index and the warning/failure codes are defined in the [external motion import contract](../../protocol/character-library/MOTION-IMPORT.md); structures and validation are in `motion_import/take.py`. This page covers only how to use the offline commands; where the two disagree, the contract wins.
+The import result `endfield-motion-import/v1` and its validation live in `motion_import/take.py`.

@@ -35,7 +35,7 @@ export function splitMotion(items: DropItem[]): DropSplit {
   };
 }
 
-/** C3 rule 38's items, as `dropProblem` let them through. */
+/** Items validated by `dropProblem`. */
 export function dropEventItems(items: Record<string, string>[]): DropItem[] {
   return items.map((i): DropItem => (i.kind === 'file' ? { kind: 'file', path: i.path! }
     : i.kind === 'url' ? { kind: 'url', url: i.url! } : { kind: 'text', text: i.text! }));

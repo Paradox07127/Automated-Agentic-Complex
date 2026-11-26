@@ -1,4 +1,4 @@
-// control.observe, control.act and control.read of CONTRACT §7.8: observe, act on and read back one window of another
+// control.observe, control.act and control.read: observe, act on and read back one window of another
 // app through UI Automation, as the Mac helper's Control.swift does, without the grants, the blacklist and the
 // redaction, which the main process does. Snapshots live in this process only. Every UIA call runs on uia.cpp's
 // thread; no password control is listed, read or written, and no input is synthesized: click and scroll answer
@@ -109,7 +109,7 @@ struct Snapshot {
 };
 
 // The observations act and read name: each lives 15 s, at most 16 are kept, and any action ends all of them. Ids carry
-// a prefix drawn per process, so an id of an earlier helper is stale here (CONTRACT §6.5).
+// a prefix drawn per process, so an id of an earlier helper is stale here.
 class Snapshots {
 public:
     Snapshots() {
@@ -169,7 +169,7 @@ int64_t steady_now() {
         .count();
 }
 
-// An action goes out: every snapshot ends (CONTRACT §7.8) and the next action waits kActionGap.
+// An action goes out: every snapshot ends and the next action waits kActionGap.
 void action_out() {
     snapshots().invalidate();
     g_last_action = steady_now();
@@ -221,9 +221,9 @@ struct Observed {
     bool truncated = false, clipped = false;
 };
 
-// CONTRACT §7.8: breadth first through the control view from the window's element, at most max_elements, skipping
+// Breadth first through the control view from the window's element, at most max_elements, skipping
 // hidden (IsOffscreen), off-window and password controls and what is under them. A Text control's name is its value,
-// as AXStaticText's text is (§7.4).
+// as AXStaticText's text is.
 Outcome walk(IUIAutomation* automation, const Target& target, bool text, size_t max_elements, size_t max_scalars,
              Observed& out) {
     Reads reads;
@@ -408,7 +408,7 @@ Outcome act_on(IUIAutomation* automation, const Snapshot& snapshot, const std::s
     return effect(same ? "confirmed" : "unverifiable");
 }
 
-// CONTRACT §7.8: the element's current value and title, compared by the main process (desktop_verify).
+// The element's current value and title, compared by the main process (desktop_verify).
 Outcome read_on(IUIAutomation* automation, const Snapshot& snapshot, const std::string& id) {
     Reads reads;
     reads.pid = snapshot.target.pid;
@@ -475,7 +475,7 @@ Outcome control_observe(const json::Value& params) {
     return success(std::move(result));
 }
 
-// CONTRACT §7.8 for Windows: click and scroll would need synthetic input, which this helper never makes; they answer
+// Click and scroll would need synthetic input, which this helper never makes; they answer
 // unsupported_action before any other check and are no action.
 Outcome control_act(const json::Value& params) {
     const std::string& action = params.get("action")->s;

@@ -102,7 +102,7 @@ def text_fixture(root, cid="aide"):
 
 
 def check_progress(test, lines, order=None):
-    """A tool's progress lines (MOTION-IMPORT §9): fractions from 0 to 1, never decreasing; stages in order when order is given."""
+    """A tool's progress lines: fractions from 0 to 1, never decreasing; stages in order when order is given."""
     test.assertTrue(lines and all(line["event"] == "progress" for line in lines), lines)
     fractions = [line["fraction"] for line in lines]
     test.assertEqual((fractions[0], fractions[-1]), (0, 1)); test.assertEqual(fractions, sorted(fractions))

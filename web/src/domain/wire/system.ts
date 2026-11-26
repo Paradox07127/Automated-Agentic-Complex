@@ -214,7 +214,7 @@ export interface WireVoice {
   retry_after_s: number | null;
 }
 
-/** POST /voice/test (C6 CONTRACT): times from the POST to the first audio and to complete; reason null on success. */
+/** POST /voice/test: times from the POST to the first audio and to complete; reason null on success. */
 export interface WireVoiceTest {
   ok: boolean;
   first_audio_ms: number | null;

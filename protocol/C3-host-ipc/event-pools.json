@@ -1,6 +1,6 @@
 {
   "schema": "agentic-complex-event-pools/v1",
-  "about": "C3 rule 51 (a): the event pool keys agentd draws from, also when the character pack has no member for one.",
+  "about": "The event pool keys agentd draws from, also when the character pack has no member for one.",
   "keys": [
     "character.enter",
     "click.cheek",

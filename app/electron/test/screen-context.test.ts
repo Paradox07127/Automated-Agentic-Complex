@@ -1,4 +1,4 @@
-// The screen context rules (src/common/screen-context.ts, capture-rules.ts), one test per rule. Helper answers follow CONTRACT §7.12's field tables.
+// The screen context rules (src/common/screen-context.ts, capture-rules.ts), one test per rule.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { type AttentionSample, type AttentionWindow, parseBlacklist } from '../src/common/attention.ts';
@@ -212,7 +212,7 @@ test('FeedRequest: a request event with every field', () => {
 
 // ---- Observations
 
-/** CONTRACT §7.4 `ax.window_text` with §7.12 `ax_node`s and `coverage`. */
+/** `ax.window_text` with `ax_node`s and `coverage`. */
 const windowText = {
   snapshot_id: 'snap-1', matched: true, text: '标签: Mail\n可见文字: write to a@b.com',
   nodes: [

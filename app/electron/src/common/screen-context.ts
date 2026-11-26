@@ -1,4 +1,4 @@
-// The screen context capture's rules over the platform helper's answers (CONTRACT §7.2, §7.4–7.6, §7.10), and the bodies of agentd's `/context/text`, `/context/image` and `/look`.
+// The screen context capture's rules over the platform helper's answers, and the bodies of agentd's `/context/text`, `/context/image` and `/look`.
 // The privacy rules are attention.ts's and capture-rules.ts's; this file only applies them.
 import { type AttentionSample, type BlacklistRules, decodeRect, mayBePrivate, type RawWindow, type Rect, redactText } from './attention.ts';
 import { type CaptureWindow, captureBlockReason, isSecureNode } from './capture-rules.ts';
@@ -150,7 +150,7 @@ export class CaptureTriggers {
 
 // ---- The window a request names
 
-/** `windows.list`'s windows (CONTRACT §7.12 `window`), front to back; malformed entries are skipped. */
+/** `windows.list`'s windows, front to back; malformed entries are skipped. */
 export function decodeWindows(result: Obj): RawWindow[] {
   const list = Array.isArray(result.windows) ? result.windows : [];
   const out: RawWindow[] = [];
@@ -293,7 +293,7 @@ export function axObservation(result: Obj, redact: boolean): { matched: boolean;
 }
 
 /** An `ocr.recognize` answer: the text and each line redacted when `redact`, the counts taken after. The helper's line
- *  boxes are normalized with the origin at the top left; agentd reads them with the origin at the bottom left (CONTRACT §7.6). */
+ *  boxes are normalized with the origin at the top left; agentd reads them with the origin at the bottom left. */
 export function ocrObservation(result: Obj, snapshotId: string, redact: boolean): Observation {
   const safe = (v: string) => (redact ? redactText(v) : v);
   const nodes: ObservationNode[] = [];
@@ -447,7 +447,7 @@ export interface SelectionRead { source: 'selection' | 'clipboard'; text: string
 /** `refused` says why nothing was read; `empty`: no selected text and no usable clipboard text. */
 export type SelectionDecision = { kind: 'read'; read: SelectionRead } | { kind: 'refused'; message: string } | { kind: 'empty' };
 
-/** The clipboard's first item (CONTRACT §7.12 `clip_item`). */
+/** The clipboard's first item. */
 export interface ClipItem { types: string[]; text: string | null }
 
 /** `clipboard.read`'s first item; null when there is none (a concealed clipboard has none). */

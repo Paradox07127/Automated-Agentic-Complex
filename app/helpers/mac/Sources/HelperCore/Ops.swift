@@ -1,6 +1,6 @@
 import Foundation
 
-/// What a running handler asks its session about its request (CONTRACT §5).
+/// What a running handler asks its session about its request.
 struct Request {
     /// The request was cancelled meanwhile; its answer is dropped then.
     let cancelled: () -> Bool
@@ -102,7 +102,6 @@ enum Ops {
     static func handler(_ name: String) -> Handler? { handlers[name] }
 }
 
-/// A `rect` of CONTRACT §2.8.
 func rectJSON(_ r: CGRect) -> [String: Any] {
     ["x": Double(r.origin.x), "y": Double(r.origin.y), "width": Double(r.size.width), "height": Double(r.size.height)]
 }

@@ -80,7 +80,7 @@ test('touch settings: a missing key keeps its default, pinch off and the rest on
     { regions: false, pat: false, pinch: false, greet: false });
 });
 
-test("an error-free list's behavior_capabilities, against the contract's examples", () => {
+test("an error-free list's behavior_capabilities, from the renderer fixtures", () => {
   const lines = (file: string) => readFileSync(join(EXAMPLES, file), 'utf8').split('\n').filter((l) => l.trim() !== '').map((l) => decodeLine(l)!);
   const list = lines('avatar-to-companion-behavior-capabilities.ndjson').find((m) => m.type === 'actions')!;
   assert.deepEqual(behaviorCapabilities(list), { short_walk: null, 'sit@window': '当前角色未配置 window_top 坐姿与接触点' });
@@ -101,7 +101,7 @@ test("an error-free list's behavior_capabilities, against the contract's example
 
 const beat = (clickThrough: boolean, extra: Partial<Heartbeat> = {}): Heartbeat => ({ v: 1, type: 'heartbeat', seq: 0, click_through: clickThrough, ...extra });
 
-test('rule 17: no first heartbeat for 10 s, 0.8 s silent while taking the mouse, 10 s while clicked through', () => {
+test('No first heartbeat for 10 s, 0.8 s silent while taking the mouse, 10 s while clicked through', () => {
   const first = new Watchdog(0);
   assert.equal(first.check(9.9, false), null);
   assert.deepEqual(first.check(10.1, false), { kill: 'first_heartbeat_timeout' });
@@ -126,7 +126,7 @@ test('rule 17: no first heartbeat for 10 s, 0.8 s silent while taking the mouse,
   assert.equal(hidden.check(5, true), null, 'hidden counts as clicked through');
 });
 
-test('rule 17 (v20): frames that stop growing while active for 4 s kill; idle does not', () => {
+test('Frames that stop growing while active for 4 s kill; idle does not', () => {
   const w = new Watchdog(0);
   let killedAt: number | null = null;
   for (let t = 0.1; t < 6 && killedAt === null; t += 0.1) {
@@ -145,7 +145,7 @@ test('rule 17 (v20): frames that stop growing while active for 4 s kill; idle do
   }
 });
 
-test('rule 38: a drop path is POSIX absolute or Win32 absolute (a drive, UNC or \\\\?\\), nothing else', () => {
+test('A drop path is POSIX absolute or Win32 absolute (a drive, UNC or \\\\?\\), nothing else', () => {
   const drop = (path: string) => dropProblem({ v: 1, type: 'drop', x: 300, y: 350, items: [{ kind: 'file', path }] });
   for (const path of ['/Users/someone/note.txt', 'C:\\Users\\someone\\note.txt', 'd:\\a b\\猫.txt', '\\\\server\\share\\note.txt',
     '\\\\?\\C:\\very\\long\\path.txt']) assert.equal(drop(path), null, path);

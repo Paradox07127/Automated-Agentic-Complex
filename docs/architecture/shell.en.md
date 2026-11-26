@@ -85,7 +85,7 @@ The main process imports each frame's IOSurface with `sharedTexture.importShared
 
 ## Platform helper
 
-`ac-helper` is the layer between the shell and the system: the macOS one is `app/helpers/mac` in Swift, the Windows one is `app/helpers/windows` (`ac-helper.exe`) in C++. The main process starts it and talks to it over stdin and stdout with the NDJSON protocol of [C12](../../protocol/C12-platform-helper/CONTRACT.md); stderr is its log. The helper only calls system APIs and returns raw readings; policy stays in the main process.
+`ac-helper` is the layer between the shell and the system: the macOS one is `app/helpers/mac` in Swift, the Windows one is `app/helpers/windows` (`ac-helper.exe`) in C++. The main process starts it and talks to it over stdin and stdout with the NDJSON protocol of C12; stderr is its log. The helper only calls system APIs and returns raw readings; policy stays in the main process.
 
 - macOS: AppKit's ops and the watches run on the main thread, whose run loop the helper keeps running; the other ops run on a concurrent queue.
 - Windows: each request other than `hello`, `cancel` and `shutdown` runs on its own thread. One lock guards stdout and the set of requests in flight, so every request gets exactly one answer: from its handler, from `cancel` (`cancelled`), or from `shutdown` (which answers every request in flight with `cancelled` before its own answer).
@@ -223,4 +223,4 @@ Windows (`app/helpers/windows`):
 2. Add it to the table in `find_handler`. From then on `hello` lists it; before that it answers `unsupported`.
 3. Add it to `IMPLEMENTED` in `tests/replay.py`, with a check of its result in `check_answer` when the fixtures allow one.
 4. When `ops.json` changes, copy the change into `op_specs()` in `src/ops.cpp`; the replay fails when the two disagree about required params.
-5. Ops that touch UI Automation run on one MTA thread and set their own timeouts (C12 §5.3); ops that open listeners or devices stop before the `shutdown` answer (C12 §6.1).
+5. Ops that touch UI Automation run on one MTA thread and set their own timeouts; ops that open listeners or devices stop before the `shutdown` answer.

@@ -203,7 +203,7 @@ test('each attention sample may hide her for fullscreen; the front fullscreen is
   w.userSetHidden();
   assert.equal(w.fullscreenHidden, false);
   assert.equal(setup().watchers!.frontFullscreen, false);
-  // Windows: efw keeps her out of captures itself (C3 Windows appendix), so a capture hides nothing here.
+  // Windows: efw keeps her out of captures itself, so a capture hides nothing here.
   const win = setup({ platform: 'windows', saved: { hide_on_screen_capture: true } });
   win.watchers!.sampled(sample({ screenCaptured: true }));
   assert.deepEqual(win.hides, []);
@@ -224,7 +224,7 @@ test('the helper\'s coordinates: macOS flips into AppKit points; Windows keeps i
   t.watchers!.stop();
 });
 
-// ---- C3 rule 39 `attention_side` with source focus
+// ---- `attention_side` with source focus
 
 /** Her body's capsule in global points: the bounds (620, 120, 160, 360), centre (700, 300). */
 const BODY = { type: 'hit_capsules', space: 'global', capsules: [{ a: [700, 200], b: [700, 400], r: 80 }] };

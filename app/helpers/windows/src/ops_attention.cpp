@@ -1,5 +1,5 @@
-// The attention ops of CONTRACT §7.3 (attention.sample, presence.watch, input.modifiers, input.watch) and
-// workspace.watch of §7.2, with their events (§8). One hidden window on its own thread receives the session, power,
+// The attention ops (attention.sample, presence.watch, input.modifiers, input.watch) and
+// workspace.watch, with their events. One hidden window on its own thread receives the session, power,
 // display, foreground and Raw Input notifications of all three watches, and the actions of input.actions (uia.cpp).
 #define NOMINMAX
 #include <windows.h>
@@ -36,7 +36,7 @@ using namespace win32;
 
 // GUID_CONSOLE_DISPLAY_STATE, spelled out so that no library has to define it.
 constexpr GUID kConsoleDisplayState = {0x6fe69556, 0x704a, 0x47a0, {0x8f, 0x24, 0xc2, 0x8d, 0x93, 0x6f, 0xda, 0x47}};
-constexpr uint64_t kActivityMs = 100;  // CONTRACT §7.3: one key or scroll input.activity per 100 ms
+constexpr uint64_t kActivityMs = 100;  // one key or scroll input.activity per 100 ms
 
 std::atomic<bool> g_workspace{false}, g_presence{false}, g_input{false};  // each watch is on
 std::atomic<bool> g_started{false};   // the watch window exists
@@ -90,7 +90,7 @@ enum : unsigned { kLeftCtrl = 1, kRightCtrl = 2, kLeftAlt = 4, kRightAlt = 8, kL
                   kWin = 64 };
 unsigned g_modifiers = 0;
 
-// CONTRACT §7.3's name of a shortcut's main key: the unmodified character on the foreground window's layout, else
+// The name of a shortcut's main key: the unmodified character on the foreground window's layout, else
 // key<virtual key code>.
 std::string key_name(unsigned vkey) {
     switch (vkey) {
@@ -155,7 +155,7 @@ void key_action(const RAWKEYBOARD& key, bool synthetic) {
 }
 
 // Counts only whether a key went down, never which one; the push-to-talk key is ops_voice.cpp's and the actions are
-// key_action's. Windows sends no mouse_up (CONTRACT §7.3).
+// key_action's. Windows sends no mouse_up.
 void raw_input(HRAWINPUT handle) {
     RAWINPUT raw{};
     UINT size = sizeof raw;
@@ -211,7 +211,7 @@ void display_state(const POWERBROADCAST_SETTING& setting) {
     g_display_off = off;
 }
 
-// CONTRACT §7.2: EVENT_SYSTEM_FOREGROUND also reports windows that did not get the foreground, so GetForegroundWindow
+// EVENT_SYSTEM_FOREGROUND also reports windows that did not get the foreground, so GetForegroundWindow
 // must agree. A new virtual desktop shows as the front window's desktop changing.
 void CALLBACK foreground(HWINEVENTHOOK, DWORD, HWND hwnd, LONG, LONG, DWORD, DWORD) {
     HWND front = GetForegroundWindow();
@@ -322,7 +322,7 @@ bool add_sessions(IMMDevice* device, bool input, std::map<DWORD, Audio>& into) {
     return ok;
 }
 
-// CONTRACT §7.3: an active session on the default capture endpoint; null while the helper itself records.
+// An active session on the default capture endpoint; null while the helper itself records.
 json::Value mic_active(IMMDeviceEnumerator* devices) {
     IMMDevice* device = nullptr;
     std::map<DWORD, Audio> sessions;
@@ -475,7 +475,7 @@ bool consent_in_use(HKEY key) {
     }
 }
 
-// CONTRACT §7.3: an app uses the camera now when its entry in the camera's consent store has started and not stopped;
+// An app uses the camera now when its entry in the camera's consent store has started and not stopped;
 // packaged apps are the store's subkeys, desktop apps those of its NonPackaged. Null when the store cannot be read.
 json::Value camera_active() {
     const wchar_t* webcam =
@@ -589,7 +589,7 @@ Outcome input_watch(const json::Value& params) {
     return watch(params, g_input, [] { g_input = true; });
 }
 
-// workspace.watch's answer has no front_pid on Windows (CONTRACT §7.2).
+// workspace.watch's answer has no front_pid on Windows.
 Outcome workspace_watch(const json::Value& params) {
     if (flag(params, "enabled")) g_front_pid = front_pid();
     return watch(params, g_workspace, [] { g_workspace = true; });

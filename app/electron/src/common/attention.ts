@@ -1,4 +1,4 @@
-// The attention heartbeat's rules: the platform helper's `attention.sample` reading (CONTRACT §7.3) in, the bodies of agentd's `POST /context/attention` and `POST /user/coarse` and the derived scene state out.
+// The attention heartbeat's rules: the platform helper's `attention.sample` reading in, the bodies of agentd's `POST /context/attention` and `POST /user/coarse` and the derived scene state out.
 import type { HelperAnswer } from './push-to-talk.ts';
 
 export interface Rect { x: number; y: number; width: number; height: number }
@@ -63,7 +63,7 @@ export interface AttentionSample {
 }
 
 // The Chromium, Firefox and WebKit browsers in common use, with their beta and developer channels: a browser missing here
-// counts as an app whose windows are known not private. The Windows ids are C12 §2.9's lower-case executable names; a
+// counts as an app whose windows are known not private. The Windows ids are lower-case executable names; a
 // Store-packaged browser has an AUMID instead, which mayBePrivate already covers.
 const BROWSERS = new Set([
   'com.apple.Safari', 'com.apple.SafariTechnologyPreview', 'com.kagi.kagimacOS',
@@ -238,7 +238,7 @@ function anyActive(states: readonly (boolean | null)[]): boolean | null {
   return states.includes(null) ? null : false;
 }
 
-/** CONTRACT §7.12 `audio_client`; `app` is its app name, for the blacklist. */
+/** The helper's `audio_client`; `app` is its app name, for the blacklist. */
 export interface AudioClient { pid: number; bundleId: string | null; app: string | null; runningInput: boolean; runningOutput: boolean | null }
 
 /** Whether the front process plays audio, null when unknown. */
@@ -306,7 +306,7 @@ export class InputActivity {
 
 // ---- Presence
 
-/** A `presence.edge` event (CONTRACT §8): lock and unlock as they are; the system and display ones go to the sleep state. */
+/** A `presence.edge` event: lock and unlock as they are; the system and display ones go to the sleep state. */
 export function helperEdge(edge: unknown): { lock: boolean } | { system: boolean } | { display: boolean } | null {
   switch (edge) {
     case 'lock': return { lock: true };
@@ -396,7 +396,7 @@ export class AttentionBeats {
   }
 }
 
-// ---- The helper's reading (CONTRACT §7.3, §7.12)
+// ---- The helper's reading
 
 export interface RawWindow { windowId: number; pid: number; bounds: Rect; title: string | null; appName: string | null; appId: string | null }
 

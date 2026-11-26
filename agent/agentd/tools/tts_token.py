@@ -1,4 +1,4 @@
-"""TTS bearer token (C2 v2 §4):made on the Mac, copied to the TTS host over ssh, rotated on both sides.
+"""TTS bearer token: made on the Mac, copied to the TTS host over ssh, rotated on both sides.
 
 usage: tts_token.py ensure | push | rotate [--file F] [--ssh HOST] [--remote PATH]
 push and rotate need --ssh (or $AAC_TTS_SSH_HOST) and --remote (or $AAC_TTS_TOKEN_REMOTE).

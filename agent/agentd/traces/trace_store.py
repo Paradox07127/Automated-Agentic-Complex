@@ -1,4 +1,4 @@
-"""T1 trace events (`protocol/C6-agentd-api/T1-TRACE.md`) in the shared store: agentd's own, those posted by Companion and Avatar."""
+"""T1 trace events in the shared store: agentd's own, those posted by Companion and Avatar."""
 import contextvars
 from datetime import datetime, timedelta, timezone
 import json
@@ -21,7 +21,7 @@ REPLAY_INPUTS = frozenset({"spatial.began", "situation.observed", "motion.choose
 DAEMON_EVENTS = frozenset({"tool.started", "tool.settled", "turn.settled", "behavior.dispatched", "behavior.receipt",
                            "behavior.refused", "signal.changed", "stage.changed", "motion.chosen", "motion.state",
                            "steer.settled", *REPLAY_INPUTS})
-LOCAL_PRODUCERS = ("agentd", "tts")  # tts: the speech relay's lines, written by agentd (§4.1)
+LOCAL_PRODUCERS = ("agentd", "tts")  # tts: the speech relay's lines, written by agentd
 PURGE_EVERY = 3600
 FORGET_CHUNK = 500  # turn_ids per query, under SQLite's bound-parameter limit
 # Stored even past the daily cap, besides ENDS and any status other than ok.
