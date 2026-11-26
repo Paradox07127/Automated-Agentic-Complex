@@ -1293,7 +1293,7 @@ class KernelLines:
 
     def public(self, discover=False, *, wait=True):
         ready = {"ready": True, "error": None, "backend": "pi"}
-        return {**ready, "routes": {"chat": ready, "quick": ready, "background": ready}}
+        return {**ready, "routes": {"chat": ready, "background": ready}}
 
     def busy(self):
         return False

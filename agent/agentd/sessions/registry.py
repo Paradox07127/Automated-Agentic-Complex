@@ -136,6 +136,7 @@ class Registry:
         self.quiet = False
         self.consumed = None  # Spatial's Consumed; None consumes nothing
         self.on_intent = None  # callable(intent, withheld) under cv after each intent; None calls nothing
+        self.on_session = None  # callable({session_id, kind: 'state', state}) under cv when a hook session's state changes
         self.turn_generation = 0
         self._focus_key = None
         self._signature = None
@@ -407,8 +408,11 @@ class Registry:
             session.failed_at = now
         elif state != 'idle' or session.state != 'error':
             session.failed_at = None
+        changed = session.state != state
         session.state = state
         session.since = now
+        if changed and self.on_session is not None:
+            self.on_session({"session_id": session.session_id, "kind": "state", "state": state})
         ttl = self.ttl[state]
         session.expires_at = None if ttl is None else now + ttl
         session.tool_name = tool_name

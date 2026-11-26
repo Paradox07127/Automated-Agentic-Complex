@@ -470,6 +470,7 @@ def main(secret_store=None):
             args.hook_timeout, store=store_db, computer_control=server.computer_control,
             reply_language=server.reply_language_code)
         server.sessions.on_change = lambda ev: server.feed.publish("session", ev)
+        server.registry.on_session = server.sessions.on_change
         server.sessions.tasks = server.dispatcher.tasks = server.tasks
     if light and args.tts_url:
         server.startup_stage = "speech"

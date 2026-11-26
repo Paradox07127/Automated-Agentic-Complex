@@ -20,6 +20,19 @@ def codex(name, ts, session="B", **extra):
     return normalize_codex({"hook_event_name": name, "session_id": session, "cwd": "/b", **extra}, now=ts)
 
 
+class SessionNoticeTest(unittest.TestCase):
+    def test_a_hook_session_reports_each_state_change_once(self):
+        reg, seen = Registry(epoch=1), []
+        reg.on_session = seen.append
+        reg.ingest(claude("SessionStart", 0.0))
+        reg.ingest(claude("UserPromptSubmit", 0.1))
+        reg.ingest(claude("PreToolUse", 0.2, tool_name="Bash"))
+        reg.ingest(claude("PreToolUse", 0.3, tool_name="Bash"))
+        self.assertIn("thinking", [e["state"] for e in seen])
+        self.assertEqual(len([e for e in seen if e["state"] == "running_tool"]), 1)
+        self.assertTrue(all(e == {"session_id": reg.sessions[A].session_id, "kind": "state", "state": e["state"]} for e in seen))
+
+
 class MultiSessionTest(unittest.TestCase):
     def test_interleaved_sessions_keep_separate_identity(self):
         reg = Registry(epoch=1)

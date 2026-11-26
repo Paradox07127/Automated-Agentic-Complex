@@ -12,6 +12,7 @@ TYPES = {
     "str": lambda v: isinstance(v, str),
     "nonempty_str": lambda v: isinstance(v, str) and bool(v),
     "bool": lambda v: isinstance(v, bool),
+    "positive_int": lambda v: isinstance(v, int) and not isinstance(v, bool) and v > 0,
     "object": lambda v: isinstance(v, dict),
     "array": lambda v: isinstance(v, list),
     "str_or_null": lambda v: v is None or isinstance(v, str),
@@ -53,10 +54,10 @@ FROM_RUNNER = {
 }
 OPTIONAL = {
     "query": {"ask_user_result": "object"},
-    "ready": {"session_id": "str_or_null", "run_id": "str"},
+    "ready": {"session_id": "str_or_null", "run_id": "str", "context_window": "positive_int"},
     "tool_request": {"item_id": "str", "kind": "str", "status": "str"},
     "text_delta": {"item_id": "str", "kind": "str", "status": "item_status"},
-    "result": {"session_id": "str"},
+    "result": {"session_id": "str", "steers_dropped": "str_array"},
     "error": {"run_id": "str", "message": "str", "failure": "object"},
 }
 # Equals CAPABILITIES in agent/agentd/character_agent/harness/transport.py.

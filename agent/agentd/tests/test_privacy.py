@@ -218,6 +218,19 @@ class PrivacyRevocationTest(unittest.TestCase):
             self.assertEqual(self.attention.db.execute('SELECT COUNT(*) FROM context').fetchone()[0],0)
         finally:self.server.shutdown();thread.join(2)
 
+    def test_an_unrelated_change_during_cleanup_still_settles_the_revocation(self):
+        consent=self.server.consent
+        self.save(share_page_text=False);consent.snapshot()
+        kinds,read=consent.pending()
+        self.assertIn('page_text',kinds)
+        self.save(share_page_text=False,share_window_text=False);consent.snapshot()
+        consent.applied({'page_text'},read)
+        self.assertNotIn('page_text',consent.pending()[0])
+        self.assertIn('window_text',consent.pending()[0])
+        self.save(share_page_text=True);consent.snapshot();self.save(share_page_text=False);consent.snapshot()
+        consent.applied({'page_text'},read)
+        self.assertIn('page_text',consent.pending()[0])  # revoked again after the read: it applies again
+
     def test_native_revocation_tombstone_survives_a_quick_off_on(self):
         self.assertIn('SYNTHETIC_WINDOW_SECRET',self.server.context('hello'))
         self.save(share_window_text=False)

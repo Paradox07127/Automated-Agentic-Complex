@@ -50,6 +50,16 @@ class ExamplesTest(unittest.TestCase):
                          "line 1: steer_result.accepted missing or not bool")
         self.assertTrue(check([ready % "sometimes"]).startswith("line 0: capabilities.steer must be one of"))
 
+    def test_ready_context_window_and_result_steers_dropped(self):
+        ready = ('{"v": 1, "seq": 1, "type": "ready", "tool_names": [], "tool_inventory_verified": true, "model": "m", '
+                 '"capabilities": {"cancel": "native", "tool_injection": "in_process", "builtin_tools": "unverified", '
+                 '"system_prompt": "native", "usage": "none", "event_scope": "session", "native_questions": false}%s}\n')
+        result = '{"v": 1, "seq": 2, "type": "result", "run_id": "r", "success": true, "subtype": "success"%s}\n'
+        self.assertIsNone(check([ready % ', "context_window": 128000', result % ', "steers_dropped": ["later"]']))
+        self.assertEqual(check([ready % ', "context_window": 0']), "line 0: ready.context_window not positive_int")
+        self.assertEqual(check([ready % ', "context_window": true']), "line 0: ready.context_window not positive_int")
+        self.assertEqual(check([ready % '', result % ', "steers_dropped": [1]']), "line 1: result.steers_dropped not str_array")
+
     def test_frame_size_counts_the_newline(self):
         frame = '{"v": 1, "seq": 1, "type": "error", "code": "x", "message": "%s"}'
         pad = 40 * 1024 * 1024 - len(frame % "") - 1

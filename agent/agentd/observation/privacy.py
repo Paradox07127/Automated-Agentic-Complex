@@ -61,6 +61,7 @@ class ConsentPolicy:
         self.level = None
         self.epoch = 0
         self.revoked = set()
+        self.revoked_at = {}  # kind -> how many times it has been revoked; applied() settles only the revocations pending() read
 
     def snapshot(self):
         # Read under the lock: a slower old read cannot overwrite a newer revocation.
@@ -70,28 +71,31 @@ class ConsentPolicy:
             before = capabilities if self.permissions is None else self.permissions
             if permissions != self.permissions or level != self.level:
                 self.epoch += 1
-                self.revoked.update(k for k in before if before[k] and not permissions[k])
-                if self.level == "window" and level != "window":
-                    self.revoked.add("window_text")
+                self._revoke({k for k in before if before[k] and not permissions[k]}
+                             | ({"window_text"} if self.level == "window" and level != "window" else set()))
                 self.permissions = permissions
                 self.level = level
             return dict(permissions), self.epoch
 
-    def pending(self):
-        """The queued revocations and the epoch they were read at; they stay queued until applied, so a sync_privacy
-        that waited on applying while another applied them sees what is still queued."""
-        with self.lock:
-            return set(self.revoked), self.epoch
+    def _revoke(self, kinds):
+        for kind in kinds:
+            self.revoked.add(kind)
+            self.revoked_at[kind] = self.revoked_at.get(kind, 0) + 1
 
-    def applied(self, kinds, epoch):
-        """kinds leave the queue unless consent changed since pending read them: a kind revoked again applies again."""
+    def pending(self):
+        """The queued revocations and the revocation count of each when read; they stay queued until applied, so a
+        sync_privacy that waited on applying while another applied them sees what is still queued."""
         with self.lock:
-            if self.epoch == epoch:
-                self.revoked -= kinds
+            return set(self.revoked), {kind: self.revoked_at[kind] for kind in self.revoked}
+
+    def applied(self, kinds, read):
+        """Each of kinds leaves the queue unless it was revoked again since pending read it: then it applies again."""
+        with self.lock:
+            self.revoked -= {kind for kind in kinds if self.revoked_at.get(kind) == read.get(kind)}
 
     def revoke(self, kinds):
         """A native save tombstone survives a quick off/on that a file poll could otherwise miss."""
         with self.lock:
             if kinds:
                 self.epoch += 1
-                self.revoked.update(kinds)
+                self._revoke(kinds)

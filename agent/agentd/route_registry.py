@@ -351,7 +351,7 @@ REGISTRY = (
     Route("POST", "/context/privacy/sync", UI, "native_only", (),
           owner=SERVER, action="_privacy_sync", summary="Native privacy settings sync"),
     Route("POST", "/chat/prewarm", UI, "write", ("main",),
-          owner=SERVER, action="_chat_prewarm", summary="Prewarm the character's quick Pi session", response="chat-prewarm.json"),
+          owner=SERVER, action="_chat_prewarm", summary="Prewarm the character's chat session; only a Pi kernel starts one", response="chat-prewarm.json"),
     Route("POST", "/say", UI, "write", ("main",),
           owner=SERVER, action="_say_post", summary="User text or voice turn"),
     Route("POST", "/speech/cancel", UI, "host_only", (),

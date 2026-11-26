@@ -18,7 +18,7 @@ from test_runtime_routes import route
 from test_plugin_routes import request
 
 
-class QuickTests(unittest.TestCase):
+class ChatRouteTests(unittest.TestCase):
     def setUp(self):
         fixture.SemanticTests.setUp(self)
         self.server.trace = TraceStore(self.db, 1, lock=self.server.history.lock)
