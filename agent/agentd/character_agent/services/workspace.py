@@ -18,7 +18,6 @@ import sqlite3
 import threading
 import time
 from infra.store import open_private_db
-from character_agent.services.extract import EXTRACTORS
 
 TEXT_SUFFIXES = {
     '.md', '.txt', '.csv', '.tsv', '.json', '.jsonl',
@@ -30,7 +29,7 @@ TEXT_SUFFIXES = {
     '.sh', '.zsh', '.bash', '.ps1', '.sql', '.r', '.tex', '.rst', '.log',
     '.diff', '.patch',
 }
-READ_SUFFIXES = TEXT_SUFFIXES | set(EXTRACTORS) | {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
+READ_SUFFIXES = TEXT_SUFFIXES | {'.docx', '.xlsx', '.pptx', '.png', '.jpg', '.jpeg', '.gif', '.webp'}
 WORKSPACE_SCHEMA = '''
     CREATE TABLE IF NOT EXISTS scopes(id TEXT PRIMARY KEY, data TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS expectations(run_id TEXT PRIMARY KEY, data TEXT NOT NULL);

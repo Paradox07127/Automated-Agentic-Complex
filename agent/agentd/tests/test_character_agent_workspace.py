@@ -7,7 +7,6 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from character_agent.services.workspace import WorkspaceError, WorkspaceService
-from test_workspace_extract import xlsx
 
 
 class WorkspaceCase(unittest.TestCase):
@@ -220,7 +219,7 @@ class DropScopeTests(unittest.TestCase):
         self.assertEqual([Path(f['path']).name for f in scope['files']], ['tool.py', 'run.log'])
 
     def test_drop_scope_accepts_a_spreadsheet(self):
-        (self.folder / 'stock.xlsx').write_bytes(xlsx())
+        (self.folder / 'stock.xlsx').write_bytes(b'PK')
         self.assertEqual(self.drop('stock.xlsx')['unsupported'], [])
 
     def test_drop_scope_accepts_an_image(self):

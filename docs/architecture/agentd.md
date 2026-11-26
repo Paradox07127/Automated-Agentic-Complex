@@ -239,7 +239,7 @@ Companion 的 `interaction_preset` 对应 agentd 的 `--interaction-preset quiet
 - `integration.py` 把当前角色卡、设定、记忆、历史、时段、提醒、行为观察、文件范围和桌面权限接入运行时。
 - `runtime.py` 管理角色执行的生命周期、任务与检查点；`harness/codex_runner.py`、`pi_runner.mjs`、`acp_runner.py`、`claude_runner.py` 用各自的 SDK 或协议跑模型循环，经 `harness/transport.py` 和 agentd 交换帧。设了环境变量 `AGENTD_FRAME_LOG` 时，`harness/transport.py` 把 agentd 和 runner 之间收发的每一帧追加到这个 JSONL 文件（`api_key`、`token` 等键的值换成 `[redacted]`，超过 256 KiB 的字符串截断；文件超过 64 MiB 时改名为 `.1` 再记新文件），写失败只丢这一条记录；只有开发面板设它，安装版不设。
 - `services/knowledge.py` 按来源与权限检索个人档案和历史知识。依赖带版本和 hash，记忆删除、撤权或输入变化会让旧上下文失效。
-- `services/workspace.py` 只访问用户在设置里选的输入目录和输出目录；读 UTF-8 文本（Markdown、TXT、CSV、JSON、YAML 等数据与配置，日志，以及 .py、.sh、.ps1 等源代码和脚本，完整后缀见 `TEXT_SUFFIXES`）、docx、xlsx、pptx（由 `services/extract.py` 抽成文本）和图片，产物只写 `TEXT_SUFFIXES` 里的 UTF-8 文本格式，拒绝目录逃逸、符号链接和覆盖原文件。产物归属某次 run，记录来源与校验结果。
+- `services/workspace.py` 只访问用户在设置里选的输入目录和输出目录；输入目录里只收 `READ_SUFFIXES` 列出的文件（UTF-8 文本、docx、xlsx、pptx 和图片），由内核用自己的工具读；产物只写 `TEXT_SUFFIXES` 里的 UTF-8 文本格式，拒绝目录逃逸、符号链接和覆盖原文件。产物归属某次 run，记录校验结果。
 - `services/store.py` 保存独立的 Run、Event、Effect、Checkpoint。角色、产品历史、长期记忆和任务 ID 不属于任何厂商 transcript；厂商原生会话不跨内核迁移。
 - 角色的最终回答复用现有文字、意图标记、语音、播放结算和历史管线；前台执行先检查结果，再交付回答。
 
@@ -262,7 +262,7 @@ Companion 的 `interaction_preset` 对应 agentd 的 `--interaction-preset quiet
 - 普通聊天不建任务。文件任务先 `task_plan`，再读资料、写文件、`artifact_read`、`artifact_verify`，服务端再读实际字节检查。用户或 API 给的验收条件不能被模型弱化；只有结构检查通过的任务进入「待复核」。
 - 切换内核会取消前台执行、作废旧的内部语义任务并关闭旧主会话；已经开始的后台任务固定原内核继续跑。
 - 前台忙时用户打字或说的话由旁路会话回答，同时经 C8 `steer` 送进前台那一轮，前台模型在当前工具调用之后看到它（Claude 只在工具执行中接受；被拒时只有旁路回答）。临时对话不送。
-- 从任务卡继续时，同一个任务 ID 得到新的 run ID；新内核读产品检查点，经 `artifact_read_previous` 读旧成果。源文件、知识依赖、角色或范围变了时拒绝续接。发生未知桌面效果时不自动重放。
+- 从任务卡继续时，同一个任务 ID 得到新的 run ID；新内核读产品检查点，经 `artifact_read_previous` 读旧成果。知识依赖、角色或范围变了时拒绝续接。发生未知桌面效果时不自动重放。
 - 主动问候走所选内核，开放知识读取；礼物与仪式轮另外可以请求朝向和读回执，没有文件、桌面、记忆或后台工作权限。临时对话不开放写文件和桌面动作，不写长期历史。
 - `reminders_list`、`reminder_create`、`reminder_update` 让角色经提醒库按用户原话新建、取消、改时间、完成或延后提醒：单次、每天或工作日重复，或在会话结束、等待审批时触发；写入有持久幂等回执，修改检查 revision。提醒只在应用运行时生效。
 
