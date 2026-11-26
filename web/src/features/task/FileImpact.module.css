@@ -82,13 +82,6 @@
   text-decoration: underline;
 }
 
-.ro {
-  grid-column: 3 / 5;
-  justify-self: end;
-  font-size: var(--ef-fs-caption);
-  color: var(--ef-text-3);
-}
-
 .bar {
   display: inline-flex;
   width: 80px;

@@ -71,12 +71,8 @@ export const FILE_EFFECTS: Record<string, FileEffect[]> = {
     { path: '~/Documents/周报/2026-W44 周报.md', op: 'write', added: 86, removed: 0 },
     { path: '~/Documents/周报/项目分组明细.md', op: 'write', added: 143, removed: 0 },
     { path: '~/Documents/周报/模板.md', op: 'modify', added: 4, removed: 2 },
-    { path: '~/Documents/周报/2026-W43 周报.md', op: 'read' },
-    { path: '~/Endfield/app/CHANGELOG.md', op: 'read' },
-    { path: '~/Endfield/agent/README.md', op: 'read' },
   ],
   [T4]: [
     { path: '~/Documents/报告/metal-bench-1029.md', op: 'write', added: 212, removed: 0 },
-    { path: '~/Endfield/renderer/host/Package.swift', op: 'read' },
   ],
 };

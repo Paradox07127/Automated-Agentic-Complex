@@ -318,7 +318,7 @@ export interface Goal {
 /** File impact. `path` is absolute. */
 export interface FileEffect {
   path: string;
-  op: 'read' | 'write' | 'modify';
+  op: 'write' | 'modify';
   added?: number | null;
   removed?: number | null;
 }

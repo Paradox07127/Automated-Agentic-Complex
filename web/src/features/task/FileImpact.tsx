@@ -2,9 +2,9 @@ import type { FileEffect } from '../../domain';
 import { ChartState } from '../../charts';
 import styles from './FileImpact.module.css';
 
-/** 文件影响清单：读 / 写 / 改三类徽标，按目录分组，旁画增删条。 */
+/** 文件影响清单：写 / 改两类徽标，按目录分组，旁画增删条。 */
 export interface FileImpactProps {
-  /** 读过、写过、改过的文件 */
+  /** 写过、改过的文件 */
   files: FileEffect[];
   /** 读取状态 */
   status?: 'ok' | 'loading' | 'error';
@@ -12,7 +12,7 @@ export interface FileImpactProps {
   onOpen?: (path: string) => void;
 }
 
-const OP: Record<FileEffect['op'], string> = { read: '读', write: '写', modify: '改' };
+const OP: Record<FileEffect['op'], string> = { write: '写', modify: '改' };
 const BAR_PX = 80;
 
 function byDir(files: readonly FileEffect[]) {
@@ -30,9 +30,9 @@ export function FileImpact({ files, status = 'ok', onOpen }: FileImpactProps) {
   const count = (op: FileEffect['op']) => files.filter((f) => f.op === op).length;
   return (
     <div data-stub="FileImpact" className={styles.root}>
-      <ChartState state={status === 'ok' && files.length === 0 ? 'empty' : status} emptyText="这次运行没有读写文件" height={60} need={27}>
+      <ChartState state={status === 'ok' && files.length === 0 ? 'empty' : status} emptyText="这次运行没有写文件" height={60} need={27}>
         <div className={styles.head}>
-          {(['read', 'write', 'modify'] as const).map((op) => (
+          {(['write', 'modify'] as const).map((op) => (
             <span key={op} className={styles.sum}>
               <span className={styles.op} data-op={op}>
                 {OP[op]}
@@ -52,19 +52,13 @@ export function FileImpact({ files, status = 'ok', onOpen }: FileImpactProps) {
                 <button type="button" className={styles.name} title={f.path} onClick={() => onOpen?.(f.path)}>
                   {f.name}
                 </button>
-                {f.op === 'read' ? (
-                  <span className={styles.ro}>只读</span>
-                ) : (
-                  <>
-                    <span className={styles.bar} role="img" aria-label={`增 ${f.added ?? 0} 行，删 ${f.removed ?? 0} 行`}>
-                      <i className={styles.add} style={{ width: ((f.added ?? 0) / max) * BAR_PX }} />
-                      <i className={styles.del} style={{ width: ((f.removed ?? 0) / max) * BAR_PX }} />
-                    </span>
-                    <span className={styles.diff}>
-                      <span className={styles.plus}>+{f.added ?? 0}</span> <span className={styles.minus}>−{f.removed ?? 0}</span>
-                    </span>
-                  </>
-                )}
+                <span className={styles.bar} role="img" aria-label={`增 ${f.added ?? 0} 行，删 ${f.removed ?? 0} 行`}>
+                  <i className={styles.add} style={{ width: ((f.added ?? 0) / max) * BAR_PX }} />
+                  <i className={styles.del} style={{ width: ((f.removed ?? 0) / max) * BAR_PX }} />
+                </span>
+                <span className={styles.diff}>
+                  <span className={styles.plus}>+{f.added ?? 0}</span> <span className={styles.minus}>−{f.removed ?? 0}</span>
+                </span>
               </div>
             ))}
           </div>
