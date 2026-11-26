@@ -63,7 +63,7 @@ class SourceFingerprintTests(unittest.TestCase):
                         self.assertNotEqual(before, source_fingerprint.compute(root)[1])
         import release
         for relative in inputs[:8]: self.assertTrue(release.shipping_path(relative), relative)
-        for relative in ('private/renderer/core/tests/deform_tests.cpp', 'private/renderer/core/compare/face/golden.json',
+        for relative in ('private/renderer/core/tests/deform_tests.cpp', 'private/renderer/core/README.md',
                          'private/renderer/core/build/libplayer_core.a'):
             self.assertFalse(release.shipping_path(relative), relative)
 
