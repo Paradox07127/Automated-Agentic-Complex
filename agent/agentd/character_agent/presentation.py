@@ -6,7 +6,6 @@ from character_agent.harness.transport import HarnessError
 
 class PreparedReply:
     history_text = None  # what the mouth's history keeps of the turn's text, when not the text stream gets
-    needs_context = False  # text is already fixed; turns.py does not need to assemble a fresh prompt context
     turn = None  # the turn stream() put in the mouth's history, once it did
 
     def __init__(self, mouth, text, model, usage=None, facts=None, error=None, *, final_item_id=None, remember=True):

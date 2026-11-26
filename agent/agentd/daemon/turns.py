@@ -290,7 +290,7 @@ class TurnsMixin:
                 self._step(trace, "observation.settled", trace["observation"], status=OBSERVED.get(seen, "failed"),
                            attrs={"request_id": wait, "state": seen}, duration_ms=_ms_since(looked))
             if self.closing:  # shutting down: _run_line ends the line cancelled without reading a reply
-                self._run_line(line_id, text, cancel, generation, refused, source, trace,
+                self._run_line(line_id, text, cancel, generation, source, trace,
                                remember=remember, voice_timing=voice_timing, reason=reason, on_voiced=on_voiced)
                 return
             prepare = lambda: self.character_agent.prepare(line_id, text, cancel, generation, source, trace,
@@ -306,7 +306,7 @@ class TurnsMixin:
                 deadline = time.monotonic() + SIDE_SPEECH_WAIT
                 while self.speech.busy() and not self._stale(cancel, generation) and time.monotonic() < deadline:
                     cancel.wait(0.05)
-            self._run_line(line_id, text, cancel, generation, refused, source, trace,
+            self._run_line(line_id, text, cancel, generation, source, trace,
                            remember=remember, voice_timing=voice_timing, prepared=prepared, recheck=recheck, reason=reason,
                            on_voiced=on_voiced)
             if worker is not None:
@@ -395,11 +395,10 @@ class TurnsMixin:
         self._assembled = (time.time(), items)
         self._step(trace, "context.assembled", new_span_id(), attrs={"items": items})
 
-    def _run_line(self, line_id, text, cancel, generation, refused=None, source="text", trace=None,
+    def _run_line(self, line_id, text, cancel, generation, source="text", trace=None,
                   recheck=None, reason=None, remember=True, voice_timing=None, prepared=None, scripted=None,
                   on_voiced=None):
-        """refused: why the line's look was refused.
-        A newer turn_generation cancels the line as its cancel event does. source: the history row's source.
+        """A newer turn_generation cancels the line as its cancel event does. source: the history row's source.
         trace: this turn's trace from _open_trace; None opens one here. recheck, reason: see start_line.
         remember False, voice_timing: see _open_trace. prepared: the character agent's reply the line streams.
         scripted: plain text from the card, ready to deliver without agent context or a model. on_voiced: see start_line."""
@@ -423,7 +422,7 @@ class TurnsMixin:
                     self._line(trace, "", [], [], cancel, generation, source, final=True, reason=reason)
                     self._cancel_acked(trace)
                     return
-                markers, error, spoken, raw, intents, used = MarkerStream(), None, [], [], [], []
+                markers, error, spoken, raw, intents = MarkerStream(), None, [], [], []
                 said, utterance = [], None  # clauses cut from the reply; the utterance voicing them, once begun
                 marks = []  # (offset in the spoken text, intent) of each marker, in order
                 last_clause = None  # (speech_id, whether it got a clause_intent) of the latest clause voiced
@@ -502,22 +501,15 @@ class TurnsMixin:
                 _, consent_epoch = self.sync_privacy()
                 self._line_consent[cancel] = consent_epoch
                 if scripted is None:
-                    if getattr(mouth, "needs_context", True):
-                        context = self.context(text, None, refused, used)
-                        material = self._line_material.pop(cancel, None)
-                        context += f"{material}。" if material else ""
-                    else:
-                        self._line_material.pop(cancel, None)
-                        context = ""
-                    if hasattr(mouth, "dispatch_allowed"):
-                        mouth.dispatch_allowed = lambda: not self._stale(cancel, generation)
-                        mouth.history_text = _kept(source, text)
+                    self._line_material.pop(cancel, None)
+                    mouth.dispatch_allowed = lambda: not self._stale(cancel, generation)
+                    mouth.history_text = _kept(source, text)
                 # The character agent's preparation already recorded what its context used for this line.
                 prepared_line, prepared_kinds = self._line_context.get(cancel, (None, set()))
                 if cancel not in self._side_lines:  # a main line's context replaces the last main line's
                     for key in [key for key in tuple(self._line_context) if key not in self._side_lines]:
                         self._line_context.pop(key, None)
-                self._line_context[cancel] = (line_id, {kind for kind, _ in used} | (prepared_kinds if prepared_line == line_id else set()))
+                self._line_context[cancel] = (line_id, prepared_kinds if prepared_line == line_id else set())
                 past = getattr(mouth, "history", [])
                 last_before = past[-1] if past else None  # the last turn before this line's stream
                 earlier = [turn[0] for turn in past]
@@ -525,7 +517,7 @@ class TurnsMixin:
                     self.tts_ensurer.request()  # a cold TTS starts while the model writes the line
                 if scripted is None:
                     self._use_facts(trace, cancel, mouth, self._fact_query(text, source, reason), source)
-                    stream = mouth.stream(text, context)
+                    stream = mouth.stream(text, "")
                 else:
                     stream = (scripted,)
                 try:

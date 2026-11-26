@@ -1263,8 +1263,7 @@ class FakeMouth:
 
 class MouthReply:
     """The server's mouth double as a character agent's reply: the line streams the mouth, and what the line sets
-    on its reply (dispatch_allowed) reaches the mouth. Its stream gets material, the controller's own context for a
-    line started with material, else the context the line assembled."""
+    on its reply (dispatch_allowed) reaches the mouth. Its stream gets the context prepare assembled."""
     final_item_id = None
 
     def __init__(self, mouth, material):
@@ -1276,8 +1275,8 @@ class MouthReply:
     def __setattr__(self, name, value):
         setattr(self._mouth, name, value)
 
-    def stream(self, text, context):
-        return self._mouth.stream(text, self._material or context)
+    def stream(self, text, _context):
+        return self._mouth.stream(text, self._material)
 
 
 class KernelLines:
@@ -1299,10 +1298,13 @@ class KernelLines:
         return False
 
     def prepare(self, line_id, text, cancel, generation, source, trace, wait=None, refused=None, **options):
-        """A look's outcome reaches the reply's context as the controller's own context(...) gives it."""
-        material = self.server._line_material.pop(cancel, None) or (
-            self.server.context(text, wait, refused, []) if wait is not None or refused is not None else "")
-        return MouthReply(self.server.mouth, material)
+        """The line's material, else its context as the controller's own context(...) gives it; the kinds that
+        context used are recorded as the controller records them."""
+        used = []
+        context = self.server.context(text, wait, refused, used)
+        material = self.server._line_material.pop(cancel, None)
+        self.server._line_context[cancel] = (line_id, {kind for kind, _ in used})
+        return MouthReply(self.server.mouth, material or context)
 
     def delivered(self, history, line_id):
         pass

@@ -67,17 +67,24 @@ CHARACTER_ROUTES = frozenset({
     ("POST", "/character/prepare"), ("POST", "/character/commit"), ("POST", "/character/abort")})
 
 
+# (method, literal path) -> (registry index, first such route); method -> [(registry index, pattern route)].
+_LITERAL, _PATTERNS = {}, {}
+for _at, _route in enumerate(REGISTRY):
+    if isinstance(_route.path, str):
+        _LITERAL.setdefault((_route.method, _route.path), (_at, _route))
+    else:
+        _PATTERNS.setdefault(_route.method, []).append((_at, _route))
+
+
 def _find(method, path):
     """The first registry route for method and path, with the pattern's match (None for a literal path)."""
-    for route in REGISTRY:
-        if route.method != method:
-            continue
-        if isinstance(route.path, str):
-            if route.path == path:
-                return route, None
-        elif match := route.path.fullmatch(path):
-            return route, match
-    return None, None
+    at, route = _LITERAL.get((method, path), (len(REGISTRY), None))
+    for before, pattern in _PATTERNS.get(method, ()):
+        if before > at:  # the literal route comes first in the registry
+            break
+        if match := pattern.path.fullmatch(path):
+            return pattern, match
+    return route, None
 
 
 def _answers_500(method):
