@@ -5,7 +5,7 @@ from urllib.parse import parse_qs, urlparse
 import idna
 
 from observation import activity
-from observation.blacklist import ALLOW_FIELDS, FIELDS, MODES, entry_hides
+from observation.blacklist import ALLOW_FIELDS, FIELDS, MODES, bare_host, entry_hides, normal_host
 from observation.privacy import PAUSE_MAX
 from daemon.constants import CLEARABLE, SEEN
 from infra.store import checkpoint
@@ -19,13 +19,19 @@ CORRECTION_MAX = 240  # minutes PUT /context/activity may hold for
 
 def _entry(field, value):
     """value as the list `field` holds it: a domain as the lower-case IDNA A-label browsers report (UTS 46), without its
-    root dot; None when a domain is no host name."""
+    root dot, or, when IDNA refuses a host blacklist.HOST takes (a bracketed IPv6 address, an underscore), its
+    normal_host(); None when a domain is no host name."""
     if field != "domains":
         return value
     try:
         return idna.encode(value, uts46=True).decode("ascii").removesuffix(".")
     except UnicodeError:
-        return None
+        return normal_host(value) if bare_host(value) else None
+
+
+def _stored(values, field, value):
+    """The entries of values that are value in the form _entry gives, however they were spelled when saved."""
+    return [v for v in values if isinstance(v, str) and _entry(field, v) == value]
 
 
 class ObservationMixin:
@@ -142,21 +148,25 @@ class ObservationMixin:
         if self.server.attention is None:
             return self._json(503, {"error": "no_attention"})
         blacklist = self.server.attention.blacklist
-        removed = (blacklist.allow_remove if allow else blacklist.remove)(field, value)
+        blacklist._load()
+        values = blacklist.data.get("allow", {}).get(field, []) if allow else blacklist.data.get(field, [])
+        remove = blacklist.allow_remove if allow else blacklist.remove
+        removed = any([remove(field, stored) for stored in _stored(values, field, value)])
         if allow and removed:
             self._forget_hidden(blacklist.hides)
         self._json(200, {"removed": removed})
 
-    def _forget_hidden(self, hides, field=None, delete_existing=False):
-        """Stops capture and the judge using what hides matches; with delete_existing its records go too. Returns
-        capture requests dropped."""
+    def _forget_hidden(self, hides, field=None, delete_existing=False, summaries=()):
+        """Stops capture and the judge using what hides matches; with delete_existing its records go too, and what the
+        interpreter made from summaries (the "tl-" ids of timeline summaries already dropped). Returns capture
+        requests dropped."""
         dropped = 0
         if self.server.capture is not None:
             dropped = self.server.capture.forget_hidden(hides, field, delete_existing)
         if self.server.proactive is not None and self.server.proactive.judge is not None:
             self.server.proactive.judge.forget_hidden(hides, field)
         observations=getattr(getattr(self.server,'character_agent',None),'observations',None)
-        if observations: observations.forget_hidden(hides, delete_existing)
+        if observations: observations.forget_hidden(hides, delete_existing, summaries)
         return dropped
 
     def _blacklist_add(self, body):
@@ -183,11 +193,15 @@ class ObservationMixin:
         added = attention.blacklist.add(field, value)
         deleted = {"events": 0, "context": 0, "observations": 0}
         hides = lambda window: entry_hides(field, value, window)  # noqa: E731
-        deleted["observations"] = self._forget_hidden(hides, field, body["delete_existing"])
+        timeline, summaries = getattr(self.server, "timeline", None), ()
+        if body["delete_existing"] and timeline is not None:
+            # Before the observation purge: it also takes what cites a summary dropped here, by its "tl-" id.
+            kept = timeline.summarized()
+            timeline.delete_hidden(hides)
+            summaries = [f"tl-{segment}" for segment in kept - timeline.summarized()]
+        deleted["observations"] = self._forget_hidden(hides, field, body["delete_existing"], summaries)
         if body["delete_existing"]:
             deleted["events"], deleted["context"] = attention.delete_hidden(hides)
-            if getattr(self.server, "timeline", None) is not None:
-                self.server.timeline.delete_hidden(hides)
             self.server.forget_user_state()
             if self.server.episodes is not None:
                 self.server._forget_derived(self.server.episodes.delete_matching(hides))

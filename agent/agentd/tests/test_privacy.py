@@ -23,6 +23,9 @@ from personal.memory import Memory
 from sessions.events import normalize_codex
 from support import serve_in_thread
 from test_server import KernelLines, Script, ScriptedMouth
+from test_thoughts import T0, FakeSemantic, session
+from character.gate import Gate
+from character.thoughts import GAP, Thoughts
 
 
 def privacy_stores(case, path):
@@ -143,6 +146,22 @@ class PrivacyRevocationTest(unittest.TestCase):
         self.assertGreater(self.attention.db.execute('SELECT COUNT(*) FROM context').fetchone()[0],0)
         self.save(share_page_text=False);self.server.sync_privacy()
         self.assertEqual(self.attention.db.execute('SELECT COUNT(*) FROM context').fetchone()[0],0)
+
+    def test_revocation_drops_her_kept_thought_and_a_trigger_held_for_the_typing_pause(self):
+        gate,semantic,now=Gate(enabled=True),FakeSemantic(),[T0]
+        thoughts=self.server.thoughts=Thoughts(gate,lambda event,data:None,semantic,
+            scene=lambda:{"activity":"editing_code","confidence":0.8},context=lambda:"",
+            sessions=lambda:{"sessions":[session("claude:A","thinking")]},consent=self.server.page_text_allowed,
+            clock=lambda:now[0],spawn=lambda f:f())
+        thoughts.notice("started",{"session_id":"claude:A"})
+        self.assertIsNotNone(thoughts.latest())
+        now[0]+=GAP+1;gate.typing=True
+        thoughts.notice("blocked",{"task_key":"render","state":"blocked","title":"WINDOW_TITLE_SECRET","summary":"WINDOW_SUMMARY_SECRET"})
+        self.save(share_window_text=False);self.server.sync_privacy()
+        self.assertTrue(self.server.page_text_allowed())
+        self.assertIsNone(thoughts.latest())
+        gate.typing=False;thoughts.observe(None)
+        self.assertNotIn('WINDOW_TITLE_SECRET',json.dumps([c['evidence'] for c in semantic.calls],ensure_ascii=False))
 
     def test_a_second_sync_keeps_a_page_sent_after_sharing_came_back(self):
         self.attention.ingest_browser({"type":"page","ts":time.time(),"url_host":"example.com","text":"old secret"})

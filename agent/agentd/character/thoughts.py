@@ -258,6 +258,16 @@ class Thoughts:
             self._count, self._gap = 0, GAP
             self._rest, self._tasks, self._studying = {}, {}, {}
 
+    def forget(self):
+        """A consent revocation: what observation left goes, as reset() drops it; the gap, daily cap and rests stay.
+        Any held thought or trigger may mix every source, so one revoked source takes them all."""
+        with self._lock:
+            self._generation += 1
+            self._kept.clear()
+            self._pending = self._deferred = self._unsent = None
+            self._facts = None
+            self._tasks, self._studying = {}, {}
+
     def _think(self, reason, detail, generation):
         """generation: the one the trigger came in; a reset since drops it."""
         try:

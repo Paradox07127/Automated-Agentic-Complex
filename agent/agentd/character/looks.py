@@ -170,7 +170,9 @@ class Looks:
             character = self._sent.pop(body["request_id"], None)
             if character is None:
                 return False
-            self._current = {"character": character, "appearance": body["appearance"], "values": body["values"]}
+            # A refusal may carry another character's look (character_changed), so only an applied change is hers.
+            if body["ok"]:
+                self._current = {"character": character, "appearance": body["appearance"], "values": body["values"]}
             if body["request_id"] in self._waiting:
                 self._answers[body["request_id"]] = body
                 self._cv.notify_all()

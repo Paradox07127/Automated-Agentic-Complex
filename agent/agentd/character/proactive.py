@@ -1,6 +1,7 @@
 """Proactive nudges on /feed (C6): an alert for a dialog window, a comment after a long dwell."""
 import collections
 import datetime
+import json
 import os
 import re
 import secrets
@@ -40,6 +41,7 @@ RESPONSE_WINDOW = 60.0  # seconds after a proactive line ends in which a /say an
 SUBJECT_MEMORY = 20  # comments whose subjects are not commented again
 ENDED = {"done": "finished", "error": "hit an error"}  # registry outcome kinds a back report names
 WAITING = {"awaiting_approval": "waiting for approval", "awaiting_input": "waiting for a reply"}
+SESSION_NAME_MAX = 60  # characters of a session name a back report quotes; the name comes from outside agentd
 BREAK_INPUT = 20  # keys_60s + 6 x clicks_10s a beat needs for a break line
 BEFORE_AWAY = 600  # away seconds after which a back line may name only what came before
 BEFORE_FRESH = 600  # seconds before leaving that before_away may have been last in effect
@@ -129,6 +131,7 @@ class Proactive:
         self._stuck_key = None  # (thread, blocker without digits) of the present stuck run
         self._stuck_retry_at = None  # clock time a refused stuck line may be tried again
         self._stuck_asked = collections.deque(maxlen=STUCK_MEMORY)  # (thread, blocker without digits) asked about
+        self._resets = 0  # each reset() adds 1, so a stuck line made before it is not asked
         self._work_states = {}  # task_key -> state in the interpreter's last analysis
         self._work_blocked = {}  # task_key -> {"title", "summary", "since", "runs", "seen"} reported blocked
         gate.cooldown.update({"break": break_minutes * 60, "water": water_minutes * 60})
@@ -224,6 +227,7 @@ class Proactive:
     def reset(self):
         """POST /reset and a consent revocation: the interpreter's work and the stuck run, window-derived, go."""
         with self._lock:
+            self._resets += 1
             self._work_states, self._work_blocked = {}, {}
             self._stuck_since = self._stuck_key = self._stuck_retry_at = None
             self._stuck_asked.clear()
@@ -306,7 +310,8 @@ class Proactive:
                        "passing, like \"you were just…\", to help them get their train of thought back; do not ask "
                        "where they went or say how long they were away.")
         else:
-            report = "; ".join(f"{names.get(session, session)} {state}" for session, state in news.items())
+            report = "; ".join(f"{json.dumps(names.get(session, session)[:SESSION_NAME_MAX], ensure_ascii=False)} {state}"
+                               for session, state in news.items())
             text = (cue("back", f"{head} While away: {report}. {was}.",
                         "Welcome them back in one short sentence: first the names and states of these sessions, then a "
                         "few words on what they were doing before leaving; like a message handed over in passing, not "
@@ -446,23 +451,27 @@ class Proactive:
             return
         scene = self._scene()
         now = self.clock()
-        work = None
-        if scene is not None and scene.get("state") == "stuck":
-            thread, blocker = scene.get("thread"), scene.get("blocker")
-            asked = (thread, re.sub(r"\d", "", blocker) if blocker else None)
-            if asked != self._stuck_key:  # a new blocker is stuck on from now
-                self._stuck_since, self._stuck_key = now, asked
-            since = self._stuck_since
-            if now - since < STUCK_FOR:
+        stuck = scene is not None and scene.get("state") == "stuck"
+        work = None if stuck or scene is None else self._work_stuck(now)
+        # reset() clears this state under the lock; resets tells a line made before one from a line made after.
+        with self._lock:
+            resets = self._resets
+            if stuck:
+                thread, blocker = scene.get("thread"), scene.get("blocker")
+                asked = (thread, re.sub(r"\d", "", blocker) if blocker else None)
+                if asked != self._stuck_key:  # a new blocker is stuck on from now
+                    self._stuck_since, self._stuck_key = now, asked
+                since = self._stuck_since
+                if now - since < STUCK_FOR:
+                    return
+            else:
+                self._stuck_since = self._stuck_key = None
+                if work is None:
+                    return
+                asked, since = ("work", work["task_key"]), work["since"]
+            if asked in self._stuck_asked or self._stuck_retry_at is not None and now < self._stuck_retry_at:
                 return
-        else:
-            self._stuck_since = self._stuck_key = None
-            work = None if scene is None else self._work_stuck(now)
-            if work is None:
-                return
-            asked, since = ("work", work["task_key"]), work["since"]
-        if self.gate.typing or asked in self._stuck_asked \
-                or self._stuck_retry_at is not None and now < self._stuck_retry_at:
+        if self.gate.typing:
             return
         key = secrets.token_hex(6)
         # thread and blocker reach the model through the scene in the line's live context, as consent allows.
@@ -481,8 +490,11 @@ class Proactive:
 
         def recheck():
             now_scene = self._scene()
-            return (now_scene is None or interruptible(now_scene)) and self.gate.check("stuck") is None
+            return self._resets == resets and (now_scene is None or interruptible(now_scene)) \
+                and self.gate.check("stuck") is None
 
+        if self._resets != resets:
+            return
         if not interruptible(scene):
             speak, reason = False, "cannot_interrupt"
         elif self.claim is None and self.busy():
@@ -497,9 +509,11 @@ class Proactive:
             reason = None if speak else "busy"
         line_id = key if speak else None
         self._nudge("stuck", None, line_id, speak, reason)
-        self._stuck_retry_at = None if speak else now + STUCK_RETRY
-        if speak:
-            self._stuck_asked.append(asked)
+        with self._lock:
+            if self._resets == resets:
+                self._stuck_retry_at = None if speak else now + STUCK_RETRY
+                if speak:
+                    self._stuck_asked.append(asked)
         if speak and self.claim is None:
             self.start_line(line_id, text, reason=line_reason, material=material)
 

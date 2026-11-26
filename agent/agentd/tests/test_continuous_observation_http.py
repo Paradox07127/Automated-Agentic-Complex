@@ -13,6 +13,7 @@ import test_observation_briefs_http as fixture
 from observation.attention import AttentionStore
 from observation.capture import CaptureManager
 from observation.blacklist import Blacklist
+from observation.timeline import SEGMENT_S, Timeline
 from support import deny_blacklist  # noqa: E402
 from test_character_agent_runtime import FakeSession
 
@@ -83,5 +84,26 @@ class ObservationHTTPTests(fixture.BriefHTTPFixture):
         self.assertEqual(rows(),kept)
         self.assertEqual(exclude(True),200)
         self.assertEqual(rows(),([frames['Yapp']],['work-Yapp']))
+
+    def test_excluding_an_app_with_delete_takes_what_cites_its_timeline_summary(self):
+        self.ready();o=self.c.observations;now=time.time()
+        self.server.attention=AttentionStore(self.root/'attention.sqlite',self.server.capture.blacklist)
+        self.addCleanup(self.server.attention.close)
+        timeline=self.server.timeline=Timeline(self.root/'timeline.sqlite',self.server.capture.blacklist)
+        self.addCleanup(setattr,self.server,'timeline',None);self.addCleanup(timeline.close)
+        segment=int(now//SEGMENT_S)*SEGMENT_S-SEGMENT_S
+        with timeline.lock,timeline.db:
+            timeline.db.execute('INSERT INTO summaries (rowid,text,screen,typed,windows) VALUES (?,?,0,0,?)',
+                                (segment,'Xapp payroll summary',json.dumps([['Xapp','x.Xapp',None]])))
+        cited=o.dependency(o.get(f'tl-{segment}'))
+        with self.db:
+            self.db.execute('INSERT INTO observation_analyses VALUES(?,?,?,?,?,?)',
+                            ('analysis-tl',self.server.character,now-5,'run-tl','{}',json.dumps([cited])))
+            self.db.execute('INSERT INTO observation_work_events VALUES(?,?,?,?,?,?,?)',
+                            ('work-tl',self.server.character,now-5,'payroll',json.dumps({'title':'payroll'}),json.dumps([cited]),'analysis-tl'))
+        self.assertEqual(self.request('POST','/blacklist',{'field':'app_names','value':'Xapp','delete_existing':True})[0],200)
+        self.assertEqual(timeline.summarized(),set())
+        for table in ('observation_analyses','observation_work_events'):
+            self.assertEqual(self.db.execute('SELECT count(*) FROM '+table).fetchone()[0],0,table)
 
 if __name__=='__main__':unittest.main()

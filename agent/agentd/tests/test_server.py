@@ -4501,12 +4501,33 @@ class ObservationControlTest(FeedServerCase):
                          (200, {"removed": True}))
         self.assertEqual(self.request("DELETE", "/blacklist", {"list": "allow", "field": "domains", "value": "straße.de"}),
                          (200, {"removed": True}))
-        for value in ("*.a.com", "https://a.com", "a.com/x", "a..b", "[::1]", "."):
+        for value in ("*.a.com", "https://a.com", "a.com/x", "a..b", "a.com:80", "[::1", "."):
             for method, body in (("POST", {"field": "domains", "value": value, "delete_existing": False}),
                                  ("POST", {"list": "allow", "field": "domains", "value": value}),
                                  ("DELETE", {"field": "domains", "value": value})):
                 with self.subTest(method=method, body=body):
                     self.assertEqual(self.request(method, "/blacklist", body), (400, {"error": "invalid_payload"}))
+
+    def test_blacklist_delete_takes_every_stored_spelling_of_the_host(self):
+        file = Path(self.tmp.name) / "blacklist.json"
+        data = json.loads(file.read_text(encoding="utf-8"))
+        data["domains"] += ["Mail.Example.com", "München.DE."]
+        data["allow"] = {**data.get("allow", {}), "domains": ["Docs.Example.com."]}
+        file.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        for body in ({"field": "domains", "value": "mail.example.com"}, {"field": "domains", "value": "xn--mnchen-3ya.de"},
+                     {"list": "allow", "field": "domains", "value": "docs.example.com"}):
+            with self.subTest(body=body):
+                self.assertEqual(self.request("DELETE", "/blacklist", body), (200, {"removed": True}))
+        data = self.request("GET", "/blacklist")[1]
+        self.assertFalse({"Mail.Example.com", "München.DE."} & set(data["domains"]))
+        self.assertEqual(data["allow"]["domains"], [])
+        for value in ("[::1]", "Build_Box.local"):
+            with self.subTest(value=value):
+                self.assertEqual(self.request("POST", "/blacklist", {"field": "domains", "value": value,
+                                                                     "delete_existing": False})[0], 200)
+                self.assertTrue(self.server.attention.blacklist.hides_domain(value.lower()))
+                self.assertEqual(self.request("DELETE", "/blacklist", {"field": "domains", "value": value.upper()}),
+                                 (200, {"removed": True}))
 
     def test_blacklist_defaults_puts_back_the_removed_defaults_and_keeps_the_users(self):
         for field, value in (("bundle_ids", "com.tencent.qq"), ("domains", "paypal.com")):

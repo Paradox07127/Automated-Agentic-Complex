@@ -6,7 +6,8 @@ _AI = re.compile("|".join((
     r"我是\s*(?:一个|一名)?\s*(?:ai|人工智能|(?:大)?语言模型)",
     r"\bas an ai\b", r"\bas a (?:large )?language model\b",
     r"\bi am an ai\b", r"\bi'm an ai\b", r"\bi am a (?:large )?language model\b",
-    r"ai\s*として", r"人工知能として", r"言語モデル",
+    r"ai\s*として", r"人工知能として", r"(?:大規模)?言語モデルとして",
+    r"(?:私|わたし|僕|ぼく)は\s*(?:ai|人工知能|(?:大規模)?言語モデル)(?:です|だ|な|で)",
 )), re.IGNORECASE)
 # Inline markers (brain/markers.py) lead a reply's first line; layout is judged on what follows them.
 _MARKERS = re.compile(r"(?:\[(?:intent|point|motion):[^\]\n]*\][ \t]*)*")
@@ -20,7 +21,8 @@ def _prose(text):
     """Yield (line, inside_code) for each line; fence lines count as code."""
     fenced = False
     for line in text.split("\n"):
-        fence = line.lstrip().startswith("```")
+        bare = line.lstrip()
+        fence = bare[_MARKERS.match(bare).end():].startswith("```")
         yield line, fenced or fence
         if fence:
             fenced = not fenced

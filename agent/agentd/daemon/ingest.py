@@ -111,7 +111,7 @@ class IngestMixin:
                 [{**row, "kind": "prompt", "role": origin, "value": prompt[:PROMPT_MAX] if permissions["typed_text"] else None,
                   "value_len": len(prompt)} if origin == "unknown" else agent("notification", origin)],
                 typed_generation=generation, agent_generation=agent_generation)
-            if observations: observations.ingest_hook(event,body,origin=origin,typed_generation=generation)
+            if observations: observations.ingest_hook(event,body,origin=origin,typed_generation=generation,title=row["window"])
             return
         message = body.get("last_assistant_message")
         message = message[:AGENT_TEXT_MAX] if isinstance(message, str) and message else None
@@ -122,7 +122,7 @@ class IngestMixin:
         else:
             rows = [agent("stop" if event.kind == "stop" else "subagent", value=message)]
         attention.ingest_events(rows, typed_generation=generation, agent_generation=agent_generation)
-        if observations: observations.ingest_hook(event,body,typed_generation=generation)
+        if observations: observations.ingest_hook(event,body,typed_generation=generation,title=row["window"])
 
     def _spans(self, spans, until):
         """spans with the open one ended now, [now, until] added unless until is None, and those older than RAW_PAST gone."""

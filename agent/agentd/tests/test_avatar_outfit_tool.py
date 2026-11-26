@@ -133,6 +133,14 @@ class AvatarOutfitToolTest(integration.IntegrationFixture):
         self.assertEqual(self.request("POST", "/avatar/looks/receipts", {"request_id": event["request_id"], "ok": False,
             "reason": "switching", "appearance": "default", "values": {}}), (200, {"applied": True}))
         self.assertEqual(joined(), {"ok": False, "reason": "switching", "appearance": "default", "values": {}})
+        self.assertIsNone(self.native("avatar_outfits_list", {})["current"])
+
+    def test_a_receipt_after_a_character_switch_is_not_her_current_look(self):
+        event, joined = self.change({"appearance": "armed", "reason": "要出门"})
+        self.assertEqual(self.request("POST", "/avatar/looks/receipts", {"request_id": event["request_id"], "ok": False,
+            "reason": "character_changed", "appearance": "mod_a", "values": {"coat": 1}}), (200, {"applied": True}))
+        self.assertEqual(joined()["reason"], "character_changed")
+        self.assertIsNone(self.native("avatar_outfits_list", {})["current"])
 
     def test_no_receipt_is_a_timeout_within_the_bound(self):
         with patch("character.looks.WAIT_S", 0.2):

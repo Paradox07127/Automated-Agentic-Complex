@@ -17,7 +17,8 @@ class OutOfVoiceTests(unittest.TestCase):
 
     def test_bare_ai_letters_and_plain_chat_do_not_hit(self):
         for text in ("今天看了一篇讲 AI 绘画的文章，挺有意思。", "I read about AI art today.",
-                     "AIの話はまた今度ね。", "嗯，我在呢。今天累不累？要不先歇会儿，水在桌上。",
+                     "AIの話はまた今度ね。", "言語モデルは次の単語を予測します。",
+                     "嗯，我在呢。今天累不累？要不先歇会儿，水在桌上。",
                      "Sure, I'll wait here. Tell me when you're back!"):
             with self.subTest(text=text):
                 self.assertEqual(out_of_voice(text), [])
@@ -68,6 +69,16 @@ class ForReplayTests(unittest.TestCase):
         self.assertEqual(for_replay("[intent:explain]## Plan\n- a\n- b\n- c"), "[intent:explain]Plan\na; b; c")
         self.assertEqual(for_replay("[intent:explain]- 一\n- 二\n- 三"), "[intent:explain]一；二；三")
         self.assertEqual(out_of_voice("[intent:greet]管理员，你来了。"), [])
+
+    def test_a_fence_after_leading_markers_opens_a_code_block(self):
+        text = "[intent:calm] ```\n# code comment\n- a\n- b\n- c\n```\nAs an AI, I cannot help."
+        self.assertEqual(out_of_voice(text), ["ai_self_reference"])
+        self.assertEqual(for_replay(text), "[intent:calm] ```\n# code comment\n- a\n- b\n- c\n```")
+
+    def test_a_plain_japanese_sentence_about_language_models_is_kept(self):
+        text = "言語モデルは次の単語を予測します。"
+        self.assertEqual(for_replay(text), text)
+        self.assertEqual(for_replay("私は言語モデルです。でも手伝うよ。"), "でも手伝うよ。")
 
     def test_keeps_code_blocks_and_other_text(self):
         text = "看：\n```\n# comment\n- a\n- b\n```\n- x\n- y\n- z"

@@ -507,16 +507,17 @@ class ObservationService:
                     self.input_replays[fingerprint]=None
                     if len(self.input_replays)>4096:self.input_replays.popitem(last=False)
 
-    def ingest_hook(self, event, body, *, origin=None, typed_generation=None):
+    def ingest_hook(self, event, body, *, origin=None, typed_generation=None, title=None):
         """Keep received live hook content; timeline previews are not evidence.
 
         Does not read native session files. Requires agent_sessions, and also
         typed_text for human or unknown prompts. Reuses the blacklist,
         secure-input and generation boundary of the persisted activity stream.
+        title: the session title the activity row is judged by, or None.
         """
         attention=getattr(self.server,'attention',None)
         if attention is None or not self.allowed(('agent_sessions',)): return None
-        metadata={'app':event.source,'doc':event.cwd,'label':event.session_id,'kind':'live_hook',
+        metadata={'app':event.source,'window':title,'doc':event.cwd,'label':event.session_id,'kind':'live_hook',
             'bundle_id':(event.origin or {}).get('bundle_id'),
             'role':event.kind,'subrole':event.tool_name,'prompt_origin':origin,
             'id':digest([event.source,event.session_id,event.ts,event.seq]),'ts':event.ts}
@@ -566,7 +567,9 @@ class ObservationService:
         meta = dict(metadata or {})
         if meta.get('secure_input') or meta.get('incognito'): return None
         attention = getattr(self.server,'attention',None)
-        if attention is not None and attention.blacklist.hides(judged(meta)): return None
+        window = judged(meta)  # judged before sanitizing, which may rewrite what a rule matches
+        hidden = lambda: attention is not None and attention.blacklist.hides(window)  # noqa: E731
+        if hidden(): return None
         # Sanitize complete content before storage, not merely a preview.
         egress=self.controller.knowledge().egress
         def source_sanitize(value):
@@ -589,7 +592,8 @@ class ObservationService:
         else: revision = digest([sha,origin,{k:meta[k] for k in IDENTITY if k in meta}])
         input_fingerprint=self._input_fingerprint(character,origin,key,meta,sha)
         with self.lock:
-            if not self.allowed(requires) or self.server.consent.snapshot()[1]!=epoch or self.character!=character or not capture_valid(): return None
+            # A blacklist entry added since the first check, whose deletion may already have run, keeps the frame out.
+            if not self.allowed(requires) or self.server.consent.snapshot()[1]!=epoch or self.character!=character or not capture_valid() or hidden(): return None
             if input_fingerprint:
                 existing=self.db.execute('SELECT observation_id FROM observation_input_identity WHERE fingerprint=?',(input_fingerprint,)).fetchone()
                 if existing: return existing[0]
@@ -1177,18 +1181,23 @@ class ObservationService:
                 self.db.execute('DELETE FROM ' + table + ' WHERE at>=?', (cutoff,))
         self.last_signature = None
 
-    def forget_hidden(self, hides, delete_existing):
+    def forget_hidden(self, hides, delete_existing, summaries=()):
         """The blacklist changed: a running analysis is dropped; with delete_existing the frames whose metadata hides()
-        matches go, with the analyses and work events made from them."""
+        matches go, with the analyses and work events made from them or from summaries (the "tl-" ids of timeline
+        summaries the timeline dropped for the same change). A work event goes with its analysis: the run that made
+        it read the analysis's carried tasks."""
         self.epoch += 1
         if not delete_existing: return
         with self.input_replay_lock:
             self.input_replays.clear()
         with self.lock, self.db:
             frames = {ident: sha for ident, meta, sha in self.db.execute('SELECT id,metadata,content_hash FROM observation_frames') if hides(judged(json.loads(meta)))}
-            if not frames: return
-            made = {table: [ident for ident, raw in self.db.execute('SELECT id,dependencies FROM ' + table) if any(d['id'] in frames for d in json.loads(raw))]
+            sources = set(frames) | set(summaries)
+            if not sources: return
+            made = {table: [ident for ident, raw in self.db.execute('SELECT id,dependencies FROM ' + table) if any(d['id'] in sources for d in json.loads(raw))]
                     for table in ('observation_analyses', 'observation_work_events')}
+            gone = set(made['observation_analyses'])
+            made['observation_work_events'] = list(set(made['observation_work_events']) | {ident for ident, analysis in self.db.execute('SELECT id,analysis_id FROM observation_work_events') if analysis in gone})
             ids, analyses, hashes = dump(list(frames)), dump(made['observation_analyses']), dump(list(set(frames.values())))
             among = ' IN (SELECT value FROM json_each(?))'
             self.db.execute('DELETE FROM observation_processed WHERE id' + among + ' OR analysis_id' + among, (ids, analyses))

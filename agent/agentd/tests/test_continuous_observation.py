@@ -227,7 +227,35 @@ class ObservationTests(unittest.TestCase):
         self.assertIn(first,cited())
         self.o.forget_hidden(lambda window:window.get('app')=='Xcode',True)
         self.assertNotIn(first,cited())
-        self.assertEqual([e['task_key'] for e in self.o.events()],['deploy'])
+        # The second run read the carried task as its previous state, so its work events go with its analysis.
+        self.assertEqual(self.o.events(),[])
+        self.assertEqual(self.db.execute('SELECT count(*) FROM observation_work_events').fetchone()[0],0)
+
+    def test_a_frame_blacklisted_while_it_is_sanitized_is_not_stored(self):
+        self.ready();attention=self.server.attention=AttentionStore(self.root/'attention.sqlite',Blacklist(deny_blacklist(self.root/'blacklist.json')))
+        fingerprint=self.o._input_fingerprint
+        def blacklisted(*args):
+            attention.blacklist.add('title_patterns','Quarterly');return fingerprint(*args)
+        try:
+            with patch.object(self.o,'_input_fingerprint',blacklisted):
+                self.assertIsNone(self.source(title='Quarterly plan'))
+            self.assertEqual(self.db.execute('SELECT count(*) FROM observation_frames').fetchone()[0],0)
+        finally: attention.db.close();self.server.attention=None
+
+    def test_a_hook_payload_is_judged_by_its_session_title(self):
+        self.ready();attention=self.server.attention=AttentionStore(self.root/'attention.sqlite',Blacklist(deny_blacklist(self.root/'blacklist.json')))
+        self.server.agent_meta=type('Meta',(),{'session':lambda self,*args:{'title':'Payroll export'}})()
+        body={'session_id':'titled','tool_name':'exec_command','tool_input':{'command':'echo salaries'},'tool_output':'salaries'}
+        try:
+            attention.blacklist.add('title_patterns','Payroll')
+            self.server.record_agent_event(normalize_codex({**body,'hook_event_name':'PostToolUse'}),body)
+            self.assertEqual(self.db.execute('SELECT count(*) FROM observation_frames').fetchone()[0],0)
+            attention.blacklist.remove('title_patterns','Payroll')
+            self.server.record_agent_event(normalize_codex({**body,'hook_event_name':'PostToolUse'}),body)
+            [ident]=[r[0] for r in self.db.execute('SELECT id FROM observation_frames')]
+            self.o.forget_hidden(lambda window:entry_hides('title_patterns','Payroll',window),True)
+            self.assertIsNone(self.o.get(ident))
+        finally: attention.db.close();self.server.agent_meta=None;self.server.attention=None
 
     def test_continuous_events_feed_memory_and_daily_weekly_briefs(self):
         self.ready();ident=self.source();self.reply=self.finding(ident);self.o.run_once()
